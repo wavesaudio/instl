@@ -1,0 +1,4 @@
+instl
+=====
+
+Svn based installer
