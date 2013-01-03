@@ -1,0 +1,93 @@
+--- !define
+--- !install_map
+
+!tag_for_map GUID_PLUGIN_TEMPLATE:
+    !tad_poll name: normal plugin template
+    install_targets: $(WAVES_PLUGINS_DIR)
+    depends:
+        - GUID_WAVESLIB_9.0
+        - GUID_AU_SHELL
+
+EMPTY_TEMPLATE:
+    name: empty template
+
+GUID_WLC:
+    name: wlc
+    install_sources: Applications/wlc.app/
+    install_targets: $(WAVES_APPS_DIR)
+    depends:
+        - GUID_Qt
+
+GUID_AU_SHELL:
+    name: WaveShell-AU
+    install_sources:
+        !tag_for_list
+        -  !tag_for_list_item Shells/Waves AU Reg Utility 9.0.app/
+        - Shells/WaveShell-AU 9.0.component/
+    install_targets: $(MACOS_COMPONENTS)
+
+GUID_WAVESLIB_9.0:
+    name: WavesLib9.0
+    mac:
+        install_sources: Plugins/WavesLib_9.0.framework/
+    win:
+        install_sources: 
+            - WavesLib_9.0_Win32.dll
+            - WavesLib_9.0_Win64.dll
+    install_targets: $(WAVES_PLUGINS_DIR)
+
+GUID_WAVESLIB_9.3:
+    name: WavesLib9.3
+    mac: 
+        install_sources:
+            Plugins/WavesLib_9.3.framework/
+    win:
+        install_sources: 
+            - WavesLib_9.3_Win32.dll
+            - WavesLib_9.3_Win64.dll
+    install_targets: $(WAVES_PLUGINS_DIR)
+
+GUID_BASS_RIDER:
+    inherit: GUID_PLUGIN_TEMPLATE
+    name: Bass Rider
+    install_sources: Plugins/Bass Rider.bundle/
+
+GUID_AUDIOTRACK:
+    inherit:
+        - GUID_PLUGIN_TEMPLATE
+    name: AudioTrack
+    install_sources: Plugins/AudioTrack.bundle/
+
+GUID_C4:
+    inherit:
+        - GUID_PLUGIN_TEMPLATE
+    name: C4
+    install_sources: Plugins/C4.bundle/
+
+GUID_C1:
+    name: C1
+    inherit:
+        - GUID_PLUGIN_TEMPLATE
+    install_sources: Plugins/C1.bundle/
+    
+GUID_IR1:
+    name: IR-1.bundle
+    inherit:
+        - GUID_PLUGIN_TEMPLATE
+    install_sources: 
+        - Plugins/IR-1.bundle/
+        - Plugins/IR1Impulses/
+        - Plugins/IR1Impulses V2/
+    
+GUID_GOLD_BUNDLE:
+    name: Gold bundle
+    depends:
+        - GUID_AUDIOTRACK
+        - GUID_C1
+        - GUID_C4   
+    
+    
+    
+    
+    
+    

@@ -1,0 +1,15 @@
+--- !define
+
+BASE_URL: "svn://localhost/V9/Mac/"
+WAVES_PLUGINS_DIR: /Applications/Waves/Waves Plugins
+WAVES_APPS_DIR: /Applications/Waves/Waves Applications
+MACOS_COMPONENTS: /Library/Audio/Plug-Ins/Components
+
+--- !install_map
+
+MAIN_INSTALL:
+    name: main installation target
+    depends:
+        - GUID_GOLD_BUNDLE
+        - GUID_MULTIRACK
+        - GUID_BASS_RIDER
