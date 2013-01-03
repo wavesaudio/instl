@@ -1,4 +1,1 @@
-instl
-=====
-
-Svn based installer
+sphinx/index.rst
