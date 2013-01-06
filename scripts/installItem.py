@@ -75,3 +75,11 @@ class InstallItem(object):
     
     def target_list(self):
         return self.install_targets
+
+    def repr_for_yaml(self):
+        retVal = dict()
+        retVal["name"] = self.name
+        retVal["install_sources"] = self.install_sources
+        retVal["install_targets"] = self.install_targets
+        retVal["depends"] = self.depends
+        return retVal

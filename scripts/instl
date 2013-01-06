@@ -7,6 +7,7 @@ import os
 import argparse
 import yaml
 
+import dumpYaml
 import installItem
 
 class cmd_line_options(object):
@@ -41,29 +42,13 @@ class instl_state(object):
         if cmd_line_options_obj.run:
             self.install_definitions_map["__INSTL_MAIN_RUN_INSTALLATION__"] = "yes"
         
-    def write(self, fd):
-        dumper = yaml.Dumper(fd,
-            default_style=None,
-            default_flow_style=None,
-            canonical=None,
-            indent=4,
-            width=120,
-            allow_unicode=None,
-            line_break=os.linesep,
-            encoding=None,
-            explicit_start=None,
-            explicit_end=None,
-            version=None,
-            tags=None)
-        dumper.open()
-        dumper.represent_mapping('!define', self.install_definitions_map, flow_style=None) 
-        dumper.close()
-        print(dumper)
-        for def_name, def_value in self.install_definitions_map.iteritems():
-            fd.write("{def_name}: {def_value}\n".format(**vars()))
-        for item_name, item_value in self.install_items_map.iteritems():
-            fd.write("{item_name}: {item_value}\n".format(**vars()))
-            
+    def repr_for_yaml(self):
+        retVal = dict()
+        retVal["install_items_map"] = self.install_items_map
+        retVal["install_definitions_map"] = self.install_definitions_map
+        retVal["install_instaruction_lines"] = self.install_instaruction_lines
+        return retVal       
+        
 def prepare_args_parser():
     def decent_convert_arg_line_to_args(self, arg_line):
         """ parse a file with options so that we do not have to write one sub-option
@@ -125,7 +110,6 @@ def read_command_line_options(prog_state, arglist=None):
             arglist=sys.argv[1:]
         name_space_obj = cmd_line_options()
         args = parser.parse_args(arglist, namespace=name_space_obj)
-        print("name_space_obj:", name_space_obj)
         prog_state.init_from_cmd_line_options(name_space_obj)
     except Exception as ex:
         print(ex)
@@ -143,14 +127,13 @@ def read_input_files(prog_state):
                     elif a_node.tag == u'!install_map':
                         read_install_items_map(prog_state, a_node)
                     else:
-                        print("Unknown tag", a_node.tag)
+                        print("Unknown document tag", a_node.tag)
 
 def read_defines(prog_state, a_node):
-    print('!define')
+    pass
     
 def read_install_items_map(prog_state, a_node):
     prog_state.install_items_map.update(installItem.read_yaml_items_map(a_node))
-    print('!install_map')
                 
 def create_intall_instructions(prog_state):
     install_targets = prog_state.install_definitions_map.get("__INSTL_MAIN_INSTALL_TARGETS__")
@@ -160,7 +143,7 @@ def create_intall_instructions(prog_state):
      
 def open_output_file(prog_state):
     retVal = None
-    out_file = prog_state.install_definitions_map.get("__INSTL_MAIN_OUT_FILE__")
+    out_file = prog_state.install_definitions_map.get("__INSTL_MAIN_OUT_FILE__", "stdout")
     if out_file:
         retVal = sys.stdout
         if out_file != "stdout":
@@ -169,19 +152,20 @@ def open_output_file(prog_state):
             os.chmod(prog_state.out_file_realpath, 0744)
     return retVal
 
-def close_output_file(prog_state, out_fd):
-    if out_fd:
-        out_fd.close()
+def close_output_file(prog_state, fd):
+    if fd and fd is not sys.stdout:
+        fd.close()
+
 
 def write_program_state(prog_state):
-    state_file = prog_state.install_definitions_map.get("__INSTL_MAIN_STATE_FILE__")
-    print("state_file:", state_file)
+    state_file = prog_state.install_definitions_map.get("__INSTL_MAIN_STATE_FILE__", "stdout")
     if state_file:
         fd = sys.stdout
         if state_file != "stdout":
             fd = open(state_file, "w")
-        prog_state.write(fd)
-        fd.close()
+        dumpYaml.writeAsYaml(prog_state, fd)
+        if fd is not sys.stdout:
+            fd.close()
     
 def write_instl_instructions(prog_state, fd):
     fd.write("#!/bin/sh\n")
@@ -197,7 +181,6 @@ def run_instl_instructions(prog_state):
 if __name__ == "__main__":
     nso = instl_state()
     args = read_command_line_options(nso)
-    cmd_line_options = vars(nso)
     read_input_files(nso)
     create_intall_instructions(nso)
     out_fd = open_output_file(nso)
@@ -205,25 +188,3 @@ if __name__ == "__main__":
     close_output_file(nso, out_fd)
     write_program_state(nso)
     run_instl_instructions(nso)
-    
-
-
-I have two python dictionaries which I want to write to a single yaml file, with two documents:
-    
-    definitions = {"one" : 1, "two" : 2, "tree" : 3}
-    actions = {"run" : "yes", "print" : "no", "report" : "maybe"}
-
-The yaml file should look like:
-
-    --- !define
-    one: 1
-    two: 2
-    tree: 3
-    
-    -- !action
-    run: yes
-    print: no
-    report: maybe
-    ...
-    
-Using PyYaml I did not find a clear way to do that. I'm sure there is a simple method, but digging into PyYaml documentation, only got me confused. Do I need a dumper, emitter, or what? And what type of output each of these types produces? Yaml text? yaml nodes? YAMLObject object? Anyway I would be greatfull for any clarifications.
