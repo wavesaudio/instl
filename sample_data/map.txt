@@ -1,4 +1,7 @@
 --- !define
+Cuckoo: 
+    - sababa
+    - egozim
 --- !install_map
 
 !tag_for_map GUID_PLUGIN_TEMPLATE:

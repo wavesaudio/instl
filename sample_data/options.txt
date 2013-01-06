@@ -1,5 +1,5 @@
-map.txt # the map file for db
-def.txt # the def file from wlc         
+sample_data/map.txt # the map file for db
+sample_data/def.txt # the def file from wlc         
 --out out.bat
 --target GUID_WLC GUID_AUDIOTARCK
---state state.out
+--state state.txt

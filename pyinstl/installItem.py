@@ -1,7 +1,9 @@
+import sys
 import platform
 import yaml
 
-import augmentedYaml
+sys.path.append("..")
+from aYaml import augmentedYaml
 
 current_os = platform.system()
 if current_os == 'Darwin':
