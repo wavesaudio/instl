@@ -7,8 +7,7 @@ import os
 import argparse
 import yaml
 
-import dumpYaml
-import installItem
+from aYaml import augmentedYaml
 
 class cmd_line_options(object):
     def __init__(self):
@@ -163,7 +162,7 @@ def write_program_state(prog_state):
         fd = sys.stdout
         if state_file != "stdout":
             fd = open(state_file, "w")
-        dumpYaml.writeAsYaml(prog_state, fd)
+        augmentedYaml.writeAsYaml(prog_state, fd)
         if fd is not sys.stdout:
             fd.close()
     
