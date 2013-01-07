@@ -158,15 +158,19 @@ class YamlDumpDocWrap(YamlDumpWrap):
         if self.explicit_end:
             lineSepAndIndent(out_stream, 0)
             out_stream.write("...")
+        lineSepAndIndent(out_stream, 0) # document should and with a new line
 
 def writeAsYaml(pyObj, out_stream, indent=0):
     if pyObj is None:
         pass
     elif isinstance(pyObj, (list, tuple)):
         for item in pyObj:
-            lineSepAndIndent(out_stream, indent)
-            out_stream.write("- ")
-            writeAsYaml(item, out_stream, indent)
+            if isinstance(item, YamlDumpDocWrap):
+                writeAsYaml(item, out_stream, 0) # documents must start without indentations
+            else:
+                lineSepAndIndent(out_stream, indent)
+                out_stream.write("- ")
+                writeAsYaml(item, out_stream, indent)
     elif isinstance(pyObj, dict):
         for item in pyObj:
             lineSepAndIndent(out_stream, indent)
@@ -184,7 +188,6 @@ def writeAsYaml(pyObj, out_stream, indent=0):
             writeAsYaml(pyObj.repr_for_yaml(), out_stream, indent)
         else:
             out_stream.write(str(pyObj))
-
            
 if __name__ == "__main__": 
     tup = ("tup1", YamlDumpWrap("tup2", '!tup_tag', "tup comment"), "tup3")

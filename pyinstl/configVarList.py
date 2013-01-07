@@ -19,7 +19,7 @@ if __name__ == "__main__":
     import sys
     sys.path.append("..")
 
-from config2.configVar import ConfigVar, ConstConfigVar
+from pyinstl import configVar
 
 class ConfigVarList(object):
     """ Keeps a list of named build config values.
@@ -74,17 +74,17 @@ class ConfigVarList(object):
         return self._ConfigVar_objs.description(var_name)
 
     def get_configVar_obj(self, var_name):
-        self.__dirty = True # is someone asked for a ConfigVar, assume it was changed
-        retVal = self._ConfigVar_objs.setdefault(var_name, ConfigVar(var_name))
+        self.__dirty = True # is someone asked for a configVar.ConfigVar, assume it was changed
+        retVal = self._ConfigVar_objs.setdefault(var_name, configVar.ConfigVar(var_name))
         return retVal
 
     def add_const_config_variable(self, name, description="", *values):
         """ add a const single value object """
         self.__dirty = True
-        if in_name in self._ConfigVar_objs:
+        if name in self._ConfigVar_objs:
             raise Exception("Const variable {name} already defined")
-        addedValue = ConstConfigVar(name, description, *values)
-        self.varDict[addedValue.name()] = addedValue
+        addedValue = configVar.ConstConfigVar(name, description, *values)
+        self._ConfigVar_objs[addedValue.name()] = addedValue
 
     def read_environment(self):
         """ Get values from environment """
@@ -95,6 +95,10 @@ class ConfigVarList(object):
             cv.set_description("from envirnment")
             cv.append(os.environ[env])
 
+    def repr_for_yaml(self):
+        retVal = dict(self._resolved_vars)
+        return retVal
+        
     def resolve_string(self, in_str, sep=" "):
         """ resolve a string that might contain references to values """
         resolved_list = resolve_list((in_str,), self.resolve_value_callback)
@@ -121,7 +125,7 @@ class ConfigVarList(object):
             raise
 
     def resolve_value_callback(self, value_to_resolve):
-        """ callback for ConfigVar.Resolve. value_to_resolve should
+        """ callback for configVar.ConfigVar.Resolve. value_to_resolve should
             be a single value name.
         """
         if value_to_resolve not in self._resolved_vars:
@@ -151,7 +155,6 @@ only_one_value_ref_re = re.compile("""
                             \))                         # )
                             $
                             """, re.X)
-
 def replace_all_from_dict(in_text, *in_replace_only_these, **in_replacement_dic):
     """ replace all occurrences of the values in in_replace_only_these
         with the values in in_replacement_dic. If in_replace_only_these is empty
@@ -166,7 +169,7 @@ def replace_all_from_dict(in_text, *in_replace_only_these, **in_replacement_dic)
 
 def resolve_list(needsResolveList, resolve_func):
     """ resolve a list, possibly with $() style references with the help of a resolving function.
-        needsResolveList could be of type that emulates list, specifically ConfigVar.
+        needsResolveList could be of type that emulates list, specifically configVar.ConfigVar.
     """
     replaceDic = dict()
     resolvedList = list()

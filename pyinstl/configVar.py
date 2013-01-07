@@ -77,7 +77,10 @@ class ConstConfigVar(ConfigVar):
     """ ConfigVar override where values cannot be changed after construction """
     __slots__ = ()
     def __init__(self, name, description="", *values):
-        super().__init__(name, description, *values)
+        if sys.version_info < (3, 0):
+            super(ConstConfigVar, self).__init__(name, description, *values)
+        else:
+            super().__init__(name, description, *values)
 
     def set_description(self, description):
         raise Exception("Cannot change a const value", self._name)
