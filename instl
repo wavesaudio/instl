@@ -8,6 +8,12 @@ import argparse
 import yaml
 import re
 
+current_os = platform.system()
+if current_os == 'Darwin':
+    current_os = 'mac';
+elif current_os == 'Windows':
+    current_os = 'win';
+
 from aYaml import augmentedYaml
 from pyinstl import installItem
 from pyinstl import configVarList
@@ -143,16 +149,50 @@ def read_defines(prog_state, a_node):
     if a_node.isMapping():
         for identifier, value in a_node:
             if not internal_identifier_re.match(identifier): # do not read internal state indentifiers
-                prog_state.cvl.get_configVar_obj(identifier).extend([item.value for item in a_node[identifier]])
+                cv = prog_state.cvl.get_configVar_obj(identifier)
+                cv.extend([item.value for item in a_node[identifier]])
+                cv.set_description(str(a_node[identifier].start_mark))
     
 def read_install_items_map(prog_state, a_node):
     prog_state.install_items_map.update(installItem.read_yaml_items_map(a_node))
                 
+def create_intall_instructions_prefix(prog_state):
+    prog_state.install_instaruction_lines.append("#!/bin/sh\n")
+    for value in prog_state.cvl:
+        if not internal_identifier_re.match(value): # do not read internal state indentifiers
+            prog_state.install_instaruction_lines.append(value+"='"+" ".join(prog_state.cvl[value])+"'")
+    prog_state.install_instaruction_lines.append("\nSAVE_DIR=`pwd`\n")
+
+    
+def create_intall_instructions_postfix(prog_state):
+    prog_state.install_instaruction_lines.append("\ncd '${SAVE_DIR}'")
+    prog_state.install_instaruction_lines.append("exit 0\n")
+
+def create_install_by_folder(prog_state):
+    install_by_folder = dict()
+    for GUID in prog_state.install_items_map:
+        for target in prog_state.install_items_map[GUID].target_list():
+            if not target in install_by_folder:
+                install_by_folder[target] = [GUID]
+            else:
+                if GUID not in install_by_folder:
+                    install_by_folder[target].append(GUID)
+    return install_by_folder
+    
 def create_intall_instructions(prog_state):
     install_targets = prog_state.cvl.get("__INSTL_MAIN_INSTALL_TARGETS__")
     if install_targets:
-        for target in install_targets:
-            prog_state.install_instaruction_lines.append("install {}".format(target))
+        create_intall_instructions_prefix(prog_state)
+        install_by_folder = create_install_by_folder(prog_state)
+        for folder in install_by_folder:
+            prog_state.install_instaruction_lines.append(" ".join(("mkdir", "-p", "'"+folder+"'")))
+            prog_state.install_instaruction_lines.append(" ".join(("cd", "'"+folder+"'")))
+            for GUID in install_by_folder[folder]:
+                installi = prog_state.install_items_map[GUID]
+                for source in installi.source_list():
+                    prog_state.install_instaruction_lines.append(" ".join(("svn", "checkout", "--revision", "HEAD", "'"+"$(BASE_URL)"+source+"'")))
+            prog_state.install_instaruction_lines.append(os.linesep)
+        create_intall_instructions_postfix(prog_state)
      
 def open_output_file(prog_state):
     retVal = None
@@ -181,9 +221,7 @@ def write_program_state(prog_state):
             fd.close()
     
 def write_instl_instructions(prog_state, fd):
-    fd.write("#!/bin/sh\n")
     fd.write(os.linesep.join(prog_state.install_instaruction_lines))
-    fd.write("\nexit 0\n")
 
 def run_instl_instructions(prog_state):
     if "__INSTL_MAIN_RUN_INSTALLATION__" in prog_state.cvl:

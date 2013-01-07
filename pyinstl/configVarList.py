@@ -20,6 +20,7 @@ if __name__ == "__main__":
     sys.path.append("..")
 
 from pyinstl import configVar
+from aYaml import augmentedYaml
 
 class ConfigVarList(object):
     """ Keeps a list of named build config values.
@@ -96,7 +97,10 @@ class ConfigVarList(object):
             cv.append(os.environ[env])
 
     def repr_for_yaml(self):
-        retVal = dict(self._resolved_vars)
+        retVal = dict()
+        for name in self._resolved_vars:
+            theComment = self._ConfigVar_objs[name].description()
+            retVal[name] = augmentedYaml.YamlDumpWrap(value=self._resolved_vars[name], comment=theComment)
         return retVal
         
     def resolve_string(self, in_str, sep=" "):
