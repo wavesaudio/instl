@@ -1,0 +1,15 @@
+argumentedYaml adds some functionality to PyYaml:
+Methods isScalar(), isSequence(), isMapping() for easier identification of ScalarNode
+    SequenceNode, MappingNode.
+Method __len__ returns the number of items in value.
+Method __iter__ implement iteration on value, ScalarNode is than pretending to be 
+    a list of 1; For mapping there is also iterkeys to iterate on the list of keys.
+Method __getitem__ implements [] access, again ScalarNode is pretending to be 
+    a list of 1
+Method __contains__ for MappingNode, to implement 'is in ...'
+For writing Yaml to text:
+Method writeAsYaml implements writing Yaml text, with proper indentation, for python 
+    basic data types: tuple, list; If tags and comments are needed, YamlDumpWrap
+    can be used to wrap other data types.  YamlDumpDocWrap adds tags and comments to 
+    a whole document. Object that are not basic or YamlDumpWrap, can implement
+    repr_for_yaml method to properly represent them selves for yaml writing.
