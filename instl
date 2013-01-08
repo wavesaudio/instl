@@ -8,6 +8,7 @@ import argparse
 import yaml
 import re
 
+import platform
 current_os = platform.system()
 if current_os == 'Darwin':
     current_os = 'mac';
@@ -30,32 +31,32 @@ class cmd_line_options(object):
                 "main_targets: {self.main_targets}\nstate_file_option: {self.state_file_option}\n"+
                 "run: {self.run}\n").format(**vars())
         return retVal
-                
+
 class instl_state(object):
     def __init__(self):
         self.out_file_realpath = None
-        self.install_items_map = {}
+        self.install_definitions_map = {}
         self.cvl = configVarList.ConfigVarList()
         self.install_instaruction_lines = []
-        
+
     def init_from_cmd_line_options(self, cmd_line_options_obj):
         if cmd_line_options_obj.input_files:
-            self.cvl.add_const_config_variable("__INSTL_MAIN_INPUT_FILES__", "from commnad line options", *cmd_line_options_obj.input_files)
+            self.cvl.add_const_config_variable("__MAIN_INPUT_FILES__", "from commnad line options", *cmd_line_options_obj.input_files)
         if cmd_line_options_obj.out_file_option:
-            self.cvl.add_const_config_variable("__INSTL_MAIN_OUT_FILE__", "from commnad line options", cmd_line_options_obj.out_file_option[0])
+            self.cvl.add_const_config_variable("__MAIN_OUT_FILE__", "from commnad line options", cmd_line_options_obj.out_file_option[0])
         if cmd_line_options_obj.main_targets:
-            self.cvl.add_const_config_variable("__INSTL_MAIN_INSTALL_TARGETS__", "from commnad line options", *cmd_line_options_obj.main_targets)
+            self.cvl.add_const_config_variable("__MAIN_INSTALL_TARGETS__", "from commnad line options", *cmd_line_options_obj.main_targets)
         if cmd_line_options_obj.state_file_option:
-            self.cvl.add_const_config_variable("__INSTL_MAIN_STATE_FILE__", "from commnad line options", cmd_line_options_obj.state_file_option)
+            self.cvl.add_const_config_variable("__MAIN_STATE_FILE__", "from commnad line options", cmd_line_options_obj.state_file_option)
         if cmd_line_options_obj.run:
-            self.cvl.add_const_config_variable("__INSTL_MAIN_RUN_INSTALLATION__", "from commnad line options", "yes")
-        
+            self.cvl.add_const_config_variable("__MAIN_RUN_INSTALLATION__", "from commnad line options", "yes")
+
     def repr_for_yaml(self):
         retVal = list()
-        retVal.append(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True))
-        retVal.append(augmentedYaml.YamlDumpDocWrap(self.install_items_map, '!install_map', "Installation map", explicit_start=True))
-        return retVal       
-        
+        retVal.append(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True))
+        retVal.append(augmentedYaml.YamlDumpDocWrap(self.install_definitions_map, '!install_map', "Installation map", explicit_start=True, sort_mappings=True))
+        return retVal
+
 def prepare_args_parser():
     def decent_convert_arg_line_to_args(self, arg_line):
         """ parse a file with options so that we do not have to write one sub-option
@@ -124,7 +125,7 @@ def read_command_line_options(prog_state, arglist=None):
     return args
 
 def read_input_files(prog_state):
-    input_files = prog_state.cvl.get("__INSTL_MAIN_INPUT_FILES__", ())
+    input_files = prog_state.cvl.get("__MAIN_INPUT_FILES__", ())
     if input_files:
         file_actually_opened = list()
         for file_path in input_files:
@@ -134,11 +135,21 @@ def read_input_files(prog_state):
                     if a_node.tag == u'!define':
                         read_defines(prog_state, a_node)
                     elif a_node.tag == u'!install_map':
-                        read_install_items_map(prog_state, a_node)
+                        read_install_definitions_map(prog_state, a_node)
                     else:
                         print("Unknown document tag", a_node.tag)
-        prog_state.cvl.add_const_config_variable("__INSTL_MAIN_INPUT_FILES_ACTUALLY_OPENED__", "opened by read_input_files", *file_actually_opened)
-        
+        prog_state.cvl.add_const_config_variable("__MAIN_INPUT_FILES_ACTUALLY_OPENED__", "opened by read_input_files", *file_actually_opened)
+        prog_state.cvl.resolve()
+        if "__MAIN_INSTALL_TARGETS__" not in prog_state.cvl:
+            # command line targets take precedent, if they were not specifies, look for "MAIN_INSTALL_TARGETS"
+            main_intsall_def = prog_state.install_definitions_map["MAIN_INSTALL_TARGETS"]
+            if main_intsall_def:
+                main_install_targets = main_intsall_def.depends
+                if main_install_targets:
+                    prog_state.cvl.add_const_config_variable("__MAIN_INSTALL_TARGETS__",
+                                                main_intsall_def.description,
+                                                *main_install_targets)
+
 internal_identifier_re = re.compile("""
                                     __                  # dunder here
                                     (?P<internal_identifier>\w*)
@@ -152,10 +163,10 @@ def read_defines(prog_state, a_node):
                 cv = prog_state.cvl.get_configVar_obj(identifier)
                 cv.extend([item.value for item in a_node[identifier]])
                 cv.set_description(str(a_node[identifier].start_mark))
-    
-def read_install_items_map(prog_state, a_node):
-    prog_state.install_items_map.update(installItem.read_yaml_items_map(a_node))
-                
+
+def read_install_definitions_map(prog_state, a_node):
+    prog_state.install_definitions_map.update(installItem.read_yaml_items_map(a_node))
+
 def create_intall_instructions_prefix(prog_state):
     prog_state.install_instaruction_lines.append("#!/bin/sh\n")
     for value in prog_state.cvl:
@@ -163,40 +174,54 @@ def create_intall_instructions_prefix(prog_state):
             prog_state.install_instaruction_lines.append(value+"='"+" ".join(prog_state.cvl[value])+"'")
     prog_state.install_instaruction_lines.append("\nSAVE_DIR=`pwd`\n")
 
-    
+
 def create_intall_instructions_postfix(prog_state):
     prog_state.install_instaruction_lines.append("\ncd '${SAVE_DIR}'")
     prog_state.install_instaruction_lines.append("exit 0\n")
 
+def create_intall_list(prog_state):
+    main_install_targets = prog_state.cvl.get("__MAIN_INSTALL_TARGETS__")
+    full_intall_set = set()
+    orphan_set = set()
+    for GUID in main_install_targets:
+        try:
+            prog_state.install_definitions_map[GUID].get_recursive_depends(prog_state.install_definitions_map, full_intall_set, orphan_set)
+        except KeyError:
+            orphan_set.add(GUID)
+    prog_state.cvl.add_const_config_variable("__FULL_INSTALL_TARGETS__", "calculated by create_intall_list", *full_intall_set)
+    if orphan_set:
+        prog_state.cvl.add_const_config_variable("__ORPHAN_INSTALL_TARGETS__", "calculated by create_intall_list", *orphan_set)
+
 def create_install_by_folder(prog_state):
+    full_install_targets = prog_state.cvl.get("__FULL_INSTALL_TARGETS__")
     install_by_folder = dict()
-    for GUID in prog_state.install_items_map:
-        for target in prog_state.install_items_map[GUID].target_list():
-            if not target in install_by_folder:
-                install_by_folder[target] = [GUID]
+    for GUID in full_install_targets:
+        for folder in prog_state.install_definitions_map[GUID].folder_list():
+            if not folder in install_by_folder:
+                install_by_folder[folder] = [GUID]
             else:
                 if GUID not in install_by_folder:
-                    install_by_folder[target].append(GUID)
+                    install_by_folder[folder].append(GUID)
     return install_by_folder
-    
+
 def create_intall_instructions(prog_state):
-    install_targets = prog_state.cvl.get("__INSTL_MAIN_INSTALL_TARGETS__")
-    if install_targets:
+    create_intall_list(prog_state)
+    install_by_folder = create_install_by_folder(prog_state)
+    if install_by_folder:
         create_intall_instructions_prefix(prog_state)
-        install_by_folder = create_install_by_folder(prog_state)
         for folder in install_by_folder:
             prog_state.install_instaruction_lines.append(" ".join(("mkdir", "-p", "'"+folder+"'")))
             prog_state.install_instaruction_lines.append(" ".join(("cd", "'"+folder+"'")))
             for GUID in install_by_folder[folder]:
-                installi = prog_state.install_items_map[GUID]
+                installi = prog_state.install_definitions_map[GUID]
                 for source in installi.source_list():
                     prog_state.install_instaruction_lines.append(" ".join(("svn", "checkout", "--revision", "HEAD", "'"+"$(BASE_URL)"+source+"'")))
             prog_state.install_instaruction_lines.append(os.linesep)
         create_intall_instructions_postfix(prog_state)
-     
+
 def open_output_file(prog_state):
     retVal = None
-    out_file = prog_state.cvl.get("__INSTL_MAIN_OUT_FILE__", ("stdout",))
+    out_file = prog_state.cvl.get("__MAIN_OUT_FILE__", ("stdout",))
     if out_file:
         retVal = sys.stdout
         if out_file[0] != "stdout":
@@ -211,7 +236,7 @@ def close_output_file(prog_state, fd):
 
 
 def write_program_state(prog_state):
-    state_file = prog_state.cvl.get("__INSTL_MAIN_STATE_FILE__", ("stdout",))
+    state_file = prog_state.cvl.get("__MAIN_STATE_FILE__", ("stdout",))
     if state_file:
         fd = sys.stdout
         if state_file[0] != "stdout":
@@ -219,21 +244,41 @@ def write_program_state(prog_state):
         augmentedYaml.writeAsYaml(prog_state, fd)
         if fd is not sys.stdout:
             fd.close()
-    
+
 def write_instl_instructions(prog_state, fd):
     fd.write(os.linesep.join(prog_state.install_instaruction_lines))
 
 def run_instl_instructions(prog_state):
-    if "__INSTL_MAIN_RUN_INSTALLATION__" in prog_state.cvl:
+    if "__MAIN_RUN_INSTALLATION__" in prog_state.cvl:
         from subprocess import Popen
         install_process = Popen(prog_state.out_file_realpath)
         stdout, stderr = install_process.communicate()
-    
+
+def evaluate_graph(prog_state):
+    try:
+        from pyinstl import installItemGraph
+        graph = installItemGraph.create_intallItem_graph(prog_state.install_definitions_map)
+        cycles = installItemGraph.find_cycles(graph)
+        if not cycles:
+            print ("No cycles found")
+        else:
+            for cy in cycles:
+                print("cycle:", cy)
+        leafs = installItemGraph.find_leafs(graph)
+        if not leafs:
+            print ("No leafs found")
+        else:
+            for leaf in leafs:
+                print("leaf:", leaf)
+    except ImportError as IE: # no installItemGraph, no worry
+        pass
+
 if __name__ == "__main__":
     prog_state = instl_state()
     args = read_command_line_options(prog_state)
     prog_state.cvl.resolve()
     read_input_files(prog_state)
+    #evaluate_graph(prog_state)
     prog_state.cvl.resolve()
     create_intall_instructions(prog_state)
     out_fd = open_output_file(prog_state)

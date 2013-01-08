@@ -2,11 +2,11 @@
 
 from __future__ import print_function
 
-""" 
+"""
     Copyright (c) 2012, Shai Shasag
     All rights reserved.
     Licensed under BSD 3 clause license, see LICENSE file for details.
-    
+
     configVarList module has but a single class ConfigVarList
     import config.configVarList
 """
@@ -21,6 +21,24 @@ if __name__ == "__main__":
 
 from pyinstl import configVar
 from aYaml import augmentedYaml
+
+
+value_ref_re = re.compile("""(
+                            (?P<varref_pattern>
+                            (?P<varref_marker>[$])      # $
+                            \(                          # (
+                            (?P<var_name>\w+)           # value
+                            \))                         # )
+                            )""", re.X)
+only_one_value_ref_re = re.compile("""
+                            ^
+                            (?P<varref_pattern>
+                            (?P<varref_marker>[$])      # $
+                            \(                          # (
+                            (?P<var_name>\w+)           # value
+                            \))                         # )
+                            $
+                            """, re.X)
 
 class ConfigVarList(object):
     """ Keeps a list of named build config values.
@@ -81,11 +99,16 @@ class ConfigVarList(object):
 
     def add_const_config_variable(self, name, description="", *values):
         """ add a const single value object """
-        self.__dirty = True
         if name in self._ConfigVar_objs:
             raise Exception("Const variable {name} already defined")
         addedValue = configVar.ConstConfigVar(name, description, *values)
         self._ConfigVar_objs[addedValue.name()] = addedValue
+        if not self.__dirty: # if not already dirty, try to keep it clean
+            if value_ref_re.search(" ".join(values)):
+                self.__dirty = True
+            else: # no need to resolve, copy values to _resolved_vars
+                self._resolved_vars[addedValue.name()] = values
+
 
     def read_environment(self):
         """ Get values from environment """
@@ -102,7 +125,7 @@ class ConfigVarList(object):
             theComment = self._ConfigVar_objs[name].description()
             retVal[name] = augmentedYaml.YamlDumpWrap(value=self._resolved_vars[name], comment=theComment)
         return retVal
-        
+
     def resolve_string(self, in_str, sep=" "):
         """ resolve a string that might contain references to values """
         resolved_list = resolve_list((in_str,), self.resolve_value_callback)
@@ -143,22 +166,6 @@ class ConfigVarList(object):
                 self.__resolve_stack.pop()
         return self._resolved_vars.get(value_to_resolve, tuple())
 
-value_ref_re = re.compile("""(
-                            (?P<varref_pattern>
-                            (?P<varref_marker>[$])      # $
-                            \(                          # (
-                            (?P<var_name>\w+)           # value
-                            \))                         # )
-                            )""", re.X)
-only_one_value_ref_re = re.compile("""
-                            ^
-                            (?P<varref_pattern>
-                            (?P<varref_marker>[$])      # $
-                            \(                          # (
-                            (?P<var_name>\w+)           # value
-                            \))                         # )
-                            $
-                            """, re.X)
 def replace_all_from_dict(in_text, *in_replace_only_these, **in_replacement_dic):
     """ replace all occurrences of the values in in_replace_only_these
         with the values in in_replacement_dic. If in_replace_only_these is empty

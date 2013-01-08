@@ -7,7 +7,7 @@ MACOS_COMPONENTS: /Library/Audio/Plug-Ins/Components
 
 --- !install_map
 
-MAIN_INSTALL:
+MAIN_INSTALL_TARGETS:
     name: main installation target
     depends:
         - GUID_GOLD_BUNDLE
