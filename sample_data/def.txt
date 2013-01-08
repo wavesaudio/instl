@@ -5,7 +5,7 @@ WAVES_PLUGINS_DIR: /Applications/Waves/Waves Plugins
 WAVES_APPS_DIR: /Applications/Waves/Waves Applications
 MACOS_COMPONENTS: /Library/Audio/Plug-Ins/Components
 
---- !install_map
+--- !install
 
 MAIN_INSTALL_TARGETS:
     name: main installation target

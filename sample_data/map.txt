@@ -2,7 +2,7 @@
 Cuckoo:
     - sababa
     - egozim
---- !install_map
+--- !install
 
 !tag_for_map GUID_PLUGIN_TEMPLATE:
     !tad_poll name: normal plugin template

@@ -54,7 +54,7 @@ class instl_state(object):
     def repr_for_yaml(self):
         retVal = list()
         retVal.append(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True))
-        retVal.append(augmentedYaml.YamlDumpDocWrap(self.install_definitions_map, '!install_map', "Installation map", explicit_start=True, sort_mappings=True))
+        retVal.append(augmentedYaml.YamlDumpDocWrap(self.install_definitions_map, '!install', "Installation map", explicit_start=True, sort_mappings=True))
         return retVal
 
 def prepare_args_parser():
@@ -134,7 +134,7 @@ def read_input_files(prog_state):
                 for a_node in yaml.compose_all(file_fd):
                     if a_node.tag == u'!define':
                         read_defines(prog_state, a_node)
-                    elif a_node.tag == u'!install_map':
+                    elif a_node.tag == u'!install':
                         read_install_definitions_map(prog_state, a_node)
                     else:
                         print("Unknown document tag", a_node.tag)
