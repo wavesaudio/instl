@@ -188,12 +188,12 @@ def create_intall_list(prog_state):
             prog_state.install_definitions_map[GUID].get_recursive_depends(prog_state.install_definitions_map, full_intall_set, orphan_set)
         except KeyError:
             orphan_set.add(GUID)
-    prog_state.cvl.add_const_config_variable("__FULL_INSTALL_TARGETS__", "calculated by create_intall_list", *full_intall_set)
+    prog_state.cvl.add_const_config_variable("__FULL_LIST_OF_INSTALL_TARGETS__", "calculated by create_intall_list", *full_intall_set)
     if orphan_set:
         prog_state.cvl.add_const_config_variable("__ORPHAN_INSTALL_TARGETS__", "calculated by create_intall_list", *orphan_set)
 
 def create_install_by_folder(prog_state):
-    full_install_targets = prog_state.cvl.get("__FULL_INSTALL_TARGETS__")
+    full_install_targets = prog_state.cvl.get("__FULL_LIST_OF_INSTALL_TARGETS__", None)
     install_by_folder = dict()
     for GUID in full_install_targets:
         for folder in prog_state.install_definitions_map[GUID].folder_list():

@@ -120,88 +120,139 @@ def ifTrueOrFalse(test, ifTrue, ifFalse):
     else:
         return ifFalse
 
-def lineSepAndIndent(out_stream, indent, indentSize=4):
-    out_stream.write(os.linesep)
-    out_stream.write(" " * indentSize * indent)
-
 class YamlDumpWrap(object):
     def __init__(self, value=None, tag="", comment="", sort_mappings=False):
         self.tag = tag
         self.comment = comment
         self.value = value
         self.sort_mappings = sort_mappings
-    def writePrefix(self, out_stream, indent):
+    def writePrefix(self, out_stream, indentor):
         if isinstance(self.value, (list, tuple, dict)):
             if self.tag or self.comment:
-                lineSepAndIndent(out_stream, indent)
+                indentor.lineSepAndIndent(out_stream)
                 commentSep = ifTrueOrFalse(self.comment, "#", "")
                 out_stream.write(" ".join( (self.tag, commentSep, self.comment) ))
         elif self.tag:
             out_stream.write(self.tag)
             out_stream.write(" ")
-    def writePostfix(self, out_stream, indent):
+    def writePostfix(self, out_stream, indentor):
         if not isinstance(self.value, (list, tuple, dict)):
            if self.comment:
                 out_stream.write(" # ")
                 out_stream.write(self.comment)
 
 class YamlDumpDocWrap(YamlDumpWrap):
-    def __init__(self, value=None, tag='!', comment="", explicit_start=False, explicit_end=False, sort_mappings=False):
+    def __init__(self, value=None, tag="", comment="", explicit_start=True, explicit_end=False, sort_mappings=False):
         super(YamlDumpDocWrap, self).__init__(tag=tag, comment=comment, value=value, sort_mappings=sort_mappings)
         self.explicit_start = explicit_start
         self.explicit_end = explicit_end
-    def writePrefix(self, out_stream, indent):
-        if self.tag or self.comment or explicit_start:
-            lineSepAndIndent(out_stream, indent)
+    def writePrefix(self, out_stream, indentor):
+        indentor.reset()
+        if self.tag or self.comment or self.explicit_start:
             commentSep = ifTrueOrFalse(self.comment, "#", "")
             out_stream.write(" ".join( ("---", self.tag, commentSep, self.comment) ))
-    def writePostfix(self, out_stream, indent):
+            indentor.lineSepAndIndent(out_stream)
+    def writePostfix(self, out_stream, indentor):
         if self.explicit_end:
-            lineSepAndIndent(out_stream, 0)
+            indentor.lineSepAndIndent(out_stream,)
             out_stream.write("...")
-        lineSepAndIndent(out_stream, 0) # document should and with a new line
+        indentor.lineSepAndIndent(out_stream) # document should and with a new line
 
-def writeAsYaml(pyObj, out_stream, indent=0, sort=False):
+class Indentor(object):
+    def __init__(self, indent_size):
+        self.indent_size = indent_size
+        self.cur_indent = 0
+        self.num_extra_chars = 0
+    
+    def __iadd__(self, i):
+        self.cur_indent += i
+        return self
+    
+    def __isub__(self, i):
+        self.cur_indent -= i
+        return self
+    
+    def reset(self):
+        self.cur_indent = 0
+        self.num_extra_chars = 0
+        
+    def lineSepAndIndent(self, out_stream):
+        out_stream.write(os.linesep)
+        numSpaces = self.indent_size * self.cur_indent
+        out_stream.write(" " * numSpaces)
+        self.num_extra_chars = 0
+    
+    def write_extra_chars(self, out_stream, extra_chars):
+        if extra_chars:
+            self.num_extra_chars += len(extra_chars)
+            out_stream.write(extra_chars)
+        
+    def fill_to_next_indent(self, out_stream):
+        num_chars_to_fill = self.num_extra_chars %  self.indent_size
+        if num_chars_to_fill:
+            out_stream.write(" " * num_chars_to_fill)
+            self.num_extra_chars = 0
+        
+def writeAsYaml(pyObj, out_stream, indentor=None, sort=False):
+    if not indentor:
+        indentor = Indentor(4)
     if pyObj is None:
         pass
     elif isinstance(pyObj, (list, tuple)):
         for item in pyObj:
             if isinstance(item, YamlDumpDocWrap):
-                writeAsYaml(item, out_stream, 0, sort) # documents must start without indentations
+                writeAsYaml(item, out_stream, indentor, sort)
             else:
-                lineSepAndIndent(out_stream, indent)
-                out_stream.write("- ")
-                writeAsYaml(item, out_stream, indent, sort)
+                indentor.lineSepAndIndent(out_stream)
+                indentor.write_extra_chars(out_stream, "- ")
+                indentor += 1
+                writeAsYaml(item, out_stream, indentor, sort)
+                indentor -= 1
     elif isinstance(pyObj, dict):
         if sort:
             theKeys = sorted(pyObj.keys())
         else:
             theKeys = pyObj.keys()
+        itemNum = 1
         for item in theKeys:
-            lineSepAndIndent(out_stream, indent)
-            writeAsYaml(item, out_stream, indent, sort)
-            out_stream.write(": ")
-            indent += 1
-            writeAsYaml(pyObj[item], out_stream, indent, sort)
-            indent -= 1
+            if itemNum == 1:
+                indentor.fill_to_next_indent(out_stream)
+                itemNum += 1
+            else:
+                indentor.lineSepAndIndent(out_stream,)
+            writeAsYaml(item, out_stream, indentor, sort)
+            indentor.write_extra_chars(out_stream, ": ")
+            indentor += 1
+            writeAsYaml(pyObj[item], out_stream, indentor, sort)
+            indentor -= 1
     elif isinstance(pyObj, YamlDumpWrap):
-        pyObj.writePrefix(out_stream, indent)
-        writeAsYaml(pyObj.value, out_stream, indent, sort or pyObj.sort_mappings)
-        pyObj.writePostfix(out_stream, indent)
+        pyObj.writePrefix(out_stream, indentor)
+        writeAsYaml(pyObj.value, out_stream, indentor, sort or pyObj.sort_mappings)
+        pyObj.writePostfix(out_stream, indentor)
     else:
         if hasattr(pyObj, "repr_for_yaml"):
-            writeAsYaml(pyObj.repr_for_yaml(), out_stream, indent, sort)
+            writeAsYaml(pyObj.repr_for_yaml(), out_stream, indentor, sort)
         else:
             out_stream.write(str(pyObj))
+    # add the final end-of-line. if writeAsYaml is recursed from out side writeAsYaml
+    # this will not work.
+    if sys._getframe(0).f_code.co_name != sys._getframe(1).f_code.co_name:
+        indentor.lineSepAndIndent(out_stream)
 
+
+def nodeToPy(a_node):
+    if a_node.isScalar():
+        retVal = str(a_node.value)
+    elif a_node.isSequence():
+        retVal = [nodeToPy(item) for item in a_node.value]
+    elif a_node.isMapping():
+        retVal = {str(_key.value): nodeToPy(_val) for (_key, _val) in a_node.value}
+    return retVal
+    
 if __name__ == "__main__":
-    tup = ("tup1", YamlDumpWrap("tup2", '!tup_tag', "tup comment"), "tup3")
-    lis = ["list1", "list2"]
-    lisWithTag = YamlDumpWrap(lis, "!lisTracy", "lisComments")
-    dic = {"theTup" : tup, "theList" : lisWithTag}
-
-    dicWithTag = YamlDumpWrap(dic, "!dickTracy", "dickComments")
-
-    doc = YamlDumpDocWrap(tag="!myDoc", comment="just a comment", value=dicWithTag)
-
-    writeAsYaml(doc, sys.stdout, sort=True)
+    for file in sys.argv[1:]:
+        with open(file, "r") as fd:
+            for a_node in yaml.compose_all(fd):
+                a_node_as_py = nodeToPy(a_node)
+                docWrap = YamlDumpDocWrap(a_node_as_py)
+                writeAsYaml(docWrap, sys.stdout, sort=False)
