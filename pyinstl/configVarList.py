@@ -79,6 +79,10 @@ class ConfigVarList(object):
             retVal = sep.join(resolved_list)
         return retVal
 
+    def __str__(self):
+        [name+": "+ " ".join(self._resolved_vars[name]) for name in self._resolved_vars]
+        return os.linesep.join([name+": "+ " ".join(self._resolved_vars[name]) for name in self._resolved_vars])
+
     def __iter__(self):
         if self.__dirty:
             raise Exception("config varaibles were not resolved")
@@ -106,12 +110,12 @@ class ConfigVarList(object):
         retVal = self._ConfigVar_objs.setdefault(var_name, var.configVar.ConfigVar(var_name))
         return retVal
 
-    def set_configVar_obj(self, var_name, decription=None, *values_to_set):
+    def set_variable(self, var_name, description=None, *values_to_set):
         self.__dirty = True # if someone asked for a configVar.ConfigVar, assume it was changed
         retVal = self.get_configVar_obj(var_name)
         retVal.clear_values()
-        if decription:
-            retVal.set_description(decription)
+        if description:
+            retVal.set_description(description)
         if values_to_set:
             retVal.extend(values_to_set)
         return retVal
@@ -236,11 +240,13 @@ if __name__ == "__main__":
     varList.get_configVar_obj("U").append("and")
     varList.get_configVar_obj("you").append("ata")
 
+    varList.set_variable("mergoza", "stam", "pinochio")
+
     varList.read_environment()
     varList.resolve()
 
-    for var in varList:
-        print (var, "=", " ".join(varList[var]), hash(var))
+    for var in sorted(varList):
+        print (var, "=", " ".join(varList[var]))
 
     to_re = "on $(shabat) morning, i told $(you) and you told me $(itzik)"
     print(varList.resolve_string(to_re))
