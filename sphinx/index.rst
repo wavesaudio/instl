@@ -17,14 +17,14 @@
     **instl** uses SubVersion_ as it's back-end database for storing installation sources.
     Some knowledge SubVersion is required in order to setup an installer.
 
-    **instl** is published as Open Source under the BSD license.
+    **instl** is published as Open Source under BSD license.
 
     Suported platforms: Mac OS X, Windows, Linux
 
 
 .. topic:: Why without magic?
-    Installers created with **instl** are discoverable - you can tell what has happen and what going to happen at each stage.
-
+        Installers created with **instl** are discoverable: All processing stages are written to intermediate files and so are easy to follow and debug what was done.
+        Installed sources are stored in a Subversion repository making it possible to install the latest version, or any previous version.
 
 
 Contents:

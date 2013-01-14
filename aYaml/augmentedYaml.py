@@ -126,6 +126,10 @@ class YamlDumpWrap(object):
         self.comment = comment
         self.value = value
         self.sort_mappings = sort_mappings
+
+    def __lt__(self, other):
+        return self.value < other.value
+
     def writePrefix(self, out_stream, indentor):
         if isinstance(self.value, (list, tuple, dict)):
             if self.tag or self.comment:
@@ -163,36 +167,36 @@ class Indentor(object):
         self.indent_size = indent_size
         self.cur_indent = 0
         self.num_extra_chars = 0
-    
+
     def __iadd__(self, i):
         self.cur_indent += i
         return self
-    
+
     def __isub__(self, i):
         self.cur_indent -= i
         return self
-    
+
     def reset(self):
         self.cur_indent = 0
         self.num_extra_chars = 0
-        
+
     def lineSepAndIndent(self, out_stream):
         out_stream.write(os.linesep)
         numSpaces = self.indent_size * self.cur_indent
         out_stream.write(" " * numSpaces)
         self.num_extra_chars = 0
-    
+
     def write_extra_chars(self, out_stream, extra_chars):
         if extra_chars:
             self.num_extra_chars += len(extra_chars)
             out_stream.write(extra_chars)
-        
+
     def fill_to_next_indent(self, out_stream):
         num_chars_to_fill = self.num_extra_chars %  self.indent_size
         if num_chars_to_fill:
             out_stream.write(" " * num_chars_to_fill)
             self.num_extra_chars = 0
-        
+
 def writeAsYaml(pyObj, out_stream, indentor=None, sort=False):
     if not indentor:
         indentor = Indentor(4)
@@ -248,7 +252,7 @@ def nodeToPy(a_node):
     elif a_node.isMapping():
         retVal = {str(_key.value): nodeToPy(_val) for (_key, _val) in a_node.value}
     return retVal
-    
+
 if __name__ == "__main__":
     for file in sys.argv[1:]:
         with open(file, "r") as fd:

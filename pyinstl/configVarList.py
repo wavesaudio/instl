@@ -70,6 +70,19 @@ class ConfigVarList(object):
         # the value of non existant var_name is an empty tuple
         return self._resolved_vars.get(var_name, default)
 
+    def get_as_str(self, var_name, sep=" "):
+        retVal = ""
+        if not self.__dirty:
+            retVal = sep.join(self.get(var_name))
+        else:
+            resolved_list = resolve_list(self._ConfigVar_objs[var_name], self.resolve_value_callback)
+            retVal = sep.join(resolved_list)
+        return retVal
+
+    def __str__(self):
+        [name+": "+ " ".join(self._resolved_vars[name]) for name in self._resolved_vars]
+        return os.linesep.join([name+": "+ " ".join(self._resolved_vars[name]) for name in self._resolved_vars])
+
     def __iter__(self):
         if self.__dirty:
             raise Exception("config varaibles were not resolved")
@@ -90,11 +103,21 @@ class ConfigVarList(object):
 
     def description(self, var_name):
         """ Get description for variable """
-        return self._ConfigVar_objs.description(var_name)
+        return self._ConfigVar_objs[var_name].description()
 
     def get_configVar_obj(self, var_name):
-        self.__dirty = True # is someone asked for a configVar.ConfigVar, assume it was changed
-        retVal = self._ConfigVar_objs.setdefault(var_name, configVar.ConfigVar(var_name))
+        self.__dirty = True # if someone asked for a configVar.ConfigVar, assume it was changed
+        retVal = self._ConfigVar_objs.setdefault(var_name, var.configVar.ConfigVar(var_name))
+        return retVal
+
+    def set_variable(self, var_name, description=None, *values_to_set):
+        self.__dirty = True # if someone asked for a configVar.ConfigVar, assume it was changed
+        retVal = self.get_configVar_obj(var_name)
+        retVal.clear_values()
+        if description:
+            retVal.set_description(description)
+        if values_to_set:
+            retVal.extend(values_to_set)
         return retVal
 
     def add_const_config_variable(self, name, description="", *values):
@@ -105,7 +128,7 @@ class ConfigVarList(object):
         self._ConfigVar_objs[addedValue.name()] = addedValue
         if not self.__dirty: # if not already dirty, try to keep it clean
             if value_ref_re.search(" ".join(values)):
-                self.__dirty = True
+                self.__dirty = True # dirty because a $() reference(s) found
             else: # no need to resolve, copy values to _resolved_vars
                 self._resolved_vars[addedValue.name()] = values
 
@@ -140,7 +163,6 @@ class ConfigVarList(object):
             for var_name in self._ConfigVar_objs:
                 if var_name in self.__resolve_stack:
                     raise Exception("circular resolving of {}".format(value_to_resolve))
-
                 self.__resolve_stack.append(var_name)
                 self._resolved_vars[var_name] = resolve_list(self._ConfigVar_objs[var_name],
                                                         self.resolve_value_callback)
@@ -218,11 +240,13 @@ if __name__ == "__main__":
     varList.get_configVar_obj("U").append("and")
     varList.get_configVar_obj("you").append("ata")
 
+    varList.set_variable("mergoza", "stam", "pinochio")
+
     varList.read_environment()
     varList.resolve()
 
-    for var in varList:
-        print (var, "=", " ".join(varList[var]), hash(var))
+    for var in sorted(varList):
+        print (var, "=", " ".join(varList[var]))
 
     to_re = "on $(shabat) morning, i told $(you) and you told me $(itzik)"
     print(varList.resolve_string(to_re))

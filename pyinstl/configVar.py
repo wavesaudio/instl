@@ -36,7 +36,7 @@ class ConfigVar(object):
 
     def set_description(self, description):
         """ Assign new description """
-        self._description = description
+        self._description = str(description)
 
     def __str__(self):
         ln = os.linesep
@@ -66,6 +66,9 @@ class ConfigVar(object):
 
     def __reversed__(self):
         return reversed(self._values)
+
+    def clear_values(self):
+        self._values = list()
 
     def append(self, value):
         self._values.append(value)
