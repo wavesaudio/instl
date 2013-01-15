@@ -107,7 +107,7 @@ class ConfigVarList(object):
 
     def get_configVar_obj(self, var_name):
         self.__dirty = True # if someone asked for a configVar.ConfigVar, assume it was changed
-        retVal = self._ConfigVar_objs.setdefault(var_name, var.configVar.ConfigVar(var_name))
+        retVal = self._ConfigVar_objs.setdefault(var_name, configVar.ConfigVar(var_name))
         return retVal
 
     def set_variable(self, var_name, description=None, *values_to_set):

@@ -1,0 +1,258 @@
+import sys
+import os
+import argparse
+import yaml
+import re
+
+from configVarList import ConfigVarList
+from aYaml import augmentedYaml
+from installItem import InstallItem, read_yaml_items_map
+
+class cmd_line_options(object):
+    def __init__(self):
+        self.input_files = None
+        self.out_file_option = None
+        self.main_targets = None
+        self.state_file_option = None
+        self.run = False
+    def __str__(self):
+        retVal = ("input_files: {self.input_files}\nout_file_option: {self.out_file_option}\n"+
+                "main_targets: {self.main_targets}\nstate_file_option: {self.state_file_option}\n"+
+                "run: {self.run}\n").format(**vars())
+        return retVal
+
+class InstlInstanceBase(object):
+    def __init__(self):
+        self.out_file_realpath = None
+        self.install_definitions_map = {}
+        self.cvl = ConfigVarList()
+        self.install_instruction_lines = []
+
+    def repr_for_yaml(self):
+        retVal = list()
+        retVal.append(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True))
+        retVal.append(augmentedYaml.YamlDumpDocWrap(self.install_definitions_map, '!install', "Installation map", explicit_start=True, sort_mappings=True))
+        return retVal
+
+    def read_command_line_options(self, arglist=None):
+        try:
+            parser = prepare_args_parser()
+            if not arglist:
+                arglist=sys.argv[1:]
+            name_space_obj = cmd_line_options()
+            args = parser.parse_args(arglist, namespace=name_space_obj)
+            self.init_from_cmd_line_options(name_space_obj)
+        except Exception as ex:
+            print(ex)
+            raise
+        return args
+
+    def init_from_cmd_line_options(self, cmd_line_options_obj):
+        if cmd_line_options_obj.input_files:
+            self.cvl.add_const_config_variable("__MAIN_INPUT_FILES__", "from commnad line options", *cmd_line_options_obj.input_files)
+        if cmd_line_options_obj.out_file_option:
+            self.cvl.add_const_config_variable("__MAIN_OUT_FILE__", "from commnad line options", cmd_line_options_obj.out_file_option[0])
+        if cmd_line_options_obj.main_targets:
+            self.cvl.add_const_config_variable("__MAIN_INSTALL_TARGETS__", "from commnad line options", *cmd_line_options_obj.main_targets)
+        if cmd_line_options_obj.state_file_option:
+            self.cvl.add_const_config_variable("__MAIN_STATE_FILE__", "from commnad line options", cmd_line_options_obj.state_file_option)
+        if cmd_line_options_obj.run:
+            self.cvl.add_const_config_variable("__MAIN_RUN_INSTALLATION__", "from commnad line options", "yes")
+        self.cvl.resolve()
+
+    internal_identifier_re = re.compile("""
+                                        __                  # dunder here
+                                        (?P<internal_identifier>\w*)
+                                        __                  # dunder there
+                                        """, re.VERBOSE)
+    def read_defines(self, a_node):
+        # if document is empty we get a scalar node
+        if a_node.isMapping():
+            for identifier, value in a_node:
+                if not self.internal_identifier_re.match(identifier): # do not read internal state indentifiers
+                    cv = self.cvl.get_configVar_obj(identifier)
+                    cv.extend([item.value for item in a_node[identifier]])
+                    cv.set_description(str(a_node[identifier].start_mark))
+
+    def read_install_definitions_map(self, a_node):
+        self.install_definitions_map.update(read_yaml_items_map(a_node))
+
+    def read_input_files(self):
+        input_files = self.cvl.get("__MAIN_INPUT_FILES__", ())
+        if input_files:
+            file_actually_opened = list()
+            for file_path in input_files:
+                with open(file_path, "r") as file_fd:
+                    file_actually_opened.append(os.path.abspath(file_fd.name))
+                    for a_node in yaml.compose_all(file_fd):
+                        if a_node.tag == u'!define':
+                            self.read_defines(a_node)
+                        elif a_node.tag == u'!install':
+                            self.read_install_definitions_map(a_node)
+                        else:
+                            print("Unknown document tag", a_node.tag)
+            self.cvl.add_const_config_variable("__MAIN_INPUT_FILES_ACTUALLY_OPENED__", "opened by read_input_files", *file_actually_opened)
+            self.cvl.resolve()
+            if "__MAIN_INSTALL_TARGETS__" not in self.cvl:
+                # command line targets take precedent, if they were not specifies, look for "MAIN_INSTALL_TARGETS"
+                main_intsall_def = self.install_definitions_map["MAIN_INSTALL_TARGETS"]
+                if main_intsall_def:
+                    main_install_targets = main_intsall_def.depends
+                    if main_install_targets:
+                        self.cvl.add_const_config_variable("__MAIN_INSTALL_TARGETS__",
+                                                    main_intsall_def.description,
+                                                    *main_install_targets)
+        self.cvl.resolve()
+        #self.evaluate_graph()
+
+    def create_install_instructions_by_folder(self):
+        full_install_targets = self.cvl.get("__FULL_LIST_OF_INSTALL_TARGETS__", None)
+        install_by_folder = dict()
+        for GUID in full_install_targets:
+            for folder in self.install_definitions_map[GUID].folder_list():
+                if not folder in install_by_folder:
+                    install_by_folder[folder] = [GUID]
+                else:
+                    if GUID not in install_by_folder:
+                        install_by_folder[folder].append(GUID)
+        return install_by_folder
+
+    def create_install_list(self):
+        main_install_targets = self.cvl.get("__MAIN_INSTALL_TARGETS__")
+        full_install_set = set()
+        orphan_set = set()
+        for GUID in main_install_targets:
+            try:
+                self.install_definitions_map[GUID].get_recursive_depends(self.install_definitions_map, full_install_set, orphan_set)
+            except KeyError:
+                orphan_set.add(GUID)
+        self.cvl.add_const_config_variable("__FULL_LIST_OF_INSTALL_TARGETS__", "calculated by create_install_list", *full_install_set)
+        if orphan_set:
+            self.cvl.add_const_config_variable("__ORPHAN_INSTALL_TARGETS__", "calculated by create_install_list", *orphan_set)
+
+    def create_install_instructions_prefix(self):
+        """ platform specific first lines of the install script
+            to be overridden """
+        pass
+
+    def create_variables_assignment(self):
+        for value in self.cvl:
+            if not self.internal_identifier_re.match(value): # do not read internal state indentifiers
+                self.install_instruction_lines.append(value+"='"+" ".join(self.cvl[value])+"'")
+        self.install_instruction_lines.append(os.linesep)
+
+    def create_install_instructions(self):
+        self.create_install_instructions_prefix()
+        self.create_variables_assignment()
+        self.create_install_list()
+        install_by_folder = self.create_install_instructions_by_folder()
+        if install_by_folder:
+            for folder in install_by_folder:
+                self.install_instruction_lines.append(" ".join(("mkdir", "-p", "'"+folder+"'")))
+                self.install_instruction_lines.append(" ".join(("cd", "'"+folder+"'")))
+                for GUID in install_by_folder[folder]:
+                    installi = self.install_definitions_map[GUID]
+                    for source in installi.source_list():
+                        self.install_instruction_lines.append(" ".join(("svn", "checkout", "--revision", "HEAD", "'"+"$(BASE_URL)"+source+"'")))
+                self.install_instruction_lines.append(os.linesep)
+            self.create_install_instructions_postfix()
+
+    def create_install_instructions_postfix(self):
+        """ platform specific last lines of the install script
+            to be overridden """
+        pass
+
+    def write_instl_instructions(self):
+        out_file = self.cvl.get("__MAIN_OUT_FILE__", ("stdout",))
+        if out_file:
+            fd = sys.stdout
+            if out_file[0] != "stdout":
+                fd = open(out_file[0], "w")
+                self.out_file_realpath = os.path.realpath(out_file[0])
+                os.chmod(self.out_file_realpath, 0744)
+            fd.write(os.linesep.join(self.install_instruction_lines))
+            if fd and fd is not sys.stdout:
+                fd.close()
+
+    def write_program_state(self):
+        state_file = self.cvl.get("__MAIN_STATE_FILE__", ("stdout",))
+        if state_file:
+            fd = sys.stdout
+            if state_file[0] != "stdout":
+                fd = open(state_file[0], "w")
+            augmentedYaml.writeAsYaml(self, fd)
+            if fd is not sys.stdout:
+                fd.close()
+
+    def evaluate_graph(self):
+        try:
+            from pyinstl import installItemGraph
+            graph = installItemGraph.create_installItem_graph(self.install_definitions_map)
+            cycles = installItemGraph.find_cycles(graph)
+            if not cycles:
+                print ("No cycles found")
+            else:
+                for cy in cycles:
+                    print("cycle:", cy)
+            leafs = installItemGraph.find_leafs(graph)
+            if not leafs:
+                print ("No leafs found")
+            else:
+                for leaf in leafs:
+                    print("leaf:", leaf)
+        except ImportError as IE: # no installItemGraph, no worry
+            pass
+
+def prepare_args_parser():
+    def decent_convert_arg_line_to_args(self, arg_line):
+        """ parse a file with options so that we do not have to write one sub-option
+            per line.  Remove empty lines and comment lines and end of line comments.
+            ToDo: handle quotes
+        """
+        line_no_whitespce = arg_line.strip()
+        if line_no_whitespce and line_no_whitespce[0] != '#':
+            for arg in line_no_whitespce.split():
+                if not arg:
+                    continue
+                elif  arg[0] == '#':
+                    break
+                yield arg
+
+    parser = argparse.ArgumentParser(description='instl: cross platform svn based installer',
+                    prefix_chars='-+',
+                    fromfile_prefix_chars='@',
+                    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    argparse.ArgumentParser.convert_arg_line_to_args = decent_convert_arg_line_to_args
+    standard_options = parser.add_argument_group(description='standard arguments:')
+    standard_options.add_argument('input_files',
+                                nargs='*',
+                                metavar='file(s)-to-process',
+                                help="One or more files containing dependencies and defintions")
+    standard_options.add_argument('--out','-o',
+                                required=False,
+                                nargs=1,
+                                default="stdout",
+                                metavar='path-to-output-file',
+                                dest='out_file_option',
+                                help="a file to write installtion instructions")
+    standard_options.add_argument('--target','-t',
+                                required=False,
+                                nargs='+',
+                                default=["MAIN_INSTALL"],
+                                metavar='which-target-to-install',
+                                dest='main_targets',
+                                help="Target to create install instructions for")
+    standard_options.add_argument('--run','-r',
+                                required=False,
+                                default=False,
+                                action='store_true',
+                                dest='run',
+                                help="run the installtion instructions script, requires --out")
+    standard_options.add_argument('--state','-s',
+                                required=False,
+                                nargs='?',
+                                const="stdout",
+                                metavar='path-to-state-file',
+                                dest='state_file_option',
+                                help="a file to write program state - good for debugging")
+    return parser;
