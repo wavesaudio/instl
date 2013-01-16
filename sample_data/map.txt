@@ -32,22 +32,24 @@ GUID_AU_SHELL:
 GUID_WAVESLIB_9.0:
     name: WavesLib9.0
     mac:
-        install_sources: Plugins/WavesLib_9.0.framework/
+        install_sources:
+            - Plugins/WavesLib_9.0.framework/
+            - !file Plugins/WavesLib_9.0.framework/Versions/A/WavesLib
     win:
         install_sources:
-            - WavesLib_9.0_Win32.dll
-            - WavesLib_9.0_Win64.dll
+            - !file Plugins/WavesLib_9.0_Win32.dll
+            - !file Plugins/WavesLib_9.0_Win64.dll
     install_folders: $(WAVES_PLUGINS_DIR)
 
 GUID_WAVESLIB_9.3:
     name: WavesLib9.3
     mac:
         install_sources:
-            Plugins/WavesLib_9.3.framework/
+            - Plugins/WavesLib_9.3.framework/
     win:
         install_sources:
-            - WavesLib_9.3_Win32.dll
-            - WavesLib_9.3_Win64.dll
+            - !file Plugins/WavesLib_9.3_Win32.dll
+            - !file Plugins/WavesLib_9.3_Win64.dll
     install_folders: $(WAVES_PLUGINS_DIR)
 
 GUID_BASS_RIDER:

@@ -4,6 +4,7 @@ import argparse
 import yaml
 import re
 
+import configVar
 from configVarList import ConfigVarList
 from aYaml import augmentedYaml
 from installItem import InstallItem, read_yaml_items_map
@@ -148,12 +149,20 @@ class InstlInstanceBase(object):
         install_by_folder = self.create_install_instructions_by_folder()
         if install_by_folder:
             for folder in install_by_folder:
-                self.install_instruction_lines.append(" ".join(("mkdir", "-p", "'"+folder+"'")))
-                self.install_instruction_lines.append(" ".join(("cd", "'"+folder+"'")))
+                self.install_instruction_lines.append(" ".join(("mkdir", "-p", "'"+configVar.DereferenceVar(folder)+"'")))
+                self.install_instruction_lines.append(" ".join(("cd", "'"+configVar.DereferenceVar(folder)+"'")))
                 for GUID in install_by_folder[folder]:
                     installi = self.install_definitions_map[GUID]
                     for source in installi.source_list():
-                        self.install_instruction_lines.append(" ".join(("svn", "checkout", "--revision", "HEAD", "'"+"$(BASE_URL)"+source+"'")))
+                        source_url = configVar.DereferenceVar('BASE_URL')+source[0]
+                        if source[1] == '!file':
+                            source_url_split = source_url.split('/')
+                            source_url_dir = '/'.join(source_url_split)
+                            source_url_file = source_url_split[-1]
+                            self.install_instruction_lines.append(" ".join(("svn", "checkout", "--revision", "HEAD", "'"+source_url_dir+"'", ".", "--depth", "empty")))
+                            self.install_instruction_lines.append(" ".join(("svn", "up", "'"+source_url_file+"'")))
+                        else:
+                            self.install_instruction_lines.append(" ".join(("svn", "checkout", "--revision", "HEAD", "'"+source_url+"'")))
                 self.install_instruction_lines.append(os.linesep)
             self.create_install_instructions_postfix()
 

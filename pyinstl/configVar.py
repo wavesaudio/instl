@@ -1,16 +1,24 @@
-#!/usr/local/bin/python3
+#!/usr/local/bin/python2.7
 
 from __future__ import print_function
 
 """
     Copyright (c) 2012, Shai Shasag
     All rights reserved.
-    Licensed under BSD 3 clause license, see LICENSE file for details.
+    Licensed under BSD 3 clause license, see LICENSE file for details. 
 """
 
 import os
 import sys
 
+import platform
+current_os = platform.system()
+if current_os == 'Darwin':
+    def DereferenceVar(in_var):
+        return "".join( ("${",in_var,"}") )
+elif current_os == 'Windows':
+    def DereferenceVar(in_var):
+        return "".join( ("%",in_var,"%") )
 
 class ConfigVar(object):
     """ Keep a single, named, config variable and it's values.

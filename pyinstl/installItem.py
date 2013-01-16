@@ -51,7 +51,7 @@ class InstallItem(object):
             self.name = my_node["name"].value
         if "install_sources" in my_node:
             for source in my_node["install_sources"]:
-                self.add_source(source.value)
+                self.add_source(source.value, source.tag)
         if "install_folders" in my_node:
             for folder in my_node["install_folders"]:
                 self.add_folder(folder.value)
@@ -61,9 +61,9 @@ class InstallItem(object):
         if current_os in my_node:
             self.read_from_yaml(my_node[current_os], all_items_node)
 
-    def add_source(self, new_source):
+    def add_source(self, new_source, type='!dir'):
         if new_source not in self.install_sources:
-            self.install_sources.append(new_source)
+            self.install_sources.append( (new_source, type) )
 
     def add_folder(self, new_folder):
         if new_folder not in self.install_folders:
