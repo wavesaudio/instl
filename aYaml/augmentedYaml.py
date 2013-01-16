@@ -130,6 +130,15 @@ class YamlDumpWrap(object):
     def __lt__(self, other):
         return self.value < other.value
 
+    def isMapping(self):
+        return isMapping(self.value)
+
+    def isSequence(self):
+        return isSequence(self.value)
+
+    def isScalar(self):
+        return isScalar(self.value)
+
     def writePrefix(self, out_stream, indentor):
         if isinstance(self.value, (list, tuple, dict)):
             if self.tag or self.comment:
@@ -167,6 +176,22 @@ class Indentor(object):
         self.indent_size = indent_size
         self.cur_indent = 0
         self.num_extra_chars = 0
+        self.item_type_stack = []
+
+    def push(self, val):
+        self.item_type_stack.append(val)
+
+    def pop(self):
+        if self.item_type_stack:
+            return self.item_type_stack.pop()
+        else:
+            return  None
+
+    def top(self):
+        if self.item_type_stack:
+            return self.item_type_stack[-1]
+        else:
+            return  None
 
     def __iadd__(self, i):
         self.cur_indent += i
@@ -197,12 +222,38 @@ class Indentor(object):
             out_stream.write(" " * num_chars_to_fill)
             self.num_extra_chars = 0
 
+def isMapping(item):
+    retVal = False
+    if isinstance(item, dict):
+        retVal = True
+    elif isinstance(item, YamlDumpWrap):
+        retVal = item.isMapping()
+    return retVal
+
+def isSequence(item):
+    retVal = False
+    if isinstance(item, (list, tuple)):
+        retVal = True
+    elif isinstance(item, YamlDumpWrap):
+        retVal = item.isSequence()
+    return retVal
+
+def isScalar(item):
+    retVal = True
+    if isinstance(item, (list, tuple, dict)):
+        retVal = False
+    elif isinstance(item, YamlDumpWrap):
+        retVal = item.isScalar()
+    return retVal
+
+
 def writeAsYaml(pyObj, out_stream, indentor=None, sort=False):
     if not indentor:
         indentor = Indentor(4)
     if pyObj is None:
         pass
     elif isinstance(pyObj, (list, tuple)):
+        indentor.push('l')
         for item in pyObj:
             if isinstance(item, YamlDumpDocWrap):
                 writeAsYaml(item, out_stream, indentor, sort)
@@ -212,23 +263,29 @@ def writeAsYaml(pyObj, out_stream, indentor=None, sort=False):
                 indentor += 1
                 writeAsYaml(item, out_stream, indentor, sort)
                 indentor -= 1
+        indentor.pop()
     elif isinstance(pyObj, dict):
+        parent_item = indentor.top()
+        indentor.push('m')
         if sort:
             theKeys = sorted(pyObj.keys())
         else:
             theKeys = pyObj.keys()
         itemNum = 1
         for item in theKeys:
-            if itemNum == 1:
-                indentor.fill_to_next_indent(out_stream)
-                itemNum += 1
+            if parent_item == 'l':
+                nl_before_key = False
             else:
-                indentor.lineSepAndIndent(out_stream,)
+                nl_before_key = True
+            #print({'key': item, 'prev': parent_item, 'nl_before_key': nl_before_key})
+            if nl_before_key:
+                indentor.lineSepAndIndent(out_stream)
             writeAsYaml(item, out_stream, indentor, sort)
             indentor.write_extra_chars(out_stream, ": ")
             indentor += 1
             writeAsYaml(pyObj[item], out_stream, indentor, sort)
             indentor -= 1
+        indentor.pop()
     elif isinstance(pyObj, YamlDumpWrap):
         pyObj.writePrefix(out_stream, indentor)
         writeAsYaml(pyObj.value, out_stream, indentor, sort or pyObj.sort_mappings)
@@ -253,10 +310,21 @@ def nodeToPy(a_node):
         retVal = {str(_key.value): nodeToPy(_val) for (_key, _val) in a_node.value}
     return retVal
 
+def nodeToYamlDumpWrap(a_node):
+    if a_node.isScalar():
+        retVal = YamlDumpWrap(str(a_node.value))#, tag="!scalar", comment="scalar..."
+    elif a_node.isSequence():
+        seq = [nodeToYamlDumpWrap(item) for item in a_node.value]
+        retVal = YamlDumpWrap(seq)#, tag="!sequence", comment="sequence..."
+    elif a_node.isMapping():
+        map = {str(_key.value): nodeToYamlDumpWrap(_val) for (_key, _val) in a_node.value}
+        retVal = YamlDumpWrap(map)#, tag="!mapping", comment="mapping..."
+    return retVal
+
 if __name__ == "__main__":
-    for file in sys.argv[1:]:
+    for file in ("test.txt",): #sys.argv[1:]:
         with open(file, "r") as fd:
             for a_node in yaml.compose_all(fd):
-                a_node_as_py = nodeToPy(a_node)
-                docWrap = YamlDumpDocWrap(a_node_as_py)
+                a_node_as_tdw = nodeToYamlDumpWrap(a_node)
+                docWrap = YamlDumpDocWrap(a_node_as_tdw)
                 writeAsYaml(docWrap, sys.stdout, sort=False)
