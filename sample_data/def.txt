@@ -1,9 +1,10 @@
 --- !define
 
+SVN_CLIENT_PATH: "/Volumes/p4client/dev_install/bin/Mac/wsvn"
 BASE_URL: "svn://localhost/V9/Mac/"
-WAVES_PLUGINS_DIR: /Applications/Waves/Waves Plugins
-WAVES_APPS_DIR: /Applications/Waves/Waves Applications
-MACOS_COMPONENTS: /Library/Audio/Plug-Ins/Components
+WAVES_PLUGINS_DIR: /Volumes/Shmates/sis/Waves Plugins
+WAVES_APPS_DIR: /Volumes/Shmates/sis/Waves Applications
+MACOS_COMPONENTS: /Volumes/Shmates/sis/Plug-Ins/Components
 
 --- !install
 

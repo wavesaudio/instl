@@ -1,5 +1,7 @@
 import instlInstanceBase
 
 class InstlInstance(instlInstanceBase.InstlInstanceBase):
-    pass
+    def __init__(self):
+        super(InstlInstance, self).__init__()
+        self.var_replacement_pattern = "%\g<var_name>%"
 

@@ -3,11 +3,14 @@ import os
 import argparse
 import yaml
 import re
+import tempfile
+import shutil
 
 import configVar
-from configVarList import ConfigVarList
+from configVarList import ConfigVarList, value_ref_re
 from aYaml import augmentedYaml
 from installItem import InstallItem, read_yaml_items_map
+
 
 class cmd_line_options(object):
     def __init__(self):
@@ -27,6 +30,7 @@ class InstlInstanceBase(object):
         self.out_file_realpath = None
         self.install_definitions_map = {}
         self.cvl = ConfigVarList()
+        self.variables_assignment_lines = []
         self.install_instruction_lines = []
 
     def repr_for_yaml(self):
@@ -106,7 +110,7 @@ class InstlInstanceBase(object):
         self.cvl.resolve()
         #self.evaluate_graph()
 
-    def create_install_instructions_by_folder(self):
+    def sort_install_instructions_by_folder(self):
         full_install_targets = self.cvl.get("__FULL_LIST_OF_INSTALL_TARGETS__", None)
         install_by_folder = dict()
         for GUID in full_install_targets:
@@ -131,58 +135,72 @@ class InstlInstanceBase(object):
         if orphan_set:
             self.cvl.add_const_config_variable("__ORPHAN_INSTALL_TARGETS__", "calculated by create_install_list", *orphan_set)
 
-    def create_install_instructions_prefix(self):
+    def get_install_instructions_prefix(self):
         """ platform specific first lines of the install script
             to be overridden """
-        pass
+        return ""
 
     def create_variables_assignment(self):
         for value in self.cvl:
             if not self.internal_identifier_re.match(value): # do not read internal state indentifiers
-                self.install_instruction_lines.append(value+"='"+" ".join(self.cvl[value])+"'")
-        self.install_instruction_lines.append(os.linesep)
+                self.variables_assignment_lines.append(value+'="'+" ".join(self.cvl[value])+'"')
 
     def create_install_instructions(self):
-        self.create_install_instructions_prefix()
         self.create_variables_assignment()
         self.create_install_list()
-        install_by_folder = self.create_install_instructions_by_folder()
+        install_by_folder = self.sort_install_instructions_by_folder()
         if install_by_folder:
             for folder in install_by_folder:
-                self.install_instruction_lines.append(" ".join(("mkdir", "-p", "'"+configVar.DereferenceVar(folder)+"'")))
-                self.install_instruction_lines.append(" ".join(("cd", "'"+configVar.DereferenceVar(folder)+"'")))
+                self.install_instruction_lines.append(" ".join(("mkdir", "-p", '"'+folder+'"')))
+                self.install_instruction_lines.append(" ".join(("cd", '"'+folder+'"')))
                 for GUID in install_by_folder[folder]:
                     installi = self.install_definitions_map[GUID]
                     for source in installi.source_list():
-                        source_url = configVar.DereferenceVar('BASE_URL')+source[0]
+                        source_url = '$(BASE_URL)'+source[0]
                         if source[1] == '!file':
                             source_url_split = source_url.split('/')
-                            source_url_dir = '/'.join(source_url_split)
+                            source_url_dir = '/'.join(source_url_split[:-1])
                             source_url_file = source_url_split[-1]
-                            self.install_instruction_lines.append(" ".join(("svn", "checkout", "--revision", "HEAD", "'"+source_url_dir+"'", ".", "--depth", "empty")))
-                            self.install_instruction_lines.append(" ".join(("svn", "up", "'"+source_url_file+"'")))
+                            self.install_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", "HEAD", '"'+source_url_dir+'"', ".", "--depth empty")))
+                            self.install_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "up", '"'+source_url_file+'"')))
                         else:
-                            self.install_instruction_lines.append(" ".join(("svn", "checkout", "--revision", "HEAD", "'"+source_url+"'")))
+                            self.install_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", "HEAD", '"'+source_url+'"')))
                 self.install_instruction_lines.append(os.linesep)
-            self.create_install_instructions_postfix()
+            self.get_install_instructions_postfix()
 
-    def create_install_instructions_postfix(self):
+    def get_install_instructions_postfix(self):
         """ platform specific last lines of the install script
             to be overridden """
-        pass
+        return ""
 
-    def write_instl_instructions(self):
+    def write_install_batch_file(self):
+        aTempFile = tempfile.SpooledTemporaryFile(max_size=1000000, mode="w+r")
+        lines = list()
+        lines.extend(self.get_install_instructions_prefix())
+        lines.extend( (os.linesep, ) )
+        
+        lines.extend(sorted(self.variables_assignment_lines))
+        lines.extend( (os.linesep, ) )
+        
+        lines.extend(self.install_instruction_lines)
+        lines.extend( (os.linesep, ) )
+        
+        lines.extend(self.get_install_instructions_postfix())
+
+        lines_after_var_replacement = os.linesep.join([value_ref_re.sub(self.var_replacement_pattern, line) for line in lines])
+        aTempFile.write(lines_after_var_replacement)
+        
         out_file = self.cvl.get("__MAIN_OUT_FILE__", ("stdout",))
-        if out_file:
-            fd = sys.stdout
-            if out_file[0] != "stdout":
-                fd = open(out_file[0], "w")
-                self.out_file_realpath = os.path.realpath(out_file[0])
-                os.chmod(self.out_file_realpath, 0744)
-            fd.write(os.linesep.join(self.install_instruction_lines))
-            if fd and fd is not sys.stdout:
-                fd.close()
-
+        aTempFile.seek(0)
+        if out_file[0] != "stdout":
+            fd = open(out_file[0], "w")
+            self.out_file_realpath = os.path.realpath(out_file[0])
+            shutil.copyfileobj(aTempFile, fd)
+            os.chmod(self.out_file_realpath, 0744)
+            fd.close()
+        else:
+            shutil.copyfileobj(aTempFile, sys.stdout)
+                
     def write_program_state(self):
         state_file = self.cvl.get("__MAIN_STATE_FILE__", ("stdout",))
         if state_file:

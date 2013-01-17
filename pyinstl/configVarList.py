@@ -70,13 +70,14 @@ class ConfigVarList(object):
         # the value of non existant var_name is an empty tuple
         return self._resolved_vars.get(var_name, default)
 
-    def get_as_str(self, var_name, sep=" "):
-        retVal = ""
-        if not self.__dirty:
-            retVal = sep.join(self.get(var_name))
-        else:
-            resolved_list = resolve_list(self._ConfigVar_objs[var_name], self.resolve_value_callback)
-            retVal = sep.join(resolved_list)
+    def get_str(self, var_name, default="", sep=" "):
+        retVal = default
+        if var_name in self._ConfigVar_objs:
+            if not self.__dirty:
+                retVal = sep.join(self.get(var_name))
+            else:
+                resolved_list = resolve_list(self._ConfigVar_objs[var_name], self.resolve_value_callback)
+                retVal = sep.join(resolved_list)
         return retVal
 
     def __str__(self):
