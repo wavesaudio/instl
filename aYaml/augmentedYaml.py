@@ -27,7 +27,7 @@ import os
 import yaml
 
 if __name__ == "__main__":
-    sys.path.append("..")
+    sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 
 # patch yaml.Node derivatives to identify themselves.
 yaml.ScalarNode.isScalar = lambda self: True
@@ -256,7 +256,9 @@ def writeAsYaml(pyObj, out_stream, indentor=None, sort=False):
         indentor.push('l')
         for item in pyObj:
             if isinstance(item, YamlDumpDocWrap):
+                indentor.push(None) # doc should have no parent
                 writeAsYaml(item, out_stream, indentor, sort)
+                indentor.pop()
             else:
                 indentor.lineSepAndIndent(out_stream)
                 indentor.write_extra_chars(out_stream, "- ")
