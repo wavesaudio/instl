@@ -39,7 +39,7 @@ Mapping section format
             A list of partial paths into the svn repository. These paths will be pulled from the repository to the user's disk during installation. The left part of the path must be supplied in the definitions section.
 
         *install_folders*
-            List of folders where the *install_sources* will be copied to. Typically there will be only one, but if more than one is found *install_sources* will copied to each of them.
+            List of folders where the *install_sources* will be copied to. Typically there will be only one, but if more than one folder is found *install_sources* will copied to each of them.
 
         *depends*
             is a list of identifiers of items that must be installed when the current item is installed.
@@ -61,7 +61,23 @@ Mapping section format
 
 Definitions file format
 -------------------
-    The mapping part must start with the line:
+    The definitions part must start with the line:
     ::
         --- !define
-    After which the will be zero or more items with definitions.
+    After which the will be zero or more items with definitions such as:
+    ::
+        SVN_SERVER: http://svn.mydomain.com/
+        TARGET_INSTALLTION_FOLDER: /Users/name/myapp
+
+    Values can be either a single value of a list, However, in the definotions part, if list is given, it is joined into a single value at runtime
+    So:
+    ::
+        TARGET_ARCHITECTURES:
+                        - i386
+                        - x64
+
+    is identical to:
+    ::
+        TARGET_ARCHITECTURES: i386 x64
+
+

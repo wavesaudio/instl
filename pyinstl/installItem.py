@@ -24,12 +24,16 @@ def read_yaml_items_map(all_items_node):
     return retVal
 
 class InstallItem(object):
-    __slots__ = ("guid", "name", "install_sources", "install_folders", "depends", "description")
+    __slots__ = ("guid", "name", "install_sources",
+                "install_folders", "actions_before",
+                "actions_after", "depends", "description")
     def __init__(self):
         self.guid = None
         self.name = None
         self.install_sources = []
         self.install_folders = []
+        self.actions_before = []
+        self.actions_after = []
         self.depends = []
         self.description = ""
 
@@ -58,6 +62,12 @@ class InstallItem(object):
         if "depends" in my_node:
             for source in my_node["depends"]:
                 self.add_depend(source.value)
+        if "actions_before" in my_node:
+            for action in my_node["actions_before"]:
+                self.actions_before.append(action.value)
+        if "actions_after" in my_node:
+            for action in my_node["actions_after"]:
+                self.actions_after.append(action.value)
         if current_os in my_node:
             self.read_from_yaml(my_node[current_os], all_items_node)
 
@@ -96,6 +106,10 @@ class InstallItem(object):
             retVal["install_sources"] = self.install_sources
         if self.install_folders:
             retVal["install_folders"] = self.install_folders
+        if self.actions_before:
+            retVal["actions_before"] = self.actions_before
+        if self.actions_after:
+            retVal["actions_after"] = self.actions_after
         if self.depends:
             retVal["depends"] = self.depends
         return retVal

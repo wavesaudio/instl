@@ -4,8 +4,8 @@ Cuckoo:
     - egozim
 --- !install
 
-!tag_for_map GUID_PLUGIN_TEMPLATE:
-    !tad_poll name: normal plugin template
+GUID_PLUGIN_TEMPLATE:
+    name: normal plugin template
     install_folders: $(WAVES_PLUGINS_DIR)
     depends:
         - GUID_WAVESLIB_9.0
@@ -56,6 +56,10 @@ GUID_BASS_RIDER:
     inherit: GUID_PLUGIN_TEMPLATE
     name: Bass Rider
     install_sources: Plugins/Bass Rider.bundle/
+    actions_before: touch "$(HOME)/Desktop/BassRiderActionBefore"
+    actions_after:
+            - touch "$(HOME)/Desktop/BassRiderActionAfter1"
+            - touch "$(HOME)/Desktop/BassRiderActionAfter2"
 
 GUID_AUDIOTRACK:
     inherit:

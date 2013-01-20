@@ -155,6 +155,8 @@ class InstlInstanceBase(object):
                 self.install_instruction_lines.append(" ".join(("cd", '"'+folder+'"')))
                 for GUID in install_by_folder[folder]:
                     installi = self.install_definitions_map[GUID]
+                    for action in installi.actions_before:
+                        self.install_instruction_lines.append(action)
                     for source in installi.source_list():
                         source_url = '$(BASE_URL)'+source[0]
                         if source[1] == '!file':
@@ -165,6 +167,8 @@ class InstlInstanceBase(object):
                             self.install_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "up", '"'+source_url_file+'"')))
                         else:
                             self.install_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", "HEAD", '"'+source_url+'"')))
+                    for action in installi.actions_after:
+                        self.install_instruction_lines.append(action)
                 self.install_instruction_lines.append(os.linesep)
             self.get_install_instructions_postfix()
 
@@ -178,18 +182,18 @@ class InstlInstanceBase(object):
         lines = list()
         lines.extend(self.get_install_instructions_prefix())
         lines.extend( (os.linesep, ) )
-        
+
         lines.extend(sorted(self.variables_assignment_lines))
         lines.extend( (os.linesep, ) )
-        
+
         lines.extend(self.install_instruction_lines)
         lines.extend( (os.linesep, ) )
-        
+
         lines.extend(self.get_install_instructions_postfix())
 
         lines_after_var_replacement = os.linesep.join([value_ref_re.sub(self.var_replacement_pattern, line) for line in lines])
         aTempFile.write(lines_after_var_replacement)
-        
+
         out_file = self.cvl.get("__MAIN_OUT_FILE__", ("stdout",))
         aTempFile.seek(0)
         if out_file[0] != "stdout":
@@ -200,7 +204,7 @@ class InstlInstanceBase(object):
             fd.close()
         else:
             shutil.copyfileobj(aTempFile, sys.stdout)
-                
+
     def write_program_state(self):
         state_file = self.cvl.get("__MAIN_STATE_FILE__", ("stdout",))
         if state_file:
