@@ -5,6 +5,7 @@ import yaml
 import re
 import tempfile
 import shutil
+from collections import OrderedDict
 
 import configVar
 from configVarList import ConfigVarList, value_ref_re
@@ -28,7 +29,7 @@ class cmd_line_options(object):
 class InstlInstanceBase(object):
     def __init__(self):
         self.out_file_realpath = None
-        self.install_definitions_map = {}
+        self.install_definitions_map = OrderedDict()
         self.cvl = ConfigVarList()
         self.variables_assignment_lines = []
         self.install_instruction_lines = []
@@ -36,7 +37,7 @@ class InstlInstanceBase(object):
     def repr_for_yaml(self):
         retVal = list()
         retVal.append(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True))
-        retVal.append(augmentedYaml.YamlDumpDocWrap(self.install_definitions_map, '!install', "Installation map", explicit_start=True, sort_mappings=True))
+        retVal.append(augmentedYaml.YamlDumpDocWrap(self.install_definitions_map, '!index', "Installation map", explicit_start=True, sort_mappings=True))
         return retVal
 
     def read_command_line_options(self, arglist=None):
@@ -92,7 +93,7 @@ class InstlInstanceBase(object):
                     for a_node in yaml.compose_all(file_fd):
                         if a_node.tag == u'!define':
                             self.read_defines(a_node)
-                        elif a_node.tag == u'!install':
+                        elif a_node.tag == u'!index':
                             self.read_install_definitions_map(a_node)
                         else:
                             print("Unknown document tag", a_node.tag)
@@ -112,7 +113,7 @@ class InstlInstanceBase(object):
 
     def sort_install_instructions_by_folder(self):
         full_install_targets = self.cvl.get("__FULL_LIST_OF_INSTALL_TARGETS__", None)
-        install_by_folder = dict()
+        install_by_folder = OrderedDict()
         for GUID in full_install_targets:
             for folder in self.install_definitions_map[GUID].folder_list():
                 if not folder in install_by_folder:

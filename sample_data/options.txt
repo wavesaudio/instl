@@ -1,4 +1,4 @@
-sample_data/map.txt # the map file for db
-sample_data/def.txt # the def file from wlc
+sample_data/index.txt # the index file for db
+sample_data/def.txt   # the def file from wlc
 --out out.bat
 --state state.out.txt

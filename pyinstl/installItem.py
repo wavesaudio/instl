@@ -1,6 +1,7 @@
 import sys
 import platform
 import yaml
+from collections import OrderedDict
 
 sys.path.append("..")
 from aYaml import augmentedYaml
@@ -12,7 +13,7 @@ elif current_os == 'Windows':
     current_os = 'win';
 
 def read_yaml_items_map(all_items_node):
-    retVal = {}
+    retVal = OrderedDict()
     for GUID in all_items_node.iterkeys():
         if GUID in retVal:
             pass#print(GUID, "already in all_items_node")
