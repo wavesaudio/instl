@@ -1,0 +1,208 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>5. File formats: index and definition &mdash; instl 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="instl 0.1 documentation" href="index.html" />
+    <link rel="next" title="6. Example" href="example.html" />
+    <link rel="prev" title="4. Architecture" href="architecture.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="example.html" title="6. Example"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="architecture.html" title="4. Architecture"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">instl 0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="file-formats-index-and-definition">
+<h1>5. File formats: index and definition<a class="headerlink" href="#file-formats-index-and-definition" title="Permalink to this headline">¶</a></h1>
+<p><strong>instl</strong> client needs two types of data to operate:</p>
+<ol class="arabic simple">
+<li><strong>index</strong> of installation items, their svn repository locations, and folders on disk where each item is to be installed, along with other information about how to install the item. The index will typically be stored as a file on the svn server and will be updated whenever the svn repository is updated. Another important feature of the index is <em>dependencies</em> - where an item can be required to be installed before another item. During installation the index will be copied to the user&#8217;s machine and passed as parameter to the <strong>instl</strong> client.</li>
+<li><strong>Definitions</strong> of variables used in the index. Definitions will typically be produced, on the user&#8217;s machine, by the software that controls the <strong>instl</strong> client. For example the user might make choices by checking checkboxes and pressing &#8220;install&#8221; will create the definition file and call <strong>instl</strong> client.</li>
+</ol>
+<p>Both types of data, index and Definitions are formated as Yaml documents and can be placed in the same file or in different files. Sections of index and definitions can be mixed in the same file.</p>
+<div class="section" id="index-format">
+<h2>5.1. Index format<a class="headerlink" href="#index-format" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div><p>The index part must start with the line:</p>
+<div class="highlight-python"><pre>--- !index</pre>
+</div>
+<p>After which the will be zero or more items identifying installation parts, such as:</p>
+<div class="highlight-python"><pre>PRODUCT_A:
+    name: Product Type &#x27;A&#x27;
+    inherit:
+        - GENERAL_PRODUCT_INSTALL_DEF
+    install_sources: Products/Product-A.app/
+    install_folders: $(APPLICATIONS_FOLDER)
+    actions_before: touch &quot;$(HOME)/Desktop/PRODUCT_A_Before&quot;
+    actions_after:
+            - touch &quot;$(HOME)/Desktop/PRODUCT_A_After1&quot;
+            - touch &quot;$(HOME)/Desktop/PRODUCT_A_After2&quot;
+    depends:
+        - ZIP_DLL
+        - FLIP_DLL
+        - DOCUMENTAION</pre>
+</div>
+<dl class="docutils">
+<dt><strong>PRODUCT_A</strong></dt>
+<dd><p class="first">The identifier for the item. Other items can refer to it by this identifier. It must be unique. Identifiers can include any combination of alpha numeric characters and the character&#8217;_&#8217;. They are case sensitive, although it is customary to use only upper case characters.</p>
+<dl class="last docutils">
+<dt><em>name</em></dt>
+<dd>A human readable naming for the item, it has no part in the install process, but might appear in error message, log files etc.</dd>
+<dt><em>inherit</em></dt>
+<dd>A list of unique identifiers of other items. These items will be merged with the current item. Inheritance is useful in making and changing features common to several items at once.</dd>
+<dt><em>install_sources</em></dt>
+<dd>A list of partial paths into the svn repository. These paths will be pulled from the repository to the user&#8217;s disk during installation. The left part of the path must be supplied in the definitions section.</dd>
+<dt><em>actions_before</em></dt>
+<dd>List of actions to perform before copying the install_sources.</dd>
+<dt><em>actions_after</em></dt>
+<dd>List of actions to perform after copying the install_sources.</dd>
+<dt><em>install_folders</em></dt>
+<dd>List of folders where the <em>install_sources</em> will be copied to. Typically there will be only one, but if more than one folder is found <em>install_sources</em> will copied to each of them.</dd>
+<dt><em>depends</em></dt>
+<dd>is a list of identifiers of items that must be installed when the current item is installed.</dd>
+</dl>
+</dd>
+</dl>
+<p>Notes:</p>
+<ol class="arabic">
+<li><p class="first">All the fields are optional, but it would be meaningless to omit them all.</p>
+</li>
+<li><p class="first">The term &#8216;list&#8217; means one or more items. A list can be a yaml scalar or sequence. The following are all valid lists:</p>
+<div class="highlight-python"><pre>depends: ZIP_DLL
+
+depends:
+    - ZIP_DLL
+
+depends:
+    - ZIP_DLL
+    - FLIP_DLL</pre>
+</div>
+</li>
+</ol>
+</div></blockquote>
+</div>
+<div class="section" id="definitions-format">
+<h2>5.2. Definitions format<a class="headerlink" href="#definitions-format" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div><p>The definitions part must start with the line:</p>
+<div class="highlight-python"><pre>--- !define</pre>
+</div>
+<p>After which the will be zero or more items with definitions such as:</p>
+<div class="highlight-python"><pre>SVN_SERVER: http://svn.mydomain.com/
+TARGET_INSTALLTION_FOLDER: /Users/name/myapp</pre>
+</div>
+<p>Values can be either a single value of a list, However, in the definitions part, if list is given, it is joined into a single value at runtime
+So:</p>
+<div class="highlight-python"><pre>TARGET_ARCHITECTURES:
+                - i386
+                - x64</pre>
+</div>
+<p>is identical to:</p>
+<div class="highlight-python"><pre>TARGET_ARCHITECTURES: i386 x64</pre>
+</div>
+</div></blockquote>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">5. File formats: index and definition</a><ul>
+<li><a class="reference internal" href="#index-format">5.1. Index format</a></li>
+<li><a class="reference internal" href="#definitions-format">5.2. Definitions format</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="architecture.html"
+                        title="previous chapter">4. Architecture</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="example.html"
+                        title="next chapter">6. Example</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/fileformat.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="example.html" title="6. Example"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="architecture.html" title="4. Architecture"
+             >previous</a> |</li>
+        <li><a href="index.html">instl 0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Shai Shasag.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

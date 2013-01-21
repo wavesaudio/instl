@@ -1,0 +1,266 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>6. Example &mdash; instl 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="instl 0.1 documentation" href="index.html" />
+    <link rel="next" title="7. Frequently asked questions, with some answers" href="FAQs.html" />
+    <link rel="prev" title="5. File formats: index and definition" href="fileformat.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="FAQs.html" title="7. Frequently asked questions, with some answers"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="fileformat.html" title="5. File formats: index and definition"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">instl 0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="example">
+<h1>6. Example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="basic">
+<h2>6.1. Basic<a class="headerlink" href="#basic" title="Permalink to this headline">¶</a></h2>
+<p><em>Acme</em> is and application with versions for Mac and Windows.
+For version 1.0 the svn server structure would look like this:</p>
+<div class="highlight-python"><pre>Acme_Installer/
+index.txt
+|_  Mac/
+   |_ Acme.app/
+      |_ Contents/
+         Info.plist
+         |_ MacOS/
+               Acme
+         |_ Resources/
+               Acme.icns
+               ....
+|_ Win/
+    Acme/
+        Acme.exe
+        Acme.ico
+    ....</pre>
+</div>
+<p>The index.txt file would be:</p>
+<div class="highlight-python"><pre>ACME_GUID:
+    name: Acme 1.0
+    mac:
+        install_sources:
+            - Acme.app/
+    win:
+        install_sources:
+            - Acme/
+    install_folders: $(APPLICATIONS_FOLDER)</pre>
+</div>
+</div>
+<div class="section" id="adding-a-file">
+<h2>6.2. Adding a file<a class="headerlink" href="#adding-a-file" title="Permalink to this headline">¶</a></h2>
+<p>Later a pdf of documentation was added.
+In order for the extra file to be installed at the user&#8217;s machine the file should be added to svn, and the server would looks like:</p>
+<div class="highlight-python"><pre>Acme_Installer/
+index.txt
+|_  Mac/
+   |_ Acme.app/
+      |_ Contents/
+         Info.plist
+         |_ MacOS/
+               Acme
+         |_ Resources/
+               Acme.icns
+               Acme.pdf
+               ....
+|_ Win/
+    Acme/
+        Acme.exe
+        Acme.ico
+        Acme.pdf
+    ....</pre>
+</div>
+<p>There is not need to change the index.txt file. The next time the user will run <strong>instl</strong> svn would detect the missing files and add them to the user&#8217;s disk.</p>
+</div>
+<div class="section" id="going-complicated">
+<h2>6.3. Going complicated<a class="headerlink" href="#going-complicated" title="Permalink to this headline">¶</a></h2>
+<p>Acme software decided to add choice of some plugins that the user can add to the product.
+The different from basic installation is that the user now can choose to install all, some or nine of the plugins.
+Acme is now at version 2.0, and the extra file were added to svn repository:</p>
+<div class="highlight-python"><pre>Acme_Installer/
+index.txt
+|_  Mac/
+   |_ Acme.app/
+      |_ Contents/
+         Info.plist
+         |_ MacOS/
+               Acme
+         |_ Resources/
+               Acme.icns
+               Acme.pdf
+               ....
+   |_ Acme Plugins
+        sing_a_song.dylib
+        ring_a_bell.dylib
+        set_the_tone.dylib
+
+|_ Win/
+    Acme/
+        Acme.exe
+        Acme.ico
+        Acme.pdf
+        |_ Acme Plugins
+            sing_a_song.dylib
+            ring_a_bell.dylib
+            set_the_tone.dylib</pre>
+</div>
+<p>The index file would need to be expanded to allow for the various options and dependencies:</p>
+<div class="highlight-python"><pre>ACME_GUID:
+    name: Acme 2.0
+    mac:
+        install_sources:
+            - Acme.app/
+        install_folders: $(APPLICATIONS_FOLDER)
+    win:
+        install_sources:
+            - !file Acme.exe
+            - !file Acme.ico
+            - !file Acme.pdf
+        install_folders: $(APPLICATIONS_FOLDER)/Acme
+PLUGIN_DEFAULT_GUID:
+    name: Acme 2.0 plugins
+    depends: ACME_GUID
+    install_folders: &quot;$(APPLICATIONS_FOLDER)/Acme Plugins&quot;
+SING_A_SONG_GUID:
+    name: Sing a song Acme plugin
+    mac:
+        install_sources:
+            - !file sing_a_song.dylib
+    win:
+        install_sources:
+            - !file sing_a_song.dll
+RING_A_BELL_GUID:
+    name: Ring a bell Acme plugin
+    mac:
+        install_sources:
+            - !file ring_a_bell.dylib
+    win:
+        install_sources:
+            - !file ring_a_bell.dll
+SET_THE_TONE_GUID:
+    name: Set the tone Acme plugin
+    mac:
+        install_sources:
+            - !file set_the_tone.dylib
+    win:
+        install_sources:
+            - !file set_the_tone.dll</pre>
+</div>
+</div>
+<div class="section" id="bundling">
+<h2>6.4. Bundling<a class="headerlink" href="#bundling" title="Permalink to this headline">¶</a></h2>
+<p>Acme management has decided to bundle together two plugins and sell them as the <em>Art of Noise</em> bundle.
+All needs to be done is to add the following to the index.txt file:</p>
+<div class="highlight-python"><pre>ART_OF_NOISE_BUNDLE_GUID:
+    depends:
+          - SING_A_SONG_GUID
+          - RING_A_BELL_GUID</pre>
+</div>
+<p>Users choosing to install <em>Art of Noise</em> bundle will get the Acme application together with the two plugins.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">6. Example</a><ul>
+<li><a class="reference internal" href="#basic">6.1. Basic</a></li>
+<li><a class="reference internal" href="#adding-a-file">6.2. Adding a file</a></li>
+<li><a class="reference internal" href="#going-complicated">6.3. Going complicated</a></li>
+<li><a class="reference internal" href="#bundling">6.4. Bundling</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="fileformat.html"
+                        title="previous chapter">5. File formats: index and definition</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="FAQs.html"
+                        title="next chapter">7. Frequently asked questions, with some answers</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/example.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="FAQs.html" title="7. Frequently asked questions, with some answers"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="fileformat.html" title="5. File formats: index and definition"
+             >previous</a> |</li>
+        <li><a href="index.html">instl 0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Shai Shasag.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>
