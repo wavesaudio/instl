@@ -37,7 +37,9 @@ Contents:
     motivation
     expect
     tutorial
-    fileformat.rst
+    architecture
+    fileformat
+    example
     svn configuration.rst
     online installs.rst
     offline installs.rst
