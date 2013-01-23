@@ -152,8 +152,8 @@ class InstlInstanceBase(object):
         install_by_folder = self.sort_install_instructions_by_folder()
         if install_by_folder:
             for folder in install_by_folder:
-                self.install_instruction_lines.append(" ".join(("mkdir", "-p", '"'+folder+'"')))
-                self.install_instruction_lines.append(" ".join(("cd", '"'+folder+'"')))
+                self.install_instruction_lines.append(self.make_directory_cmd(folder))
+                self.install_instruction_lines.append(self.change_directory_cmd(folder))
                 for GUID in install_by_folder[folder]:
                     installi = self.install_definitions_map[GUID]
                     for action in installi.actions_before:
@@ -198,11 +198,10 @@ class InstlInstanceBase(object):
         out_file = self.cvl.get("__MAIN_OUT_FILE__", ("stdout",))
         aTempFile.seek(0)
         if out_file[0] != "stdout":
-            fd = open(out_file[0], "w")
-            self.out_file_realpath = os.path.realpath(out_file[0])
-            shutil.copyfileobj(aTempFile, fd)
+            with open(out_file[0], "w") as fd:
+                self.out_file_realpath = os.path.realpath(out_file[0])
+                shutil.copyfileobj(aTempFile, fd)
             os.chmod(self.out_file_realpath, 0744)
-            fd.close()
         else:
             shutil.copyfileobj(aTempFile, sys.stdout)
 
