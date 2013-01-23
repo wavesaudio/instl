@@ -1,5 +1,5 @@
 **instl**: installation without magic
-#########################
+#####################################
 
 .. instl documentation master file, created by
    sphinx-quickstart on Wed Jan  2 12:17:21 2013.
@@ -22,9 +22,10 @@
     Suported platforms: Mac OS X, Windows, Linux
 
 
-.. topic:: Why without magic?
-        Installers created with **instl** are discoverable: All processing stages are written to intermediate files and so are easy to follow and debug what was done.
-        Installed sources are stored in a Subversion repository making it possible to install the latest version, or any previous version.
+    Why without magic?
+        Installers created with **instl** are discoverable:
+            # All processing stages are written to intermediate files and so are easy to follow and debug.
+            # Installed sources are stored in a Subversion repository making it possible to install the latest version, or any previous version.
 
 
 Contents:
@@ -40,10 +41,10 @@ Contents:
     architecture
     fileformat
     example
-    svn configuration.rst
-    online installs.rst
-    offline installs.rst
-    packaging instl for users.rst
+    svn configuration
+    online installs
+    offline installs
+    packaging instl for users
     FAQs
 
 
