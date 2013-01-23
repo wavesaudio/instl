@@ -42,16 +42,17 @@ class InstlInstanceBase(object):
 
     def read_command_line_options(self, arglist=None):
         try:
-            parser = prepare_args_parser()
-            if not arglist:
-                arglist=sys.argv[1:]
-            name_space_obj = cmd_line_options()
-            args = parser.parse_args(arglist, namespace=name_space_obj)
-            self.init_from_cmd_line_options(name_space_obj)
+            if arglist and len(arglist) > 0:
+                self.mode = "batch"
+                parser = prepare_args_parser()
+                name_space_obj = cmd_line_options()
+                args = parser.parse_args(arglist, namespace=name_space_obj)
+                self.init_from_cmd_line_options(name_space_obj)
+            else:
+                self.mode = "interactive"
         except Exception as ex:
             print(ex)
             raise
-        return args
 
     def init_from_cmd_line_options(self, cmd_line_options_obj):
         if cmd_line_options_obj.input_files:
@@ -64,7 +65,7 @@ class InstlInstanceBase(object):
             self.cvl.add_const_config_variable("__MAIN_STATE_FILE__", "from commnad line options", cmd_line_options_obj.state_file_option)
         if cmd_line_options_obj.run:
             self.cvl.add_const_config_variable("__MAIN_RUN_INSTALLATION__", "from commnad line options", "yes")
-        self.cvl.resolve()
+        self.resolve()
 
     internal_identifier_re = re.compile("""
                                         __                  # dunder here
@@ -88,17 +89,14 @@ class InstlInstanceBase(object):
         if input_files:
             file_actually_opened = list()
             for file_path in input_files:
-                with open(file_path, "r") as file_fd:
+                try:
+                    self.read_file(file_path)
+                except Exception as ex:
+                    print("failed to read", file_path, ex)
+                else:
                     file_actually_opened.append(os.path.abspath(file_fd.name))
-                    for a_node in yaml.compose_all(file_fd):
-                        if a_node.tag == u'!define':
-                            self.read_defines(a_node)
-                        elif a_node.tag == u'!index':
-                            self.read_install_definitions_map(a_node)
-                        else:
-                            print("Unknown document tag", a_node.tag)
             self.cvl.add_const_config_variable("__MAIN_INPUT_FILES_ACTUALLY_OPENED__", "opened by read_input_files", *file_actually_opened)
-            self.cvl.resolve()
+            self.resolve()
             if "__MAIN_INSTALL_TARGETS__" not in self.cvl:
                 # command line targets take precedent, if they were not specifies, look for "MAIN_INSTALL_TARGETS"
                 main_intsall_def = self.install_definitions_map["MAIN_INSTALL_TARGETS"]
@@ -108,9 +106,22 @@ class InstlInstanceBase(object):
                         self.cvl.add_const_config_variable("__MAIN_INSTALL_TARGETS__",
                                                     main_intsall_def.description,
                                                     *main_install_targets)
-        self.cvl.resolve()
+        self.resolve()
         #self.evaluate_graph()
 
+    def read_file(self, file_path):
+        with open(file_path, "r") as file_fd:
+            for a_node in yaml.compose_all(file_fd):
+                if a_node.tag == u'!define':
+                    self.read_defines(a_node)
+                elif a_node.tag == u'!index':
+                    self.read_install_definitions_map(a_node)
+                else:
+                    print("Unknown document tag", a_node.tag)
+    
+    def resolve(self):
+        self.cvl.resolve()
+        
     def sort_install_instructions_by_folder(self):
         full_install_targets = self.cvl.get("__FULL_LIST_OF_INSTALL_TARGETS__", None)
         install_by_folder = OrderedDict()
@@ -235,6 +246,10 @@ class InstlInstanceBase(object):
         except ImportError as IE: # no installItemGraph, no worry
             pass
 
+    def do_da_interactive(self):
+        from instlInstanceBase_interactive import go_interactive
+        go_interactive(self)
+        
 def prepare_args_parser():
     def decent_convert_arg_line_to_args(self, arg_line):
         """ parse a file with options so that we do not have to write one sub-option

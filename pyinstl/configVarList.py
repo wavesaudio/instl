@@ -102,6 +102,9 @@ class ConfigVarList(object):
         else:
             return False
 
+    def keys(self):
+        return self._resolved_vars.keys()
+
     def description(self, var_name):
         """ Get description for variable """
         return self._ConfigVar_objs[var_name].description()
