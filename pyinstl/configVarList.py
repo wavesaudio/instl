@@ -14,6 +14,7 @@ from __future__ import print_function
 import os
 import sys
 import re
+import copy
 
 if __name__ == "__main__":
     import sys
@@ -136,7 +137,11 @@ class ConfigVarList(object):
             else: # no need to resolve, copy values to _resolved_vars
                 self._resolved_vars[addedValue.name()] = values
 
-
+    def duplicate_variable(self, source_name, target_name):
+        if source_name in self._ConfigVar_objs:
+            self.set_variable(target_name, self._ConfigVar_objs[source_name].description(), self._ConfigVar_objs[source_name].iter())
+            
+        
     def read_environment(self):
         """ Get values from environment """
         for env in os.environ:

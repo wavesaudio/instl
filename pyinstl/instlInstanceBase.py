@@ -60,13 +60,26 @@ class InstlInstanceBase(object):
         if cmd_line_options_obj.out_file_option:
             self.cvl.add_const_config_variable("__MAIN_OUT_FILE__", "from commnad line options", cmd_line_options_obj.out_file_option[0])
         if cmd_line_options_obj.main_targets:
-            self.cvl.add_const_config_variable("__MAIN_INSTALL_TARGETS__", "from commnad line options", *cmd_line_options_obj.main_targets)
+            self.cvl.add_const_config_variable("__CMD_INSTALL_TARGETS__", "from commnad line options", *cmd_line_options_obj.main_targets)
         if cmd_line_options_obj.state_file_option:
             self.cvl.add_const_config_variable("__MAIN_STATE_FILE__", "from commnad line options", cmd_line_options_obj.state_file_option)
         if cmd_line_options_obj.run:
             self.cvl.add_const_config_variable("__MAIN_RUN_INSTALLATION__", "from commnad line options", "yes")
         self.resolve()
 
+    def digest(self):
+        self.resolve()
+        # command line targets take precedent, if they were not specifies, look for "MAIN_INSTALL_TARGETS"
+        copy_main_install_targets_from = None
+        if "__CMD_INSTALL_TARGETS__" in self.cvl:
+            copy_main_install_targets_from = "__CMD_INSTALL_TARGETS__"
+        elif "MAIN_INSTALL_TARGETS" in self.cvl:
+            copy_main_install_targets_from = "MAIN_INSTALL_TARGETS"
+        if copy_main_install_targets_from:
+            self.cvl.duplicate_variable(copy_main_install_targets_from, "__MAIN_INSTALL_TARGETS__")
+        self.resolve()
+        #self.evaluate_graph()
+    
     internal_identifier_re = re.compile("""
                                         __                  # dunder here
                                         (?P<internal_identifier>\w*)
@@ -94,20 +107,8 @@ class InstlInstanceBase(object):
                 except Exception as ex:
                     print("failed to read", file_path, ex)
                 else:
-                    file_actually_opened.append(os.path.abspath(file_fd.name))
+                    file_actually_opened.append(os.path.abspath(file_path))
             self.cvl.add_const_config_variable("__MAIN_INPUT_FILES_ACTUALLY_OPENED__", "opened by read_input_files", *file_actually_opened)
-            self.resolve()
-            if "__MAIN_INSTALL_TARGETS__" not in self.cvl:
-                # command line targets take precedent, if they were not specifies, look for "MAIN_INSTALL_TARGETS"
-                main_intsall_def = self.install_definitions_index["MAIN_INSTALL_TARGETS"]
-                if main_intsall_def:
-                    main_install_targets = main_intsall_def.depends
-                    if main_install_targets:
-                        self.cvl.add_const_config_variable("__MAIN_INSTALL_TARGETS__",
-                                                    main_intsall_def.description,
-                                                    *main_install_targets)
-        self.resolve()
-        #self.evaluate_graph()
 
     def read_file(self, file_path):
         with open(file_path, "r") as file_fd:

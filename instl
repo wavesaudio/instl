@@ -26,6 +26,7 @@ if __name__ == "__main__":
     instance.read_command_line_options(sys.argv[1:])
     if instance.mode == "batch":
         instance.read_input_files()
+        instance.digest() # look at what we got and make sense of it
         instance.create_install_instructions()
         instance.write_install_batch_file()
         instance.write_program_state()
