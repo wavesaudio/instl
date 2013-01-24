@@ -29,7 +29,7 @@ class cmd_line_options(object):
 class InstlInstanceBase(object):
     def __init__(self):
         self.out_file_realpath = None
-        self.install_definitions_map = OrderedDict()
+        self.install_definitions_index = OrderedDict()
         self.cvl = ConfigVarList()
         self.variables_assignment_lines = []
         self.install_instruction_lines = []
@@ -37,7 +37,7 @@ class InstlInstanceBase(object):
     def repr_for_yaml(self):
         retVal = list()
         retVal.append(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True))
-        retVal.append(augmentedYaml.YamlDumpDocWrap(self.install_definitions_map, '!index', "Installation map", explicit_start=True, sort_mappings=True))
+        retVal.append(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True))
         return retVal
 
     def read_command_line_options(self, arglist=None):
@@ -81,8 +81,8 @@ class InstlInstanceBase(object):
                     cv.extend([item.value for item in a_node[identifier]])
                     cv.set_description(str(a_node[identifier].start_mark))
 
-    def read_install_definitions_map(self, a_node):
-        self.install_definitions_map.update(read_yaml_items_map(a_node))
+    def read_install_definitions_index(self, a_node):
+        self.install_definitions_index.update(read_yaml_items_map(a_node))
 
     def read_input_files(self):
         input_files = self.cvl.get("__MAIN_INPUT_FILES__", ())
@@ -99,7 +99,7 @@ class InstlInstanceBase(object):
             self.resolve()
             if "__MAIN_INSTALL_TARGETS__" not in self.cvl:
                 # command line targets take precedent, if they were not specifies, look for "MAIN_INSTALL_TARGETS"
-                main_intsall_def = self.install_definitions_map["MAIN_INSTALL_TARGETS"]
+                main_intsall_def = self.install_definitions_index["MAIN_INSTALL_TARGETS"]
                 if main_intsall_def:
                     main_install_targets = main_intsall_def.depends
                     if main_install_targets:
@@ -115,7 +115,7 @@ class InstlInstanceBase(object):
                 if a_node.tag == u'!define':
                     self.read_defines(a_node)
                 elif a_node.tag == u'!index':
-                    self.read_install_definitions_map(a_node)
+                    self.read_install_definitions_index(a_node)
                 else:
                     print("Unknown document tag", a_node.tag)
     
@@ -126,7 +126,7 @@ class InstlInstanceBase(object):
         full_install_targets = self.cvl.get("__FULL_LIST_OF_INSTALL_TARGETS__", None)
         install_by_folder = OrderedDict()
         for GUID in full_install_targets:
-            for folder in self.install_definitions_map[GUID].folder_list():
+            for folder in self.install_definitions_index[GUID].folder_list():
                 if not folder in install_by_folder:
                     install_by_folder[folder] = [GUID]
                 else:
@@ -140,7 +140,7 @@ class InstlInstanceBase(object):
         orphan_set = set()
         for GUID in main_install_targets:
             try:
-                self.install_definitions_map[GUID].get_recursive_depends(self.install_definitions_map, full_install_set, orphan_set)
+                self.install_definitions_index[GUID].get_recursive_depends(self.install_definitions_index, full_install_set, orphan_set)
             except KeyError:
                 orphan_set.add(GUID)
         self.cvl.add_const_config_variable("__FULL_LIST_OF_INSTALL_TARGETS__", "calculated by create_install_list", *full_install_set)
@@ -166,7 +166,7 @@ class InstlInstanceBase(object):
                 self.install_instruction_lines.append(self.make_directory_cmd(folder))
                 self.install_instruction_lines.append(self.change_directory_cmd(folder))
                 for GUID in install_by_folder[folder]:
-                    installi = self.install_definitions_map[GUID]
+                    installi = self.install_definitions_index[GUID]
                     for action in installi.actions_before:
                         self.install_instruction_lines.append(action)
                     for source in installi.source_list():
@@ -229,7 +229,7 @@ class InstlInstanceBase(object):
     def evaluate_graph(self):
         try:
             from pyinstl import installItemGraph
-            graph = installItemGraph.create_installItem_graph(self.install_definitions_map)
+            graph = installItemGraph.create_installItem_graph(self.install_definitions_index)
             cycles = installItemGraph.find_cycles(graph)
             if not cycles:
                 print ("No cycles found")
