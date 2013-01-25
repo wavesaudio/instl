@@ -7,9 +7,16 @@ import sys
 import appdirs
 import readline
 import cmd
+import logging
+import glob
 
 import instlInstanceBase
 from aYaml import augmentedYaml
+
+def insensitive_glob(pattern):
+    def either(c):
+        return '[%s%s]'%(c.lower(),c.upper()) if c.isalpha() else c
+    return glob.glob(''.join(map(either,pattern)))
 
 def go_interactive(instl_inst):
     instlInstanceBase.InstlInstanceBase.create_completion_list = create_completion_list_imp
@@ -80,10 +87,12 @@ class instlCMD(cmd.Cmd):
         return False
 
     def complete_read(self, text, line, begidx, endidx):
-        completion_list = os.listdir(os.getcwd())
-        matches = [s
-                    for s in completion_list
-                    if s and s.lower().startswith(text.lower())]
+        matches = []
+        if text:
+            try:
+                matches.extend(insensitive_glob(text+'*'))
+            except Exception as es:
+                logging.info(es)
         return matches
 
     def do_print(self, params):
