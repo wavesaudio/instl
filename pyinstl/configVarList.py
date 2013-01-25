@@ -14,7 +14,6 @@ from __future__ import print_function
 import os
 import sys
 import re
-import copy
 
 if __name__ == "__main__":
     import sys
@@ -52,7 +51,7 @@ class ConfigVarList(object):
         self._resolved_vars = dict()       # map config var name to list of resolved values
         self._ConfigVar_objs = dict()   # map config var name to list of objects representing unresolved values
         self.__dirty = False            # True is _ConfigVar_objs was changed but resolved not re-done
-        self.__resolve_stack = None
+        self.__resolve_stack = list()
 
     def __len__(self):
         if self.__dirty:
@@ -119,7 +118,7 @@ class ConfigVarList(object):
         self.__dirty = True # if someone asked for a configVar.ConfigVar, assume it was changed
         retVal = self.get_configVar_obj(var_name)
         retVal.clear_values()
-        if description:
+        if description is not None:
             retVal.set_description(description)
         if values_to_set:
             retVal.extend(values_to_set)
@@ -140,8 +139,8 @@ class ConfigVarList(object):
     def duplicate_variable(self, source_name, target_name):
         if source_name in self._ConfigVar_objs:
             self.set_variable(target_name, self._ConfigVar_objs[source_name].description(), self._ConfigVar_objs[source_name].iter())
-            
-        
+
+
     def read_environment(self):
         """ Get values from environment """
         for env in os.environ:
@@ -151,11 +150,16 @@ class ConfigVarList(object):
             cv.set_description("from envirnment")
             cv.append(os.environ[env])
 
-    def repr_for_yaml(self):
+    def repr_for_yaml(self, vars=None):
         retVal = dict()
-        for name in self._resolved_vars:
-            theComment = self._ConfigVar_objs[name].description()
-            retVal[name] = augmentedYaml.YamlDumpWrap(value=self._resolved_vars[name], comment=theComment)
+        if vars is None:
+            vars = self._resolved_vars
+        for name in vars:
+            if name in self._resolved_vars:
+                theComment = self._ConfigVar_objs[name].description()
+                retVal[name] = YamlDumpWrap(value=self._resolved_vars[name], comment=theComment)
+            else:
+                retVal[name] = YamlDumpWrap(value="UNKNOWN VARIABLE", comment=name+" is not in variable list")
         return retVal
 
     def resolve_string(self, in_str, sep=" "):
@@ -177,7 +181,7 @@ class ConfigVarList(object):
                                                         self.resolve_value_callback)
                 self.__resolve_stack.pop()
             self.__dirty = False
-            del self.__resolve_stack
+            self.__resolve_stack = list()
         except Exception as excptn:
             print("Exception while resolving variable '"+var_name+"':", excptn)
             raise

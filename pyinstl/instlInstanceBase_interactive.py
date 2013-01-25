@@ -21,7 +21,7 @@ class instlCMD(cmd.Cmd):
     def __init__(self, instl_inst):
         readline.parse_and_bind ("bind ^I rl_complete") # Enable tab completions on MacOS
         readline.parse_and_bind("tab: complete")        # and on other OSs
-        cmd.Cmd.__init__(self)                            
+        cmd.Cmd.__init__(self)
         self.instl_inst = instl_inst
 
     def __enter__(self):
@@ -30,15 +30,15 @@ class instlCMD(cmd.Cmd):
             os.makedirs(history_file_dir)
         except: # os.makedirs raises is the directory already exists
             pass
-        self.history_file_path = os.path.join(history_file_dir, ".inslt_console_history")
+        self.history_file_path = os.path.join(history_file_dir, ".instl_console_history")
         if os.path.isfile(self.history_file_path):
             readline.read_history_file(self.history_file_path)
         return self
-        
+
     def __exit__(self, type, value, traceback):
         readline.set_history_length(1024)
         readline.write_history_file(self.history_file_path)
-            
+
     def do_list(self, params):
         if params:
             for param in params.split():
@@ -51,7 +51,7 @@ class instlCMD(cmd.Cmd):
         else:
             self.instl_inst.do_list()
         return False
-        
+
     def complete_list(self, text, line, begidx, endidx):
         matches = []
         completion_list = ["define", "index"] + self.instl_inst.create_completion_list()
@@ -59,7 +59,7 @@ class instlCMD(cmd.Cmd):
             matches = [s for s in completion_list
                          if s and s.lower().startswith(text.lower())]
         return matches
-        
+
     def help_list(self):
         print( "list define" )
         print( "    lists all definitions" )
@@ -78,7 +78,7 @@ class instlCMD(cmd.Cmd):
             except Exception as ex:
                 print(ex)
         return False
-    
+
     def complete_read(self, text, line, begidx, endidx):
         completion_list = os.listdir(os.getcwd())
         matches = [s
@@ -93,7 +93,7 @@ class instlCMD(cmd.Cmd):
             elif param in self.instl_inst.install_definitions_index.keys():
                 augmentedYaml.writeAsYaml({param: self.instl_inst.install_definitions_index[param].repr_for_yaml()}, sys.stdout)
         return False
-        
+
     def complete_print(self, text, line, begidx, endidx):
         matches = []
         completion_list = self.instl_inst.create_completion_list()
@@ -102,10 +102,12 @@ class instlCMD(cmd.Cmd):
                         for s in completion_list
                         if s and s.lower().startswith(text.lower())]
         return matches
-        
-    
+
     def do_quit(self, params):
         return True
+
+    def do_q(self, params):
+        return self.do_quit(params)
 
     def default(self, line):
         print("unknown command: ", line)
