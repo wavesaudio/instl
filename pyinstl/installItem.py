@@ -25,18 +25,17 @@ def read_yaml_items_map(all_items_node):
     return retVal
 
 class InstallItem(object):
-    __slots__ = ("guid", "name", "install_sources",
-                "install_folders", "actions_before",
-                "actions_after", "depends", "description")
+    __slots__ = ("guid", "name", "description",
+                "items", "actions")
     def __init__(self):
         self.guid = None
         self.name = None
-        self.install_sources = []
-        self.install_folders = []
-        self.actions_before = []
-        self.actions_after = []
-        self.depends = []
         self.description = ""
+        self.items = {"sources": list(),
+                      "folders": list(),
+                      "depends": list(),
+                      "actions": dict()
+                      }
 
     def read_from_yaml_by_guid(self, GUID, all_items_node):
         my_node = all_items_node[GUID]
@@ -63,54 +62,58 @@ class InstallItem(object):
         if "depends" in my_node:
             for source in my_node["depends"]:
                 self.add_depend(source.value)
-        if "actions_before" in my_node:
-            for action in my_node["actions_before"]:
-                self.actions_before.append(action.value)
-        if "actions_after" in my_node:
-            for action in my_node["actions_after"]:
-                self.actions_after.append(action.value)
+        if "actions" in my_node:
+            self.read_actions(my_node["actions"])
         if current_os in my_node:
             self.read_from_yaml(my_node[current_os], all_items_node)
-
+         
     def add_source(self, new_source, type='!dir'):
-        if new_source not in self.install_sources:
-            self.install_sources.append( (new_source, type) )
+        if new_source not in self.items["sources"]:
+            self.items["sources"].append( (new_source, type) )
+
+    def source_list(self):
+        return self.items["sources"]
 
     def add_folder(self, new_folder):
-        if new_folder not in self.install_folders:
-            self.install_folders.append(new_folder)
+        if new_folder not in self.items["folders"]:
+            self.items["folders"].append(new_folder)
+
+    def folder_list(self):
+        return self.items["folders"]
 
     def add_depend(self, new_depend):
-        if new_depend not in self.depends:
-            self.depends.append(new_depend)
+        if new_depend not in self.items["depends"]:
+            self.items["depends"].append(new_depend)
+
+    def depend_list(self):
+        return self.items["depends"]
+
+    def read_actions(self, action_nodes):
+        for action_pair in action_nodes:
+            if action_pair[0] in ("before", "after", "folder_in", "folder_out"):
+                specific_cation_list = self.items["actions"].setdefault(action_pair[0], list())
+                for action in action_pair[1]:
+                    specific_cation_list.append(action.value)
 
     def get_recursive_depends(self, items_map, out_set, orphan_set):
         if self.guid not in out_set:
             out_set.add(self.guid)
-            for depend in self.depends:
+            for depend in self.items["depends"]:
                 if depend not in out_set: # avoid cycles
                     try:
                         items_map[depend].get_recursive_depends(items_map, out_set, orphan_set)
                     except KeyError:
                         orphan_set.add(depend)
 
-    def source_list(self):
-        return self.install_sources
-
-    def folder_list(self):
-        return self.install_folders
-
     def repr_for_yaml(self):
         retVal = dict()
         retVal["name"] = self.name
-        if self.install_sources:
-            retVal["install_sources"] = [source[0] for source in self.install_sources]
-        if self.install_folders:
-            retVal["install_folders"] = self.install_folders
-        if self.actions_before:
-            retVal["actions_before"] = self.actions_before
-        if self.actions_after:
-            retVal["actions_after"] = self.actions_after
-        if self.depends:
-            retVal["depends"] = self.depends
+        if self.items["sources"]:
+            retVal["install_sources"] = [source[0] for source in self.items["sources"]]
+        if self.items["folders"]:
+            retVal["install_folders"] = self.items["folders"]
+        if self.items["actions"]:
+            retVal["actions"] = self.items["actions"]
+        if self.items["depends"]:
+            retVal["depends"] = self.items["depends"]
         return retVal

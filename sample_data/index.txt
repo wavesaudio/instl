@@ -11,6 +11,9 @@ GUID_PLUGIN_TEMPLATE:
     depends:
         - GUID_WAVESLIB_9.0
         - GUID_AU_SHELL
+    actions:
+        folder_in: hallelujah
+        folder_out: hootenanny
 
 EMPTY_TEMPLATE:
     name: empty template
@@ -52,15 +55,17 @@ GUID_WAVESLIB_9.3:
             - !file Plugins/WavesLib_9.3_Win32.dll
             - !file Plugins/WavesLib_9.3_Win64.dll
     install_folders: $(WAVES_PLUGINS_DIR)
-
+        
 GUID_BASS_RIDER:
     inherit: GUID_PLUGIN_TEMPLATE
     name: Bass Rider
     install_sources: Plugins/Bass Rider.bundle/
-    actions_before: touch "$(HOME)/Desktop/BassRiderActionBefore"
-    actions_after:
+    actions:
+        before: touch "$(HOME)/Desktop/BassRiderActionBefore"
+        after:
             - touch "$(HOME)/Desktop/BassRiderActionAfter1"
             - touch "$(HOME)/Desktop/BassRiderActionAfter2"
+        bomba: zor
 
 GUID_AUDIOTRACK:
     inherit:

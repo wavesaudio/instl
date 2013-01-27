@@ -22,7 +22,7 @@ except ImportError:
         import pyreadline as readline
         readline_loaded = True
     except ImportError:
-        print("failed to import pyreadline, realine functionality not supported")
+        print("failed to import pyreadline, readline functionality not supported")
         raise
 
 import instlInstanceBase
@@ -35,11 +35,14 @@ def insensitive_glob(pattern):
     return glob.glob(''.join(map(either,pattern)))
 
 def go_interactive(instl_inst):
-    if "cmd" in sys.modules:
+    try:
         instlInstanceBase.InstlInstanceBase.create_completion_list = create_completion_list_imp
         instlInstanceBase.InstlInstanceBase.do_list = do_list_imp
         with instlCMD(instl_inst) as icmd:
             icmd.cmdloop()
+    except Exception as es:
+        print("go_interactive", es)
+        raise
 
 class instlCMD(cmd.Cmd, object):
     def __init__(self, instl_inst):
@@ -91,24 +94,37 @@ class instlCMD(cmd.Cmd, object):
         print("cd path, change current directory")
 
     def do_list(self, params):
-        if params:
-            for param in params.split():
-                if param[-1] == '*':
-                    identifier_list = self.complete_print(param[:-1], params, 0, 0)
-                    self.do_print(" ".join(identifier_list))
-                else:
-                    identifier_list = self.complete_print(param, params, 0, 0)
-                    self.do_print(" ".join(identifier_list))
-        else:
-            self.instl_inst.do_list()
+        try:
+            if params:
+                for param in params.split():
+                    if param[-1] == '*':
+                        identifier_list = self.indentifier_completion_list(param[:-1], params, 0, 0)
+                        self.instl_inst.do_list(identifier_list)
+                    else:
+                        identifier_list = self.indentifier_completion_list(param, params, 0, 0)
+                        self.instl_inst.do_list(identifier_list)
+            else:
+                self.instl_inst.do_list()
+        except Exception as es:
+            print("do_list", es)
+            raise
         return False
 
-    def complete_list(self, text, line, begidx, endidx):
+    def indentifier_completion_list(self, text, line, begidx, endidx):
         matches = []
-        completion_list = ["define", "index"] + self.instl_inst.create_completion_list()
-        if text and completion_list:
-            matches = [s for s in completion_list
+        if text:
+            completion_list = self.instl_inst.create_completion_list()
+            if completion_list:
+                matches = [s for s in completion_list
                          if s and s.lower().startswith(text.lower())]
+        return matches
+    
+    def complete_list(self, text, line, begidx, endidx):
+        #print("complete_list, text:", text)
+        matches = self.indentifier_completion_list(text, line, begidx, endidx)
+        for s in ("define", "index"):
+            if s.lower().startswith(text.lower()):
+                matches.append(s) 
         return matches
 
     def help_list(self):
@@ -133,23 +149,6 @@ class instlCMD(cmd.Cmd, object):
     def complete_read(self, text, line, begidx, endidx):
         return self.path_completion(text, line, begidx, endidx)
         
-    def do_print(self, params):
-        for param in params.split():
-            if param in self.instl_inst.cvl:
-                print(self.instl_inst.cvl.get_str(param))
-            elif param in self.instl_inst.install_definitions_index.keys():
-                augmentedYaml.writeAsYaml({param: self.instl_inst.install_definitions_index[param].repr_for_yaml()}, sys.stdout)
-        return False
-
-    def complete_print(self, text, line, begidx, endidx):
-        matches = []
-        completion_list = self.instl_inst.create_completion_list()
-        if text and completion_list:
-            matches = [s
-                        for s in completion_list
-                        if s and s.lower().startswith(text.lower())]
-        return matches
-
     def do_quit(self, params):
         return True
 
@@ -168,12 +167,27 @@ class instlCMD(cmd.Cmd, object):
         print("evaluate python expressions, instlInstance is accessible as self.instl_inst")
 
 def do_list_imp(self, what = None):
-    if what is None:
-        augmentedYaml.writeAsYaml(self, sys.stdout)
-    elif what == "define":
-        augmentedYaml.writeAsYaml(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True), sys.stdout)
-    elif what == "index":
-        augmentedYaml.writeAsYaml(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True), sys.stdout)
+    try:
+        if what is None:
+            augmentedYaml.writeAsYaml(self, sys.stdout)
+        elif isinstance(what, list):
+            print("do_list_imp, it's alist")
+            item_list = self.repr_for_yaml(what)
+            for item in item_list:
+                augmentedYaml.writeAsYaml(item, sys.stdout)
+        elif isinstance(what, str):
+            if what == "define":
+                augmentedYaml.writeAsYaml(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True), sys.stdout)
+            elif what == "index":
+                augmentedYaml.writeAsYaml(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True), sys.stdout)
+            else:
+                item_list = self.repr_for_yaml((what,))
+                for item in item_list:
+                    augmentedYaml.writeAsYaml(item, sys.stdout)
+    except Exception as ex:
+        print("do_list_imp:",   ex)
+        raise
+
 
 def create_completion_list_imp(self):
     retVal = list()

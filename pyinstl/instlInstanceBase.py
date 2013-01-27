@@ -34,10 +34,23 @@ class InstlInstanceBase(object):
         self.variables_assignment_lines = []
         self.install_instruction_lines = []
 
-    def repr_for_yaml(self):
+    def repr_for_yaml(self, what=None):
+        """ Create representation suitable for printing a yaml.
+            what is a list of identifiers to represent. If what
+            is None (the default) representation of the whole 
+            InstlInstance object is given as two yaml documents:
+            one for define, one for the index.
+        """
         retVal = list()
-        retVal.append(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True))
-        retVal.append(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True))
+        if what is None: # None is all
+            retVal.append(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True))
+            retVal.append(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True))
+        else:
+            for item in what:
+                if item in self.cvl:
+                    retVal.append(self.cvl.repr_for_yaml(item))
+                elif item in self.install_definitions_index:
+                    retVal.append({item: self.install_definitions_index[item].repr_for_yaml()})
         return retVal
 
     def read_command_line_options(self, arglist=None):
@@ -250,8 +263,9 @@ class InstlInstanceBase(object):
         try:
             from instlInstanceBase_interactive import go_interactive
             go_interactive(self)
-        except:
-            pass
+        except Exception as es:
+            print("go_interactive", es)
+            raise
             
 def prepare_args_parser():
     def decent_convert_arg_line_to_args(self, arg_line):

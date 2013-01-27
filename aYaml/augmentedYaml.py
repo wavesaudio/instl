@@ -42,6 +42,10 @@ yaml.ScalarNode.isMapping = lambda self: False
 yaml.SequenceNode.isMapping = lambda self: False
 yaml.MappingNode.isMapping = lambda self: True
 
+yaml.ScalarNode.yamlType = lambda self: "scalar"
+yaml.SequenceNode.yamlType = lambda self: "sequence"
+yaml.MappingNode.yamlType = lambda self: "mapping"
+
 # patch yaml.Node derivatives to return their length
 yaml.ScalarNode.__len__ = lambda self: 1
 yaml.MappingNode.__len__ = lambda self: len(self.value)
