@@ -24,14 +24,14 @@ def go_interactive(instl_inst):
     with instlCMD(instl_inst) as icmd:
         icmd.cmdloop()
 
-class instlCMD(cmd.Cmd):
+class instlCMD(cmd.Cmd, object):
     def __init__(self, instl_inst):
-        readline.parse_and_bind ("bind ^I rl_complete") # Enable tab completions on MacOS
-        readline.parse_and_bind("tab: complete")        # and on other OSs
         cmd.Cmd.__init__(self)
         self.instl_inst = instl_inst
 
     def __enter__(self):
+        readline.parse_and_bind ("bind ^I rl_complete") # Enable tab completions on MacOS
+        readline.parse_and_bind("tab: complete")        # and on other OSs
         history_file_dir = appdirs.user_data_dir("instl")
         try:
             os.makedirs(history_file_dir)
@@ -40,11 +40,36 @@ class instlCMD(cmd.Cmd):
         self.history_file_path = os.path.join(history_file_dir, ".instl_console_history")
         if os.path.isfile(self.history_file_path):
             readline.read_history_file(self.history_file_path)
+        self.prompt = "instl: "
         return self
 
     def __exit__(self, type, value, traceback):
         readline.set_history_length(1024)
         readline.write_history_file(self.history_file_path)
+
+    def path_completion(self, text, line, begidx, endidx):
+        matches = []
+        if text:
+            try:
+                matches.extend(insensitive_glob(text+'*'))
+            except Exception as es:
+                logging.info(es)
+        return matches
+
+    def do_shell(self, s):
+        os.system(s)
+
+    def help_shell(self):
+        print("execute shell commands")
+
+    def do_cd(self, s):
+        os.chdir(s)
+
+    def complete_cd(self, text, line, begidx, endidx):
+        return self.path_completion(text, line, begidx, endidx)
+        
+    def help_cd(self):
+        print("cd path, change current directory")
 
     def do_list(self, params):
         if params:
@@ -85,16 +110,10 @@ class instlCMD(cmd.Cmd):
             except Exception as ex:
                 print(ex)
         return False
-
+    
     def complete_read(self, text, line, begidx, endidx):
-        matches = []
-        if text:
-            try:
-                matches.extend(insensitive_glob(text+'*'))
-            except Exception as es:
-                logging.info(es)
-        return matches
-
+        return self.path_completion(text, line, begidx, endidx)
+        
     def do_print(self, params):
         for param in params.split():
             if param in self.instl_inst.cvl:
@@ -121,6 +140,13 @@ class instlCMD(cmd.Cmd):
     def default(self, line):
         print("unknown command: ", line)
         return False
+
+    # evaluate python expressions
+    def do_eval(self, param):
+        print(eval(param))
+
+    def help_eval(self):
+        print("evaluate python expressions, instlInstance is accessible as self.instl_inst")
 
 def do_list_imp(self, what = None):
     if what is None:

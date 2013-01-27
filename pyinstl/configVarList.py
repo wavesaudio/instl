@@ -20,7 +20,7 @@ if __name__ == "__main__":
     sys.path.append("..")
 
 from pyinstl import configVar
-from aYaml import augmentedYaml
+from aYaml.augmentedYaml import YamlDumpWrap
 
 
 value_ref_re = re.compile("""(

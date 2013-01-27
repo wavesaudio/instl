@@ -13,7 +13,7 @@ elif current_os == 'Windows':
     current_os = 'win';
 
 def read_yaml_items_map(all_items_node):
-    retVal = OrderedDict()
+    retVal = dict() #OrderedDict()
     for GUID in all_items_node.iterkeys():
         if GUID in retVal:
             pass#print(GUID, "already in all_items_node")
@@ -104,7 +104,7 @@ class InstallItem(object):
         retVal = dict()
         retVal["name"] = self.name
         if self.install_sources:
-            retVal["install_sources"] = self.install_sources
+            retVal["install_sources"] = [source[0] for source in self.install_sources]
         if self.install_folders:
             retVal["install_folders"] = self.install_folders
         if self.actions_before:

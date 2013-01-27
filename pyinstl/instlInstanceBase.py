@@ -29,7 +29,7 @@ class cmd_line_options(object):
 class InstlInstanceBase(object):
     def __init__(self):
         self.out_file_realpath = None
-        self.install_definitions_index = OrderedDict()
+        self.install_definitions_index = dict() # OrderedDict()
         self.cvl = ConfigVarList()
         self.variables_assignment_lines = []
         self.install_instruction_lines = []
@@ -94,7 +94,7 @@ class InstlInstanceBase(object):
                     cv.extend([item.value for item in a_node[identifier]])
                     cv.set_description(str(a_node[identifier].start_mark))
 
-    def read_install_definitions_index(self, a_node):
+    def read_index(self, a_node):
         self.install_definitions_index.update(read_yaml_items_map(a_node))
 
     def read_input_files(self):
@@ -116,7 +116,7 @@ class InstlInstanceBase(object):
                 if a_node.tag == u'!define':
                     self.read_defines(a_node)
                 elif a_node.tag == u'!index':
-                    self.read_install_definitions_index(a_node)
+                    self.read_index(a_node)
                 else:
                     print("Unknown document tag", a_node.tag)
     
