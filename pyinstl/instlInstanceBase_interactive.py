@@ -5,24 +5,41 @@ from __future__ import print_function
 import os
 import sys
 import appdirs
-import readline
-import cmd
 import logging
-import glob
+
+try:
+    import cmd
+except:
+    print("failed to import cmd, interactive mode not supported")
+    raise
+
+readline_loaded = False
+try:
+    import readline
+    readline_loaded = True
+except ImportError:
+    try:
+        import pyreadline as readline
+        readline_loaded = True
+    except ImportError:
+        print("failed to import pyreadline, realine functionality not supported")
+        raise
 
 import instlInstanceBase
 from aYaml import augmentedYaml
 
 def insensitive_glob(pattern):
+    import glob
     def either(c):
         return '[%s%s]'%(c.lower(),c.upper()) if c.isalpha() else c
     return glob.glob(''.join(map(either,pattern)))
 
 def go_interactive(instl_inst):
-    instlInstanceBase.InstlInstanceBase.create_completion_list = create_completion_list_imp
-    instlInstanceBase.InstlInstanceBase.do_list = do_list_imp
-    with instlCMD(instl_inst) as icmd:
-        icmd.cmdloop()
+    if "cmd" in sys.modules:
+        instlInstanceBase.InstlInstanceBase.create_completion_list = create_completion_list_imp
+        instlInstanceBase.InstlInstanceBase.do_list = do_list_imp
+        with instlCMD(instl_inst) as icmd:
+            icmd.cmdloop()
 
 class instlCMD(cmd.Cmd, object):
     def __init__(self, instl_inst):
@@ -30,22 +47,24 @@ class instlCMD(cmd.Cmd, object):
         self.instl_inst = instl_inst
 
     def __enter__(self):
-        readline.parse_and_bind ("bind ^I rl_complete") # Enable tab completions on MacOS
-        readline.parse_and_bind("tab: complete")        # and on other OSs
-        history_file_dir = appdirs.user_data_dir("instl")
-        try:
-            os.makedirs(history_file_dir)
-        except: # os.makedirs raises is the directory already exists
-            pass
-        self.history_file_path = os.path.join(history_file_dir, ".instl_console_history")
-        if os.path.isfile(self.history_file_path):
-            readline.read_history_file(self.history_file_path)
+        if readline_loaded:
+            readline.parse_and_bind ("bind ^I rl_complete") # Enable tab completions on MacOS
+            readline.parse_and_bind("tab: complete")        # and on other OSs
+            history_file_dir = appdirs.user_data_dir("instl", "Waves Audio")
+            try:
+                os.makedirs(history_file_dir)
+            except: # os.makedirs raises is the directory already exists
+                pass
+            self.history_file_path = os.path.join(history_file_dir, ".instl_console_history")
+            if os.path.isfile(self.history_file_path):
+                readline.read_history_file(self.history_file_path)
         self.prompt = "instl: "
         return self
 
     def __exit__(self, type, value, traceback):
-        readline.set_history_length(1024)
-        readline.write_history_file(self.history_file_path)
+        if readline_loaded:
+            readline.set_history_length(1024)
+            readline.write_history_file(self.history_file_path)
 
     def path_completion(self, text, line, begidx, endidx):
         matches = []

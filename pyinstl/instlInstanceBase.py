@@ -247,9 +247,12 @@ class InstlInstanceBase(object):
             pass
 
     def do_da_interactive(self):
-        from instlInstanceBase_interactive import go_interactive
-        go_interactive(self)
-        
+        try:
+            from instlInstanceBase_interactive import go_interactive
+            go_interactive(self)
+        except:
+            pass
+            
 def prepare_args_parser():
     def decent_convert_arg_line_to_args(self, arg_line):
         """ parse a file with options so that we do not have to write one sub-option
