@@ -36,6 +36,9 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
           <a href="example.html" title="6. Example"
              accesskey="N">next</a> |</li>
         <li class="right" >
@@ -66,15 +69,15 @@
 </div>
 <p>After which the will be zero or more items identifying installation parts, such as:</p>
 <div class="highlight-python"><pre>PRODUCT_A:
-    name: Product Type &#x27;A&#x27;
+    name: Product Type 'A'
     inherit:
         - GENERAL_PRODUCT_INSTALL_DEF
     install_sources: Products/Product-A.app/
     install_folders: $(APPLICATIONS_FOLDER)
-    actions_before: touch &quot;$(HOME)/Desktop/PRODUCT_A_Before&quot;
+    actions_before: touch "$(HOME)/Desktop/PRODUCT_A_Before"
     actions_after:
-            - touch &quot;$(HOME)/Desktop/PRODUCT_A_After1&quot;
-            - touch &quot;$(HOME)/Desktop/PRODUCT_A_After2&quot;
+            - touch "$(HOME)/Desktop/PRODUCT_A_After1"
+            - touch "$(HOME)/Desktop/PRODUCT_A_After2"
     depends:
         - ZIP_DLL
         - FLIP_DLL
@@ -192,6 +195,9 @@ So:</p>
           <a href="genindex.html" title="General Index"
              >index</a></li>
         <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
           <a href="example.html" title="6. Example"
              >next</a> |</li>
         <li class="right" >
@@ -201,7 +207,7 @@ So:</p>
       </ul>
     </div>
     <div class="footer">
-        &copy; Copyright 2013, Shai Shasag.
+        &copy; Copyright 2013, Waves Audio.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
     </div>
   </body>
