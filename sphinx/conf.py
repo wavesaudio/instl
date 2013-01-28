@@ -41,7 +41,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'instl'
-copyright = u'2013, Shai Shasag'
+copyright = u'2013, Waves Audio'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -244,3 +244,5 @@ texinfo_documents = [
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'http://docs.python.org/': None}
+
+primary_domain = 'py'

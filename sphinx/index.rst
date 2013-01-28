@@ -45,6 +45,7 @@ Contents:
     online installs
     offline installs
     packaging instl for users
+    code
     FAQs
 
 

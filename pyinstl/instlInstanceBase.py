@@ -10,7 +10,7 @@ from collections import OrderedDict
 import configVar
 from configVarList import ConfigVarList, value_ref_re
 from aYaml import augmentedYaml
-from installItem import InstallItem, read_yaml_items_map
+from installItem import InstallItem, read_index_from_yaml
 
 
 class cmd_line_options(object):
@@ -108,7 +108,7 @@ class InstlInstanceBase(object):
                     cv.set_description(str(a_node[identifier].start_mark))
 
     def read_index(self, a_node):
-        self.install_definitions_index.update(read_yaml_items_map(a_node))
+        self.install_definitions_index.update(read_index_from_yaml(a_node))
 
     def read_input_files(self):
         input_files = self.cvl.get("__MAIN_INPUT_FILES__", ())

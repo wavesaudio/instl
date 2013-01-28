@@ -21,7 +21,7 @@ def run_instl_instructions(instance):
         install_process = Popen(instance.out_file_realpath)
         stdout, stderr = install_process.communicate()
 
-if __name__ == "__main__":
+def main():
     try:
         instance = ii()
         instance.read_command_line_options(sys.argv[1:])
@@ -38,3 +38,6 @@ if __name__ == "__main__":
         #run_instl_instructions(instance)
     except Exception as es:
         print("__main__", es)
+
+if __name__ == "__main__":
+    main()
