@@ -3,9 +3,9 @@ import os
 import instlInstanceBase
 import configVar
 
-class InstlInstance(instlInstanceBase.InstlInstanceBase):
+class InstlInstance_mac(instlInstanceBase.InstlInstanceBase):
     def __init__(self):
-        super(InstlInstance, self).__init__()
+        super(InstlInstance_mac, self).__init__()
         self.var_replacement_pattern = "${\g<var_name>}"
 
     def get_install_instructions_prefix(self):

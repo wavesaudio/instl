@@ -10,10 +10,10 @@ import platform
 current_os = platform.system()
 if current_os == 'Darwin':
     current_os = 'mac'
-    from pyinstl.instlInstance_mac import InstlInstance as ii
+    from pyinstl.instlInstance_mac import InstlInstance_mac as ii
 elif current_os == 'Windows':
     current_os = 'win'
-    from pyinstl.instlInstance_win import InstlInstance as ii
+    from pyinstl.instlInstance_win import InstlInstance_win as ii
 
 def run_instl_instructions(instance):
     if "__MAIN_RUN_INSTALLATION__" in instance.cvl:

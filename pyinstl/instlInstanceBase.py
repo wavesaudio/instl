@@ -33,6 +33,7 @@ class InstlInstanceBase(object):
         self.cvl = ConfigVarList()
         self.variables_assignment_lines = []
         self.install_instruction_lines = []
+        self.var_replacement_pattern = None
 
     def repr_for_yaml(self, what=None):
         """ Create representation suitable for printing a yaml.
@@ -141,11 +142,8 @@ class InstlInstanceBase(object):
         install_by_folder = OrderedDict()
         for GUID in full_install_targets:
             for folder in self.install_definitions_index[GUID].folder_list():
-                if not folder in install_by_folder:
-                    install_by_folder[folder] = [GUID]
-                else:
-                    if GUID not in install_by_folder:
-                        install_by_folder[folder].append(GUID)
+                guid_set = install_by_folder.setdefault(folder, set())
+                guid_set.add(GUID)
         return install_by_folder
 
     def create_install_list(self):
@@ -160,11 +158,6 @@ class InstlInstanceBase(object):
         self.cvl.add_const_config_variable("__FULL_LIST_OF_INSTALL_TARGETS__", "calculated by create_install_list", *full_install_set)
         if orphan_set:
             self.cvl.add_const_config_variable("__ORPHAN_INSTALL_TARGETS__", "calculated by create_install_list", *orphan_set)
-
-    def get_install_instructions_prefix(self):
-        """ platform specific first lines of the install script
-            to be overridden """
-        return ""
 
     def create_variables_assignment(self):
         for value in self.cvl:
@@ -196,12 +189,6 @@ class InstlInstanceBase(object):
                     for action in installi.actions_after:
                         self.install_instruction_lines.append(action)
                 self.install_instruction_lines.append(os.linesep)
-            self.get_install_instructions_postfix()
-
-    def get_install_instructions_postfix(self):
-        """ platform specific last lines of the install script
-            to be overridden """
-        return ""
 
     def write_install_batch_file(self):
         aTempFile = tempfile.SpooledTemporaryFile(max_size=1000000, mode="w+r")
@@ -257,7 +244,7 @@ class InstlInstanceBase(object):
                 for leaf in leafs:
                     print("leaf:", leaf)
         except ImportError as IE: # no installItemGraph, no worry
-            pass
+            print("Could not load installItemGraph")
 
     def do_da_interactive(self):
         try:
@@ -266,6 +253,26 @@ class InstlInstanceBase(object):
         except Exception as es:
             print("go_interactive", es)
             raise
+
+    def get_install_instructions_prefix(self):
+        """ platform specific first lines of the install script
+            must be overridden """
+        raise  NotImplementedError
+
+    def get_install_instructions_postfix(self):
+        """ platform specific last lines of the install script
+            must be overridden """
+        raise  NotImplementedError
+
+    def make_directory_cmd(self, directory):
+        """ platform specific mkdir for install script
+            must be overridden """
+        raise  NotImplementedError
+
+    def change_directory_cmd(self, directory):
+        """ platform specific cd for install script
+            must be overridden """
+        raise  NotImplementedError
             
 def prepare_args_parser():
     def decent_convert_arg_line_to_args(self, arg_line):

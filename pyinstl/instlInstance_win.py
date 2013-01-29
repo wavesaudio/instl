@@ -1,8 +1,8 @@
 import instlInstanceBase
 
-class InstlInstance(instlInstanceBase.InstlInstanceBase):
+class InstlInstance_win(instlInstanceBase.InstlInstanceBase):
     def __init__(self):
-        super(InstlInstance, self).__init__()
+        super(InstlInstance_win, self).__init__()
         self.var_replacement_pattern = "%\g<var_name>%"
 
     def get_install_instructions_prefix(self):
