@@ -1,0 +1,197 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>7.3. InstlInstanceBase derivatives — Platform specific Overrides &mdash; instl 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="instl 0.1 documentation" href="../index.html" />
+    <link rel="up" title="7. Code documentation" href="../code.html" />
+    <link rel="next" title="7.4. instlInstance_win — Windows specifics Overrides" href="instlInstance_win.html" />
+    <link rel="prev" title="7.2. instlInstanceBase — instl base class" href="instlInstanceBase.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="instlInstance_win.html" title="7.4. instlInstance_win — Windows specifics Overrides"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="instlInstanceBase.html" title="7.2. instlInstanceBase — instl base class"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">instl 0.1 documentation</a> &raquo;</li>
+          <li><a href="../code.html" accesskey="U">7. Code documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="instlinstancebase-derivatives-platform-specific-overrides">
+<h1>7.3. <tt class="xref py py-mod docutils literal"><span class="pre">InstlInstanceBase</span> <span class="pre">derivatives</span></tt> &#8212; Platform specific Overrides<a class="headerlink" href="#instlinstancebase-derivatives-platform-specific-overrides" title="Permalink to this headline">¶</a></h1>
+<span class="target" id="module-instlInstance_mac"></span><p id="index-0"><strong>Source code:</strong> <a href="#id1"><span class="problematic" id="id2">:source:`pyinstl/instlInstance_mac.py`</span></a></p>
+<div class="section" id="class-instlinstance-mac">
+<h2>7.3.1. Class InstlInstance_mac<a class="headerlink" href="#class-instlinstance-mac" title="Permalink to this headline">¶</a></h2>
+<dl class="method">
+<dt id="instlInstance_mac.__init__">
+<tt class="descclassname">instlInstance_mac.</tt><tt class="descname">__init__</tt><big>(</big><em>self</em><big>)</big><a class="headerlink" href="#instlInstance_mac.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calls <tt class="xref py py-func docutils literal"><span class="pre">instlInstanceBase.InstlInstanceBase.__init__()</span></tt> and also assign Mac os suitable regular expression to <tt class="xref py py-data docutils literal"><span class="pre">instlInstanceBase.InstlInstanceBase.var_replacement_pattern</span></tt>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstance_mac.get_install_instructions_prefix">
+<tt class="descclassname">instlInstance_mac.</tt><tt class="descname">get_install_instructions_prefix</tt><big>(</big><em>self</em><big>)</big><a class="headerlink" href="#instlInstance_mac.get_install_instructions_prefix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates the first lines of the install batch file for Mac OSX. Overrides <tt class="xref py py-func docutils literal"><span class="pre">instlInstanceBase.InstlInstanceBase.get_install_instructions_prefix()</span></tt>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstance_mac.get_install_instructions_postfix">
+<tt class="descclassname">instlInstance_mac.</tt><tt class="descname">get_install_instructions_postfix</tt><big>(</big><em>self</em><big>)</big><a class="headerlink" href="#instlInstance_mac.get_install_instructions_postfix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates the last lines of the install batch file for Mac OSX. Overrides <tt class="xref py py-func docutils literal"><span class="pre">instlInstanceBase.InstlInstanceBase.get_install_instructions_postfix()</span></tt>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstance_mac.make_directory_cmd">
+<tt class="descclassname">instlInstance_mac.</tt><tt class="descname">make_directory_cmd</tt><big>(</big><em>self</em>, <em>directory</em><big>)</big><a class="headerlink" href="#instlInstance_mac.make_directory_cmd" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates Mac OSX mkdir command for install script. Overrides <tt class="xref py py-func docutils literal"><span class="pre">instlInstanceBase.InstlInstanceBase.make_directory_cmd()</span></tt>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstance_mac.change_directory_cmd">
+<tt class="descclassname">instlInstance_mac.</tt><tt class="descname">change_directory_cmd</tt><big>(</big><em>self</em>, <em>directory</em><big>)</big><a class="headerlink" href="#instlInstance_mac.change_directory_cmd" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates Mac OSX change dir command for install script. Overrides <tt class="xref py py-func docutils literal"><span class="pre">instlInstanceBase.InstlInstanceBase.change_directory_cmd()</span></tt>.</p>
+</dd></dl>
+
+<span class="target" id="module-instlInstance_win"></span><p id="index-1"><strong>Source code:</strong> <a href="#id3"><span class="problematic" id="id4">:source:`pyinstl/instlInstance_win.py`</span></a></p>
+</div>
+<div class="section" id="class-instlinstance-win">
+<h2>7.3.2. Class InstlInstance_win<a class="headerlink" href="#class-instlinstance-win" title="Permalink to this headline">¶</a></h2>
+<dl class="method">
+<dt id="instlInstance_win.__init__">
+<tt class="descclassname">instlInstance_win.</tt><tt class="descname">__init__</tt><big>(</big><em>self</em><big>)</big><a class="headerlink" href="#instlInstance_win.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calls <tt class="xref py py-func docutils literal"><span class="pre">instlInstanceBase.InstlInstanceBase.__init__()</span></tt> and also assign Windows suitable regular expression to <tt class="xref py py-data docutils literal"><span class="pre">instlInstanceBase.InstlInstanceBase.var_replacement_pattern</span></tt>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstance_win.get_install_instructions_prefix">
+<tt class="descclassname">instlInstance_win.</tt><tt class="descname">get_install_instructions_prefix</tt><big>(</big><em>self</em><big>)</big><a class="headerlink" href="#instlInstance_win.get_install_instructions_prefix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates the first lines of the install batch file for Windows. Overrides <tt class="xref py py-func docutils literal"><span class="pre">instlInstanceBase.InstlInstanceBase.get_install_instructions_prefix()</span></tt>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstance_win.get_install_instructions_postfix">
+<tt class="descclassname">instlInstance_win.</tt><tt class="descname">get_install_instructions_postfix</tt><big>(</big><em>self</em><big>)</big><a class="headerlink" href="#instlInstance_win.get_install_instructions_postfix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates the last lines of the install batch file for Windows. Overrides <tt class="xref py py-func docutils literal"><span class="pre">instlInstanceBase.InstlInstanceBase.get_install_instructions_postfix()</span></tt>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstance_win.make_directory_cmd">
+<tt class="descclassname">instlInstance_win.</tt><tt class="descname">make_directory_cmd</tt><big>(</big><em>self</em>, <em>directory</em><big>)</big><a class="headerlink" href="#instlInstance_win.make_directory_cmd" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates Windows mkdir command for install script. Overrides <tt class="xref py py-func docutils literal"><span class="pre">instlInstanceBase.InstlInstanceBase.make_directory_cmd()</span></tt>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstance_win.change_directory_cmd">
+<tt class="descclassname">instlInstance_win.</tt><tt class="descname">change_directory_cmd</tt><big>(</big><em>self</em>, <em>directory</em><big>)</big><a class="headerlink" href="#instlInstance_win.change_directory_cmd" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates Windows change dir command for install script. Overrides <tt class="xref py py-func docutils literal"><span class="pre">instlInstanceBase.InstlInstanceBase.change_directory_cmd()</span></tt>.</p>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">7.3. <tt class="docutils literal"><span class="pre">InstlInstanceBase</span> <span class="pre">derivatives</span></tt> &#8212; Platform specific Overrides</a><ul>
+<li><a class="reference internal" href="#class-instlinstance-mac">7.3.1. Class InstlInstance_mac</a></li>
+<li><a class="reference internal" href="#class-instlinstance-win">7.3.2. Class InstlInstance_win</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="instlInstanceBase.html"
+                        title="previous chapter">7.2. <tt class="docutils literal"><span class="pre">instlInstanceBase</span></tt> &#8212; instl base class</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="instlInstance_win.html"
+                        title="next chapter">7.4. <tt class="docutils literal"><span class="pre">instlInstance_win</span></tt> &#8212; Windows specifics Overrides</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/code/instlInstance_mac.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="instlInstance_win.html" title="7.4. instlInstance_win — Windows specifics Overrides"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="instlInstanceBase.html" title="7.2. instlInstanceBase — instl base class"
+             >previous</a> |</li>
+        <li><a href="../index.html">instl 0.1 documentation</a> &raquo;</li>
+          <li><a href="../code.html" >7. Code documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Waves Audio.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

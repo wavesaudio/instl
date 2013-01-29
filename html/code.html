@@ -25,7 +25,7 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <link rel="top" title="instl 0.1 documentation" href="index.html" />
-    <link rel="next" title="8. Frequently asked questions, with some answers" href="FAQs.html" />
+    <link rel="next" title="7.1. instl — Main executable" href="code/instl.html" />
     <link rel="prev" title="6. Example" href="example.html" /> 
   </head>
   <body>
@@ -39,7 +39,7 @@
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="FAQs.html" title="8. Frequently asked questions, with some answers"
+          <a href="code/instl.html" title="7.1. instl — Main executable"
              accesskey="N">next</a> |</li>
         <li class="right" >
           <a href="example.html" title="6. Example"
@@ -55,167 +55,24 @@
             
   <div class="section" id="code-documentation">
 <span id="code"></span><h1>7. Code documentation<a class="headerlink" href="#code-documentation" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="module-instl">
-<span id="module-instl"></span><h2>7.1. Module instl<a class="headerlink" href="#module-instl" title="Permalink to this headline">¶</a></h2>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">synopsis:</th><td class="field-body">Module instl implements the starting point (main function) for instl.</td>
-</tr>
-</tbody>
-</table>
-<dl class="function">
-<dt id="instl.main">
-<tt class="descclassname">instl.</tt><tt class="descname">main</tt><big>(</big><big>)</big><a class="headerlink" href="#instl.main" title="Permalink to this definition">¶</a></dt>
-<dd><p>The main entry into <strong>instl</strong>.
-Here command line options are read and instl is invoked in either interactive or batch mode. Here is also where the current os in detected and imports are made accordingly.</p>
-</dd></dl>
-
-<dl class="function">
-<dt id="instl.run_instl_instructions">
-<tt class="descclassname">instl.</tt><tt class="descname">run_instl_instructions</tt><big>(</big><big>)</big><a class="headerlink" href="#instl.run_instl_instructions" title="Permalink to this definition">¶</a></dt>
-<dd><p>Normally the process that launched <strong>instl</strong> will run the batch file that was created. If the &#8211;run command line option was given <strong>instl</strong> will run the batch file.
-<cite>run_instl_instructions</cite> implements this functionality. The file to run is the file who&#8217;s path is in <cite>__MAIN_RUN_INSTALLATION__</cite> variable.</p>
-</dd></dl>
-
-<dl class="data">
-<dt id="instl.current_os">
-<tt class="descclassname">instl.</tt><tt class="descname">current_os</tt><a class="headerlink" href="#instl.current_os" title="Permalink to this definition">¶</a></dt>
-<dd><p>Holds the current os discovered by a calling <cite>platform.system()</cite>. Values are either &#8216;mac&#8217; or &#8216;win&#8217;.</p>
-</dd></dl>
-
-</div>
-<div class="section" id="module-instlInstanceBase">
-<span id="module-instlinstancebase"></span><h2>7.2. Module instlInstanceBase<a class="headerlink" href="#module-instlInstanceBase" title="Permalink to this headline">¶</a></h2>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">synopsis:</th><td class="field-body">Module <cite>instlInstanceBase</cite> is the where most of <strong>instl</strong> functionality is implemented, it has one principle class InstlInstanceBase.</td>
-</tr>
-</tbody>
-</table>
-<dl class="class">
-<dt id="instlInstanceBase.InstlInstanceBase">
-<em class="property">class </em><tt class="descclassname">instlInstanceBase.</tt><tt class="descname">InstlInstanceBase</tt><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase" title="Permalink to this definition">¶</a></dt>
-<dd><p>InstlInstanceBase encapsulated the functionality of instl.</p>
-<p>InstlInstanceBase is inherited for the purpose of overriding platform specific functions. All inheritors from  InstlInstanceBase are called InstlInstance, the main module imports the appropriate one at run time, according to the current os.</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="instlInstanceBase.install_definitions_index">
-<tt class="descclassname">instlInstanceBase.</tt><tt class="descname">install_definitions_index</tt><a class="headerlink" href="#instlInstanceBase.install_definitions_index" title="Permalink to this definition">¶</a></dt>
-<dd><p>A dictionary holding the index of install items.</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="instlInstanceBase.cvl">
-<tt class="descclassname">instlInstanceBase.</tt><tt class="descname">cvl</tt><a class="headerlink" href="#instlInstanceBase.cvl" title="Permalink to this definition">¶</a></dt>
-<dd><p>Object of type configVarList.ConfigVarList holding the variable definitions.</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="instlInstanceBase.variables_assignment_lines">
-<tt class="descclassname">instlInstanceBase.</tt><tt class="descname">variables_assignment_lines</tt><a class="headerlink" href="#instlInstanceBase.variables_assignment_lines" title="Permalink to this definition">¶</a></dt>
-<dd><p>A <tt class="xref py py-class docutils literal"><span class="pre">list</span></tt> holding the lines to be written to the batch file, each line containing a variable definition. Function <cite>create_variables_assignment</cite> is responsible for creating these lines.</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="instlInstanceBase.install_instruction_lines">
-<tt class="descclassname">instlInstanceBase.</tt><tt class="descname">install_instruction_lines</tt><a class="headerlink" href="#instlInstanceBase.install_instruction_lines" title="Permalink to this definition">¶</a></dt>
-<dd><p>A <tt class="xref py py-class docutils literal"><span class="pre">list</span></tt> holding the lines to be written to the batch file, each line containing a install operation such as mkdir, or svn checkout. Function <cite>create_install_instructions</cite> is responsible for creating these lines.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="instlInstanceBase.repr_for_yaml">
-<tt class="descclassname">instlInstanceBase.</tt><tt class="descname">repr_for_yaml</tt><big>(</big><em>self</em>, <em>what=None</em><big>)</big><a class="headerlink" href="#instlInstanceBase.repr_for_yaml" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns a <tt class="xref py py-class docutils literal"><span class="pre">list</span></tt> of objects representing the current state of instl, in a format suitable for printing by <tt class="xref py py-class docutils literal"><span class="pre">augmentedYaml</span></tt>. If parameter <em>what</em> is None, the list will contain two documents, one representing the define part, one representing the index part. If parameter <em>what</em> is a list of identifiers, only variables and index entries from the list are returned.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="instlInstanceBase.read_command_line_options">
-<tt class="descclassname">instlInstanceBase.</tt><tt class="descname">read_command_line_options</tt><big>(</big><em>self</em>, <em>arglist=None</em><big>)</big><a class="headerlink" href="#instlInstanceBase.read_command_line_options" title="Permalink to this definition">¶</a></dt>
-<dd><p>Parse the command line argument list. If <em>arglist</em> is non or contains no arguments, mode is changed to &#8220;interactive&#8221;. Otherwise, if <em>arglist</em> has arguments, mode is &#8220;batch&#8221; and the arguments are parsed. Parser is created using <tt class="xref py py-func docutils literal"><span class="pre">prepare_args_parser()</span></tt>, and the parsing returns a <tt class="xref py py-class docutils literal"><span class="pre">cmd_line_options</span></tt> object. Finally <a class="reference internal" href="#instlInstanceBase.init_from_cmd_line_options" title="instlInstanceBase.init_from_cmd_line_options"><tt class="xref py py-func docutils literal"><span class="pre">init_from_cmd_line_options()</span></tt></a> is called.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="instlInstanceBase.init_from_cmd_line_options">
-<tt class="descclassname">instlInstanceBase.</tt><tt class="descname">init_from_cmd_line_options</tt><big>(</big><em>self</em>, <em>cmd_line_options_obj</em><big>)</big><a class="headerlink" href="#instlInstanceBase.init_from_cmd_line_options" title="Permalink to this definition">¶</a></dt>
-<dd><p>Sets several variables according to the values given in the command line arguments. Called after the command line arguments were processed.</p>
-</dd></dl>
-
-<table border="1" class="docutils">
-<colgroup>
-<col width="26%" />
-<col width="37%" />
-<col width="37%" />
-</colgroup>
-<thead valign="bottom">
-<tr class="row-odd"><th class="head">Cmd line option</th>
-<th class="head">Variable</th>
-<th class="head">default</th>
-</tr>
-</thead>
-<tbody valign="top">
-<tr class="row-even"><td>files to read</td>
-<td>__MAIN_INPUT_FILES__</td>
-<td>Must be supplied</td>
-</tr>
-<tr class="row-odd"><td>&#8211;out</td>
-<td>__MAIN_OUT_FILE__</td>
-<td>Output to stdout</td>
-</tr>
-<tr class="row-even"><td>&#8211;target</td>
-<td>__CMD_INSTALL_TARGETS__</td>
-<td>MAIN_INSTALL_TARGETS</td>
-</tr>
-<tr class="row-odd"><td>&#8211;state</td>
-<td>__MAIN_STATE_FILE__</td>
-<td>None, optional</td>
-</tr>
-<tr class="row-even"><td>&#8211;run</td>
-<td>__MAIN_RUN_INSTALLATION__</td>
-<td>None, optional</td>
-</tr>
-</tbody>
-</table>
-<dl class="method">
-<dt id="instlInstanceBase.digest">
-<tt class="descclassname">instlInstanceBase.</tt><tt class="descname">digest</tt><big>(</big><em>self</em><big>)</big><a class="headerlink" href="#instlInstanceBase.digest" title="Permalink to this definition">¶</a></dt>
-<dd><p>Called after reading all the input files. Initializes <cite>__MAIN_INSTALL_TARGETS__</cite> either from <cite>__CMD_INSTALL_TARGETS__</cite> (command line argument) or <cite>MAIN_INSTALL_TARGETS</cite> (from definitions file).</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="instlInstanceBase.read_defines">
-<tt class="descclassname">instlInstanceBase.</tt><tt class="descname">read_defines</tt><big>(</big><em>self</em>, <em>a_node</em><big>)</big><a class="headerlink" href="#instlInstanceBase.read_defines" title="Permalink to this definition">¶</a></dt>
-<dd><p>Reads Yaml node containing variable definitions.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="instlInstanceBase.read_index">
-<tt class="descclassname">instlInstanceBase.</tt><tt class="descname">read_index</tt><big>(</big><em>self</em>, <em>a_node</em><big>)</big><a class="headerlink" href="#instlInstanceBase.read_index" title="Permalink to this definition">¶</a></dt>
-<dd><p>Reads Yaml node containing index items.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="instlInstanceBase.read_input_files">
-<tt class="descclassname">instlInstanceBase.</tt><tt class="descname">read_input_files</tt><big>(</big><em>self</em><big>)</big><a class="headerlink" href="#instlInstanceBase.read_input_files" title="Permalink to this definition">¶</a></dt>
-<dd><p>Reads the input files specified in variable <cite>__MAIN_INPUT_FILES__</cite>.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="instlInstanceBase.read_file">
-<tt class="descclassname">instlInstanceBase.</tt><tt class="descname">read_file</tt><big>(</big><em>self</em>, <em>file_path</em><big>)</big><a class="headerlink" href="#instlInstanceBase.read_file" title="Permalink to this definition">¶</a></dt>
-<dd><p>Reads a single yaml file. Calls <a class="reference internal" href="#instlInstanceBase.read_defines" title="instlInstanceBase.read_defines"><tt class="xref py py-func docutils literal"><span class="pre">read_defines()</span></tt></a> or <a class="reference internal" href="#instlInstanceBase.read_index" title="instlInstanceBase.read_index"><tt class="xref py py-func docutils literal"><span class="pre">read_index()</span></tt></a> according to the yaml tags in the file.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="instlInstanceBase.resolve">
-<tt class="descclassname">instlInstanceBase.</tt><tt class="descname">resolve</tt><big>(</big><em>self</em><big>)</big><a class="headerlink" href="#instlInstanceBase.resolve" title="Permalink to this definition">¶</a></dt>
-<dd><p>Resolve $() style references in variables. Calls <tt class="xref py py-func docutils literal"><span class="pre">ConfigVarList:resolve()</span></tt>.</p>
-</dd></dl>
-
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="code/instl.html">7.1. <tt class="docutils literal"><span class="pre">instl</span></tt> &#8212; Main executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="code/instlInstanceBase.html">7.2. <tt class="docutils literal"><span class="pre">instlInstanceBase</span></tt> &#8212; instl base class</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="code/instlInstanceBase.html#methods">7.2.1. Methods</a></li>
+<li class="toctree-l2"><a class="reference internal" href="code/instlInstanceBase.html#class-instlinstancebase">7.2.2. Class InstlInstanceBase</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="code/instlInstanceBase_interactive.html">7.3. <tt class="docutils literal"><span class="pre">InstlInstanceBase_interactive</span></tt> &#8212; Interactive mode implementation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="code/instlInstanceBase_interactive.html#methods">7.3.1. Methods</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="code/instlInstance_overrides.html">7.4. <tt class="docutils literal"><span class="pre">InstlInstanceBase</span> <span class="pre">derivatives</span></tt> &#8212; Platform specific Overrides</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="code/instlInstance_overrides.html#module-instlInstance_mac">7.4.1. Class InstlInstance_mac</a></li>
+<li class="toctree-l2"><a class="reference internal" href="code/instlInstance_overrides.html#module-instlInstance_win">7.4.2. Class InstlInstance_win</a></li>
+</ul>
+</li>
+</ul>
 </div>
 </div>
 
@@ -225,21 +82,12 @@ Here command line options are read and instl is invoked in either interactive or
       </div>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
-  <h3><a href="index.html">Table Of Contents</a></h3>
-  <ul>
-<li><a class="reference internal" href="#">7. Code documentation</a><ul>
-<li><a class="reference internal" href="#module-instl">7.1. Module instl</a></li>
-<li><a class="reference internal" href="#module-instlInstanceBase">7.2. Module instlInstanceBase</a></li>
-</ul>
-</li>
-</ul>
-
   <h4>Previous topic</h4>
   <p class="topless"><a href="example.html"
                         title="previous chapter">6. Example</a></p>
   <h4>Next topic</h4>
-  <p class="topless"><a href="FAQs.html"
-                        title="next chapter">8. Frequently asked questions, with some answers</a></p>
+  <p class="topless"><a href="code/instl.html"
+                        title="next chapter">7.1. <tt class="docutils literal"><span class="pre">instl</span></tt> &#8212; Main executable</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
     <li><a href="_sources/code.txt"
@@ -272,7 +120,7 @@ Here command line options are read and instl is invoked in either interactive or
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="FAQs.html" title="8. Frequently asked questions, with some answers"
+          <a href="code/instl.html" title="7.1. instl — Main executable"
              >next</a> |</li>
         <li class="right" >
           <a href="example.html" title="6. Example"

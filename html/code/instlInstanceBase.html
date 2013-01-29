@@ -1,0 +1,344 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>7.2. instlInstanceBase — instl base class &mdash; instl 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="instl 0.1 documentation" href="../index.html" />
+    <link rel="up" title="7. Code documentation" href="../code.html" />
+    <link rel="next" title="7.3. InstlInstanceBase_interactive — Interactive mode implementation" href="instlInstanceBase_interactive.html" />
+    <link rel="prev" title="7.1. instl — Main executable" href="instl.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="instlInstanceBase_interactive.html" title="7.3. InstlInstanceBase_interactive — Interactive mode implementation"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="instl.html" title="7.1. instl — Main executable"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">instl 0.1 documentation</a> &raquo;</li>
+          <li><a href="../code.html" accesskey="U">7. Code documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-instlInstanceBase">
+<span id="instlinstancebase-instl-base-class"></span><h1>7.2. <a class="reference internal" href="#module-instlInstanceBase" title="instlInstanceBase: Module `instlInstanceBase` is the where most of **instl** functionality is implemented, it has one principle class InstlInstanceBase."><tt class="xref py py-mod docutils literal"><span class="pre">instlInstanceBase</span></tt></a> &#8212; instl base class<a class="headerlink" href="#module-instlInstanceBase" title="Permalink to this headline">¶</a></h1>
+<p id="index-0"><strong>Source code:</strong> <a href="#id1"><span class="problematic" id="id2">:source:`pyinstl/instlInstanceBase.py`</span></a></p>
+<div class="section" id="methods">
+<h2>7.2.1. Methods<a class="headerlink" href="#methods" title="Permalink to this headline">¶</a></h2>
+<dl class="method">
+<dt id="instlInstanceBase.prepare_args_parser">
+<tt class="descclassname">instlInstanceBase.</tt><tt class="descname">prepare_args_parser</tt><big>(</big><big>)</big><a class="headerlink" href="#instlInstanceBase.prepare_args_parser" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prepares the command line argument parser for <a class="reference internal" href="#instlInstanceBase.InstlInstanceBase" title="instlInstanceBase.InstlInstanceBase"><tt class="xref py py-class docutils literal"><span class="pre">InstlInstanceBase</span></tt></a>.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="class-instlinstancebase">
+<h2>7.2.2. Class InstlInstanceBase<a class="headerlink" href="#class-instlinstancebase" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div><dl class="class">
+<dt id="instlInstanceBase.InstlInstanceBase">
+<em class="property">class </em><tt class="descclassname">instlInstanceBase.</tt><tt class="descname">InstlInstanceBase</tt><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase" title="Permalink to this definition">¶</a></dt>
+<dd><p>InstlInstanceBase encapsulated the functionality of instl.</p>
+<p>InstlInstanceBase is inherited for the purpose of overriding platform specific functions. All inheritors from  InstlInstanceBase are called InstlInstance, the main module imports the appropriate one at run time, according to the current os.</p>
+<dl class="attribute">
+<dt id="instlInstanceBase.InstlInstanceBase.install_definitions_index">
+<tt class="descname">install_definitions_index</tt><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.install_definitions_index" title="Permalink to this definition">¶</a></dt>
+<dd><p>A dictionary holding the index of install items.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="instlInstanceBase.InstlInstanceBase.cvl">
+<tt class="descname">cvl</tt><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.cvl" title="Permalink to this definition">¶</a></dt>
+<dd><p>Object of type configVarList.ConfigVarList holding the variable definitions.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="instlInstanceBase.InstlInstanceBase.variables_assignment_lines">
+<tt class="descname">variables_assignment_lines</tt><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.variables_assignment_lines" title="Permalink to this definition">¶</a></dt>
+<dd><p>A <tt class="xref py py-class docutils literal"><span class="pre">list</span></tt> holding the lines to be written to the batch file, each line containing a variable definition. Function <cite>create_variables_assignment</cite> is responsible for creating these lines.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="instlInstanceBase.InstlInstanceBase.install_instruction_lines">
+<tt class="descname">install_instruction_lines</tt><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.install_instruction_lines" title="Permalink to this definition">¶</a></dt>
+<dd><p>A <tt class="xref py py-class docutils literal"><span class="pre">list</span></tt> holding the lines to be written to the batch file, each line containing a install operation such as mkdir, or svn checkout. Function <cite>create_install_instructions</cite> is responsible for creating these lines.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="instlInstanceBase.InstlInstanceBase.var_replacement_pattern">
+<tt class="descname">var_replacement_pattern</tt><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.var_replacement_pattern" title="Permalink to this definition">¶</a></dt>
+<dd><p>A compiled regular expression stating how to convert $(ABC) style variable references to platform specific references such as %ABC% on Windows or ${ABC} on Mac. Initially <a class="reference internal" href="#instlInstanceBase.InstlInstanceBase.var_replacement_pattern" title="instlInstanceBase.InstlInstanceBase.var_replacement_pattern"><tt class="xref py py-attr docutils literal"><span class="pre">var_replacement_pattern</span></tt></a> isn None, it must be assigned a real value by classes overriding <a class="reference internal" href="#instlInstanceBase.InstlInstanceBase" title="instlInstanceBase.InstlInstanceBase"><tt class="xref py py-class docutils literal"><span class="pre">InstlInstanceBase</span></tt></a> such as <tt class="xref py py-class docutils literal"><span class="pre">instlInstance_mac.InstlInstance_mac</span></tt> and <tt class="xref py py-class docutils literal"><span class="pre">instlInstance_win.InstlInstance_win</span></tt>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstanceBase.InstlInstanceBase.repr_for_yaml">
+<tt class="descname">repr_for_yaml</tt><big>(</big><em>self</em>, <em>what=None</em><big>)</big><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.repr_for_yaml" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a <tt class="xref py py-class docutils literal"><span class="pre">list</span></tt> of objects representing the current state of instl, in a format suitable for printing by <tt class="xref py py-class docutils literal"><span class="pre">augmentedYaml</span></tt>. If parameter <em>what</em> is None, the list will contain two documents, one representing the define part, one representing the index part. If parameter <em>what</em> is a list of identifiers, only variables and index entries from the list are returned.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstanceBase.InstlInstanceBase.read_command_line_options">
+<tt class="descname">read_command_line_options</tt><big>(</big><em>self</em>, <em>arglist=None</em><big>)</big><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.read_command_line_options" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parse the command line argument list. If <em>arglist</em> is non or contains no arguments, mode is changed to &#8220;interactive&#8221;. Otherwise, if <em>arglist</em> has arguments, mode is &#8220;batch&#8221; and the arguments are parsed. Parser is created using <a class="reference internal" href="#instlInstanceBase.prepare_args_parser" title="instlInstanceBase.prepare_args_parser"><tt class="xref py py-func docutils literal"><span class="pre">prepare_args_parser()</span></tt></a>, and the parsing returns a <tt class="xref py py-class docutils literal"><span class="pre">cmd_line_options</span></tt> object. Finally <a class="reference internal" href="#instlInstanceBase.InstlInstanceBase.init_from_cmd_line_options" title="instlInstanceBase.InstlInstanceBase.init_from_cmd_line_options"><tt class="xref py py-func docutils literal"><span class="pre">init_from_cmd_line_options()</span></tt></a> is called.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstanceBase.InstlInstanceBase.init_from_cmd_line_options">
+<tt class="descname">init_from_cmd_line_options</tt><big>(</big><em>self</em>, <em>cmd_line_options_obj</em><big>)</big><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.init_from_cmd_line_options" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sets several variables according to the values given in the command line arguments. Called after the command line arguments were processed.</p>
+</dd></dl>
+
+<table border="1" class="docutils">
+<colgroup>
+<col width="26%" />
+<col width="37%" />
+<col width="37%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Cmd line option</th>
+<th class="head">Variable</th>
+<th class="head">default</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>files to read</td>
+<td>__MAIN_INPUT_FILES__</td>
+<td>Must be supplied</td>
+</tr>
+<tr class="row-odd"><td>&#8211;out</td>
+<td>__MAIN_OUT_FILE__</td>
+<td>Output to stdout</td>
+</tr>
+<tr class="row-even"><td>&#8211;target</td>
+<td>__CMD_INSTALL_TARGETS__</td>
+<td>MAIN_INSTALL_TARGETS</td>
+</tr>
+<tr class="row-odd"><td>&#8211;state</td>
+<td>__MAIN_STATE_FILE__</td>
+<td>None, optional</td>
+</tr>
+<tr class="row-even"><td>&#8211;run</td>
+<td>__MAIN_RUN_INSTALLATION__</td>
+<td>None, optional</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="instlInstanceBase.InstlInstanceBase.digest">
+<tt class="descname">digest</tt><big>(</big><em>self</em><big>)</big><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.digest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Called after reading all the input files. Initializes <cite>__MAIN_INSTALL_TARGETS__</cite> either from <cite>__CMD_INSTALL_TARGETS__</cite> (command line argument) or <cite>MAIN_INSTALL_TARGETS</cite> (from definitions file).</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstanceBase.InstlInstanceBase.read_defines">
+<tt class="descname">read_defines</tt><big>(</big><em>self</em>, <em>a_node</em><big>)</big><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.read_defines" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads Yaml node containing variable definitions.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstanceBase.InstlInstanceBase.read_index">
+<tt class="descname">read_index</tt><big>(</big><em>self</em>, <em>a_node</em><big>)</big><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.read_index" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads Yaml node containing index items.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstanceBase.InstlInstanceBase.read_input_files">
+<tt class="descname">read_input_files</tt><big>(</big><em>self</em><big>)</big><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.read_input_files" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads the input files specified in variable <cite>__MAIN_INPUT_FILES__</cite>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstanceBase.InstlInstanceBase.read_file">
+<tt class="descname">read_file</tt><big>(</big><em>self</em>, <em>file_path</em><big>)</big><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.read_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads a single yaml file. Calls <a class="reference internal" href="#instlInstanceBase.InstlInstanceBase.read_defines" title="instlInstanceBase.InstlInstanceBase.read_defines"><tt class="xref py py-func docutils literal"><span class="pre">read_defines()</span></tt></a> or <a class="reference internal" href="#instlInstanceBase.InstlInstanceBase.read_index" title="instlInstanceBase.InstlInstanceBase.read_index"><tt class="xref py py-func docutils literal"><span class="pre">read_index()</span></tt></a> according to the yaml tags in the file.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstanceBase.InstlInstanceBase.resolve">
+<tt class="descname">resolve</tt><big>(</big><em>self</em><big>)</big><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.resolve" title="Permalink to this definition">¶</a></dt>
+<dd><p>Resolve $() style references in variables. Calls <tt class="xref py py-func docutils literal"><span class="pre">ConfigVarList:resolve()</span></tt>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstanceBase.InstlInstanceBase.sort_install_instructions_by_folder">
+<tt class="descname">sort_install_instructions_by_folder</tt><big>(</big><em>self</em><big>)</big><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.sort_install_instructions_by_folder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a dictionary whose keys are folders and values are sets of GUIDs of install targets that specified the folder as their <cite>install_folder</cite>. The targets are taken from the variable <cite>__FULL_LIST_OF_INSTALL_TARGETS__</cite>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstanceBase.InstlInstanceBase.create_install_list">
+<tt class="descname">create_install_list</tt><big>(</big><em>self</em><big>)</big><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.create_install_list" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates the variable <cite>__FULL_LIST_OF_INSTALL_TARGETS__</cite> and populates it&#8217;s values with the full list of all targets that are marked for install. Initial list of targets is taken from the variable <cite>__MAIN_INSTALL_TARGETS__</cite>. The initial list is recursively seached for dependencies. Target GUIDs that are referred to but are not in the index are added to the variable <cite>__ORPHAN_INSTALL_TARGETS__</cite>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstanceBase.InstlInstanceBase.get_install_instructions_prefix">
+<tt class="descname">get_install_instructions_prefix</tt><big>(</big><em>self</em><big>)</big><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.get_install_instructions_prefix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates the first lines of the install batch file. <a class="reference internal" href="#instlInstanceBase.InstlInstanceBase.get_install_instructions_prefix" title="instlInstanceBase.InstlInstanceBase.get_install_instructions_prefix"><tt class="xref py py-func docutils literal"><span class="pre">get_install_instructions_prefix()</span></tt></a> is overridden by platform-specific class that inherits from instlInstanceBase.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstanceBase.InstlInstanceBase.get_install_instructions_postfix">
+<tt class="descname">get_install_instructions_postfix</tt><big>(</big><em>self</em><big>)</big><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.get_install_instructions_postfix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates the last lines of the install batch file. <a class="reference internal" href="#instlInstanceBase.InstlInstanceBase.get_install_instructions_postfix" title="instlInstanceBase.InstlInstanceBase.get_install_instructions_postfix"><tt class="xref py py-func docutils literal"><span class="pre">get_install_instructions_postfix()</span></tt></a> is overridden by platform-specific class that inherits from instlInstanceBase.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstanceBase.InstlInstanceBase.make_directory_cmd">
+<tt class="descname">make_directory_cmd</tt><big>(</big><em>self</em>, <em>directory</em><big>)</big><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.make_directory_cmd" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates platform specific mkdir command install script
+Overridden by <tt class="xref py py-class docutils literal"><span class="pre">instlInstance_mac.InstlInstance_mac</span></tt> and  <tt class="xref py py-class docutils literal"><span class="pre">instlInstance_win.InstlInstance_win</span></tt>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstanceBase.InstlInstanceBase.change_directory_cmd">
+<tt class="descname">change_directory_cmd</tt><big>(</big><em>self</em>, <em>directory</em><big>)</big><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.change_directory_cmd" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates platform specific change dir command install script
+Overridden by <tt class="xref py py-class docutils literal"><span class="pre">instlInstance_mac.InstlInstance_mac</span></tt> and  <tt class="xref py py-class docutils literal"><span class="pre">instlInstance_win.InstlInstance_win</span></tt>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstanceBase.InstlInstanceBase.create_variables_assignment">
+<tt class="descname">create_variables_assignment</tt><big>(</big><em>self</em><big>)</big><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.create_variables_assignment" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates the lines in the install batch file that assign values to variables. All variables in <a class="reference internal" href="#instlInstanceBase.InstlInstanceBase.cvl" title="instlInstanceBase.InstlInstanceBase.cvl"><tt class="xref py py-attr docutils literal"><span class="pre">cvl</span></tt></a> are added to <a class="reference internal" href="#instlInstanceBase.InstlInstanceBase.variables_assignment_lines" title="instlInstanceBase.InstlInstanceBase.variables_assignment_lines"><tt class="xref py py-attr docutils literal"><span class="pre">variables_assignment_lines</span></tt></a> except internal identifiers. internal identifiers are those beginning and ending in __, such as <cite>__FULL_LIST_OF_INSTALL_TARGETS__</cite>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstanceBase.InstlInstanceBase.create_install_instructions">
+<tt class="descname">create_install_instructions</tt><big>(</big><em>self</em><big>)</big><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.create_install_instructions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates the lines of the install batch file, by updating <a class="reference internal" href="#instlInstanceBase.InstlInstanceBase.install_instruction_lines" title="instlInstanceBase.InstlInstanceBase.install_instruction_lines"><tt class="xref py py-attr docutils literal"><span class="pre">install_instruction_lines</span></tt></a>. Calls <a class="reference internal" href="#instlInstanceBase.InstlInstanceBase.create_variables_assignment" title="instlInstanceBase.InstlInstanceBase.create_variables_assignment"><tt class="xref py py-func docutils literal"><span class="pre">create_variables_assignment()</span></tt></a>, <a class="reference internal" href="#instlInstanceBase.InstlInstanceBase.create_install_list" title="instlInstanceBase.InstlInstanceBase.create_install_list"><tt class="xref py py-func docutils literal"><span class="pre">create_install_list()</span></tt></a>, <a class="reference internal" href="#instlInstanceBase.InstlInstanceBase.sort_install_instructions_by_folder" title="instlInstanceBase.InstlInstanceBase.sort_install_instructions_by_folder"><tt class="xref py py-func docutils literal"><span class="pre">sort_install_instructions_by_folder()</span></tt></a>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstanceBase.InstlInstanceBase.write_install_batch_file">
+<tt class="descname">write_install_batch_file</tt><big>(</big><em>self</em><big>)</big><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.write_install_batch_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Writes the install batch file to the path in variable <cite>__MAIN_OUT_FILE__</cite> or if it does not exist to stdout. Calls <a class="reference internal" href="#instlInstanceBase.InstlInstanceBase.get_install_instructions_prefix" title="instlInstanceBase.InstlInstanceBase.get_install_instructions_prefix"><tt class="xref py py-func docutils literal"><span class="pre">get_install_instructions_prefix()</span></tt></a>, <a class="reference internal" href="#instlInstanceBase.InstlInstanceBase.get_install_instructions_postfix" title="instlInstanceBase.InstlInstanceBase.get_install_instructions_postfix"><tt class="xref py py-func docutils literal"><span class="pre">get_install_instructions_postfix()</span></tt></a>, <a class="reference internal" href="#instlInstanceBase.InstlInstanceBase.get_install_instructions_postfix" title="instlInstanceBase.InstlInstanceBase.get_install_instructions_postfix"><tt class="xref py py-func docutils literal"><span class="pre">get_install_instructions_postfix()</span></tt></a>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstanceBase.InstlInstanceBase.write_program_state">
+<tt class="descname">write_program_state</tt><big>(</big><em>self</em><big>)</big><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.write_program_state" title="Permalink to this definition">¶</a></dt>
+<dd><p>Writes the current state of instlInstance to the path in variable <cite>__MAIN_STATE_FILE__</cite> or if it does not exist to stdout.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstanceBase.InstlInstanceBase.evaluate_graph">
+<tt class="descname">evaluate_graph</tt><big>(</big><em>self</em><big>)</big><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.evaluate_graph" title="Permalink to this definition">¶</a></dt>
+<dd><p>Evaluates the install index. Attempts to find cycles in dependencies and find leafs - those items that do not depend on other items. Uses <tt class="xref py py-class docutils literal"><span class="pre">installItemGraph</span></tt> to do it&#8217;s work. Will only work if <tt class="xref py py-class docutils literal"><span class="pre">installItemGraph</span></tt> can be loaded.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="instlInstanceBase.InstlInstanceBase.do_da_interactive">
+<tt class="descname">do_da_interactive</tt><big>(</big><em>self</em><big>)</big><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.do_da_interactive" title="Permalink to this definition">¶</a></dt>
+<dd><p>Activates <a href="#id3"><span class="problematic" id="id4">**</span></a>instl*&#8217;s interactive mode by calling <tt class="xref py py-func docutils literal"><span class="pre">instlInstanceBase_interactive.go_interactive()</span></tt></p>
+</dd></dl>
+
+</dd></dl>
+
+</div></blockquote>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">7.2. <tt class="docutils literal"><span class="pre">instlInstanceBase</span></tt> &#8212; instl base class</a><ul>
+<li><a class="reference internal" href="#methods">7.2.1. Methods</a></li>
+<li><a class="reference internal" href="#class-instlinstancebase">7.2.2. Class InstlInstanceBase</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="instl.html"
+                        title="previous chapter">7.1. <tt class="docutils literal docutils literal"><span class="pre">instl</span></tt> &#8212; Main executable</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="instlInstanceBase_interactive.html"
+                        title="next chapter">7.3. <tt class="docutils literal"><span class="pre">InstlInstanceBase_interactive</span></tt> &#8212; Interactive mode implementation</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/code/instlInstanceBase.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="instlInstanceBase_interactive.html" title="7.3. InstlInstanceBase_interactive — Interactive mode implementation"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="instl.html" title="7.1. instl — Main executable"
+             >previous</a> |</li>
+        <li><a href="../index.html">instl 0.1 documentation</a> &raquo;</li>
+          <li><a href="../code.html" >7. Code documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Waves Audio.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>
