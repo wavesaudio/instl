@@ -6,6 +6,7 @@ import os
 import sys
 import appdirs
 import logging
+import shlex
 
 try:
     import cmd
@@ -44,10 +45,18 @@ def go_interactive(instl_inst):
         print("go_interactive", es)
         raise
 
+def restart_program():
+    """Restarts the current program.
+        Note: this function does not return. Any cleanup action (like
+        saving data) must be done before calling this function."""
+    python = sys.executable
+    os.execl(python, python, * sys.argv)
+
 class instlCMD(cmd.Cmd, object):
     def __init__(self, instl_inst):
         cmd.Cmd.__init__(self)
         self.instl_inst = instl_inst
+        self.restart = False
 
     def __enter__(self):
         if readline_loaded:
@@ -68,6 +77,9 @@ class instlCMD(cmd.Cmd, object):
         if readline_loaded:
             readline.set_history_length(1024)
             readline.write_history_file(self.history_file_path)
+        # restart only after saving history, otherwise history will not be saved (8-().
+        if self.restart:
+            restart_program()
 
     def path_completion(self, text, line, begidx, endidx):
         matches = []
@@ -89,7 +101,7 @@ class instlCMD(cmd.Cmd, object):
 
     def complete_cd(self, text, line, begidx, endidx):
         return self.path_completion(text, line, begidx, endidx)
-        
+
     def help_cd(self):
         print("cd path, change current directory")
 
@@ -118,13 +130,13 @@ class instlCMD(cmd.Cmd, object):
                 matches = [s for s in completion_list
                          if s and s.lower().startswith(text.lower())]
         return matches
-    
+
     def complete_list(self, text, line, begidx, endidx):
         #print("complete_list, text:", text)
         matches = self.indentifier_completion_list(text, line, begidx, endidx)
         for s in ("define", "index"):
             if s.lower().startswith(text.lower()):
-                matches.append(s) 
+                matches.append(s)
         return matches
 
     def help_list(self):
@@ -138,17 +150,28 @@ class instlCMD(cmd.Cmd, object):
         print( "    lists indentifier(*)" )
 
     def do_read(self, params):
-        for file in params.split():
-            try:
-                self.instl_inst.read_file(file)
-                self.instl_inst.resolve()
-            except Exception as ex:
-                print(ex)
+        if params:
+            for file in shlex.split(params):
+                try:
+                    self.instl_inst.read_file(file)
+                    self.instl_inst.resolve()
+                except Exception as ex:
+                    print(ex)
+        else:
+            print("read what?")
         return False
-    
+
     def complete_read(self, text, line, begidx, endidx):
         return self.path_completion(text, line, begidx, endidx)
-        
+
+    def do_restart(self, params):
+        print("restarting instl")
+        self.restart = True
+        return True # stops cmdloop
+
+    def help_restart(self):
+        print("restart:", "reloads instl")
+
     def do_quit(self, params):
         return True
 
