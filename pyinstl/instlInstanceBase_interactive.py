@@ -105,7 +105,9 @@ class instlCMD(cmd.Cmd, object):
         return matches
 
     def do_shell(self, s):
-        os.system(s)
+        if s:
+            os.system(s)
+        return False
 
     def help_shell(self):
         print("execute shell commands")
@@ -115,6 +117,7 @@ class instlCMD(cmd.Cmd, object):
             os.chdir(s)
         else:
             print(s, "is not a directory")
+        return False
 
     def complete_cd(self, text, line, begidx, endidx):
         return self.dir_completion(text, line, begidx, endidx)
@@ -138,8 +141,7 @@ class instlCMD(cmd.Cmd, object):
             else:
                 self.instl_inst.do_list()
         except Exception as es:
-            print("do_list", es)
-            raise
+            print("list", es)
         return False
 
     def indentifier_completion_list(self, text, line, begidx, endidx):
@@ -176,7 +178,7 @@ class instlCMD(cmd.Cmd, object):
                     self.instl_inst.read_file(file)
                     self.instl_inst.resolve()
                 except Exception as ex:
-                    print(ex)
+                    print("read", filem, ex)
         else:
             print("read what?")
         return False
@@ -204,31 +206,31 @@ class instlCMD(cmd.Cmd, object):
 
     # evaluate python expressions
     def do_eval(self, param):
-        print(eval(param))
-
+        try:
+            if param:
+                print(eval(param))
+        except Exception as ex:
+            print("eval:",  ex)
+            
     def help_eval(self):
         print("evaluate python expressions, instlInstance is accessible as self.instl_inst")
 
 def do_list_imp(self, what = None):
-    try:
-        if what is None:
-            augmentedYaml.writeAsYaml(self, sys.stdout)
-        elif isinstance(what, list):
+    if what is None:
+        augmentedYaml.writeAsYaml(self, sys.stdout)
+    elif isinstance(what, list):
+        item_list = self.repr_for_yaml(what)
+        for item in item_list:
+            augmentedYaml.writeAsYaml(item, sys.stdout)
+    elif isinstance(what, str):
+        if what == "define":
+            augmentedYaml.writeAsYaml(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True), sys.stdout)
+        elif what == "index":
+            augmentedYaml.writeAsYaml(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True), sys.stdout)
+        else:
             item_list = self.repr_for_yaml(what)
             for item in item_list:
                 augmentedYaml.writeAsYaml(item, sys.stdout)
-        elif isinstance(what, str):
-            if what == "define":
-                augmentedYaml.writeAsYaml(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True), sys.stdout)
-            elif what == "index":
-                augmentedYaml.writeAsYaml(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True), sys.stdout)
-            else:
-                item_list = self.repr_for_yaml(what)
-                for item in item_list:
-                    augmentedYaml.writeAsYaml(item, sys.stdout)
-    except Exception as ex:
-        print("do_list_imp:",   ex)
-        raise
 
 
 def create_completion_list_imp(self):
