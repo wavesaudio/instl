@@ -62,6 +62,11 @@ class instlCMD(cmd.Cmd, object):
         if readline_loaded:
             readline.parse_and_bind ("bind ^I rl_complete") # Enable tab completions on MacOS
             readline.parse_and_bind("tab: complete")        # and on other OSs
+            readline.parse_and_bind("set completion-ignore-case on")
+            readline.parse_and_bind("set show-all-if-ambiguous on")
+            readline.parse_and_bind("set completion-map-case on")
+            readline.parse_and_bind("set show-all-if-unmodified on")
+            readline.parse_and_bind("set expand-tilde on")
             history_file_dir = appdirs.user_data_dir("instl", "Waves Audio")
             try:
                 os.makedirs(history_file_dir)
@@ -90,6 +95,15 @@ class instlCMD(cmd.Cmd, object):
                 logging.info(es)
         return matches
 
+    def dir_completion(self, text, line, begidx, endidx):
+        matches = []
+        if text:
+            try:
+                matches.extend([dir for dir in insensitive_glob(text+'*') if os.path.isdir(dir)])
+            except Exception as es:
+                logging.info(es)
+        return matches
+
     def do_shell(self, s):
         os.system(s)
 
@@ -97,10 +111,13 @@ class instlCMD(cmd.Cmd, object):
         print("execute shell commands")
 
     def do_cd(self, s):
-        os.chdir(s)
+        if os.path.isdir(s):
+            os.chdir(s)
+        else:
+            print(s, "is not a directory")
 
     def complete_cd(self, text, line, begidx, endidx):
-        return self.path_completion(text, line, begidx, endidx)
+        return self.dir_completion(text, line, begidx, endidx)
 
     def help_cd(self):
         print("cd path, change current directory")
@@ -114,7 +131,10 @@ class instlCMD(cmd.Cmd, object):
                         self.instl_inst.do_list(identifier_list)
                     else:
                         identifier_list = self.indentifier_completion_list(param, params, 0, 0)
-                        self.instl_inst.do_list(identifier_list)
+                        if identifier_list:
+                            self.instl_inst.do_list(identifier_list)
+                        else:
+                            print("Unknown identifier:", param)
             else:
                 self.instl_inst.do_list()
         except Exception as es:
@@ -127,8 +147,8 @@ class instlCMD(cmd.Cmd, object):
         if text:
             completion_list = self.instl_inst.create_completion_list()
             if completion_list:
-                matches = [s for s in completion_list
-                         if s and s.lower().startswith(text.lower())]
+                matches.extend([s for s in completion_list
+                         if s and s.lower().startswith(text.lower())])
         return matches
 
     def complete_list(self, text, line, begidx, endidx):
@@ -194,7 +214,6 @@ def do_list_imp(self, what = None):
         if what is None:
             augmentedYaml.writeAsYaml(self, sys.stdout)
         elif isinstance(what, list):
-            print("do_list_imp, it's alist")
             item_list = self.repr_for_yaml(what)
             for item in item_list:
                 augmentedYaml.writeAsYaml(item, sys.stdout)
@@ -204,7 +223,7 @@ def do_list_imp(self, what = None):
             elif what == "index":
                 augmentedYaml.writeAsYaml(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True), sys.stdout)
             else:
-                item_list = self.repr_for_yaml((what,))
+                item_list = self.repr_for_yaml(what)
                 for item in item_list:
                     augmentedYaml.writeAsYaml(item, sys.stdout)
     except Exception as ex:

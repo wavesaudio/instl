@@ -152,14 +152,17 @@ class ConfigVarList(object):
 
     def repr_for_yaml(self, vars=None):
         retVal = dict()
-        if vars is None:
+        if not vars:
             vars = self._resolved_vars
-        for name in vars:
-            if name in self._resolved_vars:
-                theComment = self._ConfigVar_objs[name].description()
-                retVal[name] = YamlDumpWrap(value=self._resolved_vars[name], comment=theComment)
-            else:
-                retVal[name] = YamlDumpWrap(value="UNKNOWN VARIABLE", comment=name+" is not in variable list")
+        if hasattr(vars, '__iter__'):
+            for name in vars:
+                if name in self._resolved_vars:
+                    theComment = self._ConfigVar_objs[name].description()
+                    retVal[name] = YamlDumpWrap(value=self._resolved_vars[name], comment=theComment)
+                else:
+                    retVal[name] = YamlDumpWrap(value="UNKNOWN VARIABLE", comment=name+" is not in variable list")
+        else:
+            retVal.update(self.repr_for_yaml((vars,)))  
         return retVal
 
     def resolve_string(self, in_str, sep=" "):

@@ -52,6 +52,9 @@ class InstlInstanceBase(object):
                     retVal.append(self.cvl.repr_for_yaml(item))
                 elif item in self.install_definitions_index:
                     retVal.append({item: self.install_definitions_index[item].repr_for_yaml()})
+                else:
+                    retVal.append(YamlDumpWrap(value="UNKNOWN VARIABLE", comment=name+" is not in variable list"))
+
         return retVal
 
     def read_command_line_options(self, arglist=None):
