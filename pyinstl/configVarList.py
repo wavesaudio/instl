@@ -63,7 +63,15 @@ class ConfigVarList(object):
             raise Exception("config varaibles were not resolved")
         # the value of non existant var_name is an empty tuple
         return self._resolved_vars[var_name]
-
+    
+    def __delitem__(self, key):
+        if key in self._ConfigVar_objs:
+            del self._ConfigVar_objs[key]
+            self.__dirty = True
+        if key in self._resolved_vars:
+            del self._resolved_vars[key]
+            self.__dirty = True
+            
     def get(self, var_name, default=tuple()):
         if self.__dirty:
             raise Exception("config varaibles were not resolved")
@@ -114,20 +122,22 @@ class ConfigVarList(object):
         retVal = self._ConfigVar_objs.setdefault(var_name, configVar.ConfigVar(var_name))
         return retVal
 
-    def set_variable(self, var_name, description=None, *values_to_set):
+    def set_variable(self, var_name, description=None, values_to_set=()):
         self.__dirty = True # if someone asked for a configVar.ConfigVar, assume it was changed
         retVal = self.get_configVar_obj(var_name)
         retVal.clear_values()
         if description is not None:
             retVal.set_description(description)
         if values_to_set:
+            if not hasattr(values_to_set, '__iter__'):
+                raise TypeException(str(values_to_set)+" is not a iterable")
             retVal.extend(values_to_set)
         return retVal
 
     def add_const_config_variable(self, name, description="", *values):
         """ add a const single value object """
         if name in self._ConfigVar_objs:
-            raise Exception("Const variable {name} already defined")
+            raise Exception("Const variable {} already defined".format(name))
         addedValue = configVar.ConstConfigVar(name, description, *values)
         self._ConfigVar_objs[addedValue.name()] = addedValue
         if not self.__dirty: # if not already dirty, try to keep it clean
@@ -138,7 +148,7 @@ class ConfigVarList(object):
 
     def duplicate_variable(self, source_name, target_name):
         if source_name in self._ConfigVar_objs:
-            self.set_variable(target_name, self._ConfigVar_objs[source_name].description(), self._ConfigVar_objs[source_name].iter())
+            self.set_variable(target_name, self._ConfigVar_objs[source_name].description(), self._ConfigVar_objs[source_name])
 
 
     def read_environment(self):

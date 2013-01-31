@@ -6,11 +6,7 @@ WAVES_PLUGINS_DIR: /Volumes/Shmates/sis/Waves Plugins
 WAVES_APPS_DIR: /Volumes/Shmates/sis/Waves Applications
 MACOS_COMPONENTS: /Volumes/Shmates/sis/Plug-Ins/Components
 
---- !index
-
 MAIN_INSTALL_TARGETS:
-    name: main installation target
-    depends:
-        - GUID_BASS_RIDER
-        - GUID_GOLD_BUNDLE
-        - GUID_MULTIRACK
+    - GUID_BASS_RIDER
+    - GUID_GOLD_BUNDLE
+    - GUID_MULTIRACK

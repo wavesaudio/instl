@@ -42,8 +42,9 @@ def go_interactive(instl_inst):
         with instlCMD(instl_inst) as icmd:
             icmd.cmdloop()
     except Exception as es:
-        print("go_interactive", es)
-        raise
+        import traceback
+        tb = traceback.format_exc()
+        print("go_interactive", es, tb)
 
 def restart_program():
     """Restarts the current program.
@@ -76,13 +77,15 @@ class instlCMD(cmd.Cmd, object):
             if os.path.isfile(self.history_file_path):
                 readline.read_history_file(self.history_file_path)
         self.prompt = "instl: "
+        self.save_dir = os.getcwd()
         return self
 
     def __exit__(self, type, value, traceback):
         if readline_loaded:
+            # restart only after saving history, otherwise history will not be saved (8-().
             readline.set_history_length(1024)
             readline.write_history_file(self.history_file_path)
-        # restart only after saving history, otherwise history will not be saved (8-().
+        os.chdir(self.save_dir)
         if self.restart:
             restart_program()
 
@@ -169,8 +172,34 @@ class instlCMD(cmd.Cmd, object):
         print( "list" )
         print( "    lists all definitions & index entries" )
         print( "list indentifier[*]" )
-        print( "    lists indentifier(*)" )
+        print( "    lists variable(*)" )
 
+    def do_set(self, params):
+        if params:
+            params = shlex.split(params)
+            identi, values = params[0], params[1:]
+            self.instl_inst.cvl.set_variable(identi, "set interactively", values)
+            self.instl_inst.resolve()
+            self.do_list(identi)
+            
+    def complete_set(self, text, line, begidx, endidx):
+        return self.indentifier_completion_list(text, line, begidx, endidx)
+
+    def help_set(self):
+        print("set identifier [value, ...]")
+        print("    set values of variable")
+            
+    def do_del(self, params):
+        for identi in params.split():
+            del self.instl_inst.cvl[identi]
+            
+    def complete_del(self, text, line, begidx, endidx):
+        return self.indentifier_completion_list(text, line, begidx, endidx)
+
+    def help_del(self):
+        print("del [identifier, ...]")
+        print("    deletes a variable")
+          
     def do_read(self, params):
         if params:
             for file in shlex.split(params):
@@ -184,6 +213,23 @@ class instlCMD(cmd.Cmd, object):
         return False
 
     def complete_read(self, text, line, begidx, endidx):
+        return self.path_completion(text, line, begidx, endidx)
+
+    def do_write(self, params):
+        self.instl_inst.dedigest()
+        self.instl_inst.digest()
+        self.instl_inst.create_install_instructions()
+        outfile = "stdout"
+        if params:
+            outfile = shlex.split(params)[0]
+        main_out_file_obj = self.instl_inst.cvl.get_configVar_obj("__MAIN_OUT_FILE__")
+        main_out_file_obj.clear_values()
+        main_out_file_obj.append(outfile)
+        self.instl_inst.resolve()
+        self.instl_inst.write_install_batch_file()
+        return False
+
+    def complete_write(self, text, line, begidx, endidx):
         return self.path_completion(text, line, begidx, endidx)
 
     def do_restart(self, params):

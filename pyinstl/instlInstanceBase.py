@@ -97,6 +97,13 @@ class InstlInstanceBase(object):
         self.resolve()
         #self.evaluate_graph()
     
+    def dedigest(self):
+        """ reverse the effect of digest """
+        del self.cvl["__MAIN_INSTALL_TARGETS__"]
+        del self.cvl["__FULL_LIST_OF_INSTALL_TARGETS__"]
+        del self.cvl["__ORPHAN_INSTALL_TARGETS__"]
+        self.resolve()
+        
     internal_identifier_re = re.compile("""
                                         __                  # dunder here
                                         (?P<internal_identifier>\w*)
@@ -177,7 +184,7 @@ class InstlInstanceBase(object):
                 self.install_instruction_lines.append(self.change_directory_cmd(folder))
                 for GUID in install_by_folder[folder]:
                     installi = self.install_definitions_index[GUID]
-                    for action in installi.actions_before:
+                    for action in installi.action_list("before"):
                         self.install_instruction_lines.append(action)
                     for source in installi.source_list():
                         source_url = '$(BASE_URL)'+source[0]
@@ -189,7 +196,7 @@ class InstlInstanceBase(object):
                             self.install_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "up", '"'+source_url_file+'"')))
                         else:
                             self.install_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", "HEAD", '"'+source_url+'"')))
-                    for action in installi.actions_after:
+                    for action in installi.action_list("after"):
                         self.install_instruction_lines.append(action)
                 self.install_instruction_lines.append(os.linesep)
 
@@ -209,6 +216,7 @@ class InstlInstanceBase(object):
 
         lines_after_var_replacement = os.linesep.join([value_ref_re.sub(self.var_replacement_pattern, line) for line in lines])
         aTempFile.write(lines_after_var_replacement)
+        aTempFile.write(os.linesep)
 
         out_file = self.cvl.get("__MAIN_OUT_FILE__", ("stdout",))
         aTempFile.seek(0)

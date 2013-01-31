@@ -94,7 +94,13 @@ class InstallItem(object):
                 specific_cation_list = self.__items["actions"].setdefault(action_pair[0], list())
                 for action in action_pair[1]:
                     specific_cation_list.append(action.value)
-
+    
+    def action_list(self, which):
+        if which in self.__items["actions"]:
+            return self.__items["actions"][which]
+        else:
+            return ()
+    
     def get_recursive_depends(self, items_map, out_set, orphan_set):
         if self.guid not in out_set:
             out_set.add(self.guid)
