@@ -8,6 +8,8 @@ import appdirs
 import logging
 import shlex
 
+this_program_name = "instl"
+
 try:
     import cmd
 except:
@@ -35,11 +37,11 @@ def insensitive_glob(pattern):
         return '[%s%s]'%(c.lower(),c.upper()) if c.isalpha() else c
     return glob.glob(''.join(map(either,pattern)))
 
-def go_interactive(instl_inst):
+def go_interactive(prog_inst):
     try:
         instlInstanceBase.InstlInstanceBase.create_completion_list = create_completion_list_imp
         instlInstanceBase.InstlInstanceBase.do_list = do_list_imp
-        with instlCMD(instl_inst) as icmd:
+        with CMDObj(prog_inst) as icmd:
             icmd.cmdloop()
     except Exception as es:
         import traceback
@@ -53,11 +55,12 @@ def restart_program():
     python = sys.executable
     os.execl(python, python, * sys.argv)
 
-class instlCMD(cmd.Cmd, object):
-    def __init__(self, instl_inst):
+class CMDObj(cmd.Cmd, object):
+    def __init__(self, prog_inst):
         cmd.Cmd.__init__(self)
-        self.instl_inst = instl_inst
+        self.prog_inst = prog_inst
         self.restart = False
+        self.prog_inst.resolve()
 
     def __enter__(self):
         if readline_loaded:
@@ -68,21 +71,20 @@ class instlCMD(cmd.Cmd, object):
             readline.parse_and_bind("set completion-map-case on")
             readline.parse_and_bind("set show-all-if-unmodified on")
             readline.parse_and_bind("set expand-tilde on")
-            history_file_dir = appdirs.user_data_dir("instl", "Waves Audio")
+            history_file_dir = appdirs.user_data_dir(this_program_name, this_program_name)
             try:
                 os.makedirs(history_file_dir)
             except: # os.makedirs raises is the directory already exists
                 pass
-            self.history_file_path = os.path.join(history_file_dir, ".instl_console_history")
+            self.history_file_path = os.path.join(history_file_dir, "."+this_program_name+"_console_history")
             if os.path.isfile(self.history_file_path):
                 readline.read_history_file(self.history_file_path)
-        self.prompt = "instl: "
+        self.prompt = this_program_name+": "
         self.save_dir = os.getcwd()
         return self
 
     def __exit__(self, type, value, traceback):
         if readline_loaded:
-            # restart only after saving history, otherwise history will not be saved (8-().
             readline.set_history_length(1024)
             readline.write_history_file(self.history_file_path)
         # restart only after saving history, otherwise history will not be saved (8-().
@@ -135,15 +137,15 @@ class instlCMD(cmd.Cmd, object):
                 for param in params.split():
                     if param[-1] == '*':
                         identifier_list = self.indentifier_completion_list(param[:-1], params, 0, 0)
-                        self.instl_inst.do_list(identifier_list)
+                        self.prog_inst.do_list(identifier_list)
                     else:
                         identifier_list = self.indentifier_completion_list(param, params, 0, 0)
                         if identifier_list:
-                            self.instl_inst.do_list(identifier_list)
+                            self.prog_inst.do_list(identifier_list)
                         else:
                             print("Unknown identifier:", param)
             else:
-                self.instl_inst.do_list()
+                self.prog_inst.do_list()
         except Exception as es:
             print("list", es)
         return False
@@ -151,7 +153,7 @@ class instlCMD(cmd.Cmd, object):
     def indentifier_completion_list(self, text, line, begidx, endidx):
         matches = []
         if text:
-            completion_list = self.instl_inst.create_completion_list()
+            completion_list = self.prog_inst.create_completion_list()
             if completion_list:
                 matches.extend([s for s in completion_list
                          if s and s.lower().startswith(text.lower())])
@@ -179,8 +181,8 @@ class instlCMD(cmd.Cmd, object):
         if params:
             params = shlex.split(params)
             identi, values = params[0], params[1:]
-            self.instl_inst.cvl.set_variable(identi, "set interactively", values)
-            self.instl_inst.resolve()
+            self.prog_inst.cvl.set_variable(identi, "set interactively").extend(values)
+            self.prog_inst.resolve()
             self.do_list(identi)
 
     def complete_set(self, text, line, begidx, endidx):
@@ -192,7 +194,7 @@ class instlCMD(cmd.Cmd, object):
 
     def do_del(self, params):
         for identi in params.split():
-            del self.instl_inst.cvl[identi]
+            del self.prog_inst.cvl[identi]
 
     def complete_del(self, text, line, begidx, endidx):
         return self.indentifier_completion_list(text, line, begidx, endidx)
@@ -205,8 +207,8 @@ class instlCMD(cmd.Cmd, object):
         if params:
             for file in shlex.split(params):
                 try:
-                    self.instl_inst.read_file(file)
-                    self.instl_inst.resolve()
+                    self.prog_inst.read_file(file)
+                    self.prog_inst.resolve()
                 except Exception as ex:
                     print("read", filem, ex)
         else:
@@ -217,39 +219,48 @@ class instlCMD(cmd.Cmd, object):
         return self.path_completion(text, line, begidx, endidx)
 
     def do_write(self, params):
-        self.instl_inst.dedigest()
-        self.instl_inst.digest()
-        self.instl_inst.create_install_instructions()
+        self.prog_inst.dedigest()
+        self.prog_inst.digest()
+        self.prog_inst.create_install_instructions()
         outfile = "stdout"
         if params:
             outfile = shlex.split(params)[0]
-        main_out_file_obj = self.instl_inst.cvl.get_configVar_obj("__MAIN_OUT_FILE__")
+        main_out_file_obj = self.prog_inst.cvl.get_configVar_obj("__MAIN_OUT_FILE__")
         main_out_file_obj.clear_values()
         main_out_file_obj.append(outfile)
-        self.instl_inst.resolve()
-        self.instl_inst.write_install_batch_file()
+        self.prog_inst.resolve()
+        self.prog_inst.write_install_batch_file()
         return False
 
     def complete_write(self, text, line, begidx, endidx):
         return self.path_completion(text, line, begidx, endidx)
 
     def do_restart(self, params):
-        print("restarting instl")
+        print("restarting", this_program_name)
         self.restart = True
         return True # stops cmdloop
 
     def help_restart(self):
-        print("restart:", "reloads instl")
+        print("restart:", "reloads", this_program_name)
 
     def do_quit(self, params):
         return True
 
+    def help_quit(self):
+        print("quit, q: quits", this_program_name)
+
     def do_q(self, params):
         return self.do_quit(params)
+
+    def help_q(self):
+        return self.help_quit()
 
     def default(self, line):
         print("unknown command: ", line)
         return False
+
+    def help_help(self):
+        self.do_help("")
 
     # evaluate python expressions
     def do_eval(self, param):
@@ -260,7 +271,7 @@ class instlCMD(cmd.Cmd, object):
             print("eval:",  ex)
 
     def help_eval(self):
-        print("evaluate python expressions, instlInstance is accessible as self.instl_inst")
+        print("evaluate python expressions, instlInstance is accessible as self.prog_inst")
 
 def do_list_imp(self, what = None):
     if what is None:

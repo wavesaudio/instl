@@ -121,16 +121,12 @@ class ConfigVarList(object):
         retVal = self._ConfigVar_objs.setdefault(var_name, configVar.ConfigVar(var_name))
         return retVal
 
-    def set_variable(self, var_name, description=None, values_to_set=()):
+    def set_variable(self, var_name, description=None):
         self.__dirty = True # if someone asked for a configVar.ConfigVar, assume it was changed
         retVal = self.get_configVar_obj(var_name)
         retVal.clear_values()
         if description is not None:
             retVal.set_description(description)
-        if values_to_set:
-            if not hasattr(values_to_set, '__iter__'):
-                raise TypeException(str(values_to_set)+" is not a iterable")
-            retVal.extend(values_to_set)
         return retVal
 
     def add_const_config_variable(self, name, description="", *values):
@@ -147,7 +143,7 @@ class ConfigVarList(object):
 
     def duplicate_variable(self, source_name, target_name):
         if source_name in self._ConfigVar_objs:
-            self.set_variable(target_name, self._ConfigVar_objs[source_name].description(), self._ConfigVar_objs[source_name])
+            self.set_variable(target_name, self._ConfigVar_objs[source_name].description()).extend(self._ConfigVar_objs[source_name])
 
 
     def read_environment(self):
@@ -265,7 +261,7 @@ if __name__ == "__main__":
     varList.get_configVar_obj("U").append("and")
     varList.get_configVar_obj("you").append("ata")
 
-    varList.set_variable("mergoza", "stam", "pinochio")
+    varList.set_variable("mergoza", "stam").append("pinochio")
 
     varList.read_environment()
     varList.resolve()
