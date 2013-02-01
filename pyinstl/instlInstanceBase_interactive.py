@@ -85,6 +85,7 @@ class instlCMD(cmd.Cmd, object):
             # restart only after saving history, otherwise history will not be saved (8-().
             readline.set_history_length(1024)
             readline.write_history_file(self.history_file_path)
+        # restart only after saving history, otherwise history will not be saved (8-().
         os.chdir(self.save_dir)
         if self.restart:
             restart_program()
@@ -181,25 +182,25 @@ class instlCMD(cmd.Cmd, object):
             self.instl_inst.cvl.set_variable(identi, "set interactively", values)
             self.instl_inst.resolve()
             self.do_list(identi)
-            
+
     def complete_set(self, text, line, begidx, endidx):
         return self.indentifier_completion_list(text, line, begidx, endidx)
 
     def help_set(self):
         print("set identifier [value, ...]")
         print("    set values of variable")
-            
+
     def do_del(self, params):
         for identi in params.split():
             del self.instl_inst.cvl[identi]
-            
+
     def complete_del(self, text, line, begidx, endidx):
         return self.indentifier_completion_list(text, line, begidx, endidx)
 
     def help_del(self):
         print("del [identifier, ...]")
         print("    deletes a variable")
-          
+
     def do_read(self, params):
         if params:
             for file in shlex.split(params):
@@ -257,7 +258,7 @@ class instlCMD(cmd.Cmd, object):
                 print(eval(param))
         except Exception as ex:
             print("eval:",  ex)
-            
+
     def help_eval(self):
         print("evaluate python expressions, instlInstance is accessible as self.instl_inst")
 

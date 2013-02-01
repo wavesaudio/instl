@@ -1,4 +1,5 @@
-#!/usr/local/bin/python
+#!/usr/local/bin/python2.7
+from __future__ import print_function
 
 """
     Copyright (c) 2012, Shai Shasag
@@ -328,7 +329,7 @@ def nodeToYamlDumpWrap(a_node):
     return retVal
 
 if __name__ == "__main__":
-    for file in ("test.txt",): #sys.argv[1:]:
+    for file in sys.argv[1:]:
         with open(file, "r") as fd:
             for a_node in yaml.compose_all(fd):
                 a_node_as_tdw = nodeToYamlDumpWrap(a_node)

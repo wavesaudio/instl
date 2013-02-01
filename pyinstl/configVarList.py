@@ -16,8 +16,7 @@ import sys
 import re
 
 if __name__ == "__main__":
-    import sys
-    sys.path.append("..")
+    sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 
 from pyinstl import configVar
 from aYaml.augmentedYaml import YamlDumpWrap
@@ -63,7 +62,7 @@ class ConfigVarList(object):
             raise Exception("config varaibles were not resolved")
         # the value of non existant var_name is an empty tuple
         return self._resolved_vars[var_name]
-    
+
     def __delitem__(self, key):
         if key in self._ConfigVar_objs:
             del self._ConfigVar_objs[key]
@@ -71,7 +70,7 @@ class ConfigVarList(object):
         if key in self._resolved_vars:
             del self._resolved_vars[key]
             self.__dirty = True
-            
+
     def get(self, var_name, default=tuple()):
         if self.__dirty:
             raise Exception("config varaibles were not resolved")
@@ -172,7 +171,7 @@ class ConfigVarList(object):
                 else:
                     retVal[name] = YamlDumpWrap(value="UNKNOWN VARIABLE", comment=name+" is not in variable list")
         else:
-            retVal.update(self.repr_for_yaml((vars,)))  
+            retVal.update(self.repr_for_yaml((vars,)))
         return retVal
 
     def resolve_string(self, in_str, sep=" "):
