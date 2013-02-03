@@ -5,6 +5,7 @@ BASE_URL: "svn://localhost/V9/Mac/"
 WAVES_PLUGINS_DIR: /Volumes/Shmates/sis/Waves Plugins
 WAVES_APPS_DIR: /Volumes/Shmates/sis/Waves Applications
 MACOS_COMPONENTS: /Volumes/Shmates/sis/Plug-Ins/Components
+SVN_REPO_VERSION: 17
 
 MAIN_INSTALL_TARGETS:
     - GUID_BASS_RIDER

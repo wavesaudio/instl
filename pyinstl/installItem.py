@@ -91,9 +91,9 @@ class InstallItem(object):
     def read_actions(self, action_nodes):
         for action_pair in action_nodes:
             if action_pair[0] in ("before", "after", "folder_in", "folder_out"):
-                specific_cation_list = self.__items["actions"].setdefault(action_pair[0], list())
+                specific_action_list = self.__items["actions"].setdefault(action_pair[0], list())
                 for action in action_pair[1]:
-                    specific_cation_list.append(action.value)
+                    specific_action_list.append(action.value)
     
     def action_list(self, which):
         if which in self.__items["actions"]:

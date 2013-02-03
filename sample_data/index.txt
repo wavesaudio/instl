@@ -11,9 +11,6 @@ GUID_PLUGIN_TEMPLATE:
     depends:
         - GUID_WAVESLIB_9.0
         - GUID_AU_SHELL
-    actions:
-        folder_in: hallelujah
-        folder_out: hootenanny
 
 EMPTY_TEMPLATE:
     name: empty template
@@ -44,6 +41,9 @@ GUID_WAVESLIB_9.0:
             - !file Plugins/WavesLib_9.0_Win32.dll
             - !file Plugins/WavesLib_9.0_Win64.dll
     install_folders: $(WAVES_PLUGINS_DIR)
+    actions:
+        folder_in: hallelujah 9.0
+        folder_out: hootenanny 9.0
 
 GUID_WAVESLIB_9.3:
     name: WavesLib9.3
@@ -55,6 +55,9 @@ GUID_WAVESLIB_9.3:
             - !file Plugins/WavesLib_9.3_Win32.dll
             - !file Plugins/WavesLib_9.3_Win64.dll
     install_folders: $(WAVES_PLUGINS_DIR)
+    actions:
+        folder_in: hallelujah 9.3
+        folder_out: hootenanny 9.3
         
 GUID_BASS_RIDER:
     inherit: GUID_PLUGIN_TEMPLATE

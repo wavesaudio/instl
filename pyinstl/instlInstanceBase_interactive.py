@@ -210,7 +210,7 @@ class CMDObj(cmd.Cmd, object):
                     self.prog_inst.read_file(file)
                     self.prog_inst.resolve()
                 except Exception as ex:
-                    print("read", filem, ex)
+                    print("read", file, ex)
         else:
             print("read what?")
         return False

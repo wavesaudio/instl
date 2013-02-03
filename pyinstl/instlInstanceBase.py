@@ -14,6 +14,9 @@ from installItem import InstallItem, read_index_from_yaml
 
 
 class cmd_line_options(object):
+    """ namespace object to give to parse_args
+        holds command line options
+    """
     def __init__(self):
         self.input_files = None
         self.out_file_option = None
@@ -27,6 +30,11 @@ class cmd_line_options(object):
         return retVal
 
 class InstlInstanceBase(object):
+    """ Main object of instl. Keeps the state of variables and install index
+        and knows how to create a batch file for installation. InstlInstanceBase
+        must be inherited by platform specific implementations, such as InstlInstance_mac
+        or InstlInstance_win.
+    """
     def __init__(self):
         self.out_file_realpath = None
         self.install_definitions_index = dict() # OrderedDict()
@@ -34,13 +42,14 @@ class InstlInstanceBase(object):
         self.variables_assignment_lines = []
         self.install_instruction_lines = []
         self.var_replacement_pattern = None
+        self.svn_version = "HEAD"
 
     def repr_for_yaml(self, what=None):
-        """ Create representation suitable for printing a yaml.
-            what is a list of identifiers to represent. If what
-            is None (the default) representation of the whole 
-            InstlInstance object is given as two yaml documents:
-            one for define, one for the index.
+        """ Create representation of self suitable for printing as yaml.
+            parameter 'what' is a list of identifiers to represent. If 'what'
+            is None (the default) creare representation of everything.
+            InstlInstanceBase object is represented as two yaml documents:
+            one for define (tagged !define), one for the index (tagged !index).
         """
         retVal = list()
         if what is None: # None is all
@@ -58,6 +67,7 @@ class InstlInstanceBase(object):
         return retVal
 
     def read_command_line_options(self, arglist=None):
+        """ parse command line options """
         try:
             if arglist and len(arglist) > 0:
                 self.mode = "batch"
@@ -72,6 +82,7 @@ class InstlInstanceBase(object):
             raise
 
     def init_from_cmd_line_options(self, cmd_line_options_obj):
+        """ turn command line options into variables """
         if cmd_line_options_obj.input_files:
             self.cvl.add_const_config_variable("__MAIN_INPUT_FILES__", "from commnad line options", *cmd_line_options_obj.input_files)
         if cmd_line_options_obj.out_file_option:
@@ -85,7 +96,11 @@ class InstlInstanceBase(object):
         self.resolve()
 
     def digest(self):
+        """ 
+        """
         self.resolve()
+        if "SVN_REPO_VERSION" in self.cvl:
+            self.svn_version = self.cvl.get_str("SVN_REPO_VERSION")
         # command line targets take precedent, if they were not specifies, look for "MAIN_INSTALL_TARGETS"
         copy_main_install_targets_from = None
         if "__CMD_INSTALL_TARGETS__" in self.cvl:
@@ -114,9 +129,7 @@ class InstlInstanceBase(object):
         if a_node.isMapping():
             for identifier, value in a_node:
                 if not self.internal_identifier_re.match(identifier): # do not read internal state indentifiers
-                    cv = self.cvl.get_configVar_obj(identifier)
-                    cv.extend([item.value for item in a_node[identifier]])
-                    cv.set_description(str(a_node[identifier].start_mark))
+                    self.cvl.set_variable(identifier, str(a_node[identifier].start_mark)).extend([item.value for item in a_node[identifier]])
 
     def read_index(self, a_node):
         self.install_definitions_index.update(read_index_from_yaml(a_node))
@@ -179,26 +192,45 @@ class InstlInstanceBase(object):
         self.create_install_list()
         install_by_folder = self.sort_install_instructions_by_folder()
         if install_by_folder:
-            for folder in install_by_folder:
-                self.install_instruction_lines.append(self.make_directory_cmd(folder))
-                self.install_instruction_lines.append(self.change_directory_cmd(folder))
-                for GUID in install_by_folder[folder]:
-                    installi = self.install_definitions_index[GUID]
-                    for action in installi.action_list("before"):
-                        self.install_instruction_lines.append(action)
-                    for source in installi.source_list():
-                        source_url = '$(BASE_URL)'+source[0]
-                        if source[1] == '!file':
-                            source_url_split = source_url.split('/')
-                            source_url_dir = '/'.join(source_url_split[:-1])
-                            source_url_file = source_url_split[-1]
-                            self.install_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", "HEAD", '"'+source_url_dir+'"', ".", "--depth empty")))
-                            self.install_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "up", '"'+source_url_file+'"')))
-                        else:
-                            self.install_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", "HEAD", '"'+source_url+'"')))
-                    for action in installi.action_list("after"):
-                        self.install_instruction_lines.append(action)
-                self.install_instruction_lines.append(os.linesep)
+            for folder_name in install_by_folder:
+                self.create_install_instructions_for_folder(folder_name, install_by_folder[folder_name])
+
+    def create_install_instructions_for_folder(self, folder_name, items):
+        self.install_instruction_lines.append(self.make_directory_cmd(folder_name))
+        self.install_instruction_lines.append(self.change_directory_cmd(folder_name))
+        for GUID in items: # folder in actions
+            installi = self.install_definitions_index[GUID]
+            actions = installi.action_list("folder_in")
+            if actions:
+                self.install_instruction_lines.append(" ".join(actions))
+        for GUID in items:
+            self.create_instal_instructions_for_item(self.install_definitions_index[GUID])         # pass the installItem object
+        for GUID in items: # folder out actions
+            installi = self.install_definitions_index[GUID]
+            actions = installi.action_list("folder_out")
+            if actions:
+                self.install_instruction_lines.append(" ".join(actions))
+        self.install_instruction_lines.append(os.linesep)
+
+    def create_instal_instructions_for_item(self, installi):
+        for action in installi.action_list("before"):           # actions to do before pulling from svn
+            self.install_instruction_lines.append(action)
+        for source in installi.source_list():                   # svn pulling actions
+            self.create_svn_pull_instructions_for_source(source)
+        for action in installi.action_list("after"):            # actions to do after pulling from svn
+            self.install_instruction_lines.append(action)
+
+    def create_svn_pull_instructions_for_source(self, source):
+        """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
+        source_url = '$(BASE_URL)'+source[0]
+        if source[1] == '!file':
+            source_url_split = source_url.split('/')
+            source_url_dir = '/'.join(source_url_split[:-1])
+            source_url_file = source_url_split[-1]
+            self.install_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+source_url_dir+'"', ".", "--depth empty")))
+            self.install_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "up", '"'+source_url_file+'"')))
+        else:
+            self.install_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+source_url+'"')))
 
     def write_install_batch_file(self):
         aTempFile = tempfile.SpooledTemporaryFile(max_size=1000000, mode="w+r")
