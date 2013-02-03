@@ -151,22 +151,20 @@ class ConfigVarList(object):
         for env in os.environ:
             if env == "": # not sure why I get an empty string
                 continue
-            cv = self.get_configVar_obj(env)
-            cv.set_description("from envirnment")
-            cv.append(os.environ[env])
+            self.set_variable(env, "from envirnment").append(os.environ[env])
 
     def repr_for_yaml(self, vars=None):
         retVal = dict()
         if not vars:
             vars = self._resolved_vars
-        if hasattr(vars, '__iter__'):
+        if hasattr(vars, '__iter__'): # if vars is a list
             for name in vars:
                 if name in self._resolved_vars:
                     theComment = self._ConfigVar_objs[name].description()
                     retVal[name] = YamlDumpWrap(value=self._resolved_vars[name], comment=theComment)
                 else:
                     retVal[name] = YamlDumpWrap(value="UNKNOWN VARIABLE", comment=name+" is not in variable list")
-        else:
+        else:   # if vars is a single variable name
             retVal.update(self.repr_for_yaml((vars,)))
         return retVal
 
