@@ -10,7 +10,7 @@ except ImportError as IE:
 def create_installItem_graph(item_map):
     retVal = nx.DiGraph()
     for item in item_map:
-        for dependant in item_map[item].depends:
+        for dependant in item_map[item].depend_list():
             retVal.add_edge(item_map[item].guid, dependant)
     return retVal
 
@@ -25,3 +25,6 @@ def find_leafs(item_graph):
         if not neig:
             retVal.append(node)
     return retVal
+
+def find_needed_by(item_graph, node):
+    return item_graph.predecessors(node)

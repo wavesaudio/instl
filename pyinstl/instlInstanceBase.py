@@ -1,3 +1,6 @@
+#!/usr/local/bin/python2.7
+from __future__ import print_function
+
 import sys
 import os
 import argparse
@@ -270,24 +273,39 @@ class InstlInstanceBase(object):
             if fd is not sys.stdout:
                 fd.close()
 
-    def evaluate_graph(self):
+    def find_cycles(self):
+            if not self.install_definitions_index:
+                print ("index empty - nothing to check")
+            else:
+                try:
+                    from pyinstl import installItemGraph
+                    graph = installItemGraph.create_installItem_graph(self.install_definitions_index)
+                    cycles = installItemGraph.find_cycles(graph)
+                    if not cycles:
+                        print ("No cycles found")
+                    else:
+                        for cy in cycles:
+                            print("cycle:", " -> ".join(cy))
+                except ImportError as IE: # no installItemGraph, no worry
+                    print("Could not load installItemGraph")
+    
+    def needs(self, guid, out_list):
+        """ return all items that depend on guid """
+        if guid not in self.install_definitions_index:
+            raise KeyError(guid+" is not in index")
+        out_list.extend(self.install_definitions_index[guid].depend_list())
+        for dep in self.install_definitions_index[guid].depend_list():
+            self.needs(dep, out_list)
+
+    def needed_by(self, guid):
         try:
             from pyinstl import installItemGraph
             graph = installItemGraph.create_installItem_graph(self.install_definitions_index)
-            cycles = installItemGraph.find_cycles(graph)
-            if not cycles:
-                print ("No cycles found")
-            else:
-                for cy in cycles:
-                    print("cycle:", cy)
-            leafs = installItemGraph.find_leafs(graph)
-            if not leafs:
-                print ("No leafs found")
-            else:
-                for leaf in leafs:
-                    print("leaf:", leaf)
+            needed_by_list = installItemGraph.find_needed_by(graph, guid)
+            return needed_by_list
         except ImportError as IE: # no installItemGraph, no worry
             print("Could not load installItemGraph")
+            return None
 
     def do_da_interactive(self):
         try:

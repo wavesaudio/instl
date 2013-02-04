@@ -5,24 +5,21 @@ Cuckoo:
 
 --- !index
 
-GUID_PLUGIN_TEMPLATE:
+PLUGIN_TEMPLATE_GUID:
     name: normal plugin template
     install_folders: $(WAVES_PLUGINS_DIR)
     depends:
-        - GUID_WAVESLIB_9.0
-        - GUID_AU_SHELL
+        - WAVESLIB_9.0_GUID
+        - AU_SHELL_GUID
 
-EMPTY_TEMPLATE:
-    name: empty template
-
-GUID_WLC:
+WLC_GUID:
     name: wlc
     install_sources: Applications/wlc.app/
     install_folders: $(WAVES_APPS_DIR)
     depends:
-        - GUID_Qt
+        - Qt_GUID
 
-GUID_AU_SHELL:
+AU_SHELL_GUID:
     name: WaveShell-AU
     install_sources:
         !tag_for_list
@@ -30,7 +27,7 @@ GUID_AU_SHELL:
         - Shells/WaveShell-AU 9.0.component/
     install_folders: $(MACOS_COMPONENTS)
 
-GUID_WAVESLIB_9.0:
+WAVESLIB_9.0_GUID:
     name: WavesLib9.0
     mac:
         install_sources:
@@ -45,7 +42,7 @@ GUID_WAVESLIB_9.0:
         folder_in: hallelujah 9.0
         folder_out: hootenanny 9.0
 
-GUID_WAVESLIB_9.3:
+WAVESLIB_9.3_GUID:
     name: WavesLib9.3
     mac:
         install_sources:
@@ -59,50 +56,50 @@ GUID_WAVESLIB_9.3:
         folder_in: hallelujah 9.3
         folder_out: hootenanny 9.3
         
-GUID_BASS_RIDER:
-    inherit: GUID_PLUGIN_TEMPLATE
+BASS_RIDER_GUID:
+    inherit: PLUGIN_TEMPLATE_GUID
     name: Bass Rider
     install_sources: Plugins/Bass Rider.bundle/
     actions:
         before: touch "$(HOME)/Desktop/BassRiderActionBefore"
         after:
             - touch "$(HOME)/Desktop/BassRiderActionAfter1"
-            - touch "$(HOME)/Desktop/BassRiderActionAfter2"
+            - touc "$(HOME)/Desktop/BassRiderActionAfter2"
         bomba: zor
 
-GUID_AUDIOTRACK:
+AUDIOTRACK_GUID:
     inherit:
-        - GUID_PLUGIN_TEMPLATE
+        - PLUGIN_TEMPLATE_GUID
     name: AudioTrack
     install_sources: Plugins/AudioTrack.bundle/
 
-GUID_C4:
+C4_GUID:
     inherit:
-        - GUID_PLUGIN_TEMPLATE
+        - PLUGIN_TEMPLATE_GUID
     name: C4
     install_sources: Plugins/C4.bundle/
 
-GUID_C1:
+C1_GUID:
     name: C1
     inherit:
-        - GUID_PLUGIN_TEMPLATE
+        - PLUGIN_TEMPLATE_GUID
     install_sources: Plugins/C1.bundle/
 
-GUID_IR1:
+IR1_GUID:
     name: IR-1.bundle
     inherit:
-        - GUID_PLUGIN_TEMPLATE
+        - PLUGIN_TEMPLATE_GUID
     install_sources:
         - Plugins/IR-1.bundle/
         - Plugins/IR1Impulses/
         - Plugins/IR1Impulses V2/
 
-GUID_GOLD_BUNDLE:
+GOLD_BUNDLE_GUID:
     name: Gold bundle
     depends:
-        - GUID_AUDIOTRACK
-        - GUID_C1
-        - GUID_C4
+        - AUDIOTRACK_GUID
+        - C1_GUID
+        - C4_GUID
 
 
 

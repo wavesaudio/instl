@@ -31,6 +31,13 @@ except ImportError:
 import instlInstanceBase
 from aYaml import augmentedYaml
 
+colors = {'end': '\033[0m', 'green': '\033[92m', 'blue': '\033[94m', 'yellow': '\033[33m'}
+def text_with_color(text, color):
+    if color in colors:
+        return colors[color]+text+colors['end']
+    else:
+        return text
+
 def insensitive_glob(pattern):
     import glob
     def either(c):
@@ -234,6 +241,48 @@ class CMDObj(cmd.Cmd, object):
 
     def complete_write(self, text, line, begidx, endidx):
         return self.path_completion(text, line, begidx, endidx)
+
+    def do_cycles(self, params):
+        self.prog_inst.find_cycles()
+        return False
+
+    def help_cycles(self):
+        print("cycles:", "check index dependencies for cycles")
+
+    def do_depend(self, params):
+        try:
+            if params:
+                for param in shlex.split(params):
+                    if param not in self.prog_inst.install_definitions_index:
+                        print(text_with_color(param, 'green'), "not in index")
+                        continue
+                    depend_list = list()
+                    self.prog_inst.needs(param, depend_list)
+                    if not depend_list:
+                        depend_list = ("no one",)
+                    color_sep = text_with_color(", ", 'yellow')
+                    depend_list = [text_with_color(depend, 'yellow') for depend in depend_list]
+                    print (text_with_color(param, 'green'), "needs:\n    ", ", ".join(depend_list))
+                    needed_by_list = self.prog_inst.needed_by(param)
+                    if needed_by_list is None:
+                        print("could not get needed by list for", text_with_color(param, 'green'))
+                    else:
+                        if not needed_by_list:
+                            needed_by_list = ("no one",)
+                        needed_by_list = [text_with_color(needed_by, 'yellow') for needed_by in needed_by_list]
+                        print (text_with_color(param, 'green'), "needed by:\n    ", ", ".join(needed_by_list))
+        except Exception as es:
+            import traceback
+            tb = traceback.format_exc()
+            print("do_depend", es, tb)
+        return False
+
+    def complete_depend(self, text, line, begidx, endidx):
+        return self.indentifier_completion_list(text, line, begidx, endidx)
+
+    def help_depend(self):
+        print("depend [identifier, ...]")
+        print("    dependecies for an item")
 
     def do_restart(self, params):
         print("restarting", this_program_name)
