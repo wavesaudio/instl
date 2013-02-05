@@ -28,15 +28,25 @@ except ImportError:
         print("failed to import pyreadline, readline functionality not supported")
         raise
 
+
+colorama_loaded = False
+try:
+    import colorama
+    colorama_loaded = True
+except ImportError:
+    pass
+
 import instlInstanceBase
 from aYaml import augmentedYaml
 
-colors = {'end': '\033[0m', 'green': '\033[92m', 'blue': '\033[94m', 'yellow': '\033[33m'}
+if colorama_loaded:
+    colors = {'reset': colorama.Fore.RESET, 'green': colorama.Fore.GREEN, 'blue': colorama.Fore.BLUE, 'yellow': colorama.Fore.YELLOW, 'red': colorama.Fore.RED}
+
 def text_with_color(text, color):
-    if color in colors:
-        return colors[color]+text+colors['end']
-    else:
-        return text
+    retVal = text
+    if colorama_loaded and color in colors:
+        retVal = colors[color]+text+colors['reset']
+    return retVal
 
 def insensitive_glob(pattern):
     import glob
@@ -86,6 +96,8 @@ class CMDObj(cmd.Cmd, object):
             self.history_file_path = os.path.join(history_file_dir, "."+this_program_name+"_console_history")
             if os.path.isfile(self.history_file_path):
                 readline.read_history_file(self.history_file_path)
+        if colorama_loaded:
+            colorama.init()
         self.prompt = this_program_name+": "
         self.save_dir = os.getcwd()
         return self
