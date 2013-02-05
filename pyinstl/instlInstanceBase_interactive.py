@@ -157,21 +157,57 @@ class CMDObj(cmd.Cmd, object):
     def help_cd(self):
         print("cd path, change current directory")
 
+    colors = {'reset': colorama.Fore.RESET, 'green': colorama.Fore.GREEN, 'blue': colorama.Fore.BLUE, 'yellow': colorama.Fore.YELLOW, 'red': colorama.Fore.RED}
+
+    def prepare_coloring_dict(self):
+        """ Prepare a dictionary with identifiers mapped to their "colored" representation.
+            Left hand index enrties: 'C1_GUID:' translates to colorama.Fore.GREEN+'C1_GUID'+colorama.Fore.RESET+":".
+            Right hand index enrties: '- C1_GUID:' translates to "- "+colorama.Fore.YELLOW+'C1_GUID'+colorama.Fore.RESET.
+            Variable references: $(WAVES_PLUGINS_DIR) translates to colorama.Fore.BLUE+$(WAVES_PLUGINS_DIR).
+            The returned disctionary can be used in replace_all_from_dict() for "coloring" the text before output to stdcout.
+        """
+        retVal = dict()
+        defs = self.prog_inst.create_completion_list("define")
+        index = self.prog_inst.create_completion_list("index")
+        retVal.update({"$("+identi+")": text_with_color("$("+identi+")", "blue") for identi in defs})
+        retVal.update({dex+":": text_with_color(dex, "green")+":" for dex in index})
+        retVal.update({"- "+dex: "- "+text_with_color(dex, "yellow") for dex in index})
+        return retVal
+
+    def color_vars(self, text):
+        """ Add color codes to index identifiers and variables in text.
+        """
+        retVal = None
+        try:
+            coloring_dict = self.prepare_coloring_dict()
+            from configVarList import replace_all_from_dict
+            retVal = replace_all_from_dict(text, *[], **coloring_dict)
+        except Exception as es:
+            import traceback
+            tb = traceback.format_exc()
+            print("color_vars", es, tb)
+        return retVal
+
+
     def do_list(self, params):
         try:
+            from utils import write_to_list
+            out_list = write_to_list()
             if params:
                 for param in params.split():
                     if param[-1] == '*':
                         identifier_list = self.indentifier_completion_list(param[:-1], params, 0, 0)
-                        self.prog_inst.do_list(identifier_list)
+                        self.prog_inst.do_list(identifier_list, out_list)
                     else:
                         identifier_list = self.indentifier_completion_list(param, params, 0, 0)
                         if identifier_list:
-                            self.prog_inst.do_list(identifier_list)
+                            self.prog_inst.do_list(identifier_list, out_list)
                         else:
                             print("Unknown identifier:", param)
             else:
-                self.prog_inst.do_list()
+                self.prog_inst.do_list(None, out_list)
+            colored_string = self.color_vars("".join(out_list.list()))
+            sys.stdout.write(colored_string)
         except Exception as es:
             print("list", es)
         return False
@@ -345,29 +381,31 @@ class CMDObj(cmd.Cmd, object):
     def help_eval(self):
         print("evaluate python expressions, instlInstance is accessible as self.prog_inst")
 
-def do_list_imp(self, what = None):
+def do_list_imp(self, what = None, stream=sys.stdout):
     if what is None:
-        augmentedYaml.writeAsYaml(self, sys.stdout)
+        augmentedYaml.writeAsYaml(self, stream)
     elif isinstance(what, list):
         item_list = self.repr_for_yaml(what)
         for item in item_list:
-            augmentedYaml.writeAsYaml(item, sys.stdout)
+            augmentedYaml.writeAsYaml(item, stream)
     elif isinstance(what, str):
         if what == "define":
-            augmentedYaml.writeAsYaml(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True), sys.stdout)
+            augmentedYaml.writeAsYaml(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True), stream)
         elif what == "index":
-            augmentedYaml.writeAsYaml(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True), sys.stdout)
+            augmentedYaml.writeAsYaml(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True), stream)
         else:
             item_list = self.repr_for_yaml(what)
             for item in item_list:
-                augmentedYaml.writeAsYaml(item, sys.stdout)
+                augmentedYaml.writeAsYaml(item, stream)
 
 
-def create_completion_list_imp(self):
+def create_completion_list_imp(self, for_what="all"):
     retVal = list()
     try:
-        retVal.extend(self.install_definitions_index.keys())
-        retVal.extend(self.cvl.keys())
+        if for_what in ("all", "index"):
+            retVal.extend(self.install_definitions_index.keys())
+        if for_what in ("all", "define"):
+            retVal.extend(self.cvl.keys())
     except Exception as ex:
         print("create_completion_list:",   ex)
     return retVal

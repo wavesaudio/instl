@@ -99,7 +99,7 @@ class InstlInstanceBase(object):
         self.resolve()
 
     def digest(self):
-        """ 
+        """
         """
         self.resolve()
         if "SVN_REPO_VERSION" in self.cvl:
@@ -114,14 +114,14 @@ class InstlInstanceBase(object):
             self.cvl.duplicate_variable(copy_main_install_targets_from, "__MAIN_INSTALL_TARGETS__")
         self.resolve()
         #self.evaluate_graph()
-    
+
     def dedigest(self):
         """ reverse the effect of digest """
         del self.cvl["__MAIN_INSTALL_TARGETS__"]
         del self.cvl["__FULL_LIST_OF_INSTALL_TARGETS__"]
         del self.cvl["__ORPHAN_INSTALL_TARGETS__"]
         self.resolve()
-        
+
     internal_identifier_re = re.compile("""
                                         __                  # dunder here
                                         (?P<internal_identifier>\w*)
@@ -159,10 +159,10 @@ class InstlInstanceBase(object):
                     self.read_index(a_node)
                 else:
                     print("Unknown document tag", a_node.tag)
-    
+
     def resolve(self):
         self.cvl.resolve()
-        
+
     def sort_install_instructions_by_folder(self):
         full_install_targets = self.cvl.get("__FULL_LIST_OF_INSTALL_TARGETS__", None)
         install_by_folder = OrderedDict()
@@ -235,8 +235,7 @@ class InstlInstanceBase(object):
         else:
             self.install_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+source_url+'"')))
 
-    def write_install_batch_file(self):
-        aTempFile = tempfile.SpooledTemporaryFile(max_size=1000000, mode="w+r")
+    def create_install_instructions_lines(self):
         lines = list()
         lines.extend(self.get_install_instructions_prefix())
         lines.extend( (os.linesep, ) )
@@ -248,30 +247,27 @@ class InstlInstanceBase(object):
         lines.extend( (os.linesep, ) )
 
         lines.extend(self.get_install_instructions_postfix())
+        return lines
 
+    def write_install_batch_file(self):
+        lines = self.create_install_instructions_lines()
         lines_after_var_replacement = os.linesep.join([value_ref_re.sub(self.var_replacement_pattern, line) for line in lines])
-        aTempFile.write(lines_after_var_replacement)
-        aTempFile.write(os.linesep)
 
+        from utils import write_to_file_or_stdout
         out_file = self.cvl.get("__MAIN_OUT_FILE__", ("stdout",))
-        aTempFile.seek(0)
+        with write_to_file_or_stdout(out_file[0]) as fd:
+            fd.write(lines_after_var_replacement)
+            fd.write(os.linesep)
+
         if out_file[0] != "stdout":
-            with open(out_file[0], "w") as fd:
-                self.out_file_realpath = os.path.realpath(out_file[0])
-                shutil.copyfileobj(aTempFile, fd)
+            self.out_file_realpath = os.path.realpath(out_file[0])
             os.chmod(self.out_file_realpath, 0744)
-        else:
-            shutil.copyfileobj(aTempFile, sys.stdout)
 
     def write_program_state(self):
+        from utils import write_to_file_or_stdout
         state_file = self.cvl.get("__MAIN_STATE_FILE__", ("stdout",))
-        if state_file:
-            fd = sys.stdout
-            if state_file[0] != "stdout":
-                fd = open(state_file[0], "w")
+        with write_to_file_or_stdout(state_file[0]) as fd:
             augmentedYaml.writeAsYaml(self, fd)
-            if fd is not sys.stdout:
-                fd.close()
 
     def find_cycles(self):
             if not self.install_definitions_index:
@@ -288,7 +284,7 @@ class InstlInstanceBase(object):
                             print("cycle:", " -> ".join(cy))
                 except ImportError as IE: # no installItemGraph, no worry
                     print("Could not load installItemGraph")
-    
+
     def needs(self, guid, out_list):
         """ return all items that depend on guid """
         if guid not in self.install_definitions_index:
@@ -337,7 +333,7 @@ class InstlInstanceBase(object):
         """ platform specific cd for install script
             must be overridden """
         raise  NotImplementedError
-            
+
 def prepare_args_parser():
     def decent_convert_arg_line_to_args(self, arg_line):
         """ parse a file with options so that we do not have to write one sub-option
