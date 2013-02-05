@@ -8,7 +8,12 @@ import appdirs
 import logging
 import shlex
 
-this_program_name = "instl"
+import platform
+current_os = platform.system()
+if current_os == 'Darwin':
+    current_os = 'mac'
+elif current_os == 'Windows':
+    current_os = 'win'
 
 try:
     import cmd
@@ -26,7 +31,6 @@ except ImportError:
         readline_loaded = True
     except ImportError:
         print("failed to import pyreadline, readline functionality not supported")
-        raise
 
 
 colorama_loaded = False
@@ -34,7 +38,7 @@ try:
     import colorama
     colorama_loaded = True
 except ImportError:
-    pass
+    print("failed to import colorama, color text functionality not supported")
 
 import instlInstanceBase
 from aYaml import augmentedYaml
@@ -53,6 +57,9 @@ def insensitive_glob(pattern):
     def either(c):
         return '[%s%s]'%(c.lower(),c.upper()) if c.isalpha() else c
     return glob.glob(''.join(map(either,pattern)))
+
+
+this_program_name = "instl"
 
 def go_interactive(prog_inst):
     try:
@@ -272,9 +279,13 @@ class CMDObj(cmd.Cmd, object):
                     self.prog_inst.needs(param, depend_list)
                     if not depend_list:
                         depend_list = ("no one",)
-                    color_sep = text_with_color(", ", 'yellow')
-                    depend_list = [text_with_color(depend, 'yellow') for depend in depend_list]
-                    print (text_with_color(param, 'green'), "needs:\n    ", ", ".join(depend_list))
+                    depend_text_list = list()
+                    for depend in depend_list:
+                        if depend.endswith("(missing)"):
+                            depend_text_list.append(text_with_color(depend, 'red'))
+                        else:
+                            depend_text_list.append(text_with_color(depend, 'yellow'))
+                    print (text_with_color(param, 'green'), "needs:\n    ", ", ".join(depend_text_list))
                     needed_by_list = self.prog_inst.needed_by(param)
                     if needed_by_list is None:
                         print("could not get needed by list for", text_with_color(param, 'green'))

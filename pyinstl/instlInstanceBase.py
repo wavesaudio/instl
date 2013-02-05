@@ -293,9 +293,12 @@ class InstlInstanceBase(object):
         """ return all items that depend on guid """
         if guid not in self.install_definitions_index:
             raise KeyError(guid+" is not in index")
-        out_list.extend(self.install_definitions_index[guid].depend_list())
         for dep in self.install_definitions_index[guid].depend_list():
-            self.needs(dep, out_list)
+            if dep in self.install_definitions_index:
+                out_list.append(dep)
+                self.needs(dep, out_list)
+            else:
+                out_list.append(dep+"(missing)")
 
     def needed_by(self, guid):
         try:
