@@ -25,11 +25,13 @@ def read_index_from_yaml(all_items_node):
     return retVal
 
 class InstallItem(object):
-    __slots__ = ("guid", "name", "description",
-                "__items")
+    __slots__ = ("guid", "name", "license", 
+                "remark", "description", "__items")
     def __init__(self):
         self.guid = None
         self.name = None
+        self.license = None
+        self.remark = None
         self.description = ""
         self.__items = {"sources": list(),
                       "folders": list(),
@@ -53,6 +55,10 @@ class InstallItem(object):
                     raise KeyError(missingGUIDMessage)
         if "name" in my_node:
             self.name = my_node["name"].value
+        if "license" in my_node:
+            self.license = my_node["license"].value
+        if "remark" in my_node:
+            self.remark = my_node["remark"].value
         if "install_sources" in my_node:
             for source in my_node["install_sources"]:
                 self.add_source(source.value, source.tag)
@@ -88,6 +94,13 @@ class InstallItem(object):
     def depend_list(self):
         return self.__items["depends"]
 
+    def add_action(self, where, action):
+        if where in ("before", "after", "folder_in", "folder_out"):
+            self.__items["actions"].setdefault(where, list())
+            self.__items["actions"][where].append(action)
+        else:
+            raise KeyError("actions type must be before, after, folder_in, folder_out not "+where)
+
     def read_actions(self, action_nodes):
         for action_pair in action_nodes:
             if action_pair[0] in ("before", "after", "folder_in", "folder_out"):
@@ -114,6 +127,9 @@ class InstallItem(object):
     def repr_for_yaml(self):
         retVal = dict()
         retVal["name"] = self.name
+        retVal["license"] = self.license
+        if self.remark:
+            retVal["remark"] = self.remark
         if self.__items["sources"]:
             retVal["install_sources"] = [source[0] for source in self.__items["sources"]]
         if self.__items["folders"]:
