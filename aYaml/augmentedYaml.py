@@ -26,6 +26,7 @@ from __future__ import print_function
 import sys
 import os
 import yaml
+from collections import OrderedDict
 
 if __name__ == "__main__":
     sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
@@ -271,20 +272,16 @@ def writeAsYaml(pyObj, out_stream, indentor=None, sort=False):
                 writeAsYaml(item, out_stream, indentor, sort)
                 indentor -= 1
         indentor.pop()
-    elif isinstance(pyObj, dict):
+    elif isinstance(pyObj, (dict, OrderedDict)):
         parent_item = indentor.top()
         indentor.push('m')
-        if sort:
+        if sort and not isinstance(pyObj, OrderedDict):
             theKeys = sorted(pyObj.keys())
         else:
             theKeys = pyObj.keys()
         itemNum = 1
         for item in theKeys:
-            if parent_item == 'l':
-                nl_before_key = False
-            else:
-                nl_before_key = True
-            #print({'key': item, 'prev': parent_item, 'nl_before_key': nl_before_key})
+            nl_before_key = (parent_item != 'l')
             if nl_before_key:
                 indentor.lineSepAndIndent(out_stream)
             writeAsYaml(item, out_stream, indentor, sort)
