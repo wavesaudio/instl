@@ -1,3 +1,7 @@
+#!/usr/local/bin/python2.7
+
+from __future__ import print_function
+
 import sys
 import platform
 import yaml
@@ -88,7 +92,7 @@ class InstallItem(object):
         return self.__items["folders"]
 
     def add_depend(self, new_depend):
-        if new_depend not in self.__items["depends"]:
+        if not new_depend in self.__items["depends"]:
             self.__items["depends"].append(new_depend)
 
     def depend_list(self):
@@ -125,9 +129,10 @@ class InstallItem(object):
                         orphan_set.add(depend)
 
     def repr_for_yaml(self):
-        retVal = dict()
+        retVal = OrderedDict()
         retVal["name"] = self.name
-        retVal["license"] = self.license
+        if self.license:
+            retVal["license"] = self.license
         if self.remark:
             retVal["remark"] = self.remark
         if self.__items["sources"]:
