@@ -170,6 +170,9 @@ class CMDObj(cmd.Cmd, object):
         defs = self.prog_inst.create_completion_list("define")
         index = self.prog_inst.create_completion_list("index")
         retVal.update({"$("+identi+")": text_with_color("$("+identi+")", "blue") for identi in defs})
+        retVal.update({identi+":": text_with_color(identi, "green")+":" for identi in defs})
+        retVal.update({"- "+identi: "- "+text_with_color(identi, "yellow") for identi in defs})
+        
         retVal.update({dex+":": text_with_color(dex, "green")+":" for dex in index})
         retVal.update({"- "+dex: "- "+text_with_color(dex, "yellow") for dex in index})
         return retVal
@@ -266,16 +269,21 @@ class CMDObj(cmd.Cmd, object):
         print("    deletes a variable")
 
     def do_read(self, params):
-        if params:
-            for file in shlex.split(params):
-                try:
-                    self.prog_inst.read_file(file)
-                    self.prog_inst.resolve()
-                except Exception as ex:
-                    print("read", file, ex)
-        else:
-            print("read what?")
-        return False
+        try:
+            if params:
+                for file in shlex.split(params):
+                    try:
+                        self.prog_inst.read_file(file)
+                        self.prog_inst.resolve()
+                    except Exception as ex:
+                        print("read", file, ex)
+            else:
+                print("read what?")
+            return False
+        except Exception as es:
+            import traceback
+            tb = traceback.format_exc()
+            print("do_read", es, tb)
 
     def complete_read(self, text, line, begidx, endidx):
         return self.path_completion(text, line, begidx, endidx)

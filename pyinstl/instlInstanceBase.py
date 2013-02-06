@@ -151,14 +151,19 @@ class InstlInstanceBase(object):
             self.cvl.add_const_config_variable("__MAIN_INPUT_FILES_ACTUALLY_OPENED__", "opened by read_input_files", *file_actually_opened)
 
     def read_file(self, file_path):
-        with open(file_path, "r") as file_fd:
-            for a_node in yaml.compose_all(file_fd):
-                if a_node.tag == u'!define':
-                    self.read_defines(a_node)
-                elif a_node.tag == u'!index':
-                    self.read_index(a_node)
-                else:
-                    print("Unknown document tag", a_node.tag)
+        try:
+            with open(file_path, "r") as file_fd:
+                for a_node in yaml.compose_all(file_fd):
+                    if a_node.tag == u'!define':
+                        self.read_defines(a_node)
+                    elif a_node.tag == u'!index':
+                        self.read_index(a_node)
+                    else:
+                        print("Unknown document tag '"+a_node.tag+"'; Tag should be one of: !define, !index'")
+        except Exception as ex:
+            import traceback
+            tb = traceback.format_exc()
+            print("read_file", file_path, ex, tb)
 
     def resolve(self):
         self.cvl.resolve()

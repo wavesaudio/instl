@@ -29,7 +29,7 @@ def read_index_from_yaml(all_items_node):
     return retVal
 
 class InstallItem(object):
-    __slots__ = ("guid", "name", "license", 
+    __slots__ = ("guid", "name", "license",
                 "remark", "description", "__items")
     def __init__(self):
         self.guid = None
@@ -76,7 +76,7 @@ class InstallItem(object):
             self.read_actions(my_node["actions"])
         if current_os in my_node:
             self.read_from_yaml(my_node[current_os], all_items_node)
-         
+
     def add_source(self, new_source, type='!dir'):
         if new_source not in self.__items["sources"]:
             self.__items["sources"].append( (new_source, type) )
@@ -92,7 +92,7 @@ class InstallItem(object):
         return self.__items["folders"]
 
     def add_depend(self, new_depend):
-        if not new_depend in self.__items["depends"]:
+        if new_depend not in self.__items["depends"]:
             self.__items["depends"].append(new_depend)
 
     def depend_list(self):
@@ -111,13 +111,13 @@ class InstallItem(object):
                 specific_action_list = self.__items["actions"].setdefault(action_pair[0], list())
                 for action in action_pair[1]:
                     specific_action_list.append(action.value)
-    
+
     def action_list(self, which):
         if which in self.__items["actions"]:
             return self.__items["actions"][which]
         else:
             return ()
-    
+
     def get_recursive_depends(self, items_map, out_set, orphan_set):
         if self.guid not in out_set:
             out_set.add(self.guid)
