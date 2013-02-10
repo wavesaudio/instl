@@ -8,7 +8,7 @@ import yaml
 import re
 import tempfile
 import shutil
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 import configVar
 from configVarList import ConfigVarList, value_ref_re
@@ -170,11 +170,10 @@ class InstlInstanceBase(object):
 
     def sort_install_instructions_by_folder(self):
         full_install_targets = self.cvl.get("__FULL_LIST_OF_INSTALL_TARGETS__", None)
-        install_by_folder = OrderedDict()
+        install_by_folder = defaultdict(set)
         for GUID in full_install_targets:
             for folder in self.install_definitions_index[GUID].folder_list():
-                guid_set = install_by_folder.setdefault(folder, set())
-                guid_set.add(GUID)
+                install_by_folder[folder].add(GUID)
         return install_by_folder
 
     def create_install_list(self):

@@ -5,7 +5,7 @@ from __future__ import print_function
 import sys
 import platform
 import yaml
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 sys.path.append("..")
 from aYaml import augmentedYaml
@@ -31,6 +31,7 @@ def read_index_from_yaml(all_items_node):
 class InstallItem(object):
     __slots__ = ("guid", "name", "license",
                 "remark", "description", "__items")
+    action_types = ("before", "after", "folder_in", "folder_out")
     def __init__(self):
         self.guid = None
         self.name = None
@@ -40,7 +41,7 @@ class InstallItem(object):
         self.__items = {"sources": list(),
                       "folders": list(),
                       "depends": list(),
-                      "actions": dict()
+                      "actions": defaultdict(list)
                       }
 
     def read_from_yaml_by_guid(self, GUID, all_items_node):
@@ -99,24 +100,23 @@ class InstallItem(object):
         return self.__items["depends"]
 
     def add_action(self, where, action):
-        if where in ("before", "after", "folder_in", "folder_out"):
-            self.__items["actions"].setdefault(where, list())
+        if where in action_types:
             self.__items["actions"][where].append(action)
         else:
-            raise KeyError("actions type must be before, after, folder_in, folder_out not "+where)
+            raise KeyError("actions type must be one of: "+str(action_types)+" not "+where)
 
     def read_actions(self, action_nodes):
         for action_pair in action_nodes:
-            if action_pair[0] in ("before", "after", "folder_in", "folder_out"):
-                specific_action_list = self.__items["actions"].setdefault(action_pair[0], list())
+            if action_pair[0] in action_types:
                 for action in action_pair[1]:
-                    specific_action_list.append(action.value)
+                    self.__items["actions"][action_pair[0]].append(action.value)
+            else:
+                raise KeyError("actions type must be one of: "+str(action_types)+" not "+action_pair[0])
 
     def action_list(self, which):
-        if which in self.__items["actions"]:
-            return self.__items["actions"][which]
-        else:
-            return ()
+        if which not in action_types
+            raise KeyError("actions type must be one of: "+str(action_types)+" not "+which)
+        return self.__items["actions"][which]
 
     def get_recursive_depends(self, items_map, out_set, orphan_set):
         if self.guid not in out_set:
@@ -140,7 +140,7 @@ class InstallItem(object):
         if self.__items["folders"]:
             retVal["install_folders"] = self.__items["folders"]
         if self.__items["actions"]:
-            retVal["actions"] = self.__items["actions"]
+            retVal["actions"] = dict(self.__items["actions"])
         if self.__items["depends"]:
             retVal["depends"] = self.__items["depends"]
         return retVal
