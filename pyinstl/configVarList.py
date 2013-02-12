@@ -144,7 +144,8 @@ class ConfigVarList(object):
     def duplicate_variable(self, source_name, target_name):
         if source_name in self._ConfigVar_objs:
             self.set_variable(target_name, self._ConfigVar_objs[source_name].description()).extend(self._ConfigVar_objs[source_name])
-
+        else:
+            raise KeyError("UNKNOWN VARIABLE "+source_name)
 
     def read_environment(self):
         """ Get values from environment """
@@ -215,7 +216,8 @@ def replace_all_from_dict(in_text, *in_replace_only_these, **in_replacement_dic)
     if not in_replace_only_these:
         # use the keys of of the replacement_dic as replace_only_these
         in_replace_only_these = list(in_replacement_dic.keys())[:]
-    for look_for in in_replace_only_these:
+    # sort the list by size (longer first) so longer string will be replace before their shorter sub strings
+    for look_for in sorted(in_replace_only_these, key=lambda s: -len(s)):
         retVal = retVal.replace(look_for, in_replacement_dic[look_for])
     return retVal
 

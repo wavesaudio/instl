@@ -33,8 +33,8 @@ def main():
             instance.write_program_state()
         elif instance.mode == "interactive":
             instance.do_da_interactive()
-        with open("var_assign.txt", "w") as fd:
-            fd.write( os.linesep.join(sorted(instance.variables_assignment_lines)) )
+        #with open("var_assign.txt", "w") as fd:
+        #    fd.write( os.linesep.join(sorted(instance.variables_assignment_lines)) )
         #run_instl_instructions(instance)
     except Exception as es:
         print("__main__", es)

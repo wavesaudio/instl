@@ -114,7 +114,7 @@ class InstallItem(object):
                 raise KeyError("actions type must be one of: "+str(action_types)+" not "+action_pair[0])
 
     def action_list(self, which):
-        if which not in action_types
+        if which not in action_types:
             raise KeyError("actions type must be one of: "+str(action_types)+" not "+which)
         return self.__items["actions"][which]
 

@@ -157,8 +157,6 @@ class CMDObj(cmd.Cmd, object):
     def help_cd(self):
         print("cd path, change current directory")
 
-    colors = {'reset': colorama.Fore.RESET, 'green': colorama.Fore.GREEN, 'blue': colorama.Fore.BLUE, 'yellow': colorama.Fore.YELLOW, 'red': colorama.Fore.RED}
-
     def prepare_coloring_dict(self):
         """ Prepare a dictionary with identifiers mapped to their "colored" representation.
             Left hand index enrties: 'C1_GUID:' translates to colorama.Fore.GREEN+'C1_GUID'+colorama.Fore.RESET+":".
@@ -172,7 +170,7 @@ class CMDObj(cmd.Cmd, object):
         retVal.update({"$("+identi+")": text_with_color("$("+identi+")", "blue") for identi in defs})
         retVal.update({identi+":": text_with_color(identi, "green")+":" for identi in defs})
         retVal.update({"- "+identi: "- "+text_with_color(identi, "yellow") for identi in defs})
-        
+
         retVal.update({dex+":": text_with_color(dex, "green")+":" for dex in index})
         retVal.update({"- "+dex: "- "+text_with_color(dex, "yellow") for dex in index})
         return retVal
