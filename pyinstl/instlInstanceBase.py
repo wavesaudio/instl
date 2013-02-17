@@ -40,7 +40,7 @@ class InstlInstanceBase(object):
     """
     def __init__(self):
         self.out_file_realpath = None
-        self.install_definitions_index = dict() # OrderedDict()
+        self.install_definitions_index = dict()
         self.cvl = ConfigVarList()
         self.variables_assignment_lines = []
         self.install_instruction_lines = []
@@ -105,13 +105,13 @@ class InstlInstanceBase(object):
         if "SVN_REPO_VERSION" in self.cvl:
             self.svn_version = self.cvl.get_str("SVN_REPO_VERSION")
         # command line targets take precedent, if they were not specifies, look for "MAIN_INSTALL_TARGETS"
-        copy_main_install_targets_from = None
+        copy_main_install_to_from = None
         if "__CMD_INSTALL_TARGETS__" in self.cvl:
-            copy_main_install_targets_from = "__CMD_INSTALL_TARGETS__"
+            copy_main_install_to_from = "__CMD_INSTALL_TARGETS__"
         elif "MAIN_INSTALL_TARGETS" in self.cvl:
-            copy_main_install_targets_from = "MAIN_INSTALL_TARGETS"
-        if copy_main_install_targets_from:
-            self.cvl.duplicate_variable(copy_main_install_targets_from, "__MAIN_INSTALL_TARGETS__")
+            copy_main_install_to_from = "MAIN_INSTALL_TARGETS"
+        if copy_main_install_to_from:
+            self.cvl.duplicate_variable(copy_main_install_to_from, "__MAIN_INSTALL_TARGETS__")
         self.resolve()
         #self.evaluate_graph()
 
@@ -136,6 +136,8 @@ class InstlInstanceBase(object):
 
     def read_index(self, a_node):
         self.install_definitions_index.update(read_index_from_yaml(a_node))
+        with open("sample_data/yaml.out", "w") as wf:
+            augmentedYaml.writeAsYaml(self.repr_for_yaml(), wf)
 
     def read_input_files(self):
         input_files = self.cvl.get("__MAIN_INPUT_FILES__", ())
@@ -169,18 +171,18 @@ class InstlInstanceBase(object):
         self.cvl.resolve()
 
     def sort_install_instructions_by_folder(self):
-        full_install_targets = self.cvl.get("__FULL_LIST_OF_INSTALL_TARGETS__", None)
+        full_install_to = self.cvl.get("__FULL_LIST_OF_INSTALL_TARGETS__", None)
         install_by_folder = defaultdict(set)
-        for GUID in full_install_targets:
+        for GUID in full_install_to:
             for folder in self.install_definitions_index[GUID].folder_list():
                 install_by_folder[folder].add(GUID)
         return install_by_folder
 
     def create_install_list(self):
-        main_install_targets = self.cvl.get("__MAIN_INSTALL_TARGETS__")
+        main_install_to = self.cvl.get("__MAIN_INSTALL_TARGETS__")
         full_install_set = set()
         orphan_set = set()
-        for GUID in main_install_targets:
+        for GUID in main_install_to:
             try:
                 self.install_definitions_index[GUID].get_recursive_depends(self.install_definitions_index, full_install_set, orphan_set)
             except KeyError:
@@ -207,24 +209,24 @@ class InstlInstanceBase(object):
         self.install_instruction_lines.append(self.change_directory_cmd(folder_name))
         for GUID in items: # folder in actions
             installi = self.install_definitions_index[GUID]
-            actions = installi.action_list("folder_in")
+            actions = installi.action_list('folder_in')
             if actions:
                 self.install_instruction_lines.append(" ".join(actions))
         for GUID in items:
             self.create_instal_instructions_for_item(self.install_definitions_index[GUID])         # pass the installItem object
         for GUID in items: # folder out actions
             installi = self.install_definitions_index[GUID]
-            actions = installi.action_list("folder_out")
+            actions = installi.action_list('folder_out')
             if actions:
                 self.install_instruction_lines.append(" ".join(actions))
         self.install_instruction_lines.append(os.linesep)
 
     def create_instal_instructions_for_item(self, installi):
-        for action in installi.action_list("before"):           # actions to do before pulling from svn
+        for action in installi.action_list('before'):           # actions to do before pulling from svn
             self.install_instruction_lines.append(action)
         for source in installi.source_list():                   # svn pulling actions
             self.create_svn_pull_instructions_for_source(source)
-        for action in installi.action_list("after"):            # actions to do after pulling from svn
+        for action in installi.action_list('after'):            # actions to do after pulling from svn
             self.install_instruction_lines.append(action)
 
     def create_svn_pull_instructions_for_source(self, source):

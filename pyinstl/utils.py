@@ -18,6 +18,9 @@ class write_to_file_or_stdout(object):
 
 
 class write_to_list(object):
+    """ list that behaves like a file. For each call to write
+        another item is added to the list.
+    """
     def __init__(self):
         self.the_list = list()
 

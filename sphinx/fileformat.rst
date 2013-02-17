@@ -20,7 +20,7 @@ Index format
             name: Product Type 'A'
             inherit:
                 - GENERAL_PRODUCT_INSTALL_DEF
-            install_sources: Products/Product-A.app/
+            install_from: Products/Product-A.app/
             install_folders: $(APPLICATIONS_FOLDER)
             actions_before: touch "$(HOME)/Desktop/PRODUCT_A_Before"
             actions_after:
@@ -39,17 +39,17 @@ Index format
         *inherit*
             A list of unique identifiers of other items. These items will be merged with the current item. Inheritance is useful in making and changing features common to several items at once.
 
-        *install_sources*
+        *install_from*
             A list of partial paths into the svn repository. These paths will be pulled from the repository to the user's disk during installation. The left part of the path must be supplied in the definitions section.
 
         *actions_before*
-            List of actions to perform before copying the install_sources.
+            List of actions to perform before copying the install_from.
 
         *actions_after*
-            List of actions to perform after copying the install_sources.
+            List of actions to perform after copying the install_from.
 
         *install_folders*
-            List of folders where the *install_sources* will be copied to. Typically there will be only one, but if more than one folder is found *install_sources* will copied to each of them.
+            List of folders where the *install_from* will be copied to. Typically there will be only one, but if more than one folder is found *install_from* will copied to each of them.
 
         *depends*
             is a list of identifiers of items that must be installed when the current item is installed.

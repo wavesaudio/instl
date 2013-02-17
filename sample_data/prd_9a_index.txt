@@ -3,1273 +3,1293 @@
 AGRack_GUID: 
     name: AGChainer
     license: e3e91026-ad21-11e0-82d1-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/AGChainer.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 AGTest_GUID: 
     name: AGTest
     license: ead4f9df-ad21-11e0-8308-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/AGTest.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 API_2500_GUID: 
     name: API-2500
     license: df9b6bc1-ad21-11e0-8286-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/API-2500.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 API_550_GUID: 
     name: API-550
     license: df43d3a6-ad21-11e0-836f-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/API-550.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 API_560_GUID: 
     name: ApiEQ560
     license: df76732e-ad21-11e0-81a3-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/ApiEQ560.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 AffiliationList_No_NRKC: 
     name: LoAir
-    install_sources: 
+    install_from: 
         - Plugins/LoAir.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 AffiliationList_No_NRKC_MRKC: 
     name: AffiliationList_No_NRKC_MRKC
     remark: LFE, S360, L360, UM, TPL360
-    install_sources: 
+    install_from: 
+        - Plugins/L360.bundle
         - Plugins/LFE.bundle
         - Plugins/S360.bundle
-        - Plugins/L360.bundle
-        - Plugins/UM.bundle
         - Plugins/TPL360.bundle
+        - Plugins/UM.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 Aphex_AX_GUID: 
     name: Aphex AX
     license: eb0c63ec-ad21-11e0-8288-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/Aphex AX.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 ArtistDefs: 
     name: Artist
     license: 611c341d-39b7-43f1-a44d-5310bb283eeb
-    remark: 1398100052, 1296912196, 1162757959, 1179405895, 1448169779, 1448169780, 1447251280, 1212370256, 1212302412, 1464091212, 1415075652, 1128809809, 1212501071, 1196838732, 1146311762, 1195660119, 1398031697, 1398031187, 1195461968, 1195464792, 1196835408, 1398031948, 1196377170, 1398030938, 1095910227, 1380014168, 1380861265, 1381388866, 1381389912, 1380860448, 1380205907, 1128811570, 1280200002, 1280329041, 1246384195, 1279341121, 0825308982, 1279341377, 1347170625, 1178814532, 1145394002, 1096045131, 1381388851, 1162948912, 1278287904, 1127292960, 1397249350, 1380794947, 1278431315, 1230393164, 1129730626, 1163284300, 1397575761, 1397506895, 1397506888, 1397507409, 1095779151, 0892678210
-    install_sources: 
-        - Plugins/ArtistDLLV9.1/1398100052.bundle
-        - Plugins/ArtistDLLV9.1/1296912196.bundle
-        - Plugins/ArtistDLLV9.1/1162757959.bundle
-        - Plugins/ArtistDLLV9.1/1179405895.bundle
-        - Plugins/ArtistDLLV9.1/1448169779.bundle
-        - Plugins/ArtistDLLV9.1/1448169780.bundle
-        - Plugins/ArtistDLLV9.1/1447251280.bundle
-        - Plugins/ArtistDLLV9.1/1212370256.bundle
-        - Plugins/ArtistDLLV9.1/1212302412.bundle
-        - Plugins/ArtistDLLV9.1/1464091212.bundle
-        - Plugins/ArtistDLLV9.1/1415075652.bundle
+    remark: 1398100052, 1296912196, 1162757959, 1179405895, 1448169779, 1448169780, 1447251280, 1212370256, 1212302412, 1464091212, 1415075652, 1128809809, 1212501071, 1196838732, 1146311762, 1195660119, 1398031697, 1398031187, 1195461968, 1195464792, 1196835408, 1398031948, 1196377170, 1398030938, 1095910227, 1380014168, 1380861265, 1381388866, 1381389912, 1380860448, 1380205907, 1128811570, 1280200002, 1280329041, 1246384195, 1279341121, 0825308982, 1279341377, 1347170625, 1178814532, 1380200759, 1145394002, 1096045131, 1381388851, 1162948912, 1278287904, 1127292960, 1397249350, 1380794947, 1278431315, 1230393164, 1129730626, 1163284300, 1397575761, 1397506895, 1397506888, 1397507409, 1095779151, 0892678210
+    install_from: 
+        - Plugins/ArtistDLLV9.1/0825308982.bundle
+        - Plugins/ArtistDLLV9.1/0892678210.bundle
+        - Plugins/ArtistDLLV9.1/1095779151.bundle
+        - Plugins/ArtistDLLV9.1/1095910227.bundle
+        - Plugins/ArtistDLLV9.1/1096045131.bundle
+        - Plugins/ArtistDLLV9.1/1127292960.bundle
         - Plugins/ArtistDLLV9.1/1128809809.bundle
-        - Plugins/ArtistDLLV9.1/1212501071.bundle
-        - Plugins/ArtistDLLV9.1/1196838732.bundle
+        - Plugins/ArtistDLLV9.1/1128811570.bundle
+        - Plugins/ArtistDLLV9.1/1129730626.bundle
+        - Plugins/ArtistDLLV9.1/1145394002.bundle
         - Plugins/ArtistDLLV9.1/1146311762.bundle
-        - Plugins/ArtistDLLV9.1/1195660119.bundle
-        - Plugins/ArtistDLLV9.1/1398031697.bundle
-        - Plugins/ArtistDLLV9.1/1398031187.bundle
+        - Plugins/ArtistDLLV9.1/1162757959.bundle
+        - Plugins/ArtistDLLV9.1/1162948912.bundle
+        - Plugins/ArtistDLLV9.1/1163284300.bundle
+        - Plugins/ArtistDLLV9.1/1178814532.bundle
+        - Plugins/ArtistDLLV9.1/1179405895.bundle
         - Plugins/ArtistDLLV9.1/1195461968.bundle
         - Plugins/ArtistDLLV9.1/1195464792.bundle
-        - Plugins/ArtistDLLV9.1/1196835408.bundle
-        - Plugins/ArtistDLLV9.1/1398031948.bundle
+        - Plugins/ArtistDLLV9.1/1195660119.bundle
         - Plugins/ArtistDLLV9.1/1196377170.bundle
-        - Plugins/ArtistDLLV9.1/1398030938.bundle
-        - Plugins/ArtistDLLV9.1/1095910227.bundle
-        - Plugins/ArtistDLLV9.1/1380014168.bundle
-        - Plugins/ArtistDLLV9.1/1380861265.bundle
-        - Plugins/ArtistDLLV9.1/1381388866.bundle
-        - Plugins/ArtistDLLV9.1/1381389912.bundle
-        - Plugins/ArtistDLLV9.1/1380860448.bundle
-        - Plugins/ArtistDLLV9.1/1380205907.bundle
-        - Plugins/ArtistDLLV9.1/1128811570.bundle
+        - Plugins/ArtistDLLV9.1/1196835408.bundle
+        - Plugins/ArtistDLLV9.1/1196838732.bundle
+        - Plugins/ArtistDLLV9.1/1212302412.bundle
+        - Plugins/ArtistDLLV9.1/1212370256.bundle
+        - Plugins/ArtistDLLV9.1/1212501071.bundle
+        - Plugins/ArtistDLLV9.1/1230393164.bundle
+        - Plugins/ArtistDLLV9.1/1246384195.bundle
+        - Plugins/ArtistDLLV9.1/1278287904.bundle
+        - Plugins/ArtistDLLV9.1/1278431315.bundle
+        - Plugins/ArtistDLLV9.1/1279341121.bundle
+        - Plugins/ArtistDLLV9.1/1279341377.bundle
         - Plugins/ArtistDLLV9.1/1280200002.bundle
         - Plugins/ArtistDLLV9.1/1280329041.bundle
-        - Plugins/ArtistDLLV9.1/1246384195.bundle
-        - Plugins/ArtistDLLV9.1/1279341121.bundle
-        - Plugins/ArtistDLLV9.1/0825308982.bundle
-        - Plugins/ArtistDLLV9.1/1279341377.bundle
+        - Plugins/ArtistDLLV9.1/1296912196.bundle
         - Plugins/ArtistDLLV9.1/1347170625.bundle
-        - Plugins/ArtistDLLV9.1/1178814532.bundle
-        - Plugins/ArtistDLLV9.1/1145394002.bundle
-        - Plugins/ArtistDLLV9.1/1096045131.bundle
-        - Plugins/ArtistDLLV9.1/1381388851.bundle
-        - Plugins/ArtistDLLV9.1/1162948912.bundle
-        - Plugins/ArtistDLLV9.1/1278287904.bundle
-        - Plugins/ArtistDLLV9.1/1127292960.bundle
-        - Plugins/ArtistDLLV9.1/1397249350.bundle
+        - Plugins/ArtistDLLV9.1/1380014168.bundle
+        - Plugins/ArtistDLLV9.1/1380200759.bundle
+        - Plugins/ArtistDLLV9.1/1380205907.bundle
         - Plugins/ArtistDLLV9.1/1380794947.bundle
-        - Plugins/ArtistDLLV9.1/1278431315.bundle
-        - Plugins/ArtistDLLV9.1/1230393164.bundle
-        - Plugins/ArtistDLLV9.1/1129730626.bundle
-        - Plugins/ArtistDLLV9.1/1163284300.bundle
-        - Plugins/ArtistDLLV9.1/1397575761.bundle
-        - Plugins/ArtistDLLV9.1/1397506895.bundle
+        - Plugins/ArtistDLLV9.1/1380860448.bundle
+        - Plugins/ArtistDLLV9.1/1380861265.bundle
+        - Plugins/ArtistDLLV9.1/1381388851.bundle
+        - Plugins/ArtistDLLV9.1/1381388866.bundle
+        - Plugins/ArtistDLLV9.1/1381389912.bundle
+        - Plugins/ArtistDLLV9.1/1397249350.bundle
         - Plugins/ArtistDLLV9.1/1397506888.bundle
+        - Plugins/ArtistDLLV9.1/1397506895.bundle
         - Plugins/ArtistDLLV9.1/1397507409.bundle
-        - Plugins/ArtistDLLV9.1/1095779151.bundle
-        - Plugins/ArtistDLLV9.1/0892678210.bundle
+        - Plugins/ArtistDLLV9.1/1397575761.bundle
+        - Plugins/ArtistDLLV9.1/1398030938.bundle
+        - Plugins/ArtistDLLV9.1/1398031187.bundle
+        - Plugins/ArtistDLLV9.1/1398031697.bundle
+        - Plugins/ArtistDLLV9.1/1398031948.bundle
+        - Plugins/ArtistDLLV9.1/1398100052.bundle
+        - Plugins/ArtistDLLV9.1/1415075652.bundle
+        - Plugins/ArtistDLLV9.1/1447251280.bundle
+        - Plugins/ArtistDLLV9.1/1448169779.bundle
+        - Plugins/ArtistDLLV9.1/1448169780.bundle
+        - Plugins/ArtistDLLV9.1/1464091212.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 AudioTrack_GUID: 
     name: AudioTrack
     license: e6a8de66-ad21-11e0-81f4-b7fd7bebd530
     remark: SoftClipper, OEext, ChannelDynamics, ChannelFilters, SignalGenerator, TJ37, TJ37_Lab, Lab_RS56, RS56, ARVinyl_Lab, ARVinyl, AudioTrack, PhonesEQ, PhonesEQ_Lab, Modulator, Xover Split, VUmeterDemo, STFFT, AnalyzerHD, High Frequency Exciter, Overview
-    install_sources: 
-        - Plugins/SoftClipper.bundle
-        - Plugins/OEext.bundle
+    install_from: 
+        - Plugins/ARVinyl.bundle
+        - Plugins/ARVinyl_Lab.bundle
+        - Plugins/AnalyzerHD.bundle
+        - Plugins/AudioTrack.bundle
         - Plugins/ChannelDynamics.bundle
         - Plugins/ChannelFilters.bundle
-        - Plugins/SignalGenerator.bundle
-        - Plugins/TJ37.bundle
-        - Plugins/TJ37_Lab.bundle
+        - Plugins/High Frequency Exciter.bundle
         - Plugins/Lab_RS56.bundle
-        - Plugins/RS56.bundle
-        - Plugins/ARVinyl_Lab.bundle
-        - Plugins/ARVinyl.bundle
-        - Plugins/AudioTrack.bundle
+        - Plugins/Modulator.bundle
+        - Plugins/OEext.bundle
+        - Plugins/Overview.bundle
         - Plugins/PhonesEQ.bundle
         - Plugins/PhonesEQ_Lab.bundle
-        - Plugins/Modulator.bundle
-        - Plugins/Xover Split.bundle
-        - Plugins/VUmeterDemo.bundle
+        - Plugins/RS56.bundle
         - Plugins/STFFT.bundle
-        - Plugins/AnalyzerHD.bundle
-        - Plugins/High Frequency Exciter.bundle
-        - Plugins/Overview.bundle
+        - Plugins/SignalGenerator.bundle
+        - Plugins/SoftClipper.bundle
+        - Plugins/TJ37.bundle
+        - Plugins/TJ37_Lab.bundle
+        - Plugins/VUmeterDemo.bundle
+        - Plugins/Xover Split.bundle
     depends: 
-        - WavesLib
-        - OverviewLib
+        - OverviewLib_GUID
+        - WavesLib_GUID
 Bass_Rider_GUID: 
     name: Bass Rider
     license: eb542f98-ad21-11e0-8222-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/Bass Rider.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 C1_GUID: 
     name: C1
     license: e6c7625a-ad21-11e0-8262-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/C1.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 C360_GUID: 
     name: C360
     license: f1174573-ad21-11e0-817b-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/C360.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 C4_GUID: 
     name: C4
     license: e6ead714-ad21-11e0-82a6-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/C4.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 C6_GUID: 
     name: C6
     license: eb442f99-ad21-11e0-8219-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/C6.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 CLA_2A_GUID: 
     name: CLA-2A
     license: e47a4b22-ad21-11e0-80ba-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/CLA-2A.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 CLA_3A_GUID: 
     name: CLA-3A
     license: e4b00ec4-ad21-11e0-834b-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/CLA-3A.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 CLA_76_GUID: 
     name: CLA-76
     license: e4e72e7b-ad21-11e0-81a6-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/CLA-76.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 CLA_Bass_GUID: 
     name: CLA Bass
     license: dfc80d80-ad21-11e0-804c-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/CLA Bass.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 CLA_Drums_GUID: 
     name: CLA Drums
     license: dfe64476-ad21-11e0-80e3-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/CLA Drums.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 CLA_Effects_GUID: 
     name: CLA Effects
     license: e0052ccd-ad21-11e0-81d6-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/CLA Effects.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 CLA_Guitars_GUID: 
     name: CLA Guitars
     license: e023b7a0-ad21-11e0-80bf-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/CLA Guitars.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 CLA_Unplugged_GUID: 
     name: CLA Unplugged
     license: e0427e39-ad21-11e0-832d-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/CLA Unplugged.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 CLA_Vocals_GUID: 
     name: CLA Vocals
     license: e06158e4-ad21-11e0-80ed-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/CLA Vocals.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 Center_GUID: 
     name: Center
     license: eb621b67-ad21-11e0-8319-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/Center.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 DEVELOPER_GUID: 
     name: DEVELOPER
     license: 99999999-9999-9999-9999-999999999999
     remark: OEColor, Lab_HColor, Artist_Editor
-    install_sources: 
-        - Plugins/OEColor.bundle
-        - Plugins/Lab_HColor.bundle
+    install_from: 
         - Plugins/Artist_Editor.bundle
+        - Plugins/Lab_HColor.bundle
+        - Plugins/OEColor.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 DeBreath_GUID: 
     name: DeBreath
     license: f3315154-ad21-11e0-8140-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/DeBreath.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 DeEsser_GUID: 
     name: DeEsser
     license: e7069133-ad21-11e0-82c1-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/DeEsser.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 Doppler_GUID: 
     name: Doppler
     license: e5ce4a76-ad21-11e0-832b-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/Doppler.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 Dorrough_GUID: 
     name: Dorrough
     license: eba516c8-ad21-11e0-8377-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/Dorrough.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 Dorrough_Surround_GUID: 
     name: Dorrough_Surround
     license: eba53bd0-ad21-11e0-809f-b7fd7bebd530
     remark: Dorrough Surround 5.0, Dorrough Surround 5.1
-    install_sources: 
+    install_from: 
         - Plugins/Dorrough Surround 5.0.bundle
         - Plugins/Dorrough Surround 5.1.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 Doubler_GUID: 
     name: Doubler
     license: f202b779-ad21-11e0-8344-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/Doubler.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 EchoCanceller_GUID: 
     name: EchoCanceller
     license: ebe20f2e-ad21-11e0-81b0-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/EchoCanceller.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 EddieKramer_BA_GUID: 
     name: EddieKramer BA
     license: e07f8a94-ad21-11e0-821f-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/EddieKramer BA.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 EddieKramer_DR_GUID: 
     name: EddieKramer DR
     license: e09dd956-ad21-11e0-80a8-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/EddieKramer DR.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 EddieKramer_FX_GUID: 
     name: EddieKramer FX
     license: e0bf0ba7-ad21-11e0-8147-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/EddieKramer FX.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 EddieKramer_GT_GUID: 
     name: EddieKramer GT
     license: e0e0ba8c-ad21-11e0-8153-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/EddieKramer GT.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 EddieKramer_VC_GUID: 
     name: EddieKramer VC
     license: e10288b9-ad21-11e0-8381-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/EddieKramer VC.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 Element_GUID: 
     name: Element
     license: e9e780e8-3415-4fde-bc47-27f7d443a2b3
-    install_sources: 
+    install_from: 
         - Plugins/Element.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 Enigma_GUID: 
     name: Enigma
     license: e5ecb58a-ad21-11e0-820b-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/Enigma.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 GEQ_GUID: 
     name: GEQ
     license: b5cd1675-b663-4a0b-aecc-ca9fe0e573fe
     remark: GEQ, Lab_GEQ
-    install_sources: 
+    install_from: 
         - Plugins/GEQ.bundle
         - Plugins/Lab_GEQ.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 GTRAmp_GUID: 
     name: GTRAmp
     license: e808505c-ad21-11e0-83e8-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/GTRAmp.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 GTRSoloToolRack_GUID: 
     name: GTRSoloToolRack
     license: e8f6df11-ad21-11e0-81f9-b7fd7bebd530
     remark: GTRSoloToolRack, StompSLVolume, GTRSoloTuner, StompSLDistortion, StompSLEQ, StompSLChorus, StompSLPhaser, GTRSoloAmp, GTRSoloAirMixer, StompSLVibrolo, StompSLGateComp, StompSLFlanger, StompSLSpring, StompSLPitcher, StompSLWahWah, StompSLOverDrive, StompSLDelay
-    install_sources: 
-        - Plugins/GTRSoloToolRack.bundle
-        - Plugins/GTRSolo/StompSLVolume.bundle
+    install_from: 
+        - Plugins/GTRSolo/GTRSoloAirMixer.bundle
+        - Plugins/GTRSolo/GTRSoloAmp.bundle
         - Plugins/GTRSolo/GTRSoloTuner.bundle
+        - Plugins/GTRSolo/StompSLChorus.bundle
+        - Plugins/GTRSolo/StompSLDelay.bundle
         - Plugins/GTRSolo/StompSLDistortion.bundle
         - Plugins/GTRSolo/StompSLEQ.bundle
-        - Plugins/GTRSolo/StompSLChorus.bundle
-        - Plugins/GTRSolo/StompSLPhaser.bundle
-        - Plugins/GTRSolo/GTRSoloAmp.bundle
-        - Plugins/GTRSolo/GTRSoloAirMixer.bundle
-        - Plugins/GTRSolo/StompSLVibrolo.bundle
-        - Plugins/GTRSolo/StompSLGateComp.bundle
         - Plugins/GTRSolo/StompSLFlanger.bundle
-        - Plugins/GTRSolo/StompSLSpring.bundle
-        - Plugins/GTRSolo/StompSLPitcher.bundle
-        - Plugins/GTRSolo/StompSLWahWah.bundle
+        - Plugins/GTRSolo/StompSLGateComp.bundle
         - Plugins/GTRSolo/StompSLOverDrive.bundle
-        - Plugins/GTRSolo/StompSLDelay.bundle
+        - Plugins/GTRSolo/StompSLPhaser.bundle
+        - Plugins/GTRSolo/StompSLPitcher.bundle
+        - Plugins/GTRSolo/StompSLSpring.bundle
+        - Plugins/GTRSolo/StompSLVibrolo.bundle
+        - Plugins/GTRSolo/StompSLVolume.bundle
+        - Plugins/GTRSolo/StompSLWahWah.bundle
+        - Plugins/GTRSoloToolRack.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 GTRToolRack_GUID: 
     name: GTRToolRack
     license: e8f6b97d-ad21-11e0-8088-b7fd7bebd530
     remark: GTRToolRack, GTRInternalTuner, GTRInternalAmp, GTRAirMixer
-    install_sources: 
-        - Plugins/GTRToolRack.bundle
-        - Plugins/GTRInternalTuner.bundle
-        - Plugins/GTRInternalAmp.bundle
+    install_from: 
         - Plugins/GTRAirMixer.bundle
+        - Plugins/GTRInternalAmp.bundle
+        - Plugins/GTRInternalTuner.bundle
+        - Plugins/GTRToolRack.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 GTR_Stomps_GUID: 
     name: GTR_Stomps
     license: 329dbe6a-233e-4f8f-ac70-f5b55036845b
     remark: GuitarDoubler2, StompVolume, StompFuzz, StompDistortion, GuitarMetal, StompEQ, StompChorus, GuitarTone, StompPhaser, GuitarChainer, StompAxxPress, StompVibrolo, StompGateComp, StompFlanger, GuitarReverb, StompSpring, StompPitcher, GuitarComp, StompWahWah, GuitarLayD, GuitarPanner, GuitarGate, StompOverDrive, GuitarOctaver, StompDelay, StompBuzz
-    install_sources: 
-        - Plugins/GuitarDoubler2.bundle
-        - Plugins/GTR/StompVolume.bundle
-        - Plugins/GTR/StompFuzz.bundle
-        - Plugins/GTR/StompDistortion.bundle
-        - Plugins/GuitarMetal.bundle
-        - Plugins/GTR/StompEQ.bundle
-        - Plugins/GTR/StompChorus.bundle
-        - Plugins/GuitarTone.bundle
-        - Plugins/GTR/StompPhaser.bundle
-        - Plugins/GuitarChainer.bundle
+    install_from: 
         - Plugins/GTR/StompAxxPress.bundle
-        - Plugins/GTR/StompVibrolo.bundle
-        - Plugins/GTR/StompGateComp.bundle
-        - Plugins/GTR/StompFlanger.bundle
-        - Plugins/GuitarReverb.bundle
-        - Plugins/GTR/StompSpring.bundle
-        - Plugins/GTR/StompPitcher.bundle
-        - Plugins/GuitarComp.bundle
-        - Plugins/GTR/StompWahWah.bundle
-        - Plugins/GuitarLayD.bundle
-        - Plugins/GuitarPanner.bundle
-        - Plugins/GuitarGate.bundle
-        - Plugins/GTR/StompOverDrive.bundle
-        - Plugins/GuitarOctaver.bundle
-        - Plugins/GTR/StompDelay.bundle
         - Plugins/GTR/StompBuzz.bundle
+        - Plugins/GTR/StompChorus.bundle
+        - Plugins/GTR/StompDelay.bundle
+        - Plugins/GTR/StompDistortion.bundle
+        - Plugins/GTR/StompEQ.bundle
+        - Plugins/GTR/StompFlanger.bundle
+        - Plugins/GTR/StompFuzz.bundle
+        - Plugins/GTR/StompGateComp.bundle
+        - Plugins/GTR/StompOverDrive.bundle
+        - Plugins/GTR/StompPhaser.bundle
+        - Plugins/GTR/StompPitcher.bundle
+        - Plugins/GTR/StompSpring.bundle
+        - Plugins/GTR/StompVibrolo.bundle
+        - Plugins/GTR/StompVolume.bundle
+        - Plugins/GTR/StompWahWah.bundle
+        - Plugins/GuitarChainer.bundle
+        - Plugins/GuitarComp.bundle
+        - Plugins/GuitarDoubler2.bundle
+        - Plugins/GuitarGate.bundle
+        - Plugins/GuitarLayD.bundle
+        - Plugins/GuitarMetal.bundle
+        - Plugins/GuitarOctaver.bundle
+        - Plugins/GuitarPanner.bundle
+        - Plugins/GuitarReverb.bundle
+        - Plugins/GuitarTone.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 GTR_Tuner_GUID: 
     name: GTRTuner
     license: 3164b0cb-806c-4bdd-a286-260f9c6eb04c
-    install_sources: 
+    install_from: 
         - Plugins/GTRTuner.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 HEq_GUID: 
     name: HEq
     license: e9a3b6c2-ad21-11e0-823c-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/HEq.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 H_Comp_GUID: 
     name: H-Comp
     license: e9797602-ad21-11e0-8369-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/H-Comp.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 H_Delay_GUID: 
     name: H-Delay
     license: e92b2cea-ad21-11e0-8218-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/H-Delay.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 IR_1_GUID: 
     name: IR_1
     license: ec31edd4-ad21-11e0-8215-b7fd7bebd530
     remark: HRev, IR-1
-    install_sources: 
+    install_from: 
         - Plugins/HRev.bundle
         - Plugins/IR-1.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 IR_360_GUID: 
     name: IR-360
     license: ec323077-ad21-11e0-8335-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/IR-360.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 IR_L_GUID: 
     name: IR-L
     license: ec32123c-ad21-11e0-83d2-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/IR-L.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 IR_Live_GUID: 
     name: IRLive
     license: 4b221595-fbb4-46a0-8827-1e07b139a0bd
-    install_sources: 
+    install_from: 
         - Plugins/IRLive.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 InPhase_GUID: 
     name: InPhase
     license: 51472ece-6f53-4926-8123-64330d6c6852
-    install_sources: 
+    install_from: 
         - Plugins/InPhase.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 InPhase_LT_GUID: 
     name: InPhase LT
     license: b158aea5-79f7-4a39-b9b9-f8c5e7c237c2
-    install_sources: 
+    install_from: 
         - Plugins/InPhase LT.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 JJP_Bass_GUID: 
     name: JJP-Bass
     license: e124ade4-ad21-11e0-811f-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/JJP-Bass.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 JJP_Cymb_Perc_GUID: 
     name: JJP-Cymb-Perc
     license: e1a6881e-ad21-11e0-825a-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/JJP-Cymb-Perc.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 JJP_Drums_GUID: 
     name: JJP-Drums
     license: e161d7ab-ad21-11e0-818c-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/JJP-Drums.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 JJP_Guitars_GUID: 
     name: JJP-Guitars
     license: e184357b-ad21-11e0-82f9-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/JJP-Guitars.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 JJP_Strings_Keys_GUID: 
     name: JJP-Strings-Keys
     license: e1c73d2a-ad21-11e0-8082-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/JJP-Strings-Keys.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 JJP_Vocals_GUID: 
     name: JJP-Vocals
     license: e1e91460-ad21-11e0-8303-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/JJP-Vocals.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 KingsMic_GUID: 
     name: KingsMic
     license: e686394e-ad21-11e0-8185-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/KingsMic.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 KramerHLS_GUID: 
     name: KramerHLS
     license: e5100b89-ad21-11e0-81a0-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/KramerHLS.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 KramerPIE_GUID: 
     name: KramerPIE
     license: e551833a-ad21-11e0-8177-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/KramerPIE.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 KramerTape_GUID: 
     name: KramerTape
     license: e591e90a-ad21-11e0-83a1-b7fd7bebd530
     remark: Lab_KramerTape, KramerTape
-    install_sources: 
-        - Plugins/Lab_KramerTape.bundle
+    install_from: 
         - Plugins/KramerTape.bundle
+        - Plugins/Lab_KramerTape.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 L1_GUID: 
     name: L1
     license: e7223951-ad21-11e0-82d3-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/L1.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 L2_GUID: 
     name: L2
     license: ea812d41-ad21-11e0-80f3-b7fd7bebd530
     remark: L2, L4
-    install_sources: 
+    install_from: 
         - Plugins/L2.bundle
         - Plugins/L4.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 L3_16_GUID: 
     name: L3_16
     license: ec719e28-ad21-11e0-8100-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/L3_16.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 L3_LL_Multi_GUID: 
     name: L3-LL Multi
     license: ec971ad7-ad21-11e0-8359-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/L3-LL Multi.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 L3_LL_Ultra_GUID: 
     name: L3-LL Ultra
     license: ec97493f-ad21-11e0-803e-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/L3-LL Ultra.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 L3_Multi_GUID: 
     name: L3 Multi
     license: ec53f8dd-ad21-11e0-8276-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/L3 Multi.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 L3_Ultra_GUID: 
     name: L3 Ultra
     license: ec541a62-ad21-11e0-8150-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/L3 Ultra.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 LabArtistDefs: 
     name: LabArtist
     license: 99999999-9999-9999-9999-999999999999
-    remark: Lab_Artist_RVerb, Lab_Artist_JJP_Color, Lab_Artist_Gain
-    install_sources: 
-        - Plugins/Lab_ArtistDLL/Lab_Artist_RVerb.bundle
-        - Plugins/Lab_ArtistDLL/Lab_Artist_JJP_Color.bundle
+    remark: Lab_Artist_RVerb, Lab_Artist_JJP_Color, Lab_Artist_MannyM17, Lab_Artist_Gain
+    install_from: 
         - Plugins/Lab_ArtistDLL/Lab_Artist_Gain.bundle
+        - Plugins/Lab_ArtistDLL/Lab_Artist_JJP_Color.bundle
+        - Plugins/Lab_ArtistDLL/Lab_Artist_MannyM17.bundle
+        - Plugins/Lab_ArtistDLL/Lab_Artist_RVerb.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 LabDefs: 
     name: Lab
     license: 99999999-9999-9999-9999-999999999999
     remark: Lab_JJP-Cymb-Perc, Lab_CLA Bass, Lab_Maserati GRP, Lab_CLA Vocals, Lab_EddieKramer FX, Lab_CLA Effects, Lab_Maserati HMX, Lab_CLA Unplugged, Lab_Maserati VX1, Lab_Maserati DRM, Lab_JJP-Bass, Lab_JJP-Guitars, Lab_Maserati GTi, Lab_Maserati ACG, Lab_EddieKramer GT, Lab_CLA Guitars, Lab_CLA Drums, Lab_JJP-Drums, Lab_EddieKramer VC, Lab_EddieKramer DR, Lab_JJP-Strings-Keys, Lab_JJP-Vocals, Lab_Maserati B72, Lab_EddieKramer BA, Lab_OKWetter, Lab_OKPhatter, Lab_OKLouder, Lab_Bass Rider, Lab_OKBrighter
-    install_sources: 
-        - Plugins/Lab_JJP-Cymb-Perc.bundle
+    install_from: 
+        - Plugins/Lab_Bass Rider.bundle
         - Plugins/Lab_CLA Bass.bundle
-        - Plugins/Lab_Maserati GRP.bundle
-        - Plugins/Lab_CLA Vocals.bundle
-        - Plugins/Lab_EddieKramer FX.bundle
-        - Plugins/Lab_CLA Effects.bundle
-        - Plugins/Lab_Maserati HMX.bundle
-        - Plugins/Lab_CLA Unplugged.bundle
-        - Plugins/Lab_Maserati VX1.bundle
-        - Plugins/Lab_Maserati DRM.bundle
-        - Plugins/Lab_JJP-Bass.bundle
-        - Plugins/Lab_JJP-Guitars.bundle
-        - Plugins/Lab_Maserati GTi.bundle
-        - Plugins/Lab_Maserati ACG.bundle
-        - Plugins/Lab_EddieKramer GT.bundle
-        - Plugins/Lab_CLA Guitars.bundle
         - Plugins/Lab_CLA Drums.bundle
-        - Plugins/Lab_JJP-Drums.bundle
-        - Plugins/Lab_EddieKramer VC.bundle
+        - Plugins/Lab_CLA Effects.bundle
+        - Plugins/Lab_CLA Guitars.bundle
+        - Plugins/Lab_CLA Unplugged.bundle
+        - Plugins/Lab_CLA Vocals.bundle
+        - Plugins/Lab_EddieKramer BA.bundle
         - Plugins/Lab_EddieKramer DR.bundle
+        - Plugins/Lab_EddieKramer FX.bundle
+        - Plugins/Lab_EddieKramer GT.bundle
+        - Plugins/Lab_EddieKramer VC.bundle
+        - Plugins/Lab_JJP-Bass.bundle
+        - Plugins/Lab_JJP-Cymb-Perc.bundle
+        - Plugins/Lab_JJP-Drums.bundle
+        - Plugins/Lab_JJP-Guitars.bundle
         - Plugins/Lab_JJP-Strings-Keys.bundle
         - Plugins/Lab_JJP-Vocals.bundle
+        - Plugins/Lab_Maserati ACG.bundle
         - Plugins/Lab_Maserati B72.bundle
-        - Plugins/Lab_EddieKramer BA.bundle
-        - Plugins/Lab_OKWetter.bundle
-        - Plugins/Lab_OKPhatter.bundle
-        - Plugins/Lab_OKLouder.bundle
-        - Plugins/Lab_Bass Rider.bundle
+        - Plugins/Lab_Maserati DRM.bundle
+        - Plugins/Lab_Maserati GRP.bundle
+        - Plugins/Lab_Maserati GTi.bundle
+        - Plugins/Lab_Maserati HMX.bundle
+        - Plugins/Lab_Maserati VX1.bundle
         - Plugins/Lab_OKBrighter.bundle
+        - Plugins/Lab_OKLouder.bundle
+        - Plugins/Lab_OKPhatter.bundle
+        - Plugins/Lab_OKWetter.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 LabMannyChainerDefs: 
     name: LabMannyChainer
     license: 99999999-9999-9999-9999-999999999999
     remark: Lab_MannyM-Distortion, Lab_MannyM-Delay, Lab_MannyM-DeDeDe, Lab_MannyM-EQ, Lab_MannyM-Reverb, Lab_MannyM-ToneShaper
-    install_sources: 
-        - Plugins/Lab_MannyM-Distortion.bundle
-        - Plugins/Lab_MannyM-Delay.bundle
+    install_from: 
         - Plugins/Lab_MannyM-DeDeDe.bundle
+        - Plugins/Lab_MannyM-Delay.bundle
+        - Plugins/Lab_MannyM-Distortion.bundle
         - Plugins/Lab_MannyM-EQ.bundle
         - Plugins/Lab_MannyM-Reverb.bundle
         - Plugins/Lab_MannyM-ToneShaper.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 LinEQ_GUID: 
     name: LinEQ
     license: ea9c2b7e-ad21-11e0-8327-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/LinEQ.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 LinMB_GUID: 
     name: LinMB
     license: eab8d633-ad21-11e0-81eb-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/LinMB.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 MV2_GUID: 
     name: MV2
     license: ed14136b-ad21-11e0-837c-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/MV2.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 MV360_GUID: 
     name: MV360
     license: f1896c6a-ad21-11e0-82f7-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/MV360.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 MannyM_Color_GUID: 
     name: MannyM-ToneShaper
     license: e20c014e-ad21-11e0-83e6-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/MannyM-ToneShaper.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 MannyM_DeDeDe_GUID: 
     name: MannyM-DeDeDe
     license: e22cd127-ad21-11e0-822b-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/MannyM-DeDeDe.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 MannyM_Delay_GUID: 
     name: MannyM-Delay
     license: e2521210-ad21-11e0-838c-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/MannyM-Delay.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 MannyM_Distortion_GUID: 
     name: MannyM-Distortion
     license: e2818ac3-ad21-11e0-80d6-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/MannyM-Distortion.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 MannyM_EQ_GUID: 
     name: MannyM-EQ
     license: e2a675c7-ad21-11e0-8023-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/MannyM-EQ.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 MannyM_RVerb_GUID: 
     name: MannyM-Reverb
     license: e2cb5832-ad21-11e0-8125-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/MannyM-Reverb.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 Maserati_ACG_GUID: 
     name: Maserati ACG
     license: e2edb329-ad21-11e0-8202-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/Maserati ACG.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 Maserati_B72_GUID: 
     name: Maserati B72
     license: e30f737a-ad21-11e0-83dd-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/Maserati B72.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 Maserati_DRM_GUID: 
     name: Maserati DRM
     license: e3a57973-ad21-11e0-818c-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/Maserati DRM.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 Maserati_GRP_GUID: 
     name: Maserati GRP
     license: e3331e4b-ad21-11e0-829b-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/Maserati GRP.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 Maserati_GTi_GUID: 
     name: Maserati GTi
     license: e352d399-ad21-11e0-8316-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/Maserati GTi.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 Maserati_HMX_GUID: 
     name: Maserati HMX
     license: e37c8ff0-ad21-11e0-810d-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/Maserati HMX.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 Maserati_VX1_GUID: 
     name: Maserati VX1
     license: e3c605a4-ad21-11e0-8113-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/Maserati VX1.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 MaxxBass_GUID: 
     name: MaxxBass
     license: e73ed1fb-ad21-11e0-8035-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/MaxxBass.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 MaxxStereo_GUID: 
     name: MaxxStereo
     license: ecfa0291-ad21-11e0-8200-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/MaxxStereo.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 MaxxVoice_GUID: 
     name: MaxxLib
     license: ecdc851e-ad21-11e0-82e4-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/MaxxLib.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 MaxxVolume_GUID: 
     name: MaxxVolume
     license: ed13f26a-ad21-11e0-8216-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/MaxxVolume.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 MetaFlanger_GUID: 
     name: MetaFlanger
     license: e60ab8c6-ad21-11e0-8364-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/MetaFlanger.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 MondoMod_GUID: 
     name: MondoMod
     license: e6281b3c-ad21-11e0-8087-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/MondoMod.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 Morphoder_GUID: 
     name: Morphoder
     license: f2214239-ad21-11e0-82e2-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/Morphoder.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 MultiRack_GUID: 
     name: MultiRackChainer
     license: e40fea6e-ad21-11e0-803f-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/MultiRackChainer.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 NLS_GUID: 
     name: NLS
     license: 3d47fe76-e1f9-4cbf-b155-715460ee749f
-    install_sources: 
+    install_from: 
         - Plugins/NLS.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 NO_LICENSE_GUID: 
     name: NO_LICENSE
     license: a39d317a-5e89-4dd2-949a-7b2c15836a10
     remark: IDR, DLA
-    install_sources: 
-        - Plugins/IDR.bundle
+    install_from: 
         - Plugins/DLA.bundle
+        - Plugins/IDR.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 NS1_GUID: 
     name: NS1
     license: 5d73b443-5698-4ab2-90e4-94e263aa9def
-    remark: NS1, NS1-SC
-    install_sources: 
+    remark: NS1, NS1Pro, NS1Pro-SC
+    install_from: 
         - Plugins/NS1.bundle
-        - Plugins/NS1-SC.bundle
+        - Plugins/NS1Pro-SC.bundle
+        - Plugins/NS1Pro.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 OKBrighter_GUID: 
     name: OKBrighter
     license: f0dba8a1-ad21-11e0-82d9-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/OKBrighter.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 OKDriver_GUID: 
     name: Driver
     license: ee76f044-ad21-11e0-8170-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/Driver.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 OKFilter_GUID: 
     name: ResonantFilter
     license: e9ef3ffd-ad21-11e0-83e3-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/ResonantFilter.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 OKLouder_GUID: 
     name: OKLouder
     license: ed143318-ad21-11e0-821a-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/OKLouder.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 OKPhatter_GUID: 
     name: OKPhatter
     license: ee93e582-ad21-11e0-8390-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/OKPhatter.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 OKPressure_GUID: 
     name: Crusher
     license: ee5af8ce-ad21-11e0-8200-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/Crusher.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 OKWetter_GUID: 
     name: OKWetter
     license: eecca8c2-ad21-11e0-8250-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/OKWetter.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
+OverviewLib_GUID: 
+    name: OverviewLib
+    mac: 
+        install_from: 
+            - Plugins/OverviewLib.framework
+    win: 
+        install_from: 
+            - !file Plugins/OverviewLib_32bit.dll
+            - !file Plugins/OverviewLib_64bit.dll
 PAZ_GUID: 
     name: PAZ
     license: e759bc5f-ad21-11e0-827d-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/PAZ.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 PS22_GUID: 
     name: PS22
     license: e775f5e1-ad21-11e0-809f-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/PS22.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 PeaveyMixer_GUID: 
     name: PeaveyMixerChainer
     license: e42f252a-ad21-11e0-816a-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/PeaveyMixerChainer.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 PuigChild_GUID: 
     name: PuigChild
     license: ea1152ba-ad21-11e0-8305-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/PuigChild.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 PuigTec_GUID: 
     name: PuigTec
     license: ea4ad51a-ad21-11e0-8137-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/PuigTec.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 Q10_GUID: 
     name: Q10
     license: e790fd1a-ad21-11e0-82c3-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/Q10.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 Q_Clone_GUID: 
     name: Q-Clone
     license: e686154a-ad21-11e0-806f-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/Q-Clone.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 R360_GUID: 
     name: R360
     license: f1a67d84-ad21-11e0-8380-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/R360.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 RBass_GUID: 
     name: RBass
     license: ef202a69-ad21-11e0-839b-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/RBass.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 RChannel_GUID: 
     name: RChannel
     license: ef3b4d52-ad21-11e0-8109-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/RChannel.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 RComp_GUID: 
     name: RComp
     license: ef6067d8-ad21-11e0-8308-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/RComp.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 RDeEsser_GUID: 
     name: RDeEsser
     license: ef7b9575-ad21-11e0-81f1-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/RDeEsser.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 REDD17_GUID: 
     name: REDD17
     license: 5634fda9-ea28-4316-9476-527b8e7279a9
-    remark: REDD17, Mannym17, Lab_REDD17
-    install_sources: 
-        - Plugins/REDD17.bundle
-        - Plugins/Mannym17.bundle
+    remark: REDD17, Lab_REDD17
+    install_from: 
         - Plugins/Lab_REDD17.bundle
+        - Plugins/REDD17.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 REDD3751_GUID: 
     name: REDD3751
     license: 1b2e3046-b634-4fc3-92df-100722e72a75
     remark: Lab_REDD37-51, REDD37-51
-    install_sources: 
+    install_from: 
         - Plugins/Lab_REDD37-51.bundle
         - Plugins/REDD37-51.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 REQ_GUID: 
     name: REQ
     license: efb10934-ad21-11e0-8058-b7fd7bebd530
     remark: EMO-Q4, REQ
-    install_sources: 
+    install_from: 
         - Plugins/EMO-Q4.bundle
         - Plugins/REQ.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 RVerb_GUID: 
     name: RVerb
     license: efce20a0-ad21-11e0-8012-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/RVerb.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 RVox_GUID: 
     name: RVox
     license: efe96c20-ad21-11e0-833c-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/RVox.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 RenAxx_GUID: 
     name: RenAxx
     license: ef9640eb-ad21-11e0-83ab-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/RenAxx.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 Reverse_GUID: 
     name: Reverse
     license: ed549e1d-ad21-11e0-8045-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/Reverse.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 S1_GUID: 
     name: S1
     license: e7af58a0-ad21-11e0-832f-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/S1.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 SSLChannel_GUID: 
     name: SSLChannel
     license: f07779d5-ad21-11e0-8252-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/SSLChannel.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 SSLComp_GUID: 
     name: SSLComp
     license: f0b21870-ad21-11e0-811e-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/SSLComp.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 SSLEQ_GUID: 
     name: SSLEQ
     license: f0db846b-ad21-11e0-801f-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/SSLEQ.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 SoundShifter_GUID: 
     name: SoundShifter
     license: f23de82a-ad21-11e0-803b-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/SoundShifter.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 SpeakerEQ_GUID: 
     name: SpeakerEQ
     license: ed9e2727-ad21-11e0-807c-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/SpeakerEQ.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 SuperTap_GUID: 
     name: SuperTap
     license: e646beb6-ad21-11e0-83c3-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/SuperTap.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 TransX_GUID: 
     name: TransX
     license: f25bce3b-ad21-11e0-8126-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/TransX.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 TrueVerb_GUID: 
     name: TrueVerb
     license: e7cd30b4-ad21-11e0-8385-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/TrueVerb.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 UltraPitch_GUID: 
     name: UltraPitch
     license: e6675177-ad21-11e0-833e-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/UltraPitch.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 VComp_GUID: 
     name: VComp
     license: f2781703-ad21-11e0-8147-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/VComp.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 VEQ3_GUID: 
     name: VEQ3
     license: f2a5ad2a-ad21-11e0-8185-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/VEQ3.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 VEQ4_GUID: 
     name: VEQ4
     license: f2f168c9-ad21-11e0-803f-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/VEQ4.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 Vocal_Rider_GUID: 
     name: Vocal_Rider
     license: ed748b6e-ad21-11e0-83bb-b7fd7bebd530
     remark: DrumsGate, Rider
-    install_sources: 
+    install_from: 
         - Plugins/DrumsGate.bundle
         - Plugins/Rider.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 W43_GUID: 
     name: W43
     license: eee933a0-ad21-11e0-80e0-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/W43.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 WLM_GUID: 
     name: WLM
     license: 2d71ad91-bddb-42f2-a652-835830176f9f
-    install_sources: 
+    install_from: 
         - Plugins/WLM.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 WNS_GUID: 
     name: WNS
     license: ef03fc08-ad21-11e0-8353-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/WNS.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 WavesChainer_GUID: 
     name: WavesRackChainer
     license: e453e2a1-ad21-11e0-8326-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/WavesRackChainer.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
+WavesLib_GUID: 
+    name: WavesLib
+    mac: 
+        install_from: 
+            - Plugins/WavesLib.framework
+    win: 
+        install_from: 
+            - !file Plugins/WavesLib_32bit.dll
+            - !file Plugins/WavesLib_64bit.dll
 WavesTune_GUID: 
     name: WavesTune
     license: f3513e7f-ad21-11e0-83f7-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/WavesTune.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 WavesTune_LT_GUID: 
     name: WavesTune LT
     license: f3515f5a-ad21-11e0-81da-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/WavesTune LT.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 X_Click_GUID: 
     name: XClick
     license: f00484d0-ad21-11e0-8357-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/XClick.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 X_Crackle_GUID: 
     name: XCrackle
     license: f01f84d6-ad21-11e0-822a-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/XCrackle.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 X_Hum_GUID: 
     name: XHum
     license: f03a7463-ad21-11e0-830f-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/XHum.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 X_Noise_GUID: 
     name: XNoise
     license: f056c254-ad21-11e0-8310-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/XNoise.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 Z_Noise_GUID: 
     name: ZNoise
     license: ee3dacf8-ad21-11e0-83ec-b7fd7bebd530
-    install_sources: 
+    install_from: 
         - Plugins/ZNoise.bundle
     depends: 
-        - WavesLib
+        - WavesLib_GUID
 
