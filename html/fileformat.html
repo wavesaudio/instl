@@ -72,7 +72,7 @@
     name: Product Type 'A'
     inherit:
         - GENERAL_PRODUCT_INSTALL_DEF
-    install_sources: Products/Product-A.app/
+    install_from: Products/Product-A.app/
     install_folders: $(APPLICATIONS_FOLDER)
     actions_before: touch "$(HOME)/Desktop/PRODUCT_A_Before"
     actions_after:
@@ -91,14 +91,14 @@
 <dd>A human readable naming for the item, it has no part in the install process, but might appear in error message, log files etc.</dd>
 <dt><em>inherit</em></dt>
 <dd>A list of unique identifiers of other items. These items will be merged with the current item. Inheritance is useful in making and changing features common to several items at once.</dd>
-<dt><em>install_sources</em></dt>
+<dt><em>install_from</em></dt>
 <dd>A list of partial paths into the svn repository. These paths will be pulled from the repository to the user&#8217;s disk during installation. The left part of the path must be supplied in the definitions section.</dd>
 <dt><em>actions_before</em></dt>
-<dd>List of actions to perform before copying the install_sources.</dd>
+<dd>List of actions to perform before copying the install_from.</dd>
 <dt><em>actions_after</em></dt>
-<dd>List of actions to perform after copying the install_sources.</dd>
+<dd>List of actions to perform after copying the install_from.</dd>
 <dt><em>install_folders</em></dt>
-<dd>List of folders where the <em>install_sources</em> will be copied to. Typically there will be only one, but if more than one folder is found <em>install_sources</em> will copied to each of them.</dd>
+<dd>List of folders where the <em>install_from</em> will be copied to. Typically there will be only one, but if more than one folder is found <em>install_from</em> will copied to each of them.</dd>
 <dt><em>depends</em></dt>
 <dd>is a list of identifiers of items that must be installed when the current item is installed.</dd>
 </dl>
