@@ -15,6 +15,12 @@ from configVarList import ConfigVarList, value_ref_re
 from aYaml import augmentedYaml
 from installItem import InstallItem, read_index_from_yaml
 
+import platform
+current_os = platform.system()
+if current_os == 'Darwin':
+    current_os = 'mac'
+elif current_os == 'Windows':
+    current_os = 'win'
 
 class cmd_line_options(object):
     """ namespace object to give to parse_args
@@ -26,6 +32,8 @@ class cmd_line_options(object):
         self.main_targets = None
         self.state_file_option = None
         self.run = False
+        self.alias_args = None
+
     def __str__(self):
         retVal = ("input_files: {self.input_files}\nout_file_option: {self.out_file_option}\n"+
                 "main_targets: {self.main_targets}\nstate_file_option: {self.state_file_option}\n"+
@@ -77,12 +85,25 @@ class InstlInstanceBase(object):
                 parser = prepare_args_parser()
                 name_space_obj = cmd_line_options()
                 args = parser.parse_args(arglist, namespace=name_space_obj)
-                self.init_from_cmd_line_options(name_space_obj)
+                if name_space_obj.alias_args:
+                    self.something_to_do = ('alias', name_space_obj.alias_args)
+                    self.mode = "do_something"
+                else:
+                    self.init_from_cmd_line_options(name_space_obj)
             else:
                 self.mode = "interactive"
         except Exception as ex:
             print(ex)
             raise
+
+    def do_something(self):
+        try:
+            import do_something
+            do_something.do_something(self.something_to_do)
+        except Exception as es:
+            import traceback
+            tb = traceback.format_exc()
+            print("do_something", es, tb)
 
     def init_from_cmd_line_options(self, cmd_line_options_obj):
         """ turn command line options into variables """
@@ -392,4 +413,12 @@ def prepare_args_parser():
                                 metavar='path-to-state-file',
                                 dest='state_file_option',
                                 help="a file to write program state - good for debugging")
+    if current_os == 'mac':
+        standard_options.add_argument('--alias','-a',
+                                required=False,
+                                nargs=2,
+                                default=False,
+                                metavar='create-an-alias',
+                                dest='alias_args',
+                                help="Create an alias of original in target (mac only)")
     return parser;

@@ -349,6 +349,25 @@ class CMDObj(cmd.Cmd, object):
         print("depend [identifier, ...]")
         print("    dependecies for an item")
 
+    def do_alias(self, params):
+        if current_os == 'mac':
+            params = shlex.split(params)
+            if len(params) == 2:
+                print("creating alias of", params[0], "as", params[1])
+                import do_something
+                do_something.do_something( ('alias', params) )
+            else:
+                print("alias requires two parameters, not", len(params), params)
+        else:
+            print("alias can only be created on Mac OS")
+ 
+
+    def complete_alias(self, text, line, begidx, endidx):
+        return self.path_completion(text, line, begidx, endidx)
+
+    def help_alias(self):
+        print("alias original target:", "creates a mac alias (Mac OS only)")
+
     def do_restart(self, params):
         print("restarting", this_program_name)
         self.restart = True
