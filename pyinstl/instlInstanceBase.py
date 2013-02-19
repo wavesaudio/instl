@@ -93,7 +93,9 @@ class InstlInstanceBase(object):
             else:
                 self.mode = "interactive"
         except Exception as ex:
-            print(ex)
+            import traceback
+            tb = traceback.format_exc()
+            print(ex, tb)
             raise
 
     def do_something(self):
@@ -189,7 +191,14 @@ class InstlInstanceBase(object):
             print("read_file", file_path, ex, tb)
 
     def resolve(self):
-        self.cvl.resolve()
+        try:
+            self.cvl.resolve()
+            for guid in self.install_definitions_index:
+                self.install_definitions_index[guid].resolve_inheritance(self.install_definitions_index)
+        except Exception as es:
+            import traceback
+            tb = traceback.format_exc()
+            print("resolve", es, tb)
 
     def sort_install_instructions_by_folder(self):
         full_install_to = self.cvl.get("__FULL_LIST_OF_INSTALL_TARGETS__", None)

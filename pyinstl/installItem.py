@@ -2,6 +2,33 @@
 
 from __future__ import print_function
 
+"""
+    class InstallItem hold information about how to install one or more sources.
+    information include:
+        guid - must be unique amongst all InstallItems.
+        name - description for log and erros messages has no bering on the installation.
+        license - the license guid, so the item can be identified by licensing system.
+                  license can be different from or identical to the guid.
+        remark - remarks for human consumption has no bering on the installation.
+        description - auto generated, usually the file and line from which the item was read.
+        inherit - guids of other InstallItems to inherit from.
+        These fields appear once for each InstallItem.
+    Further fields can be be found in a common section or in a section for specific OS:
+        sources - sources to install.
+        folders - folders to install the sources to.
+        depends - guids of other InstallItems that must be installed before the current item.
+        actions - actions to preform. These actions are further divided into:
+            folder_in - actions to preform before installing to each folder in 'folders' section.
+                        if several InstallItems have the same actions for the folder, each action
+                        will be preformed only once.
+            folder_out - actions to preform after installing to each folder in 'folders' section.
+                        if several InstallItems have the same actions for the folder, each action
+                        will be preformed only once.
+            before -    actions to preform before installing the sources in each folder.
+            after -    actions to preform after installing the sources in each folder.
+    Except guid field, all fields are optional.
+"""
+
 import sys
 import platform
 import yaml
@@ -32,44 +59,46 @@ def read_index_from_yaml(all_items_node):
 
 class InstallItem(object):
     __slots__ = ('guid', 'name', 'license',
-                'remark', "description", "set_for_os", 
-                '__items')
+                'remark', "description", 'inherit',
+                '__set_for_os', '__items', '__resolved_inherit')
+    item_sections = ('common', 'mac', 'win')
+    item_types = ('sources', 'folders', 'depends', 'actions')
     action_types = ('folder_in', 'before', 'after', 'folder_out')
     file_types = ('!file', '!dir')
     get_for_os = current_os
+    resolve_inheritance_stack = list()
 
     @staticmethod
     def create_items_section():
-        retVal = {'sources': set(),
-                      'folders': set(),
-                      'depends': set(),
-                      'actions': defaultdict(set)
-                      }
+        retVal = defaultdict(set)
         return retVal
 
+    def merge_item_sections(self, this_items, the_other_items):
+        common_items = set(this_items.keys() + the_other_items.keys())
+        for item in common_items:
+            this_items[item].update(the_other_items[item])
+
     def __init__(self):
+        self.__resolved_inherit = False
         self.guid = None
         self.name = None
         self.license = None
         self.remark = None
         self.description = ""
-        self.set_for_os = ['common'] # reading for all platforms ('common') or for which specific platforms ('mac', 'win')?
+        self.inherit = set()
+        self.__set_for_os = [InstallItem.item_sections[0]] # reading for all platforms ('common') or for which specific platforms ('mac', 'win')?
         self.__items = defaultdict(InstallItem.create_items_section)
 
     def read_from_yaml_by_guid(self, GUID, all_items_node):
         my_node = all_items_node[GUID]
-        self.read_from_yaml(my_node, all_items_node)
+        self.read_from_yaml(my_node)
         self.guid = GUID # restore the GUID that might have been overwritten by inheritance
         self.description = str(my_node.start_mark)
 
-    def read_from_yaml(self, my_node, all_items_node):
+    def read_from_yaml(self, my_node):
         if 'inherit' in my_node:
-            for inheriteGUID in my_node['inherit']:
-                try:
-                    self.read_from_yaml_by_guid(inheriteGUID.value, all_items_node)
-                except KeyError as ke:
-                    missingGUIDMessage = "While reading "+GUID+", Inheritance GUID '"+ke.message+" " +my_node['inherit'].start_mark
-                    raise KeyError(missingGUIDMessage)
+            for inheritoree in my_node['inherit'].value:
+                self.add_inherit(inheritoree.value)
         if 'name' in my_node:
             self.name = my_node['name'].value
         if 'license' in my_node:
@@ -87,64 +116,70 @@ class InstallItem(object):
                 self.add_depend(source.value)
         if 'actions' in my_node:
             self.read_actions(my_node['actions'])
-        if 'mac' in my_node:
-            self.begin_specific_os('mac')
-            self.read_from_yaml(my_node['mac'], all_items_node)
-            self.end_specific_os()
-        if 'win' in my_node:
-            self.begin_specific_os('win')
-            self.read_from_yaml(my_node['win'], all_items_node)
-            self.end_specific_os()
+        for itemSec in InstallItem.item_sections[1:]:
+            if itemSec in my_node:
+                self.begin_specific_os(itemSec)
+                self.read_from_yaml(my_node[itemSec])
+                self.end_specific_os()
 
     def begin_specific_os(self, for_os):
-        self.set_for_os.append(for_os)
+        self.__set_for_os.append(for_os)
 
     def end_specific_os(self):
-        self.set_for_os.pop()
+        self.__set_for_os.pop()
 
-    def some_items_list(self, which_items, for_os):
-        retVal = list(self.__items['common'][which_items].union(self.__items[for_os][which_items]))
+    def add_some_item(self, item_category, item_value):
+        self.__items[self.__set_for_os[-1]][item_category].add(item_value)
+
+    def __some_items_list(self, which_items, for_os):
+        """ common function to get items for specific category of items.
+            returned is s list that combines the 'common' section with the section
+            for the specific os.
+        """
+        retVal = list(self.__items[InstallItem.item_sections[0]][which_items].union(self.__items[for_os][which_items]))
+        return retVal
+
+    def add_inherit(self, inherit_guid):
+        self.inherit.add(inherit_guid)
+
+    def inherit_list(self):
+        retVal = sorted(list(self.inherit))
         return retVal
 
     def add_source(self, new_source, file_type='!dir'):
         if file_type not in InstallItem.file_types:
             file_type = '!dir'
-        self.__items[self.set_for_os[-1]]['sources'].add( (new_source, file_type) )
+        self.add_some_item('sources', (new_source, file_type) )
 
     def source_list(self):
-        return self.some_items_list('sources', InstallItem.get_for_os)
+        return self.__some_items_list('sources', InstallItem.get_for_os)
 
     def add_folder(self, new_folder):
-        self.__items[self.set_for_os[-1]]['folders'].add(new_folder)
+        self.add_some_item('folders', new_folder )
 
     def folder_list(self):
-        return self.some_items_list('folders', InstallItem.get_for_os)
+        return self.__some_items_list('folders', InstallItem.get_for_os)
 
     def add_depend(self, new_depend):
-        self.__items[self.set_for_os[-1]]['depends'].add(new_depend)
+        self.add_some_item('depends', new_depend )
 
     def depend_list(self):
-        return self.some_items_list('depends', InstallItem.get_for_os)
+        return self.__some_items_list('depends', InstallItem.get_for_os)
 
-    def add_action(self, where, action):
-        if where in InstallItem.action_types:
-            self.__items[self.set_for_os[-1]]['actions'][where].append(action)
-        else:
+    def add_action(self, action_type, new_action):
+        if action_type not in InstallItem.action_types:
             raise KeyError("actions type must be one of: "+str(InstallItem.action_types)+" not "+where)
+        self.add_some_item(action_type, new_action)
 
     def read_actions(self, action_nodes):
-        for action_pair in action_nodes:
-            if action_pair[0] in InstallItem.action_types:
-                for action in action_pair[1]:
-                    self.__items[self.set_for_os[-1]]['actions'][action_pair[0]].add(action.value)
-            else:
-                raise KeyError("actions type must be one of: "+str(InstallItem.action_types)+" not "+action_pair[0])
+        for action_type, new_actions in action_nodes:
+            for action in new_actions:
+                self.add_action(action_type, action.value)
 
-    def action_list(self, which):
-        if which not in InstallItem.action_types:
+    def action_list(self, action_type):
+        if action_type not in InstallItem.action_types:
             raise KeyError("actions type must be one of: "+str(InstallItem.action_types)+" not "+which)
-        retVal = list(self.__items['common']['actions'][which].union(self.__items[InstallItem.get_for_os]['actions'][which]))
-        return retVal
+        return self.__some_items_list('action_type', InstallItem.get_for_os)
 
     def get_recursive_depends(self, items_map, out_set, orphan_set):
         if self.guid not in out_set:
@@ -155,7 +190,7 @@ class InstallItem(object):
                         items_map[depend].get_recursive_depends(items_map, out_set, orphan_set)
                     except KeyError:
                         orphan_set.add(depend)
-    
+
     def repr_for_yaml_items(self, for_what):
         retVal = None
         if self.__items[for_what]:
@@ -172,12 +207,10 @@ class InstallItem(object):
                 retVal['install_folders'] = sorted(self.__items[for_what]['folders'])
             if self.__items[for_what]['depends']:
                 retVal['depends'] = sorted(list(self.__items[for_what]['depends']))
-            if self.__items[for_what]['actions']:
-                retVal['actions'] = OrderedDict()
-                for action_type in InstallItem.action_types:
-                    action_list_for_type = list(self.__items[for_what]['actions'][action_type])
-                    if len(action_list_for_type) > 0:
-                        retVal['actions'][action_type] = sorted(action_list_for_type)
+            for action in InstallItem.action_types:
+                if action in self.__items[for_what] and self.__items[for_what][action]:
+                    actions_dict = retVal.setdefault('actions', OrderedDict())
+                    actions_dict[action] = sorted(list(self.__items[for_what][action]))
         return retVal
 
     def repr_for_yaml(self):
@@ -187,12 +220,40 @@ class InstallItem(object):
             retVal['license'] = self.license
         if self.remark:
             retVal['remark'] = self.remark
+        if self.inherit:
+            retVal['inherit'] = self.inherit_list()
 
-        common_items = self.repr_for_yaml_items('common')
-        retVal.update(common_items)
-        for os_ in ('mac', 'win'):
+        common_items = self.repr_for_yaml_items(InstallItem.item_sections[0])
+        if common_items:
+            retVal.update(common_items)
+        for os_ in InstallItem.item_sections[1:]:
             os_items = self.repr_for_yaml_items(os_)
             if os_items:
                 retVal[os_] = os_items
 
         return retVal
+
+    def resolve_inheritance(self, InstallItemsDict):
+        if not self.__resolved_inherit:
+            if self.guid in self.resolve_inheritance_stack:
+                raise Exception("circular resolve_inheritance of "+self.guid)
+            self.resolve_inheritance_stack.append(self.guid)
+            for ancestor in self.inherit_list():
+                if ancestor not in InstallItemsDict:
+                    raise KeyError(self.guid+" inherites from "+ancestor+" which is not in InstallItemsDict")
+                ancestor_item = InstallItemsDict[ancestor]
+                ancestor_item.resolve_inheritance(InstallItemsDict)
+                for section in InstallItem.item_sections:
+                    self.merge_item_sections(self.__items[section], ancestor_item.__items[section])
+            self.resolve_inheritance_stack.pop()
+
+
+"""
+            if 'inherit' in my_node:
+                for inheritGUID in my_node['inherit']:
+                    try:
+                        self.read_from_yaml_by_guid(inheritGUID.value, all_items_node)
+                    except KeyError as ke:
+                        missingGUIDMessage = "While reading "+GUID+", Inheritance GUID '"+ke.message+" " +my_node['inherit'].start_mark
+                        raise KeyError(missingGUIDMessage)
+"""

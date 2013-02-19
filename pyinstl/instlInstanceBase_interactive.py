@@ -206,6 +206,7 @@ class CMDObj(cmd.Cmd, object):
                         else:
                             print("Unknown identifier:", param)
             else:
+                self.prog_inst.resolve()
                 self.prog_inst.do_list(None, out_list)
             colored_string = self.color_vars("".join(out_list.list()))
             sys.stdout.write(colored_string)
@@ -272,7 +273,7 @@ class CMDObj(cmd.Cmd, object):
                 for file in shlex.split(params):
                     try:
                         self.prog_inst.read_file(file)
-                        self.prog_inst.resolve()
+                        #self.prog_inst.resolve()
                     except Exception as ex:
                         print("read", file, ex)
             else:
@@ -360,7 +361,7 @@ class CMDObj(cmd.Cmd, object):
                 print("alias requires two parameters, not", len(params), params)
         else:
             print("alias can only be created on Mac OS")
- 
+
 
     def complete_alias(self, text, line, begidx, endidx):
         return self.path_completion(text, line, begidx, endidx)
