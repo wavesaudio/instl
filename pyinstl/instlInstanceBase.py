@@ -40,6 +40,10 @@ class cmd_line_options(object):
                 "run: {self.run}\n").format(**vars())
         return retVal
 
+class InstallInstructionsState(object):
+    """ holds state for specific creating of install instructions """
+    pass
+
 class InstlInstanceBase(object):
     """ Main object of instl. Keeps the state of variables and install index
         and knows how to create a batch file for installation. InstlInstanceBase
@@ -50,8 +54,8 @@ class InstlInstanceBase(object):
         self.out_file_realpath = None
         self.install_definitions_index = dict()
         self.cvl = ConfigVarList()
-        self.variables_assignment_lines = []
-        self.install_instruction_lines = []
+        self.variables_assignment_lines = dict()
+        self.install_instruction_lines = dict()
         self.var_replacement_pattern = None
         self.svn_version = "HEAD"
 
@@ -136,13 +140,16 @@ class InstlInstanceBase(object):
         if copy_main_install_to_from:
             self.cvl.duplicate_variable(copy_main_install_to_from, "__MAIN_INSTALL_TARGETS__")
         self.resolve()
+        self.resolve_index_inheritance()
         #self.evaluate_graph()
 
     def dedigest(self):
-        """ reverse the effect of digest """
+        """ reverse the effect of digest, and clear some members """
         del self.cvl["__MAIN_INSTALL_TARGETS__"]
         del self.cvl["__FULL_LIST_OF_INSTALL_TARGETS__"]
         del self.cvl["__ORPHAN_INSTALL_TARGETS__"]
+        self.variables_assignment_lines = dict()
+        self.install_instruction_lines = dict()
         self.resolve()
 
     internal_identifier_re = re.compile("""
@@ -159,8 +166,6 @@ class InstlInstanceBase(object):
 
     def read_index(self, a_node):
         self.install_definitions_index.update(read_index_from_yaml(a_node))
-        with open("sample_data/yaml.out", "w") as wf:
-            augmentedYaml.writeAsYaml(self.repr_for_yaml(), wf)
 
     def read_input_files(self):
         input_files = self.cvl.get("__MAIN_INPUT_FILES__", ())
@@ -193,12 +198,14 @@ class InstlInstanceBase(object):
     def resolve(self):
         try:
             self.cvl.resolve()
-            for guid in self.install_definitions_index:
-                self.install_definitions_index[guid].resolve_inheritance(self.install_definitions_index)
         except Exception as es:
             import traceback
             tb = traceback.format_exc()
             print("resolve", es, tb)
+
+    def resolve_index_inheritance(self):
+        for guid in self.install_definitions_index:
+            self.install_definitions_index[guid].resolve_inheritance(self.install_definitions_index)
 
     def sort_install_instructions_by_folder(self):
         full_install_to = self.cvl.get("__FULL_LIST_OF_INSTALL_TARGETS__", None)
@@ -311,13 +318,20 @@ class InstlInstanceBase(object):
             else:
                 try:
                     from pyinstl import installItemGraph
-                    graph = installItemGraph.create_installItem_graph(self.install_definitions_index)
-                    cycles = installItemGraph.find_cycles(graph)
-                    if not cycles:
-                        print ("No cycles found")
+                    install_graph = installItemGraph.create_installItem_graph(self.install_definitions_index)
+                    install_cycles = installItemGraph.find_cycles(install_graph)
+                    if not install_cycles:
+                        print ("No install cycles found")
                     else:
-                        for cy in cycles:
-                            print("cycle:", " -> ".join(cy))
+                        for cy in install_cycles:
+                            print("install cycle:", " -> ".join(cy))
+                    inherit_graph = installItemGraph.create_inheritItem_graph(self.install_definitions_index)
+                    inherit_cycles = installItemGraph.find_cycles(inherit_graph)
+                    if not inherit_cycles:
+                        print ("No inherit cycles found")
+                    else:
+                        for cy in inherit_cycles:
+                            print("inherit cycle:", " -> ".join(cy))
                 except ImportError as IE: # no installItemGraph, no worry
                     print("Could not load installItemGraph")
 

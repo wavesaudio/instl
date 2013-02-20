@@ -73,17 +73,22 @@ class InstallItem(object):
         retVal = defaultdict(set)
         return retVal
 
-    def merge_item_sections(self, this_items, the_other_items):
+    @staticmethod
+    def merge_item_sections(this_items, the_other_items):
         common_items = set(this_items.keys() + the_other_items.keys())
         for item in common_items:
             this_items[item].update(the_other_items[item])
+
+    def merge_all_item_sections(self, otherInstallItem):
+        for section in InstallItem.item_sections:
+            InstallItem.merge_item_sections(self.__items[section], otherInstallItem.__items[section])
 
     def __init__(self):
         self.__resolved_inherit = False
         self.guid = None
         self.name = None
         self.license = None
-        self.remark = None
+        self.remark = ""
         self.description = ""
         self.inherit = set()
         self.__set_for_os = [InstallItem.item_sections[0]] # reading for all platforms ('common') or for which specific platforms ('mac', 'win')?
@@ -128,7 +133,7 @@ class InstallItem(object):
     def end_specific_os(self):
         self.__set_for_os.pop()
 
-    def add_some_item(self, item_category, item_value):
+    def __add_some_item(self, item_category, item_value):
         self.__items[self.__set_for_os[-1]][item_category].add(item_value)
 
     def __some_items_list(self, which_items, for_os):
@@ -149,19 +154,19 @@ class InstallItem(object):
     def add_source(self, new_source, file_type='!dir'):
         if file_type not in InstallItem.file_types:
             file_type = '!dir'
-        self.add_some_item('sources', (new_source, file_type) )
+        self.__add_some_item('sources', (new_source, file_type) )
 
     def source_list(self):
         return self.__some_items_list('sources', InstallItem.get_for_os)
 
     def add_folder(self, new_folder):
-        self.add_some_item('folders', new_folder )
+        self.__add_some_item('folders', new_folder )
 
     def folder_list(self):
         return self.__some_items_list('folders', InstallItem.get_for_os)
 
     def add_depend(self, new_depend):
-        self.add_some_item('depends', new_depend )
+        self.__add_some_item('depends', new_depend )
 
     def depend_list(self):
         return self.__some_items_list('depends', InstallItem.get_for_os)
@@ -169,7 +174,7 @@ class InstallItem(object):
     def add_action(self, action_type, new_action):
         if action_type not in InstallItem.action_types:
             raise KeyError("actions type must be one of: "+str(InstallItem.action_types)+" not "+where)
-        self.add_some_item(action_type, new_action)
+        self.__add_some_item(action_type, new_action)
 
     def read_actions(self, action_nodes):
         for action_type, new_actions in action_nodes:
@@ -233,6 +238,18 @@ class InstallItem(object):
 
         return retVal
 
+    def merge_from_another_InstallItem(self, otherInstallItem):
+        """ merge the contents of another InstallItem """
+        # self.guid = guid is not merged
+        # self.name = name is not merged
+        # self.license = license is not merged
+        # name of the other item is added to the remark
+        if not self.remark:
+            self.remark = self.name
+        self.remark += ", "+otherInstallItem.name
+        self.inherit.update(otherInstallItem.inherit)
+        self.merge_all_item_sections(otherInstallItem)
+        
     def resolve_inheritance(self, InstallItemsDict):
         if not self.__resolved_inherit:
             if self.guid in self.resolve_inheritance_stack:
@@ -243,8 +260,8 @@ class InstallItem(object):
                     raise KeyError(self.guid+" inherites from "+ancestor+" which is not in InstallItemsDict")
                 ancestor_item = InstallItemsDict[ancestor]
                 ancestor_item.resolve_inheritance(InstallItemsDict)
-                for section in InstallItem.item_sections:
-                    self.merge_item_sections(self.__items[section], ancestor_item.__items[section])
+                self.merge_all_item_sections(ancestor_item)
+                self.remark += ", "+ancestor_item.name+", "+ancestor_item.remark
             self.resolve_inheritance_stack.pop()
 
 
