@@ -14,6 +14,7 @@ import configVar
 from configVarList import ConfigVarList, value_ref_re
 from aYaml import augmentedYaml
 from installItem import InstallItem, read_index_from_yaml
+from pyinstl.utils import unique_list
 
 import platform
 current_os = platform.system()
@@ -42,7 +43,41 @@ class cmd_line_options(object):
 
 class InstallInstructionsState(object):
     """ holds state for specific creating of install instructions """
-    pass
+    def __init__(self):
+        self.root_install_items = unique_list()
+        self.full_install_items = unique_list()
+        self.orphan_install_items = unique_list()
+        self.install_items_by_folder = defaultdict(unique_list)
+        self.variables_assignment_lines = list()
+        self.install_instruction_lines = list()
+
+    def repr_for_yaml(self):
+        retVal = OrderedDict()
+        retVal['root_install_items'] = list(self.root_install_items)
+        retVal['full_install_items'] = list(self.full_install_items)
+        retVal['orphan_install_items'] = list(self.orphan_install_items)
+        retVal['install_items_by_folder'] = {folder: list(self.install_items_by_folder[folder]) for folder in self.install_items_by_folder}       
+        retVal['variables_assignment_lines'] = list(self.variables_assignment_lines)
+        retVal['install_instruction_lines'] = self.install_instruction_lines
+        return retVal 
+
+    def calculate_full_install_items_set(self, instlInstance):
+        """ calculate the set of guids to install by starting with the root set and adding all dependencies.
+            Initial list of guid should already be in self.root_install_items.
+            results are accomulated in InstallInstructionsState.
+            If an install items was not found for a guid, the guid is added to the orphan set.
+        """
+        for GUID in self.root_install_items:
+            try:
+                instlInstance.install_definitions_index[GUID].get_recursive_depends(instlInstance.install_definitions_index, self.full_install_items, self.orphan_install_items)
+            except KeyError:
+                self.orphan_install_items.append(GUID)
+        self.__sort_install_items_by_folder(instlInstance)
+    
+    def __sort_install_items_by_folder(self, instlInstance):
+        for GUID in self.full_install_items:
+            for folder in instlInstance.install_definitions_index[GUID].folder_list():
+                self.install_items_by_folder[folder].append(GUID)
 
 class InstlInstanceBase(object):
     """ Main object of instl. Keeps the state of variables and install index
@@ -54,8 +89,6 @@ class InstlInstanceBase(object):
         self.out_file_realpath = None
         self.install_definitions_index = dict()
         self.cvl = ConfigVarList()
-        self.variables_assignment_lines = dict()
-        self.install_instruction_lines = dict()
         self.var_replacement_pattern = None
         self.svn_version = "HEAD"
 
@@ -207,92 +240,79 @@ class InstlInstanceBase(object):
         for guid in self.install_definitions_index:
             self.install_definitions_index[guid].resolve_inheritance(self.install_definitions_index)
 
-    def sort_install_instructions_by_folder(self):
-        full_install_to = self.cvl.get("__FULL_LIST_OF_INSTALL_TARGETS__", None)
-        install_by_folder = defaultdict(set)
-        for GUID in full_install_to:
-            for folder in self.install_definitions_index[GUID].folder_list():
-                install_by_folder[folder].add(GUID)
-        return install_by_folder
-
-    def create_install_list(self):
-        main_install_to = self.cvl.get("__MAIN_INSTALL_TARGETS__")
-        full_install_set = set()
-        orphan_set = set()
-        for GUID in main_install_to:
-            try:
-                self.install_definitions_index[GUID].get_recursive_depends(self.install_definitions_index, full_install_set, orphan_set)
-            except KeyError:
-                orphan_set.add(GUID)
-        self.cvl.add_const_config_variable("__FULL_LIST_OF_INSTALL_TARGETS__", "calculated by create_install_list", *full_install_set)
+    def calculate_default_install_item_set(self, installState):
+        """ calculate the set of guid to install from the "__MAIN_INSTALL_TARGETS__" variable.
+            Full set of install guids and orphan guids are also writen to variable.
+        """
+        installState.root_install_items.extend(self.cvl.get("__MAIN_INSTALL_TARGETS__"))
+        self.calculate_full_install_items_set(installState)
+        self.cvl.add_const_config_variable("__FULL_LIST_OF_INSTALL_TARGETS__", "calculated by calculate_default_install_items_set", *installState.full_install_items)
         if orphan_set:
-            self.cvl.add_const_config_variable("__ORPHAN_INSTALL_TARGETS__", "calculated by create_install_list", *orphan_set)
+            self.cvl.add_const_config_variable("__ORPHAN_INSTALL_TARGETS__", "calculated by calculate_default_install_items_set", *installState.orphan_install_items)
 
-    def create_variables_assignment(self):
+    def create_variables_assignment(self, installState):
         for value in self.cvl:
             if not self.internal_identifier_re.match(value): # do not read internal state indentifiers
-                self.variables_assignment_lines.append(value+'="'+" ".join(self.cvl[value])+'"')
+                installState.variables_assignment_lines.append(value+'="'+" ".join(self.cvl[value])+'"')
 
-    def create_install_instructions(self):
-        self.create_variables_assignment()
-        self.create_install_list()
-        install_by_folder = self.sort_install_instructions_by_folder()
-        if install_by_folder:
-            for folder_name in install_by_folder:
-                self.create_install_instructions_for_folder(folder_name, install_by_folder[folder_name])
+    def create_default_install_instructions(installState):
+        self.calculate_default_install_item_set(installState)
+        self.create_install_instructions(installState)
 
-    def create_install_instructions_for_folder(self, folder_name, items):
-        self.install_instruction_lines.append(self.make_directory_cmd(folder_name))
-        self.install_instruction_lines.append(self.change_directory_cmd(folder_name))
-        for GUID in items: # folder in actions
-            installi = self.install_definitions_index[GUID]
-            actions = installi.action_list('folder_in')
-            if actions:
-                self.install_instruction_lines.append(" ".join(actions))
-        for GUID in items:
-            self.create_instal_instructions_for_item(self.install_definitions_index[GUID])         # pass the installItem object
-        for GUID in items: # folder out actions
-            installi = self.install_definitions_index[GUID]
-            actions = installi.action_list('folder_out')
-            if actions:
-                self.install_instruction_lines.append(" ".join(actions))
-        self.install_instruction_lines.append(os.linesep)
+    def create_install_instructions(self, installState):
+        self.create_variables_assignment(installState)
+        for folder_name in installState.install_items_by_folder:
+            installState.install_instruction_lines.append(self.make_directory_cmd(folder_name))
+            installState.install_instruction_lines.append(self.change_directory_cmd(folder_name))
+            folder_in_actions = list()
+            install_item_instructions = list()
+            folder_out_actions = list()
+            for GUID in installState.install_items_by_folder[folder_name]: # folder in actions
+                installi = self.install_definitions_index[GUID]
+                folder_in_actions.extend(installi.action_list('folder_in'))
+                install_item_instructions.extend(self.create_install_instructions_for_item(self.install_definitions_index[GUID]))
+                folder_out_actions.extend(installi.action_list('folder_out'))
+            installState.install_instruction_lines.extend(folder_in_actions)
+            installState.install_instruction_lines.extend(install_item_instructions)
+            installState.install_instruction_lines.extend(folder_out_actions)
 
-    def create_instal_instructions_for_item(self, installi):
-        for action in installi.action_list('before'):           # actions to do before pulling from svn
-            self.install_instruction_lines.append(action)
+    def create_install_instructions_for_item(self, installi):
+        retVal = list()
+        retVal.extend(installi.action_list('before')) # actions to do before pulling from svn
         for source in installi.source_list():                   # svn pulling actions
-            self.create_svn_pull_instructions_for_source(source)
-        for action in installi.action_list('after'):            # actions to do after pulling from svn
-            self.install_instruction_lines.append(action)
+            retVal.extend(self.create_svn_pull_instructions_for_source(source))
+        retVal.extend(installi.action_list('after'))
+        return retVal
 
     def create_svn_pull_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
+        retVal = list()
         source_url = '$(BASE_URL)'+source[0]
         if source[1] == '!file':
             source_url_split = source_url.split('/')
             source_url_dir = '/'.join(source_url_split[:-1])
             source_url_file = source_url_split[-1]
-            self.install_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+source_url_dir+'"', ".", "--depth empty")))
-            self.install_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "up", '"'+source_url_file+'"')))
+            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+source_url_dir+'"', ".", "--depth empty")))
+            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "up", '"'+source_url_file+'"')))
         else:
-            self.install_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+source_url+'"')))
+            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+source_url+'"')))
+        return retVal
 
-    def create_install_instructions_lines(self):
+    def finalize_list_of_lines(self, installState):
         lines = list()
         lines.extend(self.get_install_instructions_prefix())
         lines.extend( (os.linesep, ) )
 
-        lines.extend(sorted(self.variables_assignment_lines))
+        lines.extend(sorted(installState.variables_assignment_lines))
         lines.extend( (os.linesep, ) )
 
-        lines.extend(self.install_instruction_lines)
+        lines.extend(installState.install_instruction_lines)
         lines.extend( (os.linesep, ) )
 
         lines.extend(self.get_install_instructions_postfix())
         return lines
 
-    def write_install_batch_file(self):
+    def write_install_batch_file(self, installState):
         lines = self.create_install_instructions_lines()
         lines_after_var_replacement = os.linesep.join([value_ref_re.sub(self.var_replacement_pattern, line) for line in lines])
 

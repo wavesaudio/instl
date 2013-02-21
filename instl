@@ -15,6 +15,9 @@ elif current_os == 'Windows':
     current_os = 'win'
     from pyinstl.instlInstance_win import InstlInstance_win as ii
 
+
+from pyinstl.instlInstanceBase import InstallInstructionsState
+
 def run_instl_instructions(instance):
     if "__MAIN_RUN_INSTALLATION__" in instance.cvl:
         from subprocess import Popen
@@ -28,8 +31,9 @@ def main():
         if instance.mode == "batch":
             instance.read_input_files()
             instance.digest() # look at what we got and make sense of it
-            instance.create_install_instructions()
-            instance.write_install_batch_file()
+            installState = InstallInstructionsState()
+            instance.create_default_install_instructions(installState)
+            instance.write_install_batch_file(installState)
             instance.write_program_state()
         elif instance.mode == "interactive":
             instance.do_da_interactive()

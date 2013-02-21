@@ -149,6 +149,6 @@ linkcheck:
 
 doctest:
 	$(SPHINXBUILD) -b doctest $(ALLSPHINXOPTS) $(BUILDDIR)/doctest
-	@echo "Testing of doctests in the sources finished, look at the " \
+	@echo "Testing of doctests in the install_sources finished, look at the " \
 	      "results in $(BUILDDIR)/doctest/output.txt."
 # DO NOT DELETE

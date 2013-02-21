@@ -3,7 +3,7 @@
 from __future__ import print_function
 
 """
-    class InstallItem hold information about how to install one or more sources.
+    class InstallItem hold information about how to install one or more install_sources.
     information include:
         guid - must be unique amongst all InstallItems.
         name - description for log and erros messages has no bering on the installation.
@@ -14,19 +14,42 @@ from __future__ import print_function
         inherit - guids of other InstallItems to inherit from.
         These fields appear once for each InstallItem.
     Further fields can be be found in a common section or in a section for specific OS:
-        sources - sources to install.
-        folders - folders to install the sources to.
+        install_sources - install_sources to install.
+        folders - folders to install the install_sources to.
         depends - guids of other InstallItems that must be installed before the current item.
         actions - actions to preform. These actions are further divided into:
-            folder_in - actions to preform before installing to each folder in 'folders' section.
+            folder_in - actions to preform before installing to each folder in install_folders section.
                         if several InstallItems have the same actions for the folder, each action
                         will be preformed only once.
-            folder_out - actions to preform after installing to each folder in 'folders' section.
+            folder_out - actions to preform after installing to each folder in install_folders section.
                         if several InstallItems have the same actions for the folder, each action
                         will be preformed only once.
-            before -    actions to preform before installing the sources in each folder.
-            after -    actions to preform after installing the sources in each folder.
+            before -    actions to preform before installing the install_sources in each folder.
+            after -    actions to preform after installing the install_sources in each folder.
     Except guid field, all fields are optional.
+
+    Example in Yaml:
+    
+    test: 
+        name: test
+        license: f01f84d6-ad21-11e0-822a-b7fd7bebd530
+        remarks: testing, testing 1, 2, 3
+        description: index.txt line 1245
+        install_sources: 
+            - Plugins/test_1
+            - Plugins/test_2
+        install_folders:
+            - test_target_folder_1
+            - test_target_folder_2
+        actions:
+            folder_in:
+                - action when entering folder
+            before:
+                - action before item
+            after:
+                - action after item
+            folder_out:
+                - action when leaving folder
 """
 
 import sys
@@ -37,6 +60,7 @@ from collections import OrderedDict, defaultdict
 
 sys.path.append("..")
 from aYaml import augmentedYaml
+from pyinstl.utils import unique_list
 
 current_os = platform.system()
 if current_os == 'Darwin':
@@ -62,7 +86,7 @@ class InstallItem(object):
                 'remark', "description", 'inherit',
                 '__set_for_os', '__items', '__resolved_inherit')
     item_sections = ('common', 'mac', 'win')
-    item_types = ('sources', 'folders', 'depends', 'actions')
+    item_types = ('install_sources', 'install_folders', 'depends', 'actions')
     action_types = ('folder_in', 'before', 'after', 'folder_out')
     file_types = ('!file', '!dir')
     get_for_os = current_os
@@ -70,14 +94,14 @@ class InstallItem(object):
 
     @staticmethod
     def create_items_section():
-        retVal = defaultdict(set)
+        retVal = defaultdict(unique_list)
         return retVal
 
     @staticmethod
     def merge_item_sections(this_items, the_other_items):
         common_items = set(this_items.keys() + the_other_items.keys())
         for item in common_items:
-            this_items[item].update(the_other_items[item])
+            this_items[item].append(the_other_items[item])
 
     def merge_all_item_sections(self, otherInstallItem):
         for section in InstallItem.item_sections:
@@ -90,7 +114,7 @@ class InstallItem(object):
         self.license = None
         self.remark = ""
         self.description = ""
-        self.inherit = set()
+        self.inherit = unique_list()
         self.__set_for_os = [InstallItem.item_sections[0]] # reading for all platforms ('common') or for which specific platforms ('mac', 'win')?
         self.__items = defaultdict(InstallItem.create_items_section)
 
@@ -110,8 +134,8 @@ class InstallItem(object):
             self.license = my_node['license'].value
         if 'remark' in my_node:
             self.remark = my_node['remark'].value
-        if 'install_from' in my_node:
-            for source in my_node['install_from']:
+        if 'install_sources' in my_node:
+            for source in my_node['install_sources']:
                 self.add_source(source.value, source.tag)
         if 'install_folders' in my_node:
             for folder in my_node['install_folders']:
@@ -134,36 +158,38 @@ class InstallItem(object):
         self.__set_for_os.pop()
 
     def __add_some_item(self, item_category, item_value):
-        self.__items[self.__set_for_os[-1]][item_category].add(item_value)
+        self.__items[self.__set_for_os[-1]][item_category].append(item_value)
 
     def __some_items_list(self, which_items, for_os):
         """ common function to get items for specific category of items.
             returned is s list that combines the 'common' section with the section
             for the specific os.
         """
-        retVal = list(self.__items[InstallItem.item_sections[0]][which_items].union(self.__items[for_os][which_items]))
+        retVal = unique_list()
+        retVal.extend(self.__items[InstallItem.item_sections[0]][which_items])
+        retVal.extend(self.__items[for_os][which_items])
         return retVal
 
     def add_inherit(self, inherit_guid):
-        self.inherit.add(inherit_guid)
+        self.inherit.append(inherit_guid)
 
     def inherit_list(self):
-        retVal = sorted(list(self.inherit))
+        retVal = self.inherit
         return retVal
 
     def add_source(self, new_source, file_type='!dir'):
         if file_type not in InstallItem.file_types:
             file_type = '!dir'
-        self.__add_some_item('sources', (new_source, file_type) )
+        self.__add_some_item('install_sources', (new_source, file_type) )
 
     def source_list(self):
-        return self.__some_items_list('sources', InstallItem.get_for_os)
+        return self.__some_items_list('install_sources', InstallItem.get_for_os)
 
     def add_folder(self, new_folder):
-        self.__add_some_item('folders', new_folder )
+        self.__add_some_item('install_folders', new_folder )
 
     def folder_list(self):
-        return self.__some_items_list('folders', InstallItem.get_for_os)
+        return self.__some_items_list('install_folders', InstallItem.get_for_os)
 
     def add_depend(self, new_depend):
         self.__add_some_item('depends', new_depend )
@@ -184,38 +210,38 @@ class InstallItem(object):
     def action_list(self, action_type):
         if action_type not in InstallItem.action_types:
             raise KeyError("actions type must be one of: "+str(InstallItem.action_types)+" not "+which)
-        return self.__some_items_list('action_type', InstallItem.get_for_os)
+        return self.__some_items_list(action_type, InstallItem.get_for_os)
 
     def get_recursive_depends(self, items_map, out_set, orphan_set):
         if self.guid not in out_set:
-            out_set.add(self.guid)
+            out_set.append(self.guid)
             for depend in self.__items['depends']:
                 if depend not in out_set: # avoid cycles
                     try:
                         items_map[depend].get_recursive_depends(items_map, out_set, orphan_set)
                     except KeyError:
-                        orphan_set.add(depend)
+                        orphan_set.append(depend)
 
     def repr_for_yaml_items(self, for_what):
         retVal = None
         if self.__items[for_what]:
             retVal = OrderedDict()
-            if self.__items[for_what]['sources']:
+            if self.__items[for_what]['install_sources']:
                 source_list = list()
-                for source in sorted(self.__items[for_what]['sources']):
+                for source in self.__items[for_what]['install_sources']:
                     if source[1] != '!dir':
                         source_list.append(aYaml.augmentedYaml.YamlDumpWrap(value=source[0], tag=source[1]))
                     else:
                         source_list.append(source[0])
-                retVal['install_from'] = source_list
-            if self.__items[for_what]['folders']:
-                retVal['install_folders'] = sorted(self.__items[for_what]['folders'])
+                retVal['install_sources'] = source_list
+            if self.__items[for_what]['install_folders']:
+                retVal['install_folders'] = list(self.__items[for_what]['install_folders'])
             if self.__items[for_what]['depends']:
-                retVal['depends'] = sorted(list(self.__items[for_what]['depends']))
+                retVal['depends'] = list(self.__items[for_what]['depends'])
             for action in InstallItem.action_types:
                 if action in self.__items[for_what] and self.__items[for_what][action]:
                     actions_dict = retVal.setdefault('actions', OrderedDict())
-                    actions_dict[action] = sorted(list(self.__items[for_what][action]))
+                    actions_dict[action] = list(self.__items[for_what][action])
         return retVal
 
     def repr_for_yaml(self):

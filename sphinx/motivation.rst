@@ -7,7 +7,7 @@ What's wrong with existing installer builders?
 ----------------------------------------------
 #. Cross-platform: No high quality tools exist for creating cross-platform installers. Products distributed for both Mac and Windows usually have a lot in common. Using separate installer builders for each platform requires, for example, to define and maintain all dependencies twice in different formats.
 #. File formats: Each installer builder has different format for defining an installer and many times these are not text based formats. Compering Mac and Windows definitions or even to previous versions in the same platform is usually impossible.
-#. Version control: Developers are accustomed to using version control for all sources required to build a software product. However, the build products themselves also have versions that need to be tracked.
+#. Version control: Developers are accustomed to using version control for all install_sources required to build a software product. However, the build products themselves also have versions that need to be tracked.
 #. Scalability: While creating a small installer with conventional tools is easy, managing large or complicated installers is exponentially harder. Other scalability needs are to easily create variations on existing installers or partial installers and propagating changes done in the main installer to it's derivatives.
 #. Programming languages: Installer builders usually provide a programming language. Such languages are never cross-platform and usually are limited in their functionality and not well documented.
 

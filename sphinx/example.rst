@@ -29,10 +29,10 @@ The index.txt file would be:
     ACME_GUID:
         name: Acme 1.0
         mac:
-            install_from:
+            install_sources:
                 - Acme.app/
         win:
-            install_from:
+            install_sources:
                 - Acme/
         install_folders: $(APPLICATIONS_FOLDER)
 
@@ -103,11 +103,11 @@ The index file would need to be expanded to allow for the various options and de
     ACME_GUID:
         name: Acme 2.0
         mac:
-            install_from:
+            install_sources:
                 - Acme.app/
             install_folders: $(APPLICATIONS_FOLDER)
         win:
-            install_from:
+            install_sources:
                 - !file Acme.exe
                 - !file Acme.ico
                 - !file Acme.pdf
@@ -119,26 +119,26 @@ The index file would need to be expanded to allow for the various options and de
     SING_A_SONG_GUID:
         name: Sing a song Acme plugin
         mac:
-            install_from:
+            install_sources:
                 - !file sing_a_song.dylib
         win:
-            install_from:
+            install_sources:
                 - !file sing_a_song.dll
     RING_A_BELL_GUID:
         name: Ring a bell Acme plugin
         mac:
-            install_from:
+            install_sources:
                 - !file ring_a_bell.dylib
         win:
-            install_from:
+            install_sources:
                 - !file ring_a_bell.dll
     SET_THE_TONE_GUID:
         name: Set the tone Acme plugin
         mac:
-            install_from:
+            install_sources:
                 - !file set_the_tone.dylib
         win:
-            install_from:
+            install_sources:
                 - !file set_the_tone.dll
 
 Bundling

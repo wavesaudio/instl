@@ -362,6 +362,18 @@ class CMDObj(cmd.Cmd, object):
         else:
             print("alias can only be created on Mac OS")
 
+    def do_install(self, params):
+        from pyinstl.instlInstanceBase import InstallInstructionsState
+        installState = InstallInstructionsState()
+        if params:
+            installState.root_install_items.extend(shlex.split(params))
+            installState.calculate_full_install_items_set(self.prog_inst)
+        else:
+            self.prog_inst.calculate_default_install_items_set(installState)
+        self.prog_inst.create_install_instructions(installState)
+        lines = self.prog_inst.finalize_list_of_lines(installState)
+        augmentedYaml.writeAsYaml(installState.repr_for_yaml(), sys.stdout)
+        print(os.linesep.join(lines))
 
     def complete_alias(self, text, line, begidx, endidx):
         return self.path_completion(text, line, begidx, endidx)

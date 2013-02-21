@@ -29,3 +29,18 @@ class write_to_list(object):
 
     def list(self):
         return self.the_list
+
+class unique_list(list):
+    def __init__(self, *args):
+        super(unique_list, self).__init__()
+        self.extend(*args)
+    def __setitem__(self, index, item):
+        raise KeyError("unique_list does not support setting by index")
+    def append(self, item):
+        if item not in self:
+            super(unique_list, self).append(item)
+    def extend(self, items = ()):
+        for item in items:
+            if item not in self:
+                super(unique_list, self).append(item)
+            
