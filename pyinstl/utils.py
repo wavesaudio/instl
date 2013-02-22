@@ -33,14 +33,40 @@ class write_to_list(object):
 class unique_list(list):
     def __init__(self, *args):
         super(unique_list, self).__init__()
+        self.attendance = set()
         self.extend(*args)
     def __setitem__(self, index, item):
-        raise KeyError("unique_list does not support setting by index")
+        self.attendance.remove(self[index])
+        super(unique_list, self).__setitem__(index, item)
+        self.attendance.add(item)
+    def __delitem__(self, index):
+        self.attendance.remove(self[index])
+        super(unique_list, self).__delitem__(index)
+    def __contains__(self, item):
+        return item in self.attendance
     def append(self, item):
-        if item not in self:
+        if item not in self.attendance:
             super(unique_list, self).append(item)
+            self.attendance.add(item)
     def extend(self, items = ()):
         for item in items:
-            if item not in self:
+            if item not in self.attendance:
                 super(unique_list, self).append(item)
-            
+                self.attendance.add(item)
+    def insert(self, index, item):
+        if item not in self.attendance:
+            super(unique_list, self).insert(index, item)
+            self.attendance.add(item)
+        else:
+            pass # remove previous item?
+    def remove(self, item):
+        if item in self.attendance:
+            super(unique_list, self).remove(item)
+            self.attendance.remove(item)
+    def pop(self, index=None):
+        if index is None:
+            index = len(self.attendance) - 1
+        self.attendance.remove(self[index])
+        return super(unique_list, self).pop(index)
+    def count(self, item):
+        return self.attendance.count(item)
