@@ -364,6 +364,8 @@ class CMDObj(cmd.Cmd, object):
 
     def do_install(self, params):
         from pyinstl.instlInstanceBase import InstallInstructionsState
+        self.prog_inst.resolve()
+        self.prog_inst.resolve_index_inheritance()
         installState = InstallInstructionsState()
         if params:
             installState.root_install_items.extend(shlex.split(params))
@@ -371,8 +373,8 @@ class CMDObj(cmd.Cmd, object):
         else:
             self.prog_inst.calculate_default_install_items_set(installState)
         self.prog_inst.create_install_instructions(installState)
-        lines = self.prog_inst.finalize_list_of_lines(installState)
         augmentedYaml.writeAsYaml(installState.repr_for_yaml(), sys.stdout)
+        lines = self.prog_inst.finalize_list_of_lines(installState)
         print(os.linesep.join(lines))
 
     def complete_alias(self, text, line, begidx, endidx):

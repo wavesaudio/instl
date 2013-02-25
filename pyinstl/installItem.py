@@ -15,7 +15,7 @@ from __future__ import print_function
         These fields appear once for each InstallItem.
     Further fields can be be found in a common section or in a section for specific OS:
         install_sources - install_sources to install.
-        folders - folders to install the install_sources to.
+        install_folders - folders to install the install_sources to.
         depends - guids of other InstallItems that must be installed before the current item.
         actions - actions to preform. These actions are further divided into:
             folder_in - actions to preform before installing to each folder in install_folders section.
@@ -29,13 +29,13 @@ from __future__ import print_function
     Except guid field, all fields are optional.
 
     Example in Yaml:
-    
-    test: 
+
+    test:
         name: test
         license: f01f84d6-ad21-11e0-822a-b7fd7bebd530
         remarks: testing, testing 1, 2, 3
         description: index.txt line 1245
-        install_sources: 
+        install_sources:
             - Plugins/test_1
             - Plugins/test_2
         install_folders:
@@ -100,8 +100,12 @@ class InstallItem(object):
     @staticmethod
     def merge_item_sections(this_items, the_other_items):
         common_items = set(this_items.keys() + the_other_items.keys())
-        for item in common_items:
-            this_items[item].append(the_other_items[item])
+        try:
+            for item in common_items:
+                this_items[item].extend(the_other_items[item])
+        except TypeError as te:
+            print("TypeError for", item)
+            raise
 
     def merge_all_item_sections(self, otherInstallItem):
         for section in InstallItem.item_sections:
@@ -215,12 +219,13 @@ class InstallItem(object):
     def get_recursive_depends(self, items_map, out_set, orphan_set):
         if self.guid not in out_set:
             out_set.append(self.guid)
-            for depend in self.__items['depends']:
-                if depend not in out_set: # avoid cycles
+            for depend in self.depend_list():
+                if depend not in out_set: # avoid cycles, save time
                     try:
                         items_map[depend].get_recursive_depends(items_map, out_set, orphan_set)
                     except KeyError:
                         orphan_set.append(depend)
+
 
     def repr_for_yaml_items(self, for_what):
         retVal = None
@@ -275,7 +280,7 @@ class InstallItem(object):
         self.remark += ", "+otherInstallItem.name
         self.inherit.update(otherInstallItem.inherit)
         self.merge_all_item_sections(otherInstallItem)
-        
+
     def resolve_inheritance(self, InstallItemsDict):
         if not self.__resolved_inherit:
             if self.guid in self.resolve_inheritance_stack:

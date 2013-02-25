@@ -56,10 +56,10 @@ class InstallInstructionsState(object):
         retVal['root_install_items'] = list(self.root_install_items)
         retVal['full_install_items'] = list(self.full_install_items)
         retVal['orphan_install_items'] = list(self.orphan_install_items)
-        retVal['install_items_by_folder'] = {folder: list(self.install_items_by_folder[folder]) for folder in self.install_items_by_folder}       
+        retVal['install_items_by_folder'] = {folder: list(self.install_items_by_folder[folder]) for folder in self.install_items_by_folder}
         retVal['variables_assignment_lines'] = list(self.variables_assignment_lines)
         retVal['install_instruction_lines'] = self.install_instruction_lines
-        return retVal 
+        return retVal
 
     def calculate_full_install_items_set(self, instlInstance):
         """ calculate the set of guids to install by starting with the root set and adding all dependencies.
@@ -73,10 +73,12 @@ class InstallInstructionsState(object):
             except KeyError:
                 self.orphan_install_items.append(GUID)
         self.__sort_install_items_by_folder(instlInstance)
-    
+
     def __sort_install_items_by_folder(self, instlInstance):
         for GUID in self.full_install_items:
+            print("__sort_install_items_by_folder", GUID)
             for folder in instlInstance.install_definitions_index[GUID].folder_list():
+                print("    __sort_install_items_by_folder", folder)
                 self.install_items_by_folder[folder].append(GUID)
 
 class InstlInstanceBase(object):
@@ -287,7 +289,7 @@ class InstlInstanceBase(object):
     def create_svn_pull_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
         retVal = list()
-        source_url = '$(BASE_URL)'+source[0]
+        source_url = '$(BASE_URL)'+'/'+source[0]
         if source[1] == '!file':
             source_url_split = source_url.split('/')
             source_url_dir = '/'.join(source_url_split[:-1])
@@ -310,7 +312,9 @@ class InstlInstanceBase(object):
         lines.extend( (os.linesep, ) )
 
         lines.extend(self.get_install_instructions_postfix())
-        return lines
+
+        retVal = [value_ref_re.sub(self.var_replacement_pattern, line) for line in lines]
+        return retVal
 
     def write_install_batch_file(self, installState):
         lines = self.create_install_instructions_lines()
