@@ -30,19 +30,36 @@ class write_to_list(object):
     def list(self):
         return self.the_list
 
+"""
+unique_list implements a list where all items are unique.
+Functionality can also be decribed as set with order.
+unique_list should behave as a python list except:
+    Adding items the end of the list (by append, extend) will do nothing if the
+        item is already in the list.
+    Adding to the middle of the list (insert, __setitem__)
+        will remove previous item with the same value - if any.
+"""
+
 class unique_list(list):
     def __init__(self, *args):
         super(unique_list, self).__init__()
         self.attendance = set()
-        self.extend(*args)
+        self.extend(args)
     def __setitem__(self, index, item):
-        self.attendance.remove(self[index])
-        super(unique_list, self).__setitem__(index, item)
-        self.attendance.add(item)
+        prev_item = self[index]
+        if prev_item != item:
+            if item in self.attendance:
+                prev_index_for_item = self.index(item)
+                super(unique_list, self).__setitem__(index, item)
+                del self[prev_index_for_item]
+            else:
+                super(unique_list, self).__setitem__(index, item)
+                self.attendance.add(item)
     def __delitem__(self, index):
-        self.attendance.remove(self[index])
         super(unique_list, self).__delitem__(index)
+        self.attendance.remove(self[index])
     def __contains__(self, item):
+        """ Overriding __contains__ is not required - just more efficient """
         return item in self.attendance
     def append(self, item):
         if item not in self.attendance:
@@ -54,11 +71,17 @@ class unique_list(list):
                 super(unique_list, self).append(item)
                 self.attendance.add(item)
     def insert(self, index, item):
-        if item not in self.attendance:
+        if item in self.attendance:
+            prev_index_for_item = self.index(item)
+            if index != prev_index_for_item:
+                super(unique_list, self).insert(index, item)
+                if prev_index_for_item < index:
+                    del self[prev_index_for_item]
+                else:
+                    del self[prev_index_for_item+1]
+        else:
             super(unique_list, self).insert(index, item)
             self.attendance.add(item)
-        else:
-            pass # remove previous item?
     def remove(self, item):
         if item in self.attendance:
             super(unique_list, self).remove(item)
@@ -69,4 +92,11 @@ class unique_list(list):
         self.attendance.remove(self[index])
         return super(unique_list, self).pop(index)
     def count(self, item):
+        """ Overriding count is not required - just more efficient """
         return self.attendance.count(item)
+
+if __name__ == "__main__":
+    u = unique_list('a', 'b', 'c','a', 'b', 'c')
+    print(u)
+    u.insert(2, 'b')
+    print(u)
