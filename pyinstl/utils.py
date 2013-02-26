@@ -41,10 +41,13 @@ unique_list should behave as a python list except:
 """
 
 class unique_list(list):
-    def __init__(self, *args):
+    __slots__ = ('attendance',)
+    def __init__(self, initial_list = ()):
         super(unique_list, self).__init__()
         self.attendance = set()
-        self.extend(args)
+        self.extend(initial_list)
+    def __str__(self):
+        return super(unique_list, self).__str__() + " attendance: " + str(sorted(list(self.attendance)))
     def __setitem__(self, index, item):
         prev_item = self[index]
         if prev_item != item:
@@ -52,8 +55,10 @@ class unique_list(list):
                 prev_index_for_item = self.index(item)
                 super(unique_list, self).__setitem__(index, item)
                 del self[prev_index_for_item]
+                self.attendance.add(item)
             else:
                 super(unique_list, self).__setitem__(index, item)
+                self.attendance.remove(prev_item)
                 self.attendance.add(item)
     def __delitem__(self, index):
         super(unique_list, self).__delitem__(index)
@@ -76,9 +81,9 @@ class unique_list(list):
             if index != prev_index_for_item:
                 super(unique_list, self).insert(index, item)
                 if prev_index_for_item < index:
-                    del self[prev_index_for_item]
+                    super(unique_list, self).__delitem__(prev_index_for_item)
                 else:
-                    del self[prev_index_for_item+1]
+                    super(unique_list, self).__delitem__(prev_index_for_item+1)
         else:
             super(unique_list, self).insert(index, item)
             self.attendance.add(item)
@@ -86,17 +91,18 @@ class unique_list(list):
         if item in self.attendance:
             super(unique_list, self).remove(item)
             self.attendance.remove(item)
-    def pop(self, index=None):
-        if index is None:
-            index = len(self.attendance) - 1
+    def pop(self, index=-1):
         self.attendance.remove(self[index])
         return super(unique_list, self).pop(index)
     def count(self, item):
         """ Overriding count is not required - just more efficient """
         return self.attendance.count(item)
 
+def test_unique_list():
+    u = unique_list( ('a', 'b', 'c', 'c'))
+    y = unique_list()
+    print(bool([1]), bool([]), bool(1), bool(0))
 if __name__ == "__main__":
-    u = unique_list('a', 'b', 'c','a', 'b', 'c')
-    print(u)
-    u.insert(2, 'b')
-    print(u)
+    test_unique_list()
+    #print(dir(list))
+

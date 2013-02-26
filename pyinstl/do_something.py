@@ -30,7 +30,12 @@ def create_mac_alias(args):
 def create_win_shortcut(args):
     print ("create_win_shortcut, original:", args[0], "target", args[1])
 
-name_to_action = {'alias': create_mac_alias, 'shortcut': create_win_shortcut}
+def fix_mac_icon(bundle_path):
+    pass
+
+name_to_action = {'alias': create_mac_alias,
+                'shortcut': create_win_shortcut,
+                'fix_mac_icon': fix_mac_icon}
 
 def do_something(args):
     if args[0] in name_to_action:
