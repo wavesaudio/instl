@@ -214,6 +214,10 @@ class InstallItem(object):
     def action_list(self, action_type):
         if action_type not in InstallItem.action_types:
             raise KeyError("actions type must be one of: "+str(InstallItem.action_types)+" not "+which)
+        if action_type.startswith("folder_in"):
+            import traceback
+            traceback.print_stack()
+            print("folder_in:", self.__some_items_list(action_type, InstallItem.get_for_os))
         return self.__some_items_list(action_type, InstallItem.get_for_os)
 
     def get_recursive_depends(self, items_map, out_set, orphan_set):

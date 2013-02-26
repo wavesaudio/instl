@@ -34,7 +34,7 @@ def main():
             installState = InstallInstructionsState()
             instance.create_default_install_instructions(installState)
             instance.write_install_batch_file(installState)
-            instance.write_program_state()
+            #instance.write_program_state()
         elif instance.mode == "interactive":
             instance.do_da_interactive()
         elif instance.mode == "do_something":

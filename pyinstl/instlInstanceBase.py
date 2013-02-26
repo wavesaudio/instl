@@ -76,9 +76,7 @@ class InstallInstructionsState(object):
 
     def __sort_install_items_by_folder(self, instlInstance):
         for GUID in self.full_install_items:
-            print("__sort_install_items_by_folder", GUID)
             for folder in instlInstance.install_definitions_index[GUID].folder_list():
-                print("    __sort_install_items_by_folder", folder)
                 self.install_items_by_folder[folder].append(GUID)
 
 class InstlInstanceBase(object):
@@ -247,9 +245,9 @@ class InstlInstanceBase(object):
             Full set of install guids and orphan guids are also writen to variable.
         """
         installState.root_install_items.extend(self.cvl.get("__MAIN_INSTALL_TARGETS__"))
-        self.calculate_full_install_items_set(installState)
+        installState.calculate_full_install_items_set(self)
         self.cvl.add_const_config_variable("__FULL_LIST_OF_INSTALL_TARGETS__", "calculated by calculate_default_install_items_set", *installState.full_install_items)
-        if orphan_set:
+        if installState.orphan_install_items:
             self.cvl.add_const_config_variable("__ORPHAN_INSTALL_TARGETS__", "calculated by calculate_default_install_items_set", *installState.orphan_install_items)
 
     def create_variables_assignment(self, installState):
@@ -257,7 +255,7 @@ class InstlInstanceBase(object):
             if not self.internal_identifier_re.match(value): # do not read internal state indentifiers
                 installState.variables_assignment_lines.append(value+'="'+" ".join(self.cvl[value])+'"')
 
-    def create_default_install_instructions(installState):
+    def create_default_install_instructions(self, installState):
         self.calculate_default_install_item_set(installState)
         self.create_install_instructions(installState)
 
@@ -266,9 +264,9 @@ class InstlInstanceBase(object):
         for folder_name in installState.install_items_by_folder:
             installState.install_instruction_lines.append(self.make_directory_cmd(folder_name))
             installState.install_instruction_lines.append(self.change_directory_cmd(folder_name))
-            folder_in_actions = list()
+            folder_in_actions = unique_list()
             install_item_instructions = list()
-            folder_out_actions = list()
+            folder_out_actions = unique_list()
             for GUID in installState.install_items_by_folder[folder_name]: # folder in actions
                 installi = self.install_definitions_index[GUID]
                 folder_in_actions.extend(installi.action_list('folder_in'))
@@ -317,7 +315,7 @@ class InstlInstanceBase(object):
         return retVal
 
     def write_install_batch_file(self, installState):
-        lines = self.create_install_instructions_lines()
+        lines = self.finalize_list_of_lines(installState)
         lines_after_var_replacement = os.linesep.join([value_ref_re.sub(self.var_replacement_pattern, line) for line in lines])
 
         from utils import write_to_file_or_stdout

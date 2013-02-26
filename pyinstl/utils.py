@@ -46,8 +46,8 @@ class unique_list(list):
         super(unique_list, self).__init__()
         self.attendance = set()
         self.extend(initial_list)
-    def __str__(self):
-        return super(unique_list, self).__str__() + " attendance: " + str(sorted(list(self.attendance)))
+#    def __str__(self):
+#        return super(unique_list, self).__str__() + " attendance: " + str(sorted(list(self.attendance)))
     def __setitem__(self, index, item):
         prev_item = self[index]
         if prev_item != item:
