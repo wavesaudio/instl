@@ -15,6 +15,7 @@ from configVarList import ConfigVarList, value_ref_re
 from aYaml import augmentedYaml
 from installItem import InstallItem, read_index_from_yaml
 from pyinstl.utils import unique_list
+from pyinstl.utils import open_for_read_file_or_url
 
 import platform
 current_os = platform.system()
@@ -228,7 +229,7 @@ class InstlInstanceBase(object):
 
     def read_file(self, file_path):
         try:
-            with open(file_path, "r") as file_fd:
+            with open_for_read_file_or_url(file_path) as file_fd:
                 for a_node in yaml.compose_all(file_fd):
                     if a_node.tag == u'!define':
                         self.read_defines(a_node)

@@ -1,6 +1,9 @@
 #!/usr/local/bin/python2.7
 from __future__ import print_function
 import sys
+import os
+import urllib2
+import re
 
 class write_to_file_or_stdout(object):
     def  __init__(self, file_path):
@@ -29,6 +32,25 @@ class write_to_list(object):
 
     def list(self):
         return self.the_list
+
+
+class open_for_read_file_or_url(object):
+    protocol_header_re = re.compile("""
+                        \w+
+                        ://
+                        """, re.VERBOSE)
+    def  __init__(self, file_url):
+        match = self.protocol_header_re.match(file_url)
+        if not match:
+            file_url = "file://"+os.path.realpath(file_url)
+        self.file_url = file_url
+
+    def __enter__(self):
+        self.fd = urllib2.urlopen(self.file_url)
+        return self.fd
+
+    def __exit__(self, type, value, traceback):
+        self.fd.close()
 
 """
 unique_list implements a list where all items are unique.

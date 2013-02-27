@@ -81,10 +81,10 @@ class ConfigVar(object):
     def append(self, value):
         self._values.append(str(value))
 
-    def extend(self, value):
-        if value:
-            if not hasattr(value, '__iter__'):
-                raise TypeError(str(value)+" is not a iterable")
+    def extend(self, values):
+        if values:
+            if not hasattr(values, '__iter__'):
+                raise TypeError(str(values)+" is not a iterable")
         self._values.extend([str(value) for value in values])
 
 class ConstConfigVar(ConfigVar):
