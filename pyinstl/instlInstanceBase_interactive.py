@@ -32,6 +32,7 @@ except ImportError:
     except ImportError:
         print("failed to import pyreadline, readline functionality not supported")
 
+from pyinstl.utils import unique_list
 
 colorama_loaded = False
 try:
@@ -111,7 +112,8 @@ class CMDObj(cmd.Cmd, object):
 
     def __exit__(self, type, value, traceback):
         if readline_loaded:
-            readline.set_history_length(1024)
+            compact_history()
+            readline.set_history_length(32)
             readline.write_history_file(self.history_file_path)
         # restart only after saving history, otherwise history will not be saved (8-().
         os.chdir(self.save_dir)
@@ -415,6 +417,11 @@ class CMDObj(cmd.Cmd, object):
     def help_help(self):
         self.do_help("")
 
+    def do_hist(self, params):
+        for index in range(readline.get_current_history_length()):
+            print(index, readline.get_history_item(index))
+        print(readline.get_current_history_length(), "items in history")
+
     # evaluate python expressions
     def do_eval(self, param):
         try:
@@ -425,6 +432,18 @@ class CMDObj(cmd.Cmd, object):
 
     def help_eval(self):
         print("evaluate python expressions, instlInstance is accessible as self.prog_inst")
+    
+def compact_history():
+    unique_history = unique_list()
+    for index in reversed(range(1, readline.get_current_history_length())):
+        hist_item = readline.get_history_item(index)
+        if hist_item: # some history items are None (usually at index 0)
+            unique_history.append(readline.get_history_item(index))
+    unique_history.reverse()
+    for index in range(len(unique_history)):
+        readline.replace_history_item(index+1, unique_history[index])
+    for index in reversed(range(len(unique_history)+1, readline.get_current_history_length())):
+        readline.remove_history_item(index)
 
 def do_list_imp(self, what = None, stream=sys.stdout):
     if what is None:

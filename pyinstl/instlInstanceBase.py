@@ -354,13 +354,13 @@ class InstlInstanceBase(object):
             else:
                 try:
                     from pyinstl import installItemGraph
-                    install_graph = installItemGraph.create_installItem_graph(self.install_definitions_index)
-                    install_cycles = installItemGraph.find_cycles(install_graph)
-                    if not install_cycles:
-                        print ("No install cycles found")
+                    depend_graph = installItemGraph.create_dependencies_graph(self.install_definitions_index)
+                    depend_cycles = installItemGraph.find_cycles(depend_graph)
+                    if not depend_cycles:
+                        print ("No depend cycles found")
                     else:
-                        for cy in install_cycles:
-                            print("install cycle:", " -> ".join(cy))
+                        for cy in depend_cycles:
+                            print("depend cycle:", " -> ".join(cy))
                     inherit_graph = installItemGraph.create_inheritItem_graph(self.install_definitions_index)
                     inherit_cycles = installItemGraph.find_cycles(inherit_graph)
                     if not inherit_cycles:
@@ -385,7 +385,7 @@ class InstlInstanceBase(object):
     def needed_by(self, guid):
         try:
             from pyinstl import installItemGraph
-            graph = installItemGraph.create_installItem_graph(self.install_definitions_index)
+            graph = installItemGraph.create_dependencies_graph(self.install_definitions_index)
             needed_by_list = installItemGraph.find_needed_by(graph, guid)
             return needed_by_list
         except ImportError as IE: # no installItemGraph, no worry

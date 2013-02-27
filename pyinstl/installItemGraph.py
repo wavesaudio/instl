@@ -7,7 +7,7 @@ try:
 except ImportError as IE:
     raise IE
 
-def create_installItem_graph(item_map):
+def create_dependencies_graph(item_map):
     retVal = nx.DiGraph()
     for item in item_map:
         for dependant in item_map[item].depend_list():

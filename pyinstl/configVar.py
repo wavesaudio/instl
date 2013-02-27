@@ -27,11 +27,11 @@ class ConfigVar(object):
         Values are always a list - even a single value is a list of size 1
         Emulates list container
     """
-    __slots__ = ("_name", "_description", "_values", "__resolving_in_progress")
+    __slots__ = ("_name", "_description", "__values", "__resolving_in_progress")
     def __init__(self, name, description="", *values):
         self._name = name
         self._description = description
-        self._values = [str(value) for value in values]
+        self.__values = [str(value) for value in values]
         self.__resolving_in_progress = False # prevent circular resolves
 
     def name(self):
@@ -49,43 +49,43 @@ class ConfigVar(object):
     def __str__(self):
         ln = os.linesep
         indent = "    "
-        retVal = "{self._name}:{ln}{indent}description:{self._description}{ln}{indent}values:{self._values})".format(**vars())
+        retVal = "{self._name}:{ln}{indent}description:{self._description}{ln}{indent}values:{self.__values})".format(**vars())
         return retVal
 
     def __repr__(self):
-        retVal = "{self.__class__.__name__}('{self._name}', '{self._description}',*{self._values})".format(**vars())
+        retVal = "{self.__class__.__name__}('{self._name}', '{self._description}',*{self.__values})".format(**vars())
         return retVal
 
     def __len__(self):
-        return len(self._values)
+        return len(self.__values)
 
     def __getitem__(self, key):
         # if key is of invalid type or value, the list values will raise the error
-        return self._values[key]
+        return self.__values[key]
 
     def __setitem__(self, key, value):
-        self._values[key] = value
+        self.__values[key] = value
 
     def __delitem__(self, key):
-        del self._values[key]
+        del self.__values[key]
 
     def __iter__(self):
-        return iter(self._values)
+        return iter(self.__values)
 
     def __reversed__(self):
-        return reversed(self._values)
+        return reversed(self.__values)
 
     def clear_values(self):
-        self._values = list()
+        self.__values = list()
 
     def append(self, value):
-        self._values.append(str(value))
+        self.__values.append(str(value))
 
     def extend(self, values):
         if values:
             if not hasattr(values, '__iter__'):
                 raise TypeError(str(values)+" is not a iterable")
-        self._values.extend([str(value) for value in values])
+        self.__values.extend([str(value) for value in values])
 
 class ConstConfigVar(ConfigVar):
     """ ConfigVar override where values cannot be changed after construction """

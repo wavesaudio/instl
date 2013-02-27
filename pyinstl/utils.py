@@ -92,6 +92,7 @@ class unique_list(list):
         if item not in self.attendance:
             super(unique_list, self).append(item)
             self.attendance.add(item)
+
     def extend(self, items = ()):
         for item in items:
             if item not in self.attendance:
