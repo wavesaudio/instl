@@ -23,6 +23,8 @@ if current_os == 'Darwin':
 elif current_os == 'Windows':
     current_os = 'win'
 
+INSTL_VERSION=(0, 1, 0)
+
 class cmd_line_options(object):
     """ namespace object to give to parse_args
         holds command line options
@@ -34,6 +36,7 @@ class cmd_line_options(object):
         self.state_file_option = None
         self.run = False
         self.alias_args = None
+        self.version = False
 
     def __str__(self):
         retVal = ("input_files: {self.input_files}\nout_file_option: {self.out_file_option}\n"+
@@ -91,6 +94,7 @@ class InstlInstanceBase(object):
         self.cvl = ConfigVarList()
         self.var_replacement_pattern = None
         self.svn_version = "HEAD"
+        self.cvl.add_const_config_variable("__INSTL_VERSION__", "from InstlInstanceBase.__init__", *INSTL_VERSION)
 
     def repr_for_yaml(self, what=None):
         """ Create representation of self suitable for printing as yaml.
@@ -120,13 +124,13 @@ class InstlInstanceBase(object):
             if arglist and len(arglist) > 0:
                 self.mode = "batch"
                 parser = prepare_args_parser()
-                name_space_obj = cmd_line_options()
-                args = parser.parse_args(arglist, namespace=name_space_obj)
-                if name_space_obj.alias_args:
-                    self.something_to_do = ('alias', name_space_obj.alias_args)
+                self.name_space_obj = cmd_line_options()
+                args = parser.parse_args(arglist, namespace=self.name_space_obj)
+                if self.name_space_obj.alias_args:
+                    self.something_to_do = ('alias', self.name_space_obj.alias_args)
                     self.mode = "do_something"
                 else:
-                    self.init_from_cmd_line_options(name_space_obj)
+                    self.init_from_cmd_line_options(self.name_space_obj)
             else:
                 self.mode = "interactive"
         except Exception as ex:
@@ -134,6 +138,15 @@ class InstlInstanceBase(object):
             tb = traceback.format_exc()
             print(ex, tb)
             raise
+    
+    def init_batch_mode(self):
+        """ what ever needs to be done before starting in batch mode """
+        if self.name_space_obj.version:
+            print(" ".join( ("instl", "version", ".".join(self.get_version()))))
+
+    def get_version(self):
+        retVal = self.cvl.get("__INSTL_VERSION__")
+        return retVal
 
     def do_something(self):
         try:
@@ -458,6 +471,12 @@ def prepare_args_parser():
                                 metavar='path-to-state-file',
                                 dest='state_file_option',
                                 help="a file to write program state - good for debugging")
+    standard_options.add_argument('--version','-v',
+                                required=False,
+                                action='store_true',
+                                default=False,
+                                dest='version',
+                                help="display instl version")
     if current_os == 'mac':
         standard_options.add_argument('--alias','-a',
                                 required=False,

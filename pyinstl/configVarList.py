@@ -136,7 +136,7 @@ class ConfigVarList(object):
         addedValue = configVar.ConstConfigVar(name, description, *values)
         self._ConfigVar_objs[addedValue.name()] = addedValue
         if not self.__dirty: # if not already dirty, try to keep it clean
-            if value_ref_re.search(" ".join(values)):
+            if value_ref_re.search(" ".join([str(value) for value in values])):
                 self.__dirty = True # dirty because a $() reference(s) found
             else: # no need to resolve, copy values to _resolved_vars
                 self._resolved_vars[addedValue.name()] = values

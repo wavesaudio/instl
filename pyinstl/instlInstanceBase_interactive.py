@@ -383,6 +383,11 @@ class CMDObj(cmd.Cmd, object):
     def help_alias(self):
         print("alias original target:", "creates a mac alias (Mac OS only)")
 
+    def do_version(self, params):
+        print(" ".join( ("instl", "version", ".".join(self.prog_inst.get_version()))))
+    def help_version(self):
+        print("version: print", this_program_name, "version")
+
     def do_restart(self, params):
         print("restarting", this_program_name)
         self.restart = True

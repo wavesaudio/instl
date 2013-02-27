@@ -29,6 +29,7 @@ def main():
         instance = ii()
         instance.read_command_line_options(sys.argv[1:])
         if instance.mode == "batch":
+            instance.init_batch_mode()
             instance.read_input_files()
             instance.digest() # look at what we got and make sense of it
             installState = InstallInstructionsState()
@@ -43,7 +44,10 @@ def main():
         #    fd.write( os.linesep.join(sorted(instance.variables_assignment_lines)) )
         #run_instl_instructions(instance)
     except Exception as es:
-        print("__main__", es)
+        import traceback
+        tb = traceback.format_exc()
+        print(tb)
+        #print("__main__", es)
 
 if __name__ == "__main__":
     main()

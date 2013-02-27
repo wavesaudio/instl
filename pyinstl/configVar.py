@@ -31,7 +31,7 @@ class ConfigVar(object):
     def __init__(self, name, description="", *values):
         self._name = name
         self._description = description
-        self._values = list(values)
+        self._values = [str(value) for value in values]
         self.__resolving_in_progress = False # prevent circular resolves
 
     def name(self):
@@ -79,13 +79,13 @@ class ConfigVar(object):
         self._values = list()
 
     def append(self, value):
-        self._values.append(value)
+        self._values.append(str(value))
 
     def extend(self, value):
         if value:
             if not hasattr(value, '__iter__'):
                 raise TypeError(str(value)+" is not a iterable")
-        self._values.extend(value)
+        self._values.extend([str(value) for value in values])
 
 class ConstConfigVar(ConfigVar):
     """ ConfigVar override where values cannot be changed after construction """
