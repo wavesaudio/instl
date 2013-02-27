@@ -63,43 +63,43 @@ unique_list should behave as a python list except:
 """
 
 class unique_list(list):
-    __slots__ = ('attendance',)
+    __slots__ = ('__attendance',)
     def __init__(self, initial_list = ()):
         super(unique_list, self).__init__()
-        self.attendance = set()
+        self.__attendance = set()
         self.extend(initial_list)
 #    def __str__(self):
-#        return super(unique_list, self).__str__() + " attendance: " + str(sorted(list(self.attendance)))
+#        return super(unique_list, self).__str__() + " attendance: " + str(sorted(list(self.__attendance)))
     def __setitem__(self, index, item):
         prev_item = self[index]
         if prev_item != item:
-            if item in self.attendance:
+            if item in self.__attendance:
                 prev_index_for_item = self.index(item)
                 super(unique_list, self).__setitem__(index, item)
                 del self[prev_index_for_item]
-                self.attendance.add(item)
+                self.__attendance.add(item)
             else:
                 super(unique_list, self).__setitem__(index, item)
-                self.attendance.remove(prev_item)
-                self.attendance.add(item)
+                self.__attendance.remove(prev_item)
+                self.__attendance.add(item)
     def __delitem__(self, index):
         super(unique_list, self).__delitem__(index)
-        self.attendance.remove(self[index])
+        self.__attendance.remove(self[index])
     def __contains__(self, item):
         """ Overriding __contains__ is not required - just more efficient """
-        return item in self.attendance
+        return item in self.__attendance
     def append(self, item):
-        if item not in self.attendance:
+        if item not in self.__attendance:
             super(unique_list, self).append(item)
-            self.attendance.add(item)
+            self.__attendance.add(item)
 
     def extend(self, items = ()):
         for item in items:
-            if item not in self.attendance:
+            if item not in self.__attendance:
                 super(unique_list, self).append(item)
-                self.attendance.add(item)
+                self.__attendance.add(item)
     def insert(self, index, item):
-        if item in self.attendance:
+        if item in self.__attendance:
             prev_index_for_item = self.index(item)
             if index != prev_index_for_item:
                 super(unique_list, self).insert(index, item)
@@ -109,17 +109,17 @@ class unique_list(list):
                     super(unique_list, self).__delitem__(prev_index_for_item+1)
         else:
             super(unique_list, self).insert(index, item)
-            self.attendance.add(item)
+            self.__attendance.add(item)
     def remove(self, item):
-        if item in self.attendance:
+        if item in self.__attendance:
             super(unique_list, self).remove(item)
-            self.attendance.remove(item)
+            self.__attendance.remove(item)
     def pop(self, index=-1):
-        self.attendance.remove(self[index])
+        self.__attendance.remove(self[index])
         return super(unique_list, self).pop(index)
     def count(self, item):
         """ Overriding count is not required - just more efficient """
-        return self.attendance.count(item)
+        return self.__attendance.count(item)
 
 def test_unique_list():
     u = unique_list( ('a', 'b', 'c', 'c'))

@@ -5,13 +5,24 @@ BASE_URL: "http://192.168.13.108/svn/V9/Mac/Release"
 WAVES_PLUGINS_DIR: "/Users/shai/Desktop/installHere/Waves Plugins"
 WAVES_APPS_DIR: "/Users/shai/Desktop/installHere/Applications"
 MACOS_COMPONENTS: "/Library/Audio/Plug-Ins/Components"
+WAVES_INSTL_TEMP_DIR: "/Users/shai/Desktop/Temp"
 
 MAIN_INSTALL_TARGETS:
-    - CLA_3A_GUID
-    - X_Hum_GUID
-    - MV2_GUID
+    - QT_4_7_3_GUID
 
 
+--- !index # Installation index
+
+QT_4_7_3_GUID:
+    name: Waves' Qt libraries ver. 4.7.3
+    mac:
+        install_sources:
+            - Apps/Qt4.7.3
+        install_folders:
+            - $(WAVES_INSTL_TEMP_DIR)
+        actions:
+            after:
+                - hdiutil attach WavesQt_4.7.3.dmg
 --- !index # Installation index
 
 Plugin_Root_9_1_GUID:

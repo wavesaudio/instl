@@ -275,7 +275,7 @@ class CMDObj(cmd.Cmd, object):
                 for file in shlex.split(params):
                     try:
                         self.prog_inst.read_file(file)
-                        #self.prog_inst.resolve()
+                        self.prog_inst.resolve()
                     except Exception as ex:
                         print("read", file, ex)
             else:
@@ -432,7 +432,7 @@ class CMDObj(cmd.Cmd, object):
 
     def help_eval(self):
         print("evaluate python expressions, instlInstance is accessible as self.prog_inst")
-    
+
 def compact_history():
     unique_history = unique_list()
     for index in reversed(range(1, readline.get_current_history_length())):
