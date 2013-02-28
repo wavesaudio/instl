@@ -88,7 +88,7 @@ class InstallItem(object):
     item_sections = ('common', 'mac', 'win')
     item_types = ('install_sources', 'install_folders', 'depends', 'actions')
     action_types = ('folder_in', 'before', 'after', 'folder_out')
-    file_types = ('!file', '!dir')
+    file_types = ('!files', '!file', '!dir')
     get_for_os = current_os
     resolve_inheritance_stack = list()
 

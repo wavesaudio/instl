@@ -26,6 +26,8 @@ elif current_os == 'Windows':
 
 INSTL_VERSION=(0, 1, 0)
 
+
+
 class cmd_line_options(object):
     """ namespace object to give to parse_args
         holds command line options
@@ -71,7 +73,14 @@ class InstallInstructionsState(object):
             results are accomulated in InstallInstructionsState.
             If an install items was not found for a guid, the guid is added to the orphan set.
         """
+        # root_install_items might have license in it, translate them to guids
+        root_install_guids_translated = unique_list()
         for GUID in self.root_install_items:
+            if instlInstance.license_re.match(GUID):
+                root_install_guids_translated.extend(instlInstance.guids_from_license(GUID))
+            else:
+                root_install_guids_translated.append(GUID)
+        for GUID in root_install_guids_translated:
             try:
                 instlInstance.install_definitions_index[GUID].get_recursive_depends(instlInstance.install_definitions_index, self.full_install_items, self.orphan_install_items)
             except KeyError:
@@ -96,6 +105,12 @@ class InstlInstanceBase(object):
         self.var_replacement_pattern = None
         self.svn_version = "HEAD"
         self.cvl.add_const_config_variable("__INSTL_VERSION__", "from InstlInstanceBase.__init__", *INSTL_VERSION)
+        self.license_re = re.compile("""
+                        [a-f0-9]{8}
+                        (-[a-f0-9]{4}){3}
+                        -[a-f0-9]{12}
+                        $
+                        """, re.VERBOSE)
 
     def repr_for_yaml(self, what=None):
         """ Create representation of self suitable for printing as yaml.
@@ -256,6 +271,18 @@ class InstlInstanceBase(object):
         for guid in self.install_definitions_index:
             self.install_definitions_index[guid].resolve_inheritance(self.install_definitions_index)
 
+    def license_list(self):
+        retVal = unique_list()
+        retVal.extend(filter(bool, [self.install_definitions_index[guid].license for guid in self.install_definitions_index]))
+        return retVal
+
+    def guids_from_license(self, license):
+        retVal = list()
+        for guid in self.install_definitions_index:
+            if self.install_definitions_index[guid].license == license:
+                retVal.append(guid)
+        return retVal
+
     def calculate_default_install_item_set(self, installState):
         """ calculate the set of guid to install from the "__MAIN_INSTALL_TARGETS__" variable.
             Full set of install guids and orphan guids are also writen to variable.
@@ -304,12 +331,14 @@ class InstlInstanceBase(object):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
         retVal = list()
         source_url = '$(BASE_URL)'+'/'+source[0]
-        if source[1] == '!file':
+        if source[1] == '!file': # get a single file, not recommneded
             source_url_split = source_url.split('/')
             source_url_dir = '/'.join(source_url_split[:-1])
             source_url_file = source_url_split[-1]
             retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+source_url_dir+'"', ".", "--depth empty")))
             retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "up", '"'+source_url_file+'"')))
+        elif source[1] == '!files': # get all files from a folder
+            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+source_url+'"', ".", "--depth files")))
         else:
             retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+source_url+'"')))
         return retVal

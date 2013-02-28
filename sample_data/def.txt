@@ -1,15 +1,14 @@
 --- !define
 
-BASE_URL: "http://192.168.13.108/svn/V9/Mac/Release"
+SVN_CLIENT_PATH: "/Volumes/p4client/dev_install/bin/Mac/wsvn"
+BASE_URL: "http://192.168.13.108/svn/V9/Win/Realease"
 WAVES_PLUGINS_DIR: "/Users/shai/Desktop/installHere/Waves Plugins"
 WAVES_APPS_DIR: "/Users/shai/Desktop/installHere/Applications"
 MACOS_COMPONENTS: "/Library/Audio/Plug-Ins/Components"
 WAVES_INSTL_TEMP_DIR: "/Users/shai/Desktop/Temp"
 
 
-__include__: "http://192.168.13.108/svn/V9/index.txt"
+__include__: "/Volumes/SvnSrv/192.168.13.108/V9/index.txt"
 
 MAIN_INSTALL_TARGETS:
-    - Bass_Rider_GUID
-    - GOLD_BUNDLE_GUID
-    - MultiRack_GUID
+    - e6a8de66-ad21-11e0-81f4-b7fd7bebd530
