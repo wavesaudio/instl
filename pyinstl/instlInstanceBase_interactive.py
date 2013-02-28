@@ -438,16 +438,17 @@ class CMDObj(cmd.Cmd, object):
         print("evaluate python expressions, instlInstance is accessible as self.prog_inst")
 
 def compact_history():
-    unique_history = unique_list()
-    for index in reversed(range(1, readline.get_current_history_length())):
-        hist_item = readline.get_history_item(index)
-        if hist_item: # some history items are None (usually at index 0)
-            unique_history.append(readline.get_history_item(index))
-    unique_history.reverse()
-    for index in range(len(unique_history)):
-        readline.replace_history_item(index+1, unique_history[index])
-    for index in reversed(range(len(unique_history)+1, readline.get_current_history_length())):
-        readline.remove_history_item(index)
+    if hasattr(readline, "replace_history_item"):
+        unique_history = unique_list()
+        for index in reversed(range(1, readline.get_current_history_length())):
+            hist_item = readline.get_history_item(index)
+            if hist_item: # some history items are None (usually at index 0)
+                unique_history.append(readline.get_history_item(index))
+        unique_history.reverse()
+        for index in range(len(unique_history)):
+            readline.replace_history_item(index+1, unique_history[index])
+        for index in reversed(range(len(unique_history)+1, readline.get_current_history_length())):
+            readline.remove_history_item(index)
 
 def do_list_imp(self, what = None, stream=sys.stdout):
     if what is None:
