@@ -109,13 +109,13 @@ class InstlInstanceBase(object):
             retVal.append(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True))
             retVal.append(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True))
         else:
-            for item in what:
-                if item in self.cvl:
-                    retVal.append(self.cvl.repr_for_yaml(item))
-                elif item in self.install_definitions_index:
-                    retVal.append({item: self.install_definitions_index[item].repr_for_yaml()})
+            for identifier in what:
+                if identifier in self.cvl:
+                    retVal.append(self.cvl.repr_for_yaml(identifier))
+                elif identifier in self.install_definitions_index:
+                    retVal.append({identifier: self.install_definitions_index[identifier].repr_for_yaml()})
                 else:
-                    retVal.append(YamlDumpWrap(value="UNKNOWN VARIABLE", comment=name+" is not in variable list"))
+                    retVal.append(augmentedYaml.YamlDumpWrap(value="UNKNOWN VARIABLE", comment=identifier+" is not in variable list"))
 
         return retVal
 
@@ -188,7 +188,6 @@ class InstlInstanceBase(object):
             self.cvl.duplicate_variable(copy_main_install_to_from, "__MAIN_INSTALL_TARGETS__")
         self.resolve()
         self.resolve_index_inheritance()
-        #self.evaluate_graph()
 
     def dedigest(self):
         """ reverse the effect of digest, and clear some members """
@@ -207,9 +206,12 @@ class InstlInstanceBase(object):
     def read_defines(self, a_node):
         # if document is empty we get a scalar node
         if a_node.isMapping():
-            for identifier, value in a_node:
+            for identifier, contents in a_node:
                 if not self.internal_identifier_re.match(identifier): # do not read internal state indentifiers
-                    self.cvl.set_variable(identifier, str(a_node[identifier].start_mark)).extend([item.value for item in a_node[identifier]])
+                    self.cvl.set_variable(identifier, str(contents.start_mark)).extend([item.value for item in contents])
+                elif identifier == '__include__':
+                    for file_name in contents:
+                        self.read_file(file_name.value)
 
     def read_index(self, a_node):
         self.install_definitions_index.update(read_index_from_yaml(a_node))
@@ -260,9 +262,9 @@ class InstlInstanceBase(object):
         """
         installState.root_install_items.extend(self.cvl.get("__MAIN_INSTALL_TARGETS__"))
         installState.calculate_full_install_items_set(self)
-        self.cvl.add_const_config_variable("__FULL_LIST_OF_INSTALL_TARGETS__", "calculated by calculate_default_install_items_set", *installState.full_install_items)
+        self.cvl.add_const_config_variable("__FULL_LIST_OF_INSTALL_TARGETS__", "calculated by calculate_default_install_item_set", *installState.full_install_items)
         if installState.orphan_install_items:
-            self.cvl.add_const_config_variable("__ORPHAN_INSTALL_TARGETS__", "calculated by calculate_default_install_items_set", *installState.orphan_install_items)
+            self.cvl.add_const_config_variable("__ORPHAN_INSTALL_TARGETS__", "calculated by calculate_default_install_item_set", *installState.orphan_install_items)
 
     def create_variables_assignment(self, installState):
         for value in self.cvl:

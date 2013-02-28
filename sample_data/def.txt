@@ -1,13 +1,15 @@
 --- !define
 
-SVN_CLIENT_PATH: "/Volumes/p4client/dev_install/bin/Mac/wsvn"
-BASE_URL: "svn://localhost/V9/Mac/"
-WAVES_PLUGINS_DIR: /Volumes/Shmates/sis/Waves Plugins
-WAVES_APPS_DIR: /Volumes/Shmates/sis/Waves Applications
-MACOS_COMPONENTS: /Volumes/Shmates/sis/Plug-Ins/Components
-SVN_REPO_VERSION: 17
+BASE_URL: "http://192.168.13.108/svn/V9/Mac/Release"
+WAVES_PLUGINS_DIR: "/Users/shai/Desktop/installHere/Waves Plugins"
+WAVES_APPS_DIR: "/Users/shai/Desktop/installHere/Applications"
+MACOS_COMPONENTS: "/Library/Audio/Plug-Ins/Components"
+WAVES_INSTL_TEMP_DIR: "/Users/shai/Desktop/Temp"
+
+
+__include__: "http://192.168.13.108/svn/V9/index.txt"
 
 MAIN_INSTALL_TARGETS:
-    - BASS_RIDER_GUID
+    - Bass_Rider_GUID
     - GOLD_BUNDLE_GUID
-    - MULTIRACK_GUID
+    - MultiRack_GUID

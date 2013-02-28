@@ -202,7 +202,7 @@ class CMDObj(cmd.Cmd, object):
                         identifier_list = self.indentifier_completion_list(param[:-1], params, 0, 0)
                         self.prog_inst.do_list(identifier_list, out_list)
                     else:
-                        identifier_list = self.indentifier_completion_list(param, params, 0, 0)
+                        identifier_list = self.complete_list(param, params, 0, 0)
                         if identifier_list:
                             self.prog_inst.do_list(identifier_list, out_list)
                         else:
@@ -213,7 +213,9 @@ class CMDObj(cmd.Cmd, object):
             colored_string = self.color_vars("".join(out_list.list()))
             sys.stdout.write(colored_string)
         except Exception as es:
-            print("list", es)
+            import traceback
+            tb = traceback.format_exc()
+            print("list", es, tb)
         return False
 
     def indentifier_completion_list(self, text, line, begidx, endidx):
@@ -366,14 +368,13 @@ class CMDObj(cmd.Cmd, object):
 
     def do_install(self, params):
         from pyinstl.instlInstanceBase import InstallInstructionsState
-        self.prog_inst.resolve()
-        self.prog_inst.resolve_index_inheritance()
+        self.prog_inst.digest()
         installState = InstallInstructionsState()
         if params:
             installState.root_install_items.extend(shlex.split(params))
             installState.calculate_full_install_items_set(self.prog_inst)
         else:
-            self.prog_inst.calculate_default_install_items_set(installState)
+            self.prog_inst.calculate_default_install_item_set(installState)
         self.prog_inst.create_install_instructions(installState)
         augmentedYaml.writeAsYaml(installState.repr_for_yaml(), sys.stdout)
         lines = self.prog_inst.finalize_list_of_lines(installState)
@@ -449,16 +450,15 @@ def do_list_imp(self, what = None, stream=sys.stdout):
     if what is None:
         augmentedYaml.writeAsYaml(self, stream)
     elif isinstance(what, list):
-        item_list = self.repr_for_yaml(what)
-        for item in item_list:
-            augmentedYaml.writeAsYaml(item, stream)
+        for item in what:
+            self.do_list(str(item))
     elif isinstance(what, str):
         if what == "define":
             augmentedYaml.writeAsYaml(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True), stream)
         elif what == "index":
             augmentedYaml.writeAsYaml(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True), stream)
         else:
-            item_list = self.repr_for_yaml(what)
+            item_list = self.repr_for_yaml((what,))
             for item in item_list:
                 augmentedYaml.writeAsYaml(item, stream)
 
