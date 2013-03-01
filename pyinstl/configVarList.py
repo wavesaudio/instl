@@ -180,11 +180,11 @@ class ConfigVarList(object):
         try:
             self._resolved_vars = dict()
             self.__resolve_stack = list()
-            for var_name in self._ConfigVar_objs:
+            for var_name, configVarObj in self._ConfigVar_objs.iteritems():
                 if var_name in self.__resolve_stack:
                     raise Exception("circular resolving of {}".format(value_to_resolve))
                 self.__resolve_stack.append(var_name)
-                self._resolved_vars[var_name] = resolve_list(self._ConfigVar_objs[var_name],
+                self._resolved_vars[var_name] = resolve_list(configVarObj,
                                                         self.resolve_value_callback)
                 self.__resolve_stack.pop()
             self.__dirty = False

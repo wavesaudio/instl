@@ -6,8 +6,7 @@ import os
 import argparse
 import yaml
 import re
-import tempfile
-import shutil
+import abc
 from collections import OrderedDict, defaultdict
 
 import configVar
@@ -98,6 +97,7 @@ class InstlInstanceBase(object):
         must be inherited by platform specific implementations, such as InstlInstance_mac
         or InstlInstance_win.
     """
+    __metaclass__ = abc.ABCMeta
     def __init__(self):
         self.out_file_realpath = None
         self.install_definitions_index = dict()
@@ -154,7 +154,7 @@ class InstlInstanceBase(object):
             tb = traceback.format_exc()
             print(ex, tb)
             raise
-    
+
     def init_batch_mode(self):
         """ what ever needs to be done before starting in batch mode """
         if self.name_space_obj.version:
@@ -268,18 +268,18 @@ class InstlInstanceBase(object):
             print("resolve", es, tb)
 
     def resolve_index_inheritance(self):
-        for guid in self.install_definitions_index:
-            self.install_definitions_index[guid].resolve_inheritance(self.install_definitions_index)
+        for install_def in self.install_definitions_index.values():
+            install_def.resolve_inheritance(self.install_definitions_index)
 
     def license_list(self):
         retVal = unique_list()
-        retVal.extend(filter(bool, [self.install_definitions_index[guid].license for guid in self.install_definitions_index]))
+        retVal.extend(filter(bool, [install_def.license for install_def in self.install_definitions_index.values()]))
         return retVal
 
     def guids_from_license(self, license):
         retVal = list()
-        for guid in self.install_definitions_index:
-            if self.install_definitions_index[guid].license == license:
+        for guid, install_def in self.install_definitions_index.iteritems():
+            if install_def.license == license:
                 retVal.append(guid)
         return retVal
 
@@ -304,13 +304,13 @@ class InstlInstanceBase(object):
 
     def create_install_instructions(self, installState):
         self.create_variables_assignment(installState)
-        for folder_name in installState.install_items_by_folder:
+        for folder_name, folder_items in installState.install_items_by_folder.iteritems():
             installState.install_instruction_lines.append(self.make_directory_cmd(folder_name))
             installState.install_instruction_lines.append(self.change_directory_cmd(folder_name))
             folder_in_actions = unique_list()
             install_item_instructions = list()
             folder_out_actions = unique_list()
-            for GUID in installState.install_items_by_folder[folder_name]: # folder in actions
+            for GUID in folder_items: # folder_in actions
                 installi = self.install_definitions_index[GUID]
                 folder_in_actions.extend(installi.action_list('folder_in'))
                 install_item_instructions.extend(self.create_install_instructions_for_item(self.install_definitions_index[GUID]))
@@ -431,25 +431,25 @@ class InstlInstanceBase(object):
             print("go_interactive", es)
             raise
 
+    @abc.abstractmethod
     def get_install_instructions_prefix(self):
-        """ platform specific first lines of the install script
-            must be overridden """
-        raise  NotImplementedError
+        """ platform specific first lines of the install script """
+        pass
 
+    @abc.abstractmethod
     def get_install_instructions_postfix(self):
-        """ platform specific last lines of the install script
-            must be overridden """
-        raise  NotImplementedError
+        """ platform specific last lines of the install script """
+        pass
 
+    @abc.abstractmethod
     def make_directory_cmd(self, directory):
-        """ platform specific mkdir for install script
-            must be overridden """
-        raise  NotImplementedError
+        """ platform specific mkdir for install script """
+        pass
 
+    @abc.abstractmethod
     def change_directory_cmd(self, directory):
-        """ platform specific cd for install script
-            must be overridden """
-        raise  NotImplementedError
+        """ platform specific cd for install script """
+        pass
 
 def prepare_args_parser():
     def decent_convert_arg_line_to_args(self, arg_line):
