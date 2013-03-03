@@ -16,3 +16,6 @@ class InstlInstance_win(instlInstanceBase.InstlInstanceBase):
 
     def change_directory_cmd(self, directory):
         return " ".join(("cd", '"'+directory+'"'))
+
+    def get_svn_folder_cleanup_instructions(self):
+        return ()

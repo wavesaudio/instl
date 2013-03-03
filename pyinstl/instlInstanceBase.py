@@ -8,6 +8,7 @@ import yaml
 import re
 import abc
 from collections import OrderedDict, defaultdict
+import appdirs
 
 import configVar
 from configVarList import ConfigVarList, value_ref_re
@@ -24,6 +25,7 @@ elif current_os == 'Windows':
     current_os = 'win'
 
 INSTL_VERSION=(0, 1, 0)
+this_program_name = "instl"
 
 
 
@@ -55,6 +57,8 @@ class InstallInstructionsState(object):
         self.install_items_by_folder = defaultdict(unique_list)
         self.variables_assignment_lines = list()
         self.install_instruction_lines = list()
+        self.sync_paths = unique_list()
+        self.sync_instruction_lines = list()
 
     def repr_for_yaml(self):
         retVal = OrderedDict()
@@ -64,6 +68,8 @@ class InstallInstructionsState(object):
         retVal['install_items_by_folder'] = {folder: list(self.install_items_by_folder[folder]) for folder in self.install_items_by_folder}
         retVal['variables_assignment_lines'] = list(self.variables_assignment_lines)
         retVal['install_instruction_lines'] = self.install_instruction_lines
+        retVal['sync_paths'] = list(self.sync_paths)
+        retVal['sync_instruction_lines'] = self.sync_instruction_lines
         return retVal
 
     def calculate_full_install_items_set(self, instlInstance):
@@ -202,6 +208,11 @@ class InstlInstanceBase(object):
         if copy_main_install_to_from:
             self.cvl.duplicate_variable(copy_main_install_to_from, "__MAIN_INSTALL_TARGETS__")
         self.resolve()
+        if "INSTL_TEMP_DIR" not in self.cvl:
+            temp_dir = appdirs.user_cache_dir(this_program_name, this_program_name)
+            self.cvl.set_variable("INSTL_TEMP_DIR", description="calculated by digest").append(temp_dir)
+
+        self.resolve()
         self.resolve_index_inheritance()
 
     def dedigest(self):
@@ -302,6 +313,20 @@ class InstlInstanceBase(object):
         self.calculate_default_install_item_set(installState)
         self.create_install_instructions(installState)
 
+    def create_sync_instructions(self, installState):
+        self.create_variables_assignment(installState)
+        installState.sync_instruction_lines.append(self.make_directory_cmd("$(INSTL_TEMP_DIR)"))
+        installState.sync_instruction_lines.append(self.change_directory_cmd("$(INSTL_TEMP_DIR)"))
+        installState.sync_instruction_lines.append(self.get_svn_folder_cleanup_instructions())
+        installState.sync_instruction_lines.append(" ".join( ('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+'$(BASE_URL)'+'"', ".", "--depth empty") ))
+        for guid  in installState.full_install_items:                   # svn pulling actions
+            installi = self.install_definitions_index[guid]
+            for source in installi.source_list():                   # svn pulling actions
+                installState.sync_instruction_lines.extend(self.create_svn_pull_instructions_for_source(source))
+    
+    def create_copy_instructions(self, installState):
+        pass
+
     def create_install_instructions(self, installState):
         self.create_variables_assignment(installState)
         for folder_name, folder_items in installState.install_items_by_folder.iteritems():
@@ -313,6 +338,7 @@ class InstlInstanceBase(object):
             for GUID in folder_items: # folder_in actions
                 installi = self.install_definitions_index[GUID]
                 folder_in_actions.extend(installi.action_list('folder_in'))
+                folder_in_actions.extend(self.get_svn_folder_cleanup_instructions())
                 install_item_instructions.extend(self.create_install_instructions_for_item(self.install_definitions_index[GUID]))
                 folder_out_actions.extend(installi.action_list('folder_out'))
             installState.install_instruction_lines.extend(folder_in_actions)
@@ -349,6 +375,10 @@ class InstlInstanceBase(object):
         lines.extend( (os.linesep, ) )
 
         lines.extend(sorted(installState.variables_assignment_lines))
+        lines.extend( (os.linesep, ) )
+
+
+        lines.extend(installState.sync_instruction_lines)
         lines.extend( (os.linesep, ) )
 
         lines.extend(installState.install_instruction_lines)
@@ -451,6 +481,11 @@ class InstlInstanceBase(object):
         """ platform specific cd for install script """
         pass
 
+    @abc.abstractmethod
+    def get_svn_folder_cleanup_instructions(self, directory):
+        """ platform specific cleanup of svn locks """
+        pass
+        
 def prepare_args_parser():
     def decent_convert_arg_line_to_args(self, arg_line):
         """ parse a file with options so that we do not have to write one sub-option

@@ -20,3 +20,5 @@ class InstlInstance_mac(instlInstanceBase.InstlInstanceBase):
     def change_directory_cmd(self, directory):
         return " ".join(("cd", '"'+directory+'"'))
 
+    def get_svn_folder_cleanup_instructions(self):
+        return 'find . -maxdepth 1 -mindepth 1 -type d -print0 | xargs -0 "$(SVN_CLIENT_PATH)" cleanup --non-interactive'
