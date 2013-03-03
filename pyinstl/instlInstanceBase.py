@@ -56,7 +56,7 @@ class InstallInstructionsState(object):
         self.orphan_install_items = unique_list()
         self.install_items_by_folder = defaultdict(unique_list)
         self.variables_assignment_lines = list()
-        self.install_instruction_lines = list()
+        self.copy_instruction_lines = list()
         self.sync_paths = unique_list()
         self.sync_instruction_lines = list()
 
@@ -67,7 +67,7 @@ class InstallInstructionsState(object):
         retVal['orphan_install_items'] = list(self.orphan_install_items)
         retVal['install_items_by_folder'] = {folder: list(self.install_items_by_folder[folder]) for folder in self.install_items_by_folder}
         retVal['variables_assignment_lines'] = list(self.variables_assignment_lines)
-        retVal['install_instruction_lines'] = self.install_instruction_lines
+        retVal['copy_instruction_lines'] = self.copy_instruction_lines
         retVal['sync_paths'] = list(self.sync_paths)
         retVal['sync_instruction_lines'] = self.sync_instruction_lines
         return retVal
@@ -220,8 +220,6 @@ class InstlInstanceBase(object):
         del self.cvl["__MAIN_INSTALL_TARGETS__"]
         del self.cvl["__FULL_LIST_OF_INSTALL_TARGETS__"]
         del self.cvl["__ORPHAN_INSTALL_TARGETS__"]
-        self.variables_assignment_lines = dict()
-        self.install_instruction_lines = dict()
         self.resolve()
 
     internal_identifier_re = re.compile("""
@@ -317,21 +315,42 @@ class InstlInstanceBase(object):
         self.create_variables_assignment(installState)
         installState.sync_instruction_lines.append(self.make_directory_cmd("$(INSTL_TEMP_DIR)"))
         installState.sync_instruction_lines.append(self.change_directory_cmd("$(INSTL_TEMP_DIR)"))
-        installState.sync_instruction_lines.append(self.get_svn_folder_cleanup_instructions())
-        installState.sync_instruction_lines.append(" ".join( ('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+'$(BASE_URL)'+'"', ".", "--depth empty") ))
         for guid  in installState.full_install_items:                   # svn pulling actions
             installi = self.install_definitions_index[guid]
             for source in installi.source_list():                   # svn pulling actions
-                installState.sync_instruction_lines.extend(self.create_svn_pull_instructions_for_source(source))
-    
+                installState.sync_instruction_lines.extend(self.create_svn_sync_instructions_for_source(source))
+ 
+    def create_svn_sync_instructions_for_source(self, source):
+        """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
+        retVal = list()
+        source_url = "${SVN_BASE_URL}/${REPO_URL_ADDENDUM}"+'/'+source[0]
+        target_path = "${REPO_URL_ADDENDUM}"+'/'+source[0]
+        retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+source_url+'"', '"'+target_path+'"')))
+        return retVal
+   
     def create_copy_instructions(self, installState):
-        pass
-
-    def create_install_instructions(self, installState):
         self.create_variables_assignment(installState)
         for folder_name, folder_items in installState.install_items_by_folder.iteritems():
-            installState.install_instruction_lines.append(self.make_directory_cmd(folder_name))
-            installState.install_instruction_lines.append(self.change_directory_cmd(folder_name))
+            installState.copy_instruction_lines.append(self.make_directory_cmd(folder_name))
+            installState.copy_instruction_lines.append(self.change_directory_cmd(folder_name))
+            folder_in_actions = unique_list()
+            install_item_instructions = list()
+            folder_out_actions = unique_list()
+            for GUID in folder_items: # folder_in actions
+                installi = self.install_definitions_index[GUID]
+                folder_in_actions.extend(installi.action_list('folder_in'))
+                install_item_instructions.extend(self.create_copy_instructions_for_item(self.install_definitions_index[GUID]))
+                folder_out_actions.extend(installi.action_list('folder_out'))
+            installState.copy_instruction_lines.extend(folder_in_actions)
+            installState.copy_instruction_lines.extend(install_item_instructions)
+            installState.copy_instruction_lines.extend(folder_out_actions)
+
+    def create_install_instructions(self, installState):
+        print("mickey Rooney")
+        self.create_variables_assignment(installState)
+        for folder_name, folder_items in installState.install_items_by_folder.iteritems():
+            installState.copy_instruction_lines.append(self.make_directory_cmd(folder_name))
+            installState.copy_instruction_lines.append(self.change_directory_cmd(folder_name))
             folder_in_actions = unique_list()
             install_item_instructions = list()
             folder_out_actions = unique_list()
@@ -341,15 +360,23 @@ class InstlInstanceBase(object):
                 folder_in_actions.extend(self.get_svn_folder_cleanup_instructions())
                 install_item_instructions.extend(self.create_install_instructions_for_item(self.install_definitions_index[GUID]))
                 folder_out_actions.extend(installi.action_list('folder_out'))
-            installState.install_instruction_lines.extend(folder_in_actions)
-            installState.install_instruction_lines.extend(install_item_instructions)
-            installState.install_instruction_lines.extend(folder_out_actions)
+            installState.copy_instruction_lines.extend(folder_in_actions)
+            installState.copy_instruction_lines.extend(install_item_instructions)
+            installState.copy_instruction_lines.extend(folder_out_actions)
 
     def create_install_instructions_for_item(self, installi):
         retVal = list()
         retVal.extend(installi.action_list('before')) # actions to do before pulling from svn
         for source in installi.source_list():                   # svn pulling actions
             retVal.extend(self.create_svn_pull_instructions_for_source(source))
+        retVal.extend(installi.action_list('after'))
+        return retVal
+
+    def create_copy_instructions_for_item(self, installi):
+        retVal = list()
+        retVal.extend(installi.action_list('before')) # actions to do before pulling from svn
+        for source in installi.source_list():                   # svn pulling actions
+            retVal.extend(self.create_copy_instructions_for_source(source))
         retVal.extend(installi.action_list('after'))
         return retVal
 
@@ -369,6 +396,23 @@ class InstlInstanceBase(object):
             retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+source_url+'"')))
         return retVal
 
+    def create_copy_instructions_for_source(self, source):
+        """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
+        retVal = list()
+        source_url = '$(INSTL_TEMP_DIR)/$(REPO_URL_ADDENDUM)'+'/'+source[0]
+
+        if source[1] == '!file': # get a single file, not recommneded
+            source_url_split = source_url.split('/')
+            source_url_dir = '/'.join(source_url_split[:-1])
+            source_url_file = source_url_split[-1]
+            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+source_url_dir+'"', ".", "--depth empty")))
+            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "up", '"'+source_url_file+'"')))
+        elif source[1] == '!files': # get all files from a folder
+            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+source_url+'"', ".", "--depth files")))
+        else:
+            retVal.append(" ".join( ('rsync', '--recursive', '--exclude=\.svn', '--exclude=\.DS_Store', '--exclude=\.ggg','"'+source_url+'"', '.')) )
+        return retVal
+
     def finalize_list_of_lines(self, installState):
         lines = list()
         lines.extend(self.get_install_instructions_prefix())
@@ -381,7 +425,7 @@ class InstlInstanceBase(object):
         lines.extend(installState.sync_instruction_lines)
         lines.extend( (os.linesep, ) )
 
-        lines.extend(installState.install_instruction_lines)
+        lines.extend(installState.copy_instruction_lines)
         lines.extend( (os.linesep, ) )
 
         lines.extend(self.get_install_instructions_postfix())

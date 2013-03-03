@@ -19,4 +19,5 @@ MAIN_INSTALL_TARGETS:
     - e6a8de66-ad21-11e0-81f4-b7fd7bebd530
     - C4_GUID
     - Doppler_GUID
+    - SURROUND_BUNDLE_GUID
 

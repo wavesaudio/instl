@@ -388,6 +388,20 @@ class CMDObj(cmd.Cmd, object):
         lines = self.prog_inst.finalize_list_of_lines(installState)
         print(os.linesep.join(lines))
         return False
+    
+    def do_copy(self, params):
+        from pyinstl.instlInstanceBase import InstallInstructionsState
+        self.prog_inst.digest()
+        installState = InstallInstructionsState()
+        if params:
+            installState.root_install_items.extend(shlex.split(params))
+            installState.calculate_full_install_items_set(self.prog_inst)
+        else:
+            self.prog_inst.calculate_default_install_item_set(installState)
+        self.prog_inst.create_copy_instructions(installState)
+        lines = self.prog_inst.finalize_list_of_lines(installState)
+        print(os.linesep.join(lines))
+        return False
 
     def complete_alias(self, text, line, begidx, endidx):
         return self.path_completion(text, line, begidx, endidx)
