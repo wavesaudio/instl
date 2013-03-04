@@ -24,29 +24,10 @@ if current_os == 'Darwin':
 elif current_os == 'Windows':
     current_os = 'win'
 
-INSTL_VERSION=(0, 1, 0)
+INSTL_VERSION=(0, 2, 0)
 this_program_name = "instl"
 
 
-
-class cmd_line_options(object):
-    """ namespace object to give to parse_args
-        holds command line options
-    """
-    def __init__(self):
-        self.input_files = None
-        self.out_file_option = None
-        self.main_targets = None
-        self.state_file_option = None
-        self.run = False
-        self.alias_args = None
-        self.version = False
-
-    def __str__(self):
-        retVal = ("input_files: {self.input_files}\nout_file_option: {self.out_file_option}\n"+
-                "main_targets: {self.main_targets}\nstate_file_option: {self.state_file_option}\n"+
-                "run: {self.run}\n").format(**vars())
-        return retVal
 
 class InstallInstructionsState(object):
     """ holds state for specific creating of install instructions """
@@ -111,6 +92,7 @@ class InstlInstanceBase(object):
         self.var_replacement_pattern = None
         self.svn_version = "HEAD"
         self.cvl.add_const_config_variable("__INSTL_VERSION__", "from InstlInstanceBase.__init__", *INSTL_VERSION)
+
         self.license_re = re.compile("""
                         [a-f0-9]{8}
                         (-[a-f0-9]{4}){3}
@@ -140,31 +122,10 @@ class InstlInstanceBase(object):
 
         return retVal
 
-    def read_command_line_options(self, arglist=None):
-        """ parse command line options """
-        try:
-            if arglist and len(arglist) > 0:
-                self.mode = "batch"
-                parser = prepare_args_parser()
-                self.name_space_obj = cmd_line_options()
-                args = parser.parse_args(arglist, namespace=self.name_space_obj)
-                if self.name_space_obj.alias_args:
-                    self.something_to_do = ('alias', self.name_space_obj.alias_args)
-                    self.mode = "do_something"
-                else:
-                    self.init_from_cmd_line_options(self.name_space_obj)
-            else:
-                self.mode = "interactive"
-        except Exception as ex:
-            import traceback
-            tb = traceback.format_exc()
-            print(ex, tb)
-            raise
-
     def init_batch_mode(self):
         """ what ever needs to be done before starting in batch mode """
         if self.name_space_obj.version:
-            print(" ".join( ("instl", "version", ".".join(self.get_version()))))
+            print(" ".join( (this_program_name, "version", ".".join(self.get_version()))))
 
     def get_version(self):
         retVal = self.cvl.get("__INSTL_VERSION__")
@@ -172,8 +133,11 @@ class InstlInstanceBase(object):
 
     def do_something(self):
         try:
-            import do_something
-            do_something.do_something(self.something_to_do)
+            if self.name_space_obj.command == "version":
+                print(" ".join( (this_program_name, "version", ".".join(self.get_version()))))
+            else:
+                import do_something
+                do_something.do_something(self.something_to_do)
         except Exception as es:
             import traceback
             tb = traceback.format_exc()
@@ -182,15 +146,13 @@ class InstlInstanceBase(object):
     def init_from_cmd_line_options(self, cmd_line_options_obj):
         """ turn command line options into variables """
         if cmd_line_options_obj.input_files:
-            self.cvl.add_const_config_variable("__MAIN_INPUT_FILES__", "from commnad line options", *cmd_line_options_obj.input_files)
-        if cmd_line_options_obj.out_file_option:
-            self.cvl.add_const_config_variable("__MAIN_OUT_FILE__", "from commnad line options", cmd_line_options_obj.out_file_option[0])
-        if cmd_line_options_obj.main_targets:
-            self.cvl.add_const_config_variable("__CMD_INSTALL_TARGETS__", "from commnad line options", *cmd_line_options_obj.main_targets)
-        if cmd_line_options_obj.state_file_option:
-            self.cvl.add_const_config_variable("__MAIN_STATE_FILE__", "from commnad line options", cmd_line_options_obj.state_file_option)
+            self.cvl.add_const_config_variable("__MAIN_INPUT_FILES__", "from command line options", *cmd_line_options_obj.input_files)
+        if cmd_line_options_obj.output_file:
+            self.cvl.add_const_config_variable("__MAIN_OUT_FILE__", "from command line options", cmd_line_options_obj.output_file[0])
+        if cmd_line_options_obj.state_file:
+            self.cvl.add_const_config_variable("__MAIN_STATE_FILE__", "from command line options", cmd_line_options_obj.state_file)
         if cmd_line_options_obj.run:
-            self.cvl.add_const_config_variable("__MAIN_RUN_INSTALLATION__", "from commnad line options", "yes")
+            self.cvl.add_const_config_variable("__MAIN_RUN_INSTALLATION__", "from command line options", "yes")
         self.resolve()
 
     def digest(self):
@@ -201,9 +163,7 @@ class InstlInstanceBase(object):
             self.svn_version = self.cvl.get_str("SVN_REPO_VERSION")
         # command line targets take precedent, if they were not specifies, look for "MAIN_INSTALL_TARGETS"
         copy_main_install_to_from = None
-        if "__CMD_INSTALL_TARGETS__" in self.cvl:
-            copy_main_install_to_from = "__CMD_INSTALL_TARGETS__"
-        elif "MAIN_INSTALL_TARGETS" in self.cvl:
+        if "MAIN_INSTALL_TARGETS" in self.cvl:
             copy_main_install_to_from = "MAIN_INSTALL_TARGETS"
         if copy_main_install_to_from:
             self.cvl.duplicate_variable(copy_main_install_to_from, "__MAIN_INSTALL_TARGETS__")
@@ -529,11 +489,45 @@ class InstlInstanceBase(object):
     def get_svn_folder_cleanup_instructions(self, directory):
         """ platform specific cleanup of svn locks """
         pass
+
+    def read_command_line_options(self, arglist=None):
+        """ parse command line options """
+        try:
+            if arglist and len(arglist) > 0:
+                parser = prepare_args_parser()
+                self.name_space_obj = cmd_line_options()
+                args = parser.parse_args(arglist, namespace=self.name_space_obj)
+                self.mode = self.name_space_obj.mode
+                if self.mode == "batch":
+                    self.init_from_cmd_line_options(self.name_space_obj)
+            else:
+                self.mode = "interactive"
+        except Exception as ex:
+            import traceback
+            tb = traceback.format_exc()
+            print(ex, tb)
+            raise
+
+class cmd_line_options(object):
+    """ namespace object to give to parse_args
+        holds command line options
+    """
+    def __init__(self):
+        self.command = None
+        self.input_files = None
+        self.output_file = None
+        self.run = False
+        self.state_file = None
+        self.todo_args = None
+    
+    def __str__(self):
+        return "\n".join([n+": "+str(v) for n,v in sorted(vars(self).iteritems())])
+
         
 def prepare_args_parser():
     def decent_convert_arg_line_to_args(self, arg_line):
         """ parse a file with options so that we do not have to write one sub-option
-            per line.  Remove empty lines and comment lines and end of line comments.
+            per line.  Remove empty lines, comment lines, and end of line comments.
             ToDo: handle quotes
         """
         line_no_whitespce = arg_line.strip()
@@ -550,50 +544,56 @@ def prepare_args_parser():
                     fromfile_prefix_chars='@',
                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     argparse.ArgumentParser.convert_arg_line_to_args = decent_convert_arg_line_to_args
-    standard_options = parser.add_argument_group(description='standard arguments:')
-    standard_options.add_argument('input_files',
-                                nargs='*',
-                                metavar='file(s)-to-process',
-                                help="One or more files containing dependencies and defintions")
-    standard_options.add_argument('--out','-o',
-                                required=False,
-                                nargs=1,
-                                default="stdout",
-                                metavar='path-to-output-file',
-                                dest='out_file_option',
-                                help="a file to write installtion instructions")
-    standard_options.add_argument('--target','-t',
-                                required=False,
-                                nargs='+',
-                                default=["MAIN_INSTALL"],
-                                metavar='which-target-to-install',
-                                dest='main_targets',
-                                help="Target to create install instructions for")
-    standard_options.add_argument('--run','-r',
-                                required=False,
-                                default=False,
-                                action='store_true',
-                                dest='run',
-                                help="run the installtion instructions script, requires --out")
-    standard_options.add_argument('--state','-s',
-                                required=False,
-                                nargs='?',
-                                const="stdout",
-                                metavar='path-to-state-file',
-                                dest='state_file_option',
-                                help="a file to write program state - good for debugging")
-    standard_options.add_argument('--version','-v',
-                                required=False,
-                                action='store_true',
-                                default=False,
-                                dest='version',
-                                help="display instl version")
-    if current_os == 'mac':
-        standard_options.add_argument('--alias','-a',
-                                required=False,
-                                nargs=2,
-                                default=False,
-                                metavar='create-an-alias',
-                                dest='alias_args',
-                                help="Create an alias of original in target (mac only)")
+
+    subparsers = parser.add_subparsers(dest='command', help='sub-command help')
+    parser_sync = subparsers.add_parser('sync',
+                                        help='sync files to be installed from server to temp folder')
+
+    parser_install = subparsers.add_parser('install',
+                                            help='install files from temp folder to target paths')
+
+    for subparser in (parser_sync, parser_install):
+        subparser.set_defaults(mode='batch')
+        standard_options = subparser.add_argument_group(description='standard arguments:')
+        standard_options.add_argument('--in','-i',
+                                    required=True,
+                                    nargs='+',
+                                    metavar='list-of-input-files',
+                                    dest='input_files',
+                                    help="file(s) to read index and defintions from")
+        standard_options.add_argument('--out','-o',
+                                    required=True,
+                                    nargs=1,
+                                    metavar='path-to-output-file',
+                                    dest='output_file',
+                                    help="a file to write sync/install instructions")
+        standard_options.add_argument('--run','-r',
+                                    required=False,
+                                    default=False,
+                                    action='store_true',
+                                    dest='run',
+                                    help="run the installation instructions script")
+        standard_options.add_argument('--state','-s',
+                                    required=False,
+                                    nargs='?',
+                                    const="stdout",
+                                    metavar='path-to-state-file',
+                                    dest='state_file',
+                                    help="a file to write program state - good for debugging")
+
+        parser_version = subparsers.add_parser('version', help='display instl version')
+        parser_version.set_defaults(mode='do_something')
+        
+        if current_os == 'mac':
+            parser_alias = subparsers.add_parser('alias',
+                                                help='create Mac OS alias')
+            parser_alias.set_defaults(mode='do_something')
+            parser_alias.add_argument('todo_args',
+                                    action='append',
+                                    metavar='path_to_original',
+                                    help="paths to original file")
+            parser_alias.add_argument('todo_args',
+                                    action='append',
+                                    metavar='path_to_alias',
+                                    help="paths to original file and to alias file")
     return parser;

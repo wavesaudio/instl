@@ -139,7 +139,7 @@ class ConfigVarList(object):
             if value_ref_re.search(" ".join([str(value) for value in values])):
                 self.__dirty = True # dirty because a $() reference(s) found
             else: # no need to resolve, copy values to _resolved_vars
-                self._resolved_vars[addedValue.name()] = values
+                self._resolved_vars[addedValue.name()] = [str(value) for value in values]
 
     def duplicate_variable(self, source_name, target_name):
         if source_name in self._ConfigVar_objs:
