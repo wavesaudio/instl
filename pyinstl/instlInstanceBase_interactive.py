@@ -85,7 +85,6 @@ class CMDObj(cmd.Cmd, object):
         cmd.Cmd.__init__(self)
         self.prog_inst = prog_inst
         self.restart = False
-        self.prog_inst.resolve()
 
     def __enter__(self):
         if readline_loaded:
@@ -211,7 +210,6 @@ class CMDObj(cmd.Cmd, object):
                 else:
                     print("Unknown identifier:", param)
         else:
-            self.prog_inst.resolve()
             self.prog_inst.do_list(None, out_list)
         colored_string = self.color_vars("".join(out_list.list()))
         sys.stdout.write(colored_string)
@@ -251,7 +249,6 @@ class CMDObj(cmd.Cmd, object):
             params = shlex.split(params)
             identi, values = params[0], params[1:]
             self.prog_inst.cvl.set_variable(identi, "set interactively").extend(values)
-            self.prog_inst.resolve()
             self.do_list(identi)
         return False
 
@@ -279,7 +276,6 @@ class CMDObj(cmd.Cmd, object):
             for file in shlex.split(params):
                 try:
                     self.prog_inst.read_file(file)
-                    self.prog_inst.resolve()
                 except Exception as ex:
                     print("read", file, ex)
         else:
@@ -299,7 +295,6 @@ class CMDObj(cmd.Cmd, object):
         main_out_file_obj = self.prog_inst.cvl.get_configVar_obj("__MAIN_OUT_FILE__")
         main_out_file_obj.clear_values()
         main_out_file_obj.append(outfile)
-        self.prog_inst.resolve()
         self.prog_inst.write_install_batch_file()
         return False
 

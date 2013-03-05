@@ -14,8 +14,7 @@ import configVar
 from configVarList import ConfigVarList, value_ref_re
 from aYaml import augmentedYaml
 from installItem import InstallItem, read_index_from_yaml
-from pyinstl.utils import unique_list
-from pyinstl.utils import open_for_read_file_or_url
+from pyinstl.utils import *
 
 import platform
 current_os = platform.system()
@@ -90,8 +89,7 @@ class InstlInstanceBase(object):
         self.install_definitions_index = dict()
         self.cvl = ConfigVarList()
         self.var_replacement_pattern = None
-        self.svn_version = "HEAD"
-        self.cvl.add_const_config_variable("__INSTL_VERSION__", "from InstlInstanceBase.__init__", *INSTL_VERSION)
+        self.init_default_vars()
 
         self.license_re = re.compile("""
                         [a-f0-9]{8}
@@ -122,19 +120,14 @@ class InstlInstanceBase(object):
 
         return retVal
 
-    def init_batch_mode(self):
-        """ what ever needs to be done before starting in batch mode """
-        if self.name_space_obj.version:
-            print(" ".join( (this_program_name, "version", ".".join(self.get_version()))))
-
-    def get_version(self):
-        retVal = self.cvl.get("__INSTL_VERSION__")
-        return retVal
+    def init_default_vars(self):
+        self.cvl.add_const_config_variable("__INSTL_VERSION__", "from InstlInstanceBase.init_default_vars", *INSTL_VERSION)
+        self.cvl.set_variable("LOCAL_SYNC_DIR", "from InstlInstanceBase.init_default_vars").append(appdirs.user_cache_dir(this_program_name, this_program_name))
 
     def do_something(self):
         try:
             if self.name_space_obj.command == "version":
-                print(" ".join( (this_program_name, "version", ".".join(self.get_version()))))
+                print(" ".join( (this_program_name, "version", ".".join(self.cvl.get("__INSTL_VERSION__")))))
             else:
                 import do_something
                 do_something.do_something(self.something_to_do)
@@ -153,26 +146,17 @@ class InstlInstanceBase(object):
             self.cvl.add_const_config_variable("__MAIN_STATE_FILE__", "from command line options", cmd_line_options_obj.state_file)
         if cmd_line_options_obj.run:
             self.cvl.add_const_config_variable("__MAIN_RUN_INSTALLATION__", "from command line options", "yes")
-        self.resolve()
+
 
     def digest(self):
         """
         """
-        self.resolve()
-        if "SVN_REPO_VERSION" in self.cvl:
-            self.svn_version = self.cvl.get_str("SVN_REPO_VERSION")
         # command line targets take precedent, if they were not specifies, look for "MAIN_INSTALL_TARGETS"
         copy_main_install_to_from = None
         if "MAIN_INSTALL_TARGETS" in self.cvl:
             copy_main_install_to_from = "MAIN_INSTALL_TARGETS"
         if copy_main_install_to_from:
             self.cvl.duplicate_variable(copy_main_install_to_from, "__MAIN_INSTALL_TARGETS__")
-        self.resolve()
-        if "INSTL_TEMP_DIR" not in self.cvl:
-            temp_dir = appdirs.user_cache_dir(this_program_name, this_program_name)
-            self.cvl.set_variable("INSTL_TEMP_DIR", description="calculated by digest").append(temp_dir)
-
-        self.resolve()
         self.resolve_index_inheritance()
 
     def dedigest(self):
@@ -180,7 +164,6 @@ class InstlInstanceBase(object):
         del self.cvl["__MAIN_INSTALL_TARGETS__"]
         del self.cvl["__FULL_LIST_OF_INSTALL_TARGETS__"]
         del self.cvl["__ORPHAN_INSTALL_TARGETS__"]
-        self.resolve()
 
     internal_identifier_re = re.compile("""
                                         __                  # dunder here
@@ -195,7 +178,8 @@ class InstlInstanceBase(object):
                     self.cvl.set_variable(identifier, str(contents.start_mark)).extend([item.value for item in contents])
                 elif identifier == '__include__':
                     for file_name in contents:
-                        self.read_file(file_name.value)
+                        resolved_file_name = self.cvl.resolve_string(file_name.value)
+                        self.read_file(resolved_file_name)
 
     def read_index(self, a_node):
         self.install_definitions_index.update(read_index_from_yaml(a_node))
@@ -228,14 +212,6 @@ class InstlInstanceBase(object):
             tb = traceback.format_exc()
             print("read_file", file_path, ex, tb)
 
-    def resolve(self):
-        try:
-            self.cvl.resolve()
-        except Exception as es:
-            import traceback
-            tb = traceback.format_exc()
-            print("resolve", es, tb)
-
     def resolve_index_inheritance(self):
         for install_def in self.install_definitions_index.values():
             install_def.resolve_inheritance(self.install_definitions_index)
@@ -256,7 +232,7 @@ class InstlInstanceBase(object):
         """ calculate the set of guid to install from the "__MAIN_INSTALL_TARGETS__" variable.
             Full set of install guids and orphan guids are also writen to variable.
         """
-        installState.root_install_items.extend(self.cvl.get("__MAIN_INSTALL_TARGETS__"))
+        installState.root_install_items.extend(self.cvl.get_list("__MAIN_INSTALL_TARGETS__"))
         installState.calculate_full_install_items_set(self)
         self.cvl.add_const_config_variable("__FULL_LIST_OF_INSTALL_TARGETS__", "calculated by calculate_default_install_item_set", *installState.full_install_items)
         if installState.orphan_install_items:
@@ -264,17 +240,41 @@ class InstlInstanceBase(object):
 
     def create_variables_assignment(self, installState):
         for value in self.cvl:
-            if not self.internal_identifier_re.match(value): # do not read internal state indentifiers
-                installState.variables_assignment_lines.append(value+'="'+" ".join(self.cvl[value])+'"')
+            if not self.internal_identifier_re.match(value): # do not write internal state indentifiers
+                installState.variables_assignment_lines.append(value+'="'+self.cvl.get_str(value)+'"')
 
     def create_default_install_instructions(self, installState):
         self.calculate_default_install_item_set(installState)
         self.create_install_instructions(installState)
 
+    def init_sync_vars(self):
+        if "SVN_REPO_URL" not in self.cvl:
+            raise ValueError("'SVN_REPO_URL' was not defined")
+        if "BASE_SRC_URL" not in self.cvl:
+            raise ValueError("'BASE_SRC_URL' was not defined")
+        if "BOOKKEEPING_DIR_URL" not in self.cvl:
+            raise ValueError("'BOOKKEEPING_DIR_URL' was not defined")
+
+        rel_sources = relative_url(self.cvl.get_str("SVN_REPO_URL"), self.cvl.get_str("BASE_SRC_URL"))
+        self.cvl.set_variable("REL_SRC_PATH", "from InstlInstanceBase.init_sync_vars").append(rel_sources)
+        
+        bookkeeping_relative_path = relative_url(self.cvl.get_str("SVN_REPO_URL"), self.cvl.get_str("BOOKKEEPING_DIR_URL"))
+        self.cvl.set_variable("REL_BOOKKIPING_PATH", "from InstlInstanceBase.init_sync_vars").append(bookkeeping_relative_path)
+
+        if "REPO_REV" not in self.cvl:
+            self.cvl.set_variable("REPO_REV", "from InstlInstanceBase.init_sync_vars").append("HEAD")
+
+        if "REPO_NAME" not in self.cvl:
+            repo_name = last_url_item(self.cvl.get_str("SVN_REPO_URL"))
+            self.cvl.set_variable("REPO_NAME", "from InstlInstanceBase.init_sync_vars").append(repo_name)
+ 
+
     def create_sync_instructions(self, installState):
+        self.init_sync_vars()
         self.create_variables_assignment(installState)
-        installState.sync_instruction_lines.append(self.make_directory_cmd("$(INSTL_TEMP_DIR)"))
-        installState.sync_instruction_lines.append(self.change_directory_cmd("$(INSTL_TEMP_DIR)"))
+        installState.sync_instruction_lines.append(self.make_directory_cmd("$(LOCAL_SYNC_DIR)/$(REPO_NAME)"))
+        installState.sync_instruction_lines.append(self.change_directory_cmd("$(LOCAL_SYNC_DIR)/$(REPO_NAME)"))
+        installState.sync_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "co", '"$(BOOKKEEPING_DIR_URL)"', '"$(REL_BOOKKIPING_PATH)"', "--revision", "$(REPO_REV)")))
         for guid  in installState.full_install_items:                   # svn pulling actions
             installi = self.install_definitions_index[guid]
             for source in installi.source_list():                   # svn pulling actions
@@ -283,9 +283,9 @@ class InstlInstanceBase(object):
     def create_svn_sync_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
         retVal = list()
-        source_url = "${SVN_BASE_URL}/${REPO_URL_ADDENDUM}"+'/'+source[0]
-        target_path = "${REPO_URL_ADDENDUM}"+'/'+source[0]
-        retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+source_url+'"', '"'+target_path+'"')))
+        source_url =   '/'.join( ("${BASE_SRC_URL}", source[0]) ) 
+        target_path =  '/'.join( ("$(REL_SRC_PATH)", source[0]) )
+        retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "co", '"'+source_url+'"', '"'+target_path+'"', "--revision", "$(REPO_REV)")))
         return retVal
    
     def create_copy_instructions(self, installState):
@@ -348,27 +348,27 @@ class InstlInstanceBase(object):
             source_url_split = source_url.split('/')
             source_url_dir = '/'.join(source_url_split[:-1])
             source_url_file = source_url_split[-1]
-            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+source_url_dir+'"', ".", "--depth empty")))
+            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "co", "--revision", "$(REPO_REV)", '"'+source_url_dir+'"', ".", "--depth empty")))
             retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "up", '"'+source_url_file+'"')))
         elif source[1] == '!files': # get all files from a folder
-            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+source_url+'"', ".", "--depth files")))
+            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "co", "--revision", "$(REPO_REV)", '"'+source_url+'"', ".", "--depth files")))
         else:
-            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+source_url+'"')))
+            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "co", "--revision", "$(REPO_REV)", '"'+source_url+'"')))
         return retVal
 
     def create_copy_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
         retVal = list()
-        source_url = '$(INSTL_TEMP_DIR)/$(REPO_URL_ADDENDUM)'+'/'+source[0]
+        source_url = '$(LOCAL_SYNC_DIR)/$(REPO_URL_ADDENDUM)'+'/'+source[0]
 
         if source[1] == '!file': # get a single file, not recommneded
             source_url_split = source_url.split('/')
             source_url_dir = '/'.join(source_url_split[:-1])
             source_url_file = source_url_split[-1]
-            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+source_url_dir+'"', ".", "--depth empty")))
+            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "co", "--revision", "$(REPO_REV)", '"'+source_url_dir+'"', ".", "--depth empty")))
             retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "up", '"'+source_url_file+'"')))
         elif source[1] == '!files': # get all files from a folder
-            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+source_url+'"', ".", "--depth files")))
+            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "co", "--revision", "$(REPO_REV)", '"'+source_url+'"', ".", "--depth files")))
         else:
             retVal.append(" ".join( ('rsync', '--recursive', '--exclude=\.svn', '--exclude=\.DS_Store', '--exclude=\.ggg','"'+source_url+'"', '.')) )
         return retVal
