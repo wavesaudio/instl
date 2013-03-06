@@ -355,6 +355,7 @@ class CMDObj(cmd.Cmd, object):
             print("alias can only be created on Mac OS")
         return False
 
+    @deprecated
     def do_install(self, params):
         from pyinstl.instlInstanceBase import InstallInstructionsState
         self.prog_inst.digest()

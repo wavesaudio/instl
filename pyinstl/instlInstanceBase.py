@@ -26,7 +26,11 @@ elif current_os == 'Windows':
 INSTL_VERSION=(0, 2, 0)
 this_program_name = "instl"
 
-
+def deprecated(deprecated_func):
+    def anounce_deprecation(*args, **kargs):
+        print(deprecated_func.__name__, "is deprecated")
+        return None
+    return anounce_deprecation
 
 class InstallInstructionsState(object):
     """ holds state for specific creating of install instructions """
@@ -124,6 +128,17 @@ class InstlInstanceBase(object):
         self.cvl.add_const_config_variable("__INSTL_VERSION__", "from InstlInstanceBase.init_default_vars", *INSTL_VERSION)
         self.cvl.set_variable("LOCAL_SYNC_DIR", "from InstlInstanceBase.init_default_vars").append(appdirs.user_cache_dir(this_program_name, this_program_name))
 
+    def do_command(self):
+        self.read_input_files()
+        self.digest() # look at what we got and make sense of it
+        installState = InstallInstructionsState()
+        self.calculate_default_install_item_set(installState)
+        if self.name_space_obj.command == "sync":
+            self.create_sync_instructions(installState)
+        if self.name_space_obj.command == "copy":
+            self.create_copy_instructions(installState)
+        self.write_batch_file(installState)
+
     def do_something(self):
         try:
             if self.name_space_obj.command == "version":
@@ -185,7 +200,7 @@ class InstlInstanceBase(object):
         self.install_definitions_index.update(read_index_from_yaml(a_node))
 
     def read_input_files(self):
-        input_files = self.cvl.get("__MAIN_INPUT_FILES__", ())
+        input_files = self.cvl.get_list("__MAIN_INPUT_FILES__")
         if input_files:
             file_actually_opened = list()
             for file_path in input_files:
@@ -243,6 +258,7 @@ class InstlInstanceBase(object):
             if not self.internal_identifier_re.match(value): # do not write internal state indentifiers
                 installState.variables_assignment_lines.append(value+'="'+self.cvl.get_str(value)+'"')
 
+    @deprecated
     def create_default_install_instructions(self, installState):
         self.calculate_default_install_item_set(installState)
         self.create_install_instructions(installState)
@@ -268,6 +284,20 @@ class InstlInstanceBase(object):
             repo_name = last_url_item(self.cvl.get_str("SVN_REPO_URL"))
             self.cvl.set_variable("REPO_NAME", "from InstlInstanceBase.init_sync_vars").append(repo_name)
  
+    def init_copy_vars(self):
+        if "REL_SRC_PATH" not in self.cvl:
+            if "SVN_REPO_URL" not in self.cvl:
+                raise ValueError("'SVN_REPO_URL' was not defined")
+            if "BASE_SRC_URL" not in self.cvl:
+                raise ValueError("'BASE_SRC_URL' was not defined")
+            rel_sources = relative_url(self.cvl.get_str("SVN_REPO_URL"), self.cvl.get_str("BASE_SRC_URL"))
+            self.cvl.set_variable("REL_SRC_PATH", "from InstlInstanceBase.init_sync_vars").append(rel_sources)
+
+        if "REPO_NAME" not in self.cvl:
+            if "SVN_REPO_URL" not in self.cvl:
+                raise ValueError("'SVN_REPO_URL' was not defined")
+            repo_name = last_url_item(self.cvl.get_str("SVN_REPO_URL"))
+            self.cvl.set_variable("REPO_NAME", "from InstlInstanceBase.init_sync_vars").append(repo_name)
 
     def create_sync_instructions(self, installState):
         self.init_sync_vars()
@@ -289,6 +319,7 @@ class InstlInstanceBase(object):
         return retVal
    
     def create_copy_instructions(self, installState):
+        self.init_copy_vars()
         self.create_variables_assignment(installState)
         for folder_name, folder_items in installState.install_items_by_folder.iteritems():
             installState.copy_instruction_lines.append(self.make_directory_cmd(folder_name))
@@ -305,6 +336,7 @@ class InstlInstanceBase(object):
             installState.copy_instruction_lines.extend(install_item_instructions)
             installState.copy_instruction_lines.extend(folder_out_actions)
 
+    @deprecated
     def create_install_instructions(self, installState):
         print("mickey Rooney")
         self.create_variables_assignment(installState)
@@ -324,6 +356,7 @@ class InstlInstanceBase(object):
             installState.copy_instruction_lines.extend(install_item_instructions)
             installState.copy_instruction_lines.extend(folder_out_actions)
 
+    @deprecated
     def create_install_instructions_for_item(self, installi):
         retVal = list()
         retVal.extend(installi.action_list('before')) # actions to do before pulling from svn
@@ -340,6 +373,7 @@ class InstlInstanceBase(object):
         retVal.extend(installi.action_list('after'))
         return retVal
 
+    @deprecated
     def create_svn_pull_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
         retVal = list()
@@ -359,18 +393,14 @@ class InstlInstanceBase(object):
     def create_copy_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
         retVal = list()
-        source_url = '$(LOCAL_SYNC_DIR)/$(REPO_URL_ADDENDUM)'+'/'+source[0]
+        source_url = "${LOCAL_SYNC_DIR}/${REPO_NAME}/${REL_SRC_PATH}/"+source[0]
 
         if source[1] == '!file': # get a single file, not recommneded
-            source_url_split = source_url.split('/')
-            source_url_dir = '/'.join(source_url_split[:-1])
-            source_url_file = source_url_split[-1]
-            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "co", "--revision", "$(REPO_REV)", '"'+source_url_dir+'"', ".", "--depth empty")))
-            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "up", '"'+source_url_file+'"')))
+            retVal.append(self.create_copy_file_to_dir_command(source_url, "."))
         elif source[1] == '!files': # get all files from a folder
-            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "co", "--revision", "$(REPO_REV)", '"'+source_url+'"', ".", "--depth files")))
+            retVal.append(self.create_copy_dir_contents_to_dir_command(source_url, "."))
         else:
-            retVal.append(" ".join( ('rsync', '--recursive', '--exclude=\.svn', '--exclude=\.DS_Store', '--exclude=\.ggg','"'+source_url+'"', '.')) )
+            retVal.append(self.create_copy_dir_to_dir_command(source_url, "."))
         return retVal
 
     def finalize_list_of_lines(self, installState):
@@ -393,24 +423,25 @@ class InstlInstanceBase(object):
         retVal = [value_ref_re.sub(self.var_replacement_pattern, line) for line in lines]
         return retVal
 
-    def write_install_batch_file(self, installState):
+    def write_batch_file(self, installState):
         lines = self.finalize_list_of_lines(installState)
         lines_after_var_replacement = os.linesep.join([value_ref_re.sub(self.var_replacement_pattern, line) for line in lines])
 
         from utils import write_to_file_or_stdout
-        out_file = self.cvl.get("__MAIN_OUT_FILE__", ("stdout",))
-        with write_to_file_or_stdout(out_file[0]) as fd:
+        out_file = self.cvl.get_str("__MAIN_OUT_FILE__")
+        with write_to_file_or_stdout(out_file) as fd:
             fd.write(lines_after_var_replacement)
             fd.write(os.linesep)
 
-        if out_file[0] != "stdout":
-            self.out_file_realpath = os.path.realpath(out_file[0])
-            os.chmod(self.out_file_realpath, 0744)
+        if out_file != "stdout":
+            self.out_file_realpath = os.path.realpath(out_file)
+            print("out to:", self.out_file_realpath)
+            os.chmod(self.out_file_realpath, 0755)
 
     def write_program_state(self):
         from utils import write_to_file_or_stdout
-        state_file = self.cvl.get("__MAIN_STATE_FILE__", ("stdout",))
-        with write_to_file_or_stdout(state_file[0]) as fd:
+        state_file = self.cvl.get_str("__MAIN_STATE_FILE__")
+        with write_to_file_or_stdout(state_file) as fd:
             augmentedYaml.writeAsYaml(self, fd)
 
     def find_cycles(self):
@@ -466,8 +497,23 @@ class InstlInstanceBase(object):
             raise
 
     @abc.abstractmethod
+    def create_copy_dir_to_dir_command(self, src_dir, trg_dir):
+        """ platform specific """
+        pass
+
+    @abc.abstractmethod
+    def create_copy_file_to_dir_command(self, src_file, trg_dir):
+        """ platform specific """
+        pass
+
+    @abc.abstractmethod
+    def create_copy_dir_contents_to_dir_command(self, src_dir, trg_dir):
+        """ platform specific """
+        pass
+
+    @abc.abstractmethod
     def get_install_instructions_prefix(self):
-        """ platform specific first lines of the install script """
+        """ platform specific """
         pass
 
     @abc.abstractmethod
@@ -549,10 +595,10 @@ def prepare_args_parser():
     parser_sync = subparsers.add_parser('sync',
                                         help='sync files to be installed from server to temp folder')
 
-    parser_install = subparsers.add_parser('install',
-                                            help='install files from temp folder to target paths')
+    parser_copy = subparsers.add_parser('copy',
+                                            help='copy files from temp folder to target paths')
 
-    for subparser in (parser_sync, parser_install):
+    for subparser in (parser_sync, parser_copy):
         subparser.set_defaults(mode='batch')
         standard_options = subparser.add_argument_group(description='standard arguments:')
         standard_options.add_argument('--in','-i',
@@ -566,7 +612,7 @@ def prepare_args_parser():
                                     nargs=1,
                                     metavar='path-to-output-file',
                                     dest='output_file',
-                                    help="a file to write sync/install instructions")
+                                    help="a file to write sync/copy instructions")
         standard_options.add_argument('--run','-r',
                                     required=False,
                                     default=False,

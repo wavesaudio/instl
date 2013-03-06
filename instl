@@ -29,13 +29,7 @@ def main():
         instance = ii()
         instance.read_command_line_options(sys.argv[1:])
         if instance.mode == "batch":
-            instance.init_batch_mode()
-            instance.read_input_files()
-            instance.digest() # look at what we got and make sense of it
-            installState = InstallInstructionsState()
-            instance.create_default_install_instructions(installState)
-            instance.write_install_batch_file(installState)
-            #instance.write_program_state()
+            instance.do_command()
         elif instance.mode == "interactive":
             instance.do_da_interactive()
         elif instance.mode == "do_something":
