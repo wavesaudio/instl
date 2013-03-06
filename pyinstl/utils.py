@@ -150,3 +150,9 @@ if __name__ == "__main__":
     test_unique_list()
     #print(dir(list))
 
+def deprecated(deprecated_func):
+    def anounce_deprecation(*args, **kargs):
+        print(deprecated_func.__name__, "is deprecated")
+        return None
+    return anounce_deprecation
+

@@ -26,12 +26,6 @@ elif current_os == 'Windows':
 INSTL_VERSION=(0, 2, 0)
 this_program_name = "instl"
 
-def deprecated(deprecated_func):
-    def anounce_deprecation(*args, **kargs):
-        print(deprecated_func.__name__, "is deprecated")
-        return None
-    return anounce_deprecation
-
 class InstallInstructionsState(object):
     """ holds state for specific creating of install instructions """
     def __init__(self):
@@ -130,7 +124,7 @@ class InstlInstanceBase(object):
 
     def do_command(self):
         self.read_input_files()
-        self.digest() # look at what we got and make sense of it
+        self.resolve_index_inheritance()
         installState = InstallInstructionsState()
         self.calculate_default_install_item_set(installState)
         if self.name_space_obj.command == "sync":
@@ -161,24 +155,6 @@ class InstlInstanceBase(object):
             self.cvl.add_const_config_variable("__MAIN_STATE_FILE__", "from command line options", cmd_line_options_obj.state_file)
         if cmd_line_options_obj.run:
             self.cvl.add_const_config_variable("__MAIN_RUN_INSTALLATION__", "from command line options", "yes")
-
-
-    def digest(self):
-        """
-        """
-        # command line targets take precedent, if they were not specifies, look for "MAIN_INSTALL_TARGETS"
-        copy_main_install_to_from = None
-        if "MAIN_INSTALL_TARGETS" in self.cvl:
-            copy_main_install_to_from = "MAIN_INSTALL_TARGETS"
-        if copy_main_install_to_from:
-            self.cvl.duplicate_variable(copy_main_install_to_from, "__MAIN_INSTALL_TARGETS__")
-        self.resolve_index_inheritance()
-
-    def dedigest(self):
-        """ reverse the effect of digest, and clear some members """
-        del self.cvl["__MAIN_INSTALL_TARGETS__"]
-        del self.cvl["__FULL_LIST_OF_INSTALL_TARGETS__"]
-        del self.cvl["__ORPHAN_INSTALL_TARGETS__"]
 
     internal_identifier_re = re.compile("""
                                         __                  # dunder here
@@ -247,21 +223,18 @@ class InstlInstanceBase(object):
         """ calculate the set of guid to install from the "__MAIN_INSTALL_TARGETS__" variable.
             Full set of install guids and orphan guids are also writen to variable.
         """
-        installState.root_install_items.extend(self.cvl.get_list("__MAIN_INSTALL_TARGETS__"))
-        installState.calculate_full_install_items_set(self)
-        self.cvl.add_const_config_variable("__FULL_LIST_OF_INSTALL_TARGETS__", "calculated by calculate_default_install_item_set", *installState.full_install_items)
-        if installState.orphan_install_items:
-            self.cvl.add_const_config_variable("__ORPHAN_INSTALL_TARGETS__", "calculated by calculate_default_install_item_set", *installState.orphan_install_items)
+        if "MAIN_INSTALL_TARGETS" not in self.cvl:
+            raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
+            installState.root_install_items.extend(self.cvl.get_list("MAIN_INSTALL_TARGETS"))
+            self.cvl.set_variable("__MAIN_INSTALL_TARGETS__").extend(installState.root_install_items)
+            installState.calculate_full_install_items_set(self)
+            self.cvl.set_variable("__FULL_LIST_OF_INSTALL_TARGETS__").extend(installState.full_install_items)
+            self.cvl.set_variable("__ORPHAN_INSTALL_TARGETS__").extend(installState.orphan_install_items)
 
     def create_variables_assignment(self, installState):
         for value in self.cvl:
             if not self.internal_identifier_re.match(value): # do not write internal state indentifiers
                 installState.variables_assignment_lines.append(value+'="'+self.cvl.get_str(value)+'"')
-
-    @deprecated
-    def create_default_install_instructions(self, installState):
-        self.calculate_default_install_item_set(installState)
-        self.create_install_instructions(installState)
 
     def init_sync_vars(self):
         if "SVN_REPO_URL" not in self.cvl:
@@ -335,60 +308,6 @@ class InstlInstanceBase(object):
             installState.copy_instruction_lines.extend(folder_in_actions)
             installState.copy_instruction_lines.extend(install_item_instructions)
             installState.copy_instruction_lines.extend(folder_out_actions)
-
-    @deprecated
-    def create_install_instructions(self, installState):
-        print("mickey Rooney")
-        self.create_variables_assignment(installState)
-        for folder_name, folder_items in installState.install_items_by_folder.iteritems():
-            installState.copy_instruction_lines.append(self.make_directory_cmd(folder_name))
-            installState.copy_instruction_lines.append(self.change_directory_cmd(folder_name))
-            folder_in_actions = unique_list()
-            install_item_instructions = list()
-            folder_out_actions = unique_list()
-            for GUID in folder_items: # folder_in actions
-                installi = self.install_definitions_index[GUID]
-                folder_in_actions.extend(installi.action_list('folder_in'))
-                folder_in_actions.extend(self.get_svn_folder_cleanup_instructions())
-                install_item_instructions.extend(self.create_install_instructions_for_item(self.install_definitions_index[GUID]))
-                folder_out_actions.extend(installi.action_list('folder_out'))
-            installState.copy_instruction_lines.extend(folder_in_actions)
-            installState.copy_instruction_lines.extend(install_item_instructions)
-            installState.copy_instruction_lines.extend(folder_out_actions)
-
-    @deprecated
-    def create_install_instructions_for_item(self, installi):
-        retVal = list()
-        retVal.extend(installi.action_list('before')) # actions to do before pulling from svn
-        for source in installi.source_list():                   # svn pulling actions
-            retVal.extend(self.create_svn_pull_instructions_for_source(source))
-        retVal.extend(installi.action_list('after'))
-        return retVal
-
-    def create_copy_instructions_for_item(self, installi):
-        retVal = list()
-        retVal.extend(installi.action_list('before')) # actions to do before pulling from svn
-        for source in installi.source_list():                   # svn pulling actions
-            retVal.extend(self.create_copy_instructions_for_source(source))
-        retVal.extend(installi.action_list('after'))
-        return retVal
-
-    @deprecated
-    def create_svn_pull_instructions_for_source(self, source):
-        """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
-        retVal = list()
-        source_url = '$(BASE_URL)'+'/'+source[0]
-        if source[1] == '!file': # get a single file, not recommneded
-            source_url_split = source_url.split('/')
-            source_url_dir = '/'.join(source_url_split[:-1])
-            source_url_file = source_url_split[-1]
-            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "co", "--revision", "$(REPO_REV)", '"'+source_url_dir+'"', ".", "--depth empty")))
-            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "up", '"'+source_url_file+'"')))
-        elif source[1] == '!files': # get all files from a folder
-            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "co", "--revision", "$(REPO_REV)", '"'+source_url+'"', ".", "--depth files")))
-        else:
-            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "co", "--revision", "$(REPO_REV)", '"'+source_url+'"')))
-        return retVal
 
     def create_copy_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """

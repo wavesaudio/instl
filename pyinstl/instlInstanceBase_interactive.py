@@ -7,6 +7,7 @@ import sys
 import appdirs
 import logging
 import shlex
+from pyinstl.utils import *
 
 import platform
 current_os = platform.system()
@@ -197,7 +198,7 @@ class CMDObj(cmd.Cmd, object):
         coloring_dict = self.prepare_coloring_dict()
         from configVarList import replace_all_from_dict
         retVal = replace_all_from_dict(text, *[], **coloring_dict)
-
+        return retVal
 
     def do_list(self, params):
         from utils import write_to_list
@@ -211,7 +212,8 @@ class CMDObj(cmd.Cmd, object):
                     print("Unknown identifier:", param)
         else:
             self.prog_inst.do_list(None, out_list)
-        colored_string = self.color_vars("".join(out_list.list()))
+        joined_list = "".join(out_list.list()).encode('ascii','ignore') # just in case some unicode got in...
+        colored_string = self.color_vars(joined_list)
         sys.stdout.write(colored_string)
         return False
 
@@ -285,22 +287,6 @@ class CMDObj(cmd.Cmd, object):
     def complete_read(self, text, line, begidx, endidx):
         return self.path_completion(text, line, begidx, endidx)
 
-    def do_write(self, params):
-        self.prog_inst.dedigest()
-        self.prog_inst.digest()
-        self.prog_inst.create_install_instructions()
-        outfile = "stdout"
-        if params:
-            outfile = shlex.split(params)[0]
-        main_out_file_obj = self.prog_inst.cvl.get_configVar_obj("__MAIN_OUT_FILE__")
-        main_out_file_obj.clear_values()
-        main_out_file_obj.append(outfile)
-        self.prog_inst.write_install_batch_file()
-        return False
-
-    def complete_write(self, text, line, begidx, endidx):
-        return self.path_completion(text, line, begidx, endidx)
-
     def do_cycles(self, params):
         self.prog_inst.find_cycles()
         return False
@@ -355,25 +341,9 @@ class CMDObj(cmd.Cmd, object):
             print("alias can only be created on Mac OS")
         return False
 
-    @deprecated
-    def do_install(self, params):
-        from pyinstl.instlInstanceBase import InstallInstructionsState
-        self.prog_inst.digest()
-        installState = InstallInstructionsState()
-        if params:
-            installState.root_install_items.extend(shlex.split(params))
-            installState.calculate_full_install_items_set(self.prog_inst)
-        else:
-            self.prog_inst.calculate_default_install_item_set(installState)
-        self.prog_inst.create_install_instructions(installState)
-        augmentedYaml.writeAsYaml(installState.repr_for_yaml(), sys.stdout)
-        lines = self.prog_inst.finalize_list_of_lines(installState)
-        print(os.linesep.join(lines))
-        return False
-
     def do_sync(self, params):
         from pyinstl.instlInstanceBase import InstallInstructionsState
-        self.prog_inst.digest()
+        self.prog_inst.resolve_index_inheritance()
         installState = InstallInstructionsState()
         if params:
             installState.root_install_items.extend(shlex.split(params))
@@ -387,7 +357,7 @@ class CMDObj(cmd.Cmd, object):
     
     def do_copy(self, params):
         from pyinstl.instlInstanceBase import InstallInstructionsState
-        self.prog_inst.digest()
+        self.prog_inst.resolve_index_inheritance()
         installState = InstallInstructionsState()
         if params:
             installState.root_install_items.extend(shlex.split(params))
@@ -479,6 +449,11 @@ def do_list_imp(self, what = None, stream=sys.stdout):
             augmentedYaml.writeAsYaml(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True), stream)
         elif what == "index":
             augmentedYaml.writeAsYaml(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True), stream)
+        elif what == "license":
+            license_dict = dict()
+            for lic in self.license_list():
+                license_dict[lic] = self.guids_from_license(lic)
+            augmentedYaml.writeAsYaml(license_dict, stream)
         else:
             item_list = self.repr_for_yaml((what,))
             for item in item_list:
