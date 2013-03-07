@@ -1,6 +1,6 @@
 --- !index # Installation index
 
-QT_4_7_3_GUID:
+QT_4_7_3_IDD:
     name: Waves' Qt libraries ver. 4.7.3
     mac:
         install_sources:
@@ -11,21 +11,21 @@ QT_4_7_3_GUID:
             after:
                 - hdiutil attach WavesQt_4.7.3.dmg
 
-Plugin_Root_9_1_GUID:
+Plugin_Root_9_1_IDD:
     name: Base for all plugins that use WavesLib 9.1
     depends:
-        - WavesLib_9.1_GUID
+        - WavesLib_9.1_IDD
     install_folders:
         - $(WAVES_PLUGINS_DIR)
 
-Plugin_Root_9_2_GUID:
+Plugin_Root_9_2_IDD:
     name: Base for all plugins that use WavesLib 9.2
     depends:
-        - WavesLib_9.2_GUID
+        - WavesLib_9.2_IDD
     install_folders:
         - $(WAVES_PLUGINS_DIR)
 
-WavesLib_9.1_GUID:
+WavesLib_9.1_IDD:
     name: WavesLib
     install_folders:
         - $(WAVES_PLUGINS_DIR)
@@ -35,7 +35,7 @@ WavesLib_9.1_GUID:
     win:
         install_sources:
             - !files Plugins/WavesLib_9.1
-WavesLib_9.2_GUID:
+WavesLib_9.2_IDD:
     name: WavesLib
     install_folders:
         - $(WAVES_PLUGINS_DIR)
@@ -46,47 +46,47 @@ WavesLib_9.2_GUID:
         install_sources:
             - !files Plugins/WavesLib_9.2
 
-AGRack_GUID:
+AGRack_IDD:
     name: AGChainer
-    license: e3e91026-ad21-11e0-82d1-b7fd7bebd530
+    guid: e3e91026-ad21-11e0-82d1-b7fd7bebd530
     install_sources:
         - Plugins/AGChainer.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-AGTest_GUID:
+        - Plugin_Root_9_1_IDD
+AGTest_IDD:
     name: AGTest
-    license: ead4f9df-ad21-11e0-8308-b7fd7bebd530
+    guid: ead4f9df-ad21-11e0-8308-b7fd7bebd530
     install_sources:
         - Plugins/AGTest.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-API_2500_GUID:
+        - Plugin_Root_9_1_IDD
+API_2500_IDD:
     name: API-2500
-    license: df9b6bc1-ad21-11e0-8286-b7fd7bebd530
+    guid: df9b6bc1-ad21-11e0-8286-b7fd7bebd530
     install_sources:
         - Plugins/API-2500.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-API_550_GUID:
+        - Plugin_Root_9_1_IDD
+API_550_IDD:
     name: API-550
-    license: df43d3a6-ad21-11e0-836f-b7fd7bebd530
+    guid: df43d3a6-ad21-11e0-836f-b7fd7bebd530
     install_sources:
         - Plugins/API-550.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-API_560_GUID:
+        - Plugin_Root_9_1_IDD
+API_560_IDD:
     name: ApiEQ560
-    license: df76732e-ad21-11e0-81a3-b7fd7bebd530
+    guid: df76732e-ad21-11e0-81a3-b7fd7bebd530
     install_sources:
         - Plugins/ApiEQ560.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
+        - Plugin_Root_9_1_IDD
 AffiliationList_No_NRKC:
     name: LoAir
     install_sources:
         - Plugins/LoAir.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
+        - Plugin_Root_9_1_IDD
 AffiliationList_No_NRKC_MRKC:
     name: AffiliationList_No_NRKC_MRKC
     remark: LFE, S360, L360, UM, TPL360
@@ -97,17 +97,17 @@ AffiliationList_No_NRKC_MRKC:
         - Plugins/UM.bundle
         - Plugins/TPL360.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-Aphex_AX_GUID:
+        - Plugin_Root_9_1_IDD
+Aphex_AX_IDD:
     name: Aphex AX
-    license: eb0c63ec-ad21-11e0-8288-b7fd7bebd530
+    guid: eb0c63ec-ad21-11e0-8288-b7fd7bebd530
     install_sources:
         - Plugins/Aphex AX.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
+        - Plugin_Root_9_1_IDD
 ArtistDefs:
     name: Artist
-    license: 611c341d-39b7-43f1-a44d-5310bb283eeb
+    guid: 611c341d-39b7-43f1-a44d-5310bb283eeb
     remark: 1398100052, 1296912196, 1162757959, 1179405895, 1448169779, 1448169780, 1447251280, 1212370256, 1212302412, 1464091212, 1415075652, 1128809809, 1212501071, 1196838732, 1146311762, 1195660119, 1398031697, 1398031187, 1195461968, 1195464792, 1196835408, 1398031948, 1196377170, 1398030938, 1095910227, 1380014168, 1380861265, 1381388866, 1381389912, 1380860448, 1380205907, 1128811570, 1280329041, 1246384195, 1279341121, 0825308982, 1279341377, 1347170625, 1178814532, 1380200759, 1145394002, 1096045131, 1381388851, 1162948912, 1278287904, 1127292960, 1397249350, 1380794947, 1278431315, 1230393164, 1129730626, 1163284300, 1397575761, 1397506895, 1397506888, 1397507409, 1095779151, 0892678210
     install_sources:
         - Plugins/ArtistDLLV9.1/0825308982.bundle
@@ -168,101 +168,101 @@ ArtistDefs:
         - Plugins/ArtistDLLV9.1/1448169780.bundle
         - Plugins/ArtistDLLV9.1/1464091212.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-AudioTrack_GUID:
+        - Plugin_Root_9_1_IDD
+AudioTrack_IDD:
     name: AudioTrack
-    license: e6a8de66-ad21-11e0-81f4-b7fd7bebd530
+    guid: e6a8de66-ad21-11e0-81f4-b7fd7bebd530
     install_sources:
         - Plugins/AudioTrack.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-Bass_Rider_GUID:
+        - Plugin_Root_9_1_IDD
+Bass_Rider_IDD:
     name: Bass Rider
-    license: eb542f98-ad21-11e0-8222-b7fd7bebd530
+    guid: eb542f98-ad21-11e0-8222-b7fd7bebd530
     install_sources:
         - Plugins/Bass Rider.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-C1_GUID:
+        - Plugin_Root_9_1_IDD
+C1_IDD:
     name: C1
-    license: e6c7625a-ad21-11e0-8262-b7fd7bebd530
+    guid: e6c7625a-ad21-11e0-8262-b7fd7bebd530
     install_sources:
         - Plugins/C1.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-C360_GUID:
+        - Plugin_Root_9_1_IDD
+C360_IDD:
     name: C360
-    license: f1174573-ad21-11e0-817b-b7fd7bebd530
+    guid: f1174573-ad21-11e0-817b-b7fd7bebd530
     install_sources:
         - Plugins/C360.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-C4_GUID:
+        - Plugin_Root_9_1_IDD
+C4_IDD:
     name: C4
-    license: e6ead714-ad21-11e0-82a6-b7fd7bebd530
+    guid: e6ead714-ad21-11e0-82a6-b7fd7bebd530
     install_sources:
         - Plugins/C4.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-C6_GUID:
+        - Plugin_Root_9_1_IDD
+C6_IDD:
     name: C6
-    license: eb442f99-ad21-11e0-8219-b7fd7bebd530
+    guid: eb442f99-ad21-11e0-8219-b7fd7bebd530
     install_sources:
         - Plugins/C6.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-CLA_2A_GUID:
+        - Plugin_Root_9_1_IDD
+CLA_2A_IDD:
     name: CLA-2A
-    license: e47a4b22-ad21-11e0-80ba-b7fd7bebd530
+    guid: e47a4b22-ad21-11e0-80ba-b7fd7bebd530
     install_sources:
         - Plugins/CLA-2A.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-CLA_3A_GUID:
+        - Plugin_Root_9_1_IDD
+CLA_3A_IDD:
     name: CLA-3A
-    license: e4b00ec4-ad21-11e0-834b-b7fd7bebd530
+    guid: e4b00ec4-ad21-11e0-834b-b7fd7bebd530
     install_sources:
         - Plugins/CLA-3A.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-CLA_76_GUID:
+        - Plugin_Root_9_1_IDD
+CLA_76_IDD:
     name: CLA-76
-    license: e4e72e7b-ad21-11e0-81a6-b7fd7bebd530
+    guid: e4e72e7b-ad21-11e0-81a6-b7fd7bebd530
     install_sources:
         - Plugins/CLA-76.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-Center_GUID:
+        - Plugin_Root_9_1_IDD
+Center_IDD:
     name: Center
-    license: eb621b67-ad21-11e0-8319-b7fd7bebd530
+    guid: eb621b67-ad21-11e0-8319-b7fd7bebd530
     install_sources:
         - Plugins/Center.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-DEVELOPER_GUID:
+        - Plugin_Root_9_1_IDD
+DEVELOPER_IDD:
     name: DEVELOPER
-    license: 99999999-9999-9999-9999-999999999999
+    guid: 99999999-9999-9999-9999-999999999999
     remark: OEColor, Lab_HColor, Artist_Editor
     install_sources:
         - Plugins/OEColor.bundle
         - Plugins/Lab_HColor.bundle
         - Plugins/Artist_Editor.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-DeBreath_GUID:
+        - Plugin_Root_9_1_IDD
+DeBreath_IDD:
     name: DeBreath
-    license: f3315154-ad21-11e0-8140-b7fd7bebd530
+    guid: f3315154-ad21-11e0-8140-b7fd7bebd530
     install_sources:
         - Plugins/DeBreath.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-DeEsser_GUID:
+        - Plugin_Root_9_1_IDD
+DeEsser_IDD:
     name: DeEsser
-    license: e7069133-ad21-11e0-82c1-b7fd7bebd530
+    guid: e7069133-ad21-11e0-82c1-b7fd7bebd530
     install_sources:
         - Plugins/DeEsser.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
+        - Plugin_Root_9_1_IDD
 Default_ArtistChainer:
     name: Default_ArtistChainer
     remark: JJP-Cymb-Perc, CLA Bass, MannyM-Distortion, Maserati GRP, CLA Vocals, MannyM-Delay, EddieKramer FX, MannyM-DeDeDe, CLA Effects, Maserati HMX, CLA Unplugged, Maserati VX1, Maserati DRM, MannyM-EQ, JJP-Bass, JJP-Guitars, Maserati GTi, Maserati ACG, CLA Guitars, CLA Drums, JJP-Drums, MannyM-Reverb, EddieKramer VC, EddieKramer DR, JJP-Strings-Keys, JJP-Vocals, MannyM-ToneShaper, Maserati B72, EddieKramer BA
@@ -297,84 +297,84 @@ Default_ArtistChainer:
         - Plugins/Maserati B72.bundle
         - Plugins/EddieKramer BA.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-Doppler_GUID:
+        - Plugin_Root_9_1_IDD
+Doppler_IDD:
     name: Doppler
-    license: e5ce4a76-ad21-11e0-832b-b7fd7bebd530
+    guid: e5ce4a76-ad21-11e0-832b-b7fd7bebd530
     install_sources:
         - Plugins/Doppler.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-Dorrough_GUID:
+        - Plugin_Root_9_1_IDD
+Dorrough_IDD:
     name: Dorrough
-    license: eba516c8-ad21-11e0-8377-b7fd7bebd530
+    guid: eba516c8-ad21-11e0-8377-b7fd7bebd530
     install_sources:
         - Plugins/Dorrough.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-Dorrough_Surround_GUID:
+        - Plugin_Root_9_1_IDD
+Dorrough_Surround_IDD:
     name: Dorrough_Surround
-    license: eba53bd0-ad21-11e0-809f-b7fd7bebd530
+    guid: eba53bd0-ad21-11e0-809f-b7fd7bebd530
     remark: Dorrough Surround 5.0, Dorrough Surround 5.1
     install_sources:
         - Plugins/Dorrough Surround 5.0.bundle
         - Plugins/Dorrough Surround 5.1.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-Doubler_GUID:
+        - Plugin_Root_9_1_IDD
+Doubler_IDD:
     name: Doubler
-    license: f202b779-ad21-11e0-8344-b7fd7bebd530
+    guid: f202b779-ad21-11e0-8344-b7fd7bebd530
     install_sources:
         - Plugins/Doubler.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-EchoCanceller_GUID:
+        - Plugin_Root_9_1_IDD
+EchoCanceller_IDD:
     name: EchoCanceller
-    license: ebe20f2e-ad21-11e0-81b0-b7fd7bebd530
+    guid: ebe20f2e-ad21-11e0-81b0-b7fd7bebd530
     install_sources:
         - Plugins/EchoCanceller.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-EddieKramer_GT_GUID:
+        - Plugin_Root_9_1_IDD
+EddieKramer_GT_IDD:
     name: EddieKramer GT
-    license: e0e0ba8c-ad21-11e0-8153-b7fd7bebd530
+    guid: e0e0ba8c-ad21-11e0-8153-b7fd7bebd530
     install_sources:
         - Plugins/EddieKramer GT.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-Element_GUID:
+        - Plugin_Root_9_1_IDD
+Element_IDD:
     name: Element
-    license: e9e780e8-3415-4fde-bc47-27f7d443a2b3
+    guid: e9e780e8-3415-4fde-bc47-27f7d443a2b3
     install_sources:
         - Plugins/Element.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-Enigma_GUID:
+        - Plugin_Root_9_1_IDD
+Enigma_IDD:
     name: Enigma
-    license: e5ecb58a-ad21-11e0-820b-b7fd7bebd530
+    guid: e5ecb58a-ad21-11e0-820b-b7fd7bebd530
     install_sources:
         - Plugins/Enigma.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-GEQ_GUID:
+        - Plugin_Root_9_1_IDD
+GEQ_IDD:
     name: GEQ
-    license: b5cd1675-b663-4a0b-aecc-ca9fe0e573fe
+    guid: b5cd1675-b663-4a0b-aecc-ca9fe0e573fe
     remark: GEQ, Lab_GEQ
     install_sources:
         - Plugins/GEQ.bundle
         - Plugins/Lab_GEQ.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-GTRAmp_GUID:
+        - Plugin_Root_9_1_IDD
+GTRAmp_IDD:
     name: GTRAmp
-    license: e808505c-ad21-11e0-83e8-b7fd7bebd530
+    guid: e808505c-ad21-11e0-83e8-b7fd7bebd530
     install_sources:
         - Plugins/GTRAmp.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-GTRSoloToolRack_GUID:
+        - Plugin_Root_9_1_IDD
+GTRSoloToolRack_IDD:
     name: GTRSoloToolRack
-    license: e8f6df11-ad21-11e0-81f9-b7fd7bebd530
+    guid: e8f6df11-ad21-11e0-81f9-b7fd7bebd530
     remark: GTRSoloToolRack, StompSLVolume, GTRSoloTuner, StompSLDistortion, StompSLEQ, StompSLChorus, StompSLPhaser, GTRSoloAmp, GTRSoloAirMixer, StompSLVibrolo, StompSLGateComp, StompSLFlanger, StompSLSpring, StompSLPitcher, StompSLWahWah, StompSLOverDrive, StompSLDelay
     install_sources:
         - Plugins/GTRSoloToolRack.bundle
@@ -395,10 +395,10 @@ GTRSoloToolRack_GUID:
         - Plugins/GTRSolo/StompSLOverDrive.bundle
         - Plugins/GTRSolo/StompSLDelay.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-GTRToolRack_GUID:
+        - Plugin_Root_9_1_IDD
+GTRToolRack_IDD:
     name: GTRToolRack
-    license: e8f6b97d-ad21-11e0-8088-b7fd7bebd530
+    guid: e8f6b97d-ad21-11e0-8088-b7fd7bebd530
     remark: GTRToolRack, GTRInternalTuner, GTRInternalAmp, GTRAirMixer
     install_sources:
         - Plugins/GTRToolRack.bundle
@@ -406,10 +406,10 @@ GTRToolRack_GUID:
         - Plugins/GTRInternalAmp.bundle
         - Plugins/GTRAirMixer.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-GTR_Stomps_GUID:
+        - Plugin_Root_9_1_IDD
+GTR_Stomps_IDD:
     name: GTR_Stomps
-    license: 329dbe6a-233e-4f8f-ac70-f5b55036845b
+    guid: 329dbe6a-233e-4f8f-ac70-f5b55036845b
     remark: GuitarDoubler2, StompVolume, StompFuzz, StompDistortion, GuitarMetal, StompEQ, StompChorus, GuitarTone, StompPhaser, GuitarChainer, StompAxxPress, StompVibrolo, StompGateComp, StompFlanger, GuitarReverb, StompSpring, StompPitcher, GuitarComp, StompWahWah, GuitarLayD, GuitarPanner, GuitarGate, StompOverDrive, GuitarOctaver, StompDelay, StompBuzz
     install_sources:
         - Plugins/GuitarDoubler2.bundle
@@ -439,163 +439,163 @@ GTR_Stomps_GUID:
         - Plugins/GTR/StompDelay.bundle
         - Plugins/GTR/StompBuzz.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-GTR_Tuner_GUID:
+        - Plugin_Root_9_1_IDD
+GTR_Tuner_IDD:
     name: GTRTuner
-    license: 3164b0cb-806c-4bdd-a286-260f9c6eb04c
+    guid: 3164b0cb-806c-4bdd-a286-260f9c6eb04c
     install_sources:
         - Plugins/GTRTuner.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-HEq_GUID:
+        - Plugin_Root_9_1_IDD
+HEq_IDD:
     name: HEq
-    license: e9a3b6c2-ad21-11e0-823c-b7fd7bebd530
+    guid: e9a3b6c2-ad21-11e0-823c-b7fd7bebd530
     install_sources:
         - Plugins/HEq.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-H_Comp_GUID:
+        - Plugin_Root_9_1_IDD
+H_Comp_IDD:
     name: H-Comp
-    license: e9797602-ad21-11e0-8369-b7fd7bebd530
+    guid: e9797602-ad21-11e0-8369-b7fd7bebd530
     install_sources:
         - Plugins/H-Comp.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-H_Delay_GUID:
+        - Plugin_Root_9_1_IDD
+H_Delay_IDD:
     name: H-Delay
-    license: e92b2cea-ad21-11e0-8218-b7fd7bebd530
+    guid: e92b2cea-ad21-11e0-8218-b7fd7bebd530
     install_sources:
         - Plugins/H-Delay.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-IR_1_GUID:
+        - Plugin_Root_9_1_IDD
+IR_1_IDD:
     name: IR_1
-    license: ec31edd4-ad21-11e0-8215-b7fd7bebd530
+    guid: ec31edd4-ad21-11e0-8215-b7fd7bebd530
     remark: HRev, IR-1
     install_sources:
         - Plugins/HRev.bundle
         - Plugins/IR-1.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-IR_360_GUID:
+        - Plugin_Root_9_1_IDD
+IR_360_IDD:
     name: IR-360
-    license: ec323077-ad21-11e0-8335-b7fd7bebd530
+    guid: ec323077-ad21-11e0-8335-b7fd7bebd530
     install_sources:
         - Plugins/IR-360.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-IR_L_GUID:
+        - Plugin_Root_9_1_IDD
+IR_L_IDD:
     name: IR-L
-    license: ec32123c-ad21-11e0-83d2-b7fd7bebd530
+    guid: ec32123c-ad21-11e0-83d2-b7fd7bebd530
     install_sources:
         - Plugins/IR-L.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-IR_Live_GUID:
+        - Plugin_Root_9_1_IDD
+IR_Live_IDD:
     name: IRLive
-    license: 4b221595-fbb4-46a0-8827-1e07b139a0bd
+    guid: 4b221595-fbb4-46a0-8827-1e07b139a0bd
     install_sources:
         - Plugins/IRLive.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-InPhase_GUID:
+        - Plugin_Root_9_1_IDD
+InPhase_IDD:
     name: InPhase
-    license: 51472ece-6f53-4926-8123-64330d6c6852
+    guid: 51472ece-6f53-4926-8123-64330d6c6852
     install_sources:
         - Plugins/InPhase.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-InPhase_LT_GUID:
+        - Plugin_Root_9_1_IDD
+InPhase_LT_IDD:
     name: InPhase LT
-    license: b158aea5-79f7-4a39-b9b9-f8c5e7c237c2
+    guid: b158aea5-79f7-4a39-b9b9-f8c5e7c237c2
     install_sources:
         - Plugins/InPhase LT.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-KingsMic_GUID:
+        - Plugin_Root_9_1_IDD
+KingsMic_IDD:
     name: KingsMic
-    license: e686394e-ad21-11e0-8185-b7fd7bebd530
+    guid: e686394e-ad21-11e0-8185-b7fd7bebd530
     install_sources:
         - Plugins/KingsMic.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-KramerHLS_GUID:
+        - Plugin_Root_9_1_IDD
+KramerHLS_IDD:
     name: KramerHLS
-    license: e5100b89-ad21-11e0-81a0-b7fd7bebd530
+    guid: e5100b89-ad21-11e0-81a0-b7fd7bebd530
     install_sources:
         - Plugins/KramerHLS.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-KramerPIE_GUID:
+        - Plugin_Root_9_1_IDD
+KramerPIE_IDD:
     name: KramerPIE
-    license: e551833a-ad21-11e0-8177-b7fd7bebd530
+    guid: e551833a-ad21-11e0-8177-b7fd7bebd530
     install_sources:
         - Plugins/KramerPIE.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-KramerTape_GUID:
+        - Plugin_Root_9_1_IDD
+KramerTape_IDD:
     name: KramerTape
-    license: e591e90a-ad21-11e0-83a1-b7fd7bebd530
+    guid: e591e90a-ad21-11e0-83a1-b7fd7bebd530
     remark: Lab_KramerTape, KramerTape
     install_sources:
         - Plugins/Lab_KramerTape.bundle
         - Plugins/KramerTape.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-L1_GUID:
+        - Plugin_Root_9_1_IDD
+L1_IDD:
     name: L1
-    license: e7223951-ad21-11e0-82d3-b7fd7bebd530
+    guid: e7223951-ad21-11e0-82d3-b7fd7bebd530
     install_sources:
         - Plugins/L1.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-L2_GUID:
+        - Plugin_Root_9_1_IDD
+L2_IDD:
     name: L2
-    license: ea812d41-ad21-11e0-80f3-b7fd7bebd530
+    guid: ea812d41-ad21-11e0-80f3-b7fd7bebd530
     remark: L2, L4
     install_sources:
         - Plugins/L2.bundle
         - Plugins/L4.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-L3_16_GUID:
+        - Plugin_Root_9_1_IDD
+L3_16_IDD:
     name: L3_16
-    license: ec719e28-ad21-11e0-8100-b7fd7bebd530
+    guid: ec719e28-ad21-11e0-8100-b7fd7bebd530
     install_sources:
         - Plugins/L3_16.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-L3_LL_Multi_GUID:
+        - Plugin_Root_9_1_IDD
+L3_LL_Multi_IDD:
     name: L3-LL Multi
-    license: ec971ad7-ad21-11e0-8359-b7fd7bebd530
+    guid: ec971ad7-ad21-11e0-8359-b7fd7bebd530
     install_sources:
         - Plugins/L3-LL Multi.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-L3_LL_Ultra_GUID:
+        - Plugin_Root_9_1_IDD
+L3_LL_Ultra_IDD:
     name: L3-LL Ultra
-    license: ec97493f-ad21-11e0-803e-b7fd7bebd530
+    guid: ec97493f-ad21-11e0-803e-b7fd7bebd530
     install_sources:
         - Plugins/L3-LL Ultra.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-L3_Multi_GUID:
+        - Plugin_Root_9_1_IDD
+L3_Multi_IDD:
     name: L3 Multi
-    license: ec53f8dd-ad21-11e0-8276-b7fd7bebd530
+    guid: ec53f8dd-ad21-11e0-8276-b7fd7bebd530
     install_sources:
         - Plugins/L3 Multi.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-L3_Ultra_GUID:
+        - Plugin_Root_9_1_IDD
+L3_Ultra_IDD:
     name: L3 Ultra
-    license: ec541a62-ad21-11e0-8150-b7fd7bebd530
+    guid: ec541a62-ad21-11e0-8150-b7fd7bebd530
     install_sources:
         - Plugins/L3 Ultra.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
+        - Plugin_Root_9_1_IDD
 LabArtistDefs:
     name: LabArtist
-    license: 99999999-9999-9999-9999-999999999999
+    guid: 99999999-9999-9999-9999-999999999999
     remark: Lab_Artist_RVerb, Lab_Artist_JJP_Color, Lab_Artist_MannyM17, Lab_Artist_Gain
     install_sources:
         - Plugins/Lab_ArtistDLL/Lab_Artist_RVerb.bundle
@@ -603,10 +603,10 @@ LabArtistDefs:
         - Plugins/Lab_ArtistDLL/Lab_Artist_MannyM17.bundle
         - Plugins/Lab_ArtistDLL/Lab_Artist_Gain.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
+        - Plugin_Root_9_1_IDD
 LabDefs:
     name: Lab
-    license: 99999999-9999-9999-9999-999999999999
+    guid: 99999999-9999-9999-9999-999999999999
     remark: Lab_JJP-Cymb-Perc, Lab_CLA Bass, Lab_Maserati GRP, Lab_CLA Vocals, Lab_EddieKramer FX, Lab_CLA Effects, Lab_Maserati HMX, Lab_CLA Unplugged, Lab_Maserati VX1, Lab_Maserati DRM, Lab_JJP-Bass, Lab_JJP-Guitars, Lab_Maserati GTi, Lab_Maserati ACG, Lab_EddieKramer GT, Lab_CLA Guitars, Lab_CLA Drums, Lab_JJP-Drums, Lab_EddieKramer VC, Lab_EddieKramer DR, Lab_JJP-Strings-Keys, Lab_JJP-Vocals, Lab_Maserati B72, Lab_EddieKramer BA, Lab_OKWetter, Lab_OKPhatter, Lab_OKLouder, Lab_Bass Rider, Lab_OKBrighter
     install_sources:
         - Plugins/Lab_JJP-Cymb-Perc.bundle
@@ -639,10 +639,10 @@ LabDefs:
         - Plugins/Lab_Bass Rider.bundle
         - Plugins/Lab_OKBrighter.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
+        - Plugin_Root_9_1_IDD
 LabMannyChainerDefs:
     name: LabMannyChainer
-    license: 99999999-9999-9999-9999-999999999999
+    guid: 99999999-9999-9999-9999-999999999999
     remark: Lab_MannyM-Distortion, Lab_MannyM-Delay, Lab_MannyM-DeDeDe, Lab_MannyM-EQ, Lab_MannyM-Reverb, Lab_MannyM-ToneShaper
     install_sources:
         - Plugins/Lab_MannyM-Distortion.bundle
@@ -652,167 +652,167 @@ LabMannyChainerDefs:
         - Plugins/Lab_MannyM-Reverb.bundle
         - Plugins/Lab_MannyM-ToneShaper.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-LinEQ_GUID:
+        - Plugin_Root_9_1_IDD
+LinEQ_IDD:
     name: LinEQ
-    license: ea9c2b7e-ad21-11e0-8327-b7fd7bebd530
+    guid: ea9c2b7e-ad21-11e0-8327-b7fd7bebd530
     install_sources:
         - Plugins/LinEQ.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-LinMB_GUID:
+        - Plugin_Root_9_1_IDD
+LinMB_IDD:
     name: LinMB
-    license: eab8d633-ad21-11e0-81eb-b7fd7bebd530
+    guid: eab8d633-ad21-11e0-81eb-b7fd7bebd530
     install_sources:
         - Plugins/LinMB.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-MV2_GUID:
+        - Plugin_Root_9_1_IDD
+MV2_IDD:
     name: MV2
-    license: ed14136b-ad21-11e0-837c-b7fd7bebd530
+    guid: ed14136b-ad21-11e0-837c-b7fd7bebd530
     install_sources:
         - Plugins/MV2.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-MV360_GUID:
+        - Plugin_Root_9_1_IDD
+MV360_IDD:
     name: MV360
-    license: f1896c6a-ad21-11e0-82f7-b7fd7bebd530
+    guid: f1896c6a-ad21-11e0-82f7-b7fd7bebd530
     install_sources:
         - Plugins/MV360.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-MaxxBass_GUID:
+        - Plugin_Root_9_1_IDD
+MaxxBass_IDD:
     name: MaxxBass
-    license: e73ed1fb-ad21-11e0-8035-b7fd7bebd530
+    guid: e73ed1fb-ad21-11e0-8035-b7fd7bebd530
     install_sources:
         - Plugins/MaxxBass.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-MaxxStereo_GUID:
+        - Plugin_Root_9_1_IDD
+MaxxStereo_IDD:
     name: MaxxStereo
-    license: ecfa0291-ad21-11e0-8200-b7fd7bebd530
+    guid: ecfa0291-ad21-11e0-8200-b7fd7bebd530
     install_sources:
         - Plugins/MaxxStereo.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-MaxxVoice_GUID:
+        - Plugin_Root_9_1_IDD
+MaxxVoice_IDD:
     name: MaxxLib
-    license: ecdc851e-ad21-11e0-82e4-b7fd7bebd530
+    guid: ecdc851e-ad21-11e0-82e4-b7fd7bebd530
     install_sources:
         - Plugins/MaxxLib.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-MaxxVolume_GUID:
+        - Plugin_Root_9_1_IDD
+MaxxVolume_IDD:
     name: MaxxVolume
-    license: ed13f26a-ad21-11e0-8216-b7fd7bebd530
+    guid: ed13f26a-ad21-11e0-8216-b7fd7bebd530
     install_sources:
         - Plugins/MaxxVolume.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-MetaFlanger_GUID:
+        - Plugin_Root_9_1_IDD
+MetaFlanger_IDD:
     name: MetaFlanger
-    license: e60ab8c6-ad21-11e0-8364-b7fd7bebd530
+    guid: e60ab8c6-ad21-11e0-8364-b7fd7bebd530
     install_sources:
         - Plugins/MetaFlanger.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-MondoMod_GUID:
+        - Plugin_Root_9_1_IDD
+MondoMod_IDD:
     name: MondoMod
-    license: e6281b3c-ad21-11e0-8087-b7fd7bebd530
+    guid: e6281b3c-ad21-11e0-8087-b7fd7bebd530
     install_sources:
         - Plugins/MondoMod.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-Morphoder_GUID:
+        - Plugin_Root_9_1_IDD
+Morphoder_IDD:
     name: Morphoder
-    license: f2214239-ad21-11e0-82e2-b7fd7bebd530
+    guid: f2214239-ad21-11e0-82e2-b7fd7bebd530
     install_sources:
         - Plugins/Morphoder.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-MultiRack_GUID:
+        - Plugin_Root_9_1_IDD
+MultiRack_IDD:
     name: MultiRackChainer
-    license: e40fea6e-ad21-11e0-803f-b7fd7bebd530
+    guid: e40fea6e-ad21-11e0-803f-b7fd7bebd530
     install_sources:
         - Plugins/MultiRackChainer.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-NLS_GUID:
+        - Plugin_Root_9_1_IDD
+NLS_IDD:
     name: NLS
-    license: 3d47fe76-e1f9-4cbf-b155-715460ee749f
+    guid: 3d47fe76-e1f9-4cbf-b155-715460ee749f
     install_sources:
         - Plugins/NLS.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-NO_LICENSE_GUID:
+        - Plugin_Root_9_1_IDD
+NO_LICENSE_IDD:
     name: NO_LICENSE
-    license: a39d317a-5e89-4dd2-949a-7b2c15836a10
+    guid: a39d317a-5e89-4dd2-949a-7b2c15836a10
     remark: IDR, DLA
     install_sources:
         - Plugins/IDR.bundle
         - Plugins/DLA.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-NS1_GUID:
+        - Plugin_Root_9_1_IDD
+NS1_IDD:
     name: NS1
-    license: 5d73b443-5698-4ab2-90e4-94e263aa9def
+    guid: 5d73b443-5698-4ab2-90e4-94e263aa9def
     remark: NS1, NS1Pro, NS1Pro-SC
     install_sources:
         - Plugins/NS1.bundle
         - Plugins/NS1Pro.bundle
         - Plugins/NS1Pro-SC.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-OKBrighter_GUID:
+        - Plugin_Root_9_1_IDD
+OKBrighter_IDD:
     name: OKBrighter
-    license: f0dba8a1-ad21-11e0-82d9-b7fd7bebd530
+    guid: f0dba8a1-ad21-11e0-82d9-b7fd7bebd530
     install_sources:
         - Plugins/OKBrighter.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-OKDriver_GUID:
+        - Plugin_Root_9_1_IDD
+OKDriver_IDD:
     name: Driver
-    license: ee76f044-ad21-11e0-8170-b7fd7bebd530
+    guid: ee76f044-ad21-11e0-8170-b7fd7bebd530
     install_sources:
         - Plugins/Driver.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-OKFilter_GUID:
+        - Plugin_Root_9_1_IDD
+OKFilter_IDD:
     name: ResonantFilter
-    license: e9ef3ffd-ad21-11e0-83e3-b7fd7bebd530
+    guid: e9ef3ffd-ad21-11e0-83e3-b7fd7bebd530
     install_sources:
         - Plugins/ResonantFilter.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-OKLouder_GUID:
+        - Plugin_Root_9_1_IDD
+OKLouder_IDD:
     name: OKLouder
-    license: ed143318-ad21-11e0-821a-b7fd7bebd530
+    guid: ed143318-ad21-11e0-821a-b7fd7bebd530
     install_sources:
         - Plugins/OKLouder.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-OKPhatter_GUID:
+        - Plugin_Root_9_1_IDD
+OKPhatter_IDD:
     name: OKPhatter
-    license: ee93e582-ad21-11e0-8390-b7fd7bebd530
+    guid: ee93e582-ad21-11e0-8390-b7fd7bebd530
     install_sources:
         - Plugins/OKPhatter.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-OKPressure_GUID:
+        - Plugin_Root_9_1_IDD
+OKPressure_IDD:
     name: Crusher
-    license: ee5af8ce-ad21-11e0-8200-b7fd7bebd530
+    guid: ee5af8ce-ad21-11e0-8200-b7fd7bebd530
     install_sources:
         - Plugins/Crusher.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-OKWetter_GUID:
+        - Plugin_Root_9_1_IDD
+OKWetter_IDD:
     name: OKWetter
-    license: eecca8c2-ad21-11e0-8250-b7fd7bebd530
+    guid: eecca8c2-ad21-11e0-8250-b7fd7bebd530
     install_sources:
         - Plugins/OKWetter.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-OverviewLib_GUID:
+        - Plugin_Root_9_1_IDD
+OverviewLib_IDD:
     name: OverviewLib
     mac:
         install_sources:
@@ -821,328 +821,328 @@ OverviewLib_GUID:
         install_sources:
             - !file Plugins/OverviewLib_32bit.dll
             - !file Plugins/OverviewLib_64bit.dll
-PAZ_GUID:
+PAZ_IDD:
     name: PAZ
-    license: e759bc5f-ad21-11e0-827d-b7fd7bebd530
+    guid: e759bc5f-ad21-11e0-827d-b7fd7bebd530
     install_sources:
         - Plugins/PAZ.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-PS22_GUID:
+        - Plugin_Root_9_1_IDD
+PS22_IDD:
     name: PS22
-    license: e775f5e1-ad21-11e0-809f-b7fd7bebd530
+    guid: e775f5e1-ad21-11e0-809f-b7fd7bebd530
     install_sources:
         - Plugins/PS22.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-PeaveyMixer_GUID:
+        - Plugin_Root_9_1_IDD
+PeaveyMixer_IDD:
     name: PeaveyMixerChainer
-    license: e42f252a-ad21-11e0-816a-b7fd7bebd530
+    guid: e42f252a-ad21-11e0-816a-b7fd7bebd530
     install_sources:
         - Plugins/PeaveyMixerChainer.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-PuigChild_GUID:
+        - Plugin_Root_9_1_IDD
+PuigChild_IDD:
     name: PuigChild
-    license: ea1152ba-ad21-11e0-8305-b7fd7bebd530
+    guid: ea1152ba-ad21-11e0-8305-b7fd7bebd530
     install_sources:
         - Plugins/PuigChild.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-PuigTec_GUID:
+        - Plugin_Root_9_1_IDD
+PuigTec_IDD:
     name: PuigTec
-    license: ea4ad51a-ad21-11e0-8137-b7fd7bebd530
+    guid: ea4ad51a-ad21-11e0-8137-b7fd7bebd530
     install_sources:
         - Plugins/PuigTec.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-Q10_GUID:
+        - Plugin_Root_9_1_IDD
+Q10_IDD:
     name: Q10
-    license: e790fd1a-ad21-11e0-82c3-b7fd7bebd530
+    guid: e790fd1a-ad21-11e0-82c3-b7fd7bebd530
     install_sources:
         - Plugins/Q10.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-Q_Clone_GUID:
+        - Plugin_Root_9_1_IDD
+Q_Clone_IDD:
     name: Q-Clone
-    license: e686154a-ad21-11e0-806f-b7fd7bebd530
+    guid: e686154a-ad21-11e0-806f-b7fd7bebd530
     install_sources:
         - Plugins/Q-Clone.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-R360_GUID:
+        - Plugin_Root_9_1_IDD
+R360_IDD:
     name: R360
-    license: f1a67d84-ad21-11e0-8380-b7fd7bebd530
+    guid: f1a67d84-ad21-11e0-8380-b7fd7bebd530
     install_sources:
         - Plugins/R360.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-RBass_GUID:
+        - Plugin_Root_9_1_IDD
+RBass_IDD:
     name: RBass
-    license: ef202a69-ad21-11e0-839b-b7fd7bebd530
+    guid: ef202a69-ad21-11e0-839b-b7fd7bebd530
     install_sources:
         - Plugins/RBass.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-RChannel_GUID:
+        - Plugin_Root_9_1_IDD
+RChannel_IDD:
     name: RChannel
-    license: ef3b4d52-ad21-11e0-8109-b7fd7bebd530
+    guid: ef3b4d52-ad21-11e0-8109-b7fd7bebd530
     install_sources:
         - Plugins/RChannel.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-RComp_GUID:
+        - Plugin_Root_9_1_IDD
+RComp_IDD:
     name: RComp
-    license: ef6067d8-ad21-11e0-8308-b7fd7bebd530
+    guid: ef6067d8-ad21-11e0-8308-b7fd7bebd530
     install_sources:
         - Plugins/RComp.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-RDeEsser_GUID:
+        - Plugin_Root_9_1_IDD
+RDeEsser_IDD:
     name: RDeEsser
-    license: ef7b9575-ad21-11e0-81f1-b7fd7bebd530
+    guid: ef7b9575-ad21-11e0-81f1-b7fd7bebd530
     install_sources:
         - Plugins/RDeEsser.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-REDD17_GUID:
+        - Plugin_Root_9_1_IDD
+REDD17_IDD:
     name: REDD17
-    license: 5634fda9-ea28-4316-9476-527b8e7279a9
+    guid: 5634fda9-ea28-4316-9476-527b8e7279a9
     remark: REDD17, Lab_REDD17
     install_sources:
         - Plugins/REDD17.bundle
         - Plugins/Lab_REDD17.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-REDD3751_GUID:
+        - Plugin_Root_9_1_IDD
+REDD3751_IDD:
     name: REDD3751
-    license: 1b2e3046-b634-4fc3-92df-100722e72a75
+    guid: 1b2e3046-b634-4fc3-92df-100722e72a75
     remark: Lab_REDD37-51, REDD37-51
     install_sources:
         - Plugins/Lab_REDD37-51.bundle
         - Plugins/REDD37-51.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-REQ_GUID:
+        - Plugin_Root_9_1_IDD
+REQ_IDD:
     name: REQ
-    license: efb10934-ad21-11e0-8058-b7fd7bebd530
+    guid: efb10934-ad21-11e0-8058-b7fd7bebd530
     remark: EMO-Q4, REQ
     install_sources:
         - Plugins/EMO-Q4.bundle
         - Plugins/REQ.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-RVerb_GUID:
+        - Plugin_Root_9_1_IDD
+RVerb_IDD:
     name: RVerb
-    license: efce20a0-ad21-11e0-8012-b7fd7bebd530
+    guid: efce20a0-ad21-11e0-8012-b7fd7bebd530
     install_sources:
         - Plugins/RVerb.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-RVox_GUID:
+        - Plugin_Root_9_1_IDD
+RVox_IDD:
     name: RVox
-    license: efe96c20-ad21-11e0-833c-b7fd7bebd530
+    guid: efe96c20-ad21-11e0-833c-b7fd7bebd530
     install_sources:
         - Plugins/RVox.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-RenAxx_GUID:
+        - Plugin_Root_9_1_IDD
+RenAxx_IDD:
     name: RenAxx
-    license: ef9640eb-ad21-11e0-83ab-b7fd7bebd530
+    guid: ef9640eb-ad21-11e0-83ab-b7fd7bebd530
     install_sources:
         - Plugins/RenAxx.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-Reverse_GUID:
+        - Plugin_Root_9_1_IDD
+Reverse_IDD:
     name: Reverse
-    license: ed549e1d-ad21-11e0-8045-b7fd7bebd530
+    guid: ed549e1d-ad21-11e0-8045-b7fd7bebd530
     install_sources:
         - Plugins/Reverse.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-S1_GUID:
+        - Plugin_Root_9_1_IDD
+S1_IDD:
     name: S1
-    license: e7af58a0-ad21-11e0-832f-b7fd7bebd530
+    guid: e7af58a0-ad21-11e0-832f-b7fd7bebd530
     install_sources:
         - Plugins/S1.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-SSLChannel_GUID:
+        - Plugin_Root_9_1_IDD
+SSLChannel_IDD:
     name: SSLChannel
-    license: f07779d5-ad21-11e0-8252-b7fd7bebd530
+    guid: f07779d5-ad21-11e0-8252-b7fd7bebd530
     install_sources:
         - Plugins/SSLChannel.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-SSLComp_GUID:
+        - Plugin_Root_9_1_IDD
+SSLComp_IDD:
     name: SSLComp
-    license: f0b21870-ad21-11e0-811e-b7fd7bebd530
+    guid: f0b21870-ad21-11e0-811e-b7fd7bebd530
     install_sources:
         - Plugins/SSLComp.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-SSLEQ_GUID:
+        - Plugin_Root_9_1_IDD
+SSLEQ_IDD:
     name: SSLEQ
-    license: f0db846b-ad21-11e0-801f-b7fd7bebd530
+    guid: f0db846b-ad21-11e0-801f-b7fd7bebd530
     install_sources:
         - Plugins/SSLEQ.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-SoundShifter_GUID:
+        - Plugin_Root_9_1_IDD
+SoundShifter_IDD:
     name: SoundShifter
-    license: f23de82a-ad21-11e0-803b-b7fd7bebd530
+    guid: f23de82a-ad21-11e0-803b-b7fd7bebd530
     install_sources:
         - Plugins/SoundShifter.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-SpeakerEQ_GUID:
+        - Plugin_Root_9_1_IDD
+SpeakerEQ_IDD:
     name: SpeakerEQ
-    license: ed9e2727-ad21-11e0-807c-b7fd7bebd530
+    guid: ed9e2727-ad21-11e0-807c-b7fd7bebd530
     install_sources:
         - Plugins/SpeakerEQ.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-SuperTap_GUID:
+        - Plugin_Root_9_1_IDD
+SuperTap_IDD:
     name: SuperTap
-    license: e646beb6-ad21-11e0-83c3-b7fd7bebd530
+    guid: e646beb6-ad21-11e0-83c3-b7fd7bebd530
     install_sources:
         - Plugins/SuperTap.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-TransX_GUID:
+        - Plugin_Root_9_1_IDD
+TransX_IDD:
     name: TransX
-    license: f25bce3b-ad21-11e0-8126-b7fd7bebd530
+    guid: f25bce3b-ad21-11e0-8126-b7fd7bebd530
     install_sources:
         - Plugins/TransX.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-TrueVerb_GUID:
+        - Plugin_Root_9_1_IDD
+TrueVerb_IDD:
     name: TrueVerb
-    license: e7cd30b4-ad21-11e0-8385-b7fd7bebd530
+    guid: e7cd30b4-ad21-11e0-8385-b7fd7bebd530
     install_sources:
         - Plugins/TrueVerb.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-UltraPitch_GUID:
+        - Plugin_Root_9_1_IDD
+UltraPitch_IDD:
     name: UltraPitch
-    license: e6675177-ad21-11e0-833e-b7fd7bebd530
+    guid: e6675177-ad21-11e0-833e-b7fd7bebd530
     install_sources:
         - Plugins/UltraPitch.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-VComp_GUID:
+        - Plugin_Root_9_1_IDD
+VComp_IDD:
     name: VComp
-    license: f2781703-ad21-11e0-8147-b7fd7bebd530
+    guid: f2781703-ad21-11e0-8147-b7fd7bebd530
     install_sources:
         - Plugins/VComp.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-VEQ3_GUID:
+        - Plugin_Root_9_1_IDD
+VEQ3_IDD:
     name: VEQ3
-    license: f2a5ad2a-ad21-11e0-8185-b7fd7bebd530
+    guid: f2a5ad2a-ad21-11e0-8185-b7fd7bebd530
     install_sources:
         - Plugins/VEQ3.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-VEQ4_GUID:
+        - Plugin_Root_9_1_IDD
+VEQ4_IDD:
     name: VEQ4
-    license: f2f168c9-ad21-11e0-803f-b7fd7bebd530
+    guid: f2f168c9-ad21-11e0-803f-b7fd7bebd530
     install_sources:
         - Plugins/VEQ4.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-Vocal_Rider_GUID:
+        - Plugin_Root_9_1_IDD
+Vocal_Rider_IDD:
     name: Vocal_Rider
-    license: ed748b6e-ad21-11e0-83bb-b7fd7bebd530
+    guid: ed748b6e-ad21-11e0-83bb-b7fd7bebd530
     remark: DrumsGate, Rider
     install_sources:
         - Plugins/DrumsGate.bundle
         - Plugins/Rider.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-W43_GUID:
+        - Plugin_Root_9_1_IDD
+W43_IDD:
     name: W43
-    license: eee933a0-ad21-11e0-80e0-b7fd7bebd530
+    guid: eee933a0-ad21-11e0-80e0-b7fd7bebd530
     install_sources:
         - Plugins/W43.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-WLM_GUID:
+        - Plugin_Root_9_1_IDD
+WLM_IDD:
     name: WLM
-    license: 2d71ad91-bddb-42f2-a652-835830176f9f
+    guid: 2d71ad91-bddb-42f2-a652-835830176f9f
     install_sources:
         - Plugins/WLM.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-WNS_GUID:
+        - Plugin_Root_9_1_IDD
+WNS_IDD:
     name: WNS
-    license: ef03fc08-ad21-11e0-8353-b7fd7bebd530
+    guid: ef03fc08-ad21-11e0-8353-b7fd7bebd530
     install_sources:
         - Plugins/WNS.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-WavesChainer_GUID:
+        - Plugin_Root_9_1_IDD
+WavesChainer_IDD:
     name: WavesRackChainer
-    license: e453e2a1-ad21-11e0-8326-b7fd7bebd530
+    guid: e453e2a1-ad21-11e0-8326-b7fd7bebd530
     install_sources:
         - Plugins/WavesRackChainer.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-WavesTune_GUID:
+        - Plugin_Root_9_1_IDD
+WavesTune_IDD:
     name: WavesTune
-    license: f3513e7f-ad21-11e0-83f7-b7fd7bebd530
+    guid: f3513e7f-ad21-11e0-83f7-b7fd7bebd530
     install_sources:
         - Plugins/WavesTune.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-WavesTune_LT_GUID:
+        - Plugin_Root_9_1_IDD
+WavesTune_LT_IDD:
     name: WavesTune LT
-    license: f3515f5a-ad21-11e0-81da-b7fd7bebd530
+    guid: f3515f5a-ad21-11e0-81da-b7fd7bebd530
     install_sources:
         - Plugins/WavesTune LT.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-X_Click_GUID:
+        - Plugin_Root_9_1_IDD
+X_Click_IDD:
     name: XClick
-    license: f00484d0-ad21-11e0-8357-b7fd7bebd530
+    guid: f00484d0-ad21-11e0-8357-b7fd7bebd530
     install_sources:
         - Plugins/X-Click.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-X_Crackle_GUID:
+        - Plugin_Root_9_1_IDD
+X_Crackle_IDD:
     name: XCrackle
-    license: f01f84d6-ad21-11e0-822a-b7fd7bebd530
+    guid: f01f84d6-ad21-11e0-822a-b7fd7bebd530
     install_sources:
         - Plugins/X-Crackle.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-X_Hum_GUID:
+        - Plugin_Root_9_1_IDD
+X_Hum_IDD:
     name: XHum
-    license: f03a7463-ad21-11e0-830f-b7fd7bebd530
+    guid: f03a7463-ad21-11e0-830f-b7fd7bebd530
     install_sources:
         - Plugins/X-Hum.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-X_Noise_GUID:
+        - Plugin_Root_9_1_IDD
+X_Noise_IDD:
     name: XNoise
-    license: f056c254-ad21-11e0-8310-b7fd7bebd530
+    guid: f056c254-ad21-11e0-8310-b7fd7bebd530
     install_sources:
         - Plugins/X-Noise.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
-Z_Noise_GUID:
+        - Plugin_Root_9_1_IDD
+Z_Noise_IDD:
     name: ZNoise
-    license: ee3dacf8-ad21-11e0-83ec-b7fd7bebd530
+    guid: ee3dacf8-ad21-11e0-83ec-b7fd7bebd530
     install_sources:
         - Plugins/Z-Noise.bundle
     inherit:
-        - Plugin_Root_9_1_GUID
+        - Plugin_Root_9_1_IDD
 
-SURROUND_BUNDLE_GUID:
+SURROUND_BUNDLE_IDD:
     name: All surrounf plugins
     depends:
-        - Dorrough_Surround_GUID
-        - C360_GUID
-        - L360_GUID
-        - MV360_GUID
-        - R360_GUID
+        - Dorrough_Surround_IDD
+        - C360_IDD
+        - L360_IDD
+        - MV360_IDD
+        - R360_IDD

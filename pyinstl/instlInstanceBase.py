@@ -51,29 +51,29 @@ class InstallInstructionsState(object):
         return retVal
 
     def calculate_full_install_items_set(self, instlInstance):
-        """ calculate the set of guids to install by starting with the root set and adding all dependencies.
-            Initial list of guid should already be in self.root_install_items.
+        """ calculate the set of idds to install by starting with the root set and adding all dependencies.
+            Initial list of idd should already be in self.root_install_items.
             results are accomulated in InstallInstructionsState.
-            If an install items was not found for a guid, the guid is added to the orphan set.
+            If an install items was not found for a idd, the idd is added to the orphan set.
         """
-        # root_install_items might have license in it, translate them to guids
-        root_install_guids_translated = unique_list()
-        for GUID in self.root_install_items:
-            if instlInstance.license_re.match(GUID):
-                root_install_guids_translated.extend(instlInstance.guids_from_license(GUID))
+        # root_install_items might have guid in it, translate them to idds
+        root_install_idds_translated = unique_list()
+        for IDD in self.root_install_items:
+            if instlInstance.guid_re.match(IDD):
+                root_install_idds_translated.extend(instlInstance.idds_from_guid(IDD))
             else:
-                root_install_guids_translated.append(GUID)
-        for GUID in root_install_guids_translated:
+                root_install_idds_translated.append(IDD)
+        for IDD in root_install_idds_translated:
             try:
-                instlInstance.install_definitions_index[GUID].get_recursive_depends(instlInstance.install_definitions_index, self.full_install_items, self.orphan_install_items)
+                instlInstance.install_definitions_index[IDD].get_recursive_depends(instlInstance.install_definitions_index, self.full_install_items, self.orphan_install_items)
             except KeyError:
-                self.orphan_install_items.append(GUID)
+                self.orphan_install_items.append(IDD)
         self.__sort_install_items_by_folder(instlInstance)
 
     def __sort_install_items_by_folder(self, instlInstance):
-        for GUID in self.full_install_items:
-            for folder in instlInstance.install_definitions_index[GUID].folder_list():
-                self.install_items_by_folder[folder].append(GUID)
+        for IDD in self.full_install_items:
+            for folder in instlInstance.install_definitions_index[IDD].folder_list():
+                self.install_items_by_folder[folder].append(IDD)
 
 class InstlInstanceBase(object):
     """ Main object of instl. Keeps the state of variables and install index
@@ -89,7 +89,7 @@ class InstlInstanceBase(object):
         self.var_replacement_pattern = None
         self.init_default_vars()
 
-        self.license_re = re.compile("""
+        self.guid_re = re.compile("""
                         [a-f0-9]{8}
                         (-[a-f0-9]{4}){3}
                         -[a-f0-9]{12}
@@ -207,21 +207,21 @@ class InstlInstanceBase(object):
         for install_def in self.install_definitions_index.values():
             install_def.resolve_inheritance(self.install_definitions_index)
 
-    def license_list(self):
+    def guid_list(self):
         retVal = unique_list()
-        retVal.extend(filter(bool, [install_def.license for install_def in self.install_definitions_index.values()]))
+        retVal.extend(filter(bool, [install_def.guid for install_def in self.install_definitions_index.values()]))
         return retVal
 
-    def guids_from_license(self, license):
+    def idds_from_guid(self, guid):
         retVal = list()
-        for guid, install_def in self.install_definitions_index.iteritems():
-            if install_def.license == license:
-                retVal.append(guid)
+        for idd, install_def in self.install_definitions_index.iteritems():
+            if install_def.guid == guid:
+                retVal.append(idd)
         return retVal
 
     def calculate_default_install_item_set(self, installState):
-        """ calculate the set of guid to install from the "__MAIN_INSTALL_TARGETS__" variable.
-            Full set of install guids and orphan guids are also writen to variable.
+        """ calculate the set of idd to install from the "__MAIN_INSTALL_TARGETS__" variable.
+            Full set of install idds and orphan idds are also writen to variable.
         """
         if "MAIN_INSTALL_TARGETS" not in self.cvl:
             raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
@@ -278,8 +278,8 @@ class InstlInstanceBase(object):
         installState.sync_instruction_lines.append(self.make_directory_cmd("$(LOCAL_SYNC_DIR)/$(REPO_NAME)"))
         installState.sync_instruction_lines.append(self.change_directory_cmd("$(LOCAL_SYNC_DIR)/$(REPO_NAME)"))
         installState.sync_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "co", '"$(BOOKKEEPING_DIR_URL)"', '"$(REL_BOOKKIPING_PATH)"', "--revision", "$(REPO_REV)")))
-        for guid  in installState.full_install_items:                   # svn pulling actions
-            installi = self.install_definitions_index[guid]
+        for idd  in installState.full_install_items:                   # svn pulling actions
+            installi = self.install_definitions_index[idd]
             for source in installi.source_list():                   # svn pulling actions
                 installState.sync_instruction_lines.extend(self.create_svn_sync_instructions_for_source(source))
  
@@ -300,10 +300,10 @@ class InstlInstanceBase(object):
             folder_in_actions = unique_list()
             install_item_instructions = list()
             folder_out_actions = unique_list()
-            for GUID in folder_items: # folder_in actions
-                installi = self.install_definitions_index[GUID]
+            for IDD in folder_items: # folder_in actions
+                installi = self.install_definitions_index[IDD]
                 folder_in_actions.extend(installi.action_list('folder_in'))
-                install_item_instructions.extend(self.create_copy_instructions_for_item(self.install_definitions_index[GUID]))
+                install_item_instructions.extend(self.create_copy_instructions_for_item(self.install_definitions_index[IDD]))
                 folder_out_actions.extend(installi.action_list('folder_out'))
             installState.copy_instruction_lines.extend(folder_in_actions)
             installState.copy_instruction_lines.extend(install_item_instructions)
@@ -386,22 +386,22 @@ class InstlInstanceBase(object):
                 except ImportError as IE: # no installItemGraph, no worry
                     print("Could not load installItemGraph")
 
-    def needs(self, guid, out_list):
-        """ return all items that depend on guid """
-        if guid not in self.install_definitions_index:
-            raise KeyError(guid+" is not in index")
-        for dep in self.install_definitions_index[guid].depend_list():
+    def needs(self, idd, out_list):
+        """ return all items that depend on idd """
+        if idd not in self.install_definitions_index:
+            raise KeyError(idd+" is not in index")
+        for dep in self.install_definitions_index[idd].depend_list():
             if dep in self.install_definitions_index:
                 out_list.append(dep)
                 self.needs(dep, out_list)
             else:
                 out_list.append(dep+"(missing)")
 
-    def needed_by(self, guid):
+    def needed_by(self, idd):
         try:
             from pyinstl import installItemGraph
             graph = installItemGraph.create_dependencies_graph(self.install_definitions_index)
-            needed_by_list = installItemGraph.find_needed_by(graph, guid)
+            needed_by_list = installItemGraph.find_needed_by(graph, idd)
             return needed_by_list
         except ImportError as IE: # no installItemGraph, no worry
             print("Could not load installItemGraph")

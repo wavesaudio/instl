@@ -170,15 +170,15 @@ class CMDObj(cmd.Cmd, object):
 
     def prepare_coloring_dict(self):
         """ Prepare a dictionary with identifiers mapped to their "colored" representation.
-            Left hand index enrties: 'C1_GUID:' translates to colorama.Fore.GREEN+'C1_GUID'+colorama.Fore.RESET+":".
-            Right hand index enrties: '- C1_GUID:' translates to "- "+colorama.Fore.YELLOW+'C1_GUID'+colorama.Fore.RESET.
+            Left hand index enrties: 'C1_IDD:' translates to colorama.Fore.GREEN+'C1_IDD'+colorama.Fore.RESET+":".
+            Right hand index enrties: '- C1_IDD:' translates to "- "+colorama.Fore.YELLOW+'C1_IDD'+colorama.Fore.RESET.
             Variable references: $(WAVES_PLUGINS_DIR) translates to colorama.Fore.BLUE+$(WAVES_PLUGINS_DIR).
             The returned disctionary can be used in replace_all_from_dict() for "coloring" the text before output to stdcout.
         """
         retVal = dict()
         defs = self.prog_inst.create_completion_list("define")
         index = self.prog_inst.create_completion_list("index")
-        licenses = self.prog_inst.create_completion_list("license")
+        guids = self.prog_inst.create_completion_list("guid")
 
         retVal.update({"$("+identi+")": text_with_color("$("+identi+")", "blue")    for identi in defs})
         retVal.update({identi+":":      text_with_color(identi, "green")+":"        for identi in defs})
@@ -187,8 +187,8 @@ class CMDObj(cmd.Cmd, object):
         retVal.update({dex+":":         text_with_color(dex, "green")+":"           for dex in index})
         retVal.update({"- "+dex:        "- "+text_with_color(dex, "yellow")         for dex in index})
 
-        retVal.update({lic+":":         text_with_color(lic, "green")+":"           for lic in licenses})
-        retVal.update({"- "+lic:        "- "+text_with_color(lic, "yellow")         for lic in licenses})
+        retVal.update({lic+":":         text_with_color(lic, "green")+":"           for lic in guids})
+        retVal.update({"- "+lic:        "- "+text_with_color(lic, "yellow")         for lic in guids})
         return retVal
 
     def color_vars(self, text):
@@ -229,7 +229,7 @@ class CMDObj(cmd.Cmd, object):
     def complete_list(self, text, line, begidx, endidx):
         #print("complete_list, text:", text)
         matches = self.indentifier_completion_list(text, line, begidx, endidx)
-        for s in ("define", "index", "license"):
+        for s in ("define", "index", "guid"):
             if s.lower().startswith(text.lower()):
                 matches.append(s)
         return matches
@@ -241,10 +241,10 @@ class CMDObj(cmd.Cmd, object):
         print( "    lists all definitions" )
         print( "list index" )
         print( "    lists all index entries" )
-        print( "list license" )
-        print( "    lists all license entries" )
+        print( "list guid" )
+        print( "    lists all guid entries" )
         print( "list" )
-        print( "    lists all definitions, index & license entries" )
+        print( "    lists all definitions, index & guid entries" )
 
     def do_set(self, params):
         if params:
@@ -443,17 +443,17 @@ def do_list_imp(self, what = None, stream=sys.stdout):
         for item in what:
             self.do_list(str(item), stream)
     elif isinstance(what, str):
-        if self.license_re.match(what):
-            augmentedYaml.writeAsYaml({what: self.guids_from_license(what)}, stream)
+        if self.guid_re.match(what):
+            augmentedYaml.writeAsYaml({what: self.idds_from_guid(what)}, stream)
         elif what == "define":
             augmentedYaml.writeAsYaml(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True), stream)
         elif what == "index":
             augmentedYaml.writeAsYaml(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True), stream)
-        elif what == "license":
-            license_dict = dict()
-            for lic in self.license_list():
-                license_dict[lic] = self.guids_from_license(lic)
-            augmentedYaml.writeAsYaml(license_dict, stream)
+        elif what == "guid":
+            guid_dict = dict()
+            for lic in self.guid_list():
+                guid_dict[lic] = self.idds_from_guid(lic)
+            augmentedYaml.writeAsYaml(guid_dict, stream)
         else:
             item_list = self.repr_for_yaml((what,))
             for item in item_list:
@@ -467,8 +467,8 @@ def create_completion_list_imp(self, for_what="all"):
             retVal.extend(self.install_definitions_index.keys())
         if for_what in ("all", "define"):
             retVal.extend(self.cvl.keys())
-        if for_what in ("all", "license"):
-            retVal.extend(self.license_list())
+        if for_what in ("all", "guid"):
+            retVal.extend(self.guid_list())
     except Exception as ex:
         print("create_completion_list:",   ex)
     return retVal
