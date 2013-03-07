@@ -97,11 +97,11 @@ Class InstlInstanceBase
     
         .. method:: sort_install_instructions_by_folder(self)
 
-            Returns a dictionary whose keys are folders and values are sets of GUIDs of install targets that specified the folder as their `install_folder`. The targets are taken from the variable `__FULL_LIST_OF_INSTALL_TARGETS__`.    
+            Returns a dictionary whose keys are folders and values are sets of IDDs of install targets that specified the folder as their `install_folder`. The targets are taken from the variable `__FULL_LIST_OF_INSTALL_TARGETS__`.    
     
         .. method:: create_install_list(self)
 
-            Creates the variable `__FULL_LIST_OF_INSTALL_TARGETS__` and populates it's values with the full list of all targets that are marked for install. Initial list of targets is taken from the variable `__MAIN_INSTALL_TARGETS__`. The initial list is recursively seached for dependencies. Target GUIDs that are referred to but are not in the index are added to the variable `__ORPHAN_INSTALL_TARGETS__`.
+            Creates the variable `__FULL_LIST_OF_INSTALL_TARGETS__` and populates it's values with the full list of all targets that are marked for install. Initial list of targets is taken from the variable `__MAIN_INSTALL_TARGETS__`. The initial list is recursively seached for dependencies. Target IDDs that are referred to but are not in the index are added to the variable `__ORPHAN_INSTALL_TARGETS__`.
         
         .. method:: get_install_instructions_prefix(self)
 
