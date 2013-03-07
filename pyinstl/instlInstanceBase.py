@@ -192,9 +192,9 @@ class InstlInstanceBase(object):
         try:
             with open_for_read_file_or_url(file_path) as file_fd:
                 for a_node in yaml.compose_all(file_fd):
-                    if a_node.tag == u'!define':
+                    if a_node.tag == '!define':
                         self.read_defines(a_node)
-                    elif a_node.tag == u'!index':
+                    elif a_node.tag == '!index':
                         self.read_index(a_node)
                     else:
                         print("Unknown document tag '"+a_node.tag+"'; Tag should be one of: !define, !index'")
@@ -232,9 +232,9 @@ class InstlInstanceBase(object):
             self.cvl.set_variable("__ORPHAN_INSTALL_TARGETS__").extend(installState.orphan_install_items)
 
     def create_variables_assignment(self, installState):
-        for value in self.cvl:
-            if not self.internal_identifier_re.match(value): # do not write internal state indentifiers
-                installState.variables_assignment_lines.append(value+'="'+self.cvl.get_str(value)+'"')
+        for identifier in self.cvl:
+            if not self.internal_identifier_re.match(identifier): # do not write internal state indentifiers
+                installState.variables_assignment_lines.append(self.create_var_assign(identifier,self.cvl.get_str(identifier)))
 
     def init_sync_vars(self):
         if "SVN_REPO_URL" not in self.cvl:
@@ -275,8 +275,8 @@ class InstlInstanceBase(object):
     def create_sync_instructions(self, installState):
         self.init_sync_vars()
         self.create_variables_assignment(installState)
-        installState.sync_instruction_lines.append(self.make_directory_cmd("$(LOCAL_SYNC_DIR)/$(REPO_NAME)"))
-        installState.sync_instruction_lines.append(self.change_directory_cmd("$(LOCAL_SYNC_DIR)/$(REPO_NAME)"))
+        installState.sync_instruction_lines.extend(self.make_directory_cmd("$(LOCAL_SYNC_DIR)/$(REPO_NAME)"))
+        installState.sync_instruction_lines.extend(self.change_directory_cmd("$(LOCAL_SYNC_DIR)/$(REPO_NAME)"))
         installState.sync_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "co", '"$(BOOKKEEPING_DIR_URL)"', '"$(REL_BOOKKIPING_PATH)"', "--revision", "$(REPO_REV)")))
         for idd  in installState.full_install_items:                   # svn pulling actions
             installi = self.install_definitions_index[idd]
@@ -295,8 +295,8 @@ class InstlInstanceBase(object):
         self.init_copy_vars()
         self.create_variables_assignment(installState)
         for folder_name, folder_items in installState.install_items_by_folder.iteritems():
-            installState.copy_instruction_lines.append(self.make_directory_cmd(folder_name))
-            installState.copy_instruction_lines.append(self.change_directory_cmd(folder_name))
+            installState.copy_instruction_lines.extend(self.make_directory_cmd(folder_name))
+            installState.copy_instruction_lines.extend(self.change_directory_cmd(folder_name))
             folder_in_actions = unique_list()
             install_item_instructions = list()
             folder_out_actions = unique_list()
@@ -315,11 +315,11 @@ class InstlInstanceBase(object):
         source_url = "${LOCAL_SYNC_DIR}/${REPO_NAME}/${REL_SRC_PATH}/"+source[0]
 
         if source[1] == '!file': # get a single file, not recommneded
-            retVal.append(self.create_copy_file_to_dir_command(source_url, "."))
+            retVal.extend(self.create_copy_file_to_dir_command(source_url, "."))
         elif source[1] == '!files': # get all files from a folder
-            retVal.append(self.create_copy_dir_contents_to_dir_command(source_url, "."))
+            retVal.extend(self.create_copy_dir_contents_to_dir_command(source_url, "."))
         else:
-            retVal.append(self.create_copy_dir_to_dir_command(source_url, "."))
+            retVal.extend(self.create_copy_dir_to_dir_command(source_url, "."))
         return retVal
 
     def finalize_list_of_lines(self, installState):
@@ -453,6 +453,10 @@ class InstlInstanceBase(object):
     @abc.abstractmethod
     def get_svn_folder_cleanup_instructions(self, directory):
         """ platform specific cleanup of svn locks """
+        pass
+
+    @abc.abstractmethod
+    def create_var_assign(self, identifier, value):
         pass
 
     def read_command_line_options(self, arglist=None):
