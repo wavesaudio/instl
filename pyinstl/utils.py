@@ -4,6 +4,7 @@ import sys
 import os
 import urllib2
 import re
+import urlparse
 
 class write_to_file_or_stdout(object):
     def  __init__(self, file_path):
@@ -121,11 +122,37 @@ class unique_list(list):
         """ Overriding count is not required - just more efficient """
         return self.__attendance.count(item)
 
-def test_unique_list():
-    u = unique_list( ('a', 'b', 'c', 'c'))
-    y = unique_list()
-    print(bool([1]), bool([]), bool(1), bool(0))
+def print_var(var_name):
+    calling_frame = sys._getframe().f_back
+    var_val = calling_frame.f_locals.get(var_name, calling_frame.f_globals.get(var_name, None))
+    print (var_name+':', str(var_val))
+
+def last_url_item(url):
+    url = url.strip("/")
+    url_path = urlparse.urlparse(url).path
+    _, retVal = os.path.split(url_path)
+    return retVal
+
+def relative_url(base, target):
+    base_path = urlparse.urlparse(base.strip("/")).path
+    target_path = urlparse.urlparse(target.strip("/")).path
+    retVal = None
+    if target_path.startswith(base_path):
+        retVal = target_path.replace(base_path, '', 1)
+        retVal = retVal.strip("/")
+    return retVal        
+
 if __name__ == "__main__":
+    def test_unique_list():
+        u = unique_list( ('a', 'b', 'c', 'c'))
+        y = unique_list()
+        print(bool([1]), bool([]), bool(1), bool(0))
     test_unique_list()
     #print(dir(list))
+
+def deprecated(deprecated_func):
+    def anounce_deprecation(*args, **kargs):
+        print(deprecated_func.__name__, "is deprecated")
+        return None
+    return anounce_deprecation
 

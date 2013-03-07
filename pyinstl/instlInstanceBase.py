@@ -8,13 +8,13 @@ import yaml
 import re
 import abc
 from collections import OrderedDict, defaultdict
+import appdirs
 
 import configVar
 from configVarList import ConfigVarList, value_ref_re
 from aYaml import augmentedYaml
 from installItem import InstallItem, read_index_from_yaml
-from pyinstl.utils import unique_list
-from pyinstl.utils import open_for_read_file_or_url
+from pyinstl.utils import *
 
 import platform
 current_os = platform.system()
@@ -23,28 +23,8 @@ if current_os == 'Darwin':
 elif current_os == 'Windows':
     current_os = 'win'
 
-INSTL_VERSION=(0, 1, 0)
-
-
-
-class cmd_line_options(object):
-    """ namespace object to give to parse_args
-        holds command line options
-    """
-    def __init__(self):
-        self.input_files = None
-        self.out_file_option = None
-        self.main_targets = None
-        self.state_file_option = None
-        self.run = False
-        self.alias_args = None
-        self.version = False
-
-    def __str__(self):
-        retVal = ("input_files: {self.input_files}\nout_file_option: {self.out_file_option}\n"+
-                "main_targets: {self.main_targets}\nstate_file_option: {self.state_file_option}\n"+
-                "run: {self.run}\n").format(**vars())
-        return retVal
+INSTL_VERSION=(0, 2, 0)
+this_program_name = "instl"
 
 class InstallInstructionsState(object):
     """ holds state for specific creating of install instructions """
@@ -54,7 +34,9 @@ class InstallInstructionsState(object):
         self.orphan_install_items = unique_list()
         self.install_items_by_folder = defaultdict(unique_list)
         self.variables_assignment_lines = list()
-        self.install_instruction_lines = list()
+        self.copy_instruction_lines = list()
+        self.sync_paths = unique_list()
+        self.sync_instruction_lines = list()
 
     def repr_for_yaml(self):
         retVal = OrderedDict()
@@ -63,7 +45,9 @@ class InstallInstructionsState(object):
         retVal['orphan_install_items'] = list(self.orphan_install_items)
         retVal['install_items_by_folder'] = {folder: list(self.install_items_by_folder[folder]) for folder in self.install_items_by_folder}
         retVal['variables_assignment_lines'] = list(self.variables_assignment_lines)
-        retVal['install_instruction_lines'] = self.install_instruction_lines
+        retVal['copy_instruction_lines'] = self.copy_instruction_lines
+        retVal['sync_paths'] = list(self.sync_paths)
+        retVal['sync_instruction_lines'] = self.sync_instruction_lines
         return retVal
 
     def calculate_full_install_items_set(self, instlInstance):
@@ -103,8 +87,8 @@ class InstlInstanceBase(object):
         self.install_definitions_index = dict()
         self.cvl = ConfigVarList()
         self.var_replacement_pattern = None
-        self.svn_version = "HEAD"
-        self.cvl.add_const_config_variable("__INSTL_VERSION__", "from InstlInstanceBase.__init__", *INSTL_VERSION)
+        self.init_default_vars()
+
         self.license_re = re.compile("""
                         [a-f0-9]{8}
                         (-[a-f0-9]{4}){3}
@@ -134,40 +118,28 @@ class InstlInstanceBase(object):
 
         return retVal
 
-    def read_command_line_options(self, arglist=None):
-        """ parse command line options """
-        try:
-            if arglist and len(arglist) > 0:
-                self.mode = "batch"
-                parser = prepare_args_parser()
-                self.name_space_obj = cmd_line_options()
-                args = parser.parse_args(arglist, namespace=self.name_space_obj)
-                if self.name_space_obj.alias_args:
-                    self.something_to_do = ('alias', self.name_space_obj.alias_args)
-                    self.mode = "do_something"
-                else:
-                    self.init_from_cmd_line_options(self.name_space_obj)
-            else:
-                self.mode = "interactive"
-        except Exception as ex:
-            import traceback
-            tb = traceback.format_exc()
-            print(ex, tb)
-            raise
+    def init_default_vars(self):
+        self.cvl.add_const_config_variable("__INSTL_VERSION__", "from InstlInstanceBase.init_default_vars", *INSTL_VERSION)
+        self.cvl.set_variable("LOCAL_SYNC_DIR", "from InstlInstanceBase.init_default_vars").append(appdirs.user_cache_dir(this_program_name, this_program_name))
 
-    def init_batch_mode(self):
-        """ what ever needs to be done before starting in batch mode """
-        if self.name_space_obj.version:
-            print(" ".join( ("instl", "version", ".".join(self.get_version()))))
-
-    def get_version(self):
-        retVal = self.cvl.get("__INSTL_VERSION__")
-        return retVal
+    def do_command(self):
+        self.read_input_files()
+        self.resolve_index_inheritance()
+        installState = InstallInstructionsState()
+        self.calculate_default_install_item_set(installState)
+        if self.name_space_obj.command == "sync":
+            self.create_sync_instructions(installState)
+        if self.name_space_obj.command == "copy":
+            self.create_copy_instructions(installState)
+        self.write_batch_file(installState)
 
     def do_something(self):
         try:
-            import do_something
-            do_something.do_something(self.something_to_do)
+            if self.name_space_obj.command == "version":
+                print(" ".join( (this_program_name, "version", ".".join(self.cvl.get("__INSTL_VERSION__")))))
+            else:
+                import do_something
+                do_something.do_something(self.something_to_do)
         except Exception as es:
             import traceback
             tb = traceback.format_exc()
@@ -176,42 +148,13 @@ class InstlInstanceBase(object):
     def init_from_cmd_line_options(self, cmd_line_options_obj):
         """ turn command line options into variables """
         if cmd_line_options_obj.input_files:
-            self.cvl.add_const_config_variable("__MAIN_INPUT_FILES__", "from commnad line options", *cmd_line_options_obj.input_files)
-        if cmd_line_options_obj.out_file_option:
-            self.cvl.add_const_config_variable("__MAIN_OUT_FILE__", "from commnad line options", cmd_line_options_obj.out_file_option[0])
-        if cmd_line_options_obj.main_targets:
-            self.cvl.add_const_config_variable("__CMD_INSTALL_TARGETS__", "from commnad line options", *cmd_line_options_obj.main_targets)
-        if cmd_line_options_obj.state_file_option:
-            self.cvl.add_const_config_variable("__MAIN_STATE_FILE__", "from commnad line options", cmd_line_options_obj.state_file_option)
+            self.cvl.add_const_config_variable("__MAIN_INPUT_FILES__", "from command line options", *cmd_line_options_obj.input_files)
+        if cmd_line_options_obj.output_file:
+            self.cvl.add_const_config_variable("__MAIN_OUT_FILE__", "from command line options", cmd_line_options_obj.output_file[0])
+        if cmd_line_options_obj.state_file:
+            self.cvl.add_const_config_variable("__MAIN_STATE_FILE__", "from command line options", cmd_line_options_obj.state_file)
         if cmd_line_options_obj.run:
-            self.cvl.add_const_config_variable("__MAIN_RUN_INSTALLATION__", "from commnad line options", "yes")
-        self.resolve()
-
-    def digest(self):
-        """
-        """
-        self.resolve()
-        if "SVN_REPO_VERSION" in self.cvl:
-            self.svn_version = self.cvl.get_str("SVN_REPO_VERSION")
-        # command line targets take precedent, if they were not specifies, look for "MAIN_INSTALL_TARGETS"
-        copy_main_install_to_from = None
-        if "__CMD_INSTALL_TARGETS__" in self.cvl:
-            copy_main_install_to_from = "__CMD_INSTALL_TARGETS__"
-        elif "MAIN_INSTALL_TARGETS" in self.cvl:
-            copy_main_install_to_from = "MAIN_INSTALL_TARGETS"
-        if copy_main_install_to_from:
-            self.cvl.duplicate_variable(copy_main_install_to_from, "__MAIN_INSTALL_TARGETS__")
-        self.resolve()
-        self.resolve_index_inheritance()
-
-    def dedigest(self):
-        """ reverse the effect of digest, and clear some members """
-        del self.cvl["__MAIN_INSTALL_TARGETS__"]
-        del self.cvl["__FULL_LIST_OF_INSTALL_TARGETS__"]
-        del self.cvl["__ORPHAN_INSTALL_TARGETS__"]
-        self.variables_assignment_lines = dict()
-        self.install_instruction_lines = dict()
-        self.resolve()
+            self.cvl.add_const_config_variable("__MAIN_RUN_INSTALLATION__", "from command line options", "yes")
 
     internal_identifier_re = re.compile("""
                                         __                  # dunder here
@@ -226,13 +169,14 @@ class InstlInstanceBase(object):
                     self.cvl.set_variable(identifier, str(contents.start_mark)).extend([item.value for item in contents])
                 elif identifier == '__include__':
                     for file_name in contents:
-                        self.read_file(file_name.value)
+                        resolved_file_name = self.cvl.resolve_string(file_name.value)
+                        self.read_file(resolved_file_name)
 
     def read_index(self, a_node):
         self.install_definitions_index.update(read_index_from_yaml(a_node))
 
     def read_input_files(self):
-        input_files = self.cvl.get("__MAIN_INPUT_FILES__", ())
+        input_files = self.cvl.get_list("__MAIN_INPUT_FILES__")
         if input_files:
             file_actually_opened = list()
             for file_path in input_files:
@@ -259,14 +203,6 @@ class InstlInstanceBase(object):
             tb = traceback.format_exc()
             print("read_file", file_path, ex, tb)
 
-    def resolve(self):
-        try:
-            self.cvl.resolve()
-        except Exception as es:
-            import traceback
-            tb = traceback.format_exc()
-            print("resolve", es, tb)
-
     def resolve_index_inheritance(self):
         for install_def in self.install_definitions_index.values():
             install_def.resolve_inheritance(self.install_definitions_index)
@@ -287,60 +223,103 @@ class InstlInstanceBase(object):
         """ calculate the set of guid to install from the "__MAIN_INSTALL_TARGETS__" variable.
             Full set of install guids and orphan guids are also writen to variable.
         """
-        installState.root_install_items.extend(self.cvl.get("__MAIN_INSTALL_TARGETS__"))
-        installState.calculate_full_install_items_set(self)
-        self.cvl.add_const_config_variable("__FULL_LIST_OF_INSTALL_TARGETS__", "calculated by calculate_default_install_item_set", *installState.full_install_items)
-        if installState.orphan_install_items:
-            self.cvl.add_const_config_variable("__ORPHAN_INSTALL_TARGETS__", "calculated by calculate_default_install_item_set", *installState.orphan_install_items)
+        if "MAIN_INSTALL_TARGETS" not in self.cvl:
+            raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
+            installState.root_install_items.extend(self.cvl.get_list("MAIN_INSTALL_TARGETS"))
+            self.cvl.set_variable("__MAIN_INSTALL_TARGETS__").extend(installState.root_install_items)
+            installState.calculate_full_install_items_set(self)
+            self.cvl.set_variable("__FULL_LIST_OF_INSTALL_TARGETS__").extend(installState.full_install_items)
+            self.cvl.set_variable("__ORPHAN_INSTALL_TARGETS__").extend(installState.orphan_install_items)
 
     def create_variables_assignment(self, installState):
         for value in self.cvl:
-            if not self.internal_identifier_re.match(value): # do not read internal state indentifiers
-                installState.variables_assignment_lines.append(value+'="'+" ".join(self.cvl[value])+'"')
+            if not self.internal_identifier_re.match(value): # do not write internal state indentifiers
+                installState.variables_assignment_lines.append(value+'="'+self.cvl.get_str(value)+'"')
 
-    def create_default_install_instructions(self, installState):
-        self.calculate_default_install_item_set(installState)
-        self.create_install_instructions(installState)
+    def init_sync_vars(self):
+        if "SVN_REPO_URL" not in self.cvl:
+            raise ValueError("'SVN_REPO_URL' was not defined")
+        if "BASE_SRC_URL" not in self.cvl:
+            raise ValueError("'BASE_SRC_URL' was not defined")
+        if "BOOKKEEPING_DIR_URL" not in self.cvl:
+            raise ValueError("'BOOKKEEPING_DIR_URL' was not defined")
 
-    def create_install_instructions(self, installState):
+        rel_sources = relative_url(self.cvl.get_str("SVN_REPO_URL"), self.cvl.get_str("BASE_SRC_URL"))
+        self.cvl.set_variable("REL_SRC_PATH", "from InstlInstanceBase.init_sync_vars").append(rel_sources)
+        
+        bookkeeping_relative_path = relative_url(self.cvl.get_str("SVN_REPO_URL"), self.cvl.get_str("BOOKKEEPING_DIR_URL"))
+        self.cvl.set_variable("REL_BOOKKIPING_PATH", "from InstlInstanceBase.init_sync_vars").append(bookkeeping_relative_path)
+
+        if "REPO_REV" not in self.cvl:
+            self.cvl.set_variable("REPO_REV", "from InstlInstanceBase.init_sync_vars").append("HEAD")
+
+        if "REPO_NAME" not in self.cvl:
+            repo_name = last_url_item(self.cvl.get_str("SVN_REPO_URL"))
+            self.cvl.set_variable("REPO_NAME", "from InstlInstanceBase.init_sync_vars").append(repo_name)
+ 
+    def init_copy_vars(self):
+        if "REL_SRC_PATH" not in self.cvl:
+            if "SVN_REPO_URL" not in self.cvl:
+                raise ValueError("'SVN_REPO_URL' was not defined")
+            if "BASE_SRC_URL" not in self.cvl:
+                raise ValueError("'BASE_SRC_URL' was not defined")
+            rel_sources = relative_url(self.cvl.get_str("SVN_REPO_URL"), self.cvl.get_str("BASE_SRC_URL"))
+            self.cvl.set_variable("REL_SRC_PATH", "from InstlInstanceBase.init_sync_vars").append(rel_sources)
+
+        if "REPO_NAME" not in self.cvl:
+            if "SVN_REPO_URL" not in self.cvl:
+                raise ValueError("'SVN_REPO_URL' was not defined")
+            repo_name = last_url_item(self.cvl.get_str("SVN_REPO_URL"))
+            self.cvl.set_variable("REPO_NAME", "from InstlInstanceBase.init_sync_vars").append(repo_name)
+
+    def create_sync_instructions(self, installState):
+        self.init_sync_vars()
+        self.create_variables_assignment(installState)
+        installState.sync_instruction_lines.append(self.make_directory_cmd("$(LOCAL_SYNC_DIR)/$(REPO_NAME)"))
+        installState.sync_instruction_lines.append(self.change_directory_cmd("$(LOCAL_SYNC_DIR)/$(REPO_NAME)"))
+        installState.sync_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "co", '"$(BOOKKEEPING_DIR_URL)"', '"$(REL_BOOKKIPING_PATH)"', "--revision", "$(REPO_REV)")))
+        for guid  in installState.full_install_items:                   # svn pulling actions
+            installi = self.install_definitions_index[guid]
+            for source in installi.source_list():                   # svn pulling actions
+                installState.sync_instruction_lines.extend(self.create_svn_sync_instructions_for_source(source))
+ 
+    def create_svn_sync_instructions_for_source(self, source):
+        """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
+        retVal = list()
+        source_url =   '/'.join( ("${BASE_SRC_URL}", source[0]) ) 
+        target_path =  '/'.join( ("$(REL_SRC_PATH)", source[0]) )
+        retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "co", '"'+source_url+'"', '"'+target_path+'"', "--revision", "$(REPO_REV)")))
+        return retVal
+   
+    def create_copy_instructions(self, installState):
+        self.init_copy_vars()
         self.create_variables_assignment(installState)
         for folder_name, folder_items in installState.install_items_by_folder.iteritems():
-            installState.install_instruction_lines.append(self.make_directory_cmd(folder_name))
-            installState.install_instruction_lines.append(self.change_directory_cmd(folder_name))
+            installState.copy_instruction_lines.append(self.make_directory_cmd(folder_name))
+            installState.copy_instruction_lines.append(self.change_directory_cmd(folder_name))
             folder_in_actions = unique_list()
             install_item_instructions = list()
             folder_out_actions = unique_list()
             for GUID in folder_items: # folder_in actions
                 installi = self.install_definitions_index[GUID]
                 folder_in_actions.extend(installi.action_list('folder_in'))
-                install_item_instructions.extend(self.create_install_instructions_for_item(self.install_definitions_index[GUID]))
+                install_item_instructions.extend(self.create_copy_instructions_for_item(self.install_definitions_index[GUID]))
                 folder_out_actions.extend(installi.action_list('folder_out'))
-            installState.install_instruction_lines.extend(folder_in_actions)
-            installState.install_instruction_lines.extend(install_item_instructions)
-            installState.install_instruction_lines.extend(folder_out_actions)
+            installState.copy_instruction_lines.extend(folder_in_actions)
+            installState.copy_instruction_lines.extend(install_item_instructions)
+            installState.copy_instruction_lines.extend(folder_out_actions)
 
-    def create_install_instructions_for_item(self, installi):
-        retVal = list()
-        retVal.extend(installi.action_list('before')) # actions to do before pulling from svn
-        for source in installi.source_list():                   # svn pulling actions
-            retVal.extend(self.create_svn_pull_instructions_for_source(source))
-        retVal.extend(installi.action_list('after'))
-        return retVal
-
-    def create_svn_pull_instructions_for_source(self, source):
+    def create_copy_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
         retVal = list()
-        source_url = '$(BASE_URL)'+'/'+source[0]
+        source_url = "${LOCAL_SYNC_DIR}/${REPO_NAME}/${REL_SRC_PATH}/"+source[0]
+
         if source[1] == '!file': # get a single file, not recommneded
-            source_url_split = source_url.split('/')
-            source_url_dir = '/'.join(source_url_split[:-1])
-            source_url_file = source_url_split[-1]
-            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+source_url_dir+'"', ".", "--depth empty")))
-            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "up", '"'+source_url_file+'"')))
+            retVal.append(self.create_copy_file_to_dir_command(source_url, "."))
         elif source[1] == '!files': # get all files from a folder
-            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+source_url+'"', ".", "--depth files")))
+            retVal.append(self.create_copy_dir_contents_to_dir_command(source_url, "."))
         else:
-            retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "checkout", "--revision", self.svn_version, '"'+source_url+'"')))
+            retVal.append(self.create_copy_dir_to_dir_command(source_url, "."))
         return retVal
 
     def finalize_list_of_lines(self, installState):
@@ -351,7 +330,11 @@ class InstlInstanceBase(object):
         lines.extend(sorted(installState.variables_assignment_lines))
         lines.extend( (os.linesep, ) )
 
-        lines.extend(installState.install_instruction_lines)
+
+        lines.extend(installState.sync_instruction_lines)
+        lines.extend( (os.linesep, ) )
+
+        lines.extend(installState.copy_instruction_lines)
         lines.extend( (os.linesep, ) )
 
         lines.extend(self.get_install_instructions_postfix())
@@ -359,24 +342,25 @@ class InstlInstanceBase(object):
         retVal = [value_ref_re.sub(self.var_replacement_pattern, line) for line in lines]
         return retVal
 
-    def write_install_batch_file(self, installState):
+    def write_batch_file(self, installState):
         lines = self.finalize_list_of_lines(installState)
         lines_after_var_replacement = os.linesep.join([value_ref_re.sub(self.var_replacement_pattern, line) for line in lines])
 
         from utils import write_to_file_or_stdout
-        out_file = self.cvl.get("__MAIN_OUT_FILE__", ("stdout",))
-        with write_to_file_or_stdout(out_file[0]) as fd:
+        out_file = self.cvl.get_str("__MAIN_OUT_FILE__")
+        with write_to_file_or_stdout(out_file) as fd:
             fd.write(lines_after_var_replacement)
             fd.write(os.linesep)
 
-        if out_file[0] != "stdout":
-            self.out_file_realpath = os.path.realpath(out_file[0])
-            os.chmod(self.out_file_realpath, 0744)
+        if out_file != "stdout":
+            self.out_file_realpath = os.path.realpath(out_file)
+            print("out to:", self.out_file_realpath)
+            os.chmod(self.out_file_realpath, 0755)
 
     def write_program_state(self):
         from utils import write_to_file_or_stdout
-        state_file = self.cvl.get("__MAIN_STATE_FILE__", ("stdout",))
-        with write_to_file_or_stdout(state_file[0]) as fd:
+        state_file = self.cvl.get_str("__MAIN_STATE_FILE__")
+        with write_to_file_or_stdout(state_file) as fd:
             augmentedYaml.writeAsYaml(self, fd)
 
     def find_cycles(self):
@@ -432,8 +416,23 @@ class InstlInstanceBase(object):
             raise
 
     @abc.abstractmethod
+    def create_copy_dir_to_dir_command(self, src_dir, trg_dir):
+        """ platform specific """
+        pass
+
+    @abc.abstractmethod
+    def create_copy_file_to_dir_command(self, src_file, trg_dir):
+        """ platform specific """
+        pass
+
+    @abc.abstractmethod
+    def create_copy_dir_contents_to_dir_command(self, src_dir, trg_dir):
+        """ platform specific """
+        pass
+
+    @abc.abstractmethod
     def get_install_instructions_prefix(self):
-        """ platform specific first lines of the install script """
+        """ platform specific """
         pass
 
     @abc.abstractmethod
@@ -451,10 +450,49 @@ class InstlInstanceBase(object):
         """ platform specific cd for install script """
         pass
 
+    @abc.abstractmethod
+    def get_svn_folder_cleanup_instructions(self, directory):
+        """ platform specific cleanup of svn locks """
+        pass
+
+    def read_command_line_options(self, arglist=None):
+        """ parse command line options """
+        try:
+            if arglist and len(arglist) > 0:
+                parser = prepare_args_parser()
+                self.name_space_obj = cmd_line_options()
+                args = parser.parse_args(arglist, namespace=self.name_space_obj)
+                self.mode = self.name_space_obj.mode
+                if self.mode == "batch":
+                    self.init_from_cmd_line_options(self.name_space_obj)
+            else:
+                self.mode = "interactive"
+        except Exception as ex:
+            import traceback
+            tb = traceback.format_exc()
+            print(ex, tb)
+            raise
+
+class cmd_line_options(object):
+    """ namespace object to give to parse_args
+        holds command line options
+    """
+    def __init__(self):
+        self.command = None
+        self.input_files = None
+        self.output_file = None
+        self.run = False
+        self.state_file = None
+        self.todo_args = None
+    
+    def __str__(self):
+        return "\n".join([n+": "+str(v) for n,v in sorted(vars(self).iteritems())])
+
+        
 def prepare_args_parser():
     def decent_convert_arg_line_to_args(self, arg_line):
         """ parse a file with options so that we do not have to write one sub-option
-            per line.  Remove empty lines and comment lines and end of line comments.
+            per line.  Remove empty lines, comment lines, and end of line comments.
             ToDo: handle quotes
         """
         line_no_whitespce = arg_line.strip()
@@ -471,50 +509,56 @@ def prepare_args_parser():
                     fromfile_prefix_chars='@',
                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     argparse.ArgumentParser.convert_arg_line_to_args = decent_convert_arg_line_to_args
-    standard_options = parser.add_argument_group(description='standard arguments:')
-    standard_options.add_argument('input_files',
-                                nargs='*',
-                                metavar='file(s)-to-process',
-                                help="One or more files containing dependencies and defintions")
-    standard_options.add_argument('--out','-o',
-                                required=False,
-                                nargs=1,
-                                default="stdout",
-                                metavar='path-to-output-file',
-                                dest='out_file_option',
-                                help="a file to write installtion instructions")
-    standard_options.add_argument('--target','-t',
-                                required=False,
-                                nargs='+',
-                                default=["MAIN_INSTALL"],
-                                metavar='which-target-to-install',
-                                dest='main_targets',
-                                help="Target to create install instructions for")
-    standard_options.add_argument('--run','-r',
-                                required=False,
-                                default=False,
-                                action='store_true',
-                                dest='run',
-                                help="run the installtion instructions script, requires --out")
-    standard_options.add_argument('--state','-s',
-                                required=False,
-                                nargs='?',
-                                const="stdout",
-                                metavar='path-to-state-file',
-                                dest='state_file_option',
-                                help="a file to write program state - good for debugging")
-    standard_options.add_argument('--version','-v',
-                                required=False,
-                                action='store_true',
-                                default=False,
-                                dest='version',
-                                help="display instl version")
-    if current_os == 'mac':
-        standard_options.add_argument('--alias','-a',
-                                required=False,
-                                nargs=2,
-                                default=False,
-                                metavar='create-an-alias',
-                                dest='alias_args',
-                                help="Create an alias of original in target (mac only)")
+
+    subparsers = parser.add_subparsers(dest='command', help='sub-command help')
+    parser_sync = subparsers.add_parser('sync',
+                                        help='sync files to be installed from server to temp folder')
+
+    parser_copy = subparsers.add_parser('copy',
+                                            help='copy files from temp folder to target paths')
+
+    for subparser in (parser_sync, parser_copy):
+        subparser.set_defaults(mode='batch')
+        standard_options = subparser.add_argument_group(description='standard arguments:')
+        standard_options.add_argument('--in','-i',
+                                    required=True,
+                                    nargs='+',
+                                    metavar='list-of-input-files',
+                                    dest='input_files',
+                                    help="file(s) to read index and defintions from")
+        standard_options.add_argument('--out','-o',
+                                    required=True,
+                                    nargs=1,
+                                    metavar='path-to-output-file',
+                                    dest='output_file',
+                                    help="a file to write sync/copy instructions")
+        standard_options.add_argument('--run','-r',
+                                    required=False,
+                                    default=False,
+                                    action='store_true',
+                                    dest='run',
+                                    help="run the installation instructions script")
+        standard_options.add_argument('--state','-s',
+                                    required=False,
+                                    nargs='?',
+                                    const="stdout",
+                                    metavar='path-to-state-file',
+                                    dest='state_file',
+                                    help="a file to write program state - good for debugging")
+
+        parser_version = subparsers.add_parser('version', help='display instl version')
+        parser_version.set_defaults(mode='do_something')
+        
+        if current_os == 'mac':
+            parser_alias = subparsers.add_parser('alias',
+                                                help='create Mac OS alias')
+            parser_alias.set_defaults(mode='do_something')
+            parser_alias.add_argument('todo_args',
+                                    action='append',
+                                    metavar='path_to_original',
+                                    help="paths to original file")
+            parser_alias.add_argument('todo_args',
+                                    action='append',
+                                    metavar='path_to_alias',
+                                    help="paths to original file and to alias file")
     return parser;

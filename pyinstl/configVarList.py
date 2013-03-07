@@ -45,84 +45,58 @@ class ConfigVarList(object):
 
     parser = None
 
-    __slots__ = ("_resolved_vars", "_ConfigVar_objs", "__dirty", "__resolve_stack")
+    __slots__ = ("_ConfigVar_objs", "__resolve_stack")
     def __init__(self):
-        self._resolved_vars = dict()       # map config var name to list of resolved values
         self._ConfigVar_objs = dict()   # map config var name to list of objects representing unresolved values
-        self.__dirty = False            # True is _ConfigVar_objs was changed but resolved not re-done
         self.__resolve_stack = list()
 
     def __len__(self):
-        if self.__dirty:
-            raise Exception("config varaibles were not resolved")
-        return len(self._resolved_vars)
+        return len(self._ConfigVar_objs)
 
     def __getitem__(self, var_name):
-        if self.__dirty:
-            raise Exception("config varaibles were not resolved")
-        # the value of non existant var_name is an empty tuple
-        return self._resolved_vars[var_name]
+        return self._ConfigVar_objs[var_name]
 
     def __delitem__(self, key):
         if key in self._ConfigVar_objs:
             del self._ConfigVar_objs[key]
-            self.__dirty = True
-        if key in self._resolved_vars:
-            del self._resolved_vars[key]
-            self.__dirty = True
 
-    def get(self, var_name, default=tuple()):
-        if self.__dirty:
-            raise Exception("config varaibles were not resolved")
-        # the value of non existant var_name is an empty tuple
-        return self._resolved_vars.get(var_name, default)
+    def get_list(self, var_name, default=tuple()):
+        retVal = default
+        if var_name in self._ConfigVar_objs:
+            retVal = resolve_list(self._ConfigVar_objs[var_name], self.resolve_value_callback)
+        return retVal
 
     def get_str(self, var_name, default="", sep=" "):
         retVal = default
         if var_name in self._ConfigVar_objs:
-            if not self.__dirty:
-                retVal = sep.join(self.get(var_name))
-            else:
-                resolved_list = resolve_list(self._ConfigVar_objs[var_name], self.resolve_value_callback)
-                retVal = sep.join(resolved_list)
+            resolved_list = self.get_list(var_name)
+            retVal = sep.join(resolved_list)
         return retVal
 
     def __str__(self):
-        [name+": "+ " ".join(self._resolved_vars[name]) for name in self._resolved_vars]
-        return os.linesep.join([name+": "+ " ".join(self._resolved_vars[name]) for name in self._resolved_vars])
+        return os.linesep.join([name+": "+ self.get_str() for name in self._ConfigVar_objs])
 
     def __iter__(self):
-        if self.__dirty:
-            raise Exception("config varaibles were not resolved")
-        return iter(self._resolved_vars)
+        return iter(self._ConfigVar_objs)
 
     def __reversed__(self):
-        if self.__dirty:
-            raise Exception("config varaibles were not resolved")
-        return reversed(self._resolved_vars)
+        return reversed(self._ConfigVar_objs)
 
     def __contains__(self, var_name):
-        if self.__dirty:
-            raise Exception("config varaibles were not resolved")
-        if var_name in self._resolved_vars:
-            return True
-        else:
-            return False
+        return var_name in self._ConfigVar_objs
 
     def keys(self):
-        return self._resolved_vars.keys()
+        return self._ConfigVar_objs.keys()
 
     def description(self, var_name):
         """ Get description for variable """
         return self._ConfigVar_objs[var_name].description()
 
     def get_configVar_obj(self, var_name):
-        self.__dirty = True # if someone asked for a configVar.ConfigVar, assume it was changed
         retVal = self._ConfigVar_objs.setdefault(var_name, configVar.ConfigVar(var_name))
         return retVal
 
     def set_variable(self, var_name, description=None):
-        self.__dirty = True # if someone asked for a configVar.ConfigVar, assume it was changed
         retVal = self.get_configVar_obj(var_name)
         retVal.clear_values()
         if description is not None:
@@ -135,11 +109,6 @@ class ConfigVarList(object):
             raise Exception("Const variable {} already defined".format(name))
         addedValue = configVar.ConstConfigVar(name, description, *values)
         self._ConfigVar_objs[addedValue.name()] = addedValue
-        if not self.__dirty: # if not already dirty, try to keep it clean
-            if value_ref_re.search(" ".join([str(value) for value in values])):
-                self.__dirty = True # dirty because a $() reference(s) found
-            else: # no need to resolve, copy values to _resolved_vars
-                self._resolved_vars[addedValue.name()] = values
 
     def duplicate_variable(self, source_name, target_name):
         if source_name in self._ConfigVar_objs:
@@ -157,12 +126,12 @@ class ConfigVarList(object):
     def repr_for_yaml(self, vars=None):
         retVal = dict()
         if not vars:
-            vars = self._resolved_vars
+            vars = self.keys()
         if hasattr(vars, '__iter__'): # if vars is a list
             for name in vars:
-                if name in self._resolved_vars:
+                if name in self._ConfigVar_objs:
                     theComment = self._ConfigVar_objs[name].description()
-                    retVal[name] = YamlDumpWrap(value=self._resolved_vars[name], comment=theComment)
+                    retVal[name] = YamlDumpWrap(value=self.get_list(name), comment=theComment)
                 else:
                     retVal[name] = YamlDumpWrap(value="UNKNOWN VARIABLE", comment=name+" is not in variable list")
         else:   # if vars is a single variable name
@@ -175,38 +144,20 @@ class ConfigVarList(object):
         retVal = sep.join(resolved_list)
         return retVal
 
-    def resolve(self):
-        """ Resolve all values """
-        try:
-            self._resolved_vars = dict()
-            self.__resolve_stack = list()
-            for var_name, configVarObj in self._ConfigVar_objs.iteritems():
-                if var_name in self.__resolve_stack:
-                    raise Exception("circular resolving of {}".format(value_to_resolve))
-                self.__resolve_stack.append(var_name)
-                self._resolved_vars[var_name] = resolve_list(configVarObj,
-                                                        self.resolve_value_callback)
-                self.__resolve_stack.pop()
-            self.__dirty = False
-            self.__resolve_stack = list()
-        except Exception as excptn:
-            print("Exception while resolving variable '"+var_name+"':", excptn)
-            raise
-
     def resolve_value_callback(self, value_to_resolve):
         """ callback for configVar.ConfigVar.Resolve. value_to_resolve should
             be a single value name.
         """
-        if value_to_resolve not in self._resolved_vars:
-            if value_to_resolve in self._ConfigVar_objs:
-                if value_to_resolve in self.__resolve_stack:
-                    raise Exception("circular resolving of {}".format(value_to_resolve))
+        retVal = tuple()
+        if value_to_resolve in self._ConfigVar_objs:
+            if value_to_resolve in self.__resolve_stack:
+                raise Exception("circular resolving of {}".format(value_to_resolve))
 
-                self.__resolve_stack.append(value_to_resolve)
-                self._resolved_vars[value_to_resolve] = resolve_list(self._ConfigVar_objs[value_to_resolve],
-                                                            self.resolve_value_callback)
-                self.__resolve_stack.pop()
-        return self._resolved_vars.get(value_to_resolve, tuple())
+            self.__resolve_stack.append(value_to_resolve)
+            retVal = resolve_list(self._ConfigVar_objs[value_to_resolve],
+                                                        self.resolve_value_callback)
+            self.__resolve_stack.pop()
+        return retVal
 
 def replace_all_from_dict(in_text, *in_replace_only_these, **in_replacement_dic):
     """ replace all occurrences of the values in in_replace_only_these

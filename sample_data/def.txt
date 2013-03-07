@@ -1,14 +1,22 @@
 --- !define
 
 SVN_CLIENT_PATH: "/Volumes/p4client/dev_install/bin/Mac/wsvn"
-BASE_URL: "http://192.168.13.108/svn/V9/Win/Realease"
+
+SVN_REPO_URL: "http://192.168.13.108/svn/V9"
+BASE_SRC_URL: "$(SVN_REPO_URL)/Mac/Release"
+BOOKKEEPING_DIR_URL: "$(SVN_REPO_URL)/instl"
+
 WAVES_PLUGINS_DIR: "/Users/shai/Desktop/installHere/Waves Plugins"
 WAVES_APPS_DIR: "/Users/shai/Desktop/installHere/Applications"
 MACOS_COMPONENTS: "/Library/Audio/Plug-Ins/Components"
-WAVES_INSTL_TEMP_DIR: "/Users/shai/Desktop/Temp"
+LOCAL_SYNC_DIR: "/Users/shai/Desktop/Temp"
 
 
-__include__: "/Volumes/SvnSrv/192.168.13.108/V9/index.txt"
+__include__: "$(BOOKKEEPING_DIR_URL)/index.yaml"
 
 MAIN_INSTALL_TARGETS:
     - e6a8de66-ad21-11e0-81f4-b7fd7bebd530
+    - C4_GUID
+    - Doppler_GUID
+    - SURROUND_BUNDLE_GUID
+

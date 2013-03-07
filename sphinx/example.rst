@@ -67,7 +67,7 @@ Going complicated
 =================
 
 Acme software decided to add choice of some plugins that the user can add to the product.
-The different from basic installation is that the user now can choose to install all, some or nine of the plugins.
+The different from basic installation is that the user now can choose to install all, some or none of the plugins.
 Acme is now at version 2.0, and the extra file were added to svn repository:
 ::
     Acme_Installer/

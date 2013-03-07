@@ -7,6 +7,7 @@ import sys
 import appdirs
 import logging
 import shlex
+from pyinstl.utils import *
 
 import platform
 current_os = platform.system()
@@ -60,7 +61,7 @@ def insensitive_glob(pattern):
     return glob.glob(''.join(map(either,pattern)))
 
 
-this_program_name = "instl"
+this_program_name = instlInstanceBase.this_program_name
 
 def go_interactive(prog_inst):
     try:
@@ -85,7 +86,6 @@ class CMDObj(cmd.Cmd, object):
         cmd.Cmd.__init__(self)
         self.prog_inst = prog_inst
         self.restart = False
-        self.prog_inst.resolve()
 
     def __enter__(self):
         if readline_loaded:
@@ -96,17 +96,17 @@ class CMDObj(cmd.Cmd, object):
             readline.parse_and_bind("set completion-map-case on")
             readline.parse_and_bind("set show-all-if-unmodified on")
             readline.parse_and_bind("set expand-tilde on")
-            history_file_dir = appdirs.user_data_dir(this_program_name, this_program_name)
+            history_file_dir = appdirs.user_data_dir(instlInstanceBase.this_program_name, instlInstanceBase.this_program_name)
             try:
                 os.makedirs(history_file_dir)
             except: # os.makedirs raises is the directory already exists
                 pass
-            self.history_file_path = os.path.join(history_file_dir, "."+this_program_name+"_console_history")
+            self.history_file_path = os.path.join(history_file_dir, "."+instlInstanceBase.this_program_name+"_console_history")
             if os.path.isfile(self.history_file_path):
                 readline.read_history_file(self.history_file_path)
         if colorama_loaded:
             colorama.init()
-        self.prompt = this_program_name+": "
+        self.prompt = instlInstanceBase.this_program_name+": "
         self.save_dir = os.getcwd()
         return self
 
@@ -119,6 +119,15 @@ class CMDObj(cmd.Cmd, object):
         os.chdir(self.save_dir)
         if self.restart:
             restart_program()
+
+    def onecmd(self, line):
+        retVal = False
+        try:
+            retVal = super (CMDObj, self).onecmd(line)
+        except Exception as es:
+            import traceback
+            traceback.print_exc()
+        return retVal
 
     def path_completion(self, text, line, begidx, endidx):
         matches = []
@@ -186,37 +195,26 @@ class CMDObj(cmd.Cmd, object):
         """ Add color codes to index identifiers and variables in text.
         """
         retVal = None
-        try:
-            coloring_dict = self.prepare_coloring_dict()
-            from configVarList import replace_all_from_dict
-            retVal = replace_all_from_dict(text, *[], **coloring_dict)
-        except Exception as es:
-            import traceback
-            tb = traceback.format_exc()
-            print("color_vars", es, tb)
+        coloring_dict = self.prepare_coloring_dict()
+        from configVarList import replace_all_from_dict
+        retVal = replace_all_from_dict(text, *[], **coloring_dict)
         return retVal
 
-
     def do_list(self, params):
-        try:
-            from utils import write_to_list
-            out_list = write_to_list()
-            if params:
-                for param in params.split():
-                    identifier_list = self.complete_list(param, params, 0, 0)
-                    if identifier_list:
-                        self.prog_inst.do_list(identifier_list, out_list)
-                    else:
-                        print("Unknown identifier:", param)
-            else:
-                self.prog_inst.resolve()
-                self.prog_inst.do_list(None, out_list)
-            colored_string = self.color_vars("".join(out_list.list()))
-            sys.stdout.write(colored_string)
-        except Exception as es:
-            import traceback
-            tb = traceback.format_exc()
-            print("list", es, tb)
+        from utils import write_to_list
+        out_list = write_to_list()
+        if params:
+            for param in params.split():
+                identifier_list = self.complete_list(param, params, 0, 0)
+                if identifier_list:
+                    self.prog_inst.do_list(identifier_list, out_list)
+                else:
+                    print("Unknown identifier:", param)
+        else:
+            self.prog_inst.do_list(None, out_list)
+        joined_list = "".join(out_list.list()).encode('ascii','ignore') # just in case some unicode got in...
+        colored_string = self.color_vars(joined_list)
+        sys.stdout.write(colored_string)
         return False
 
     def indentifier_completion_list(self, text, line, begidx, endidx):
@@ -253,8 +251,8 @@ class CMDObj(cmd.Cmd, object):
             params = shlex.split(params)
             identi, values = params[0], params[1:]
             self.prog_inst.cvl.set_variable(identi, "set interactively").extend(values)
-            self.prog_inst.resolve()
             self.do_list(identi)
+        return False
 
     def complete_set(self, text, line, begidx, endidx):
         return self.indentifier_completion_list(text, line, begidx, endidx)
@@ -266,6 +264,7 @@ class CMDObj(cmd.Cmd, object):
     def do_del(self, params):
         for identi in params.split():
             del self.prog_inst.cvl[identi]
+        return False
 
     def complete_del(self, text, line, begidx, endidx):
         return self.indentifier_completion_list(text, line, begidx, endidx)
@@ -275,40 +274,17 @@ class CMDObj(cmd.Cmd, object):
         print("    deletes a variable")
 
     def do_read(self, params):
-        try:
-            if params:
-                for file in shlex.split(params):
-                    try:
-                        self.prog_inst.read_file(file)
-                        self.prog_inst.resolve()
-                    except Exception as ex:
-                        print("read", file, ex)
-            else:
-                print("read what?")
-            return False
-        except Exception as es:
-            import traceback
-            tb = traceback.format_exc()
-            print("do_read", es, tb)
-
-    def complete_read(self, text, line, begidx, endidx):
-        return self.path_completion(text, line, begidx, endidx)
-
-    def do_write(self, params):
-        self.prog_inst.dedigest()
-        self.prog_inst.digest()
-        self.prog_inst.create_install_instructions()
-        outfile = "stdout"
         if params:
-            outfile = shlex.split(params)[0]
-        main_out_file_obj = self.prog_inst.cvl.get_configVar_obj("__MAIN_OUT_FILE__")
-        main_out_file_obj.clear_values()
-        main_out_file_obj.append(outfile)
-        self.prog_inst.resolve()
-        self.prog_inst.write_install_batch_file()
+            for file in shlex.split(params):
+                try:
+                    self.prog_inst.read_file(file)
+                except Exception as ex:
+                    print("read", file, ex)
+        else:
+            print("read what?")
         return False
 
-    def complete_write(self, text, line, begidx, endidx):
+    def complete_read(self, text, line, begidx, endidx):
         return self.path_completion(text, line, begidx, endidx)
 
     def do_cycles(self, params):
@@ -319,35 +295,30 @@ class CMDObj(cmd.Cmd, object):
         print("cycles:", "check index dependencies for cycles")
 
     def do_depend(self, params):
-        try:
-            if params:
-                for param in shlex.split(params):
-                    if param not in self.prog_inst.install_definitions_index:
-                        print(text_with_color(param, 'green'), "not in index")
-                        continue
-                    depend_list = list()
-                    self.prog_inst.needs(param, depend_list)
-                    if not depend_list:
-                        depend_list = ("no one",)
-                    depend_text_list = list()
-                    for depend in depend_list:
-                        if depend.endswith("(missing)"):
-                            depend_text_list.append(text_with_color(depend, 'red'))
-                        else:
-                            depend_text_list.append(text_with_color(depend, 'yellow'))
-                    print (text_with_color(param, 'green'), "needs:\n    ", ", ".join(depend_text_list))
-                    needed_by_list = self.prog_inst.needed_by(param)
-                    if needed_by_list is None:
-                        print("could not get needed by list for", text_with_color(param, 'green'))
+        if params:
+            for param in shlex.split(params):
+                if param not in self.prog_inst.install_definitions_index:
+                    print(text_with_color(param, 'green'), "not in index")
+                    continue
+                depend_list = list()
+                self.prog_inst.needs(param, depend_list)
+                if not depend_list:
+                    depend_list = ("no one",)
+                depend_text_list = list()
+                for depend in depend_list:
+                    if depend.endswith("(missing)"):
+                        depend_text_list.append(text_with_color(depend, 'red'))
                     else:
-                        if not needed_by_list:
-                            needed_by_list = ("no one",)
-                        needed_by_list = [text_with_color(needed_by, 'yellow') for needed_by in needed_by_list]
-                        print (text_with_color(param, 'green'), "needed by:\n    ", ", ".join(needed_by_list))
-        except Exception as es:
-            import traceback
-            tb = traceback.format_exc()
-            print("do_depend", es, tb)
+                        depend_text_list.append(text_with_color(depend, 'yellow'))
+                print (text_with_color(param, 'green'), "needs:\n    ", ", ".join(depend_text_list))
+                needed_by_list = self.prog_inst.needed_by(param)
+                if needed_by_list is None:
+                    print("could not get needed by list for", text_with_color(param, 'green'))
+                else:
+                    if not needed_by_list:
+                        needed_by_list = ("no one",)
+                    needed_by_list = [text_with_color(needed_by, 'yellow') for needed_by in needed_by_list]
+                    print (text_with_color(param, 'green'), "needed by:\n    ", ", ".join(needed_by_list))
         return False
 
     def complete_depend(self, text, line, begidx, endidx):
@@ -368,20 +339,35 @@ class CMDObj(cmd.Cmd, object):
                 print("alias requires two parameters, not", len(params), params)
         else:
             print("alias can only be created on Mac OS")
+        return False
 
-    def do_install(self, params):
+    def do_sync(self, params):
         from pyinstl.instlInstanceBase import InstallInstructionsState
-        self.prog_inst.digest()
+        self.prog_inst.resolve_index_inheritance()
         installState = InstallInstructionsState()
         if params:
             installState.root_install_items.extend(shlex.split(params))
             installState.calculate_full_install_items_set(self.prog_inst)
         else:
             self.prog_inst.calculate_default_install_item_set(installState)
-        self.prog_inst.create_install_instructions(installState)
-        augmentedYaml.writeAsYaml(installState.repr_for_yaml(), sys.stdout)
+        self.prog_inst.create_sync_instructions(installState)
         lines = self.prog_inst.finalize_list_of_lines(installState)
         print(os.linesep.join(lines))
+        return False
+    
+    def do_copy(self, params):
+        from pyinstl.instlInstanceBase import InstallInstructionsState
+        self.prog_inst.resolve_index_inheritance()
+        installState = InstallInstructionsState()
+        if params:
+            installState.root_install_items.extend(shlex.split(params))
+            installState.calculate_full_install_items_set(self.prog_inst)
+        else:
+            self.prog_inst.calculate_default_install_item_set(installState)
+        self.prog_inst.create_copy_instructions(installState)
+        lines = self.prog_inst.finalize_list_of_lines(installState)
+        print(os.linesep.join(lines))
+        return False
 
     def complete_alias(self, text, line, begidx, endidx):
         return self.path_completion(text, line, begidx, endidx)
@@ -391,22 +377,23 @@ class CMDObj(cmd.Cmd, object):
 
     def do_version(self, params):
         print(" ".join( ("instl", "version", ".".join(self.prog_inst.get_version()))))
+        return False
     def help_version(self):
-        print("version: print", this_program_name, "version")
+        print("version: print", instlInstanceBase.this_program_name, "version")
 
     def do_restart(self, params):
-        print("restarting", this_program_name)
+        print("restarting", instlInstanceBase.this_program_name)
         self.restart = True
         return True # stops cmdloop
 
     def help_restart(self):
-        print("restart:", "reloads", this_program_name)
+        print("restart:", "reloads", instlInstanceBase.this_program_name)
 
     def do_quit(self, params):
         return True
 
     def help_quit(self):
-        print("quit, q: quits", this_program_name)
+        print("quit, q: quits", instlInstanceBase.this_program_name)
 
     def do_q(self, params):
         return self.do_quit(params)
@@ -425,14 +412,13 @@ class CMDObj(cmd.Cmd, object):
         for index in range(readline.get_current_history_length()):
             print(index, readline.get_history_item(index))
         print(readline.get_current_history_length(), "items in history")
+        return False
 
     # evaluate python expressions
     def do_eval(self, param):
-        try:
-            if param:
-                print(eval(param))
-        except Exception as ex:
-            print("eval:",  ex)
+        if param:
+            print(eval(param))
+        return False
 
     def help_eval(self):
         print("evaluate python expressions, instlInstance is accessible as self.prog_inst")
@@ -463,6 +449,11 @@ def do_list_imp(self, what = None, stream=sys.stdout):
             augmentedYaml.writeAsYaml(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True), stream)
         elif what == "index":
             augmentedYaml.writeAsYaml(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True), stream)
+        elif what == "license":
+            license_dict = dict()
+            for lic in self.license_list():
+                license_dict[lic] = self.guids_from_license(lic)
+            augmentedYaml.writeAsYaml(license_dict, stream)
         else:
             item_list = self.repr_for_yaml((what,))
             for item in item_list:

@@ -128,7 +128,7 @@ def ifTrueOrFalse(test, ifTrue, ifFalse):
 
 class YamlDumpWrap(object):
     def __init__(self, value=None, tag="", comment="", sort_mappings=False):
-        self.tag = tag
+        self.tag = tag.encode('ascii','ignore') # sometimes tag's type is unicode, pyYaml is strange...
         self.comment = comment
         self.value = value
         self.sort_mappings = sort_mappings
