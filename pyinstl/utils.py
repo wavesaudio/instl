@@ -6,6 +6,13 @@ import urllib2
 import re
 import urlparse
 
+import platform
+current_os = platform.system()
+if current_os == 'Darwin':
+    current_os = 'mac'
+elif current_os == 'Windows':
+    current_os = 'win'
+
 class write_to_file_or_stdout(object):
     def  __init__(self, file_path):
         self.file_path = file_path
@@ -34,7 +41,6 @@ class write_to_list(object):
     def list(self):
         return self.the_list
 
-
 class open_for_read_file_or_url(object):
     protocol_header_re = re.compile("""
                         \w+
@@ -43,10 +49,14 @@ class open_for_read_file_or_url(object):
     def  __init__(self, file_url):
         match = self.protocol_header_re.match(file_url)
         if not match:
-            file_url = "file://"+os.path.realpath(file_url)
+            if current_os == 'win':
+                file_url = "file:///"+os.path.abspath(file_url)
+            else:
+                file_url = "file://"+os.path.realpath(file_url)
         self.file_url = file_url
 
     def __enter__(self):
+        print("opening", self.file_url)
         self.fd = urllib2.urlopen(self.file_url)
         return self.fd
 
