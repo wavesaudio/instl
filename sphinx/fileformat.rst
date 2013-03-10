@@ -41,6 +41,16 @@ Index format
 
         *install_sources*
             A list of partial paths into the svn repository. These paths will be pulled from the repository to the user's disk during installation. The left part of the path must be supplied in the definitions section.
+            *install_sources* can have a Yaml tag to specify what to copy to the *install_folders*:
+                !dir -  Means that the folder specified as *install_sources* item will be copied as a folder to the *install_folders*.
+                        So if the install source is 'Plugins/MyPlugin' and the install folder is 'Plugins Place' the end result would be 'Plugins Place/MyPlugin'. If no tag is specified, !dir is the default.
+                !dir_cont -  Means that all the files and folders in folder specified as the *install_sources* item will be copied as a individual files and folders to the *install_folders*.
+                        So if the install source is 'Plugins/PDFs' has file a.pdf and b.pdf data/ folder and the install folder is 'PDFs Place' the end result would be 'PDFs Place/a.pdf', 'PDFs Place/b.pdf' and 'PDFs Place/data/'.
+                !files - Means that all the files in folder specified as *install_sources* item will be copied as a individual files to the *install_folders*.
+                        So if the install source is 'Plugins/PDFs' has a.pdf and b.pdf and the install folder is 'PDFs Place' the end result would be 'PDFs Place/a.pdf' and 'PDFs Place/b.pdf'.
+                !file - This means that the file specified as *install_sources*  will be copied to the *install_folders*.
+                        So if the install source is 'Icons/my.ico' the install folder is 'Icons Place' the end result would be 'Icons Place/my.ico'. !files is the least recommended option since SVN cannot sync only a single file. If a single file needs to be installed, it is recommended that the SVNN repository will have a folder who's only item is the file and create *install_sources* with the !files tag.
+
 
         *actions_before*
             List of actions to perform before copying the install_sources.

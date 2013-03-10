@@ -3,20 +3,30 @@
 SVN_CLIENT_PATH: "/Volumes/p4client/dev_install/bin/Mac/wsvn"
 
 SVN_REPO_URL: "http://192.168.13.108/svn/V9"
-BASE_SRC_URL: "$(SVN_REPO_URL)/Mac/Release"
+BASE_SRC_URL: "$(SVN_REPO_URL)/Mac"
 BOOKKEEPING_DIR_URL: "$(SVN_REPO_URL)/instl"
 
 WAVES_PLUGINS_DIR: "/Users/shai/Desktop/installHere/Waves Plugins"
 WAVES_APPS_DIR: "/Users/shai/Desktop/installHere/Applications"
 MACOS_COMPONENTS: "/Library/Audio/Plug-Ins/Components"
 LOCAL_SYNC_DIR: "/Users/shai/Desktop/Temp"
+TEST_TARGET_DIR: "/Users/shai/backups"
 
 
 __include__: "$(BOOKKEEPING_DIR_URL)/index.yaml"
 
 MAIN_INSTALL_TARGETS:
-    - e6a8de66-ad21-11e0-81f4-b7fd7bebd530
-    - C4_IDD
-    - Doppler_IDD
-    - SURROUND_BUNDLE_IDD
+    - TEST_IID
+
+--- !index
+
+TEST_IID:
+    name: test all kinds or rsync
+    install_sources:
+        - !file Shells/WaveShell-VST 9.2.vst3/Contents/PkgInfo
+        - !files Plugins/GTR/GTRAirMixer.bundle/Contents/Resources/PNG_
+        - !dir Plugins/API-2500.bundle
+        - Plugins/C1.bundle
+    install_folders:
+        - $(TEST_TARGET_DIR)
 

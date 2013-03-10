@@ -225,11 +225,11 @@ class InstlInstanceBase(object):
         """
         if "MAIN_INSTALL_TARGETS" not in self.cvl:
             raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
-            installState.root_install_items.extend(self.cvl.get_list("MAIN_INSTALL_TARGETS"))
-            self.cvl.set_variable("__MAIN_INSTALL_TARGETS__").extend(installState.root_install_items)
-            installState.calculate_full_install_items_set(self)
-            self.cvl.set_variable("__FULL_LIST_OF_INSTALL_TARGETS__").extend(installState.full_install_items)
-            self.cvl.set_variable("__ORPHAN_INSTALL_TARGETS__").extend(installState.orphan_install_items)
+        installState.root_install_items.extend(self.cvl.get_list("MAIN_INSTALL_TARGETS"))
+        self.cvl.set_variable("__MAIN_INSTALL_TARGETS__").extend(installState.root_install_items)
+        installState.calculate_full_install_items_set(self)
+        self.cvl.set_variable("__FULL_LIST_OF_INSTALL_TARGETS__").extend(installState.full_install_items)
+        self.cvl.set_variable("__ORPHAN_INSTALL_TARGETS__").extend(installState.orphan_install_items)
 
     def create_variables_assignment(self, installState):
         for identifier in self.cvl:
@@ -288,7 +288,13 @@ class InstlInstanceBase(object):
         retVal = list()
         source_url =   '/'.join( ("${BASE_SRC_URL}", source[0]) ) 
         target_path =  '/'.join( ("$(REL_SRC_PATH)", source[0]) )
-        retVal.append(" ".join(('"$(SVN_CLIENT_PATH)"', "co", '"'+source_url+'"', '"'+target_path+'"', "--revision", "$(REPO_REV)")))
+        if source[1] == '!file':
+            source_url = '/'.join( source_url.split("/")[0:-1]) # skip the file name sync the whole folder
+            target_path = '/'.join( target_path.split("/")[0:-1]) # skip the file name sync the whole folder
+        command_parts = ['"$(SVN_CLIENT_PATH)"', "co", '"'+source_url+'"', '"'+target_path+'"', "--revision", "$(REPO_REV)"]
+        if source[1] in ('!file', '!files'):
+            command_parts.extend( ( "--depth", "files") )
+        retVal.append(" ".join(command_parts))
         return retVal
    
     def create_copy_instructions(self, installState):
@@ -303,7 +309,8 @@ class InstlInstanceBase(object):
             for IDD in folder_items: # folder_in actions
                 installi = self.install_definitions_index[IDD]
                 folder_in_actions.extend(installi.action_list('folder_in'))
-                install_item_instructions.extend(self.create_copy_instructions_for_item(self.install_definitions_index[IDD]))
+                for source in installi.source_list():
+                    install_item_instructions.extend(self.create_copy_instructions_for_source(source))
                 folder_out_actions.extend(installi.action_list('folder_out'))
             installState.copy_instruction_lines.extend(folder_in_actions)
             installState.copy_instruction_lines.extend(install_item_instructions)
@@ -316,8 +323,10 @@ class InstlInstanceBase(object):
 
         if source[1] == '!file': # get a single file, not recommneded
             retVal.extend(self.create_copy_file_to_dir_command(source_url, "."))
-        elif source[1] == '!files': # get all files from a folder
+        elif source[1] == '!dir_cont': # get all files and folders from a folder
             retVal.extend(self.create_copy_dir_contents_to_dir_command(source_url, "."))
+        elif source[1] == '!files': # get all files from a folder
+            retVal.extend(self.create_copy_dir_files_to_dir_command(source_url, "."))
         else:
             retVal.extend(self.create_copy_dir_to_dir_command(source_url, "."))
         return retVal
@@ -354,7 +363,6 @@ class InstlInstanceBase(object):
 
         if out_file != "stdout":
             self.out_file_realpath = os.path.realpath(out_file)
-            print("out to:", self.out_file_realpath)
             os.chmod(self.out_file_realpath, 0755)
 
     def write_program_state(self):
@@ -427,6 +435,11 @@ class InstlInstanceBase(object):
 
     @abc.abstractmethod
     def create_copy_dir_contents_to_dir_command(self, src_dir, trg_dir):
+        """ platform specific """
+        pass
+
+    @abc.abstractmethod
+    def create_copy_dir_files_to_dir_command(self, src_dir, trg_dir):
         """ platform specific """
         pass
 

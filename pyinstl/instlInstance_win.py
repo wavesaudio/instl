@@ -36,5 +36,8 @@ class InstlInstance_win(instlInstanceBase.InstlInstanceBase):
         retVal = (" ".join( ("robocopy", "/E", src_dir, trg_dir) ), )
         return retVal
     
+    def create_copy_dir_files_to_dir_command(self, src_dir, trg_dir):
+        pass
+        
     def create_var_assign(self, identifier, value):
         return "SET "+identifier+'='+value
