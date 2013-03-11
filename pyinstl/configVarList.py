@@ -74,7 +74,7 @@ class ConfigVarList(object):
         return retVal
 
     def __str__(self):
-        return os.linesep.join([name+": "+ self.get_str() for name in self._ConfigVar_objs])
+        return '\n'.join([name+": "+ self.get_str() for name in self._ConfigVar_objs])
 
     def __iter__(self):
         return iter(self._ConfigVar_objs)

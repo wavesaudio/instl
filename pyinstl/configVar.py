@@ -47,7 +47,7 @@ class ConfigVar(object):
         self._description = str(description)
 
     def __str__(self):
-        ln = os.linesep
+        ln = '\n'
         indent = "    "
         retVal = "{self._name}:{ln}{indent}description:{self._description}{ln}{indent}values:{self.__values})".format(**vars())
         return retVal

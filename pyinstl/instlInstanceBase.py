@@ -286,7 +286,7 @@ class InstlInstanceBase(object):
     def create_svn_sync_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
         retVal = list()
-        source_url =   '/'.join( ("${BASE_SRC_URL}", source[0]) ) 
+        source_url =   '/'.join( ("$(BASE_SRC_URL)", source[0]) ) 
         target_path =  '/'.join( ("$(REL_SRC_PATH)", source[0]) )
         if source[1] == '!file':
             source_url = '/'.join( source_url.split("/")[0:-1]) # skip the file name sync the whole folder
@@ -319,7 +319,7 @@ class InstlInstanceBase(object):
     def create_copy_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
         retVal = list()
-        source_url = "${LOCAL_SYNC_DIR}/${REPO_NAME}/${REL_SRC_PATH}/"+source[0]
+        source_url = "$(LOCAL_SYNC_DIR)/$(REPO_NAME)/$(REL_SRC_PATH)/"+source[0]
 
         if source[1] == '!file': # get a single file, not recommneded
             retVal.extend(self.create_copy_file_to_dir_command(source_url, "."))
@@ -334,32 +334,31 @@ class InstlInstanceBase(object):
     def finalize_list_of_lines(self, installState):
         lines = list()
         lines.extend(self.get_install_instructions_prefix())
-        lines.extend( (os.linesep, ) )
+        lines.extend( ('\n', ) )
 
         lines.extend(sorted(installState.variables_assignment_lines))
-        lines.extend( (os.linesep, ) )
+        lines.extend( ('\n', ) )
 
 
         lines.extend(installState.sync_instruction_lines)
-        lines.extend( (os.linesep, ) )
+        lines.extend( ('\n', ) )
 
         lines.extend(installState.copy_instruction_lines)
-        lines.extend( (os.linesep, ) )
+        lines.extend( ('\n', ) )
 
         lines.extend(self.get_install_instructions_postfix())
 
-        retVal = [value_ref_re.sub(self.var_replacement_pattern, line) for line in lines]
-        return retVal
+        return lines
 
     def write_batch_file(self, installState):
         lines = self.finalize_list_of_lines(installState)
-        lines_after_var_replacement = os.linesep.join([value_ref_re.sub(self.var_replacement_pattern, line) for line in lines])
+        lines_after_var_replacement = '\n'.join([value_ref_re.sub(self.var_replacement_pattern, line) for line in lines])
 
         from utils import write_to_file_or_stdout
         out_file = self.cvl.get_str("__MAIN_OUT_FILE__")
         with write_to_file_or_stdout(out_file) as fd:
             fd.write(lines_after_var_replacement)
-            fd.write(os.linesep)
+            fd.write('\n')
 
         if out_file != "stdout":
             self.out_file_realpath = os.path.realpath(out_file)

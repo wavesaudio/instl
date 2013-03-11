@@ -352,7 +352,7 @@ class CMDObj(cmd.Cmd, object):
             self.prog_inst.calculate_default_install_item_set(installState)
         self.prog_inst.create_sync_instructions(installState)
         lines = self.prog_inst.finalize_list_of_lines(installState)
-        print(os.linesep.join(lines))
+        print('\n'.join(lines))
         return False
     
     def do_copy(self, params):
@@ -366,7 +366,7 @@ class CMDObj(cmd.Cmd, object):
             self.prog_inst.calculate_default_install_item_set(installState)
         self.prog_inst.create_copy_instructions(installState)
         lines = self.prog_inst.finalize_list_of_lines(installState)
-        print(os.linesep.join(lines))
+        print('\n'.join(lines))
         return False
 
     def complete_alias(self, text, line, begidx, endidx):
