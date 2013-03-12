@@ -1,6 +1,9 @@
 import instlInstanceBase
 import os
 
+def quoteme(to_qoute):
+    return "".join( ('"', to_qoute, '"') )
+
 class InstlInstance_win(instlInstanceBase.InstlInstanceBase):
     def __init__(self):
         super(InstlInstance_win, self).__init__()

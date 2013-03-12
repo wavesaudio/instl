@@ -1,0 +1,15 @@
+--- !define
+
+SVN_CLIENT_PATH: "C:/p4client/dev_install/bin/Win/wsvn/wsvn.exe"
+
+SVN_REPO_URL: "http://192.168.13.108/svn/Dev"
+BASE_SRC_URL: "$(SVN_REPO_URL)/Win"
+BOOKKEEPING_DIR_URL: "$(SVN_REPO_URL)/instl"
+
+LOCAL_SYNC_DIR: "C:/Users/shai/Desktop/Temp/Waves"
+
+__include__: C:\p4client\192.168.13.108\Dev\instl\index.yaml
+#__include__: "$(BOOKKEEPING_DIR_URL)/index.yaml"
+
+MAIN_INSTALL_TARGETS:
+    - PYTHON_3_3_IID

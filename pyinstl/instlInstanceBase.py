@@ -209,8 +209,8 @@ class InstlInstanceBase(object):
                         print("Unknown document tag '"+a_node.tag+"'; Tag should be one of: !define, !index'")
         except Exception as ex:
             import traceback
-            tb = traceback.format_exc()
-            print("read_file", file_path, ex, tb)
+            traceback.print_exc()
+            print("read_file", file_path, ex)
 
     def resolve_index_inheritance(self):
         for install_def in self.install_definitions_index.values():
