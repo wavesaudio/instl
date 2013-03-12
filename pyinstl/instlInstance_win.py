@@ -46,3 +46,8 @@ class InstlInstance_win(instlInstanceBase.InstlInstanceBase):
         
     def create_var_assign(self, identifier, value):
         return "SET "+identifier+'='+value
+
+    def create_echo_command(self, message):
+        echo_command = " ".join(('echo', quoteme(message)))
+        return echo_command
+

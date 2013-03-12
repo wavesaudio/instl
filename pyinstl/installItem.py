@@ -5,7 +5,7 @@ from __future__ import print_function
 """
     class InstallItem hold information about how to install one or more install_sources.
     information include:
-        idd - must be unique amongst all InstallItems.
+        iid - must be unique amongst all InstallItems.
         name - description for log and erros messages has no bering on the installation.
         guid - a standard 36 charcter guid. Can be used as addtional identification. Several idds can share the same guid.
         remark - remarks for human consumption has no bering on the installation.
@@ -25,7 +25,7 @@ from __future__ import print_function
                         will be preformed only once.
             before -    actions to preform before installing the install_sources in each folder.
             after -    actions to preform after installing the install_sources in each folder.
-    Except idd field, all fields are optional.
+    Except iid field, all fields are optional.
 
     Example in Yaml:
 
@@ -69,19 +69,19 @@ elif current_os == 'Windows':
 
 def read_index_from_yaml(all_items_node):
     retVal = dict() #OrderedDict()
-    for IDD in all_items_node.iterkeys():
-        if IDD in retVal:
-            pass#print(IDD, "already in all_items_node")
+    for IID in all_items_node.iterkeys():
+        if IID in retVal:
+            pass#print(IID, "already in all_items_node")
         else:
-            #print(IDD, "not in all_items_node")
+            #print(IID, "not in all_items_node")
             item = InstallItem()
-            item.read_from_yaml_by_idd(IDD, all_items_node)
-            retVal[IDD] = item
+            item.read_from_yaml_by_idd(IID, all_items_node)
+            retVal[IID] = item
     return retVal
 
 
 class InstallItem(object):
-    __slots__ = ('idd', 'name', 'guid',
+    __slots__ = ('iid', 'name', 'guid',
                 'remark', "description", 'inherit',
                 '__set_for_os', '__items', '__resolved_inherit')
     item_sections = ('common', 'mac', 'win')
@@ -112,7 +112,7 @@ class InstallItem(object):
 
     def __init__(self):
         self.__resolved_inherit = False
-        self.idd = None
+        self.iid = None
         self.name = None
         self.guid = None
         self.remark = ""
@@ -121,10 +121,10 @@ class InstallItem(object):
         self.__set_for_os = [InstallItem.item_sections[0]] # reading for all platforms ('common') or for which specific platforms ('mac', 'win')?
         self.__items = defaultdict(InstallItem.create_items_section)
 
-    def read_from_yaml_by_idd(self, IDD, all_items_node):
-        my_node = all_items_node[IDD]
+    def read_from_yaml_by_idd(self, IID, all_items_node):
+        my_node = all_items_node[IID]
         self.read_from_yaml(my_node)
-        self.idd = IDD # restore the IDD that might have been overwritten by inheritance
+        self.iid = IID # restore the IID that might have been overwritten by inheritance
         self.description = str(my_node.start_mark)
 
     def read_from_yaml(self, my_node):
@@ -216,8 +216,8 @@ class InstallItem(object):
         return self.__some_items_list(action_type, InstallItem.get_for_os)
 
     def get_recursive_depends(self, items_map, out_set, orphan_set):
-        if self.idd not in out_set:
-            out_set.append(self.idd)
+        if self.iid not in out_set:
+            out_set.append(self.iid)
             for depend in self.depend_list():
                 if depend not in out_set: # avoid cycles, save time
                     try:
@@ -270,7 +270,7 @@ class InstallItem(object):
 
     def merge_from_another_InstallItem(self, otherInstallItem):
         """ merge the contents of another InstallItem """
-        # self.idd = idd is not merged
+        # self.iid = iid is not merged
         # self.name = name is not merged
         # self.guid = guid is not merged
         # name of the other item is added to the remark
@@ -282,12 +282,12 @@ class InstallItem(object):
 
     def resolve_inheritance(self, InstallItemsDict):
         if not self.__resolved_inherit:
-            if self.idd in self.resolve_inheritance_stack:
-                raise Exception("circular resolve_inheritance of "+self.idd)
-            self.resolve_inheritance_stack.append(self.idd)
+            if self.iid in self.resolve_inheritance_stack:
+                raise Exception("circular resolve_inheritance of "+self.iid)
+            self.resolve_inheritance_stack.append(self.iid)
             for ancestor in self.inherit_list():
                 if ancestor not in InstallItemsDict:
-                    raise KeyError(self.idd+" inherites from "+ancestor+" which is not in InstallItemsDict")
+                    raise KeyError(self.iid+" inherites from "+ancestor+" which is not in InstallItemsDict")
                 ancestor_item = InstallItemsDict[ancestor]
                 ancestor_item.resolve_inheritance(InstallItemsDict)
                 self.merge_all_item_sections(ancestor_item)
@@ -301,6 +301,6 @@ class InstallItem(object):
                     try:
                         self.read_from_yaml_by_idd(inheritIDD.value, all_items_node)
                     except KeyError as ke:
-                        missingIDDMessage = "While reading "+IDD+", Inheritance IDD '"+ke.message+" " +my_node['inherit'].start_mark
+                        missingIDDMessage = "While reading "+IID+", Inheritance IID '"+ke.message+" " +my_node['inherit'].start_mark
                         raise KeyError(missingIDDMessage)
 """

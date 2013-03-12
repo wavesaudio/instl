@@ -32,7 +32,8 @@ class InstallInstructionsState(object):
         self.root_install_items = unique_list()
         self.full_install_items = unique_list()
         self.orphan_install_items = unique_list()
-        self.install_items_by_folder = defaultdict(unique_list)
+        self.install_items_by_target_folder = defaultdict(unique_list)
+        self.no_copy_items_by_sync_folder = defaultdict(unique_list)
         self.variables_assignment_lines = list()
         self.copy_instruction_lines = list()
         self.sync_paths = unique_list()
@@ -43,7 +44,8 @@ class InstallInstructionsState(object):
         retVal['root_install_items'] = list(self.root_install_items)
         retVal['full_install_items'] = list(self.full_install_items)
         retVal['orphan_install_items'] = list(self.orphan_install_items)
-        retVal['install_items_by_folder'] = {folder: list(self.install_items_by_folder[folder]) for folder in self.install_items_by_folder}
+        retVal['install_items_by_target_folder'] = {folder: list(self.install_items_by_target_folder[folder]) for folder in self.install_items_by_target_folder}
+        retVal['no_copy_items_by_sync_folder'] = list(self.no_copy_items_by_sync_folder)
         retVal['variables_assignment_lines'] = list(self.variables_assignment_lines)
         retVal['copy_instruction_lines'] = self.copy_instruction_lines
         retVal['sync_paths'] = list(self.sync_paths)
@@ -52,28 +54,35 @@ class InstallInstructionsState(object):
 
     def calculate_full_install_items_set(self, instlInstance):
         """ calculate the set of idds to install by starting with the root set and adding all dependencies.
-            Initial list of idd should already be in self.root_install_items.
+            Initial list of iid should already be in self.root_install_items.
             results are accomulated in InstallInstructionsState.
-            If an install items was not found for a idd, the idd is added to the orphan set.
+            If an install items was not found for a iid, the iid is added to the orphan set.
         """
         # root_install_items might have guid in it, translate them to idds
         root_install_idds_translated = unique_list()
-        for IDD in self.root_install_items:
-            if instlInstance.guid_re.match(IDD):
-                root_install_idds_translated.extend(instlInstance.idds_from_guid(IDD))
+        for IID in self.root_install_items:
+            if instlInstance.guid_re.match(IID):
+                root_install_idds_translated.extend(instlInstance.idds_from_guid(IID))
             else:
-                root_install_idds_translated.append(IDD)
-        for IDD in root_install_idds_translated:
+                root_install_idds_translated.append(IID)
+        for IID in root_install_idds_translated:
             try:
-                instlInstance.install_definitions_index[IDD].get_recursive_depends(instlInstance.install_definitions_index, self.full_install_items, self.orphan_install_items)
+                instlInstance.install_definitions_index[IID].get_recursive_depends(instlInstance.install_definitions_index, self.full_install_items, self.orphan_install_items)
             except KeyError:
-                self.orphan_install_items.append(IDD)
-        self.__sort_install_items_by_folder(instlInstance)
+                self.orphan_install_items.append(IID)
+        self.__sort_install_items_by_target_folder(instlInstance)
 
-    def __sort_install_items_by_folder(self, instlInstance):
-        for IDD in self.full_install_items:
-            for folder in instlInstance.install_definitions_index[IDD].folder_list():
-                self.install_items_by_folder[folder].append(IDD)
+    def __sort_install_items_by_target_folder(self, instlInstance):
+        for IID in self.full_install_items:
+            folder_list_for_idd = instlInstance.install_definitions_index[IID].folder_list()
+            if folder_list_for_idd:
+                for folder in folder_list_for_idd:
+                    self.install_items_by_target_folder[folder].append(IID)
+            else: # items that need no copy
+                source_list_for_idd = instlInstance.install_definitions_index[IID].source_list()
+                for source in source_list_for_idd:
+                    sync_folder =  "/".join( ("$(LOCAL_SYNC_DIR)", "$(REPO_NAME)", "$(REL_SRC_PATH)", instlInstance.relative_sync_folder_for_source(source)))
+                    self.no_copy_items_by_sync_folder[sync_folder].append(IID)
 
 class InstlInstanceBase(object):
     """ Main object of instl. Keeps the state of variables and install index
@@ -214,13 +223,13 @@ class InstlInstanceBase(object):
 
     def idds_from_guid(self, guid):
         retVal = list()
-        for idd, install_def in self.install_definitions_index.iteritems():
+        for iid, install_def in self.install_definitions_index.iteritems():
             if install_def.guid == guid:
-                retVal.append(idd)
+                retVal.append(iid)
         return retVal
 
     def calculate_default_install_item_set(self, installState):
-        """ calculate the set of idd to install from the "__MAIN_INSTALL_TARGETS__" variable.
+        """ calculate the set of iid to install from the "__MAIN_INSTALL_TARGETS__" variable.
             Full set of install idds and orphan idds are also writen to variable.
         """
         if "MAIN_INSTALL_TARGETS" not in self.cvl:
@@ -278,10 +287,12 @@ class InstlInstanceBase(object):
         installState.sync_instruction_lines.extend(self.make_directory_cmd("$(LOCAL_SYNC_DIR)/$(REPO_NAME)"))
         installState.sync_instruction_lines.extend(self.change_directory_cmd("$(LOCAL_SYNC_DIR)/$(REPO_NAME)"))
         installState.sync_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "co", '"$(BOOKKEEPING_DIR_URL)"', '"$(REL_BOOKKIPING_PATH)"', "--revision", "$(REPO_REV)")))
-        for idd  in installState.full_install_items:                   # svn pulling actions
-            installi = self.install_definitions_index[idd]
+        for iid  in installState.full_install_items:                   # svn pulling actions
+            installi = self.install_definitions_index[iid]
             for source in installi.source_list():                   # svn pulling actions
                 installState.sync_instruction_lines.extend(self.create_svn_sync_instructions_for_source(source))
+        for iid in installState.orphan_install_items:
+            installState.sync_instruction_lines.append(self.create_echo_command("Don't know how to sync "+iid))
  
     def create_svn_sync_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
@@ -296,25 +307,57 @@ class InstlInstanceBase(object):
             command_parts.extend( ( "--depth", "files") )
         retVal.append(" ".join(command_parts))
         return retVal
-   
+
+    def relative_sync_folder_for_source(self, source):
+        reVal = None
+        if source[1] in ('!dir', '!file'):
+            retVal = "/".join(source[0].split("/")[0:-1])
+        elif source[1] in ('!dir_cont', '!files'):
+            retVal = source[0]
+        else:
+            raise ValueError("unknown tag for source "+source[0]+": "+source[1])
+        return retVal
+
     def create_copy_instructions(self, installState):
         self.init_copy_vars()
         self.create_variables_assignment(installState)
-        for folder_name, folder_items in installState.install_items_by_folder.iteritems():
+        # copy and actions instructions for sources
+        for folder_name, folder_items in installState.install_items_by_target_folder.iteritems():
             installState.copy_instruction_lines.extend(self.make_directory_cmd(folder_name))
             installState.copy_instruction_lines.extend(self.change_directory_cmd(folder_name))
             folder_in_actions = unique_list()
             install_item_instructions = list()
             folder_out_actions = unique_list()
-            for IDD in folder_items: # folder_in actions
-                installi = self.install_definitions_index[IDD]
+            for IID in folder_items: # folder_in actions
+                installi = self.install_definitions_index[IID]
                 folder_in_actions.extend(installi.action_list('folder_in'))
                 for source in installi.source_list():
+                    install_item_instructions.extend(installi.action_list('before'))
                     install_item_instructions.extend(self.create_copy_instructions_for_source(source))
+                    install_item_instructions.extend(installi.action_list('after'))
                 folder_out_actions.extend(installi.action_list('folder_out'))
             installState.copy_instruction_lines.extend(folder_in_actions)
             installState.copy_instruction_lines.extend(install_item_instructions)
             installState.copy_instruction_lines.extend(folder_out_actions)
+
+        # actions instructions for sources that do not need copying
+        for folder_name, folder_items in installState.no_copy_items_by_sync_folder.iteritems():
+            installState.copy_instruction_lines.extend(self.change_directory_cmd(folder_name))
+            folder_in_actions = unique_list()
+            install_actions = list()
+            folder_out_actions = unique_list()
+            for IID in folder_items: # folder_in actions
+                installi = self.install_definitions_index[IID]
+                folder_in_actions.extend(installi.action_list('folder_in'))
+                install_actions.extend(installi.action_list('before'))
+                install_actions.extend(installi.action_list('after'))
+                folder_out_actions.extend(installi.action_list('folder_out'))
+            installState.copy_instruction_lines.extend(folder_in_actions)
+            installState.copy_instruction_lines.extend(install_actions)
+            installState.copy_instruction_lines.extend(folder_out_actions)
+        # messages about orphan iids
+        for iid in installState.orphan_install_items:
+            installState.sync_instruction_lines.append(self.create_echo_command("Don't know how to install "+iid))
 
     def create_copy_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
@@ -393,22 +436,22 @@ class InstlInstanceBase(object):
                 except ImportError as IE: # no installItemGraph, no worry
                     print("Could not load installItemGraph")
 
-    def needs(self, idd, out_list):
-        """ return all items that depend on idd """
-        if idd not in self.install_definitions_index:
-            raise KeyError(idd+" is not in index")
-        for dep in self.install_definitions_index[idd].depend_list():
+    def needs(self, iid, out_list):
+        """ return all items that depend on iid """
+        if iid not in self.install_definitions_index:
+            raise KeyError(iid+" is not in index")
+        for dep in self.install_definitions_index[iid].depend_list():
             if dep in self.install_definitions_index:
                 out_list.append(dep)
                 self.needs(dep, out_list)
             else:
                 out_list.append(dep+"(missing)")
 
-    def needed_by(self, idd):
+    def needed_by(self, iid):
         try:
             from pyinstl import installItemGraph
             graph = installItemGraph.create_dependencies_graph(self.install_definitions_index)
-            needed_by_list = installItemGraph.find_needed_by(graph, idd)
+            needed_by_list = installItemGraph.find_needed_by(graph, iid)
             return needed_by_list
         except ImportError as IE: # no installItemGraph, no worry
             print("Could not load installItemGraph")
@@ -469,6 +512,10 @@ class InstlInstanceBase(object):
 
     @abc.abstractmethod
     def create_var_assign(self, identifier, value):
+        pass
+    
+    @abc.abstractmethod
+    def create_echo_command(self, message):
         pass
 
     def read_command_line_options(self, arglist=None):

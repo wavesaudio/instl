@@ -11,14 +11,14 @@ def create_dependencies_graph(item_map):
     retVal = nx.DiGraph()
     for item in item_map:
         for dependant in item_map[item].depend_list():
-            retVal.add_edge(item_map[item].idd, dependant)
+            retVal.add_edge(item_map[item].iid, dependant)
     return retVal
 
 def create_inheritItem_graph(item_map):
     retVal = nx.DiGraph()
     for item in item_map:
         for dependant in item_map[item].inherit_list():
-            retVal.add_edge(item_map[item].idd, dependant)
+            retVal.add_edge(item_map[item].iid, dependant)
     return retVal
 
 def find_cycles(item_graph):
