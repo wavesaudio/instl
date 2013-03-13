@@ -2,7 +2,7 @@
 
 QT_4_7_3_IDD:
     name: Waves' Qt libraries ver. 4.7.3
-    mac:
+    Mac:
         install_sources:
             - Apps/Qt4.7.3
         install_folders:
@@ -29,20 +29,20 @@ WavesLib_9.1_IDD:
     name: WavesLib
     install_folders:
         - $(WAVES_PLUGINS_DIR)
-    mac:
+    Mac:
         install_sources:
             - Plugins/WavesLib_9.1.framework
-    win:
+    Win:
         install_sources:
             - !files Plugins/WavesLib_9.1
 WavesLib_9.2_IDD:
     name: WavesLib
     install_folders:
         - $(WAVES_PLUGINS_DIR)
-    mac:
+    Mac:
         install_sources:
             - Plugins/WavesLib_9.2.framework
-    win:
+    Win:
         install_sources:
             - !files Plugins/WavesLib_9.2
 
@@ -814,10 +814,10 @@ OKWetter_IDD:
         - Plugin_Root_9_1_IDD
 OverviewLib_IDD:
     name: OverviewLib
-    mac:
+    Mac:
         install_sources:
             - Plugins/OverviewLib.framework
-    win:
+    Win:
         install_sources:
             - !file Plugins/OverviewLib_32bit.dll
             - !file Plugins/OverviewLib_64bit.dll

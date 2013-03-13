@@ -9,10 +9,10 @@ import pyinstl
 import platform
 current_os = platform.system()
 if current_os == 'Darwin':
-    current_os = 'mac'
+    current_os = 'Mac'
     from pyinstl.instlInstance_mac import InstlInstance_mac as ii
 elif current_os == 'Windows':
-    current_os = 'win'
+    current_os = 'Win'
     from pyinstl.instlInstance_win import InstlInstance_win as ii
 
 

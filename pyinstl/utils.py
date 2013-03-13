@@ -9,9 +9,9 @@ import urlparse
 import platform
 current_os = platform.system()
 if current_os == 'Darwin':
-    current_os = 'mac'
+    current_os = 'Mac'
 elif current_os == 'Windows':
-    current_os = 'win'
+    current_os = 'Win'
 
 class write_to_file_or_stdout(object):
     def  __init__(self, file_path):
@@ -49,7 +49,7 @@ class open_for_read_file_or_url(object):
     def  __init__(self, file_url):
         match = self.protocol_header_re.match(file_url)
         if not match:
-            if current_os == 'win':
+            if current_os == 'Win':
                 file_url = "file:///"+os.path.abspath(file_url)
             else:
                 file_url = "file://"+os.path.realpath(file_url)

@@ -12,9 +12,9 @@ from pyinstl.utils import *
 import platform
 current_os = platform.system()
 if current_os == 'Darwin':
-    current_os = 'mac'
+    current_os = 'Mac'
 elif current_os == 'Windows':
-    current_os = 'win'
+    current_os = 'Win'
 
 try:
     import cmd
@@ -329,7 +329,7 @@ class CMDObj(cmd.Cmd, object):
         print("    dependecies for an item")
 
     def do_alias(self, params):
-        if current_os == 'mac':
+        if current_os == 'Mac':
             params = shlex.split(params)
             if len(params) == 2:
                 print("creating alias of", params[0], "as", params[1])
@@ -373,7 +373,7 @@ class CMDObj(cmd.Cmd, object):
         return self.path_completion(text, line, begidx, endidx)
 
     def help_alias(self):
-        print("alias original target:", "creates a mac alias (Mac OS only)")
+        print("alias original target:", "creates a Mac alias (Mac OS only)")
 
     def do_version(self, params):
         print(" ".join( ("instl", "version", ".".join(self.prog_inst.get_version()))))

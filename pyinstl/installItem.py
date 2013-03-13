@@ -63,9 +63,9 @@ from pyinstl.utils import unique_list
 
 current_os = platform.system()
 if current_os == 'Darwin':
-    current_os = 'mac';
+    current_os = 'Mac';
 elif current_os == 'Windows':
-    current_os = 'win';
+    current_os = 'Win';
 
 def read_index_from_yaml(all_items_node):
     retVal = dict() #OrderedDict()
@@ -84,7 +84,7 @@ class InstallItem(object):
     __slots__ = ('iid', 'name', 'guid',
                 'remark', "description", 'inherit',
                 '__set_for_os', '__items', '__resolved_inherit')
-    item_sections = ('common', 'mac', 'win')
+    item_sections = ('common', 'Mac', 'Win')
     item_types = ('install_sources', 'install_folders', 'depends', 'actions')
     action_types = ('folder_in', 'before', 'after', 'folder_out')
     file_types = ('!dir_cont', '!files', '!file', '!dir')
@@ -118,7 +118,7 @@ class InstallItem(object):
         self.remark = ""
         self.description = ""
         self.inherit = unique_list()
-        self.__set_for_os = [InstallItem.item_sections[0]] # reading for all platforms ('common') or for which specific platforms ('mac', 'win')?
+        self.__set_for_os = [InstallItem.item_sections[0]] # reading for all platforms ('common') or for which specific platforms ('Mac', 'Win')?
         self.__items = defaultdict(InstallItem.create_items_section)
 
     def read_from_yaml_by_idd(self, IID, all_items_node):

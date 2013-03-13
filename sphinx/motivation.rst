@@ -13,7 +13,7 @@ What's wrong with existing installer builders?
 
 How does **instl** improves the situation?
 ------------------------------------------
-#. Cross platform: **instl** uses one database for Mac only, Windows only and common files. Online users activate the same installer for mac or Windows and get only the subset suitable for their platform. Offline users can download one installer use it for both Mac and Windows installations.
+#. Cross platform: **instl** uses one database for Mac only, Windows only and common files. Online users activate the same installer for Mac or Windows and get only the subset suitable for their platform. Offline users can download one installer use it for both Mac and Windows installations.
 #. File formats: **instl** uses YAML as it's file format, this means that all files are easily searchable and comparable.
 #. Version control: **instl** uses SubVersion as database for all installables. This makes updating the installer for new versions very straight forward and gives users the ability to mix and match different versions of the same product. If you do not want users to have a choice about which version to install - this can also ne achieved easily.
 #. Scalability: Since **instl** is text based duplicating or making variations is very easy. Full cycle propagation of changes is also a non issue.

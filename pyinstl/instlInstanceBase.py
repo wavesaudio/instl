@@ -19,9 +19,9 @@ from pyinstl.utils import *
 import platform
 current_os = platform.system()
 if current_os == 'Darwin':
-    current_os = 'mac'
+    current_os = 'Mac'
 elif current_os == 'Windows':
-    current_os = 'win'
+    current_os = 'Win'
 
 INSTL_VERSION=(0, 2, 0)
 this_program_name = "instl"
@@ -128,6 +128,8 @@ class InstlInstanceBase(object):
         return retVal
 
     def init_default_vars(self):
+        self.cvl.add_const_config_variable("__CURRENT_OS__", "from InstlInstanceBase.init_default_vars", current_os)
+        self.cvl.set_variable("TARGET_OS", "from InstlInstanceBase.init_default_vars").append(current_os)
         self.cvl.add_const_config_variable("__INSTL_VERSION__", "from InstlInstanceBase.init_default_vars", *INSTL_VERSION)
         self.cvl.set_variable("LOCAL_SYNC_DIR", "from InstlInstanceBase.init_default_vars").append(appdirs.user_cache_dir(this_program_name, this_program_name))
 
@@ -286,7 +288,7 @@ class InstlInstanceBase(object):
         self.create_variables_assignment(installState)
         installState.sync_instruction_lines.extend(self.make_directory_cmd("$(LOCAL_SYNC_DIR)/$(REPO_NAME)"))
         installState.sync_instruction_lines.extend(self.change_directory_cmd("$(LOCAL_SYNC_DIR)/$(REPO_NAME)"))
-        installState.sync_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "co", '"$(BOOKKEEPING_DIR_URL)"', '"$(REL_BOOKKIPING_PATH)"', "--revision", "$(REPO_REV)")))
+        installState.sync_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "co", '"$(BOOKKEEPING_DIR_URL)"', '"$(REL_BOOKKIPING_PATH)"', "--revision", "$(REPO_REV)", "--depth", "infinity")))
         for iid  in installState.full_install_items:                   # svn pulling actions
             installi = self.install_definitions_index[iid]
             for source in installi.source_list():                   # svn pulling actions
@@ -305,6 +307,8 @@ class InstlInstanceBase(object):
         command_parts = ['"$(SVN_CLIENT_PATH)"', "co", '"'+source_url+'"', '"'+target_path+'"', "--revision", "$(REPO_REV)"]
         if source[1] in ('!file', '!files'):
             command_parts.extend( ( "--depth", "files") )
+        else:
+            command_parts.extend( ( "--depth", "infinity") )
         retVal.append(" ".join(command_parts))
         return retVal
 
@@ -612,7 +616,7 @@ def prepare_args_parser():
         parser_version = subparsers.add_parser('version', help='display instl version')
         parser_version.set_defaults(mode='do_something')
         
-        if current_os == 'mac':
+        if current_os == 'Mac':
             parser_alias = subparsers.add_parser('alias',
                                                 help='create Mac OS alias')
             parser_alias.set_defaults(mode='do_something')

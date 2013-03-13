@@ -21,4 +21,4 @@
 
 .. data:: current_os
 
-    Holds the current os discovered by a calling `platform.system()`. Values are either 'mac' or 'win'.
+    Holds the current os discovered by a calling `platform.system()`. Values are either 'Mac' or 'Win'.
