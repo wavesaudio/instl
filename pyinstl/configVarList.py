@@ -178,23 +178,28 @@ def resolve_list(needsResolveList, resolve_func):
     """
     replaceDic = dict()
     resolvedList = list()
+    found_var_reference = False
     for valueText in needsResolveList:
         # if the value is only a single $() reference, no quotes,
         # the resolved values are extending the resolved list
         single_value_ref_match = only_one_value_ref_re.match(valueText)
         if single_value_ref_match: #
+            found_var_reference = True
             new_values = resolve_func(single_value_ref_match.group('var_name'))
             resolvedList.extend(new_values)
             continue
         # if the value is more than a single $() reference,
         # the resolved values are joined and appended to the resolved list
         for value_ref_match in value_ref_re.finditer(valueText):
+            found_var_reference = True
             # group 'varref_pattern' is the full $(X), group 'var_name' is the X
             replace_ref, value_ref = value_ref_match.group('varref_pattern', 'var_name')
             if replace_ref not in replaceDic:
                 replaceDic[replace_ref] = " ".join(resolve_func(value_ref))
         valueTextResolved = replace_all_from_dict(valueText, **replaceDic)
         resolvedList.append(valueTextResolved)
+    if found_var_reference: # another resolve round until no ref-in-ref are left
+        resolvedList = resolve_list(resolvedList, resolve_func)
     if False:
         self.__resolving_in_progress = False
     return tuple(resolvedList)
