@@ -148,7 +148,7 @@ class InstlInstanceBase(object):
     def do_something(self):
         try:
             if self.name_space_obj.command == "version":
-                print(" ".join( (this_program_name, "version", ".".join(self.cvl.get("__INSTL_VERSION__")))))
+                print(" ".join( (this_program_name, "version", ".".join(self.cvl.get_list("__INSTL_VERSION__")))))
             else:
                 import do_something
                 do_something.do_something(self.something_to_do)

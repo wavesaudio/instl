@@ -376,7 +376,7 @@ class CMDObj(cmd.Cmd, object):
         print("alias original target:", "creates a Mac alias (Mac OS only)")
 
     def do_version(self, params):
-        print(" ".join( ("instl", "version", ".".join(self.prog_inst.get_version()))))
+        print(" ".join( (this_program_name, "version", ".".join(self.prog_inst.cvl.get_list("__INSTL_VERSION__")))))
         return False
     def help_version(self):
         print("version: print", instlInstanceBase.this_program_name, "version")
