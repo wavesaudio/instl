@@ -46,13 +46,16 @@ class open_for_read_file_or_url(object):
                         \w+
                         ://
                         """, re.VERBOSE)
-    def  __init__(self, file_url):
+    def  __init__(self, file_url, search_paths_helper=None):
         match = self.protocol_header_re.match(file_url)
-        if not match:
-            if current_os == 'Win':
-                file_url = "file:///"+os.path.abspath(file_url)
-            else:
-                file_url = "file://"+os.path.realpath(file_url)
+        if not match: # it's a local file
+            if search_paths_helper is not None:
+                file_url = search_paths_helper.find_file_with_search_paths(file_url)
+            if file_url:
+                if current_os == 'Win':
+                    file_url = "file:///"+os.path.abspath(file_url)
+                else:
+                    file_url = "file://"+os.path.realpath(file_url)
         self.file_url = file_url
 
     def __enter__(self):

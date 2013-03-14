@@ -1,0 +1,6 @@
+--- !define
+
+WAVES_PLUGINS_DIR: "/Users/shai/Desktop/installHere/Waves Plugins"
+WAVES_APPS_DIR: "/Users/shai/Desktop/installHere/Applications"
+MACOS_COMPONENTS: "/Library/Audio/Plug-Ins/Components"
+LOCAL_SYNC_DIR: "/Users/shai/Desktop/Temp"

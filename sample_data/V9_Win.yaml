@@ -1,0 +1,8 @@
+--- !define
+
+TEST_TARGET_DIR: "C:/Users/shai/Desktop/installHere"
+WAVES_APPS_DIR: "C:/Users/shai/Desktop/installHere/Applications"
+WAVES_PLUGINS_DIR: "C:/Users/shai/Desktop/installHere/Waves Plugins"
+
+LOCAL_SYNC_DIR: "C:/Users/shai/Desktop/Temp/Waves"
+

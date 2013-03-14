@@ -15,7 +15,7 @@ from configVarList import ConfigVarList, value_ref_re
 from aYaml import augmentedYaml
 from installItem import InstallItem, read_index_from_yaml
 from pyinstl.utils import *
-
+from pyinstl.searchPaths import SearchPaths
 import platform
 current_os = platform.system()
 if current_os == 'Darwin':
@@ -23,7 +23,7 @@ if current_os == 'Darwin':
 elif current_os == 'Windows':
     current_os = 'Win'
 
-INSTL_VERSION=(0, 2, 0)
+INSTL_VERSION=(0, 3, 0)
 this_program_name = "instl"
 
 class InstallInstructionsState(object):
@@ -97,6 +97,7 @@ class InstlInstanceBase(object):
         self.cvl = ConfigVarList()
         self.var_replacement_pattern = None
         self.init_default_vars()
+        self.search_paths_helper = SearchPaths(self.cvl.get_configVar_obj("__SEARCH_PATHS__"))
 
         self.guid_re = re.compile("""
                         [a-f0-9]{8}
@@ -128,7 +129,7 @@ class InstlInstanceBase(object):
         return retVal
 
     def init_default_vars(self):
-        self.cvl.add_const_config_variable("__CURRENT_OS__", "from InstlInstanceBase.init_default_vars", current_os)
+        self.cvl.add_const_config_variable("CURRENT_OS", "from InstlInstanceBase.init_default_vars", current_os)
         self.cvl.set_variable("TARGET_OS", "from InstlInstanceBase.init_default_vars").append(current_os)
         self.cvl.add_const_config_variable("__INSTL_VERSION__", "from InstlInstanceBase.init_default_vars", *INSTL_VERSION)
         self.cvl.set_variable("LOCAL_SYNC_DIR", "from InstlInstanceBase.init_default_vars").append(appdirs.user_cache_dir(this_program_name, this_program_name))
@@ -201,7 +202,7 @@ class InstlInstanceBase(object):
 
     def read_file(self, file_path):
         try:
-            with open_for_read_file_or_url(file_path) as file_fd:
+            with open_for_read_file_or_url(file_path, self.search_paths_helper) as file_fd:
                 for a_node in yaml.compose_all(file_fd):
                     if a_node.tag == '!define':
                         self.read_defines(a_node)
@@ -282,6 +283,9 @@ class InstlInstanceBase(object):
                 raise ValueError("'SVN_REPO_URL' was not defined")
             repo_name = last_url_item(self.cvl.get_str("SVN_REPO_URL"))
             self.cvl.set_variable("REPO_NAME", "from InstlInstanceBase.init_sync_vars").append(repo_name)
+        if "COPY_TOOL" not in self.cvl:
+            from copyCommander import DefaultCopyToolName
+            self.cvl.set_variable("COPY_TOOL", "from InstlInstanceBase.init_sync_vars").append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
 
     def create_sync_instructions(self, installState):
         self.init_sync_vars()
@@ -326,6 +330,8 @@ class InstlInstanceBase(object):
         self.init_copy_vars()
         self.create_variables_assignment(installState)
         # copy and actions instructions for sources
+        from copyCommander import CopyCommanderFactory
+        copy_command_creator = CopyCommanderFactory(self.cvl.get_str("TARGET_OS"), self.cvl.get_str("COPY_TOOL"))
         for folder_name, folder_items in installState.install_items_by_target_folder.iteritems():
             installState.copy_instruction_lines.extend(self.make_directory_cmd(folder_name))
             installState.copy_instruction_lines.extend(self.change_directory_cmd(folder_name))
@@ -337,7 +343,7 @@ class InstlInstanceBase(object):
                 folder_in_actions.extend(installi.action_list('folder_in'))
                 for source in installi.source_list():
                     install_item_instructions.extend(installi.action_list('before'))
-                    install_item_instructions.extend(self.create_copy_instructions_for_source(source))
+                    install_item_instructions.extend(self.create_copy_instructions_for_source(source, copy_command_creator))
                     install_item_instructions.extend(installi.action_list('after'))
                 folder_out_actions.extend(installi.action_list('folder_out'))
             installState.copy_instruction_lines.extend(folder_in_actions)
@@ -363,19 +369,19 @@ class InstlInstanceBase(object):
         for iid in installState.orphan_install_items:
             installState.sync_instruction_lines.append(self.create_echo_command("Don't know how to install "+iid))
 
-    def create_copy_instructions_for_source(self, source):
+    def create_copy_instructions_for_source(self, source, copy_command_creator):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
         retVal = list()
         source_url = "$(LOCAL_SYNC_DIR)/$(REPO_NAME)/$(REL_SRC_PATH)/"+source[0]
 
         if source[1] == '!file': # get a single file, not recommneded
-            retVal.extend(self.create_copy_file_to_dir_command(source_url, "."))
+            retVal.extend(copy_command_creator.create_copy_file_to_dir_command(source_url, "."))
         elif source[1] == '!dir_cont': # get all files and folders from a folder
-            retVal.extend(self.create_copy_dir_contents_to_dir_command(source_url, "."))
+            retVal.extend(copy_command_creator.create_copy_dir_contents_to_dir_command(source_url, "."))
         elif source[1] == '!files': # get all files from a folder
-            retVal.extend(self.create_copy_dir_files_to_dir_command(source_url, "."))
+            retVal.extend(copy_command_creator.create_copy_dir_files_to_dir_command(source_url, "."))
         else:
-            retVal.extend(self.create_copy_dir_to_dir_command(source_url, "."))
+            retVal.extend(copy_command_creator.create_copy_dir_to_dir_command(source_url, "."))
         return retVal
 
     def finalize_list_of_lines(self, installState):
@@ -468,26 +474,6 @@ class InstlInstanceBase(object):
         except Exception as es:
             print("go_interactive", es)
             raise
-
-    @abc.abstractmethod
-    def create_copy_dir_to_dir_command(self, src_dir, trg_dir):
-        """ platform specific """
-        pass
-
-    @abc.abstractmethod
-    def create_copy_file_to_dir_command(self, src_file, trg_dir):
-        """ platform specific """
-        pass
-
-    @abc.abstractmethod
-    def create_copy_dir_contents_to_dir_command(self, src_dir, trg_dir):
-        """ platform specific """
-        pass
-
-    @abc.abstractmethod
-    def create_copy_dir_files_to_dir_command(self, src_dir, trg_dir):
-        """ platform specific """
-        pass
 
     @abc.abstractmethod
     def get_install_instructions_prefix(self):
