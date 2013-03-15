@@ -153,19 +153,11 @@ def relative_url(base, target):
     if target_path.startswith(base_path):
         retVal = target_path.replace(base_path, '', 1)
         retVal = retVal.strip("/")
-    return retVal        
-
-if __name__ == "__main__":
-    def test_unique_list():
-        u = unique_list( ('a', 'b', 'c', 'c'))
-        y = unique_list()
-        print(bool([1]), bool([]), bool(1), bool(0))
-    test_unique_list()
-    #print(dir(list))
+    return retVal
 
 def deprecated(deprecated_func):
-    def anounce_deprecation(*args, **kargs):
-        print(deprecated_func.__name__, "is deprecated")
+    def raise_deprecation(*args, **kargs):
+        raise DeprecationWarning(deprecated_func.__name__, "is deprecated")
         return None
-    return anounce_deprecation
+    return raise_deprecation
 
