@@ -41,6 +41,7 @@ Contents:
     architecture
     fileformat
     example
+    standard_variables
     svn configuration
     online installs
     offline installs

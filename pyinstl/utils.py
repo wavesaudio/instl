@@ -161,3 +161,26 @@ def deprecated(deprecated_func):
         return None
     return raise_deprecation
 
+def max_widths(list_of_lists):
+    """ inputs is a list of lists. output is a list of maximum str length for each
+        position. E.g (('a', 'ccc'), ('bb', a', 'fff')) will return: (2, 3, 3)
+    """
+    sorted_list_of_lists = sorted(list_of_lists, key=len)
+    loggest_list_len = reduce(max, [len(alist) for alist in list_of_lists])
+    retVal = [0] * loggest_list_len # pre allocate the max list length
+    for alist in list_of_lists:
+        for item in enumerate(alist):
+            retVal[item[0]] = max(retVal[item[0]], len(str(item[1])))
+    return retVal
+
+def gen_col_format(width_list):
+    """ generate a list of format string where each position is aligned to the adjacent
+        position in the width_list.
+    """
+    retVal = list()
+    format_str = ""
+    retVal.append(format_str)
+    for width in width_list:
+        format_str += "{{:<{width}}}".format(width=width+1)
+        retVal.append(format_str)
+    return retVal

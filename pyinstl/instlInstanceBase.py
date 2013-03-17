@@ -232,13 +232,12 @@ class InstlInstanceBase(object):
         return retVal
 
     def calculate_default_install_item_set(self, installState):
-        """ calculate the set of iid to install from the "__MAIN_INSTALL_TARGETS__" variable.
+        """ calculate the set of iids to install from the "MAIN_INSTALL_TARGETS" variable.
             Full set of install idds and orphan idds are also writen to variable.
         """
         if "MAIN_INSTALL_TARGETS" not in self.cvl:
             raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
         installState.root_install_items.extend(self.cvl.get_list("MAIN_INSTALL_TARGETS"))
-        self.cvl.set_variable("__MAIN_INSTALL_TARGETS__").extend(installState.root_install_items)
         installState.calculate_full_install_items_set(self)
         self.cvl.set_variable("__FULL_LIST_OF_INSTALL_TARGETS__").extend(installState.full_install_items)
         self.cvl.set_variable("__ORPHAN_INSTALL_TARGETS__").extend(installState.orphan_install_items)
@@ -251,10 +250,9 @@ class InstlInstanceBase(object):
     def init_sync_vars(self):
         if "SVN_REPO_URL" not in self.cvl:
             raise ValueError("'SVN_REPO_URL' was not defined")
-        if "BASE_SRC_URL" not in self.cvl:
-            raise ValueError("'BASE_SRC_URL' was not defined")
-        if "BOOKKEEPING_DIR_URL" not in self.cvl:
-            raise ValueError("'BOOKKEEPING_DIR_URL' was not defined")
+        if "SYNC_LOG_FILE" not in self.cvl:
+            logFilePath = "${LOCAL_SYNC_DIR}/${REPO_NAME}/"+time.time()+"sync.log
+            self.cvl.set_variable("SYNC_LOG_FILE", "from InstlInstanceBase.init_sync_vars").append(logFilePath)
 
         rel_sources = relative_url(self.cvl.get_str("SVN_REPO_URL"), self.cvl.get_str("BASE_SRC_URL"))
         self.cvl.set_variable("REL_SRC_PATH", "from InstlInstanceBase.init_sync_vars").append(rel_sources)
@@ -264,10 +262,13 @@ class InstlInstanceBase(object):
 
         if "REPO_REV" not in self.cvl:
             self.cvl.set_variable("REPO_REV", "from InstlInstanceBase.init_sync_vars").append("HEAD")
-
         if "REPO_NAME" not in self.cvl:
             repo_name = last_url_item(self.cvl.get_str("SVN_REPO_URL"))
             self.cvl.set_variable("REPO_NAME", "from InstlInstanceBase.init_sync_vars").append(repo_name)
+        if "BASE_SRC_URL" not in self.cvl:
+            self.cvl.set_variable("BASE_SRC_URL", "from InstlInstanceBase.init_sync_vars").append("$(SVN_REPO_URL)/$(TARGET_OS)")
+        if "BOOKKEEPING_DIR_URL" not in self.cvl:
+            self.cvl.set_variable("BOOKKEEPING_DIR_URL", "from InstlInstanceBase.init_sync_vars").append("$(SVN_REPO_URL)/instl")
  
     def init_copy_vars(self):
         if "REL_SRC_PATH" not in self.cvl:
@@ -286,6 +287,9 @@ class InstlInstanceBase(object):
         if "COPY_TOOL" not in self.cvl:
             from copyCommander import DefaultCopyToolName
             self.cvl.set_variable("COPY_TOOL", "from InstlInstanceBase.init_sync_vars").append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
+        if "COPY_LOG_FILE" not in self.cvl:
+            logFilePath = "${LOCAL_SYNC_DIR}/${REPO_NAME}/"+time.time()+"copy.log
+            self.cvl.set_variable("SYNC_LOG_FILE", "from InstlInstanceBase.init_sync_vars").append(logFilePath)
 
     def create_sync_instructions(self, installState):
         self.init_sync_vars()
@@ -314,6 +318,7 @@ class InstlInstanceBase(object):
         else:
             command_parts.extend( ( "--depth", "infinity") )
         retVal.append(" ".join(command_parts))
+        retVal.append(
         return retVal
 
     def relative_sync_folder_for_source(self, source):
