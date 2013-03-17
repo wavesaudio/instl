@@ -27,33 +27,33 @@ class ConfigVar(object):
         Values are always a list - even a single value is a list of size 1
         Emulates list container
     """
-    __slots__ = ("_name", "_description", "__values", "__resolving_in_progress")
+    __slots__ = ("__name", "__description", "__values", "__resolving_in_progress")
     def __init__(self, name, description="", *values):
-        self._name = name
-        self._description = description
+        self.__name = name
+        self.__description = description
         self.__values = [str(value) for value in values]
         self.__resolving_in_progress = False # prevent circular resolves
 
     def name(self):
         """ return the name of this variable """
-        return self._name
+        return self.__name
 
     def description(self):
         """ return the description of this variable """
-        return self._description
+        return self.__description
 
     def set_description(self, description):
         """ Assign new description """
-        self._description = str(description)
+        self.__description = str(description)
 
     def __str__(self):
         ln = '\n'
         indent = "    "
-        retVal = "{self._name}:{ln}{indent}description:{self._description}{ln}{indent}values:{self.__values})".format(**vars())
+        retVal = "{self.__name}:{ln}{indent}description:{self.__description}{ln}{indent}values:{self.__values})".format(**vars())
         return retVal
 
     def __repr__(self):
-        retVal = "{self.__class__.__name__}('{self._name}', '{self._description}',*{self.__values})".format(**vars())
+        retVal = "{self.__class__.__name__}('{self.__name}', '{self.__description}',*{self.__values})".format(**vars())
         return retVal
 
     def __len__(self):
@@ -97,19 +97,19 @@ class ConstConfigVar(ConfigVar):
             super().__init__(name, description, *values)
 
     def set_description(self, description):
-        raise Exception("Cannot change a const value", self._name)
+        raise Exception("Cannot change a const value", self.__name)
 
     def __setitem__(self, key, value):
-        raise Exception("Cannot change a const value", self._name)
+        raise Exception("Cannot change a const value", self.__name)
 
     def __delitem__(self, key):
-        raise Exception("Cannot change a const value", self._name)
+        raise Exception("Cannot change a const value", self.__name)
 
     def append(self, value):
-        raise Exception("Cannot change a const value", self._name)
+        raise Exception("Cannot change a const value", self.__name)
 
     def extend(self, value):
-        raise Exception("Cannot change a const value", self._name)
+        raise Exception("Cannot change a const value", self.__name)
 
 if __name__ == "__main__":
     pass
