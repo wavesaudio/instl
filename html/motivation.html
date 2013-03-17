@@ -61,7 +61,7 @@
 <ol class="arabic simple">
 <li>Cross-platform: No high quality tools exist for creating cross-platform installers. Products distributed for both Mac and Windows usually have a lot in common. Using separate installer builders for each platform requires, for example, to define and maintain all dependencies twice in different formats.</li>
 <li>File formats: Each installer builder has different format for defining an installer and many times these are not text based formats. Compering Mac and Windows definitions or even to previous versions in the same platform is usually impossible.</li>
-<li>Version control: Developers are accustomed to using version control for all sources required to build a software product. However, the build products themselves also have versions that need to be tracked.</li>
+<li>Version control: Developers are accustomed to using version control for all install_sources required to build a software product. However, the build products themselves also have versions that need to be tracked.</li>
 <li>Scalability: While creating a small installer with conventional tools is easy, managing large or complicated installers is exponentially harder. Other scalability needs are to easily create variations on existing installers or partial installers and propagating changes done in the main installer to it&#8217;s derivatives.</li>
 <li>Programming languages: Installer builders usually provide a programming language. Such languages are never cross-platform and usually are limited in their functionality and not well documented.</li>
 </ol>
@@ -69,7 +69,7 @@
 <div class="section" id="how-does-instl-improves-the-situation">
 <h2>2.2. How does <strong>instl</strong> improves the situation?<a class="headerlink" href="#how-does-instl-improves-the-situation" title="Permalink to this headline">¶</a></h2>
 <ol class="arabic simple">
-<li>Cross platform: <strong>instl</strong> uses one database for Mac only, Windows only and common files. Online users activate the same installer for mac or Windows and get only the subset suitable for their platform. Offline users can download one installer use it for both Mac and Windows installations.</li>
+<li>Cross platform: <strong>instl</strong> uses one database for Mac only, Windows only and common files. Online users activate the same installer for Mac or Windows and get only the subset suitable for their platform. Offline users can download one installer use it for both Mac and Windows installations.</li>
 <li>File formats: <strong>instl</strong> uses YAML as it&#8217;s file format, this means that all files are easily searchable and comparable.</li>
 <li>Version control: <strong>instl</strong> uses SubVersion as database for all installables. This makes updating the installer for new versions very straight forward and gives users the ability to mix and match different versions of the same product. If you do not want users to have a choice about which version to install - this can also ne achieved easily.</li>
 <li>Scalability: Since <strong>instl</strong> is text based duplicating or making variations is very easy. Full cycle propagation of changes is also a non issue.</li>

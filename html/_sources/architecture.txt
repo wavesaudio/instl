@@ -5,7 +5,7 @@ Architecture
 
 Server
 ======
-Installation sources are kept on a Subversion server.
+Installation install_sources are kept on a Subversion server.
 Typically this will be a linux server running Apache web server and Subversion server.
 Such configuration can done on a dedicated server or one of the svn hosting services available.
 

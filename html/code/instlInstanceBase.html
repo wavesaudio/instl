@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>7.2. instlInstanceBase — instl base class &mdash; instl 0.1 documentation</title>
+    <title>8.2. instlInstanceBase — instl base class &mdash; instl 0.1 documentation</title>
     
     <link rel="stylesheet" href="../_static/nature.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -25,9 +25,9 @@
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="top" title="instl 0.1 documentation" href="../index.html" />
-    <link rel="up" title="7. Code documentation" href="../code.html" />
-    <link rel="next" title="7.3. InstlInstanceBase_interactive — Interactive mode implementation" href="instlInstanceBase_interactive.html" />
-    <link rel="prev" title="7.1. instl — Main executable" href="instl.html" /> 
+    <link rel="up" title="8. Code documentation" href="../code.html" />
+    <link rel="next" title="8.3. InstlInstanceBase_interactive — Interactive mode implementation" href="instlInstanceBase_interactive.html" />
+    <link rel="prev" title="8.1. instl — Main executable" href="instl.html" /> 
   </head>
   <body>
     <div class="related">
@@ -40,13 +40,13 @@
           <a href="../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="instlInstanceBase_interactive.html" title="7.3. InstlInstanceBase_interactive — Interactive mode implementation"
+          <a href="instlInstanceBase_interactive.html" title="8.3. InstlInstanceBase_interactive — Interactive mode implementation"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="instl.html" title="7.1. instl — Main executable"
+          <a href="instl.html" title="8.1. instl — Main executable"
              accesskey="P">previous</a> |</li>
         <li><a href="../index.html">instl 0.1 documentation</a> &raquo;</li>
-          <li><a href="../code.html" accesskey="U">7. Code documentation</a> &raquo;</li> 
+          <li><a href="../code.html" accesskey="U">8. Code documentation</a> &raquo;</li> 
       </ul>
     </div>  
 
@@ -56,10 +56,10 @@
           <div class="body">
             
   <div class="section" id="module-instlInstanceBase">
-<span id="instlinstancebase-instl-base-class"></span><h1>7.2. <a class="reference internal" href="#module-instlInstanceBase" title="instlInstanceBase: Module `instlInstanceBase` is the where most of **instl** functionality is implemented, it has one principle class InstlInstanceBase."><tt class="xref py py-mod docutils literal"><span class="pre">instlInstanceBase</span></tt></a> &#8212; instl base class<a class="headerlink" href="#module-instlInstanceBase" title="Permalink to this headline">¶</a></h1>
+<span id="instlinstancebase-instl-base-class"></span><h1>8.2. <a class="reference internal" href="#module-instlInstanceBase" title="instlInstanceBase: Module `instlInstanceBase` is the where most of **instl** functionality is implemented, it has one principle class InstlInstanceBase."><tt class="xref py py-mod docutils literal"><span class="pre">instlInstanceBase</span></tt></a> &#8212; instl base class<a class="headerlink" href="#module-instlInstanceBase" title="Permalink to this headline">¶</a></h1>
 <p id="index-0"><strong>Source code:</strong> <a href="#id1"><span class="problematic" id="id2">:source:`pyinstl/instlInstanceBase.py`</span></a></p>
 <div class="section" id="methods">
-<h2>7.2.1. Methods<a class="headerlink" href="#methods" title="Permalink to this headline">¶</a></h2>
+<h2>8.2.1. Methods<a class="headerlink" href="#methods" title="Permalink to this headline">¶</a></h2>
 <dl class="method">
 <dt id="instlInstanceBase.prepare_args_parser">
 <tt class="descclassname">instlInstanceBase.</tt><tt class="descname">prepare_args_parser</tt><big>(</big><big>)</big><a class="headerlink" href="#instlInstanceBase.prepare_args_parser" title="Permalink to this definition">¶</a></dt>
@@ -68,7 +68,7 @@
 
 </div>
 <div class="section" id="class-instlinstancebase">
-<h2>7.2.2. Class InstlInstanceBase<a class="headerlink" href="#class-instlinstancebase" title="Permalink to this headline">¶</a></h2>
+<h2>8.2.2. Class InstlInstanceBase<a class="headerlink" href="#class-instlinstancebase" title="Permalink to this headline">¶</a></h2>
 <blockquote>
 <div><dl class="class">
 <dt id="instlInstanceBase.InstlInstanceBase">
@@ -197,13 +197,13 @@
 <dl class="method">
 <dt id="instlInstanceBase.InstlInstanceBase.sort_install_instructions_by_folder">
 <tt class="descname">sort_install_instructions_by_folder</tt><big>(</big><em>self</em><big>)</big><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.sort_install_instructions_by_folder" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns a dictionary whose keys are folders and values are sets of GUIDs of install targets that specified the folder as their <cite>install_folder</cite>. The targets are taken from the variable <cite>__FULL_LIST_OF_INSTALL_TARGETS__</cite>.</p>
+<dd><p>Returns a dictionary whose keys are folders and values are sets of IDDs of install targets that specified the folder as their <cite>install_folder</cite>. The targets are taken from the variable <cite>__FULL_LIST_OF_INSTALL_TARGETS__</cite>.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="instlInstanceBase.InstlInstanceBase.create_install_list">
 <tt class="descname">create_install_list</tt><big>(</big><em>self</em><big>)</big><a class="headerlink" href="#instlInstanceBase.InstlInstanceBase.create_install_list" title="Permalink to this definition">¶</a></dt>
-<dd><p>Creates the variable <cite>__FULL_LIST_OF_INSTALL_TARGETS__</cite> and populates it&#8217;s values with the full list of all targets that are marked for install. Initial list of targets is taken from the variable <cite>__MAIN_INSTALL_TARGETS__</cite>. The initial list is recursively seached for dependencies. Target GUIDs that are referred to but are not in the index are added to the variable <cite>__ORPHAN_INSTALL_TARGETS__</cite>.</p>
+<dd><p>Creates the variable <cite>__FULL_LIST_OF_INSTALL_TARGETS__</cite> and populates it&#8217;s values with the full list of all targets that are marked for install. Initial list of targets is taken from the variable <cite>__MAIN_INSTALL_TARGETS__</cite>. The initial list is recursively seached for dependencies. Target IDDs that are referred to but are not in the index are added to the variable <cite>__ORPHAN_INSTALL_TARGETS__</cite>.</p>
 </dd></dl>
 
 <dl class="method">
@@ -282,19 +282,19 @@ Overridden by <tt class="xref py py-class docutils literal"><span class="pre">in
         <div class="sphinxsidebarwrapper">
   <h3><a href="../index.html">Table Of Contents</a></h3>
   <ul>
-<li><a class="reference internal" href="#">7.2. <tt class="docutils literal"><span class="pre">instlInstanceBase</span></tt> &#8212; instl base class</a><ul>
-<li><a class="reference internal" href="#methods">7.2.1. Methods</a></li>
-<li><a class="reference internal" href="#class-instlinstancebase">7.2.2. Class InstlInstanceBase</a></li>
+<li><a class="reference internal" href="#">8.2. <tt class="docutils literal"><span class="pre">instlInstanceBase</span></tt> &#8212; instl base class</a><ul>
+<li><a class="reference internal" href="#methods">8.2.1. Methods</a></li>
+<li><a class="reference internal" href="#class-instlinstancebase">8.2.2. Class InstlInstanceBase</a></li>
 </ul>
 </li>
 </ul>
 
   <h4>Previous topic</h4>
   <p class="topless"><a href="instl.html"
-                        title="previous chapter">7.1. <tt class="docutils literal docutils literal"><span class="pre">instl</span></tt> &#8212; Main executable</a></p>
+                        title="previous chapter">8.1. <tt class="docutils literal docutils literal docutils literal"><span class="pre">instl</span></tt> &#8212; Main executable</a></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="instlInstanceBase_interactive.html"
-                        title="next chapter">7.3. <tt class="docutils literal"><span class="pre">InstlInstanceBase_interactive</span></tt> &#8212; Interactive mode implementation</a></p>
+                        title="next chapter">8.3. <tt class="docutils literal"><span class="pre">InstlInstanceBase_interactive</span></tt> &#8212; Interactive mode implementation</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
     <li><a href="../_sources/code/instlInstanceBase.txt"
@@ -327,13 +327,13 @@ Overridden by <tt class="xref py py-class docutils literal"><span class="pre">in
           <a href="../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="instlInstanceBase_interactive.html" title="7.3. InstlInstanceBase_interactive — Interactive mode implementation"
+          <a href="instlInstanceBase_interactive.html" title="8.3. InstlInstanceBase_interactive — Interactive mode implementation"
              >next</a> |</li>
         <li class="right" >
-          <a href="instl.html" title="7.1. instl — Main executable"
+          <a href="instl.html" title="8.1. instl — Main executable"
              >previous</a> |</li>
         <li><a href="../index.html">instl 0.1 documentation</a> &raquo;</li>
-          <li><a href="../code.html" >7. Code documentation</a> &raquo;</li> 
+          <li><a href="../code.html" >8. Code documentation</a> &raquo;</li> 
       </ul>
     </div>
     <div class="footer">

@@ -1,0 +1,184 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>7. Standard Varables &mdash; instl 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="instl 0.1 documentation" href="index.html" />
+    <link rel="next" title="8. Code documentation" href="code.html" />
+    <link rel="prev" title="6. Example" href="example.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="code.html" title="8. Code documentation"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="example.html" title="6. Example"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">instl 0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="standard-varables">
+<h1>7. Standard Varables<a class="headerlink" href="#standard-varables" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="required-user-supplied-variables">
+<h2>7.1. Required user supplied variables<a class="headerlink" href="#required-user-supplied-variables" title="Permalink to this headline">¶</a></h2>
+<p>These variable must be supplied by the used in the !define file. These are written to the output scripts.</p>
+<blockquote>
+<div><ul class="simple">
+<li>MAIN_INSTALL_TARGETS: List of IIDs required by the user to be installed.</li>
+<li>SVN_REPO_URL: Main URL of the Subversion reprository.</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="optional-user-supplied-variables">
+<h2>7.2. Optional user supplied variables<a class="headerlink" href="#optional-user-supplied-variables" title="Permalink to this headline">¶</a></h2>
+<p>These variable can be supplied by the used in the !define file, but have deafult values. These are written to the output scripts.</p>
+<blockquote>
+<div><ul class="simple">
+<li>BASE_SRC_URL: Base Subversion URL for all install_sources sections in the index file. Defaults to &#8220;$(SVN_REPO_URL)/$(TARGET_OS)&#8221;.</li>
+<li>BOOKKEEPING_DIR_URL: Subversion URL for the folder holding the index file. Defaults to &#8220;$(SVN_REPO_URL)/instl&#8221;</li>
+<li>COPY_LOG_FILE: Path to a file where copy log will be written. Defaults to &#8220;${LOCAL_SYNC_DIR}/${REPO_NAME}/&#8221;+time.time()+&#8221;copy.log.</li>
+<li>COPY_TOOL: The commandline tool used to copy files. Deafault to &#8216;rsync&#8217; on Mac and &#8216;robocopy&#8217; on Windows.</li>
+<li>CURRENT_OS: The os <strong>instl</strong> is currently running on. Values are &#8216;Win&#8217; for Windows and &#8216;Mac&#8217; for Mac OS.</li>
+<li>LOCAL_SYNC_DIR: The folder where <strong>instl</strong> will sync the installation sources to. Defaults to the systam&#8217;s temporary folder.</li>
+<li>REPO_NAME: The part of SVN_REPO_URL representing the name of the repository. Defaults to the last URL element of SVN_REPO_URL.</li>
+<li>REPO_REV: The version of the subversion reprository to sync. defaults to HEAD.</li>
+<li>SYNC_LOG_FILE: Path to a file where sync log will be written. Defaults to &#8220;${LOCAL_SYNC_DIR}/${REPO_NAME}/&#8221;+time.time()+&#8221;sync.log.</li>
+<li>TARGET_OS: The os <strong>instl</strong> is installing to.  Values are &#8216;Win&#8217; for Windows and &#8216;Mac&#8217; for Mac OS. Defaults to CURRENT_OS.</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="public-instl-created-variables">
+<h2>7.3. Public <strong>instl</strong> created variables<a class="headerlink" href="#public-instl-created-variables" title="Permalink to this headline">¶</a></h2>
+<dl class="docutils">
+<dt>These variables are creaedt internally by <strong>instl</strong> and are writtent to the output script.</dt>
+<dd><ul class="first last simple">
+<li>REL_BOOKKIPING_PATH: The path element to added to SVN_REPO_URL to create BOOKKEEPING_DIR_URL. Calculeted by <strong>instl</strong>.</li>
+<li>REL_SRC_PATH: The path element to added to SVN_REPO_URL to create BASE_SRC_URL. Calculeted by <strong>instl</strong>.</li>
+</ul>
+</dd>
+</dl>
+</div>
+<div class="section" id="private-instl-created-variables">
+<h2>7.4. Private <strong>instl</strong> created variables<a class="headerlink" href="#private-instl-created-variables" title="Permalink to this headline">¶</a></h2>
+<p>These variables are created by <strong>instl</strong> at runtime and are not printed to the output scripts.</p>
+<blockquote>
+<div><ul class="simple">
+<li>__FULL_LIST_OF_INSTALL_TARGETS__: List of all the iids to install. Created by following dependencies of iids in MAIN_INSTALL_TARGETS variable.</li>
+<li>__INSTL_VERSION__: List of thee numbers of the current version of instl.</li>
+<li>__MAIN_INPUT_FILES__: List of files specified on the command line with the &#8216;&#8211;in&#8217; option.</li>
+<li>__MAIN_INPUT_FILES_ACTUALLY_OPENED__: list of input files that were actually read.</li>
+<li>__MAIN_OUT_FILE__: The output file specified on the command line with the &#8216;&#8211;out&#8217; option.</li>
+<li>__MAIN_RUN_INSTALLATION__: If set true or yes, current out file will be executed after it is written.</li>
+<li>__MAIN_STATE_FILE__: File to dump the current state of <strong>instl</strong>. Optional.</li>
+<li>__ORPHAN_INSTALL_TARGETS__: List of iids that where part of MAIN_INSTALL_TARGETS but did not appear in the index file.</li>
+<li>__SEARCH_PATHS__: A list of paths where <strong>instl</strong> looks for files read through &#8216;__include__&#8217;. The folder of the main file is automatically added and so are folders of other files that are read.</li>
+</ul>
+</div></blockquote>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">7. Standard Varables</a><ul>
+<li><a class="reference internal" href="#required-user-supplied-variables">7.1. Required user supplied variables</a></li>
+<li><a class="reference internal" href="#optional-user-supplied-variables">7.2. Optional user supplied variables</a></li>
+<li><a class="reference internal" href="#public-instl-created-variables">7.3. Public <strong>instl</strong> created variables</a></li>
+<li><a class="reference internal" href="#private-instl-created-variables">7.4. Private <strong>instl</strong> created variables</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="example.html"
+                        title="previous chapter">6. Example</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="code.html"
+                        title="next chapter">8. Code documentation</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/standard_variables.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="code.html" title="8. Code documentation"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="example.html" title="6. Example"
+             >previous</a> |</li>
+        <li><a href="index.html">instl 0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Waves Audio.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

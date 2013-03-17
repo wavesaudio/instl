@@ -57,7 +57,7 @@
 Installers created with <strong>instl</strong> can be used online or offline.</p>
 <p><strong>instl</strong> is written in the <a class="reference external" href="http://www.python.org/">python</a> programming language but no knowledge of python is
 required in order to create installers or use them.</p>
-<p><strong>instl</strong> uses <a class="reference external" href="http://subversion.tigris.org/">SubVersion</a> as it&#8217;s back-end database for storing installation sources.
+<p><strong>instl</strong> uses <a class="reference external" href="http://subversion.tigris.org/">SubVersion</a> as it&#8217;s back-end database for storing installation install_sources.
 Some knowledge SubVersion is required in order to setup an installer.</p>
 <p><strong>instl</strong> is published as Open Source under BSD license.</p>
 <p>Suported platforms: Mac OS X, Windows, Linux</p>
@@ -66,7 +66,7 @@ Some knowledge SubVersion is required in order to setup an installer.</p>
 <dd><dl class="first last docutils">
 <dt>Installers created with <strong>instl</strong> are discoverable:</dt>
 <dd># All processing stages are written to intermediate files and so are easy to follow and debug.
-# Installed sources are stored in a Subversion repository making it possible to install the latest version, or any previous version.</dd>
+# Installed install_sources are stored in a Subversion repository making it possible to install the latest version, or any previous version.</dd>
 </dl>
 </dd>
 </dl>
@@ -102,28 +102,35 @@ Some knowledge SubVersion is required in order to setup an installer.</p>
 <li class="toctree-l2"><a class="reference internal" href="example.html#bundling">6.4. Bundling</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="code.html">7. Code documentation</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="code/instl.html">7.1. <tt class="docutils literal"><span class="pre">instl</span></tt> &#8212; Main executable</a></li>
-<li class="toctree-l2"><a class="reference internal" href="code/instlInstanceBase.html">7.2. <tt class="docutils literal"><span class="pre">instlInstanceBase</span></tt> &#8212; instl base class</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="code/instlInstanceBase.html#methods">7.2.1. Methods</a></li>
-<li class="toctree-l3"><a class="reference internal" href="code/instlInstanceBase.html#class-instlinstancebase">7.2.2. Class InstlInstanceBase</a></li>
+<li class="toctree-l1"><a class="reference internal" href="standard_variables.html">7. Standard Varables</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="standard_variables.html#required-user-supplied-variables">7.1. Required user supplied variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="standard_variables.html#optional-user-supplied-variables">7.2. Optional user supplied variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="standard_variables.html#public-instl-created-variables">7.3. Public <strong>instl</strong> created variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="standard_variables.html#private-instl-created-variables">7.4. Private <strong>instl</strong> created variables</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="code/instlInstanceBase_interactive.html">7.3. <tt class="docutils literal"><span class="pre">InstlInstanceBase_interactive</span></tt> &#8212; Interactive mode implementation</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="code/instlInstanceBase_interactive.html#methods">7.3.1. Methods</a></li>
+<li class="toctree-l1"><a class="reference internal" href="code.html">8. Code documentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="code/instl.html">8.1. <tt class="docutils literal"><span class="pre">instl</span></tt> &#8212; Main executable</a></li>
+<li class="toctree-l2"><a class="reference internal" href="code/instlInstanceBase.html">8.2. <tt class="docutils literal"><span class="pre">instlInstanceBase</span></tt> &#8212; instl base class</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="code/instlInstanceBase.html#methods">8.2.1. Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="code/instlInstanceBase.html#class-instlinstancebase">8.2.2. Class InstlInstanceBase</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="code/instlInstance_overrides.html">7.4. <tt class="docutils literal"><span class="pre">InstlInstanceBase</span> <span class="pre">derivatives</span></tt> &#8212; Platform specific Overrides</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="code/instlInstance_overrides.html#module-instlInstance_mac">7.4.1. Class InstlInstance_mac</a></li>
-<li class="toctree-l3"><a class="reference internal" href="code/instlInstance_overrides.html#module-instlInstance_win">7.4.2. Class InstlInstance_win</a></li>
+<li class="toctree-l2"><a class="reference internal" href="code/instlInstanceBase_interactive.html">8.3. <tt class="docutils literal"><span class="pre">InstlInstanceBase_interactive</span></tt> &#8212; Interactive mode implementation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="code/instlInstanceBase_interactive.html#methods">8.3.1. Methods</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="code/instlInstance_overrides.html">8.4. <tt class="docutils literal"><span class="pre">InstlInstanceBase</span> <span class="pre">derivatives</span></tt> &#8212; Platform specific Overrides</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="code/instlInstance_overrides.html#module-instlInstance_mac">8.4.1. Class InstlInstance_mac</a></li>
+<li class="toctree-l3"><a class="reference internal" href="code/instlInstance_overrides.html#module-instlInstance_win">8.4.2. Class InstlInstance_win</a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="FAQs.html">8. Frequently asked questions, with some answers</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="FAQs.html#what">8.1. What?</a></li>
-<li class="toctree-l2"><a class="reference internal" href="FAQs.html#why">8.2. Why?</a></li>
-<li class="toctree-l2"><a class="reference internal" href="FAQs.html#where">8.3. Where?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="FAQs.html">9. Frequently asked questions, with some answers</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="FAQs.html#what">9.1. What?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="FAQs.html#why">9.2. Why?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="FAQs.html#where">9.3. Where?</a></li>
 </ul>
 </li>
 </ul>
