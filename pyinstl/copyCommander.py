@@ -19,6 +19,8 @@ def CopyCommanderFactory(target_os, tool):
     if target_os == "Win":
         if tool == "robocopy":
             retVal = CopyCommander_win_robocopy()
+        if tool == "xcopy":
+            retVal = CopyCommander_win_xcopy()
         else:
             raise ValueError(tool, "is not a valid copy tool for", target_os)
     elif target_os == "Mac":
@@ -89,6 +91,29 @@ class CopyCommander_win_robocopy(CopyCommanderBase):
     
     def create_copy_dir_files_to_dir_command(self, src_dir, trg_dir):
         copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /LEV:1 /XD .svn".format(**locals())
+        return (copy_command, )
+
+class CopyCommander_win_xcopy(CopyCommanderBase):
+    def create_copy_dir_to_dir_command(self, src_dir, trg_dir):
+        retVal = list()
+        _, dir_to_copy = os.path.split(src_dir)
+        trg_dir = "/".join( (trg_dir, dir_to_copy) )
+        mkdir_command  = "mkdir \"{trg_dir}\"".format(**locals())
+        retVal.append(mkdir_command)
+        retVal.extend(self.create_copy_dir_contents_to_dir_command(src_dir, trg_dir))
+        return retVal
+
+    def create_copy_file_to_dir_command(self, src_file, trg_dir):
+        #src_dir, src_file = os.path.split(src_file)
+        copy_command = "xcopy  /R /Y \"{src_file}\" \"{trg_dir}\"".format(**locals())
+        return (copy_command, )
+
+    def create_copy_dir_contents_to_dir_command(self, src_dir, trg_dir):
+        copy_command = "xcopy /E /R /Y \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+        return (copy_command, )
+    
+    def create_copy_dir_files_to_dir_command(self, src_dir, trg_dir):
+        copy_command = "xcopy  /R /Y \"{src_dir}\" \"{trg_dir}\"".format(**locals())
         return (copy_command, )
 
 class CopyCommander_mac_rsync(CopyCommanderBase):

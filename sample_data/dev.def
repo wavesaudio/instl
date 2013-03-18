@@ -1,16 +1,32 @@
 --- !define
 
-SVN_CLIENT_PATH_FOR_Win: "C:/p4client/dev_install/bin/Win/wsvn/wsvn.exe"
+SVN_CLIENT_PATH_FOR_Win: "C:/p4client\dev_install/bin/Win/wsvn/wsvn.exe"
 SVN_CLIENT_PATH_FOR_Mac: "/Volumes/p4client/dev_install/bin/Mac/wsvn"
-
 SVN_CLIENT_PATH: $(SVN_CLIENT_PATH_FOR_$(CURRENT_OS))
 
-SVN_REPO_URL: "http://192.168.13.108/svn/Dev"
+SVN_REPO_URL: "http://192.168.13.108/svn/V9"
 BASE_SRC_URL: "$(SVN_REPO_URL)/$(TARGET_OS)"
 BOOKKEEPING_DIR_URL: "$(SVN_REPO_URL)/instl"
 
 __include__: "$(BOOKKEEPING_DIR_URL)/index.yaml"
 
+COPY_TOOL: xcopy
+FILE2DIR_PLACE: "$(BASE_INSTALL_PLACE)\FILE2DIR_PLACE"
+DIR2DIR_PLACE: "$(BASE_INSTALL_PLACE)\DIR2DIR_PLACE"
+DIRCONT2DIR_PLACE: "$(BASE_INSTALL_PLACE)\DIRCONT2DIR_PLACE"
+FILES2DIR_PLACE: "$(BASE_INSTALL_PLACE)\FILES2DIR_PLACE"
+BASE_INSTALL_PLACE: "C:\Users\shai\Desktop\TEST_XCOPY"
+
 MAIN_INSTALL_TARGETS:
-    - PYTHON_3_3_IID
+    - FILE2DIR
+
+--- !index
+
+FILE2DIR:
+    install_sources:
+        - !file Plugins/API-560.bundle/API-560.ico
+    install_folders:
+        - $(FILE2DIR_PLACE)
+
+
 
