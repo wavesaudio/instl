@@ -47,20 +47,22 @@ class open_for_read_file_or_url(object):
                         ://
                         """, re.VERBOSE)
     def  __init__(self, file_url, search_paths_helper=None):
-        match = self.protocol_header_re.match(file_url)
+        self.file_url = file_url
+        match = self.protocol_header_re.match(self.file_url)
         if not match: # it's a local file
             if search_paths_helper is not None:
-                file_url = search_paths_helper.find_file_with_search_paths(file_url)
-            if file_url:
+                self.file_url = search_paths_helper.find_file_with_search_paths(self.file_url)
+            if self.file_url:
                 if current_os == 'Win':
-                    file_url = "file:///"+os.path.abspath(file_url)
+                    self.file_url = "file:///"+os.path.abspath(self.file_url)
                 else:
-                    file_url = "file://"+os.path.realpath(file_url)
-        self.file_url = file_url
+                    self.file_url = "file://"+os.path.realpath(self.file_url)
+            else:
+                raise IOError("Could not locate local file", file_url)
 
     def __enter__(self):
         #print("opening", self.file_url)
-        self.fd = urllib2.urlopen(self.file_url)
+        self.fd = urllib2.urlopen(self.file_url, timeout=10)
         return self.fd
 
     def __exit__(self, type, value, traceback):

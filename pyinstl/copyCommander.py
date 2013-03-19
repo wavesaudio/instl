@@ -106,6 +106,7 @@ class CopyCommander_win_xcopy(CopyCommanderBase):
     def create_copy_file_to_dir_command(self, src_file, trg_dir):
         #src_dir, src_file = os.path.split(src_file)
         copy_command = "xcopy  /R /Y \"{src_file}\" \"{trg_dir}\"".format(**locals())
+        copy_command.replace("\\", "/")
         return (copy_command, )
 
     def create_copy_dir_contents_to_dir_command(self, src_dir, trg_dir):

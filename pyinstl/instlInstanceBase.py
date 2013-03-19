@@ -255,7 +255,7 @@ class InstlInstanceBase(object):
         if "SVN_REPO_URL" not in self.cvl:
             raise ValueError("'SVN_REPO_URL' was not defined")
         if "SYNC_LOG_FILE" not in self.cvl:
-            logFilePath = "${LOCAL_SYNC_DIR}/${REPO_NAME}/"+str(time.time())+"sync.log"
+            logFilePath = "$(LOCAL_SYNC_DIR)/$(REPO_NAME)/"+str(time.time())+"sync.log"
             self.cvl.set_variable("SYNC_LOG_FILE", "from InstlInstanceBase.init_sync_vars").append(logFilePath)
 
         rel_sources = relative_url(self.cvl.get_str("SVN_REPO_URL"), self.cvl.get_str("BASE_SRC_URL"))
@@ -292,7 +292,7 @@ class InstlInstanceBase(object):
             from copyCommander import DefaultCopyToolName
             self.cvl.set_variable("COPY_TOOL", "from InstlInstanceBase.init_sync_vars").append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
         if "COPY_LOG_FILE" not in self.cvl:
-            logFilePath = "${LOCAL_SYNC_DIR}/${REPO_NAME}/"+str(time.time())+"copy.log"
+            logFilePath = "$(LOCAL_SYNC_DIR)/$(REPO_NAME)/"+str(time.time())+"copy.log"
             self.cvl.set_variable("SYNC_LOG_FILE", "from InstlInstanceBase.init_sync_vars").append(logFilePath)
 
     def create_sync_instructions(self, installState):
