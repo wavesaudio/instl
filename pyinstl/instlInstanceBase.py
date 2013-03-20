@@ -9,7 +9,7 @@ import re
 import abc
 from collections import OrderedDict, defaultdict
 import appdirs
-import time
+import time, datetime
 
 import configVar
 from configVarList import ConfigVarList, value_ref_re
@@ -140,11 +140,16 @@ class InstlInstanceBase(object):
         self.resolve_index_inheritance()
         installState = InstallInstructionsState()
         self.calculate_default_install_item_set(installState)
-        if self.name_space_obj.command == "sync":
+        if self.name_space_obj.command in ("sync", 'synccopy'):
+            self.init_sync_vars()
             self.create_sync_instructions(installState)
-        if self.name_space_obj.command == "copy":
+        if self.name_space_obj.command in ("copy", 'synccopy'):
+            self.init_copy_vars()
             self.create_copy_instructions(installState)
+        self.create_variables_assignment(installState)
         self.write_batch_file(installState)
+        if "__MAIN_RUN_INSTALLATION__" in self.cvl:
+            self.run_batch_file()
 
     def do_something(self):
         try:
@@ -255,12 +260,13 @@ class InstlInstanceBase(object):
         if "SVN_REPO_URL" not in self.cvl:
             raise ValueError("'SVN_REPO_URL' was not defined")
         if "SYNC_LOG_FILE" not in self.cvl:
-            logFilePath = "$(LOCAL_SYNC_DIR)/$(REPO_NAME)/"+str(time.time())+"sync.log"
+            date_time_str = '{:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now())
+            logFilePath = "$(LOCAL_SYNC_DIR)/$(REPO_NAME)/"+date_time_str+"_sync.log"
             self.cvl.set_variable("SYNC_LOG_FILE", "from InstlInstanceBase.init_sync_vars").append(logFilePath)
 
         rel_sources = relative_url(self.cvl.get_str("SVN_REPO_URL"), self.cvl.get_str("BASE_SRC_URL"))
         self.cvl.set_variable("REL_SRC_PATH", "from InstlInstanceBase.init_sync_vars").append(rel_sources)
-        
+
         bookkeeping_relative_path = relative_url(self.cvl.get_str("SVN_REPO_URL"), self.cvl.get_str("BOOKKEEPING_DIR_URL"))
         self.cvl.set_variable("REL_BOOKKIPING_PATH", "from InstlInstanceBase.init_sync_vars").append(bookkeeping_relative_path)
 
@@ -273,7 +279,7 @@ class InstlInstanceBase(object):
             self.cvl.set_variable("BASE_SRC_URL", "from InstlInstanceBase.init_sync_vars").append("$(SVN_REPO_URL)/$(TARGET_OS)")
         if "BOOKKEEPING_DIR_URL" not in self.cvl:
             self.cvl.set_variable("BOOKKEEPING_DIR_URL", "from InstlInstanceBase.init_sync_vars").append("$(SVN_REPO_URL)/instl")
- 
+
     def init_copy_vars(self):
         if "REL_SRC_PATH" not in self.cvl:
             if "SVN_REPO_URL" not in self.cvl:
@@ -292,12 +298,11 @@ class InstlInstanceBase(object):
             from copyCommander import DefaultCopyToolName
             self.cvl.set_variable("COPY_TOOL", "from InstlInstanceBase.init_sync_vars").append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
         if "COPY_LOG_FILE" not in self.cvl:
-            logFilePath = "$(LOCAL_SYNC_DIR)/$(REPO_NAME)/"+str(time.time())+"copy.log"
+            date_time_str = '{:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now())
+            logFilePath = "$(LOCAL_SYNC_DIR)/$(REPO_NAME)/"+date_time_str+"_copy.log"
             self.cvl.set_variable("SYNC_LOG_FILE", "from InstlInstanceBase.init_sync_vars").append(logFilePath)
 
     def create_sync_instructions(self, installState):
-        self.init_sync_vars()
-        self.create_variables_assignment(installState)
         installState.sync_instruction_lines.extend(self.make_directory_cmd("$(LOCAL_SYNC_DIR)/$(REPO_NAME)"))
         installState.sync_instruction_lines.extend(self.change_directory_cmd("$(LOCAL_SYNC_DIR)/$(REPO_NAME)"))
         installState.sync_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "co", '"$(BOOKKEEPING_DIR_URL)"', '"$(REL_BOOKKIPING_PATH)"', "--revision", "$(REPO_REV)", "--depth", "infinity")))
@@ -307,11 +312,11 @@ class InstlInstanceBase(object):
                 installState.sync_instruction_lines.extend(self.create_svn_sync_instructions_for_source(source))
         for iid in installState.orphan_install_items:
             installState.sync_instruction_lines.append(self.create_echo_command("Don't know how to sync "+iid))
- 
+
     def create_svn_sync_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
         retVal = list()
-        source_url =   '/'.join( ("$(BASE_SRC_URL)", source[0]) ) 
+        source_url =   '/'.join( ("$(BASE_SRC_URL)", source[0]) )
         target_path =  '/'.join( ("$(REL_SRC_PATH)", source[0]) )
         if source[1] == '!file':
             source_url = '/'.join( source_url.split("/")[0:-1]) # skip the file name sync the whole folder
@@ -335,8 +340,6 @@ class InstlInstanceBase(object):
         return retVal
 
     def create_copy_instructions(self, installState):
-        self.init_copy_vars()
-        self.create_variables_assignment(installState)
         # copy and actions instructions for sources
         from copyCommander import CopyCommanderFactory
         copy_command_creator = CopyCommanderFactory(self.cvl.get_str("TARGET_OS"), self.cvl.get_str("COPY_TOOL"))
@@ -425,6 +428,12 @@ class InstlInstanceBase(object):
             self.out_file_realpath = os.path.realpath(out_file)
             os.chmod(self.out_file_realpath, 0755)
 
+    def run_batch_file(self):
+        from subprocess import Popen
+        p = Popen(self.out_file_realpath)
+        stdout, stderr = p.communicate()
+
+
     def write_program_state(self):
         from utils import write_to_file_or_stdout
         state_file = self.cvl.get_str("__MAIN_STATE_FILE__")
@@ -511,7 +520,7 @@ class InstlInstanceBase(object):
     @abc.abstractmethod
     def create_var_assign(self, identifier, value):
         pass
-    
+
     @abc.abstractmethod
     def create_echo_command(self, message):
         pass
@@ -519,6 +528,13 @@ class InstlInstanceBase(object):
     def read_command_line_options(self, arglist=None):
         """ parse command line options """
         try:
+            if not arglist or len(arglist) == 0:
+                auto_run_file_name = "auto_run_instl.yaml"
+                if os.path.isfile(auto_run_file_name):
+                    arglist = ("@"+auto_run_file_name,)
+                    print("found", auto_run_file_name)
+                else:
+                    print("not found", auto_run_file_name)
             if arglist and len(arglist) > 0:
                 parser = prepare_args_parser()
                 self.name_space_obj = cmd_line_options()
@@ -545,11 +561,11 @@ class cmd_line_options(object):
         self.run = False
         self.state_file = None
         self.todo_args = None
-    
+
     def __str__(self):
         return "\n".join([n+": "+str(v) for n,v in sorted(vars(self).iteritems())])
 
-        
+
 def prepare_args_parser():
     def decent_convert_arg_line_to_args(self, arg_line):
         """ parse a file with options so that we do not have to write one sub-option
@@ -574,9 +590,10 @@ def prepare_args_parser():
     subparsers = parser.add_subparsers(dest='command', help='sub-command help')
     parser_sync = subparsers.add_parser('sync',
                                         help='sync files to be installed from server to temp folder')
-
     parser_copy = subparsers.add_parser('copy',
-                                            help='copy files from temp folder to target paths')
+                                        help='copy files from temp folder to target paths')
+    parser_copy = subparsers.add_parser('synccopy',
+                                        help='sync files to be installed from server to temp folder and copy files from temp folder to target paths')
 
     for subparser in (parser_sync, parser_copy):
         subparser.set_defaults(mode='batch')
@@ -609,7 +626,7 @@ def prepare_args_parser():
 
         parser_version = subparsers.add_parser('version', help='display instl version')
         parser_version.set_defaults(mode='do_something')
-        
+
         if current_os == 'Mac':
             parser_alias = subparsers.add_parser('alias',
                                                 help='create Mac OS alias')
