@@ -44,4 +44,7 @@ def main():
         #print("__main__", es)
 
 if __name__ == "__main__":
+    import logging
+    logging.basicConfig(format='%(asctime)s, %(levelname)s, %(funcName)s: "%(message)s"')
+    logging.getLogger().setLevel(level=logging.DEBUG)
     main()

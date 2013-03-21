@@ -10,6 +10,7 @@ import abc
 from collections import OrderedDict, defaultdict
 import appdirs
 import time, datetime
+import logging
 
 import configVar
 from configVarList import ConfigVarList, value_ref_re
@@ -17,6 +18,7 @@ from aYaml import augmentedYaml
 from installItem import InstallItem, read_index_from_yaml
 from pyinstl.utils import *
 from pyinstl.searchPaths import SearchPaths
+
 import platform
 current_os = platform.system()
 if current_os == 'Darwin':
@@ -54,23 +56,38 @@ class InstallInstructionsState(object):
         return retVal
 
     def calculate_full_install_items_set(self, instlInstance):
-        """ calculate the set of idds to install by starting with the root set and adding all dependencies.
-            Initial list of iid should already be in self.root_install_items.
+        """ calculate the set of iids to install by starting with the root set and adding all dependencies.
+            Initial list of iids should already be in self.root_install_items.
             results are accomulated in InstallInstructionsState.
             If an install items was not found for a iid, the iid is added to the orphan set.
         """
-        # root_install_items might have guid in it, translate them to idds
-        root_install_idds_translated = unique_list()
+        
+        if len(self.root_install_items) > 0:
+            logging.info(" ".join(("Main install items:", ", ".join(self.root_install_items))))
+        else:
+            logging.error(" ".join(("Main install items list is empty",)))
+        # root_install_items might have guid in it, translate them to iids
+        
+        root_install_iids_translated = unique_list()
         for IID in self.root_install_items:
-            if instlInstance.guid_re.match(IID):
-                root_install_idds_translated.extend(instlInstance.idds_from_guid(IID))
+            if instlInstance.guid_re.match(IID): # if it's a guid translate to iid's
+                iids_from_the_guid = instlInstance.iids_from_guid(IID)
+                if len(iids_from_the_guid) > 0:
+                    root_install_iids_translated.extend(iids_from_the_guid)
+                    logging.info(" ".join(("GUID", IID, "translated to", str(len(iids_from_the_guid)),  "iids:", ", ".join(iids_from_the_guid))))
+                else:
+                    self.orphan_install_items.append(IID)
+                    logging.warning(" ".join((IID, "is a guid but could not be translated to iids")))
             else:
-                root_install_idds_translated.append(IID)
-        for IID in root_install_idds_translated:
+                root_install_iids_translated.append(IID)
+                logging.info(" ".join((IID, "added to root_install_iids_translated")))
+        
+        for IID in root_install_iids_translated:
             try:
                 instlInstance.install_definitions_index[IID].get_recursive_depends(instlInstance.install_definitions_index, self.full_install_items, self.orphan_install_items)
             except KeyError:
                 self.orphan_install_items.append(IID)
+                logging.warning(" ".join((IID, "not found in index")))
         self.__sort_install_items_by_target_folder(instlInstance)
 
     def __sort_install_items_by_target_folder(self, instlInstance):
@@ -130,6 +147,7 @@ class InstlInstanceBase(object):
         return retVal
 
     def init_default_vars(self):
+        logging.debug("Setting default variable values")
         self.cvl.add_const_config_variable("CURRENT_OS", "from InstlInstanceBase.init_default_vars", current_os)
         self.cvl.set_variable("TARGET_OS", "from InstlInstanceBase.init_default_vars").append(current_os)
         self.cvl.add_const_config_variable("__INSTL_VERSION__", "from InstlInstanceBase.init_default_vars", *INSTL_VERSION)
@@ -141,9 +159,11 @@ class InstlInstanceBase(object):
         installState = InstallInstructionsState()
         self.calculate_default_install_item_set(installState)
         if self.name_space_obj.command in ("sync", 'synccopy'):
+            logging.info("Creating sync instructions")
             self.init_sync_vars()
             self.create_sync_instructions(installState)
         if self.name_space_obj.command in ("copy", 'synccopy'):
+            logging.info("Creating copy instructions")
             self.init_copy_vars()
             self.create_copy_instructions(installState)
         self.create_variables_assignment(installState)
@@ -208,6 +228,7 @@ class InstlInstanceBase(object):
 
     def read_file(self, file_path):
         try:
+            logging.info("Reading input file {}".format(file_path))
             with open_for_read_file_or_url(file_path, self.search_paths_helper) as file_fd:
                 for a_node in yaml.compose_all(file_fd):
                     if a_node.tag == '!define':
@@ -215,7 +236,7 @@ class InstlInstanceBase(object):
                     elif a_node.tag == '!index':
                         self.read_index(a_node)
                     else:
-                        print("Unknown document tag '"+a_node.tag+"'; Tag should be one of: !define, !index'")
+                        logging.error("Unknown document tag '{}' while reading file {}; Tag should be one of: !define, !index'".format(a_node.tag, file_path))
         except yaml.YAMLError as ye:
             print("read_file", file_path, "yaml error:", ye)
             raise
@@ -233,7 +254,7 @@ class InstlInstanceBase(object):
         retVal.extend(filter(bool, [install_def.guid for install_def in self.install_definitions_index.values()]))
         return retVal
 
-    def idds_from_guid(self, guid):
+    def iids_from_guid(self, guid):
         retVal = list()
         for iid, install_def in self.install_definitions_index.iteritems():
             if install_def.guid == guid:
@@ -242,11 +263,12 @@ class InstlInstanceBase(object):
 
     def calculate_default_install_item_set(self, installState):
         """ calculate the set of iids to install from the "MAIN_INSTALL_TARGETS" variable.
-            Full set of install idds and orphan idds are also writen to variable.
+            Full set of install iids and orphan iids are also writen to variable.
         """
         if "MAIN_INSTALL_TARGETS" not in self.cvl:
             raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
         installState.root_install_items.extend(self.cvl.get_list("MAIN_INSTALL_TARGETS"))
+        installState.root_install_items = filter(bool, installState.root_install_items)
         installState.calculate_full_install_items_set(self)
         self.cvl.set_variable("__FULL_LIST_OF_INSTALL_TARGETS__").extend(installState.full_install_items)
         self.cvl.set_variable("__ORPHAN_INSTALL_TARGETS__").extend(installState.orphan_install_items)
@@ -429,10 +451,10 @@ class InstlInstanceBase(object):
             os.chmod(self.out_file_realpath, 0755)
 
     def run_batch_file(self):
+        logging.info("running batch file {}".format(self.out_file_realpath))
         from subprocess import Popen
         p = Popen(self.out_file_realpath)
         stdout, stderr = p.communicate()
-
 
     def write_program_state(self):
         from utils import write_to_file_or_stdout
@@ -532,9 +554,7 @@ class InstlInstanceBase(object):
                 auto_run_file_name = "auto_run_instl.yaml"
                 if os.path.isfile(auto_run_file_name):
                     arglist = ("@"+auto_run_file_name,)
-                    print("found", auto_run_file_name)
-                else:
-                    print("not found", auto_run_file_name)
+                    logging.info("found auto run file {}".format(auto_run_file_name))
             if arglist and len(arglist) > 0:
                 parser = prepare_args_parser()
                 self.name_space_obj = cmd_line_options()
