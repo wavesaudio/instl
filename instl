@@ -43,8 +43,8 @@ def main():
         print(tb)
         #print("__main__", es)
 
+import logging
+logging.basicConfig(format='%(asctime)s, %(levelname)s, %(funcName)s: "%(message)s"')
+logging.getLogger().setLevel(level=logging.WARNING)
 if __name__ == "__main__":
-    import logging
-    logging.basicConfig(format='%(asctime)s, %(levelname)s, %(funcName)s: "%(message)s"')
-    logging.getLogger().setLevel(level=logging.WARNING)
     main()

@@ -7,6 +7,7 @@ from __future__ import print_function
 
 import os
 import appdirs
+import logging
 
 class SearchPaths(object):
     """ Manage a list of include search paths, and help find files using the search paths.
@@ -14,7 +15,9 @@ class SearchPaths(object):
     def __init__(self, search_paths_var, *initial_paths_list):
         # list of paths where to search for #include-ed files
         self.search_paths_var = search_paths_var
-        self.search_paths_var.extend(initial_paths_list)
+        self.add_search_paths(*initial_paths_list)
+        for dir in self.search_paths_var:
+            logging.debug("__init__ initial search path: {}".format(dir))
 
     def __len__(self):
         return len(self.search_paths_var)
@@ -28,13 +31,17 @@ class SearchPaths(object):
         """
         for s_path in paths:
             real_s_path = os.path.realpath(s_path)
+            logging.debug("add {}".format(s_path))
             if os.path.isfile(real_s_path):
                 real_s_path, _ = os.path.split(real_s_path)
                 #print("It a file so real adding is", real_s_path)
             # checking the list first might prevent some redundant file system access by isdir
+            logging.debug("... realpath is {}".format(real_s_path))
             if not real_s_path in self.search_paths_var:
                 if os.path.isdir(real_s_path):
                     self.search_paths_var.append(real_s_path)
+                else:
+                    logging.warning("... realpath {} is not a directory".format(real_s_path))
 
     def add_search_paths_recursive(self, *paths):
         """ Add folders to the list of search paths
@@ -49,18 +56,18 @@ class SearchPaths(object):
             If file was found it's folder will be added to the search paths.
         """
         retVal = None
-        #print ("find_file_with_search_paths(", in_file, ")")
+        logging.debug("find_file_with_search_paths({})".format(in_file))
         if os.path.isfile(in_file):
             real_file = os.path.realpath(in_file)
-            #print ("is a full file path returning",real_file)
+            logging.debug("... is a full file path returning {}".format(in_file))
             retVal = real_file
         else:
             for s_path in self.search_paths_var:
-                #print("looking in", s_path)
+                logging.debug("looking in {}".format(s_path))
                 real_file = os.path.join(s_path, in_file)
                 if os.path.isfile(real_file):
                     real_file = os.path.realpath(real_file)
-                    #print ("found returning",real_file)
+                    logging.debug("... found returning {}".format(real_file))
                     retVal = real_file
                     break
         if retVal:

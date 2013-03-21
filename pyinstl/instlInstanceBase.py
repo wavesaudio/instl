@@ -115,8 +115,11 @@ class InstlInstanceBase(object):
         self.cvl = ConfigVarList()
         self.var_replacement_pattern = None
         self.init_default_vars()
+        # initialize the search paths helper with the current directory and dir where instl is now
         self.search_paths_helper = SearchPaths(self.cvl.get_configVar_obj("__SEARCH_PATHS__"))
-
+        self.search_paths_helper.add_search_paths(os.getcwd())
+        self.search_paths_helper.add_search_paths(os.path.dirname(sys.argv[0]))
+            
         self.guid_re = re.compile("""
                         [a-f0-9]{8}
                         (-[a-f0-9]{4}){3}
@@ -281,9 +284,17 @@ class InstlInstanceBase(object):
     def init_sync_vars(self):
         if "SVN_REPO_URL" not in self.cvl:
             raise ValueError("'SVN_REPO_URL' was not defined")
+        if "SVN_CLIENT_PATH" not in self.cvl:
+            raise ValueError("'SVN_CLIENT_PATH' was not defined")
+        svn_client_full_path = self.search_paths_helper.find_file_with_search_paths(self.cvl.get_str("SVN_CLIENT_PATH"))
+        self.cvl.set_variable("SVN_CLIENT_PATH", "from InstlInstanceBase.init_sync_vars").append(svn_client_full_path)
+        
         if "SYNC_LOG_FILE" not in self.cvl:
             date_time_str = '{:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now())
-            logFilePath = "$(LOCAL_SYNC_DIR)/$(REPO_NAME)/"+date_time_str+"_sync.log"
+            logFilePath = "$(LOCAL_SYNC_DIR)/$(REPO_NAME)/"
+            if "PROJECT_NAME" in self.cvl:
+                logFilePath += "$(PROJECT_NAME)"+"/"
+            logFilePath += date_time_str+"_sync.log"
             self.cvl.set_variable("SYNC_LOG_FILE", "from InstlInstanceBase.init_sync_vars").append(logFilePath)
 
         rel_sources = relative_url(self.cvl.get_str("SVN_REPO_URL"), self.cvl.get_str("BASE_SRC_URL"))
@@ -301,7 +312,7 @@ class InstlInstanceBase(object):
             self.cvl.set_variable("BASE_SRC_URL", "from InstlInstanceBase.init_sync_vars").append("$(SVN_REPO_URL)/$(TARGET_OS)")
         if "BOOKKEEPING_DIR_URL" not in self.cvl:
             self.cvl.set_variable("BOOKKEEPING_DIR_URL", "from InstlInstanceBase.init_sync_vars").append("$(SVN_REPO_URL)/instl")
-
+    
     def init_copy_vars(self):
         if "REL_SRC_PATH" not in self.cvl:
             if "SVN_REPO_URL" not in self.cvl:
@@ -321,7 +332,10 @@ class InstlInstanceBase(object):
             self.cvl.set_variable("COPY_TOOL", "from InstlInstanceBase.init_sync_vars").append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
         if "COPY_LOG_FILE" not in self.cvl:
             date_time_str = '{:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now())
-            logFilePath = "$(LOCAL_SYNC_DIR)/$(REPO_NAME)/"+date_time_str+"_copy.log"
+            logFilePath = "$(LOCAL_SYNC_DIR)/$(REPO_NAME)/"
+            if "PROJECT_NAME" in self.cvl:
+                logFilePath += "$(PROJECT_NAME)"+"/"
+            logFilePath += date_time_str+"_copy.log"
             self.cvl.set_variable("SYNC_LOG_FILE", "from InstlInstanceBase.init_sync_vars").append(logFilePath)
 
     def create_sync_instructions(self, installState):
@@ -442,6 +456,7 @@ class InstlInstanceBase(object):
 
         from utils import write_to_file_or_stdout
         out_file = self.cvl.get_str("__MAIN_OUT_FILE__")
+        logging.info("Write bacth file {}".format(os.path.join(os.getcwd(), out_file)))
         with write_to_file_or_stdout(out_file) as fd:
             fd.write(lines_after_var_replacement)
             fd.write('\n')
@@ -551,9 +566,11 @@ class InstlInstanceBase(object):
         """ parse command line options """
         try:
             if not arglist or len(arglist) == 0:
+                auto_run_file_path = None
                 auto_run_file_name = "auto_run_instl.yaml"
-                if os.path.isfile(auto_run_file_name):
-                    arglist = ("@"+auto_run_file_name,)
+                auto_run_file_path = self.search_paths_helper.find_file_with_search_paths(auto_run_file_name)
+                if auto_run_file_path:
+                    arglist = ("@"+auto_run_file_path,)
                     logging.info("found auto run file {}".format(auto_run_file_name))
             if arglist and len(arglist) > 0:
                 parser = prepare_args_parser()
