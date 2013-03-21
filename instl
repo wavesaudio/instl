@@ -18,12 +18,6 @@ elif current_os == 'Windows':
 
 from pyinstl.instlInstanceBase import InstallInstructionsState
 
-def run_instl_instructions(instance):
-    if "__MAIN_RUN_INSTALLATION__" in instance.cvl:
-        from subprocess import Popen
-        install_process = Popen(instance.out_file_realpath)
-        stdout, stderr = install_process.communicate()
-
 def main():
     try:
         instance = ii()
@@ -34,9 +28,6 @@ def main():
             instance.do_da_interactive()
         elif instance.mode == "do_something":
             instance.do_something()
-        #with open("var_assign.txt", "w") as fd:
-        #    fd.write( os.linesep.join(sorted(instance.variables_assignment_lines)) )
-        #run_instl_instructions(instance)
     except Exception as es:
         import traceback
         tb = traceback.format_exc()
