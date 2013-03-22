@@ -16,8 +16,6 @@ class SearchPaths(object):
         # list of paths where to search for #include-ed files
         self.search_paths_var = search_paths_var
         self.add_search_paths(*initial_paths_list)
-        for dir in self.search_paths_var:
-            logging.debug("__init__ initial search path: {}".format(dir))
 
     def __len__(self):
         return len(self.search_paths_var)

@@ -62,7 +62,7 @@ class open_for_read_file_or_url(object):
 
     def __enter__(self):
         #print("opening", self.file_url)
-        self.fd = urllib2.urlopen(self.file_url, timeout=10)
+        self.fd = urllib2.urlopen(self.file_url)
         return self.fd
 
     def __exit__(self, type, value, traceback):

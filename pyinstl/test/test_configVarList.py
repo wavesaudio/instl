@@ -22,139 +22,151 @@ class TestConfigVarList(unittest.TestCase):
         self.assertEqual(len(cvl1), 0)
         with self.assertRaises(KeyError):
             cvl1["no man's land"]
+        self.assertFalse("no man's land" in cvl1)
         self.assertEqual(cvl1.get_list("no man's land"), ())
         self.assertEqual(cvl1.get_str("no man's land"), "")
+        self.assertEqual(cvl1.keys(), [])
 
-'''
-    def test_construction_with_name_and_description(self):
-        """ Construct ConfigVar without values, with description. """
-        cv2 = self.constructor("test_construction_with_name_and_description", "some text")
-        self.assertEqual(cv2.name(), "test_construction_with_name_and_description")
-        self.assertEqual(cv2.description(), "some text")
-        self.assertEqual(len(cv2), 0)
+    def test_set_variable_new(self):
+        """ Set one variable. """
+        cvl2 = configVarList.ConfigVarList()
+        cvl2.set_variable("banana", "phone")
+        self.assertEqual(len(cvl2), 1)
+        self.assertTrue("banana" in cvl2)
+        self.assertIs(cvl2.get_configVar_obj("banana"), cvl2["banana"])
+        self.assertEqual(cvl2.get_configVar_obj("banana").description(), "phone")
+        self.assertEqual(len(cvl2), 1)
+        cvl2.get_configVar_obj("banana").extend(("get", "down", "tonight"))
+        self.assertEqual(cvl2.get_list("banana"), ("get", "down", "tonight"))
+        self.assertEqual(cvl2.get_str("banana"), "get down tonight")
+        self.assertEqual(cvl2.keys(), ["banana"])
 
-    def test_set_description_from_empty(self):
-        """ Change description after construction with empty description. """
-        cv3 = self.constructor("test_set_description_from_empty")
-        self.assertEqual(cv3.name(), "test_set_description_from_empty")
-        self.assertEqual(cv3.description(), "")
-        cv3.set_description("New description 3")
-        self.assertEqual(cv3.description(), "New description 3")
-        self.assertEqual(len(cv3), 0)
+    def test_set_variable_reset(self):
+        """ Set one variable, reset it. """
+        cvl2 = configVarList.ConfigVarList()
+        cvl2.set_variable("banana", "phone")
+        cvl2.get_configVar_obj("banana").extend(("get", "down", "tonight"))
+        cvl2.set_variable("banana", "kirk")
+        self.assertEqual(len(cvl2), 1)
+        self.assertTrue("banana" in cvl2)
+        self.assertIs(cvl2.get_configVar_obj("banana"), cvl2["banana"])
+        self.assertEqual(cvl2.get_configVar_obj("banana").description(), "kirk")
+        self.assertEqual(len(cvl2), 1)
+        cvl2.get_configVar_obj("banana").extend(("set", "up", "tomorrow"))
+        self.assertEqual(cvl2.get_list("banana"), ("set", "up", "tomorrow"))
+        self.assertEqual(cvl2.get_str("banana"), "set up tomorrow")
+        self.assertEqual(cvl2.keys(), ["banana"])
 
-    def test_set_description_from_initial(self):
-        """ Change description after construction with initial description. """
-        cv4 = self.constructor("test_set_description_from_initial", "some initial description")
-        self.assertEqual(cv4.name(), "test_set_description_from_initial")
-        self.assertEqual(cv4.description(), "some initial description")
-        cv4.set_description("New description 4")
-        self.assertEqual(cv4.description(), "New description 4")
-        self.assertEqual(len(cv4), 0)
+    def test_get_configVar_obj(self):
+        """ Set one variable, by getting it. """
+        cvl3 = configVarList.ConfigVarList()
+        cvl3.get_configVar_obj("banana")
+        self.assertEqual(len(cvl3), 1)
+        self.assertTrue("banana" in cvl3)
+        self.assertIs(cvl3.get_configVar_obj("banana"), cvl3["banana"])
+        self.assertEqual(len(cvl3), 1)
+        cvl3.get_configVar_obj("banana").extend(("get", "down", "tonight"))
+        self.assertEqual(cvl3.get_list("banana"), ("get", "down", "tonight"))
+        self.assertEqual(cvl3.get_str("banana"), "get down tonight")
+        self.assertEqual(cvl3.keys(), ["banana"])
 
-    def test_construction_with_single_value(self):
-        """ Construct ConfigVar with single value, with description. """
-        cv5 = self.constructor("test_construction_with_single_value", "some initial description", "mambo jumbo")
-        self.assertEqual(cv5.name(), "test_construction_with_single_value")
-        self.assertEqual(cv5.description(), "some initial description")
-        self.assertEqual(len(cv5), 1)
-        self.assertEqual(cv5[0], "mambo jumbo")
+    def test_del(self):
+        """ Set one variable, and delete it. """
+        cvl4 = configVarList.ConfigVarList()
+        cvl4.get_configVar_obj("banana")
+        self.assertEqual(len(cvl4), 1)
+        del cvl4["banana"]
+        self.assertFalse("banana" in cvl4)
+        self.assertEqual(len(cvl4), 0)
 
-    def test_construction_with_multiple_values(self):
-        """ Construct ConfigVar with multiple values, with description. """
-        cv5 = self.constructor("test_construction_with_multiple_values", "some initial description", "methodist", "alchemist", "pessimist")
-        self.assertEqual(cv5.name(), "test_construction_with_multiple_values")
-        self.assertEqual(cv5.description(), "some initial description")
-        self.assertEqual(len(cv5), 3)
-        self.assertEqual(tuple(cv5), ("methodist", "alchemist", "pessimist"))
+    def test_duplicate_variable_good(self):
+        """ Create variable, duplicate it """
+        cvl5 = configVarList.ConfigVarList()
+        cvl5.get_configVar_obj("banana")
+        cvl5.get_configVar_obj("banana").extend(("grease", "is", "the", "world"))
+        self.assertEqual(len(cvl5), 1)
+        cvl5.duplicate_variable("banana", "oranges")
+        self.assertEqual(len(cvl5), 2)
+        self.assertEqual(cvl5.get_list("banana"), cvl5.get_list("oranges"))
+        self.assertEqual(cvl5.get_str("banana"), cvl5.get_str("oranges"))
+        self.assertEqual(sorted(cvl5.keys()), ["banana", "oranges"])
 
-    def test_construction_with_list_of_values(self):
-        """ Construct ConfigVar with a list of multiple values, with description. """
-        cv6 = self.constructor("test_construction_with_list_of_values", "some initial description", *["methodist", "alchemist", "pessimist"])
-        self.assertEqual(cv6.name(), "test_construction_with_list_of_values")
-        self.assertEqual(cv6.description(), "some initial description")
-        self.assertEqual(len(cv6), 3)
-        self.assertEqual(tuple(cv6), ("methodist", "alchemist", "pessimist"))
+    def test_duplicate_variable_bad(self):
+        """ Dont's create variable, duplicate it anyway"""
+        cvl5 = configVarList.ConfigVarList()
+        cvl5.get_configVar_obj("banana")
+        cvl5.get_configVar_obj("banana").extend(("grease", "is", "the", "world"))
+        self.assertEqual(len(cvl5), 1)
+        with self.assertRaises(KeyError):
+            cvl5.duplicate_variable("peaches", "oranges")
+        self.assertEqual(len(cvl5), 1)
+        self.assertEqual(cvl5.get_list("oranges"), ())
+        self.assertEqual(cvl5.get_str("oranges"), "")
+        self.assertEqual(sorted(cvl5.keys()), ["banana"])
 
-    def test_construction_with_non_string_values(self):
-        """ Construct ConfigVar with multiple values that are not string, with description.
-            Non string values should be converted to strings on assignment. """
-        cv7 = self.constructor("test_construction_with_non_string_values", "some initial description", 1, 2.0, ("smutsmik", "beatnik"))
-        self.assertEqual(cv7.name(), "test_construction_with_non_string_values")
-        self.assertEqual(cv7.description(), "some initial description")
-        self.assertEqual(len(cv7), 3)
-        self.assertEqual(cv7[0], "1")
-        self.assertNotEqual(cv7[0], 1)
-        self.assertEqual(cv7[1], "2.0")
-        self.assertNotEqual(cv7[1], 2.0)
-        self.assertEqual(cv7[2], "('smutsmik', 'beatnik')")
+    def test_resolve_string_from_nothing(self):
+        """ resolve values from variables where list is empty """
+        cvl6 = configVarList.ConfigVarList()
+        resolved = cvl6.resolve_string("Kupperbush")
+        self.assertEqual(resolved, "Kupperbush")
+        resolved = cvl6.resolve_string("$(Kupperbush)")
+        self.assertEqual(resolved, "")
+        resolved = cvl6.resolve_string("Kupper$(bush)")
+        self.assertEqual(resolved, "Kupper")
+        resolved = cvl6.resolve_string("$(Kupper$(bush))")
+        self.assertEqual(resolved, "")
 
-    def test_append_values(self):
-        """ Call append """
-        cv8 = self.constructor("test_append_values")
-        cv8.append("one")
-        self.assertEqual(len(cv8), 1)
-        self.assertEqual(tuple(cv8), ("one",))
-        cv8.append("two")
-        self.assertEqual(len(cv8), 2)
-        self.assertEqual(tuple(cv8), ("one", "two"))
+    def test_resolve_string_from_empty(self):
+        """ resolve values from variables where list has empty variables """
+        cvl7 = configVarList.ConfigVarList()
+        cvl7.get_configVar_obj("Kupperbush")
+        cvl7.get_configVar_obj("bush")
+        resolved = cvl7.resolve_string("Kupperbush")
+        self.assertEqual(resolved, "Kupperbush")
+        resolved = cvl7.resolve_string("$(Kupperbush)")
+        self.assertEqual(resolved, "")
+        resolved = cvl7.resolve_string("Kupper$(bush)")
+        self.assertEqual(resolved, "Kupper")
+        resolved = cvl7.resolve_string("$(Kupper$(bush))")
+        self.assertEqual(resolved, "")
 
-    def test_extend_values(self):
-        """ Call extend """
-        cv9 = self.constructor("sababa9")
-        self.assertEqual(cv9.name(), "sababa9")
-        cv9.extend(("one","two"))
-        self.assertEqual(len(cv9), 2)
-        self.assertEqual(tuple(cv9), ("one", "two"))
-        cv9.extend(("three","four"))
-        self.assertEqual(len(cv9), 4)
-        self.assertEqual(tuple(cv9), ("one", "two", "three", "four"))
+    def test_resolve_string_from_partial(self):
+        """ resolve values from variables where list has partial variables """
+        cvl8 = configVarList.ConfigVarList()
+        cvl8.get_configVar_obj("Kupperbush").append("kid creole")
+        cvl8.get_configVar_obj("bush").append("bush")
+        resolved = cvl8.resolve_string("Kupperbush")
+        self.assertEqual(resolved, "Kupperbush")
+        resolved = cvl8.resolve_string("$(Kupperbush)")
+        self.assertEqual(resolved, "kid creole")
+        resolved = cvl8.resolve_string("Kupper$(bush)")
+        self.assertEqual(resolved, "Kupperbush")
+        resolved = cvl8.resolve_string("$(Kupper$(bush))")
+        self.assertEqual(resolved, "kid creole")
 
-    def test_clear_values(self):
-        """ Call clear_values """
-        cv10 = self.constructor("test_clear_values")
-        cv10.extend(("one","two"))
-        self.assertEqual(len(cv10), 2)
-        self.assertEqual(tuple(cv10), ("one", "two"))
-        cv10.clear_values()
-        self.assertEqual(len(cv10), 0)
+    def test_resolve_string_with_separator_1(self):
+        """ resolve values from variables with single value with non-default separator """
+        cvl8 = configVarList.ConfigVarList()
+        cvl8.get_configVar_obj("Kupperbush").append("kid creole")
+        cvl8.get_configVar_obj("bush").append("bush")
+        resolved = cvl8.resolve_string("Kupperbush", sep="-")
+        self.assertEqual(resolved, "Kupperbush")
+        resolved = cvl8.resolve_string("$(Kupperbush)", sep="-")
+        self.assertEqual(resolved, "kid creole")
+        resolved = cvl8.resolve_string("Kupper$(bush)", sep="-")
+        self.assertEqual(resolved, "Kupperbush")
+        resolved = cvl8.resolve_string("$(Kupper$(bush))", sep="-")
+        self.assertEqual(resolved, "kid creole")
 
-    def test___setitem__(self):
-        """ Call __setitem__ """
-        cv11 = self.constructor("test___setitem__")
-        cv11.extend(("one","two"))
-        self.assertEqual(len(cv11), 2)
-        self.assertEqual(tuple(cv11), ("one", "two"))
-        cv11[1] = "mel-u-michel"
-        self.assertEqual(len(cv11), 2)
-        self.assertEqual(tuple(cv11), ("one", "mel-u-michel"))
-        cv11[0] = "shevet-achim-gum-yachad"
-        self.assertEqual(len(cv11), 2)
-        self.assertEqual(tuple(cv11), ("shevet-achim-gum-yachad", "mel-u-michel"))
+    def test_resolve_string_with_separator_2(self):
+        """ resolve values from variables with multi value with non-default separator """
+        cvl9 = configVarList.ConfigVarList()
+        cvl9.get_configVar_obj("name").extend(("kid","creole"))
+        cvl9.get_configVar_obj("beer").extend(("Anheuser", "Busch"))
+        resolved = cvl9.resolve_string("$(name) drinks $(beer)", sep="-")
+        self.assertEqual(resolved, "kid creole drinks Anheuser Busch")
+        resolved = cvl9.resolve_string("$(name)", sep="-")
+        self.assertEqual(resolved, "kid-creole")
+        resolved = cvl9.resolve_string("$(beer)", sep="-")
+        self.assertEqual(resolved, "Anheuser-Busch")
 
-    def test___delitem__(self):
-        """ Call __delitem__ """
-        cv12 = self.constructor("test___delitem__")
-        cv12.extend(("one","two", "three"))
-        self.assertEqual(len(cv12), 3)
-        self.assertEqual(tuple(cv12), ("one", "two", "three"))
-        del cv12[1]
-        self.assertEqual(tuple(cv12), ("one", "three"))
-        del cv12[1]
-        self.assertEqual(tuple(cv12), ("one", ))
-        del cv12[0]
-        self.assertEqual(tuple(cv12), ())
-
-    def test___iter__(self):
-        """ Call __iter__ """
-        cv13 = self.constructor("test___iter__")
-        cv13.extend(("one","two", "three"))
-        self.assertEqual(len(cv13), 3)
-        self.assertEqual(list(("one","two", "three")), [item for item in cv13.__iter__()])
-
-    def test_reverse(self):
-        """ Call reverse """
-        cv14 = self.constructor("test_reverse")
-        cv14.extend(("one","two", "three"))
-        self.assertEqual(len(cv14), 3)
-        self.assertEqual(tuple(reversed(cv14)), ("three","two", "one"))
-'''

@@ -202,27 +202,3 @@ def resolve_list(needsResolveList, resolve_func):
     if False:
         self.__resolving_in_progress = False
     return tuple(resolvedList)
-
-if __name__ == "__main__":
-    varList = ConfigVarList()
-    cv = varList.get_configVar_obj("itzik")
-    cv.extend( ("$(shabat)", "$(shalom)") )
-    cv.append("$(U) $(mevorach)")
-    varList.get_configVar_obj("shabat").append("saturday")
-    varList.get_configVar_obj("shalom").append("$(salam) aleykum")
-    varList.get_configVar_obj("salam").append("$(peace)")
-    varList.get_configVar_obj("peace").append("no more war")
-    varList.get_configVar_obj("mevorach").append("blessed")
-    varList.get_configVar_obj("U").append("and")
-    varList.get_configVar_obj("you").append("ata")
-
-    varList.set_variable("mergoza", "stam").append("pinochio")
-
-    varList.read_environment()
-    varList.resolve()
-
-    for var in sorted(varList):
-        print (var, "=", " ".join(varList[var]))
-
-    to_re = "on $(shabat) morning, i told $(you) and you told me $(itzik)"
-    print(varList.resolve_string(to_re))
