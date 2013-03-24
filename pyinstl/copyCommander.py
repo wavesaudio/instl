@@ -19,7 +19,7 @@ def CopyCommanderFactory(target_os, tool):
     if target_os == "Win":
         if tool == "robocopy":
             retVal = CopyCommander_win_robocopy()
-        if tool == "xcopy":
+        elif tool == "xcopy":
             retVal = CopyCommander_win_xcopy()
         else:
             raise ValueError(tool, "is not a valid copy tool for", target_os)

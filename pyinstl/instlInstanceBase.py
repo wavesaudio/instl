@@ -167,7 +167,7 @@ class InstlInstanceBase(object):
             
     @staticmethod
     def get_log_file_path():
-        retVal = appdirs.user_log_dir(appname=this_program_name)
+        retVal = appdirs.user_log_dir(appname=this_program_name, appauthor=this_program_name)
         safe_makedirs(retVal)
         retVal += "/log.txt"
         return retVal
