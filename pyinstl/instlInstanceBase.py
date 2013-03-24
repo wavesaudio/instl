@@ -9,8 +9,8 @@ import re
 import abc
 from collections import OrderedDict, defaultdict
 import appdirs
-import time, datetime
 import logging
+import datetime
 
 import configVar
 from configVarList import ConfigVarList, value_ref_re
@@ -26,11 +26,12 @@ if current_os == 'Darwin':
 elif current_os == 'Windows':
     current_os = 'Win'
 
-INSTL_VERSION=(0, 3, 0)
+INSTL_VERSION=(0, 4, 0)
 this_program_name = "instl"
 
 class InstallInstructionsState(object):
     """ holds state for specific creating of install instructions """
+    @func_log_wrapper
     def __init__(self):
         self.root_install_items = unique_list()
         self.full_install_items = unique_list()
@@ -42,6 +43,7 @@ class InstallInstructionsState(object):
         self.sync_paths = unique_list()
         self.sync_instruction_lines = list()
 
+    @func_log_wrapper
     def repr_for_yaml(self):
         retVal = OrderedDict()
         retVal['root_install_items'] = list(self.root_install_items)
@@ -55,6 +57,7 @@ class InstallInstructionsState(object):
         retVal['sync_instruction_lines'] = self.sync_instruction_lines
         return retVal
 
+    @func_log_wrapper
     def calculate_full_install_items_set(self, instlInstance):
         """ calculate the set of iids to install by starting with the root set and adding all dependencies.
             Initial list of iids should already be in self.root_install_items.
@@ -90,6 +93,7 @@ class InstallInstructionsState(object):
                 logging.warning(" ".join((IID, "not found in index")))
         self.__sort_install_items_by_target_folder(instlInstance)
 
+    @func_log_wrapper
     def __sort_install_items_by_target_folder(self, instlInstance):
         for IID in self.full_install_items:
             folder_list_for_idd = instlInstance.install_definitions_index[IID].folder_list()
@@ -109,6 +113,7 @@ class InstlInstanceBase(object):
         or InstlInstance_win.
     """
     __metaclass__ = abc.ABCMeta
+    @func_log_wrapper
     def __init__(self):
         self.out_file_realpath = None
         self.install_definitions_index = dict()
@@ -127,6 +132,7 @@ class InstlInstanceBase(object):
                         $
                         """, re.VERBOSE)
 
+    @func_log_wrapper
     def repr_for_yaml(self, what=None):
         """ Create representation of self suitable for printing as yaml.
             parameter 'what' is a list of identifiers to represent. If 'what'
@@ -149,33 +155,50 @@ class InstlInstanceBase(object):
 
         return retVal
 
+    @func_log_wrapper
     def init_default_vars(self):
-        logging.debug("Setting default variable values")
         self.cvl.add_const_config_variable("CURRENT_OS", "from InstlInstanceBase.init_default_vars", current_os)
         self.cvl.set_variable("TARGET_OS", "from InstlInstanceBase.init_default_vars").append(current_os)
         self.cvl.add_const_config_variable("__INSTL_VERSION__", "from InstlInstanceBase.init_default_vars", *INSTL_VERSION)
         self.cvl.set_variable("LOCAL_SYNC_DIR", "from InstlInstanceBase.init_default_vars").append(appdirs.user_cache_dir(this_program_name, this_program_name))
+        self.cvl.add_const_config_variable("LOG_FILE", "from InstlInstanceBase.init_default_vars", self.get_log_file_path())
+        for identifier in self.cvl:
+            logging.debug("... {}: {}".format(identifier, self.cvl.get_str(identifier)))
+            
+    @staticmethod
+    def get_log_file_path():
+        retVal = appdirs.user_log_dir(appname=this_program_name)
+        safe_makedirs(retVal)
+        retVal += "/log.txt"
+        return retVal
 
-    def do_command(self):
+    @func_log_wrapper
+    def do_command(self, the_command, installState):
         self.read_input_files()
         self.resolve_index_inheritance()
-        installState = InstallInstructionsState()
         self.calculate_default_install_item_set(installState)
-        if self.name_space_obj.command in ("sync", 'synccopy'):
+        if the_command in ("sync", 'synccopy'):
             logging.info("Creating sync instructions")
             self.init_sync_vars()
             self.create_sync_instructions(installState)
-        if self.name_space_obj.command in ("copy", 'synccopy'):
+        if the_command in ("copy", 'synccopy'):
             logging.info("Creating copy instructions")
             self.init_copy_vars()
             self.create_copy_instructions(installState)
         self.create_variables_assignment(installState)
+
+    @func_log_wrapper
+    def do_command_batch_mode(self):
+        installState = InstallInstructionsState()
+        self.do_command(self.name_space_obj.command, installState)
         self.write_batch_file(installState)
         if "__MAIN_RUN_INSTALLATION__" in self.cvl:
             self.run_batch_file()
 
+    @func_log_wrapper
     def do_something(self):
         try:
+            logging.debug("... {}".format(self.name_space_obj.command))
             if self.name_space_obj.command == "version":
                 print(" ".join( (this_program_name, "version", ".".join(self.cvl.get_list("__INSTL_VERSION__")))))
             else:
@@ -186,6 +209,7 @@ class InstlInstanceBase(object):
             tb = traceback.format_exc()
             print("do_something", es, tb)
 
+    @func_log_wrapper
     def init_from_cmd_line_options(self, cmd_line_options_obj):
         """ turn command line options into variables """
         if cmd_line_options_obj.input_files:
@@ -196,16 +220,20 @@ class InstlInstanceBase(object):
             self.cvl.add_const_config_variable("__MAIN_STATE_FILE__", "from command line options", cmd_line_options_obj.state_file)
         if cmd_line_options_obj.run:
             self.cvl.add_const_config_variable("__MAIN_RUN_INSTALLATION__", "from command line options", "yes")
+        for identifier in self.cvl:
+            logging.debug("... {}: {}".format(identifier, self.cvl.get_str(identifier)))
 
     internal_identifier_re = re.compile("""
                                         __                  # dunder here
                                         (?P<internal_identifier>\w*)
                                         __                  # dunder there
                                         """, re.VERBOSE)
+    @func_log_wrapper
     def read_defines(self, a_node):
         # if document is empty we get a scalar node
         if a_node.isMapping():
             for identifier, contents in a_node:
+                logging.debug("... {}: {}".format(identifier, str(contents)))
                 if not self.internal_identifier_re.match(identifier): # do not read internal state indentifiers
                     self.cvl.set_variable(identifier, str(contents.start_mark)).extend([item.value for item in contents])
                 elif identifier == '__include__':
@@ -213,9 +241,11 @@ class InstlInstanceBase(object):
                         resolved_file_name = self.cvl.resolve_string(file_name.value)
                         self.read_file(resolved_file_name)
 
+    @func_log_wrapper
     def read_index(self, a_node):
         self.install_definitions_index.update(read_index_from_yaml(a_node))
 
+    @func_log_wrapper
     def read_input_files(self):
         input_files = self.cvl.get_list("__MAIN_INPUT_FILES__")
         if input_files:
@@ -229,9 +259,10 @@ class InstlInstanceBase(object):
                     file_actually_opened.append(os.path.abspath(file_path))
             self.cvl.add_const_config_variable("__MAIN_INPUT_FILES_ACTUALLY_OPENED__", "opened by read_input_files", *file_actually_opened)
 
+    @func_log_wrapper
     def read_file(self, file_path):
         try:
-            logging.info("Reading input file {}".format(file_path))
+            logging.info("... Reading input file {}".format(file_path))
             with open_for_read_file_or_url(file_path, self.search_paths_helper) as file_fd:
                 for a_node in yaml.compose_all(file_fd):
                     if a_node.tag == '!define':
@@ -248,15 +279,18 @@ class InstlInstanceBase(object):
             traceback.print_exc()
             print("read_file", file_path, ex)
 
+    @func_log_wrapper
     def resolve_index_inheritance(self):
         for install_def in self.install_definitions_index.values():
             install_def.resolve_inheritance(self.install_definitions_index)
 
+    @func_log_wrapper
     def guid_list(self):
         retVal = unique_list()
         retVal.extend(filter(bool, [install_def.guid for install_def in self.install_definitions_index.values()]))
         return retVal
 
+    @func_log_wrapper
     def iids_from_guid(self, guid):
         retVal = list()
         for iid, install_def in self.install_definitions_index.iteritems():
@@ -264,6 +298,7 @@ class InstlInstanceBase(object):
                 retVal.append(iid)
         return retVal
 
+    @func_log_wrapper
     def calculate_default_install_item_set(self, installState):
         """ calculate the set of iids to install from the "MAIN_INSTALL_TARGETS" variable.
             Full set of install iids and orphan iids are also writen to variable.
@@ -275,12 +310,16 @@ class InstlInstanceBase(object):
         installState.calculate_full_install_items_set(self)
         self.cvl.set_variable("__FULL_LIST_OF_INSTALL_TARGETS__").extend(installState.full_install_items)
         self.cvl.set_variable("__ORPHAN_INSTALL_TARGETS__").extend(installState.orphan_install_items)
+        for identifier in ("MAIN_INSTALL_TARGETS", "__FULL_LIST_OF_INSTALL_TARGETS__", "__ORPHAN_INSTALL_TARGETS__"):
+            logging.debug("... {}: {}".format(identifier, self.cvl.get_str(identifier)))
 
+    @func_log_wrapper
     def create_variables_assignment(self, installState):
         for identifier in self.cvl:
             if not self.internal_identifier_re.match(identifier): # do not write internal state indentifiers
                 installState.variables_assignment_lines.append(self.create_var_assign(identifier,self.cvl.get_str(identifier)))
 
+    @func_log_wrapper
     def init_sync_vars(self):
         if "SVN_REPO_URL" not in self.cvl:
             raise ValueError("'SVN_REPO_URL' was not defined")
@@ -288,14 +327,6 @@ class InstlInstanceBase(object):
             raise ValueError("'SVN_CLIENT_PATH' was not defined")
         svn_client_full_path = self.search_paths_helper.find_file_with_search_paths(self.cvl.get_str("SVN_CLIENT_PATH"))
         self.cvl.set_variable("SVN_CLIENT_PATH", "from InstlInstanceBase.init_sync_vars").append(svn_client_full_path)
-        
-        if "SYNC_LOG_FILE" not in self.cvl:
-            date_time_str = '{:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now())
-            logFilePath = "$(LOCAL_SYNC_DIR)/$(REPO_NAME)/"
-            if "PROJECT_NAME" in self.cvl:
-                logFilePath += "$(PROJECT_NAME)"+"/"
-            logFilePath += date_time_str+"_sync.log"
-            self.cvl.set_variable("SYNC_LOG_FILE", "from InstlInstanceBase.init_sync_vars").append(logFilePath)
 
         rel_sources = relative_url(self.cvl.get_str("SVN_REPO_URL"), self.cvl.get_str("BASE_SRC_URL"))
         self.cvl.set_variable("REL_SRC_PATH", "from InstlInstanceBase.init_sync_vars").append(rel_sources)
@@ -312,7 +343,10 @@ class InstlInstanceBase(object):
             self.cvl.set_variable("BASE_SRC_URL", "from InstlInstanceBase.init_sync_vars").append("$(SVN_REPO_URL)/$(TARGET_OS)")
         if "BOOKKEEPING_DIR_URL" not in self.cvl:
             self.cvl.set_variable("BOOKKEEPING_DIR_URL", "from InstlInstanceBase.init_sync_vars").append("$(SVN_REPO_URL)/instl")
+        for identifier in ("SVN_REPO_URL", "SVN_CLIENT_PATH", "REL_SRC_PATH", "REPO_REV", "REPO_NAME", "BASE_SRC_URL", "BOOKKEEPING_DIR_URL"):
+            logging.debug("... {}: {}".format(identifier, self.cvl.get_str(identifier)))
     
+    @func_log_wrapper
     def init_copy_vars(self):
         if "REL_SRC_PATH" not in self.cvl:
             if "SVN_REPO_URL" not in self.cvl:
@@ -330,14 +364,10 @@ class InstlInstanceBase(object):
         if "COPY_TOOL" not in self.cvl:
             from copyCommander import DefaultCopyToolName
             self.cvl.set_variable("COPY_TOOL", "from InstlInstanceBase.init_sync_vars").append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
-        if "COPY_LOG_FILE" not in self.cvl:
-            date_time_str = '{:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now())
-            logFilePath = "$(LOCAL_SYNC_DIR)/$(REPO_NAME)/"
-            if "PROJECT_NAME" in self.cvl:
-                logFilePath += "$(PROJECT_NAME)"+"/"
-            logFilePath += date_time_str+"_copy.log"
-            self.cvl.set_variable("SYNC_LOG_FILE", "from InstlInstanceBase.init_sync_vars").append(logFilePath)
+        for identifier in ("REL_SRC_PATH", "REPO_NAME", "COPY_TOOL"):
+            logging.debug("... {}: {}".format(identifier, self.cvl.get_str(identifier)))
 
+    @func_log_wrapper
     def create_sync_instructions(self, installState):
         installState.sync_instruction_lines.extend(self.make_directory_cmd("$(LOCAL_SYNC_DIR)/$(REPO_NAME)"))
         installState.sync_instruction_lines.extend(self.change_directory_cmd("$(LOCAL_SYNC_DIR)/$(REPO_NAME)"))
@@ -349,6 +379,7 @@ class InstlInstanceBase(object):
         for iid in installState.orphan_install_items:
             installState.sync_instruction_lines.append(self.create_echo_command("Don't know how to sync "+iid))
 
+    @func_log_wrapper
     def create_svn_sync_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
         retVal = list()
@@ -365,6 +396,7 @@ class InstlInstanceBase(object):
         retVal.append(" ".join(command_parts))
         return retVal
 
+    @func_log_wrapper
     def relative_sync_folder_for_source(self, source):
         reVal = None
         if source[1] in ('!dir', '!file'):
@@ -375,6 +407,7 @@ class InstlInstanceBase(object):
             raise ValueError("unknown tag for source "+source[0]+": "+source[1])
         return retVal
 
+    @func_log_wrapper
     def create_copy_instructions(self, installState):
         # copy and actions instructions for sources
         from copyCommander import CopyCommanderFactory
@@ -416,6 +449,7 @@ class InstlInstanceBase(object):
         for iid in installState.orphan_install_items:
             installState.sync_instruction_lines.append(self.create_echo_command("Don't know how to install "+iid))
 
+    @func_log_wrapper
     def create_copy_instructions_for_source(self, source, copy_command_creator):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
         retVal = list()
@@ -431,9 +465,12 @@ class InstlInstanceBase(object):
             retVal.extend(copy_command_creator.create_copy_dir_to_dir_command(source_url, "."))
         return retVal
 
+    @func_log_wrapper
     def finalize_list_of_lines(self, installState):
         lines = list()
         lines.extend(self.get_install_instructions_prefix())
+        lines.append(self.create_remark_command(datetime.datetime.today().isoformat()))
+
         lines.extend( ('\n', ) )
 
         lines.extend(sorted(installState.variables_assignment_lines))
@@ -450,13 +487,14 @@ class InstlInstanceBase(object):
 
         return lines
 
+    @func_log_wrapper
     def write_batch_file(self, installState):
         lines = self.finalize_list_of_lines(installState)
         lines_after_var_replacement = '\n'.join([value_ref_re.sub(self.var_replacement_pattern, line) for line in lines])
 
         from utils import write_to_file_or_stdout
         out_file = self.cvl.get_str("__MAIN_OUT_FILE__")
-        logging.info("Write bacth file {}".format(os.path.join(os.getcwd(), out_file)))
+        logging.info("Writing to {}".format(out_file))
         with write_to_file_or_stdout(out_file) as fd:
             fd.write(lines_after_var_replacement)
             fd.write('\n')
@@ -465,18 +503,21 @@ class InstlInstanceBase(object):
             self.out_file_realpath = os.path.realpath(out_file)
             os.chmod(self.out_file_realpath, 0755)
 
+    @func_log_wrapper
     def run_batch_file(self):
         logging.info("running batch file {}".format(self.out_file_realpath))
         from subprocess import Popen
         p = Popen(self.out_file_realpath)
         stdout, stderr = p.communicate()
 
+    @func_log_wrapper
     def write_program_state(self):
         from utils import write_to_file_or_stdout
         state_file = self.cvl.get_str("__MAIN_STATE_FILE__")
         with write_to_file_or_stdout(state_file) as fd:
             augmentedYaml.writeAsYaml(self, fd)
 
+    @func_log_wrapper
     def find_cycles(self):
             if not self.install_definitions_index:
                 print ("index empty - nothing to check")
@@ -500,6 +541,7 @@ class InstlInstanceBase(object):
                 except ImportError as IE: # no installItemGraph, no worry
                     print("Could not load installItemGraph")
 
+    @func_log_wrapper
     def needs(self, iid, out_list):
         """ return all items that depend on iid """
         if iid not in self.install_definitions_index:
@@ -511,6 +553,7 @@ class InstlInstanceBase(object):
             else:
                 out_list.append(dep+"(missing)")
 
+    @func_log_wrapper
     def needed_by(self, iid):
         try:
             from pyinstl import installItemGraph
@@ -521,6 +564,7 @@ class InstlInstanceBase(object):
             print("Could not load installItemGraph")
             return None
 
+    @func_log_wrapper
     def do_da_interactive(self):
         try:
             from instlInstanceBase_interactive import go_interactive
@@ -562,6 +606,11 @@ class InstlInstanceBase(object):
     def create_echo_command(self, message):
         pass
 
+    @abc.abstractmethod
+    def create_remark_command(self, remark):
+        pass
+
+    @func_log_wrapper
     def read_command_line_options(self, arglist=None):
         """ parse command line options """
         try:
@@ -629,10 +678,10 @@ def prepare_args_parser():
                                         help='sync files to be installed from server to temp folder')
     parser_copy = subparsers.add_parser('copy',
                                         help='copy files from temp folder to target paths')
-    parser_copy = subparsers.add_parser('synccopy',
+    parser_synccopy = subparsers.add_parser('synccopy',
                                         help='sync files to be installed from server to temp folder and copy files from temp folder to target paths')
 
-    for subparser in (parser_sync, parser_copy):
+    for subparser in (parser_sync, parser_copy, parser_synccopy):
         subparser.set_defaults(mode='batch')
         standard_options = subparser.add_argument_group(description='standard arguments:')
         standard_options.add_argument('--in','-i',

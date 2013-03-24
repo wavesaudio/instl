@@ -4,6 +4,8 @@ from __future__ import print_function # 123
 
 import sys
 import os
+import logging
+import logging.handlers
 import pyinstl
 
 import platform
@@ -15,15 +17,13 @@ elif current_os == 'Windows':
     current_os = 'Win'
     from pyinstl.instlInstance_win import InstlInstance_win as ii
 
-
-from pyinstl.instlInstanceBase import InstallInstructionsState
-
 def main():
     try:
+        setup_loggin()
         instance = ii()
         instance.read_command_line_options(sys.argv[1:])
         if instance.mode == "batch":
-            instance.do_command()
+            instance.do_command_batch_mode()
         elif instance.mode == "interactive":
             instance.do_da_interactive()
         elif instance.mode == "do_something":
@@ -34,8 +34,19 @@ def main():
         print(tb)
         #print("__main__", es)
 
-import logging
-logging.basicConfig(format='%(asctime)s, %(levelname)s, %(funcName)s: "%(message)s"')
-logging.getLogger().setLevel(level=logging.WARNING)
+def setup_loggin():
+    my_logger = logging.getLogger()
+    log_path = ii.get_log_file_path()
+    debug_level_indicator = log_path+".debug"
+    if os.path.isfile(debug_level_indicator):
+        my_logger.setLevel(logging.DEBUG)
+    else:
+        my_logger.setLevel(logging.INFO)
+    rotatingHandler = logging.handlers.RotatingFileHandler(log_path, maxBytes=256000, backupCount=5)
+    #rotatingHandler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s, %(levelname)s, %(funcName)s: %(message)s')
+    rotatingHandler.setFormatter(formatter)
+    my_logger.addHandler(rotatingHandler)
+
 if __name__ == "__main__":
     main()

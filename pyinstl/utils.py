@@ -5,6 +5,7 @@ import os
 import urllib2
 import re
 import urlparse
+import logging
 
 import platform
 current_os = platform.system()
@@ -162,6 +163,24 @@ def deprecated(deprecated_func):
         raise DeprecationWarning(deprecated_func.__name__, "is deprecated")
         return None
     return raise_deprecation
+
+from functools import wraps
+def func_log_wrapper(logged_func):
+    @wraps(logged_func)
+    def logged_func_wapper(*args, **kargs):
+        logging.debug("enter - "+logged_func.__name__)
+        retVal = logged_func(*args, **kargs)
+        exit_msg = "exit - "+logged_func.__name__+"; retVal: "+str(retVal)
+        logging.debug(exit_msg)
+        return retVal
+    return logged_func_wapper
+
+def safe_makedirs(path_to_dir):
+    """ solves a problem with python 27 where is the dir already exists os.makedirs raises """
+    try:
+        os.makedirs(path_to_dir)
+    except: # os.makedirs raises is the directory already exists
+        pass
 
 def max_widths(list_of_lists):
     """ inputs is a list of lists. output is a list of maximum str length for each

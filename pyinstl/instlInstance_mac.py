@@ -40,3 +40,6 @@ class InstlInstance_mac(instlInstanceBase.InstlInstanceBase):
         echo_command = " ".join(('echo', quoteme(message)))
         return echo_command
 
+    def create_remark_command(self, remark):
+        remark_command = " ".join(('#', quoteme(remark)))
+        return remark_command

@@ -30,27 +30,6 @@ class InstlInstance_win(instlInstanceBase.InstlInstanceBase):
 
     def get_svn_folder_cleanup_instructions(self):
         return ()
-
-    def create_copy_dir_to_dir_command(self, src_dir, trg_dir):
-        retVal = list()
-        _, dir_to_copy = os.path.split(src_dir)
-        trg_dir = "/".join( (trg_dir, dir_to_copy) )
-        copy_command = " ".join( ("robocopy", src_dir, trg_dir, "/E", "/XD .svn") )
-        retVal.append(copy_command)
-        return retVal
-
-    def create_copy_file_to_dir_command(self, src_file, trg_dir):
-        src_dir, src_file = os.path.split(src_file)
-        copy_command = " ".join( ("robocopy", src_dir, trg_dir, src_file) )
-        return (copy_command, )
-
-    def create_copy_dir_contents_to_dir_command(self, src_dir, trg_dir):
-        copy_command = " ".join( ("robocopy", src_dir, trg_dir, "/E", "/XD .svn") )
-        return (copy_command, )
-    
-    def create_copy_dir_files_to_dir_command(self, src_dir, trg_dir):
-        copy_command = " ".join( ("robocopy", src_dir, trg_dir, "/LEV:1", "/XD .svn") )
-        return (copy_command, )
         
     def create_var_assign(self, identifier, value):
         return "SET "+identifier+'='+value
@@ -59,3 +38,6 @@ class InstlInstance_win(instlInstanceBase.InstlInstanceBase):
         echo_command = " ".join(('echo', quoteme(message)))
         return echo_command
 
+    def create_remark_command(self, remark):
+        remark_command = " ".join(('REM', quoteme(remark)))
+        return remark_command

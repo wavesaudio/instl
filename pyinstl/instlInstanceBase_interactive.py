@@ -341,32 +341,21 @@ class CMDObj(cmd.Cmd, object):
             print("alias can only be created on Mac OS")
         return False
 
+    def do_command_interactive(self, the_command, params):
+        from pyinstl.instlInstanceBase import InstallInstructionsState
+        if params:
+            self.prog_inst.cvl.set_variable("MAIN_INSTALL_TARGETS").extend(shlex.split(params))
+        installState = InstallInstructionsState()
+        self.prog_inst.do_command(the_command, installState)
+        self.prog_inst.cvl.set_variable("__MAIN_OUT_FILE__").append("stdout")
+        self.prog_inst.write_batch_file(installState)
+
     def do_sync(self, params):
-        from pyinstl.instlInstanceBase import InstallInstructionsState
-        self.prog_inst.resolve_index_inheritance()
-        installState = InstallInstructionsState()
-        if params:
-            installState.root_install_items.extend(shlex.split(params))
-            installState.calculate_full_install_items_set(self.prog_inst)
-        else:
-            self.prog_inst.calculate_default_install_item_set(installState)
-        self.prog_inst.create_sync_instructions(installState)
-        lines = self.prog_inst.finalize_list_of_lines(installState)
-        print('\n'.join(lines))
+        self.do_command_interactive("sync", params)
         return False
-    
+
     def do_copy(self, params):
-        from pyinstl.instlInstanceBase import InstallInstructionsState
-        self.prog_inst.resolve_index_inheritance()
-        installState = InstallInstructionsState()
-        if params:
-            installState.root_install_items.extend(shlex.split(params))
-            installState.calculate_full_install_items_set(self.prog_inst)
-        else:
-            self.prog_inst.calculate_default_install_item_set(installState)
-        self.prog_inst.create_copy_instructions(installState)
-        lines = self.prog_inst.finalize_list_of_lines(installState)
-        print('\n'.join(lines))
+        self.do_command_interactive("copy", params)
         return False
 
     def complete_alias(self, text, line, begidx, endidx):

@@ -9,6 +9,8 @@ import os
 import appdirs
 import logging
 
+from pyinstl.utils import *
+
 class SearchPaths(object):
     """ Manage a list of include search paths, and help find files using the search paths.
     """
@@ -23,6 +25,7 @@ class SearchPaths(object):
     def __iter__(self):
         return iter(self.search_paths_var)
 
+    @func_log_wrapper
     def add_search_paths(self, *paths):
         """ Add folders to the list of search paths
             for convenience you can add a file and it's folder will be added
@@ -41,11 +44,13 @@ class SearchPaths(object):
                 else:
                     logging.warning("... realpath {} is not a directory".format(real_s_path))
 
+    @func_log_wrapper
     def add_search_paths_recursive(self, *paths):
         """ Add folders to the list of search paths
             and also all subfolders """
         pass # to do...
 
+    @func_log_wrapper
     def find_file_with_search_paths(self, in_file):
         """ Find the real path to a file.
             If in_file is path to an existing file, it's real full path will be returned.
@@ -72,12 +77,14 @@ class SearchPaths(object):
             self.add_search_paths(real_file)
         return retVal
 
-    def get_machine_config_file_path(self):
-        retVal = os.path.join(appdirs.site_data_dir("myke"))
+    @func_log_wrapper
+    def get_machine_config_file_path(self, in_app_name):
+        retVal = os.path.join(appdirs.site_data_dir(in_app_name))
         return retVal
 
-    def get_user_config_file_path(self):
-        retVal = os.path.join(appdirs.user_data_dir("myke"))
+    @func_log_wrapper
+    def get_user_config_file_path(self, in_app_name):
+        retVal = os.path.join(appdirs.user_data_dir(in_app_name))
         return retVal
 
 if __name__ == "__main__":
