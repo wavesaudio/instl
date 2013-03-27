@@ -394,6 +394,7 @@ class InstlInstanceBase(object):
         else:
             command_parts.extend( ( "--depth", "infinity") )
         retVal.append(" ".join(command_parts))
+        logging.info("... {}; ({})".format(source[0], source[1]))
         return retVal
 
     @func_log_wrapper
@@ -413,6 +414,7 @@ class InstlInstanceBase(object):
         from copyCommander import CopyCommanderFactory
         copy_command_creator = CopyCommanderFactory(self.cvl.get_str("TARGET_OS"), self.cvl.get_str("COPY_TOOL"))
         for folder_name, folder_items in installState.install_items_by_target_folder.iteritems():
+            logging.info("... folder {} ({})".format(folder_name, self.cvl.resolve_string(folder_name)))
             installState.copy_instruction_lines.extend(self.make_directory_cmd(folder_name))
             installState.copy_instruction_lines.extend(self.change_directory_cmd(folder_name))
             folder_in_actions = unique_list()
@@ -432,6 +434,7 @@ class InstlInstanceBase(object):
 
         # actions instructions for sources that do not need copying
         for folder_name, folder_items in installState.no_copy_items_by_sync_folder.iteritems():
+            logging.info("... non-copy items folder {} ({})".format(folder_name, self.cvl.resolve_string(folder_name)))
             installState.copy_instruction_lines.extend(self.change_directory_cmd(folder_name))
             folder_in_actions = unique_list()
             install_actions = list()
@@ -447,6 +450,7 @@ class InstlInstanceBase(object):
             installState.copy_instruction_lines.extend(folder_out_actions)
         # messages about orphan iids
         for iid in installState.orphan_install_items:
+            logging.info("Orphan item: ".format(iid))
             installState.sync_instruction_lines.append(self.create_echo_command("Don't know how to install "+iid))
 
     @func_log_wrapper
@@ -454,15 +458,16 @@ class InstlInstanceBase(object):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
         retVal = list()
         source_url = "$(LOCAL_SYNC_DIR)/$(REPO_NAME)/$(REL_SRC_PATH)/"+source[0]
-
-        if source[1] == '!file': # get a single file, not recommneded
+        
+        if source[1] == '!file':       # get a single file, not recommneded
             retVal.extend(copy_command_creator.create_copy_file_to_dir_command(source_url, "."))
         elif source[1] == '!dir_cont': # get all files and folders from a folder
             retVal.extend(copy_command_creator.create_copy_dir_contents_to_dir_command(source_url, "."))
-        elif source[1] == '!files': # get all files from a folder
+        elif source[1] == '!files':    # get all files from a folder
             retVal.extend(copy_command_creator.create_copy_dir_files_to_dir_command(source_url, "."))
         else:
             retVal.extend(copy_command_creator.create_copy_dir_to_dir_command(source_url, "."))
+        logging.info("... {}; ({} - {})".format(source_url, self.cvl.resolve_string(source_url), source[1]))
         return retVal
 
     @func_log_wrapper
@@ -494,7 +499,7 @@ class InstlInstanceBase(object):
 
         from utils import write_to_file_or_stdout
         out_file = self.cvl.get_str("__MAIN_OUT_FILE__")
-        logging.info("Writing to {}".format(out_file))
+        logging.info("... {}".format(out_file))
         with write_to_file_or_stdout(out_file) as fd:
             fd.write(lines_after_var_replacement)
             fd.write('\n')
@@ -649,7 +654,7 @@ class cmd_line_options(object):
         self.todo_args = None
 
     def __str__(self):
-        return "\n".join([n+": "+str(v) for n,v in sorted(vars(self).iteritems())])
+        return "\n".join([''.join((n, ": ", str(v))) for n,v in sorted(vars(self).iteritems())])
 
 
 def prepare_args_parser():

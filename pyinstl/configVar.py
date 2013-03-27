@@ -31,7 +31,7 @@ class ConfigVar(object):
     def __init__(self, name, description="", *values):
         self.__name = name
         self.__description = description
-        self.__values = [str(value) for value in values]
+        self.__values = map(str, values)
         self.__resolving_in_progress = False # prevent circular resolves
 
     def name(self):

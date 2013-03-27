@@ -164,16 +164,36 @@ def deprecated(deprecated_func):
         return None
     return raise_deprecation
 
-from functools import wraps
+def findCaller_overrride(self):
+    """ override Logger.findCaller to pass our own caller info """
+    return self._predefined_caller_info
+        
+import inspect
+func_log_wrapper_threshold_level = logging.DEBUG
 def func_log_wrapper(logged_func):
-    @wraps(logged_func)
-    def logged_func_wapper(*args, **kargs):
-        logging.debug("enter - "+logged_func.__name__)
-        retVal = logged_func(*args, **kargs)
-        exit_msg = "exit - "+logged_func.__name__+"; retVal: "+str(retVal)
-        logging.debug(exit_msg)
+    def logged_func_wrapper(*args, **kargs):
+        if func_log_wrapper_threshold_level >= logging.getLogger().getEffectiveLevel():
+            the_logger = logging.getLogger()        
+            predefined_caller_info = (inspect.getsourcefile(logged_func),
+                                                    inspect.getsourcelines(logged_func)[1],
+                                                    logged_func.__name__)
+            save_findCaller_func = logging.Logger.findCaller
+        
+            the_logger._predefined_caller_info = predefined_caller_info
+            logging.Logger.findCaller = findCaller_overrride
+            the_logger.debug("{")
+            logging.Logger.findCaller = save_findCaller_func
+        
+            retVal = logged_func(*args, **kargs)
+        
+            the_logger._predefined_caller_info = predefined_caller_info
+            logging.Logger.findCaller = findCaller_overrride
+            the_logger.debug("}")
+            logging.Logger.findCaller = save_findCaller_func
+        else:
+            retVal = logged_func(*args, **kargs)
         return retVal
-    return logged_func_wapper
+    return logged_func_wrapper
 
 def safe_makedirs(path_to_dir):
     """ solves a problem with python 27 where is the dir already exists os.makedirs raises """
