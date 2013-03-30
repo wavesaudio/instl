@@ -49,7 +49,6 @@ def func_log_wrapper(logged_func):
         is returned, and performance is not effected.
     """
     returned_func = logged_func
-    print(func_log_wrapper_threshold_level, logging.getLogger().getEffectiveLevel())
     if func_log_wrapper_threshold_level >= logging.getLogger().getEffectiveLevel():
         def logged_func_wrapper(*args, **kargs):
             """ Does tricks around deficiencies in logging API. The problem is that

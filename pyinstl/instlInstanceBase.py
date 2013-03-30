@@ -619,6 +619,10 @@ class InstlInstanceBase(object):
     @func_log_wrapper
     def read_command_line_options(self, arglist=None):
         """ parse command line options """
+        args_str = "No options given"
+        if arglist is not None:
+            logging.info("arglist: %s", " ".join(arglist))
+        self.cvl.add_const_config_variable('__COMMAND_LINE_OPTIONS__', "read only value", args_str)
         try:
             if not arglist or len(arglist) == 0:
                 auto_run_file_path = None
