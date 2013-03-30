@@ -6,6 +6,11 @@ import sys
 import os
 import logging
 import logging.handlers
+
+# setup logging, must be done before other imports
+from pyinstl.log_utils import setup_logging
+setup_logging("instl", "instl")
+
 import pyinstl
 
 import platform
@@ -19,8 +24,6 @@ elif current_os == 'Windows':
 
 def main():
     try:
-        setup_logging()
-        logging.info("instl BEGIN")
         instance = ii()
         instance.read_command_line_options(sys.argv[1:])
         if instance.mode == "batch":
@@ -29,25 +32,13 @@ def main():
             instance.do_da_interactive()
         elif instance.mode == "do_something":
             instance.do_something()
-        logging.info("instl END")
     except Exception as es:
         import traceback
         tb = traceback.format_exc()
         print(tb)
         #print("__main__", es)
 
-def setup_logging():
-    my_logger = logging.getLogger()
-    log_path = ii.get_log_file_path()
-    debug_level_indicator = log_path+".debug"
-    if os.path.isfile(debug_level_indicator):
-        my_logger.setLevel(logging.DEBUG)
-    else:
-        my_logger.setLevel(logging.INFO)
-    rotatingHandler = logging.handlers.RotatingFileHandler(log_path, maxBytes=200000, backupCount=5)
-    formatter = logging.Formatter('%(asctime)s, %(levelname)s, %(funcName)s: %(message)s')
-    rotatingHandler.setFormatter(formatter)
-    my_logger.addHandler(rotatingHandler)
-
 if __name__ == "__main__":
+    logging.info("instl BEGIN")
     main()
+    logging.info("instl END")

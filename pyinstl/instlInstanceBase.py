@@ -12,6 +12,7 @@ import appdirs
 import logging
 import datetime
 
+from pyinstl.log_utils import func_log_wrapper
 import configVar
 from configVarList import ConfigVarList, value_ref_re
 from aYaml import augmentedYaml
@@ -64,13 +65,13 @@ class InstallInstructionsState(object):
             results are accomulated in InstallInstructionsState.
             If an install items was not found for a iid, the iid is added to the orphan set.
         """
-        
+
         if len(self.root_install_items) > 0:
             logging.info(" ".join(("Main install items:", ", ".join(self.root_install_items))))
         else:
             logging.error(" ".join(("Main install items list is empty",)))
         # root_install_items might have guid in it, translate them to iids
-        
+
         root_install_iids_translated = unique_list()
         for IID in self.root_install_items:
             if instlInstance.guid_re.match(IID): # if it's a guid translate to iid's
@@ -84,7 +85,7 @@ class InstallInstructionsState(object):
             else:
                 root_install_iids_translated.append(IID)
                 logging.info(" ".join((IID, "added to root_install_iids_translated")))
-        
+
         for IID in root_install_iids_translated:
             try:
                 instlInstance.install_definitions_index[IID].get_recursive_depends(instlInstance.install_definitions_index, self.full_install_items, self.orphan_install_items)
@@ -124,7 +125,7 @@ class InstlInstanceBase(object):
         self.search_paths_helper = SearchPaths(self.cvl.get_configVar_obj("__SEARCH_PATHS__"))
         self.search_paths_helper.add_search_paths(os.getcwd())
         self.search_paths_helper.add_search_paths(os.path.dirname(sys.argv[0]))
-            
+
         self.guid_re = re.compile("""
                         [a-f0-9]{8}
                         (-[a-f0-9]{4}){3}
@@ -164,7 +165,7 @@ class InstlInstanceBase(object):
         self.cvl.add_const_config_variable("LOG_FILE", "from InstlInstanceBase.init_default_vars", self.get_log_file_path())
         for identifier in self.cvl:
             logging.debug("... {}: {}".format(identifier, self.cvl.get_str(identifier)))
-            
+
     @staticmethod
     def get_log_file_path():
         retVal = appdirs.user_log_dir(appname=this_program_name, appauthor=this_program_name)
@@ -345,7 +346,7 @@ class InstlInstanceBase(object):
             self.cvl.set_variable("BOOKKEEPING_DIR_URL", "from InstlInstanceBase.init_sync_vars").append("$(SVN_REPO_URL)/instl")
         for identifier in ("SVN_REPO_URL", "SVN_CLIENT_PATH", "REL_SRC_PATH", "REPO_REV", "REPO_NAME", "BASE_SRC_URL", "BOOKKEEPING_DIR_URL"):
             logging.debug("... {}: {}".format(identifier, self.cvl.get_str(identifier)))
-    
+
     @func_log_wrapper
     def init_copy_vars(self):
         if "REL_SRC_PATH" not in self.cvl:
@@ -458,7 +459,7 @@ class InstlInstanceBase(object):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
         retVal = list()
         source_url = "$(LOCAL_SYNC_DIR)/$(REPO_NAME)/$(REL_SRC_PATH)/"+source[0]
-        
+
         if source[1] == '!file':       # get a single file, not recommneded
             retVal.extend(copy_command_creator.create_copy_file_to_dir_command(source_url, "."))
         elif source[1] == '!dir_cont': # get all files and folders from a folder

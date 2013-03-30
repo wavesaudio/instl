@@ -14,9 +14,11 @@ from __future__ import print_function
 import os
 import sys
 import re
+import logging
 
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 
+from pyinstl.log_utils import func_log_wrapper
 from pyinstl import configVar
 from aYaml.augmentedYaml import YamlDumpWrap
 
@@ -102,12 +104,14 @@ class ConfigVarList(object):
             retVal.set_description(description)
         return retVal
 
+    @func_log_wrapper
     def add_const_config_variable(self, name, description="", *values):
         """ add a const single value object """
         if name in self._ConfigVar_objs:
             raise Exception("Const variable {} already defined".format(name))
         addedValue = configVar.ConstConfigVar(name, description, *values)
         self._ConfigVar_objs[addedValue.name()] = addedValue
+        logging.debug("... %s: %s", name, ", ".join(map(str, values)))
 
     def duplicate_variable(self, source_name, target_name):
         if source_name in self._ConfigVar_objs:

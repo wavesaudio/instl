@@ -9,6 +9,7 @@ import os
 import appdirs
 import logging
 
+from pyinstl.log_utils import func_log_wrapper
 from pyinstl.utils import *
 
 class SearchPaths(object):
@@ -33,17 +34,17 @@ class SearchPaths(object):
         """
         for s_path in paths:
             real_s_path = os.path.realpath(s_path)
-            logging.debug("... add {}".format(s_path))
+            logging.debug("... add %s", s_path)
             if os.path.isfile(real_s_path):
                 real_s_path, _ = os.path.split(real_s_path)
                 #print("It a file so real adding is", real_s_path)
             # checking the list first might prevent some redundant file system access by isdir
-            logging.debug("...... adding {}".format(real_s_path))
+            logging.debug("...... adding %s", real_s_path)
             if not real_s_path in self.search_paths_var:
                 if os.path.isdir(real_s_path):
                     self.search_paths_var.append(real_s_path)
                 else:
-                    logging.warning("...... realpath {} is not a directory".format(real_s_path))
+                    logging.warning("...... realpath %s is not a directory", real_s_path)
 
     @func_log_wrapper
     def add_search_paths_recursive(self, *paths):
@@ -60,18 +61,18 @@ class SearchPaths(object):
             If file was found it's folder will be added to the search paths.
         """
         retVal = None
-        logging.debug("... find {}".format(in_file))
+        logging.debug("... find %s", in_file)
         if os.path.isfile(in_file):
             real_file = os.path.realpath(in_file)
-            logging.debug("...... is an existing file path returning {}".format(real_file))
+            logging.debug("...... is an existing file path returning %s", real_file)
             retVal = real_file
         else:
             for s_path in self.search_paths_var:
-                logging.debug("...... looking in {}".format(s_path))
+                logging.debug("...... looking in %s", s_path)
                 real_file = os.path.join(s_path, in_file)
                 if os.path.isfile(real_file):
                     real_file = os.path.realpath(real_file)
-                    logging.debug("......... found returning {}".format(real_file))
+                    logging.debug("......... found returning %s", real_file)
                     retVal = real_file
                     break
         if retVal:
@@ -81,11 +82,13 @@ class SearchPaths(object):
     @func_log_wrapper
     def get_machine_config_file_path(self, in_app_name):
         retVal = os.path.join(appdirs.site_data_dir(in_app_name))
+        logging.debug("... %s", retVal)
         return retVal
 
     @func_log_wrapper
     def get_user_config_file_path(self, in_app_name):
         retVal = os.path.join(appdirs.user_data_dir(in_app_name))
+        logging.debug("... %s", retVal)
         return retVal
 
 if __name__ == "__main__":
