@@ -104,8 +104,13 @@ class CMDObj(cmd.Cmd, object):
             except: # os.makedirs raises is the directory already exists
                 pass
             self.history_file_path = os.path.join(history_file_dir, "."+instlInstanceBase.this_program_name+"_console_history")
-            if os.path.isfile(self.history_file_path):
+            try:
                 readline.read_history_file(self.history_file_path)
+            except: # Corrupt or non existent history file might raise an exception
+                try:
+                    os.remove(self.history_file_path)
+                except:
+                    pass # if removing the file also fail - just ignore it
         if colorama_loaded:
             colorama.init()
         self.prompt = instlInstanceBase.this_program_name+": "
@@ -113,11 +118,14 @@ class CMDObj(cmd.Cmd, object):
         return self
 
     def __exit__(self, type, value, traceback):
-        if readline_loaded:
-            compact_history()
-            readline.set_history_length(32)
-            readline.write_history_file(self.history_file_path)
-        # restart only after saving history, otherwise history will not be saved (8-().
+        try:
+            if readline_loaded:
+                compact_history()
+                readline.set_history_length(32)
+                readline.write_history_file(self.history_file_path)
+        except:
+            pass
+        # restart only after saving history, otherwise history will not be saved (;-o).
         os.chdir(self.save_dir)
         if self.restart:
             restart_program()
