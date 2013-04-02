@@ -22,6 +22,7 @@ elif current_os == 'Windows':
     current_os = 'Win'
     from pyinstl.instlInstance_win import InstlInstance_win as ii
 
+@pyinstl.log_utils.func_log_wrapper
 def main():
     try:
         instance = ii()
@@ -39,6 +40,4 @@ def main():
         #print("__main__", es)
 
 if __name__ == "__main__":
-    logging.info("instl BEGIN")
     main()
-    logging.info("instl END")

@@ -12,6 +12,7 @@ import appdirs
 import logging
 import datetime
 
+import pyinstl.log_utils
 from pyinstl.log_utils import func_log_wrapper
 import configVar
 from configVarList import ConfigVarList, value_ref_re
@@ -158,20 +159,18 @@ class InstlInstanceBase(object):
 
     @func_log_wrapper
     def init_default_vars(self):
-        self.cvl.add_const_config_variable("CURRENT_OS", "from InstlInstanceBase.init_default_vars", current_os)
-        self.cvl.set_variable("TARGET_OS", "from InstlInstanceBase.init_default_vars").append(current_os)
-        self.cvl.add_const_config_variable("__INSTL_VERSION__", "from InstlInstanceBase.init_default_vars", *INSTL_VERSION)
-        self.cvl.set_variable("LOCAL_SYNC_DIR", "from InstlInstanceBase.init_default_vars").append(appdirs.user_cache_dir(this_program_name, this_program_name))
-        self.cvl.add_const_config_variable("LOG_FILE", "from InstlInstanceBase.init_default_vars", self.get_log_file_path())
+        var_description = "from InstlInstanceBase.init_default_vars"
+        self.cvl.add_const_config_variable("CURRENT_OS", var_description, current_os)
+        self.cvl.set_variable("TARGET_OS", var_description).append(current_os)
+        self.cvl.add_const_config_variable("__INSTL_VERSION__", var_description, *INSTL_VERSION)
+        self.cvl.set_variable("LOCAL_SYNC_DIR", var_description).append(appdirs.user_cache_dir(this_program_name, this_program_name))
+        
+        log_file = pyinstl.log_utils.get_log_file_path(this_program_name, this_program_name, debug=False)
+        self.cvl.set_variable("LOG_FILE", var_description).extend( (log_file, logging.getLevelName(pyinstl.log_utils.default_logging_level), pyinstl.log_utils.default_logging_started) )
+        debug_log_file = pyinstl.log_utils.get_log_file_path(this_program_name, this_program_name, debug=True)
+        self.cvl.set_variable("LOG_DEBUG_FILE", var_description).extend( (debug_log_file, logging.getLevelName(pyinstl.log_utils.debug_logging_level), pyinstl.log_utils.debug_logging_started) )
         for identifier in self.cvl:
             logging.debug("... {}: {}".format(identifier, self.cvl.get_str(identifier)))
-
-    @staticmethod
-    def get_log_file_path():
-        retVal = appdirs.user_log_dir(appname=this_program_name, appauthor=this_program_name)
-        safe_makedirs(retVal)
-        retVal += "/log.txt"
-        return retVal
 
     @func_log_wrapper
     def do_command(self, the_command, installState):

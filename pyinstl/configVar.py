@@ -64,7 +64,7 @@ class ConfigVar(object):
         return self.__values[key]
 
     def __setitem__(self, key, value):
-        self.__values[key] = value
+        self.__values[key] = str(value)
 
     def __delitem__(self, key):
         del self.__values[key]

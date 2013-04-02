@@ -412,6 +412,43 @@ class CMDObj(cmd.Cmd, object):
             print(index, readline.get_history_item(index))
         print(readline.get_current_history_length(), "items in history")
         return False
+    
+    def report_logging_state(self):
+        import pyinstl.log_utils
+        top_logger = logging.getLogger()
+        print("logging level:", logging.getLevelName(top_logger.getEffectiveLevel()))
+        log_file_path = pyinstl.log_utils.get_log_file_path(this_program_name, this_program_name, debug=False)
+        print("logging INFO level to",  log_file_path)
+        debug_log_file_path = pyinstl.log_utils.get_log_file_path(this_program_name, this_program_name, debug=True)
+        if os.path.isfile(debug_log_file_path):
+            print("logging DEBUG level to",  debug_log_file_path)
+        else:
+            print("Not logging DEBUG level to",  debug_log_file_path)
+        
+    def do_log(self, params):
+        import pyinstl.log_utils
+        top_logger = logging.getLogger()
+        if params:
+            params = shlex.split(params)
+            if params[0].lower() == "debug":
+                debug_log_file_path = pyinstl.log_utils.get_log_file_path(this_program_name, this_program_name, debug=True)
+                if len(params) == 1 or params[1].lower() in ("on", "true", "yes"):
+                    if top_logger.getEffectiveLevel() > pyinstl.log_utils.debug_logging_level or not os.path.isfile(debug_log_file_path):
+                        pyinstl.log_utils.setup_file_logging(debug_log_file_path, pyinstl.log_utils.debug_logging_level)
+                        pyinstl.log_utils.debug_logging_started = True
+                elif params[1].lower() in ("off", "false", "no"):
+                    top_logger.setLevel(pyinstl.log_utils.default_logging_level)
+                    try:
+                        pyinstl.log_utils.teardown_file_logging(debug_log_file_path, pyinstl.log_utils.default_logging_level)
+                    except:
+                        pass
+                self.prog_inst.cvl.get_configVar_obj("LOG_DEBUG_FILE")[2] = pyinstl.log_utils.debug_logging_started
+        self.report_logging_state()
+    
+    def help_log(self):
+        print("log: displays log status")
+        print("log debug [on | true | yes]: starts debug level logging")
+        print("log debug off | false | no: stops debug level logging")
 
     # evaluate python expressions
     def do_eval(self, param):
