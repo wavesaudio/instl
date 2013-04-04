@@ -279,7 +279,6 @@ def writeAsYaml(pyObj, out_stream, indentor=None, sort=False):
             theKeys = sorted(pyObj.keys())
         else:
             theKeys = pyObj.keys()
-        itemNum = 1
         for item in theKeys:
             nl_before_key = (parent_item != 'l')
             if nl_before_key:
@@ -321,13 +320,13 @@ def nodeToYamlDumpWrap(a_node):
         seq = [nodeToYamlDumpWrap(item) for item in a_node.value]
         retVal = YamlDumpWrap(seq)#, tag="!sequence", comment="sequence..."
     elif a_node.isMapping():
-        map = {str(_key.value): nodeToYamlDumpWrap(_val) for (_key, _val) in a_node.value}
-        retVal = YamlDumpWrap(map)#, tag="!mapping", comment="mapping..."
+        mapping = {str(_key.value): nodeToYamlDumpWrap(_val) for (_key, _val) in a_node.value}
+        retVal = YamlDumpWrap(mapping)#, tag="!mapping", comment="mapping..."
     return retVal
 
 if __name__ == "__main__":
-    for file in sys.argv[1:]:
-        with open(file, "r") as fd:
+    for afile in sys.argv[1:]:
+        with open(afile, "r") as fd:
             for a_node in yaml.compose_all(fd):
                 a_node_as_tdw = nodeToYamlDumpWrap(a_node)
                 docWrap = YamlDumpDocWrap(a_node_as_tdw)

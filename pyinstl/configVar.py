@@ -8,7 +8,6 @@ from __future__ import print_function
     Licensed under BSD 3 clause license, see LICENSE file for details.
 """
 
-import os
 import sys
 
 import platform

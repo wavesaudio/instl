@@ -175,7 +175,6 @@ def max_widths(list_of_lists):
     """ inputs is a list of lists. output is a list of maximum str length for each
         position. E.g (('a', 'ccc'), ('bb', a', 'fff')) will return: (2, 3, 3)
     """
-    sorted_list_of_lists = sorted(list_of_lists, key=len)
     loggest_list_len = reduce(max, [len(alist) for alist in list_of_lists])
     retVal = [0] * loggest_list_len # pre allocate the max list length
     for alist in list_of_lists:

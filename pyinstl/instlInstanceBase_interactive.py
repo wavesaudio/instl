@@ -134,7 +134,7 @@ class CMDObj(cmd.Cmd, object):
         retVal = False
         try:
             retVal = super (CMDObj, self).onecmd(line)
-        except Exception as es:
+        except Exception:
             import traceback
             traceback.print_exc()
         return retVal
@@ -152,7 +152,7 @@ class CMDObj(cmd.Cmd, object):
         matches = []
         if text:
             try:
-                matches.extend([dir for dir in insensitive_glob(text+'*') if os.path.isdir(dir)])
+                matches.extend([adir for adir in insensitive_glob(text+'*') if os.path.isdir(adir)])
             except Exception as es:
                 logging.info(es)
         return matches
@@ -180,8 +180,8 @@ class CMDObj(cmd.Cmd, object):
 
     def prepare_coloring_dict(self):
         """ Prepare a dictionary with identifiers mapped to their "colored" representation.
-            Left hand index enrties: 'C1_IDD:' translates to colorama.Fore.GREEN+'C1_IDD'+colorama.Fore.RESET+":".
-            Right hand index enrties: '- C1_IDD:' translates to "- "+colorama.Fore.YELLOW+'C1_IDD'+colorama.Fore.RESET.
+            Left hand index enrties: 'C1_IID:' translates to colorama.Fore.GREEN+'C1_IID'+colorama.Fore.RESET+":".
+            Right hand index enrties: '- C1_IID:' translates to "- "+colorama.Fore.YELLOW+'C1_IID'+colorama.Fore.RESET.
             Variable references: $(WAVES_PLUGINS_DIR) translates to colorama.Fore.BLUE+$(WAVES_PLUGINS_DIR).
             The returned disctionary can be used in replace_all_from_dict() for "coloring" the text before output to stdcout.
         """
@@ -285,11 +285,11 @@ class CMDObj(cmd.Cmd, object):
 
     def do_read(self, params):
         if params:
-            for file in shlex.split(params):
+            for afile in shlex.split(params):
                 try:
-                    self.prog_inst.read_file(file)
+                    self.prog_inst.read_file(afile)
                 except Exception as ex:
-                    print("read", file, ex)
+                    print("read", afile, ex)
         else:
             print("read what?")
         return False
@@ -480,7 +480,7 @@ def do_list_imp(self, what = None, stream=sys.stdout):
             self.do_list(str(item), stream)
     elif isinstance(what, str):
         if self.guid_re.match(what):
-            augmentedYaml.writeAsYaml({what: self.idds_from_guid(what)}, stream)
+            augmentedYaml.writeAsYaml({what: self.iids_from_guid(what)}, stream)
         elif what == "define":
             augmentedYaml.writeAsYaml(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True), stream)
         elif what == "index":
@@ -488,7 +488,7 @@ def do_list_imp(self, what = None, stream=sys.stdout):
         elif what == "guid":
             guid_dict = dict()
             for lic in self.guid_list():
-                guid_dict[lic] = self.idds_from_guid(lic)
+                guid_dict[lic] = self.iids_from_guid(lic)
             augmentedYaml.writeAsYaml(guid_dict, stream)
         else:
             item_list = self.repr_for_yaml((what,))

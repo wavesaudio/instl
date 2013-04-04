@@ -14,7 +14,6 @@ import datetime
 
 import pyinstl.log_utils
 from pyinstl.log_utils import func_log_wrapper
-import configVar
 from configVarList import ConfigVarList, value_ref_re
 from aYaml import augmentedYaml
 from installItem import InstallItem, read_index_from_yaml
@@ -70,7 +69,7 @@ class InstallInstructionsState(object):
         if len(self.root_install_items) > 0:
             logging.info(" ".join(("Main install items:", ", ".join(self.root_install_items))))
         else:
-            logging.error(" ".join(("Main install items list is empty",)))
+            logging.error("Main install items list is empty")
         # root_install_items might have guid in it, translate them to iids
 
         root_install_iids_translated = unique_list()
@@ -79,20 +78,20 @@ class InstallInstructionsState(object):
                 iids_from_the_guid = instlInstance.iids_from_guid(IID)
                 if len(iids_from_the_guid) > 0:
                     root_install_iids_translated.extend(iids_from_the_guid)
-                    logging.info(" ".join(("GUID", IID, "translated to", str(len(iids_from_the_guid)),  "iids:", ", ".join(iids_from_the_guid))))
+                    logging.info("GUID %s, translated to %d iids: %s", IID, len(iids_from_the_guid), ", ".join(iids_from_the_guid))
                 else:
                     self.orphan_install_items.append(IID)
-                    logging.warning(" ".join((IID, "is a guid but could not be translated to iids")))
+                    logging.warning("%s is a guid but could not be translated to iids", IID)
             else:
                 root_install_iids_translated.append(IID)
-                logging.info(" ".join((IID, "added to root_install_iids_translated")))
+                logging.info("%s added to root_install_iids_translated", IID)
 
         for IID in root_install_iids_translated:
             try:
                 instlInstance.install_definitions_index[IID].get_recursive_depends(instlInstance.install_definitions_index, self.full_install_items, self.orphan_install_items)
             except KeyError:
                 self.orphan_install_items.append(IID)
-                logging.warning(" ".join((IID, "not found in index")))
+                logging.warning("%s not found in index", IID)
         self.__sort_install_items_by_target_folder(instlInstance)
 
     @func_log_wrapper
@@ -171,7 +170,7 @@ class InstlInstanceBase(object):
         debug_log_file = pyinstl.log_utils.get_log_file_path(this_program_name, this_program_name, debug=True)
         self.cvl.set_variable("LOG_DEBUG_FILE", var_description).extend( (debug_log_file, logging.getLevelName(pyinstl.log_utils.debug_logging_level), pyinstl.log_utils.debug_logging_started) )
         for identifier in self.cvl:
-            logging.debug("... {}: {}".format(identifier, self.cvl.get_str(identifier)))
+            logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
 
     @func_log_wrapper
     def do_command(self, the_command, installState):
@@ -199,12 +198,12 @@ class InstlInstanceBase(object):
     @func_log_wrapper
     def do_something(self):
         try:
-            logging.debug("... {}".format(self.name_space_obj.command))
+            logging.debug("... %s", self.name_space_obj.command)
             if self.name_space_obj.command == "version":
                 print(" ".join( (this_program_name, "version", ".".join(self.cvl.get_list("__INSTL_VERSION__")))))
             else:
                 import do_something
-                do_something.do_something(self.something_to_do)
+                do_something.do_something(self.name_space_obj.command)
         except Exception as es:
             import traceback
             tb = traceback.format_exc()
@@ -222,7 +221,7 @@ class InstlInstanceBase(object):
         if cmd_line_options_obj.run:
             self.cvl.add_const_config_variable("__MAIN_RUN_INSTALLATION__", "from command line options", "yes")
         for identifier in self.cvl:
-            logging.debug("... {}: {}".format(identifier, self.cvl.get_str(identifier)))
+            logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
 
     internal_identifier_re = re.compile("""
                                         __                  # dunder here
@@ -234,7 +233,7 @@ class InstlInstanceBase(object):
         # if document is empty we get a scalar node
         if a_node.isMapping():
             for identifier, contents in a_node:
-                logging.debug("... {}: {}".format(identifier, str(contents)))
+                logging.debug("... %s: %s", identifier, str(contents))
                 if not self.internal_identifier_re.match(identifier): # do not read internal state indentifiers
                     self.cvl.set_variable(identifier, str(contents.start_mark)).extend([item.value for item in contents])
                 elif identifier == '__include__':
@@ -263,7 +262,7 @@ class InstlInstanceBase(object):
     @func_log_wrapper
     def read_file(self, file_path):
         try:
-            logging.info("... Reading input file {}".format(file_path))
+            logging.info("... Reading input file %s", file_path)
             with open_for_read_file_or_url(file_path, self.search_paths_helper) as file_fd:
                 for a_node in yaml.compose_all(file_fd):
                     if a_node.tag == '!define':
@@ -271,7 +270,7 @@ class InstlInstanceBase(object):
                     elif a_node.tag == '!index':
                         self.read_index(a_node)
                     else:
-                        logging.error("Unknown document tag '{}' while reading file {}; Tag should be one of: !define, !index'".format(a_node.tag, file_path))
+                        logging.error("Unknown document tag '%s' while reading file %s; Tag should be one of: !define, !index'", a_node.tag, file_path)
         except yaml.YAMLError as ye:
             print("read_file", file_path, "yaml error:", ye)
             raise
@@ -312,7 +311,7 @@ class InstlInstanceBase(object):
         self.cvl.set_variable("__FULL_LIST_OF_INSTALL_TARGETS__").extend(installState.full_install_items)
         self.cvl.set_variable("__ORPHAN_INSTALL_TARGETS__").extend(installState.orphan_install_items)
         for identifier in ("MAIN_INSTALL_TARGETS", "__FULL_LIST_OF_INSTALL_TARGETS__", "__ORPHAN_INSTALL_TARGETS__"):
-            logging.debug("... {}: {}".format(identifier, self.cvl.get_str(identifier)))
+            logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
 
     @func_log_wrapper
     def create_variables_assignment(self, installState):
@@ -345,7 +344,7 @@ class InstlInstanceBase(object):
         if "BOOKKEEPING_DIR_URL" not in self.cvl:
             self.cvl.set_variable("BOOKKEEPING_DIR_URL", "from InstlInstanceBase.init_sync_vars").append("$(SVN_REPO_URL)/instl")
         for identifier in ("SVN_REPO_URL", "SVN_CLIENT_PATH", "REL_SRC_PATH", "REPO_REV", "REPO_NAME", "BASE_SRC_URL", "BOOKKEEPING_DIR_URL"):
-            logging.debug("... {}: {}".format(identifier, self.cvl.get_str(identifier)))
+            logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
         self.progress_file = self.cvl.get_str("SYNC_PROGRESS_FILE", default=None)
         if self.progress_file:
             self.progress_file = os.path.realpath(self.progress_file)
@@ -369,7 +368,7 @@ class InstlInstanceBase(object):
             from copyCommander import DefaultCopyToolName
             self.cvl.set_variable("COPY_TOOL", "from InstlInstanceBase.init_sync_vars").append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
         for identifier in ("REL_SRC_PATH", "REPO_NAME", "COPY_TOOL"):
-            logging.debug("... {}: {}".format(identifier, self.cvl.get_str(identifier)))
+            logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
         self.progress_file = self.cvl.get_str("COPY_PROGRESS_FILE", default=None)
         if self.progress_file:
             self.progress_file = os.path.realpath(self.progress_file)
@@ -405,12 +404,12 @@ class InstlInstanceBase(object):
         else:
             command_parts.extend( ( "--depth", "infinity") )
         retVal.append(" ".join(command_parts))
-        logging.info("... {}; ({})".format(source[0], source[1]))
+        logging.info("... %s; (%s)", source[0], source[1])
         return retVal
 
     @func_log_wrapper
     def relative_sync_folder_for_source(self, source):
-        reVal = None
+        retVal = None
         if source[1] in ('!dir', '!file'):
             retVal = "/".join(source[0].split("/")[0:-1])
         elif source[1] in ('!dir_cont', '!files'):
@@ -426,7 +425,7 @@ class InstlInstanceBase(object):
         from copyCommander import CopyCommanderFactory
         copy_command_creator = CopyCommanderFactory(self.cvl.get_str("TARGET_OS"), self.cvl.get_str("COPY_TOOL"))
         for folder_name, folder_items in installState.install_items_by_target_folder.iteritems():
-            logging.info("... folder {} ({})".format(folder_name, self.cvl.resolve_string(folder_name)))
+            logging.info("... folder %s (%s)", folder_name, self.cvl.resolve_string(folder_name))
             installState.copy_instruction_lines.extend(self.make_directory_cmd(folder_name))
             installState.copy_instruction_lines.extend(self.change_directory_cmd(folder_name))
             folder_in_actions = unique_list()
@@ -447,7 +446,7 @@ class InstlInstanceBase(object):
 
         # actions instructions for sources that do not need copying
         for folder_name, folder_items in installState.no_copy_items_by_sync_folder.iteritems():
-            logging.info("... non-copy items folder {} ({})".format(folder_name, self.cvl.resolve_string(folder_name)))
+            logging.info("... non-copy items folder %s (%s)", folder_name, self.cvl.resolve_string(folder_name))
             installState.copy_instruction_lines.extend(self.change_directory_cmd(folder_name))
             folder_in_actions = unique_list()
             install_actions = list()
@@ -463,7 +462,7 @@ class InstlInstanceBase(object):
             installState.copy_instruction_lines.extend(folder_out_actions)
         # messages about orphan iids
         for iid in installState.orphan_install_items:
-            logging.info("Orphan item: ".format(iid))
+            logging.info("Orphan item: %s", iid)
             installState.copy_instruction_lines.append(self.create_echo_command("Don't know how to install "+iid))
         installState.copy_instruction_lines.append(self.create_echo_command("finished copy", self.progress_file))
 
@@ -481,7 +480,7 @@ class InstlInstanceBase(object):
             retVal.extend(copy_command_creator.create_copy_dir_files_to_dir_command(source_url, "."))
         else:
             retVal.extend(copy_command_creator.create_copy_dir_to_dir_command(source_url, "."))
-        logging.info("... {}; ({} - {})".format(source_url, self.cvl.resolve_string(source_url), source[1]))
+        logging.info("... %s; (%s - %s)", source_url, self.cvl.resolve_string(source_url), source[1])
         return retVal
 
     @func_log_wrapper
@@ -513,7 +512,7 @@ class InstlInstanceBase(object):
 
         from utils import write_to_file_or_stdout
         out_file = self.cvl.get_str("__MAIN_OUT_FILE__")
-        logging.info("... {}".format(out_file))
+        logging.info("... %s", out_file)
         with write_to_file_or_stdout(out_file) as fd:
             fd.write(lines_after_var_replacement)
             fd.write('\n')
@@ -524,7 +523,7 @@ class InstlInstanceBase(object):
 
     @func_log_wrapper
     def run_batch_file(self):
-        logging.info("running batch file {}".format(self.out_file_realpath))
+        logging.info("running batch file %s", self.out_file_realpath)
         from subprocess import Popen
         p = Popen(self.out_file_realpath)
         stdout, stderr = p.communicate()
@@ -557,7 +556,7 @@ class InstlInstanceBase(object):
                     else:
                         for cy in inherit_cycles:
                             print("inherit cycle:", " -> ".join(cy))
-                except ImportError as IE: # no installItemGraph, no worry
+                except ImportError: # no installItemGraph, no worry
                     print("Could not load installItemGraph")
 
     @func_log_wrapper
@@ -579,7 +578,7 @@ class InstlInstanceBase(object):
             graph = installItemGraph.create_dependencies_graph(self.install_definitions_index)
             needed_by_list = installItemGraph.find_needed_by(graph, iid)
             return needed_by_list
-        except ImportError as IE: # no installItemGraph, no worry
+        except ImportError: # no installItemGraph, no worry
             print("Could not load installItemGraph")
             return None
 
@@ -643,11 +642,11 @@ class InstlInstanceBase(object):
                 auto_run_file_path = self.search_paths_helper.find_file_with_search_paths(auto_run_file_name)
                 if auto_run_file_path:
                     arglist = ("@"+auto_run_file_path,)
-                    logging.info("found auto run file {}".format(auto_run_file_name))
+                    logging.info("found auto run file %s", auto_run_file_name)
             if arglist and len(arglist) > 0:
                 parser = prepare_args_parser()
                 self.name_space_obj = cmd_line_options()
-                args = parser.parse_args(arglist, namespace=self.name_space_obj)
+                parser.parse_args(arglist, namespace=self.name_space_obj)
                 self.mode = self.name_space_obj.mode
                 if self.mode == "batch":
                     self.init_from_cmd_line_options(self.name_space_obj)

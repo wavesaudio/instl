@@ -75,7 +75,7 @@ class ConfigVarList(object):
         return retVal
 
     def __str__(self):
-        return '\n'.join([''.join((name, ": ", self.get_str())) for name in self._ConfigVar_objs])
+        return '\n'.join([''.join((name, ": ", self.get_str(name))) for name in self._ConfigVar_objs])
 
     def __iter__(self):
         return iter(self._ConfigVar_objs)
@@ -126,19 +126,19 @@ class ConfigVarList(object):
                 continue
             self.set_variable(env, "from envirnment").append(os.environ[env])
 
-    def repr_for_yaml(self, vars=None):
+    def repr_for_yaml(self, which_vars=None):
         retVal = dict()
-        if not vars:
-            vars = self.keys()
-        if hasattr(vars, '__iter__'): # if vars is a list
-            for name in vars:
+        if not which_vars:
+            which_vars = self.keys()
+        if hasattr(which_vars, '__iter__'): # if which_vars is a list
+            for name in which_vars:
                 if name in self._ConfigVar_objs:
                     theComment = self._ConfigVar_objs[name].description()
                     retVal[name] = YamlDumpWrap(value=self.get_list(name), comment=theComment)
                 else:
                     retVal[name] = YamlDumpWrap(value="UNKNOWN VARIABLE", comment=name+" is not in variable list")
-        else:   # if vars is a single variable name
-            retVal.update(self.repr_for_yaml((vars,)))
+        else:   # if which_vars is a single variable name
+            retVal.update(self.repr_for_yaml((which_vars,)))
         return retVal
 
     def resolve_string(self, in_str, sep=" "):

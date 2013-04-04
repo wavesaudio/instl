@@ -53,8 +53,6 @@ from __future__ import print_function
 
 import sys
 import platform
-import yaml
-import aYaml
 from collections import OrderedDict, defaultdict
 
 sys.path.append("..")
@@ -102,7 +100,7 @@ class InstallItem(object):
         try:
             for item in common_items:
                 this_items[item].extend(the_other_items[item])
-        except TypeError as te:
+        except TypeError:
             print("TypeError for", item)
             raise
 
@@ -202,7 +200,7 @@ class InstallItem(object):
 
     def add_action(self, action_type, new_action):
         if action_type not in InstallItem.action_types:
-            raise KeyError("actions type must be one of: "+str(InstallItem.action_types)+" not "+where)
+            raise KeyError("actions type must be one of: "+str(InstallItem.action_types)+" not "+action_type)
         self.__add_some_item(action_type, new_action)
 
     def read_actions(self, action_nodes):
@@ -212,7 +210,7 @@ class InstallItem(object):
 
     def action_list(self, action_type):
         if action_type not in InstallItem.action_types:
-            raise KeyError("actions type must be one of: "+str(InstallItem.action_types)+" not "+which)
+            raise KeyError("actions type must be one of: "+str(InstallItem.action_types)+" not "+action_type)
         return self.__some_items_list(action_type, InstallItem.get_for_os)
 
     def get_recursive_depends(self, items_map, out_set, orphan_set):
@@ -234,7 +232,7 @@ class InstallItem(object):
                 source_list = list()
                 for source in self.__items[for_what]['install_sources']:
                     if source[1] != '!dir':
-                        source_list.append(aYaml.augmentedYaml.YamlDumpWrap(value=source[0], tag=source[1]))
+                        source_list.append(augmentedYaml.YamlDumpWrap(value=source[0], tag=source[1]))
                     else:
                         source_list.append(source[0])
                 retVal['install_sources'] = source_list
