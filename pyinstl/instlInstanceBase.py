@@ -126,7 +126,8 @@ class InstlInstanceBase(object):
         self.search_paths_helper = SearchPaths(self.cvl.get_configVar_obj("__SEARCH_PATHS__"))
         self.search_paths_helper.add_search_paths(os.getcwd())
         self.search_paths_helper.add_search_paths(os.path.dirname(sys.argv[0]))
-
+        self.progress_file = None
+        
         self.guid_re = re.compile("""
                         [a-f0-9]{8}
                         (-[a-f0-9]{4}){3}
@@ -345,6 +346,9 @@ class InstlInstanceBase(object):
             self.cvl.set_variable("BOOKKEEPING_DIR_URL", "from InstlInstanceBase.init_sync_vars").append("$(SVN_REPO_URL)/instl")
         for identifier in ("SVN_REPO_URL", "SVN_CLIENT_PATH", "REL_SRC_PATH", "REPO_REV", "REPO_NAME", "BASE_SRC_URL", "BOOKKEEPING_DIR_URL"):
             logging.debug("... {}: {}".format(identifier, self.cvl.get_str(identifier)))
+        self.progress_file = self.cvl.get_str("SYNC_PROGRESS_FILE", default=None)
+        if self.progress_file:
+            self.progress_file = os.path.realpath(self.progress_file)
 
     @func_log_wrapper
     def init_copy_vars(self):
@@ -366,18 +370,25 @@ class InstlInstanceBase(object):
             self.cvl.set_variable("COPY_TOOL", "from InstlInstanceBase.init_sync_vars").append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
         for identifier in ("REL_SRC_PATH", "REPO_NAME", "COPY_TOOL"):
             logging.debug("... {}: {}".format(identifier, self.cvl.get_str(identifier)))
+        self.progress_file = self.cvl.get_str("COPY_PROGRESS_FILE", default=None)
+        if self.progress_file:
+            self.progress_file = os.path.realpath(self.progress_file)
 
     @func_log_wrapper
     def create_sync_instructions(self, installState):
+        installState.sync_instruction_lines.append(self.create_echo_command("starting sync from $(BASE_SRC_URL)", self.progress_file))
         installState.sync_instruction_lines.extend(self.make_directory_cmd("$(LOCAL_SYNC_DIR)/$(REPO_NAME)"))
         installState.sync_instruction_lines.extend(self.change_directory_cmd("$(LOCAL_SYNC_DIR)/$(REPO_NAME)"))
         installState.sync_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "co", '"$(BOOKKEEPING_DIR_URL)"', '"$(REL_BOOKKIPING_PATH)"', "--revision", "$(REPO_REV)", "--depth", "infinity")))
+        installState.sync_instruction_lines.append(self.create_echo_command("synced index file $(BOOKKEEPING_DIR_URL)", self.progress_file))
         for iid  in installState.full_install_items:                   # svn pulling actions
             installi = self.install_definitions_index[iid]
             for source in installi.source_list():                   # svn pulling actions
                 installState.sync_instruction_lines.extend(self.create_svn_sync_instructions_for_source(source))
+            installState.sync_instruction_lines.append(self.create_echo_command("synced {}".format(installi.name), self.progress_file))
         for iid in installState.orphan_install_items:
             installState.sync_instruction_lines.append(self.create_echo_command("Don't know how to sync "+iid))
+        installState.sync_instruction_lines.append(self.create_echo_command("finished sync from $(BASE_SRC_URL)", self.progress_file))
 
     @func_log_wrapper
     def create_svn_sync_instructions_for_source(self, source):
@@ -411,6 +422,7 @@ class InstlInstanceBase(object):
     @func_log_wrapper
     def create_copy_instructions(self, installState):
         # copy and actions instructions for sources
+        installState.copy_instruction_lines.append(self.create_echo_command("starting copy", self.progress_file))
         from copyCommander import CopyCommanderFactory
         copy_command_creator = CopyCommanderFactory(self.cvl.get_str("TARGET_OS"), self.cvl.get_str("COPY_TOOL"))
         for folder_name, folder_items in installState.install_items_by_target_folder.iteritems():
@@ -428,6 +440,7 @@ class InstlInstanceBase(object):
                     install_item_instructions.extend(self.create_copy_instructions_for_source(source, copy_command_creator))
                     install_item_instructions.extend(installi.action_list('after'))
                 folder_out_actions.extend(installi.action_list('folder_out'))
+                installState.copy_instruction_lines.append(self.create_echo_command("copied {}".format(installi.name), self.progress_file))
             installState.copy_instruction_lines.extend(folder_in_actions)
             installState.copy_instruction_lines.extend(install_item_instructions)
             installState.copy_instruction_lines.extend(folder_out_actions)
@@ -451,7 +464,8 @@ class InstlInstanceBase(object):
         # messages about orphan iids
         for iid in installState.orphan_install_items:
             logging.info("Orphan item: ".format(iid))
-            installState.sync_instruction_lines.append(self.create_echo_command("Don't know how to install "+iid))
+            installState.copy_instruction_lines.append(self.create_echo_command("Don't know how to install "+iid))
+        installState.copy_instruction_lines.append(self.create_echo_command("finished copy", self.progress_file))
 
     @func_log_wrapper
     def create_copy_instructions_for_source(self, source, copy_command_creator):
@@ -608,7 +622,7 @@ class InstlInstanceBase(object):
         pass
 
     @abc.abstractmethod
-    def create_echo_command(self, message):
+    def create_echo_command(self, message, file=None):
         pass
 
     @abc.abstractmethod

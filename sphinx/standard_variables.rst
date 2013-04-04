@@ -14,7 +14,6 @@ These variable can be supplied by the used in the !define file, but have deafult
 
     * BASE_SRC_URL: Base Subversion URL for all install_sources sections in the index file. Defaults to "$(SVN_REPO_URL)/$(TARGET_OS)". 
     * BOOKKEEPING_DIR_URL: Subversion URL for the folder holding the index file. Defaults to "$(SVN_REPO_URL)/instl"
-    * COPY_LOG_FILE: Path to a file where copy log will be written. Defaults to "${LOCAL_SYNC_DIR}/${REPO_NAME}/"+time.time()+"copy.log.
     * COPY_TOOL: The commandline tool used to copy files. Deafault to 'rsync' on Mac and 'robocopy' on Windows.
     * CURRENT_OS: The os **instl** is currently running on. Values are 'Win' for Windows and 'Mac' for Mac OS.
     * LOCAL_SYNC_DIR: The folder where **instl** will sync the installation sources to. Defaults to the systam's temporary folder.
@@ -22,7 +21,9 @@ These variable can be supplied by the used in the !define file, but have deafult
     * REPO_REV: The version of the subversion reprository to sync. defaults to HEAD.
     * SYNC_LOG_FILE: Path to a file where sync log will be written. Defaults to "${LOCAL_SYNC_DIR}/${REPO_NAME}/"+time.time()+"sync.log.
     * TARGET_OS: The os **instl** is installing to.  Values are 'Win' for Windows and 'Mac' for Mac OS. Defaults to CURRENT_OS.
-
+    * SYNC_PROGRESS_FILE: Path to a file where progress information of the sync operation will be written. If not supplied progress information is written to stdout.
+    * COPY_PROGRESS_FILE: Path to a file where progress information of the copy operation will be written. If not supplied progress information is written to stdout.
+    
 Public **instl** created variables
 =================================
 These variables are creaedt internally by **instl** and are writtent to the output script.

@@ -77,6 +77,8 @@ class SearchPaths(object):
                     break
         if retVal:
             self.add_search_paths(real_file)
+        else:
+            logging.info("%s was not found ", in_file)
         return retVal
 
     @func_log_wrapper

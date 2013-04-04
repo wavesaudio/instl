@@ -113,7 +113,7 @@ class InstallItem(object):
     def __init__(self):
         self.__resolved_inherit = False
         self.iid = None
-        self.name = None
+        self.name = ""
         self.guid = None
         self.remark = ""
         self.description = ""

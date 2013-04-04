@@ -34,8 +34,10 @@ class InstlInstance_win(instlInstanceBase.InstlInstanceBase):
     def create_var_assign(self, identifier, value):
         return "SET "+identifier+'='+value
 
-    def create_echo_command(self, message):
+    def create_echo_command(self, message, file=None):
         echo_command = " ".join(('echo', quoteme(message)))
+        if file:
+            echo_command = " ".join((echo_command, ">>", file))
         return echo_command
 
     def create_remark_command(self, remark):
