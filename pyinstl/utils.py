@@ -14,8 +14,9 @@ if current_os == 'Darwin':
 elif current_os == 'Windows':
     current_os = 'Win'
 
+
 class write_to_file_or_stdout(object):
-    def  __init__(self, file_path):
+    def __init__(self, file_path):
         self.file_path = file_path
         self.fd = sys.stdout
 
@@ -42,15 +43,17 @@ class write_to_list(object):
     def list(self):
         return self.the_list
 
+
 class open_for_read_file_or_url(object):
     protocol_header_re = re.compile("""
                         \w+
                         ://
                         """, re.VERBOSE)
-    def  __init__(self, file_url, search_paths_helper=None):
+
+    def __init__(self, file_url, search_paths_helper=None):
         self.file_url = file_url
         match = self.protocol_header_re.match(self.file_url)
-        if not match: # it's a local file
+        if not match:  # it's a local file
             if search_paths_helper is not None:
                 self.file_url = search_paths_helper.find_file_with_search_paths(self.file_url)
             if self.file_url:
@@ -69,24 +72,24 @@ class open_for_read_file_or_url(object):
     def __exit__(self, type, value, traceback):
         self.fd.close()
 
-"""
-unique_list implements a list where all items are unique.
-Functionality can also be decribed as set with order.
-unique_list should behave as a python list except:
-    Adding items the end of the list (by append, extend) will do nothing if the
-        item is already in the list.
-    Adding to the middle of the list (insert, __setitem__)
-        will remove previous item with the same value - if any.
-"""
 
 class unique_list(list):
+    """
+    unique_list implements a list where all items are unique.
+    Functionality can also be decribed as set with order.
+    unique_list should behave as a python list except:
+        Adding items the end of the list (by append, extend) will do nothing if the
+            item is already in the list.
+        Adding to the middle of the list (insert, __setitem__)
+            will remove previous item with the same value - if any.
+    """
     __slots__ = ('__attendance',)
-    def __init__(self, initial_list = ()):
+
+    def __init__(self, initial_list=()):
         super(unique_list, self).__init__()
         self.__attendance = set()
         self.extend(initial_list)
-#    def __str__(self):
-#        return super(unique_list, self).__str__() + " attendance: " + str(sorted(list(self.__attendance)))
+
     def __setitem__(self, index, item):
         prev_item = self[index]
         if prev_item != item:
@@ -99,22 +102,26 @@ class unique_list(list):
                 super(unique_list, self).__setitem__(index, item)
                 self.__attendance.remove(prev_item)
                 self.__attendance.add(item)
+
     def __delitem__(self, index):
         super(unique_list, self).__delitem__(index)
         self.__attendance.remove(self[index])
+
     def __contains__(self, item):
         """ Overriding __contains__ is not required - just more efficient """
         return item in self.__attendance
+
     def append(self, item):
         if item not in self.__attendance:
             super(unique_list, self).append(item)
             self.__attendance.add(item)
 
-    def extend(self, items = ()):
+    def extend(self, items=()):
         for item in items:
             if item not in self.__attendance:
                 super(unique_list, self).append(item)
                 self.__attendance.add(item)
+
     def insert(self, index, item):
         if item in self.__attendance:
             prev_index_for_item = self.index(item)
@@ -127,27 +134,33 @@ class unique_list(list):
         else:
             super(unique_list, self).insert(index, item)
             self.__attendance.add(item)
+
     def remove(self, item):
         if item in self.__attendance:
             super(unique_list, self).remove(item)
             self.__attendance.remove(item)
+
     def pop(self, index=-1):
         self.__attendance.remove(self[index])
         return super(unique_list, self).pop(index)
+
     def count(self, item):
         """ Overriding count is not required - just more efficient """
         return self.__attendance.count(item)
+
 
 def print_var(var_name):
     calling_frame = sys._getframe().f_back
     var_val = calling_frame.f_locals.get(var_name, calling_frame.f_globals.get(var_name, None))
     print (var_name+':', str(var_val))
 
+
 def last_url_item(url):
     url = url.strip("/")
     url_path = urlparse.urlparse(url).path
     _, retVal = os.path.split(url_path)
     return retVal
+
 
 def relative_url(base, target):
     base_path = urlparse.urlparse(base.strip("/")).path
@@ -158,29 +171,33 @@ def relative_url(base, target):
         retVal = retVal.strip("/")
     return retVal
 
+
 def deprecated(deprecated_func):
     def raise_deprecation(*args, **kargs):
         raise DeprecationWarning(deprecated_func.__name__, "is deprecated")
         return None
     return raise_deprecation
 
+
 def safe_makedirs(path_to_dir):
     """ solves a problem with python 27 where is the dir already exists os.makedirs raises """
     try:
         os.makedirs(path_to_dir)
-    except: # os.makedirs raises is the directory already exists
+    except:  # os.makedirs raises is the directory already exists
         pass
+
 
 def max_widths(list_of_lists):
     """ inputs is a list of lists. output is a list of maximum str length for each
         position. E.g (('a', 'ccc'), ('bb', a', 'fff')) will return: (2, 3, 3)
     """
     loggest_list_len = reduce(max, [len(alist) for alist in list_of_lists])
-    retVal = [0] * loggest_list_len # pre allocate the max list length
+    retVal = [0] * loggest_list_len  # pre allocate the max list length
     for alist in list_of_lists:
         for item in enumerate(alist):
             retVal[item[0]] = max(retVal[item[0]], len(str(item[1])))
     return retVal
+
 
 def gen_col_format(width_list):
     """ generate a list of format string where each position is aligned to the adjacent

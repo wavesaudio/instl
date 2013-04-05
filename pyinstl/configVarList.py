@@ -8,7 +8,7 @@ from __future__ import print_function
     Licensed under BSD 3 clause license, see LICENSE file for details.
 
     configVarList module has but a single class ConfigVarList
-    import config.configVarList
+    import pyinstl.configVarList
 """
 
 import os
@@ -40,15 +40,15 @@ only_one_value_ref_re = re.compile("""
                             $
                             """, re.X)
 
+
 class ConfigVarList(object):
     """ Keeps a list of named build config values.
         Help values resolve $() style references. """
-
     parser = None
-
     __slots__ = ("_ConfigVar_objs", "__resolve_stack")
+
     def __init__(self):
-        self._ConfigVar_objs = dict()   # map config var name to list of objects representing unresolved values
+        self._ConfigVar_objs = dict()
         self.__resolve_stack = list()
 
     def __len__(self):
@@ -64,7 +64,8 @@ class ConfigVarList(object):
     def get_list(self, var_name, default=tuple()):
         retVal = default
         if var_name in self._ConfigVar_objs:
-            retVal = resolve_list(self._ConfigVar_objs[var_name], self.resolve_value_callback)
+            retVal = resolve_list(
+                self._ConfigVar_objs[var_name], self.resolve_value_callback)
         return retVal
 
     def get_str(self, var_name, default="", sep=" "):
@@ -75,7 +76,8 @@ class ConfigVarList(object):
         return retVal
 
     def __str__(self):
-        return '\n'.join([''.join((name, ": ", self.get_str(name))) for name in self._ConfigVar_objs])
+        var_names = [''.join((name, ": ", self.get_str(name))) for name in self._ConfigVar_objs]
+        return '\n'.join(var_names)
 
     def __iter__(self):
         return iter(self._ConfigVar_objs)
@@ -122,7 +124,7 @@ class ConfigVarList(object):
     def read_environment(self):
         """ Get values from environment """
         for env in os.environ:
-            if env == "": # not sure why I get an empty string
+            if env == "":  # not sure why I get an empty string
                 continue
             self.set_variable(env, "from envirnment").append(os.environ[env])
 
@@ -130,7 +132,7 @@ class ConfigVarList(object):
         retVal = dict()
         if not which_vars:
             which_vars = self.keys()
-        if hasattr(which_vars, '__iter__'): # if which_vars is a list
+        if hasattr(which_vars, '__iter__'):  # if which_vars is a list
             for name in which_vars:
                 if name in self._ConfigVar_objs:
                     theComment = self._ConfigVar_objs[name].description()
@@ -157,10 +159,12 @@ class ConfigVarList(object):
                 raise Exception("circular resolving of {}".format(value_to_resolve))
 
             self.__resolve_stack.append(value_to_resolve)
-            retVal = resolve_list(self._ConfigVar_objs[value_to_resolve],
-                                                        self.resolve_value_callback)
+            retVal = resolve_list(
+                self._ConfigVar_objs[value_to_resolve],
+                self.resolve_value_callback)
             self.__resolve_stack.pop()
         return retVal
+
 
 def replace_all_from_dict(in_text, *in_replace_only_these, **in_replacement_dic):
     """ replace all occurrences of the values in in_replace_only_these
@@ -175,6 +179,7 @@ def replace_all_from_dict(in_text, *in_replace_only_these, **in_replacement_dic)
         retVal = retVal.replace(look_for, in_replacement_dic[look_for])
     return retVal
 
+
 def resolve_list(needsResolveList, resolve_func):
     """ resolve a list, possibly with $() style references with the help of a resolving function.
         needsResolveList could be of type that emulates list, specifically configVar.ConfigVar.
@@ -186,7 +191,7 @@ def resolve_list(needsResolveList, resolve_func):
         # if the value is only a single $() reference, no quotes,
         # the resolved values are extending the resolved list
         single_value_ref_match = only_one_value_ref_re.match(valueText)
-        if single_value_ref_match: #
+        if single_value_ref_match:
             found_var_reference = True
             new_values = resolve_func(single_value_ref_match.group('var_name'))
             resolvedList.extend(new_values)
@@ -201,7 +206,7 @@ def resolve_list(needsResolveList, resolve_func):
                 replaceDic[replace_ref] = " ".join(resolve_func(value_ref))
         valueTextResolved = replace_all_from_dict(valueText, **replaceDic)
         resolvedList.append(valueTextResolved)
-    if found_var_reference: # another resolve round until no ref-in-ref are left
+    if found_var_reference:  # another resolve round until no ref-in-ref are left
         resolvedList = resolve_list(resolvedList, resolve_func)
     if False:
         self.__resolving_in_progress = False

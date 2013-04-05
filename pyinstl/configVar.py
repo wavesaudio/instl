@@ -14,10 +14,11 @@ import platform
 current_os = platform.system()
 if current_os == 'Darwin':
     def DereferenceVar(in_var):
-        return "".join( ("${",in_var,"}") )
+        return "".join(("${", in_var, "}"))
 elif current_os == 'Windows':
     def DereferenceVar(in_var):
-        return "".join( ("%",in_var,"%") )
+        return "".join(("%", in_var, "%"))
+
 
 class ConfigVar(object):
     """ Keep a single, named, config variable and it's values.
@@ -27,11 +28,12 @@ class ConfigVar(object):
         Emulates list container
     """
     __slots__ = ("__name", "__description", "__values", "__resolving_in_progress")
+
     def __init__(self, name, description="", *values):
         self.__name = name
         self.__description = description
         self.__values = map(str, values)
-        self.__resolving_in_progress = False # prevent circular resolves
+        self.__resolving_in_progress = False  # prevent circular resolves
 
     def name(self):
         """ return the name of this variable """
@@ -86,9 +88,11 @@ class ConfigVar(object):
                 raise TypeError(str(values)+" is not a iterable")
         self.__values.extend([str(value) for value in values])
 
+
 class ConstConfigVar(ConfigVar):
     """ ConfigVar override where values cannot be changed after construction """
     __slots__ = ()
+
     def __init__(self, name, description="", *values):
         if sys.version_info < (3, 0):
             super(ConstConfigVar, self).__init__(name, description, *values)

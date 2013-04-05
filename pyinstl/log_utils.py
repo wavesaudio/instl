@@ -14,13 +14,15 @@ import inspect
 import logging
 import logging.handlers
 
+
 def get_log_folder_path(in_appname, in_appauthor):
     retVal = appdirs.user_log_dir(appname=in_appname, appauthor=in_appauthor)
     try:
         os.makedirs(retVal)
-    except: # os.makedirs raises is the directory already exists
+    except:  # os.makedirs raises is the directory already exists
         pass
     return retVal
+
 
 def get_log_file_path(in_appname, in_appauthor, debug=False):
     retVal = get_log_folder_path(in_appname, in_appauthor)
@@ -29,12 +31,13 @@ def get_log_file_path(in_appname, in_appauthor, debug=False):
     else:
         retVal = os.path.join(retVal, "log.txt")
     return retVal
-        
+
 default_logging_level = logging.INFO
 debug_logging_level = logging.DEBUG
 
 default_logging_started = False
 debug_logging_started = False
+
 
 def setup_logging(in_appname, in_appauthor):
     log_folder = get_log_folder_path(in_appname, in_appauthor)
@@ -42,9 +45,11 @@ def setup_logging(in_appname, in_appauthor):
     top_logger.setLevel(default_logging_level)
     # setup INFO level logger
     log_file_path = get_log_file_path(in_appname, in_appauthor, debug=False)
-    rotatingHandler = logging.handlers.RotatingFileHandler(log_file_path, maxBytes=200000, backupCount=5)
+    rotatingHandler = logging.handlers.RotatingFileHandler(
+        log_file_path, maxBytes=200000, backupCount=5)
     rotatingHandler.set_name("instl_log_handler")
-    formatter = logging.Formatter('%(asctime)s, %(levelname)s, %(funcName)s: %(message)s')
+    formatter = logging.Formatter(
+        '%(asctime)s, %(levelname)s, %(funcName)s: %(message)s')
     rotatingHandler.setFormatter(formatter)
     rotatingHandler.setLevel(default_logging_level)
     top_logger.addHandler(rotatingHandler)
@@ -56,7 +61,8 @@ def setup_logging(in_appname, in_appauthor):
         setup_file_logging(debug_log_file_path, debug_logging_level)
         global debug_logging_started
         debug_logging_started = True
-        
+
+
 def find_file_handler(log_file_path):
     retVal = None
     top_logger = logging.getLogger()
@@ -67,6 +73,7 @@ def find_file_handler(log_file_path):
                 break
     return retVal
 
+
 def setup_file_logging(log_file_path, level):
     top_logger = logging.getLogger()
     top_logger.setLevel(debug_logging_level)
@@ -74,10 +81,12 @@ def setup_file_logging(log_file_path, level):
     if not fileLogHandler:
         fileLogHandler = logging.FileHandler(log_file_path)
         fileLogHandler.set_name("instl_debug_log_handler")
-        formatter = logging.Formatter('%(asctime)s, %(levelname)s, %(funcName)s: %(message)s')
+        formatter = logging.Formatter(
+            '%(asctime)s, %(levelname)s, %(funcName)s: %(message)s')
         fileLogHandler.setFormatter(formatter)
         top_logger.addHandler(fileLogHandler)
     fileLogHandler.setLevel(level)
+
 
 def teardown_file_logging(log_file_path, restore_level):
     top_logger = logging.getLogger()
@@ -91,7 +100,10 @@ def teardown_file_logging(log_file_path, restore_level):
     global debug_logging_started
     debug_logging_started = False
 
+
 func_log_wrapper_threshold_level = debug_logging_level
+
+
 def func_log_wrapper(logged_func):
     """ A decorator to print function begin/end messages to log.
         If current logging level is above the threshhold the original function
@@ -100,17 +112,19 @@ def func_log_wrapper(logged_func):
     returned_func = logged_func
     if func_log_wrapper_threshold_level >= logging.getLogger().getEffectiveLevel():
         def logged_func_wrapper(*args, **kargs):
-            """ Does tricks around deficiencies in logging API. The problem is that
-                when logging a decorated function the funcName format variable returns
-                the decorator name not the decorated. Using functiontools.wraps
-                does not solve the problem as it should have.
+            """ Does tricks around deficiencies in logging API.
+                The problem is that when logging a decorated function, the funcName
+                format variable returns the decorator name not the decorated.
+                functiontools.wraps does not solve the problem as it should have.
             """
             the_logger = logging.getLogger()
+
             def findCaller_override(self):
                 """ override Logger.findCaller to pass our own caller info """
-                return (inspect.getsourcefile(logged_func),
-                                      inspect.getsourcelines(logged_func)[1],
-                                      logged_func.__name__)
+                return (
+                    inspect.getsourcefile(logged_func),
+                    inspect.getsourcelines(logged_func)[1],
+                    logged_func.__name__)
             save_findCaller_func = logging.Logger.findCaller
             logging.Logger.findCaller = findCaller_override
             the_logger.debug("{")
