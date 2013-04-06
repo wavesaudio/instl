@@ -123,10 +123,10 @@ class InstlInstanceBase(object):
         self.init_default_vars()
         # initialize the search paths helper with the current directory and dir where instl is now
         self.search_paths_helper = SearchPaths(self.cvl.get_configVar_obj("__SEARCH_PATHS__"))
-        self.search_paths_helper.add_search_paths(os.getcwd())
-        self.search_paths_helper.add_search_paths(os.path.dirname(sys.argv[0]))
+        self.search_paths_helper.add_search_path(os.getcwd())
+        self.search_paths_helper.add_search_path(os.path.dirname(sys.argv[0]))
         self.progress_file = None
-        
+
         self.guid_re = re.compile("""
                         [a-f0-9]{8}
                         (-[a-f0-9]{4}){3}
@@ -164,7 +164,7 @@ class InstlInstanceBase(object):
         self.cvl.set_variable("TARGET_OS", var_description).append(current_os)
         self.cvl.add_const_config_variable("__INSTL_VERSION__", var_description, *INSTL_VERSION)
         self.cvl.set_variable("LOCAL_SYNC_DIR", var_description).append(appdirs.user_cache_dir(this_program_name, this_program_name))
-        
+
         log_file = pyinstl.log_utils.get_log_file_path(this_program_name, this_program_name, debug=False)
         self.cvl.set_variable("LOG_FILE", var_description).extend( (log_file, logging.getLevelName(pyinstl.log_utils.default_logging_level), pyinstl.log_utils.default_logging_started) )
         debug_log_file = pyinstl.log_utils.get_log_file_path(this_program_name, this_program_name, debug=True)

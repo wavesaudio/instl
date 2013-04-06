@@ -23,8 +23,8 @@ class SearchPaths(object):
     def __init__(self, search_paths_var, *initial_paths_list):
         # list of paths where to search for #include-ed files
         self.search_paths_var = search_paths_var
-        if initial_paths_list:
-            self.add_search_paths(*initial_paths_list)
+        for initial_path in initial_paths_list:
+            self.add_search_path(initial_path)
 
     def __len__(self):
         return len(self.search_paths_var)
@@ -33,28 +33,15 @@ class SearchPaths(object):
         return iter(self.search_paths_var)
 
     @func_log_wrapper
-    def add_search_paths(self, *paths):
-        """ Add folders to the list of search paths
-            for convenience you can add a file and it's folder will be added
+    def add_search_path(self, a_path):
+        """ Add a folder to the list of search paths
         """
-        for s_path in paths:
-            real_s_path = os.path.realpath(s_path)
-            logging.debug("... add %s", s_path)
-            if os.path.isfile(real_s_path):
-                real_s_path, _ = os.path.split(real_s_path)
-                #print("It a file so real adding is", real_s_path)
-            # checking the list first might prevent some redundant file system
-            # access by isdir
-            logging.debug("...... adding %s", real_s_path)
-            if not real_s_path in self.search_paths_var:
-                if os.path.isdir(real_s_path):
-                    self.search_paths_var.append(real_s_path)
-                else:
-                    logging.warning("...... realpath %s is not a directory",
-                                    real_s_path)
+        if a_path not in self.search_paths_var:
+            self.search_paths_var.append(a_path)
+            logging.info("adding %s to search paths",  a_path)
 
     @func_log_wrapper
-    def add_search_paths_recursive(self, *paths):
+    def add_search_path_recursive(self, *paths):
         """ Add folders to the list of search paths
             and also all subfolders """
         pass  # to do...
@@ -73,19 +60,23 @@ class SearchPaths(object):
         if os.path.isfile(in_file):
             real_file = os.path.realpath(in_file)
             logging.debug("...... is an existing file path returning %s", real_file)
+            real_folder, _ = os.path.split(real_file)
+            self.add_search_path(real_folder)
             retVal = real_file
         else:
-            for s_path in self.search_paths_var:
-                logging.debug("...... looking in %s", s_path)
-                real_file = os.path.join(s_path, in_file)
+            for try_path in self.search_paths_var:
+                logging.debug("...... looking in %s", try_path)
+                real_file = os.path.join(try_path, in_file)
                 if os.path.isfile(real_file):
                     real_file = os.path.realpath(real_file)
                     logging.debug("......... found returning %s", real_file)
+                    # in_file might be a relative path so must add the file's
+                    # real folder so it's in the list.
+                    real_folder, _ = os.path.split(real_file)
+                    self.add_search_path(real_folder)
                     retVal = real_file
                     break
-        if retVal:
-            self.add_search_paths(real_file)
-        else:
+        if not retVal:
             logging.info("%s was not found ", in_file)
         return retVal
 
