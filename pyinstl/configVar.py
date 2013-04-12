@@ -54,7 +54,7 @@ class ConfigVar(object):
         return retVal
 
     def __repr__(self):
-        retVal = self.str()
+        retVal = self.__str__()
         return retVal
 
     def __len__(self):
@@ -99,19 +99,19 @@ class ConstConfigVar(ConfigVar):
         else:
             super().__init__(name, description, *values)
 
-    def set_description(self, description):
+    def set_description(self, unused_description):
         raise Exception("Cannot change a const value", self.__name)
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, unused_key, unused_value):
         raise Exception("Cannot change a const value", self.__name)
 
-    def __delitem__(self, key):
+    def __delitem__(self, unused_key):
         raise Exception("Cannot change a const value", self.__name)
 
-    def append(self, value):
+    def append(self, unused_value):
         raise Exception("Cannot change a const value", self.__name)
 
-    def extend(self, value):
+    def extend(self, unused_value):
         raise Exception("Cannot change a const value", self.__name)
 
 if __name__ == "__main__":

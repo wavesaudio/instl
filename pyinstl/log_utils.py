@@ -40,7 +40,6 @@ debug_logging_started = False
 
 
 def setup_logging(in_appname, in_appauthor):
-    log_folder = get_log_folder_path(in_appname, in_appauthor)
     top_logger = logging.getLogger()
     top_logger.setLevel(default_logging_level)
     # setup INFO level logger

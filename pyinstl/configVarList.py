@@ -208,6 +208,4 @@ def resolve_list(needsResolveList, resolve_func):
         resolvedList.append(valueTextResolved)
     if found_var_reference:  # another resolve round until no ref-in-ref are left
         resolvedList = resolve_list(resolvedList, resolve_func)
-    if False:
-        self.__resolving_in_progress = False
     return tuple(resolvedList)

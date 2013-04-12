@@ -5,7 +5,6 @@ import os
 import urllib2
 import re
 import urlparse
-import logging
 
 import platform
 current_os = platform.system()
@@ -25,7 +24,7 @@ class write_to_file_or_stdout(object):
             self.fd = open(self.file_path, "w")
         return self.fd
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, unused_type, unused_value, unused_traceback):
         if self.file_path != "stdout":
             self.fd.close()
 
@@ -52,6 +51,7 @@ class open_for_read_file_or_url(object):
 
     def __init__(self, file_url, search_paths_helper=None):
         self.file_url = file_url
+        self.fd = None
         match = self.protocol_header_re.match(self.file_url)
         if not match:  # it's a local file
             if search_paths_helper is not None:
@@ -69,7 +69,7 @@ class open_for_read_file_or_url(object):
         self.fd = urllib2.urlopen(self.file_url)
         return self.fd
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, unused_type, unused_value, unused_traceback):
         self.fd.close()
 
 
@@ -173,7 +173,7 @@ def relative_url(base, target):
 
 
 def deprecated(deprecated_func):
-    def raise_deprecation(*args, **kargs):
+    def raise_deprecation(*unused_args, **unused_kargs):
         raise DeprecationWarning(deprecated_func.__name__, "is deprecated")
         return None
     return raise_deprecation
