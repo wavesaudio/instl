@@ -121,24 +121,24 @@ class CopyCommander_mac_rsync(CopyCommanderBase):
     def create_copy_dir_to_dir_command(self, src_dir, trg_dir):
         if src_dir.endswith("/"):
             src_dir.rstrip("/")
-        sync_command = "rsync -r -E --exclude=\'.svn/\' --link-dest=\"{src_dir}/..\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+        sync_command = "rsync -l -r -E --exclude=\'.svn/\' --link-dest=\"{src_dir}/..\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
         return (sync_command, )
 
     def create_copy_file_to_dir_command(self, src_file, trg_dir):
         assert not src_file.endswith("/")
-        sync_command = "rsync -r -E --exclude=\'.svn/\' --link-dest=\"{src_file}\" \"{src_file}\" \"{trg_dir}\"".format(**locals())
+        sync_command = "rsync -l -r -E --exclude=\'.svn/\' --link-dest=\"{src_file}\" \"{src_file}\" \"{trg_dir}\"".format(**locals())
         return (sync_command, )
 
     def create_copy_dir_contents_to_dir_command(self, src_dir, trg_dir):
         if not src_dir.endswith("/"):
             src_dir += "/"
-        sync_command = "rsync -r -E --exclude=\'.svn/\' --link-dest=\"{src_dir}..\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+        sync_command = "rsync -l -r -E --exclude=\'.svn/\' --link-dest=\"{src_dir}..\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
         return (sync_command, )
 
     def create_copy_dir_files_to_dir_command(self, src_dir, trg_dir):
         if not src_dir.endswith("/"):
             src_dir += "/"
-        sync_command = "rsync -E --exclude=\'.svn/\' --link-dest=\"{src_dir}..\" \"{src_dir}*\" \"{trg_dir}\"".format(**locals())
+        sync_command = "rsync -l -E --exclude=\'.svn/\' --link-dest=\"{src_dir}..\" \"{src_dir}*\" \"{trg_dir}\"".format(**locals())
         return (sync_command, )
 
 if __name__ == "__main__":
