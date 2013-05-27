@@ -72,7 +72,6 @@
 <div><ul class="simple">
 <li>BASE_SRC_URL: Base Subversion URL for all install_sources sections in the index file. Defaults to &#8220;$(SVN_REPO_URL)/$(TARGET_OS)&#8221;.</li>
 <li>BOOKKEEPING_DIR_URL: Subversion URL for the folder holding the index file. Defaults to &#8220;$(SVN_REPO_URL)/instl&#8221;</li>
-<li>COPY_LOG_FILE: Path to a file where copy log will be written. Defaults to &#8220;${LOCAL_SYNC_DIR}/${REPO_NAME}/&#8221;+time.time()+&#8221;copy.log.</li>
 <li>COPY_TOOL: The commandline tool used to copy files. Deafault to &#8216;rsync&#8217; on Mac and &#8216;robocopy&#8217; on Windows.</li>
 <li>CURRENT_OS: The os <strong>instl</strong> is currently running on. Values are &#8216;Win&#8217; for Windows and &#8216;Mac&#8217; for Mac OS.</li>
 <li>LOCAL_SYNC_DIR: The folder where <strong>instl</strong> will sync the installation sources to. Defaults to the systam&#8217;s temporary folder.</li>
@@ -80,6 +79,8 @@
 <li>REPO_REV: The version of the subversion reprository to sync. defaults to HEAD.</li>
 <li>SYNC_LOG_FILE: Path to a file where sync log will be written. Defaults to &#8220;${LOCAL_SYNC_DIR}/${REPO_NAME}/&#8221;+time.time()+&#8221;sync.log.</li>
 <li>TARGET_OS: The os <strong>instl</strong> is installing to.  Values are &#8216;Win&#8217; for Windows and &#8216;Mac&#8217; for Mac OS. Defaults to CURRENT_OS.</li>
+<li>SYNC_PROGRESS_FILE: Path to a file where progress information of the sync operation will be written. If not supplied progress information is written to stdout.</li>
+<li>COPY_PROGRESS_FILE: Path to a file where progress information of the copy operation will be written. If not supplied progress information is written to stdout.</li>
 </ul>
 </div></blockquote>
 </div>
