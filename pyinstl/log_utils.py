@@ -122,7 +122,9 @@ def func_log_wrapper(logged_func):
                 """ override Logger.findCaller to pass our own caller info """
                 return (
                     inspect.getsourcefile(logged_func),
-                    inspect.getsourcelines(logged_func)[1],
+                    # 2nd value was supposed to be inspect.getsourcelines(logged_func)[1],
+                    # however it does not work when compiled with pyinstaller
+                    None, 
                     logged_func.__name__)
             save_findCaller_func = logging.Logger.findCaller
             logging.Logger.findCaller = findCaller_override

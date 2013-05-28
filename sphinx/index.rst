@@ -24,10 +24,12 @@
 
     Why without magic?
         Installers created with **instl** are discoverable:
+            
             # All processing stages are written to intermediate files and so are easy to follow and debug.
-            # Installed install_sources are stored in a Subversion repository making it possible to install the latest version, or any previous version.
+            
+            # Install sources are stored in a Subversion repository making it possible to install the latest version, or any previous version.
 
-
+        
 Contents:
 
 .. toctree::

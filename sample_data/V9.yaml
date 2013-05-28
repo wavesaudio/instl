@@ -14,5 +14,5 @@ __include__: "$(BOOKKEEPING_DIR_URL)/index.yaml"
 __include__: "V9_$(TARGET_OS).yaml"
 
 MAIN_INSTALL_TARGETS:
-    - AudioTrack_IID
+    - EddieKramer_GT_IID
 

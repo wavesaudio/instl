@@ -138,7 +138,8 @@ class CopyCommander_mac_rsync(CopyCommanderBase):
     def create_copy_dir_files_to_dir_command(self, src_dir, trg_dir):
         if not src_dir.endswith("/"):
             src_dir += "/"
-        sync_command = "rsync -l -E --exclude=\'.svn/\' --link-dest=\"{src_dir}..\" \"{src_dir}*\" \"{trg_dir}\"".format(**locals())
+        # in order for * to correctly expand, it must be outside the quotes, e.g. to copy all files in folder a: A=a ; "${A}"/* and not "${A}/*" 
+        sync_command = "rsync -l -E -d --exclude=\'.svn/\' --link-dest=\"{src_dir}..\" \"{src_dir}\"/* \"{trg_dir}\"".format(**locals())
         return (sync_command, )
 
 if __name__ == "__main__":
