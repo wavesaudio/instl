@@ -40,10 +40,20 @@ class InstallInstructionsState(object):
         self.install_items_by_target_folder = defaultdict(unique_list)
         self.no_copy_items_by_sync_folder = defaultdict(unique_list)
         self.variables_assignment_lines = list()
-        self.copy_instruction_lines = list()
+        self.instruction_lines = defaultdict(list)
         self.sync_paths = unique_list()
-        self.sync_instruction_lines = list()
+        self.indent_level = 0
 
+    @func_log_wrapper
+    def extend_instructions(self, which, instruction_list):
+        #print("extend_instructions indent", self.indent_level)
+        self.instruction_lines[which].extend( map(lambda line: " " * 4 * self.indent_level + line, instruction_list))
+        
+    @func_log_wrapper
+    def append_instructions(self, which, single_instruction):
+        #print("append_instructions indent", self.indent_level)
+        self.instruction_lines[which].append(" " * 4 * self.indent_level + single_instruction)
+        
     @func_log_wrapper
     def repr_for_yaml(self):
         retVal = OrderedDict()
@@ -53,9 +63,9 @@ class InstallInstructionsState(object):
         retVal['install_items_by_target_folder'] = {folder: list(self.install_items_by_target_folder[folder]) for folder in self.install_items_by_target_folder}
         retVal['no_copy_items_by_sync_folder'] = list(self.no_copy_items_by_sync_folder)
         retVal['variables_assignment_lines'] = list(self.variables_assignment_lines)
-        retVal['copy_instruction_lines'] = self.copy_instruction_lines
+        retVal['copy_instruction_lines'] = self.instruction_lines['copy']
         retVal['sync_paths'] = list(self.sync_paths)
-        retVal['sync_instruction_lines'] = self.sync_instruction_lines
+        retVal['sync_instruction_lines'] = self.instruction_lines['sync']
         return retVal
 
     @func_log_wrapper
@@ -126,7 +136,7 @@ class InstlInstanceBase(object):
         self.search_paths_helper.add_search_path(os.getcwd())
         self.search_paths_helper.add_search_path(os.path.dirname(sys.argv[0]))
         self.progress_file = None
-
+        
         self.guid_re = re.compile("""
                         [a-f0-9]{8}
                         (-[a-f0-9]{4}){3}
@@ -327,12 +337,15 @@ class InstlInstanceBase(object):
             raise ValueError("'SVN_CLIENT_PATH' was not defined")
         svn_client_full_path = self.search_paths_helper.find_file_with_search_paths(self.cvl.get_str("SVN_CLIENT_PATH"))
         self.cvl.set_variable("SVN_CLIENT_PATH", "from InstlInstanceBase.init_sync_vars").append(svn_client_full_path)
-
+        
+        if "BOOKKEEPING_DIR_URL" not in self.cvl:
+            self.cvl.set_variable("BOOKKEEPING_DIR_URL").append("$(SVN_REPO_URL)/instl")
+        bookkeeping_relative_path = relative_url(self.cvl.get_str("SVN_REPO_URL"), self.cvl.get_str("BOOKKEEPING_DIR_URL"))
+        self.cvl.set_variable("REL_BOOKKIPING_PATH", "from InstlInstanceBase.init_sync_vars").append(bookkeeping_relative_path)
+       
         rel_sources = relative_url(self.cvl.get_str("SVN_REPO_URL"), self.cvl.get_str("BASE_SRC_URL"))
         self.cvl.set_variable("REL_SRC_PATH", "from InstlInstanceBase.init_sync_vars").append(rel_sources)
 
-        bookkeeping_relative_path = relative_url(self.cvl.get_str("SVN_REPO_URL"), self.cvl.get_str("BOOKKEEPING_DIR_URL"))
-        self.cvl.set_variable("REL_BOOKKIPING_PATH", "from InstlInstanceBase.init_sync_vars").append(bookkeeping_relative_path)
 
         if "REPO_REV" not in self.cvl:
             self.cvl.set_variable("REPO_REV", "from InstlInstanceBase.init_sync_vars").append("HEAD")
@@ -375,19 +388,24 @@ class InstlInstanceBase(object):
 
     @func_log_wrapper
     def create_sync_instructions(self, installState):
-        installState.sync_instruction_lines.append(self.create_echo_command("starting sync from $(BASE_SRC_URL)", self.progress_file))
-        installState.sync_instruction_lines.extend(self.make_directory_cmd("$(LOCAL_SYNC_DIR)/$(REPO_NAME)"))
-        installState.sync_instruction_lines.extend(self.change_directory_cmd("$(LOCAL_SYNC_DIR)/$(REPO_NAME)"))
-        installState.sync_instruction_lines.append(" ".join(('"$(SVN_CLIENT_PATH)"', "co", '"$(BOOKKEEPING_DIR_URL)"', '"$(REL_BOOKKIPING_PATH)"', "--revision", "$(REPO_REV)", "--depth", "infinity")))
-        installState.sync_instruction_lines.append(self.create_echo_command("synced index file $(BOOKKEEPING_DIR_URL)", self.progress_file))
+        installState.append_instructions('sync', self.create_echo_command("starting sync from $(BASE_SRC_URL)", self.progress_file))
+        installState.indent_level += 1
+        installState.extend_instructions('sync', self.make_directory_cmd("$(LOCAL_SYNC_DIR)/$(REPO_NAME)"))
+        installState.extend_instructions('sync', self.change_directory_cmd("$(LOCAL_SYNC_DIR)/$(REPO_NAME)"))
+        installState.indent_level += 1
+        installState.append_instructions('sync', " ".join(('"$(SVN_CLIENT_PATH)"', "co", '"$(BOOKKEEPING_DIR_URL)"', '"$(REL_BOOKKIPING_PATH)"', "--revision", "$(REPO_REV)", "--depth", "infinity")))
+        installState.append_instructions('sync', self.create_echo_command("synced index file $(BOOKKEEPING_DIR_URL)", self.progress_file))
         for iid  in installState.full_install_items:                   # svn pulling actions
             installi = self.install_definitions_index[iid]
-            for source in installi.source_list():                   # svn pulling actions
-                installState.sync_instruction_lines.extend(self.create_svn_sync_instructions_for_source(source))
-            installState.sync_instruction_lines.append(self.create_echo_command("synced {}".format(installi.name), self.progress_file))
+            if installi.source_list():
+                for source in installi.source_list():                   # svn pulling actions
+                    installState.extend_instructions('sync', self.create_svn_sync_instructions_for_source(source))
+                    #installState.append_instructions('sync', self.create_echo_command("synced source {}".format(source), self.progress_file))
+                installState.append_instructions('sync', self.create_echo_command("synced {}".format(installi.name), self.progress_file))
         for iid in installState.orphan_install_items:
-            installState.sync_instruction_lines.append(self.create_echo_command("Don't know how to sync "+iid))
-        installState.sync_instruction_lines.append(self.create_echo_command("finished sync from $(BASE_SRC_URL)", self.progress_file))
+            installState.append_instructions('sync', self.create_echo_command("Don't know how to sync "+iid))
+        installState.append_instructions('sync', self.create_echo_command("finished sync from $(BASE_SRC_URL)", self.progress_file))
+        installState.indent_level -= 1
 
     @func_log_wrapper
     def create_svn_sync_instructions_for_source(self, source):
@@ -421,13 +439,15 @@ class InstlInstanceBase(object):
     @func_log_wrapper
     def create_copy_instructions(self, installState):
         # copy and actions instructions for sources
-        installState.copy_instruction_lines.append(self.create_echo_command("starting copy", self.progress_file))
+        installState.append_instructions('copy', self.create_echo_command("starting copy", self.progress_file))
         from copyCommander import CopyCommanderFactory
         copy_command_creator = CopyCommanderFactory(self.cvl.get_str("TARGET_OS"), self.cvl.get_str("COPY_TOOL"))
         for folder_name, folder_items in installState.install_items_by_target_folder.iteritems():
+            installState.append_instructions('copy', self.create_echo_command("Starting copy to folder "+folder_name, self.progress_file))
+            installState.indent_level += 1
             logging.info("... folder %s (%s)", folder_name, self.cvl.resolve_string(folder_name))
-            installState.copy_instruction_lines.extend(self.make_directory_cmd(folder_name))
-            installState.copy_instruction_lines.extend(self.change_directory_cmd(folder_name))
+            installState.extend_instructions('copy', self.make_directory_cmd(folder_name))
+            installState.extend_instructions('copy', self.change_directory_cmd(folder_name))
             folder_in_actions = unique_list()
             install_item_instructions = list()
             folder_out_actions = unique_list()
@@ -439,15 +459,18 @@ class InstlInstanceBase(object):
                     install_item_instructions.extend(self.create_copy_instructions_for_source(source, copy_command_creator))
                     install_item_instructions.extend(installi.action_list('after'))
                 folder_out_actions.extend(installi.action_list('folder_out'))
-                installState.copy_instruction_lines.append(self.create_echo_command("copied {}".format(installi.name), self.progress_file))
-            installState.copy_instruction_lines.extend(folder_in_actions)
-            installState.copy_instruction_lines.extend(install_item_instructions)
-            installState.copy_instruction_lines.extend(folder_out_actions)
+            installState.extend_instructions('copy', folder_in_actions)
+            installState.indent_level += 1
+            installState.extend_instructions('copy', install_item_instructions)
+            installState.extend_instructions('copy', folder_out_actions)
+            installState.append_instructions('copy', self.create_echo_command("Done copy to folder "+folder_name, self.progress_file))
+            installState.indent_level -= 1
+            installState.indent_level -= 1
 
         # actions instructions for sources that do not need copying
         for folder_name, folder_items in installState.no_copy_items_by_sync_folder.iteritems():
             logging.info("... non-copy items folder %s (%s)", folder_name, self.cvl.resolve_string(folder_name))
-            installState.copy_instruction_lines.extend(self.change_directory_cmd(folder_name))
+            installState.extend_instructions('copy', self.change_directory_cmd(folder_name))
             folder_in_actions = unique_list()
             install_actions = list()
             folder_out_actions = unique_list()
@@ -457,14 +480,14 @@ class InstlInstanceBase(object):
                 install_actions.extend(installi.action_list('before'))
                 install_actions.extend(installi.action_list('after'))
                 folder_out_actions.extend(installi.action_list('folder_out'))
-            installState.copy_instruction_lines.extend(folder_in_actions)
-            installState.copy_instruction_lines.extend(install_actions)
-            installState.copy_instruction_lines.extend(folder_out_actions)
+            installState.extend_instructions('copy', folder_in_actions)
+            installState.extend_instructions('copy', install_actions)
+            installState.extend_instructions('copy', folder_out_actions)
         # messages about orphan iids
         for iid in installState.orphan_install_items:
             logging.info("Orphan item: %s", iid)
-            installState.copy_instruction_lines.append(self.create_echo_command("Don't know how to install "+iid))
-        installState.copy_instruction_lines.append(self.create_echo_command("finished copy", self.progress_file))
+            installState.append_instructions('copy', self.create_echo_command("Don't know how to install "+iid))
+        installState.append_instructions('copy', self.create_echo_command("finished copy", self.progress_file))
 
     @func_log_wrapper
     def create_copy_instructions_for_source(self, source, copy_command_creator):
@@ -472,6 +495,7 @@ class InstlInstanceBase(object):
         retVal = list()
         source_url = "$(LOCAL_SYNC_DIR)/$(REPO_NAME)/$(REL_SRC_PATH)/"+source[0]
 
+        retVal.append(self.create_echo_command("Starting copy of {}".format(source[0]), self.progress_file))
         if source[1] == '!file':       # get a single file, not recommneded
             retVal.extend(copy_command_creator.create_copy_file_to_dir_command(source_url, "."))
         elif source[1] == '!dir_cont': # get all files and folders from a folder
@@ -481,6 +505,7 @@ class InstlInstanceBase(object):
         else:
             retVal.extend(copy_command_creator.create_copy_dir_to_dir_command(source_url, "."))
         logging.info("... %s; (%s - %s)", source_url, self.cvl.resolve_string(source_url), source[1])
+        retVal.append(self.create_echo_command("Done copy of {}".format(source[0]), self.progress_file))
         return retVal
 
     @func_log_wrapper
@@ -494,11 +519,12 @@ class InstlInstanceBase(object):
         lines.extend(sorted(installState.variables_assignment_lines))
         lines.extend( ('\n', ) )
 
-
-        lines.extend(installState.sync_instruction_lines)
+        resolved_sync_intruction_lines = map(self.cvl.resolve_string, installState.instruction_lines['sync'])
+        lines.extend(resolved_sync_intruction_lines)
         lines.extend( ('\n', ) )
 
-        lines.extend(installState.copy_instruction_lines)
+        resolved_copy_intruction_lines = map(self.cvl.resolve_string, installState.instruction_lines['copy'])
+        lines.extend(resolved_copy_intruction_lines)
         lines.extend( ('\n', ) )
 
         lines.extend(self.get_install_instructions_postfix())

@@ -4,6 +4,6 @@ SVN_CLIENT_PATH_FOR_Win: "C:/p4client/dev_install/bin/Win/wsvn/wsvn.exe"
 TEST_TARGET_DIR: "C:/Users/shai/Desktop/installHere"
 WAVES_APPS_DIR: "C:/Users/shai/Desktop/installHere/Applications"
 WAVES_PLUGINS_DIR: "C:/Users/shai/Desktop/installHere/Waves Plugins"
-
+WAVES_SHELLS_DIR: "C:/Users/shai/Desktop/installHere/Waves Shells"
 LOCAL_SYNC_DIR: "C:/Users/shai/Desktop/Temp/Waves"
 

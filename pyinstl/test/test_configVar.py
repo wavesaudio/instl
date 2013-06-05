@@ -12,7 +12,7 @@ import configVar
 class TestConfigVar(unittest.TestCase):
 
     def setUp(self):
-        """ Create ConfigVar objects indirectly so it's possible for 
+        """ Create ConfigVar objects indirectly so it's possible for
             TestConstConfigVar to override TestConfigVar.
         """
         self.constructor = configVar.ConfigVar
@@ -162,10 +162,10 @@ class TestConstConfigVar(TestConfigVar):
     """ inherit tests from TestConfigVar, override those that should raise exceptions,
         and those that should be implemented differently.
     """
-    
+
     def setUp(self):
         self.constructor = configVar.ConstConfigVar
-    
+
     def test_set_description_from_empty(self):
         """ Change description after construction with empty description. """
         with self.assertRaises(Exception):
@@ -185,7 +185,7 @@ class TestConstConfigVar(TestConfigVar):
         """ Call __delitem__ """
         with self.assertRaises(Exception):
             super(TestConstConfigVar, self).test___delitem__()
-    
+
     def test_append_values(self):
         """ Call append """
         with self.assertRaises(Exception):

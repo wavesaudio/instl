@@ -5,12 +5,11 @@ SVN_CLIENT_PATH: $(SVN_CLIENT_PATH_FOR_$(CURRENT_OS))
 
 SVN_REPO_URL: "http://192.168.13.108/svn/V9"
 BASE_SRC_URL: "$(SVN_REPO_URL)/$(TARGET_OS)"
-BOOKKEEPING_DIR_URL: "$(SVN_REPO_URL)/instl"
 
 SYNC_PROGRESS_FILE: "progress.txt"
 COPY_PROGRESS_FILE: "progress.txt"
 
-__include__: "$(BOOKKEEPING_DIR_URL)/index.yaml"
+__include__: "$(SVN_REPO_URL)/instl/index.yaml"
 __include__: "V9_$(TARGET_OS).yaml"
 
 MAIN_INSTALL_TARGETS:

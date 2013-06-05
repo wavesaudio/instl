@@ -3,7 +3,7 @@
 SVN_CLIENT_PATH_FOR_Mac: "/Volumes/p4client/dev_install/bin/Mac/wsvn"
 WAVES_PLUGINS_DIR: "/Users/shai/Desktop/installHere/Waves Plugins"
 WAVES_APPS_DIR: "/Users/shai/Desktop/installHere/Applications"
-MACOS_WAVESHELLS_DIR: "/Users/shai/Desktop/installHere/WaveShells"
+WAVES_SHELLS_DIR: "/Users/shai/Desktop/installHere/WaveShells"
 MACOS_COMPONENTS: "/Library/Audio/Plug-Ins/Components"
 MACOS_WAVESHELL_AU_DIR: $(MACOS_COMPONENTS)
 MACOS_WAVESHELL_VST3_DIR: /Library/Audio/Plug-Ins/VST3

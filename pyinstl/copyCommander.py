@@ -121,7 +121,11 @@ class CopyCommander_mac_rsync(CopyCommanderBase):
     def create_copy_dir_to_dir_command(self, src_dir, trg_dir):
         if src_dir.endswith("/"):
             src_dir.rstrip("/")
-        sync_command = "rsync -l -r -E --exclude=\'.svn/\' --link-dest=\"{src_dir}/..\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+        #link_dest = "".join( ("'", src_dir, '/..', "'") )
+        #src_dir = "".join( ("'", src_dir, "'") )
+        #trg_dir = "".join( ("'", trg_dir, "'") )
+        link_dest = src_dir+'/..'
+        sync_command = "rsync -l -r -E --exclude=\'.svn/\' --link-dest=\"{link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
         return (sync_command, )
 
     def create_copy_file_to_dir_command(self, src_file, trg_dir):

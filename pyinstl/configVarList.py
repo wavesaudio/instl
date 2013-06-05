@@ -48,20 +48,26 @@ class ConfigVarList(object):
     __slots__ = ("_ConfigVar_objs", "__resolve_stack")
 
     def __init__(self):
-        self._ConfigVar_objs = dict()
-        self.__resolve_stack = list()
+        self._ConfigVar_objs = dict() # ConfigVar objects are kept here mapped by their name.
+        self.__resolve_stack = list() # for preventing circular references during resolve.
 
     def __len__(self):
+        """ return number of ConfigVars """
         return len(self._ConfigVar_objs)
 
     def __getitem__(self, var_name):
+        """ return a ConfigVar object by it's name """
         return self._ConfigVar_objs[var_name]
 
     def __delitem__(self, key):
+        """ remove a ConfigVar object by it's name """
         if key in self._ConfigVar_objs:
             del self._ConfigVar_objs[key]
 
     def get_list(self, var_name, default=tuple()):
+        """ get a list of values held by a ConfigVar. $() style references are resolved.
+        To get unresolved values use get_configVar_obj() to get the ConfigVar object.
+        """
         retVal = default
         if var_name in self._ConfigVar_objs:
             retVal = resolve_list(
@@ -152,8 +158,10 @@ class ConfigVarList(object):
     def resolve_value_callback(self, value_to_resolve):
         """ callback for configVar.ConfigVar.Resolve. value_to_resolve should
             be a single value name.
+            If value_to_resolve is found and has no value, empty list is returned.
+            If value_to_resolve is not found and has no value, None is returned.
         """
-        retVal = tuple()
+        retVal = None
         if value_to_resolve in self._ConfigVar_objs:
             if value_to_resolve in self.__resolve_stack:
                 raise Exception("circular resolving of {}".format(value_to_resolve))
@@ -164,7 +172,6 @@ class ConfigVarList(object):
                 self.resolve_value_callback)
             self.__resolve_stack.pop()
         return retVal
-
 
 def replace_all_from_dict(in_text, *in_replace_only_these, **in_replacement_dic):
     """ replace all occurrences of the values in in_replace_only_these
@@ -180,32 +187,38 @@ def replace_all_from_dict(in_text, *in_replace_only_these, **in_replacement_dic)
     return retVal
 
 
-def resolve_list(needsResolveList, resolve_func):
+def resolve_list(needsResolveList, resolve_callback):
     """ resolve a list, possibly with $() style references with the help of a resolving function.
         needsResolveList could be of type that emulates list, specifically configVar.ConfigVar.
     """
     replaceDic = dict()
     resolvedList = list()
-    found_var_reference = False
+    need_to_resolve_again = False
     for valueText in needsResolveList:
         # if the value is only a single $() reference, no quotes,
         # the resolved values are extending the resolved list
         single_value_ref_match = only_one_value_ref_re.match(valueText)
         if single_value_ref_match:
-            found_var_reference = True
-            new_values = resolve_func(single_value_ref_match.group('var_name'))
-            resolvedList.extend(new_values)
+            var_name = single_value_ref_match.group('var_name')
+            new_values = resolve_callback(var_name)
+            if new_values is not None:
+                resolvedList.extend(new_values)
+                need_to_resolve_again = True
+            else: # var was not found, leave $() reference as is
+                resolvedList.extend( (valueText, ) )
             continue
         # if the value is more than a single $() reference,
         # the resolved values are joined and appended to the resolved list
         for value_ref_match in value_ref_re.finditer(valueText):
-            found_var_reference = True
             # group 'varref_pattern' is the full $(X), group 'var_name' is the X
             replace_ref, value_ref = value_ref_match.group('varref_pattern', 'var_name')
             if replace_ref not in replaceDic:
-                replaceDic[replace_ref] = " ".join(resolve_func(value_ref))
+                resolved_vals = resolve_callback(value_ref)
+                if resolved_vals is not None:
+                    replaceDic[replace_ref] = " ".join(resolved_vals)
+                    need_to_resolve_again = True
         valueTextResolved = replace_all_from_dict(valueText, **replaceDic)
         resolvedList.append(valueTextResolved)
-    if found_var_reference:  # another resolve round until no ref-in-ref are left
-        resolvedList = resolve_list(resolvedList, resolve_func)
+    if need_to_resolve_again:  # another resolve round until no ref-in-ref are left
+        resolvedList = resolve_list(resolvedList, resolve_callback)
     return tuple(resolvedList)
