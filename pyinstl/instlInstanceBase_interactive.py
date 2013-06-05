@@ -89,7 +89,7 @@ class CMDObj(cmd.Cmd, object):
 
     def __enter__(self):
         if readline_loaded:
-            if 'libedit' in readline.__doc__:
+            if readline.__doc__ and 'libedit' in readline.__doc__:
                 readline.parse_and_bind ("bind '\t' rl_complete") # Enable tab completions on MacOS
             else:
                 readline.parse_and_bind("tab: complete")        # and on other OSs

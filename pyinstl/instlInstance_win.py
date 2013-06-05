@@ -35,7 +35,7 @@ class InstlInstance_win(instlInstanceBase.InstlInstanceBase):
         return "SET "+identifier+'='+value
 
     def create_echo_command(self, message, file=None):
-        echo_command = " ".join(('echo', quoteme(self.echo_indent_level * 4 * " "+message)))
+        echo_command = " ".join(('echo', quoteme(message)))
         if file:
             echo_command = " ".join((echo_command, ">>", file))
         return echo_command
