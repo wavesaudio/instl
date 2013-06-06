@@ -7,6 +7,7 @@ import sys
 import appdirs
 import logging
 import shlex
+from pyinstl.instlException import InstlException
 from pyinstl.utils import *
 
 import platform
@@ -134,7 +135,14 @@ class CMDObj(cmd.Cmd, object):
         retVal = False
         try:
             retVal = super (CMDObj, self).onecmd(line)
-        except Exception:
+        except InstlException as ie:
+            print("instl exception",ie.message)
+            from pyinstl.log_utils import debug_logging_started
+            if debug_logging_started:
+                import traceback
+                traceback.print_exception(type(ie.original_exception), ie.original_exception,  sys.exc_info()[2])
+        except Exception as ex:
+            print("unhandled exception")
             import traceback
             traceback.print_exc()
         return retVal

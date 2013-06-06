@@ -19,6 +19,7 @@ from aYaml import augmentedYaml
 from installItem import InstallItem, read_index_from_yaml
 from pyinstl.utils import *
 from pyinstl.searchPaths import SearchPaths
+from instlException import InstlException
 
 import platform
 current_os = platform.system()
@@ -215,9 +216,7 @@ class InstlInstanceBase(object):
                 import do_something
                 do_something.do_something(self.name_space_obj.command)
         except Exception as es:
-            import traceback
-            tb = traceback.format_exc()
-            print("do_something", es, tb)
+            raise InstlException(" ".join( ("Error while doing command", "'"+self.name_space_obj.command+"':\n") ), es)
 
     @func_log_wrapper
     def init_from_cmd_line_options(self, cmd_line_options_obj):
@@ -261,12 +260,8 @@ class InstlInstanceBase(object):
         if input_files:
             file_actually_opened = list()
             for file_path in input_files:
-                try:
-                    self.read_file(file_path)
-                except Exception as ex:
-                    print("failed to read", file_path, ex)
-                else:
-                    file_actually_opened.append(os.path.abspath(file_path))
+                self.read_file(file_path)
+                file_actually_opened.append(os.path.abspath(file_path))
             self.cvl.add_const_config_variable("__MAIN_INPUT_FILES_ACTUALLY_OPENED__", "opened by read_input_files", *file_actually_opened)
 
     @func_log_wrapper
@@ -281,13 +276,12 @@ class InstlInstanceBase(object):
                         self.read_index(a_node)
                     else:
                         logging.error("Unknown document tag '%s' while reading file %s; Tag should be one of: !define, !index'", a_node.tag, file_path)
+        except InstlException as ie:
+            raise # re-raise in case of recursive call to read_file
         except yaml.YAMLError as ye:
-            print("read_file", file_path, "yaml error:", ye)
-            raise
-        except Exception as ex:
-            import traceback
-            traceback.print_exc()
-            print("read_file", file_path, ex)
+            raise InstlException(" ".join( ("YAML error while reading file", "'"+file_path+"':\n", str(ye)) ), ye)
+        except IOError as ioe:
+            raise InstlException(" ".join(("Failed to read file", "'"+file_path+"'", ":")), ioe)
 
     @func_log_wrapper
     def resolve_index_inheritance(self):
@@ -610,12 +604,8 @@ class InstlInstanceBase(object):
 
     @func_log_wrapper
     def do_da_interactive(self):
-        try:
-            from instlInstanceBase_interactive import go_interactive
-            go_interactive(self)
-        except Exception as es:
-            print("go_interactive", es)
-            raise
+        from instlInstanceBase_interactive import go_interactive
+        go_interactive(self)
 
     @abc.abstractmethod
     def get_install_instructions_prefix(self):
@@ -661,28 +651,22 @@ class InstlInstanceBase(object):
         if arglist is not None:
             logging.info("arglist: %s", " ".join(arglist))
         self.cvl.add_const_config_variable('__COMMAND_LINE_OPTIONS__', "read only value", args_str)
-        try:
-            if not arglist or len(arglist) == 0:
-                auto_run_file_path = None
-                auto_run_file_name = "auto_run_instl.yaml"
-                auto_run_file_path = self.search_paths_helper.find_file_with_search_paths(auto_run_file_name)
-                if auto_run_file_path:
-                    arglist = ("@"+auto_run_file_path,)
-                    logging.info("found auto run file %s", auto_run_file_name)
-            if arglist and len(arglist) > 0:
-                parser = prepare_args_parser()
-                self.name_space_obj = cmd_line_options()
-                parser.parse_args(arglist, namespace=self.name_space_obj)
-                self.mode = self.name_space_obj.mode
-                if self.mode == "batch":
-                    self.init_from_cmd_line_options(self.name_space_obj)
-            else:
-                self.mode = "interactive"
-        except Exception as ex:
-            import traceback
-            tb = traceback.format_exc()
-            print(ex, tb)
-            raise
+        if not arglist or len(arglist) == 0:
+            auto_run_file_path = None
+            auto_run_file_name = "auto_run_instl.yaml"
+            auto_run_file_path = self.search_paths_helper.find_file_with_search_paths(auto_run_file_name)
+            if auto_run_file_path:
+                arglist = ("@"+auto_run_file_path,)
+                logging.info("found auto run file %s", auto_run_file_name)
+        if arglist and len(arglist) > 0:
+            parser = prepare_args_parser()
+            self.name_space_obj = cmd_line_options()
+            parser.parse_args(arglist, namespace=self.name_space_obj)
+            self.mode = self.name_space_obj.mode
+            if self.mode == "batch":
+                self.init_from_cmd_line_options(self.name_space_obj)
+        else:
+            self.mode = "interactive"
 
 class cmd_line_options(object):
     """ namespace object to give to parse_args

@@ -6,6 +6,6 @@ WAVES_APPS_DIR: "/Users/shai/Desktop/installHere/Applications"
 WAVES_SHELLS_DIR: "/Users/shai/Desktop/installHere/WaveShells"
 MACOS_COMPONENTS: "/Library/Audio/Plug-Ins/Components"
 MACOS_WAVESHELL_AU_DIR: $(MACOS_COMPONENTS)
-MACOS_WAVESHELL_VST3_DIR: /Library/Audio/Plug-Ins/VST3
+MACOS_WAVESHELL_VST_3_DIR: /Library/Audio/Plug-Ins/VST3
 MACOS_WAVESHELL_DAE_DIR: /Library/Application Support/Digidesign/Plug-Ins
 LOCAL_SYNC_DIR: "/Users/shai/Desktop/Temp"

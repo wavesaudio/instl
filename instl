@@ -12,6 +12,7 @@ from pyinstl.log_utils import setup_logging
 setup_logging("instl", "instl")
 
 import pyinstl
+from pyinstl.instlException import InstlException
 
 import platform
 current_os = platform.system()
@@ -33,11 +34,18 @@ def main():
             instance.do_da_interactive()
         elif instance.mode == "do_something":
             instance.do_something()
-    except Exception as es:
+    except InstlException as ie:
+        print("instl exception",ie.message)
+        from pyinstl.log_utils import debug_logging_started
+        #from pyinstl.log_utils import get_log_file_path
+        #print(get_log_file_path('instl', 'instl', True))
+        if debug_logging_started:
+            import traceback
+            traceback.print_exception(type(ie.original_exception), ie.original_exception,  sys.exc_info()[2])
+    except Exception as ex:
+        print("unhandled exception")
         import traceback
-        tb = traceback.format_exc()
-        print(tb)
-        #print("__main__", es)
+        traceback.print_exc()
 
 if __name__ == "__main__":
     main()
