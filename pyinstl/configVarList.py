@@ -173,6 +173,29 @@ class ConfigVarList(object):
             self.__resolve_stack.pop()
         return retVal
 
+    def parallelLoop(self, **loopOn):
+        """ loopOn is mapping the variable to be assigned to variable name holding
+            a list of values to assign. e.g.:
+            If: List_of_As is ('A1', 'A2') and
+               List_of_Bs is ('B1', 'B2', 'B3')
+            calling:
+                parallelLoop({'A': 'List_of_As', 'B': List_of_Bs'})
+            will yield 3 times, with the values:
+                'A' = 'A1', 'B' = 'B1'
+                'A' = 'A2', 'B' = 'B2'
+                'A' = None, 'B' = 'B3'
+        """
+        max_size = 0
+        loopOnResolved = dict()
+        for target in loopOn:
+            list_for_target = self.get_list(loopOn[target])
+            max_size = max(max_size, len(list_for_target))
+            loopOnResolved[target] = ContinuationIter(list_for_target)
+        for i in range(max_size):
+            for target in loopOnResolved:
+                self.set_variable(target).append(loopOnResolved[target].next())
+            yield
+
 def replace_all_from_dict(in_text, *in_replace_only_these, **in_replacement_dic):
     """ replace all occurrences of the values in in_replace_only_these
         with the values in in_replacement_dic. If in_replace_only_these is empty
