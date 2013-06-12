@@ -20,11 +20,9 @@ class SearchPaths(object):
         Manage list of include search paths, and help find files
         using the search paths.
     """
-    def __init__(self, search_paths_var, *initial_paths_list):
+    def __init__(self, search_paths_var):
         # list of paths where to search for #include-ed files
         self.search_paths_var = search_paths_var
-        for initial_path in initial_paths_list:
-            self.add_search_path(initial_path)
 
     def __len__(self):
         return len(self.search_paths_var)
@@ -53,7 +51,13 @@ class SearchPaths(object):
         If in_file is path to an existing file, it's real full path will be returned.
         Otherwise file will be searched in each of the search paths until found.
         Full path to file is returned, or None if not found.
-        If file was found it's folder will be added to the search paths.
+        If file was found it's folder will be added to the search paths. This might
+        look redundant: if a file was found it's folder must be in the list of search paths!
+        There are two cases when this will not be the case:
+        1. A full path to a file was given. The folder might not be in the search paths.
+            In fact, the reason a full path was given is that it's folder would be added.
+        2. A partial path was given, such as 'somelib/somelib.h". In which case the path
+            up to and including somelib would be added.
         """
         retVal = None
         logging.debug("... find %s", in_file)
@@ -94,5 +98,6 @@ class SearchPaths(object):
 
 
 if __name__ == "__main__":
-    SearchPathsObj = SearchPaths("a/b/c", "/a/b/c/d")
-    print (SearchPathsObj)
+    SearchPathsObj = SearchPaths("var")
+    print (SearchPathsObj.get_machine_config_file_path("myke"))
+    print (SearchPathsObj.get_user_config_file_path("myke"))

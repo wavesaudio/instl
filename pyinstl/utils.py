@@ -232,3 +232,16 @@ def gen_col_format(width_list):
         format_str += "{{:<{width}}}".format(width=width+1)
         retVal.append(format_str)
     return retVal
+
+def ContinuationIter(the_iter, continuation_value=None):
+    for val in the_iter:
+        yield val
+    while True:
+        yield continuation_value
+
+def ParallelContinuationIter(*iterables):
+    max_size = max([len(lis) for lis in iterables])
+    continue_iterables = map(ContinuationIter, iterables)
+    for i in range(max_size):
+        yield map(next, continue_iterables)
+

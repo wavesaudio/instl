@@ -45,12 +45,12 @@ class InstallInstructionsState(object):
     def extend_instructions(self, which, instruction_list):
         #print("extend_instructions indent", self.indent_level)
         self.instruction_lines[which].extend( map(lambda line: " " * 4 * self.indent_level + line, instruction_list))
-        
+
     @func_log_wrapper
     def append_instructions(self, which, single_instruction):
         #print("append_instructions indent", self.indent_level)
         self.instruction_lines[which].append(" " * 4 * self.indent_level + single_instruction)
-        
+
     @func_log_wrapper
     def repr_for_yaml(self):
         retVal = OrderedDict()
@@ -133,7 +133,7 @@ class InstlInstanceBase(object):
         self.search_paths_helper.add_search_path(os.getcwd())
         self.search_paths_helper.add_search_path(os.path.dirname(sys.argv[0]))
         self.progress_file = None
-        
+
         self.guid_re = re.compile("""
                         [a-f0-9]{8}
                         (-[a-f0-9]{4}){3}
@@ -175,7 +175,7 @@ class InstlInstanceBase(object):
         self.cvl.set_variable("LOCAL_SYNC_DIR", var_description).append(appdirs.user_cache_dir(this_program_name, this_program_name))
 
         log_file = pyinstl.log_utils.get_log_file_path(this_program_name, this_program_name, debug=False)
-        self.cvl.set_variable("LOG_FILE", var_description).extend( (log_file, logging.getLevelName(pyinstl.log_utils.default_logging_level), pyinstl.log_utils.default_logging_started) )
+        self.cvl.set_variable("LOG_FILE", var_description).append(log_file)
         debug_log_file = pyinstl.log_utils.get_log_file_path(this_program_name, this_program_name, debug=True)
         self.cvl.set_variable("LOG_DEBUG_FILE", var_description).extend( (debug_log_file, logging.getLevelName(pyinstl.log_utils.debug_logging_level), pyinstl.log_utils.debug_logging_started) )
         for identifier in self.cvl:
@@ -329,12 +329,12 @@ class InstlInstanceBase(object):
             raise ValueError("'SVN_CLIENT_PATH' was not defined")
         svn_client_full_path = self.search_paths_helper.find_file_with_search_paths(self.cvl.get_str("SVN_CLIENT_PATH"))
         self.cvl.set_variable("SVN_CLIENT_PATH", "from InstlInstanceBase.init_sync_vars").append(svn_client_full_path)
-        
+
         if "BOOKKEEPING_DIR_URL" not in self.cvl:
             self.cvl.set_variable("BOOKKEEPING_DIR_URL").append("$(SVN_REPO_URL)/instl")
         bookkeeping_relative_path = relative_url(self.cvl.get_str("SVN_REPO_URL"), self.cvl.get_str("BOOKKEEPING_DIR_URL"))
         self.cvl.set_variable("REL_BOOKKIPING_PATH", "from InstlInstanceBase.init_sync_vars").append(bookkeeping_relative_path)
-       
+
         rel_sources = relative_url(self.cvl.get_str("SVN_REPO_URL"), self.cvl.get_str("BASE_SRC_URL"))
         self.cvl.set_variable("REL_SRC_PATH", "from InstlInstanceBase.init_sync_vars").append(rel_sources)
 
