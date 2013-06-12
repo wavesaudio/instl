@@ -9,10 +9,12 @@ BASE_SRC_URL: "$(SVN_REPO_URL)/$(TARGET_OS)"
 SYNC_PROGRESS_FILE: "progress.txt"
 COPY_PROGRESS_FILE: "progress.txt"
 
-__include__: "$(SVN_REPO_URL)/instl/index.yaml"
-#__include__: "/Volumes/SvnSrv/192.168.13.108/V9/instl/index.yaml"
+#__include__: "$(SVN_REPO_URL)/instl/index.yaml"
+__include__: "/Volumes/SvnSrv/192.168.13.108/V9/instl/index.yaml"
 __include__: "V9_$(TARGET_OS).yaml"
 
+TEST_INSTALL_DIR: $(WAVES_PLUGINS_DIR)/Test
+
 MAIN_INSTALL_TARGETS:
-    - MetaFlanger_IID
+    - TEST_IID
 

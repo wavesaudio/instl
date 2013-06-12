@@ -57,13 +57,10 @@ from collections import OrderedDict, defaultdict
 
 sys.path.append("..")
 from aYaml import augmentedYaml
-from pyinstl.utils import unique_list
+from pyinstl.utils import *
 
-current_os = platform.system()
-if current_os == 'Darwin':
-    current_os = 'Mac';
-elif current_os == 'Windows':
-    current_os = 'Win';
+current_os_names = current_os_names()
+os_family_name = current_os_names[0]
 
 def read_index_from_yaml(all_items_node):
     retVal = dict() #OrderedDict()
@@ -82,11 +79,11 @@ class InstallItem(object):
     __slots__ = ('iid', 'name', 'guid',
                 'remark', "description", 'inherit',
                 '__set_for_os', '__items', '__resolved_inherit')
-    item_sections = ('common', 'Mac', 'Win')
+    os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
     item_types = ('install_sources', 'install_folders', 'depends', 'actions')
     action_types = ('folder_in', 'before', 'after', 'folder_out')
     file_types = ('!dir_cont', '!files', '!file', '!dir')
-    get_for_os = current_os
+    get_for_os_names = current_os_names
     resolve_inheritance_stack = list()
 
     @staticmethod
@@ -105,8 +102,8 @@ class InstallItem(object):
             raise
 
     def merge_all_item_sections(self, otherInstallItem):
-        for section in InstallItem.item_sections:
-            InstallItem.merge_item_sections(self.__items[section], otherInstallItem.__items[section])
+        for os_ in InstallItem.os_names:
+            InstallItem.merge_item_sections(self.__items[os_], otherInstallItem.__items[os_])
 
     def __init__(self):
         self.__resolved_inherit = False
@@ -116,7 +113,7 @@ class InstallItem(object):
         self.remark = ""
         self.description = ""
         self.inherit = unique_list()
-        self.__set_for_os = [InstallItem.item_sections[0]] # reading for all platforms ('common') or for which specific platforms ('Mac', 'Win')?
+        self.__set_for_os = [InstallItem.os_names[0]] # reading for all platforms ('common') or for which specific platforms ('Mac', 'Win')?
         self.__items = defaultdict(InstallItem.create_items_section)
 
     def read_from_yaml_by_idd(self, IID, all_items_node):
@@ -146,10 +143,10 @@ class InstallItem(object):
                 self.add_depend(source.value)
         if 'actions' in my_node:
             self.read_actions(my_node['actions'])
-        for itemSec in InstallItem.item_sections[1:]:
-            if itemSec in my_node:
-                self.begin_specific_os(itemSec)
-                self.read_from_yaml(my_node[itemSec])
+        for os_ in InstallItem.os_names[1:]:
+            if os_ in my_node:
+                self.begin_specific_os(os_)
+                self.read_from_yaml(my_node[os_])
                 self.end_specific_os()
 
     def begin_specific_os(self, for_os):
@@ -161,14 +158,15 @@ class InstallItem(object):
     def __add_some_item(self, item_category, item_value):
         self.__items[self.__set_for_os[-1]][item_category].append(item_value)
 
-    def __some_items_list(self, which_items, for_os):
+    def __some_items_list(self, which_items, for_os_names):
         """ common function to get items for specific category of items.
             returned is s list that combines the 'common' section with the section
             for the specific os.
         """
         retVal = unique_list()
-        retVal.extend(self.__items[InstallItem.item_sections[0]][which_items])
-        retVal.extend(self.__items[for_os][which_items])
+        retVal.extend(self.__items[InstallItem.os_names[0]][which_items])
+        for os_ in for_os_names:
+            retVal.extend(self.__items[os_][which_items])
         return retVal
 
     def add_inherit(self, inherit_idd):
@@ -184,19 +182,19 @@ class InstallItem(object):
         self.__add_some_item('install_sources', (new_source, file_type) )
 
     def source_list(self):
-        return self.__some_items_list('install_sources', InstallItem.get_for_os)
+        return self.__some_items_list('install_sources', InstallItem.get_for_os_names)
 
     def add_folder(self, new_folder):
         self.__add_some_item('install_folders', new_folder )
 
     def folder_list(self):
-        return self.__some_items_list('install_folders', InstallItem.get_for_os)
+        return self.__some_items_list('install_folders', InstallItem.get_for_os_names)
 
     def add_depend(self, new_depend):
         self.__add_some_item('depends', new_depend )
 
     def depend_list(self):
-        return self.__some_items_list('depends', InstallItem.get_for_os)
+        return self.__some_items_list('depends', InstallItem.get_for_os_names)
 
     def add_action(self, action_type, new_action):
         if action_type not in InstallItem.action_types:
@@ -211,7 +209,7 @@ class InstallItem(object):
     def action_list(self, action_type):
         if action_type not in InstallItem.action_types:
             raise KeyError("actions type must be one of: "+str(InstallItem.action_types)+" not "+action_type)
-        return self.__some_items_list(action_type, InstallItem.get_for_os)
+        return self.__some_items_list(action_type, InstallItem.get_for_os_names)
 
     def get_recursive_depends(self, items_map, out_set, orphan_set):
         if self.iid not in out_set:
@@ -256,10 +254,10 @@ class InstallItem(object):
         if self.inherit:
             retVal['inherit'] = self.inherit_list()
 
-        common_items = self.repr_for_yaml_items(InstallItem.item_sections[0])
+        common_items = self.repr_for_yaml_items(InstallItem.os_names[0])
         if common_items:
             retVal.update(common_items)
-        for os_ in InstallItem.item_sections[1:]:
+        for os_ in InstallItem.os_names[1:]:
             os_items = self.repr_for_yaml_items(os_)
             if os_items:
                 retVal[os_] = os_items

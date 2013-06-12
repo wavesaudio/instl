@@ -21,12 +21,8 @@ from pyinstl.utils import *
 from pyinstl.searchPaths import SearchPaths
 from instlException import InstlException
 
-import platform
-current_os = platform.system()
-if current_os == 'Darwin':
-    current_os = 'Mac'
-elif current_os == 'Windows':
-    current_os = 'Win'
+current_os_names = current_os_names()
+os_family_name = current_os_names[0]
 
 INSTL_VERSION=(0, 4, 0)
 this_program_name = "instl"
@@ -171,8 +167,10 @@ class InstlInstanceBase(object):
     @func_log_wrapper
     def init_default_vars(self):
         var_description = "from InstlInstanceBase.init_default_vars"
-        self.cvl.add_const_config_variable("CURRENT_OS", var_description, current_os)
-        self.cvl.set_variable("TARGET_OS", var_description).append(current_os)
+        self.cvl.add_const_config_variable("CURRENT_OS", var_description, os_family_name)
+        self.cvl.add_const_config_variable("CURRENT_OS_NAMES", var_description, current_os_names)
+        self.cvl.set_variable("TARGET_OS", var_description).append(os_family_name)
+        self.cvl.set_variable("TARGET_OS_NAMES", var_description).extend(current_os_names)
         self.cvl.add_const_config_variable("__INSTL_VERSION__", var_description, *INSTL_VERSION)
         self.cvl.set_variable("LOCAL_SYNC_DIR", var_description).append(appdirs.user_cache_dir(this_program_name, this_program_name))
 
@@ -745,7 +743,7 @@ def prepare_args_parser():
         parser_version = subparsers.add_parser('version', help='display instl version')
         parser_version.set_defaults(mode='do_something')
 
-        if current_os == 'Mac':
+        if 'Mac' in current_os_names:
             parser_alias = subparsers.add_parser('alias',
                                                 help='create Mac OS alias')
             parser_alias.set_defaults(mode='do_something')

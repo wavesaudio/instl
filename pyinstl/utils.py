@@ -6,13 +6,35 @@ import urllib2
 import re
 import urlparse
 
-import platform
-current_os = platform.system()
-if current_os == 'Darwin':
-    current_os = 'Mac'
-elif current_os == 'Windows':
-    current_os = 'Win'
+def Is64Windows():
+    return 'PROGRAMFILES(X86)' in os.environ
 
+def Is32Windows():
+    return not Is64Windows()
+
+def GetProgramFiles32():
+    if Is64Windows():
+        return os.environ['PROGRAMFILES(X86)']
+    else:
+        return os.environ['PROGRAMFILES']
+
+def GetProgramFiles64():
+    if Is64Windows():
+        return os.environ['PROGRAMW6432']
+    else:
+        return None
+
+def current_os_names():
+    import platform
+    current_os = platform.system()
+    if current_os == 'Darwin':
+        retVal = ('Mac', 'Mac64');
+    elif current_os == 'Windows':
+        if Is64Windows():
+            retVal = ('Win', 'Win64')
+        else:
+            retVal = ('Win', 'Win34')
+    return retVal
 
 class write_to_file_or_stdout(object):
     def __init__(self, file_path):
@@ -57,7 +79,7 @@ class open_for_read_file_or_url(object):
             if search_paths_helper is not None:
                 self.file_url = search_paths_helper.find_file_with_search_paths(self.file_url)
             if self.file_url:
-                if current_os == 'Win':
+                if 'Win' in current_os_names():
                     self.file_url = "file:///"+os.path.abspath(self.file_url)
                 else:
                     self.file_url = "file://"+os.path.realpath(self.file_url)
