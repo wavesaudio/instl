@@ -305,6 +305,10 @@ class CMDObj(cmd.Cmd, object):
     def complete_read(self, text, line, begidx, endidx):
         return self.path_completion(text, line, begidx, endidx)
 
+    def help_read(self):
+        print("read path_to_file")
+        print("    reads a file")
+        
     def do_cycles(self, params):
         self.prog_inst.find_cycles()
         return False
@@ -358,29 +362,29 @@ class CMDObj(cmd.Cmd, object):
         else:
             print("alias can only be created on Mac OS")
         return False
-
-    def do_command_interactive(self, the_command, params):
-        from pyinstl.instlInstanceBase import InstallInstructionsState
-        if params:
-            self.prog_inst.cvl.set_variable("MAIN_INSTALL_TARGETS").extend(shlex.split(params))
-        installState = InstallInstructionsState()
-        self.prog_inst.do_command(the_command, installState)
-        self.prog_inst.cvl.set_variable("__MAIN_OUT_FILE__").append("stdout")
-        self.prog_inst.write_batch_file(installState)
-
-    def do_sync(self, params):
-        self.do_command_interactive("sync", params)
-        return False
-
-    def do_copy(self, params):
-        self.do_command_interactive("copy", params)
-        return False
+        
+    def help_alias(self):
+        print("alias source_file alias_file")
+        print("    creaets Mac OS alias (Mac OS only)")
 
     def complete_alias(self, text, line, begidx, endidx):
         return self.path_completion(text, line, begidx, endidx)
 
-    def help_alias(self):
-        print("alias original target:", "creates a Mac alias (Mac OS only)")
+    def do_sync(self, params):
+        self.do_command_interactive("sync", params)
+        return False
+    
+    def help_sync(self):
+        print("sync")
+        print("    creaet sync commands")
+        
+    def do_copy(self, params):
+        self.do_command_interactive("copy", params)
+        return False
+    
+    def help_copy(self):
+        print("copy")
+        print("    creaet copy commands")
 
     def do_version(self, params):
         print(" ".join( (this_program_name, "version", ".".join(self.prog_inst.cvl.get_list("__INSTL_VERSION__")))))
@@ -421,6 +425,10 @@ class CMDObj(cmd.Cmd, object):
         print(readline.get_current_history_length(), "items in history")
         return False
     
+    def help_hist(self):
+        print("hist")
+        print("   display command line history")
+        
     def report_logging_state(self):
         import pyinstl.log_utils
         top_logger = logging.getLogger()
