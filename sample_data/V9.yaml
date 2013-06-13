@@ -1,20 +1,23 @@
 --- !define
 
-
+SVN_CLIENT_PATH_FOR_Win: "C:/p4client/dev_install/bin/Win/wsvn/wsvn.exe"
+SVN_CLIENT_PATH_FOR_Mac: "/Volumes/p4client/dev_install/bin/Mac/wsvn"
 SVN_CLIENT_PATH: $(SVN_CLIENT_PATH_FOR_$(CURRENT_OS))
 
 SVN_REPO_URL: "http://192.168.13.108/svn/V9"
-BASE_SRC_URL: "$(SVN_REPO_URL)/$(TARGET_OS)"
 
-SYNC_PROGRESS_FILE: "progress.txt"
-COPY_PROGRESS_FILE: "progress.txt"
+#SYNC_PROGRESS_FILE: "progress.txt"
+#COPY_PROGRESS_FILE: "progress.txt"
 
 #__include__: "$(SVN_REPO_URL)/instl/index.yaml"
 __include__: "/Volumes/SvnSrv/192.168.13.108/V9/instl/index.yaml"
-__include__: "V9_$(TARGET_OS).yaml"
 
 TEST_INSTALL_DIR: $(WAVES_PLUGINS_DIR)/Test
+WAVES_DIR: "/Users/shai/Desktop/installHere"
+MACOS_APPLICATIONSUPPORT_DIR: "$(WAVES_DIR)/Application Support"
 
 MAIN_INSTALL_TARGETS:
-    - TEST_IID
-
+    - Artist_0825308982_IID
+    - C4_IID
+    - EddieKramer_DR_IID
+    - SG_Driver_IID
