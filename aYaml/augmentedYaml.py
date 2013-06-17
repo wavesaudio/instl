@@ -286,8 +286,10 @@ def isScalar(item):
     return retVal
 
 
-def writeAsYaml(pyObj, out_stream, indentor=None, sort=False):
-    if not indentor:
+def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False):
+    if out_stream is None:
+        out_stream = sys.stdout
+    if indentor is None:
         indentor = Indentor(4)
     if pyObj is None:
         pass
@@ -360,9 +362,14 @@ def nodeToYamlDumpWrap(a_node):
 
 
 if __name__ == "__main__":
-    for afile in sys.argv[1:]:
-        with open(afile, "r") as fd:
-            for a_node in yaml.compose_all(fd):
-                a_node_as_tdw = nodeToYamlDumpWrap(a_node)
-                docWrap = YamlDumpDocWrap(a_node_as_tdw)
-                writeAsYaml(docWrap, sys.stdout, sort=False)
+    try:
+        for afile in sys.argv[1:]:
+            with open(afile, "r") as fd:
+                for a_node in yaml.compose_all(fd):
+                    a_node_as_tdw = nodeToYamlDumpWrap(a_node)
+                    docWrap = YamlDumpDocWrap(a_node_as_tdw)
+                    writeAsYaml(docWrap)
+    except Exception as ex:
+        import traceback
+        tb = traceback.format_exc()
+        print(tb)
