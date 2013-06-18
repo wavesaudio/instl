@@ -183,6 +183,17 @@ def last_url_item(url):
     _, retVal = os.path.split(url_path)
     return retVal
 
+def main_url_item(url):
+    retVal = ""
+    try:
+        parseResult = urlparse.urlparse(url)
+        retVal = parseResult.netloc
+        if not retVal:
+            retVal = parseResult.path
+    except:
+        retVal = ""
+    return retVal
+
 
 def relative_url(base, target):
     base_path = urlparse.urlparse(base.strip("/")).path

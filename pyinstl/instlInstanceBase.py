@@ -328,6 +328,9 @@ class InstlInstanceBase(object):
             retVal = appdirs.user_cache_dir(user_cache_dir_param)
         elif os_family_name == "Win":
             retVal = appdirs.user_cache_dir(this_program_name, self.cvl.get_str("COMPANY_NAME"))
+        from_url = main_url_item(self.cvl.get_str("SVN_REPO_URL"))
+        if from_url:
+            retVal = os.path.join(retVal, from_url)
         return retVal
 
     @func_log_wrapper
