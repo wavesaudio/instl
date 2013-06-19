@@ -172,7 +172,7 @@ class InstlInstanceBase(object):
         self.cvl.set_variable("TARGET_OS", var_description).append(os_family_name)
         self.cvl.set_variable("TARGET_OS_NAMES", var_description).extend(current_os_names)
         self.cvl.add_const_config_variable("__INSTL_VERSION__", var_description, *INSTL_VERSION)
-        
+
         log_file = pyinstl.log_utils.get_log_file_path(this_program_name, this_program_name, debug=False)
         self.cvl.set_variable("LOG_FILE", var_description).append(log_file)
         debug_log_file = pyinstl.log_utils.get_log_file_path(this_program_name, this_program_name, debug=True)
@@ -340,28 +340,28 @@ class InstlInstanceBase(object):
             raise ValueError("'SVN_REPO_URL' was not defined")
         if "SVN_CLIENT_PATH" not in self.cvl:
             raise ValueError("'SVN_CLIENT_PATH' was not defined")
-        
+
         svn_client_full_path = self.search_paths_helper.find_file_with_search_paths(self.cvl.get_str("SVN_CLIENT_PATH"))
-        self.cvl.set_variable("SVN_CLIENT_PATH", "var_description").append(svn_client_full_path)
-        
+        self.cvl.set_variable("SVN_CLIENT_PATH", var_description).append(svn_client_full_path)
+
         if "REPO_REV" not in self.cvl:
-            self.cvl.set_variable("REPO_REV", "var_description").append("HEAD")
+            self.cvl.set_variable("REPO_REV", var_description).append("HEAD")
         if "REPO_NAME" not in self.cvl:
             repo_name = last_url_item(self.cvl.get_str("SVN_REPO_URL"))
-            self.cvl.set_variable("REPO_NAME", "var_description").append(repo_name)
+            self.cvl.set_variable("REPO_NAME", var_description).append(repo_name)
         if "BASE_SRC_URL" not in self.cvl:
-            self.cvl.set_variable("BASE_SRC_URL", "var_description").append("$(SVN_REPO_URL)/$(TARGET_OS)")
-        
+            self.cvl.set_variable("BASE_SRC_URL", var_description).append("$(SVN_REPO_URL)/$(TARGET_OS)")
+
         if "LOCAL_SYNC_DIR" not in self.cvl:
             self.cvl.set_variable("LOCAL_SYNC_DIR", var_description).append(self.get_default_sync_dir())
 
         if "BOOKKEEPING_DIR_URL" not in self.cvl:
             self.cvl.set_variable("BOOKKEEPING_DIR_URL").append("$(SVN_REPO_URL)/instl")
         bookkeeping_relative_path = relative_url(self.cvl.get_str("SVN_REPO_URL"), self.cvl.get_str("BOOKKEEPING_DIR_URL"))
-        self.cvl.set_variable("REL_BOOKKIPING_PATH", "var_description").append(bookkeeping_relative_path)
+        self.cvl.set_variable("REL_BOOKKIPING_PATH", var_description).append(bookkeeping_relative_path)
 
         rel_sources = relative_url(self.cvl.get_str("SVN_REPO_URL"), self.cvl.get_str("BASE_SRC_URL"))
-        self.cvl.set_variable("REL_SRC_PATH", "var_description").append(rel_sources)
+        self.cvl.set_variable("REL_SRC_PATH", var_description).append(rel_sources)
 
         for identifier in ("SVN_REPO_URL", "SVN_CLIENT_PATH", "REL_SRC_PATH", "REPO_REV", "REPO_NAME", "BASE_SRC_URL", "BOOKKEEPING_DIR_URL"):
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
@@ -378,8 +378,8 @@ class InstlInstanceBase(object):
             if "BASE_SRC_URL" not in self.cvl:
                 raise ValueError("'BASE_SRC_URL' was not defined")
             rel_sources = relative_url(self.cvl.get_str("SVN_REPO_URL"), self.cvl.get_str("BASE_SRC_URL"))
-            self.cvl.set_variable("REL_SRC_PATH", "var_description").append(rel_sources)
-        
+            self.cvl.set_variable("REL_SRC_PATH", var_description).append(rel_sources)
+
         if "LOCAL_SYNC_DIR" not in self.cvl:
             self.cvl.set_variable("LOCAL_SYNC_DIR", var_description).append(self.get_default_sync_dir())
 
@@ -387,10 +387,10 @@ class InstlInstanceBase(object):
             if "SVN_REPO_URL" not in self.cvl:
                 raise ValueError("'SVN_REPO_URL' was not defined")
             repo_name = last_url_item(self.cvl.get_str("SVN_REPO_URL"))
-            self.cvl.set_variable("REPO_NAME", "var_description").append(repo_name)
+            self.cvl.set_variable("REPO_NAME", var_description).append(repo_name)
         if "COPY_TOOL" not in self.cvl:
             from copyCommander import DefaultCopyToolName
-            self.cvl.set_variable("COPY_TOOL", "var_description").append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
+            self.cvl.set_variable("COPY_TOOL", var_description).append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
         for identifier in ("REL_SRC_PATH", "REPO_NAME", "COPY_TOOL"):
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
         self.progress_file = self.cvl.get_str("COPY_PROGRESS_FILE", default=None)
