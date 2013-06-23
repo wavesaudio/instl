@@ -376,7 +376,7 @@ class InstlInstanceBase(object):
             if "SVN_REPO_URL" not in self.cvl:
                 raise ValueError("'SVN_REPO_URL' was not defined")
             if "BASE_SRC_URL" not in self.cvl:
-                raise ValueError("'BASE_SRC_URL' was not defined")
+                self.cvl.set_variable("BASE_SRC_URL", var_description).append("$(SVN_REPO_URL)/$(TARGET_OS)")
             rel_sources = relative_url(self.cvl.get_str("SVN_REPO_URL"), self.cvl.get_str("BASE_SRC_URL"))
             self.cvl.set_variable("REL_SRC_PATH", var_description).append(rel_sources)
 
