@@ -3,7 +3,7 @@
 SVN_CLIENT_PATH_FOR_Win: "C:/p4client/dev_install/bin/Win/wsvn/wsvn.exe"
 SVN_CLIENT_PATH_FOR_Mac: "/usr/local/bin/wsvn"
 SVN_CLIENT_PATH: $(SVN_CLIENT_PATH_FOR_$(CURRENT_OS))
-
+BASE_SRC_URL: V9
 SVN_REPO_URL: "http://192.168.13.108/svn/V9"
 
 __include__: "/Volumes/SvnSrv/192.168.13.108/V9/instl/index.yaml"
@@ -11,6 +11,9 @@ __include__: "/Volumes/SvnSrv/192.168.13.108/V9/instl/index.yaml"
 WAVES_DIR: "$(HOME)/Desktop/local-install"
 MACOS_APPLICATIONSUPPORT_DIR: "$(WAVES_DIR)/Application Support"
 MACOS_WAVESHELL_DAE_DIR: "$(WAVES_DIR)/DAE Plug-ins"
+MACOS_WAVESHELL_VST_3_DIR: "$(WAVES_DIR)/VST3"
+WAVESHELL_VST_2_4_DIR: "$(WAVES_DIR)/VST2"
+MACOS_WAVESHELL_AU_DIR: "$(WAVES_DIR)/AU"
 
 MAIN_INSTALL_TARGETS:
     - GTRSolo_IID
