@@ -3,11 +3,10 @@
 SVN_CLIENT_PATH_FOR_Win: "C:/p4client/dev_install/bin/Win/wsvn/wsvn.exe"
 SVN_CLIENT_PATH_FOR_Mac: "/usr/local/bin/wsvn"
 SVN_CLIENT_PATH: $(SVN_CLIENT_PATH_FOR_$(CURRENT_OS))
-BASE_SRC_URL: V9
 SVN_REPO_URL: "http://192.168.13.108/svn/V9"
 
 INDEX_PATH_FOR_Win: "C:/p4client/dev_install/bin/Win/wsvn/wsvn.exe"
-INDEX_PATH_FOR_Win: "C:/p4client/192.168.13.108/V9/instl/index.yaml"
+INDEX_PATH_FOR_Mac: "/Volumes/SvnSrv/192.168.13.108/V9/instl/index.yaml"
 INDEX_PATH: $(INDEX_PATH_FOR_$(CURRENT_OS))
 
 __include__: $(INDEX_PATH)
@@ -24,17 +23,4 @@ WAVESHELL_VST_2_4_DIR: "$(WAVES_DIR)/VST2"
 MACOS_WAVESHELL_AU_DIR: "$(WAVES_DIR)/AU"
 
 MAIN_INSTALL_TARGETS:
-    - GTRSolo_IID
-
---- !index
-Plugin_Root_9_1_IID:
-    name: Base for all plugins that use WavesLib 9.1
-    depends:
-        - WaveShells_All_IID
-        - WavesLib_9.1_IID
-    install_folders:
-        - $(WAVES_PLUGINS_DIR)
-    Win:
-        actions:
-            folder_out: reg add HKEY_LOCAL_MACHINE\SOFTWARE\samibardugo /V Location /T REG_SZ /D "%CD%" /F
-
+    - AudioTrack_IID
