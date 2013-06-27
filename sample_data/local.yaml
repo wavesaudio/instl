@@ -5,6 +5,8 @@ SVN_CLIENT_PATH_FOR_Mac: "/usr/local/bin/wsvn"
 SVN_CLIENT_PATH: $(SVN_CLIENT_PATH_FOR_$(CURRENT_OS))
 SVN_REPO_URL: "http://192.168.13.108/svn/V9"
 
+SET_ICON_PATH: "/usr/local/bin/setIcon"
+
 INDEX_PATH_FOR_Win: "C:/p4client/dev_install/bin/Win/wsvn/wsvn.exe"
 INDEX_PATH_FOR_Mac: "/Volumes/SvnSrv/192.168.13.108/V9/instl/index.yaml"
 INDEX_PATH: $(INDEX_PATH_FOR_$(CURRENT_OS))

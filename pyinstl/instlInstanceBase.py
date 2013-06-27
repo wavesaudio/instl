@@ -317,7 +317,7 @@ class InstlInstanceBase(object):
     @func_log_wrapper
     def create_variables_assignment(self, installState):
         for identifier in self.cvl:
-            if not self.internal_identifier_re.match(identifier): # do not write internal state indentifiers
+            if not self.internal_identifier_re.match(identifier) or pyinstl.log_utils.debug_logging_started: # do not write internal state identifiers, unless in debug mode
                 installState.variables_assignment_lines.append(self.create_var_assign(identifier,self.cvl.get_str(identifier)))
 
     @func_log_wrapper

@@ -1,6 +1,6 @@
 #!/usr/local/bin/python2.7
 
-from __future__ import print_function # 123
+from __future__ import print_function
 
 import sys
 import os

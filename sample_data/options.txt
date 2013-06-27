@@ -1,3 +1,3 @@
 synccopy
---in sample_data/V9.yaml
+--in sample_data/13.108.yaml
 --out synccopy.sh
