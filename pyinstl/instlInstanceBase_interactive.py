@@ -371,20 +371,30 @@ class CMDObj(cmd.Cmd, object):
         return self.path_completion(text, line, begidx, endidx)
 
     def do_sync(self, params):
-        self.do_command_interactive("sync", params)
+        out_file = "stdout"
+        if params:
+            out_file = params
+        self.prog_inst.cvl.set_variable("__MAIN_OUT_FILE__").append(out_file)
+        self.prog_inst.cvl.set_variable("__MAIN_COMMAND__").append("sync")
+        self.prog_inst.do_command_batch_mode()
         return False
     
     def help_sync(self):
-        print("sync")
-        print("    creaet sync commands")
+        print("sync [file_name]")
+        print("    write sync commands to stdout or to file_name if given")
         
     def do_copy(self, params):
-        self.do_command_interactive("copy", params)
+        out_file = "stdout"
+        if params:
+            out_file = params
+        self.prog_inst.cvl.set_variable("__MAIN_OUT_FILE__").append(out_file)
+        self.prog_inst.cvl.set_variable("__MAIN_COMMAND__").append("copy")
+        self.prog_inst.do_command_batch_mode()
         return False
     
     def help_copy(self):
-        print("copy")
-        print("    creaet copy commands")
+        print("copy [file_name]")
+        print("    write copy commands to stdout or to file_name if given")
 
     def do_version(self, params):
         print(" ".join( (this_program_name, "version", ".".join(self.prog_inst.cvl.get_list("__INSTL_VERSION__")))))

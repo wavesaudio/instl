@@ -198,7 +198,7 @@ class InstlInstanceBase(object):
     @func_log_wrapper
     def do_command_batch_mode(self):
         installState = InstallInstructionsState()
-        self.do_command(self.name_space_obj.command, installState)
+        self.do_command(self.cvl.get_str("__MAIN_COMMAND__"), installState)
         self.write_batch_file(installState)
         if "__MAIN_RUN_INSTALLATION__" in self.cvl:
             self.run_batch_file()
@@ -206,14 +206,14 @@ class InstlInstanceBase(object):
     @func_log_wrapper
     def do_something(self):
         try:
-            logging.debug("... %s", self.name_space_obj.command)
-            if self.name_space_obj.command == "version":
+            logging.debug("... %s", self.cvl.get_str("__MAIN_COMMAND__"))
+            if self.cvl.get_str("__MAIN_COMMAND__") == "version":
                 print(" ".join( (this_program_name, "version", ".".join(self.cvl.get_list("__INSTL_VERSION__")))))
             else:
                 import do_something
-                do_something.do_something(self.name_space_obj.command)
+                do_something.do_something(self.cvl.get_str("__MAIN_COMMAND__"))
         except Exception as es:
-            raise InstlException(" ".join( ("Error while doing command", "'"+self.name_space_obj.command+"':\n") ), es)
+            raise InstlException(" ".join( ("Error while doing command", "'"+self.cvl.get_str("__MAIN_COMMAND__")+"':\n") ), es)
 
     @func_log_wrapper
     def init_from_cmd_line_options(self, cmd_line_options_obj):
@@ -226,6 +226,8 @@ class InstlInstanceBase(object):
             self.cvl.add_const_config_variable("__MAIN_STATE_FILE__", "from command line options", cmd_line_options_obj.state_file)
         if cmd_line_options_obj.run:
             self.cvl.add_const_config_variable("__MAIN_RUN_INSTALLATION__", "from command line options", "yes")
+        if cmd_line_options_obj.command:
+            self.cvl.set_variable("__MAIN_COMMAND__", "from command line options").append(cmd_line_options_obj.command)
         for identifier in self.cvl:
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
 
@@ -680,8 +682,7 @@ class InstlInstanceBase(object):
             self.name_space_obj = cmd_line_options()
             parser.parse_args(arglist, namespace=self.name_space_obj)
             self.mode = self.name_space_obj.mode
-            if self.mode == "batch":
-                self.init_from_cmd_line_options(self.name_space_obj)
+            self.init_from_cmd_line_options(self.name_space_obj)
         else:
             self.mode = "interactive"
 
