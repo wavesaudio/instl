@@ -18,14 +18,14 @@ class InstlInstance_win(instlInstanceBase.InstlInstanceBase):
         return ("SET SAVE_DIR=%CD%", )
 
     def get_install_instructions_postfix(self):
-        return ("chdir /d %SAVE_DIR%", )
+        return ("cd /d %SAVE_DIR%", )
 
     def make_directory_cmd(self, directory):
         mk_command = " ".join( ("mkdir", '"'+directory+'"'))
         return (mk_command, )
  
     def change_directory_cmd(self, directory):
-        cd_command = " ".join( ("cd", '"'+directory+'"') )
+        cd_command = " ".join( ("cd", '/d', '"'+directory+'"') )
         return (cd_command, )
 
     def get_svn_folder_cleanup_instructions(self):
