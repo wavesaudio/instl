@@ -12,7 +12,8 @@ __include__: "$(SVN_REPO_URL)/instl/index.yaml"
 
 WAVES_DIR: "$(HOME)/Desktop/13.108-install"
 MACOS_APPLICATIONSUPPORT_DIR: "$(WAVES_DIR)/Application Support"
-MACOS_WAVESHELL_DAE_DIR: "$(WAVES_DIR)/DAE Plug-ins"
+
+#REPO_REV: 80
 
 MAIN_INSTALL_TARGETS:
     - GTRSolo_IID
