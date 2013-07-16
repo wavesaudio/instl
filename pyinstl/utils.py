@@ -1,5 +1,6 @@
-#!/usr/local/bin/python2.7
+#!/usr/bin/env python2.7
 from __future__ import print_function
+
 import sys
 import os
 import urllib2
