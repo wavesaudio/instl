@@ -10,7 +10,7 @@ SVN_REPO_URL: "http://192.168.13.108/svn/V9"
 
 __include__: "$(SVN_REPO_URL)/instl/index.yaml"
 
-WAVES_DIR: "$(HOME)/Desktop/13.108-install"
+WAVES_DIR: "$(HOME_DIR)/Desktop/13.108-install"
 MACOS_APPLICATIONSUPPORT_DIR: "$(WAVES_DIR)/Application Support"
 
 #REPO_REV: 80

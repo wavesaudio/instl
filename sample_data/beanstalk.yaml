@@ -10,7 +10,7 @@ SVN_REPO_URL: "https://waves-audio.svn.beanstalkapp.com/test1/V9"
 
 __include__: "$(SVN_REPO_URL)/instl/index.yaml"
 
-WAVES_DIR: "$(HOME)/Desktop/beanstalk-install"
+WAVES_DIR: "$(HOME_DIR)/Desktop/beanstalk-install"
 MACOS_APPLICATIONSUPPORT_DIR: "$(WAVES_DIR)/Application Support"
 MACOS_WAVESHELL_DAE_DIR: "$(WAVES_DIR)/DAE Plug-ins"
 

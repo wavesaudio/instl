@@ -17,7 +17,7 @@ WAVES_DIR_FOR_Win: "C:/p4client/dev_install/bin/Win/wsvn/wsvn.exe"
 WAVES_DIR_FOR_Mac: "/usr/local/bin/wsvn"
 WAVES_DIR: $(WAVES_DIR_FOR_$(CURRENT_OS))
 
-WAVES_DIR: "$(HOME)/Desktop/local-install"
+WAVES_DIR: "$(HOME_DIR)/Desktop/local-install"
 MACOS_APPLICATIONSUPPORT_DIR: "$(WAVES_DIR)/Application Support"
 MACOS_WAVESHELL_DAE_DIR: "$(WAVES_DIR)/DAE Plug-ins"
 MACOS_WAVESHELL_VST_3_DIR: "$(WAVES_DIR)/VST3"
