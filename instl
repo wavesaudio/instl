@@ -23,10 +23,19 @@ elif current_os == 'Windows':
     current_os = 'Win'
     from pyinstl.instlInstance_win import InstlInstance_win as ii
 
+def get_path_to_instl_app():
+    application_path = None
+    if getattr(sys, 'frozen', False):
+        application_path = os.path.dirname(os.path.realpath(sys.executable))
+    elif __file__:
+        application_path = os.path.dirname(os.path.realpath(__file__))
+    return application_path
+    
 @pyinstl.log_utils.func_log_wrapper
 def main():
     try:
-        instance = ii()
+        initial_vars = {"__INSTL_EXE_PATH__": get_path_to_instl_app()}
+        instance = ii(initial_vars)
         instance.read_command_line_options(sys.argv[1:])
         if instance.mode == "batch":
             instance.do_command_batch_mode()

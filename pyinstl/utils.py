@@ -29,7 +29,7 @@ def current_os_names():
     import platform
     current_os = platform.system()
     if current_os == 'Darwin':
-        retVal = ('Mac', 'Mac64');
+        retVal = ('Mac',);
     elif current_os == 'Windows':
         if Is64Windows():
             retVal = ('Win', 'Win64')

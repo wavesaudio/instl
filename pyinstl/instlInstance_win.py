@@ -10,8 +10,8 @@ def quoteme(to_qoute):
 
 
 class InstlInstance_win(instlInstanceBase.InstlInstanceBase):
-    def __init__(self):
-        super(InstlInstance_win, self).__init__()
+    def __init__(self, initial_vars=None):
+        super(InstlInstance_win, self).__init__(initial_vars)
         self.var_replacement_pattern = "%\g<var_name>%"
 
     def get_install_instructions_prefix(self):

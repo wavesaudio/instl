@@ -11,8 +11,8 @@ def quoteme(to_qoute):
     return "".join( ('"', to_qoute, '"') )
 
 class InstlInstance_mac(instlInstanceBase.InstlInstanceBase):
-    def __init__(self):
-        super(InstlInstance_mac, self).__init__()
+    def __init__(self, initial_vars=None):
+        super(InstlInstance_mac, self).__init__(initial_vars)
         self.var_replacement_pattern = "${\g<var_name>}"
 
     def get_install_instructions_prefix(self):

@@ -122,16 +122,19 @@ class InstlInstanceBase(object):
     """
     __metaclass__ = abc.ABCMeta
     @func_log_wrapper
-    def __init__(self):
+    def __init__(self, initial_vars=None):
         self.out_file_realpath = None
         self.install_definitions_index = dict()
         self.cvl = ConfigVarList()
         self.var_replacement_pattern = None
-        self.init_default_vars()
+        self.init_default_vars(initial_vars)
         # initialize the search paths helper with the current directory and dir where instl is now
         self.search_paths_helper = SearchPaths(self.cvl.get_configVar_obj("__SEARCH_PATHS__"))
         self.search_paths_helper.add_search_path(os.getcwd())
-        self.search_paths_helper.add_search_path(os.path.dirname(sys.argv[0]))
+        self.search_paths_helper.add_search_path(os.path.dirname(os.path.realpath(sys.argv[0])))
+        self.search_paths_helper.add_search_path(self.cvl.get_str("__INSTL_EXE_PATH__"))
+        #if os_family_name == "Win":
+        #    self.search_paths_helper.add_search_path(os.path.join(self.cvl.get_str("__INSTL_EXE_PATH__"), "wsvn"))
         self.progress_file = None
 
         self.guid_re = re.compile("""
@@ -165,7 +168,12 @@ class InstlInstanceBase(object):
         return retVal
 
     @func_log_wrapper
-    def init_default_vars(self):
+    def init_default_vars(self, initial_vars):
+        if initial_vars:
+            var_description = "from initial_vars"
+            for var, value in initial_vars.iteritems():
+                self.cvl.add_const_config_variable(var, var_description, value)
+            
         var_description = "from InstlInstanceBase.init_default_vars"
         self.cvl.add_const_config_variable("CURRENT_OS", var_description, os_family_name)
         self.cvl.add_const_config_variable("CURRENT_OS_NAMES", var_description, *current_os_names)
@@ -342,7 +350,6 @@ class InstlInstanceBase(object):
             raise ValueError("'SVN_REPO_URL' was not defined")
         if "SVN_CLIENT_PATH" not in self.cvl:
             raise ValueError("'SVN_CLIENT_PATH' was not defined")
-
         svn_client_full_path = self.search_paths_helper.find_file_with_search_paths(self.cvl.get_str("SVN_CLIENT_PATH"))
         self.cvl.set_variable("SVN_CLIENT_PATH", var_description).append(svn_client_full_path)
 
@@ -374,6 +381,10 @@ class InstlInstanceBase(object):
     @func_log_wrapper
     def init_copy_vars(self):
         var_description = "from InstlInstanceBase.init_copy_vars"
+        if "SET_ICON_PATH" in self.cvl:
+            setIcon_full_path = self.search_paths_helper.find_file_with_search_paths(self.cvl.get_str("SET_ICON_PATH"))
+            self.cvl.set_variable("SET_ICON_PATH", var_description).append(setIcon_full_path)
+
         if "REL_SRC_PATH" not in self.cvl:
             if "SVN_REPO_URL" not in self.cvl:
                 raise ValueError("'SVN_REPO_URL' was not defined")
