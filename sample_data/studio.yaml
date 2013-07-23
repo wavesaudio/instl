@@ -6,14 +6,9 @@ SVN_CLIENT_PATH: $(SVN_CLIENT_PATH_FOR_$(CURRENT_OS))
 
 SET_ICON_PATH: "/usr/local/bin/setIcon"
 
-SVN_REPO_URL: "file:///Volumes/SvnSrv/192.168.13.108/V9"
+SVN_REPO_URL: "http://192.168.13.108/svn/V9"
 
 __include__: "$(SVN_REPO_URL)/instl/index.yaml"
-
-WAVES_DIR: "$(HOME_DIR)/Desktop/local-install"
-MACOS_APPLICATIONSUPPORT_DIR: "$(WAVES_DIR)/Application Support"
-
-#REPO_REV: 80
 
 MAIN_INSTALL_TARGETS:
     - GTRSolo_IID

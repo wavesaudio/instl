@@ -191,6 +191,9 @@ def main_url_item(url):
         retVal = parseResult.netloc
         if not retVal:
             retVal = parseResult.path
+        else:
+            if parseResult.path:
+                retVal += parseResult.path
     except:
         retVal = ""
     return retVal
