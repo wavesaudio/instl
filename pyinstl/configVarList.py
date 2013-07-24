@@ -26,7 +26,7 @@ value_ref_re = re.compile("""(
                             (?P<varref_pattern>
                             (?P<varref_marker>[$])      # $
                             \(                          # (
-                            (?P<var_name>\w+)           # value
+                            (?P<var_name>[\w\s]+?|[\w\s(]+[\w\s)]+?)           # value
                             \))                         # )
                             )""", re.X)
 only_one_value_ref_re = re.compile("""
@@ -34,7 +34,7 @@ only_one_value_ref_re = re.compile("""
                             (?P<varref_pattern>
                             (?P<varref_marker>[$])      # $
                             \(                          # (
-                            (?P<var_name>\w+)           # value
+                            (?P<var_name>[\w\s]+?|[\w\s(]+[\w\s)]+?)           # value
                             \))                         # )
                             $
                             """, re.X)
