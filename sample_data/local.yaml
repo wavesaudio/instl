@@ -11,7 +11,7 @@ SVN_REPO_URL: "file:///Volumes/SvnSrv/192.168.13.108/V9"
 __include__: "$(SVN_REPO_URL)/instl/index.yaml"
 
 WAVES_DIR: "$(HOME_DIR)/Desktop/local-install"
-MACOS_APPLICATIONSUPPORT_DIR: "$(WAVES_DIR)/Application Support"
+WAVES_PROGRAMDATA_DIR_FOR_Mac: "$(WAVES_DIR)/Application Support/Waves Audio"
 
 #REPO_REV: 80
 

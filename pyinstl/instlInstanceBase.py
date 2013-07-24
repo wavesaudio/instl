@@ -430,7 +430,7 @@ class InstlInstanceBase(object):
                 for source in installi.source_list():
                     installState.extend_instructions('sync', self.create_svn_sync_instructions_for_source(source))
                 installState.append_instructions('sync', self.create_echo_command("synced {}".format(installi.name), self.progress_file))
-            installState.append_instructions('sync', self.create_echo_command("Progress: synced {current_item_for_progress_report} of {num_items_for_progress_report}".format(**locals()), self.progress_file))
+            installState.append_instructions('sync', self.create_echo_command("Progress: synced {current_item_for_progress_report} of {num_items_for_progress_report}; {installi.iid}".format(**locals()), self.progress_file))
             current_item_for_progress_report += 1
         for iid in installState.orphan_install_items:
             installState.append_instructions('sync', self.create_echo_command("Don't know how to sync "+iid))
@@ -500,7 +500,7 @@ class InstlInstanceBase(object):
                     install_item_instructions.extend(installi.action_list('before'))
                     install_item_instructions.extend(self.create_copy_instructions_for_source(source, copy_command_creator))
                     install_item_instructions.extend(installi.action_list('after'))
-                    install_item_instructions.append(self.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}".format(**locals()), self.progress_file))
+                    install_item_instructions.append(self.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}; {installi.iid}".format(**locals()), self.progress_file))
                     current_item_for_progress_report += 1
                 folder_out_actions.extend(installi.action_list('folder_out'))
             installState.extend_instructions('copy', folder_in_actions)
@@ -527,7 +527,7 @@ class InstlInstanceBase(object):
             installState.extend_instructions('copy', folder_in_actions)
             installState.extend_instructions('copy', install_actions)
             installState.extend_instructions('copy', folder_out_actions)
-            installState.extend_instructions('copy', self.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}".format(**locals()), self.progress_file))
+            installState.append_instructions('copy', self.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}".format(**locals()), self.progress_file))
             current_item_for_progress_report += 1
         # messages about orphan iids
         for iid in installState.orphan_install_items:
