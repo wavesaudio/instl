@@ -340,7 +340,8 @@ class InstlInstanceBase(object):
             user_cache_dir = appdirs.user_cache_dir(this_program_name, self.cvl.get_str("COMPANY_NAME"))
         from_url = main_url_item(self.cvl.get_str("SVN_REPO_URL"))
         if from_url:
-            from_url = from_url.lstrip("/\\")
+            if 'Win' in current_os_names:
+                from_url = from_url.lstrip("/\\")
             retVal = os.path.join(user_cache_dir, from_url)
         else:
             retVal = user_cache_dir

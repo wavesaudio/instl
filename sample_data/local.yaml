@@ -6,7 +6,7 @@ SVN_CLIENT_PATH: $(SVN_CLIENT_PATH_FOR_$(CURRENT_OS))
 
 SET_ICON_PATH: "/usr/local/bin/setIcon"
 
-SVN_REPO_URL: "file:///c:/p4client/192.168.13.108/V9"
+SVN_REPO_URL: "file:///Volumes/SvnSrv/192.168.13.108/V9"
 
 __include__: "$(SVN_REPO_URL)/instl/index.yaml"
 
