@@ -335,13 +335,16 @@ class InstlInstanceBase(object):
         retVal = None
         if os_family_name == "Mac":
             user_cache_dir_param = self.cvl.get_str("COMPANY_NAME")+"/"+this_program_name
-            retVal = appdirs.user_cache_dir(user_cache_dir_param)
+            user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
         elif os_family_name == "Win":
-            retVal = appdirs.user_cache_dir(this_program_name, self.cvl.get_str("COMPANY_NAME"))
+            user_cache_dir = appdirs.user_cache_dir(this_program_name, self.cvl.get_str("COMPANY_NAME"))
         from_url = main_url_item(self.cvl.get_str("SVN_REPO_URL"))
         if from_url:
-            #from_url = from_url.lstrip("/\\")
-            retVal = os.path.join(retVal, from_url)
+            from_url = from_url.lstrip("/\\")
+            retVal = os.path.join(user_cache_dir, from_url)
+        else:
+            retVal = user_cache_dir
+        #print("------------------", user_cache_dir, "-", from_url, "-", retVal)
         return retVal
 
     @func_log_wrapper

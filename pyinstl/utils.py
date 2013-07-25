@@ -188,6 +188,7 @@ def main_url_item(url):
     retVal = ""
     try:
         parseResult = urlparse.urlparse(url)
+        #print("+++++++", url, "+", parseResult)
         retVal = parseResult.netloc
         if not retVal:
             retVal = parseResult.path
