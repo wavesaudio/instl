@@ -173,7 +173,7 @@ class InstlInstanceBase(object):
             var_description = "from initial_vars"
             for var, value in initial_vars.iteritems():
                 self.cvl.add_const_config_variable(var, var_description, value)
-            
+
         var_description = "from InstlInstanceBase.init_default_vars"
         self.cvl.add_const_config_variable("CURRENT_OS", var_description, os_family_name)
         self.cvl.add_const_config_variable("CURRENT_OS_NAMES", var_description, *current_os_names)
@@ -360,9 +360,6 @@ class InstlInstanceBase(object):
 
         if "REPO_REV" not in self.cvl:
             self.cvl.set_variable("REPO_REV", var_description).append("HEAD")
-        if "REPO_NAME" not in self.cvl:
-            repo_name = last_url_item(self.cvl.get_str("SVN_REPO_URL"))
-            self.cvl.set_variable("REPO_NAME", var_description).append(repo_name)
         if "BASE_SRC_URL" not in self.cvl:
             self.cvl.set_variable("BASE_SRC_URL", var_description).append("$(SVN_REPO_URL)/$(TARGET_OS)")
 
@@ -377,7 +374,7 @@ class InstlInstanceBase(object):
         rel_sources = relative_url(self.cvl.get_str("SVN_REPO_URL"), self.cvl.get_str("BASE_SRC_URL"))
         self.cvl.set_variable("REL_SRC_PATH", var_description).append(rel_sources)
 
-        for identifier in ("SVN_REPO_URL", "SVN_CLIENT_PATH", "REL_SRC_PATH", "REPO_REV", "REPO_NAME", "BASE_SRC_URL", "BOOKKEEPING_DIR_URL"):
+        for identifier in ("SVN_REPO_URL", "SVN_CLIENT_PATH", "REL_SRC_PATH", "REPO_REV", "BASE_SRC_URL", "BOOKKEEPING_DIR_URL"):
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
         self.progress_file = self.cvl.get_str("SYNC_PROGRESS_FILE", default=None)
         if self.progress_file:
@@ -389,7 +386,7 @@ class InstlInstanceBase(object):
         if "SET_ICON_PATH" in self.cvl:
             setIcon_full_path = self.search_paths_helper.find_file_with_search_paths(self.cvl.get_str("SET_ICON_PATH"))
             self.cvl.set_variable("SET_ICON_PATH", var_description).append(setIcon_full_path)
-
+# check which variabls are needed for for offline install....
         if "REL_SRC_PATH" not in self.cvl:
             if "SVN_REPO_URL" not in self.cvl:
                 raise ValueError("'SVN_REPO_URL' was not defined")
@@ -401,15 +398,10 @@ class InstlInstanceBase(object):
         if "LOCAL_SYNC_DIR" not in self.cvl:
             self.cvl.set_variable("LOCAL_SYNC_DIR", var_description).append(self.get_default_sync_dir())
 
-        if "REPO_NAME" not in self.cvl:
-            if "SVN_REPO_URL" not in self.cvl:
-                raise ValueError("'SVN_REPO_URL' was not defined")
-            repo_name = last_url_item(self.cvl.get_str("SVN_REPO_URL"))
-            self.cvl.set_variable("REPO_NAME", var_description).append(repo_name)
         if "COPY_TOOL" not in self.cvl:
             from copyCommander import DefaultCopyToolName
             self.cvl.set_variable("COPY_TOOL", var_description).append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
-        for identifier in ("REL_SRC_PATH", "REPO_NAME", "COPY_TOOL"):
+        for identifier in ("REL_SRC_PATH", "COPY_TOOL"):
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
         self.progress_file = self.cvl.get_str("COPY_PROGRESS_FILE", default=None)
         if self.progress_file:
