@@ -34,7 +34,7 @@ def current_os_names():
         if Is64Windows():
             retVal = ('Win', 'Win64')
         else:
-            retVal = ('Win', 'Win34')
+            retVal = ('Win', 'Win32')
     return retVal
 
 class write_to_file_or_stdout(object):
