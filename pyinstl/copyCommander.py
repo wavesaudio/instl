@@ -76,21 +76,21 @@ class CopyCommander_win_robocopy(CopyCommanderBase):
         retVal = list()
         _, dir_to_copy = os.path.split(src_dir)
         trg_dir = "/".join( (trg_dir, dir_to_copy) )
-        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /E /XD .svn".format(**locals())
+        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /E /XD .svn /R:3 /W:3".format(**locals())
         retVal.append(copy_command)
         return retVal
 
     def create_copy_file_to_dir_command(self, src_file, trg_dir):
         src_dir, src_file = os.path.split(src_file)
-        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" \"{src_file}\"".format(**locals())
+        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" \"{src_file}\" /R:3 /W:3".format(**locals())
         return (copy_command, )
 
     def create_copy_dir_contents_to_dir_command(self, src_dir, trg_dir):
-        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /E /XD .svn".format(**locals())
+        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /E /XD .svn /R:3 /W:3".format(**locals())
         return (copy_command, )
     
     def create_copy_dir_files_to_dir_command(self, src_dir, trg_dir):
-        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /LEV:1 /XD .svn".format(**locals())
+        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /LEV:1 /XD .svn /R:3 /W:3".format(**locals())
         return (copy_command, )
 
 class CopyCommander_win_xcopy(CopyCommanderBase):
