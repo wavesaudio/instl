@@ -138,7 +138,6 @@ class InstlInstanceBase(object):
         self.search_paths_helper.add_search_path(self.cvl.get_str("__INSTL_EXE_PATH__"))
         #if os_family_name == "Win":
         #    self.search_paths_helper.add_search_path(os.path.join(self.cvl.get_str("__INSTL_EXE_PATH__"), "wsvn"))
-        self.progress_file = None
 
         self.guid_re = re.compile("""
                         [a-f0-9]{8}
@@ -380,9 +379,6 @@ class InstlInstanceBase(object):
 
         for identifier in ("SVN_REPO_URL", "SVN_CLIENT_PATH", "REL_SRC_PATH", "REPO_REV", "BASE_SRC_URL", "BOOKKEEPING_DIR_URL"):
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
-        self.progress_file = self.cvl.get_str("SYNC_PROGRESS_FILE", default=None)
-        if self.progress_file:
-            self.progress_file = os.path.realpath(self.progress_file)
 
     @func_log_wrapper
     def init_copy_vars(self):
@@ -407,34 +403,31 @@ class InstlInstanceBase(object):
             self.cvl.set_variable("COPY_TOOL", var_description).append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
         for identifier in ("REL_SRC_PATH", "COPY_TOOL"):
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
-        self.progress_file = self.cvl.get_str("COPY_PROGRESS_FILE", default=None)
-        if self.progress_file:
-            self.progress_file = os.path.realpath(self.progress_file)
 
     @func_log_wrapper
     def create_sync_instructions(self, installState):
         num_items_for_progress_report = len(installState.full_install_items) + 2 # one for a dummy last item, one for index sync
         current_item_for_progress_report = 0
-        installState.append_instructions('sync', self.create_echo_command("Progress: synced {current_item_for_progress_report} of {num_items_for_progress_report}; from $(BASE_SRC_URL)".format(**locals()), self.progress_file))
+        installState.append_instructions('sync', self.create_echo_command("Progress: synced {current_item_for_progress_report} of {num_items_for_progress_report}; from $(BASE_SRC_URL)".format(**locals())))
         current_item_for_progress_report += 1
         installState.indent_level += 1
         installState.extend_instructions('sync', self.make_directory_cmd("$(LOCAL_SYNC_DIR)"))
         installState.extend_instructions('sync', self.change_directory_cmd("$(LOCAL_SYNC_DIR)"))
         installState.indent_level += 1
         installState.append_instructions('sync', " ".join(('"$(SVN_CLIENT_PATH)"', "co", '"$(BOOKKEEPING_DIR_URL)"', '"$(REL_BOOKKIPING_PATH)"', "--revision", "$(REPO_REV)", "--depth", "infinity")))
-        installState.append_instructions('sync', self.create_echo_command("Progress: synced {current_item_for_progress_report} of {num_items_for_progress_report}; index file $(BOOKKEEPING_DIR_URL)".format(**locals()), self.progress_file))
+        installState.append_instructions('sync', self.create_echo_command("Progress: synced {current_item_for_progress_report} of {num_items_for_progress_report}; index file $(BOOKKEEPING_DIR_URL)".format(**locals())))
         current_item_for_progress_report += 1
         for iid  in installState.full_install_items:
             installi = self.install_definitions_index[iid]
             if installi.source_list():
                 for source in installi.source_list():
                     installState.extend_instructions('sync', self.create_svn_sync_instructions_for_source(source))
-            installState.append_instructions('sync', self.create_echo_command("Progress: synced {current_item_for_progress_report} of {num_items_for_progress_report}; {installi.iid}: {installi.name}".format(**locals()), self.progress_file))
+            installState.append_instructions('sync', self.create_echo_command("Progress: synced {current_item_for_progress_report} of {num_items_for_progress_report}; {installi.iid}: {installi.name}".format(**locals())))
             current_item_for_progress_report += 1
         for iid in installState.orphan_install_items:
             installState.append_instructions('sync', self.create_echo_command("Don't know how to sync "+iid))
         installState.indent_level -= 1
-        installState.append_instructions('sync', self.create_echo_command("Progress: synced {current_item_for_progress_report} of {num_items_for_progress_report};  from $(BASE_SRC_URL)".format(**locals()), self.progress_file))
+        installState.append_instructions('sync', self.create_echo_command("Progress: synced {current_item_for_progress_report} of {num_items_for_progress_report};  from $(BASE_SRC_URL)".format(**locals())))
 
     @func_log_wrapper
     def create_svn_sync_instructions_for_source(self, source):
@@ -469,7 +462,7 @@ class InstlInstanceBase(object):
     @func_log_wrapper
     def create_copy_instructions(self, installState):
         # copy and actions instructions for sources
-        installState.append_instructions('copy', self.create_echo_command("starting copy", self.progress_file))
+        installState.append_instructions('copy', self.create_echo_command("starting copy"))
         from copyCommander import CopyCommanderFactory
         copy_command_creator = CopyCommanderFactory(self.cvl.get_str("TARGET_OS"), self.cvl.get_str("COPY_TOOL"))
         num_items_for_progress_report = 1 # one for a dummy last item
@@ -480,10 +473,10 @@ class InstlInstanceBase(object):
         num_items_for_progress_report += len(installState.no_copy_items_by_sync_folder)
 
         current_item_for_progress_report = 0
-        installState.append_instructions('copy', self.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}; from $(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)".format(**locals()), self.progress_file))
+        installState.append_instructions('copy', self.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}; from $(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)".format(**locals())))
         current_item_for_progress_report += 1
         for folder_name, folder_items in installState.install_items_by_target_folder.iteritems():
-            installState.append_instructions('copy', self.create_echo_command("Starting copy to folder "+folder_name, self.progress_file))
+            installState.append_instructions('copy', self.create_echo_command("Starting copy to folder "+folder_name))
             installState.indent_level += 1
             logging.info("... folder %s (%s)", folder_name, self.cvl.resolve_string(folder_name))
             installState.extend_instructions('copy', self.make_directory_cmd(folder_name))
@@ -498,7 +491,7 @@ class InstlInstanceBase(object):
                     install_item_instructions.extend(installi.action_list('before'))
                     install_item_instructions.extend(self.create_copy_instructions_for_source(source, copy_command_creator))
                     install_item_instructions.extend(installi.action_list('after'))
-                    install_item_instructions.append(self.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}; {installi.iid}: {installi.name}".format(**locals()), self.progress_file))
+                    install_item_instructions.append(self.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}; {installi.iid}: {installi.name}".format(**locals())))
                     current_item_for_progress_report += 1
                 folder_out_actions.extend(installi.action_list('folder_out'))
             installState.extend_instructions('copy', folder_in_actions)
@@ -524,13 +517,13 @@ class InstlInstanceBase(object):
             installState.extend_instructions('copy', folder_in_actions)
             installState.extend_instructions('copy', install_actions)
             installState.extend_instructions('copy', folder_out_actions)
-            installState.append_instructions('copy', self.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}".format(**locals()), self.progress_file))
+            installState.append_instructions('copy', self.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}".format(**locals())))
             current_item_for_progress_report += 1
         # messages about orphan iids
         for iid in installState.orphan_install_items:
             logging.info("Orphan item: %s", iid)
             installState.append_instructions('copy', self.create_echo_command("Don't know how to install "+iid))
-        installState.append_instructions('copy', self.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}".format(**locals()), self.progress_file))
+        installState.append_instructions('copy', self.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}".format(**locals())))
 
     @func_log_wrapper
     def create_copy_instructions_for_source(self, source, copy_command_creator):
@@ -684,7 +677,7 @@ class InstlInstanceBase(object):
         pass
 
     @abc.abstractmethod
-    def create_echo_command(self, message, file=None):
+    def create_echo_command(self, message):
         pass
 
     @abc.abstractmethod

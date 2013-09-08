@@ -21,8 +21,6 @@ These variable can be supplied by the used in the !define file, but have deafult
     * REPO_REV: The version of the subversion reprository to sync. defaults to HEAD.
     * SYNC_LOG_FILE: Path to a file where sync log will be written. Defaults to "${LOCAL_SYNC_DIR}/${REPO_NAME}/"+time.time()+"sync.log.
     * TARGET_OS: The os **instl** is installing to.  Values are 'Win' for Windows and 'Mac' for Mac OS. Defaults to CURRENT_OS.
-    * SYNC_PROGRESS_FILE: Path to a file where progress information of the sync operation will be written. If not supplied progress information is written to stdout.
-    * COPY_PROGRESS_FILE: Path to a file where progress information of the copy operation will be written. If not supplied progress information is written to stdout.
     
 Public **instl** created variables
 =================================
