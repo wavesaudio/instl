@@ -1,0 +1,130 @@
+#!/usr/bin/env python
+from __future__ import print_function
+
+import os
+import sys
+import re
+import time
+from collections import namedtuple
+
+def timing(f):
+    def wrap(*args):
+        time1 = time.time()
+        ret = f(*args)
+        time2 = time.time()
+        print ('%s function took %0.3f ms' % (f.func_name, (time2-time1)*1000.0))
+        return ret
+    return wrap
+
+SVNItemFlat = namedtuple('SVNItemFlat', ["path", "flags", "last_rev"])
+
+class SVNItem(object):
+    __slots__ = ("__name", "__flags", "__last_rev", "__subs")
+    def __init__(self, in_name, in_flags, in_last_rev):
+        self.__name = in_name
+        self.__flags = in_flags
+        self.__last_rev = in_last_rev
+        self.__subs = None
+        if self.isDir():
+            self.__subs = dict()
+
+    def __str__(self):
+        retVal = "{self._SVNItem__name}: {self._SVNItem__flags} {self._SVNItem__last_rev}".format(**locals())
+        return retVal
+    
+    def name(self):
+        return self.__name
+    
+    def last_rev(self):
+        return self.__last_rev
+    
+    def flags(self):
+        return self.__flags
+        
+    def isFile(self):
+        return 'f' in self.__flags
+        
+    def isDir(self):
+        return 'd' in self.__flags
+        
+    def isExecutable(self):
+        return 'x' in self.__flags
+        
+    def isSymlink(self):
+        return 's' in self.__flags
+    
+    def sub_names(self):
+        if not self.isDir():
+            raise ValueError(self.name()+" is not a directory, has no sub items")
+        else:
+            assert isinstance(self.__subs, dict), "self.__subs is not a directory"
+        return sorted(self.__subs.keys())
+        
+    def get_sub(self, path):
+        if not self.isDir():
+            raise ValueError(self.name()+" is not a directory, has no sub items")
+        else:
+            assert isinstance(self.__subs, dict), "self.__subs is not a directory"
+        path_parts = path.split("/")
+        retVal = self.__subs.get(path_parts[0]) # will return None if not found
+        if retVal and len(path_parts) > 1:
+            retval = retVal.get_sub("/".join(path_parts[1:]))
+        return retVal
+         
+     # functions have over descriptive names and over lapping functionality
+     # until I realize what is the proper usage.
+
+    def add_sub(self, path, flags, last_rev):
+        path_parts = path.split("/")
+        if len(path_parts) == 1:
+            new_item = SVNItem(path_parts[0], flags, last_rev)
+            self._add_sub_item(new_item)
+        else:
+            if path_parts[0] not in self.__subs.keys():
+                raise KeyError(path_parts[0]+" is not in sub items")
+            self.get_sub(path_parts[0]).add_sub("/".join(path_parts[1:]), flags, last_rev)
+            
+    def _add_sub_item(self, in_item):
+        if not self.isDir():
+            raise ValueError(self.name()+" is not a directory")
+        if in_item.name() in self.__subs:
+            raise KeyError(in_item.name()+" is already in sub items")
+        self.__subs[in_item.name()] = in_item
+
+    def walk_files(self, path_so_far=None, what="all"):
+        if path_so_far is None:
+            path_so_far = list()
+        path_so_far.append(self.name())
+        
+        if self.isFile():
+            if what in ("f", "file", "a", "all"):
+                yield ("/".join( path_so_far ) , self.flags(), self.last_rev())
+                #print("I'm a file", self.name())
+        else:
+            if what in ("d", "dir", "a", "all"):
+                yield ("/".join( path_so_far ) , self.flags(), self.last_rev())
+            #print("I'm not a file", self.name())
+            # sub-files first
+            for sub_name in self.sub_names():
+                if self.__subs[sub_name].isFile():
+                    #print("found a file", sub_name)
+                    for yielded_from in self.__subs[sub_name].walk_files(path_so_far, what):
+                        yield yielded_from
+            # sub-directories second
+            for sub_name in self.sub_names():
+                if self.__subs[sub_name].isDir():
+                    #print("found a dir", sub_name)
+                    for yielded_from in self.__subs[sub_name].walk_files(path_so_far, what):
+                        yield yielded_from
+        path_so_far.pop()
+
+    def walk_items(self, path_so_far=None):
+        if path_so_far is None:
+            path_so_far = list()
+        path_so_far.append(self.__name)
+        yield ("/".join(path_so_far), self.props[0], self.props[1])
+        for sub_name, sub_item in self.__subs.iteritems():
+            print("--", sub_name, sub_item)
+            for item in sub_item.walk_items(path_so_far):
+                yield item
+        path_so_far.pop()
