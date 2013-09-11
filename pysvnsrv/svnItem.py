@@ -1,25 +1,20 @@
 #!/usr/bin/env python
 from __future__ import print_function
 
-import os
-import sys
-import re
-import time
 from collections import namedtuple
-from aYaml.augmentedYaml import YamlDumpWrap
-
-def timing(f):
-    def wrap(*args):
-        time1 = time.time()
-        ret = f(*args)
-        time2 = time.time()
-        print ('%s function took %0.3f ms' % (f.func_name, (time2-time1)*1000.0))
-        return ret
-    return wrap
 
 SVNItemFlat = namedtuple('SVNItemFlat', ["path", "flags", "last_rev"])
 
 class SVNItem(object):
+    """ represents a single svn item, either file or directory with the item's
+        flags and last changed revision. Only the item's name is kept not
+        the whole path. Directory items have a dictionary of sub items.
+        
+        flags can be either f (file) or d (directory)
+        and zero or more of the following:
+        x - executable bit
+        s - symlink
+    """
     __slots__ = ("__name", "__flags", "__last_rev", "__subs")
     def __init__(self, in_name, in_flags, in_last_rev):
         self.__name = in_name
@@ -93,6 +88,10 @@ class SVNItem(object):
         self.__subs[in_item.name()] = in_item
 
     def walk_items(self, path_so_far=None, what="all"):
+        """  Walk the item list and yield items in the SVNItemFlat format:
+            (path, flags, last_rev). path is the full know path (up to the top
+            item in the tree where walk_items was called).
+        """
         if path_so_far is None:
             path_so_far = list()
         
