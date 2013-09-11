@@ -4,7 +4,7 @@ from __future__ import print_function
 import sys
 import os
 import unittest
-sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
+#sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 from test_SVNItem import TestSVNItem
 
 if __name__ == '__main__':

@@ -6,6 +6,7 @@ import sys
 import re
 import time
 from collections import namedtuple
+from aYaml.augmentedYaml import YamlDumpWrap
 
 def timing(f):
     def wrap(*args):
@@ -91,40 +92,37 @@ class SVNItem(object):
             raise KeyError(in_item.name()+" is already in sub items")
         self.__subs[in_item.name()] = in_item
 
-    def walk_files(self, path_so_far=None, what="all"):
+    def walk_items(self, path_so_far=None, what="all"):
         if path_so_far is None:
             path_so_far = list()
-        path_so_far.append(self.name())
         
-        if self.isFile():
-            if what in ("f", "file", "a", "all"):
-                yield ("/".join( path_so_far ) , self.flags(), self.last_rev())
-                #print("I'm a file", self.name())
-        else:
-            if what in ("d", "dir", "a", "all"):
-                yield ("/".join( path_so_far ) , self.flags(), self.last_rev())
-            #print("I'm not a file", self.name())
+        if self.isDir():
             # sub-files first
-            for sub_name in self.sub_names():
-                if self.__subs[sub_name].isFile():
-                    #print("found a file", sub_name)
-                    for yielded_from in self.__subs[sub_name].walk_files(path_so_far, what):
-                        yield yielded_from
+            if what in ("f", "file", "a", "all"):
+                for sub_name in self.sub_names():
+                    if self.__subs[sub_name].isFile():
+                        path_so_far.append(self.__subs[sub_name].name())
+                        yield ("/".join( path_so_far ) , self.__subs[sub_name].flags(), self.__subs[sub_name].last_rev())
+                        path_so_far.pop()
             # sub-directories second
             for sub_name in self.sub_names():
                 if self.__subs[sub_name].isDir():
-                    #print("found a dir", sub_name)
-                    for yielded_from in self.__subs[sub_name].walk_files(path_so_far, what):
+                    path_so_far.append(self.__subs[sub_name].name())
+                    if what in ("d", "dir", "a", "all"):
+                        yield ("/".join( path_so_far ) , self.__subs[sub_name].flags(), self.__subs[sub_name].last_rev())
+                    for yielded_from in self.__subs[sub_name].walk_items(path_so_far, what):
                         yield yielded_from
-        path_so_far.pop()
+                    path_so_far.pop()
+        else:
+            raise TypeError("Files should not walk themselfs, ownning dir should do it for them")
 
-    def walk_items(self, path_so_far=None):
-        if path_so_far is None:
-            path_so_far = list()
-        path_so_far.append(self.__name)
-        yield ("/".join(path_so_far), self.props[0], self.props[1])
-        for sub_name, sub_item in self.__subs.iteritems():
-            print("--", sub_name, sub_item)
-            for item in sub_item.walk_items(path_so_far):
-                yield item
-        path_so_far.pop()
+    def repr_for_yaml(self):
+        """         writeAsYaml(svni1, out_stream=sys.stdout, indentor=None, sort=True)         """
+        retVal = dict()
+        for sub_name in sorted(self.sub_names()):
+            if self.__subs[sub_name].isFile():
+                retVal[self.__subs[sub_name].name()] = " ".join( (self.__subs[sub_name].flags(), str(self.__subs[sub_name].last_rev())) )
+            else:
+                retVal[self.__subs[sub_name].name()] = self.__subs[sub_name].repr_for_yaml()
+                retVal[self.__subs[sub_name].name()]["__props__"] = " ".join( (self.__subs[sub_name].flags(), str(self.__subs[sub_name].last_rev())) )
+        return retVal

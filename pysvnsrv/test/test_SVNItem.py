@@ -7,7 +7,11 @@ import sys
 import os
 import unittest
 
+sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
+sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..", "..")))
+from aYaml.augmentedYaml import YamlDumpWrap, writeAsYaml
 from svnItem import *
+
 def timing(f):
     def wrap(*args):
         time1 = time.time()
@@ -26,47 +30,53 @@ class TestSVNItem(unittest.TestCase):
     def tearDown(self):
         pass
     
-    def test_walk_files(self):
-        svni0 = SVNItem("TestFile", "f", 15)
-        for file in svni0.walk_files():
-            print(file)
-            
+    def test_walk_items(self):
+        item_list = [
+                    ("Dir1", "d", 14),
+                    ("Dir1/File1.1", "f", 14),
+                    ("Dir1/File1.2", "f", 14),
+                    ("Dir1/File1.3", "f", 14),
+                    ("Dir2", "d", 14),
+                    ("Dir2/Dir2.1", "d", 14),
+                    ("Dir2/Dir2.1/File2.1.1", "f", 14),
+                    ("Dir2/Dir2.2", "d", 14),
+                    ("Dir2/Dir2.2/File2.2.1", "fx", 14),
+                    ("Dir2/Dir2.2/File2.2.2", "f", 14),
+                    ("Dir2/Dir2.3", "d", 14),
+                    ("Dir2/Dir2.3/File2.3.1", "f", 14),
+                    ("Dir2/Dir2.3/File2.3.2", "fx", 14),
+                    ("Dir2/Dir2.3/File2.3.3", "f", 14),
+                    ("Dir3", "ds", 14),
+                    ("Dir3/File3.1", "f", 14),
+                    ("Dir3/File3.2", "f", 14),
+                    ("Dir3/Dir3.1", "d", 14),
+                    ("Dir3/Dir3.1/File3.1.1", "f", 14),
+                    ("Dir3/Dir3.1/File3.1.2", "fx", 14),
+                    ("Dir3/Dir3.2", "d", 14),
+                    ("Dir3/Dir3.2/File3.2.1", "f", 14),
+                    ("Dir3/Dir3.2/File3.2.2", "f", 14),
+                    ("Dir3/Dir3.2/Dir3.2.1", "d", 14),
+                    ("Dir3/Dir3.2/Dir3.2.2", "ds", 14)
+                    ]
         svni1 = SVNItem("TestDir", "d", 15)
-        svni1.add_sub("Dir1", "d", 14)
-        svni1.add_sub("Dir2", "d", 14)
-        svni1.add_sub("Dir3", "d", 14)
-        svni1.add_sub("Dir1/File1.1", "f", 14)
-        svni1.add_sub("Dir1/File1.2", "f", 14)
-        svni1.add_sub("Dir1/File1.3", "f", 14)
-        svni1.add_sub("Dir2/Dir2.1", "d", 14)
-        svni1.add_sub("Dir2/Dir2.2", "d", 14)
-        svni1.add_sub("Dir2/Dir2.3", "d", 14)
-        svni1.add_sub("Dir2/Dir2.1/File2.1.1", "f", 14)
-        svni1.add_sub("Dir2/Dir2.2/File2.2.1", "f", 14)
-        svni1.add_sub("Dir2/Dir2.2/File2.2.2", "f", 14)
-        svni1.add_sub("Dir2/Dir2.3/File2.3.1", "f", 14)
-        svni1.add_sub("Dir2/Dir2.3/File2.3.2", "f", 14)
-        svni1.add_sub("Dir2/Dir2.3/File2.3.3", "f", 14)
-        svni1.add_sub("Dir3/File3.1", "f", 14)
-        svni1.add_sub("Dir3/File3.2", "f", 14)
-        svni1.add_sub("Dir3/Dir3.1", "d", 14)
-        svni1.add_sub("Dir3/Dir3.1/File3.1.1", "f", 14)
-        svni1.add_sub("Dir3/Dir3.1/File3.1.2", "f", 14)
-        svni1.add_sub("Dir3/Dir3.2", "d", 14)
-        svni1.add_sub("Dir3/Dir3.2/File3.2.1", "f", 14)
-        svni1.add_sub("Dir3/Dir3.2/File3.2.2", "f", 14)
-        svni1.add_sub("Dir3/Dir3.2/Dir3.2.1", "d", 14)
-        svni1.add_sub("Dir3/Dir3.2/Dir3.2.2", "d", 14)
-        for file in svni1.walk_files(what="a"):
-            print(file)
-        print("End all")
-        for file in svni1.walk_files(what="f"):
-            print(file)
-        print("Ends files")
-        for file in svni1.walk_files(what="d"):
-            print(file)
-        print("End dirs")
-    
+        for item in item_list:
+            svni1.add_sub(*item)
+        
+        all_items_list = []    
+        for item in svni1.walk_items(what="a"):
+            all_items_list.append(item)
+        self.assertEqual(all_items_list, item_list)
+        
+        all_files_list = []    
+        for file in svni1.walk_items(what="f"):
+            all_files_list.append(file)
+        self.assertEqual(all_files_list, [item for item in item_list if "f" in item[1]])
+
+        all_dirs_list = []    
+        for dir in svni1.walk_items(what="d"):
+            all_dirs_list.append(dir)
+        self.assertEqual(all_dirs_list, [item for item in item_list if "d" in item[1]])
+                
     def test_add_sub_negative(self):
         svni1 = SVNItem("TestDir", "d", 15)
         flat1 = SVNItemFlat("SubDir1/SubFile1", "f", 19)
