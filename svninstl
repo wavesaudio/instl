@@ -1,0 +1,20 @@
+#!/usr/bin/env python2.7
+
+from __future__ import print_function
+
+import sys
+import os
+
+from pysvnsrv.svninst_interactive import go_interactive
+
+def main():
+    try:
+        go_interactive()
+    except Exception as ex:
+        print("unhandled exception")
+        import traceback
+        traceback.print_exc()
+
+if __name__ == "__main__":
+    main()
+
