@@ -1,9 +1,21 @@
 #!/usr/bin/env python
 from __future__ import print_function
 
-from collections import namedtuple
+import re
+from collections import namedtuple, OrderedDict
+
+from aYaml import augmentedYaml
 
 SVNItemFlat = namedtuple('SVNItemFlat', ["path", "flags", "last_rev"])
+
+flags_and_last_rev_re = re.compile("""
+                ^
+                \s*
+                (?P<flags>[fdxs]+)
+                \s*
+                (?P<last_rev>\d+)
+                $
+                """, re.X)
 
 class SVNItem(object):
     """ represents a single svn item, either file or directory with the item's
@@ -71,15 +83,21 @@ class SVNItem(object):
      # until I realize what is the proper usage.
 
     def add_sub(self, path, flags, last_rev):
+        retVal = None
+        #print("--- add sub to", self.name(), path, flags, last_rev)
         path_parts = path.split("/")
         if len(path_parts) == 1:
-            new_item = SVNItem(path_parts[0], flags, last_rev)
-            self._add_sub_item(new_item)
+            retVal = SVNItem(path_parts[0], flags, last_rev)
+            self._add_sub_item(retVal)
         else:
             if path_parts[0] not in self.__subs.keys():
                 raise KeyError(path_parts[0]+" is not in sub items")
-            self.get_sub(path_parts[0]).add_sub("/".join(path_parts[1:]), flags, last_rev)
-            
+            retVal = self.get_sub(path_parts[0]).add_sub("/".join(path_parts[1:]), flags, last_rev)
+        return retVal
+       
+    def clear_subs(self):
+        self.__subs.clear()
+    
     def _add_sub_item(self, in_item):
         if not self.isDir():
             raise ValueError(self.name()+" is not a directory")
@@ -94,34 +112,65 @@ class SVNItem(object):
         """
         if path_so_far is None:
             path_so_far = list()
+        yield_files = what in ("f", "file", "a", "all")
+        yield_dirs = what in ("d", "dir", "a", "all")
         
-        if self.isDir():
-            # sub-files first
-            if what in ("f", "file", "a", "all"):
-                for sub_name in self.sub_names():
-                    if self.__subs[sub_name].isFile():
-                        path_so_far.append(self.__subs[sub_name].name())
-                        yield ("/".join( path_so_far ) , self.__subs[sub_name].flags(), self.__subs[sub_name].last_rev())
-                        path_so_far.pop()
-            # sub-directories second
-            for sub_name in self.sub_names():
-                if self.__subs[sub_name].isDir():
-                    path_so_far.append(self.__subs[sub_name].name())
-                    if what in ("d", "dir", "a", "all"):
-                        yield ("/".join( path_so_far ) , self.__subs[sub_name].flags(), self.__subs[sub_name].last_rev())
-                    for yielded_from in self.__subs[sub_name].walk_items(path_so_far, what):
-                        yield yielded_from
-                    path_so_far.pop()
-        else:
+        if not self.isDir():
             raise TypeError("Files should not walk themselfs, ownning dir should do it for them")
+        
+        for sub_name in self.sub_names():
+            the_sub = self.get_sub(sub_name)
+            if the_sub.isFile() and yield_files:
+                path_so_far.append(the_sub.name())
+                yield ("/".join( path_so_far ) , the_sub.flags(), the_sub.last_rev())
+                path_so_far.pop()
+            if the_sub.isDir():
+                path_so_far.append(the_sub.name())
+                if yield_dirs:
+                    yield ("/".join( path_so_far ) , the_sub.flags(), the_sub.last_rev())
+                for yielded_from in the_sub.walk_items(path_so_far, what):
+                    yield yielded_from
+                path_so_far.pop()
+    
+    def num_subs(self, what="all"):
+        retVal = sum(1 for i in self.walk_items(what="all"))
+        return retVal
 
     def repr_for_yaml(self):
         """         writeAsYaml(svni1, out_stream=sys.stdout, indentor=None, sort=True)         """
-        retVal = dict()
+        retVal = OrderedDict()
+        retVal["_p_"] = " ".join( (self.flags(), str(self.last_rev())) ) 
         for sub_name in sorted(self.sub_names()):
-            if self.__subs[sub_name].isFile():
-                retVal[self.__subs[sub_name].name()] = " ".join( (self.__subs[sub_name].flags(), str(self.__subs[sub_name].last_rev())) )
+            the_sub = self.get_sub(sub_name)
+            if the_sub.isFile():
+                retVal[the_sub.name()] = " ".join( (the_sub.flags(), str(the_sub.last_rev())) )
             else:
-                retVal[self.__subs[sub_name].name()] = self.__subs[sub_name].repr_for_yaml()
-                retVal[self.__subs[sub_name].name()]["__props__"] = " ".join( (self.__subs[sub_name].flags(), str(self.__subs[sub_name].last_rev())) )
+                retVal[the_sub.name()] = the_sub.repr_for_yaml()
         return retVal
+
+    def read_yaml_node(self, a_node):
+        if a_node.isMapping():
+            for identifier, contents in a_node:
+                if identifier == "_p_": # the propertied belog to the folder above and were already read
+                    continue
+                if contents.isScalar(): # scalar contents means a file
+                    match = flags_and_last_rev_re.match(contents.value)
+                    if match:
+                        self.add_sub(identifier, match.group('flags'), int(match.group('last_rev')))
+                    else:
+                        raise ValueError("Looks like a file, but is not %s %s" % (identifier, str(contents)))
+                elif contents.isMapping():
+                    props_node = contents["_p_"]
+                    if props_node.isScalar():
+                        match = flags_and_last_rev_re.match(props_node.value)
+                        if match:
+                            new_sub = self.add_sub(identifier, match.group('flags'), int(match.group('last_rev')))
+                            new_sub.read_yaml_node(contents)
+                        else:
+                            raise ValueError("Looks like a folder, but is not %s %s" % (identifier, str(contents)))
+                    else:
+                        raise ValueError("props node is not a scalar for %s %s" % (identifier, str(contents)))
+        else:
+            ValueError("a_node is not a mapping", a_node)
+                    
+

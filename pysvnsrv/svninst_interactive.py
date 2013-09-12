@@ -70,11 +70,14 @@ def restart_program():
     os.execl(python, python, * sys.argv)
 
 class CMDObj(cmd.Cmd, object):
+    class CommandLineParamException(BaseException):
+        pass
+        
     def __init__(self):
         cmd.Cmd.__init__(self)
         self.prog_inst = svnTree.SVNTree()
         self.restart = False
-
+        
     def __enter__(self):
         if readline_loaded:
             if readline.__doc__ and 'libedit' in readline.__doc__:
@@ -171,38 +174,48 @@ class CMDObj(cmd.Cmd, object):
         print("cd path, change current directory")
 
     def do_read(self, params):
-        if params:
-            for afile in shlex.split(params):
-                try:
-                    self.prog_inst.read_svn_info_file(afile, report_level=1)
-                except Exception as ex:
-                    print("read", afile, ex)
-        else:
-            print("read what?")
+        try:
+            if not params:
+                raise CMDObj.CommandLineParamException
+            split_params = shlex.split(params)
+            if len(split_params) < 2:
+                raise CMDObj.CommandLineParamException
+            format = split_params[0]
+            if format not in self.prog_inst.valid_read_formats():
+                raise CMDObj.CommandLineParamException
+            self.prog_inst.clear_subs()
+            self.prog_inst.read_from_file(split_params[1], format=format, report_level=1)
+        except CMDObj.CommandLineParamException:
+            self.help_read()
         return False
 
     def complete_read(self, text, line, begidx, endidx):
         return self.path_completion(text, line, begidx, endidx)
 
     def help_read(self):
-        print("read path_to_file")
-        print("    reads a file")
+        print("read", "|".join(self.prog_inst.valid_read_formats()), "path_to_file")
+        print("    reads a svn hierarchy from a file in one of the formats:", ", ".join(self.prog_inst.valid_read_formats()))
         
     def do_write(self, params):
-        if params:
-            format = "text"
+        try:
+            if not params:
+                raise CMDObj.CommandLineParamException
             split_params = shlex.split(params)
-            first_file_index = 0
-            if split_params[first_file_index] in ("yaml", "text", "pickle"):
-                format = split_params[first_file_index]
-                first_file_index += 1
-            if len(split_params) - first_file_index == 0:
-                self.prog_inst.dump_to_file("stdout", format)
+            format = split_params[0]
+            if format not in self.prog_inst.valid_write_formats():
+                raise CMDObj.CommandLineParamException
+            if len(split_params) < 2:
+                file = "stdout"
             else:
-                for file in split_params[first_file_index : ]:
-                    self.prog_inst.dump_to_file(file, format)
-        else:
-            print("write what?")
+                file = split_params[1]
+            self.prog_inst.write_to_file(file, format=format, report_level=1)
+        except CMDObj.CommandLineParamException:
+            self.help_write()
+        return False
+
+    def help_write(self):
+        print("write", "|".join(self.prog_inst.valid_write_formats()), "path_to_file|stdout")
+        print("    writes a svn hierarchy from a file in one of the formats:", ", ".join(self.prog_inst.valid_write_formats()))
         
     def do_version(self, params):
         print(" ".join( (this_program_name, "version", ".".join( ("0", "0", "1") ))))
