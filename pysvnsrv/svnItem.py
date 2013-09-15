@@ -40,6 +40,22 @@ class SVNItem(object):
         retVal = "{self._SVNItem__name}: {self._SVNItem__flags} {self._SVNItem__last_rev}".format(**locals())
         return retVal
     
+    def __getstate__(self):
+        return ((self.__name, self.__flags, self.__last_rev), self.__subs)
+    
+    def __setstate__(self, state):
+        self.__name = state[0][0]
+        self.__flags = state[0][1]
+        self.__last_rev = state[0][2]
+        self.__subs = state[1]
+        
+       
+    def copy_from(self, another_SVNItem):
+        self.__name = another_SVNItem.name()
+        self.__flags = another_SVNItem.flags()
+        self.__last_rev = another_SVNItem.last_rev()
+        self.__subs = another_SVNItem.__subs
+        
     def name(self):
         return self.__name
     
@@ -79,9 +95,6 @@ class SVNItem(object):
             retval = retVal.get_sub("/".join(path_parts[1:]))
         return retVal
          
-     # functions have over descriptive names and over lapping functionality
-     # until I realize what is the proper usage.
-
     def add_sub(self, path, flags, last_rev):
         retVal = None
         #print("--- add sub to", self.name(), path, flags, last_rev)
@@ -94,7 +107,7 @@ class SVNItem(object):
                 raise KeyError(path_parts[0]+" is not in sub items")
             retVal = self.get_sub(path_parts[0]).add_sub("/".join(path_parts[1:]), flags, last_rev)
         return retVal
-       
+            
     def clear_subs(self):
         self.__subs.clear()
     
@@ -104,7 +117,25 @@ class SVNItem(object):
         if in_item.name() in self.__subs:
             raise KeyError(in_item.name()+" is already in sub items")
         self.__subs[in_item.name()] = in_item
-
+    
+    def _add_flags(self, flags):
+         new_flags = "".join(sorted(set(self.__flags+flags)))
+         print("_add_flags:", self.__flags, "+", flags, "=", new_flags)
+         self.__flags = new_flags
+         
+    def add_flags(self, path, flags):
+        retVal = None
+        print("--- add flags to", self.name(), path, flags)
+        path_parts = path.split("/")
+        if len(path_parts) == 1:
+            self.__subs[path_parts[0]]._add_flags(flags)
+        else:
+            print(self.name(), self.__subs.keys())
+            if path_parts[0] not in self.__subs.keys():
+                raise KeyError(path_parts[0]+" is not in sub items")
+            retVal = self.get_sub(path_parts[0]).add_flags("/".join(path_parts[1:]), flags)
+        return retVal
+    
     def walk_items(self, path_so_far=None, what="all"):
         """  Walk the item list and yield items in the SVNItemFlat format:
             (path, flags, last_rev). path is the full know path (up to the top

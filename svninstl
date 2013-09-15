@@ -6,10 +6,14 @@ import sys
 import os
 
 from pysvnsrv.svninst_interactive import go_interactive
+from pysvnsrv.svninst_outeractive import go_outeractive
 
 def main():
     try:
-        go_interactive()
+        if len(sys.argv) == 1:
+            go_interactive()
+        else:
+            go_outeractive()
     except Exception as ex:
         print("unhandled exception")
         import traceback

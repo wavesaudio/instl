@@ -183,7 +183,6 @@ class CMDObj(cmd.Cmd, object):
             format = split_params[0]
             if format not in self.prog_inst.valid_read_formats():
                 raise CMDObj.CommandLineParamException
-            self.prog_inst.clear_subs()
             self.prog_inst.read_from_file(split_params[1], format=format, report_level=1)
         except CMDObj.CommandLineParamException:
             self.help_read()
@@ -212,6 +211,9 @@ class CMDObj(cmd.Cmd, object):
         except CMDObj.CommandLineParamException:
             self.help_write()
         return False
+
+    def complete_write(self, text, line, begidx, endidx):
+        return self.path_completion(text, line, begidx, endidx)
 
     def help_write(self):
         print("write", "|".join(self.prog_inst.valid_write_formats()), "path_to_file|stdout")
