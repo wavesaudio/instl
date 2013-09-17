@@ -29,7 +29,7 @@ class SVNTree(svnItem.SVNItem):
                                     "text": self.read_from_text,
                                     "yaml": self.pseudo_read_from_yaml,
                                     "props": self.read_props}
-                                    
+
         self.write_func_by_format = { "pickle": self.write_as_pickle,
                                     "text": self.write_as_text,
                                     "yaml": self.write_as_yaml,
@@ -38,7 +38,7 @@ class SVNTree(svnItem.SVNItem):
     """ reading """
     def valid_read_formats(self):
         return self.read_func_by_format.keys()
-        
+
     @timing
     def read_from_file(self, in_file, format="text", report_level=0):
         """ format is either text, yaml, pickle
@@ -56,11 +56,11 @@ class SVNTree(svnItem.SVNItem):
                 print("    %d items read in %0.3f ms" % (self.num_subs(), (time_end-time_start)*1000.0))
         else:
             ValueError("Unknown read format "+format)
-                
+
     def read_from_svn_info(self, rfd, report_level=0):
         for item in self.iter_svn_info(rfd):
             self.add_sub(*item)
-                
+
     def read_from_text(self, rfd, report_level=0):
         text_line_re = re.compile("""
                     ^
@@ -76,7 +76,7 @@ class SVNTree(svnItem.SVNItem):
             if match:
                 self.add_sub(match.group('path'), match.group('flags'), int(match.group('last_rev')))
                 #print(match.group('path'), match.group('flags'), match.group('last_rev'))
-                
+
     def read_from_yaml(self, rfd, report_level=0):
         try:
             for a_node in yaml.compose_all(rfd):
@@ -130,12 +130,12 @@ class SVNTree(svnItem.SVNItem):
         except Exception as ex:
             print("exception at line:", line_num, line)
             raise
-    
+
     def read_from_pickle(self, rfd, report_level=0):
         import cPickle as pickle
         my = pickle.load(rfd) # cannot pickle to self
         self.copy_from(my)
-        
+
     def read_props(self, rfd, report_level=0):
         props_line_re = re.compile("""
                     ^
@@ -166,7 +166,7 @@ class SVNTree(svnItem.SVNItem):
                     self.add_flags(path, prop_name_to_char[match.group('prop_name')])
             else:
                 ValueError("no matach at line "+str(line_num)+": "+line)
-        
+
     """ writing """
     def valid_write_formats(self):
         return self.write_func_by_format.keys()
@@ -186,18 +186,18 @@ class SVNTree(svnItem.SVNItem):
                 print("    %d items written in %0.3f ms" % (self.num_subs(), (time_end-time_start)*1000.0))
         else:
             ValueError("Unknown write format "+format)
-        
+
     def write_as_pickle(self, wfd, report_level=0):
         import cPickle as pickle
         pickle.dump(self, wfd, 2)
-        
+
     def write_as_text(self, wfd, report_level=0):
         for item in self.walk_items():
             wfd.write("%s, %s, %d\n" % (item[0], item[1], item[2]) )
 
     def write_as_yaml(self, wfd, report_level=0):
         aYaml.augmentedYaml.writeAsYaml(self, out_stream=wfd, indentor=None, sort=True)
-    
+
     def repr_for_yaml(self):
         """         writeAsYaml(svni1, out_stream=sys.stdout, indentor=None, sort=True)         """
         retVal = OrderedDict()
@@ -208,7 +208,7 @@ class SVNTree(svnItem.SVNItem):
             else:
                 ValueError("SVNTree does not support files in the top most direcotry")
         return retVal
-    
+
     def iter_svn_info(self, long_info_fd):
         """ Go over the lines of the output of svn info command
             for each block describing a file or directory, yield
@@ -235,6 +235,12 @@ class SVNTree(svnItem.SVNItem):
         if record: # in case there was no extra line at the end of file
             yield svnItem.SVNItemFlat(record["Path"], short_node_kind[record["Node Kind"]], int(record["Last Changed Rev"]))
 
+    def populate(self, folder):
+        for item in self.walk_items():
+            if "d" in item[1]: # it's a folder
+                full_path = os.path.join( folder, str(item[2]), item[0] )
+                print("mkdir", full_path)
+                os.makedirs(full_path)
 if __name__ == "__main__":
     t = SVNTree()
     t.read_svn_info_file(sys.argv[1])

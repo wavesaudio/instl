@@ -72,12 +72,12 @@ def restart_program():
 class CMDObj(cmd.Cmd, object):
     class CommandLineParamException(BaseException):
         pass
-        
+
     def __init__(self):
         cmd.Cmd.__init__(self)
         self.prog_inst = svnTree.SVNTree()
         self.restart = False
-        
+
     def __enter__(self):
         if readline_loaded:
             if readline.__doc__ and 'libedit' in readline.__doc__:
@@ -194,7 +194,7 @@ class CMDObj(cmd.Cmd, object):
     def help_read(self):
         print("read", "|".join(self.prog_inst.valid_read_formats()), "path_to_file")
         print("    reads a svn hierarchy from a file in one of the formats:", ", ".join(self.prog_inst.valid_read_formats()))
-        
+
     def do_write(self, params):
         try:
             if not params:
@@ -218,7 +218,20 @@ class CMDObj(cmd.Cmd, object):
     def help_write(self):
         print("write", "|".join(self.prog_inst.valid_write_formats()), "path_to_file|stdout")
         print("    writes a svn hierarchy from a file in one of the formats:", ", ".join(self.prog_inst.valid_write_formats()))
-        
+
+    def do_popu(self, params):
+        if not params:
+            raise CMDObj.CommandLineParamException
+        split_params = shlex.split(params)
+        folder = split_params[0]
+        self.prog_inst.populate(folder)
+
+    def complete_popu(self, text, line, begidx, endidx):
+        return self.path_completion(text, line, begidx, endidx)
+
+    def help_popu(self):
+        pass
+
     def do_version(self, params):
         print(" ".join( (this_program_name, "version", ".".join( ("0", "0", "1") ))))
         return False
@@ -257,7 +270,7 @@ class CMDObj(cmd.Cmd, object):
             print(index, readline.get_history_item(index))
         print(readline.get_current_history_length(), "items in history")
         return False
-    
+
     def help_hist(self):
         print("hist")
         print("   display command line history")

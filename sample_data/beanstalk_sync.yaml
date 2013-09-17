@@ -6,7 +6,7 @@ SVN_CLIENT_PATH: $(SVN_CLIENT_PATH_FOR_$(CURRENT_OS))
 
 SET_ICON_PATH: "/usr/local/bin/setIcon"
 
-LOCAL_SYNC_DIR: /Users/shai/Desktop/ruhmbough-sync
+LOCAL_SYNC_DIR: /Users/shai/Desktop/beanstalk-sync
 
 SVN_REPO_URL: "https://waves-audio.svn.beanstalkapp.com/test1/V9"
 
@@ -17,4 +17,4 @@ MACOS_APPLICATIONSUPPORT_DIR: "$(WAVES_DIR)/Application Support"
 MACOS_WAVESHELL_DAE_DIR: "$(WAVES_DIR)/DAE Plug-ins"
 
 MAIN_INSTALL_TARGETS:
-    - WavesLib_9.2_IID
+    - C1_IID
