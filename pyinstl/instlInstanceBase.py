@@ -197,9 +197,13 @@ class InstlInstanceBase(object):
         self.resolve_index_inheritance()
         self.calculate_default_install_item_set(installState)
         if the_command in ("sync", 'synccopy'):
-            from instlInstanceSync_svn import InstlInstanceSync_svn
             logging.info("Creating sync instructions")
-            syncer = InstlInstanceSync_svn(self)
+            if self.cvl.get_str("REPRO_TYPE") == "URL":
+                from instlInstanceSync_url import InstlInstanceSync_url
+                syncer = InstlInstanceSync_url(self)
+            elif self.cvl.get_str("REPRO_TYPE") == "SVN":
+                from instlInstanceSync_svn import InstlInstanceSync_svn
+                syncer = InstlInstanceSync_svn(self)
             syncer.init_sync_vars()
             syncer.create_sync_instructions(installState)
         if the_command in ("copy", 'synccopy'):
