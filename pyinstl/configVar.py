@@ -24,8 +24,9 @@ class ConfigVar(object):
     """ Keep a single, named, config variable and it's values.
         Also info about where it came from (file, line).
         value may have $() style references to other variables.
-        Values are always a list - even a single value is a list of size 1
-        Emulates list container
+        Values are always a list - even a single value is a list of size 1.
+        Values are kept as strings and are converted to strings upon append/extend.
+        ConfigVar Emulates a list container
     """
     __slots__ = ("__name", "__description", "__values", "__resolving_in_progress")
 
