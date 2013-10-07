@@ -118,6 +118,18 @@ def prepare_args_parser():
                                     metavar='path-to-population-folder',
                                     dest='popu_folder',
                                     help="folder to populate")
+        popu_options.add_argument('--rev','-r',
+                                    required=True,
+                                    nargs=1,
+                                    metavar='revision-range',
+                                    dest='revision',
+                                    help="revision range")
+        popu_options.add_argument('--url','-u',
+                                    required=True,
+                                    nargs=1,
+                                    metavar='svn-reporsitory-url',
+                                    dest='url',
+                                    help="svn reporsitory url")
 
         parser_version = subparsers.add_parser('version', help='display instl version')
     return parser;
