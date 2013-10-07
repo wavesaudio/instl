@@ -5,14 +5,13 @@ from __future__ import print_function
 import sys
 import os
 
-from pysvnsrv.svninst_interactive import go_interactive
-from pysvnsrv.svninst_outeractive import go_outeractive
-
 def main():
     try:
         if len(sys.argv) == 1:
+            from pysvnsrv.svninst_interactive import go_interactive
             go_interactive()
         else:
+            from pysvnsrv.svninst_outeractive import go_outeractive
             go_outeractive()
     except Exception as ex:
         print("unhandled exception")
