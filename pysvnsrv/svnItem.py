@@ -89,24 +89,34 @@ class SVNItem(object):
             raise ValueError(self.name()+" is not a directory, has no sub items")
         else:
             assert isinstance(self.__subs, dict), "self.__subs is not a directory"
-        path_parts = path.split("/")
+        path_parts = path
+        if isinstance(path, basestring):
+            path_parts = path.split("/")
         retVal = self.__subs.get(path_parts[0]) # will return None if not found
         if retVal and len(path_parts) > 1:
-            retval = retVal.get_sub("/".join(path_parts[1:]))
+            retval = retVal.get_sub(path_parts[1:])
         return retVal
          
     def add_sub(self, path, flags, last_rev):
         retVal = None
         #print("--- add sub to", self.name(), path, flags, last_rev)
-        path_parts = path.split("/")
+        path_parts = path
+        if isinstance(path, basestring):
+            path_parts = path.split("/")
         if len(path_parts) == 1:
             retVal = SVNItem(path_parts[0], flags, last_rev)
             self._add_sub_item(retVal)
         else:
             if path_parts[0] not in self.__subs.keys():
                 raise KeyError(path_parts[0]+" is not in sub items")
-            retVal = self.get_sub(path_parts[0]).add_sub("/".join(path_parts[1:]), flags, last_rev)
+            retVal = self.get_sub(path_parts[0]).add_sub(path_parts[1:], flags, last_rev)
         return retVal
+    
+    def add_sub_tree(self, path, sub_tree):
+        where = self.get_sub(path)
+        if not where:
+            raise KeyError(path+" is not in tree")
+        where._add_sub_item(sub_tree)
             
     def clear_subs(self):
         self.__subs.clear()
@@ -120,21 +130,34 @@ class SVNItem(object):
     
     def _add_flags(self, flags):
          new_flags = "".join(sorted(set(self.__flags+flags)))
-         print("_add_flags:", self.__flags, "+", flags, "=", new_flags)
+         #print("_add_flags:", self.__flags, "+", flags, "=", new_flags)
          self.__flags = new_flags
          
     def add_flags(self, path, flags):
         retVal = None
-        print("--- add flags to", self.name(), path, flags)
+        #print("--- add flags to", self.name(), path, flags)
         path_parts = path.split("/")
         if len(path_parts) == 1:
             self.__subs[path_parts[0]]._add_flags(flags)
         else:
-            print(self.name(), self.__subs.keys())
+            #print(self.name(), self.__subs.keys())
             if path_parts[0] not in self.__subs.keys():
                 raise KeyError(path_parts[0]+" is not in sub items")
             retVal = self.get_sub(path_parts[0]).add_flags("/".join(path_parts[1:]), flags)
         return retVal
+
+
+    def diff_info_maps(have_map, need_map):
+        path_so_far = list()
+        for need_sub_name in need_map.sub_names():
+            the_need_sub = need_map.get_sub(need_sub_name)
+            if the_need_sub.isDir():
+                path_so_far.append(need_sub_name.name())
+                have_item = have_map.get_sub(path_so_far)
+                if have_item:
+                    pass
+                else:
+                    pass
     
     def walk_items(self, path_so_far=None, what="all"):
         """  Walk the item list and yield items in the SVNItemFlat format:

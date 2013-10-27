@@ -234,13 +234,7 @@ class SVNTree(svnItem.SVNItem):
                 record.clear()
         if record: # in case there was no extra line at the end of file
             yield svnItem.SVNItemFlat(record["Path"], short_node_kind[record["Node Kind"]], int(record["Last Changed Rev"]))
-
-    def populate(self, folder):
-        for item in self.walk_items():
-            if "d" in item[1]: # it's a folder
-                full_path = os.path.join( folder, str(item[2]), item[0] )
-                print("mkdir", full_path)
-                os.makedirs(full_path)
+            
 if __name__ == "__main__":
     t = SVNTree()
     t.read_svn_info_file(sys.argv[1])

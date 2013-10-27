@@ -20,17 +20,30 @@ def go_outeractive():
         output_format = extension_to_format[extension[1:]]
         print("in:", name_space_obj.input_file[0], input_format)
         print("out:", name_space_obj.output_file[0], output_format)
+        print("props:", name_space_obj.props_file[0])
 
         svnTreeObj = svnTree.SVNTree()
         svnTreeObj.read_from_file(name_space_obj.input_file[0], format=input_format, report_level=1)
+        if name_space_obj.props_file[0]:
+            svnTreeObj.read_from_file(name_space_obj.props_file[0], format='props', report_level=1)
         svnTreeObj.write_to_file(name_space_obj.output_file[0], format=output_format, report_level=1)
-    elif name_space_obj.command == "popu":
-        _, extension = os.path.splitext(name_space_obj.input_file[0])
-        input_format = extension_to_format[extension[1:]]
-        print("in:", name_space_obj.input_file[0], input_format)
-        svnTreeObj = svnTree.SVNTree()
-        svnTreeObj.read_from_file(name_space_obj.input_file[0], format=input_format, report_level=1)
-        svnTreeObj.populate(name_space_obj.popu_folder[0])
+    elif name_space_obj.command == "diff":
+        _, extension = os.path.splitext(name_space_obj.have_info_map_file[0])
+        have_format = extension_to_format[extension[1:]]
+        print("have:", name_space_obj.have_info_map_file[0], input_format)
+        
+        _, extension = os.path.splitext(name_space_obj.need_info_map_file[0])
+        need_format = extension_to_format[extension[1:]]
+        print("need:", name_space_obj.need_info_map_file[0], input_format)
+        
+        svnTreeObjHave = svnTree.SVNTree()
+        svnTreeObj.read_from_file(name_space_obj.have_info_map_file[0], format=have_format, report_level=1)
+        
+        svnTreeObjNeed = svnTree.SVNTree()
+        svnTreeObj.read_from_file(name_space_obj.need_info_map_file[0], format=need_format, report_level=1)
+        
+        svnTreeObjDiff = diff_info_maps(svnTreeObjHave, svnTreeObjNeed)
+    
     else:
         ValueError("Unknown command "+name_space_obj.command)
 
@@ -53,6 +66,8 @@ class cmd_line_options(object):
         self.output_file = None
         self.props_file = None
         self.popu_folder = None
+        self.have_info_map_file = None
+        self.need_info_map_file = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n,v in sorted(vars(self).iteritems())])
@@ -82,12 +97,12 @@ def prepare_args_parser():
     subparsers = parser.add_subparsers(dest='command', help='sub-command help')
     parser_trans = subparsers.add_parser('trans',
                                         help='translate svn map files from one format to another')
-    parser_popu = subparsers.add_parser('popu',
-                                        help='populate static files from svn according to last changed revision')
+    parser_diff = subparsers.add_parser('diff',
+                                        help='diff two info maps')
 #    parser_synccopy = subparsers.add_parser('synccopy',
 #                                        help='sync files to be installed from server to temp folder and copy files from temp folder to target paths')
 
-    for subparser in (parser_trans, parser_popu):
+    for subparser in (parser_trans, ):
         #subparser.set_defaults(mode='batch')
         standard_options = subparser.add_argument_group(description='standard arguments:')
         standard_options.add_argument('--in','-i',
@@ -106,30 +121,24 @@ def prepare_args_parser():
                                     help="file to write svn information to")
         trans_options.add_argument('--props','-p',
                                     required=False,
-                                    default=False,
+                                    nargs=1,
                                     metavar='path-to-props-file',
                                     dest='props_file',
                                     help="file to read svn properties from")
-    for subparser in (parser_popu, ):
-        popu_options = subparser.add_argument_group(description='population arguments:')
-        popu_options.add_argument('--folder','-f',
+    for subparser in (parser_diff, ):
+        popu_options = subparser.add_argument_group(description='diff arguments:')
+        popu_options.add_argument('--have',
                                     required=True,
                                     nargs=1,
-                                    metavar='path-to-population-folder',
-                                    dest='popu_folder',
-                                    help="folder to populate")
-        popu_options.add_argument('--rev','-r',
+                                    metavar='have-info-map-file',
+                                    dest='have_info_map_file',
+                                    help="info map of currently synced files")
+        popu_options.add_argument('--need',
                                     required=True,
                                     nargs=1,
-                                    metavar='revision-range',
-                                    dest='revision',
-                                    help="revision range")
-        popu_options.add_argument('--url','-u',
-                                    required=True,
-                                    nargs=1,
-                                    metavar='svn-reporsitory-url',
-                                    dest='url',
-                                    help="svn reporsitory url")
+                                    metavar='need-info-map-file',
+                                    dest='need_info_map_file',
+                                    help="info map of needed to sync files")
 
         parser_version = subparsers.add_parser('version', help='display instl version')
     return parser;
