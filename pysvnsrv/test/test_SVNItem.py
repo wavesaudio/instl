@@ -6,6 +6,7 @@ from __future__ import print_function
 import sys
 import os
 import unittest
+import copy
 
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..", "..")))
@@ -21,61 +22,140 @@ def timing(f):
         return ret
     return wrap
 
+item_list1 = [
+            ("Dir1", "d", 17),
+            ("Dir1/File1.1", "f", 15),
+            ("Dir1/File1.2", "f", 16),
+            ("Dir1/File1.3", "f", 17),
+            
+            ("Dir2", "d", 9),
+            ("Dir2/Dir2.1", "d", 8),
+            ("Dir2/Dir2.1/File2.1.1", "f", 8),
+            ("Dir2/Dir2.2", "d", 5),
+            ("Dir2/Dir2.2/File2.2.1", "fx", 5),
+            ("Dir2/Dir2.2/File2.2.2", "f", 3),
+            ("Dir2/Dir2.3", "d", 9),
+            ("Dir2/Dir2.3/File2.3.1", "f", 7),
+            ("Dir2/Dir2.3/File2.3.2", "fx", 9),
+            ("Dir2/Dir2.3/File2.3.3", "f", 1),
+            
+            ("Dir3", "ds", 14),
+            ("Dir3/File3.1", "f", 13),
+            ("Dir3/File3.2", "f", 12),
+            ("Dir3/Dir3.1", "d", 4),
+            ("Dir3/Dir3.1/File3.1.1", "f", 2),
+            ("Dir3/Dir3.1/File3.1.2", "fx", 4),
+            ("Dir3/Dir3.2", "d", 14),
+            ("Dir3/Dir3.2/File3.2.1", "f", 6),
+            ("Dir3/Dir3.2/File3.2.2", "f", 10),
+            ("Dir3/Dir3.2/Dir3.2.1", "d", 14),
+            ("Dir3/Dir3.2/Dir3.2.2", "ds", 14)
+            ]
+
+item_list_need = [
+            # same dir
+            ("Dir1", "d", 17),
+            ("Dir1/File1.1", "f", 15),
+            ("Dir1/File1.2", "f", 16),
+            ("Dir1/File1.3", "f", 17),
+            
+            ("Dir2", "d", 9),
+            ("Dir2/Dir2.1", "d", 8),
+            ("Dir2/Dir2.1/File2.1.1", "f", 8),
+            ("Dir2/Dir2.3", "d", 9),
+            ("Dir2/Dir2.3/File2.3.1", "f", 8),
+            ("Dir2/Dir2.3/File2.3.2", "fx", 12),
+            ("Dir2/Dir2.3/File2.3.3", "f", 1),
+            
+            ("Dir3", "ds", 16),
+            ("Dir3/File3.1", "f", 13),
+            ("Dir3/File3.2", "f", 12),
+            ("Dir3/Dir3.1", "d", 4),
+            ("Dir3/Dir3.1/File3.1.2", "fx", 5),
+            ("Dir3/Dir3.2", "d", 14),
+            ("Dir3/Dir3.2/File3.2.1", "f", 6),
+            ("Dir3/Dir3.2/Dir3.2.1", "d", 16),
+            ("Dir3/Dir3.2/Dir3.2.2", "ds", 14)
+            ]
+
+item_list_need_ref = [
+            ("Dir1", "d", 17, 17),
+            ("Dir1/File1.1", "f", 15, 15),
+            ("Dir1/File1.2", "f", 16, 16),
+            ("Dir1/File1.3", "f", 17, 17),
+            
+            ("Dir2", "d", 9, 9),
+            ("Dir2/Dir2.1", "d", 8, 8),
+            ("Dir2/Dir2.1/File2.1.1", "f", 8, 8),
+            ("Dir2/Dir2.2", "d", 5, 5),
+            ("Dir2/Dir2.2/File2.2.1", "fx", 5, 5),
+            ("Dir2/Dir2.2/File2.2.2", "f", 3, 3),
+            ("Dir2/Dir2.3", "d", 9, 9),
+            ("Dir2/Dir2.3/File2.3.1", "f", 8, 7),
+            ("Dir2/Dir2.3/File2.3.2", "fx", 12, 9),
+            ("Dir2/Dir2.3/File2.3.3", "f", 1, 1),
+            
+            ("Dir3", "ds", 16, 14),
+            ("Dir3/File3.1", "f", 13, 13),
+            ("Dir3/File3.2", "f", 12, 12),
+            ("Dir3/Dir3.1", "d", 4, 4),
+            ("Dir3/Dir3.1/File3.1.1", "f", 2, 0),
+            ("Dir3/Dir3.1/File3.1.2", "fx", 4, 5),
+            ("Dir3/Dir3.2", "d", 14, 14),
+            ("Dir3/Dir3.2/File3.2.1", "f", 6, 6),
+            ("Dir3/Dir3.2/File3.2.2", "f", 10, 0),
+            ("Dir3/Dir3.2/Dir3.2.1", "d", 14, 14),
+            ("Dir3/Dir3.2/Dir3.2.2", "ds", 14, 14)
+            ]
+
 class TestSVNItem(unittest.TestCase):
 
     def setUp(self):
         """ .
         """
-        pass
+        self.maxDiff = None
     def tearDown(self):
         pass
     
-    def test_walk_items(self):
-        item_list = [
-                    ("Dir1", "d", 14),
-                    ("Dir1/File1.1", "f", 14),
-                    ("Dir1/File1.2", "f", 14),
-                    ("Dir1/File1.3", "f", 14),
-                    ("Dir2", "d", 14),
-                    ("Dir2/Dir2.1", "d", 14),
-                    ("Dir2/Dir2.1/File2.1.1", "f", 14),
-                    ("Dir2/Dir2.2", "d", 14),
-                    ("Dir2/Dir2.2/File2.2.1", "fx", 14),
-                    ("Dir2/Dir2.2/File2.2.2", "f", 14),
-                    ("Dir2/Dir2.3", "d", 14),
-                    ("Dir2/Dir2.3/File2.3.1", "f", 14),
-                    ("Dir2/Dir2.3/File2.3.2", "fx", 14),
-                    ("Dir2/Dir2.3/File2.3.3", "f", 14),
-                    ("Dir3", "ds", 14),
-                    ("Dir3/File3.1", "f", 14),
-                    ("Dir3/File3.2", "f", 14),
-                    ("Dir3/Dir3.1", "d", 14),
-                    ("Dir3/Dir3.1/File3.1.1", "f", 14),
-                    ("Dir3/Dir3.1/File3.1.2", "fx", 14),
-                    ("Dir3/Dir3.2", "d", 14),
-                    ("Dir3/Dir3.2/File3.2.1", "f", 14),
-                    ("Dir3/Dir3.2/File3.2.2", "f", 14),
-                    ("Dir3/Dir3.2/Dir3.2.1", "d", 14),
-                    ("Dir3/Dir3.2/Dir3.2.2", "ds", 14)
-                    ]
+    def test_update_have_map(self):
+        have_map = SVNItem("TestDir", "d", 15)
+        have_map.add_sub_list(item_list1)
+        need_map = SVNItem("TestDir", "d", 15)
+        need_map.add_sub_list(item_list_need)
+        have_map.update_have_map(need_map)
+        all_items_list = []    
+        for item in svni2.walk_items(what="a"):
+            all_items_list.append(item)
+        self.assertEqual(sorted(all_items_list), sorted(item_list_need_ref))
+
+    def test_deepcopy(self):
         svni1 = SVNItem("TestDir", "d", 15)
-        for item in item_list:
-            svni1.add_sub(*item)
+        svni1.add_sub_list(item_list1)
         
+        svni2 = copy.deepcopy(svni1)
+        all_items_list = []    
+        for item in svni2.walk_items(what="a"):
+            all_items_list.append(item)
+        self.assertEqual(sorted(all_items_list), sorted(item_list1))
+        
+    def test_walk_items(self):
+        svni1 = SVNItem("TestDir", "d", 15)
+        svni1.add_sub_list(item_list1)
+
         all_items_list = []    
         for item in svni1.walk_items(what="a"):
             all_items_list.append(item)
-        self.assertEqual(all_items_list, item_list)
+        self.assertEqual(sorted(all_items_list), sorted(item_list1))
         
         all_files_list = []    
         for file in svni1.walk_items(what="f"):
             all_files_list.append(file)
-        self.assertEqual(all_files_list, [item for item in item_list if "f" in item[1]])
+        self.assertEqual(sorted(all_files_list), sorted([item for item in item_list1 if "f" in item[1]]))
 
         all_dirs_list = []    
         for dir in svni1.walk_items(what="d"):
             all_dirs_list.append(dir)
-        self.assertEqual(all_dirs_list, [item for item in item_list if "d" in item[1]])
+        self.assertEqual(sorted(all_dirs_list), sorted([item for item in item_list1 if "d" in item[1]]))
                 
     def test_add_sub_negative(self):
         svni1 = SVNItem("TestDir", "d", 15)

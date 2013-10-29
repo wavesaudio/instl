@@ -3,6 +3,7 @@ from __future__ import print_function
 
 import re
 from collections import namedtuple, OrderedDict
+import copy
 
 from aYaml import augmentedYaml
 
@@ -27,33 +28,38 @@ class SVNItem(object):
         x - executable bit
         s - symlink
     """
-    __slots__ = ("__name", "__flags", "__last_rev", "__subs")
-    def __init__(self, in_name, in_flags, in_last_rev):
+    __slots__ = ("__name", "__flags", "__last_rev", "__have_rev", "__subs")
+    def __init__(self, in_name, in_flags, in_last_rev, have_rev=None):
         self.__name = in_name
         self.__flags = in_flags
         self.__last_rev = in_last_rev
+        if have_rev is None:
+            self.__have_rev = 0
+        else:
+            self.__have_rev = have_rev
         self.__subs = None
         if self.isDir():
             self.__subs = dict()
 
     def __str__(self):
-        retVal = "{self._SVNItem__name}: {self._SVNItem__flags} {self._SVNItem__last_rev}".format(**locals())
+        retVal = "{self._SVNItem__name}: {self._SVNItem__flags} {self._SVNItem__last_rev} {self._SVNItem__have_rev}".format(**locals())
         return retVal
     
     def __getstate__(self):
-        return ((self.__name, self.__flags, self.__last_rev), self.__subs)
+        return ((self.__name, self.__flags, self.__last_rev, self.__have_rev), self.__subs)
     
     def __setstate__(self, state):
         self.__name = state[0][0]
         self.__flags = state[0][1]
         self.__last_rev = state[0][2]
+        self.__have_rev = state[0][3]
         self.__subs = state[1]
-        
-       
+
     def copy_from(self, another_SVNItem):
         self.__name = another_SVNItem.name()
         self.__flags = another_SVNItem.flags()
         self.__last_rev = another_SVNItem.last_rev()
+        self.__have_rev = another_SVNItem.have_rev()
         self.__subs = another_SVNItem.__subs
         
     def name(self):
@@ -62,6 +68,15 @@ class SVNItem(object):
     def last_rev(self):
         return self.__last_rev
     
+    def have_rev(self):
+        return self.__have_rev
+
+    def update_rev(self, new_rev):
+        if 0 < new_rev < self.__have_rev:
+            raise ValueError(self.name()+" new_rev: "+new_rev+" < have_rev: "+ self.__have_rev)
+        self.__have_rev = self.__last_rev
+        self.__last_rev = new_rev
+        
     def flags(self):
         return self.__flags
         
@@ -97,7 +112,7 @@ class SVNItem(object):
             retval = retVal.get_sub(path_parts[1:])
         return retVal
          
-    def add_sub(self, path, flags, last_rev):
+    def add_sub(self, path, flags, last_rev, have_rev=None):
         retVal = None
         #print("--- add sub to", self.name(), path, flags, last_rev)
         path_parts = path
@@ -117,6 +132,10 @@ class SVNItem(object):
         if not where:
             raise KeyError(path+" is not in tree")
         where._add_sub_item(sub_tree)
+    
+    def add_sub_list(self, list_of_tuples):
+        for a_tuple in list_of_tuples:
+            self.add_sub(*a_tuple)
             
     def clear_subs(self):
         self.__subs.clear()
@@ -147,17 +166,19 @@ class SVNItem(object):
         return retVal
 
 
-    def diff_info_maps(have_map, need_map):
-        path_so_far = list()
-        for need_sub_name in need_map.sub_names():
-            the_need_sub = need_map.get_sub(need_sub_name)
-            if the_need_sub.isDir():
-                path_so_far.append(need_sub_name.name())
-                have_item = have_map.get_sub(path_so_far)
-                if have_item:
-                    pass
-                else:
-                    pass
+    def update_have_map(self, need_map):
+        if self.name() != need_map.name():
+            raise ValueError("self.name: "+self.name()+ " != need_map.name: "+need_map.name())
+        #download_map = SVNItem(self.name(), "d", self.last_rev())   
+        names = set(self.sub_names()+need_map.sub_names())
+        for sub_name in names:
+            if sub_name in self.sub_names():
+                if sub_name in need_map.sub_names():
+                    self.__subs[sub_name].update_rev(need_map[sub_name].last_rev())
+                elif self.__subs[sub_name].isFile():
+                    self.__subs[sub_name].update_rev(0) # delete
+            else:
+                self._add_sub_item(need_map[sub_name])
     
     def walk_items(self, path_so_far=None, what="all"):
         """  Walk the item list and yield items in the SVNItemFlat format:
@@ -176,12 +197,12 @@ class SVNItem(object):
             the_sub = self.get_sub(sub_name)
             if the_sub.isFile() and yield_files:
                 path_so_far.append(the_sub.name())
-                yield ("/".join( path_so_far ) , the_sub.flags(), the_sub.last_rev())
+                yield ("/".join( path_so_far ) , the_sub.flags(), the_sub.last_rev(), the_sub.have_rev())
                 path_so_far.pop()
             if the_sub.isDir():
                 path_so_far.append(the_sub.name())
                 if yield_dirs:
-                    yield ("/".join( path_so_far ) , the_sub.flags(), the_sub.last_rev())
+                    yield ("/".join( path_so_far ) , the_sub.flags(), the_sub.last_rev(), the_sub.have_rev())
                 for yielded_from in the_sub.walk_items(path_so_far, what):
                     yield yielded_from
                 path_so_far.pop()
@@ -197,7 +218,7 @@ class SVNItem(object):
         for sub_name in sorted(self.sub_names()):
             the_sub = self.get_sub(sub_name)
             if the_sub.isFile():
-                retVal[the_sub.name()] = " ".join( (the_sub.flags(), str(the_sub.last_rev())) )
+                retVal[the_sub.name()] = " ".join( (the_sub.flags(), str(the_sub.last_rev()), str(the_sub.have_rev())) )
             else:
                 retVal[the_sub.name()] = the_sub.repr_for_yaml()
         return retVal

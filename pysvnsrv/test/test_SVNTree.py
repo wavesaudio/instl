@@ -33,32 +33,31 @@ class TestSVNTree(unittest.TestCase):
     
     def test_pickling(self):
         this_dir, this_script = os.path.split(__file__)
-        SVNInfoTestFile1 = os.path.join(this_dir, "SVNInfoTest1.txt")
+        SVNInfoTestFile1 = os.path.join(this_dir, "SVNInfoTest1.info")
 
         tree = SVNTree()
-        tree.read_svn_info_file(SVNInfoTestFile1)
+        tree.read_from_file(SVNInfoTestFile1, format="info")
         beforePickleFile = os.path.join(this_dir, "beforePickleFile.txt")
-        tree.save_as_text(beforePickleFile)
+        tree.write_to_file(beforePickleFile, format="text")
         
         pickleOut = os.path.join(this_dir, "out.pickle")
-        tree.pickle(pickleOut)
+        tree.write_to_file(pickleOut, format="pickle")
 
         tree2 = SVNTree()
-        tree2.unpickle(pickleOut)
+        tree2.read_from_file(pickleOut, format="pickle")
         afterPickleFile = os.path.join(this_dir, "afterPickleFile.txt")
-        tree2.save_as_text(afterPickleFile)
+        tree2.write_to_file(afterPickleFile, format="text")
         
         self.assertTrue(filecmp.cmp(beforePickleFile, afterPickleFile), "{afterPickleFile} file is different from expected {beforePickleFile}".format(**locals()))
         
     def test_read_svn_info_file(self):
         this_dir, this_script = os.path.split(__file__)
-        SVNInfoTestFile1 = os.path.join(this_dir, "SVNInfoTest1.txt")
-
+        SVNInfoTestFile1 = os.path.join(this_dir, "SVNInfoTest1.info")
         tree = SVNTree()
-        tree.read_svn_info_file(SVNInfoTestFile1)
+        tree.read_from_file(SVNInfoTestFile1, format="info")
 
         SVNInfoTestFile1Out = os.path.join(this_dir, "SVNInfoTest1.out.txt")
-        tree.save_as_text(SVNInfoTestFile1Out)
+        tree.write_to_file(SVNInfoTestFile1Out, format="text")
 
         SVNInfoTestFileRef1 = os.path.join(this_dir, "SVNInfoTest1.ref.txt")
         self.assertTrue(filecmp.cmp(SVNInfoTestFileRef1, SVNInfoTestFile1Out), "{SVNInfoTestFile1Out} file is different from expected {SVNInfoTestFileRef1}".format(**locals()))
