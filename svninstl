@@ -2,10 +2,9 @@
 
 from __future__ import print_function
 
-import sys
-import os
-
+#noinspection PyBroadException,PyBroadException
 def main():
+    #noinspection PyUnusedLocal
     try:
         if len(sys.argv) == 1:
             from pysvnsrv.svninst_interactive import go_interactive
