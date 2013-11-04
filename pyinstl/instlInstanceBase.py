@@ -215,8 +215,9 @@ class InstlInstanceBase(object):
     @func_log_wrapper
     def do_command_batch_mode(self):
         installState = InstallInstructionsState()
-        self.do_command(self.cvl.get_str("__MAIN_COMMAND__"), installState)
-        self.write_batch_file(installState)
+        the_command = self.cvl.get_str("__MAIN_COMMAND__")
+        self.do_command(the_command, installState)
+        #self.write_batch_file(installState)
         if "__MAIN_RUN_INSTALLATION__" in self.cvl:
             self.run_batch_file()
 

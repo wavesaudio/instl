@@ -5,6 +5,7 @@ import logging
 import pyinstl.log_utils
 from pyinstl.log_utils import func_log_wrapper
 from pyinstl.utils import *
+from pysvnsrv import svnTree
 from instlInstanceSyncBase import InstlInstanceSync
 
 
@@ -14,6 +15,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
     @func_log_wrapper
     def __init__(self, instlInstance):
         self.instlInstance = instlInstance
+        self.svnTree = svnTree.SVNTree()
 
     @func_log_wrapper
     def init_sync_vars(self):
@@ -46,44 +48,24 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
     @func_log_wrapper
     def create_sync_instructions(self, installState):
-        num_items_for_progress_report = len(installState.full_install_items) + 2 # one for a dummy last item, one for index sync
-        current_item_for_progress_report = 0
-        installState.append_instructions('sync', self.instlInstance.create_echo_command("Progress: synced {current_item_for_progress_report} of {num_items_for_progress_report}; from $(BASE_SRC_URL)".format(**locals())))
-        current_item_for_progress_report += 1
-        installState.indent_level += 1
-        installState.extend_instructions('sync', self.instlInstance.make_directory_cmd("$(LOCAL_SYNC_DIR)"))
-        installState.extend_instructions('sync', self.instlInstance.change_directory_cmd("$(LOCAL_SYNC_DIR)"))
-        installState.indent_level += 1
-        installState.append_instructions('sync', " ".join(('"$(GET_URL_CLIENT_PATH)"', "-o", '"$(REL_BOOKKIPING_PATH)"', '"$(BOOKKEEPING_DIR_URL)"')))
-        installState.append_instructions('sync', self.instlInstance.create_echo_command("Progress: synced {current_item_for_progress_report} of {num_items_for_progress_report}; index file $(BOOKKEEPING_DIR_URL)".format(**locals())))
-        current_item_for_progress_report += 1
         for iid  in installState.full_install_items:
             installi = self.instlInstance.install_definitions_index[iid]
             if installi.source_list():
                 for source in installi.source_list():
-                    installState.extend_instructions('sync', self.create_url_sync_instructions_for_source(source))
-            installState.append_instructions('sync', self.instlInstance.create_echo_command("Progress: synced {current_item_for_progress_report} of {num_items_for_progress_report}; {installi.iid}: {installi.name}".format(**locals())))
-            current_item_for_progress_report += 1
+                    self.create_url_sync_instructions_for_source(source)
         for iid in installState.orphan_install_items:
             installState.append_instructions('sync', self.instlInstance.create_echo_command("Don't know how to sync "+iid))
-        installState.indent_level -= 1
-        installState.append_instructions('sync', self.instlInstance.create_echo_command("Progress: synced {current_item_for_progress_report} of {num_items_for_progress_report};  from $(BASE_SRC_URL)".format(**locals())))
+        out_file = self.instlInstance.cvl.get_str("__MAIN_OUT_FILE__")
+        logging.info("... %s", out_file)
+        with write_to_file_or_stdout(out_file) as fd:
+            self.svnTree.write_as_text(fd)
 
     @func_log_wrapper
     def create_url_sync_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
-        retVal = list()
-        source_url =   '/'.join( ("$(BASE_SRC_URL)", source[0]) )
-        target_path =  '/'.join( ("$(REL_SRC_PATH)", source[0]) )
         if source[1] == '!file':
-            source_url = '/'.join( source_url.split("/")[0:-1]) # skip the file name sync the whole folder
-            target_path = '/'.join( target_path.split("/")[0:-1]) # skip the file name sync the whole folder
-        command_parts = ['"$(GET_URL_CLIENT_PATH)"', "-o", '"'+target_path+'"', '"'+source_url+'"']
-        # if source[1] in ('!file', '!files'):
-        #     command_parts.extend( ( "--depth", "files") )
-        # else:
-        #     command_parts.extend( ( "--depth", "infinity") )
-        retVal.append(" ".join(command_parts))
+            self.svnTree.add_sub_recursive(source[0], "f", 0)
+        else:
+            self.svnTree.add_sub_recursive(source[0], "d", 0)
 
         logging.info("... %s; (%s)", source[0], source[1])
-        return retVal

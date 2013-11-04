@@ -1,13 +1,16 @@
 --- !define
 
-REPRO_TYPE: "SVN"
+REPRO_TYPE: "URL"
 SVN_CLIENT_PATH_FOR_Win: "C:/p4client/dev_install/bin/Win/wsvn/wsvn.exe"
 SVN_CLIENT_PATH_FOR_Mac: "/usr/local/bin/wsvn"
 SVN_CLIENT_PATH: $(SVN_CLIENT_PATH_FOR_$(CURRENT_OS))
 
 SET_ICON_PATH: "/usr/local/bin/setIcon"
 
-SVN_REPO_URL: "file:///Volumes/SvnSrv/192.168.13.108/V9"
+GET_URL_CLIENT_PATH: curl
+
+STAT_LINK_REPO_URL: "file:///p4client/ProAudio/dev_install/beanstalk/V9"
+SVN_REPO_URL: "file:///p4client/ProAudio/dev_install/beanstalk/V9"
 
 __include__: "$(SVN_REPO_URL)/instl/index.yaml"
 
