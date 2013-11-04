@@ -126,7 +126,20 @@ class SVNItem(object):
                 raise KeyError(path_parts[0]+" is not in sub items")
             retVal = self.get_sub(path_parts[0]).add_sub(path_parts[1:], flags, last_rev)
         return retVal
-    
+
+    def add_sub_recursive(self, path, flags, last_rev, have_rev=None):
+        retVal = None
+        #print("--- add sub to", self.name(), path, flags, last_rev)
+        path_parts = path
+        if isinstance(path, basestring):
+            path_parts = path.split("/")
+        if len(path_parts) == 1:
+            self.add_sub(path_parts[0], flags, last_rev, have_rev)
+        else:
+            the_new_sub = self.add_sub(path_parts[0], "d", last_rev, have_rev)
+            retVal = the_new_sub.add_sub_recursive(path_parts[1:], flags, last_rev, have_rev)
+        return retVal
+
     def add_sub_tree(self, path, sub_tree):
         where = self.get_sub(path)
         if not where:
@@ -144,7 +157,8 @@ class SVNItem(object):
         if not self.isDir():
             raise ValueError(self.name()+" is not a directory")
         if in_item.name() in self.__subs:
-            raise KeyError(in_item.name()+" is already in sub items")
+            if self.__subs[in_item.name()].flags() != in_item.flags():
+                raise KeyError(in_item.name()+" replacing "+self.__subs[in_item.name()].flags()+" with "+in_item.flags())
         self.__subs[in_item.name()] = in_item
     
     def _add_flags(self, flags):
