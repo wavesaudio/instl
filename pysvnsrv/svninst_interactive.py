@@ -108,7 +108,7 @@ class CMDObj(cmd.Cmd, object):
         self.save_dir = os.getcwd()
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, in_type, in_value, in_traceback):
         try:
             if readline_loaded:
                 compact_history()
@@ -207,7 +207,7 @@ class CMDObj(cmd.Cmd, object):
                 file = "stdout"
             else:
                 file = split_params[1]
-            self.prog_inst.write_to_file(file, format=format, report_level=1)
+            self.prog_inst.write_to_file(file, in_format=format, report_level=1)
         except CMDObj.CommandLineParamException:
             self.help_write()
         return False

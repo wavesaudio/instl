@@ -9,10 +9,10 @@ SET_ICON_PATH: "/usr/local/bin/setIcon"
 
 GET_URL_CLIENT_PATH: curl
 
-STAT_LINK_REPO_URL: "file:///p4client/ProAudio/dev_install/beanstalk/V9"
-SVN_REPO_URL: "file:///p4client/ProAudio/dev_install/beanstalk/V9"
+STAT_LINK_REPO_URL: "file:///Volumes/SvnSrv/192.168.13.108/V9"
+SVN_REPO_URL: "file:///Volumes/SvnSrv/192.168.13.108/V9"
 
-__include__: "$(SVN_REPO_URL)/instl/index.yaml"
+__include__: "$(STAT_LINK_REPO_URL)/instl/index.yaml"
 
 #WAVES_DIR: "$(HOME_DIR)/Desktop/local-install"
 #WAVES_PROGRAMDATA_DIR_FOR_Mac: "$(WAVES_DIR)/Application Support/Waves Audio"

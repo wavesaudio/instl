@@ -26,7 +26,7 @@ def go_outeractive():
         svnTreeObj.read_from_file(name_space_obj.input_file[0], format=input_format, report_level=1)
         if name_space_obj.props_file[0]:
             svnTreeObj.read_from_file(name_space_obj.props_file[0], format='props', report_level=1)
-        svnTreeObj.write_to_file(name_space_obj.output_file[0], format=output_format, report_level=1)
+        svnTreeObj.write_to_file(name_space_obj.output_file[0], in_format=output_format, report_level=1)
     elif name_space_obj.command == "diff":
         _, extension = os.path.splitext(name_space_obj.have_info_map_file[0])
         have_format = extension_to_format[extension[1:]]
@@ -99,6 +99,8 @@ def prepare_args_parser():
                                         help='translate svn map files from one format to another')
     parser_diff = subparsers.add_parser('diff',
                                         help='diff two info maps')
+    parser_create_info = subparsers.add_parser('createinfo',
+                                        help='create info from local SVN repository')
 #    parser_synccopy = subparsers.add_parser('synccopy',
 #                                        help='sync files to be installed from server to temp folder and copy files from temp folder to target paths')
 
@@ -140,5 +142,14 @@ def prepare_args_parser():
                                     dest='need_info_map_file',
                                     help="info map of needed to sync files")
 
-        parser_version = subparsers.add_parser('version', help='display instl version')
-    return parser;
+    for subparser in (parser_create_info, ):
+        popu_options = subparser.add_argument_group(description='createinfo arguments:')
+        popu_options.add_argument('--in','-i',
+                                    required=True,
+                                    nargs=1,
+                                    metavar='svn_repo_folder',
+                                    dest='input_file',
+                                    help="folder containing local SVN repository")
+
+    parser_version = subparsers.add_parser('version', help='display instl version')
+    return parser

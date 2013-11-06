@@ -38,15 +38,15 @@ class TestSVNTree(unittest.TestCase):
         tree = SVNTree()
         tree.read_from_file(SVNInfoTestFile1, format="info")
         beforePickleFile = os.path.join(this_dir, "beforePickleFile.txt")
-        tree.write_to_file(beforePickleFile, format="text")
+        tree.write_to_file(beforePickleFile, in_format="text")
         
         pickleOut = os.path.join(this_dir, "out.pickle")
-        tree.write_to_file(pickleOut, format="pickle")
+        tree.write_to_file(pickleOut, in_format="pickle")
 
         tree2 = SVNTree()
         tree2.read_from_file(pickleOut, format="pickle")
         afterPickleFile = os.path.join(this_dir, "afterPickleFile.txt")
-        tree2.write_to_file(afterPickleFile, format="text")
+        tree2.write_to_file(afterPickleFile, in_format="text")
         
         self.assertTrue(filecmp.cmp(beforePickleFile, afterPickleFile), "{afterPickleFile} file is different from expected {beforePickleFile}".format(**locals()))
         
@@ -57,7 +57,7 @@ class TestSVNTree(unittest.TestCase):
         tree.read_from_file(SVNInfoTestFile1, format="info")
 
         SVNInfoTestFile1Out = os.path.join(this_dir, "SVNInfoTest1.out.txt")
-        tree.write_to_file(SVNInfoTestFile1Out, format="text")
+        tree.write_to_file(SVNInfoTestFile1Out, in_format="text")
 
         SVNInfoTestFileRef1 = os.path.join(this_dir, "SVNInfoTest1.ref.txt")
         self.assertTrue(filecmp.cmp(SVNInfoTestFileRef1, SVNInfoTestFile1Out), "{SVNInfoTestFile1Out} file is different from expected {SVNInfoTestFileRef1}".format(**locals()))

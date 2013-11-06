@@ -148,13 +148,13 @@ class TestSVNItem(unittest.TestCase):
         self.assertEqual(sorted(all_items_list), sorted(item_list1))
         
         all_files_list = []    
-        for file in svni1.walk_items(what="f"):
-            all_files_list.append(file)
+        for afile in svni1.walk_items(what="f"):
+            all_files_list.append(afile)
         self.assertEqual(sorted(all_files_list), sorted([item for item in item_list1 if "f" in item[1]]))
 
         all_dirs_list = []    
-        for dir in svni1.walk_items(what="d"):
-            all_dirs_list.append(dir)
+        for adir in svni1.walk_items(what="d"):
+            all_dirs_list.append(adir)
         self.assertEqual(sorted(all_dirs_list), sorted([item for item in item_list1 if "d" in item[1]]))
                 
     def test_add_sub_negative(self):

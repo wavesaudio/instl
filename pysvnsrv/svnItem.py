@@ -28,7 +28,7 @@ class SVNItem(object):
         x - executable bit
         s - symlink
     """
-    __slots__ = ("__name", "__flags", "__last_rev", "__have_rev", "__subs")
+    __slots__ = ("__name", "__flags", "__last_rev", "__have_rev", "__subs", "to_sync")
     def __init__(self, in_name, in_flags, in_last_rev, have_rev=None):
         self.__name = in_name
         self.__flags = in_flags
@@ -36,13 +36,14 @@ class SVNItem(object):
         if have_rev is None:
             self.__have_rev = 0
         else:
-            self.__have_rev = have_rev
+            self._have_rev = have_rev
         self.__subs = None
         if self.isDir():
             self.__subs = dict()
+        self.to_sync = False
 
     def __str__(self):
-        retVal = "{self._SVNItem__name}: {self._SVNItem__flags} {self._SVNItem__last_rev} {self._SVNItem__have_rev}".format(**locals())
+        retVal = "{self._SVNItem__name}: {self._SVNItem__flags} {self._SVNItem__last_rev} {self._SVNItem__have_rev} {self.to_sync}".format(**locals())
         return retVal
     
     def __getstate__(self):
@@ -134,7 +135,7 @@ class SVNItem(object):
         if isinstance(path, basestring):
             path_parts = path.split("/")
         if len(path_parts) == 1:
-            self.add_sub(path_parts[0], flags, last_rev, have_rev)
+            retVal = self.add_sub(path_parts[0], flags, last_rev, have_rev)
         else:
             the_new_sub = self.add_sub(path_parts[0], "d", last_rev, have_rev)
             retVal = the_new_sub.add_sub_recursive(path_parts[1:], flags, last_rev, have_rev)

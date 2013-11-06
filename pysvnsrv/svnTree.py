@@ -170,21 +170,21 @@ class SVNTree(svnItem.SVNItem):
     def valid_write_formats(self):
         return self.write_func_by_format.keys()
 
-    def write_to_file(self, in_file, format="text", report_level=0, write_have_rev=False):
+    def write_to_file(self, in_file, in_format="text", report_level=0, write_have_rev=False):
         """ pass in_file="stdout" to output to stdout.
-            format is either text, yaml, pickle
+            in_format is either text, yaml, pickle
         """
-        if format in self.write_func_by_format.keys():
+        if in_format in self.write_func_by_format.keys():
             time_start = time.time()
             with write_to_file_or_stdout(in_file) as wfd:
                 if report_level > 0:
                     print("opened file:", "'"+in_file+"'")
-                self.write_func_by_format[format](wfd, report_level, write_have_rev)
+                self.write_func_by_format[in_format](wfd, report_level, write_have_rev)
             time_end = time.time()
             if report_level > 0:
                 print("    %d items written in %0.3f ms" % (self.num_subs(), (time_end-time_start)*1000.0))
         else:
-            ValueError("Unknown write format "+format)
+            ValueError("Unknown write in_format "+in_format)
 
     def write_as_pickle(self, wfd, report_level=0, write_have_rev=False):
         import cPickle as pickle

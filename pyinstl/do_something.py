@@ -52,10 +52,10 @@ class AppleScript(object):
         self.err = ''
 
     def run_applescript(self, script, *args):
-        '''Runs an applescript code (a single command or a function from run_appfunc)
+        """Runs an applescript code (a single command or a function from run_appfunc)
     Receives a command (or several lines of command) and returns whatever the applescript command returns.
     Raises an RuntimeError on failure.
-    Example: run_applescript('tell application \\"Safari\\" to get the URL of every tab of every window')'''
+    Example: run_applescript('tell application \\"Safari\\" to get the URL of every tab of every window')"""
 
         p = Popen(['arch', '-i386', 'osascript', '-e', script] +
             [unicode(arg).encode('utf8') for arg in args],
@@ -70,8 +70,8 @@ class AppleScript(object):
         return p.stdout.read()[:-1].decode('utf8')
 
     def f_timeout(self, p):
-        '''f_timeout - Timeout function for running applescript process'''
-        if p.poll() == None:
+        """f_timeout - Timeout function for running applescript process"""
+        if p.poll() is None:
             try:
                 p.kill()
                 print ('Error: process taking too long to complete - terminating.')

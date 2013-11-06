@@ -16,7 +16,7 @@ import pyinstl.log_utils
 from pyinstl.log_utils import func_log_wrapper
 from configVarList import ConfigVarList, value_ref_re
 from aYaml import augmentedYaml
-from installItem import InstallItem, read_index_from_yaml
+from installItem import read_index_from_yaml
 from pyinstl.utils import *
 from pyinstl.searchPaths import SearchPaths
 from instlException import InstlException
@@ -626,19 +626,23 @@ class InstlInstanceBase(object):
             logging.info("arglist: %s", " ".join(arglist))
         self.cvl.add_const_config_variable('__COMMAND_LINE_OPTIONS__', "read only value", args_str)
         if not arglist or len(arglist) == 0:
+            # No command line options given, but there maybe a "auto run" file with options
             auto_run_file_path = None
             auto_run_file_name = "auto_run_instl.yaml"
             auto_run_file_path = self.search_paths_helper.find_file_with_search_paths(auto_run_file_name)
             if auto_run_file_path:
                 arglist = ("@"+auto_run_file_path,)
                 logging.info("found auto run file %s", auto_run_file_name)
+
         if arglist and len(arglist) > 0:
+            # Command line options were given or auto run file was found
             parser = prepare_args_parser()
             self.name_space_obj = cmd_line_options()
             parser.parse_args(arglist, namespace=self.name_space_obj)
             self.mode = self.name_space_obj.mode
             self.init_from_cmd_line_options(self.name_space_obj)
         else:
+            # No command line options were given
             self.mode = "interactive"
 
 class cmd_line_options(object):
@@ -694,7 +698,7 @@ def prepare_args_parser():
                                     nargs='+',
                                     metavar='list-of-input-files',
                                     dest='input_files',
-                                    help="file(s) to read index and defintions from")
+                                    help="file(s) to read index and definitions from")
         standard_options.add_argument('--out','-o',
                                     required=True,
                                     nargs=1,
@@ -730,4 +734,4 @@ def prepare_args_parser():
                                     action='append',
                                     metavar='path_to_alias',
                                     help="paths to original file and to alias file")
-    return parser;
+    return parser

@@ -16,6 +16,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def __init__(self, instlInstance):
         self.instlInstance = instlInstance
         self.svnTree = svnTree.SVNTree()
+        self.need_list = list()
 
     @func_log_wrapper
     def init_sync_vars(self):
@@ -48,11 +49,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
     @func_log_wrapper
     def create_sync_instructions(self, installState):
-        for iid  in installState.full_install_items:
-            installi = self.instlInstance.install_definitions_index[iid]
-            if installi.source_list():
-                for source in installi.source_list():
-                    self.create_url_sync_instructions_for_source(source)
+        self.create_need_list(installState)
         for iid in installState.orphan_install_items:
             installState.append_instructions('sync', self.instlInstance.create_echo_command("Don't know how to sync "+iid))
         out_file = self.instlInstance.cvl.get_str("__MAIN_OUT_FILE__")
@@ -61,11 +58,14 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.svnTree.write_as_text(fd)
 
     @func_log_wrapper
-    def create_url_sync_instructions_for_source(self, source):
+    def create_need_list(self, installState):
+        for iid  in installState.full_install_items:
+            installi = self.instlInstance.install_definitions_index[iid]
+            if installi.source_list():
+                for source in installi.source_list():
+                    self.create_need_list_for_source(source)
+        print(self.need_list)
+    @func_log_wrapper
+    def create_need_list_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
-        if source[1] == '!file':
-            self.svnTree.add_sub_recursive(source[0], "f", 0)
-        else:
-            self.svnTree.add_sub_recursive(source[0], "d", 0)
-
-        logging.info("... %s; (%s)", source[0], source[1])
+        self.need_list.append(source[0])

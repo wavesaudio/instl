@@ -28,7 +28,7 @@ def CopyCommanderFactory(target_os, tool):
             retVal = CopyCommander_mac_rsync()
         else:
             raise ValueError(tool, "is not a valid copy tool for", target_os)
-    return retVal;
+    return retVal
 
 class CopyCommanderBase(object):
     """ Create copy commands. Each function should be overriden to inplement the copying
