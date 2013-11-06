@@ -1,18 +1,14 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
-import os
-
-import instlInstanceBase
-import configVar
-from copyCommander import CopyCommander_mac_rsync
+from platformSpecificHelper_Base import PlatformSpecificHelperBase
 
 def quoteme(to_qoute):
     return "".join( ('"', to_qoute, '"') )
 
-class InstlInstance_mac(instlInstanceBase.InstlInstanceBase):
-    def __init__(self, initial_vars=None):
-        super(InstlInstance_mac, self).__init__(initial_vars)
+class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
+    def __init__(self):
+        super(PlatformSpecificHelperMac, self).__init__()
         self.var_replacement_pattern = "${\g<var_name>}"
 
     def get_install_instructions_prefix(self):

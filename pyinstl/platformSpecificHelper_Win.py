@@ -1,17 +1,15 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
-import instlInstanceBase
-import os
-from copyCommander import CopyCommander_win_robocopy
+from platformSpecificHelper_Base import PlatformSpecificHelperBase
 
 def quoteme(to_qoute):
     return "".join( ('"', to_qoute, '"') )
 
 
-class InstlInstance_win(instlInstanceBase.InstlInstanceBase):
-    def __init__(self, initial_vars=None):
-        super(InstlInstance_win, self).__init__(initial_vars)
+class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
+    def __init__(self):
+        super(PlatformSpecificHelperWin, self).__init__()
         self.var_replacement_pattern = "%\g<var_name>%"
 
     def get_install_instructions_prefix(self):

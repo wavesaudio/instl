@@ -16,12 +16,7 @@ from pyinstl.instlException import InstlException
 
 import platform
 current_os = platform.system()
-if current_os == 'Darwin':
-    current_os = 'Mac'
-    from pyinstl.instlInstance_mac import InstlInstance_mac as ii
-elif current_os == 'Windows':
-    current_os = 'Win'
-    from pyinstl.instlInstance_win import InstlInstance_win as ii
+from pyinstl.instlInstanceBase import InstlInstanceBase
 
 def get_path_to_instl_app():
     application_path = None
@@ -35,7 +30,7 @@ def get_path_to_instl_app():
 def main():
     try:
         initial_vars = {"__INSTL_EXE_PATH__": get_path_to_instl_app()}
-        instance = ii(initial_vars)
+        instance = InstlInstanceBase(initial_vars)
         instance.read_command_line_options(sys.argv[1:])
         if instance.mode == "batch":
             instance.do_command_batch_mode()

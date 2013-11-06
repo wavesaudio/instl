@@ -20,6 +20,7 @@ from installItem import read_index_from_yaml
 from pyinstl.utils import *
 from pyinstl.searchPaths import SearchPaths
 from instlException import InstlException
+from platformSpecificHelper_Base import PlatformSpecificHelperFactory
 
 current_os_names = current_os_names()
 os_family_name = current_os_names[0]
@@ -126,6 +127,7 @@ class InstlInstanceBase(object):
     __metaclass__ = abc.ABCMeta
     @func_log_wrapper
     def __init__(self, initial_vars=None):
+        self.platform_helper = PlatformSpecificHelperFactory(os_family_name)
         self.out_file_realpath = None
         self.install_definitions_index = dict()
         self.cvl = ConfigVarList()
@@ -338,7 +340,7 @@ class InstlInstanceBase(object):
     def create_variables_assignment(self, installState):
         for identifier in self.cvl:
             if not self.internal_identifier_re.match(identifier) or pyinstl.log_utils.debug_logging_started: # do not write internal state identifiers, unless in debug mode
-                installState.variables_assignment_lines.append(self.create_var_assign(identifier,self.cvl.get_str(identifier)))
+                installState.variables_assignment_lines.append(self.platform_helper.create_var_assign(identifier,self.cvl.get_str(identifier)))
 
     @func_log_wrapper
     def get_default_sync_dir(self):
@@ -396,7 +398,7 @@ class InstlInstanceBase(object):
     @func_log_wrapper
     def create_copy_instructions(self, installState):
         # copy and actions instructions for sources
-        installState.append_instructions('copy', self.create_echo_command("starting copy"))
+        installState.append_instructions('copy', self.platform_helper.create_echo_command("starting copy"))
         from copyCommander import CopyCommanderFactory
         copy_command_creator = CopyCommanderFactory(self.cvl.get_str("TARGET_OS"), self.cvl.get_str("COPY_TOOL"))
         num_items_for_progress_report = 1 # one for a dummy last item
@@ -407,14 +409,14 @@ class InstlInstanceBase(object):
         num_items_for_progress_report += len(installState.no_copy_items_by_sync_folder)
 
         current_item_for_progress_report = 0
-        installState.append_instructions('copy', self.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}; from $(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)".format(**locals())))
+        installState.append_instructions('copy', self.platform_helper.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}; from $(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)".format(**locals())))
         current_item_for_progress_report += 1
         for folder_name, folder_items in installState.install_items_by_target_folder.iteritems():
-            installState.append_instructions('copy', self.create_echo_command("Starting copy to folder "+folder_name))
+            installState.append_instructions('copy', self.platform_helper.create_echo_command("Starting copy to folder "+folder_name))
             installState.indent_level += 1
             logging.info("... folder %s (%s)", folder_name, self.cvl.resolve_string(folder_name))
-            installState.extend_instructions('copy', self.make_directory_cmd(folder_name))
-            installState.extend_instructions('copy', self.change_directory_cmd(folder_name))
+            installState.extend_instructions('copy', self.platform_helper.make_directory_cmd(folder_name))
+            installState.extend_instructions('copy', self.platform_helper.change_directory_cmd(folder_name))
             folder_in_actions = unique_list()
             install_item_instructions = list()
             folder_out_actions = unique_list()
@@ -425,7 +427,7 @@ class InstlInstanceBase(object):
                     install_item_instructions.extend(installi.action_list('before'))
                     install_item_instructions.extend(self.create_copy_instructions_for_source(source, copy_command_creator))
                     install_item_instructions.extend(installi.action_list('after'))
-                    install_item_instructions.append(self.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}; {installi.iid}: {installi.name}".format(**locals())))
+                    install_item_instructions.append(self.platform_helper.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}; {installi.iid}: {installi.name}".format(**locals())))
                     current_item_for_progress_report += 1
                 folder_out_actions.extend(installi.action_list('folder_out'))
             installState.extend_instructions('copy', folder_in_actions)
@@ -438,7 +440,7 @@ class InstlInstanceBase(object):
         # actions instructions for sources that do not need copying
         for folder_name, folder_items in installState.no_copy_items_by_sync_folder.iteritems():
             logging.info("... non-copy items folder %s (%s)", folder_name, self.cvl.resolve_string(folder_name))
-            installState.extend_instructions('copy', self.change_directory_cmd(folder_name))
+            installState.extend_instructions('copy', self.platform_helper.change_directory_cmd(folder_name))
             folder_in_actions = unique_list()
             install_actions = list()
             folder_out_actions = unique_list()
@@ -451,13 +453,13 @@ class InstlInstanceBase(object):
             installState.extend_instructions('copy', folder_in_actions)
             installState.extend_instructions('copy', install_actions)
             installState.extend_instructions('copy', folder_out_actions)
-            installState.append_instructions('copy', self.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}".format(**locals())))
+            installState.append_instructions('copy', self.platform_helper.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}".format(**locals())))
             current_item_for_progress_report += 1
         # messages about orphan iids
         for iid in installState.orphan_install_items:
             logging.info("Orphan item: %s", iid)
-            installState.append_instructions('copy', self.create_echo_command("Don't know how to install "+iid))
-        installState.append_instructions('copy', self.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}".format(**locals())))
+            installState.append_instructions('copy', self.platform_helper.create_echo_command("Don't know how to install "+iid))
+        installState.append_instructions('copy', self.platform_helper.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}".format(**locals())))
 
     @func_log_wrapper
     def create_copy_instructions_for_source(self, source, copy_command_creator):
@@ -479,8 +481,8 @@ class InstlInstanceBase(object):
     @func_log_wrapper
     def finalize_list_of_lines(self, installState):
         lines = list()
-        lines.extend(self.get_install_instructions_prefix())
-        lines.append(self.create_remark_command(datetime.datetime.today().isoformat()))
+        lines.extend(self.platform_helper.get_install_instructions_prefix())
+        lines.append(self.platform_helper.create_remark_command(datetime.datetime.today().isoformat()))
 
         lines.extend( ('\n', ) )
 
@@ -495,7 +497,7 @@ class InstlInstanceBase(object):
         lines.extend(resolved_copy_intruction_lines)
         lines.extend( ('\n', ) )
 
-        lines.extend(self.get_install_instructions_postfix())
+        lines.extend(self.platform_helper.get_install_instructions_postfix())
 
         return lines
 
@@ -580,43 +582,6 @@ class InstlInstanceBase(object):
     def do_da_interactive(self):
         from instlInstanceBase_interactive import go_interactive
         go_interactive(self)
-
-    @abc.abstractmethod
-    def get_install_instructions_prefix(self):
-        """ platform specific """
-        pass
-
-    @abc.abstractmethod
-    def get_install_instructions_postfix(self):
-        """ platform specific last lines of the install script """
-        pass
-
-    @abc.abstractmethod
-    def make_directory_cmd(self, directory):
-        """ platform specific mkdir for install script """
-        pass
-
-    @abc.abstractmethod
-    def change_directory_cmd(self, directory):
-        """ platform specific cd for install script """
-        pass
-
-    @abc.abstractmethod
-    def get_svn_folder_cleanup_instructions(self, directory):
-        """ platform specific cleanup of svn locks """
-        pass
-
-    @abc.abstractmethod
-    def create_var_assign(self, identifier, value):
-        pass
-
-    @abc.abstractmethod
-    def create_echo_command(self, message):
-        pass
-
-    @abc.abstractmethod
-    def create_remark_command(self, remark):
-        pass
 
     @func_log_wrapper
     def read_command_line_options(self, arglist=None):
