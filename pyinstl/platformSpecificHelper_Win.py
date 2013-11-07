@@ -2,10 +2,56 @@
 from __future__ import print_function
 
 from platformSpecificHelper_Base import PlatformSpecificHelperBase
+from platformSpecificHelper_Base import CopyToolBase
 
 def quoteme(to_qoute):
     return "".join( ('"', to_qoute, '"') )
 
+class CopyTool_win_robocopy(CopyToolBase):
+    def create_copy_dir_to_dir_command(self, src_dir, trg_dir):
+        retVal = list()
+        _, dir_to_copy = os.path.split(src_dir)
+        trg_dir = "/".join( (trg_dir, dir_to_copy) )
+        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /E /XD .svn /R:3 /W:3".format(**locals())
+        retVal.append(copy_command)
+        return retVal
+
+    def create_copy_file_to_dir_command(self, src_file, trg_dir):
+        src_dir, src_file = os.path.split(src_file)
+        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" \"{src_file}\" /R:3 /W:3".format(**locals())
+        return (copy_command, )
+
+    def create_copy_dir_contents_to_dir_command(self, src_dir, trg_dir):
+        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /E /XD .svn /R:3 /W:3".format(**locals())
+        return (copy_command, )
+    
+    def create_copy_dir_files_to_dir_command(self, src_dir, trg_dir):
+        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /LEV:1 /XD .svn /R:3 /W:3".format(**locals())
+        return (copy_command, )
+
+class CopyTool_win_xcopy(CopyToolBase):
+    def create_copy_dir_to_dir_command(self, src_dir, trg_dir):
+        retVal = list()
+        _, dir_to_copy = os.path.split(src_dir)
+        trg_dir = "/".join( (trg_dir, dir_to_copy) )
+        mkdir_command  = "mkdir \"{trg_dir}\"".format(**locals())
+        retVal.append(mkdir_command)
+        retVal.extend(self.create_copy_dir_contents_to_dir_command(src_dir, trg_dir))
+        return retVal
+
+    def create_copy_file_to_dir_command(self, src_file, trg_dir):
+        #src_dir, src_file = os.path.split(src_file)
+        copy_command = "xcopy  /R /Y \"{src_file}\" \"{trg_dir}\"".format(**locals())
+        copy_command.replace("\\", "/")
+        return (copy_command, )
+
+    def create_copy_dir_contents_to_dir_command(self, src_dir, trg_dir):
+        copy_command = "xcopy /E /R /Y \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+        return (copy_command, )
+    
+    def create_copy_dir_files_to_dir_command(self, src_dir, trg_dir):
+        copy_command = "xcopy  /R /Y \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+        return (copy_command, )
 
 class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def __init__(self):
@@ -39,3 +85,11 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def create_remark_command(self, remark):
         remark_command = " ".join(('REM', quoteme(remark)))
         return remark_command
+
+    def use_copy_tool(self, tool):
+        if tool == "robocopy":
+            self.copy_tool = CopyTool_win_robocopy()
+        elif tool == "xcopy":
+            self.copy_tool = CopyTool_win_xcopy()
+        else:
+            raise ValueError(tool, "is not a valid copy tool for", target_os)

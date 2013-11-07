@@ -2,9 +2,39 @@
 from __future__ import print_function
 
 from platformSpecificHelper_Base import PlatformSpecificHelperBase
+from platformSpecificHelper_Base import CopyToolBase
 
 def quoteme(to_qoute):
     return "".join( ('"', to_qoute, '"') )
+
+class CopyTool_mac_rsync(CopyToolBase):
+    def create_copy_dir_to_dir_command(self, src_dir, trg_dir):
+        if src_dir.endswith("/"):
+            src_dir.rstrip("/")
+        #link_dest = "".join( ("'", src_dir, '/..', "'") )
+        #src_dir = "".join( ("'", src_dir, "'") )
+        #trg_dir = "".join( ("'", trg_dir, "'") )
+        link_dest = src_dir+'/..'
+        sync_command = "rsync -l -r -E --exclude=\'.svn/\' --link-dest=\"{link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+        return (sync_command, )
+
+    def create_copy_file_to_dir_command(self, src_file, trg_dir):
+        assert not src_file.endswith("/")
+        sync_command = "rsync -l -r -E --exclude=\'.svn/\' --link-dest=\"{src_file}\" \"{src_file}\" \"{trg_dir}\"".format(**locals())
+        return (sync_command, )
+
+    def create_copy_dir_contents_to_dir_command(self, src_dir, trg_dir):
+        if not src_dir.endswith("/"):
+            src_dir += "/"
+        sync_command = "rsync -l -r -E --exclude=\'.svn/\' --link-dest=\"{src_dir}..\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+        return (sync_command, )
+
+    def create_copy_dir_files_to_dir_command(self, src_dir, trg_dir):
+        if not src_dir.endswith("/"):
+            src_dir += "/"
+        # in order for * to correctly expand, it must be outside the quotes, e.g. to copy all files in folder a: A=a ; "${A}"/* and not "${A}/*" 
+        sync_command = "rsync -l -E -d --exclude=\'.svn/\' --link-dest=\"{src_dir}..\" \"{src_dir}\"/* \"{trg_dir}\"".format(**locals())
+        return (sync_command, )
 
 class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
     def __init__(self):
@@ -41,3 +71,9 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
     def create_remark_command(self, remark):
         remark_command = " ".join(('#', quoteme(remark)))
         return remark_command
+
+    def use_copy_tool(self, tool):
+        if tool == "rsync":
+            self.copy_tool = CopyTool_mac_rsync()
+        else:
+            raise ValueError(tool, "is not a valid copy tool for Mac OS")

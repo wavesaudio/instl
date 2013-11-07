@@ -2,7 +2,61 @@
 from __future__ import print_function
 import abc
 
+def DefaultCopyToolName(target_os):
+    retVal = None
+    if target_os == "Win":
+        retVal = "robocopy"
+    elif target_os == "Mac":
+        retVal = "rsync"
+    else:
+        raise ValueError(target_os, "has no valid default copy tool")
+    return retVal
+
+class CopyToolBase(object):
+    """ Create copy commands. Each function should be overriden to inplement the copying
+        on specific platform using a specific copying tool. All functions return
+        a list of commands, even if tere is only one. This will allow to return
+        multiple commands if needed.
+    """
+    __metaclass__ = abc.ABCMeta
+
+    @abc.abstractmethod
+    def create_copy_dir_to_dir_command(self, src_dir, trg_dir):
+        """ Copy src_dir as a folder into trg_dir.
+            Example: create_copy_dir_to_dir_command("a", "/d/c/b") creates the folder:
+            "/d/c/b/a"
+        """
+        pass
+
+    @abc.abstractmethod
+    def create_copy_file_to_dir_command(self, src_file, trg_dir):
+        """ Copy the file src_file into trg_dir.
+            Example: create_copy_file_to_dir_command("a.txt", "/d/c/b") creates the file:
+            "/d/c/b/a.txt"
+        """
+        pass
+
+    @abc.abstractmethod
+    def create_copy_dir_contents_to_dir_command(self, src_dir, trg_dir):
+        """ Copy the contents of src_dir into trg_dir.
+            Example: create_copy_dir_contents_to_dir_command("a", "/d/c/b") copies
+            everything from a into "/d/c/b"
+        """
+        pass
+
+    @abc.abstractmethod
+    def create_copy_dir_files_to_dir_command(self, src_dir, trg_dir):
+        """ Copy the files of src_dir into trg_dir.
+            Example: create_copy_dir_contents_to_dir_command("a", "/d/c/b") copies
+            all files from a into "/d/c/b", subfolders of a are not copied
+        """
+        pass
+
 class PlatformSpecificHelperBase(object):
+
+    def __init__(self):
+        self.copy_tool = None
+
     @abc.abstractmethod
     def get_install_instructions_prefix(self):
         """ platform specific """
@@ -38,6 +92,10 @@ class PlatformSpecificHelperBase(object):
 
     @abc.abstractmethod
     def create_remark_command(self, remark):
+        pass
+
+    @abc.abstractmethod
+    def use_copy_tool(self, tool):
         pass
 
 def PlatformSpecificHelperFactory(in_os):

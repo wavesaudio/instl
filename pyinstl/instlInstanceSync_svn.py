@@ -48,26 +48,26 @@ class InstlInstanceSync_svn(InstlInstanceSync):
     def create_sync_instructions(self, installState):
         num_items_for_progress_report = len(installState.full_install_items) + 2 # one for a dummy last item, one for index sync
         current_item_for_progress_report = 0
-        installState.append_instructions('sync', self.instlInstance.create_echo_command("Progress: synced {current_item_for_progress_report} of {num_items_for_progress_report}; from $(BASE_SRC_URL)".format(**locals())))
+        installState.append_instructions('sync', self.instlInstance.platform_helper.create_echo_command("Progress: synced {current_item_for_progress_report} of {num_items_for_progress_report}; from $(BASE_SRC_URL)".format(**locals())))
         current_item_for_progress_report += 1
         installState.indent_level += 1
         installState.extend_instructions('sync', self.instlInstance.make_directory_cmd("$(LOCAL_SYNC_DIR)"))
         installState.extend_instructions('sync', self.instlInstance.change_directory_cmd("$(LOCAL_SYNC_DIR)"))
         installState.indent_level += 1
         installState.append_instructions('sync', " ".join(('"$(SVN_CLIENT_PATH)"', "co", '"$(BOOKKEEPING_DIR_URL)"', '"$(REL_BOOKKIPING_PATH)"', "--revision", "$(REPO_REV)", "--depth", "infinity")))
-        installState.append_instructions('sync', self.instlInstance.create_echo_command("Progress: synced {current_item_for_progress_report} of {num_items_for_progress_report}; index file $(BOOKKEEPING_DIR_URL)".format(**locals())))
+        installState.append_instructions('sync', self.instlInstance.platform_helper.create_echo_command("Progress: synced {current_item_for_progress_report} of {num_items_for_progress_report}; index file $(BOOKKEEPING_DIR_URL)".format(**locals())))
         current_item_for_progress_report += 1
         for iid  in installState.full_install_items:
             installi = self.instlInstance.install_definitions_index[iid]
             if installi.source_list():
                 for source in installi.source_list():
                     installState.extend_instructions('sync', self.create_svn_sync_instructions_for_source(source))
-            installState.append_instructions('sync', self.instlInstance.create_echo_command("Progress: synced {current_item_for_progress_report} of {num_items_for_progress_report}; {installi.iid}: {installi.name}".format(**locals())))
+            installState.append_instructions('sync', self.instlInstance.platform_helper.create_echo_command("Progress: synced {current_item_for_progress_report} of {num_items_for_progress_report}; {installi.iid}: {installi.name}".format(**locals())))
             current_item_for_progress_report += 1
         for iid in installState.orphan_install_items:
-            installState.append_instructions('sync', self.instlInstance.create_echo_command("Don't know how to sync "+iid))
+            installState.append_instructions('sync', self.instlInstance.platform_helper.create_echo_command("Don't know how to sync "+iid))
         installState.indent_level -= 1
-        installState.append_instructions('sync', self.instlInstance.create_echo_command("Progress: synced {current_item_for_progress_report} of {num_items_for_progress_report};  from $(BASE_SRC_URL)".format(**locals())))
+        installState.append_instructions('sync', self.instlInstance.platform_helper.create_echo_command("Progress: synced {current_item_for_progress_report} of {num_items_for_progress_report};  from $(BASE_SRC_URL)".format(**locals())))
         
 
     @func_log_wrapper

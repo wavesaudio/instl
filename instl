@@ -10,6 +10,7 @@ import logging.handlers
 # setup logging, must be done before other imports
 from pyinstl.log_utils import setup_logging
 setup_logging("instl", "instl")
+from pyinstl.log_utils import func_log_wrapper
 
 import pyinstl
 from pyinstl.instlException import InstlException
@@ -25,19 +26,136 @@ def get_path_to_instl_app():
     elif __file__:
         application_path = os.path.dirname(os.path.realpath(__file__))
     return application_path
-    
+
+class cmd_line_options(object):
+    """ namespace object to give to parse_args
+        holds command line options
+    """
+    def __init__(self):
+        self.command = None
+        self.input_files = None
+        self.output_file = None
+        self.run = False
+        self.state_file = None
+        self.todo_args = None
+
+    def __str__(self):
+        return "\n".join([''.join((n, ": ", str(v))) for n,v in sorted(vars(self).iteritems())])
+
+def prepare_args_parser():
+    def decent_convert_arg_line_to_args(self, arg_line):
+        """ parse a file with options so that we do not have to write one sub-option
+            per line.  Remove empty lines, comment lines, and end of line comments.
+            ToDo: handle quotes
+        """
+        line_no_whitespce = arg_line.strip()
+        if line_no_whitespce and line_no_whitespce[0] != '#':
+            for arg in line_no_whitespce.split():
+                if not arg:
+                    continue
+                elif  arg[0] == '#':
+                    break
+                yield arg
+
+    parser = argparse.ArgumentParser(description='instl: cross platform svn based installer',
+                    prefix_chars='-+',
+                    fromfile_prefix_chars='@',
+                    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    argparse.ArgumentParser.convert_arg_line_to_args = decent_convert_arg_line_to_args
+
+    subparsers = parser.add_subparsers(dest='command', help='sub-command help')
+    parser_sync = subparsers.add_parser('sync',
+                                        help='sync files to be installed from server to temp folder')
+    parser_copy = subparsers.add_parser('copy',
+                                        help='copy files from temp folder to target paths')
+    parser_synccopy = subparsers.add_parser('synccopy',
+                                        help='sync files to be installed from server to temp folder and copy files from temp folder to target paths')
+
+    for subparser in (parser_sync, parser_copy, parser_synccopy):
+        subparser.set_defaults(mode='batch')
+        standard_options = subparser.add_argument_group(description='standard arguments:')
+        standard_options.add_argument('--in','-i',
+                                    required=True,
+                                    nargs='+',
+                                    metavar='list-of-input-files',
+                                    dest='input_files',
+                                    help="file(s) to read index and definitions from")
+        standard_options.add_argument('--out','-o',
+                                    required=True,
+                                    nargs=1,
+                                    metavar='path-to-output-file',
+                                    dest='output_file',
+                                    help="a file to write sync/copy instructions")
+        standard_options.add_argument('--run','-r',
+                                    required=False,
+                                    default=False,
+                                    action='store_true',
+                                    dest='run',
+                                    help="run the installation instructions script")
+        standard_options.add_argument('--state','-s',
+                                    required=False,
+                                    nargs='?',
+                                    const="stdout",
+                                    metavar='path-to-state-file',
+                                    dest='state_file',
+                                    help="a file to write program state - good for debugging")
+
+        parser_version = subparsers.add_parser('version', help='display instl version')
+        parser_version.set_defaults(mode='do_something')
+
+        if 'Mac' in current_os_names:
+            parser_alias = subparsers.add_parser('alias',
+                                                help='create Mac OS alias')
+            parser_alias.set_defaults(mode='do_something')
+            parser_alias.add_argument('todo_args',
+                                    action='append',
+                                    metavar='path_to_original',
+                                    help="paths to original file")
+            parser_alias.add_argument('todo_args',
+                                    action='append',
+                                    metavar='path_to_alias',
+                                    help="paths to original file and to alias file")
+    return parser
+
+@func_log_wrapper
+def read_command_line_options(name_space_obj, arglist=None):
+    """ parse command line options """
+    args_str = "No options given"
+    # todo: restore __COMMAND_LINE_OPTIONS__
+    #if arglist is not None:
+    #    logging.info("arglist: %s", " ".join(arglist))
+    #self.cvl.add_const_config_variable('__COMMAND_LINE_OPTIONS__', "read only value", args_str)
+    if not arglist or len(arglist) == 0:
+        # No command line options given, but there maybe a "auto run" file with options
+        auto_run_file_path = None
+        # todo: restore autorun file reading
+        #auto_run_file_name = "auto_run_instl.yaml"
+        #auto_run_file_path = self.search_paths_helper.find_file_with_search_paths(auto_run_file_name)
+        #if auto_run_file_path:
+        #    arglist = ("@"+auto_run_file_path,)
+        #    logging.info("found auto run file %s", auto_run_file_name)
+
+    if arglist and len(arglist) > 0:
+        # Command line options were given or auto run file was found
+        parser = prepare_args_parser()
+        parser.parse_args(arglist, namespace=name_space_obj)
+    else:
+        # No command line options were given
+        name_space_obj.mode = "interactive"
+
 @pyinstl.log_utils.func_log_wrapper
 def main():
     try:
         initial_vars = {"__INSTL_EXE_PATH__": get_path_to_instl_app()}
+        options = cmd_line_options()
+        read_command_line_options(options, sys.argv[1:])
         instance = InstlInstanceBase(initial_vars)
-        instance.read_command_line_options(sys.argv[1:])
-        if instance.mode == "batch":
-            instance.do_command_batch_mode()
-        elif instance.mode == "interactive":
-            instance.do_da_interactive()
-        elif instance.mode == "do_something":
-            instance.do_something()
+        instance.init_from_cmd_line_options(options)
+        if options.mode == "batch":
+            instance.do_command()
+        elif options.mode == "interactive":
+            from instlInstanceBase_interactive import go_interactive
+            go_interactive(instance)
     except InstlException as ie:
         print("instl exception",ie.message)
         from pyinstl.log_utils import debug_logging_started

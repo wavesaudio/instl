@@ -152,7 +152,7 @@ class InstlInstanceBase(object):
     def repr_for_yaml(self, what=None):
         """ Create representation of self suitable for printing as yaml.
             parameter 'what' is a list of identifiers to represent. If 'what'
-            is None (the default) creare representation of everything.
+            is None (the default) create representation of everything.
             InstlInstanceBase object is represented as two yaml documents:
             one for define (tagged !define), one for the index (tagged !index).
         """
@@ -195,6 +195,8 @@ class InstlInstanceBase(object):
 
     @func_log_wrapper
     def do_command(self, the_command, installState):
+        installState = InstallInstructionsState()
+        the_command = self.cvl.get_str("__MAIN_COMMAND__")
         self.read_input_files()
         self.resolve_index_inheritance()
         self.calculate_default_install_item_set(installState)
@@ -213,27 +215,9 @@ class InstlInstanceBase(object):
             self.init_copy_vars()
             self.create_copy_instructions(installState)
         self.create_variables_assignment(installState)
-
-    @func_log_wrapper
-    def do_command_batch_mode(self):
-        installState = InstallInstructionsState()
-        the_command = self.cvl.get_str("__MAIN_COMMAND__")
-        self.do_command(the_command, installState)
-        #self.write_batch_file(installState)
         if "__MAIN_RUN_INSTALLATION__" in self.cvl:
             self.run_batch_file()
 
-    @func_log_wrapper
-    def do_something(self):
-        try:
-            logging.debug("... %s", self.cvl.get_str("__MAIN_COMMAND__"))
-            if self.cvl.get_str("__MAIN_COMMAND__") == "version":
-                print(" ".join( (this_program_name, "version", ".".join(self.cvl.get_list("__INSTL_VERSION__")))))
-            else:
-                import do_something
-                do_something.do_something(self.cvl.get_str("__MAIN_COMMAND__"))
-        except Exception as es:
-            raise InstlException(" ".join( ("Error while doing command", "'"+self.cvl.get_str("__MAIN_COMMAND__")+"':\n") ), es)
 
     @func_log_wrapper
     def init_from_cmd_line_options(self, cmd_line_options_obj):
@@ -399,8 +383,7 @@ class InstlInstanceBase(object):
     def create_copy_instructions(self, installState):
         # copy and actions instructions for sources
         installState.append_instructions('copy', self.platform_helper.create_echo_command("starting copy"))
-        from copyCommander import CopyCommanderFactory
-        copy_command_creator = CopyCommanderFactory(self.cvl.get_str("TARGET_OS"), self.cvl.get_str("COPY_TOOL"))
+        self.platform_helper.use_copy_tool(self.cvl.get_str("COPY_TOOL"))
         num_items_for_progress_report = 1 # one for a dummy last item
         for folder_items in installState.install_items_by_target_folder.values():
             for IID in folder_items:
@@ -425,7 +408,7 @@ class InstlInstanceBase(object):
                 folder_in_actions.extend(installi.action_list('folder_in'))
                 for source in installi.source_list():
                     install_item_instructions.extend(installi.action_list('before'))
-                    install_item_instructions.extend(self.create_copy_instructions_for_source(source, copy_command_creator))
+                    install_item_instructions.extend(self.create_copy_instructions_for_source(source))
                     install_item_instructions.extend(installi.action_list('after'))
                     install_item_instructions.append(self.platform_helper.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}; {installi.iid}: {installi.name}".format(**locals())))
                     current_item_for_progress_report += 1
@@ -462,19 +445,19 @@ class InstlInstanceBase(object):
         installState.append_instructions('copy', self.platform_helper.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}".format(**locals())))
 
     @func_log_wrapper
-    def create_copy_instructions_for_source(self, source, copy_command_creator):
+    def create_copy_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
         retVal = list()
         source_url = "$(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)/"+source[0]
 
         if source[1] == '!file':       # get a single file, not recommneded
-            retVal.extend(copy_command_creator.create_copy_file_to_dir_command(source_url, "."))
+            retVal.extend(self.platform_helper.copy_tool.create_copy_file_to_dir_command(source_url, "."))
         elif source[1] == '!dir_cont': # get all files and folders from a folder
-            retVal.extend(copy_command_creator.create_copy_dir_contents_to_dir_command(source_url, "."))
+            retVal.extend(self.platform_helper.copy_tool.create_copy_dir_contents_to_dir_command(source_url, "."))
         elif source[1] == '!files':    # get all files from a folder
-            retVal.extend(copy_command_creator.create_copy_dir_files_to_dir_command(source_url, "."))
+            retVal.extend(self.platform_helper.copy_tool.create_copy_dir_files_to_dir_command(source_url, "."))
         else:
-            retVal.extend(copy_command_creator.create_copy_dir_to_dir_command(source_url, "."))
+            retVal.extend(self.platform_helper.copy_tool.create_copy_dir_to_dir_command(source_url, "."))
         logging.info("... %s; (%s - %s)", source_url, self.cvl.resolve_string(source_url), source[1])
         return retVal
 
@@ -578,125 +561,3 @@ class InstlInstanceBase(object):
             print("Could not load installItemGraph")
             return None
 
-    @func_log_wrapper
-    def do_da_interactive(self):
-        from instlInstanceBase_interactive import go_interactive
-        go_interactive(self)
-
-    @func_log_wrapper
-    def read_command_line_options(self, arglist=None):
-        """ parse command line options """
-        args_str = "No options given"
-        if arglist is not None:
-            logging.info("arglist: %s", " ".join(arglist))
-        self.cvl.add_const_config_variable('__COMMAND_LINE_OPTIONS__', "read only value", args_str)
-        if not arglist or len(arglist) == 0:
-            # No command line options given, but there maybe a "auto run" file with options
-            auto_run_file_path = None
-            auto_run_file_name = "auto_run_instl.yaml"
-            auto_run_file_path = self.search_paths_helper.find_file_with_search_paths(auto_run_file_name)
-            if auto_run_file_path:
-                arglist = ("@"+auto_run_file_path,)
-                logging.info("found auto run file %s", auto_run_file_name)
-
-        if arglist and len(arglist) > 0:
-            # Command line options were given or auto run file was found
-            parser = prepare_args_parser()
-            self.name_space_obj = cmd_line_options()
-            parser.parse_args(arglist, namespace=self.name_space_obj)
-            self.mode = self.name_space_obj.mode
-            self.init_from_cmd_line_options(self.name_space_obj)
-        else:
-            # No command line options were given
-            self.mode = "interactive"
-
-class cmd_line_options(object):
-    """ namespace object to give to parse_args
-        holds command line options
-    """
-    def __init__(self):
-        self.command = None
-        self.input_files = None
-        self.output_file = None
-        self.run = False
-        self.state_file = None
-        self.todo_args = None
-
-    def __str__(self):
-        return "\n".join([''.join((n, ": ", str(v))) for n,v in sorted(vars(self).iteritems())])
-
-
-def prepare_args_parser():
-    def decent_convert_arg_line_to_args(self, arg_line):
-        """ parse a file with options so that we do not have to write one sub-option
-            per line.  Remove empty lines, comment lines, and end of line comments.
-            ToDo: handle quotes
-        """
-        line_no_whitespce = arg_line.strip()
-        if line_no_whitespce and line_no_whitespce[0] != '#':
-            for arg in line_no_whitespce.split():
-                if not arg:
-                    continue
-                elif  arg[0] == '#':
-                    break
-                yield arg
-
-    parser = argparse.ArgumentParser(description='instl: cross platform svn based installer',
-                    prefix_chars='-+',
-                    fromfile_prefix_chars='@',
-                    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    argparse.ArgumentParser.convert_arg_line_to_args = decent_convert_arg_line_to_args
-
-    subparsers = parser.add_subparsers(dest='command', help='sub-command help')
-    parser_sync = subparsers.add_parser('sync',
-                                        help='sync files to be installed from server to temp folder')
-    parser_copy = subparsers.add_parser('copy',
-                                        help='copy files from temp folder to target paths')
-    parser_synccopy = subparsers.add_parser('synccopy',
-                                        help='sync files to be installed from server to temp folder and copy files from temp folder to target paths')
-
-    for subparser in (parser_sync, parser_copy, parser_synccopy):
-        subparser.set_defaults(mode='batch')
-        standard_options = subparser.add_argument_group(description='standard arguments:')
-        standard_options.add_argument('--in','-i',
-                                    required=True,
-                                    nargs='+',
-                                    metavar='list-of-input-files',
-                                    dest='input_files',
-                                    help="file(s) to read index and definitions from")
-        standard_options.add_argument('--out','-o',
-                                    required=True,
-                                    nargs=1,
-                                    metavar='path-to-output-file',
-                                    dest='output_file',
-                                    help="a file to write sync/copy instructions")
-        standard_options.add_argument('--run','-r',
-                                    required=False,
-                                    default=False,
-                                    action='store_true',
-                                    dest='run',
-                                    help="run the installation instructions script")
-        standard_options.add_argument('--state','-s',
-                                    required=False,
-                                    nargs='?',
-                                    const="stdout",
-                                    metavar='path-to-state-file',
-                                    dest='state_file',
-                                    help="a file to write program state - good for debugging")
-
-        parser_version = subparsers.add_parser('version', help='display instl version')
-        parser_version.set_defaults(mode='do_something')
-
-        if 'Mac' in current_os_names:
-            parser_alias = subparsers.add_parser('alias',
-                                                help='create Mac OS alias')
-            parser_alias.set_defaults(mode='do_something')
-            parser_alias.add_argument('todo_args',
-                                    action='append',
-                                    metavar='path_to_original',
-                                    help="paths to original file")
-            parser_alias.add_argument('todo_args',
-                                    action='append',
-                                    metavar='path_to_alias',
-                                    help="paths to original file and to alias file")
-    return parser
