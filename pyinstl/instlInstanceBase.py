@@ -22,7 +22,7 @@ from pyinstl.searchPaths import SearchPaths
 from instlException import InstlException
 from platformSpecificHelper_Base import PlatformSpecificHelperFactory
 
-current_os_names = current_os_names()
+current_os_names = get_current_os_names()
 os_family_name = current_os_names[0]
 os_second_name = current_os_names[0]
 if len(current_os_names) > 1:
@@ -131,7 +131,6 @@ class InstlInstanceBase(object):
         self.out_file_realpath = None
         self.install_definitions_index = dict()
         self.cvl = ConfigVarList()
-        self.var_replacement_pattern = None
         self.init_default_vars(initial_vars)
         # initialize the search paths helper with the current directory and dir where instl is now
         self.search_paths_helper = SearchPaths(self.cvl.get_configVar_obj("__SEARCH_PATHS__"))
@@ -194,7 +193,7 @@ class InstlInstanceBase(object):
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
 
     @func_log_wrapper
-    def do_command(self, the_command, installState):
+    def do_command(self):
         installState = InstallInstructionsState()
         the_command = self.cvl.get_str("__MAIN_COMMAND__")
         self.read_input_files()
@@ -215,6 +214,7 @@ class InstlInstanceBase(object):
             self.init_copy_vars()
             self.create_copy_instructions(installState)
         self.create_variables_assignment(installState)
+        self.write_batch_file(installState)
         if "__MAIN_RUN_INSTALLATION__" in self.cvl:
             self.run_batch_file()
 
@@ -350,7 +350,7 @@ class InstlInstanceBase(object):
         if "SET_ICON_PATH" in self.cvl:
             setIcon_full_path = self.search_paths_helper.find_file_with_search_paths(self.cvl.get_str("SET_ICON_PATH"))
             self.cvl.set_variable("SET_ICON_PATH", var_description).append(setIcon_full_path)
-# check which variabls are needed for for offline install....
+# check which variables are needed for for offline install....
         if "REL_SRC_PATH" not in self.cvl:
             if "SVN_REPO_URL" not in self.cvl:
                 raise ValueError("'SVN_REPO_URL' was not defined")
@@ -363,7 +363,7 @@ class InstlInstanceBase(object):
             self.cvl.set_variable("LOCAL_SYNC_DIR", var_description).append(self.get_default_sync_dir())
 
         if "COPY_TOOL" not in self.cvl:
-            from copyCommander import DefaultCopyToolName
+            from platformSpecificHelper_Base import DefaultCopyToolName
             self.cvl.set_variable("COPY_TOOL", var_description).append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
         for identifier in ("REL_SRC_PATH", "COPY_TOOL"):
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
@@ -487,7 +487,7 @@ class InstlInstanceBase(object):
     @func_log_wrapper
     def write_batch_file(self, installState):
         lines = self.finalize_list_of_lines(installState)
-        lines_after_var_replacement = '\n'.join([value_ref_re.sub(self.var_replacement_pattern, line) for line in lines])
+        lines_after_var_replacement = '\n'.join([value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines])
 
         from utils import write_to_file_or_stdout
         out_file = self.cvl.get_str("__MAIN_OUT_FILE__")

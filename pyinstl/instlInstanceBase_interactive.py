@@ -375,7 +375,7 @@ class CMDObj(cmd.Cmd, object):
             out_file = params
         self.prog_inst.cvl.set_variable("__MAIN_OUT_FILE__").append(out_file)
         self.prog_inst.cvl.set_variable("__MAIN_COMMAND__").append("sync")
-        self.prog_inst.do_command_batch_mode()
+        self.prog_inst.do_command()
         return False
     
     def help_sync(self):
@@ -388,7 +388,7 @@ class CMDObj(cmd.Cmd, object):
             out_file = params
         self.prog_inst.cvl.set_variable("__MAIN_OUT_FILE__").append(out_file)
         self.prog_inst.cvl.set_variable("__MAIN_COMMAND__").append("copy")
-        self.prog_inst.do_command_batch_mode()
+        self.prog_inst.do_command()
         return False
     
     def help_copy(self):

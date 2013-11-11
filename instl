@@ -154,7 +154,7 @@ def main():
         if options.mode == "batch":
             instance.do_command()
         elif options.mode == "interactive":
-            from instlInstanceBase_interactive import go_interactive
+            from pyinstl.instlInstanceBase_interactive import go_interactive
             go_interactive(instance)
     except InstlException as ie:
         print("instl exception",ie.message)

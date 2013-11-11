@@ -25,7 +25,7 @@ def GetProgramFiles64():
     else:
         return None
 
-def current_os_names():
+def get_current_os_names():
     import platform
     current_os = platform.system()
     if current_os == 'Darwin':
@@ -80,7 +80,7 @@ class open_for_read_file_or_url(object):
             if search_paths_helper is not None:
                 self.file_url = search_paths_helper.find_file_with_search_paths(self.file_url)
             if self.file_url:
-                if 'Win' in current_os_names():
+                if 'Win' in get_current_os_names():
                     self.file_url = "file:///"+os.path.abspath(self.file_url)
                 else:
                     self.file_url = "file://"+os.path.realpath(self.file_url)

@@ -99,9 +99,13 @@ class PlatformSpecificHelperBase(object):
         pass
 
 def PlatformSpecificHelperFactory(in_os):
+    retVal = None
     if in_os == "Mac":
         import platformSpecificHelper_Mac
         retVal = platformSpecificHelper_Mac.PlatformSpecificHelperMac()
     elif in_os == "Win":
         import platformSpecificHelper_Win
         retVal = platformSpecificHelper_Win.PlatformSpecificHelperWin()
+    else:
+        raise ValueError(in_os, "has no PlatformSpecificHelper")
+    return retVal

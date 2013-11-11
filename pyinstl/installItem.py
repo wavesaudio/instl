@@ -58,7 +58,7 @@ sys.path.append("..")
 from aYaml import augmentedYaml
 from pyinstl.utils import *
 
-current_os_names = current_os_names()
+current_os_names = get_current_os_names()
 os_family_name = current_os_names[0]
 
 def read_index_from_yaml(all_items_node):
