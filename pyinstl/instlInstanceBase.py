@@ -20,6 +20,7 @@ from pyinstl.utils import *
 from pyinstl.searchPaths import SearchPaths
 from instlException import InstlException
 from platformSpecificHelper_Base import PlatformSpecificHelperFactory
+from pyinstl import svnTree
 
 current_os_names = get_current_os_names()
 os_family_name = current_os_names[0]
@@ -126,6 +127,7 @@ class InstlInstanceBase(object):
     __metaclass__ = abc.ABCMeta
     @func_log_wrapper
     def __init__(self, initial_vars=None):
+        self.svnTree = svnTree.SVNTree()
         self.platform_helper = PlatformSpecificHelperFactory(os_family_name)
         self.out_file_realpath = None
         self.install_definitions_index = dict()
