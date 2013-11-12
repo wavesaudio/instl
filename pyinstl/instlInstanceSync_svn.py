@@ -51,8 +51,8 @@ class InstlInstanceSync_svn(InstlInstanceSync):
         installState.append_instructions('sync', self.instlInstance.platform_helper.create_echo_command("Progress: synced {current_item_for_progress_report} of {num_items_for_progress_report}; from $(BASE_SRC_URL)".format(**locals())))
         current_item_for_progress_report += 1
         installState.indent_level += 1
-        installState.extend_instructions('sync', self.instlInstance.make_directory_cmd("$(LOCAL_SYNC_DIR)"))
-        installState.extend_instructions('sync', self.instlInstance.change_directory_cmd("$(LOCAL_SYNC_DIR)"))
+        installState.extend_instructions('sync', self.instlInstance.platform_helper.make_directory_cmd("$(LOCAL_SYNC_DIR)"))
+        installState.extend_instructions('sync', self.instlInstance.platform_helper.change_directory_cmd("$(LOCAL_SYNC_DIR)"))
         installState.indent_level += 1
         installState.append_instructions('sync', " ".join(('"$(SVN_CLIENT_PATH)"', "co", '"$(BOOKKEEPING_DIR_URL)"', '"$(REL_BOOKKIPING_PATH)"', "--revision", "$(REPO_REV)", "--depth", "infinity")))
         installState.append_instructions('sync', self.instlInstance.platform_helper.create_echo_command("Progress: synced {current_item_for_progress_report} of {num_items_for_progress_report}; index file $(BOOKKEEPING_DIR_URL)".format(**locals())))

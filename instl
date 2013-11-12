@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import sys
 import os
+import argparse
 import logging
 import logging.handlers
 
@@ -11,12 +12,17 @@ import logging.handlers
 from pyinstl.log_utils import setup_logging
 setup_logging("instl", "instl")
 from pyinstl.log_utils import func_log_wrapper
+from pyinstl.utils import get_current_os_names
 
 import pyinstl
 from pyinstl.instlException import InstlException
 
 import platform
-current_os = platform.system()
+current_os_names = get_current_os_names()
+os_family_name = current_os_names[0]
+os_second_name = current_os_names[0]
+if len(current_os_names) > 1:
+    os_second_name = current_os_names[1]
 from pyinstl.instlInstanceBase import InstlInstanceBase
 
 def get_path_to_instl_app():

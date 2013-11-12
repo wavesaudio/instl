@@ -64,7 +64,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             if installi.source_list():
                 for source in installi.source_list():
                     self.create_need_list_for_source(source)
-        print(self.need_list)
+
     @func_log_wrapper
     def create_need_list_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
