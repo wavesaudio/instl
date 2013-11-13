@@ -44,6 +44,7 @@ class cmd_line_options(object):
         self.run = False
         self.state_file = None
         self.todo_args = None
+        self.props_file = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n,v in sorted(vars(self).iteritems())])
@@ -76,6 +77,8 @@ def prepare_args_parser():
                                         help='copy files from temp folder to target paths')
     parser_synccopy = subparsers.add_parser('synccopy',
                                         help='sync files to be installed from server to temp folder and copy files from temp folder to target paths')
+    parser_trans = subparsers.add_parser('trans',
+                                        help='translate svn map files from one format to another')
 
     for subparser in (parser_sync, parser_copy, parser_synccopy):
         subparser.set_defaults(mode='batch')
@@ -105,6 +108,28 @@ def prepare_args_parser():
                                     metavar='path-to-state-file',
                                     dest='state_file',
                                     help="a file to write program state - good for debugging")
+
+    for subparser in (parser_trans, ):
+        subparser.set_defaults(mode='batch')
+        trans_options = subparser.add_argument_group(description='translate arguments:')
+        trans_options.add_argument('--in','-i',
+                                    required=True,
+                                    nargs=1,
+                                    metavar='list-of-input-file',
+                                    dest='input_file',
+                                    help="file to read svn information from")
+        trans_options.add_argument('--out','-o',
+                                    required=True,
+                                    nargs=1,
+                                    metavar='path-to-output-file',
+                                    dest='output_file',
+                                    help="file to write svn information to")
+        trans_options.add_argument('--props','-p',
+                                    required=False,
+                                    nargs=1,
+                                    metavar='path-to-props-file',
+                                    dest='props_file',
+                                    help="file to read svn properties from")
 
         parser_version = subparsers.add_parser('version', help='display instl version')
         parser_version.set_defaults(mode='do_something')

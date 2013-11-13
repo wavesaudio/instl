@@ -13,20 +13,6 @@ extension_to_format = {"txt" : "text", "text" : "text",
                         }
 def go_outeractive():
     name_space_obj = read_command_line_options(sys.argv[1:])
-    if name_space_obj.command == "trans":
-        _, extension = os.path.splitext(name_space_obj.input_file[0])
-        input_format = extension_to_format[extension[1:]]
-        _, extension = os.path.splitext(name_space_obj.output_file[0])
-        output_format = extension_to_format[extension[1:]]
-        print("in:", name_space_obj.input_file[0], input_format)
-        print("out:", name_space_obj.output_file[0], output_format)
-        print("props:", name_space_obj.props_file[0])
-
-        svnTreeObj = svnTree.SVNTree()
-        svnTreeObj.read_from_file(name_space_obj.input_file[0], format=input_format, report_level=1)
-        if name_space_obj.props_file[0]:
-            svnTreeObj.read_from_file(name_space_obj.props_file[0], format='props', report_level=1)
-        svnTreeObj.write_to_file(name_space_obj.output_file[0], in_format=output_format, report_level=1)
     elif name_space_obj.command == "diff":
         _, extension = os.path.splitext(name_space_obj.have_info_map_file[0])
         have_format = extension_to_format[extension[1:]]
@@ -95,8 +81,6 @@ def prepare_args_parser():
     argparse.ArgumentParser.convert_arg_line_to_args = decent_convert_arg_line_to_args
 
     subparsers = parser.add_subparsers(dest='command', help='sub-command help')
-    parser_trans = subparsers.add_parser('trans',
-                                        help='translate svn map files from one format to another')
     parser_diff = subparsers.add_parser('diff',
                                         help='diff two info maps')
     parser_create_info = subparsers.add_parser('createinfo',
@@ -104,29 +88,6 @@ def prepare_args_parser():
 #    parser_synccopy = subparsers.add_parser('synccopy',
 #                                        help='sync files to be installed from server to temp folder and copy files from temp folder to target paths')
 
-    for subparser in (parser_trans, ):
-        #subparser.set_defaults(mode='batch')
-        standard_options = subparser.add_argument_group(description='standard arguments:')
-        standard_options.add_argument('--in','-i',
-                                    required=True,
-                                    nargs=1,
-                                    metavar='list-of-input-file',
-                                    dest='input_file',
-                                    help="file to read svn information from")
-    for subparser in (parser_trans, ):
-        trans_options = subparser.add_argument_group(description='translate arguments:')
-        trans_options.add_argument('--out','-o',
-                                    required=True,
-                                    nargs=1,
-                                    metavar='path-to-output-file',
-                                    dest='output_file',
-                                    help="file to write svn information to")
-        trans_options.add_argument('--props','-p',
-                                    required=False,
-                                    nargs=1,
-                                    metavar='path-to-props-file',
-                                    dest='props_file',
-                                    help="file to read svn properties from")
     for subparser in (parser_diff, ):
         popu_options = subparser.add_argument_group(description='diff arguments:')
         popu_options.add_argument('--have',

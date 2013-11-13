@@ -294,7 +294,7 @@ class CMDObj(cmd.Cmd, object):
         if params:
             for afile in shlex.split(params):
                 try:
-                    self.prog_inst.read_file(afile)
+                    self.prog_inst.read_yaml_file(afile)
                 except Exception as ex:
                     print("read", afile, ex)
         else:

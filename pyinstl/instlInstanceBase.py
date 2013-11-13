@@ -1,15 +1,12 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
-
-import sys
-import os
-import yaml
-import re
 import abc
 from collections import OrderedDict, defaultdict
-import appdirs
 import logging
 import datetime
+
+import yaml
+import appdirs
 
 import pyinstl.log_utils
 from pyinstl.log_utils import func_log_wrapper
@@ -118,6 +115,12 @@ class InstallInstructionsState(object):
                     sync_folder =  "/".join( ("$(LOCAL_SYNC_DIR)", "$(REL_SRC_PATH)", instlInstance.relative_sync_folder_for_source(source)))
                     self.no_copy_items_by_sync_folder[sync_folder].append(IID)
 
+map_info_extension_to_format = {"txt" : "text", "text" : "text",
+                "inf" : "info", "info" : "info",
+                "yml" : "yaml", "yaml" : "yaml",
+                "pick" : "pickle", "pickl" : "pickle", "pickle" : "pickle",
+                }
+
 class InstlInstanceBase(object):
     """ Main object of instl. Keeps the state of variables and install index
         and knows how to create a batch file for installation. InstlInstanceBase
@@ -138,8 +141,8 @@ class InstlInstanceBase(object):
         self.search_paths_helper.add_search_path(os.getcwd())
         self.search_paths_helper.add_search_path(os.path.dirname(os.path.realpath(sys.argv[0])))
         self.search_paths_helper.add_search_path(self.cvl.get_str("__INSTL_EXE_PATH__"))
-        #if os_family_name == "Win":
-        #    self.search_paths_helper.add_search_path(os.path.join(self.cvl.get_str("__INSTL_EXE_PATH__"), "wsvn"))
+        self.client_commands = ("sync", "copy", 'synccopy')
+        self.server_commands = ("trans", )
 
         self.guid_re = re.compile("""
                         [a-f0-9]{8}
@@ -195,40 +198,47 @@ class InstlInstanceBase(object):
 
     @func_log_wrapper
     def do_command(self):
-        installState = InstallInstructionsState()
         the_command = self.cvl.get_str("__MAIN_COMMAND__")
-        self.read_input_files()
-        self.resolve_index_inheritance()
-        self.calculate_default_install_item_set(installState)
-        if the_command in ("sync", 'synccopy'):
-            logging.info("Creating sync instructions")
-            if self.cvl.get_str("REPRO_TYPE") == "URL":
-                from instlInstanceSync_url import InstlInstanceSync_url
-                syncer = InstlInstanceSync_url(self)
-            elif self.cvl.get_str("REPRO_TYPE") == "SVN":
-                from instlInstanceSync_svn import InstlInstanceSync_svn
-                syncer = InstlInstanceSync_svn(self)
-            syncer.init_sync_vars()
-            syncer.create_sync_instructions(installState)
-        if the_command in ("copy", 'synccopy'):
-            logging.info("Creating copy instructions")
-            self.init_copy_vars()
-            self.create_copy_instructions(installState)
-        self.create_variables_assignment(installState)
-        self.write_batch_file(installState)
-        if "__MAIN_RUN_INSTALLATION__" in self.cvl:
-            self.run_batch_file()
+        if the_command in self.client_commands:
+            installState = InstallInstructionsState()
+            self.read_yaml_file(self.cvl.get_str("__MAIN_INPUT_FILE__"))
+            self.resolve_index_inheritance()
+            self.calculate_default_install_item_set(installState)
+            if the_command in ("sync", "synccopy"):
+                logging.info("Creating sync instructions")
+                if self.cvl.get_str("REPRO_TYPE") == "URL":
+                    from instlInstanceSync_url import InstlInstanceSync_url
+                    syncer = InstlInstanceSync_url(self)
+                elif self.cvl.get_str("REPRO_TYPE") == "SVN":
+                    from instlInstanceSync_svn import InstlInstanceSync_svn
+                    syncer = InstlInstanceSync_svn(self)
+                syncer.init_sync_vars()
+                syncer.create_sync_instructions(installState)
+            if the_command in ("copy", 'synccopy'):
+                logging.info("Creating copy instructions")
+                self.init_copy_vars()
+                self.create_copy_instructions(installState)
+            self.create_variables_assignment(installState)
+            self.write_batch_file(installState)
+            if "__MAIN_RUN_INSTALLATION__" in self.cvl:
+                self.run_batch_file()
+        elif the_command in self.server_commands:
+            if the_command == "trans":
+                self.read_info_map_file()
+                self.write_info_map_file()
 
 
     @func_log_wrapper
     def init_from_cmd_line_options(self, cmd_line_options_obj):
         """ turn command line options into variables """
-        if cmd_line_options_obj.input_files:
-            self.cvl.add_const_config_variable("__MAIN_INPUT_FILES__", "from command line options", *cmd_line_options_obj.input_files)
+        if cmd_line_options_obj.input_file:
+            self.cvl.add_const_config_variable("__MAIN_INPUT_FILE__", "from command line options", cmd_line_options_obj.input_file[0])
         if cmd_line_options_obj.output_file:
             self.cvl.add_const_config_variable("__MAIN_OUT_FILE__", "from command line options", cmd_line_options_obj.output_file[0])
         if cmd_line_options_obj.state_file:
             self.cvl.add_const_config_variable("__MAIN_STATE_FILE__", "from command line options", cmd_line_options_obj.state_file)
+        if cmd_line_options_obj.props_file:
+            self.cvl.add_const_config_variable("__PROPS_FILE__", "from command line options", cmd_line_options_obj.props_file[0])
         if cmd_line_options_obj.run:
             self.cvl.add_const_config_variable("__MAIN_RUN_INSTALLATION__", "from command line options", "yes")
         if cmd_line_options_obj.command:
@@ -252,24 +262,14 @@ class InstlInstanceBase(object):
                 elif identifier == '__include__':
                     for file_name in contents:
                         resolved_file_name = self.cvl.resolve_string(file_name.value)
-                        self.read_file(resolved_file_name)
+                        self.read_yaml_file(resolved_file_name)
 
     @func_log_wrapper
     def read_index(self, a_node):
         self.install_definitions_index.update(read_index_from_yaml(a_node))
 
     @func_log_wrapper
-    def read_input_files(self):
-        input_files = self.cvl.get_list("__MAIN_INPUT_FILES__")
-        if input_files:
-            file_actually_opened = list()
-            for file_path in input_files:
-                self.read_file(file_path)
-                file_actually_opened.append(os.path.abspath(file_path))
-            self.cvl.add_const_config_variable("__MAIN_INPUT_FILES_ACTUALLY_OPENED__", "opened by read_input_files", *file_actually_opened)
-
-    @func_log_wrapper
-    def read_file(self, file_path):
+    def read_yaml_file(self, file_path):
         try:
             logging.info("... Reading input file %s", file_path)
             with open_for_read_file_or_url(file_path, self.search_paths_helper) as file_fd:
@@ -286,6 +286,18 @@ class InstlInstanceBase(object):
             raise InstlException(" ".join( ("YAML error while reading file", "'"+file_path+"':\n", str(ye)) ), ye)
         except IOError as ioe:
             raise InstlException(" ".join(("Failed to read file", "'"+file_path+"'", ":")), ioe)
+
+    def read_info_map_file(self):
+        _, extension = os.path.splitext(self.cvl.get_str("__MAIN_INPUT_FILE__"))
+        input_format = map_info_extension_to_format[extension[1:]]
+        self.svnTree.read_from_file(self.cvl.get_str("__MAIN_INPUT_FILE__"), format=input_format, report_level=1)
+        if "__PROPS_FILE__" in self.cvl:
+            svnTreeObj.read_from_file(self.cvl.get_str("__PROPS_FILE__"), format='props', report_level=1)
+
+    def write_info_map_file(self):
+        _, extension = os.path.splitext(self.cvl.get_str("__MAIN_OUT_FILE__"))
+        output_format = map_info_extension_to_format[extension[1:]]
+        self.svnTree.write_to_file(self.cvl.get_str("__MAIN_OUT_FILE__"), in_format=output_format, report_level=1)
 
     @func_log_wrapper
     def resolve_index_inheritance(self):
