@@ -203,7 +203,7 @@ class SVNTree(svnItem.SVNItem):
     def repr_for_yaml(self):
         """         writeAsYaml(svni1, out_stream=sys.stdout, indentor=None, sort=True)         """
         retVal = OrderedDict()
-        for sub_name in sorted(self.sub_names()):
+        for sub_name in sorted(self.__subs.keys()):
             the_sub = self.get_sub(sub_name)
             if the_sub.isDir():
                 retVal[the_sub.name()] = the_sub.repr_for_yaml()

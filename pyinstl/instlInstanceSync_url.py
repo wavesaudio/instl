@@ -15,8 +15,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
     @func_log_wrapper
     def __init__(self, instlInstance):
         self.instlInstance = instlInstance
-        self.svnTree = svnTree.SVNTree()
-        self.need_list = list()
+        self.need_map = svnTree.SVNTree()
 
     @func_log_wrapper
     def init_sync_vars(self):
@@ -44,6 +43,9 @@ class InstlInstanceSync_url(InstlInstanceSync):
         rel_sources = relative_url(self.instlInstance.cvl.get_str("STAT_LINK_REPO_URL"), self.instlInstance.cvl.get_str("BASE_SRC_URL"))
         self.instlInstance.cvl.set_variable("REL_SRC_PATH", var_description).append(rel_sources)
 
+        if "INFO_MAP_FILE_URL" not in self.instlInstance.cvl:
+            self.instlInstance.cvl.set_variable("INFO_MAP_FILE_URL").append("$(STAT_LINK_REPO_URL)/instl/info_map.txt")
+
         for identifier in ("STAT_LINK_REPO_URL", "GET_URL_CLIENT_PATH", "REL_SRC_PATH", "REPO_REV", "BASE_SRC_URL", "BOOKKEEPING_DIR_URL"):
             logging.debug("... %s: %s", identifier, self.instlInstance.cvl.get_str(identifier))
 
@@ -52,10 +54,12 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.create_need_list(installState)
         for iid in installState.orphan_install_items:
             installState.append_instructions('sync', self.instlInstance.create_echo_command("Don't know how to sync "+iid))
+        self.instlInstance.svnTree.read_from_file(self.instlInstance.cvl.get_str("INFO_MAP_FILE_URL"), format="text")
+        self.need_list_to_ought()
+        self.ought_and_have_to_sync()
+        self.create_download_instructions()
         out_file = self.instlInstance.cvl.get_str("__MAIN_OUT_FILE__")
         logging.info("... %s", out_file)
-        with write_to_file_or_stdout(out_file) as fd:
-            self.svnTree.write_as_text(fd)
 
     @func_log_wrapper
     def create_need_list(self, installState):
@@ -68,4 +72,27 @@ class InstlInstanceSync_url(InstlInstanceSync):
     @func_log_wrapper
     def create_need_list_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
-        self.need_list.append(source[0])
+        _sub = self.instlInstance.svnTree.get_sub(source[0])
+        if source[1] == '!file':
+            if _sub.isFile():
+                self.need_map.add_sub(source[0], file_sub.flags(), file_sub.last_rev())
+        if source[1] == '!files':
+            if _sub.isDir():
+                for
+        if source[1] == '!dir':
+            pass
+        if source[1] == '!dir_cont':
+            pass
+        return retVal
+
+    def download_info_map(self):
+         "$(STAT_LINK_REPO_URL)/instl/info_map.txt
+
+    def need_list_to_ought(self):
+        pass
+
+    def ought_and_have_to_sync(self):
+        pass
+
+    def create_download_instructions(selfs):
+        pass

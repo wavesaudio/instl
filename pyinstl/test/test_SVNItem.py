@@ -109,14 +109,13 @@ item_list_need_ref = [
             ]
 
 class TestSVNItem(unittest.TestCase):
-
     def setUp(self):
-        """ .
-        """
+        ''' .
+        '''
         self.maxDiff = None
     def tearDown(self):
         pass
-    
+    """
     def test_update_have_map(self):
         have_map = SVNItem("TestDir", "d", 15)
         have_map.add_sub_list(item_list1)
@@ -165,7 +164,7 @@ class TestSVNItem(unittest.TestCase):
         
         flat2 = SVNItemFlat("SubFile1", "f", 19)
         svni1.add_sub(*flat2)
-        self.assertEqual(svni1.sub_names(), ["SubFile1"])
+        self.assertEqual(svni1.keys(), ["SubFile1"])
         flat3 = SVNItemFlat("SubFile1/SubFile2", "f", 19)
         # should throw when adding and path has non leaf file
         self.assertRaises(ValueError, svni1.add_sub, *flat3)
@@ -174,49 +173,50 @@ class TestSVNItem(unittest.TestCase):
         svni1 = SVNItem("TestDir", "d", 15)
         flat1 = SVNItemFlat("SubDir1", "d", 19)
         svni1.add_sub(*flat1)
-        self.assertEqual(svni1.sub_names(), ["SubDir1"])
+        self.assertEqual(svni1.keys(), ["SubDir1"])
         self.assertIsInstance(svni1.get_sub("SubDir1"), SVNItem, msg="svn1.get_sub should return SVNItem object")
         
         flat2 = SVNItemFlat("SubDir1/SubDir2", "d", 219)
         svni1.add_sub(*flat2)
-        self.assertEqual(svni1.sub_names(), ["SubDir1"])
+        self.assertEqual(svni1.keys(), ["SubDir1"])
         sub1 = svni1.get_sub("SubDir1/SubDir2")
         self.assertIsInstance(sub1, SVNItem, msg="svn1.get_sub should return SVNItem object")
-        self.assertEqual(sub1.sub_names(), ["SubDir2"])
+        self.assertEqual(sub1.keys(), ["SubDir2"])
         sub2 = sub1.get_sub("SubDir2")
         self.assertIsInstance(sub2, SVNItem, msg="svn1.get_sub should return SVNItem object")
 
         flat3 = SVNItemFlat("SubDirA", "d", 2195)
         svni1.add_sub(*flat3)
-        self.assertEqual(svni1.sub_names(), ["SubDir1", "SubDirA"])
+        self.assertEqual(svni1.keys(), ["SubDir1", "SubDirA"])
         sub1 = svni1.get_sub("SubDir1")
         self.assertIsInstance(sub1, SVNItem, msg="svn1.get_sub should return SVNItem object")
         sub2 = svni1.get_sub("SubDirA")
         self.assertIsInstance(sub2, SVNItem, msg="svn1.get_sub should return SVNItem object")
+   """
 
     def test_add_sub_item_positive(self):
-        """ Check the internal function _add_sub_item where is should succeed """
+        ''' Check the internal function _add_sub_item where is should succeed '''
         svni1 = SVNItem("TestDir", "d", 15)
         svni2 = SVNItem("SubFile", "f", 1258)
         svni1._add_sub_item(svni2)
-        self.assertEqual(svni1.sub_names(), ["SubFile"])
+        self.assertEqual(svni1.keys(), ["SubFile"])
         self.assertIsNone(svni1.get_sub("kuku"), msg="svn1.get_sub should return None for none existing item")
         self.assertIs(svni1.get_sub("SubFile"), svni2, msg="svn1.get_sub should return the same object given")
         svni1.add_sub("SubDir", "d", 1258)
-        self.assertEqual(svni1.sub_names(), ["SubDir", "SubFile"])
+        self.assertEqual(svni1.keys(), ["SubDir", "SubFile"])
         self.assertIsNone(svni1.get_sub("kuku"), msg="svn1.get_sub should return None for none existing item")
         self.assertIsInstance(svni1.get_sub("SubDir"), SVNItem, msg="svn1.get_sub should return SVNItem object")
 
     def test_add_sub_item_negative(self):
-        """ Check the internal function _add_sub_item where is should fail """
+        ''' Check the internal function _add_sub_item where is should fail '''
         svni1 = SVNItem("TestDir", "f", 15)
         svni2 = SVNItem("SubFile", "f", 1258)
         self.assertRaises(ValueError, svni1._add_sub_item, svni2)
-        self.assertRaises(ValueError, svni1.sub_names)
+        self.assertRaises(ValueError, svni1.keys)
         self.assertRaises(ValueError, svni1.get_sub, "SubFile")
 
     def test_other_flags_construction(self):
-        """ Construct SVNItem with some flags flag """
+        ''' Construct SVNItem with some flags flag '''
         svni1 = SVNItem("TestFlags", "fx", 36)
         self.assertEqual(svni1.name(), "TestFlags")
         self.assertEqual(svni1.last_rev(), 36)
@@ -224,7 +224,7 @@ class TestSVNItem(unittest.TestCase):
         self.assertFalse(svni1.isDir(), msg="SVNItem.isDir() should return False for directory")
         self.assertTrue(svni1.isExecutable(), msg="SVNItem.isExecutable() should return True for non-executable")
         self.assertFalse(svni1.isSymlink(), msg="SVNItem.isSymlink() should return False for non-symlink")
-        self.assertRaises(ValueError, svni1.sub_names)
+        self.assertRaises(ValueError, svni1.keys)
         self.assertRaises(ValueError, svni1.get_sub, "kuku")
         svni2 = SVNItem("TestFlags", "ds", 36)
         self.assertEqual(svni2.name(), "TestFlags")
@@ -232,11 +232,11 @@ class TestSVNItem(unittest.TestCase):
         self.assertTrue(svni2.isDir(), msg="SVNItem.isDir() should return True for directory")
         self.assertFalse(svni2.isExecutable(), msg="SVNItem.isExecutable() should return False for non-executable")
         self.assertTrue(svni2.isSymlink(), msg="SVNItem.isSymlink() should return True for non-symlink")
-        self.assertEqual(svni2.sub_names(), [])
+        self.assertEqual(svni2.keys(), [])
         self.assertIsNone(svni2.get_sub("kuku"), "svn1.get_sub should return None for none existing item")
 
     def test_dir_construction(self):
-        """ Construct SVNItem with directory flag """
+        ''' Construct SVNItem with directory flag '''
         svni1 = SVNItem("TestDir", "d", 15)
         self.assertEqual(svni1.name(), "TestDir")
         self.assertEqual(svni1.last_rev(), 15)
@@ -244,11 +244,10 @@ class TestSVNItem(unittest.TestCase):
         self.assertTrue(svni1.isDir(), msg="SVNItem.isDir() should return True for directory")
         self.assertFalse(svni1.isExecutable(), msg="SVNItem.isExecutable() should return False for non-executable")
         self.assertFalse(svni1.isSymlink(), msg="SVNItem.isSymlink() should return False for non-symlink")
-        self.assertEqual(svni1.sub_names(), [])
+        self.assertEqual(svni1.keys(), [])
         self.assertIsNone(svni1.get_sub("kuku"), msg="svn1.get_sub should return None for none existing item")
-        
     def test_file_construction(self):
-        """ Construct SVNItem with file flag """
+        ''' Construct SVNItem with file flag '''
         svni1 = SVNItem("TestFile", "f", 17)
         self.assertEqual(svni1.name(), "TestFile")
         self.assertEqual(svni1.last_rev(), 17)
@@ -256,5 +255,5 @@ class TestSVNItem(unittest.TestCase):
         self.assertTrue(svni1.isFile(), msg="SVNItem.isFile() should return True for file")
         self.assertFalse(svni1.isDir(), msg="SVNItem.isDir() should return False for directory")
         self.assertFalse(svni1.isExecutable(), msg="SVNItem.isExecutable() should return False for non-executable")
-        self.assertRaises(ValueError, svni1.sub_names)
+        self.assertRaises(ValueError, svni1.keys)
         self.assertRaises(ValueError, svni1.get_sub, "kuku")

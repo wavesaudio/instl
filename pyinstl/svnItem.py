@@ -2,7 +2,7 @@
 from __future__ import print_function
 
 import re
-from collections import namedtuple, OrderedDict
+from collections import namedtuple, OrderedDict, MutableMapping
 import copy
 
 from aYaml import augmentedYaml
@@ -18,7 +18,7 @@ flags_and_last_rev_re = re.compile("""
                 $
                 """, re.X)
 
-class SVNItem(object):
+class SVNItem(MutableMapping):
     """ represents a single svn item, either file or directory with the item's
         flags and last changed revision. Only the item's name is kept not
         the whole path. Directory items have a dictionary of sub items.
@@ -43,12 +43,27 @@ class SVNItem(object):
         self.to_sync = False
 
     def __str__(self):
-        retVal = "{self._SVNItem__name}: {self._SVNItem__flags} {self._SVNItem__last_rev} {self._SVNItem__have_rev} {self.to_sync}".format(**locals())
+        retVal = "{self._SVNItem__name}: {self._SVNItem__flags} {self._SVNItem__last_rev}".format(**locals())
         return retVal
     
     def __getstate__(self):
         return ((self.__name, self.__flags, self.__last_rev, self.__have_rev), self.__subs)
-    
+
+    def __len__(self):
+        return len(self.__subs)
+    def __setitem__(self, key, val):
+        self.__subs[key] = val
+    def __delitem__(self, key):
+        del(self.__subs[key])
+    def __getitem__(self, key):
+        return self.__subs[key]
+    def __iter__(self):
+        if not self.isDir():
+            raise ValueError(self.name()+" is not a directory, has no sub items")
+        else:
+            assert isinstance(self.__subs, dict), "self.__subs is not a directory"
+        return iter(self.__subs)
+
     def __setstate__(self, state):
         self.__name = state[0][0]
         self.__flags = state[0][1]
@@ -92,14 +107,7 @@ class SVNItem(object):
         
     def isSymlink(self):
         return 's' in self.__flags
-    
-    def sub_names(self):
-        if not self.isDir():
-            raise ValueError(self.name()+" is not a directory, has no sub items")
-        else:
-            assert isinstance(self.__subs, dict), "self.__subs is not a directory"
-        return sorted(self.__subs.keys())
-        
+
     def get_sub(self, path):
         if not self.isDir():
             raise ValueError(self.name()+" is not a directory, has no sub items")
@@ -109,8 +117,10 @@ class SVNItem(object):
         if isinstance(path, basestring):
             path_parts = path.split("/")
         retVal = self.__subs.get(path_parts[0]) # will return None if not found
+        the_self_type = type(self)
+        the_list_type = type(path_parts)
         if retVal and len(path_parts) > 1:
-            retval = retVal.get_sub(path_parts[1:])
+            retVal = retVal.get_sub(path_parts[1:])
         return retVal
          
     def add_sub(self, path, flags, last_rev, have_rev=None):
@@ -185,9 +195,9 @@ class SVNItem(object):
         if self.name() != need_map.name():
             raise ValueError("self.name: "+self.name()+ " != need_map.name: "+need_map.name())
         #download_map = SVNItem(self.name(), "d", self.last_rev())   
-        names = set(self.sub_names()+need_map.sub_names())
+        names = set(self.__subs.keys()+need_map.__subs.keys())
         for sub_name in names:
-            if sub_name in self.sub_names():
+            if sub_name in self.__subs.keys():
                 if sub_name in need_map.sub_names():
                     self.__subs[sub_name].update_rev(need_map[sub_name].last_rev())
                 elif self.__subs[sub_name].isFile():
@@ -197,7 +207,7 @@ class SVNItem(object):
     
     def walk_items(self, path_so_far=None, what="all"):
         """  Walk the item list and yield items in the SVNItemFlat format:
-            (path, flags, last_rev). path is the full know path (up to the top
+            (path, flags, last_rev). path is the full known path (up to the top
             item in the tree where walk_items was called).
         """
         if path_so_far is None:
@@ -208,7 +218,7 @@ class SVNItem(object):
         if not self.isDir():
             raise TypeError("Files should not walk themselfs, ownning dir should do it for them")
         
-        for sub_name in self.sub_names():
+        for sub_name in sorted(self.__subs.keys()):
             the_sub = self.get_sub(sub_name)
             if the_sub.isFile() and yield_files:
                 path_so_far.append(the_sub.name())
@@ -230,7 +240,7 @@ class SVNItem(object):
         """         writeAsYaml(svni1, out_stream=sys.stdout, indentor=None, sort=True)         """
         retVal = OrderedDict()
         retVal["_p_"] = " ".join( (self.flags(), str(self.last_rev())) ) 
-        for sub_name in sorted(self.sub_names()):
+        for sub_name in sorted(self.__subs.keys()):
             the_sub = self.get_sub(sub_name)
             if the_sub.isFile():
                 retVal[the_sub.name()] = " ".join( (the_sub.flags(), str(the_sub.last_rev()), str(the_sub.have_rev())) )
