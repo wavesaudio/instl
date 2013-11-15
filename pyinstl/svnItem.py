@@ -119,7 +119,7 @@ class SVNItem(MutableMapping):
         retVal = self.__subs.get(path_parts[0]) # will return None if not found
         the_self_type = type(self)
         the_list_type = type(path_parts)
-        if retVal and len(path_parts) > 1:
+        if retVal is not None and len(path_parts) > 1:
             retVal = retVal.get_sub(path_parts[1:])
         return retVal
          
@@ -222,12 +222,12 @@ class SVNItem(MutableMapping):
             the_sub = self.get_sub(sub_name)
             if the_sub.isFile() and yield_files:
                 path_so_far.append(the_sub.name())
-                yield ("/".join( path_so_far ) , the_sub.flags(), the_sub.last_rev(), the_sub.have_rev())
+                yield ("/".join( path_so_far ) , the_sub.flags(), the_sub.last_rev())
                 path_so_far.pop()
             if the_sub.isDir():
                 path_so_far.append(the_sub.name())
                 if yield_dirs:
-                    yield ("/".join( path_so_far ) , the_sub.flags(), the_sub.last_rev(), the_sub.have_rev())
+                    yield ("/".join( path_so_far ) , the_sub.flags(), the_sub.last_rev())
                 for yielded_from in the_sub.walk_items(path_so_far, what):
                     yield yielded_from
                 path_so_far.pop()

@@ -115,17 +115,6 @@ class TestSVNItem(unittest.TestCase):
         self.maxDiff = None
     def tearDown(self):
         pass
-    """
-    def test_update_have_map(self):
-        have_map = SVNItem("TestDir", "d", 15)
-        have_map.add_sub_list(item_list1)
-        need_map = SVNItem("TestDir", "d", 15)
-        need_map.add_sub_list(item_list_need)
-        have_map.update_have_map(need_map)
-        all_items_list = []    
-        for item in svni2.walk_items(what="a"):
-            all_items_list.append(item)
-        self.assertEqual(sorted(all_items_list), sorted(item_list_need_ref))
 
     def test_deepcopy(self):
         svni1 = SVNItem("TestDir", "d", 15)
@@ -136,7 +125,7 @@ class TestSVNItem(unittest.TestCase):
         for item in svni2.walk_items(what="a"):
             all_items_list.append(item)
         self.assertEqual(sorted(all_items_list), sorted(item_list1))
-        
+
     def test_walk_items(self):
         svni1 = SVNItem("TestDir", "d", 15)
         svni1.add_sub_list(item_list1)
@@ -155,7 +144,7 @@ class TestSVNItem(unittest.TestCase):
         for adir in svni1.walk_items(what="d"):
             all_dirs_list.append(adir)
         self.assertEqual(sorted(all_dirs_list), sorted([item for item in item_list1 if "d" in item[1]]))
-                
+
     def test_add_sub_negative(self):
         svni1 = SVNItem("TestDir", "d", 15)
         flat1 = SVNItemFlat("SubDir1/SubFile1", "f", 19)
@@ -179,7 +168,7 @@ class TestSVNItem(unittest.TestCase):
         flat2 = SVNItemFlat("SubDir1/SubDir2", "d", 219)
         svni1.add_sub(*flat2)
         self.assertEqual(svni1.keys(), ["SubDir1"])
-        sub1 = svni1.get_sub("SubDir1/SubDir2")
+        sub1 = svni1.get_sub("SubDir1")
         self.assertIsInstance(sub1, SVNItem, msg="svn1.get_sub should return SVNItem object")
         self.assertEqual(sub1.keys(), ["SubDir2"])
         sub2 = sub1.get_sub("SubDir2")
@@ -187,12 +176,11 @@ class TestSVNItem(unittest.TestCase):
 
         flat3 = SVNItemFlat("SubDirA", "d", 2195)
         svni1.add_sub(*flat3)
-        self.assertEqual(svni1.keys(), ["SubDir1", "SubDirA"])
+        self.assertEqual(sorted(svni1.keys()), ["SubDir1", "SubDirA"])
         sub1 = svni1.get_sub("SubDir1")
         self.assertIsInstance(sub1, SVNItem, msg="svn1.get_sub should return SVNItem object")
         sub2 = svni1.get_sub("SubDirA")
         self.assertIsInstance(sub2, SVNItem, msg="svn1.get_sub should return SVNItem object")
-   """
 
     def test_add_sub_item_positive(self):
         ''' Check the internal function _add_sub_item where is should succeed '''
@@ -203,7 +191,7 @@ class TestSVNItem(unittest.TestCase):
         self.assertIsNone(svni1.get_sub("kuku"), msg="svn1.get_sub should return None for none existing item")
         self.assertIs(svni1.get_sub("SubFile"), svni2, msg="svn1.get_sub should return the same object given")
         svni1.add_sub("SubDir", "d", 1258)
-        self.assertEqual(svni1.keys(), ["SubDir", "SubFile"])
+        self.assertEqual(sorted(svni1.keys()), ["SubDir", "SubFile"])
         self.assertIsNone(svni1.get_sub("kuku"), msg="svn1.get_sub should return None for none existing item")
         self.assertIsInstance(svni1.get_sub("SubDir"), SVNItem, msg="svn1.get_sub should return SVNItem object")
 
