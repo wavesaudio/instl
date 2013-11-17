@@ -200,6 +200,7 @@ class InstlInstanceBase(object):
     def do_command(self):
         the_command = self.cvl.get_str("__MAIN_COMMAND__")
         if the_command in self.client_commands:
+            print("client_commands", the_command)
             installState = InstallInstructionsState()
             self.read_yaml_file(self.cvl.get_str("__MAIN_INPUT_FILE__"))
             self.resolve_index_inheritance()
@@ -223,6 +224,7 @@ class InstlInstanceBase(object):
             if "__MAIN_RUN_INSTALLATION__" in self.cvl:
                 self.run_batch_file()
         elif the_command in self.server_commands:
+            print("server_commands", the_command)
             if the_command == "trans":
                 self.read_info_map_file()
                 self.write_info_map_file()
@@ -257,7 +259,7 @@ class InstlInstanceBase(object):
         if a_node.isMapping():
             for identifier, contents in a_node:
                 logging.debug("... %s: %s", identifier, str(contents))
-                if not self.internal_identifier_re.match(identifier): # do not read internal state indentifiers
+                if not self.internal_identifier_re.match(identifier): # do not read internal state identifiers
                     self.cvl.set_variable(identifier, str(contents.start_mark)).extend([item.value for item in contents])
                 elif identifier == '__include__':
                     for file_name in contents:
@@ -292,7 +294,7 @@ class InstlInstanceBase(object):
         input_format = map_info_extension_to_format[extension[1:]]
         self.svnTree.read_from_file(self.cvl.get_str("__MAIN_INPUT_FILE__"), format=input_format, report_level=1)
         if "__PROPS_FILE__" in self.cvl:
-            svnTreeObj.read_from_file(self.cvl.get_str("__PROPS_FILE__"), format='props', report_level=1)
+            self.svnTree.read_from_file(self.cvl.get_str("__PROPS_FILE__"), format='props', report_level=1)
 
     def write_info_map_file(self):
         _, extension = os.path.splitext(self.cvl.get_str("__MAIN_OUT_FILE__"))
