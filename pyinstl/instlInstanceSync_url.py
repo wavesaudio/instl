@@ -75,14 +75,16 @@ class InstlInstanceSync_url(InstlInstanceSync):
         _sub = self.instlInstance.svnTree.get_sub(source[0])
         if source[1] == '!file':
             if _sub.isFile():
-                self.need_map.add_sub(source[0], file_sub.flags(), file_sub.last_rev())
+                self.need_map.add_sub(source[0], _sub.flags(), _sub.last_rev())
         if source[1] == '!files':
             if _sub.isDir():
-                for
+                for _sub_file in _sub.values():
+                    if _sub_file.isFile():
+                self.need_map.add_sub((source[0], _sub_file), _sub_file.flags(), _sub_file.last_rev())
         if source[1] == '!dir':
-            pass
+            self.need_map.add_sub_recursive(_sub)
         if source[1] == '!dir_cont':
-            pass
+            self.need_map.add_sub_recursive(_sub)
         return retVal
 
     def download_info_map(self):
