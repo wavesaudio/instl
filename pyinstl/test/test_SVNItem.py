@@ -116,6 +116,61 @@ class TestSVNItem(unittest.TestCase):
     def tearDown(self):
         pass
 
+    def test_equal(self):
+        svni1 = SVNItem("TestDir", "d", 15)
+        svni2 = SVNItem("TestDir", "d", 15)
+        svni3 = SVNItem("TestFile", "f", 15)
+        self.assertEqual(svni1, svni2)
+        self.assertNotEqual(svni1, svni3)
+        svni1.add_sub("file1", "f", 19)
+        self.assertNotEqual(svni1, svni2)
+        svni2.add_sub("file1", "f", 19)
+        self.assertEqual(svni1, svni2)
+        svni1._add_sub_item(svni3)
+        self.assertNotEqual(svni1, svni2)
+        svni2._add_sub_item(copy.deepcopy(svni3))
+        self.assertEqual(svni1, svni2)
+
+    #def test_copy(self):
+    #    svni1 = SVNItem("TestDir", "d", 15)
+    #    svni2 = copy.copy(svni1)
+    #    self.assertEqual(svni1, svni2)
+
+    def test_looping(self):
+        svni1 = SVNItem("TestDir", "d", 15)
+        svni1.add_sub_list(item_list1)
+        sub1 = svni1.get_sub("Dir1")
+        file_list = list()
+        # test item keys
+        self.assertEqual(sorted([name for name in sub1 if sub1[name].isFile()]), sorted(["File1.1", "File1.2", "File1.3"]))
+        for name, item in sub1.iteritems():
+            if item.isFile():
+                file_list.append(name)
+        self.assertEqual(sorted(file_list), sorted(["File1.1", "File1.2", "File1.3"]))
+
+        # test iter keys and values
+        sub3 = svni1.get_sub("Dir3")
+        file_list = list()
+        folder_list = list()
+        for name, item in sub3.iteritems():
+            if item.isFile():
+                file_list.append(name)
+            elif item.isDir():
+                folder_list.append(name)
+        self.assertEqual(sorted(file_list), sorted(["File3.1", "File3.2"]))
+        self.assertEqual(sorted(folder_list), sorted(["Dir3.1", "Dir3.2"]))
+
+        # test iter values
+        file_list = list()
+        folder_list = list()
+        for item in sub3.itervalues():
+            if item.isFile():
+                file_list.append(item.name())
+            elif item.isDir():
+                folder_list.append(item.name())
+        self.assertEqual(sorted(file_list), sorted(["File3.1", "File3.2"]))
+        self.assertEqual(sorted(folder_list), sorted(["Dir3.1", "Dir3.2"]))
+
     def test_deepcopy(self):
         svni1 = SVNItem("TestDir", "d", 15)
         svni1.add_sub_list(item_list1)

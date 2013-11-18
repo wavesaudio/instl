@@ -36,7 +36,7 @@ class SVNItem(MutableMapping):
         if have_rev is None:
             self.__have_rev = 0
         else:
-            self._have_rev = have_rev
+            self.__have_rev = have_rev
         self.__subs = None
         if self.isDir():
             self.__subs = dict()
@@ -77,7 +77,26 @@ class SVNItem(MutableMapping):
         self.__last_rev = another_SVNItem.last_rev()
         self.__have_rev = another_SVNItem.have_rev()
         self.__subs = another_SVNItem.__subs
-        
+
+    def __copy__(self):
+        retVal = SVNItem(self.__name, self.__flags, self.__last_rev, self.__have_rev)
+        retVal.__subs = self.__subs
+        return retVal
+
+    def __deepcopy__(self, memodict):
+        retVal = SVNItem(self.__name, self.__flags, self.__last_rev, self.__have_rev)
+        if self.__subs:
+            retVal.__subs = {name: copy.deepcopy(item) for name, item in self.iteritems()}
+        return retVal
+
+    def __eq__(self, other):
+        retVal = (self.__name == other.name() and
+                    self.__flags == other.flags() and
+                    self.__last_rev == other.last_rev() and
+                    self.__have_rev == other.have_rev() and
+                    self.__subs == other.subs())
+        return retVal
+
     def name(self):
         return self.__name
     
@@ -95,7 +114,10 @@ class SVNItem(MutableMapping):
         
     def flags(self):
         return self.__flags
-        
+
+    def subs(self):
+        return self.__subs
+
     def isFile(self):
         return 'f' in self.__flags
         
