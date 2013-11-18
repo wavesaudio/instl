@@ -208,7 +208,7 @@ class SVNTree(svnItem.SVNItem):
             if the_sub.isDir():
                 retVal[the_sub.name()] = the_sub.repr_for_yaml()
             else:
-                ValueError("SVNTree does not support files in the top most direcotry")
+                ValueError("SVNTree does not support files in the top most directory")
         return retVal
 
     def iter_svn_info(self, long_info_fd):
@@ -231,10 +231,10 @@ class SVNTree(svnItem.SVNItem):
                 if the_match:
                     record[the_match.group('key')] = the_match.group('rest_of_line')
             else:
-                if record: # in case there were several empty lines between blocks
+                if record and record["Path"] != ".": # in case there were several empty lines between blocks
                     yield svnItem.SVNItemFlat(record["Path"], short_node_kind[record["Node Kind"]], int(record["Last Changed Rev"]))
                 record.clear()
-        if record: # in case there was no extra line at the end of file
+        if record and record["Path"] != ".": # in case there was no extra line at the end of file
             yield svnItem.SVNItemFlat(record["Path"], short_node_kind[record["Node Kind"]], int(record["Last Changed Rev"]))
             
 if __name__ == "__main__":
