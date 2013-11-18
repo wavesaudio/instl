@@ -39,7 +39,7 @@ class cmd_line_options(object):
     """
     def __init__(self):
         self.command = None
-        self.input_files = None
+        self.input_file = None
         self.output_file = None
         self.run = False
         self.state_file = None
@@ -87,7 +87,7 @@ def prepare_args_parser():
                                     required=True,
                                     nargs='+',
                                     metavar='list-of-input-files',
-                                    dest='input_files',
+                                    dest='input_file',
                                     help="file(s) to read index and definitions from")
         standard_options.add_argument('--out','-o',
                                     required=True,

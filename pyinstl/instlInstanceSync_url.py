@@ -5,7 +5,7 @@ import logging
 import pyinstl.log_utils
 from pyinstl.log_utils import func_log_wrapper
 from pyinstl.utils import *
-from pysvnsrv import svnTree
+from pyinstl import svnTree
 from instlInstanceSyncBase import InstlInstanceSync
 
 
@@ -15,7 +15,10 @@ class InstlInstanceSync_url(InstlInstanceSync):
     @func_log_wrapper
     def __init__(self, instlInstance):
         self.instlInstance = instlInstance
+        self.avail_map = svnTree.SVNTree()
+        self.target_os_avail_map = None
         self.need_map = svnTree.SVNTree()
+        self.target_os_need_map = None
 
     @func_log_wrapper
     def init_sync_vars(self):
@@ -51,15 +54,20 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
     @func_log_wrapper
     def create_sync_instructions(self, installState):
+        info_map_path = self.instlInstance.cvl.get_str("INFO_MAP_FILE_URL")
+        self.avail_map.read_from_file(info_map_path, format="text")
+        self.target_os_avail_map = self.avail_map.get_sub(self.instlInstance.cvl.get_str("TARGET_OS"))
+        self.target_os_need_map = self.need_map.add_sub(self.target_os_avail_map.name(), self.target_os_avail_map.flags(), self.target_os_avail_map.last_rev())
+
         self.create_need_list(installState)
-        for iid in installState.orphan_install_items:
-            installState.append_instructions('sync', self.instlInstance.create_echo_command("Don't know how to sync "+iid))
-        self.instlInstance.svnTree.read_from_file(self.instlInstance.cvl.get_str("INFO_MAP_FILE_URL"), format="text")
-        self.need_list_to_ought()
-        self.ought_and_have_to_sync()
-        self.create_download_instructions()
+        #for iid in installState.orphan_install_items:
+        #    installState.append_instructions('sync', self.instlInstance.create_echo_command("Don't know how to sync "+iid))
+        #self.need_list_to_ought()
+        #self.ought_and_have_to_sync()
+        #self.create_download_instructions()
         out_file = self.instlInstance.cvl.get_str("__MAIN_OUT_FILE__")
         logging.info("... %s", out_file)
+        self.need_map.write_to_file(out_file, in_format="text", report_level=1)
 
     @func_log_wrapper
     def create_need_list(self, installState):
@@ -72,23 +80,23 @@ class InstlInstanceSync_url(InstlInstanceSync):
     @func_log_wrapper
     def create_need_list_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
-        _sub = self.instlInstance.svnTree.get_sub(source[0])
+        _sub = self.target_os_avail_map.get_sub(source[0])
         if source[1] == '!file':
             if _sub.isFile():
-                self.need_map.add_sub(source[0], _sub.flags(), _sub.last_rev())
+                self.target_os_need_map.add_sub(source[0], _sub.flags(), _sub.last_rev())
         if source[1] == '!files':
             if _sub.isDir():
                 for _sub_file in _sub.values():
                     if _sub_file.isFile():
-                self.need_map.add_sub((source[0], _sub_file), _sub_file.flags(), _sub_file.last_rev())
+                        self.target_os_need_map.add_sub((source[0], _sub_file), _sub_file.flags(), _sub_file.last_rev())
         if source[1] == '!dir':
-            self.need_map.add_sub_recursive(_sub)
+            self.target_os_need_map.add_sub_tree_recursive(source[0].split("/")[:-1], _sub)
         if source[1] == '!dir_cont':
-            self.need_map.add_sub_recursive(_sub)
-        return retVal
+            self.target_os_need_map.add_sub_tree_recursive(source[0].split("/")[:-1], _sub)
 
     def download_info_map(self):
-         "$(STAT_LINK_REPO_URL)/instl/info_map.txt
+        """$(STAT_LINK_REPO_URL)/instl/info_map.txt"""
+        pass
 
     def need_list_to_ought(self):
         pass

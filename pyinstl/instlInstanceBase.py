@@ -220,7 +220,7 @@ class InstlInstanceBase(object):
                 self.init_copy_vars()
                 self.create_copy_instructions(installState)
             self.create_variables_assignment(installState)
-            self.write_batch_file(installState)
+            #self.write_batch_file(installState)
             if "__MAIN_RUN_INSTALLATION__" in self.cvl:
                 self.run_batch_file()
         elif the_command in self.server_commands:

@@ -139,8 +139,6 @@ class SVNItem(MutableMapping):
         if isinstance(path, basestring):
             path_parts = path.split("/")
         retVal = self.__subs.get(path_parts[0]) # will return None if not found
-        the_self_type = type(self)
-        the_list_type = type(path_parts)
         if retVal is not None and len(path_parts) > 1:
             retVal = retVal.get_sub(path_parts[1:])
         return retVal
@@ -176,9 +174,22 @@ class SVNItem(MutableMapping):
     def add_sub_tree(self, path, sub_tree):
         where = self.get_sub(path)
         if not where:
-            raise KeyError(path+" is not in tree")
+            raise KeyError("/".join(path)+" is not in tree")
         where._add_sub_item(sub_tree)
     
+    def add_sub_tree_recursive(self, path, sub_tree):
+        #print("--- add sub to", self.name(), path, flags, last_rev)
+        path_parts = path
+        if isinstance(path, basestring):
+            path_parts = path.split("/")
+        where_to_add = self
+        for part in path_parts:
+            level_down = where_to_add.get_sub(part)
+            if level_down is None:
+                level_down = where_to_add.add_sub(part, "d", sub_tree.last_rev())
+            where_to_add = level_down
+        where_to_add._add_sub_item(sub_tree)
+
     def add_sub_list(self, list_of_tuples):
         for a_tuple in list_of_tuples:
             self.add_sub(*a_tuple)
