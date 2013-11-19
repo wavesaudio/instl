@@ -3,6 +3,7 @@ from __future__ import print_function
 
 from platformSpecificHelper_Base import PlatformSpecificHelperBase
 from platformSpecificHelper_Base import CopyToolBase
+from platformSpecificHelper_Base import DownloadToolBase
 
 def quoteme(to_qoute):
     return "".join( ('"', to_qoute, '"') )
@@ -57,6 +58,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def __init__(self):
         super(PlatformSpecificHelperWin, self).__init__()
         self.var_replacement_pattern = "%\g<var_name>%"
+        self.dl_tool = DownloadTool_win_wget()
 
     def get_install_instructions_prefix(self):
         return ("SET SAVE_DIR=%CD%", )
@@ -93,3 +95,18 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
             self.copy_tool = CopyTool_win_xcopy()
         else:
             raise ValueError(tool, "is not a valid copy tool for", target_os)
+
+
+class DownloadTool_win_wget(DownloadToolBase):
+
+    def create_download_file_to_file_command(self, src_url, trg_file):
+        download_command_parts = list()
+        download_command_parts.append("wget")
+        download_command_parts.append("--connect-timeout")
+        download_command_parts.append("60")
+        download_command_parts.append("--read-timeout")
+        download_command_parts.append("900")
+        download_command_parts.append("-O")
+        download_command_parts.append(quoteme(trg_file))
+        download_command_parts.append(quoteme(src_url))
+        return (" ".join(download_command_parts), )

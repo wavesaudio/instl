@@ -7,9 +7,9 @@ SVN_CLIENT_PATH: $(SVN_CLIENT_PATH_FOR_$(CURRENT_OS))
 
 SET_ICON_PATH: "/usr/local/bin/setIcon"
 
-SVN_REPO_URL: "https://waves-audio.svn.beanstalkapp.com/test1/V9"
+SYNC_BASE_URL: "https://waves-audio.svn.beanstalkapp.com/test1/V9"
 
-__include__: "$(SVN_REPO_URL)/instl/index.yaml"
+__include__: "$(SYNC_BASE_URL)/instl/index.yaml"
 
 WAVES_DIR: "$(HOME_DIR)/Desktop/beanstalk-install"
 MACOS_APPLICATIONSUPPORT_DIR: "$(WAVES_DIR)/Application Support"

@@ -289,6 +289,7 @@ class TestSVNItem(unittest.TestCase):
         self.assertFalse(svni1.isSymlink(), msg="SVNItem.isSymlink() should return False for non-symlink")
         self.assertEqual(svni1.keys(), [])
         self.assertIsNone(svni1.get_sub("kuku"), msg="svn1.get_sub should return None for none existing item")
+
     def test_file_construction(self):
         ''' Construct SVNItem with file flag '''
         svni1 = SVNItem("TestFile", "f", 17)

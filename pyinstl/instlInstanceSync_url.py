@@ -23,8 +23,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
     @func_log_wrapper
     def init_sync_vars(self):
         var_description = "from InstlInstanceBase.init_sync_vars"
-        if "STAT_LINK_REPO_URL" not in self.instlInstance.cvl:
-            raise ValueError("'STAT_LINK_REPO_URL' was not defined")
+        if "SYNC_BASE_URL" not in self.instlInstance.cvl:
+            raise ValueError("'SYNC_BASE_URL' was not defined")
         if "GET_URL_CLIENT_PATH" not in self.instlInstance.cvl:
             raise ValueError("'GET_URL_CLIENT_PATH' was not defined")
         get_url_client_full_path = self.instlInstance.search_paths_helper.find_file_with_search_paths(self.instlInstance.cvl.get_str("GET_URL_CLIENT_PATH"))
@@ -33,45 +33,48 @@ class InstlInstanceSync_url(InstlInstanceSync):
         if "REPO_REV" not in self.instlInstance.cvl:
             self.instlInstance.cvl.set_variable("REPO_REV", var_description).append("HEAD")
         if "BASE_SRC_URL" not in self.instlInstance.cvl:
-            self.instlInstance.cvl.set_variable("BASE_SRC_URL", var_description).append("$(STAT_LINK_REPO_URL)/$(TARGET_OS)")
+            self.instlInstance.cvl.set_variable("BASE_SRC_URL", var_description).append("$(SYNC_BASE_URL)/$(TARGET_OS)")
 
         if "LOCAL_SYNC_DIR" not in self.instlInstance.cvl:
-            self.instlInstance.cvl.set_variable("LOCAL_SYNC_DIR", var_description).append(self.instlInstance.get_default_sync_dir())
+            self.instlInstance.cvl.set_variable("LOCAL_SYNC_DIR", var_description).append(
+                self.instlInstance.get_default_sync_dir())
 
         if "BOOKKEEPING_DIR_URL" not in self.instlInstance.cvl:
-            self.instlInstance.cvl.set_variable("BOOKKEEPING_DIR_URL").append("$(STAT_LINK_REPO_URL)/instl")
-        bookkeeping_relative_path = relative_url(self.instlInstance.cvl.get_str("STAT_LINK_REPO_URL"), self.instlInstance.cvl.get_str("BOOKKEEPING_DIR_URL"))
+            self.instlInstance.cvl.set_variable("BOOKKEEPING_DIR_URL").append("$(SYNC_BASE_URL)/instl")
+        bookkeeping_relative_path = relative_url(self.instlInstance.cvl.get_str("SYNC_BASE_URL"), self.instlInstance.cvl.get_str("BOOKKEEPING_DIR_URL"))
         self.instlInstance.cvl.set_variable("REL_BOOKKIPING_PATH", var_description).append(bookkeeping_relative_path)
 
-        rel_sources = relative_url(self.instlInstance.cvl.get_str("STAT_LINK_REPO_URL"), self.instlInstance.cvl.get_str("BASE_SRC_URL"))
+        rel_sources = relative_url(self.instlInstance.cvl.get_str("SYNC_BASE_URL"), self.instlInstance.cvl.get_str("BASE_SRC_URL"))
         self.instlInstance.cvl.set_variable("REL_SRC_PATH", var_description).append(rel_sources)
 
         if "INFO_MAP_FILE_URL" not in self.instlInstance.cvl:
-            self.instlInstance.cvl.set_variable("INFO_MAP_FILE_URL").append("$(STAT_LINK_REPO_URL)/instl/info_map.txt")
+            self.instlInstance.cvl.set_variable("INFO_MAP_FILE_URL").append("$(SYNC_BASE_URL)/instl/info_map.txt")
 
-        for identifier in ("STAT_LINK_REPO_URL", "GET_URL_CLIENT_PATH", "REL_SRC_PATH", "REPO_REV", "BASE_SRC_URL", "BOOKKEEPING_DIR_URL"):
+        for identifier in ("SYNC_BASE_URL", "GET_URL_CLIENT_PATH", "REL_SRC_PATH", "REPO_REV", "BASE_SRC_URL", "BOOKKEEPING_DIR_URL"):
             logging.debug("... %s: %s", identifier, self.instlInstance.cvl.get_str(identifier))
 
     @func_log_wrapper
     def create_sync_instructions(self, installState):
+        self.installState = installState
         info_map_path = self.instlInstance.cvl.get_str("INFO_MAP_FILE_URL")
         self.avail_map.read_from_file(info_map_path, format="text")
         self.target_os_avail_map = self.avail_map.get_sub(self.instlInstance.cvl.get_str("TARGET_OS"))
         self.target_os_need_map = self.need_map.add_sub(self.target_os_avail_map.name(), self.target_os_avail_map.flags(), self.target_os_avail_map.last_rev())
 
-        self.create_need_list(installState)
-        #for iid in installState.orphan_install_items:
-        #    installState.append_instructions('sync', self.instlInstance.create_echo_command("Don't know how to sync "+iid))
+        self.create_need_list()
+        #for iid in self.installState.orphan_install_items:
+        #    self.installState.append_instructions('sync', self.instlInstance.create_echo_command("Don't know how to sync "+iid))
         #self.need_list_to_ought()
         #self.ought_and_have_to_sync()
         #self.create_download_instructions()
-        out_file = self.instlInstance.cvl.get_str("__MAIN_OUT_FILE__")
+        out_file = self.instlInstance.cvl.get_str("__MAIN_OUT_FILE__")+".need_map.txt"
         logging.info("... %s", out_file)
         self.need_map.write_to_file(out_file, in_format="text", report_level=1)
+        self.create_download_instructions()
 
     @func_log_wrapper
-    def create_need_list(self, installState):
-        for iid  in installState.full_install_items:
+    def create_need_list(self):
+        for iid  in self.installState.full_install_items:
             installi = self.instlInstance.install_definitions_index[iid]
             if installi.source_list():
                 for source in installi.source_list():
@@ -95,7 +98,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.target_os_need_map.add_sub_tree_recursive(source[0].split("/")[:-1], _sub)
 
     def download_info_map(self):
-        """$(STAT_LINK_REPO_URL)/instl/info_map.txt"""
+        """$(SYNC_BASE_URL)/instl/info_map.txt"""
         pass
 
     def need_list_to_ought(self):
@@ -104,5 +107,34 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def ought_and_have_to_sync(self):
         pass
 
-    def create_download_instructions(selfs):
-        pass
+    def create_download_instructions(self):
+        num_files = self.need_map.num_subs(what="file")
+        self.num_items_for_progress_report = num_files + 1 # one for a dummy first item
+        self.current_item_for_progress_report = 0
+        self.installState.append_instructions('sync', self.instlInstance.platform_helper.create_echo_command("Progress: synced {self.current_item_for_progress_report} of {self.num_items_for_progress_report}; from $(BASE_SRC_URL)".format(**locals())))
+        self.current_item_for_progress_report += 1
+        self.installState.extend_instructions('sync', self.instlInstance.platform_helper.make_directory_cmd("$(LOCAL_SYNC_DIR)"))
+        self.installState.extend_instructions('sync', self.instlInstance.platform_helper.change_directory_cmd("$(LOCAL_SYNC_DIR)"))
+        self.installState.indent_level += 1
+        for need_item in self.need_map.values():
+            self.create_download_instructions_for_item(need_item)
+        self.installState.indent_level -= 1
+        self.installState.append_instructions('sync', self.instlInstance.platform_helper.create_echo_command("Progress: synced {self.current_item_for_progress_report} of {self.num_items_for_progress_report};  from $(BASE_SRC_URL)".format(**locals())))
+
+
+    def create_download_instructions_for_item(self, item, path_so_far = list()):
+        if item.isFile():
+            source_url =   '/'.join( ["$(SYNC_BASE_URL)", ] + path_so_far + [item.name()] )
+            self.installState.extend_instructions('sync', self.instlInstance.platform_helper.dl_tool.create_download_file_to_file_command(source_url, item.name()))
+            self.installState.append_instructions('sync', self.instlInstance.platform_helper.create_echo_command("Progress: synced {self.current_item_for_progress_report} of {self.num_items_for_progress_report};".format(**locals())))
+            self.current_item_for_progress_report += 1
+        elif item.isDir():
+            path_so_far.append(item.name())
+            self.installState.extend_instructions('sync', self.instlInstance.platform_helper.make_directory_cmd(item.name()))
+            self.installState.extend_instructions('sync', self.instlInstance.platform_helper.change_directory_cmd(item.name()))
+            self.installState.indent_level += 1
+            for sub_item in item.values():
+                self.create_download_instructions_for_item(sub_item, path_so_far)
+            self.installState.indent_level -= 1
+            self.installState.extend_instructions('sync', self.instlInstance.platform_helper.change_directory_cmd(".."))
+            path_so_far.pop()

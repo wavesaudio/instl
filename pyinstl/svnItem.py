@@ -242,6 +242,8 @@ class SVNItem(MutableMapping):
         """  Walk the item list and yield items in the SVNItemFlat format:
             (path, flags, last_rev). path is the full known path (up to the top
             item in the tree where walk_items was called).
+            for each folder the files will be listed alphabetically, than each sub folder
+            with it's sub items.
         """
         if path_so_far is None:
             path_so_far = list()
@@ -249,24 +251,27 @@ class SVNItem(MutableMapping):
         yield_dirs = what in ("d", "dir", "a", "all")
         
         if not self.isDir():
-            raise TypeError("Files should not walk themselfs, ownning dir should do it for them")
-        
-        for sub_name in sorted(self.__subs.keys()):
-            the_sub = self.get_sub(sub_name)
-            if the_sub.isFile() and yield_files:
-                path_so_far.append(the_sub.name())
-                yield ("/".join( path_so_far ) , the_sub.flags(), the_sub.last_rev())
-                path_so_far.pop()
-            if the_sub.isDir():
-                path_so_far.append(the_sub.name())
-                if yield_dirs:
+            raise TypeError("Files should not walk themselves, owning dir should do it for them")
+
+        file_list = [self.get_sub(sub_name) for sub_name in self.__subs.keys() if self[sub_name].isFile()]
+        dir_list = [self.get_sub(sub_name) for sub_name in self.__subs.keys() if self[sub_name].isDir()]
+
+        if yield_files:
+            for the_sub in sorted(file_list):
+                    path_so_far.append(the_sub.name())
                     yield ("/".join( path_so_far ) , the_sub.flags(), the_sub.last_rev())
-                for yielded_from in the_sub.walk_items(path_so_far, what):
-                    yield yielded_from
-                path_so_far.pop()
+                    path_so_far.pop()
+
+        for the_sub in sorted(dir_list):
+            path_so_far.append(the_sub.name())
+            if yield_dirs:
+                yield ("/".join( path_so_far ) , the_sub.flags(), the_sub.last_rev())
+            for yielded_from in the_sub.walk_items(path_so_far, what):
+                yield yielded_from
+            path_so_far.pop()
     
     def num_subs(self, what="all"):
-        retVal = sum(1 for i in self.walk_items(what="all"))
+        retVal = sum(1 for i in self.walk_items(what=what))
         return retVal
 
     def repr_for_yaml(self):

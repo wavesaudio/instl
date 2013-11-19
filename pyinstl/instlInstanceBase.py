@@ -220,7 +220,7 @@ class InstlInstanceBase(object):
                 self.init_copy_vars()
                 self.create_copy_instructions(installState)
             self.create_variables_assignment(installState)
-            #self.write_batch_file(installState)
+            self.write_batch_file(installState)
             if "__MAIN_RUN_INSTALLATION__" in self.cvl:
                 self.run_batch_file()
         elif the_command in self.server_commands:
@@ -349,14 +349,14 @@ class InstlInstanceBase(object):
             user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
         elif os_family_name == "Win":
             user_cache_dir = appdirs.user_cache_dir(this_program_name, self.cvl.get_str("COMPANY_NAME"))
-        from_url = main_url_item(self.cvl.get_str("SVN_REPO_URL"))
+        from_url = main_url_item(self.cvl.get_str("SYNC_BASE_URL"))
         if from_url:
-            if 'Win' in current_os_names:
-                from_url = from_url.lstrip("/\\")
+            from_url = from_url.lstrip("/\\")
             retVal = os.path.join(user_cache_dir, from_url)
+            #print("0------------------", user_cache_dir, "-", from_url, "-", retVal)
         else:
             retVal = user_cache_dir
-        #print("------------------", user_cache_dir, "-", from_url, "-", retVal)
+        #print("1------------------", user_cache_dir, "-", from_url, "-", retVal)
         return retVal
 
     @func_log_wrapper
@@ -367,11 +367,11 @@ class InstlInstanceBase(object):
             self.cvl.set_variable("SET_ICON_PATH", var_description).append(setIcon_full_path)
 # check which variables are needed for for offline install....
         if "REL_SRC_PATH" not in self.cvl:
-            if "SVN_REPO_URL" not in self.cvl:
-                raise ValueError("'SVN_REPO_URL' was not defined")
+            if "SYNC_BASE_URL" not in self.cvl:
+                raise ValueError("'SYNC_BASE_URL' was not defined")
             if "BASE_SRC_URL" not in self.cvl:
-                self.cvl.set_variable("BASE_SRC_URL", var_description).append("$(SVN_REPO_URL)/$(TARGET_OS)")
-            rel_sources = relative_url(self.cvl.get_str("SVN_REPO_URL"), self.cvl.get_str("BASE_SRC_URL"))
+                self.cvl.set_variable("BASE_SRC_URL", var_description).append("$(SYNC_BASE_URL)/$(TARGET_OS)")
+            rel_sources = relative_url(self.cvl.get_str("SYNC_BASE_URL"), self.cvl.get_str("BASE_SRC_URL"))
             self.cvl.set_variable("REL_SRC_PATH", var_description).append(rel_sources)
 
         if "LOCAL_SYNC_DIR" not in self.cvl:

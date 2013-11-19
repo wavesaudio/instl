@@ -18,8 +18,8 @@ class InstlInstanceSync_svn(InstlInstanceSync):
     @func_log_wrapper
     def init_sync_vars(self):
         var_description = "from InstlInstanceBase.init_sync_vars"
-        if "SVN_REPO_URL" not in self.instlInstance.cvl:
-            raise ValueError("'SVN_REPO_URL' was not defined")
+        if "SYNC_BASE_URL" not in self.instlInstance.cvl:
+            raise ValueError("'SYNC_BASE_URL' was not defined")
         if "SVN_CLIENT_PATH" not in self.instlInstance.cvl:
             raise ValueError("'SVN_CLIENT_PATH' was not defined")
         svn_client_full_path = self.instlInstance.search_paths_helper.find_file_with_search_paths(self.instlInstance.cvl.get_str("SVN_CLIENT_PATH"))
@@ -28,20 +28,21 @@ class InstlInstanceSync_svn(InstlInstanceSync):
         if "REPO_REV" not in self.instlInstance.cvl:
             self.instlInstance.cvl.set_variable("REPO_REV", var_description).append("HEAD")
         if "BASE_SRC_URL" not in self.instlInstance.cvl:
-            self.instlInstance.cvl.set_variable("BASE_SRC_URL", var_description).append("$(SVN_REPO_URL)/$(TARGET_OS)")
+            self.instlInstance.cvl.set_variable("BASE_SRC_URL", var_description).append("$(SYNC_BASE_URL)/$(TARGET_OS)")
 
         if "LOCAL_SYNC_DIR" not in self.instlInstance.cvl:
-            self.instlInstance.cvl.set_variable("LOCAL_SYNC_DIR", var_description).append(self.instlInstance.get_default_sync_dir())
+            self.instlInstance.cvl.set_variable("LOCAL_SYNC_DIR", var_description).append(
+                self.instlInstance.get_default_sync_dir())
 
         if "BOOKKEEPING_DIR_URL" not in self.instlInstance.cvl:
-            self.instlInstance.cvl.set_variable("BOOKKEEPING_DIR_URL").append("$(SVN_REPO_URL)/instl")
-        bookkeeping_relative_path = relative_url(self.instlInstance.cvl.get_str("SVN_REPO_URL"), self.instlInstance.cvl.get_str("BOOKKEEPING_DIR_URL"))
+            self.instlInstance.cvl.set_variable("BOOKKEEPING_DIR_URL").append("$(SYNC_BASE_URL)/instl")
+        bookkeeping_relative_path = relative_url(self.instlInstance.cvl.get_str("SYNC_BASE_URL"), self.instlInstance.cvl.get_str("BOOKKEEPING_DIR_URL"))
         self.instlInstance.cvl.set_variable("REL_BOOKKIPING_PATH", var_description).append(bookkeeping_relative_path)
 
-        rel_sources = relative_url(self.instlInstance.cvl.get_str("SVN_REPO_URL"), self.instlInstance.cvl.get_str("BASE_SRC_URL"))
+        rel_sources = relative_url(self.instlInstance.cvl.get_str("SYNC_BASE_URL"), self.instlInstance.cvl.get_str("BASE_SRC_URL"))
         self.instlInstance.cvl.set_variable("REL_SRC_PATH", var_description).append(rel_sources)
 
-        for identifier in ("SVN_REPO_URL", "SVN_CLIENT_PATH", "REL_SRC_PATH", "REPO_REV", "BASE_SRC_URL", "BOOKKEEPING_DIR_URL"):
+        for identifier in ("SYNC_BASE_URL", "SVN_CLIENT_PATH", "REL_SRC_PATH", "REPO_REV", "BASE_SRC_URL", "BOOKKEEPING_DIR_URL"):
             logging.debug("... %s: %s", identifier, self.instlInstance.cvl.get_str(identifier))
 
     @func_log_wrapper

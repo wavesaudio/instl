@@ -13,9 +13,9 @@ def DefaultCopyToolName(target_os):
     return retVal
 
 class CopyToolBase(object):
-    """ Create copy commands. Each function should be overriden to inplement the copying
+    """ Create copy commands. Each function should be overridden to implement the copying
         on specific platform using a specific copying tool. All functions return
-        a list of commands, even if tere is only one. This will allow to return
+        a list of commands, even if there is only one. This will allow to return
         multiple commands if needed.
     """
     __metaclass__ = abc.ABCMeta
@@ -56,6 +56,7 @@ class PlatformSpecificHelperBase(object):
 
     def __init__(self):
         self.copy_tool = None
+        self.dl_tool = None
 
     @abc.abstractmethod
     def get_install_instructions_prefix(self):
@@ -109,3 +110,15 @@ def PlatformSpecificHelperFactory(in_os):
     else:
         raise ValueError(in_os, "has no PlatformSpecificHelper")
     return retVal
+
+class DownloadToolBase(object):
+    """ Create download commands. Each function should be overridden to implement the download
+        on specific platform using a specific copying tool. All functions return
+        a list of commands, even if there is only one. This will allow to return
+        multiple commands if needed.
+    """
+    __metaclass__ = abc.ABCMeta
+
+    @abc.abstractmethod
+    def create_download_file_to_file_command(self, src_url, trg_file):
+        pass

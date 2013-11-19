@@ -3,6 +3,7 @@ from __future__ import print_function
 
 from platformSpecificHelper_Base import PlatformSpecificHelperBase
 from platformSpecificHelper_Base import CopyToolBase
+from platformSpecificHelper_Base import DownloadToolBase
 
 def quoteme(to_qoute):
     return "".join( ('"', to_qoute, '"') )
@@ -40,6 +41,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
     def __init__(self):
         super(PlatformSpecificHelperMac, self).__init__()
         self.var_replacement_pattern = "${\g<var_name>}"
+        self.dl_tool = DownloadTool_mac_curl()
 
     def get_install_instructions_prefix(self):
         return ("#!/bin/sh", "SAVE_DIR=`pwd`")
@@ -77,3 +79,23 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
             self.copy_tool = CopyTool_mac_rsync()
         else:
             raise ValueError(tool, "is not a valid copy tool for Mac OS")
+
+class DownloadTool_mac_curl(DownloadToolBase):
+
+    def create_download_file_to_file_command(self, src_url, trg_file):
+        download_command_parts = list()
+        download_command_parts.append("curl")
+        download_command_parts.append("--insecure")
+        download_command_parts.append("--fail")
+        download_command_parts.append("--raw")
+        download_command_parts.append("--silent")
+        download_command_parts.append("--connect-timeout")
+        download_command_parts.append("60")
+        download_command_parts.append("--max-time")
+        download_command_parts.append("900")
+        #download_command_parts.append(" --write-out")
+        #download_command_parts.append(quoteme("%{http_code}"))
+        download_command_parts.append("-o")
+        download_command_parts.append(quoteme(trg_file))
+        download_command_parts.append(quoteme(src_url))
+        return (" ".join(download_command_parts), )
