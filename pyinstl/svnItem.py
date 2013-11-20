@@ -40,7 +40,7 @@ class SVNItem(MutableMapping):
         self.__subs = None
         if self.isDir():
             self.__subs = dict()
-        self.to_sync = False
+        self.to_sync = True
 
     def __str__(self):
         retVal = "{self._SVNItem__name}: {self._SVNItem__flags} {self._SVNItem__last_rev}".format(**locals())
@@ -102,7 +102,10 @@ class SVNItem(MutableMapping):
     
     def last_rev(self):
         return self.__last_rev
-    
+
+    def set_last_rev(self, new_last_rev):
+        self.__last_rev = new_last_rev
+
     def have_rev(self):
         return self.__have_rev
 
@@ -114,6 +117,9 @@ class SVNItem(MutableMapping):
         
     def flags(self):
         return self.__flags
+
+    def set_flags(self, new_flags):
+        self.__flags = new_flags
 
     def subs(self):
         return self.__subs
@@ -253,23 +259,38 @@ class SVNItem(MutableMapping):
         if not self.isDir():
             raise TypeError("Files should not walk themselves, owning dir should do it for them")
 
-        file_list = [self.get_sub(sub_name) for sub_name in self.__subs.keys() if self[sub_name].isFile()]
-        dir_list = [self.get_sub(sub_name) for sub_name in self.__subs.keys() if self[sub_name].isDir()]
+        sorted_keys = sorted(self.keys())
+        file_list = [self.get_sub(sub_name) for sub_name in sorted_keys if self[sub_name].isFile()]
+        dir_list = [self.get_sub(sub_name) for sub_name in sorted_keys if self[sub_name].isDir()]
 
         if yield_files:
-            for the_sub in sorted(file_list):
-                    path_so_far.append(the_sub.name())
-                    yield ("/".join( path_so_far ) , the_sub.flags(), the_sub.last_rev())
-                    path_so_far.pop()
+            for the_sub in file_list:
+                path_so_far.append(the_sub.name())
+                yield ("/".join( path_so_far ) , the_sub.flags(), the_sub.last_rev())
+                path_so_far.pop()
 
-        for the_sub in sorted(dir_list):
+        for the_sub in dir_list:
             path_so_far.append(the_sub.name())
             if yield_dirs:
                 yield ("/".join( path_so_far ) , the_sub.flags(), the_sub.last_rev())
             for yielded_from in the_sub.walk_items(path_so_far, what):
                 yield yielded_from
             path_so_far.pop()
-    
+
+    def recursive_remove_depth_first(self, should_remove_func):
+        sorted_keys = sorted(self.keys())
+        dir_list = [self.get_sub(sub_name) for sub_name in sorted_keys if self[sub_name].isDir()]
+        file_list = [self.get_sub(sub_name) for sub_name in sorted_keys if self[sub_name].isFile()]
+
+        for the_sub in dir_list:
+            the_sub.recursive_remove_depth_first(should_remove_func)
+            if should_remove_func(the_sub):
+                del (self[the_sub.name()])
+
+        for the_sub in file_list:
+            if should_remove_func(the_sub):
+                del (self[the_sub.name()])
+
     def num_subs(self, what="all"):
         retVal = sum(1 for i in self.walk_items(what=what))
         return retVal

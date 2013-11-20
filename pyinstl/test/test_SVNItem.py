@@ -22,6 +22,13 @@ def timing(f):
         return ret
     return wrap
 
+def remove_sub_if_small_last_rev(svn_item):
+    if svn_item.isFile():
+        retVal = svn_item.last_rev() < 9
+    elif svn_item.isDir():
+        retVal = len(svn_item) == 0
+    return retVal
+
 item_list1 = [
             ("Dir1", "d", 17),
             ("Dir1/File1.1", "f", 15),
@@ -66,7 +73,7 @@ item_list_need = [
             ("Dir2/Dir2.3/File2.3.1", "f", 8),
             ("Dir2/Dir2.3/File2.3.2", "fx", 12),
             ("Dir2/Dir2.3/File2.3.3", "f", 1),
-            
+
             ("Dir3", "ds", 16),
             ("Dir3/File3.1", "f", 13),
             ("Dir3/File3.2", "f", 12),
@@ -108,6 +115,7 @@ item_list_need_ref = [
             ("Dir3/Dir3.2/Dir3.2.2", "ds", 14, 14)
             ]
 
+
 class TestSVNItem(unittest.TestCase):
     def setUp(self):
         ''' .
@@ -115,6 +123,31 @@ class TestSVNItem(unittest.TestCase):
         self.maxDiff = None
     def tearDown(self):
         pass
+
+    def test_recursive_remove_depth_first(self):
+        svni1 = SVNItem("TestDir", "d", 15)
+        svni1.add_sub_list(item_list1)
+        svni1.recursive_remove_depth_first(remove_sub_if_small_last_rev)
+        after_remove_items_list = []
+        for item in svni1.walk_items(what="a"):
+            after_remove_items_list.append(item)
+        item_list1_after_remove_ref = [
+            ("Dir1", "d", 17),
+            ("Dir1/File1.1", "f", 15),
+            ("Dir1/File1.2", "f", 16),
+            ("Dir1/File1.3", "f", 17),
+
+            ("Dir2", "d", 9),
+            ("Dir2/Dir2.3", "d", 9),
+            ("Dir2/Dir2.3/File2.3.2", "fx", 9),
+
+            ("Dir3", "ds", 14),
+            ("Dir3/File3.1", "f", 13),
+            ("Dir3/File3.2", "f", 12),
+            ("Dir3/Dir3.2", "d", 14),
+            ("Dir3/Dir3.2/File3.2.2", "f", 10),
+            ]
+        self.assertEqual(sorted(after_remove_items_list), sorted(item_list1_after_remove_ref))
 
     def test_equal(self):
         svni1 = SVNItem("TestDir", "d", 15)

@@ -27,7 +27,7 @@ class InstlInstanceSync_svn(InstlInstanceSync):
 
         if "REPO_REV" not in self.instlInstance.cvl:
             self.instlInstance.cvl.set_variable("REPO_REV", var_description).append("HEAD")
-        if "BASE_SRC_URL" not in self.instlInstance.cvl:
+        if "BASE_SRC_URL" not in self.instlInstance.cvl:#?
             self.instlInstance.cvl.set_variable("BASE_SRC_URL", var_description).append("$(SYNC_BASE_URL)/$(TARGET_OS)")
 
         if "LOCAL_SYNC_DIR" not in self.instlInstance.cvl:

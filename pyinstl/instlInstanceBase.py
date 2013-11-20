@@ -352,10 +352,10 @@ class InstlInstanceBase(object):
         from_url = main_url_item(self.cvl.get_str("SYNC_BASE_URL"))
         if from_url:
             from_url = from_url.lstrip("/\\")
+            from_url = from_url.rstrip("/\\")
             retVal = os.path.join(user_cache_dir, from_url)
-            #print("0------------------", user_cache_dir, "-", from_url, "-", retVal)
         else:
-            retVal = user_cache_dir
+            raise ValueError("'SYNC_BASE_URL' was not properly defined")
         #print("1------------------", user_cache_dir, "-", from_url, "-", retVal)
         return retVal
 
@@ -366,7 +366,7 @@ class InstlInstanceBase(object):
             setIcon_full_path = self.search_paths_helper.find_file_with_search_paths(self.cvl.get_str("SET_ICON_PATH"))
             self.cvl.set_variable("SET_ICON_PATH", var_description).append(setIcon_full_path)
 # check which variables are needed for for offline install....
-        if "REL_SRC_PATH" not in self.cvl:
+        if "REL_SRC_PATH" not in self.cvl: #?
             if "SYNC_BASE_URL" not in self.cvl:
                 raise ValueError("'SYNC_BASE_URL' was not defined")
             if "BASE_SRC_URL" not in self.cvl:

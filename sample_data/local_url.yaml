@@ -11,11 +11,15 @@ SET_ICON_PATH: "/usr/local/bin/setIcon"
 
 GET_URL_CLIENT_PATH: curl
 
-SYNC_BASE_URL: "file:///Volumes/SvnSrv/static-tests/$(REPO_REV)"
+SYNC_BASE_URL: "file:///Volumes/SvnSrv/V9Static"
 #SYNC_BASE_URL: "file:///Volumes/SvnSrv/192.168.13.108/V9"
 
-__include__: "$(SYNC_BASE_URL)/instl/index.yaml"
+__include__: "$(SYNC_BASE_URL)/$(REPO_REV)/instl/index.yaml"
 
+#BOOKKEEPING_DIR_URL
+#REL_BOOKKIPING_PATH
+#REL_SRC_PATH
+#BASE_SRC_URL
 
 #WAVES_DIR: "$(HOME_DIR)/Desktop/local-install"
 #WAVES_PROGRAMDATA_DIR_FOR_Mac: "$(WAVES_DIR)/Application Support/Waves Audio"
@@ -23,14 +27,14 @@ __include__: "$(SYNC_BASE_URL)/instl/index.yaml"
 
 MAIN_INSTALL_TARGETS:
     - SG_Driver_IID
-    - SG_IO_Modules_IID
-    - MultiRack_SoundGrid_apps_IID
-    - SG_Monitor_IID
-    - WaveShell_WPAPI_V9_2_IID
-    - WaveShell_WPAPI_V9_7_IID
-    - EMO_IID
-    - StudioRack_IID
-    - SignalGenerator_IID
-    - MultiRack_Plugin_Only_IID
-    - WavesLib_9_1_IID
-    - WavesLib_9_2_IID
+#    - SG_IO_Modules_IID
+#    - MultiRack_SoundGrid_apps_IID
+#    - SG_Monitor_IID
+#    - WaveShell_WPAPI_V9_2_IID
+#    - WaveShell_WPAPI_V9_7_IID
+#    - EMO_IID
+#    - StudioRack_IID
+#    - SignalGenerator_IID
+#    - MultiRack_Plugin_Only_IID
+#    - WavesLib_9_1_IID
+#    - WavesLib_9_2_IID

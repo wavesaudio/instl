@@ -95,6 +95,12 @@ class open_for_read_file_or_url(object):
     def __exit__(self, unused_type, unused_value, unused_traceback):
         self.fd.close()
 
+def download_from_file_or_url(in_url, in_local_path):
+    with open_for_read_file_or_url(in_url) as rfd:
+        with open(in_local_path, "w") as wfd:
+            copy_buffer = rfd.read()
+            if copy_buffer:
+                wfd.write(copy_buffer)
 
 class unique_list(list):
     """
