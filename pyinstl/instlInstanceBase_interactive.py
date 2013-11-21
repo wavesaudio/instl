@@ -263,6 +263,21 @@ class CMDObj(cmd.Cmd, object):
         print( "list" )
         print( "    lists all definitions, index & guid entries" )
 
+    def do_statistics(self, params):
+        num_files = self.prog_inst.svnTree.num_subs(what="file")
+        num_dirs = self.prog_inst.svnTree.num_subs(what="dir")
+        num_total = self.prog_inst.svnTree.num_subs(what="all")
+        min_revision = 1000000000
+        max_revision = 0
+        for item in self.prog_inst.svnTree.walk_items():
+            min_revision = min(min_revision, item[2])
+            max_revision = max(max_revision, item[2])
+        print("Num files:", num_files)
+        print("Num dirs:", num_dirs)
+        print("Total items:", num_total)
+        print("Lowest revision:", min_revision)
+        print("Highest revision:", max_revision)
+
     def do_set(self, params):
         if params:
             params = shlex.split(params)
@@ -298,7 +313,7 @@ class CMDObj(cmd.Cmd, object):
                 except Exception as ex:
                     print("read", afile, ex)
         else:
-            print("read what?")
+            self.help_read()
         return False
 
     def complete_read(self, text, line, begidx, endidx):
@@ -306,8 +321,23 @@ class CMDObj(cmd.Cmd, object):
 
     def help_read(self):
         print("read path_to_file")
-        print("    reads a file")
-        
+        print("    reads an instl file")
+
+    def do_readinfo(self, params):
+        if params:
+            for afile in shlex.split(params):
+                self.prog_inst.read_info_map_file(afile)
+        else:
+            self.help_read()
+        return False
+
+    def complete_readinfo(self, text, line, begidx, endidx):
+        return self.path_completion(text, line, begidx, endidx)
+
+    def help_readinfo(self):
+        print("read path_to_file")
+        print("    reads an svn info file")
+
     def do_cycles(self, params):
         self.prog_inst.find_cycles()
         return False

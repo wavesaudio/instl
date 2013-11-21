@@ -119,6 +119,7 @@ map_info_extension_to_format = {"txt" : "text", "text" : "text",
                 "inf" : "info", "info" : "info",
                 "yml" : "yaml", "yaml" : "yaml",
                 "pick" : "pickle", "pickl" : "pickle", "pickle" : "pickle",
+                "props" : "props", "prop" : "props"
                 }
 
 class InstlInstanceBase(object):
@@ -200,7 +201,7 @@ class InstlInstanceBase(object):
     def do_command(self):
         the_command = self.cvl.get_str("__MAIN_COMMAND__")
         if the_command in self.client_commands:
-            print("client_commands", the_command)
+            #print("client_commands", the_command)
             installState = InstallInstructionsState()
             self.read_yaml_file(self.cvl.get_str("__MAIN_INPUT_FILE__"))
             self.resolve_index_inheritance()
@@ -224,9 +225,11 @@ class InstlInstanceBase(object):
             if "__MAIN_RUN_INSTALLATION__" in self.cvl:
                 self.run_batch_file()
         elif the_command in self.server_commands:
-            print("server_commands", the_command)
+            #print("server_commands", the_command)
             if the_command == "trans":
-                self.read_info_map_file()
+                self.read_info_map_file(self.cvl.get_str("__MAIN_INPUT_FILE__"))
+                if "__PROPS_FILE__" in self.cvl:
+                    self.read_info_map_file(self.cvl.get_str("__PROPS_FILE__"))
                 self.write_info_map_file()
 
 
@@ -289,12 +292,11 @@ class InstlInstanceBase(object):
         except IOError as ioe:
             raise InstlException(" ".join(("Failed to read file", "'"+file_path+"'", ":")), ioe)
 
-    def read_info_map_file(self):
-        _, extension = os.path.splitext(self.cvl.get_str("__MAIN_INPUT_FILE__"))
+    def read_info_map_file(self, in_file_path):
+        _, extension = os.path.splitext(in_file_path)
         input_format = map_info_extension_to_format[extension[1:]]
-        self.svnTree.read_from_file(self.cvl.get_str("__MAIN_INPUT_FILE__"), format=input_format, report_level=1)
-        if "__PROPS_FILE__" in self.cvl:
-            self.svnTree.read_from_file(self.cvl.get_str("__PROPS_FILE__"), format='props', report_level=1)
+        print("reading", input_format)
+        self.svnTree.read_from_file(in_file_path, format=input_format, report_level=1)
 
     def write_info_map_file(self):
         _, extension = os.path.splitext(self.cvl.get_str("__MAIN_OUT_FILE__"))

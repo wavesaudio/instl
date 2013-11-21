@@ -52,7 +52,7 @@ class SVNTree(svnItem.SVNItem):
                 self.read_func_by_format[format](rfd, report_level)
             time_end = time.time()
             if report_level > 0:
-                print("    %d items read in %0.3f ms" % (self.num_subs(), (time_end-time_start)*1000.0))
+                print("    %d items read in %0.3f ms from %s file" % (self.num_subs(), (time_end-time_start)*1000.0, format))
         else:
             ValueError("Unknown read format "+format)
 
