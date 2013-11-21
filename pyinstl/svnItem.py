@@ -28,35 +28,43 @@ class SVNItem(MutableMapping):
         x - executable bit
         s - symlink
     """
-    __slots__ = ("__name", "__flags", "__last_rev", "__have_rev", "__subs", "to_sync")
-    def __init__(self, in_name, in_flags, in_last_rev, have_rev=None):
+    __slots__ = ("__name", "__flags", "__last_rev", "__subs", "__parent", "user_data")
+    def __init__(self, in_name, in_flags, in_last_rev):
         self.__name = in_name
         self.__flags = in_flags
         self.__last_rev = in_last_rev
-        if have_rev is None:
-            self.__have_rev = 0
-        else:
-            self.__have_rev = have_rev
+        self.__parent = None
         self.__subs = None
         if self.isDir():
             self.__subs = dict()
-        self.to_sync = True
+        self.user_data = None
 
     def __str__(self):
         retVal = "{self._SVNItem__name}: {self._SVNItem__flags} {self._SVNItem__last_rev}".format(**locals())
         return retVal
-    
+
+    def as_tuple(self):
+        return ("/".join(self.full_path()), self.__flags, self.__last_rev)
+
+    def text_line(self):
+        retVal = "{}, {}, {}".format("/".join(self.full_path()), self.flags(), str(self.last_rev()))
+        return retVal
+
     def __getstate__(self):
-        return ((self.__name, self.__flags, self.__last_rev, self.__have_rev), self.__subs)
+        return ((self.__name, self.__flags, self.__last_rev, self.__parent), self.__subs)
 
     def __len__(self):
         return len(self.__subs)
+
     def __setitem__(self, key, val):
         self.__subs[key] = val
+
     def __delitem__(self, key):
         del(self.__subs[key])
+
     def __getitem__(self, key):
         return self.__subs[key]
+
     def __iter__(self):
         if not self.isDir():
             raise ValueError(self.name()+" is not a directory, has no sub items")
@@ -68,32 +76,29 @@ class SVNItem(MutableMapping):
         self.__name = state[0][0]
         self.__flags = state[0][1]
         self.__last_rev = state[0][2]
-        self.__have_rev = state[0][3]
         self.__subs = state[1]
 
     def copy_from(self, another_SVNItem):
         self.__name = another_SVNItem.name()
         self.__flags = another_SVNItem.flags()
         self.__last_rev = another_SVNItem.last_rev()
-        self.__have_rev = another_SVNItem.have_rev()
         self.__subs = another_SVNItem.__subs
 
     def __copy__(self):
-        retVal = SVNItem(self.__name, self.__flags, self.__last_rev, self.__have_rev)
-        retVal.__subs = self.__subs
-        return retVal
+        raise ValueError("Shallow copy not allowed for SVNItem, becaue children have pointer to parents")
 
     def __deepcopy__(self, memodict):
-        retVal = SVNItem(self.__name, self.__flags, self.__last_rev, self.__have_rev)
+        retVal = SVNItem(self.__name, self.__flags, self.__last_rev)
         if self.__subs:
-            retVal.__subs = {name: copy.deepcopy(item) for name, item in self.iteritems()}
+            retVal.__subs = {name: copy.deepcopy(item, memodict) for name, item in self.iteritems()}
+            for item in self.__subs.values():
+                item.set_parent(self)
         return retVal
 
     def __eq__(self, other):
         retVal = (self.__name == other.name() and
                     self.__flags == other.flags() and
                     self.__last_rev == other.last_rev() and
-                    self.__have_rev == other.have_rev() and
                     self.__subs == other.subs())
         return retVal
 
@@ -106,20 +111,25 @@ class SVNItem(MutableMapping):
     def set_last_rev(self, new_last_rev):
         self.__last_rev = new_last_rev
 
-    def have_rev(self):
-        return self.__have_rev
-
-    def update_rev(self, new_rev):
-        if 0 < new_rev < self.__have_rev:
-            raise ValueError(self.name()+" new_rev: "+new_rev+" < have_rev: "+ self.__have_rev)
-        self.__have_rev = self.__last_rev
-        self.__last_rev = new_rev
-        
     def flags(self):
         return self.__flags
 
     def set_flags(self, new_flags):
         self.__flags = new_flags
+
+    def parent(self):
+        return self.__parent
+
+    def set_parent(self, in_parent):
+        self.__parent = in_parent
+
+    def full_path(self):
+        if self.parent() is None:
+            retVal = list()
+        else:
+            retVal = self.__parent.full_path()
+            retVal.append(self.__name)
+        return retVal
 
     def subs(self):
         return self.__subs
@@ -149,7 +159,7 @@ class SVNItem(MutableMapping):
             retVal = retVal.get_sub(path_parts[1:])
         return retVal
          
-    def add_sub(self, path, flags, last_rev, have_rev=None):
+    def add_sub(self, path, flags, last_rev):
         retVal = None
         #print("--- add sub to", self.name(), path, flags, last_rev)
         path_parts = path
@@ -164,17 +174,17 @@ class SVNItem(MutableMapping):
             retVal = self.get_sub(path_parts[0]).add_sub(path_parts[1:], flags, last_rev)
         return retVal
 
-    def add_sub_recursive(self, path, flags, last_rev, have_rev=None):
+    def add_sub_recursive(self, path, flags, last_rev):
         retVal = None
         #print("--- add sub to", self.name(), path, flags, last_rev)
         path_parts = path
         if isinstance(path, basestring):
             path_parts = path.split("/")
         if len(path_parts) == 1:
-            retVal = self.add_sub(path_parts[0], flags, last_rev, have_rev)
+            retVal = self.add_sub(path_parts[0], flags, last_rev)
         else:
-            the_new_sub = self.add_sub(path_parts[0], "d", last_rev, have_rev)
-            retVal = the_new_sub.add_sub_recursive(path_parts[1:], flags, last_rev, have_rev)
+            the_new_sub = self.add_sub(path_parts[0], "d", last_rev)
+            retVal = the_new_sub.add_sub_recursive(path_parts[1:], flags, last_rev)
         return retVal
 
     def add_sub_tree(self, path, sub_tree):
@@ -209,6 +219,7 @@ class SVNItem(MutableMapping):
         if in_item.name() in self.__subs:
             if self.__subs[in_item.name()].flags() != in_item.flags():
                 raise KeyError(in_item.name()+" replacing "+self.__subs[in_item.name()].flags()+" with "+in_item.flags())
+        in_item.set_parent(self)
         self.__subs[in_item.name()] = in_item
     
     def _add_flags(self, flags):
@@ -229,30 +240,13 @@ class SVNItem(MutableMapping):
             retVal = self.get_sub(path_parts[0]).add_flags("/".join(path_parts[1:]), flags)
         return retVal
 
-
-    def update_have_map(self, need_map):
-        if self.name() != need_map.name():
-            raise ValueError("self.name: "+self.name()+ " != need_map.name: "+need_map.name())
-        #download_map = SVNItem(self.name(), "d", self.last_rev())   
-        names = set(self.__subs.keys()+need_map.__subs.keys())
-        for sub_name in names:
-            if sub_name in self.__subs.keys():
-                if sub_name in need_map.sub_names():
-                    self.__subs[sub_name].update_rev(need_map[sub_name].last_rev())
-                elif self.__subs[sub_name].isFile():
-                    self.__subs[sub_name].update_rev(0) # delete
-            else:
-                self._add_sub_item(need_map[sub_name])
-    
-    def walk_items(self, path_so_far=None, what="all"):
+    def walk_items(self, what="all"):
         """  Walk the item list and yield items in the SVNItemFlat format:
             (path, flags, last_rev). path is the full known path (up to the top
             item in the tree where walk_items was called).
             for each folder the files will be listed alphabetically, than each sub folder
             with it's sub items.
         """
-        if path_so_far is None:
-            path_so_far = list()
         yield_files = what in ("f", "file", "a", "all")
         yield_dirs = what in ("d", "dir", "a", "all")
         
@@ -265,17 +259,13 @@ class SVNItem(MutableMapping):
 
         if yield_files:
             for the_sub in file_list:
-                path_so_far.append(the_sub.name())
-                yield ("/".join( path_so_far ) , the_sub.flags(), the_sub.last_rev())
-                path_so_far.pop()
+                yield the_sub
 
         for the_sub in dir_list:
-            path_so_far.append(the_sub.name())
             if yield_dirs:
-                yield ("/".join( path_so_far ) , the_sub.flags(), the_sub.last_rev())
-            for yielded_from in the_sub.walk_items(path_so_far, what):
+                yield the_sub
+            for yielded_from in the_sub.walk_items(what):
                 yield yielded_from
-            path_so_far.pop()
 
     def recursive_remove_depth_first(self, should_remove_func):
         sorted_keys = sorted(self.keys())
@@ -302,7 +292,7 @@ class SVNItem(MutableMapping):
         for sub_name in sorted(self.__subs.keys()):
             the_sub = self.get_sub(sub_name)
             if the_sub.isFile():
-                retVal[the_sub.name()] = " ".join( (the_sub.flags(), str(the_sub.last_rev()), str(the_sub.have_rev())) )
+                retVal[the_sub.name()] = " ".join( (the_sub.flags(), str(the_sub.last_rev())) )
             else:
                 retVal[the_sub.name()] = the_sub.repr_for_yaml()
         return retVal

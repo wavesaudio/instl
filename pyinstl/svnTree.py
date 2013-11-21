@@ -118,11 +118,11 @@ class SVNTree(svnItem.SVNItem):
                         path_parts.append(match.group('path'))
                         if match.group('props'): # it's a file
                             #print(((new_indent * spaces_per_indent)-1) * " ", "/".join(path_parts), match.group('props'))
-                            self.add_sub("/".join(path_parts), match.group('flags'), int(match.group('last_rev')))
+                            self.add_sub(path_parts, match.group('flags'), int(match.group('last_rev')))
                         indent = new_indent
                     else: # previous element was a folder
                         #print(((new_indent * spaces_per_indent)-1) * " ", "/".join(path_parts), match.group('props'))
-                        self.add_sub("/".join(path_parts), match.group('flags'), int(match.group('last_rev')))
+                        self.add_sub(path_parts, match.group('flags'), int(match.group('last_rev')))
                 else:
                     if indent != -1: # first lines might be empty
                         ValueError("no matach at line "+str(line_num)+": "+line)
@@ -170,7 +170,7 @@ class SVNTree(svnItem.SVNItem):
     def valid_write_formats(self):
         return self.write_func_by_format.keys()
 
-    def write_to_file(self, in_file, in_format="text", report_level=0, write_have_rev=False):
+    def write_to_file(self, in_file, in_format="text", report_level=0):
         """ pass in_file="stdout" to output to stdout.
             in_format is either text, yaml, pickle
         """
@@ -179,25 +179,22 @@ class SVNTree(svnItem.SVNItem):
             with write_to_file_or_stdout(in_file) as wfd:
                 if report_level > 0:
                     print("opened file:", "'"+in_file+"'")
-                self.write_func_by_format[in_format](wfd, report_level, write_have_rev)
+                self.write_func_by_format[in_format](wfd, report_level)
             time_end = time.time()
             if report_level > 0:
                 print("    %d items written in %0.3f ms" % (self.num_subs(), (time_end-time_start)*1000.0))
         else:
             ValueError("Unknown write in_format "+in_format)
 
-    def write_as_pickle(self, wfd, report_level=0, write_have_rev=False):
+    def write_as_pickle(self, wfd, report_level=0):
         import cPickle as pickle
         pickle.dump(self, wfd, 2)
 
-    def write_as_text(self, wfd, report_level=0, write_have_rev=False):
+    def write_as_text(self, wfd, report_level=0):
         for item in self.walk_items():
-            have_rev = ""
-            if write_have_rev:
-                have_rev = ", "+str(item[3])
-            wfd.write("%s, %s, %d%s\n" % (item[0], item[1], item[2], have_rev) )
+            wfd.write(item.text_line()+"\n")
 
-    def write_as_yaml(self, wfd, report_level=0, write_have_rev=False):
+    def write_as_yaml(self, wfd, report_level=0):
         aYaml.augmentedYaml.writeAsYaml(self, out_stream=wfd, indentor=None, sort=True)
 
     def repr_for_yaml(self):

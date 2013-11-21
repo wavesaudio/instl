@@ -12,6 +12,7 @@ sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..", "..")))
 from aYaml.augmentedYaml import YamlDumpWrap, writeAsYaml
 from svnItem import *
+from svnTree import *
 
 def timing(f):
     def wrap(*args):
@@ -130,7 +131,7 @@ class TestSVNItem(unittest.TestCase):
         svni1.recursive_remove_depth_first(remove_sub_if_small_last_rev)
         after_remove_items_list = []
         for item in svni1.walk_items(what="a"):
-            after_remove_items_list.append(item)
+            after_remove_items_list.append(item.as_tuple())
         item_list1_after_remove_ref = [
             ("Dir1", "d", 17),
             ("Dir1/File1.1", "f", 15),
@@ -211,16 +212,17 @@ class TestSVNItem(unittest.TestCase):
         svni2 = copy.deepcopy(svni1)
         all_items_list = []    
         for item in svni2.walk_items(what="a"):
-            all_items_list.append(item)
+            all_items_list.append(item.as_tuple())
         self.assertEqual(sorted(all_items_list), sorted(item_list1))
 
     def test_walk_items(self):
-        svni1 = SVNItem("TestDir", "d", 15)
+        svni1 = SVNTree() #"TestDir", "d", 15
         svni1.add_sub_list(item_list1)
+        svni1.write_to_file("/Users/shai/Desktop/test_walk_items.txt", in_format="text")
 
-        all_items_list = []    
+        all_items_list = []
         for item in svni1.walk_items(what="a"):
-            all_items_list.append(item)
+            all_items_list.append( (item.full_path(), item.flags(), item.last_rev()) )
         self.assertEqual(sorted(all_items_list), sorted(item_list1))
         
         all_files_list = []    

@@ -95,6 +95,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
     @func_log_wrapper
     def clean_uneeded_items(self):
+        self.need_map.recursive_remove_depth_first()
 
     @func_log_wrapper
     def merge_need_and_have(self):
@@ -104,13 +105,15 @@ class InstlInstanceSync_url(InstlInstanceSync):
                  self.have_map.add_sub(*need_item)
             else:                    # found in have map
                 if have_item.last_rev() == need_item[2]:
-                    self.need_map.to_sync = False
+                    self.need_map.user_data = False
                 elif have.last_rev() < need_item[2]:
                     have_item.set_flags(need_item[1])
                     have_item.set_last_rev(need_item[2])
+                    self.need_map.user_data = True
                 elif have.last_rev() > need_item[2]: # weird, but need to get the older version
                     have_item.set_flags(need_item[1])
                     have_item.set_last_rev(need_item[2])
+                    self.need_map.user_data = True
 
     @func_log_wrapper
     def create_need_list(self):
