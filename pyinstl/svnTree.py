@@ -35,6 +35,13 @@ class SVNTree(svnItem.SVNItem):
                                     "yaml": self.write_as_yaml,
                                     }
 
+    def full_path_parts(self):
+        """ override full_path_parts so the top level SVNTree will
+            no be counted as part of the path.
+        """
+        retVal = list()
+        return retVal
+
     """ reading """
     def valid_read_formats(self):
         return self.read_func_by_format.keys()
@@ -52,29 +59,17 @@ class SVNTree(svnItem.SVNItem):
                 self.read_func_by_format[format](rfd, report_level)
             time_end = time.time()
             if report_level > 0:
-                print("    %d items read in %0.3f ms from %s file" % (self.num_subs(), (time_end-time_start)*1000.0, format))
+                print("    %d items read in %0.3f ms from %s file" % (self.num_subs_in_tree(), (time_end-time_start)*1000.0, format))
         else:
             ValueError("Unknown read format "+format)
 
     def read_from_svn_info(self, rfd, report_level=0):
         for item in self.iter_svn_info(rfd):
-            self.add_sub(*item)
+            self.new_item_at_path(*item)
 
     def read_from_text(self, rfd, report_level=0):
-        text_line_re = re.compile("""
-                    ^
-                    (?P<path>.*)
-                    ,\s+
-                    (?P<flags>[dfsx]+)
-                    ,\s+
-                    (?P<last_rev>\d+)
-                    $
-                    """, re.X)
         for line in rfd:
-            match = text_line_re.match(line)
-            if match:
-                self.add_sub(match.group('path'), match.group('flags'), int(match.group('last_rev')))
-                #print(match.group('path'), match.group('flags'), match.group('last_rev'))
+            self.new_item_from_str(line)
 
     def read_from_yaml(self, rfd, report_level=0):
         try:
@@ -133,7 +128,11 @@ class SVNTree(svnItem.SVNItem):
     def read_from_pickle(self, rfd, report_level=0):
         import cPickle as pickle
         my = pickle.load(rfd) # cannot pickle to self
-        self.copy_from(my)
+        self.__name = my.name()
+        self.__flags = my.flags()
+        self.__last_rev = my.last_rev()
+        for sub_item in my.subs().values():
+            self._add_sub_item(sub_item)
 
     def read_props(self, rfd, report_level=0):
         props_line_re = re.compile("""
@@ -192,7 +191,7 @@ class SVNTree(svnItem.SVNItem):
 
     def write_as_text(self, wfd, report_level=0):
         for item in self.walk_items():
-            wfd.write(item.text_line()+"\n")
+            wfd.write(str(item)+"\n")
 
     def write_as_yaml(self, wfd, report_level=0):
         aYaml.augmentedYaml.writeAsYaml(self, out_stream=wfd, indentor=None, sort=True)
@@ -229,11 +228,11 @@ class SVNTree(svnItem.SVNItem):
                     record[the_match.group('key')] = the_match.group('rest_of_line')
             else:
                 if record and record["Path"] != ".": # in case there were several empty lines between blocks
-                    yield svnItem.SVNItemFlat(record["Path"], short_node_kind[record["Node Kind"]], int(record["Last Changed Rev"]))
+                    yield (record["Path"], short_node_kind[record["Node Kind"]], int(record["Last Changed Rev"]))
                 record.clear()
         if record and record["Path"] != ".": # in case there was no extra line at the end of file
-            yield svnItem.SVNItemFlat(record["Path"], short_node_kind[record["Node Kind"]], int(record["Last Changed Rev"]))
-            
+            yield (record["Path"], short_node_kind[record["Node Kind"]], int(record["Last Changed Rev"]))
+
 if __name__ == "__main__":
     t = SVNTree()
     t.read_svn_info_file(sys.argv[1])

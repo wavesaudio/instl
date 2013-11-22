@@ -30,7 +30,7 @@ class TestSVNTree(unittest.TestCase):
         pass
     def tearDown(self):
         pass
-    
+
     def test_pickling(self):
         this_dir, this_script = os.path.split(__file__)
         SVNInfoTestFile1 = os.path.join(this_dir, "SVNInfoTest1.info")
@@ -39,7 +39,7 @@ class TestSVNTree(unittest.TestCase):
         tree.read_from_file(SVNInfoTestFile1, format="info")
         beforePickleFile = os.path.join(this_dir, "beforePickleFile.txt")
         tree.write_to_file(beforePickleFile, in_format="text")
-        
+
         pickleOut = os.path.join(this_dir, "out.pickle")
         tree.write_to_file(pickleOut, in_format="pickle")
 
@@ -47,9 +47,9 @@ class TestSVNTree(unittest.TestCase):
         tree2.read_from_file(pickleOut, format="pickle")
         afterPickleFile = os.path.join(this_dir, "afterPickleFile.txt")
         tree2.write_to_file(afterPickleFile, in_format="text")
-        
+
         self.assertTrue(filecmp.cmp(beforePickleFile, afterPickleFile), "{afterPickleFile} file is different from expected {beforePickleFile}".format(**locals()))
-        
+
     def test_read_svn_info_file(self):
         this_dir, this_script = os.path.split(__file__)
         SVNInfoTestFile1 = os.path.join(this_dir, "SVNInfoTest1.info")
