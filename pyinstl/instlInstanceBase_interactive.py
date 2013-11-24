@@ -264,9 +264,9 @@ class CMDObj(cmd.Cmd, object):
         print( "    lists all definitions, index & guid entries" )
 
     def do_statistics(self, params):
-        num_files = self.prog_inst.svnTree.num_subs(what="file")
-        num_dirs = self.prog_inst.svnTree.num_subs(what="dir")
-        num_total = self.prog_inst.svnTree.num_subs(what="all")
+        num_files = self.prog_inst.svnTree.num_subs_in_tree(what="file")
+        num_dirs = self.prog_inst.svnTree.num_subs_in_tree(what="dir")
+        num_total = self.prog_inst.svnTree.num_subs_in_tree(what="all")
         min_revision = 1000000000
         max_revision = 0
         for item in self.prog_inst.svnTree.walk_items():

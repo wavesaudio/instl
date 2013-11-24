@@ -153,15 +153,16 @@ class SVNTree(svnItem.SVNItem):
                     """, re.X)
         prop_name_to_char = {'executable': 'x', 'special': 's'}
         line_num = 0
-        path = ""
+        item = None
         for line in rfd:
             line_num += 1
             match = props_line_re.match(line)
             if match:
                 if match.group('path'):
-                    path = match.group('path')
+                    item = self.get_item_at_path(match.group('path'))
                 elif match.group('prop_name'):
-                    self.add_flags(path, prop_name_to_char[match.group('prop_name')])
+                    item.add_flags(prop_name_to_char[match.group('prop_name')])
+                    item = None
             else:
                 ValueError("no matach at line "+str(line_num)+": "+line)
 
@@ -181,7 +182,7 @@ class SVNTree(svnItem.SVNItem):
                 self.write_func_by_format[in_format](wfd, report_level)
             time_end = time.time()
             if report_level > 0:
-                print("    %d items written in %0.3f ms" % (self.num_subs(), (time_end-time_start)*1000.0))
+                print("    %d items written in %0.3f ms" % (self.num_subs_in_tree(), (time_end-time_start)*1000.0))
         else:
             ValueError("Unknown write in_format "+in_format)
 

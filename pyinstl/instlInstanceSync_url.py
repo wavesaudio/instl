@@ -151,7 +151,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         pass
 
     def create_download_instructions(self):
-        num_files = self.need_map.num_subs(what="file")
+        num_files = self.need_map.num_subs_in_tree(what="file")
         self.num_items_for_progress_report = num_files + 1 # one for a dummy first item
         self.current_item_for_progress_report = 0
         self.installState.append_instructions('sync', self.instlInstance.platform_helper.create_echo_command("Progress: synced {self.current_item_for_progress_report} of {self.num_items_for_progress_report}; from $(BASE_SRC_URL)".format(**locals())))
