@@ -67,13 +67,13 @@ class InstlInstanceSync_url(InstlInstanceSync):
         info_map_path = os.path.join(info_map_path, "info_map.txt")
         download_from_file_or_url(self.instlInstance.cvl.get_str("INFO_MAP_FILE_URL"), info_map_path)
         self.remote_info_map.read_from_file(info_map_path, format="text")
-        self.target_os_remote_info_map = self.remote_info_map.get_sub(self.instlInstance.cvl.get_str("TARGET_OS"))
+        self.target_os_remote_info_map = self.remote_info_map.get_item_at_path(self.instlInstance.cvl.get_str("TARGET_OS"))
 
     @func_log_wrapper
     def create_sync_instructions(self, installState):
         self.installState = installState
         self.read_remote_info_map()
-        self.target_os_need_map = self.need_map.add_sub(self.target_os_remote_info_map.name(), self.target_os_remote_info_map.flags(), self.target_os_remote_info_map.last_rev())
+        self.target_os_need_map = self.need_map.new_item_at_path(self.target_os_remote_info_map.name(), self.target_os_remote_info_map.flags(), self.target_os_remote_info_map.last_rev())
         self.create_need_list()
         #for iid in self.installState.orphan_install_items:
         #    self.installState.append_instructions('sync', self.instlInstance.create_echo_command("Don't know how to sync "+iid))
@@ -100,9 +100,9 @@ class InstlInstanceSync_url(InstlInstanceSync):
     @func_log_wrapper
     def merge_need_and_have(self):
         for need_item in self.need_map.walk_items(what="file"):
-            have_item = self.have_map.get_sub(need_item[0])
+            have_item = self.have_map.get_item_at_path(need_item[0])
             if have_item is None:   # not found in have map
-                 self.have_map.add_sub(*need_item)
+                 self.have_map.new_item_at_path(*need_item)
             else:                    # found in have map
                 if have_item.last_rev() == need_item[2]:
                     self.need_map.user_data = False
@@ -126,19 +126,20 @@ class InstlInstanceSync_url(InstlInstanceSync):
     @func_log_wrapper
     def create_need_list_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
-        _sub = self.target_os_remote_info_map.get_sub(source[0])
+        remote_sub_item = self.target_os_remote_info_map.get_item_at_path(source[0])
+        need_patent_of_remote_sub_item = self.target_os_need_map.get_item_at_path(remote_sub_item.get_path_parts[:-1])
         if source[1] == '!file':
-            if _sub.isFile():
-                self.target_os_need_map.add_sub(source[0], _sub.flags(), _sub.last_rev())
+            if remote_sub_item.isFile():
+                self.target_os_need_map.new_item_at_path(source[0], remote_sub_item.flags(), remote_sub_item.last_rev())
         if source[1] == '!files':
-            if _sub.isDir():
-                for _sub_file in _sub.values():
+            if remote_sub_item.isDir():
+                for _sub_file in remote_sub_item.values():
                     if _sub_file.isFile():
-                        self.target_os_need_map.add_sub((source[0], _sub_file), _sub_file.flags(), _sub_file.last_rev())
+                        self.target_os_need_map.new_item_at_path((source[0], _sub_file), _sub_file.flags(), _sub_file.last_rev())
         if source[1] == '!dir':
-            self.target_os_need_map.add_sub_tree_recursive(source[0].split("/")[:-1], _sub)
+            self.target_os_need_map._add_sub_item(source[0].split("/")[:-1], _sub)
         if source[1] == '!dir_cont':
-            self.target_os_need_map.add_sub_tree_recursive(source[0].split("/")[:-1], _sub)
+            self.target_os_need_map._add_sub_item(source[0].split("/")[:-1], _sub)
 
     def download_info_map(self):
         """$(SYNC_BASE_URL)/instl/info_map.txt"""

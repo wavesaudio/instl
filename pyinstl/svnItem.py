@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 from __future__ import print_function
 
+import abc
 import re
-#from collections import namedtuple, OrderedDict, MutableMapping
 import copy
 
-#from aYaml import augmentedYaml
 
 text_line_re = re.compile("""
             ^
@@ -35,6 +34,7 @@ class SVNItem(object):
         x - executable bit
         s - symlink
     """
+
     __slots__ = ("__up", "__name", "__flags", "__last_rev", "__subs", "user_data")
     def __init__(self, in_name, in_flags, in_last_rev):
         self.__up = None
@@ -57,8 +57,8 @@ class SVNItem(object):
     def __deepcopy__(self, memodict):
         retVal = SVNItem(self.__name, self.__flags, self.__last_rev)
         if self.__subs:
-            retVal.__subs = {name: copy.deepcopy(item, memodict) for name, item in self.__subs.iteritems()}
-            for item in self.__subs.values():
+            retVal.subs().update({name: copy.deepcopy(item, memodict) for name, item in self.subs().iteritems()})
+            for item in retVal.subs().values():
                 item.set_parent(self)
         return retVal
 
@@ -73,11 +73,28 @@ class SVNItem(object):
         self.__subs = state[1]
 
     def __eq__(self, other):
-        retVal = (self.name() == other.name() and
-                    self.flags() == other.flags() and
-                    self.last_rev() == other.last_rev() and
-                    ((self.isFile() and other.isFile()) or self.__subs == other.subs())
-                    )
+        same_name = self.name() == other.name()
+        same_flags = self.flags() == other.flags()
+        same_last_rev = self.last_rev() == other.last_rev()
+        retVal = same_name and same_flags and same_last_rev
+        same_subs = None
+
+        both_are_files = self.isFile() and other.isFile()
+         # do not bother checking subs if the containing objects are either both files or their members are not the equal
+        if retVal and not both_are_files:
+            same_subs = self.subs() == other.subs()
+            retVal = retVal and same_subs
+        #print("__eq__", "'"+self.full_path()+"'", "to", "'"+other.full_path()+"'",
+        #                "same_name:", same_name,
+        #                "same_flags:", same_flags,
+        #                "same_last_rev:", same_last_rev,
+        #                "same_subs:", same_subs,
+        #                "retVal:", retVal)
+
+        return retVal
+
+    def __ne__(self, other):
+        retVal = not (self == other)
         return retVal
 
     def name(self):
@@ -182,6 +199,17 @@ class SVNItem(object):
                     raise KeyError(path_parts[0]+" is not in sub items of "+self.full_path())
             retVal = sub_dir_item.new_item_at_path(path_parts[1:], flags, last_rev, create_folders)
         return retVal
+
+    #def duplicate_item(self, in_sub):
+    #    in_sub_path_parts = in_sub.full_path_parts()
+    #    where = self
+    #    for path_part in in_sub_path_parts[:-1]:
+    #        new_location = where.get_item_at_path(path_part)
+    #        if new_location is None:
+    #            new_location = where.new_item_at_path(path_part, "d", in_sub.last_rev())
+    #        where = new_location
+    #    where._add_sub_item(copy.deepcopy(in_sub))
+
 
     def new_item_from_str(self, the_str, create_folders=False):
         """ create a new a sub-item from string description.
@@ -296,3 +324,30 @@ class SVNItem(object):
             ValueError("a_node is not a mapping", a_node)
 
 
+class SVNTopItem(SVNItem):
+    """ Represents the top item of the hierarchy. The difference from SVNItem
+        is that SVNTopItem does not include itself in the path and so it's name in meaningless
+    """
+    def __init__(self, in_name="top_of_tree"):
+        super(SVNTopItem, self).__init__(in_name, "d", 0)
+
+    def full_path_parts(self):
+        """ override full_path_parts so the top level SVNTopItem will
+            no be counted as part of the path.
+        """
+        retVal = list()
+        return retVal
+
+    def __deepcopy__(self, memodict):
+        retVal = SVNTopItem(self.name())
+        retVal.set_last_rev(self.last_rev())
+        retVal.set_flags(self.flags())
+
+        retVal.subs().update({name: copy.deepcopy(item, memodict) for name, item in self.subs().iteritems()})
+        for item in retVal.subs().values():
+            item.set_parent(retVal)
+        return retVal
+
+    def __str__(self):
+        retVal = "{}, {}, {}".format(self.name(), self.flags(), self.last_rev())
+        return retVal

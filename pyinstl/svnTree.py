@@ -21,9 +21,9 @@ def timing(f):
         return ret
     return wrap
 
-class SVNTree(svnItem.SVNItem):
+class SVNTree(svnItem.SVNTopItem):
     def __init__(self):
-        super(SVNTree, self).__init__("top_of_tree", "d", 0)
+        super(SVNTree, self).__init__()
         self.read_func_by_format = {"info": self.read_from_svn_info,
                                     "pickle": self.read_from_pickle,
                                     "text": self.read_from_text,
@@ -34,13 +34,6 @@ class SVNTree(svnItem.SVNItem):
                                     "text": self.write_as_text,
                                     "yaml": self.write_as_yaml,
                                     }
-
-    def full_path_parts(self):
-        """ override full_path_parts so the top level SVNTree will
-            no be counted as part of the path.
-        """
-        retVal = list()
-        return retVal
 
     """ reading """
     def valid_read_formats(self):
@@ -113,11 +106,11 @@ class SVNTree(svnItem.SVNItem):
                         path_parts.append(match.group('path'))
                         if match.group('props'): # it's a file
                             #print(((new_indent * spaces_per_indent)-1) * " ", "/".join(path_parts), match.group('props'))
-                            self.add_sub(path_parts, match.group('flags'), int(match.group('last_rev')))
+                            self.new_item_at_path(path_parts, match.group('flags'), int(match.group('last_rev')))
                         indent = new_indent
                     else: # previous element was a folder
                         #print(((new_indent * spaces_per_indent)-1) * " ", "/".join(path_parts), match.group('props'))
-                        self.add_sub(path_parts, match.group('flags'), int(match.group('last_rev')))
+                        self.new_item_at_path(path_parts, match.group('flags'), int(match.group('last_rev')))
                 else:
                     if indent != -1: # first lines might be empty
                         ValueError("no matach at line "+str(line_num)+": "+line)
