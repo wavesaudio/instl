@@ -30,6 +30,10 @@ class CopyTool_win_robocopy(CopyToolBase):
         copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /LEV:1 /XD .svn /R:3 /W:3".format(**locals())
         return (copy_command, )
 
+    def create_copy_file_to_file_command(self, src_file, trg_file):
+        sync_command = "copy \"{src_file}\" \"{trg_file}\"".format(**locals())
+        return (sync_command, )
+
 class CopyTool_win_xcopy(CopyToolBase):
     def create_copy_dir_to_dir_command(self, src_dir, trg_dir):
         retVal = list()
@@ -95,6 +99,10 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
             self.copy_tool = CopyTool_win_xcopy()
         else:
             raise ValueError(tool, "is not a valid copy tool for", target_os)
+
+    def create_copy_file_to_file_command(self, src_file, trg_file):
+        sync_command = "copy \"{src_file}\" \"{trg_file}\"".format(**locals())
+        return (sync_command, )
 
 
 class DownloadTool_win_wget(DownloadToolBase):

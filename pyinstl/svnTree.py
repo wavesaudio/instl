@@ -34,6 +34,7 @@ class SVNTree(svnItem.SVNTopItem):
                                     "text": self.write_as_text,
                                     "yaml": self.write_as_yaml,
                                     }
+        self.path_to_file = None
 
     """ reading """
     def valid_read_formats(self):
@@ -42,11 +43,12 @@ class SVNTree(svnItem.SVNTopItem):
     def read_from_file(self, in_file, format="text", report_level=0):
         """ format is either text, yaml, pickle
         """
+        self.path_to_file = in_file
         if format in self.read_func_by_format.keys():
             time_start = time.time()
-            with open_for_read_file_or_url(in_file) as rfd:
+            with open_for_read_file_or_url(self.path_to_file) as rfd:
                 if report_level > 0:
-                    print("opened file:", "'"+in_file+"'")
+                    print("opened file:", "'"+self.path_to_file+"'")
                 if format != "props":
                     self.clear_subs()
                 self.read_func_by_format[format](rfd, report_level)
@@ -167,11 +169,12 @@ class SVNTree(svnItem.SVNTopItem):
         """ pass in_file="stdout" to output to stdout.
             in_format is either text, yaml, pickle
         """
+        self.path_to_file = in_file
         if in_format in self.write_func_by_format.keys():
             time_start = time.time()
-            with write_to_file_or_stdout(in_file) as wfd:
+            with write_to_file_or_stdout(self.path_to_file) as wfd:
                 if report_level > 0:
-                    print("opened file:", "'"+in_file+"'")
+                    print("opened file:", "'"+self.path_to_file+"'")
                 self.write_func_by_format[in_format](wfd, report_level)
             time_end = time.time()
             if report_level > 0:

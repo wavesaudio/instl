@@ -200,6 +200,30 @@ class SVNItem(object):
             retVal = sub_dir_item.new_item_at_path(path_parts[1:], flags, last_rev, create_folders)
         return retVal
 
+    def add_item_at_path(self, at_path, in_item, create_folders=False):
+        """ add an existing sub-item at the give at_path.
+            at_path is relative to self of course.
+            at_path can be a list or tuple containing individual path parts
+            or a string with individual path parts separated by "/".
+            If create_folders is True, non existing intermediate folders
+            will be created, with the same last_rev. create_folders is False,
+            and some part of the path does not exist KeyError will be raised.
+        """
+        retVal = None
+        #print("--- add sub to", self.name(), path, flags, last_rev)
+        path_parts = at_path
+        if isinstance(at_path, basestring):
+            path_parts = at_path.split("/")
+
+        if create_folders:
+            for i in xrange(0, len(path_parts)):
+                folder = self.get_item_at_path(path_parts[0:i])
+                if folder is None:
+                    self.new_item_at_path(path_parts[0:i], "d", in_item.last_rev())
+        folder = self.get_item_at_path(path_parts[0:len(path_parts)])
+        retVal = folder._add_sub_item(in_item)
+        return retVal
+
     #def duplicate_item(self, in_sub):
     #    in_sub_path_parts = in_sub.full_path_parts()
     #    where = self
@@ -282,6 +306,15 @@ class SVNItem(object):
         for the_sub in file_list:
             if should_remove_func(the_sub):
                 del (self.__subs[the_sub.name()])
+
+    def set_user_data(self, value, how): # how=[only|file|all]
+        self.user_data = value
+        if self.isDir() and how in ("file", "all"):
+            mark_list, dir_list = self.sorted_sub_items()
+            if how == "all":
+                mark_list.extend(dir_list)
+            for item in mark_list:
+                item.set_user_data(value, how)
 
     def num_subs_in_tree(self, what="all"):
         retVal = sum(1 for i in self.walk_items(what=what))

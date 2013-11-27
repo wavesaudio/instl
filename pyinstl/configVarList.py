@@ -111,6 +111,17 @@ class ConfigVarList(object):
             retVal.set_description(description)
         return retVal
 
+    def set_value_if_var_does_not_exist(self, var_name, var_value, description=None):
+        """ If variable does nor exist it will be created and assigned the new value.
+            Otherwise variable will remain as is. Good for setting defaults to variables
+            tha were not read from file.
+        """
+        if var_name not in self._ConfigVar_objs:
+            new_var = self.get_configVar_obj(var_name)
+            new_var.append(var_value)
+            if description is not None:
+                new_var.set_description(description)
+
     @func_log_wrapper
     def add_const_config_variable(self, name, description="", *values):
         """ add a const single value object """

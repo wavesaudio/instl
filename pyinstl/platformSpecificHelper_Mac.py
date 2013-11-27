@@ -80,6 +80,10 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         else:
             raise ValueError(tool, "is not a valid copy tool for Mac OS")
 
+    def create_copy_file_to_file_command(self, src_file, trg_file):
+        sync_command = "cp -f \"{src_file}\" \"{trg_file}\"".format(**locals())
+        return (sync_command, )
+
 class DownloadTool_mac_curl(DownloadToolBase):
 
     def create_download_file_to_file_command(self, src_url, trg_file):

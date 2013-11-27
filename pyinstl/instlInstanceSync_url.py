@@ -1,5 +1,6 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
+
 import logging
 
 import pyinstl.log_utils
@@ -8,23 +9,33 @@ from pyinstl.utils import *
 from pyinstl import svnTree
 from instlInstanceSyncBase import InstlInstanceSync
 
+def is_user_data_false_or_dir_empty(svn_item):
+    retVal = False
+    if svn_item.isFile():
+        retVal = svn_item.user_data == False
+    elif svn_item.isDir():
+        retVal = len(svn_item.subs()) == 0
+    return retVal
 
 class InstlInstanceSync_url(InstlInstanceSync):
     """  Class to create sync instruction using static links.
     """
     @func_log_wrapper
     def __init__(self, instlInstance):
-        self.instlInstance = instlInstance
-        self.remote_info_map = svnTree.SVNTree()
-        self.target_os_remote_info_map = None
-        self.need_map = svnTree.SVNTree()
-        self.target_os_need_map = None
-        self.have_map = svnTree.SVNTree()
-        self.have_map_path = None
-        self.new_have_map_path = None
+        self.instlInstance = instlInstance      # instance of the instl application
+        self.installState = None                # object holding batch instructions
+        self.work_info_map = svnTree.SVNTree()  # here most of the work is done: first info map from server is read, later unneeded items
+                                                # are filtered out and then items that are already downloaded are filtered out. So finally
+                                                # the download instructions are created from the remaining items.
+        self.have_map = svnTree.SVNTree()       # info map of what was already downloaded
+        self.num_items_for_progress_report = 0
+        self.current_item_for_progress_report = 0
 
     @func_log_wrapper
     def init_sync_vars(self):
+        """ Prepares variables for sync. Will raise ValueError if a mandatory variable
+            is not defined.
+        """
         var_description = "from InstlInstanceBase.init_sync_vars"
         if "SYNC_BASE_URL" not in self.instlInstance.cvl:
             raise ValueError("'SYNC_BASE_URL' was not defined")
@@ -33,126 +44,125 @@ class InstlInstanceSync_url(InstlInstanceSync):
         get_url_client_full_path = self.instlInstance.search_paths_helper.find_file_with_search_paths(self.instlInstance.cvl.get_str("GET_URL_CLIENT_PATH"))
         self.instlInstance.cvl.set_variable("GET_URL_CLIENT_PATH", var_description).append(get_url_client_full_path)
 
-        if "REPO_REV" not in self.instlInstance.cvl:
-            self.instlInstance.cvl.set_variable("REPO_REV", var_description).append("HEAD")
-        if "BASE_SRC_URL" not in self.instlInstance.cvl:
-            self.instlInstance.cvl.set_variable("BASE_SRC_URL", var_description).append("$(SYNC_BASE_URL)/$(TARGET_OS)")
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("REPO_REV", "HEAD", description=var_description)
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("BASE_SRC_URL", "$(SYNC_BASE_URL)/$(TARGET_OS)", description=var_description)
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("LOCAL_SYNC_DIR", self.instlInstance.get_default_sync_dir(), description=var_description)
 
-        if "LOCAL_SYNC_DIR" not in self.instlInstance.cvl:
-            self.instlInstance.cvl.set_variable("LOCAL_SYNC_DIR", var_description).append(
-                self.instlInstance.get_default_sync_dir())
-
-        if "BOOKKEEPING_DIR_URL" not in self.instlInstance.cvl:
-            self.instlInstance.cvl.set_variable("BOOKKEEPING_DIR_URL").append("$(SYNC_BASE_URL)/instl")
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("BOOKKEEPING_DIR_URL", "$(SYNC_BASE_URL)/instl", description=var_description)
         bookkeeping_relative_path = relative_url(self.instlInstance.cvl.get_str("SYNC_BASE_URL"), self.instlInstance.cvl.get_str("BOOKKEEPING_DIR_URL"))
-        self.instlInstance.cvl.set_variable("REL_BOOKKIPING_PATH", var_description).append(bookkeeping_relative_path)
 
-        rel_sources = relative_url(self.instlInstance.cvl.get_str("SYNC_BASE_URL"), self.instlInstance.cvl.get_str("BASE_SRC_URL"))
-        self.instlInstance.cvl.set_variable("REL_SRC_PATH", var_description).append(rel_sources)
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("INFO_MAP_FILE_URL", "$(SYNC_BASE_URL)/$(REPO_REV)/instl/info_map.txt", description=var_description)
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("LOCAL_BOOKKEEPING_PATH", "$(LOCAL_SYNC_DIR)/bookkeeping", description=var_description)
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("HAVE_INFO_MAP_PATH", "$(LOCAL_BOOKKEEPING_PATH)/have_info_map.txt", description=var_description)
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("NEW_HAVE_INFO_MAP_PATH", "$(LOCAL_BOOKKEEPING_PATH)/new_have_info_map.txt", description=var_description)
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("REQUIRED_INFO_MAP_PATH", "$(LOCAL_BOOKKEEPING_PATH)/required_info_map.txt", description=var_description)
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("TO_SYNC_INFO_MAP_PATH", "$(LOCAL_BOOKKEEPING_PATH)/to_sync_info_map.txt", description=var_description)
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("REPO_REV_LOCAL_BOOKKEEPING_PATH", "$(LOCAL_BOOKKEEPING_PATH)/$(REPO_REV)", description=var_description)
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH", "$(REPO_REV_LOCAL_BOOKKEEPING_PATH)/remote_info_map.txt", description=var_description)
 
-        if "INFO_MAP_FILE_URL" not in self.instlInstance.cvl:
-            self.instlInstance.cvl.set_variable("INFO_MAP_FILE_URL").append("$(SYNC_BASE_URL)/$(REPO_REV)/instl/info_map.txt")
-
-        if "LOCAL_BOOKKEEPING_PATH" not in self.instlInstance.cvl:
-            self.instlInstance.cvl.set_variable("LOCAL_BOOKKEEPING_PATH").append("$(LOCAL_SYNC_DIR)/bookkeeping")
-
-        for identifier in ("SYNC_BASE_URL", "GET_URL_CLIENT_PATH", "REL_SRC_PATH", "REPO_REV", "BASE_SRC_URL", "BOOKKEEPING_DIR_URL"):
+        for identifier in ("SYNC_BASE_URL", "GET_URL_CLIENT_PATH", "REPO_REV", "BASE_SRC_URL", "BOOKKEEPING_DIR_URL"):
             logging.debug("... %s: %s", identifier, self.instlInstance.cvl.get_str(identifier))
-
-    @func_log_wrapper
-    def read_remote_info_map(self):
-        safe_makedirs(self.instlInstance.cvl.get_str("LOCAL_BOOKKEEPING_PATH"))
-        info_map_path = os.path.join(self.instlInstance.cvl.get_str("LOCAL_BOOKKEEPING_PATH"), self.instlInstance.cvl.get_str("REPO_REV"))
-        safe_makedirs(info_map_path)
-        info_map_path = os.path.join(info_map_path, "info_map.txt")
-        download_from_file_or_url(self.instlInstance.cvl.get_str("INFO_MAP_FILE_URL"), info_map_path)
-        self.remote_info_map.read_from_file(info_map_path, format="text")
-        self.target_os_remote_info_map = self.remote_info_map.get_item_at_path(self.instlInstance.cvl.get_str("TARGET_OS"))
 
     @func_log_wrapper
     def create_sync_instructions(self, installState):
         self.installState = installState
-        self.read_remote_info_map()
-        self.target_os_need_map = self.need_map.new_item_at_path(self.target_os_remote_info_map.name(), self.target_os_remote_info_map.flags(), self.target_os_remote_info_map.last_rev())
-        self.create_need_list()
-        #for iid in self.installState.orphan_install_items:
-        #    self.installState.append_instructions('sync', self.instlInstance.create_echo_command("Don't know how to sync "+iid))
-        #self.need_list_to_ought()
-        #self.ought_and_have_to_sync()
-        #self.create_download_instructions()
-        #logging.info("... %s", out_file)
-        need_map_path = os.path.join(self.instlInstance.cvl.get_str("LOCAL_BOOKKEEPING_PATH"), "need_info_map.txt")
-        self.need_map.write_to_file(need_map_path, in_format="text", report_level=1)
+        self.read_remote_info_map()             # reads the full info map from INFO_MAP_FILE_URL and writes it to the sync folder
+        self.filter_out_unrequired_items()      # removes items not required to be installed
+        self.read_have_info_map()               # reads the info map of items already synced
+        self.filter_out_already_synced_items()  # removes items that are already on the user's disk
         self.create_download_instructions()
-        self.have_map_path = os.path.join(self.instlInstance.cvl.get_str("LOCAL_BOOKKEEPING_PATH"), "have_info_map.txt")
-        if os.path.isfile(self.have_map_path):
-            self.have_map.read_from_file(self.have_map_path, format="text")
-        self.new_have_map_path = os.path.join(self.instlInstance.cvl.get_str("LOCAL_BOOKKEEPING_PATH"), "new_have_info_map.txt")
-        if os.path.isfile(self.new_have_map_path):
-            os.remove(self.new_have_map_path)
-        self.merge_need_and_have()
-        self.clean_uneeded_items()
+        #logging.info("... %s", out_file)
 
     @func_log_wrapper
-    def clean_uneeded_items(self):
-        self.need_map.recursive_remove_depth_first()
+    def read_remote_info_map(self):
+        """ Reads the info map of the static files available for syncing.
+            Writes the map to local sync folder for reference and debugging.
+        """
+        safe_makedirs(self.instlInstance.cvl.get_str("LOCAL_BOOKKEEPING_PATH"))
+        safe_makedirs(self.instlInstance.cvl.get_str("REPO_REV_LOCAL_BOOKKEEPING_PATH"))
+        download_from_file_or_url(self.instlInstance.cvl.get_str("INFO_MAP_FILE_URL"), self.instlInstance.cvl.get_str("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"))
+        self.work_info_map.read_from_file(self.instlInstance.cvl.get_str("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"), format="text")
 
     @func_log_wrapper
-    def merge_need_and_have(self):
-        for need_item in self.need_map.walk_items(what="file"):
-            have_item = self.have_map.get_item_at_path(need_item[0])
-            if have_item is None:   # not found in have map
-                 self.have_map.new_item_at_path(*need_item)
-            else:                    # found in have map
-                if have_item.last_rev() == need_item[2]:
-                    self.need_map.user_data = False
-                elif have.last_rev() < need_item[2]:
-                    have_item.set_flags(need_item[1])
-                    have_item.set_last_rev(need_item[2])
-                    self.need_map.user_data = True
-                elif have.last_rev() > need_item[2]: # weird, but need to get the older version
-                    have_item.set_flags(need_item[1])
-                    have_item.set_last_rev(need_item[2])
-                    self.need_map.user_data = True
-
-    @func_log_wrapper
-    def create_need_list(self):
+    def filter_out_unrequired_items(self):
+        """ Removes from work_info_map items not required to be installed.
+            First all items are marked False.
+            Items required by each install source are then marked True.
+            Finally items marked False and empty directories are removed.
+        """
+        self.work_info_map.set_user_data(False, "all")
         for iid  in self.installState.full_install_items:
             installi = self.instlInstance.install_definitions_index[iid]
             if installi.source_list():
                 for source in installi.source_list():
-                    self.create_need_list_for_source(source)
+                    self.mark_required_items_for_source(source)
+        self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
+        self.work_info_map.write_to_file(self.instlInstance.cvl.get_str("REQUIRED_INFO_MAP_PATH"), in_format="text")
+
+    def read_have_info_map(self):
+        """ Reads the map of files previously synced - if there is one.
+        """
+        if os.path.isfile(self.instlInstance.cvl.get_str("HAVE_INFO_MAP_PATH")):
+            self.have_map.read_from_file(self.instlInstance.cvl.get_str("HAVE_INFO_MAP_PATH"), format="text")
 
     @func_log_wrapper
-    def create_need_list_for_source(self, source):
+    def filter_out_already_synced_items(self):
+        """ Removes from work_info_map items not required to be synced and updates the in memory have map.
+            First all items are marked True.
+            Items found in have map are then marked False - provided their have version is equal to tge required version.
+            Finally items marked False and empty directories are removed.
+            The have map is
+        """
+        self.work_info_map.set_user_data(True, "all")
+        for need_item in self.work_info_map.walk_items(what="file"):
+            have_item = self.have_map.get_item_at_path(need_item.full_path_parts())
+            if have_item is None:   # not found in have map
+                 self.have_map.new_item_at_path(need_item.full_path_parts() , need_item.flags(), need_item.last_rev(), create_folders=True)
+            else:                    # found in have map
+                if have_item.last_rev() == need_item.last_rev():
+                    need_item.user_data = False
+                elif have_item.last_rev() < need_item.last_rev():
+                    have_item.set_flags(need_item.flags())
+                    have_item.set_last_rev(need_item.last_rev())
+                elif have_item.last_rev() > need_item.last_rev(): # weird, but need to get the older version
+                    have_item.set_flags(need_item.flags())
+                    have_item.set_last_rev(need_item.last_rev())
+        self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
+        self.work_info_map.write_to_file(self.instlInstance.cvl.get_str("TO_SYNC_INFO_MAP_PATH"), in_format="text")
+        self.have_map.write_to_file(self.instlInstance.cvl.get_str("NEW_HAVE_INFO_MAP_PATH"), in_format="text")
+
+    @func_log_wrapper
+    def mark_required_items_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
-        remote_sub_item = self.target_os_remote_info_map.get_item_at_path(source[0])
-        need_patent_of_remote_sub_item = self.target_os_need_map.get_item_at_path(remote_sub_item.get_path_parts[:-1])
+        target_os_remote_info_map = self.work_info_map.get_item_at_path(self.instlInstance.cvl.get_str("TARGET_OS"))
+        remote_sub_item = target_os_remote_info_map.get_item_at_path(source[0])
+        if remote_sub_item is None:
+            ValueError(source[0], "does not exist in remote map")
+        how_to_set = "all"
         if source[1] == '!file':
-            if remote_sub_item.isFile():
-                self.target_os_need_map.new_item_at_path(source[0], remote_sub_item.flags(), remote_sub_item.last_rev())
-        if source[1] == '!files':
-            if remote_sub_item.isDir():
-                for _sub_file in remote_sub_item.values():
-                    if _sub_file.isFile():
-                        self.target_os_need_map.new_item_at_path((source[0], _sub_file), _sub_file.flags(), _sub_file.last_rev())
-        if source[1] == '!dir':
-            self.target_os_need_map._add_sub_item(source[0].split("/")[:-1], _sub)
-        if source[1] == '!dir_cont':
-            self.target_os_need_map._add_sub_item(source[0].split("/")[:-1], _sub)
+            if not remote_sub_item.isFile():
+                ValueError(source[0], "has type", source[1], "but is not a file")
+            how_to_set = "only"
+        elif source[1] == '!files':
+            if not remote_sub_item.isDir():
+                ValueError(source[0], "has type", source[1], "but is not a dir")
+            how_to_set = "file"
+        elif source[1] == '!dir' or source[1] == '!dir_cont': # !dir and !dir_cont are only different when copying
+            if not remote_sub_item.isDir():
+                ValueError(source[0], "has type", source[1], "but is not a dir")
+            how_to_set = "all"
+        
+        remote_sub_item.set_user_data(True, how_to_set)
 
-    def download_info_map(self):
-        """$(SYNC_BASE_URL)/instl/info_map.txt"""
-        pass
-
-    def need_list_to_ought(self):
-        pass
-
-    def ought_and_have_to_sync(self):
-        pass
+    @func_log_wrapper
+    def clear_unrequired_items(self):
+        self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
+        # for debugging
+        work_info_map_path = self.instlInstance.cvl.get_str("REQUIRED_INFO_MAP_PATH")
+        self.work_info_map.write_to_file(work_info_map_path, in_format="text", report_level=1)
 
     def create_download_instructions(self):
-        num_files = self.need_map.num_subs_in_tree(what="file")
+        num_files = self.work_info_map.num_subs_in_tree(what="file")
         self.num_items_for_progress_report = num_files + 1 # one for a dummy first item
         self.current_item_for_progress_report = 0
         self.installState.append_instructions('sync', self.instlInstance.platform_helper.create_echo_command("Progress: synced {self.current_item_for_progress_report} of {self.num_items_for_progress_report}; from $(BASE_SRC_URL)".format(**locals())))
@@ -160,11 +170,12 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.installState.extend_instructions('sync', self.instlInstance.platform_helper.make_directory_cmd("$(LOCAL_SYNC_DIR)"))
         self.installState.extend_instructions('sync', self.instlInstance.platform_helper.change_directory_cmd("$(LOCAL_SYNC_DIR)"))
         self.installState.indent_level += 1
-        for need_item in self.need_map.values():
+        file_list, dir_list = self.work_info_map.sorted_sub_items()
+        for need_item in file_list + dir_list:
             self.create_download_instructions_for_item(need_item)
         self.installState.indent_level -= 1
         self.installState.append_instructions('sync', self.instlInstance.platform_helper.create_echo_command("Progress: synced {self.current_item_for_progress_report} of {self.num_items_for_progress_report};  from $(BASE_SRC_URL)".format(**locals())))
-
+        self.installState.extend_instructions('sync', self.instlInstance.platform_helper.create_copy_file_to_file_command("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)"))
 
     def create_download_instructions_for_item(self, item, path_so_far = list()):
         if item.isFile():
@@ -177,7 +188,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.installState.extend_instructions('sync', self.instlInstance.platform_helper.make_directory_cmd(item.name()))
             self.installState.extend_instructions('sync', self.instlInstance.platform_helper.change_directory_cmd(item.name()))
             self.installState.indent_level += 1
-            for sub_item in item.values():
+            file_list, dir_list = item.sorted_sub_items()
+            for sub_item in file_list + dir_list:
                 self.create_download_instructions_for_item(sub_item, path_so_far)
             self.installState.indent_level -= 1
             self.installState.extend_instructions('sync', self.instlInstance.platform_helper.change_directory_cmd(".."))

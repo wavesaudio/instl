@@ -27,9 +27,9 @@ __include__: "$(SYNC_BASE_URL)/$(REPO_REV)/instl/index.yaml"
 
 MAIN_INSTALL_TARGETS:
     - SG_Driver_IID
-#    - SG_IO_Modules_IID
-#    - MultiRack_SoundGrid_apps_IID
-#    - SG_Monitor_IID
+    - SG_IO_Modules_IID
+    - MultiRack_SoundGrid_apps_IID
+    - SG_Monitor_IID
 #    - WaveShell_WPAPI_V9_2_IID
 #    - WaveShell_WPAPI_V9_7_IID
 #    - EMO_IID

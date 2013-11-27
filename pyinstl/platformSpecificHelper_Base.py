@@ -52,6 +52,14 @@ class CopyToolBase(object):
         """
         pass
 
+    @abc.abstractmethod
+    def create_copy_file_to_file_command(self, src_file, trg_file):
+        """ Copy src_file to trg_file.
+            Example: create_copy_file_to_file("a.txt", "/d/c/bt.txt") copies
+            the file a.txt into "/d/c/bt.txt".
+        """
+        pass
+
 class PlatformSpecificHelperBase(object):
 
     def __init__(self):
