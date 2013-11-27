@@ -277,26 +277,23 @@ class TestSVNItem(unittest.TestCase):
         svni1 = None
 
     def test_walk_items(self):
-        """
-        svni1 = SVNTree() #"TestDir", "d", 15
+        svni1 = SVNTree()
         for item in item_list1: svni1.new_item_from_str(item)
-        svni1.write_to_file("/Users/shai/Desktop/a_test_walk_items.txt", in_format="text")
 
         all_items_list = []
         for item in svni1.walk_items(what="a"):
-            all_items_list.append( (item.full_path(), item.flags(), item.last_rev()) )
+            all_items_list.append( str(item) )
         self.assertEqual(sorted(all_items_list), sorted(item_list1))
 
         all_files_list = []
         for afile in svni1.walk_items(what="f"):
-            all_files_list.append(afile)
-        self.assertEqual(sorted(all_files_list), sorted([item for item in item_list1 if "f" in item[1]]))
+            all_files_list.append( str(afile) )
+        self.assertEqual(sorted(all_files_list), sorted([item for item in item_list1 if "f" in item.split(", ")[1]]))
 
         all_dirs_list = []
         for adir in svni1.walk_items(what="d"):
-            all_dirs_list.append(adir)
-        self.assertEqual(sorted(all_dirs_list), sorted([item for item in item_list1 if "d" in item[1]]))
-        """
+            all_dirs_list.append( str(adir) )
+        self.assertEqual(sorted(all_dirs_list), sorted([item for item in item_list1 if "d" in item.split(", ")[1]]))
 
     def test_add_sub_negative(self):
         svni1 = SVNTopItem()
