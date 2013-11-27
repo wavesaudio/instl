@@ -1,12 +1,15 @@
 #!/usr/bin/env python2.7
 
+""" main executable for instl """
+
 from __future__ import print_function
+
 
 import sys
 import os
 import argparse
-import logging
-import logging.handlers
+#import logging
+#import logging.handlers
 
 # setup logging, must be done before other imports
 from pyinstl.log_utils import setup_logging
@@ -17,7 +20,6 @@ from pyinstl.utils import get_current_os_names
 import pyinstl
 from pyinstl.instlException import InstlException
 
-import platform
 current_os_names = get_current_os_names()
 os_family_name = current_os_names[0]
 os_second_name = current_os_names[0]
@@ -26,6 +28,9 @@ if len(current_os_names) > 1:
 from pyinstl.instlInstanceBase import InstlInstanceBase
 
 def get_path_to_instl_app():
+    """
+    @return: returns the path to this
+    """
     application_path = None
     if getattr(sys, 'frozen', False):
         application_path = os.path.dirname(os.path.realpath(sys.executable))
@@ -33,7 +38,7 @@ def get_path_to_instl_app():
         application_path = os.path.dirname(os.path.realpath(__file__))
     return application_path
 
-class cmd_line_options(object):
+class CommandLineOptions(object):
     """ namespace object to give to parse_args
         holds command line options
     """
@@ -47,9 +52,12 @@ class cmd_line_options(object):
         self.props_file = None
 
     def __str__(self):
-        return "\n".join([''.join((n, ": ", str(v))) for n,v in sorted(vars(self).iteritems())])
+        return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
 
 def prepare_args_parser():
+    """
+    Prepare the parsers for command line arguments
+    """
     def decent_convert_arg_line_to_args(self, arg_line):
         """ parse a file with options so that we do not have to write one sub-option
             per line.  Remove empty lines, comment lines, and end of line comments.
@@ -76,32 +84,33 @@ def prepare_args_parser():
     parser_copy = subparsers.add_parser('copy',
                                         help='copy files from temp folder to target paths')
     parser_synccopy = subparsers.add_parser('synccopy',
-                                        help='sync files to be installed from server to temp folder and copy files from temp folder to target paths')
+                                        help='sync files to be installed from server to temp \
+                                        folder and copy files from temp folder to target paths')
     parser_trans = subparsers.add_parser('trans',
                                         help='translate svn map files from one format to another')
 
     for subparser in (parser_sync, parser_copy, parser_synccopy):
         subparser.set_defaults(mode='batch')
         standard_options = subparser.add_argument_group(description='standard arguments:')
-        standard_options.add_argument('--in','-i',
+        standard_options.add_argument('--in', '-i',
                                     required=True,
                                     nargs='+',
                                     metavar='list-of-input-files',
                                     dest='input_file',
                                     help="file(s) to read index and definitions from")
-        standard_options.add_argument('--out','-o',
+        standard_options.add_argument('--out', '-o',
                                     required=True,
                                     nargs=1,
                                     metavar='path-to-output-file',
                                     dest='output_file',
                                     help="a file to write sync/copy instructions")
-        standard_options.add_argument('--run','-r',
+        standard_options.add_argument('--run', '-r',
                                     required=False,
                                     default=False,
                                     action='store_true',
                                     dest='run',
                                     help="run the installation instructions script")
-        standard_options.add_argument('--state','-s',
+        standard_options.add_argument('--state', '-s',
                                     required=False,
                                     nargs='?',
                                     const="stdout",
@@ -112,19 +121,19 @@ def prepare_args_parser():
     for subparser in (parser_trans, ):
         subparser.set_defaults(mode='batch')
         trans_options = subparser.add_argument_group(description='translate arguments:')
-        trans_options.add_argument('--in','-i',
+        trans_options.add_argument('--in', '-i',
                                     required=True,
                                     nargs=1,
                                     metavar='list-of-input-file',
                                     dest='input_file',
                                     help="file to read svn information from")
-        trans_options.add_argument('--out','-o',
+        trans_options.add_argument('--out', '-o',
                                     required=True,
                                     nargs=1,
                                     metavar='path-to-output-file',
                                     dest='output_file',
                                     help="file to write svn information to")
-        trans_options.add_argument('--props','-p',
+        trans_options.add_argument('--props', '-p',
                                     required=False,
                                     nargs=1,
                                     metavar='path-to-props-file',
@@ -151,14 +160,15 @@ def prepare_args_parser():
 @func_log_wrapper
 def read_command_line_options(name_space_obj, arglist=None):
     """ parse command line options """
-    args_str = "No options given"
+    #args_str = "No options given"
     # todo: restore __COMMAND_LINE_OPTIONS__
     #if arglist is not None:
     #    logging.info("arglist: %s", " ".join(arglist))
     #self.cvl.add_const_config_variable('__COMMAND_LINE_OPTIONS__', "read only value", args_str)
     if not arglist or len(arglist) == 0:
+        pass
         # No command line options given, but there maybe a "auto run" file with options
-        auto_run_file_path = None
+        #auto_run_file_path = None
         # todo: restore autorun file reading
         #auto_run_file_name = "auto_run_instl.yaml"
         #auto_run_file_path = self.search_paths_helper.find_file_with_search_paths(auto_run_file_name)
@@ -176,9 +186,11 @@ def read_command_line_options(name_space_obj, arglist=None):
 
 @pyinstl.log_utils.func_log_wrapper
 def main():
+    """ Main instl entry point. Reads command line options and decides if to go into interactive or batch mode.
+    """
     try:
         initial_vars = {"__INSTL_EXE_PATH__": get_path_to_instl_app()}
-        options = cmd_line_options()
+        options = CommandLineOptions()
         read_command_line_options(options, sys.argv[1:])
         instance = InstlInstanceBase(initial_vars)
         instance.init_from_cmd_line_options(options)
@@ -187,15 +199,17 @@ def main():
         elif options.mode == "interactive":
             from pyinstl.instlInstanceBase_interactive import go_interactive
             go_interactive(instance)
-    except InstlException as ie:
-        print("instl exception",ie.message)
+    except InstlException as instl_except:
+        print("instl exception", instl_except.message)
         from pyinstl.log_utils import debug_logging_started
         #from pyinstl.log_utils import get_log_file_path
         #print(get_log_file_path('instl', 'instl', True))
         if debug_logging_started:
             import traceback
-            traceback.print_exception(type(ie.original_exception), ie.original_exception,  sys.exc_info()[2])
-    except Exception as ex:
+            traceback.print_exception(type(instl_except.original_exception),
+                                      instl_except.original_exception,
+                                      sys.exc_info()[2])
+    except Exception:
         print("unhandled exception")
         import traceback
         traceback.print_exc()

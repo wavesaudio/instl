@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 from __future__ import print_function
 
-import abc
 import re
 import copy
 
 
-text_line_re = re.compile("""
+text_line_re = re.compile(r"""
             ^
             (?P<path>.*)
             ,\s+
@@ -15,7 +14,7 @@ text_line_re = re.compile("""
             (?P<last_rev>\d+)
             $
             """, re.X)
-flags_and_last_rev_re = re.compile("""
+flags_and_last_rev_re = re.compile(r"""
                 ^
                 \s*
                 (?P<flags>[fdxs]+)
@@ -244,7 +243,10 @@ class SVNItem(object):
         retVal = None
         match = text_line_re.match(the_str)
         if match:
-            self.new_item_at_path(match.group('path'), match.group('flags'), int(match.group('last_rev')), create_folders)
+            self.new_item_at_path(match.group('path'),
+                                  match.group('flags'),
+                                  int(match.group('last_rev')),
+                                  create_folders)
         return retVal
 
     def _add_sub_item(self, in_item):
@@ -257,9 +259,9 @@ class SVNItem(object):
         self.__subs[in_item.name()] = in_item
 
     def add_flags(self, flags):
-         new_flags = "".join(sorted(set(self.__flags+flags)))
-         #print("_add_flags:", self.__flags, "+", flags, "=", new_flags)
-         self.__flags = new_flags
+        new_flags = "".join(sorted(set(self.__flags+flags)))
+        #print("_add_flags:", self.__flags, "+", flags, "=", new_flags)
+        self.__flags = new_flags
 
     def sorted_sub_items(self):
         if not self.isDir():
@@ -347,7 +349,8 @@ class SVNItem(object):
                     if props_node.isScalar():
                         match = flags_and_last_rev_re.match(props_node.value)
                         if match:
-                            new_sub = self.new_item_at_path(identifier, match.group('flags'), int(match.group('last_rev')))
+                            new_sub = self.new_item_at_path(identifier, match.group('flags'),
+                                                            int(match.group('last_rev')))
                             new_sub.read_yaml_node(contents)
                         else:
                             raise ValueError("Looks like a folder, but is not %s %s" % (identifier, str(contents)))
