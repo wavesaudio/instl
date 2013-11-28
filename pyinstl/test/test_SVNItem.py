@@ -251,9 +251,9 @@ class TestSVNItem(unittest.TestCase):
         self.assertNotEqual(svni1, svni2)
         svni2.new_item_at_path("file1", "f", 19)
         self.assertEqual(svni1, svni2)
-        svni1._add_sub_item(svni3)
+        svni1.add_sub_item(svni3)
         self.assertNotEqual(svni1, svni2)
-        svni2._add_sub_item(copy.deepcopy(svni3))
+        svni2.add_sub_item(copy.deepcopy(svni3))
         self.assertEqual(svni1, svni2)
 
     def test_looping(self):
@@ -327,10 +327,10 @@ class TestSVNItem(unittest.TestCase):
         self.assertIsInstance(sub2, SVNItem, msg="svn1.get_item_at_path should return SVNItem object")
 
     def test_add_sub_item_positive(self):
-        ''' Check the internal function _add_sub_item where is should succeed '''
+        ''' Check the internal function add_sub_item where is should succeed '''
         svni1 = SVNTopItem()
         svni2 = SVNItem("SubFile", "f", 1258)
-        svni1._add_sub_item(svni2)
+        svni1.add_sub_item(svni2)
         self.assertEqual(svni1.subs().keys(), ["SubFile"])
         self.assertIsNone(svni1.get_item_at_path("kuku"), msg="svn1.get_item_at_path should return None for none existing item")
         self.assertIs(svni1.get_item_at_path("SubFile"), svni2, msg="svn1.get_item_at_path should return the same object given")
@@ -340,10 +340,10 @@ class TestSVNItem(unittest.TestCase):
         self.assertIsInstance(svni1.get_item_at_path("SubDir"), SVNItem, msg="svn1.get_item_at_path should return SVNItem object")
 
     def test_add_sub_item_negative(self):
-        ''' Check the internal function _add_sub_item where is should fail '''
+        ''' Check the internal function add_sub_item where is should fail '''
         svni1 = SVNItem("TestDir", "f", 15)
         svni2 = SVNItem("SubFile", "f", 1258)
-        self.assertRaises(ValueError, svni1._add_sub_item, svni2)
+        self.assertRaises(ValueError, svni1.add_sub_item, svni2)
         self.assertRaises(ValueError, svni1.subs)
         self.assertRaises(ValueError, svni1.get_item_at_path, "SubFile")
 
