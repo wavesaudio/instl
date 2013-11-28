@@ -127,7 +127,7 @@ class SVNTree(svnItem.SVNTopItem):
         self.__flags = my.flags()
         self.__last_rev = my.last_rev()
         for sub_item in my.subs().values():
-            self._add_sub_item(sub_item)
+            self.add_sub_item(sub_item)
 
     def read_props(self, rfd, report_level=0):
         props_line_re = re.compile("""

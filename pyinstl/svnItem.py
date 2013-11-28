@@ -1,8 +1,14 @@
 #!/usr/bin/env python
+
+"""
+    SVNItem represent a single file or folder.
+    SVNTopItem is holding SVNItems without itself being part of the tree.
+"""
 from __future__ import print_function
 
 import re
 import copy
+from collections import OrderedDict
 
 
 text_line_re = re.compile(r"""
@@ -36,6 +42,8 @@ class SVNItem(object):
 
     __slots__ = ("__up", "__name", "__flags", "__last_rev", "__subs", "user_data")
     def __init__(self, in_name, in_flags, in_last_rev):
+        """ constructor """
+
         self.__up = None
         self.__name = in_name
         self.__flags = in_flags
@@ -46,14 +54,17 @@ class SVNItem(object):
         self.user_data = None
 
     def __str__(self):
+        """ __str__ representation - this is what will be written to info_map.txt files"""
         full_path_str = self.full_path()
-        retVal = "{full_path_str}, {self._SVNItem__flags}, {self._SVNItem__last_rev}".format(**locals())
+        retVal = "{}, {}, {}".format(full_path_str, self.__flags, self.__last_rev)
         return retVal
 
     def __copy__(self):
-        raise ValueError("Shallow copy not allowed for SVNItem, becaue children have pointer to parents")
+        """ __copy__ defined to prevent copying that is not deepcopy """
+        raise ValueError("Shallow copy not allowed for SVNItem, because children have pointer to parents")
 
     def __deepcopy__(self, memodict):
+        """ implement deepcopy """
         retVal = SVNItem(self.__name, self.__flags, self.__last_rev)
         if self.__subs:
             retVal.subs().update({name: copy.deepcopy(item, memodict) for name, item in self.subs().iteritems()})
@@ -62,9 +73,11 @@ class SVNItem(object):
         return retVal
 
     def __getstate__(self):
+        """ for pickling """
         return [[self.__up, self.__name, self.__flags, self.__last_rev], self.__subs]
 
     def __setstate__(self, state):
+        """ for pickling """
         self.__up = state[0][0]
         self.__name = state[0][1]
         self.__flags = state[0][2]
@@ -72,6 +85,7 @@ class SVNItem(object):
         self.__subs = state[1]
 
     def __eq__(self, other):
+        """ compare items and it's subs """
         same_name = self.name() == other.name()
         same_flags = self.flags() == other.flags()
         same_last_rev = self.last_rev() == other.last_rev()
@@ -83,32 +97,40 @@ class SVNItem(object):
         if retVal and not both_are_files:
             same_subs = self.subs() == other.subs()
             retVal = retVal and same_subs
-        #print("__eq__", "'"+self.full_path()+"'", "to", "'"+other.full_path()+"'",
-        #                "same_name:", same_name,
-        #                "same_flags:", same_flags,
-        #                "same_last_rev:", same_last_rev,
-        #                "same_subs:", same_subs,
-        #                "retVal:", retVal)
 
         return retVal
 
     def __ne__(self, other):
+        """ compare items and it's subs - pythin does not implement the default != by negating
+            the defined __eq__, so if defining __eq__, __ne__ must be also defined.
+        """
         retVal = not (self == other)
         return retVal
 
     def name(self):
+        """ return the name """
         return self.__name
 
     def last_rev(self):
+        """ return last_rev """
         return self.__last_rev
 
     def set_last_rev(self, new_last_rev):
+        """ update last_rev """
         self.__last_rev = new_last_rev
 
     def flags(self):
+        """ return flags """
         return self.__flags
 
     def set_flags(self, new_flags):
+        """ update last_rev """
+        self.__flags = new_flags
+
+    def add_flags(self, flags):
+        """ add new flags to last_rev, retaining the previous ones """
+        new_flags = "".join(sorted(set(self.__flags+flags)))
+        #print("_add_flags:", self.__flags, "+", flags, "=", new_flags)
         self.__flags = new_flags
 
     def parent(self):
@@ -187,13 +209,13 @@ class SVNItem(object):
             path_parts = at_path.split("/")
         if len(path_parts) == 1:
             retVal = SVNItem(path_parts[0], flags, last_rev)
-            self._add_sub_item(retVal)
+            self.add_sub_item(retVal)
         else:
             sub_dir_item = self.__subs.get(path_parts[0])
             if sub_dir_item is None:
                 if create_folders == True:
                     sub_dir_item = SVNItem(path_parts[0], "d", last_rev)
-                    self._add_sub_item(sub_dir_item)
+                    self.add_sub_item(sub_dir_item)
                 else:
                     raise KeyError(path_parts[0]+" is not in sub items of "+self.full_path())
             retVal = sub_dir_item.new_item_at_path(path_parts[1:], flags, last_rev, create_folders)
@@ -220,18 +242,8 @@ class SVNItem(object):
                 if folder is None:
                     self.new_item_at_path(path_parts[0:i], "d", in_item.last_rev())
         folder = self.get_item_at_path(path_parts[0:len(path_parts)])
-        retVal = folder._add_sub_item(in_item)
+        retVal = folder.add_sub_item(in_item)
         return retVal
-
-    #def duplicate_item(self, in_sub):
-    #    in_sub_path_parts = in_sub.full_path_parts()
-    #    where = self
-    #    for path_part in in_sub_path_parts[:-1]:
-    #        new_location = where.get_item_at_path(path_part)
-    #        if new_location is None:
-    #            new_location = where.new_item_at_path(path_part, "d", in_sub.last_rev())
-    #        where = new_location
-    #    where._add_sub_item(copy.deepcopy(in_sub))
 
 
     def new_item_from_str(self, the_str, create_folders=False):
@@ -249,7 +261,7 @@ class SVNItem(object):
                                   create_folders)
         return retVal
 
-    def _add_sub_item(self, in_item):
+    def add_sub_item(self, in_item):
         if not self.isDir():
             raise ValueError(self.name()+" is not a directory")
         if in_item.name() in self.__subs:
@@ -257,11 +269,6 @@ class SVNItem(object):
                 raise KeyError(in_item.name()+" replacing "+self.__subs[in_item.name()].flags()+" with "+in_item.flags())
         in_item.set_parent(self)
         self.__subs[in_item.name()] = in_item
-
-    def add_flags(self, flags):
-        new_flags = "".join(sorted(set(self.__flags+flags)))
-        #print("_add_flags:", self.__flags, "+", flags, "=", new_flags)
-        self.__flags = new_flags
 
     def sorted_sub_items(self):
         if not self.isDir():
