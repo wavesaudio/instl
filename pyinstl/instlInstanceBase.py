@@ -296,6 +296,8 @@ class InstlInstanceBase(object):
         _, extension = os.path.splitext(in_file_path)
         input_format = map_info_extension_to_format[extension[1:]]
         print("reading", input_format)
+        self.svnTree.comments.append("Original file "+in_file_path)
+        self.svnTree.comments.append("      read on "+datetime.datetime.today().isoformat())
         self.svnTree.read_from_file(in_file_path, format=input_format, report_level=1)
 
     def write_info_map_file(self):

@@ -12,6 +12,14 @@ from pyinstl.utils import *
 import aYaml
 import svnItem
 
+import re
+comment_line_re = re.compile(r"""
+            ^
+            \s*\#\s*
+            (?P<the_comment>.*)
+            $
+            """, re.X)
+
 def timing(f):
     def wrap(*args, **kwargs):
         time1 = time.time()
@@ -35,6 +43,7 @@ class SVNTree(svnItem.SVNTopItem):
                                     "yaml": self.write_as_yaml,
                                     }
         self.path_to_file = None
+        self.comments = list()
 
     """ reading """
     def valid_read_formats(self):
@@ -64,7 +73,11 @@ class SVNTree(svnItem.SVNTopItem):
 
     def read_from_text(self, rfd, report_level=0):
         for line in rfd:
-            self.new_item_from_str(line)
+            match = comment_line_re.match(line)
+            if match:
+                self.comments.append(match.group("the_comment"))
+            else:
+                self.new_item_from_str(line)
 
     def read_from_yaml(self, rfd, report_level=0):
         try:
@@ -187,6 +200,9 @@ class SVNTree(svnItem.SVNTopItem):
         pickle.dump(self, wfd, 2)
 
     def write_as_text(self, wfd, report_level=0):
+        for comment in self.comments:
+            wfd.write("# "+comment+"\n")
+        wfd.write("\n")
         for item in self.walk_items():
             wfd.write(str(item)+"\n")
 

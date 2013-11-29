@@ -267,11 +267,11 @@ class CMDObj(cmd.Cmd, object):
         num_files = self.prog_inst.svnTree.num_subs_in_tree(what="file")
         num_dirs = self.prog_inst.svnTree.num_subs_in_tree(what="dir")
         num_total = self.prog_inst.svnTree.num_subs_in_tree(what="all")
-        min_revision = 1000000000
+        min_revision = 4000000000
         max_revision = 0
         for item in self.prog_inst.svnTree.walk_items():
-            min_revision = min(min_revision, item[2])
-            max_revision = max(max_revision, item[2])
+            min_revision = min(min_revision, item.last_rev())
+            max_revision = max(max_revision, item.last_rev())
         print("Num files:", num_files)
         print("Num dirs:", num_dirs)
         print("Total items:", num_total)
@@ -337,6 +337,58 @@ class CMDObj(cmd.Cmd, object):
     def help_readinfo(self):
         print("read path_to_file")
         print("    reads an svn info file")
+
+    def do_listinfo(self, params):
+        items_to_list = list()
+        if params:
+            for param in shlex.split(params):
+                item = self.prog_inst.svnTree.get_item_at_path(param.rstrip("/"))
+                if item:
+                    items_to_list.append(item)
+                else:
+                    print("No item named:", param)
+        else:
+            items_to_list = [self.prog_inst.svnTree]
+        for item in items_to_list:
+            print(str(item))
+            if item.isDir():
+                for sub_item in item.walk_items():
+                    print(str(sub_item))
+        return False
+
+    def complete_listinfo(self, text, line, begidx, endidx):
+        complete_listinfo_line_re = re.compile("""listinfo\s+(?P<the_text>.*)""")
+        match = complete_listinfo_line_re.match(line)
+        if match:
+            text = match.group("the_text")
+        retVal = list()
+        if text.endswith("/"):
+            item = self.prog_inst.svnTree.get_item_at_path(text.rstrip("/"))
+            if item and item.isDir():
+                file_list, dir_list = item.sorted_sub_items()
+                retVal.extend([file.name() for file in file_list])
+                retVal.extend([dir.name()+"/" for dir in dir_list])
+        else:
+            item = self.prog_inst.svnTree.get_item_at_path(text)
+            if item and item.isDir():
+                file_list, dir_list = item.sorted_sub_items()
+                retVal.extend(["/"+file.name() for file in file_list])
+                retVal.extend(["/"+dir.name()+"/" for dir in dir_list])
+            else:
+                path_parts = text.split("/")
+                if len(path_parts) == 1:
+                    item = self.prog_inst.svnTree
+                else:
+                    item = self.prog_inst.svnTree.get_item_at_path(path_parts[:-1])
+                if item:
+                    file_list, dir_list = item.sorted_sub_items()
+                    retVal.extend([file.name()     for file in file_list if file.name().startswith(path_parts[-1])])
+                    retVal.extend([ dir.name()+"/" for dir  in dir_list  if dir.name().startswith(path_parts[-1])])
+        return retVal
+
+    def help_listinfo(self):
+        print("listinfo [path_to_item [...]]")
+        print("    lists items from the info map")
 
     def do_cycles(self, params):
         self.prog_inst.find_cycles()
