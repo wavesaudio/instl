@@ -57,16 +57,20 @@
 <h1>4. Architecture<a class="headerlink" href="#architecture" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="server">
 <h2>4.1. Server<a class="headerlink" href="#server" title="Permalink to this headline">¶</a></h2>
-<p>Installation install_sources are kept on a Subversion server.
+<p>Installation sources are kept on a Subversion server.
 Typically this will be a linux server running Apache web server and Subversion server.
-Such configuration can done on a dedicated server or one of the svn hosting services available.</p>
+Such configuration can done on a dedicated server or one of the svn hosting services available.
+Optionally, in order to speed up download times for users, a snapshot of the Subversion repository can be uploaded as static files to http server or cloud hosting services such as Amazon&#8217;s S3.
+The advantage of using a static snapshot is that it can be further optimize by using file caching services such as CloudFront or Akamai.</p>
 </div>
 <div class="section" id="client">
 <h2>4.2. client<a class="headerlink" href="#client" title="Permalink to this headline">¶</a></h2>
 <p>User of an installer created with <strong>instl</strong> will have to first download a package consisting of:</p>
 <blockquote>
-<div><p><strong>svn</strong> client</p>
-<p><strong>instl</strong> client</p>
+<div><p><strong>svn</strong> client - if using direct SVN access</p>
+<p>OR:</p>
+<p>downloading agent such as wget or curl. Such agent may or may not be already installed on the user&#8217;s computer.</p>
+<p><strong>instl</strong> client. The python sources of <strong>instl</strong> can be provided, but that would make the installation process depends on the user having the exact python version installed. A better choice would be to pre-compile instl using tool such as <a class="reference external" href="http://www.pyinstaller.org/">Pyinstaller</a>, and provide the user with a stand alone binary instl client.</p>
 </div></blockquote>
 </div>
 </div>

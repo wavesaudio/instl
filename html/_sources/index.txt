@@ -14,26 +14,17 @@
     **instl** is written in the python_ programming language but no knowledge of python is
     required in order to create installers or use them.
 
-    **instl** uses SubVersion_ as it's back-end database for storing installation install_sources.
+    **instl** uses SubVersion_ as it's back-end database for storing installation sources.
     Some knowledge SubVersion is required in order to setup an installer.
 
     **instl** is published as Open Source under BSD license.
 
-    Suported platforms: Mac OS X, Windows, Linux
+    Supported platforms: Mac OS X, Windows, Linux
 
-
-    Why without magic?
-        Installers created with **instl** are discoverable:
-            
-            # All processing stages are written to intermediate files and so are easy to follow and debug.
-            
-            # Install sources are stored in a Subversion repository making it possible to install the latest version, or any previous version.
-
-        
 Contents:
 
 .. toctree::
-    :maxdepth: 3
+    :maxdepth: 12
     :numbered:
 
     overview
@@ -61,4 +52,4 @@ Indices and tables
 * :ref:`search`
 
 .. _python: http://www.python.org/
-.. _SubVersion: http://subversion.tigris.org/
+.. _SubVersion: http://subversion.apache.org/
