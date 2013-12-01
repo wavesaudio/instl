@@ -25,17 +25,10 @@ class InstlInstanceSync_svn(InstlInstanceSync):
         svn_client_full_path = self.instlInstance.search_paths_helper.find_file_with_search_paths(self.instlInstance.cvl.get_str("SVN_CLIENT_PATH"))
         self.instlInstance.cvl.set_variable("SVN_CLIENT_PATH", var_description).append(svn_client_full_path)
 
-        if "REPO_REV" not in self.instlInstance.cvl:
-            self.instlInstance.cvl.set_variable("REPO_REV", var_description).append("HEAD")
-        if "BASE_SRC_URL" not in self.instlInstance.cvl:#?
-            self.instlInstance.cvl.set_variable("BASE_SRC_URL", var_description).append("$(SYNC_BASE_URL)/$(TARGET_OS)")
-
-        if "LOCAL_SYNC_DIR" not in self.instlInstance.cvl:
-            self.instlInstance.cvl.set_variable("LOCAL_SYNC_DIR", var_description).append(
-                self.instlInstance.get_default_sync_dir())
-
-        if "BOOKKEEPING_DIR_URL" not in self.instlInstance.cvl:
-            self.instlInstance.cvl.set_variable("BOOKKEEPING_DIR_URL").append("$(SYNC_BASE_URL)/instl")
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("REPO_REV", "HEAD", description=var_description)
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("BASE_SRC_URL", "$(SYNC_BASE_URL)/$(TARGET_OS)", description=var_description)
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("LOCAL_SYNC_DIR", self.instlInstance.get_default_sync_dir(), description=var_description)
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("BOOKKEEPING_DIR_URL", $(SYNC_BASE_URL)/instl, description=var_description)
         bookkeeping_relative_path = relative_url(self.instlInstance.cvl.get_str("SYNC_BASE_URL"), self.instlInstance.cvl.get_str("BOOKKEEPING_DIR_URL"))
         self.instlInstance.cvl.set_variable("REL_BOOKKIPING_PATH", var_description).append(bookkeeping_relative_path)
 

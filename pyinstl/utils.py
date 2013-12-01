@@ -90,6 +90,8 @@ class open_for_read_file_or_url(object):
     def __enter__(self):
         #print("opening", self.file_url)
         self.fd = urllib2.urlopen(self.file_url)
+        if "name" not in dir(self.fd) and "url" in dir(self.fd):
+            self.fd.name = self.fd.url # so we can get the url with the same attribute as file object
         return self.fd
 
     def __exit__(self, unused_type, unused_value, unused_traceback):

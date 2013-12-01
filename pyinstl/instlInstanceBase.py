@@ -378,8 +378,7 @@ class InstlInstanceBase(object):
             rel_sources = relative_url(self.cvl.get_str("SYNC_BASE_URL"), self.cvl.get_str("BASE_SRC_URL"))
             self.cvl.set_variable("REL_SRC_PATH", var_description).append(rel_sources)
 
-        if "LOCAL_SYNC_DIR" not in self.cvl:
-            self.cvl.set_variable("LOCAL_SYNC_DIR", var_description).append(self.get_default_sync_dir())
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("LOCAL_SYNC_DIR", self.get_default_sync_dir(), description=var_description)
 
         if "COPY_TOOL" not in self.cvl:
             from platformSpecificHelper_Base import DefaultCopyToolName

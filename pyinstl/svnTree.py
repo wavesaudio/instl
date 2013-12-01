@@ -159,20 +159,24 @@ class SVNTree(svnItem.SVNTopItem):
                     )
                     $
                     """, re.X)
-        prop_name_to_char = {'executable': 'x', 'special': 's'}
-        line_num = 0
-        item = None
-        for line in rfd:
-            line_num += 1
-            match = props_line_re.match(line)
-            if match:
-                if match.group('path'):
-                    item = self.get_item_at_path(match.group('path'))
-                elif match.group('prop_name'):
-                    item.add_flags(prop_name_to_char[match.group('prop_name')])
-                    item = None
-            else:
-                ValueError("no matach at line "+str(line_num)+": "+line)
+        try:
+            prop_name_to_char = {'executable': 'x', 'special': 's'}
+            line_num = 0
+            item = None
+            for line in rfd:
+                line_num += 1
+                match = props_line_re.match(line)
+                if match:
+                    if match.group('path'):
+                        item = self.get_item_at_path(match.group('path'))
+                    elif match.group('prop_name'):
+                        item.add_flags(prop_name_to_char[match.group('prop_name')])
+                        item = None
+                else:
+                    ValueError("no match at file: "+rfd.name+", line: "+str(line_num)+": "+line)
+        except Exception as ex:
+            print(ex)
+            raise
 
     """ writing """
     def valid_write_formats(self):
@@ -225,26 +229,32 @@ class SVNTree(svnItem.SVNTopItem):
             for each block describing a file or directory, yield
             a tuple formatted as (path, type, last changed revision).
             Where type is 'f' for file or 'd' for directory. """
-        svn_info_line_re = re.compile("""
-                    ^
-                    (?P<key>Path|Last\ Changed\ Rev|Node\ Kind)
-                    :\s*
-                    (?P<rest_of_line>.*)
-                    $
-                    """, re.X)
-        short_node_kind = {"file" : "f", "directory" : "d"}
-        record = dict()
-        for line in long_info_fd:
-            if line != "\n":
-                the_match = svn_info_line_re.match(line)
-                if the_match:
-                    record[the_match.group('key')] = the_match.group('rest_of_line')
-            else:
-                if record and record["Path"] != ".": # in case there were several empty lines between blocks
-                    yield (record["Path"], short_node_kind[record["Node Kind"]], int(record["Last Changed Rev"]))
-                record.clear()
-        if record and record["Path"] != ".": # in case there was no extra line at the end of file
-            yield (record["Path"], short_node_kind[record["Node Kind"]], int(record["Last Changed Rev"]))
+        try:
+            svn_info_line_re = re.compile("""
+                        ^
+                        (?P<key>Path|Last\ Changed\ Rev|Node\ Kind)
+                        :\s*
+                        (?P<rest_of_line>.*)
+                        $
+                        """, re.X)
+            short_node_kind = {"file" : "f", "directory" : "d"}
+            record = dict()
+            line_num = 0
+            for line in long_info_fd:
+                line_num += 1
+                if line != "\n":
+                    the_match = svn_info_line_re.match(line)
+                    if the_match:
+                        record[the_match.group('key')] = the_match.group('rest_of_line')
+                else:
+                    if record and record["Path"] != ".": # in case there were several empty lines between blocks
+                        yield (record["Path"], short_node_kind[record["Node Kind"]], int(record["Last Changed Rev"]))
+                    record.clear()
+            if record and record["Path"] != ".": # in case there was no extra line at the end of file
+                yield (record["Path"], short_node_kind[record["Node Kind"]], int(record["Last Changed Rev"]))
+        except KeyError as ke:
+            print("key error, file:", long_info_fd.name, "line:", line_num, "record:", record)
+            raise
 
 if __name__ == "__main__":
     t = SVNTree()

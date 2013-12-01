@@ -1,7 +1,7 @@
 --- !define
 
 
-REPO_REV: 194
+REPO_REV: 207
 REPRO_TYPE: "URL"
 SVN_CLIENT_PATH_FOR_Win: "C:/p4client/dev_install/bin/Win/wsvn/wsvn.exe"
 SVN_CLIENT_PATH_FOR_Mac: "/usr/local/bin/wsvn"
@@ -30,11 +30,11 @@ MAIN_INSTALL_TARGETS:
     - SG_IO_Modules_IID
     - MultiRack_SoundGrid_apps_IID
     - SG_Monitor_IID
-#    - WaveShell_WPAPI_V9_2_IID
-#    - WaveShell_WPAPI_V9_7_IID
-#    - EMO_IID
-#    - StudioRack_IID
-#    - SignalGenerator_IID
-#    - MultiRack_Plugin_Only_IID
-#    - WavesLib_9_1_IID
-#    - WavesLib_9_2_IID
+    - WaveShell_WPAPI_V9_2_IID
+    - WaveShell_WPAPI_V9_7_IID
+    - EMO_IID
+    - StudioRack_IID
+    - SignalGenerator_IID
+    - MultiRack_Plugin_Only_IID
+    - WavesLib_9_1_IID
+    - WavesLib_9_2_IID
