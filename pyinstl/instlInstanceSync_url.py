@@ -8,6 +8,8 @@ from pyinstl.log_utils import func_log_wrapper
 from pyinstl.utils import *
 from pyinstl import svnTree
 from instlInstanceSyncBase import InstlInstanceSync
+from pyinstl.instlException import InstlFatalException
+import urlparse
 
 def is_user_data_false_or_dir_empty(svn_item):
     retVal = False
@@ -60,7 +62,9 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlInstance.cvl.set_value_if_var_does_not_exist("REPO_REV_LOCAL_BOOKKEEPING_PATH", "$(LOCAL_BOOKKEEPING_PATH)/$(REPO_REV)", description=var_description)
         self.instlInstance.cvl.set_value_if_var_does_not_exist("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH", "$(REPO_REV_LOCAL_BOOKKEEPING_PATH)/remote_info_map.txt", description=var_description)
 
-        for identifier in ("SYNC_BASE_URL", "GET_URL_CLIENT_PATH", "REPO_REV", "BASE_SRC_URL", "BOOKKEEPING_DIR_URL"):
+        for identifier in ("SYNC_BASE_URL", "GET_URL_CLIENT_PATH", "REPO_REV", "BASE_SRC_URL", "LOCAL_SYNC_DIR", "BOOKKEEPING_DIR_URL",
+                           "INFO_MAP_FILE_URL", "LOCAL_BOOKKEEPING_PATH","NEW_HAVE_INFO_MAP_PATH", "REQUIRED_INFO_MAP_PATH",
+                            "TO_SYNC_INFO_MAP_PATH", "REPO_REV_LOCAL_BOOKKEEPING_PATH", "LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"):
             logging.debug("... %s: %s", identifier, self.instlInstance.cvl.get_str(identifier))
 
     @func_log_wrapper
@@ -71,17 +75,21 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.read_have_info_map()               # reads the info map of items already synced
         self.filter_out_already_synced_items()  # removes items that are already on the user's disk
         self.create_download_instructions()
-        #logging.info("... %s", out_file)
 
     @func_log_wrapper
     def read_remote_info_map(self):
         """ Reads the info map of the static files available for syncing.
             Writes the map to local sync folder for reference and debugging.
         """
-        safe_makedirs(self.instlInstance.cvl.get_str("LOCAL_BOOKKEEPING_PATH"))
-        safe_makedirs(self.instlInstance.cvl.get_str("REPO_REV_LOCAL_BOOKKEEPING_PATH"))
-        download_from_file_or_url(self.instlInstance.cvl.get_str("INFO_MAP_FILE_URL"), self.instlInstance.cvl.get_str("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"))
-        self.work_info_map.read_from_file(self.instlInstance.cvl.get_str("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"), format="text")
+        try:
+            safe_makedirs(self.instlInstance.cvl.get_str("LOCAL_BOOKKEEPING_PATH"))
+            safe_makedirs(self.instlInstance.cvl.get_str("REPO_REV_LOCAL_BOOKKEEPING_PATH"))
+            download_from_file_or_url(self.instlInstance.cvl.get_str("INFO_MAP_FILE_URL"), self.instlInstance.cvl.get_str("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"))
+            self.work_info_map.read_info_map_from_file(self.instlInstance.cvl.get_str("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"), format="text")
+        #except URLError as urlerr:
+        #    raise InstlFatalException("Failed to read", str(urlerr))
+        except:
+            raise
 
     @func_log_wrapper
     def filter_out_unrequired_items(self):
@@ -103,7 +111,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         """ Reads the map of files previously synced - if there is one.
         """
         if os.path.isfile(self.instlInstance.cvl.get_str("HAVE_INFO_MAP_PATH")):
-            self.have_map.read_from_file(self.instlInstance.cvl.get_str("HAVE_INFO_MAP_PATH"), format="text")
+            self.have_map.read_info_map_from_file(self.instlInstance.cvl.get_str("HAVE_INFO_MAP_PATH"), format="text")
 
     @func_log_wrapper
     def filter_out_already_synced_items(self):

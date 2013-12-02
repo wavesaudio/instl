@@ -298,12 +298,12 @@ class InstlInstanceBase(object):
         print("reading", input_format)
         self.svnTree.comments.append("Original file "+in_file_path)
         self.svnTree.comments.append("      read on "+datetime.datetime.today().isoformat())
-        self.svnTree.read_from_file(in_file_path, format=input_format, report_level=1)
+        self.svnTree.read_info_map_from_file(in_file_path, format=input_format)
 
     def write_info_map_file(self):
         _, extension = os.path.splitext(self.cvl.get_str("__MAIN_OUT_FILE__"))
         output_format = map_info_extension_to_format[extension[1:]]
-        self.svnTree.write_to_file(self.cvl.get_str("__MAIN_OUT_FILE__"), in_format=output_format, report_level=1)
+        self.svnTree.write_to_file(self.cvl.get_str("__MAIN_OUT_FILE__"), in_format=output_format)
 
     @func_log_wrapper
     def resolve_index_inheritance(self):
@@ -468,7 +468,7 @@ class InstlInstanceBase(object):
         retVal = list()
         source_url = "$(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)/"+source[0]
 
-        if source[1] == '!file':       # get a single file, not recommneded
+        if source[1] == '!file':       # get a single file, not recommended
             retVal.extend(self.platform_helper.copy_tool.create_copy_file_to_dir_command(source_url, "."))
         elif source[1] == '!dir_cont': # get all files and folders from a folder
             retVal.extend(self.platform_helper.copy_tool.create_copy_dir_contents_to_dir_command(source_url, "."))

@@ -7,6 +7,7 @@ import re
 import time
 from collections import namedtuple, OrderedDict
 import yaml
+import logging
 
 from pyinstl.utils import *
 import aYaml
@@ -49,29 +50,25 @@ class SVNTree(svnItem.SVNTopItem):
     def valid_read_formats(self):
         return self.read_func_by_format.keys()
 
-    def read_from_file(self, in_file, format="text", report_level=0):
+    def read_info_map_from_file(self, in_file, format="text"):
         """ format is either text, yaml, pickle
         """
         self.path_to_file = in_file
         if format in self.read_func_by_format.keys():
-            time_start = time.time()
             with open_for_read_file_or_url(self.path_to_file) as rfd:
-                if report_level > 0:
-                    print("opened file:", "'"+self.path_to_file+"'")
+                logging.info("opened %s, format: %s", self.path_to_file, format)
                 if format != "props":
                     self.clear_subs()
-                self.read_func_by_format[format](rfd, report_level)
-            time_end = time.time()
-            if report_level > 0:
-                print("    %d items read in %0.3f ms from %s file" % (self.num_subs_in_tree(), (time_end-time_start)*1000.0, format))
+                self.read_func_by_format[format](rfd)
         else:
+            logging.info("%s is not a known map_info format. Cannot read %s", format, in_file)
             ValueError("Unknown read format "+format)
 
-    def read_from_svn_info(self, rfd, report_level=0):
+    def read_from_svn_info(self, rfd):
         for item in self.iter_svn_info(rfd):
             self.new_item_at_path(*item)
 
-    def read_from_text(self, rfd, report_level=0):
+    def read_from_text(self, rfd):
         for line in rfd:
             match = comment_line_re.match(line)
             if match:
@@ -79,7 +76,7 @@ class SVNTree(svnItem.SVNTopItem):
             else:
                 self.new_item_from_str(line)
 
-    def read_from_yaml(self, rfd, report_level=0):
+    def read_from_yaml(self, rfd):
         try:
             for a_node in yaml.compose_all(rfd):
                 self.read_yaml_node(a_node)
@@ -88,7 +85,7 @@ class SVNTree(svnItem.SVNTopItem):
         except IOError as ioe:
             raise InstlException(" ".join(("Failed to read file", "'"+file_path+"'", ":")), ioe)
 
-    def pseudo_read_from_yaml(self, rfd, report_level=0):
+    def pseudo_read_from_yaml(self, rfd):
         """ read from yaml file without the yaml parser - much faster
             but might break is the format changes.
         """
@@ -133,7 +130,7 @@ class SVNTree(svnItem.SVNTopItem):
             print("exception at line:", line_num, line)
             raise
 
-    def read_from_pickle(self, rfd, report_level=0):
+    def read_from_pickle(self, rfd):
         import cPickle as pickle
         my = pickle.load(rfd) # cannot pickle to self
         self.__name = my.name()
@@ -142,7 +139,7 @@ class SVNTree(svnItem.SVNTopItem):
         for sub_item in my.subs().values():
             self.add_sub_item(sub_item)
 
-    def read_props(self, rfd, report_level=0):
+    def read_props(self, rfd):
         props_line_re = re.compile("""
                     ^
                     (
@@ -182,35 +179,31 @@ class SVNTree(svnItem.SVNTopItem):
     def valid_write_formats(self):
         return self.write_func_by_format.keys()
 
-    def write_to_file(self, in_file, in_format="text", report_level=0):
+    def write_to_file(self, in_file, in_format="text"):
         """ pass in_file="stdout" to output to stdout.
             in_format is either text, yaml, pickle
         """
         self.path_to_file = in_file
         if in_format in self.write_func_by_format.keys():
-            time_start = time.time()
             with write_to_file_or_stdout(self.path_to_file) as wfd:
-                if report_level > 0:
-                    print("opened file:", "'"+self.path_to_file+"'")
-                self.write_func_by_format[in_format](wfd, report_level)
-            time_end = time.time()
-            if report_level > 0:
-                print("    %d items written in %0.3f ms" % (self.num_subs_in_tree(), (time_end-time_start)*1000.0))
+                logging.info("opened %s, format: %s", self.path_to_file, format)
+                self.write_func_by_format[in_format](wfd)
         else:
+            logging.info("%s is not a known map_info format. Cannot write %s", format, in_file)
             ValueError("Unknown write in_format "+in_format)
 
-    def write_as_pickle(self, wfd, report_level=0):
+    def write_as_pickle(self, wfd):
         import cPickle as pickle
         pickle.dump(self, wfd, 2)
 
-    def write_as_text(self, wfd, report_level=0):
+    def write_as_text(self, wfd):
         for comment in self.comments:
             wfd.write("# "+comment+"\n")
         wfd.write("\n")
         for item in self.walk_items():
             wfd.write(str(item)+"\n")
 
-    def write_as_yaml(self, wfd, report_level=0):
+    def write_as_yaml(self, wfd):
         aYaml.augmentedYaml.writeAsYaml(self, out_stream=wfd, indentor=None, sort=True)
 
     def repr_for_yaml(self):

@@ -107,7 +107,7 @@ def download_from_file_or_url(in_url, in_local_path):
 class unique_list(list):
     """
     unique_list implements a list where all items are unique.
-    Functionality can also be decribed as set with order.
+    Functionality can also be described as set with order.
     unique_list should behave as a python list except:
         Adding items the end of the list (by append, extend) will do nothing if the
             item is already in the list.
@@ -268,4 +268,3 @@ def ParallelContinuationIter(*iterables):
     continue_iterables = map(ContinuationIter, iterables)
     for i in range(max_size):
         yield map(next, continue_iterables)
-

@@ -36,7 +36,7 @@ class TestSVNTree(unittest.TestCase):
         SVNInfoTestFile1 = os.path.join(this_dir, "SVNInfoTest1.info")
 
         tree = SVNTree()
-        tree.read_from_file(SVNInfoTestFile1, format="info")
+        tree.read_info_map_from_file(SVNInfoTestFile1, format="info")
         beforePickleFile = os.path.join(this_dir, "beforePickleFile.txt")
         tree.write_to_file(beforePickleFile, in_format="text")
 
@@ -44,7 +44,7 @@ class TestSVNTree(unittest.TestCase):
         tree.write_to_file(pickleOut, in_format="pickle")
 
         tree2 = SVNTree()
-        tree2.read_from_file(pickleOut, format="pickle")
+        tree2.read_info_map_from_file(pickleOut, format="pickle")
         afterPickleFile = os.path.join(this_dir, "afterPickleFile.txt")
         tree2.write_to_file(afterPickleFile, in_format="text")
 
@@ -54,7 +54,7 @@ class TestSVNTree(unittest.TestCase):
         this_dir, this_script = os.path.split(__file__)
         SVNInfoTestFile1 = os.path.join(this_dir, "SVNInfoTest1.info")
         tree = SVNTree()
-        tree.read_from_file(SVNInfoTestFile1, format="info")
+        tree.read_info_map_from_file(SVNInfoTestFile1, format="info")
 
         SVNInfoTestFile1Out = os.path.join(this_dir, "SVNInfoTest1.out.txt")
         tree.write_to_file(SVNInfoTestFile1Out, in_format="text")

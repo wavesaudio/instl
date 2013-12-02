@@ -3,6 +3,7 @@ from __future__ import print_function
 
 import os
 import sys
+import time
 import appdirs
 import logging
 import shlex
@@ -326,7 +327,11 @@ class CMDObj(cmd.Cmd, object):
     def do_readinfo(self, params):
         if params:
             for afile in shlex.split(params):
+                time_start = time.time()
                 self.prog_inst.read_info_map_file(afile)
+                time_end = time.time()
+                print("opened file:", "'"+afile+"'")
+                print("    %d items read in %0.3f ms" % (self.prog_inst.svnTree.num_subs_in_tree(), (time_end-time_start)*1000.0))
         else:
             self.help_read()
         return False
