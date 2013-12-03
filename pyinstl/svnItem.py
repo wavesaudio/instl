@@ -245,6 +245,17 @@ class SVNItem(object):
         retVal = folder.add_sub_item(in_item)
         return retVal
 
+    def remove_item_at_path(self, at_path):
+        path_parts = at_path
+        if isinstance(at_path, basestring):
+            path_parts = at_path.split("/")
+
+        if path_parts[0] in self.__subs:
+            if len(path_parts) == 1:
+                del (self.__subs[path_parts[0]])
+            else:
+                sub_item = self.get_item_at_path(path_parts[0])
+                self.remove_item_at_path(path_parts[1:])
 
     def new_item_from_str(self, the_str, create_folders=False):
         """ create a new a sub-item from string description.

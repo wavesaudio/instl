@@ -50,6 +50,7 @@ class CommandLineOptions(object):
         self.state_file = None
         self.todo_args = None
         self.props_file = None
+        self.filter_out = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
@@ -63,9 +64,9 @@ def prepare_args_parser():
             per line.  Remove empty lines, comment lines, and end of line comments.
             ToDo: handle quotes
         """
-        line_no_whitespce = arg_line.strip()
-        if line_no_whitespce and line_no_whitespce[0] != '#':
-            for arg in line_no_whitespce.split():
+        line_no_whitespace = arg_line.strip()
+        if line_no_whitespace and line_no_whitespace[0] != '#':
+            for arg in line_no_whitespace.split():
                 if not arg:
                     continue
                 elif  arg[0] == '#':
@@ -139,6 +140,12 @@ def prepare_args_parser():
                                     metavar='path-to-props-file',
                                     dest='props_file',
                                     help="file to read svn properties from")
+        trans_options.add_argument('--filter-out', '-f',
+                                    required=False,
+                                    nargs='+',
+                                    metavar='paths-to-filter-out',
+                                    dest='filter_out',
+                                    help="paths to filter out, comma separated")
 
         parser_version = subparsers.add_parser('version', help='display instl version')
         parser_version.set_defaults(mode='do_something')

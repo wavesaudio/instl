@@ -230,6 +230,7 @@ class InstlInstanceBase(object):
                 self.read_info_map_file(self.cvl.get_str("__MAIN_INPUT_FILE__"))
                 if "__PROPS_FILE__" in self.cvl:
                     self.read_info_map_file(self.cvl.get_str("__PROPS_FILE__"))
+                self.filter_out_info_map(self.cvl.get_list("__FILTER_OUT_PATHS__"))
                 self.write_info_map_file()
 
 
@@ -244,6 +245,8 @@ class InstlInstanceBase(object):
             self.cvl.add_const_config_variable("__MAIN_STATE_FILE__", "from command line options", cmd_line_options_obj.state_file)
         if cmd_line_options_obj.props_file:
             self.cvl.add_const_config_variable("__PROPS_FILE__", "from command line options", cmd_line_options_obj.props_file[0])
+        if cmd_line_options_obj.filter_out:
+            self.cvl.add_const_config_variable("__FILTER_OUT_PATHS__", "from command line options", *cmd_line_options_obj.filter_out)
         if cmd_line_options_obj.run:
             self.cvl.add_const_config_variable("__MAIN_RUN_INSTALLATION__", "from command line options", "yes")
         if cmd_line_options_obj.command:
@@ -295,7 +298,6 @@ class InstlInstanceBase(object):
     def read_info_map_file(self, in_file_path):
         _, extension = os.path.splitext(in_file_path)
         input_format = map_info_extension_to_format[extension[1:]]
-        print("reading", input_format)
         self.svnTree.comments.append("Original file "+in_file_path)
         self.svnTree.comments.append("      read on "+datetime.datetime.today().isoformat())
         self.svnTree.read_info_map_from_file(in_file_path, format=input_format)
@@ -304,6 +306,10 @@ class InstlInstanceBase(object):
         _, extension = os.path.splitext(self.cvl.get_str("__MAIN_OUT_FILE__"))
         output_format = map_info_extension_to_format[extension[1:]]
         self.svnTree.write_to_file(self.cvl.get_str("__MAIN_OUT_FILE__"), in_format=output_format)
+
+    def filter_out_info_map(self, paths_to_filter_out):
+        for path in paths_to_filter_out:
+            self.svnTree.remove_item_at_path(path)
 
     @func_log_wrapper
     def resolve_index_inheritance(self):
