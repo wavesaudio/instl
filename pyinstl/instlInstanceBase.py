@@ -25,7 +25,7 @@ os_second_name = current_os_names[0]
 if len(current_os_names) > 1:
     os_second_name = current_os_names[1]
 
-INSTL_VERSION=(0, 4, 0)
+INSTL_VERSION=(0, 5, 0)
 this_program_name = "instl"
 
 class InstallInstructionsState(object):
