@@ -225,11 +225,20 @@ class SVNTree(svnItem.SVNTopItem):
         try:
             svn_info_line_re = re.compile("""
                         ^
-                        (?P<key>Path|Last\ Changed\ Rev|Node\ Kind)
+                        (?P<key>Path|Last\ Changed\ Rev|Node\ Kind|Revision)
                         :\s*
                         (?P<rest_of_line>.*)
                         $
                         """, re.X)
+            def create_info_line_from_record(record):
+                """ On rare occasions there is no 'Last Changed Rev' field, just 'Revision'.
+                    So we use 'Revision' as 'Last Changed Rev'.
+                """
+                revision = record.get("Last Changed Rev", None)
+                if revision is None:
+                    revision = record.get("Revision", None)
+                return (record["Path"], short_node_kind[record["Node Kind"]], int(revision))
+
             short_node_kind = {"file" : "f", "directory" : "d"}
             record = dict()
             line_num = 0
@@ -241,10 +250,10 @@ class SVNTree(svnItem.SVNTopItem):
                         record[the_match.group('key')] = the_match.group('rest_of_line')
                 else:
                     if record and record["Path"] != ".": # in case there were several empty lines between blocks
-                        yield (record["Path"], short_node_kind[record["Node Kind"]], int(record["Last Changed Rev"]))
+                        yield create_info_line_from_record(record)
                     record.clear()
             if record and record["Path"] != ".": # in case there was no extra line at the end of file
-                yield (record["Path"], short_node_kind[record["Node Kind"]], int(record["Last Changed Rev"]))
+                yield create_info_line_from_record(record)
         except KeyError as ke:
             print("key error, file:", long_info_fd.name, "line:", line_num, "record:", record)
             raise
