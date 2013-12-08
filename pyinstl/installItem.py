@@ -77,12 +77,12 @@ def read_index_from_yaml(all_items_node):
 class InstallItem(object):
     __slots__ = ('iid', 'name', 'guid',
                 'remark', "description", 'inherit',
-                '__set_for_os', '__items', '__resolved_inherit')
+                '__set_for_os', '__items', '__resolved_inherit',
+                'implicit_default_os_names')
     os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
     item_types = ('install_sources', 'install_folders', 'depends', 'actions')
     action_types = ('folder_in', 'before', 'after', 'folder_out')
     file_types = ('!dir_cont', '!files', '!file', '!dir')
-    get_for_os_names = current_os_names
     resolve_inheritance_stack = list()
 
     @staticmethod
@@ -114,6 +114,7 @@ class InstallItem(object):
         self.inherit = unique_list()
         self.__set_for_os = [InstallItem.os_names[0]] # reading for all platforms ('common') or for which specific platforms ('Mac', 'Win')?
         self.__items = defaultdict(InstallItem.create_items_section)
+        implicit_default_os_names = current_os_names # get info for these os names, unless explicit other list is given
 
     def read_from_yaml_by_idd(self, IID, all_items_node):
         my_node = all_items_node[IID]
@@ -162,6 +163,8 @@ class InstallItem(object):
             returned is s list that combines the 'common' section with the section
             for the specific os.
         """
+        if for_os_names is None:
+            for_os_names = self.implicit_default_os_names
         retVal = unique_list()
         retVal.extend(self.__items[InstallItem.os_names[0]][which_items])
         for os_ in for_os_names:
@@ -180,20 +183,20 @@ class InstallItem(object):
             file_type = '!dir'
         self.__add_some_item('install_sources', (new_source, file_type) )
 
-    def source_list(self):
-        return self.__some_items_list('install_sources', InstallItem.get_for_os_names)
+    def source_list(self, for_which_oses=None):
+        return self.__some_items_list('install_sources', for_which_oses)
 
     def add_folder(self, new_folder):
         self.__add_some_item('install_folders', new_folder )
 
-    def folder_list(self):
-        return self.__some_items_list('install_folders', InstallItem.get_for_os_names)
+    def folder_list(self, for_which_oses=None):
+        return self.__some_items_list('install_folders', for_which_oses)
 
     def add_depend(self, new_depend):
         self.__add_some_item('depends', new_depend )
 
-    def depend_list(self):
-        return self.__some_items_list('depends', InstallItem.get_for_os_names)
+    def depend_list(self, for_which_oses=None):
+        return self.__some_items_list('depends', for_which_oses)
 
     def add_action(self, action_type, new_action):
         if action_type not in InstallItem.action_types:
@@ -205,10 +208,10 @@ class InstallItem(object):
             for action in new_actions:
                 self.add_action(action_type, action.value)
 
-    def action_list(self, action_type):
+    def action_list(self, action_type, for_which_oses=None):
         if action_type not in InstallItem.action_types:
             raise KeyError("actions type must be one of: "+str(InstallItem.action_types)+" not "+action_type)
-        return self.__some_items_list(action_type, InstallItem.get_for_os_names)
+        return self.__some_items_list(action_type, for_which_oses)
 
     def get_recursive_depends(self, items_map, out_set, orphan_set):
         if self.iid not in out_set:
