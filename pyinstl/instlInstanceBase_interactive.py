@@ -16,6 +16,8 @@ if current_os == 'Darwin':
     current_os = 'Mac'
 elif current_os == 'Windows':
     current_os = 'Win'
+elif current_os == 'Linux':
+    current_os = 'Linux'
 
 try:
     import cmd

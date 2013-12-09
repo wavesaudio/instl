@@ -35,6 +35,8 @@ def get_current_os_names():
             retVal = ('Win', 'Win64')
         else:
             retVal = ('Win', 'Win32')
+    elif current_os == 'Linux':
+        retVal = ('Linux',)
     return retVal
 
 class write_to_file_or_stdout(object):

@@ -18,6 +18,9 @@ if current_os == 'Darwin':
 elif current_os == 'Windows':
     def DereferenceVar(in_var):
         return "".join(("%", in_var, "%"))
+elif current_os == 'Linux':
+    def DereferenceVar(in_var):
+        return "".join(("${", in_var, "}"))
 
 
 class ConfigVar(object):

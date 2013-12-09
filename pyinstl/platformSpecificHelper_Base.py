@@ -8,6 +8,8 @@ def DefaultCopyToolName(target_os):
         retVal = "robocopy"
     elif target_os == "Mac":
         retVal = "rsync"
+    elif target_os == 'Linux':
+        retVal = "rsync"
     else:
         raise ValueError(target_os, "has no valid default copy tool")
     return retVal
