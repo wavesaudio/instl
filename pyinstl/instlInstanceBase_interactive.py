@@ -66,11 +66,11 @@ def insensitive_glob(pattern):
 
 this_program_name = instlInstanceBase.this_program_name
 
-def go_interactive(prog_inst):
+def go_interactive(client, admin):
     try:
         instlInstanceBase.InstlInstanceBase.create_completion_list = create_completion_list_imp
         instlInstanceBase.InstlInstanceBase.do_list = do_list_imp
-        with CMDObj(prog_inst) as icmd:
+        with CMDObj(client, admin) as icmd:
             icmd.cmdloop()
     except Exception as es:
         import traceback
@@ -85,9 +85,10 @@ def restart_program():
     os.execl(python, python, * sys.argv)
 
 class CMDObj(cmd.Cmd, object):
-    def __init__(self, prog_inst):
+    def __init__(self, client, admin):
         cmd.Cmd.__init__(self)
-        self.prog_inst = prog_inst
+        self.client_prog_inst = client
+        self.admin_prog_inst = admin
         self.restart = False
 
     def __enter__(self):
@@ -196,9 +197,9 @@ class CMDObj(cmd.Cmd, object):
             The returned disctionary can be used in replace_all_from_dict() for "coloring" the text before output to stdcout.
         """
         retVal = dict()
-        defs = self.prog_inst.create_completion_list("define")
-        index = self.prog_inst.create_completion_list("index")
-        guids = self.prog_inst.create_completion_list("guid")
+        defs = self.client_prog_inst.create_completion_list("define")
+        index = self.client_prog_inst.create_completion_list("index")
+        guids = self.client_prog_inst.create_completion_list("guid")
 
         retVal.update({"$("+identi+")": text_with_color("$("+identi+")", "blue")    for identi in defs})
         retVal.update({identi+":":      text_with_color(identi, "green")+":"        for identi in defs})
@@ -227,11 +228,11 @@ class CMDObj(cmd.Cmd, object):
             for param in params.split():
                 identifier_list = self.complete_list(param, params, 0, 0)
                 if identifier_list:
-                    self.prog_inst.do_list(identifier_list, out_list)
+                    self.client_prog_inst.do_list(identifier_list, out_list)
                 else:
                     print("Unknown identifier:", param)
         else:
-            self.prog_inst.do_list(None, out_list)
+            self.client_prog_inst.do_list(None, out_list)
         joined_list = "".join(out_list.list()).encode('ascii','ignore') # just in case some unicode got in...
         colored_string = self.color_vars(joined_list)
         sys.stdout.write(colored_string)
@@ -240,7 +241,7 @@ class CMDObj(cmd.Cmd, object):
     def indentifier_completion_list(self, text, line, begidx, endidx):
         matches = []
         if text:
-            completion_list = self.prog_inst.create_completion_list()
+            completion_list = self.client_prog_inst.create_completion_list()
             if completion_list:
                 matches.extend([s for s in completion_list
                          if s and s.lower().startswith(text.lower())])
@@ -267,12 +268,12 @@ class CMDObj(cmd.Cmd, object):
         print( "    lists all definitions, index & guid entries" )
 
     def do_statistics(self, params):
-        num_files = self.prog_inst.svnTree.num_subs_in_tree(what="file")
-        num_dirs = self.prog_inst.svnTree.num_subs_in_tree(what="dir")
-        num_total = self.prog_inst.svnTree.num_subs_in_tree(what="all")
+        num_files = self.admin_prog_inst.svnTree.num_subs_in_tree(what="file")
+        num_dirs = self.admin_prog_inst.svnTree.num_subs_in_tree(what="dir")
+        num_total = self.admin_prog_inst.svnTree.num_subs_in_tree(what="all")
         min_revision = 4000000000
         max_revision = 0
-        for item in self.prog_inst.svnTree.walk_items():
+        for item in self.admin_prog_inst.svnTree.walk_items():
             min_revision = min(min_revision, item.last_rev())
             max_revision = max(max_revision, item.last_rev())
         print("Num files:", num_files)
@@ -285,7 +286,7 @@ class CMDObj(cmd.Cmd, object):
         if params:
             params = shlex.split(params)
             identi, values = params[0], params[1:]
-            self.prog_inst.cvl.set_variable(identi, "set interactively").extend(values)
+            self.client_prog_inst.cvl.set_variable(identi, "set interactively").extend(values)
             self.do_list(identi)
         return False
 
@@ -298,7 +299,7 @@ class CMDObj(cmd.Cmd, object):
 
     def do_del(self, params):
         for identi in params.split():
-            del self.prog_inst.cvl[identi]
+            del self.client_prog_inst.cvl[identi]
         return False
 
     def complete_del(self, text, line, begidx, endidx):
@@ -312,7 +313,7 @@ class CMDObj(cmd.Cmd, object):
         if params:
             for afile in shlex.split(params):
                 try:
-                    self.prog_inst.read_yaml_file(afile)
+                    self.client_prog_inst.read_yaml_file(afile)
                 except Exception as ex:
                     print("read", afile, ex)
         else:
@@ -330,10 +331,10 @@ class CMDObj(cmd.Cmd, object):
         if params:
             for afile in shlex.split(params):
                 time_start = time.time()
-                self.prog_inst.read_info_map_file(afile)
+                self.admin_prog_inst.read_info_map_file(afile)
                 time_end = time.time()
                 print("opened file:", "'"+afile+"'")
-                print("    %d items read in %0.3f ms" % (self.prog_inst.svnTree.num_subs_in_tree(), (time_end-time_start)*1000.0))
+                print("    %d items read in %0.3f ms" % (self.admin_prog_inst.svnTree.num_subs_in_tree(), (time_end-time_start)*1000.0))
         else:
             self.help_read()
         return False
@@ -349,13 +350,13 @@ class CMDObj(cmd.Cmd, object):
         items_to_list = list()
         if params:
             for param in shlex.split(params):
-                item = self.prog_inst.svnTree.get_item_at_path(param.rstrip("/"))
+                item = self.admin_prog_inst.svnTree.get_item_at_path(param.rstrip("/"))
                 if item:
                     items_to_list.append(item)
                 else:
                     print("No item named:", param)
         else:
-            items_to_list = [self.prog_inst.svnTree]
+            items_to_list = [self.admin_prog_inst.svnTree]
         for item in items_to_list:
             print(str(item))
             if item.isDir():
@@ -370,13 +371,13 @@ class CMDObj(cmd.Cmd, object):
             text = match.group("the_text")
         retVal = list()
         if text.endswith("/"):
-            item = self.prog_inst.svnTree.get_item_at_path(text.rstrip("/"))
+            item = self.admin_prog_inst.svnTree.get_item_at_path(text.rstrip("/"))
             if item and item.isDir():
                 file_list, dir_list = item.sorted_sub_items()
                 retVal.extend([file.name() for file in file_list])
                 retVal.extend([dir.name()+"/" for dir in dir_list])
         else:
-            item = self.prog_inst.svnTree.get_item_at_path(text)
+            item = self.admin_prog_inst.svnTree.get_item_at_path(text)
             if item and item.isDir():
                 file_list, dir_list = item.sorted_sub_items()
                 retVal.extend(["/"+file.name() for file in file_list])
@@ -384,9 +385,9 @@ class CMDObj(cmd.Cmd, object):
             else:
                 path_parts = text.split("/")
                 if len(path_parts) == 1:
-                    item = self.prog_inst.svnTree
+                    item = self.admin_prog_inst.svnTree
                 else:
-                    item = self.prog_inst.svnTree.get_item_at_path(path_parts[:-1])
+                    item = self.admin_prog_inst.svnTree.get_item_at_path(path_parts[:-1])
                 if item:
                     file_list, dir_list = item.sorted_sub_items()
                     retVal.extend([file.name()     for file in file_list if file.name().startswith(path_parts[-1])])
@@ -398,7 +399,7 @@ class CMDObj(cmd.Cmd, object):
         print("    lists items from the info map")
 
     def do_cycles(self, params):
-        self.prog_inst.find_cycles()
+        self.client_prog_inst.find_cycles()
         return False
 
     def help_cycles(self):
@@ -407,11 +408,11 @@ class CMDObj(cmd.Cmd, object):
     def do_depend(self, params):
         if params:
             for param in shlex.split(params):
-                if param not in self.prog_inst.install_definitions_index:
+                if param not in self.client_prog_inst.install_definitions_index:
                     print(text_with_color(param, 'green'), "not in index")
                     continue
                 depend_list = list()
-                self.prog_inst.needs(param, depend_list)
+                self.client_prog_inst.needs(param, depend_list)
                 if not depend_list:
                     depend_list = ("no one",)
                 depend_text_list = list()
@@ -421,7 +422,7 @@ class CMDObj(cmd.Cmd, object):
                     else:
                         depend_text_list.append(text_with_color(depend, 'yellow'))
                 print (text_with_color(param, 'green'), "needs:\n    ", ", ".join(depend_text_list))
-                needed_by_list = self.prog_inst.needed_by(param)
+                needed_by_list = self.client_prog_inst.needed_by(param)
                 if needed_by_list is None:
                     print("could not get needed by list for", text_with_color(param, 'green'))
                 else:
@@ -462,9 +463,9 @@ class CMDObj(cmd.Cmd, object):
         out_file = "stdout"
         if params:
             out_file = params
-        self.prog_inst.cvl.set_variable("__MAIN_OUT_FILE__").append(out_file)
-        self.prog_inst.cvl.set_variable("__MAIN_COMMAND__").append("sync")
-        self.prog_inst.do_command()
+        self.client_prog_inst.cvl.set_variable("__MAIN_OUT_FILE__").append(out_file)
+        self.client_prog_inst.cvl.set_variable("__MAIN_COMMAND__").append("sync")
+        self.client_prog_inst.do_command()
         return False
     
     def help_sync(self):
@@ -475,9 +476,9 @@ class CMDObj(cmd.Cmd, object):
         out_file = "stdout"
         if params:
             out_file = params
-        self.prog_inst.cvl.set_variable("__MAIN_OUT_FILE__").append(out_file)
-        self.prog_inst.cvl.set_variable("__MAIN_COMMAND__").append("copy")
-        self.prog_inst.do_command()
+        self.client_prog_inst.cvl.set_variable("__MAIN_OUT_FILE__").append(out_file)
+        self.client_prog_inst.cvl.set_variable("__MAIN_COMMAND__").append("copy")
+        self.client_prog_inst.do_command()
         return False
     
     def help_copy(self):
@@ -485,7 +486,7 @@ class CMDObj(cmd.Cmd, object):
         print("    write copy commands to stdout or to file_name if given")
 
     def do_version(self, params):
-        print(" ".join( (this_program_name, "version", ".".join(self.prog_inst.cvl.get_list("__INSTL_VERSION__")))))
+        print(" ".join( (this_program_name, "version", ".".join(self.client_prog_inst.cvl.get_list("__INSTL_VERSION__")))))
         return False
     def help_version(self):
         print("version: print", instlInstanceBase.this_program_name, "version")
@@ -556,7 +557,7 @@ class CMDObj(cmd.Cmd, object):
                         pyinstl.log_utils.teardown_file_logging(debug_log_file_path, pyinstl.log_utils.default_logging_level)
                     except:
                         pass
-                self.prog_inst.cvl.get_configVar_obj("LOG_DEBUG_FILE")[2] = pyinstl.log_utils.debug_logging_started
+                self.client_prog_inst.cvl.get_configVar_obj("LOG_DEBUG_FILE")[2] = pyinstl.log_utils.debug_logging_started
         self.report_logging_state()
     
     def help_log(self):
@@ -571,7 +572,7 @@ class CMDObj(cmd.Cmd, object):
         return False
 
     def help_eval(self):
-        print("evaluate python expressions, instlInstance is accessible as self.prog_inst")
+        print("evaluate python expressions, instlInstance is accessible as self.client_prog_inst")
 
 def compact_history():
     if hasattr(readline, "replace_history_item"):

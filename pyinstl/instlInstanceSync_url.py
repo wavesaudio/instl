@@ -173,32 +173,32 @@ class InstlInstanceSync_url(InstlInstanceSync):
         num_files = self.work_info_map.num_subs_in_tree(what="file")
         self.num_items_for_progress_report = num_files + 1 # one for a dummy first item
         self.current_item_for_progress_report = 0
-        self.installState.append_instructions('sync', self.instlInstance.platform_helper.create_echo_command("Progress: synced {self.current_item_for_progress_report} of {self.num_items_for_progress_report}; from $(BASE_SRC_URL)".format(**locals())))
+        self.instlInstance.batch_accum.append_instructions('sync', self.instlInstance.platform_helper.create_echo_command("Progress: synced {self.current_item_for_progress_report} of {self.num_items_for_progress_report}; from $(BASE_SRC_URL)".format(**locals())))
         self.current_item_for_progress_report += 1
-        self.installState.extend_instructions('sync', self.instlInstance.platform_helper.make_directory_cmd("$(LOCAL_SYNC_DIR)"))
-        self.installState.extend_instructions('sync', self.instlInstance.platform_helper.change_directory_cmd("$(LOCAL_SYNC_DIR)"))
-        self.installState.indent_level += 1
+        self.instlInstance.batch_accum.extend_instructions('sync', self.instlInstance.platform_helper.make_directory_cmd("$(LOCAL_SYNC_DIR)"))
+        self.instlInstance.batch_accum.extend_instructions('sync', self.instlInstance.platform_helper.change_directory_cmd("$(LOCAL_SYNC_DIR)"))
+        self.instlInstance.batch_accum.indent_level += 1
         file_list, dir_list = self.work_info_map.sorted_sub_items()
         for need_item in file_list + dir_list:
             self.create_download_instructions_for_item(need_item)
-        self.installState.indent_level -= 1
-        self.installState.append_instructions('sync', self.instlInstance.platform_helper.create_echo_command("Progress: synced {self.current_item_for_progress_report} of {self.num_items_for_progress_report};  from $(BASE_SRC_URL)".format(**locals())))
-        self.installState.extend_instructions('sync', self.instlInstance.platform_helper.create_copy_file_to_file_command("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)"))
+        self.instlInstance.batch_accum.indent_level -= 1
+        self.instlInstance.batch_accum.append_instructions('sync', self.instlInstance.platform_helper.create_echo_command("Progress: synced {self.current_item_for_progress_report} of {self.num_items_for_progress_report};  from $(BASE_SRC_URL)".format(**locals())))
+        self.instlInstance.batch_accum.extend_instructions('sync', self.instlInstance.platform_helper.create_copy_file_to_file_command("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)"))
 
     def create_download_instructions_for_item(self, item, path_so_far = list()):
         if item.isFile():
             source_url =   '/'.join( ["$(SYNC_BASE_URL)", str(item.last_rev())] + path_so_far + [item.name()] )
-            self.installState.extend_instructions('sync', self.instlInstance.platform_helper.dl_tool.create_download_file_to_file_command(source_url, item.name()))
-            self.installState.append_instructions('sync', self.instlInstance.platform_helper.create_echo_command("Progress: synced {self.current_item_for_progress_report} of {self.num_items_for_progress_report};".format(**locals())))
+            self.instlInstance.batch_accum.extend_instructions('sync', self.instlInstance.platform_helper.dl_tool.create_download_file_to_file_command(source_url, item.name()))
+            self.instlInstance.batch_accum.append_instructions('sync', self.instlInstance.platform_helper.create_echo_command("Progress: synced {self.current_item_for_progress_report} of {self.num_items_for_progress_report};".format(**locals())))
             self.current_item_for_progress_report += 1
         elif item.isDir():
             path_so_far.append(item.name())
-            self.installState.extend_instructions('sync', self.instlInstance.platform_helper.make_directory_cmd(item.name()))
-            self.installState.extend_instructions('sync', self.instlInstance.platform_helper.change_directory_cmd(item.name()))
-            self.installState.indent_level += 1
+            self.instlInstance.batch_accum.extend_instructions('sync', self.instlInstance.platform_helper.make_directory_cmd(item.name()))
+            self.instlInstance.batch_accum.extend_instructions('sync', self.instlInstance.platform_helper.change_directory_cmd(item.name()))
+            self.instlInstance.batch_accum.indent_level += 1
             file_list, dir_list = item.sorted_sub_items()
             for sub_item in file_list + dir_list:
                 self.create_download_instructions_for_item(sub_item, path_so_far)
-            self.installState.indent_level -= 1
-            self.installState.extend_instructions('sync', self.instlInstance.platform_helper.change_directory_cmd(".."))
+            self.instlInstance.batch_accum.indent_level -= 1
+            self.instlInstance.batch_accum.extend_instructions('sync', self.instlInstance.platform_helper.change_directory_cmd(".."))
             path_so_far.pop()

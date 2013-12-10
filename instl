@@ -25,7 +25,9 @@ os_family_name = current_os_names[0]
 os_second_name = current_os_names[0]
 if len(current_os_names) > 1:
     os_second_name = current_os_names[1]
-from pyinstl.instlInstanceBase import InstlInstanceBase
+
+from pyinstl.instlClient import InstlClient
+from pyinstl.instlAdmin import InstlAdmin
 
 def get_path_to_instl_app():
     """
@@ -51,6 +53,9 @@ class CommandLineOptions(object):
         self.todo_args = None
         self.props_file = None
         self.filter_out = None
+        self.svn_url = None
+        self.root_links_folder = None
+        self.repo_rev = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
@@ -89,9 +94,22 @@ def prepare_args_parser():
                                         folder and copy files from temp folder to target paths')
     parser_trans = subparsers.add_parser('trans',
                                         help='translate svn map files from one format to another')
+    parser_createlinks = subparsers.add_parser('createlinks',
+                                        help='create links from the base SVN checkout folder for a specific version')
+
+    # add --out to parsers that need it
+    for subparser in (parser_sync, parser_copy, parser_synccopy, parser_trans, parser_createlinks):
+        standard_options = subparser.add_argument_group(description='standard arguments:')
+        standard_options.add_argument('--out', '-o',
+                                    required=True,
+                                    nargs=1,
+                                    metavar='path-to-output-file',
+                                    dest='output_file',
+                                    help="out put file")
+
 
     for subparser in (parser_sync, parser_copy, parser_synccopy):
-        subparser.set_defaults(mode='batch')
+        subparser.set_defaults(mode='client')
         standard_options = subparser.add_argument_group(description='standard arguments:')
         standard_options.add_argument('--in', '-i',
                                     required=True,
@@ -99,12 +117,6 @@ def prepare_args_parser():
                                     metavar='list-of-input-files',
                                     dest='input_file',
                                     help="file(s) to read index and definitions from")
-        standard_options.add_argument('--out', '-o',
-                                    required=True,
-                                    nargs=1,
-                                    metavar='path-to-output-file',
-                                    dest='output_file',
-                                    help="a file to write sync/copy instructions")
         standard_options.add_argument('--run', '-r',
                                     required=False,
                                     default=False,
@@ -120,7 +132,7 @@ def prepare_args_parser():
                                     help="a file to write program state - good for debugging")
 
     for subparser in (parser_trans, ):
-        subparser.set_defaults(mode='batch')
+        subparser.set_defaults(mode='admin')
         trans_options = subparser.add_argument_group(description='translate arguments:')
         trans_options.add_argument('--in', '-i',
                                     required=True,
@@ -128,12 +140,6 @@ def prepare_args_parser():
                                     metavar='list-of-input-file',
                                     dest='input_file',
                                     help="file to read svn information from")
-        trans_options.add_argument('--out', '-o',
-                                    required=True,
-                                    nargs=1,
-                                    metavar='path-to-output-file',
-                                    dest='output_file',
-                                    help="file to write svn information to")
         trans_options.add_argument('--props', '-p',
                                     required=False,
                                     nargs=1,
@@ -146,6 +152,28 @@ def prepare_args_parser():
                                     metavar='paths-to-filter-out',
                                     dest='filter_out',
                                     help="paths to filter out, comma separated")
+
+    for subparser in (parser_createlinks, ):
+        subparser.set_defaults(mode='admin')
+        trans_options = subparser.add_argument_group(description='createlinks arguments:')
+        trans_options.add_argument('--url', '-u',
+                                    required=True,
+                                    nargs=1,
+                                    metavar='url-to-svn-repository',
+                                    dest='svn_url',
+                                    help="url to svn repository")
+        trans_options.add_argument('--root', '-r',
+                                    required=True,
+                                    nargs=1,
+                                    metavar='root-links-folder',
+                                    dest='root_links_folder',
+                                    help="root links folder ")
+        trans_options.add_argument('--revision', '-v',
+                                    required=True,
+                                    nargs=1,
+                                    metavar='repository-revision',
+                                    dest='repo_rev',
+                                    help="file to read svn properties from")
 
         parser_version = subparsers.add_parser('version', help='display instl version')
         parser_version.set_defaults(mode='do_something')
@@ -193,19 +221,31 @@ def read_command_line_options(name_space_obj, arglist=None):
 
 @pyinstl.log_utils.func_log_wrapper
 def main():
-    """ Main instl entry point. Reads command line options and decides if to go into interactive or batch mode.
+    """ Main instl entry point. Reads command line options and decides if to go into interactive or client mode.
     """
     try:
         initial_vars = {"__INSTL_EXE_PATH__": get_path_to_instl_app()}
         options = CommandLineOptions()
         read_command_line_options(options, sys.argv[1:])
-        instance = InstlInstanceBase(initial_vars)
-        instance.init_from_cmd_line_options(options)
-        if options.mode == "batch":
+        if options.mode == "client":
+            from pyinstl.instlClient import InstlClient
+            instance = InstlClient(initial_vars)
+            instance.init_from_cmd_line_options(options)
+            instance.do_command()
+        if options.mode == "admin":
+            from pyinstl.instlAdmin import InstlAdmin
+            instance = InstlAdmin(initial_vars)
+            instance.init_from_cmd_line_options(options)
             instance.do_command()
         elif options.mode == "interactive":
+            from pyinstl.instlClient import InstlClient
+            client = InstlClient(initial_vars)
+            client.init_from_cmd_line_options(options)
+            from pyinstl.instlAdmin import InstlAdmin
             from pyinstl.instlInstanceBase_interactive import go_interactive
-            go_interactive(instance)
+            admin = InstlAdmin(initial_vars)
+            admin.init_from_cmd_line_options(options)
+            go_interactive(client, admin)
     except InstlException as instl_except:
         print("instl exception", instl_except.message)
         from pyinstl.log_utils import debug_logging_started
