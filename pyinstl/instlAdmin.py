@@ -1,12 +1,8 @@
 #!/usr/bin/env python2.7
 
 from __future__ import print_function
-from collections import OrderedDict, defaultdict
-#import yaml
-import logging
 import datetime
 
-from instlException import InstlException
 from pyinstl.log_utils import func_log_wrapper
 from pyinstl.utils import *
 

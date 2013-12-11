@@ -55,6 +55,7 @@ import platform
 from collections import OrderedDict, defaultdict
 
 sys.path.append("..")
+import yaml
 from aYaml import augmentedYaml
 from pyinstl.utils import *
 
@@ -62,7 +63,7 @@ current_os_names = get_current_os_names()
 os_family_name = current_os_names[0]
 
 def read_index_from_yaml(all_items_node):
-    retVal = dict() #OrderedDict()
+    retVal = dict()
     for IID in all_items_node.iterkeys():
         if IID in retVal:
             pass#print(IID, "already in all_items_node")
@@ -101,11 +102,40 @@ class InstallItem(object):
             raise
 
     @staticmethod
+    def begin_get_for_all_oses():
+        """ adds all known os names to the list of os that will influence all get functions
+            such as depend_list, source_list etc.
+            This is a static method so it will influence all InstallItem objects.
+            This method is useful in code that does reporting or analyzing, where
+            there is need to have access to all oses not just the current or target os.
+        """
+        InstallItem._get_for_os = []
+        InstallItem._get_for_os.extend(InstallItem.os_names)
+
+    @staticmethod
+    def reset_get_for_all_oses():
+        """ resets the list of os that will influence all get functions
+            such as depend_list, source_list etc.
+            This is a static method so it will influence all InstallItem objects.
+            This method is useful in code that does reporting or analyzing, where
+            there is need to have access to all oses not just the current or target os.
+        """
+        InstallItem._get_for_os = [InstallItem.os_names[0]]
+
+    @staticmethod
     def begin_get_for_specific_os(for_os):
+        """ adds another os name to the list of os that will influence all get functions
+            such as depend_list, source_list etc.
+            This is a static method so it will influence all InstallItem objects.
+        """
         InstallItem._get_for_os.append(for_os)
 
     @staticmethod
     def end_get_for_specific_os():
+        """ removed the last added os name to the list of os that will influence all get functions
+            such as depend_list, source_list etc.
+             This is a static method so it will influence all InstallItem objects.
+        """
         InstallItem._get_for_os.pop()
 
     def merge_all_item_sections(self, otherInstallItem):
@@ -131,7 +161,8 @@ class InstallItem(object):
 
     def read_from_yaml(self, my_node):
         if 'inherit' in my_node:
-            for inheritoree in my_node['inherit'].value:
+            inherite_node = my_node['inherit']
+            for inheritoree in inherite_node:
                 self.add_inherit(inheritoree.value)
         if 'name' in my_node:
             self.name = my_node['name'].value
@@ -317,10 +348,10 @@ class InstallItem(object):
 
 """
             if 'inherit' in my_node:
-                for inheritIDD in my_node['inherit']:
+                for inheritIDD in inherite_node:
                     try:
                         self.read_from_yaml_by_idd(inheritIDD.value, all_items_node)
                     except KeyError as ke:
-                        missingIDDMessage = "While reading "+IID+", Inheritance IID '"+ke.message+" " +my_node['inherit'].start_mark
+                        missingIDDMessage = "While reading "+IID+", Inheritance IID '"+ke.message+" " +inherite_node.start_mark
                         raise KeyError(missingIDDMessage)
 """

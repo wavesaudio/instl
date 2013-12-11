@@ -181,6 +181,10 @@ class unique_list(list):
         """ Overriding count is not required - just more efficient """
         return self.__attendance.count(item)
 
+class set_with_order(unique_list):
+    """ Just another name for unique_list """
+    def __init__(self, initial_list=()):
+        super(set_with_order, self).__init__(initial_list)
 
 def print_var(var_name):
     calling_frame = sys._getframe().f_back

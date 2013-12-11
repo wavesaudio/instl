@@ -4,12 +4,11 @@ from __future__ import print_function
 from collections import OrderedDict, defaultdict
 import yaml
 import logging
-import datetime
 
 from instlException import InstlException
 from pyinstl.log_utils import func_log_wrapper
 from pyinstl.utils import *
-from installItem import read_index_from_yaml
+from installItem import read_index_from_yaml, InstallItem
 from aYaml import augmentedYaml
 
 from instlInstanceBase import InstlInstanceBase
@@ -314,19 +313,23 @@ class InstlClient(InstlInstanceBase):
         """ return all items that depend on iid """
         if iid not in self.install_definitions_index:
             raise KeyError(iid+" is not in index")
+        InstallItem.begin_get_for_all_oses()
         for dep in self.install_definitions_index[iid].depend_list():
             if dep in self.install_definitions_index:
                 out_list.append(dep)
                 self.needs(dep, out_list)
             else:
                 out_list.append(dep+"(missing)")
+        InstallItem.reset_get_for_all_oses()
 
     @func_log_wrapper
     def needed_by(self, iid):
         try:
             from pyinstl import installItemGraph
+            InstallItem.begin_get_for_all_oses()
             graph = installItemGraph.create_dependencies_graph(self.install_definitions_index)
             needed_by_list = installItemGraph.find_needed_by(graph, iid)
+            InstallItem.reset_get_for_all_oses()
             return needed_by_list
         except ImportError: # no installItemGraph, no worry
             print("Could not load installItemGraph")

@@ -1,11 +1,9 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 import abc
-from collections import OrderedDict, defaultdict
 import logging
 import datetime
 
-import yaml
 import appdirs
 
 import pyinstl.log_utils

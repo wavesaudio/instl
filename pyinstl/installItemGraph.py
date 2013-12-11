@@ -1,5 +1,6 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
+from pyinstl.utils import *
 
 try:
     import networkx as nx
@@ -33,4 +34,11 @@ def find_leafs(item_graph):
     return retVal
 
 def find_needed_by(item_graph, node):
-    return item_graph.predecessors(node)
+    retVal = set_with_order()
+    if node in item_graph:
+        preds = item_graph.predecessors(node)
+        for pred in preds:
+            if pred not in retVal:
+                retVal.append(pred)
+                retVal.extend(find_needed_by(item_graph, pred))
+    return retVal
