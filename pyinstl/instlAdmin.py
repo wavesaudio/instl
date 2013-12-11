@@ -55,4 +55,48 @@ class InstlAdmin(InstlInstanceBase):
             self.svnTree.remove_item_at_path(path)
 
     def create_links(self):
-        print("createlinks", self.cvl.get_str("__SVN_URL__"), self.cvl.get_str("__ROOT_LINKS_FOLDER__"), self.cvl.get_str("__REPO_REV__"))
+        if "COPY_TOOL" not in self.cvl:
+            from platformSpecificHelper_Base import DefaultCopyToolName
+            self.cvl.set_variable("COPY_TOOL").append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
+        if "SVN_CLIENT_PATH" not in self.cvl:
+            self.cvl.set_variable("SVN_CLIENT_PATH").append("svn")
+
+        self.platform_helper.use_copy_tool(self.cvl.get_str("COPY_TOOL"))
+
+        checkout_folder_path = "$(__ROOT_LINKS_FOLDER__)/Base"
+        revision_folder_path = "$(__ROOT_LINKS_FOLDER__)/$(__REPO_REV__)"
+        revision_instl_folder_path = revision_folder_path+"/instl"
+
+        self.batch_accum.extend_instructions('admin', self.platform_helper.make_directory_cmd(checkout_folder_path))
+        self.batch_accum.append_instructions('admin', self.platform_helper.create_echo_command("Getting version $(__REPO_REV__) from $(__SVN_URL__)"))
+        checkout_command_parts = ['"$(SVN_CLIENT_PATH)"', "co", '"'+"$(__SVN_URL__)@$(__REPO_REV__)"+'"', '"'+checkout_folder_path+'"', "--depth", "infinity"]
+        self.batch_accum.append_instructions('admin', " ".join(checkout_command_parts))
+
+        self.batch_accum.extend_instructions('admin', self.platform_helper.make_directory_cmd("$(__ROOT_LINKS_FOLDER__)/$(__REPO_REV__)"))
+        self.batch_accum.append_instructions('admin', self.platform_helper.create_echo_command("Copying version $(__REPO_REV__) to $(__ROOT_LINKS_FOLDER__)/$(__REPO_REV__)"))
+        self.batch_accum.extend_instructions('admin', self.platform_helper.copy_tool.create_copy_dir_contents_to_dir_command(checkout_folder_path, revision_folder_path))
+
+        self.batch_accum.extend_instructions('admin', self.platform_helper.make_directory_cmd(revision_instl_folder_path))
+        self.batch_accum.extend_instructions('admin', self.platform_helper.change_directory_cmd(checkout_folder_path))
+        self.batch_accum.append_instructions('admin', self.platform_helper.create_echo_command("Getting info from svn to ../$(__REPO_REV__)/instl/info_map.info"))
+        info_command_parts = ['"$(SVN_CLIENT_PATH)"', "info", "--depth infinity", ">", "../$(__REPO_REV__)/instl/info_map.info"]
+        self.batch_accum.append_instructions('admin', " ".join(info_command_parts))
+
+        self.batch_accum.append_instructions('admin', self.platform_helper.create_echo_command("Getting props from svn to ../$(__REPO_REV__)/instl/info_map.props"))
+        props_command_parts = ['"$(SVN_CLIENT_PATH)"', "proplist", "--depth infinity", ">", "../$(__REPO_REV__)/instl/info_map.props"]
+        self.batch_accum.append_instructions('admin', " ".join(props_command_parts))
+
+        self.batch_accum.append_instructions('admin', self.platform_helper.create_echo_command("Creating info_map.txt to ../$(__REPO_REV__)/instl/info_map.txt"))
+        trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans", "--in", "../$(__REPO_REV__)/instl/info_map.info", "--props ", "../$(__REPO_REV__)/instl/info_map.props", "--out ", "../$(__REPO_REV__)/instl/info_map.txt"]
+        self.batch_accum.append_instructions('admin', " ".join(trans_command_parts))
+
+        self.batch_accum.append_instructions('admin', self.platform_helper.create_echo_command("Creating info_map_Mac.txt to ../$(__REPO_REV__)/instl/info_map_Mac.txt"))
+        trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans", "--in", "../$(__REPO_REV__)/instl/info_map.txt", "--out ", "../$(__REPO_REV__)/instl/info_map_Mac.txt",  "--filter-out", "Win"]
+        self.batch_accum.append_instructions('admin', " ".join(trans_command_parts))
+
+        trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans", "--in", "../$(__REPO_REV__)/instl/info_map.txt", "--out ", "../$(__REPO_REV__)/instl/info_map_Win.txt",  "--filter-out", "Mac"]
+        self.batch_accum.append_instructions('admin', " ".join(trans_command_parts))
+
+        self.batch_accum.append_instructions('admin', self.platform_helper.create_echo_command("done $(__REPO_REV__)"))
+        self.create_variables_assignment()
+        self.write_batch_file()
