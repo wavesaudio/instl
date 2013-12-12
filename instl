@@ -94,6 +94,8 @@ def prepare_args_parser():
                                         help='translate svn map files from one format to another')
     parser_createlinks = subparsers.add_parser('createlinks',
                                         help='create links from the base SVN checkout folder for a specific version')
+    parser_up2S3 = subparsers.add_parser('up2s3',
+                                        help='upload installation sources to S3')
 
     # add --out to parsers that need it
     for subparser in (parser_sync, parser_copy, parser_synccopy, parser_trans, parser_createlinks):
@@ -151,7 +153,7 @@ def prepare_args_parser():
                                     dest='filter_out',
                                     help="paths to filter out, comma separated")
 
-    for subparser in (parser_createlinks, ):
+    for subparser in (parser_createlinks, parser_up2S3):
         subparser.set_defaults(mode='admin')
         trans_options = subparser.add_argument_group(description='createlinks arguments:')
         trans_options.add_argument('--url', '-u',

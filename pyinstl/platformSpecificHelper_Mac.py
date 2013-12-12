@@ -8,7 +8,7 @@ from platformSpecificHelper_Base import DownloadToolBase
 def quoteme(to_qoute):
     return "".join( ('"', to_qoute, '"') )
 
-class CopyTool_mac_rsync(CopyToolBase):
+class CopyToolMacRsync(CopyToolBase):
     def copy_dir_to_dir(self, src_dir, trg_dir):
         if src_dir.endswith("/"):
             src_dir.rstrip("/")
@@ -74,7 +74,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
 
     def use_copy_tool(self, tool):
         if tool == "rsync":
-            self.copy_tool = CopyTool_mac_rsync()
+            self.copy_tool = CopyToolMacRsync()
         else:
             raise ValueError(tool, "is not a valid copy tool for Mac OS")
 

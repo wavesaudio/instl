@@ -13,13 +13,13 @@ import sys
 import platform
 current_os = platform.system()
 if current_os == 'Darwin':
-    def DereferenceVar(in_var):
+    def dereference_var(in_var):
         return "".join(("${", in_var, "}"))
 elif current_os == 'Windows':
-    def DereferenceVar(in_var):
+    def dereference_var(in_var):
         return "".join(("%", in_var, "%"))
 elif current_os == 'Linux':
-    def DereferenceVar(in_var):
+    def dereference_var(in_var):
         return "".join(("${", in_var, "}"))
 
 

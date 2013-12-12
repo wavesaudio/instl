@@ -6,7 +6,7 @@ from __future__ import print_function
     information include:
         iid - must be unique amongst all InstallItems.
         name - description for log and erros messages has no bering on the installation.
-        guid - a standard 36 charcter guid. Can be used as addtional identification. Several idds can share the same guid.
+        guid - a standard 36 character guid. Can be used asadditionall identification. Several idds can share the same guid.
         remark - remarks for human consumption has no bering on the installation.
         description - auto generated, usually the file and line from which the item was read.
         inherit - idds of other InstallItems to inherit from.
@@ -50,12 +50,10 @@ from __future__ import print_function
                 - action when leaving folder
 """
 
-import sys
-import platform
 from collections import OrderedDict, defaultdict
 
+import sys
 sys.path.append("..")
-import yaml
 from aYaml import augmentedYaml
 from pyinstl.utils import *
 
@@ -66,9 +64,9 @@ def read_index_from_yaml(all_items_node):
     retVal = dict()
     for IID in all_items_node.iterkeys():
         if IID in retVal:
-            pass#print(IID, "already in all_items_node")
+            pass #print(IID, "already in all_items_node")
         else:
-            #print(IID, "not in all_items_node")
+            # print(IID, "not in all_items_node")
             item = InstallItem()
             item.read_from_yaml_by_idd(IID, all_items_node)
             retVal[IID] = item

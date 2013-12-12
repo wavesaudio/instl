@@ -295,9 +295,7 @@ class SVNItem(object):
         return file_list, dir_list
 
     def walk_items(self, what="all"):
-        """  Walk the item list and yield items in the SVNItemFlat format:
-            (path, flags, last_rev). path is the full known path (up to the top
-            item in the tree where walk_items was called).
+        """  Walk the item list and yield items.
             for each folder the files will be listed alphabetically, than each sub folder
             with it's sub items.
         """

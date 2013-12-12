@@ -196,14 +196,14 @@ class ConfigVarList(object):
                 'A' = None, 'B' = 'B3'
         """
         max_size = 0
-        loopOnResolved = dict()
+        loop_on_resolved = dict()
         for target in loopOn:
             list_for_target = self.get_list(loopOn[target])
             max_size = max(max_size, len(list_for_target))
-            loopOnResolved[target] = ContinuationIter(list_for_target)
+            loop_on_resolved[target] = ContinuationIter(list_for_target)
         for i in range(max_size):
-            for target in loopOnResolved:
-                self.set_variable(target).append(loopOnResolved[target].next())
+            for target in loop_on_resolved:
+                self.set_variable(target).append(loop_on_resolved[target].next())
             yield
 
 def replace_all_from_dict(in_text, *in_replace_only_these, **in_replacement_dic):
@@ -224,8 +224,8 @@ def resolve_list(needsResolveList, resolve_callback):
     """ resolve a list, possibly with $() style references with the help of a resolving function.
         needsResolveList could be of type that emulates list, specifically configVar.ConfigVar.
     """
-    replaceDic = dict()
-    resolvedList = list()
+    replace_dic = dict()
+    resolved_list = list()
     need_to_resolve_again = False
     for valueText in needsResolveList:
         # if the value is only a single $() reference, no quotes,
@@ -235,23 +235,23 @@ def resolve_list(needsResolveList, resolve_callback):
             var_name = single_value_ref_match.group('var_name')
             new_values = resolve_callback(var_name)
             if new_values is not None:
-                resolvedList.extend(new_values)
+                resolved_list.extend(new_values)
                 need_to_resolve_again = True
             else: # var was not found, leave $() reference as is
-                resolvedList.extend( (valueText, ) )
+                resolved_list.extend( (valueText, ) )
             continue
         # if the value is more than a single $() reference,
         # the resolved values are joined and appended to the resolved list
         for value_ref_match in value_ref_re.finditer(valueText):
             # group 'varref_pattern' is the full $(X), group 'var_name' is the X
             replace_ref, value_ref = value_ref_match.group('varref_pattern', 'var_name')
-            if replace_ref not in replaceDic:
+            if replace_ref not in replace_dic:
                 resolved_vals = resolve_callback(value_ref)
                 if resolved_vals is not None:
-                    replaceDic[replace_ref] = " ".join(resolved_vals)
+                    replace_dic[replace_ref] = " ".join(resolved_vals)
                     need_to_resolve_again = True
-        valueTextResolved = replace_all_from_dict(valueText, **replaceDic)
-        resolvedList.append(valueTextResolved)
+        value_text_resolved = replace_all_from_dict(valueText, **replace_dic)
+        resolved_list.append(value_text_resolved)
     if need_to_resolve_again:  # another resolve round until no ref-in-ref are left
-        resolvedList = resolve_list(resolvedList, resolve_callback)
-    return tuple(resolvedList)
+        resolved_list = resolve_list(resolved_list, resolve_callback)
+    return tuple(resolved_list)

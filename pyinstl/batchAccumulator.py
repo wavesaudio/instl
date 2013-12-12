@@ -7,6 +7,7 @@ import pyinstl.log_utils
 from pyinstl.log_utils import func_log_wrapper
 from pyinstl.utils import *
 
+
 class BatchAccumulator(object):
     """ accumulate batch instructions and prepare them for writing to file
     """

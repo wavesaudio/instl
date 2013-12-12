@@ -1,6 +1,7 @@
 #!/usr/bin/env python2.7
 
 from __future__ import print_function
+import sys
 import datetime
 
 from pyinstl.log_utils import func_log_wrapper
@@ -20,7 +21,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def __init__(self, initial_vars):
         super(InstlAdmin, self).__init__(initial_vars)
-        self.cvl.set_variable("__ALLOWED_COMMANDS__").extend( ('trans', 'createlinks') )
+        self.cvl.set_variable("__ALLOWED_COMMANDS__").extend( ('trans', 'createlinks', 'up2s3') )
         self.svnTree = svnTree.SVNTree()
 
     @func_log_wrapper
@@ -36,6 +37,8 @@ class InstlAdmin(InstlInstanceBase):
                 self.write_info_map_file()
             elif the_command == "createlinks":
                 self.create_links()
+            elif the_command == "up2s3":
+                self.upload_to_s3()
 
 
     def read_info_map_file(self, in_file_path):
@@ -101,3 +104,43 @@ class InstlAdmin(InstlInstanceBase):
         self.batch_accum += self.platform_helper.echo("done $(__REPO_REV__)")
         self.create_variables_assignment()
         self.write_batch_file()
+
+    class RemoveIfNotSpecificVersion:
+        def __init__(self, version_not_to_remove):
+            self.version_not_to_remove = version_not_to_remove
+        def __call__(self, svn_item):
+            if svn_item.isFile():
+                retVal = svn_item.last_rev() != self.version_not_to_remove
+            elif svn_item.isDir():
+                retVal = len(svn_item.subs()) == 0
+            return retVal
+
+    def upload_to_s3(self):
+        print(self.cvl.get_str("__ROOT_LINKS_FOLDER__"), self.cvl.get_str("__REPO_REV__"), self.cvl.get_str("__ROOT_LINKS_FOLDER__"))
+        g_aws_access_key_id 			= 'AKIAJ5QWBRHK5FVJDABA'
+        g_aws_secret_access_key 		= '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'
+        g_s3_bucket_name				= 'instl.waves.com'
+        g_version_s3_key				= 'V9_test'
+        g_map_file_path					= 'instl/info_map.txt'
+        g_upload_done_key				= 'instl/done'
+        info_map_path = self.cvl.resolve_string("$(__ROOT_LINKS_FOLDER__)/$(__REPO_REV__)/"+g_map_file_path)
+        self.read_info_map_file(info_map_path)
+        print("Before:", self.svnTree.num_subs_in_tree())
+        remove_predicate = InstlAdmin.RemoveIfNotSpecificVersion(int(self.cvl.get_str("__REPO_REV__")))
+        self.svnTree.recursive_remove_depth_first(remove_predicate)
+        import boto
+        s3 		= boto.connect_s3(g_aws_access_key_id, g_aws_secret_access_key)
+        bucket 	= s3.get_bucket(g_s3_bucket_name)
+        key_obj = boto.s3.key.Key(bucket)
+        for item in self.svnTree.walk_items(what="file"):
+            file_to_upload = self.cvl.resolve_string("$(__ROOT_LINKS_FOLDER__)/$(__REPO_REV__)/"+item.full_path())
+            s3_path = self.cvl.resolve_string(g_version_s3_key+"/$(__REPO_REV__)/"+item.full_path())
+            print(file_to_upload)
+            print("---->", s3_path)
+            key_obj.key = s3_path
+            key_obj.set_contents_from_filename(file_to_upload, cb=percent_cb, num_cb=4)
+        print("After:", self.svnTree.num_subs_in_tree())
+
+def percent_cb(complete, total):
+	sys.stdout.write('.')
+	sys.stdout.flush()

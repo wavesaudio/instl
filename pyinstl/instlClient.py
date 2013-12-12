@@ -227,7 +227,7 @@ class InstlClient(InstlInstanceBase):
 
             # accumulate folder_in actions from all items, eliminating duplicates
             self.batch_accum.indent_level += 1
-            folder_in_actions = unique_list() # unique_list to eliminate identical actions
+            folder_in_actions = unique_list() # unique_list to eliminate identical actions while keeping the order
             for IID in folder_items: # folder_in actions
                 installi = self.install_definitions_index[IID]
                 folder_in_actions.extend(installi.action_list('folder_in'))
@@ -244,7 +244,7 @@ class InstlClient(InstlInstanceBase):
                     current_item_for_progress_report += 1
 
             # accumulate folder_out actions from all items, eliminating duplicates
-            folder_out_actions = unique_list() # unique_list to eliminate identical actions
+            folder_out_actions = unique_list() # unique_list to eliminate identical actions while keeping the order
             for IID in folder_items:
                 installi = self.install_definitions_index[IID]
                 folder_out_actions.extend(installi.action_list('folder_out'))
@@ -259,7 +259,7 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum += self.platform_helper.cd(folder_name)
 
             # accumulate folder_in actions from all items, eliminating duplicates
-            folder_in_actions = unique_list() # unique_list to eliminate identical actions
+            folder_in_actions = unique_list() # unique_list to eliminate identical actions while keeping the order
             for IID in folder_items:
                 installi = self.install_definitions_index[IID]
                 folder_in_actions.extend(installi.action_list('folder_in'))
@@ -271,7 +271,7 @@ class InstlClient(InstlInstanceBase):
                 self.batch_accum += installi.action_list('after')
 
             # accumulate folder_out actions from all items, eliminating duplicates
-            folder_out_actions = unique_list() # unique_list to eliminate identical actions
+            folder_out_actions = unique_list() # unique_list to eliminate identical actions while keeping the order
             for IID in folder_items:
                 installi = self.install_definitions_index[IID]
                 folder_out_actions.extend(installi.action_list('folder_out'))
