@@ -23,33 +23,33 @@ class CopyToolBase(object):
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
-    def create_copy_dir_to_dir_command(self, src_dir, trg_dir):
+    def copy_dir_to_dir(self, src_dir, trg_dir):
         """ Copy src_dir as a folder into trg_dir.
-            Example: create_copy_dir_to_dir_command("a", "/d/c/b") creates the folder:
+            Example: copy_dir_to_dir("a", "/d/c/b") creates the folder:
             "/d/c/b/a"
         """
         pass
 
     @abc.abstractmethod
-    def create_copy_file_to_dir_command(self, src_file, trg_dir):
+    def copy_file_to_dir(self, src_file, trg_dir):
         """ Copy the file src_file into trg_dir.
-            Example: create_copy_file_to_dir_command("a.txt", "/d/c/b") creates the file:
+            Example: copy_file_to_dir("a.txt", "/d/c/b") creates the file:
             "/d/c/b/a.txt"
         """
         pass
 
     @abc.abstractmethod
-    def create_copy_dir_contents_to_dir_command(self, src_dir, trg_dir):
+    def copy_dir_contents_to_dir(self, src_dir, trg_dir):
         """ Copy the contents of src_dir into trg_dir.
-            Example: create_copy_dir_contents_to_dir_command("a", "/d/c/b") copies
+            Example: copy_dir_contents_to_dir("a", "/d/c/b") copies
             everything from a into "/d/c/b"
         """
         pass
 
     @abc.abstractmethod
-    def create_copy_dir_files_to_dir_command(self, src_dir, trg_dir):
+    def copy_dir_files_to_dir(self, src_dir, trg_dir):
         """ Copy the files of src_dir into trg_dir.
-            Example: create_copy_dir_contents_to_dir_command("a", "/d/c/b") copies
+            Example: copy_dir_contents_to_dir("a", "/d/c/b") copies
             all files from a into "/d/c/b", subfolders of a are not copied
         """
         pass
@@ -71,12 +71,12 @@ class PlatformSpecificHelperBase(object):
         pass
 
     @abc.abstractmethod
-    def make_directory_cmd(self, directory):
+    def mkdir(self, directory):
         """ platform specific mkdir for install script """
         pass
 
     @abc.abstractmethod
-    def change_directory_cmd(self, directory):
+    def cd(self, directory):
         """ platform specific cd for install script """
         pass
 
@@ -86,15 +86,15 @@ class PlatformSpecificHelperBase(object):
         pass
 
     @abc.abstractmethod
-    def create_var_assign(self, identifier, value):
+    def var_assign(self, identifier, value):
         pass
 
     @abc.abstractmethod
-    def create_echo_command(self, message):
+    def echo(self, message):
         pass
 
     @abc.abstractmethod
-    def create_remark_command(self, remark):
+    def remark(self, remark):
         pass
 
     @abc.abstractmethod
@@ -102,7 +102,7 @@ class PlatformSpecificHelperBase(object):
         pass
 
     @abc.abstractmethod
-    def create_copy_file_to_file_command(self, src_file, trg_file):
+    def copy_file_to_file(self, src_file, trg_file):
         """ Copy src_file to trg_file.
             Example: create_copy_file_to_file("a.txt", "/d/c/bt.txt") copies
             the file a.txt into "/d/c/bt.txt".

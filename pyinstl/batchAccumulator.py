@@ -17,16 +17,23 @@ class BatchAccumulator(object):
         self.instruction_lines = defaultdict(list)
         self.indent_level = 0
         self.sections_order = ("pre", "assign", "sync", "copy", "admin", "post")
+        self.current_section = None
 
     @func_log_wrapper
-    def extend_instructions(self, which, instruction_list):
-        #print("extend_instructions indent", self.indent_level)
-        self.instruction_lines[which].extend( map(lambda line: " " * 4 * self.indent_level + line, instruction_list))
+    def set_current_section(self, section):
+        self.current_section = section
 
     @func_log_wrapper
-    def append_instructions(self, which, single_instruction):
-        #print("append_instructions indent", self.indent_level)
-        self.instruction_lines[which].append(" " * 4 * self.indent_level + single_instruction)
+    def add(self, instructions):
+        if isinstance(instructions, basestring):
+            self.instruction_lines[self.current_section].append(" " * 4 * self.indent_level + instructions)
+        else:
+            for instruction in instructions:
+                self.add(instruction)
+
+    def __iadd__(self, instructions):
+        self.add(instructions)
+        return self
 
     @func_log_wrapper
     def finalize_list_of_lines(self):

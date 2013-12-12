@@ -205,7 +205,8 @@ class InstlClient(InstlInstanceBase):
     @func_log_wrapper
     def create_copy_instructions(self, installState):
         # copy and actions instructions for sources
-        self.batch_accum.append_instructions('copy', self.platform_helper.create_echo_command("starting copy"))
+        self.batch_accum.set_current_section('copy')
+        self.batch_accum += self.platform_helper.echo("starting copy")
         self.platform_helper.use_copy_tool(self.cvl.get_str("COPY_TOOL"))
         num_items_for_progress_report = 1 # one for a dummy last item
         for folder_items in installState.install_items_by_target_folder.values():
@@ -215,74 +216,90 @@ class InstlClient(InstlInstanceBase):
         num_items_for_progress_report += len(installState.no_copy_items_by_sync_folder)
 
         current_item_for_progress_report = 0
-        self.batch_accum.append_instructions('copy', self.platform_helper.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}; from $(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)".format(**locals())))
+        self.batch_accum += self.platform_helper.echo("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}; from $(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)".format(**locals()))
         current_item_for_progress_report += 1
         for folder_name, folder_items in installState.install_items_by_target_folder.iteritems():
-            self.batch_accum.append_instructions('copy', self.platform_helper.create_echo_command("Starting copy to folder "+folder_name))
+            self.batch_accum += self.platform_helper.echo("Starting copy to folder "+folder_name)
             self.batch_accum.indent_level += 1
             logging.info("... folder %s (%s)", folder_name, self.cvl.resolve_string(folder_name))
-            self.batch_accum.extend_instructions('copy', self.platform_helper.make_directory_cmd(folder_name))
-            self.batch_accum.extend_instructions('copy', self.platform_helper.change_directory_cmd(folder_name))
-            folder_in_actions = unique_list()
-            install_item_instructions = list()
-            folder_out_actions = unique_list()
+            self.batch_accum += self.platform_helper.mkdir(folder_name)
+            self.batch_accum += self.platform_helper.cd(folder_name)
+
+            # accumulate folder_in actions from all items, eliminating duplicates
+            self.batch_accum.indent_level += 1
+            folder_in_actions = unique_list() # unique_list to eliminate identical actions
             for IID in folder_items: # folder_in actions
                 installi = self.install_definitions_index[IID]
                 folder_in_actions.extend(installi.action_list('folder_in'))
+            self.batch_accum += folder_in_actions
+
+            folder_out_actions = unique_list()
+            for IID in folder_items:
+                installi = self.install_definitions_index[IID]
                 for source in installi.source_list():
-                    install_item_instructions.extend(installi.action_list('before'))
-                    install_item_instructions.extend(self.create_copy_instructions_for_source(source))
-                    install_item_instructions.extend(installi.action_list('after'))
-                    install_item_instructions.append(self.platform_helper.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}; {installi.iid}: {installi.name}".format(**locals())))
+                    self.batch_accum += installi.action_list('before')
+                    self.create_copy_instructions_for_source(source)
+                    self.batch_accum += installi.action_list('after')
+                    self.batch_accum += self.platform_helper.echo("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}; {installi.iid}: {installi.name}".format(**locals()))
                     current_item_for_progress_report += 1
+
+            # accumulate folder_out actions from all items, eliminating duplicates
+            folder_out_actions = unique_list() # unique_list to eliminate identical actions
+            for IID in folder_items:
+                installi = self.install_definitions_index[IID]
                 folder_out_actions.extend(installi.action_list('folder_out'))
-            self.batch_accum.extend_instructions('copy', folder_in_actions)
-            self.batch_accum.indent_level += 1
-            self.batch_accum.extend_instructions('copy', install_item_instructions)
-            self.batch_accum.extend_instructions('copy', folder_out_actions)
+            self.batch_accum += folder_out_actions
+
             self.batch_accum.indent_level -= 1
             self.batch_accum.indent_level -= 1
 
         # actions instructions for sources that do not need copying
         for folder_name, folder_items in installState.no_copy_items_by_sync_folder.iteritems():
             logging.info("... non-copy items folder %s (%s)", folder_name, self.cvl.resolve_string(folder_name))
-            self.batch_accum.extend_instructions('copy', self.platform_helper.change_directory_cmd(folder_name))
-            folder_in_actions = unique_list()
-            install_actions = list()
-            folder_out_actions = unique_list()
-            for IID in folder_items: # folder_in actions
+            self.batch_accum += self.platform_helper.cd(folder_name)
+
+            # accumulate folder_in actions from all items, eliminating duplicates
+            folder_in_actions = unique_list() # unique_list to eliminate identical actions
+            for IID in folder_items:
                 installi = self.install_definitions_index[IID]
                 folder_in_actions.extend(installi.action_list('folder_in'))
-                install_actions.extend(installi.action_list('before'))
-                install_actions.extend(installi.action_list('after'))
+            self.batch_accum += folder_in_actions
+
+            for IID in folder_items:
+                installi = self.install_definitions_index[IID]
+                self.batch_accum += installi.action_list('before')
+                self.batch_accum += installi.action_list('after')
+
+            # accumulate folder_out actions from all items, eliminating duplicates
+            folder_out_actions = unique_list() # unique_list to eliminate identical actions
+            for IID in folder_items:
+                installi = self.install_definitions_index[IID]
                 folder_out_actions.extend(installi.action_list('folder_out'))
-            self.batch_accum.extend_instructions('copy', folder_in_actions)
-            self.batch_accum.extend_instructions('copy', install_actions)
-            self.batch_accum.extend_instructions('copy', folder_out_actions)
-            self.batch_accum.append_instructions('copy', self.platform_helper.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}".format(**locals())))
+            self.batch_accum += folder_out_actions
+
+            self.batch_accum += self.platform_helper.echo("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}".format(**locals()))
             current_item_for_progress_report += 1
         # messages about orphan iids
         for iid in installState.orphan_install_items:
             logging.info("Orphan item: %s", iid)
-            self.batch_accum.append_instructions('copy', self.platform_helper.create_echo_command("Don't know how to install "+iid))
-        self.batch_accum.append_instructions('copy', self.platform_helper.create_echo_command("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}".format(**locals())))
+            self.batch_accum += self.platform_helper.echo("Don't know how to install "+iid)
+        self.batch_accum += self.platform_helper.echo("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}".format(**locals()))
 
     @func_log_wrapper
     def create_copy_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
-        retVal = list()
+
         source_url = "$(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)/"+source[0]
 
         if source[1] == '!file':       # get a single file, not recommended
-            retVal.extend(self.platform_helper.copy_tool.create_copy_file_to_dir_command(source_url, "."))
+            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_url, ".")
         elif source[1] == '!dir_cont': # get all files and folders from a folder
-            retVal.extend(self.platform_helper.copy_tool.create_copy_dir_contents_to_dir_command(source_url, "."))
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_url, ".")
         elif source[1] == '!files':    # get all files from a folder
-            retVal.extend(self.platform_helper.copy_tool.create_copy_dir_files_to_dir_command(source_url, "."))
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_url, ".")
         else:
-            retVal.extend(self.platform_helper.copy_tool.create_copy_dir_to_dir_command(source_url, "."))
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_url, ".")
         logging.info("... %s; (%s - %s)", source_url, self.cvl.resolve_string(source_url), source[1])
-        return retVal
 
     @func_log_wrapper
     def find_cycles(self):

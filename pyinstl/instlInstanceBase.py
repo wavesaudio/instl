@@ -130,7 +130,7 @@ class InstlInstanceBase(object):
     def create_variables_assignment(self):
         for identifier in self.cvl:
             if not self.internal_identifier_re.match(identifier) or pyinstl.log_utils.debug_logging_started: # do not write internal state identifiers, unless in debug mode
-                self.batch_accum.variables_assignment_lines.append(self.platform_helper.create_var_assign(identifier,self.cvl.get_str(identifier)))
+                self.batch_accum.variables_assignment_lines.append(self.platform_helper.var_assign(identifier,self.cvl.get_str(identifier)))
 
     @func_log_wrapper
     def get_default_sync_dir(self):
@@ -186,9 +186,11 @@ class InstlInstanceBase(object):
 
     @func_log_wrapper
     def write_batch_file(self):
-        self.batch_accum.extend_instructions("pre", self.platform_helper.get_install_instructions_prefix())
-        self.batch_accum.append_instructions("pre", self.platform_helper.create_remark_command(datetime.datetime.today().isoformat()))
-        self.batch_accum.extend_instructions("post", self.platform_helper.get_install_instructions_postfix())
+        self.batch_accum.set_current_section('pre')
+        self.batch_accum += self.platform_helper.get_install_instructions_prefix()
+        self.batch_accum += self.platform_helper.remark(datetime.datetime.today().isoformat())
+        self.batch_accum.set_current_section('post')
+        self.batch_accum += self.platform_helper.get_install_instructions_postfix()
         lines = self.batch_accum.finalize_list_of_lines()
         lines_after_var_replacement = '\n'.join([value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines])
 

@@ -69,6 +69,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
     @func_log_wrapper
     def create_sync_instructions(self, installState):
+        self.instlInstance.batch_accum.set_current_section('sync')
         self.installState = installState
         self.read_remote_info_map()             # reads the full info map from INFO_MAP_FILE_URL and writes it to the sync folder
         self.filter_out_unrequired_items()      # removes items not required to be installed
@@ -170,35 +171,36 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.work_info_map.write_to_file(work_info_map_path, in_format="text", report_level=1)
 
     def create_download_instructions(self):
+        self.instlInstance.batch_accum.set_current_section('sync')
         num_files = self.work_info_map.num_subs_in_tree(what="file")
         self.num_items_for_progress_report = num_files + 1 # one for a dummy first item
         self.current_item_for_progress_report = 0
-        self.instlInstance.batch_accum.append_instructions('sync', self.instlInstance.platform_helper.create_echo_command("Progress: synced {self.current_item_for_progress_report} of {self.num_items_for_progress_report}; from $(BASE_SRC_URL)".format(**locals())))
+        self.instlInstance.batch_accum += self.instlInstance.platform_helper.echo("Progress: synced {self.current_item_for_progress_report} of {self.num_items_for_progress_report}; from $(BASE_SRC_URL)".format(**locals()))
         self.current_item_for_progress_report += 1
-        self.instlInstance.batch_accum.extend_instructions('sync', self.instlInstance.platform_helper.make_directory_cmd("$(LOCAL_SYNC_DIR)"))
-        self.instlInstance.batch_accum.extend_instructions('sync', self.instlInstance.platform_helper.change_directory_cmd("$(LOCAL_SYNC_DIR)"))
+        self.instlInstance.batch_accum += self.instlInstance.platform_helper.mkdir("$(LOCAL_SYNC_DIR)")
+        self.instlInstance.batch_accum += self.instlInstance.platform_helper.cd("$(LOCAL_SYNC_DIR)")
         self.instlInstance.batch_accum.indent_level += 1
         file_list, dir_list = self.work_info_map.sorted_sub_items()
         for need_item in file_list + dir_list:
             self.create_download_instructions_for_item(need_item)
         self.instlInstance.batch_accum.indent_level -= 1
-        self.instlInstance.batch_accum.append_instructions('sync', self.instlInstance.platform_helper.create_echo_command("Progress: synced {self.current_item_for_progress_report} of {self.num_items_for_progress_report};  from $(BASE_SRC_URL)".format(**locals())))
-        self.instlInstance.batch_accum.extend_instructions('sync', self.instlInstance.platform_helper.create_copy_file_to_file_command("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)"))
+        self.instlInstance.batch_accum += self.instlInstance.platform_helper.echo("Progress: synced {self.current_item_for_progress_report} of {self.num_items_for_progress_report};  from $(BASE_SRC_URL)".format(**locals()))
+        self.instlInstance.batch_accum += self.instlInstance.platform_helper.copy_file_to_file("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")
 
     def create_download_instructions_for_item(self, item, path_so_far = list()):
         if item.isFile():
             source_url =   '/'.join( ["$(SYNC_BASE_URL)", str(item.last_rev())] + path_so_far + [item.name()] )
-            self.instlInstance.batch_accum.extend_instructions('sync', self.instlInstance.platform_helper.dl_tool.create_download_file_to_file_command(source_url, item.name()))
-            self.instlInstance.batch_accum.append_instructions('sync', self.instlInstance.platform_helper.create_echo_command("Progress: synced {self.current_item_for_progress_report} of {self.num_items_for_progress_report};".format(**locals())))
+            self.instlInstance.batch_accum += self.instlInstance.platform_helper.dl_tool.create_download_file_to_file_command(source_url, item.name())
+            self.instlInstance.batch_accum += self.instlInstance.platform_helper.echo("Progress: synced {self.current_item_for_progress_report} of {self.num_items_for_progress_report};".format(**locals()))
             self.current_item_for_progress_report += 1
         elif item.isDir():
             path_so_far.append(item.name())
-            self.instlInstance.batch_accum.extend_instructions('sync', self.instlInstance.platform_helper.make_directory_cmd(item.name()))
-            self.instlInstance.batch_accum.extend_instructions('sync', self.instlInstance.platform_helper.change_directory_cmd(item.name()))
+            self.instlInstance.batch_accum += self.instlInstance.platform_helper.mkdir(item.name())
+            self.instlInstance.batch_accum += self.instlInstance.platform_helper.cd(item.name())
             self.instlInstance.batch_accum.indent_level += 1
             file_list, dir_list = item.sorted_sub_items()
             for sub_item in file_list + dir_list:
                 self.create_download_instructions_for_item(sub_item, path_so_far)
             self.instlInstance.batch_accum.indent_level -= 1
-            self.instlInstance.batch_accum.extend_instructions('sync', self.instlInstance.platform_helper.change_directory_cmd(".."))
+            self.instlInstance.batch_accum += self.instlInstance.platform_helper.cd("..")
             path_so_far.pop()

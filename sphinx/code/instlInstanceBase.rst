@@ -111,12 +111,12 @@ Class InstlInstanceBase
 
             Creates the last lines of the install batch file. :func:`get_install_instructions_postfix` is overridden by platform-specific class that inherits from instlInstanceBase.
 
-        .. method:: make_directory_cmd(self, directory)
+        .. method:: mkdir(self, directory)
         
             Creates platform specific mkdir command install script
             Overridden by :class:`instlInstance_mac.InstlInstance_mac` and  :class:`instlInstance_win.InstlInstance_win`.
 
-        .. method:: change_directory_cmd(self, directory)
+        .. method:: cd(self, directory)
          
             Creates platform specific change dir command install script
             Overridden by :class:`instlInstance_mac.InstlInstance_mac` and  :class:`instlInstance_win.InstlInstance_win`.

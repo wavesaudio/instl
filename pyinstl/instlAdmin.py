@@ -67,36 +67,37 @@ class InstlAdmin(InstlInstanceBase):
         revision_folder_path = "$(__ROOT_LINKS_FOLDER__)/$(__REPO_REV__)"
         revision_instl_folder_path = revision_folder_path+"/instl"
 
-        self.batch_accum.extend_instructions('admin', self.platform_helper.make_directory_cmd(checkout_folder_path))
-        self.batch_accum.append_instructions('admin', self.platform_helper.create_echo_command("Getting version $(__REPO_REV__) from $(__SVN_URL__)"))
+        self.batch_accum.set_current_section('admin')
+        self.batch_accum += self.platform_helper.mkdir(checkout_folder_path)
+        self.batch_accum += self.platform_helper.echo("Getting version $(__REPO_REV__) from $(__SVN_URL__)")
         checkout_command_parts = ['"$(SVN_CLIENT_PATH)"', "co", '"'+"$(__SVN_URL__)@$(__REPO_REV__)"+'"', '"'+checkout_folder_path+'"', "--depth", "infinity"]
-        self.batch_accum.append_instructions('admin', " ".join(checkout_command_parts))
+        self.batch_accum += " ".join(checkout_command_parts)
 
-        self.batch_accum.extend_instructions('admin', self.platform_helper.make_directory_cmd("$(__ROOT_LINKS_FOLDER__)/$(__REPO_REV__)"))
-        self.batch_accum.append_instructions('admin', self.platform_helper.create_echo_command("Copying version $(__REPO_REV__) to $(__ROOT_LINKS_FOLDER__)/$(__REPO_REV__)"))
-        self.batch_accum.extend_instructions('admin', self.platform_helper.copy_tool.create_copy_dir_contents_to_dir_command(checkout_folder_path, revision_folder_path))
+        self.batch_accum += self.platform_helper.mkdir("$(__ROOT_LINKS_FOLDER__)/$(__REPO_REV__)")
+        self.batch_accum += self.platform_helper.echo("Copying version $(__REPO_REV__) to $(__ROOT_LINKS_FOLDER__)/$(__REPO_REV__)")
+        self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(checkout_folder_path, revision_folder_path)
 
-        self.batch_accum.extend_instructions('admin', self.platform_helper.make_directory_cmd(revision_instl_folder_path))
-        self.batch_accum.extend_instructions('admin', self.platform_helper.change_directory_cmd(checkout_folder_path))
-        self.batch_accum.append_instructions('admin', self.platform_helper.create_echo_command("Getting info from svn to ../$(__REPO_REV__)/instl/info_map.info"))
+        self.batch_accum += self.platform_helper.mkdir(revision_instl_folder_path)
+        self.batch_accum += self.platform_helper.cd(checkout_folder_path)
+        self.batch_accum += self.platform_helper.echo("Getting info from svn to ../$(__REPO_REV__)/instl/info_map.info")
         info_command_parts = ['"$(SVN_CLIENT_PATH)"', "info", "--depth infinity", ">", "../$(__REPO_REV__)/instl/info_map.info"]
-        self.batch_accum.append_instructions('admin', " ".join(info_command_parts))
+        self.batch_accum += " ".join(info_command_parts)
 
-        self.batch_accum.append_instructions('admin', self.platform_helper.create_echo_command("Getting props from svn to ../$(__REPO_REV__)/instl/info_map.props"))
+        self.batch_accum += self.platform_helper.echo("Getting props from svn to ../$(__REPO_REV__)/instl/info_map.props")
         props_command_parts = ['"$(SVN_CLIENT_PATH)"', "proplist", "--depth infinity", ">", "../$(__REPO_REV__)/instl/info_map.props"]
-        self.batch_accum.append_instructions('admin', " ".join(props_command_parts))
+        self.batch_accum += " ".join(props_command_parts)
 
-        self.batch_accum.append_instructions('admin', self.platform_helper.create_echo_command("Creating info_map.txt to ../$(__REPO_REV__)/instl/info_map.txt"))
+        self.batch_accum += self.platform_helper.echo("Creating info_map.txt to ../$(__REPO_REV__)/instl/info_map.txt")
         trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans", "--in", "../$(__REPO_REV__)/instl/info_map.info", "--props ", "../$(__REPO_REV__)/instl/info_map.props", "--out ", "../$(__REPO_REV__)/instl/info_map.txt"]
-        self.batch_accum.append_instructions('admin', " ".join(trans_command_parts))
+        self.batch_accum += " ".join(trans_command_parts)
 
-        self.batch_accum.append_instructions('admin', self.platform_helper.create_echo_command("Creating info_map_Mac.txt to ../$(__REPO_REV__)/instl/info_map_Mac.txt"))
+        self.batch_accum += self.platform_helper.echo("Creating info_map_Mac.txt to ../$(__REPO_REV__)/instl/info_map_Mac.txt")
         trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans", "--in", "../$(__REPO_REV__)/instl/info_map.txt", "--out ", "../$(__REPO_REV__)/instl/info_map_Mac.txt",  "--filter-out", "Win"]
-        self.batch_accum.append_instructions('admin', " ".join(trans_command_parts))
+        self.batch_accum += " ".join(trans_command_parts)
 
         trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans", "--in", "../$(__REPO_REV__)/instl/info_map.txt", "--out ", "../$(__REPO_REV__)/instl/info_map_Win.txt",  "--filter-out", "Mac"]
-        self.batch_accum.append_instructions('admin', " ".join(trans_command_parts))
+        self.batch_accum += " ".join(trans_command_parts)
 
-        self.batch_accum.append_instructions('admin', self.platform_helper.create_echo_command("done $(__REPO_REV__)"))
+        self.batch_accum += self.platform_helper.echo("done $(__REPO_REV__)")
         self.create_variables_assignment()
         self.write_batch_file()
