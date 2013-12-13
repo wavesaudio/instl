@@ -117,10 +117,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def upload_to_s3(self):
         print(self.cvl.get_str("__ROOT_LINKS_FOLDER__"), self.cvl.get_str("__REPO_REV__"), self.cvl.get_str("__ROOT_LINKS_FOLDER__"))
-        g_aws_access_key_id 			= 'AKIAJ5QWBRHK5FVJDABA'
-        g_aws_secret_access_key 		= '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'
-        g_s3_bucket_name				= 'instl.waves.com'
-        g_version_s3_key				= 'V9_test'
+        self.read_yaml_file(self.cvl.get_str("__S3_CONFIG_FILE__"))
         g_map_file_path					= 'instl/info_map.txt'
         g_upload_done_key				= 'instl/done'
         info_map_path = self.cvl.resolve_string("$(__ROOT_LINKS_FOLDER__)/$(__REPO_REV__)/"+g_map_file_path)
@@ -129,12 +126,12 @@ class InstlAdmin(InstlInstanceBase):
         remove_predicate = InstlAdmin.RemoveIfNotSpecificVersion(int(self.cvl.get_str("__REPO_REV__")))
         self.svnTree.recursive_remove_depth_first(remove_predicate)
         import boto
-        s3 		= boto.connect_s3(g_aws_access_key_id, g_aws_secret_access_key)
-        bucket 	= s3.get_bucket(g_s3_bucket_name)
+        s3 		= boto.connect_s3(self.cvl.get_str("AWS_ACCESS_KEY_ID"), self.cvl.get_str("AWS_SECRET_ACCESS_KEY"))
+        bucket 	= s3.get_bucket(self.cvl.get_str("S3_BUCKET_NAME"))
         key_obj = boto.s3.key.Key(bucket)
         for item in self.svnTree.walk_items(what="file"):
             file_to_upload = self.cvl.resolve_string("$(__ROOT_LINKS_FOLDER__)/$(__REPO_REV__)/"+item.full_path())
-            s3_path = self.cvl.resolve_string(g_version_s3_key+"/$(__REPO_REV__)/"+item.full_path())
+            s3_path = self.cvl.resolve_string("$(ROOT_VERSION_NAME)+/$(__REPO_REV__)/"+item.full_path())
             print(file_to_upload)
             print("---->", s3_path)
             key_obj.key = s3_path

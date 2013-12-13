@@ -150,25 +150,6 @@ class InstlClient(InstlInstanceBase):
         self.install_definitions_index.update(read_index_from_yaml(a_node))
 
     @func_log_wrapper
-    def read_yaml_file(self, file_path):
-        try:
-            logging.info("... Reading input file %s", file_path)
-            with open_for_read_file_or_url(file_path, self.search_paths_helper) as file_fd:
-                for a_node in yaml.compose_all(file_fd):
-                    if a_node.tag == '!define':
-                        self.read_defines(a_node)
-                    elif a_node.tag == '!index':
-                        self.read_index(a_node)
-                    else:
-                        logging.error("Unknown document tag '%s' while reading file %s; Tag should be one of: !define, !index'", a_node.tag, file_path)
-        except InstlException as ie:
-            raise # re-raise in case of recursive call to read_file
-        except yaml.YAMLError as ye:
-            raise InstlException(" ".join( ("YAML error while reading file", "'"+file_path+"':\n", str(ye)) ), ye)
-        except IOError as ioe:
-            raise InstlException(" ".join(("Failed to read file", "'"+file_path+"'", ":")), ioe)
-
-    @func_log_wrapper
     def resolve_index_inheritance(self):
         for install_def in self.install_definitions_index.values():
             install_def.resolve_inheritance(self.install_definitions_index)

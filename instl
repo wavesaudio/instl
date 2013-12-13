@@ -54,6 +54,7 @@ class CommandLineOptions(object):
         self.svn_url = None
         self.root_links_folder = None
         self.repo_rev = None
+        self.s3_config = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
@@ -155,7 +156,7 @@ def prepare_args_parser():
 
     for subparser in (parser_createlinks, parser_up2S3):
         subparser.set_defaults(mode='admin')
-        trans_options = subparser.add_argument_group(description='createlinks arguments:')
+        trans_options = subparser.add_argument_group(description='admin arguments:')
         trans_options.add_argument('--url', '-u',
                                     required=True,
                                     nargs=1,
@@ -174,6 +175,15 @@ def prepare_args_parser():
                                     metavar='repository-revision',
                                     dest='repo_rev',
                                     help="file to read svn properties from")
+
+    for subparser in (parser_up2S3, ):
+        trans_options = subparser.add_argument_group(description='s3 arguments:')
+        trans_options.add_argument('--s3_config', '-s',
+                                    required=True,
+                                    nargs=1,
+                                    metavar='path-to-s3-config-file',
+                                    dest='s3_config',
+                                    help="path to s3 config-file")
 
         parser_version = subparsers.add_parser('version', help='display instl version')
         parser_version.set_defaults(mode='do_something')
