@@ -37,7 +37,7 @@ These variables are created by **instl** at runtime and are not printed to the o
     * __MAIN_INPUT_FILES__: List of files specified on the command line with the '--in' option.
     * __MAIN_INPUT_FILES_ACTUALLY_OPENED__: list of input files that were actually read.
     * __MAIN_OUT_FILE__: The output file specified on the command line with the '--out' option.
-    * __MAIN_RUN_INSTALLATION__: If set true or yes, current out file will be executed after it is written.
+    * __RUN_BATCH_FILE__: If set true or yes, current out file will be executed after it is written.
     * __MAIN_STATE_FILE__: File to dump the current state of **instl**. Optional.
     * __ORPHAN_INSTALL_TARGETS__: List of iids that where part of MAIN_INSTALL_TARGETS but did not appear in the index file.
     * __SEARCH_PATHS__: A list of paths where **instl** looks for files read through '__include__'. The folder of the main file is automatically added and so are folders of other files that are read.

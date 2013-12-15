@@ -68,7 +68,7 @@ Class InstlInstanceBase
         +-------------------+---------------------------+---------------------------+
         | --state           | __MAIN_STATE_FILE__       | None, optional            |
         +-------------------+---------------------------+---------------------------+
-        | --run             | __MAIN_RUN_INSTALLATION__ | None, optional            |
+        | --run             | __RUN_BATCH_FILE__        | None, optional            |
         +-------------------+---------------------------+---------------------------+
 
         .. method:: digest(self)

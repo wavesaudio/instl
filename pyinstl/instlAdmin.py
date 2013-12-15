@@ -39,6 +39,8 @@ class InstlAdmin(InstlInstanceBase):
                 self.create_links()
             elif the_command == "up2s3":
                 self.upload_to_s3()
+            if "__RUN_BATCH_FILE__" in self.cvl:
+                self.run_batch_file()
 
 
     def read_info_map_file(self, in_file_path):
@@ -98,10 +100,11 @@ class InstlAdmin(InstlInstanceBase):
         trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans", "--in", "../$(__REPO_REV__)/instl/info_map.txt", "--out ", "../$(__REPO_REV__)/instl/info_map_Mac.txt",  "--filter-out", "Win"]
         self.batch_accum += " ".join(trans_command_parts)
 
+        self.batch_accum += self.platform_helper.echo("Creating info_map_Win.txt to ../$(__REPO_REV__)/instl/info_map_Win.txt")
         trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans", "--in", "../$(__REPO_REV__)/instl/info_map.txt", "--out ", "../$(__REPO_REV__)/instl/info_map_Win.txt",  "--filter-out", "Mac"]
         self.batch_accum += " ".join(trans_command_parts)
 
-        self.batch_accum += self.platform_helper.echo("done $(__REPO_REV__)")
+        self.batch_accum += self.platform_helper.echo("done version $(__REPO_REV__)")
         self.create_variables_assignment()
         self.write_batch_file()
 

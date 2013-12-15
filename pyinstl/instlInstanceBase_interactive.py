@@ -557,7 +557,7 @@ class CMDObj(cmd.Cmd, object):
                         pyinstl.log_utils.teardown_file_logging(debug_log_file_path, pyinstl.log_utils.default_logging_level)
                     except:
                         pass
-                self.client_prog_inst.cvl.get_configVar_obj("LOG_DEBUG_FILE")[2] = pyinstl.log_utils.debug_logging_started
+                self.client_prog_inst.cvl.get_configVar_obj("LOG_FILE_DEBUG")[2] = pyinstl.log_utils.debug_logging_started
         self.report_logging_state()
     
     def help_log(self):

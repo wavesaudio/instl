@@ -74,7 +74,7 @@ class InstlInstanceBase(object):
         log_file = pyinstl.log_utils.get_log_file_path(this_program_name, this_program_name, debug=False)
         self.cvl.set_variable("LOG_FILE", var_description).append(log_file)
         debug_log_file = pyinstl.log_utils.get_log_file_path(this_program_name, this_program_name, debug=True)
-        self.cvl.set_variable("LOG_DEBUG_FILE", var_description).extend( (debug_log_file, logging.getLevelName(pyinstl.log_utils.debug_logging_level), pyinstl.log_utils.debug_logging_started) )
+        self.cvl.set_variable("LOG_FILE_DEBUG", var_description).extend( (debug_log_file, logging.getLevelName(pyinstl.log_utils.debug_logging_level), pyinstl.log_utils.debug_logging_started) )
         for identifier in self.cvl:
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
 
@@ -93,14 +93,15 @@ class InstlInstanceBase(object):
         if cmd_line_options_obj.filter_out:
             self.cvl.add_const_config_variable("__FILTER_OUT_PATHS__", "from command line options", *cmd_line_options_obj.filter_out)
         if cmd_line_options_obj.run:
-            self.cvl.add_const_config_variable("__MAIN_RUN_INSTALLATION__", "from command line options", "yes")
+            self.cvl.add_const_config_variable("__RUN_BATCH_FILE__", "from command line options", "yes")
         if cmd_line_options_obj.command:
             self.cvl.set_variable("__MAIN_COMMAND__", "from command line options").append(cmd_line_options_obj.command)
 
         if cmd_line_options_obj.svn_url:
             self.cvl.add_const_config_variable("__SVN_URL__", "from command line options", cmd_line_options_obj.svn_url[0])
         if cmd_line_options_obj.root_links_folder:
-            self.cvl.add_const_config_variable("__ROOT_LINKS_FOLDER__", "from command line options", cmd_line_options_obj.root_links_folder[0])
+            root_links_folder = cmd_line_options_obj.root_links_folder[0].rstrip("/\\")
+            self.cvl.add_const_config_variable("__ROOT_LINKS_FOLDER__", "from command line options", root_links_folder)
         if cmd_line_options_obj.repo_rev:
             self.cvl.add_const_config_variable("__REPO_REV__", "from command line options", cmd_line_options_obj.repo_rev[0])
         if cmd_line_options_obj.s3_config:
@@ -150,9 +151,10 @@ class InstlInstanceBase(object):
 
     @func_log_wrapper
     def create_variables_assignment(self):
+        self.batch_accum.set_current_section("assign")
         for identifier in self.cvl:
             if not self.internal_identifier_re.match(identifier) or pyinstl.log_utils.debug_logging_started: # do not write internal state identifiers, unless in debug mode
-                self.batch_accum.variables_assignment_lines.append(self.platform_helper.var_assign(identifier,self.cvl.get_str(identifier)))
+                self.batch_accum += self.platform_helper.var_assign(identifier,self.cvl.get_str(identifier))
 
     @func_log_wrapper
     def get_default_sync_dir(self):

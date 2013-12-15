@@ -119,7 +119,7 @@ class InstlClient(InstlInstanceBase):
                 self.create_copy_instructions(installState)
             self.create_variables_assignment()
             self.write_batch_file()
-            if "__MAIN_RUN_INSTALLATION__" in self.cvl:
+            if "__RUN_BATCH_FILE__" in self.cvl:
                 self.run_batch_file()
 
     @func_log_wrapper

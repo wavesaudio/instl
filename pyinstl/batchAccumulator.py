@@ -40,7 +40,10 @@ class BatchAccumulator(object):
     def finalize_list_of_lines(self):
         lines = list()
         for section in self.sections_order:
-            resolved_sync_instruction_lines = map(self.cvl.resolve_string, self.instruction_lines[section])
+            section_lines = self.instruction_lines[section]
+            if section == "assign":
+                section_lines.sort()
+            resolved_sync_instruction_lines = map(self.cvl.resolve_string, section_lines)
             lines.extend(resolved_sync_instruction_lines)
-            lines.extend( ('\n', ) )
+            lines.extend( '\n' )
         return lines
