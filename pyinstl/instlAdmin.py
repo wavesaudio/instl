@@ -30,18 +30,22 @@ class InstlAdmin(InstlInstanceBase):
         if the_command in self.cvl.get_list("__ALLOWED_COMMANDS__"):
             #print("server_commands", the_command)
             if the_command == "trans":
-                self.read_info_map_file(self.cvl.get_str("__MAIN_INPUT_FILE__"))
-                if "__PROPS_FILE__" in self.cvl:
-                    self.read_info_map_file(self.cvl.get_str("__PROPS_FILE__"))
-                self.filter_out_info_map(self.cvl.get_list("__FILTER_OUT_PATHS__"))
-                self.write_info_map_file()
+                self.do_trans()
             elif the_command == "createlinks":
-                self.create_links()
+                self.do_create_links()
             elif the_command == "up2s3":
-                self.upload_to_s3()
-            if "__RUN_BATCH_FILE__" in self.cvl:
-                self.run_batch_file()
+                self.do_upload_to_s3()
 
+    def do_trans(self):
+        self.read_info_map_file(self.cvl.get_str("__MAIN_INPUT_FILE__"))
+        if "__PROPS_FILE__" in self.cvl:
+            self.read_info_map_file(self.cvl.get_str("__PROPS_FILE__"))
+        self.filter_out_info_map(self.cvl.get_list("__FILTER_OUT_PATHS__"))
+        if "__FILTER_IN_VERSION__" in self.cvl:
+            self.filter_in_specific_version(self.cvl.get_str("__FILTER_IN_VERSION__"))
+        self.write_info_map_file()
+        if "__RUN_BATCH_FILE__" in self.cvl:
+            self.run_batch_file()
 
     def read_info_map_file(self, in_file_path):
         _, extension = os.path.splitext(in_file_path)
@@ -59,7 +63,11 @@ class InstlAdmin(InstlInstanceBase):
         for path in paths_to_filter_out:
             self.svnTree.remove_item_at_path(path)
 
-    def create_links(self):
+    def filter_in_specific_version(self, ver):
+        remove_predicate = InstlAdmin.RemoveIfNotSpecificVersion(int(ver))
+        self.svnTree.recursive_remove_depth_first(remove_predicate)
+
+    def do_create_links(self):
         if "COPY_TOOL" not in self.cvl:
             from platformSpecificHelper_Base import DefaultCopyToolName
             self.cvl.set_variable("COPY_TOOL").append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
@@ -92,21 +100,27 @@ class InstlAdmin(InstlInstanceBase):
         props_command_parts = ['"$(SVN_CLIENT_PATH)"', "proplist", "--depth infinity", ">", "../$(__REPO_REV__)/instl/info_map.props"]
         self.batch_accum += " ".join(props_command_parts)
 
-        self.batch_accum += self.platform_helper.echo("Creating info_map.txt to ../$(__REPO_REV__)/instl/info_map.txt")
+        self.batch_accum += self.platform_helper.echo("Creating $(__ROOT_LINKS_FOLDER__)/$(__REPO_REV__)/instl/info_map.txt")
         trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans", "--in", "../$(__REPO_REV__)/instl/info_map.info", "--props ", "../$(__REPO_REV__)/instl/info_map.props", "--out ", "../$(__REPO_REV__)/instl/info_map.txt"]
         self.batch_accum += " ".join(trans_command_parts)
 
-        self.batch_accum += self.platform_helper.echo("Creating info_map_Mac.txt to ../$(__REPO_REV__)/instl/info_map_Mac.txt")
+        self.batch_accum += self.platform_helper.echo("Creating $(__ROOT_LINKS_FOLDER__)/$(__REPO_REV__)/instl/info_map_upload.txt")
+        trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans", "--in", "../$(__REPO_REV__)/instl/info_map.txt", "--out ", "../$(__REPO_REV__)/instl/info_map_upload.txt",  "--filter-in", "$(__REPO_REV__)",  "--filter-out", "instl"]
+        self.batch_accum += " ".join(trans_command_parts)
+
+        self.batch_accum += self.platform_helper.echo("Creating $(__ROOT_LINKS_FOLDER__)/$(__REPO_REV__)/instl/info_map_Mac.txt")
         trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans", "--in", "../$(__REPO_REV__)/instl/info_map.txt", "--out ", "../$(__REPO_REV__)/instl/info_map_Mac.txt",  "--filter-out", "Win"]
         self.batch_accum += " ".join(trans_command_parts)
 
-        self.batch_accum += self.platform_helper.echo("Creating info_map_Win.txt to ../$(__REPO_REV__)/instl/info_map_Win.txt")
+        self.batch_accum += self.platform_helper.echo("Creating $(__ROOT_LINKS_FOLDER__)/$(__REPO_REV__)/instl/info_map_Win.txt")
         trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans", "--in", "../$(__REPO_REV__)/instl/info_map.txt", "--out ", "../$(__REPO_REV__)/instl/info_map_Win.txt",  "--filter-out", "Mac"]
         self.batch_accum += " ".join(trans_command_parts)
 
         self.batch_accum += self.platform_helper.echo("done version $(__REPO_REV__)")
         self.create_variables_assignment()
         self.write_batch_file()
+        if "__RUN_BATCH_FILE__" in self.cvl:
+            self.run_batch_file()
 
     class RemoveIfNotSpecificVersion:
         def __init__(self, version_not_to_remove):
@@ -118,28 +132,39 @@ class InstlAdmin(InstlInstanceBase):
                 retVal = len(svn_item.subs()) == 0
             return retVal
 
-    def upload_to_s3(self):
-        print(self.cvl.get_str("__ROOT_LINKS_FOLDER__"), self.cvl.get_str("__REPO_REV__"), self.cvl.get_str("__ROOT_LINKS_FOLDER__"))
+    def do_upload_to_s3(self):
         self.read_yaml_file(self.cvl.get_str("__S3_CONFIG_FILE__"))
-        g_map_file_path					= 'instl/info_map.txt'
+        g_map_file_path					= 'instl/info_map_upload.txt'
         g_upload_done_key				= 'instl/done'
         info_map_path = self.cvl.resolve_string("$(__ROOT_LINKS_FOLDER__)/$(__REPO_REV__)/"+g_map_file_path)
         self.read_info_map_file(info_map_path)
-        print("Before:", self.svnTree.num_subs_in_tree())
-        remove_predicate = InstlAdmin.RemoveIfNotSpecificVersion(int(self.cvl.get_str("__REPO_REV__")))
-        self.svnTree.recursive_remove_depth_first(remove_predicate)
+
+        upload_list = list()
+        for item in self.svnTree.walk_items(what="file"):
+            file_to_upload = self.cvl.resolve_string("$(__ROOT_LINKS_FOLDER__)/$(__REPO_REV__)/"+item.full_path())
+            if not os.path.islink(file_to_upload):
+                s3_path = self.cvl.resolve_string("$(ROOT_VERSION_NAME)/$(__REPO_REV__)/"+item.full_path())
+                upload_list.append( (file_to_upload, s3_path ) )
+
+        for dirpath, dirnames, filenames in os.walk(self.cvl.resolve_string("$(__ROOT_LINKS_FOLDER__)/$(__REPO_REV__)/instl")):
+            for filename in filenames:
+                file_to_upload = os.path.join(dirpath, filename)
+                s3_path = self.cvl.resolve_string("$(ROOT_VERSION_NAME)/$(__REPO_REV__)/instl/"+filename)
+                upload_list.append( (file_to_upload, s3_path ) )
+
         import boto
         s3 		= boto.connect_s3(self.cvl.get_str("AWS_ACCESS_KEY_ID"), self.cvl.get_str("AWS_SECRET_ACCESS_KEY"))
         bucket 	= s3.get_bucket(self.cvl.get_str("S3_BUCKET_NAME"))
         key_obj = boto.s3.key.Key(bucket)
-        for item in self.svnTree.walk_items(what="file"):
-            file_to_upload = self.cvl.resolve_string("$(__ROOT_LINKS_FOLDER__)/$(__REPO_REV__)/"+item.full_path())
-            s3_path = self.cvl.resolve_string("$(ROOT_VERSION_NAME)+/$(__REPO_REV__)/"+item.full_path())
-            print(file_to_upload)
-            print("---->", s3_path)
-            key_obj.key = s3_path
-            key_obj.set_contents_from_filename(file_to_upload, cb=percent_cb, num_cb=4)
-        print("After:", self.svnTree.num_subs_in_tree())
+        if "__RUN_BATCH_FILE__" in self.cvl:
+            for upload_pair in upload_list:
+                print("uploading:", upload_pair[0], "to", upload_pair[1])
+                key_obj.key = upload_pair[1]
+                key_obj.set_contents_from_filename(upload_pair[0], cb=percent_cb, num_cb=4)
+                print()
+        else:
+            for upload_pair in upload_list:
+                print(upload_pair[0], "-->", upload_pair[1])
 
 def percent_cb(complete, total):
 	sys.stdout.write('.')

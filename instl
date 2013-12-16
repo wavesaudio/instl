@@ -51,6 +51,7 @@ class CommandLineOptions(object):
         self.todo_args = None
         self.props_file = None
         self.filter_out = None
+        self.filter_in = None
         self.svn_url = None
         self.root_links_folder = None
         self.repo_rev = None
@@ -115,9 +116,9 @@ def prepare_args_parser():
         standard_options.add_argument('--in', '-i',
                                     required=True,
                                     nargs='+',
-                                    metavar='list-of-input-files',
+                                    metavar='path-to-input-file',
                                     dest='input_file',
-                                    help="file(s) to read index and definitions from")
+                                    help="file to read index and definitions from")
         standard_options.add_argument('--run', '-r',
                                     required=False,
                                     default=False,
@@ -147,12 +148,18 @@ def prepare_args_parser():
                                     metavar='path-to-props-file',
                                     dest='props_file',
                                     help="file to read svn properties from")
-        trans_options.add_argument('--filter-out', '-f',
+        trans_options.add_argument('--filter-out',
                                     required=False,
                                     nargs='+',
                                     metavar='paths-to-filter-out',
                                     dest='filter_out',
                                     help="paths to filter out, comma separated")
+        trans_options.add_argument('--filter-in',
+                                    required=False,
+                                    nargs=1,
+                                    metavar='version-to-filter-in',
+                                    dest='filter_in',
+                                    help="version to filter in, all other version will be left out")
 
     for subparser in (parser_createlinks, parser_up2S3):
         subparser.set_defaults(mode='admin')

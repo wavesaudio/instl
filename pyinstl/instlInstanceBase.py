@@ -3,6 +3,7 @@ from __future__ import print_function
 import abc
 import logging
 import datetime
+import yaml
 
 import appdirs
 
@@ -92,6 +93,8 @@ class InstlInstanceBase(object):
             self.cvl.add_const_config_variable("__PROPS_FILE__", "from command line options", cmd_line_options_obj.props_file[0])
         if cmd_line_options_obj.filter_out:
             self.cvl.add_const_config_variable("__FILTER_OUT_PATHS__", "from command line options", *cmd_line_options_obj.filter_out)
+        if cmd_line_options_obj.filter_in:
+            self.cvl.add_const_config_variable("__FILTER_IN_VERSION__", "from command line options", cmd_line_options_obj.filter_in[0])
         if cmd_line_options_obj.run:
             self.cvl.add_const_config_variable("__RUN_BATCH_FILE__", "from command line options", "yes")
         if cmd_line_options_obj.command:
