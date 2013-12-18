@@ -373,7 +373,7 @@ class SVNItem(object):
                     else:
                         raise ValueError("props node is not a scalar for %s %s" % (identifier, str(contents)))
         else:
-            ValueError("a_node is not a mapping", a_node)
+            raise ValueError("a_node is not a mapping", a_node)
 
 
 class SVNTopItem(SVNItem):

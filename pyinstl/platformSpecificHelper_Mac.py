@@ -24,10 +24,13 @@ class CopyToolMacRsync(CopyToolBase):
         sync_command = "rsync -l -r -E --exclude=\'.svn/\' --link-dest=\"{src_file}\" \"{src_file}\" \"{trg_dir}\"".format(**locals())
         return sync_command
 
-    def copy_dir_contents_to_dir(self, src_dir, trg_dir):
+    def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=None):
         if not src_dir.endswith("/"):
             src_dir += "/"
-        sync_command = "rsync -l -r -E --exclude=\'.svn/\' --link-dest=\"{src_dir}..\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+        if link_dest is None:
+            sync_command = "rsync -l -r -E --exclude=\'.svn/\' --link-dest=\"{src_dir}..\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+        else:
+            sync_command = "rsync -l -r -E --exclude=\'.svn/\' --link-dest=\"{link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
         return sync_command
 
     def copy_dir_files_to_dir(self, src_dir, trg_dir):
@@ -44,11 +47,18 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         self.dl_tool = DownloadTool_mac_curl()
 
     def get_install_instructions_prefix(self):
-        return ("#!/bin/sh", "SAVE_DIR=`pwd`")
+        prefix_list = []
+        prefix_list.append("#!/bin/sh")
+        prefix_list.append(self.save_dir("TOP_SAVE_DIR"))
+        prefix_list.append("\n")
+        return prefix_list
 
     def get_install_instructions_postfix(self):
-        retVal = (self.cd("$(SAVE_DIR)"), "exit 0")
-        return retVal
+        postfix_list = []
+        postfix_list.append("\n")
+        postfix_list.append(self.restore_dir("TOP_SAVE_DIR"))
+        postfix_list.append("exit 0")
+        return postfix_list
 
     def mkdir(self, directory):
         mk_command = " ".join( ("mkdir", "-p", quoteme(directory) ) )
@@ -57,6 +67,14 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
     def cd(self, directory):
         cd_command = " ".join( ("cd", quoteme(directory) ) )
         return cd_command
+
+    def save_dir(self, var_name):
+        save_dir_command = var_name+"=`pwd`"
+        return save_dir_command
+
+    def restore_dir(self, var_name):
+        restore_dir_command = self.cd("$("+var_name+")")
+        return restore_dir_command
 
     def get_svn_folder_cleanup_instructions(self):
         return 'find . -maxdepth 1 -mindepth 1 -type d -print0 | xargs -0 "$(SVN_CLIENT_PATH)" cleanup --non-interactive'

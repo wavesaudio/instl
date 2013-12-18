@@ -81,6 +81,19 @@ class PlatformSpecificHelperBase(object):
         pass
 
     @abc.abstractmethod
+    def save_dir(self, var_name):
+        """ platform specific save current dir for install script """
+        pass
+
+    @abc.abstractmethod
+    def restore_dir(self, var_name):
+        """ platform specific restore current dir for install script """
+        pass
+
+    def new_line(self):
+        return "\n"
+
+    @abc.abstractmethod
     def get_svn_folder_cleanup_instructions(self, directory):
         """ platform specific cleanup of svn locks """
         pass

@@ -55,6 +55,7 @@ class CommandLineOptions(object):
         self.svn_url = None
         self.root_links_folder = None
         self.repo_rev = None
+        self.base_rev = None
         self.s3_config = None
 
     def __str__(self):
@@ -160,43 +161,74 @@ def prepare_args_parser():
                                     metavar='version-to-filter-in',
                                     dest='filter_in',
                                     help="version to filter in, all other version will be left out")
+        trans_options.add_argument('--base-revision', '-b',
+                                    required=False,
+                                    nargs=1,
+                                    metavar='base_revision',
+                                    dest='base_rev',
+                                    help="base reversion for uploading")
 
-    for subparser in (parser_createlinks, parser_up2S3):
+    for subparser in (parser_createlinks, ):
         subparser.set_defaults(mode='admin')
-        trans_options = subparser.add_argument_group(description='admin arguments:')
-        trans_options.add_argument('--url', '-u',
+        createlinks_options = subparser.add_argument_group(description='admin arguments:')
+        createlinks_options.add_argument('--url', '-u',
                                     required=True,
                                     nargs=1,
                                     metavar='url-to-svn-repository',
                                     dest='svn_url',
                                     help="url to svn repository")
-        trans_options.add_argument('--root', '-r',
+        createlinks_options.add_argument('--root', '-r',
                                     required=True,
                                     nargs=1,
                                     metavar='root-links-folder',
                                     dest='root_links_folder',
                                     help="root links folder ")
-        trans_options.add_argument('--revision', '-v',
+        createlinks_options.add_argument('--revision', '-v',
                                     required=True,
                                     nargs=1,
-                                    metavar='repository-revision',
+                                    metavar='min_revision[:max_revision]',
                                     dest='repo_rev',
                                     help="file to read svn properties from")
-        trans_options.add_argument('--run',
+        createlinks_options.add_argument('--run',
                                     required=False,
                                     default=False,
                                     action='store_true',
                                     dest='run',
                                     help="run the installation instructions script")
+        createlinks_options.add_argument('--base-revision', '-b',
+                                    required=False,
+                                    nargs=1,
+                                    metavar='base_revision',
+                                    dest='base_rev',
+                                    help="base reversion for uploading")
 
     for subparser in (parser_up2S3, ):
-        trans_options = subparser.add_argument_group(description='s3 arguments:')
-        trans_options.add_argument('--s3_config', '-s',
+        subparser.set_defaults(mode='admin')
+        up2S3_options = subparser.add_argument_group(description='s3 arguments:')
+        up2S3_options.add_argument('--root', '-r',
+                                    required=True,
+                                    nargs=1,
+                                    metavar='root-links-folder',
+                                    dest='root_links_folder',
+                                    help="root links folder ")
+        up2S3_options.add_argument('--revision', '-v',
+                                    required=True,
+                                    nargs=1,
+                                    metavar='repository-revision',
+                                    dest='repo_rev',
+                                    help="file to read svn properties from")
+        up2S3_options.add_argument('--s3_config', '-s',
                                     required=True,
                                     nargs=1,
                                     metavar='path-to-s3-config-file',
                                     dest='s3_config',
                                     help="path to s3 config-file")
+        up2S3_options.add_argument('--run',
+                                    required=False,
+                                    default=False,
+                                    action='store_true',
+                                    dest='run',
+                                    help="run the installation instructions script")
 
         parser_version = subparsers.add_parser('version', help='display instl version')
         parser_version.set_defaults(mode='do_something')

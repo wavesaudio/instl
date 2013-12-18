@@ -109,7 +109,10 @@ class InstlInstanceBase(object):
             self.cvl.add_const_config_variable("__REPO_REV__", "from command line options", cmd_line_options_obj.repo_rev[0])
         if cmd_line_options_obj.s3_config:
             self.cvl.add_const_config_variable("__S3_CONFIG_FILE__", "from command line options", cmd_line_options_obj.s3_config[0])
-
+        if cmd_line_options_obj.base_rev:
+            self.cvl.add_const_config_variable("__BASE_REPO_REV__", "from command line options", cmd_line_options_obj.base_rev[0])
+        else:
+            self.cvl.add_const_config_variable("__BASE_REPO_REV__", "from command line options", "0")
 
         for identifier in self.cvl:
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
@@ -158,6 +161,7 @@ class InstlInstanceBase(object):
         for identifier in self.cvl:
             if not self.internal_identifier_re.match(identifier) or pyinstl.log_utils.debug_logging_started: # do not write internal state identifiers, unless in debug mode
                 self.batch_accum += self.platform_helper.var_assign(identifier,self.cvl.get_str(identifier))
+        self.batch_accum += self.platform_helper.new_line()
 
     @func_log_wrapper
     def get_default_sync_dir(self):

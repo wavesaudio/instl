@@ -65,10 +65,16 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         self.dl_tool = DownloadTool_win_wget()
 
     def get_install_instructions_prefix(self):
-        return "SET SAVE_DIR=%CD%"
+        prefix_list = []
+        prefix_list.append(self.save_dir("TOP_SAVE_DIR"))
+        prefix_list.append("\n")
+        return prefix_list
 
     def get_install_instructions_postfix(self):
-        return "cd /d %SAVE_DIR%"
+        postfix_list = []
+        postfix_list.append("\n")
+        postfix_list.append(self.restore_dir("TOP_SAVE_DIR"))
+        return postfix_list
 
     def mkdir(self, directory):
         mk_command = " ".join( ("mkdir", '"'+directory+'"'))
@@ -77,6 +83,14 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def cd(self, directory):
         cd_command = " ".join( ("cd", '/d', '"'+directory+'"') )
         return cd_command
+
+    def save_dir(self, var_name):
+        save_dir_command = "SET "+ var_name +" %CD%"
+        return save_dir_command
+
+    def restore_dir(self, var_name):
+        restore_dir_command = self.cd("$("+var_name+")")
+        return restore_dir_command
 
     def get_svn_folder_cleanup_instructions(self):
         return ()

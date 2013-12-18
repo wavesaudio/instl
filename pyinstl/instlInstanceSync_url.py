@@ -32,6 +32,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.have_map = svnTree.SVNTree()       # info map of what was already downloaded
         self.num_items_for_progress_report = 0
         self.current_item_for_progress_report = 0
+        self.symlinks = list()
 
     @func_log_wrapper
     def init_sync_vars(self):
@@ -146,19 +147,19 @@ class InstlInstanceSync_url(InstlInstanceSync):
         target_os_remote_info_map = self.work_info_map.get_item_at_path(self.instlInstance.cvl.get_str("TARGET_OS"))
         remote_sub_item = target_os_remote_info_map.get_item_at_path(source[0])
         if remote_sub_item is None:
-            ValueError(source[0], "does not exist in remote map")
+            raise ValueError(source[0], "does not exist in remote map")
         how_to_set = "all"
         if source[1] == '!file':
             if not remote_sub_item.isFile():
-                ValueError(source[0], "has type", source[1], "but is not a file")
+                raise  ValueError(source[0], "has type", source[1], "but is not a file")
             how_to_set = "only"
         elif source[1] == '!files':
             if not remote_sub_item.isDir():
-                ValueError(source[0], "has type", source[1], "but is not a dir")
+                raise ValueError(source[0], "has type", source[1], "but is not a dir")
             how_to_set = "file"
         elif source[1] == '!dir' or source[1] == '!dir_cont': # !dir and !dir_cont are only different when copying
             if not remote_sub_item.isDir():
-                ValueError(source[0], "has type", source[1], "but is not a dir")
+                raise ValueError(source[0], "has type", source[1], "but is not a dir")
             how_to_set = "all"
         
         remote_sub_item.set_user_data(True, how_to_set)
@@ -188,6 +189,12 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.copy_file_to_file("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")
 
     def create_download_instructions_for_item(self, item, path_so_far = list()):
+        if item.isSymlink():
+            source_url =   '/'.join( ["$(SYNC_BASE_URL)", str(item.last_rev())] + path_so_far + [item.name()] + ".readlink")
+            self.instlInstance.batch_accum += self.instlInstance.platform_helper.dl_tool.create_download_file_to_file_command(source_url, item.name())
+            self.instlInstance.batch_accum += self.instlInstance.platform_helper.echo("Progress: synced {self.current_item_for_progress_report} of {self.num_items_for_progress_report};".format(**locals()))
+            self.current_item_for_progress_report += 1
+            self.symlinks.append( ("/".join(path_so_far), item.name()) )
         if item.isFile():
             source_url =   '/'.join( ["$(SYNC_BASE_URL)", str(item.last_rev())] + path_so_far + [item.name()] )
             self.instlInstance.batch_accum += self.instlInstance.platform_helper.dl_tool.create_download_file_to_file_command(source_url, item.name())
@@ -204,3 +211,10 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.instlInstance.batch_accum.indent_level -= 1
             self.instlInstance.batch_accum += self.instlInstance.platform_helper.cd("..")
             path_so_far.pop()
+
+    def resolve_reallink_files(self):
+        for folder, readlink_base in self.symlinks:
+            self.instlInstance.batch_accum += self.instlInstance.platform_helper.cd(folder)
+            readlink_file = readlink_base ".readlink"
+            link_command = " ".join("ln", "-s", "$(cat " + readlink_file + ")", readlink_base
+            self.instlInstance.batch_accum += link_command
