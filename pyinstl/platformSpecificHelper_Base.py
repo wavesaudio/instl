@@ -59,6 +59,7 @@ class PlatformSpecificHelperBase(object):
     def __init__(self):
         self.copy_tool = None
         self.dl_tool = None
+        self.num_items_for_progress_report = 0
 
     @abc.abstractmethod
     def get_install_instructions_prefix(self):
@@ -92,6 +93,11 @@ class PlatformSpecificHelperBase(object):
 
     def new_line(self):
         return "" # empty string because write_batch_file adds \n to each line
+
+    def progress(self, msg):
+        self.num_items_for_progress_report += 1
+        prog_msg = "Progress: {} of $(TOTAL_ITEMS_FOR_PROGRESS_REPROT); ".format(str(self.num_items_for_progress_report)) + msg
+        return self.echo(prog_msg)
 
     @abc.abstractmethod
     def get_svn_folder_cleanup_instructions(self, directory):

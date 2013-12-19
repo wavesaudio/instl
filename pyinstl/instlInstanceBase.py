@@ -220,6 +220,7 @@ class InstlInstanceBase(object):
         self.batch_accum += self.platform_helper.get_install_instructions_prefix()
         self.batch_accum += self.platform_helper.remark(datetime.datetime.today().isoformat())
         self.batch_accum.set_current_section('post')
+        self.cvl.set_variable("TOTAL_ITEMS_FOR_PROGRESS_REPROT").append(str(self.platform_helper.num_items_for_progress_report))
         self.batch_accum += self.platform_helper.get_install_instructions_postfix()
         lines = self.batch_accum.finalize_list_of_lines()
         lines_after_var_replacement = '\n'.join([value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines])
@@ -229,6 +230,7 @@ class InstlInstanceBase(object):
         logging.info("... %s", out_file)
         with write_to_file_or_stdout(out_file) as fd:
             fd.write(lines_after_var_replacement)
+            fd.write('\n')
 
         if out_file != "stdout":
             self.out_file_realpath = os.path.realpath(out_file)

@@ -187,7 +187,7 @@ class InstlClient(InstlInstanceBase):
     def create_copy_instructions(self, installState):
         # copy and actions instructions for sources
         self.batch_accum.set_current_section('copy')
-        self.batch_accum += self.platform_helper.echo("starting copy")
+        self.batch_accum += self.platform_helper.progress("starting copy")
         self.platform_helper.use_copy_tool(self.cvl.get_str("COPY_TOOL"))
         num_items_for_progress_report = 1 # one for a dummy last item
         for folder_items in installState.install_items_by_target_folder.values():
@@ -196,9 +196,7 @@ class InstlClient(InstlInstanceBase):
                     num_items_for_progress_report += 1
         num_items_for_progress_report += len(installState.no_copy_items_by_sync_folder)
 
-        current_item_for_progress_report = 0
-        self.batch_accum += self.platform_helper.echo("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}; from $(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)".format(**locals()))
-        current_item_for_progress_report += 1
+        self.batch_accum += self.platform_helper.progress("from $(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)")
         for folder_name, folder_items in installState.install_items_by_target_folder.iteritems():
             self.batch_accum.indent_level += 1
             logging.info("... folder %s (%s)", folder_name, self.cvl.resolve_string(folder_name))
@@ -220,8 +218,7 @@ class InstlClient(InstlInstanceBase):
                     self.batch_accum += installi.action_list('before')
                     self.create_copy_instructions_for_source(source)
                     self.batch_accum += installi.action_list('after')
-                    self.batch_accum += self.platform_helper.echo("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}; {installi.iid}: {installi.name}".format(**locals()))
-                    current_item_for_progress_report += 1
+                    self.batch_accum += self.platform_helper.progress("{installi.iid}: {installi.name}".format(**locals()))
 
             # accumulate folder_out actions from all items, eliminating duplicates
             folder_out_actions = unique_list() # unique_list to eliminate identical actions while keeping the order
@@ -257,13 +254,12 @@ class InstlClient(InstlInstanceBase):
                 folder_out_actions.extend(installi.action_list('folder_out'))
             self.batch_accum += folder_out_actions
 
-            self.batch_accum += self.platform_helper.echo("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}".format(**locals()))
-            current_item_for_progress_report += 1
+            self.batch_accum += self.platform_helper.progress("{folder_name}".format(**locals()))
         # messages about orphan iids
         for iid in installState.orphan_install_items:
             logging.info("Orphan item: %s", iid)
             self.batch_accum += self.platform_helper.echo("Don't know how to install "+iid)
-        self.batch_accum += self.platform_helper.echo("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}".format(**locals()))
+        self.batch_accum += self.platform_helper.progress("done copy")
 
     @func_log_wrapper
     def create_copy_instructions_for_source(self, source):
