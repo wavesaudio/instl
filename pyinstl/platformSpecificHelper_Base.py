@@ -23,7 +23,7 @@ class CopyToolBase(object):
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
-    def copy_dir_to_dir(self, src_dir, trg_dir):
+    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=None):
         """ Copy src_dir as a folder into trg_dir.
             Example: copy_dir_to_dir("a", "/d/c/b") creates the folder:
             "/d/c/b/a"
@@ -31,7 +31,7 @@ class CopyToolBase(object):
         pass
 
     @abc.abstractmethod
-    def copy_file_to_dir(self, src_file, trg_dir):
+    def copy_file_to_dir(self, src_file, trg_dir, link_dest=None):
         """ Copy the file src_file into trg_dir.
             Example: copy_file_to_dir("a.txt", "/d/c/b") creates the file:
             "/d/c/b/a.txt"
@@ -39,7 +39,7 @@ class CopyToolBase(object):
         pass
 
     @abc.abstractmethod
-    def copy_dir_contents_to_dir(self, src_dir, trg_dir):
+    def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=None):
         """ Copy the contents of src_dir into trg_dir.
             Example: copy_dir_contents_to_dir("a", "/d/c/b") copies
             everything from a into "/d/c/b"
@@ -47,7 +47,7 @@ class CopyToolBase(object):
         pass
 
     @abc.abstractmethod
-    def copy_dir_files_to_dir(self, src_dir, trg_dir):
+    def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=None):
         """ Copy the files of src_dir into trg_dir.
             Example: copy_dir_contents_to_dir("a", "/d/c/b") copies
             all files from a into "/d/c/b", subfolders of a are not copied
@@ -120,6 +120,10 @@ class PlatformSpecificHelperBase(object):
             Example: create_copy_file_to_file("a.txt", "/d/c/bt.txt") copies
             the file a.txt into "/d/c/bt.txt".
         """
+        pass
+
+    @abc.abstractmethod
+    def resolve_readlink_files(self, in_dir="."):
         pass
 
 def PlatformSpecificHelperFactory(in_os):

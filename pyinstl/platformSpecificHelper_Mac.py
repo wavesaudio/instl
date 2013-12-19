@@ -1,6 +1,8 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
+import os
+
 from platformSpecificHelper_Base import PlatformSpecificHelperBase
 from platformSpecificHelper_Base import CopyToolBase
 from platformSpecificHelper_Base import DownloadToolBase
@@ -9,35 +11,46 @@ def quoteme(to_qoute):
     return "".join( ('"', to_qoute, '"') )
 
 class CopyToolMacRsync(CopyToolBase):
-    def copy_dir_to_dir(self, src_dir, trg_dir):
+    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=None):
         if src_dir.endswith("/"):
             src_dir.rstrip("/")
-        #link_dest = "".join( ("'", src_dir, '/..', "'") )
-        #src_dir = "".join( ("'", src_dir, "'") )
-        #trg_dir = "".join( ("'", trg_dir, "'") )
-        link_dest = src_dir+'/..'
-        sync_command = "rsync -l -r -E --exclude=\'.svn/\' --link-dest=\"{link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+        if link_dest is None:
+            sync_command = "rsync -l -r -E --exclude=\'.svn/\' \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+        else:
+            relative_link_dest = os.path.relpath(link_dest, trg_dir)
+            sync_command = "rsync -l -r -E --exclude=\'.svn/\' --link-dest=\"{relative_link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+
         return sync_command
 
-    def copy_file_to_dir(self, src_file, trg_dir):
+    def copy_file_to_dir(self, src_file, trg_dir, link_dest=None):
         assert not src_file.endswith("/")
-        sync_command = "rsync -l -r -E --exclude=\'.svn/\' --link-dest=\"{src_file}\" \"{src_file}\" \"{trg_dir}\"".format(**locals())
+        if link_dest is None:
+            sync_command = "rsync -l -r -E --exclude=\'.svn/\' \"{src_file}\" \"{trg_dir}\"".format(**locals())
+        else:
+            relative_link_dest = os.path.relpath(link_dest, trg_dir)
+            sync_command = "rsync -l -r -E --exclude=\'.svn/\' --link-dest=\"{relative_link_dest}\" \"{src_file}\" \"{trg_dir}\"".format(**locals())
         return sync_command
 
     def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=None):
         if not src_dir.endswith("/"):
             src_dir += "/"
         if link_dest is None:
-            sync_command = "rsync -l -r -E --exclude=\'.svn/\' --link-dest=\"{src_dir}..\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+            sync_command = "rsync -l -r -E --exclude=\'.svn/\' \"{src_dir}\" \"{trg_dir}\"".format(**locals())
         else:
-            sync_command = "rsync -l -r -E --exclude=\'.svn/\' --link-dest=\"{link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+            relative_link_dest = os.path.relpath(link_dest, trg_dir)
+            sync_command = "rsync -l -r -E --exclude=\'.svn/\' --link-dest=\"{relative_link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
         return sync_command
 
-    def copy_dir_files_to_dir(self, src_dir, trg_dir):
+    def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=None):
         if not src_dir.endswith("/"):
             src_dir += "/"
-        # in order for * to correctly expand, it must be outside the quotes, e.g. to copy all files in folder a: A=a ; "${A}"/* and not "${A}/*" 
-        sync_command = "rsync -l -E -d --exclude=\'.svn/\' --link-dest=\"{src_dir}..\" \"{src_dir}\"/* \"{trg_dir}\"".format(**locals())
+        # in order for * to correctly expand, it must be outside the quotes, e.g. to copy all files in folder a: A=a ; "${A}"/* and not "${A}/*"
+        if link_dest is None:
+            sync_command = "rsync -l -E -d --exclude=\'.svn/\' \"{src_dir}\"/* \"{trg_dir}\"".format(**locals())
+        else:
+            relative_link_dest = os.path.relpath(link_dest, trg_dir)
+            sync_command = "rsync -l -E -d --exclude=\'.svn/\' --link-dest=\"{relative_link_dest}..\" \"{src_dir}\"/* \"{trg_dir}\"".format(**locals())
+
         return sync_command
 
 class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
@@ -99,6 +112,25 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
     def copy_file_to_file(self, src_file, trg_file):
         sync_command = "cp -f \"{src_file}\" \"{trg_file}\"".format(**locals())
         return sync_command
+
+    def resolve_readlink_files(self, in_dir="."):
+        """ create instructions to turn .readlink files into symlinks.
+            Main problem was with files that had space in their name, just
+            adding \" was no enough, had to separate each step to a single line
+            which solved the spaces problem. Also find returns an empty string
+            even when there were no files found, and therefor the check
+        """
+        resolve_commands = (
+            "for readlink_file in \"$(find . -name '*.readlink')\" ; do",
+            "    if [ \"$readlink_file\" ] ; then",             # avoid empty results
+            "       file_contents=`cat \"$readlink_file\"`",    # avoid spaces in path
+            "       link_file=\"${readlink_file%.*}\"",          # avoid spaces in path
+            "       ln -s \"$file_contents\" \"$link_file\"",
+            "       rm \"$readlink_file\"",
+            "   fi",
+            "done"
+            )
+        return resolve_commands
 
 class DownloadTool_mac_curl(DownloadToolBase):
 

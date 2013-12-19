@@ -273,13 +273,13 @@ class InstlClient(InstlInstanceBase):
         source_url = "$(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)/"+source[0]
 
         if source[1] == '!file':       # get a single file, not recommended
-            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_url, ".")
+            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_url, ".", source_url)
         elif source[1] == '!dir_cont': # get all files and folders from a folder
-            self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_url, ".")
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_url, ".", source_url)
         elif source[1] == '!files':    # get all files from a folder
-            self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_url, ".")
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_url, ".", source_url)
         else:
-            self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_url, ".")
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_url, ".", source_url)
         logging.info("... %s; (%s - %s)", source_url, self.cvl.resolve_string(source_url), source[1])
 
     @func_log_wrapper

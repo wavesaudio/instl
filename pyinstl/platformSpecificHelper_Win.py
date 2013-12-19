@@ -9,7 +9,7 @@ def quoteme(to_qoute):
     return "".join( ('"', to_qoute, '"') )
 
 class CopyTool_win_robocopy(CopyToolBase):
-    def copy_dir_to_dir(self, src_dir, trg_dir):
+    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=None):
         retVal = list()
         _, dir_to_copy = os.path.split(src_dir)
         trg_dir = "/".join( (trg_dir, dir_to_copy) )
@@ -17,25 +17,25 @@ class CopyTool_win_robocopy(CopyToolBase):
         retVal.append(copy_command)
         return retVal
 
-    def copy_file_to_dir(self, src_file, trg_dir):
+    def copy_file_to_dir(self, src_file, trg_dir, link_dest=None):
         src_dir, src_file = os.path.split(src_file)
         copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" \"{src_file}\" /R:3 /W:3".format(**locals())
         return copy_command
 
-    def copy_dir_contents_to_dir(self, src_dir, trg_dir):
+    def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=None):
         copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /E /XD .svn /R:3 /W:3".format(**locals())
         return copy_command
     
-    def copy_dir_files_to_dir(self, src_dir, trg_dir):
+    def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=None):
         copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /LEV:1 /XD .svn /R:3 /W:3".format(**locals())
         return copy_command
 
-    def copy_file_to_file(self, src_file, trg_file):
+    def copy_file_to_file(self, src_file, trg_file, link_dest=None):
         sync_command = "copy \"{src_file}\" \"{trg_file}\"".format(**locals())
         return sync_command
 
 class CopyTool_win_xcopy(CopyToolBase):
-    def copy_dir_to_dir(self, src_dir, trg_dir):
+    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=None):
         retVal = list()
         _, dir_to_copy = os.path.split(src_dir)
         trg_dir = "/".join( (trg_dir, dir_to_copy) )
@@ -44,17 +44,17 @@ class CopyTool_win_xcopy(CopyToolBase):
         retVal.extend(self.copy_dir_contents_to_dir(src_dir, trg_dir))
         return retVal
 
-    def copy_file_to_dir(self, src_file, trg_dir):
+    def copy_file_to_dir(self, src_file, trg_dir, link_dest=None):
         #src_dir, src_file = os.path.split(src_file)
         copy_command = "xcopy  /R /Y \"{src_file}\" \"{trg_dir}\"".format(**locals())
         copy_command.replace("\\", "/")
         return copy_command
 
-    def copy_dir_contents_to_dir(self, src_dir, trg_dir):
+    def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=None):
         copy_command = "xcopy /E /R /Y \"{src_dir}\" \"{trg_dir}\"".format(**locals())
         return copy_command
     
-    def copy_dir_files_to_dir(self, src_dir, trg_dir):
+    def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=None):
         copy_command = "xcopy  /R /Y \"{src_dir}\" \"{trg_dir}\"".format(**locals())
         return copy_command
 
@@ -118,6 +118,8 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         sync_command = "copy \"{src_file}\" \"{trg_file}\"".format(**locals())
         return (sync_command, )
 
+    def resolve_readlink_files(self, in_dir="."):
+        return ()
 
 class DownloadTool_win_wget(DownloadToolBase):
 

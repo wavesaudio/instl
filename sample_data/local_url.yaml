@@ -1,7 +1,7 @@
 --- !define
 
 
-REPO_REV: 109
+REPO_REV: 212
 REPRO_TYPE: "URL"
 SVN_CLIENT_PATH_FOR_Win: "C:/p4client/dev_install/bin/Win/wsvn/wsvn.exe"
 SVN_CLIENT_PATH_FOR_Mac: "/usr/local/bin/wsvn"
@@ -11,12 +11,12 @@ SET_ICON_PATH: "/usr/local/bin/setIcon"
 
 GET_URL_CLIENT_PATH: curl
 
-SYNC_BASE_URL: "file:///Volumes/SvnSrv/V9Static"
+SYNC_BASE_URL: "file:///Volumes/p4client/dev_install/instl/192.168.13.108_links"
 #SYNC_BASE_URL: "file:///Volumes/SvnSrv/192.168.13.108/V9"
 
 __include__: "$(SYNC_BASE_URL)/$(REPO_REV)/instl/index.yaml"
 
-REPO_REV: 109 # to override settings in the index.yaml
+REPO_REV: 212 # to override settings in the index.yaml
 
 #BOOKKEEPING_DIR_URL
 #REL_BOOKKIPING_PATH

@@ -185,12 +185,13 @@ class InstlInstanceSync_url(InstlInstanceSync):
         for need_item in file_list + dir_list:
             self.create_download_instructions_for_item(need_item)
         self.instlInstance.batch_accum.indent_level -= 1
+        self.instlInstance.batch_accum += self.instlInstance.platform_helper.resolve_readlink_files()
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.echo("Progress: synced {self.current_item_for_progress_report} of {self.num_items_for_progress_report};  from $(BASE_SRC_URL)".format(**locals()))
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.copy_file_to_file("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")
 
     def create_download_instructions_for_item(self, item, path_so_far = list()):
         if item.isSymlink():
-            source_url =   '/'.join( ["$(SYNC_BASE_URL)", str(item.last_rev())] + path_so_far + [item.name()] + ".readlink")
+            source_url =   '/'.join(( "$(SYNC_BASE_URL)", str(item.last_rev()), "/".join(path_so_far), item.name() + ".readlink" ))
             self.instlInstance.batch_accum += self.instlInstance.platform_helper.dl_tool.create_download_file_to_file_command(source_url, item.name())
             self.instlInstance.batch_accum += self.instlInstance.platform_helper.echo("Progress: synced {self.current_item_for_progress_report} of {self.num_items_for_progress_report};".format(**locals()))
             self.current_item_for_progress_report += 1
@@ -211,10 +212,3 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.instlInstance.batch_accum.indent_level -= 1
             self.instlInstance.batch_accum += self.instlInstance.platform_helper.cd("..")
             path_so_far.pop()
-
-    def resolve_reallink_files(self):
-        for folder, readlink_base in self.symlinks:
-            self.instlInstance.batch_accum += self.instlInstance.platform_helper.cd(folder)
-            readlink_file = readlink_base ".readlink"
-            link_command = " ".join("ln", "-s", "$(cat " + readlink_file + ")", readlink_base
-            self.instlInstance.batch_accum += link_command

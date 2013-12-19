@@ -142,7 +142,7 @@ class InstlAdmin(InstlInstanceBase):
 
         accum += self.platform_helper.mkdir("$(__ROOT_LINKS_FOLDER__)/$(__CURR_REPO_REV__)")
         accum += self.platform_helper.echo("Copying version $(__CURR_REPO_REV__) to $(__ROOT_LINKS_FOLDER__)/$(__CURR_REPO_REV__)")
-        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir("$(__CHECKOUT_FOLDER__)", revision_folder_path, "../Base")
+        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir("$(__CHECKOUT_FOLDER__)", revision_folder_path, "$(__CHECKOUT_FOLDER__)")
 
         accum += self.platform_helper.mkdir(revision_instl_folder_path)
         accum += self.platform_helper.cd("$(__CHECKOUT_FOLDER__)")
