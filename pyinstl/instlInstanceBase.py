@@ -161,7 +161,6 @@ class InstlInstanceBase(object):
         for identifier in self.cvl:
             if not self.internal_identifier_re.match(identifier) or pyinstl.log_utils.debug_logging_started: # do not write internal state identifiers, unless in debug mode
                 self.batch_accum += self.platform_helper.var_assign(identifier,self.cvl.get_str(identifier))
-        self.batch_accum += self.platform_helper.new_line()
 
     @func_log_wrapper
     def get_default_sync_dir(self):
@@ -230,7 +229,6 @@ class InstlInstanceBase(object):
         logging.info("... %s", out_file)
         with write_to_file_or_stdout(out_file) as fd:
             fd.write(lines_after_var_replacement)
-            fd.write('\n')
 
         if out_file != "stdout":
             self.out_file_realpath = os.path.realpath(out_file)

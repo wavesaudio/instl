@@ -63,12 +63,10 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         prefix_list = []
         prefix_list.append("#!/bin/sh")
         prefix_list.append(self.save_dir("TOP_SAVE_DIR"))
-        prefix_list.append("\n")
         return prefix_list
 
     def get_install_instructions_postfix(self):
         postfix_list = []
-        postfix_list.append("\n")
         postfix_list.append(self.restore_dir("TOP_SAVE_DIR"))
         postfix_list.append("exit 0")
         return postfix_list
@@ -122,9 +120,9 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         """
         resolve_commands = (
             "for readlink_file in \"$(find . -name '*.readlink')\" ; do",
-            "    if [ \"$readlink_file\" ] ; then",             # avoid empty results
+            "   if [ \"$readlink_file\" ] ; then",             # avoid empty results
             "       file_contents=`cat \"$readlink_file\"`",    # avoid spaces in path
-            "       link_file=\"${readlink_file%.*}\"",          # avoid spaces in path
+            "       link_file=\"${readlink_file%.*}\"",         # avoid spaces in path
             "       ln -s \"$file_contents\" \"$link_file\"",
             "       rm \"$readlink_file\"",
             "   fi",

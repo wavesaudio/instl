@@ -46,10 +46,12 @@ class BatchAccumulator(object):
         lines = list()
         for section in BatchAccumulator.section_order:
             section_lines = self.instruction_lines[section]
-            if section == "assign":
-                section_lines.sort()
-            resolved_sync_instruction_lines = map(self.cvl.resolve_string, section_lines)
-            lines.extend(resolved_sync_instruction_lines)
+            if section_lines:
+                if section == "assign":
+                    section_lines.sort()
+                resolved_sync_instruction_lines = map(self.cvl.resolve_string, section_lines)
+                lines.extend(resolved_sync_instruction_lines)
+                lines.append("") # empty string will cause to emit new line
         return lines
 
     def merge_with(self, another_accum):

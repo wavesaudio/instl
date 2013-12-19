@@ -200,7 +200,6 @@ class InstlClient(InstlInstanceBase):
         self.batch_accum += self.platform_helper.echo("Progress: copied {current_item_for_progress_report} of {num_items_for_progress_report}; from $(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)".format(**locals()))
         current_item_for_progress_report += 1
         for folder_name, folder_items in installState.install_items_by_target_folder.iteritems():
-            self.batch_accum += self.platform_helper.echo("Starting copy to folder "+folder_name)
             self.batch_accum.indent_level += 1
             logging.info("... folder %s (%s)", folder_name, self.cvl.resolve_string(folder_name))
             self.batch_accum += self.platform_helper.mkdir(folder_name)

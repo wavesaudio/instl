@@ -91,7 +91,7 @@ class PlatformSpecificHelperBase(object):
         pass
 
     def new_line(self):
-        return "\n"
+        return "" # empty string because write_batch_file adds \n to each line
 
     @abc.abstractmethod
     def get_svn_folder_cleanup_instructions(self, directory):

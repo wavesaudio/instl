@@ -67,12 +67,10 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def get_install_instructions_prefix(self):
         prefix_list = []
         prefix_list.append(self.save_dir("TOP_SAVE_DIR"))
-        prefix_list.append("\n")
         return prefix_list
 
     def get_install_instructions_postfix(self):
         postfix_list = []
-        postfix_list.append("\n")
         postfix_list.append(self.restore_dir("TOP_SAVE_DIR"))
         return postfix_list
 
