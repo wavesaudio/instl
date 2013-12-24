@@ -197,9 +197,10 @@ class SVNTree(svnItem.SVNTopItem):
         pickle.dump(self, wfd, 2)
 
     def write_as_text(self, wfd):
-        for comment in self.comments:
-            wfd.write("# "+comment+"\n")
-        wfd.write("\n")
+        if len(self.comments) > 0:
+            for comment in self.comments:
+                wfd.write("# "+comment+"\n")
+            wfd.write("\n")
         for item in self.walk_items():
             wfd.write(str(item)+"\n")
 

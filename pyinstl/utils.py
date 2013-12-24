@@ -264,12 +264,22 @@ def gen_col_format(width_list):
     return retVal
 
 def ContinuationIter(the_iter, continuation_value=None):
+    """ ContinuationIter yield all the values of the_iter and then continue yielding continuation_value
+    """
     for val in the_iter:
         yield val
     while True:
         yield continuation_value
 
 def ParallelContinuationIter(*iterables):
+    """ Like zip ParallelContinuationIter will yield a list of items from the
+        same positions in the lists in iterables. If list are not of the same size
+        None will be produced
+        ParallelContinuationIter([1, 2, 3], ["a", "b"]) will yield:
+        [1, "a"]
+        [2, "b"]
+        [3, None]
+    """
     max_size = max([len(lis) for lis in iterables])
     continue_iterables = map(ContinuationIter, iterables)
     for i in range(max_size):
