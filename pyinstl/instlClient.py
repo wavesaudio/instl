@@ -189,12 +189,6 @@ class InstlClient(InstlInstanceBase):
         self.batch_accum.set_current_section('copy')
         self.batch_accum += self.platform_helper.progress("starting copy")
         self.platform_helper.use_copy_tool(self.cvl.get_str("COPY_TOOL"))
-        num_items_for_progress_report = 1 # one for a dummy last item
-        for folder_items in installState.install_items_by_target_folder.values():
-            for IID in folder_items:
-                for source in self.install_definitions_index[IID].source_list():
-                    num_items_for_progress_report += 1
-        num_items_for_progress_report += len(installState.no_copy_items_by_sync_folder)
 
         self.batch_accum += self.platform_helper.progress("from $(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)")
         for folder_name, folder_items in installState.install_items_by_target_folder.iteritems():
@@ -221,7 +215,7 @@ class InstlClient(InstlInstanceBase):
                     self.batch_accum += self.platform_helper.progress("{installi.iid}: {installi.name}".format(**locals()))
 
             # accumulate folder_out actions from all items, eliminating duplicates
-            folder_out_actions = unique_list() # unique_list to eliminate identical actions while keeping the order
+            folder_out_actions = unique_list() # unique_list will eliminate identical actions while keeping the order
             for IID in folder_items:
                 installi = self.install_definitions_index[IID]
                 folder_out_actions.extend(installi.action_list('folder_out'))
@@ -236,7 +230,7 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum += self.platform_helper.cd(folder_name)
 
             # accumulate folder_in actions from all items, eliminating duplicates
-            folder_in_actions = unique_list() # unique_list to eliminate identical actions while keeping the order
+            folder_in_actions = unique_list() # unique_list will eliminate identical actions while keeping the order
             for IID in folder_items:
                 installi = self.install_definitions_index[IID]
                 folder_in_actions.extend(installi.action_list('folder_in'))
@@ -248,7 +242,7 @@ class InstlClient(InstlInstanceBase):
                 self.batch_accum += installi.action_list('after')
 
             # accumulate folder_out actions from all items, eliminating duplicates
-            folder_out_actions = unique_list() # unique_list to eliminate identical actions while keeping the order
+            folder_out_actions = unique_list() # unique_list will eliminate identical actions while keeping the order
             for IID in folder_items:
                 installi = self.install_definitions_index[IID]
                 folder_out_actions.extend(installi.action_list('folder_out'))
