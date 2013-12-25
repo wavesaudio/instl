@@ -140,6 +140,9 @@ def PlatformSpecificHelperFactory(in_os):
     elif in_os == "Win":
         import platformSpecificHelper_Win
         retVal = platformSpecificHelper_Win.PlatformSpecificHelperWin()
+    elif in_os == "Linux":
+        import platformSpecificHelper_Linux
+        retVal = platformSpecificHelper_Linux.PlatformSpecificHelperLinux()
     else:
         raise ValueError(in_os, "has no PlatformSpecificHelper")
     return retVal
