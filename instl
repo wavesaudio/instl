@@ -40,7 +40,6 @@ class CommandLineOptions(object):
         holds command line options
     """
     def __init__(self):
-        self.mode = None
         self.command = None
         self.input_file = None
         self.output_file = None
@@ -299,6 +298,8 @@ def main():
             admin = InstlAdmin(initial_vars)
             admin.init_from_cmd_line_options(options)
             go_interactive(client, admin)
+        else:
+            print("incomprehensible command line options:\n", options)
     except InstlException as instl_except:
         print("instl exception", instl_except.message)
         from pyinstl.log_utils import debug_logging_started
