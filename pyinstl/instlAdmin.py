@@ -44,7 +44,7 @@ class InstlAdmin(InstlInstanceBase):
             self.read_info_map_file(self.cvl.get_str("__PROPS_FILE__"))
         self.filter_out_info_map(self.cvl.get_list("__FILTER_OUT_PATHS__"))
 
-        base_rev = int(self.cvl.get_str("__BASE_REPO_REV__"))
+        base_rev = int(self.cvl.get_str("BASE_REPO_REV"))
         if base_rev > 0:
             for item in self.svnTree.walk_items():
                 item.set_last_rev(max(item.last_rev(), base_rev))
@@ -84,7 +84,7 @@ class InstlAdmin(InstlInstanceBase):
                                 """, re.VERBOSE)
         min_rev = 0
         max_rev = 1
-        match = revision_range_re.match(self.cvl.get_str("__REPO_REV__"))
+        match = revision_range_re.match(self.cvl.get_str("REPO_REV"))
         if match:
             min_rev += int(match.group('min_rev'))
             if match.group('max_rev'):
@@ -104,7 +104,7 @@ class InstlAdmin(InstlInstanceBase):
 
         self.platform_helper.use_copy_tool(self.cvl.get_str("COPY_TOOL"))
 
-        self.cvl.set_variable("__CHECKOUT_FOLDER__").append("$(__ROOT_LINKS_FOLDER__)/Base")
+        self.cvl.set_variable("__CHECKOUT_FOLDER__").append("$(ROOT_LINKS_FOLDER)/Base")
         self.batch_accum += self.platform_helper.mkdir("$(__CHECKOUT_FOLDER__)")
 
         accum = BatchAccumulator(self.cvl)
@@ -112,7 +112,7 @@ class InstlAdmin(InstlInstanceBase):
         self.create_links_for_revision(accum)
 
         min_rev, max_rev = self.get_revision_range()
-        base_rev = int(self.cvl.get_str("__BASE_REPO_REV__"))
+        base_rev = int(self.cvl.get_str("BASE_REPO_REV"))
         if base_rev > 0 and base_rev > min_rev:
             raise ValueError("base_rev "+str(base_rev)+" > min_rev "+str(min_rev))
         if min_rev >= max_rev:
@@ -132,16 +132,16 @@ class InstlAdmin(InstlInstanceBase):
             self.run_batch_file()
 
     def create_links_for_revision(self, accum):
-        revision_folder_path = "$(__ROOT_LINKS_FOLDER__)/$(__CURR_REPO_REV__)"
+        revision_folder_path = "$(ROOT_LINKS_FOLDER)/$(__CURR_REPO_REV__)"
         revision_instl_folder_path = revision_folder_path+"/instl"
 
         accum += self.platform_helper.echo("Getting version $(__CURR_REPO_REV__) from $(__SVN_URL__)")
         checkout_command_parts = ['"$(SVN_CLIENT_PATH)"', "co", '"'+"$(__SVN_URL__)@$(__CURR_REPO_REV__)"+'"', '"'+"$(__CHECKOUT_FOLDER__)"+'"', "--depth", "infinity"]
         accum += " ".join(checkout_command_parts)
 
-        accum += self.platform_helper.mkdir("$(__ROOT_LINKS_FOLDER__)/$(__CURR_REPO_REV__)")
-        accum += self.platform_helper.echo("Copying version $(__CURR_REPO_REV__) to $(__ROOT_LINKS_FOLDER__)/$(__CURR_REPO_REV__)")
-        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir("$(__CHECKOUT_FOLDER__)", revision_folder_path, "$(__CHECKOUT_FOLDER__)")
+        accum += self.platform_helper.mkdir("$(ROOT_LINKS_FOLDER)/$(__CURR_REPO_REV__)")
+        accum += self.platform_helper.echo("Copying version $(__CURR_REPO_REV__) to $(ROOT_LINKS_FOLDER)/$(__CURR_REPO_REV__)")
+        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir("$(__CHECKOUT_FOLDER__)", revision_folder_path, "$(ROOT_LINKS_FOLDER)/Base")
 
         accum += self.platform_helper.mkdir(revision_instl_folder_path)
         accum += self.platform_helper.cd("$(__CHECKOUT_FOLDER__)")
@@ -153,19 +153,19 @@ class InstlAdmin(InstlInstanceBase):
         props_command_parts = ['"$(SVN_CLIENT_PATH)"', "proplist", "--depth infinity", ">", "../$(__CURR_REPO_REV__)/instl/info_map.props"]
         accum += " ".join(props_command_parts)
 
-        accum += self.platform_helper.echo("Creating $(__ROOT_LINKS_FOLDER__)/$(__CURR_REPO_REV__)/instl/info_map.txt")
-        trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans", "--in", "../$(__CURR_REPO_REV__)/instl/info_map.info", "--props ", "../$(__CURR_REPO_REV__)/instl/info_map.props", "--out ", "../$(__CURR_REPO_REV__)/instl/info_map.txt", "--base-rev", "$(__BASE_REPO_REV__)"]
+        accum += self.platform_helper.echo("Creating $(ROOT_LINKS_FOLDER)/$(__CURR_REPO_REV__)/instl/info_map.txt")
+        trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans", "--in", "../$(__CURR_REPO_REV__)/instl/info_map.info", "--props ", "../$(__CURR_REPO_REV__)/instl/info_map.props", "--out ", "../$(__CURR_REPO_REV__)/instl/info_map.txt", "--base-rev", "$(BASE_REPO_REV)"]
         accum += " ".join(trans_command_parts)
 
-        accum += self.platform_helper.echo("Creating $(__ROOT_LINKS_FOLDER__)/$(__CURR_REPO_REV__)/instl/info_map_upload.txt")
+        accum += self.platform_helper.echo("Creating $(ROOT_LINKS_FOLDER)/$(__CURR_REPO_REV__)/instl/info_map_upload.txt")
         trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans", "--in", "../$(__CURR_REPO_REV__)/instl/info_map.txt", "--out ", "../$(__CURR_REPO_REV__)/instl/info_map_upload.txt",  "--filter-in", "$(__CURR_REPO_REV__)",  "--filter-out", "instl"]
         accum += " ".join(trans_command_parts)
 
-        accum += self.platform_helper.echo("Creating $(__ROOT_LINKS_FOLDER__)/$(__CURR_REPO_REV__)/instl/info_map_Mac.txt")
+        accum += self.platform_helper.echo("Creating $(ROOT_LINKS_FOLDER)/$(__CURR_REPO_REV__)/instl/info_map_Mac.txt")
         trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans", "--in", "../$(__CURR_REPO_REV__)/instl/info_map.txt", "--out ", "../$(__CURR_REPO_REV__)/instl/info_map_Mac.txt",  "--filter-out", "Win"]
         accum += " ".join(trans_command_parts)
 
-        accum += self.platform_helper.echo("Creating $(__ROOT_LINKS_FOLDER__)/$(__CURR_REPO_REV__)/instl/info_map_Win.txt")
+        accum += self.platform_helper.echo("Creating $(ROOT_LINKS_FOLDER)/$(__CURR_REPO_REV__)/instl/info_map_Win.txt")
         trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans", "--in", "../$(__CURR_REPO_REV__)/instl/info_map.txt", "--out ", "../$(__CURR_REPO_REV__)/instl/info_map_Win.txt",  "--filter-out", "Mac"]
         accum += " ".join(trans_command_parts)
 
@@ -183,18 +183,18 @@ class InstlAdmin(InstlInstanceBase):
             return retVal
 
     def do_upload_to_s3(self):
-        self.read_yaml_file(self.cvl.get_str("__S3_CONFIG_FILE__"))
+        self.read_yaml_file(self.cvl.get_str("S3_CONFIG_FILE"))
         g_map_file_path					= 'instl/info_map_upload.txt'
         #g_upload_done_key				= 'instl/done'
-        info_map_path = self.cvl.resolve_string("$(__ROOT_LINKS_FOLDER__)/$(__REPO_REV__)/"+g_map_file_path)
+        info_map_path = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/$(REPO_REV)/"+g_map_file_path)
         self.read_info_map_file(info_map_path)
 
         self.batch_accum.set_current_section('upload') # for symmetry, no instructions are actually produced
 
         upload_list = list()
         for item in self.svnTree.walk_items(what="file"):
-            file_to_upload = self.cvl.resolve_string("$(__ROOT_LINKS_FOLDER__)/$(__REPO_REV__)/"+item.full_path())
-            s3_path = self.cvl.resolve_string("$(ROOT_VERSION_NAME)/$(__REPO_REV__)/"+item.full_path())
+            file_to_upload = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/$(REPO_REV)/"+item.full_path())
+            s3_path = self.cvl.resolve_string("$(ROOT_VERSION_NAME)/$(REPO_REV)/"+item.full_path())
             if not os.path.islink(file_to_upload):
                 upload_list.append( (file_to_upload, s3_path ) )
             else:
@@ -203,10 +203,10 @@ class InstlAdmin(InstlInstanceBase):
                 open(link_as_text_path, "w").write(link_value)
                 upload_list.append( (link_as_text_path, s3_path ) )
 
-        for dirpath, dirnames, filenames in os.walk(self.cvl.resolve_string("$(__ROOT_LINKS_FOLDER__)/$(__REPO_REV__)/instl")):
+        for dirpath, dirnames, filenames in os.walk(self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/$(REPO_REV)/instl")):
             for filename in filenames:
                 file_to_upload = os.path.join(dirpath, filename)
-                s3_path = self.cvl.resolve_string("$(ROOT_VERSION_NAME)/$(__REPO_REV__)/instl/"+filename)
+                s3_path = self.cvl.resolve_string("$(ROOT_VERSION_NAME)/$(REPO_REV)/instl/"+filename)
                 upload_list.append( (file_to_upload, s3_path) )
 
         import boto

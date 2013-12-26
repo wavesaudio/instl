@@ -104,15 +104,15 @@ class InstlInstanceBase(object):
             self.cvl.add_const_config_variable("__SVN_URL__", "from command line options", cmd_line_options_obj.svn_url[0])
         if cmd_line_options_obj.root_links_folder:
             root_links_folder = cmd_line_options_obj.root_links_folder[0].rstrip("/\\")
-            self.cvl.add_const_config_variable("__ROOT_LINKS_FOLDER__", "from command line options", root_links_folder)
+            self.cvl.add_const_config_variable("ROOT_LINKS_FOLDER", "from command line options", root_links_folder)
         if cmd_line_options_obj.repo_rev:
-            self.cvl.add_const_config_variable("__REPO_REV__", "from command line options", cmd_line_options_obj.repo_rev[0])
+            self.cvl.add_const_config_variable("REPO_REV", "from command line options", cmd_line_options_obj.repo_rev[0])
         if cmd_line_options_obj.s3_config:
-            self.cvl.add_const_config_variable("__S3_CONFIG_FILE__", "from command line options", cmd_line_options_obj.s3_config[0])
+            self.cvl.add_const_config_variable("S3_CONFIG_FILE", "from command line options", cmd_line_options_obj.s3_config[0])
         if cmd_line_options_obj.base_rev:
-            self.cvl.add_const_config_variable("__BASE_REPO_REV__", "from command line options", cmd_line_options_obj.base_rev[0])
+            self.cvl.add_const_config_variable("BASE_REPO_REV", "from command line options", cmd_line_options_obj.base_rev[0])
         else:
-            self.cvl.add_const_config_variable("__BASE_REPO_REV__", "from command line options", "0")
+            self.cvl.add_const_config_variable("BASE_REPO_REV", "from command line options", "0")
 
         for identifier in self.cvl:
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
