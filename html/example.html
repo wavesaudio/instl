@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>6. Example &mdash; instl 0.1 documentation</title>
+    <title>7. Example &mdash; instl 0.1 documentation</title>
     
     <link rel="stylesheet" href="_static/nature.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -25,8 +25,8 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <link rel="top" title="instl 0.1 documentation" href="index.html" />
-    <link rel="next" title="&lt;no title&gt;" href="standard_variables.html" />
-    <link rel="prev" title="5. File formats: index and definition" href="fileformat.html" /> 
+    <link rel="next" title="8. Standard Varables" href="standard_variables.html" />
+    <link rel="prev" title="6. File formats: index and definition" href="fileformat.html" /> 
   </head>
   <body>
     <div class="related">
@@ -39,10 +39,10 @@
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="standard_variables.html" title="&lt;no title&gt;"
+          <a href="standard_variables.html" title="8. Standard Varables"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="fileformat.html" title="5. File formats: index and definition"
+          <a href="fileformat.html" title="6. File formats: index and definition"
              accesskey="P">previous</a> |</li>
         <li><a href="index.html">instl 0.1 documentation</a> &raquo;</li> 
       </ul>
@@ -54,9 +54,9 @@
           <div class="body">
             
   <div class="section" id="example">
-<h1>6. Example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h1>
+<h1>7. Example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="basic">
-<h2>6.1. Basic<a class="headerlink" href="#basic" title="Permalink to this headline">¶</a></h2>
+<h2>7.1. Basic<a class="headerlink" href="#basic" title="Permalink to this headline">¶</a></h2>
 <p><em>Acme</em> is and application with versions for Mac and Windows.
 For version 1.0 the svn server structure would look like this:</p>
 <div class="highlight-python"><pre>Acme_Installer/
@@ -89,7 +89,7 @@ index.txt
 </div>
 </div>
 <div class="section" id="adding-a-file">
-<h2>6.2. Adding a file<a class="headerlink" href="#adding-a-file" title="Permalink to this headline">¶</a></h2>
+<h2>7.2. Adding a file<a class="headerlink" href="#adding-a-file" title="Permalink to this headline">¶</a></h2>
 <p>Later a pdf of documentation was added.
 In order for the extra file to be installed at the user&#8217;s machine the file should be added to svn, and the server would looks like:</p>
 <div class="highlight-python"><pre>Acme_Installer/
@@ -114,7 +114,7 @@ index.txt
 <p>There is not need to change the index.txt file. The next time the user will run <strong>instl</strong> svn would detect the missing files and add them to the user&#8217;s disk.</p>
 </div>
 <div class="section" id="going-complicated">
-<h2>6.3. Going complicated<a class="headerlink" href="#going-complicated" title="Permalink to this headline">¶</a></h2>
+<h2>7.3. Going complicated<a class="headerlink" href="#going-complicated" title="Permalink to this headline">¶</a></h2>
 <p>Acme software decided to add choice of some plugins that the user can add to the product.
 The different from basic installation is that the user now can choose to install all, some or none of the plugins.
 Acme is now at version 2.0, and the extra file were added to svn repository:</p>
@@ -189,7 +189,7 @@ SET_THE_TONE_IDD:
 </div>
 </div>
 <div class="section" id="bundling">
-<h2>6.4. Bundling<a class="headerlink" href="#bundling" title="Permalink to this headline">¶</a></h2>
+<h2>7.4. Bundling<a class="headerlink" href="#bundling" title="Permalink to this headline">¶</a></h2>
 <p>Acme management has decided to bundle together two plugins and sell them as the <em>Art of Noise</em> bundle.
 All needs to be done is to add the following to the index.txt file:</p>
 <div class="highlight-python"><pre>ART_OF_NOISE_BUNDLE_IDD:
@@ -209,21 +209,21 @@ All needs to be done is to add the following to the index.txt file:</p>
         <div class="sphinxsidebarwrapper">
   <h3><a href="index.html">Table Of Contents</a></h3>
   <ul>
-<li><a class="reference internal" href="#">6. Example</a><ul>
-<li><a class="reference internal" href="#basic">6.1. Basic</a></li>
-<li><a class="reference internal" href="#adding-a-file">6.2. Adding a file</a></li>
-<li><a class="reference internal" href="#going-complicated">6.3. Going complicated</a></li>
-<li><a class="reference internal" href="#bundling">6.4. Bundling</a></li>
+<li><a class="reference internal" href="#">7. Example</a><ul>
+<li><a class="reference internal" href="#basic">7.1. Basic</a></li>
+<li><a class="reference internal" href="#adding-a-file">7.2. Adding a file</a></li>
+<li><a class="reference internal" href="#going-complicated">7.3. Going complicated</a></li>
+<li><a class="reference internal" href="#bundling">7.4. Bundling</a></li>
 </ul>
 </li>
 </ul>
 
   <h4>Previous topic</h4>
   <p class="topless"><a href="fileformat.html"
-                        title="previous chapter">5. File formats: index and definition</a></p>
+                        title="previous chapter">6. File formats: index and definition</a></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="standard_variables.html"
-                        title="next chapter">&lt;no title&gt;</a></p>
+                        title="next chapter">8. Standard Varables</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
     <li><a href="_sources/example.txt"
@@ -256,10 +256,10 @@ All needs to be done is to add the following to the index.txt file:</p>
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="standard_variables.html" title="&lt;no title&gt;"
+          <a href="standard_variables.html" title="8. Standard Varables"
              >next</a> |</li>
         <li class="right" >
-          <a href="fileformat.html" title="5. File formats: index and definition"
+          <a href="fileformat.html" title="6. File formats: index and definition"
              >previous</a> |</li>
         <li><a href="index.html">instl 0.1 documentation</a> &raquo;</li> 
       </ul>

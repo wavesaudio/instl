@@ -1,0 +1,3 @@
+sync
+
+instl sync -  creates instructions for syncing installation files to local disk

@@ -28,13 +28,13 @@ Class InstlInstance_mac
 
         Creates the last lines of the install batch file for Mac OSX. Overrides :func:`instlInstanceBase.InstlInstanceBase.get_install_instructions_postfix`.
 
-    .. method:: make_directory_cmd(self, directory)
+    .. method:: mkdir(self, directory)
     
-        Creates Mac OSX mkdir command for install script. Overrides :func:`instlInstanceBase.InstlInstanceBase.make_directory_cmd`.
+        Creates Mac OSX mkdir command for install script. Overrides :func:`instlInstanceBase.InstlInstanceBase.mkdir`.
 
-    .. method:: change_directory_cmd(self, directory)
+    .. method:: cd(self, directory)
     
-        Creates Mac OSX change dir command for install script. Overrides :func:`instlInstanceBase.InstlInstanceBase.change_directory_cmd`.
+        Creates Mac OSX change dir command for install script. Overrides :func:`instlInstanceBase.InstlInstanceBase.cd`.
 
 Class InstlInstance_win
 ------------------------------------------------------------
@@ -62,10 +62,10 @@ Class InstlInstance_win
 
         Creates the last lines of the install batch file for Windows. Overrides :func:`instlInstanceBase.InstlInstanceBase.get_install_instructions_postfix`.
 
-    .. method:: make_directory_cmd(self, directory)
+    .. method:: mkdir(self, directory)
         
-        Creates Windows mkdir command for install script. Overrides :func:`instlInstanceBase.InstlInstanceBase.make_directory_cmd`.
+        Creates Windows mkdir command for install script. Overrides :func:`instlInstanceBase.InstlInstanceBase.mkdir`.
 
-    .. method:: change_directory_cmd(self, directory)
+    .. method:: cd(self, directory)
         
-        Creates Windows change dir command for install script. Overrides :func:`instlInstanceBase.InstlInstanceBase.change_directory_cmd`.
+        Creates Windows change dir command for install script. Overrides :func:`instlInstanceBase.InstlInstanceBase.cd`.

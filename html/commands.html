@@ -1,0 +1,140 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>4. instl commands &mdash; instl 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="instl 0.1 documentation" href="index.html" />
+    <link rel="next" title="4.1. instl sync command" href="commands/sync.html" />
+    <link rel="prev" title="&lt;no title&gt;" href="tutorial.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="commands/sync.html" title="4.1. instl sync command"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="tutorial.html" title="&lt;no title&gt;"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">instl 0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <META HTTP-EQUIV="refresh" CONTENT="1"><div class="section" id="instl-commands">
+<span id="commands"></span><h1>4. <strong>instl</strong> commands<a class="headerlink" href="#instl-commands" title="Permalink to this headline">¶</a></h1>
+<p>instl is the command line tool for installing and creating installers.  Its functionality is offered via a collection of task-specific commands, most of which accept a number of options for fine-grained control of the program&#8217;s behavior.
+Basic</p>
+<p>When using the instl program, commands must appear after the program name on the command line. Options, may appear anywhere on the command line after the program name and the command name, and in general, their order is irrelevant. For example, all of the following are valid ways to use instl sync, and are interpreted in exactly the same way:</p>
+<div class="highlight-python"><pre>$ instl sync --in my_install.yaml --out sync.bat
+$ instl sync --out sync.bat --in my_install.yaml</pre>
+</div>
+<p>The following are not valid because the command (sync) does not appear right after the program name:</p>
+<div class="highlight-python"><pre>$ instl --in my_install.yaml sync --out sync.bat
+$ instl --out sync.bat --in my_install.yaml sync</pre>
+</div>
+<p>The following sections describe each of the various subcommands and options provided by the instl command-line client program, including some examples of each subcommand&#8217;s typical uses.</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="commands/sync.html">4.1. sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="commands/copy.html">4.2. copy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="commands/synccopy.html">4.3. synccopy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="commands/trans.html">4.4. trans</a></li>
+<li class="toctree-l1"><a class="reference internal" href="commands/createlinks.html">4.5. createlinks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="commands/up2s3.html">4.6. up2s3</a></li>
+<li class="toctree-l1"><a class="reference internal" href="commands/version.html">4.7. version</a></li>
+<li class="toctree-l1"><a class="reference internal" href="commands/help.html">4.8. help</a></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="tutorial.html"
+                        title="previous chapter">&lt;no title&gt;</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="commands/sync.html"
+                        title="next chapter">4.1. instl sync command</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/commands.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="commands/sync.html" title="4.1. instl sync command"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="tutorial.html" title="&lt;no title&gt;"
+             >previous</a> |</li>
+        <li><a href="index.html">instl 0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Waves Audio.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>
