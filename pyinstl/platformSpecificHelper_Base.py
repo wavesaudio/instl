@@ -100,7 +100,7 @@ class PlatformSpecificHelperBase(object):
         return self.echo(prog_msg)
 
     @abc.abstractmethod
-    def get_svn_folder_cleanup_instructions(self, directory):
+    def get_svn_folder_cleanup_instructions(self):
         """ platform specific cleanup of svn locks """
         pass
 

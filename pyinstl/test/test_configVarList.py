@@ -20,7 +20,7 @@ class TestConfigVarList(unittest.TestCase):
         self.cvl = configVarList.ConfigVarList()
         self.assertEqual(len(self.cvl), 0)
         with self.assertRaises(KeyError):
-            self.cvl["no man's land"]
+            self.cvl["no man's land"].get_str()
         self.assertFalse("no man's land" in self.cvl)
         self.assertEqual(self.cvl.get_list("no man's land"), ())
         self.assertEqual(self.cvl.get_str("no man's land"), "")

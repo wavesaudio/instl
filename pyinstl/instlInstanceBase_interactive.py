@@ -1,8 +1,6 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
-import os
-import sys
 import time
 import appdirs
 import logging
@@ -90,6 +88,9 @@ class CMDObj(cmd.Cmd, object):
         self.client_prog_inst = client
         self.admin_prog_inst = admin
         self.restart = False
+        self.history_file_path = None
+        self.prompt = None
+        self.save_dir = None
 
     def __enter__(self):
         if readline_loaded:
@@ -121,7 +122,7 @@ class CMDObj(cmd.Cmd, object):
         self.save_dir = os.getcwd()
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, unused_type, unused_value, unused_traceback):
         try:
             if readline_loaded:
                 compact_history()
@@ -144,13 +145,13 @@ class CMDObj(cmd.Cmd, object):
             if debug_logging_started:
                 import traceback
                 traceback.print_exception(type(ie.original_exception), ie.original_exception,  sys.exc_info()[2])
-        except Exception as ex:
+        except Exception as unused_ex:
             print("unhandled exception")
             import traceback
             traceback.print_exc()
         return retVal
 
-    def path_completion(self, text, line, begidx, endidx):
+    def path_completion(self, text, unused_line, unused_begidx, unused_endidx):
         matches = []
         if text:
             try:
@@ -159,7 +160,7 @@ class CMDObj(cmd.Cmd, object):
                 logging.info(es)
         return matches
 
-    def dir_completion(self, text, line, begidx, endidx):
+    def dir_completion(self, text, unused_line, unused_begidx, unused_endidx):
         matches = []
         if text:
             try:
@@ -194,7 +195,7 @@ class CMDObj(cmd.Cmd, object):
             Left hand index enrties: 'C1_IID:' translates to colorama.Fore.GREEN+'C1_IID'+colorama.Fore.RESET+":".
             Right hand index enrties: '- C1_IID:' translates to "- "+colorama.Fore.YELLOW+'C1_IID'+colorama.Fore.RESET.
             Variable references: $(WAVES_PLUGINS_DIR) translates to colorama.Fore.BLUE+$(WAVES_PLUGINS_DIR).
-            The returned disctionary can be used in replace_all_from_dict() for "coloring" the text before output to stdcout.
+            The returned dictionary can be used in replace_all_from_dict() for "coloring" the text before output to stdcout.
         """
         retVal = dict()
         defs = self.client_prog_inst.create_completion_list("define")
@@ -215,7 +216,6 @@ class CMDObj(cmd.Cmd, object):
     def color_vars(self, text):
         """ Add color codes to index identifiers and variables in text.
         """
-        retVal = None
         coloring_dict = self.prepare_coloring_dict()
         from configVarList import replace_all_from_dict
         retVal = replace_all_from_dict(text, *[], **coloring_dict)
@@ -238,7 +238,7 @@ class CMDObj(cmd.Cmd, object):
         sys.stdout.write(colored_string)
         return False
 
-    def indentifier_completion_list(self, text, line, begidx, endidx):
+    def indentifier_completion_list(self, text, unused_line, unused_begidx, unused_endidx):
         matches = []
         if text:
             completion_list = self.client_prog_inst.create_completion_list()
@@ -267,7 +267,7 @@ class CMDObj(cmd.Cmd, object):
         print( "list" )
         print( "    lists all definitions, index & guid entries" )
 
-    def do_statistics(self, params):
+    def do_statistics(self, unused_params):
         num_files = self.admin_prog_inst.svnTree.num_subs_in_tree(what="file")
         num_dirs = self.admin_prog_inst.svnTree.num_subs_in_tree(what="dir")
         num_total = self.admin_prog_inst.svnTree.num_subs_in_tree(what="all")
@@ -364,7 +364,7 @@ class CMDObj(cmd.Cmd, object):
                     print(str(sub_item))
         return False
 
-    def complete_listinfo(self, text, line, begidx, endidx):
+    def complete_listinfo(self, text, line, unused_begidx, unused_endidx):
         complete_listinfo_line_re = re.compile("""listinfo\s+(?P<the_text>.*)""")
         match = complete_listinfo_line_re.match(line)
         if match:
@@ -398,7 +398,7 @@ class CMDObj(cmd.Cmd, object):
         print("listinfo [path_to_item [...]]")
         print("    lists items from the info map")
 
-    def do_cycles(self, params):
+    def do_cycles(self, unused_params):
         self.client_prog_inst.find_cycles()
         return False
 
@@ -485,13 +485,13 @@ class CMDObj(cmd.Cmd, object):
         print("copy [file_name]")
         print("    write copy commands to stdout or to file_name if given")
 
-    def do_version(self, params):
+    def do_version(self, unused_params):
         print(" ".join( (this_program_name, "version", ".".join(self.client_prog_inst.cvl.get_list("__INSTL_VERSION__")))))
         return False
     def help_version(self):
         print("version: print", instlInstanceBase.this_program_name, "version")
 
-    def do_restart(self, params):
+    def do_restart(self, unused_params):
         print("restarting", instlInstanceBase.this_program_name)
         self.restart = True
         return True # stops cmdloop
@@ -499,7 +499,7 @@ class CMDObj(cmd.Cmd, object):
     def help_restart(self):
         print("restart:", "reloads", instlInstanceBase.this_program_name)
 
-    def do_quit(self, params):
+    def do_quit(self, unused_params):
         return True
 
     def help_quit(self):
@@ -518,7 +518,7 @@ class CMDObj(cmd.Cmd, object):
     def help_help(self):
         self.do_help("")
 
-    def do_hist(self, params):
+    def do_hist(self, unused_params):
         for index in range(readline.get_current_history_length()):
             print(index, readline.get_history_item(index))
         print(readline.get_current_history_length(), "items in history")

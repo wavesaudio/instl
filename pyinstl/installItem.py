@@ -5,16 +5,17 @@ from __future__ import print_function
     class InstallItem hold information about how to install one or more install_sources.
     information include:
         iid - must be unique amongst all InstallItems.
-        name - description for log and erros messages has no bering on the installation.
-        guid - a standard 36 character guid. Can be used asadditionall identification. Several idds can share the same guid.
+        name - description for log and errors messages has no bering on the installation.
+        guid - a standard 36 character guid. Can be used as additional identification.
+        Several iids can share the same guid.
         remark - remarks for human consumption has no bering on the installation.
         description - auto generated, usually the file and line from which the item was read.
-        inherit - idds of other InstallItems to inherit from.
+        inherit - iids of other InstallItems to inherit from.
         These fields appear once for each InstallItem.
     Further fields can be be found in a common section or in a section for specific OS:
         install_sources - install_sources to install.
         install_folders - folders to install the install_sources to.
-        depends - idds of other InstallItems that must be installed before the current item.
+        depends - iids of other InstallItems that must be installed before the current item.
         actions - actions to preform. These actions are further divided into:
             folder_in - actions to preform before installing to each folder in install_folders section.
                         if several InstallItems have the same actions for the folder, each action

@@ -24,9 +24,6 @@ os_second_name = current_os_names[0]
 if len(current_os_names) > 1:
     os_second_name = current_os_names[1]
 
-from pyinstl.instlClient import InstlClient
-from pyinstl.instlAdmin import InstlAdmin
-
 def get_path_to_instl_app():
     """
     @return: returns the path to this
@@ -43,6 +40,7 @@ class CommandLineOptions(object):
         holds command line options
     """
     def __init__(self):
+        self.mode = None
         self.command = None
         self.input_file = None
         self.output_file = None

@@ -3,13 +3,10 @@ from __future__ import print_function
 
 import logging
 
-import pyinstl.log_utils
 from pyinstl.log_utils import func_log_wrapper
 from pyinstl.utils import *
 from pyinstl import svnTree
 from instlInstanceSyncBase import InstlInstanceSync
-from pyinstl.instlException import InstlFatalException
-import urlparse
 
 def is_user_data_false_or_dir_empty(svn_item):
     retVal = False
@@ -168,7 +165,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
         # for debugging
         work_info_map_path = self.instlInstance.cvl.get_str("REQUIRED_INFO_MAP_PATH")
-        self.work_info_map.write_to_file(work_info_map_path, in_format="text", report_level=1)
+        self.work_info_map.write_to_file(work_info_map_path, in_format="text")
 
     def create_download_instructions(self):
         self.instlInstance.batch_accum.set_current_section('sync')

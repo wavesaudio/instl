@@ -65,14 +65,10 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         self.dl_tool = DownloadTool_win_wget()
 
     def get_install_instructions_prefix(self):
-        prefix_list = []
-        prefix_list.append(self.save_dir("TOP_SAVE_DIR"))
-        return prefix_list
+        return self.save_dir("TOP_SAVE_DIR")
 
     def get_install_instructions_postfix(self):
-        postfix_list = []
-        postfix_list.append(self.restore_dir("TOP_SAVE_DIR"))
-        return postfix_list
+        return self.restore_dir("TOP_SAVE_DIR")
 
     def mkdir(self, directory):
         mk_command = " ".join( ("mkdir", '"'+directory+'"'))
@@ -114,7 +110,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
 
     def copy_file_to_file(self, src_file, trg_file):
         sync_command = "copy \"{src_file}\" \"{trg_file}\"".format(**locals())
-        return (sync_command, )
+        return sync_command
 
     def resolve_readlink_files(self, in_dir="."):
         return ()
@@ -131,4 +127,4 @@ class DownloadTool_win_wget(DownloadToolBase):
         download_command_parts.append("-O")
         download_command_parts.append(quoteme(trg_file))
         download_command_parts.append(quoteme(src_url))
-        return (" ".join(download_command_parts), )
+        return " ".join(download_command_parts)

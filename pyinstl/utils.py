@@ -26,6 +26,7 @@ def GetProgramFiles64():
         return None
 
 def get_current_os_names():
+    retVal = None
     import platform
     current_os = platform.system()
     if current_os == 'Darwin':
@@ -227,7 +228,7 @@ def relative_url(base, target):
 def deprecated(deprecated_func):
     def raise_deprecation(*unused_args, **unused_kargs):
         raise DeprecationWarning(deprecated_func.__name__, "is deprecated")
-        return None
+
     return raise_deprecation
 
 

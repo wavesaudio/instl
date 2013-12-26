@@ -8,13 +8,14 @@ from __future__ import print_function
             Reduce file system access (isfile, isdir,...)
 """
 
-import os
+#import os
 import appdirs
 import logging
 
 from pyinstl.log_utils import func_log_wrapper
 from pyinstl.utils import *
 
+# noinspection PyPep8Naming
 class SearchPaths(object):
     """
         Manage list of include search paths, and help find files

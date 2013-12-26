@@ -2,10 +2,8 @@
 
 from __future__ import print_function
 from collections import OrderedDict, defaultdict
-import yaml
 import logging
 
-from instlException import InstlException
 from pyinstl.log_utils import func_log_wrapper
 from pyinstl.utils import *
 from installItem import read_index_from_yaml, InstallItem

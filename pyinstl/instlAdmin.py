@@ -1,7 +1,6 @@
 #!/usr/bin/env python2.7
 
 from __future__ import print_function
-import re
 import datetime
 
 from pyinstl.log_utils import func_log_wrapper
@@ -176,6 +175,7 @@ class InstlAdmin(InstlInstanceBase):
         def __init__(self, version_not_to_remove):
             self.version_not_to_remove = version_not_to_remove
         def __call__(self, svn_item):
+            retVal = None
             if svn_item.isFile():
                 retVal = svn_item.last_rev() != self.version_not_to_remove
             elif svn_item.isDir():
@@ -185,7 +185,7 @@ class InstlAdmin(InstlInstanceBase):
     def do_upload_to_s3(self):
         self.read_yaml_file(self.cvl.get_str("__S3_CONFIG_FILE__"))
         g_map_file_path					= 'instl/info_map_upload.txt'
-        g_upload_done_key				= 'instl/done'
+        #g_upload_done_key				= 'instl/done'
         info_map_path = self.cvl.resolve_string("$(__ROOT_LINKS_FOLDER__)/$(__REPO_REV__)/"+g_map_file_path)
         self.read_info_map_file(info_map_path)
 
@@ -225,6 +225,6 @@ class InstlAdmin(InstlInstanceBase):
             for upload_pair in upload_list:
                 print(upload_pair[0], "-->", upload_pair[1])
 
-def percent_cb(complete, total):
-	sys.stdout.write('.')
-	sys.stdout.flush()
+def percent_cb(unused_complete, unused_total):
+    sys.stdout.write('.')
+    sys.stdout.flush()

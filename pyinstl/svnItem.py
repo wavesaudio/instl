@@ -213,7 +213,7 @@ class SVNItem(object):
         else:
             sub_dir_item = self.__subs.get(path_parts[0])
             if sub_dir_item is None:
-                if create_folders == True:
+                if create_folders:
                     sub_dir_item = SVNItem(path_parts[0], "d", last_rev)
                     self.add_sub_item(sub_dir_item)
                 else:
@@ -230,7 +230,6 @@ class SVNItem(object):
             will be created, with the same last_rev. create_folders is False,
             and some part of the path does not exist KeyError will be raised.
         """
-        retVal = None
         #print("--- add sub to", self.name(), path, flags, last_rev)
         path_parts = at_path
         if isinstance(at_path, basestring):
@@ -242,8 +241,7 @@ class SVNItem(object):
                 if folder is None:
                     self.new_item_at_path(path_parts[0:i], "d", in_item.last_rev())
         folder = self.get_item_at_path(path_parts[0:len(path_parts)])
-        retVal = folder.add_sub_item(in_item)
-        return retVal
+        folder.add_sub_item(in_item)
 
     def remove_item_at_path(self, at_path):
         path_parts = at_path
@@ -254,7 +252,6 @@ class SVNItem(object):
             if len(path_parts) == 1:
                 del (self.__subs[path_parts[0]])
             else:
-                sub_item = self.get_item_at_path(path_parts[0])
                 self.remove_item_at_path(path_parts[1:])
 
     def new_item_from_str(self, the_str, create_folders=False):

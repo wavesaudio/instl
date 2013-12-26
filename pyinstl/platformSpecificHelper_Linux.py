@@ -60,16 +60,10 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         self.dl_tool = DownloadTool_linux_curl()
 
     def get_install_instructions_prefix(self):
-        prefix_list = []
-        prefix_list.append("#!/bin/sh")
-        prefix_list.append(self.save_dir("TOP_SAVE_DIR"))
-        return prefix_list
+        return ("#!/bin/sh", self.save_dir("TOP_SAVE_DIR"))
 
     def get_install_instructions_postfix(self):
-        postfix_list = []
-        postfix_list.append(self.restore_dir("TOP_SAVE_DIR"))
-        postfix_list.append("exit 0")
-        return postfix_list
+        return (self.restore_dir("TOP_SAVE_DIR"), "exit 0")
 
     def mkdir(self, directory):
         mk_command = " ".join( ("mkdir", "-p", quoteme(directory) ) )
@@ -148,4 +142,4 @@ class DownloadTool_linux_curl(DownloadToolBase):
         download_command_parts.append("-o")
         download_command_parts.append(quoteme(trg_file))
         download_command_parts.append(quoteme(src_url))
-        return (" ".join(download_command_parts), )
+        return " ".join(download_command_parts)

@@ -130,7 +130,7 @@ class InstlInstanceBase(object):
                         self.read_index(a_node)
                     else:
                         logging.error("Unknown document tag '%s' while reading file %s; Tag should be one of: !define, !index'", a_node.tag, file_path)
-        except InstlException as ie:
+        except InstlException as unused_ie:
             raise # re-raise in case of recursive call to read_file
         except yaml.YAMLError as ye:
             raise InstlException(" ".join( ("YAML error while reading file", "'"+file_path+"':\n", str(ye)) ), ye)
@@ -165,6 +165,7 @@ class InstlInstanceBase(object):
     @func_log_wrapper
     def get_default_sync_dir(self):
         retVal = None
+        user_cache_dir = None
         if os_family_name == "Mac":
             user_cache_dir_param = self.cvl.get_str("COMPANY_NAME")+"/"+this_program_name
             user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
@@ -241,7 +242,7 @@ class InstlInstanceBase(object):
         logging.info("running batch file %s", self.out_file_realpath)
         from subprocess import Popen
         p = Popen(self.out_file_realpath)
-        stdout, stderr = p.communicate()
+        unused_stdout, unused_stderr = p.communicate()
 
     @func_log_wrapper
     def write_program_state(self):

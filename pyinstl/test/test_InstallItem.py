@@ -8,7 +8,6 @@ import filecmp
 
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..", "..")))
-from aYaml.augmentedYaml import YamlDumpWrap, writeAsYaml
 from installItem import *
 
 def timing(f):
@@ -29,8 +28,9 @@ class TestInstallItem(unittest.TestCase):
         self.ii1.guid = "ec541a62-ad21-11e0-8150-b7fd7bebd530"
         self.ii1.remark = "just test install item"
         pass
+
     def tearDown(self):
-        del(self.ii1)
+        del self.ii1
 
     def test_Construction(self):
         self.assertEqual(self.ii1.inherit_list(), [])

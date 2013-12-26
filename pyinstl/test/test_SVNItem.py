@@ -8,7 +8,6 @@ import copy
 
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..", "..")))
-from aYaml.augmentedYaml import YamlDumpWrap, writeAsYaml
 from svnItem import *
 from svnTree import *
 
@@ -22,6 +21,7 @@ def timing(f):
     return wrap
 
 def remove_sub_if_small_last_rev(svn_item):
+    retVal = None
     if svn_item.isFile():
         retVal = svn_item.last_rev() < 9
     elif svn_item.isDir():
@@ -194,13 +194,9 @@ item_list_need_ref = [
 
 class TestSVNItem(unittest.TestCase):
     def setUp(self):
-        ''' .
-        '''
         self.maxDiff = None
     def tearDown(self):
         pass
-    """
-    """
 
     #def test_duplicate_item(self):
     #    svni1 = SVNTopItem()
@@ -274,7 +270,6 @@ class TestSVNItem(unittest.TestCase):
         for text_item in item_list1: svni1.new_item_from_str(text_item)
         svni2 = copy.deepcopy(svni1)
         self.assertEqual(svni1, svni2)
-        svni1 = None
 
     def test_walk_items(self):
         svni1 = SVNTree()
@@ -327,7 +322,7 @@ class TestSVNItem(unittest.TestCase):
         self.assertIsInstance(sub2, SVNItem, msg="svn1.get_item_at_path should return SVNItem object")
 
     def test_add_sub_item_positive(self):
-        ''' Check the internal function add_sub_item where is should succeed '''
+        """ Check the internal function add_sub_item where is should succeed """
         svni1 = SVNTopItem()
         svni2 = SVNItem("SubFile", "f", 1258)
         svni1.add_sub_item(svni2)
@@ -340,7 +335,7 @@ class TestSVNItem(unittest.TestCase):
         self.assertIsInstance(svni1.get_item_at_path("SubDir"), SVNItem, msg="svn1.get_item_at_path should return SVNItem object")
 
     def test_add_sub_item_negative(self):
-        ''' Check the internal function add_sub_item where is should fail '''
+        """ Check the internal function add_sub_item where is should fail """
         svni1 = SVNItem("TestDir", "f", 15)
         svni2 = SVNItem("SubFile", "f", 1258)
         self.assertRaises(ValueError, svni1.add_sub_item, svni2)
@@ -348,7 +343,7 @@ class TestSVNItem(unittest.TestCase):
         self.assertRaises(ValueError, svni1.get_item_at_path, "SubFile")
 
     def test_other_flags_construction(self):
-        ''' Construct SVNItem with some flags flag '''
+        """ Construct SVNItem with some flags flag """
         svni1 = SVNItem("TestFlags", "fx", 36)
         self.assertEqual(svni1.name(), "TestFlags")
         self.assertEqual(svni1.last_rev(), 36)
@@ -368,7 +363,7 @@ class TestSVNItem(unittest.TestCase):
         self.assertIsNone(svni2.get_item_at_path("kuku"), "svn1.get_item_at_path should return None for none existing item")
 
     def test_dir_construction(self):
-        ''' Construct SVNItem with directory flag '''
+        """ Construct SVNItem with directory flag """
         svni1 = SVNTopItem()
         self.assertFalse(svni1.isFile(), msg="SVNItem.isFile() should return False for directory")
         self.assertTrue(svni1.isDir(), msg="SVNItem.isDir() should return True for directory")
@@ -378,7 +373,7 @@ class TestSVNItem(unittest.TestCase):
         self.assertIsNone(svni1.get_item_at_path("kuku"), msg="svn1.get_item_at_path should return None for none existing item")
 
     def test_file_construction(self):
-        ''' Construct SVNItem with file flag '''
+        """ Construct SVNItem with file flag """
         svni1 = SVNItem("TestFile", "f", 17)
         self.assertEqual(svni1.name(), "TestFile")
         self.assertEqual(svni1.last_rev(), 17)

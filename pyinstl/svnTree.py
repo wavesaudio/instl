@@ -1,11 +1,8 @@
 #!/usr/bin/env python
 from __future__ import print_function
 
-import os
-import sys
-import re
 import time
-from collections import namedtuple, OrderedDict
+from collections import OrderedDict
 import yaml
 import logging
 
@@ -34,19 +31,16 @@ class SVNTree(svnItem.SVNTopItem):
     def __init__(self):
         super(SVNTree, self).__init__()
         self.read_func_by_format = {"info": self.read_from_svn_info,
-                                    "pickle": self.read_from_pickle,
                                     "text": self.read_from_text,
                                     "yaml": self.pseudo_read_from_yaml,
                                     "props": self.read_props}
 
-        self.write_func_by_format = { "pickle": self.write_as_pickle,
-                                    "text": self.write_as_text,
+        self.write_func_by_format = {"text": self.write_as_text,
                                     "yaml": self.write_as_yaml,
                                     }
         self.path_to_file = None
         self.comments = list()
 
-    """ reading """
     def valid_read_formats(self):
         return self.read_func_by_format.keys()
 
@@ -125,19 +119,10 @@ class SVNTree(svnItem.SVNTopItem):
                         self.new_item_at_path(path_parts, match.group('flags'), int(match.group('last_rev')))
                 else:
                     if indent != -1: # first lines might be empty
-                        ValueError("no matach at line "+str(line_num)+": "+line)
-        except Exception as ex:
+                        ValueError("no match at line "+str(line_num)+": "+line)
+        except Exception as unused_ex:
             print("exception at line:", line_num, line)
             raise
-
-    def read_from_pickle(self, rfd):
-        import cPickle as pickle
-        my = pickle.load(rfd) # cannot pickle to self
-        self.__name = my.name()
-        self.__flags = my.flags()
-        self.__last_rev = my.last_rev()
-        for sub_item in my.subs().values():
-            self.add_sub_item(sub_item)
 
     def read_props(self, rfd):
         props_line_re = re.compile("""
@@ -175,7 +160,6 @@ class SVNTree(svnItem.SVNTopItem):
             print(ex)
             raise
 
-    """ writing """
     def valid_write_formats(self):
         return self.write_func_by_format.keys()
 
@@ -191,10 +175,6 @@ class SVNTree(svnItem.SVNTopItem):
         else:
             logging.info("%s is not a known map_info format. Cannot write %s", format, in_file)
             ValueError("Unknown write in_format "+in_format)
-
-    def write_as_pickle(self, wfd):
-        import cPickle as pickle
-        pickle.dump(self, wfd, 2)
 
     def write_as_text(self, wfd):
         if len(self.comments) > 0:
@@ -230,7 +210,7 @@ class SVNTree(svnItem.SVNTopItem):
                         :\s*
                         (?P<rest_of_line>.*)
                         $
-                        """, re.X)
+                        """, re.VERBOSE)
             def create_info_line_from_record(record):
                 """ On rare occasions there is no 'Last Changed Rev' field, just 'Revision'.
                     So we use 'Revision' as 'Last Changed Rev'.
@@ -255,7 +235,7 @@ class SVNTree(svnItem.SVNTopItem):
                     record.clear()
             if record and record["Path"] != ".": # in case there was no extra line at the end of file
                 yield create_info_line_from_record(record)
-        except KeyError as ke:
+        except KeyError as unused_ke:
             print("key error, file:", long_info_fd.name, "line:", line_num, "record:", record)
             raise
 

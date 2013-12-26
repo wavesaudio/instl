@@ -1,12 +1,9 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 
-import pyinstl.log_utils
 from pyinstl.log_utils import func_log_wrapper
-from pyinstl.utils import *
-
 
 class BatchAccumulator(object):
     """ from batchAccumulator import BatchAccumulator
@@ -58,5 +55,6 @@ class BatchAccumulator(object):
         save_section = self.current_section
         for section in BatchAccumulator.section_order:
             self.set_current_section(section)
+            # noinspection PyMethodFirstArgAssignment
             self += another_accum.instruction_lines[section]
         self.current_section = save_section

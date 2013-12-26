@@ -340,6 +340,7 @@ def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False):
 
 
 def nodeToPy(a_node):
+    retVal = None
     if a_node.isScalar():
         retVal = str(a_node.value)
     elif a_node.isSequence():
@@ -350,6 +351,7 @@ def nodeToPy(a_node):
 
 
 def nodeToYamlDumpWrap(a_node):
+    retVal = None
     if a_node.isScalar():
         retVal = YamlDumpWrap(str(a_node.value))
     elif a_node.isSequence():
