@@ -220,7 +220,6 @@ class InstlAdmin(InstlInstanceBase):
                 key_obj.set_contents_from_filename(upload_pair[0], cb=percent_cb, num_cb=4)
                 key_obj.set_acl('public-read') # must be done after the upload
                 print()
-                break
         else:
             for upload_pair in upload_list:
                 print(upload_pair[0], "-->", upload_pair[1])
