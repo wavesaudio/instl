@@ -31,6 +31,7 @@ Contents:
     motivation
     expect
     tutorial
+    commands
     architecture
     fileformat
     example
