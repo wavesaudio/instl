@@ -284,7 +284,7 @@ def main():
             instance = InstlClient(initial_vars)
             instance.init_from_cmd_line_options(options)
             instance.do_command()
-        if options.mode == "admin":
+        elif options.mode == "admin":
             from pyinstl.instlAdmin import InstlAdmin
             instance = InstlAdmin(initial_vars)
             instance.init_from_cmd_line_options(options)

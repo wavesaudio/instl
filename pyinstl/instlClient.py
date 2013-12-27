@@ -173,6 +173,8 @@ class InstlClient(InstlInstanceBase):
         """
         if "MAIN_INSTALL_TARGETS" not in self.cvl:
             raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
+        for os_name in self.cvl.get_list("TARGET_OS_NAMES"):
+            InstallItem.begin_get_for_specific_os(os_name)
         installState.root_install_items.extend(self.cvl.get_list("MAIN_INSTALL_TARGETS"))
         installState.root_install_items = filter(bool, installState.root_install_items)
         installState.calculate_full_install_items_set(self)
