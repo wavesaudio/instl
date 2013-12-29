@@ -116,6 +116,11 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return ()
 
 class DownloadTool_win_wget(DownloadToolBase):
+    def __init__(self):
+        self.curl_instructions = list()
+
+    def add_dl(self, url, path):
+        self.curl_instructions.append( (urllib.quote(url, "$()/:"), path) )
 
     def create_download_file_to_file_command(self, src_url, trg_file):
         download_command_parts = list()
@@ -126,5 +131,20 @@ class DownloadTool_win_wget(DownloadToolBase):
         download_command_parts.append("900")
         download_command_parts.append("-O")
         download_command_parts.append(quoteme(trg_file))
-        download_command_parts.append(quoteme(src_url))
+        download_command_parts.append(quoteme(urllib.quote(src_url, "$()/:")))
+        return " ".join(download_command_parts)
+
+    def create_config_file(self, curl_config_file_path):
+        with open(curl_config_file_path, "w") as wfd:
+            wfd.write("dirstruct = on\n")
+            wfd.write("timeout = 60\n")
+            wfd.write("\n")
+            for url, path in self.curl_instructions:
+                wfd.write('''url = "{url}"\noutput = "{path}"\n\n'''.format(**locals()))
+
+    def create_download_from_config_file(self, src_url, trg_file):
+        download_command_parts = list()
+        download_command_parts.append("wget")
+        download_command_parts.append("--read-timeout")
+        download_command_parts.append("900")
         return " ".join(download_command_parts)

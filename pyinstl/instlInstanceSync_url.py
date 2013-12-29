@@ -58,6 +58,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlInstance.cvl.set_value_if_var_does_not_exist("TO_SYNC_INFO_MAP_PATH", "$(LOCAL_BOOKKEEPING_PATH)/to_sync_info_map.txt", description=var_description)
         self.instlInstance.cvl.set_value_if_var_does_not_exist("REPO_REV_LOCAL_BOOKKEEPING_PATH", "$(LOCAL_BOOKKEEPING_PATH)/$(REPO_REV)", description=var_description)
         self.instlInstance.cvl.set_value_if_var_does_not_exist("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH", "$(REPO_REV_LOCAL_BOOKKEEPING_PATH)/remote_info_map.txt", description=var_description)
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("DL_INSTRUCTIONS_TYPE", "config_file", description=var_description)
 
         for identifier in ("SYNC_BASE_URL", "GET_URL_CLIENT_PATH", "REPO_REV", "BASE_SRC_URL", "LOCAL_SYNC_DIR", "BOOKKEEPING_DIR_URL",
                            "INFO_MAP_FILE_URL", "LOCAL_BOOKKEEPING_PATH","NEW_HAVE_INFO_MAP_PATH", "REQUIRED_INFO_MAP_PATH",
@@ -72,7 +73,11 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.filter_out_unrequired_items()      # removes items not required to be installed
         self.read_have_info_map()               # reads the info map of items already synced
         self.filter_out_already_synced_items()  # removes items that are already on the user's disk
-        self.create_download_instructions()
+        ld_instructions_type = self.instlInstance.cvl.get_str("DL_INSTRUCTIONS_TYPE") # either config_file or one_by_one
+        if ld_instructions_type == "config_file":
+            self.create_download_instructions_config_file()
+        elif ld_instructions_type == "one_by_one":
+            self.create_download_instructions_one_by_one()
 
     @func_log_wrapper
     def read_remote_info_map(self):
@@ -167,7 +172,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         work_info_map_path = self.instlInstance.cvl.get_str("REQUIRED_INFO_MAP_PATH")
         self.work_info_map.write_to_file(work_info_map_path, in_format="text")
 
-    def create_download_instructions(self):
+    def create_download_instructions_one_by_one(self):
         self.instlInstance.batch_accum.set_current_section('sync')
         num_files = self.work_info_map.num_subs_in_tree(what="file")
         self.num_items_for_progress_report = num_files + 1 # one for a dummy first item
@@ -177,7 +182,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlInstance.batch_accum.indent_level += 1
         file_list, dir_list = self.work_info_map.sorted_sub_items()
         for need_item in file_list + dir_list:
-            self.create_download_instructions_for_item(need_item)
+            self.create_download_instructions_for_item_one_by_one(need_item)
         self.instlInstance.batch_accum.indent_level -= 1
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.new_line()
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.resolve_readlink_files()
@@ -185,13 +190,13 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress("from $(BASE_SRC_URL)".format(**locals()))
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.copy_file_to_file("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")
 
-    def create_download_instructions_for_item(self, item, path_so_far = list()):
+    def create_download_instructions_for_item_one_by_one(self, item, path_so_far = list()):
         if item.isSymlink():
             source_url =   '/'.join(( "$(SYNC_BASE_URL)", str(item.last_rev()), "/".join(path_so_far), item.name() + ".readlink" ))
-            self.instlInstance.batch_accum += self.instlInstance.platform_helper.dl_tool.create_download_file_to_file_command(source_url, item.name())
+            self.instlInstance.batch_accum += self.instlInstance.platform_helper.dl_tool.create_download_file_to_file_command(source_url, item.name() + ".readlink")
             self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress("")
             self.symlinks.append( ("/".join(path_so_far), item.name()) )
-        if item.isFile():
+        elif item.isFile():
             source_url =   '/'.join( ["$(SYNC_BASE_URL)", str(item.last_rev())] + path_so_far + [item.name()] )
             self.instlInstance.batch_accum += self.instlInstance.platform_helper.dl_tool.create_download_file_to_file_command(source_url, item.name())
             self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress("")
@@ -202,7 +207,48 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.instlInstance.batch_accum.indent_level += 1
             file_list, dir_list = item.sorted_sub_items()
             for sub_item in file_list + dir_list:
-                self.create_download_instructions_for_item(sub_item, path_so_far)
+                self.create_download_instructions_for_item_one_by_one(sub_item, path_so_far)
             self.instlInstance.batch_accum.indent_level -= 1
             self.instlInstance.batch_accum += self.instlInstance.platform_helper.cd("..")
+            path_so_far.pop()
+
+    def create_download_instructions_config_file(self):
+        self.instlInstance.batch_accum.set_current_section('sync')
+        num_files = self.work_info_map.num_subs_in_tree(what="file")
+        self.num_items_for_progress_report = num_files + 1 # one for a dummy first item
+        self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress("from $(BASE_SRC_URL)".format(**locals()))
+        self.instlInstance.batch_accum += self.instlInstance.platform_helper.mkdir("$(LOCAL_SYNC_DIR)")
+        self.instlInstance.batch_accum += self.instlInstance.platform_helper.cd("$(LOCAL_SYNC_DIR)")
+        self.instlInstance.cvl.set_variable("__CURL_CONFIG_FILE_NAME__").append("curl_config.txt")
+        self.sync_base_url = self.instlInstance.cvl.resolve_string("$(SYNC_BASE_URL)")
+        self.instlInstance.batch_accum.indent_level += 1
+        file_list, dir_list = self.work_info_map.sorted_sub_items()
+        for need_item in file_list + dir_list:
+            self.create_download_instructions_for_item_config_file(need_item)
+        curl_config_file_path = self.instlInstance.cvl.resolve_string("$(LOCAL_SYNC_DIR)/$(__CURL_CONFIG_FILE_NAME__)")
+        self.instlInstance.platform_helper.dl_tool.create_config_file(curl_config_file_path)
+        self.instlInstance.batch_accum += self.instlInstance.platform_helper.dl_tool.create_download_from_config_file("$(__CURL_CONFIG_FILE_NAME__)")
+        self.instlInstance.batch_accum.indent_level -= 1
+        self.instlInstance.batch_accum += self.instlInstance.platform_helper.new_line()
+        self.instlInstance.batch_accum += self.instlInstance.platform_helper.resolve_readlink_files()
+        self.instlInstance.batch_accum += self.instlInstance.platform_helper.new_line()
+        self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress("from $(BASE_SRC_URL)".format(**locals()))
+        self.instlInstance.batch_accum += self.instlInstance.platform_helper.copy_file_to_file("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")
+
+
+    def create_download_instructions_for_item_config_file(self, item, path_so_far = list()):
+        if item.isSymlink():
+            source_url = '/'.join(( self.sync_base_url, str(item.last_rev()), "/".join(path_so_far), item.name() + ".readlink" ))
+            self.instlInstance.platform_helper.dl_tool.add_dl( source_url, item.full_path() + ".readlink" )
+            self.symlinks.append( ("/".join(path_so_far), item.name()) )
+        elif item.isFile():
+            source_url = '/'.join( [ self.sync_base_url, str(item.last_rev())] + path_so_far + [item.name()] )
+            self.instlInstance.platform_helper.dl_tool.add_dl( source_url, item.full_path() )
+        elif item.isDir():
+            path_so_far.append(item.name())
+            self.instlInstance.batch_accum.indent_level += 1
+            file_list, dir_list = item.sorted_sub_items()
+            for sub_item in file_list + dir_list:
+                self.create_download_instructions_for_item_config_file(sub_item, path_so_far)
+            self.instlInstance.batch_accum.indent_level -= 1
             path_so_far.pop()

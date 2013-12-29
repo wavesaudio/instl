@@ -126,6 +126,11 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         return resolve_commands
 
 class DownloadTool_mac_curl(DownloadToolBase):
+    def __init__(self):
+        self.curl_instructions = list()
+
+    def add_dl(self, url, path):
+        self.curl_instructions.append( (urllib.quote(url, "$()/:"), path) )
 
     def create_download_file_to_file_command(self, src_url, trg_file):
         download_command_parts = list()
@@ -142,5 +147,32 @@ class DownloadTool_mac_curl(DownloadToolBase):
         #download_command_parts.append(quoteme("%{http_code}"))
         download_command_parts.append("-o")
         download_command_parts.append(quoteme(trg_file))
-        download_command_parts.append(quoteme(urllib.quote(src_url, "$()/")))
+        download_command_parts.append(quoteme(urllib.quote(src_url, "$()/:")))
+        return " ".join(download_command_parts)
+
+    def create_config_file(self, curl_config_file_path):
+        with open(curl_config_file_path, "w") as wfd:
+            wfd.write("insecure\n")
+            wfd.write("raw\n")
+            wfd.write("create-dirs\n")
+            wfd.write("connect-timeout = 60\n")
+            wfd.write("\n")
+            for url, path in self.curl_instructions:
+                wfd.write('''url = "{url}"\noutput = "{path}"\n\n'''.format(**locals()))
+
+    def create_download_from_config_file(self, config_file):
+
+        download_command_parts = list()
+        download_command_parts.append("curl")
+        #download_command_parts.append("--insecure")
+        #download_command_parts.append("--raw")
+        #download_command_parts.append("--silent")
+        #download_command_parts.append("--create-dirs")
+        #download_command_parts.append("--connect-timeout")
+        #download_command_parts.append("60")
+        download_command_parts.append("--max-time")
+        download_command_parts.append(str(len(self.curl_instructions) * 3 + 180)) # 3 seconds for each item + 3 minutes
+        download_command_parts.append("--config")
+        download_command_parts.append(config_file)
+
         return " ".join(download_command_parts)
