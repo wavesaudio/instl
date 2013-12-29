@@ -1,0 +1,3 @@
+2013-12-29  6.1  Shai Shasag <shai@waves.com>
+  * fixed wrong depends calculation.
+  * special characters in urls given to curl are now escaped using the %xx convesion

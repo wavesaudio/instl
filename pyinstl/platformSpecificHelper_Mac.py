@@ -2,6 +2,7 @@
 from __future__ import print_function
 
 import os
+import urllib
 
 from platformSpecificHelper_Base import PlatformSpecificHelperBase
 from platformSpecificHelper_Base import CopyToolBase
@@ -141,5 +142,5 @@ class DownloadTool_mac_curl(DownloadToolBase):
         #download_command_parts.append(quoteme("%{http_code}"))
         download_command_parts.append("-o")
         download_command_parts.append(quoteme(trg_file))
-        download_command_parts.append(quoteme(src_url))
+        download_command_parts.append(quoteme(urllib.quote(src_url, "$()/")))
         return " ".join(download_command_parts)
