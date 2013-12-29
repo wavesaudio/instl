@@ -146,6 +146,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def mark_required_items_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
         target_os_remote_info_map = self.work_info_map.get_item_at_path(self.instlInstance.cvl.get_str("TARGET_OS"))
+        if target_os_remote_info_map is None:
+            raise ValueError(self.instlInstance.cvl.get_str("TARGET_OS"), "does not exist in remote map")
         remote_sub_item = target_os_remote_info_map.get_item_at_path(source[0])
         if remote_sub_item is None:
             raise ValueError(source[0], "does not exist in remote map")

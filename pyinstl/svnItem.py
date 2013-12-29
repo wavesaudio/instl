@@ -18,7 +18,6 @@ text_line_re = re.compile(r"""
             (?P<flags>[dfsx]+)
             ,\s+
             (?P<last_rev>\d+)
-            $
             """, re.X)
 flags_and_last_rev_re = re.compile(r"""
                 ^
