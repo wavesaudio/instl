@@ -71,6 +71,7 @@ class InstlInstanceBase(object):
         self.cvl.set_variable("TARGET_OS", var_description).append(os_family_name)
         self.cvl.set_variable("TARGET_OS_NAMES", var_description).extend(current_os_names)
         self.cvl.add_const_config_variable("__INSTL_VERSION__", var_description, *INSTL_VERSION)
+        self.cvl.set_variable("BASE_REPO_REV", var_description).append("1")
 
         log_file = pyinstl.log_utils.get_log_file_path(this_program_name, this_program_name, debug=False)
         self.cvl.set_variable("LOG_FILE", var_description).append(log_file)
@@ -100,19 +101,10 @@ class InstlInstanceBase(object):
         if cmd_line_options_obj.command:
             self.cvl.set_variable("__MAIN_COMMAND__", "from command line options").append(cmd_line_options_obj.command)
 
-        if cmd_line_options_obj.svn_url:
-            self.cvl.add_const_config_variable("__SVN_URL__", "from command line options", cmd_line_options_obj.svn_url[0])
-        if cmd_line_options_obj.root_links_folder:
-            root_links_folder = cmd_line_options_obj.root_links_folder[0].rstrip("/\\")
-            self.cvl.add_const_config_variable("ROOT_LINKS_FOLDER", "from command line options", root_links_folder)
         if cmd_line_options_obj.repo_rev:
             self.cvl.add_const_config_variable("REPO_REV", "from command line options", cmd_line_options_obj.repo_rev[0])
-        if cmd_line_options_obj.s3_config:
-            self.cvl.add_const_config_variable("S3_CONFIG_FILE", "from command line options", cmd_line_options_obj.s3_config[0])
-        if cmd_line_options_obj.base_rev:
-            self.cvl.add_const_config_variable("BASE_REPO_REV", "from command line options", cmd_line_options_obj.base_rev[0])
-        else:
-            self.cvl.add_const_config_variable("BASE_REPO_REV", "from command line options", "0")
+        if cmd_line_options_obj.config_file:
+            self.cvl.add_const_config_variable("CONFIG_FILE", "from command line options", cmd_line_options_obj.config_file[0])
 
         for identifier in self.cvl:
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))

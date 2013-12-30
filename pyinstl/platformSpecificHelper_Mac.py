@@ -82,6 +82,14 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         restore_dir_command = self.cd("$("+var_name+")")
         return restore_dir_command
 
+    def rmdir(self, directory):
+        rmdir_command = " ".join( ("rmdir", quoteme(directory) ) )
+        return rmdir_command
+
+    def rmfile(self, file):
+        rmfile_command = " ".join( ("rm", "-f", quoteme(file) ) )
+        return rmfile_command
+
     def get_svn_folder_cleanup_instructions(self):
         return 'find . -maxdepth 1 -mindepth 1 -type d -print0 | xargs -0 "$(SVN_CLIENT_PATH)" cleanup --non-interactive'
     

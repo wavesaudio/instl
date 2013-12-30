@@ -1,6 +1,20 @@
 2013-12-29  6.1  Shai Shasag <shai@waves.com>
   * fixed wrong depends calculation.
-  * special characters in urls given to curl are now escaped using the %xx convesion
+  * special characters in urls given to curl are now escaped using the %xx convention
 
 ???? 6.2
+    user visible changes:
     * curl DL_INSTRUCTIONS_TYPE: either config_file or one_by_one
+    * new instl commands:
+        ** create_readlinks, creates .readlink files instead of symlink
+        ** resolve_readlinks creates symlinks instead of .readlinks file - currentlu used in copy on Mac OS
+    * trans command now reads BASE_REV from config file, has new option --config
+    * up2s3 command implemented using aws and writes a batch file like all other commands
+    * up2s3 command can be used on a range of versions
+    
+    programmer visible changes:
+    * new function SVNItem.walk_items_depth_first, and tests for this function
+    * platformSpecificHelper_XXX new functions: rmfile, rmdir, not implemented for windows yet
+    * variable BASE_REPO_REV default set to 1 for all commands
+    * CONFIG_FILE variable instead to S3_CONFIG_FILE and used by all instlAdmin commands
+    

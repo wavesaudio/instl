@@ -49,11 +49,8 @@ class CommandLineOptions(object):
         self.props_file = None
         self.filter_out = None
         self.filter_in = None
-        self.svn_url = None
-        self.root_links_folder = None
         self.repo_rev = None
-        self.base_rev = None
-        self.s3_config = None
+        self.config_file = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
@@ -98,7 +95,7 @@ def prepare_args_parser():
                                         help='upload installation sources to S3')
 
     # add --out to parsers that need it
-    for subparser in (parser_sync, parser_copy, parser_synccopy, parser_trans, parser_createlinks):
+    for subparser in (parser_sync, parser_copy, parser_synccopy, parser_trans, parser_createlinks, parser_up2S3):
         standard_options = subparser.add_argument_group(description='standard arguments:')
         standard_options.add_argument('--out', '-o',
                                     required=True,
@@ -158,68 +155,50 @@ def prepare_args_parser():
                                     metavar='version-to-filter-in',
                                     dest='filter_in',
                                     help="version to filter in, all other version will be left out")
-        trans_options.add_argument('--base-revision', '-b',
+        trans_options.add_argument('--config_file', '-s',
                                     required=False,
                                     nargs=1,
-                                    metavar='base_revision',
-                                    dest='base_rev',
-                                    help="base reversion for uploading")
+                                    metavar='path-to-config-file',
+                                    dest='config_file',
+                                    help="path to config-file")
 
     for subparser in (parser_createlinks, ):
         subparser.set_defaults(mode='admin')
         createlinks_options = subparser.add_argument_group(description='admin arguments:')
-        createlinks_options.add_argument('--url', '-u',
-                                    required=True,
-                                    nargs=1,
-                                    metavar='url-to-svn-repository',
-                                    dest='svn_url',
-                                    help="url to svn repository")
-        createlinks_options.add_argument('--root', '-r',
-                                    required=True,
-                                    nargs=1,
-                                    metavar='root-links-folder',
-                                    dest='root_links_folder',
-                                    help="root links folder ")
         createlinks_options.add_argument('--revision', '-v',
                                     required=True,
                                     nargs=1,
                                     metavar='min_revision[:max_revision]',
                                     dest='repo_rev',
                                     help="file to read svn properties from")
+        createlinks_options.add_argument('--config_file', '-s',
+                                    required=True,
+                                    nargs=1,
+                                    metavar='path-to-config-file',
+                                    dest='config_file',
+                                    help="path to config-file")
         createlinks_options.add_argument('--run',
                                     required=False,
                                     default=False,
                                     action='store_true',
                                     dest='run',
                                     help="run the installation instructions script")
-        createlinks_options.add_argument('--base-revision', '-b',
-                                    required=False,
-                                    nargs=1,
-                                    metavar='base_revision',
-                                    dest='base_rev',
-                                    help="base reversion for uploading")
 
     for subparser in (parser_up2S3, ):
         subparser.set_defaults(mode='admin')
         up2S3_options = subparser.add_argument_group(description='s3 arguments:')
-        up2S3_options.add_argument('--root', '-r',
-                                    required=True,
-                                    nargs=1,
-                                    metavar='root-links-folder',
-                                    dest='root_links_folder',
-                                    help="root links folder ")
         up2S3_options.add_argument('--revision', '-v',
                                     required=True,
                                     nargs=1,
                                     metavar='repository-revision',
                                     dest='repo_rev',
                                     help="file to read svn properties from")
-        up2S3_options.add_argument('--s3_config', '-s',
+        up2S3_options.add_argument('--config_file', '-s',
                                     required=True,
                                     nargs=1,
-                                    metavar='path-to-s3-config-file',
-                                    dest='s3_config',
-                                    help="path to s3 config-file")
+                                    metavar='path-to-config-file',
+                                    dest='config_file',
+                                    help="path to config-file")
         up2S3_options.add_argument('--run',
                                     required=False,
                                     default=False,
@@ -229,6 +208,30 @@ def prepare_args_parser():
 
         parser_version = subparsers.add_parser('version', help='display instl version')
         parser_version.set_defaults(mode='do_something')
+
+
+        if 'Win' not in current_os_names:
+            parser_create_readlinks = subparsers.add_parser('create_readlinks',
+                                                help='replace symlinks with .readlink files')
+            parser_create_readlinks.set_defaults(mode='do_something')
+            symlink_options = parser_create_readlinks.add_argument_group(description='create_readlinks arguments:')
+            symlink_options.add_argument('--in', '-i',
+                                    required=True,
+                                    nargs=1,
+                                    metavar='folder-to-replace-symlinks-in',
+                                    dest='input_file',
+                                    help="folder to replace symlinks in")
+
+            parser_resolve_readlinks = subparsers.add_parser('resolve_readlinks',
+                                                help='replace .readlink files with symlinks')
+            parser_resolve_readlinks.set_defaults(mode='do_something')
+            symlink_options = parser_resolve_readlinks.add_argument_group(description='resolve_readlinks arguments:')
+            symlink_options.add_argument('--in', '-i',
+                                    required=True,
+                                    nargs=1,
+                                    metavar='folder-to-resolve-readlinks-in',
+                                    dest='input_file',
+                                    help="folder to resolve readlinks in")
 
         if 'Mac' in current_os_names:
             parser_alias = subparsers.add_parser('alias',
@@ -298,6 +301,11 @@ def main():
             admin = InstlAdmin(initial_vars)
             admin.init_from_cmd_line_options(options)
             go_interactive(client, admin)
+        elif options.mode == "do_something":
+            from pyinstl.instlMisc import InstlMisc
+            instance = InstlMisc(initial_vars)
+            instance.init_from_cmd_line_options(options)
+            instance.do_command()
         else:
             print("incomprehensible command line options:\n", options)
     except InstlException as instl_except:

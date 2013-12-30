@@ -73,22 +73,32 @@ class PlatformSpecificHelperBase(object):
 
     @abc.abstractmethod
     def mkdir(self, directory):
-        """ platform specific mkdir for install script """
+        """ platform specific mkdir """
         pass
 
     @abc.abstractmethod
     def cd(self, directory):
-        """ platform specific cd for install script """
+        """ platform specific cd """
         pass
 
     @abc.abstractmethod
     def save_dir(self, var_name):
-        """ platform specific save current dir for install script """
+        """ platform specific save current dir """
         pass
 
     @abc.abstractmethod
     def restore_dir(self, var_name):
-        """ platform specific restore current dir for install script """
+        """ platform specific restore current dir """
+        pass
+
+    @abc.abstractmethod
+    def rmdir(self, directory):
+        """ platform specific rmdir """
+        pass
+
+    @abc.abstractmethod
+    def rmfile(self, file):
+        """ platform specific rm file """
         pass
 
     def new_line(self):

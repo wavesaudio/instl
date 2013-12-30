@@ -271,6 +271,84 @@ class TestSVNItem(unittest.TestCase):
         svni2 = copy.deepcopy(svni1)
         self.assertEqual(svni1, svni2)
 
+    def test_walk_items_depth_first(self):
+        svni1 = SVNTree()
+        for item in item_list1: svni1.new_item_from_str(item)
+
+        all_items_list_expected = [
+            "Dir1/File1.1",
+            "Dir1/File1.2",
+            "Dir1/File1.3",
+            "Dir1",
+
+            "Dir2/Dir2.1/File2.1.1",
+            "Dir2/Dir2.1",
+            "Dir2/Dir2.2/File2.2.1",
+            "Dir2/Dir2.2/File2.2.2",
+            "Dir2/Dir2.2",
+            "Dir2/Dir2.3/File2.3.1",
+            "Dir2/Dir2.3/File2.3.2",
+            "Dir2/Dir2.3/File2.3.3",
+            "Dir2/Dir2.3",
+            "Dir2",
+
+            "Dir3/Dir3.1/File3.1.1",
+            "Dir3/Dir3.1/File3.1.2",
+            "Dir3/Dir3.1",
+            "Dir3/Dir3.2/Dir3.2.1",
+            "Dir3/Dir3.2/Dir3.2.2",
+            "Dir3/Dir3.2/File3.2.1",
+            "Dir3/Dir3.2/File3.2.2",
+            "Dir3/Dir3.2",
+
+            "Dir3/File3.1",
+            "Dir3/File3.2",
+            "Dir3"]
+        all_items_list_result = []
+        for item in svni1.walk_items_depth_first(what="a"):
+            all_items_list_result.append( str(item.full_path()) )
+        self.assertEqual(all_items_list_result, all_items_list_expected)
+
+        all_files_list_expected = [
+            "Dir1/File1.1",
+            "Dir1/File1.2",
+            "Dir1/File1.3",
+
+            "Dir2/Dir2.1/File2.1.1",
+            "Dir2/Dir2.2/File2.2.1",
+            "Dir2/Dir2.2/File2.2.2",
+            "Dir2/Dir2.3/File2.3.1",
+            "Dir2/Dir2.3/File2.3.2",
+            "Dir2/Dir2.3/File2.3.3",
+
+            "Dir3/Dir3.1/File3.1.1",
+            "Dir3/Dir3.1/File3.1.2",
+            "Dir3/Dir3.2/File3.2.1",
+            "Dir3/Dir3.2/File3.2.2",
+
+            "Dir3/File3.1",
+            "Dir3/File3.2"]
+        all_files_list_result = []
+        for afile in svni1.walk_items_depth_first(what="f"):
+            all_files_list_result.append( str(afile.full_path()) )
+        self.assertEqual(all_files_list_result, all_files_list_expected)
+
+        all_dirs_list_expected = [
+            "Dir1",
+            "Dir2/Dir2.1",
+            "Dir2/Dir2.2",
+            "Dir2/Dir2.3",
+            "Dir2",
+            "Dir3/Dir3.1",
+            "Dir3/Dir3.2/Dir3.2.1",
+            "Dir3/Dir3.2/Dir3.2.2",
+            "Dir3/Dir3.2",
+            "Dir3"]
+        all_dirs_list_result = []
+        for adir in svni1.walk_items_depth_first(what="d"):
+            all_dirs_list_result.append( str(adir.full_path()) )
+        self.assertEqual(all_dirs_list_result, all_dirs_list_expected)
+
     def test_walk_items(self):
         svni1 = SVNTree()
         for item in item_list1: svni1.new_item_from_str(item)

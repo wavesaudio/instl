@@ -309,6 +309,25 @@ class SVNItem(object):
             for yielded_from in the_sub.walk_items(what):
                 yield yielded_from
 
+    def walk_items_depth_first(self, what="all"):
+        """  Walk the item list and yield items.
+            for each folder the files will be listed alphabetically, than each sub folder
+            with it's sub items.
+        """
+        file_list, dir_list = self.sorted_sub_items()
+        yield_files = what in ("f", "file", "a", "all")
+        yield_dirs = what in ("d", "dir", "a", "all")
+
+        for the_sub in dir_list:
+            for yielded_from in the_sub.walk_items_depth_first(what):
+                yield yielded_from
+            if yield_dirs:
+                yield the_sub
+
+        if yield_files:
+            for the_sub in file_list:
+                yield the_sub
+
     def recursive_remove_depth_first(self, should_remove_func):
         file_list, dir_list = self.sorted_sub_items()
 

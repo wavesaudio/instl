@@ -86,6 +86,14 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         restore_dir_command = self.cd("$("+var_name+")")
         return restore_dir_command
 
+    def rmdir(self, directory):
+        """ platform specific rmdir """
+        pass
+
+    def rmfile(self, file):
+        """ platform specific rm file """
+        pass
+
     def get_svn_folder_cleanup_instructions(self):
         return ()
         
