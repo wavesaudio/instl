@@ -255,7 +255,7 @@ class InstlAdmin(InstlInstanceBase):
         accum += " ".join( ["aws", "s3", "sync",
                                        ".","s3://$(S3_BUCKET_NAME)/$(ROOT_VERSION_NAME)/$(__CURR_REPO_REV__)",
                                        "--acl", "public-read",
-                                       "--exclude", '"*.DS_Store"', "--dryrun"
+                                       "--exclude", '"*.DS_Store"'
                                     ] )
 
 

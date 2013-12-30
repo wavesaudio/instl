@@ -2,7 +2,7 @@
   * fixed wrong depends calculation.
   * special characters in urls given to curl are now escaped using the %xx convention
 
-???? 6.2
+2013-12-30 6.2  Shai Shasag <shai@waves.com>
     user visible changes:
     * curl DL_INSTRUCTIONS_TYPE: either config_file or one_by_one
     * new instl commands:
