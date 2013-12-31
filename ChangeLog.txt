@@ -4,6 +4,7 @@
     * Renamed GET_URL_CLIENT_PATH to DOWNLOAD_TOOL_PATH
     * Removed unecessary indentation in svn output files
     * Fixed get_install_instructions_prefix for Mac - #!/bin/sh returned first
+    * No resolving of readlink files. Temporary until we fiind a coherent method of handling symlinks
 
     programmer visible changes:
     * Raising exception if REPRO_TYPE is not defined for sync command
