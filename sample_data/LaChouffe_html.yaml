@@ -4,7 +4,7 @@ __include__: "http://instl.waves.com/admin/production_repo_rev.yaml"
 
 SET_ICON_PATH: "/usr/local/bin/setIcon"
 
-GET_URL_CLIENT_PATH: curl
+DOWNLOAD_TOOL_PATH: curl
 
 __include__: "$(SYNC_BASE_URL)/$(REPO_REV)/instl/index.yaml"
 

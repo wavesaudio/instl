@@ -38,10 +38,10 @@ class InstlInstanceSync_url(InstlInstanceSync):
         var_description = "from InstlInstanceBase.init_sync_vars"
         if "SYNC_BASE_URL" not in self.instlInstance.cvl:
             raise ValueError("'SYNC_BASE_URL' was not defined")
-        if "GET_URL_CLIENT_PATH" not in self.instlInstance.cvl:
-            raise ValueError("'GET_URL_CLIENT_PATH' was not defined")
-        get_url_client_full_path = self.instlInstance.search_paths_helper.find_file_with_search_paths(self.instlInstance.cvl.get_str("GET_URL_CLIENT_PATH"))
-        self.instlInstance.cvl.set_variable("GET_URL_CLIENT_PATH", var_description).append(get_url_client_full_path)
+        if "DOWNLOAD_TOOL_PATH" not in self.instlInstance.cvl:
+            raise ValueError("'DOWNLOAD_TOOL_PATH' was not defined")
+        get_url_client_full_path = self.instlInstance.search_paths_helper.find_file_with_search_paths(self.instlInstance.cvl.resolve_string("$(DOWNLOAD_TOOL_PATH)"), return_original_if_not_found=True)
+        self.instlInstance.cvl.set_variable("__RESOLVED_DOWNLOAD_TOOL_PATH__", var_description).append(get_url_client_full_path)
 
         self.instlInstance.cvl.set_value_if_var_does_not_exist("REPO_REV", "HEAD", description=var_description)
         self.instlInstance.cvl.set_value_if_var_does_not_exist("BASE_SRC_URL", "$(SYNC_BASE_URL)/$(TARGET_OS)", description=var_description)
@@ -60,7 +60,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlInstance.cvl.set_value_if_var_does_not_exist("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH", "$(REPO_REV_LOCAL_BOOKKEEPING_PATH)/remote_info_map.txt", description=var_description)
         self.instlInstance.cvl.set_value_if_var_does_not_exist("DL_INSTRUCTIONS_TYPE", "config_file", description=var_description)
 
-        for identifier in ("SYNC_BASE_URL", "GET_URL_CLIENT_PATH", "REPO_REV", "BASE_SRC_URL", "LOCAL_SYNC_DIR", "BOOKKEEPING_DIR_URL",
+        for identifier in ("SYNC_BASE_URL", "DOWNLOAD_TOOL_PATH", "REPO_REV", "BASE_SRC_URL", "LOCAL_SYNC_DIR", "BOOKKEEPING_DIR_URL",
                            "INFO_MAP_FILE_URL", "LOCAL_BOOKKEEPING_PATH","NEW_HAVE_INFO_MAP_PATH", "REQUIRED_INFO_MAP_PATH",
                             "TO_SYNC_INFO_MAP_PATH", "REPO_REV_LOCAL_BOOKKEEPING_PATH", "LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"):
             logging.debug("... %s: %s", identifier, self.instlInstance.cvl.get_str(identifier))
@@ -164,7 +164,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             if not remote_sub_item.isDir():
                 raise ValueError(source[0], "has type", source[1], "but is not a dir")
             how_to_set = "all"
-        
+
         remote_sub_item.set_user_data(True, how_to_set)
 
     @func_log_wrapper

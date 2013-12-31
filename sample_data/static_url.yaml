@@ -1,9 +1,9 @@
 --- !define
 
 REPRO_TYPE: "URL"
-GET_URL_CLIENT_PATH_FOR_Win: "C:/p4client/dev_install/bin/Win/wget/wget.exe"
-GET_URL_CLIENT_PATH_FOR_Mac: "/usr/bin/curl"
-GET_URL_CLIENT_PATH: $(GET_URL_CLIENT_PATH_FOR_$(CURRENT_OS))
+DOWNLOAD_TOOL_PATH_FOR_Win: "C:/p4client/dev_install/bin/Win/wget/wget.exe"
+DOWNLOAD_TOOL_PATH_FOR_Mac: "/usr/bin/curl"
+DOWNLOAD_TOOL_PATH: $(DOWNLOAD_TOOL_PATH_FOR_$(CURRENT_OS))
 
 SET_ICON_PATH: "/usr/local/bin/setIcon"
 

@@ -1,7 +1,13 @@
 ???? 6.3
     user visible changes:
+    * Printing exceptions with traceback and returning proper exit code in case of failure
+    * Renamed GET_URL_CLIENT_PATH to DOWNLOAD_TOOL_PATH
+
+    programmer visible changes:
     * Raising exception if REPRO_TYPE is not defined for sync command
     * Raising exceptions in instl.main (handled and unhandled)
+    * DOWNLOAD_TOOL_PATH used as variable in download tools
+    * Added return_original_if_not_found to instlInstance.search_paths_helper.find_file_with_search_paths
 
 2013-12-30 6.2  Shai Shasag <shai@waves.com>
     user visible changes:

@@ -25,7 +25,7 @@ class CopyTool_win_robocopy(CopyToolBase):
     def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=None):
         copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /E /XD .svn /R:3 /W:3".format(**locals())
         return copy_command
-    
+
     def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=None):
         copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /LEV:1 /XD .svn /R:3 /W:3".format(**locals())
         return copy_command
@@ -53,7 +53,7 @@ class CopyTool_win_xcopy(CopyToolBase):
     def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=None):
         copy_command = "xcopy /E /R /Y \"{src_dir}\" \"{trg_dir}\"".format(**locals())
         return copy_command
-    
+
     def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=None):
         copy_command = "xcopy  /R /Y \"{src_dir}\" \"{trg_dir}\"".format(**locals())
         return copy_command
@@ -73,7 +73,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def mkdir(self, directory):
         mk_command = " ".join( ("mkdir", '"'+directory+'"'))
         return mk_command
- 
+
     def cd(self, directory):
         cd_command = " ".join( ("cd", '/d', '"'+directory+'"') )
         return cd_command
@@ -96,7 +96,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
 
     def get_svn_folder_cleanup_instructions(self):
         return ()
-        
+
     def var_assign(self, identifier, value):
         return "SET "+identifier+'='+value
 
@@ -132,7 +132,7 @@ class DownloadTool_win_wget(DownloadToolBase):
 
     def create_download_file_to_file_command(self, src_url, trg_file):
         download_command_parts = list()
-        download_command_parts.append("wget")
+        download_command_parts.append("$(__RESOLVED_DOWNLOAD_TOOL_PATH__)")
         download_command_parts.append("--connect-timeout")
         download_command_parts.append("60")
         download_command_parts.append("--read-timeout")
@@ -152,7 +152,7 @@ class DownloadTool_win_wget(DownloadToolBase):
 
     def create_download_from_config_file(self, src_url, trg_file):
         download_command_parts = list()
-        download_command_parts.append("wget")
+        download_command_parts.append("$(__RESOLVED_DOWNLOAD_TOOL_PATH__)")
         download_command_parts.append("--read-timeout")
         download_command_parts.append("900")
         return " ".join(download_command_parts)

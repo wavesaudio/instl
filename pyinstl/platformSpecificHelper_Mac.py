@@ -92,7 +92,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
 
     def get_svn_folder_cleanup_instructions(self):
         return 'find . -maxdepth 1 -mindepth 1 -type d -print0 | xargs -0 "$(SVN_CLIENT_PATH)" cleanup --non-interactive'
-    
+
     def var_assign(self, identifier, value):
         return identifier+'="'+value+'"'
 
@@ -142,7 +142,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
 
     def create_download_file_to_file_command(self, src_url, trg_file):
         download_command_parts = list()
-        download_command_parts.append("curl")
+        download_command_parts.append("$(__RESOLVED_DOWNLOAD_TOOL_PATH__)")
         download_command_parts.append("--insecure")
         download_command_parts.append("--fail")
         download_command_parts.append("--raw")
@@ -171,7 +171,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
     def create_download_from_config_file(self, config_file):
 
         download_command_parts = list()
-        download_command_parts.append("curl")
+        download_command_parts.append("$(__RESOLVED_DOWNLOAD_TOOL_PATH__)")
         #download_command_parts.append("--insecure")
         #download_command_parts.append("--raw")
         #download_command_parts.append("--silent")

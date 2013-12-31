@@ -46,7 +46,7 @@ class SearchPaths(object):
         pass  # to do...
 
     @func_log_wrapper
-    def find_file_with_search_paths(self, in_file):
+    def find_file_with_search_paths(self, in_file, return_original_if_not_found=False):
         """
         Find the real path to a file.
         If in_file is path to an existing file, it's real full path will be returned.
@@ -59,6 +59,7 @@ class SearchPaths(object):
             In fact, the reason a full path was given is that it's folder would be added.
         2. A partial path was given, such as 'somelib/somelib.h". In which case the path
             up to and including somelib would be added.
+        If return_original_if_not_found is raised, then the function will return original input path if file was not found.
         """
         retVal = None
         logging.debug("... find %s", in_file)
@@ -81,8 +82,11 @@ class SearchPaths(object):
                     self.add_search_path(real_folder)
                     retVal = real_file
                     break
-        if not retVal:
+        if retVal is None:
             logging.info("%s was not found ", in_file)
+            if return_original_if_not_found:
+                logging.debug("Returning original file - %s", in_file)
+                retVal = in_file
         return retVal
 
     @func_log_wrapper

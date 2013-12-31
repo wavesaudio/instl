@@ -10,7 +10,7 @@ SVN_CLIENT_PATH: $(SVN_CLIENT_PATH_FOR_$(CURRENT_OS))
 
 SET_ICON_PATH: "/usr/local/bin/setIcon"
 
-GET_URL_CLIENT_PATH: curl
+DOWNLOAD_TOOL_PATH: curl
 
 SYNC_BASE_URL: "file:///Volumes/p4client/dev_install/instl/192.168.13.108_links"
 #SYNC_BASE_URL: "file:///Volumes/SvnSrv/192.168.13.108/V9"
