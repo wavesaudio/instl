@@ -109,6 +109,8 @@ class InstlClient(InstlInstanceBase):
                 elif self.cvl.get_str("REPRO_TYPE") == "SVN":
                     from instlInstanceSync_svn import InstlInstanceSync_svn
                     syncer = InstlInstanceSync_svn(self)
+                else:
+                    raise ValueError('REPRO_TYPE is not defined in input file')
                 syncer.init_sync_vars()
                 syncer.create_sync_instructions(installState)
             if the_command in ("copy", 'synccopy'):
