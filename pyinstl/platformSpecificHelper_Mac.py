@@ -61,7 +61,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         self.dl_tool = DownloadTool_mac_curl()
 
     def get_install_instructions_prefix(self):
-        return (self.save_dir("TOP_SAVE_DIR"), "#!/bin/sh")
+        return ("#!/bin/sh", self.save_dir("TOP_SAVE_DIR"))
 
     def get_install_instructions_postfix(self):
         return (self.restore_dir("TOP_SAVE_DIR"), "exit 0")

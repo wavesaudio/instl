@@ -42,7 +42,6 @@ class InstlInstanceSync_svn(InstlInstanceSync):
         self.ii.batch_accum.set_current_section('sync')
         num_items_for_progress_report = len(installState.full_install_items) + 2 # one for a dummy last item, one for index sync
         self.ii.batch_accum += self.ii.platform_helper.progress("from $(BASE_SRC_URL)")
-        self.ii.batch_accum.indent_level += 1
         self.ii.batch_accum += self.ii.platform_helper.mkdir("$(LOCAL_SYNC_DIR)")
         self.ii.batch_accum += self.ii.platform_helper.cd("$(LOCAL_SYNC_DIR)")
         self.ii.batch_accum.indent_level += 1
