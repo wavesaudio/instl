@@ -1,6 +1,7 @@
 ???? 6.3
     user visible changes:
     * Raising exception if REPRO_TYPE is not defined for sync command
+    * Raising exceptions in instl.main (handled and unhandled)
 
 2013-12-30 6.2  Shai Shasag <shai@waves.com>
     user visible changes:
