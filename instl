@@ -93,6 +93,8 @@ def prepare_args_parser():
                                         help='create links from the base SVN checkout folder for a specific version')
     parser_up2S3 = subparsers.add_parser('up2s3',
                                         help='upload installation sources to S3')
+    parser_up_repo_rev = subparsers.add_parser('up_repo_rev',
+                                        help='upload repository revision file to admin folder')
 
     # add --out to parsers that need it
     for subparser in (parser_sync, parser_copy, parser_synccopy, parser_trans, parser_createlinks, parser_up2S3):
@@ -206,45 +208,61 @@ def prepare_args_parser():
                                     dest='run',
                                     help="run the installation instructions script")
 
-        parser_version = subparsers.add_parser('version', help='display instl version')
-        parser_version.set_defaults(mode='do_something')
-
-
-        if 'Win' not in current_os_names:
-            parser_create_readlinks = subparsers.add_parser('create_readlinks',
-                                                help='replace symlinks with .readlink files')
-            parser_create_readlinks.set_defaults(mode='do_something')
-            symlink_options = parser_create_readlinks.add_argument_group(description='create_readlinks arguments:')
-            symlink_options.add_argument('--in', '-i',
+    for subparser in (parser_up_repo_rev, ):
+        subparser.set_defaults(mode='admin')
+        parser_up_repo_rev_options = subparser.add_argument_group(description='up repo rev arguments:')
+        parser_up_repo_rev_options.add_argument('--in', '-i',
                                     required=True,
                                     nargs=1,
-                                    metavar='folder-to-replace-symlinks-in',
+                                    metavar='list-of-input-file',
                                     dest='input_file',
-                                    help="folder to replace symlinks in")
-
-            parser_resolve_readlinks = subparsers.add_parser('resolve_readlinks',
-                                                help='replace .readlink files with symlinks')
-            parser_resolve_readlinks.set_defaults(mode='do_something')
-            symlink_options = parser_resolve_readlinks.add_argument_group(description='resolve_readlinks arguments:')
-            symlink_options.add_argument('--in', '-i',
+                                    help="file to up load as repo rev")
+        parser_up_repo_rev_options.add_argument('--config_file', '-s',
                                     required=True,
                                     nargs=1,
-                                    metavar='folder-to-resolve-readlinks-in',
-                                    dest='input_file',
-                                    help="folder to resolve readlinks in")
+                                    metavar='path-to-config-file',
+                                    dest='config_file',
+                                    help="path to config-file")
 
-        if 'Mac' in current_os_names:
-            parser_alias = subparsers.add_parser('alias',
-                                                help='create Mac OS alias')
-            parser_alias.set_defaults(mode='do_something')
-            parser_alias.add_argument('todo_args',
-                                    action='append',
-                                    metavar='path_to_original',
-                                    help="paths to original file")
-            parser_alias.add_argument('todo_args',
-                                    action='append',
-                                    metavar='path_to_alias',
-                                    help="paths to original file and to alias file")
+    parser_version = subparsers.add_parser('version', help='display instl version')
+    parser_version.set_defaults(mode='do_something')
+
+
+    if 'Win' not in current_os_names:
+        parser_create_readlinks = subparsers.add_parser('create_readlinks',
+                                            help='replace symlinks with .readlink files')
+        parser_create_readlinks.set_defaults(mode='do_something')
+        symlink_options = parser_create_readlinks.add_argument_group(description='create_readlinks arguments:')
+        symlink_options.add_argument('--in', '-i',
+                                required=True,
+                                nargs=1,
+                                metavar='folder-to-replace-symlinks-in',
+                                dest='input_file',
+                                help="folder to replace symlinks in")
+
+        parser_resolve_readlinks = subparsers.add_parser('resolve_readlinks',
+                                            help='replace .readlink files with symlinks')
+        parser_resolve_readlinks.set_defaults(mode='do_something')
+        symlink_options = parser_resolve_readlinks.add_argument_group(description='resolve_readlinks arguments:')
+        symlink_options.add_argument('--in', '-i',
+                                required=True,
+                                nargs=1,
+                                metavar='folder-to-resolve-readlinks-in',
+                                dest='input_file',
+                                help="folder to resolve readlinks in")
+
+    if 'Mac' in current_os_names:
+        parser_alias = subparsers.add_parser('alias',
+                                            help='create Mac OS alias')
+        parser_alias.set_defaults(mode='do_something')
+        parser_alias.add_argument('todo_args',
+                                action='append',
+                                metavar='path_to_original',
+                                help="paths to original file")
+        parser_alias.add_argument('todo_args',
+                                action='append',
+                                metavar='path_to_alias',
+                                help="paths to original file and to alias file")
     return parser
 
 @func_log_wrapper

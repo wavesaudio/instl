@@ -23,7 +23,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def __init__(self, initial_vars):
         super(InstlAdmin, self).__init__(initial_vars)
-        self.cvl.set_variable("__ALLOWED_COMMANDS__").extend( ('trans', 'createlinks', 'up2s3') )
+        self.cvl.set_variable("__ALLOWED_COMMANDS__").extend( ('trans', 'createlinks', 'up2s3', 'up_repo_rev') )
         self.svnTree = svnTree.SVNTree()
 
     @func_log_wrapper
@@ -37,6 +37,8 @@ class InstlAdmin(InstlInstanceBase):
                 self.do_create_links()
             elif the_command == "up2s3":
                 self.do_upload_to_s3_aws()
+            elif the_command == "up_repo_rev":
+                self.do_up_repo_rev()
 
     def do_trans(self):
         if "CONFIG_FILE" in self.cvl:
@@ -258,6 +260,21 @@ class InstlAdmin(InstlInstanceBase):
                                        "--exclude", '"*.DS_Store"'
                                     ] )
 
+    def do_up_repo_rev(self):
+        self.read_yaml_file(self.cvl.get_str("CONFIG_FILE"))
+        file_to_upload = self.cvl.get_str("__MAIN_INPUT_FILE__")
+        _, file_to_upload_name = os.path.split(file_to_upload)
+        s3_path = "admin/"+file_to_upload_name
+        print("uploading:", file_to_upload, "to", s3_path)
+
+        import boto
+        s3 		= boto.connect_s3(self.cvl.get_str("AWS_ACCESS_KEY_ID"), self.cvl.get_str("AWS_SECRET_ACCESS_KEY"))
+        bucket 	= s3.get_bucket(self.cvl.get_str("S3_BUCKET_NAME"))
+        key_obj = boto.s3.key.Key(bucket)
+        key_obj.key = s3_path
+        key_obj.metadata={'Content-Type': 'text/plain'}
+        key_obj.set_contents_from_filename(file_to_upload, cb=percent_cb, num_cb=4)
+        key_obj.set_acl('public-read') # must be done after the upload
 
     def do_upload_to_s3(self):
         self.read_yaml_file(self.cvl.get_str("CONFIG_FILE"))
