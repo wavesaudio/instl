@@ -325,23 +325,26 @@ def main():
             instance.init_from_cmd_line_options(options)
             instance.do_command()
         else:
-            print("incomprehensible command line options:\n", options)
+            raise InstlException("incomprehensible command line options:\n", options)
     except InstlException as instl_except:
         print("instl exception", instl_except.message)
-        from pyinstl.log_utils import debug_logging_started
+        # from pyinstl.log_utils import debug_logging_started
         #from pyinstl.log_utils import get_log_file_path
         #print(get_log_file_path('instl', 'instl', True))
-        if debug_logging_started:
-            import traceback
-            traceback.print_exception(type(instl_except.original_exception),
-                                      instl_except.original_exception,
-                                      sys.exc_info()[2])
+        # if debug_logging_started:
+        #     import traceback
+            # traceback.print_exception(type(instl_except.original_exception),
+            #                           instl_except.original_exception,
+            #                           sys.exc_info()[2])
+        raise
     except InstlFatalException as instlEx:
-        print(instlEx)
+        # print(instlEx)
+        raise
     except Exception:
         print("unhandled exception")
-        import traceback
-        traceback.print_exc()
+        # import traceback
+        # traceback.print_exc()
+        raise
 
 if __name__ == "__main__":
     main()
