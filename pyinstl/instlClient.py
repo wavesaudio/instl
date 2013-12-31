@@ -103,14 +103,14 @@ class InstlClient(InstlInstanceBase):
             self.calculate_default_install_item_set(installState)
             if the_command in ("sync", "synccopy"):
                 logging.info("Creating sync instructions")
-                if self.cvl.get_str("REPRO_TYPE") == "URL":
+                if self.cvl.get_str("REPO_TYPE") == "URL":
                     from instlInstanceSync_url import InstlInstanceSync_url
                     syncer = InstlInstanceSync_url(self)
-                elif self.cvl.get_str("REPRO_TYPE") == "SVN":
+                elif self.cvl.get_str("REPO_TYPE") == "SVN":
                     from instlInstanceSync_svn import InstlInstanceSync_svn
                     syncer = InstlInstanceSync_svn(self)
                 else:
-                    raise ValueError('REPRO_TYPE is not defined in input file')
+                    raise ValueError('REPO_TYPE is not defined in input file')
                 syncer.init_sync_vars()
                 syncer.create_sync_instructions(installState)
             if the_command in ("copy", 'synccopy'):

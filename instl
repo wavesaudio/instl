@@ -309,7 +309,7 @@ def main():
         else:
             raise InstlException("incomprehensible command line options:\n", options)
     except InstlException as instl_except:
-        # print("instl exception", instl_except.message)
+        print("instl exception", instl_except.message)
         # from pyinstl.log_utils import debug_logging_started
         #from pyinstl.log_utils import get_log_file_path
         #print(get_log_file_path('instl', 'instl', True))
@@ -318,15 +318,15 @@ def main():
             # traceback.print_exception(type(instl_except.original_exception),
             #                           instl_except.original_exception,
             #                           sys.exc_info()[2])
-        raise instl_except
+        raise
     except InstlFatalException as instlEx:
         # print(instlEx)
-        raise instlEx
-    except Exception as e:
+        raise
+    except Exception:
         print("unhandled exception")
         # import traceback
         # traceback.print_exc()
-        raise e
+        raise
 
 if __name__ == "__main__":
     main()
