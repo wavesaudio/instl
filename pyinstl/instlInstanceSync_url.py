@@ -51,18 +51,20 @@ class InstlInstanceSync_url(InstlInstanceSync):
         bookkeeping_relative_path = relative_url(self.instlInstance.cvl.get_str("SYNC_BASE_URL"), self.instlInstance.cvl.get_str("BOOKKEEPING_DIR_URL"))
 
         self.instlInstance.cvl.set_value_if_var_does_not_exist("INFO_MAP_FILE_URL", "$(SYNC_BASE_URL)/$(REPO_REV)/instl/info_map.txt", description=var_description)
-        self.instlInstance.cvl.set_value_if_var_does_not_exist("LOCAL_BOOKKEEPING_PATH", "$(LOCAL_SYNC_DIR)/bookkeeping", description=var_description)
-        self.instlInstance.cvl.set_value_if_var_does_not_exist("HAVE_INFO_MAP_PATH", "$(LOCAL_BOOKKEEPING_PATH)/have_info_map.txt", description=var_description)
-        self.instlInstance.cvl.set_value_if_var_does_not_exist("NEW_HAVE_INFO_MAP_PATH", "$(LOCAL_BOOKKEEPING_PATH)/new_have_info_map.txt", description=var_description)
-        self.instlInstance.cvl.set_value_if_var_does_not_exist("REQUIRED_INFO_MAP_PATH", "$(LOCAL_BOOKKEEPING_PATH)/required_info_map.txt", description=var_description)
-        self.instlInstance.cvl.set_value_if_var_does_not_exist("TO_SYNC_INFO_MAP_PATH", "$(LOCAL_BOOKKEEPING_PATH)/to_sync_info_map.txt", description=var_description)
-        self.instlInstance.cvl.set_value_if_var_does_not_exist("REPO_REV_LOCAL_BOOKKEEPING_PATH", "$(LOCAL_BOOKKEEPING_PATH)/$(REPO_REV)", description=var_description)
-        self.instlInstance.cvl.set_value_if_var_does_not_exist("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH", "$(REPO_REV_LOCAL_BOOKKEEPING_PATH)/remote_info_map.txt", description=var_description)
-        self.instlInstance.cvl.set_value_if_var_does_not_exist("DL_INSTRUCTIONS_TYPE", "config_file", description=var_description)
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("LOCAL_BOOKKEEPING_PATH", os.path.join( "$(LOCAL_SYNC_DIR)", "bookkeeping" ), description=var_description)
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("HAVE_INFO_MAP_PATH", os.path.join( "$(LOCAL_BOOKKEEPING_PATH)", "have_info_map.txt" ), description=var_description)
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("NEW_HAVE_INFO_MAP_PATH", os.path.join( "$(LOCAL_BOOKKEEPING_PATH)", "new_have_info_map.txt" ), description=var_description)
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("REQUIRED_INFO_MAP_PATH", os.path.join( "$(LOCAL_BOOKKEEPING_PATH)", "required_info_map.txt" ), description=var_description)
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("TO_SYNC_INFO_MAP_PATH", os.path.join( "$(LOCAL_BOOKKEEPING_PATH)", "to_sync_info_map.txt" ), description=var_description)
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("REPO_REV_LOCAL_BOOKKEEPING_PATH", os.path.join( "$(LOCAL_BOOKKEEPING_PATH)", "$(REPO_REV)" ), description=var_description)
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH", os.path.join( "$(REPO_REV_LOCAL_BOOKKEEPING_PATH)", "remote_info_map.txt" ), description=var_description)
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("DL_INSTRUCTIONS_TYPE", "one_by_one", description=var_description)
 
         for identifier in ("SYNC_BASE_URL", "DOWNLOAD_TOOL_PATH", "REPO_REV", "BASE_SRC_URL", "LOCAL_SYNC_DIR", "BOOKKEEPING_DIR_URL",
                            "INFO_MAP_FILE_URL", "LOCAL_BOOKKEEPING_PATH","NEW_HAVE_INFO_MAP_PATH", "REQUIRED_INFO_MAP_PATH",
-                            "TO_SYNC_INFO_MAP_PATH", "REPO_REV_LOCAL_BOOKKEEPING_PATH", "LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"):
+                            "TO_SYNC_INFO_MAP_PATH", "REPO_REV_LOCAL_BOOKKEEPING_PATH", "LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH",
+                            "DL_INSTRUCTIONS_TYPE"):
+            #print(identifier, self.instlInstance.cvl.get_str(identifier))
             logging.debug("... %s: %s", identifier, self.instlInstance.cvl.get_str(identifier))
 
     @func_log_wrapper
@@ -227,7 +229,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         file_list, dir_list = self.work_info_map.sorted_sub_items()
         for need_item in file_list + dir_list:
             self.create_download_instructions_for_item_config_file(need_item)
-        curl_config_file_path = self.instlInstance.cvl.resolve_string("$(LOCAL_SYNC_DIR)/$(__CURL_CONFIG_FILE_NAME__)")
+        curl_config_file_path = self.instlInstance.cvl.resolve_string(os.path.join("$(LOCAL_SYNC_DIR)", "$(__CURL_CONFIG_FILE_NAME__)"))
         self.instlInstance.platform_helper.dl_tool.create_config_file(curl_config_file_path)
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.dl_tool.create_download_from_config_file("$(__CURL_CONFIG_FILE_NAME__)")
         self.instlInstance.batch_accum.indent_level -= 1

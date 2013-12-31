@@ -1,6 +1,9 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
+import os
+import urllib
+
 from platformSpecificHelper_Base import PlatformSpecificHelperBase
 from platformSpecificHelper_Base import CopyToolBase
 from platformSpecificHelper_Base import DownloadToolBase
@@ -79,7 +82,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return cd_command
 
     def save_dir(self, var_name):
-        save_dir_command = "SET "+ var_name +" %CD%"
+        save_dir_command = "SET "+ var_name +"=%CD%"
         return save_dir_command
 
     def restore_dir(self, var_name):
@@ -150,7 +153,7 @@ class DownloadTool_win_wget(DownloadToolBase):
             for url, path in self.curl_instructions:
                 wfd.write('''url = "{url}"\noutput = "{path}"\n\n'''.format(**locals()))
 
-    def create_download_from_config_file(self, src_url, trg_file):
+    def create_download_from_config_file(self, config_file):
         download_command_parts = list()
         download_command_parts.append("$(__RESOLVED_DOWNLOAD_TOOL_PATH__)")
         download_command_parts.append("--read-timeout")

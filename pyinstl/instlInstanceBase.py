@@ -167,7 +167,7 @@ class InstlInstanceBase(object):
         if from_url:
             from_url = from_url.lstrip("/\\")
             from_url = from_url.rstrip("/\\")
-            retVal = os.path.join(user_cache_dir, from_url)
+            retVal = os.path.normpath(os.path.join(user_cache_dir, from_url))
         else:
             raise ValueError("'SYNC_BASE_URL' was not properly defined")
         #print("1------------------", user_cache_dir, "-", from_url, "-", retVal)
