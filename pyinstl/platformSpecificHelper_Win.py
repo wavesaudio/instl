@@ -62,13 +62,17 @@ class CopyTool_win_xcopy(CopyToolBase):
         return copy_command
 
 class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
-    def __init__(self):
-        super(PlatformSpecificHelperWin, self).__init__()
+    def __init__(self, instlInstance):
+        super(PlatformSpecificHelperWin, self).__init__(instlInstance)
         self.var_replacement_pattern = "%\g<var_name>%"
         self.dl_tool = DownloadTool_win_wget()
 
     def get_install_instructions_prefix(self):
-        return self.save_dir("TOP_SAVE_DIR")
+        retVal = (
+            self.remark(self.instlInstance.get_version_str()),
+            self.remark(datetime.datetime.today().isoformat()),
+            self.save_dir("TOP_SAVE_DIR"))
+        return retVal
 
     def get_install_instructions_postfix(self):
         return self.restore_dir("TOP_SAVE_DIR")
@@ -108,7 +112,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return echo_command
 
     def remark(self, remark):
-        remark_command = " ".join(('REM', quoteme(remark)))
+        remark_command = " ".join(('REM', remark))
         return remark_command
 
     def use_copy_tool(self, tool):

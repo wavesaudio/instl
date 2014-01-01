@@ -1,7 +1,6 @@
 #!/usr/bin/env python2.7
 
 from __future__ import print_function
-import datetime
 
 from pyinstl.log_utils import func_log_wrapper
 from pyinstl.utils import *
@@ -64,7 +63,6 @@ class InstlAdmin(InstlInstanceBase):
         _, extension = os.path.splitext(in_file_path)
         input_format = map_info_extension_to_format[extension[1:]]
         self.svnTree.comments.append("Original file "+in_file_path)
-        self.svnTree.comments.append("      read on "+datetime.datetime.today().isoformat())
         self.svnTree.read_info_map_from_file(in_file_path, format=input_format)
 
     def write_info_map_file(self):

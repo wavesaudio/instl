@@ -486,8 +486,9 @@ class CMDObj(cmd.Cmd, object):
         print("    write copy commands to stdout or to file_name if given")
 
     def do_version(self, unused_params):
-        print(" ".join( (this_program_name, "version", ".".join(self.client_prog_inst.cvl.get_list("__INSTL_VERSION__")))))
+        print(self.client_prog_inst.get_version_str())
         return False
+
     def help_version(self):
         print("version: print", instlInstanceBase.this_program_name, "version")
 

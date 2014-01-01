@@ -56,7 +56,8 @@ class CopyToolBase(object):
 
 class PlatformSpecificHelperBase(object):
 
-    def __init__(self):
+    def __init__(self, instlInstance):
+        self.instlInstance = instlInstance
         self.copy_tool = None
         self.dl_tool = None
         self.num_items_for_progress_report = 0
@@ -142,17 +143,17 @@ class PlatformSpecificHelperBase(object):
     def resolve_readlink_files(self, in_dir="."):
         pass
 
-def PlatformSpecificHelperFactory(in_os):
+def PlatformSpecificHelperFactory(in_os, instlInstance):
     retVal = None
     if in_os == "Mac":
         import platformSpecificHelper_Mac
-        retVal = platformSpecificHelper_Mac.PlatformSpecificHelperMac()
+        retVal = platformSpecificHelper_Mac.PlatformSpecificHelperMac(instlInstance)
     elif in_os == "Win":
         import platformSpecificHelper_Win
-        retVal = platformSpecificHelper_Win.PlatformSpecificHelperWin()
+        retVal = platformSpecificHelper_Win.PlatformSpecificHelperWin(instlInstance)
     elif in_os == "Linux":
         import platformSpecificHelper_Linux
-        retVal = platformSpecificHelper_Linux.PlatformSpecificHelperLinux()
+        retVal = platformSpecificHelper_Linux.PlatformSpecificHelperLinux(instlInstance)
     else:
         raise ValueError(in_os, "has no PlatformSpecificHelper")
     return retVal

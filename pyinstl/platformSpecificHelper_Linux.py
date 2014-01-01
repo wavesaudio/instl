@@ -54,13 +54,18 @@ class CopyToolLinuxRsync(CopyToolBase):
         return sync_command
 
 class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
-    def __init__(self):
-        super(PlatformSpecificHelperLinux, self).__init__()
+    def __init__(self, instlInstance):
+        super(PlatformSpecificHelperLinux, self).__init__(instlInstance)
         self.var_replacement_pattern = "${\g<var_name>}"
         self.dl_tool = DownloadTool_linux_curl()
 
     def get_install_instructions_prefix(self):
-        return ("#!/bin/sh", self.save_dir("TOP_SAVE_DIR"))
+        retVal =  (
+            "#!/bin/sh",
+            self.remark(self.instlInstance.get_version_str()),
+            self.remark(datetime.datetime.today().isoformat()),
+            self.save_dir("TOP_SAVE_DIR"))
+        return retVal
 
     def get_install_instructions_postfix(self):
         return (self.restore_dir("TOP_SAVE_DIR"), "exit 0")
@@ -100,7 +105,7 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         return echo_command
 
     def remark(self, remark):
-        remark_command = " ".join(('#', quoteme(remark)))
+        remark_command = " ".join(('#', remark))
         return remark_command
 
     def use_copy_tool(self, tool):

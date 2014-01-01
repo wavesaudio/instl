@@ -2,7 +2,6 @@
 from __future__ import print_function
 import abc
 import logging
-import datetime
 import yaml
 
 import appdirs
@@ -38,7 +37,7 @@ class InstlInstanceBase(object):
     def __init__(self, initial_vars=None):
         # init objects owned by this class
         self.cvl = ConfigVarList()
-        self.platform_helper = PlatformSpecificHelperFactory(os_family_name)
+        self.platform_helper = PlatformSpecificHelperFactory(os_family_name, self)
         self.batch_accum = BatchAccumulator(self.cvl)
 
         self.out_file_realpath = None
@@ -56,6 +55,10 @@ class InstlInstanceBase(object):
                         -[a-f0-9]{12}
                         $
                         """, re.VERBOSE)
+
+    def get_version_str(self):
+        retVal = " ".join( (this_program_name, "version", ".".join(self.cvl.get_list("__INSTL_VERSION__"))) )
+        return retVal
 
     @func_log_wrapper
     def init_default_vars(self, initial_vars):
@@ -211,7 +214,6 @@ class InstlInstanceBase(object):
     def write_batch_file(self):
         self.batch_accum.set_current_section('pre')
         self.batch_accum += self.platform_helper.get_install_instructions_prefix()
-        self.batch_accum += self.platform_helper.remark(datetime.datetime.today().isoformat())
         self.batch_accum.set_current_section('post')
         self.cvl.set_variable("TOTAL_ITEMS_FOR_PROGRESS_REPROT").append(str(self.platform_helper.num_items_for_progress_report))
         self.batch_accum += self.platform_helper.get_install_instructions_postfix()

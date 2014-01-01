@@ -191,19 +191,19 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.new_line()
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.resolve_readlink_files()
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.new_line()
-        self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress("from $(BASE_SRC_URL)".format(**locals()))
+        self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress("sync from $(BASE_SRC_URL)".format(**locals()))
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.copy_file_to_file("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")
 
     def create_download_instructions_for_item_one_by_one(self, item, path_so_far = list()):
         if item.isSymlink():
             source_url =   '/'.join(( "$(SYNC_BASE_URL)", str(item.last_rev()), "/".join(path_so_far), item.name() + ".readlink" ))
             self.instlInstance.batch_accum += self.instlInstance.platform_helper.dl_tool.create_download_file_to_file_command(source_url, item.name() + ".readlink")
-            self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress("")
+            self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress(item.full_path())
             self.symlinks.append( ("/".join(path_so_far), item.name()) )
         elif item.isFile():
             source_url =   '/'.join( ["$(SYNC_BASE_URL)", str(item.last_rev())] + path_so_far + [item.name()] )
             self.instlInstance.batch_accum += self.instlInstance.platform_helper.dl_tool.create_download_file_to_file_command(source_url, item.name())
-            self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress("")
+            self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress(item.full_path())
         elif item.isDir():
             path_so_far.append(item.name())
             self.instlInstance.batch_accum += self.instlInstance.platform_helper.mkdir(item.name())
