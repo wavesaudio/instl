@@ -69,14 +69,21 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         self.dl_tool = DownloadTool_win_wget()
 
     def get_install_instructions_prefix(self):
-        retVal = (
+        retVal = ("@echo off",
             self.remark(self.instlInstance.get_version_str()),
             self.remark(datetime.datetime.today().isoformat()),
-            self.save_dir("TOP_SAVE_DIR"))
+            self.save_dir("TOP_SAVE_DIR"),
+            "call :redirectstderr 2>&1",
+            self.restore_dir("TOP_SAVE_DIR"),
+            "goto:eof",
+            "",
+            ":redirectstderr"
+            )
         return retVal
 
     def get_install_instructions_postfix(self):
-        return self.restore_dir("TOP_SAVE_DIR")
+        retVal = (":eof",)
+        return retVal
 
     def mkdir(self, directory):
         mk_command = " ".join( ("mkdir", '"'+directory+'"'))
