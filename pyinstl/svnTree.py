@@ -18,17 +18,16 @@ comment_line_re = re.compile(r"""
             $
             """, re.X)
 
-def timing(f):
-    def wrap(*args, **kwargs):
-        time1 = time.time()
-        ret = f(*args, **kwargs)
-        time2 = time.time()
-        print ('%s function took %0.3f ms' % (f.func_name, (time2-time1)*1000.0))
-        return ret
-    return wrap
-
 class SVNTree(svnItem.SVNTopItem):
+    """ SVNTree inherites from SVNTopItem and adds the functionality
+        of reading and writing itself in variouse text formats:
+            info: produced by SVN's info command (read only)
+            props: produced by SVN's proplist command (read only)
+            text: SVNItem's native format (read and write)
+            yaml: yaml... (read and write)
+    """
     def __init__(self):
+        """ Initializes a SVNTree object """
         super(SVNTree, self).__init__()
         self.read_func_by_format = {"info": self.read_from_svn_info,
                                     "text": self.read_from_text,
@@ -42,10 +41,14 @@ class SVNTree(svnItem.SVNTopItem):
         self.comments = list()
 
     def valid_read_formats(self):
+        """ returns a list of file formats that can be read by SVNTree """
         return self.read_func_by_format.keys()
 
     def read_info_map_from_file(self, in_file, format="text"):
-        """ format is either text, yaml, pickle
+        """ Reads from file. All previous sub items are cleared
+            before reading, unless the format is 'props' in which case
+            the properties are added to esisting sub items.
+            raises ValueError is format is not supported.
         """
         self.path_to_file = in_file
         if format in self.read_func_by_format.keys():
@@ -59,6 +62,7 @@ class SVNTree(svnItem.SVNTopItem):
             ValueError("Unknown read format "+format)
 
     def read_from_svn_info(self, rfd):
+        """ reads new items from svn info items prepared by iter_svn_info """
         for item in self.iter_svn_info(rfd):
             self.new_item_at_path(*item)
 
