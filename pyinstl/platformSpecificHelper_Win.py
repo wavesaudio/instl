@@ -3,6 +3,7 @@ from __future__ import print_function
 
 import os
 import urllib
+import datetime
 
 from platformSpecificHelper_Base import PlatformSpecificHelperBase
 from platformSpecificHelper_Base import CopyToolBase
@@ -146,7 +147,9 @@ class DownloadTool_win_wget(DownloadToolBase):
         download_command_parts.append("900")
         download_command_parts.append("-O")
         download_command_parts.append(quoteme(trg_file))
-        download_command_parts.append(quoteme(urllib.quote(src_url, "$()/:")))
+        # urls need to escape spaces as %20, but windows batch files already escape % characters
+        # so use urllib.quote to escape spaces and then change %20 to %%20.
+        download_command_parts.append(quoteme(urllib.quote(src_url, "$()/:").replace("%", "%%")))
         return " ".join(download_command_parts)
 
     def create_config_file(self, curl_config_file_path):

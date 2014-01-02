@@ -43,11 +43,12 @@ class InstallInstructionsState(object):
             folder_list_for_idd = instlInstance.install_definitions_index[IID].folder_list()
             if folder_list_for_idd:
                 for folder in folder_list_for_idd:
-                    self.install_items_by_target_folder[folder].append(IID)
+                    norm_folder = os.path.normpath(folder)
+                    self.install_items_by_target_folder[norm_folder].append(IID)
             else: # items that need no copy
                 source_list_for_idd = instlInstance.install_definitions_index[IID].source_list()
                 for source in source_list_for_idd:
-                    sync_folder =  "/".join( ("$(LOCAL_SYNC_DIR)", "$(REL_SRC_PATH)", instlInstance.relative_sync_folder_for_source(source)))
+                    sync_folder =  os.path.join( ("$(LOCAL_SYNC_DIR)", "$(REL_SRC_PATH)", instlInstance.relative_sync_folder_for_source(source)))
                     self.no_copy_items_by_sync_folder[sync_folder].append(IID)
 
     @func_log_wrapper
@@ -270,17 +271,17 @@ class InstlClient(InstlInstanceBase):
     def create_copy_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
 
-        source_url = "$(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)/"+source[0]
+        source_path = os.path.normpath("$(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)/"+source[0])
 
         if source[1] == '!file':       # get a single file, not recommended
-            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_url, ".", source_url)
+            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".", source_path)
         elif source[1] == '!dir_cont': # get all files and folders from a folder
-            self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_url, ".", source_url)
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".", source_path)
         elif source[1] == '!files':    # get all files from a folder
-            self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_url, ".", source_url)
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".", source_path)
         else:
-            self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_url, ".", source_url)
-        logging.info("... %s; (%s - %s)", source_url, self.cvl.resolve_string(source_url), source[1])
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path, ".", source_path)
+        logging.info("... %s; (%s - %s)", source_path, self.cvl.resolve_string(source_path), source[1])
 
     @func_log_wrapper
     def find_cycles(self):
