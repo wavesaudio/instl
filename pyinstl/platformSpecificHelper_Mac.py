@@ -62,6 +62,9 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         self.dl_tool = DownloadTool_mac_curl()
 
     def get_install_instructions_prefix(self):
+        """ exec 2>&1 within a batch file will redirect stderr to stdout.
+            .sync.sh >& out.txt on the command line will redirect stderr to stdout fom without.
+        """
         retVal = (
             "#!/bin/sh",
             self.remark(self.instlInstance.get_version_str()),
@@ -153,12 +156,12 @@ class DownloadTool_mac_curl(DownloadToolBase):
         download_command_parts.append("--fail")
         download_command_parts.append("--raw")
         download_command_parts.append("--silent")
+        download_command_parts.append("--show-error")
+        download_command_parts.append("--compressed")
         download_command_parts.append("--connect-timeout")
         download_command_parts.append("60")
         download_command_parts.append("--max-time")
         download_command_parts.append("900")
-        #download_command_parts.append(" --write-out")
-        #download_command_parts.append(quoteme("%{http_code}"))
         download_command_parts.append("-o")
         download_command_parts.append(quoteme(trg_file))
         download_command_parts.append(quoteme(urllib.quote(src_url, "$()/:")))
