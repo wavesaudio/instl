@@ -171,6 +171,10 @@ class DownloadTool_mac_curl(DownloadToolBase):
         with open(curl_config_file_path, "w") as wfd:
             wfd.write("insecure\n")
             wfd.write("raw\n")
+            wfd.write("fail\n")
+            wfd.write("silent\n")
+            wfd.write("show-error\n")
+            wfd.write("compressed\n")
             wfd.write("create-dirs\n")
             wfd.write("connect-timeout = 60\n")
             wfd.write("\n")
@@ -181,14 +185,8 @@ class DownloadTool_mac_curl(DownloadToolBase):
 
         download_command_parts = list()
         download_command_parts.append("$(__RESOLVED_DOWNLOAD_TOOL_PATH__)")
-        #download_command_parts.append("--insecure")
-        #download_command_parts.append("--raw")
-        #download_command_parts.append("--silent")
-        #download_command_parts.append("--create-dirs")
-        #download_command_parts.append("--connect-timeout")
-        #download_command_parts.append("60")
         download_command_parts.append("--max-time")
-        download_command_parts.append(str(len(self.curl_instructions) * 3 + 180)) # 3 seconds for each item + 3 minutes
+        download_command_parts.append(str(len(self.curl_instructions) * 6 + 300)) # 6 seconds for each item + 5 minutes
         download_command_parts.append("--config")
         download_command_parts.append(config_file)
 
