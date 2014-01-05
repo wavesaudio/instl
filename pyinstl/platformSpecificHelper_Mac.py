@@ -69,6 +69,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
             "#!/bin/sh",
             self.remark(self.instlInstance.get_version_str()),
             self.remark(datetime.datetime.today().isoformat()),
+            "set -e",
             self.save_dir("TOP_SAVE_DIR"))
         return retVal
 
