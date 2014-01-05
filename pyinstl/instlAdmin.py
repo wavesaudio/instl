@@ -106,7 +106,7 @@ class InstlAdmin(InstlInstanceBase):
         return min_rev, max_rev
 
     def do_create_links(self):
-        self.read_yaml_file(self.cvl.get_str("CONFIG_FILE"))
+        self.read_yaml_file(self.cvl.resolve_string("$(CONFIG_FILE)"))
         if "REPO_NAME" not in self.cvl:
             raise ValueError("'REPO_NAME' was not defined")
         if "SVN_REPO_URL" not in self.cvl:
@@ -121,10 +121,10 @@ class InstlAdmin(InstlInstanceBase):
 
         self.batch_accum.set_current_section('links')
 
-        self.platform_helper.use_copy_tool(self.cvl.get_str("COPY_TOOL"))
+        self.platform_helper.use_copy_tool(self.cvl.resolve_string("$(COPY_TOOL)"))
 
         # call svn info and to find out the last repo revision
-        svn_info_command = ["svn", "info", self.cvl.get_str("SVN_REPO_URL")]
+        svn_info_command = ["svn", "info", self.cvl.resolve_string("$(SVN_REPO_URL)")]
         proc = subprocess.Popen(svn_info_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         my_stdout, my_stderr = proc.communicate()
         if proc.returncode != 0 or my_stderr != "":
