@@ -59,7 +59,8 @@ class SearchPaths(object):
             In fact, the reason a full path was given is that it's folder would be added.
         2. A partial path was given, such as 'somelib/somelib.h". In which case the path
             up to and including somelib would be added.
-        If return_original_if_not_found is raised, then the function will return original input path if file was not found.
+        If return_original_if_not_found is True, then the function will return original
+        input path if file was not found, instead of None.
         """
         retVal = None
         logging.debug("... find %s", in_file)

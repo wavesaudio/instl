@@ -107,7 +107,7 @@ class InstlInstanceBase(object):
         if cmd_line_options_obj.repo_rev:
             self.cvl.set_variable("REPO_REV", "from command line options").append(cmd_line_options_obj.repo_rev[0])
         if cmd_line_options_obj.config_file:
-            self.cvl.add_const_config_variable("CONFIG_FILE", "from command line options", cmd_line_options_obj.config_file[0])
+            self.cvl.add_const_config_variable("__CONFIG_FILE__", "from command line options", cmd_line_options_obj.config_file[0])
 
         for identifier in self.cvl:
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))

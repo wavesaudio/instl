@@ -33,6 +33,10 @@ class InstlAdmin(InstlInstanceBase):
             self.cvl.set_variable("CREATE_LINKS_STAMP_FILE_NAME").append("create_links_done.stamp")
         if "UP_2_S3_STAMP_FILE_NAME" not in self.cvl:
             self.cvl.set_variable("UP_2_S3_STAMP_FILE_NAME").append("up2s3.stamp")
+        if "__CONFIG_FILE__" in self.cvl:
+            config_file_resolved = self.self.search_paths_helper.find_file_with_search_paths(self.cvl.resolve_string("$(__CONFIG_FILE__)"), return_original_if_not_found=True)
+            self.cvl.set_variable("__CONFIG_FILE_PATH__").append(config_file_resolved)
+            self.read_yaml_file(config_file_resolved)
 
     @func_log_wrapper
     def do_command(self):
@@ -49,9 +53,6 @@ class InstlAdmin(InstlInstanceBase):
                 self.do_up_repo_rev()
 
     def do_trans(self):
-        if "CONFIG_FILE" in self.cvl:
-            self.read_yaml_file(self.cvl.get_str("CONFIG_FILE"))
-
         self.read_info_map_file(self.cvl.get_str("__MAIN_INPUT_FILE__"))
         if "__PROPS_FILE__" in self.cvl:
             self.read_info_map_file(self.cvl.get_str("__PROPS_FILE__"))
@@ -106,7 +107,6 @@ class InstlAdmin(InstlInstanceBase):
         return min_rev, max_rev
 
     def do_create_links(self):
-        self.read_yaml_file(self.cvl.resolve_string("$(CONFIG_FILE)"))
         if "REPO_NAME" not in self.cvl:
             raise ValueError("'REPO_NAME' was not defined")
         if "SVN_REPO_URL" not in self.cvl:
@@ -198,7 +198,7 @@ class InstlAdmin(InstlInstanceBase):
                                "--in", "instl/info_map.info",
                                "--props ", "instl/info_map.props",
                                "--out ", "instl/info_map.txt",
-                               "--config", "$(CONFIG_FILE)"]
+                               "--config", "$(__CONFIG_FILE_PATH__)"]
         accum += " ".join(trans_command_parts)
 
         # create Mac only info_map
@@ -227,7 +227,6 @@ class InstlAdmin(InstlInstanceBase):
             return retVal
 
     def do_upload_to_s3_aws(self):
-        self.read_yaml_file(self.cvl.get_str("CONFIG_FILE"))
         root_links_folder = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)")
         sub_dirs = os.listdir(root_links_folder)
         dirs_to_upload = list()
@@ -324,7 +323,6 @@ class InstlAdmin(InstlInstanceBase):
                         ] )
 
     def do_up_repo_rev(self):
-        self.read_yaml_file(self.cvl.get_str("CONFIG_FILE"))
         file_to_upload = self.cvl.get_str("__MAIN_INPUT_FILE__")
         _, file_to_upload_name = os.path.split(file_to_upload)
         s3_path = "admin/"+file_to_upload_name
@@ -340,7 +338,6 @@ class InstlAdmin(InstlInstanceBase):
         key_obj.set_acl('public-read') # must be done after the upload
 
     def do_upload_to_s3(self):
-        self.read_yaml_file(self.cvl.get_str("CONFIG_FILE"))
         g_map_file_path					= 'instl/info_map_upload.txt'
         #g_upload_done_key				= 'instl/done'
         info_map_path = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/$(REPO_REV)/"+g_map_file_path)
