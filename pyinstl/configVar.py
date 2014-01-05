@@ -104,19 +104,19 @@ class ConstConfigVar(ConfigVar):
             super().__init__(name, description, *values)
 
     def set_description(self, unused_description):
-        raise Exception("Cannot change a const value", self.__name)
+        raise Exception("Cannot change a const value", self.name())
 
     def __setitem__(self, unused_key, unused_value):
-        raise Exception("Cannot change a const value", self.__name)
+        raise Exception("Cannot change a const value", self.name())
 
     def __delitem__(self, unused_key):
-        raise Exception("Cannot change a const value", self.__name)
+        raise Exception("Cannot change a const value", self.name())
 
     def append(self, unused_value):
-        raise Exception("Cannot change a const value", self.__name)
+        raise Exception("Cannot change a const value", self.name())
 
     def extend(self, unused_value):
-        raise Exception("Cannot change a const value", self.__name)
+        raise Exception("Cannot change a const value", self.name())
 
 if __name__ == "__main__":
     pass

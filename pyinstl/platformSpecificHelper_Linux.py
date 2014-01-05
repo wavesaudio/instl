@@ -87,8 +87,12 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         restore_dir_command = self.cd("$("+var_name+")")
         return restore_dir_command
 
-    def rmdir(self, directory):
-        rmdir_command = " ".join( ("rmdir", quoteme(directory) ) )
+    def rmdir(self, directory, recursive=False):
+        rmdir_command = ""
+        if recursive:
+            rmdir_command = " ".join( ("rm", "-fr", quoteme(directory) ) )
+        else:
+            rmdir_command = " ".join( ("rmdir", quoteme(directory) ) )
         return rmdir_command
 
     def rmfile(self, file):

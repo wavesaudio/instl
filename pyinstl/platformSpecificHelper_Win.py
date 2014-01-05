@@ -73,16 +73,11 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
             self.remark(self.instlInstance.get_version_str()),
             self.remark(datetime.datetime.today().isoformat()),
             self.save_dir("TOP_SAVE_DIR"),
-            "call :redirectstderr 2>&1",
-            self.restore_dir("TOP_SAVE_DIR"),
-            "goto:eof",
-            "",
-            ":redirectstderr"
             )
         return retVal
 
     def get_install_instructions_postfix(self):
-        retVal = (":eof",)
+        retVal = self.restore_dir("TOP_SAVE_DIR")
         return retVal
 
     def mkdir(self, directory):
@@ -101,7 +96,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         restore_dir_command = self.cd("$("+var_name+")")
         return restore_dir_command
 
-    def rmdir(self, directory):
+    def rmdir(self, directory, recursive=False):
         """ platform specific rmdir """
         pass
 

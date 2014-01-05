@@ -390,7 +390,6 @@ class SVNItem(object):
         else:
             raise ValueError("a_node is not a mapping", a_node)
 
-
 class SVNTopItem(SVNItem):
     """ Represents the top item of the hierarchy. The difference from SVNItem
         is that SVNTopItem does not include itself in the path and so it's name in meaningless
@@ -418,3 +417,16 @@ class SVNTopItem(SVNItem):
     def __str__(self):
         retVal = "{}, {}, {}".format(self.name(), self.flags(), self.last_rev())
         return retVal
+
+    def min_max_rev(self):
+        """ Walk the sub-items and return the minimal and maximal last_rev
+            If there are no sub items return 0,0
+        """
+        min_revision = 0
+        max_revision = 0
+        if len(self.subs()) > 0:
+            min_revision = 4000000000
+            for item in self.walk_items():
+                min_revision = min(min_revision, item.last_rev())
+                max_revision = max(max_revision, item.last_rev())
+        return min_revision, max_revision

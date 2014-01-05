@@ -93,7 +93,7 @@ class PlatformSpecificHelperBase(object):
         pass
 
     @abc.abstractmethod
-    def rmdir(self, directory):
+    def rmdir(self, directory, recursive=False):
         """ platform specific rmdir """
         pass
 

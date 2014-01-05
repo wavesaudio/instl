@@ -63,7 +63,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
 
     def get_install_instructions_prefix(self):
         """ exec 2>&1 within a batch file will redirect stderr to stdout.
-            .sync.sh >& out.txt on the command line will redirect stderr to stdout fom without.
+            .sync.sh >& out.txt on the command line will redirect stderr to stdout from without.
         """
         retVal = (
             "#!/bin/sh",
@@ -91,8 +91,12 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         restore_dir_command = self.cd("$("+var_name+")")
         return restore_dir_command
 
-    def rmdir(self, directory):
-        rmdir_command = " ".join( ("rmdir", quoteme(directory) ) )
+    def rmdir(self, directory, recursive=False):
+        rmdir_command = ""
+        if recursive:
+            rmdir_command = " ".join( ("rm", "-fr", quoteme(directory) ) )
+        else:
+            rmdir_command = " ".join( ("rmdir", quoteme(directory) ) )
         return rmdir_command
 
     def rmfile(self, file):

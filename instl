@@ -167,12 +167,6 @@ def prepare_args_parser():
     for subparser in (parser_createlinks, ):
         subparser.set_defaults(mode='admin')
         createlinks_options = subparser.add_argument_group(description='admin arguments:')
-        createlinks_options.add_argument('--revision', '-v',
-                                    required=True,
-                                    nargs=1,
-                                    metavar='min_revision[:max_revision]',
-                                    dest='repo_rev',
-                                    help="file to read svn properties from")
         createlinks_options.add_argument('--config_file', '-s',
                                     required=True,
                                     nargs=1,
@@ -189,12 +183,6 @@ def prepare_args_parser():
     for subparser in (parser_up2S3, ):
         subparser.set_defaults(mode='admin')
         up2S3_options = subparser.add_argument_group(description='s3 arguments:')
-        up2S3_options.add_argument('--revision', '-v',
-                                    required=True,
-                                    nargs=1,
-                                    metavar='repository-revision',
-                                    dest='repo_rev',
-                                    help="file to read svn properties from")
         up2S3_options.add_argument('--config_file', '-s',
                                     required=True,
                                     nargs=1,
@@ -297,6 +285,7 @@ def main():
     """ Main instl entry point. Reads command line options and decides if to go into interactive or client mode.
     """
     try:
+        sys.stderr = sys.stdout
         initial_vars = {"__INSTL_EXE_PATH__": get_path_to_instl_app()}
         options = CommandLineOptions()
         read_command_line_options(options, sys.argv[1:])

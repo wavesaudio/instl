@@ -105,7 +105,7 @@ class InstlInstanceBase(object):
             self.cvl.set_variable("__MAIN_COMMAND__", "from command line options").append(cmd_line_options_obj.command)
 
         if cmd_line_options_obj.repo_rev:
-            self.cvl.add_const_config_variable("REPO_REV", "from command line options", cmd_line_options_obj.repo_rev[0])
+            self.cvl.set_variable("REPO_REV", "from command line options").append(cmd_line_options_obj.repo_rev[0])
         if cmd_line_options_obj.config_file:
             self.cvl.add_const_config_variable("CONFIG_FILE", "from command line options", cmd_line_options_obj.config_file[0])
 
@@ -154,8 +154,7 @@ class InstlInstanceBase(object):
     def create_variables_assignment(self):
         self.batch_accum.set_current_section("assign")
         for identifier in self.cvl:
-            if not self.internal_identifier_re.match(identifier) or pyinstl.log_utils.debug_logging_started: # do not write internal state identifiers, unless in debug mode
-                self.batch_accum += self.platform_helper.var_assign(identifier,self.cvl.get_str(identifier))
+            self.batch_accum += self.platform_helper.var_assign(identifier,self.cvl.get_str(identifier))
 
     @func_log_wrapper
     def get_default_sync_dir(self):
@@ -215,7 +214,7 @@ class InstlInstanceBase(object):
         self.batch_accum.set_current_section('pre')
         self.batch_accum += self.platform_helper.get_install_instructions_prefix()
         self.batch_accum.set_current_section('post')
-        self.cvl.set_variable("TOTAL_ITEMS_FOR_PROGRESS_REPROT").append(str(self.platform_helper.num_items_for_progress_report))
+        self.cvl.set_variable("TOTAL_ITEMS_FOR_PROGRESS_REPORT").append(str(self.platform_helper.num_items_for_progress_report))
         self.batch_accum += self.platform_helper.get_install_instructions_postfix()
         lines = self.batch_accum.finalize_list_of_lines()
         lines_after_var_replacement = '\n'.join([value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines])
