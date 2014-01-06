@@ -34,7 +34,7 @@ class InstlAdmin(InstlInstanceBase):
         if "UP_2_S3_STAMP_FILE_NAME" not in self.cvl:
             self.cvl.set_variable("UP_2_S3_STAMP_FILE_NAME").append("up2s3.stamp")
         if "__CONFIG_FILE__" in self.cvl:
-            config_file_resolved = self.self.search_paths_helper.find_file_with_search_paths(self.cvl.resolve_string("$(__CONFIG_FILE__)"), return_original_if_not_found=True)
+            config_file_resolved = self.search_paths_helper.find_file_with_search_paths(self.cvl.resolve_string("$(__CONFIG_FILE__)"), return_original_if_not_found=True)
             self.cvl.set_variable("__CONFIG_FILE_PATH__").append(config_file_resolved)
             self.read_yaml_file(config_file_resolved)
 
@@ -267,8 +267,6 @@ class InstlAdmin(InstlInstanceBase):
             self.batch_accum += self.platform_helper.restore_dir(save_dir_var)
             self.batch_accum += self.platform_helper.new_line()
 
-        accum += " ".join(["touch", "$(UP_2_S3_STAMP_FILE_NAME)"])
-
         self.create_variables_assignment()
         self.write_batch_file()
         if "__RUN_BATCH_FILE__" in self.cvl:
@@ -310,9 +308,9 @@ class InstlAdmin(InstlInstanceBase):
                     accum += self.platform_helper.rmdir(dir_item.full_path(), recursive=True)
                 else:
                     dir_queue.append(dir_item) # need to check inside the folder
-
-        #accum += " ".join( ('"$(__INSTL_EXE_PATH__)"', "create_readlinks",
-        #                                    "--in", "$(ROOT_LINKS_FOLDER)/$(__CURR_REPO_REV__)") )
+        
+        # remove broken links, aws cannot handle them
+        accum += " ".join( ("find", ".", "-type", "l", "!", "-exec", "test", "-e", "{}", "\;", "-exec", "rm", "{}", "\;") )
 
         accum += " ".join( ["aws", "s3", "sync",
                            ".","s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_REV__)",
@@ -321,6 +319,7 @@ class InstlAdmin(InstlInstanceBase):
                            "--exclude", '"$(UP_2_S3_STAMP_FILE_NAME)"',
                            "--exclude", '"$(CREATE_LINKS_STAMP_FILE_NAME)"'
                         ] )
+        accum += " ".join(["touch", "$(UP_2_S3_STAMP_FILE_NAME)"])
 
     def do_up_repo_rev(self):
         file_to_upload = self.cvl.get_str("__MAIN_INPUT_FILE__")
