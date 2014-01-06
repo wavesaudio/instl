@@ -39,7 +39,7 @@ class SVNItem(object):
         s - symlink
     """
 
-    __slots__ = ("__up", "__name", "__flags", "__last_rev", "__subs", "user_data")
+    __slots__ = ("__up", "__name", "__flags", "__last_rev", "__subs", "props", "user_data")
     def __init__(self, in_name, in_flags, in_last_rev):
         """ constructor """
 
@@ -50,6 +50,7 @@ class SVNItem(object):
         self.__subs = None
         if self.isDir():
             self.__subs = dict()
+        self.props = None # extra props besides svn:executable, svn:special
         self.user_data = None
 
     def __str__(self):

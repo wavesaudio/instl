@@ -1,7 +1,7 @@
 --- !define
 
 
-REPO_REV: 212
+REPO_REV: 11
 REPRO_TYPE: "URL"
 SVN_CLIENT_PATH_FOR_Win: "C:/p4client/dev_install/bin/Win/wsvn/wsvn.exe"
 SVN_CLIENT_PATH_FOR_Mac: "/usr/local/bin/wsvn"
@@ -12,12 +12,12 @@ SET_ICON_PATH: "/usr/local/bin/setIcon"
 
 DOWNLOAD_TOOL_PATH: curl
 
-SYNC_BASE_URL: "file:///Volumes/p4client/dev_install/instl/192.168.13.108_links"
-#SYNC_BASE_URL: "file:///Volumes/SvnSrv/192.168.13.108/V9"
+SYNC_BASE_URL: "file:///Volumes/SvnSrv/links/V9_test"
 
-__include__: "$(SYNC_BASE_URL)/$(REPO_REV)/instl/index.yaml"
+__include__: 
+    - "$(SYNC_BASE_URL)/$(REPO_REV)/instl/index.yaml"
 
-REPO_REV: 212 # to override settings in the index.yaml
+REPO_REV: 11 # to override settings in the index.yaml
 
 #BOOKKEEPING_DIR_URL
 #REL_BOOKKIPING_PATH
@@ -27,6 +27,10 @@ REPO_REV: 212 # to override settings in the index.yaml
 #WAVES_DIR: "$(HOME_DIR)/Desktop/local-install"
 #WAVES_PROGRAMDATA_DIR_FOR_Mac: "$(WAVES_DIR)/Application Support/Waves Audio"
 
+--- !define
+
+#__include__: 
+#    - /Volumes/p4client/dev_install/sample_data/V9_test.yaml
 
 MAIN_INSTALL_TARGETS:
     - SG_Driver_IID

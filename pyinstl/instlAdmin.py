@@ -25,7 +25,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def __init__(self, initial_vars):
         super(InstlAdmin, self).__init__(initial_vars)
-        self.cvl.set_variable("__ALLOWED_COMMANDS__").extend( ('trans', 'createlinks', 'up2s3', 'up_repo_rev') )
+        self.cvl.set_variable("__ALLOWED_COMMANDS__").extend( ('trans', 'createlinks', 'up2s3', 'up_repo_rev', 'fix_props') )
         self.svnTree = svnTree.SVNTree()
 
     def set_default_variables(self):
@@ -51,6 +51,8 @@ class InstlAdmin(InstlInstanceBase):
                 self.do_upload_to_s3_aws()
             elif the_command == "up_repo_rev":
                 self.do_up_repo_rev()
+            elif the_command == "fix_props":
+                self.do_fix_props()
 
     def do_trans(self):
         self.read_info_map_file(self.cvl.get_str("__MAIN_INPUT_FILE__"))
@@ -376,6 +378,59 @@ class InstlAdmin(InstlInstanceBase):
         else:
             for upload_pair in upload_list:
                 print(upload_pair[0], "-->", upload_pair[1])
+
+    def do_fix_props(self):
+        self.batch_accum.set_current_section('admin')
+        repo_folder = self.cvl.resolve_string("$(__FOLDER__)")
+        os.chdir(repo_folder)
+
+        # read svn info
+        svn_info_command = ["svn", "info", "--depth", "infinity"]
+        proc = subprocess.Popen(svn_info_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        my_stdout, my_stderr = proc.communicate()
+        if proc.returncode != 0 or my_stderr != "":
+            raise ValueError("Could not read info from svn: "+my_stderr)
+        svn_info = StringIO.StringIO(my_stdout)
+        self.svnTree.read_from_svn_info(svn_info)
+
+        # read svn props
+        svn_props_command = ['svn', "proplist", "--depth", "infinity"]
+        proc = subprocess.Popen(svn_props_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        my_stdout, my_stderr = proc.communicate()
+        svn_props = StringIO.StringIO(my_stdout)
+        svn_props.name = "svn info"
+        self.svnTree.read_props(svn_props)
+
+        for item in self.svnTree.walk_items():
+            shouldBeExec = self.should_be_exec(item)
+            if item.props:
+                for extra_prop in item.props:
+                    self.batch_accum += " ".join( ("svn", "propdel", "svn:"+extra_prop, '"'+item.full_path()+'"') )
+            if item.isExecutable() and not shouldBeExec:
+                self.batch_accum += " ".join( ("svn", "propdel", 'svn:executable', '"'+item.full_path()+'"') )
+            elif not item.isExecutable() and shouldBeExec:
+                self.batch_accum += " ".join( ("svn", "propset", 'svn:executable', 'yes', '"'+item.full_path()+'"') )
+        self.create_variables_assignment()
+        self.write_batch_file()
+        if "__RUN_BATCH_FILE__" in self.cvl:
+            self.run_batch_file()
+
+    def should_be_exec(self, item):
+        retVal = False
+        try:
+            if item.isDir():
+                raise Exception
+            path_parts = item.full_path_parts()
+            if path_parts[-2] in ("Linux32", "MacOS", "Win32", "Win64"):
+                retVal = True
+                raise Exception
+            fileName, fileExtension = os.path.splitext(path_parts[-1])
+            if fileExtension in (".dll", ".exe", ".dylib", ".sh", ".bat"):
+                retVal = True
+                raise Exception
+        except:
+            pass
+        return retVal
 
 def percent_cb(unused_complete, unused_total):
     sys.stdout.write('.')

@@ -51,6 +51,7 @@ class CommandLineOptions(object):
         self.filter_in = None
         self.repo_rev = None
         self.config_file = None
+        self.folder = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
@@ -95,9 +96,11 @@ def prepare_args_parser():
                                         help='upload installation sources to S3')
     parser_up_repo_rev = subparsers.add_parser('up_repo_rev',
                                         help='upload repository revision file to admin folder')
+    parser_fix_props = subparsers.add_parser('fix_props',
+                                        help='create svn commands to remove executable bit from files that should not be marked executable')
 
     # add --out to parsers that need it
-    for subparser in (parser_sync, parser_copy, parser_synccopy, parser_trans, parser_createlinks, parser_up2S3):
+    for subparser in (parser_sync, parser_copy, parser_synccopy, parser_trans, parser_createlinks, parser_up2S3, parser_fix_props):
         standard_options = subparser.add_argument_group(description='standard arguments:')
         standard_options.add_argument('--out', '-o',
                                     required=True,
@@ -211,6 +214,15 @@ def prepare_args_parser():
                                     metavar='path-to-config-file',
                                     dest='config_file',
                                     help="path to config-file")
+    for subparser in (parser_fix_props, ):
+        subparser.set_defaults(mode='admin')
+        parser_fix_props_options = subparser.add_argument_group(description='fix executable bit options:')
+        parser_fix_props_options.add_argument('--folder', '-f',
+                                    required=True,
+                                    nargs=1,
+                                    metavar='svn-folder-to-check',
+                                    dest='folder',
+                                    help="svn folder to check for exec bit")
 
     parser_version = subparsers.add_parser('version', help='display instl version')
     parser_version.set_defaults(mode='do_something')

@@ -141,7 +141,7 @@ class SVNTree(svnItem.SVNTopItem):
                     (
                     \s+
                     svn:
-                    (?P<prop_name>special|executable)
+                    (?P<prop_name>[\w\-_]+)
                     )
                     $
                     """, re.X)
@@ -156,8 +156,13 @@ class SVNTree(svnItem.SVNTopItem):
                     if match.group('path'):
                         item = self.get_item_at_path(match.group('path'))
                     elif match.group('prop_name'):
-                        item.add_flags(prop_name_to_char[match.group('prop_name')])
-                        item = None
+                        prop_name = match.group('prop_name')
+                        if prop_name in prop_name_to_char:
+                            item.add_flags(prop_name_to_char[match.group('prop_name')])
+                        else:
+                            if not item.props:
+                                item.props = list()
+                            item.props.append(prop_name)
                 else:
                     ValueError("no match at file: "+rfd.name+", line: "+str(line_num)+": "+line)
         except Exception as ex:
