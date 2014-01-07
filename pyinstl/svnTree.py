@@ -145,28 +145,30 @@ class SVNTree(svnItem.SVNTopItem):
                     )
                     $
                     """, re.X)
+        line_num = 0
         try:
             prop_name_to_char = {'executable': 'x', 'special': 's'}
-            line_num = 0
             item = None
             for line in rfd:
                 line_num += 1
                 match = props_line_re.match(line)
                 if match:
                     if match.group('path'):
+                        # get_item_at_path might return None for invalid paths, mainly '.'
                         item = self.get_item_at_path(match.group('path'))
                     elif match.group('prop_name'):
-                        prop_name = match.group('prop_name')
-                        if prop_name in prop_name_to_char:
-                            item.add_flags(prop_name_to_char[match.group('prop_name')])
-                        else:
-                            if not item.props:
-                                item.props = list()
-                            item.props.append(prop_name)
+                        if item is not None:
+                            prop_name = match.group('prop_name')
+                            if prop_name in prop_name_to_char:
+                                item.add_flags(prop_name_to_char[match.group('prop_name')])
+                            else:
+                                if not item.props:
+                                    item.props = list()
+                                item.props.append(prop_name)
                 else:
                     ValueError("no match at file: "+rfd.name+", line: "+str(line_num)+": "+line)
         except Exception as ex:
-            print(ex)
+            print("Line:", line_num, ex)
             raise
 
     def valid_write_formats(self):

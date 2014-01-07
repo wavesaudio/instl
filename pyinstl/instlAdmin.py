@@ -220,7 +220,7 @@ class InstlAdmin(InstlInstanceBase):
                 retVal = len(svn_item.subs()) == 0
             return retVal
 
-    def do_upload_to_s3_aws(self):
+    def do_up2s3(self):
         root_links_folder = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)")
         sub_dirs = os.listdir(root_links_folder)
         dirs_to_upload = list()
@@ -329,47 +329,6 @@ class InstlAdmin(InstlInstanceBase):
         key_obj.metadata={'Content-Type': 'text/plain'}
         key_obj.set_contents_from_filename(file_to_upload, cb=percent_cb, num_cb=4)
         key_obj.set_acl('public-read') # must be done after the upload
-
-    def do_upload_to_s3(self):
-        g_map_file_path					= 'instl/info_map_upload.txt'
-        #g_upload_done_key				= 'instl/done'
-        info_map_path = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/$(REPO_REV)/"+g_map_file_path)
-        self.read_info_map_file(info_map_path)
-
-        self.batch_accum.set_current_section('upload') # for symmetry, no instructions are actually produced
-
-        upload_list = list()
-        for item in self.svnTree.walk_items(what="file"):
-            file_to_upload = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/$(REPO_REV)/"+item.full_path())
-            s3_path = self.cvl.resolve_string("$(REPO_NAME)/$(REPO_REV)/"+item.full_path())
-            if not os.path.islink(file_to_upload):
-                upload_list.append( (file_to_upload, s3_path ) )
-            else:
-                link_value = os.readlink(file_to_upload)
-                link_as_text_path = file_to_upload+".readlink"
-                open(link_as_text_path, "w").write(link_value)
-                upload_list.append( (link_as_text_path, s3_path ) )
-
-        for dirpath, dirnames, filenames in os.walk(self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/$(REPO_REV)/instl")):
-            for filename in filenames:
-                file_to_upload = os.path.join(dirpath, filename)
-                s3_path = self.cvl.resolve_string("$(REPO_NAME)/$(REPO_REV)/instl/"+filename)
-                upload_list.append( (file_to_upload, s3_path) )
-
-        import boto
-        s3 		= boto.connect_s3(self.cvl.get_str("AWS_ACCESS_KEY_ID"), self.cvl.get_str("AWS_SECRET_ACCESS_KEY"))
-        bucket 	= s3.get_bucket(self.cvl.get_str("S3_BUCKET_NAME"))
-        key_obj = boto.s3.key.Key(bucket)
-        if "__RUN_BATCH_FILE__" in self.cvl:
-            for upload_pair in upload_list:
-                print("uploading:", upload_pair[0], "to", upload_pair[1])
-                key_obj.key = upload_pair[1]
-                key_obj.set_contents_from_filename(upload_pair[0], cb=percent_cb, num_cb=4)
-                key_obj.set_acl('public-read') # must be done after the upload
-                print()
-        else:
-            for upload_pair in upload_list:
-                print(upload_pair[0], "-->", upload_pair[1])
 
     def do_fix_props(self):
         self.batch_accum.set_current_section('admin')
