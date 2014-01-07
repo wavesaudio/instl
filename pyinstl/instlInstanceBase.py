@@ -110,6 +110,8 @@ class InstlInstanceBase(object):
             self.cvl.add_const_config_variable("__CONFIG_FILE__", "from command line options", cmd_line_options_obj.config_file[0])
         if cmd_line_options_obj.folder:
             self.cvl.add_const_config_variable("__FOLDER__", "from command line options", cmd_line_options_obj.folder[0])
+        if cmd_line_options_obj.svn:
+            self.cvl.add_const_config_variable("__ISSUE_SVN_COMMANDS__", "from command line options")
 
         for identifier in self.cvl:
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))

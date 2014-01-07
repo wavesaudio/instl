@@ -52,6 +52,7 @@ class CommandLineOptions(object):
         self.repo_rev = None
         self.config_file = None
         self.folder = None
+        self.svn = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
@@ -97,10 +98,12 @@ def prepare_args_parser():
     parser_up_repo_rev = subparsers.add_parser('up_repo_rev',
                                         help='upload repository revision file to admin folder')
     parser_fix_props = subparsers.add_parser('fix_props',
-                                        help='create svn commands to remove executable bit from files that should not be marked executable')
+                                        help='create svn commands to remove redundant properties such as executable bit from files that should not be marked executable')
+    parser_fix_symlinks = subparsers.add_parser('fix_symlinks',
+                                        help='replace symlinks with .symlinks files')
 
     # add --out to parsers that need it
-    for subparser in (parser_sync, parser_copy, parser_synccopy, parser_trans, parser_createlinks, parser_up2S3, parser_fix_props):
+    for subparser in (parser_sync, parser_copy, parser_synccopy, parser_trans, parser_createlinks, parser_up2S3, parser_fix_props, parser_fix_symlinks):
         standard_options = subparser.add_argument_group(description='standard arguments:')
         standard_options.add_argument('--out', '-o',
                                     required=True,
@@ -229,17 +232,27 @@ def prepare_args_parser():
 
 
     if 'Win' not in current_os_names:
-        parser_create_readlinks = subparsers.add_parser('create_readlinks',
-                                            help='replace symlinks with .readlink files')
-        parser_create_readlinks.set_defaults(mode='do_something')
-        symlink_options = parser_create_readlinks.add_argument_group(description='create_readlinks arguments:')
-        symlink_options.add_argument('--in', '-i',
+        parser_fix_symlinks.set_defaults(mode='admin')
+        symlink_options = parser_fix_symlinks.add_argument_group(description='fix_symlinks arguments:')
+        symlink_options.add_argument('--folder', '-f',
                                 required=True,
                                 nargs=1,
                                 metavar='folder-to-replace-symlinks-in',
-                                dest='input_file',
+                                dest='folder',
                                 help="folder to replace symlinks in")
-
+        symlink_options.add_argument('--svn', '-s',
+                                required=False,
+                                default=False,
+                                action='store_true',
+                                dest='svn',
+                                help="issue svn command as well as file system commands")
+        symlink_options.add_argument('--run', '-r',
+                                    required=False,
+                                    default=False,
+                                    action='store_true',
+                                    dest='run',
+                                    help="run the installation instructions script")
+        """
         parser_resolve_readlinks = subparsers.add_parser('resolve_readlinks',
                                             help='replace .readlink files with symlinks')
         parser_resolve_readlinks.set_defaults(mode='do_something')
@@ -250,7 +263,7 @@ def prepare_args_parser():
                                 metavar='folder-to-resolve-readlinks-in',
                                 dest='input_file',
                                 help="folder to resolve readlinks in")
-
+        """
     if 'Mac' in current_os_names:
         parser_alias = subparsers.add_parser('alias',
                                             help='create Mac OS alias')

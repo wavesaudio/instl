@@ -25,7 +25,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def __init__(self, initial_vars):
         super(InstlAdmin, self).__init__(initial_vars)
-        self.cvl.set_variable("__ALLOWED_COMMANDS__").extend( ('trans', 'createlinks', 'up2s3', 'up_repo_rev', 'fix_props') )
+        self.cvl.set_variable("__ALLOWED_COMMANDS__").extend( ('trans', 'createlinks', 'up2s3', 'up_repo_rev', 'fix_props', 'fix_symlinks') )
         self.svnTree = svnTree.SVNTree()
 
     def set_default_variables(self):
@@ -43,16 +43,8 @@ class InstlAdmin(InstlInstanceBase):
         the_command = self.cvl.get_str("__MAIN_COMMAND__")
         if the_command in self.cvl.get_list("__ALLOWED_COMMANDS__"):
             self.set_default_variables()
-            if the_command == "trans":
-                self.do_trans()
-            elif the_command == "createlinks":
-                self.do_create_links()
-            elif the_command == "up2s3":
-                self.do_upload_to_s3_aws()
-            elif the_command == "up_repo_rev":
-                self.do_up_repo_rev()
-            elif the_command == "fix_props":
-                self.do_fix_props()
+            do_command_func = getattr(self, "do_"+the_command)
+            do_command_func()
 
     def do_trans(self):
         self.read_info_map_file(self.cvl.get_str("__MAIN_INPUT_FILE__"))
@@ -108,7 +100,7 @@ class InstlAdmin(InstlInstanceBase):
                 max_rev += min_rev
         return min_rev, max_rev
 
-    def do_create_links(self):
+    def do_createlinks(self):
         if "REPO_NAME" not in self.cvl:
             raise ValueError("'REPO_NAME' was not defined")
         if "SVN_REPO_URL" not in self.cvl:
@@ -431,6 +423,40 @@ class InstlAdmin(InstlInstanceBase):
         except:
             pass
         return retVal
+
+    # to do: prevent createlinks and up2s3 if there are files marked as symlinks
+    def do_fix_symlinks(self):
+        self.batch_accum.set_current_section('admin')
+        folder_to_check = self.cvl.resolve_string("$(__FOLDER__)")
+        valid_symlinks = list()
+        broken_symlinks = list()
+        for root, dirs, files in os.walk(folder_to_check, followlinks=False):
+            for item in files + dirs:
+                item_path = os.path.join(root, item)
+                if os.path.islink(item_path):
+                    target_path = os.path.realpath(item_path)
+                    link_value = os.readlink(item_path)
+                    if os.path.isdir(target_path) or os.path.isfile(target_path):
+                        valid_symlinks.append( (item_path, link_value) )
+                    else:
+                        broken_symlinks.append((item_path, link_value))
+        if len(broken_symlinks) > 0:
+            print("Found broken symlinks, please fix and run fix_symlinks again")
+            for symlink_file, link_value in broken_symlinks:
+                print(symlink_file, "-?>", link_value)
+        else:
+            for symlink_file, link_value in valid_symlinks:
+                symlink_text_path = symlink_file+".symlink"
+                self.batch_accum += " ".join( ("echo", "-n", "'"+link_value+"'", ">", "'"+symlink_text_path+"'") )
+                if "__ISSUE_SVN_COMMANDS__" in self.cvl:
+                    self.batch_accum += " ".join( ("svn", "add", "'"+symlink_text_path+"'") )
+                    self.batch_accum += " ".join( ("svn", "rm",  "'"+symlink_file+"'") )
+                else:
+                    self.batch_accum += self.platform_helper.rmfile(symlink_file)
+        self.create_variables_assignment()
+        self.write_batch_file()
+        if "__RUN_BATCH_FILE__" in self.cvl:
+            self.run_batch_file()
 
 def percent_cb(unused_complete, unused_total):
     sys.stdout.write('.')
