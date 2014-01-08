@@ -100,6 +100,36 @@ class InstlAdmin(InstlInstanceBase):
                 max_rev += min_rev
         return min_rev, max_rev
 
+    def needToCreatelinksForRevision(self, revision):
+        """ Need to create links if the create_links_done_stamp_file was not found.
+
+            If the file was found there is still one situation where we would like
+            to re-create the links: If the links are for a revision that was not the
+            base revision and now this revision is the base revision. In which case
+            the whole revision will need to be uploaded.
+        """
+        retVal = True
+        create_links_done_stamp_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/"+str(revision)+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
+        if os.path.isfile(create_links_done_stamp_file):
+            base_rev = int(self.cvl.get_str("BASE_REPO_REV"))
+            if revision == base_rev: # revision is the new base_repo_rev
+                try:
+                    previous_repo_rev = int(open(create_links_done_stamp_file, "r").readall()) # try to read the previous
+                    if previous_repo_rev == base_rev:
+                        retVal = False
+                except:
+                    pass # no previous base repo rev was found so return True to re-create the links
+        if retVal:
+            msg = " ".join( ("new base revision", str(base_rev), "need to refresh links") )
+            self.batch_accum += self.platform_helper.echo(msg)
+            print(msg)
+            # if we need to create links, remove the upload stems in order to force upload
+            try:
+                os.remove(self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/"+str(rev_dir)+"/$(UP_2_S3_STAMP_FILE_NAME)"))
+            except:
+                pass
+        return retVal
+
     def do_createlinks(self):
         if "REPO_NAME" not in self.cvl:
             raise ValueError("'REPO_NAME' was not defined")
@@ -140,24 +170,7 @@ class InstlAdmin(InstlInstanceBase):
         if base_rev > last_repo_rev:
             raise ValueError("base_rev "+str(base_rev)+" > last_repo_rev "+str(last_repo_rev))
         for revision in range(base_rev, last_repo_rev+1):
-            create_links_done_stamp_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/"+str(revision)+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
-            if os.path.isfile(create_links_done_stamp_file):
-                previous_repo_rev = open(create_links_done_stamp_file, "r").readall()
-                try:
-                    int_previous_repo_rev = int(previous_repo_rev)
-                    if int_previous_repo_rev < base_rev: # this was not created as a base_repo_rev
-                        os.remove(create_links_done_stamp_file)
-                        up_2_s3_done_stamp_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/"+str(rev_dir)+"/$(UP_2_S3_STAMP_FILE_NAME)")
-                        if os.path.isfile(up_2_s3_done_stamp_file):
-                            os.remove(up_2_s3_done_stamp_file)
-                        # forced createlinks and up2s3
-                    msg = " ".join( ("new base revision", str(base_rev), "need to refresh links") )
-                    self.batch_accum += self.platform_helper.echo(msg)
-                    print(msg)
-                except:
-                    pass
-
-            if not os.path.isfile(create_links_done_stamp_file):
+            if self.needToCreatelinksForRevision():
                 save_dir_var = "REV_"+str(revision)+"_SAVE_DIR"
                 self.batch_accum += self.platform_helper.save_dir(save_dir_var)
                 self.cvl.set_variable("__CURR_REPO_REV__").append(str(revision))
