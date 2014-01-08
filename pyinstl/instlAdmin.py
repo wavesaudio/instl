@@ -108,26 +108,26 @@ class InstlAdmin(InstlInstanceBase):
             base revision and now this revision is the base revision. In which case
             the whole revision will need to be uploaded.
         """
+        current_base_repo_rev = int(self.cvl.get_str("BASE_REPO_REV"))
         retVal = True
         create_links_done_stamp_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/"+str(revision)+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
         if os.path.isfile(create_links_done_stamp_file):
-            base_rev = int(self.cvl.get_str("BASE_REPO_REV"))
-            if revision == base_rev: # revision is the new base_repo_rev
+            if revision == current_base_repo_rev: # revision is the new base_repo_rev
                 try:
-                    previous_repo_rev = int(open(create_links_done_stamp_file, "r").readall()) # try to read the previous
-                    if previous_repo_rev == base_rev:
+                    previous_base_repo_rev = int(open(create_links_done_stamp_file, "r").read()) # try to read the previous
+                    if previous_base_repo_rev == current_base_repo_rev:
                         retVal = False
+                    else:
+                        msg = " ".join( ("new base revision", str(current_base_repo_rev), "(was", str(previous_base_repo_rev),") need to refresh links") )
+                        self.batch_accum += self.platform_helper.echo(msg); print(msg)
+                        # if we need to create links, remove the upload stems in order to force upload
+                        try: os.remove(self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/"+str(rev_dir)+"/$(UP_2_S3_STAMP_FILE_NAME)"))
+                        except: pass
                 except:
-                    pass # no previous base repo rev was found so return True to re-create the links
-        if retVal:
-            msg = " ".join( ("new base revision", str(base_rev), "need to refresh links") )
-            self.batch_accum += self.platform_helper.echo(msg)
-            print(msg)
-            # if we need to create links, remove the upload stems in order to force upload
-            try:
-                os.remove(self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/"+str(rev_dir)+"/$(UP_2_S3_STAMP_FILE_NAME)"))
-            except:
-                pass
+                    pass # no previous base repo rev indication was found so return True to re-create the links
+        else: # no stamp file found
+            msg = " ".join( ("creating links for revision", str(revision)) )
+            self.batch_accum += self.platform_helper.echo(msg); print(msg)
         return retVal
 
     def do_createlinks(self):
@@ -170,7 +170,7 @@ class InstlAdmin(InstlInstanceBase):
         if base_rev > last_repo_rev:
             raise ValueError("base_rev "+str(base_rev)+" > last_repo_rev "+str(last_repo_rev))
         for revision in range(base_rev, last_repo_rev+1):
-            if self.needToCreatelinksForRevision():
+            if self.needToCreatelinksForRevision(revision):
                 save_dir_var = "REV_"+str(revision)+"_SAVE_DIR"
                 self.batch_accum += self.platform_helper.save_dir(save_dir_var)
                 self.cvl.set_variable("__CURR_REPO_REV__").append(str(revision))
@@ -180,8 +180,8 @@ class InstlAdmin(InstlInstanceBase):
                 self.batch_accum += self.platform_helper.new_line()
             else:
                 msg = " ".join( ("links for revision", str(revision), "are already created") )
-                self.batch_accum += self.platform_helper.echo(msg)
-                print(msg)
+                self.batch_accum += self.platform_helper.echo(msg); print(msg)
+                
         self.create_variables_assignment()
         self.write_batch_file()
         if "__RUN_BATCH_FILE__" in self.cvl:
