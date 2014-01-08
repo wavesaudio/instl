@@ -107,7 +107,7 @@ class PlatformSpecificHelperBase(object):
 
     def progress(self, msg):
         self.num_items_for_progress_report += 1
-        prog_msg = "Progress: {} of $(TOTAL_ITEMS_FOR_PROGRESS_REPROT); ".format(str(self.num_items_for_progress_report)) + msg
+        prog_msg = "Progress: {} of $(TOTAL_ITEMS_FOR_PROGRESS_REPORT); ".format(str(self.num_items_for_progress_report)) + msg
         return self.echo(prog_msg)
 
     @abc.abstractmethod
@@ -137,10 +137,6 @@ class PlatformSpecificHelperBase(object):
             Example: create_copy_file_to_file("a.txt", "/d/c/bt.txt") copies
             the file a.txt into "/d/c/bt.txt".
         """
-        pass
-
-    @abc.abstractmethod
-    def resolve_readlink_files(self, in_dir="."):
         pass
 
 def PlatformSpecificHelperFactory(in_os, instlInstance):

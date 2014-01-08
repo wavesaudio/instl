@@ -141,6 +141,22 @@ class InstlAdmin(InstlInstanceBase):
             raise ValueError("base_rev "+str(base_rev)+" > last_repo_rev "+str(last_repo_rev))
         for revision in range(base_rev, last_repo_rev+1):
             create_links_done_stamp_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/"+str(revision)+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
+            if os.path.isfile(create_links_done_stamp_file):
+                previous_repo_rev = open(create_links_done_stamp_file, "r").readall()
+                try:
+                    int_previous_repo_rev = int(previous_repo_rev)
+                    if int_previous_repo_rev < base_rev: # this was not created as a base_repo_rev
+                        os.remove(create_links_done_stamp_file)
+                        up_2_s3_done_stamp_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/"+str(rev_dir)+"/$(UP_2_S3_STAMP_FILE_NAME)")
+                        if os.path.isfile(up_2_s3_done_stamp_file):
+                            os.remove(up_2_s3_done_stamp_file)
+                        # forced createlinks and up2s3
+                    msg = " ".join( ("new base revision", str(base_rev), "need to refresh links") )
+                    self.batch_accum += self.platform_helper.echo(msg)
+                    print(msg)
+                except:
+                    pass
+
             if not os.path.isfile(create_links_done_stamp_file):
                 save_dir_var = "REV_"+str(revision)+"_SAVE_DIR"
                 self.batch_accum += self.platform_helper.save_dir(save_dir_var)
@@ -205,7 +221,7 @@ class InstlAdmin(InstlInstanceBase):
         trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans", "--in", "instl/info_map.txt", "--out ", "instl/info_map_Win.txt",  "--filter-out", "Mac"]
         accum += " ".join(trans_command_parts)
 
-        accum += " ".join(["touch", "$(CREATE_LINKS_STAMP_FILE_NAME)"])
+        accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(CREATE_LINKS_STAMP_FILE_NAME)"])
 
         accum += self.platform_helper.echo("done version $(__CURR_REPO_REV__)")
 
@@ -313,7 +329,7 @@ class InstlAdmin(InstlInstanceBase):
                            "--exclude", '"$(UP_2_S3_STAMP_FILE_NAME)"',
                            "--exclude", '"$(CREATE_LINKS_STAMP_FILE_NAME)"'
                         ] )
-        accum += " ".join(["touch", "$(UP_2_S3_STAMP_FILE_NAME)"])
+        accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(UP_2_S3_STAMP_FILE_NAME)"])
 
     def do_up_repo_rev(self):
         file_to_upload = self.cvl.get_str("__MAIN_INPUT_FILE__")

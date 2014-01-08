@@ -128,23 +128,20 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         sync_command = "cp -f \"{src_file}\" \"{trg_file}\"".format(**locals())
         return sync_command
 
-    def resolve_readlink_files(self, in_dir="."):
+    def resolve_symlink_files(self, in_dir="."):
         """ create instructions to turn .readlink files into symlinks.
             Main problem was with files that had space in their name, just
             adding \" was no enough, had to separate each step to a single line
             which solved the spaces problem. Also find returns an empty string
             even when there were no files found, and therefor the check
         """
-        resolve_commands = (
-            "for readlink_file in \"$(find . -name '*.readlink')\" ; do",
-            "   if [ \"$readlink_file\" ] ; then",             # avoid empty results
-            "       file_contents=`cat \"$readlink_file\"`",    # avoid spaces in path
-            "       link_file=\"${readlink_file%.*}\"",         # avoid spaces in path
-            "       ln -s \"$file_contents\" \"$link_file\"",
-            "       rm \"$readlink_file\"",
-            "   fi",
-            "done"
-            )
+        resolve_commands = ("""
+find "$1" -name '*.symlink' | while read readlink_file; do
+    symlink_contents=`cat "${readlink_file}"`
+    link_target=${readlink_file%.*}
+    ln -s "${symlink_contents}" "${link_target}"
+done
+            """)
         return resolve_commands
 
 class DownloadTool_mac_curl(DownloadToolBase):

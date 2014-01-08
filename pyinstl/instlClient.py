@@ -196,12 +196,7 @@ class InstlClient(InstlInstanceBase):
         self.batch_accum += self.platform_helper.progress("from $(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)")
 
         if 'Mac' in self.cvl.get_list("CURRENT_OS_NAMES") and 'Mac' in self.cvl.get_list("TARGET_OS"):
-            pass # suspended resolving of readlink files until we derive is a coherent method
-            #self.batch_accum += self.platform_helper.echo("Resolving symlinks in $(LOCAL_SYNC_DIR)")
-            #self.batch_accum += " ".join( ('"$(__INSTL_EXE_PATH__)"', "resolve_readlinks",
-            #                                "--in", '"$(LOCAL_SYNC_DIR)"') )
-            #self.batch_accum += self.platform_helper.progress("resolve_readlinks in folder $(LOCAL_SYNC_DIR)/$(
-            # REL_SRC_PATH)")
+            self.batch_accum += self.platform_helper.resolve_symlink_files(self, in_dir="$(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)")
 
         for folder_name, folder_items in installState.install_items_by_target_folder.iteritems():
             self.batch_accum.indent_level += 1

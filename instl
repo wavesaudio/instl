@@ -252,18 +252,7 @@ def prepare_args_parser():
                                     action='store_true',
                                     dest='run',
                                     help="run the installation instructions script")
-        """
-        parser_resolve_readlinks = subparsers.add_parser('resolve_readlinks',
-                                            help='replace .readlink files with symlinks')
-        parser_resolve_readlinks.set_defaults(mode='do_something')
-        symlink_options = parser_resolve_readlinks.add_argument_group(description='resolve_readlinks arguments:')
-        symlink_options.add_argument('--in', '-i',
-                                required=True,
-                                nargs=1,
-                                metavar='folder-to-resolve-readlinks-in',
-                                dest='input_file',
-                                help="folder to resolve readlinks in")
-        """
+
     if 'Mac' in current_os_names:
         parser_alias = subparsers.add_parser('alias',
                                             help='create Mac OS alias')

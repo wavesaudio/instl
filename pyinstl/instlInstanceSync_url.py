@@ -27,7 +27,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
                                                 # are filtered out and then items that are already downloaded are filtered out. So finally
                                                 # the download instructions are created from the remaining items.
         self.have_map = svnTree.SVNTree()       # info map of what was already downloaded
-        self.num_items_for_progress_report = 0
         self.symlinks = list()
 
     @func_log_wrapper
@@ -179,7 +178,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def create_download_instructions_one_by_one(self):
         self.instlInstance.batch_accum.set_current_section('sync')
         num_files = self.work_info_map.num_subs_in_tree(what="file")
-        self.num_items_for_progress_report = num_files + 1 # one for a dummy first item
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress("from $(BASE_SRC_URL)".format(**locals()))
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.mkdir("$(LOCAL_SYNC_DIR)")
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.cd("$(LOCAL_SYNC_DIR)")
@@ -189,17 +187,12 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.create_download_instructions_for_item_one_by_one(need_item)
         self.instlInstance.batch_accum.indent_level -= 1
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.new_line()
-        self.instlInstance.batch_accum += self.instlInstance.platform_helper.resolve_readlink_files()
-        self.instlInstance.batch_accum += self.instlInstance.platform_helper.new_line()
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress("sync from $(BASE_SRC_URL)".format(**locals()))
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.copy_file_to_file("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")
 
     def create_download_instructions_for_item_one_by_one(self, item, path_so_far = list()):
         if item.isSymlink():
-            source_url =   '/'.join(( "$(SYNC_BASE_URL)", str(item.last_rev()), "/".join(path_so_far), item.name() + ".readlink" ))
-            self.instlInstance.batch_accum += self.instlInstance.platform_helper.dl_tool.create_download_file_to_file_command(source_url, item.name() + ".readlink")
-            self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress(item.full_path())
-            self.symlinks.append( ("/".join(path_so_far), item.name()) )
+            print("Found symlink at", item.full_path())
         elif item.isFile():
             source_url =   '/'.join( ["$(SYNC_BASE_URL)", str(item.last_rev())] + path_so_far + [item.name()] )
             self.instlInstance.batch_accum += self.instlInstance.platform_helper.dl_tool.create_download_file_to_file_command(source_url, item.name())
@@ -219,7 +212,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def create_download_instructions_config_file(self):
         self.instlInstance.batch_accum.set_current_section('sync')
         num_files = self.work_info_map.num_subs_in_tree(what="file")
-        self.num_items_for_progress_report = num_files + 1 # one for a dummy first item
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress("from $(BASE_SRC_URL)".format(**locals()))
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.mkdir("$(LOCAL_SYNC_DIR)")
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.cd("$(LOCAL_SYNC_DIR)")
