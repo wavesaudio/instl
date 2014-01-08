@@ -17,30 +17,30 @@ class CopyToolMacRsync(CopyToolBase):
         if src_dir.endswith("/"):
             src_dir.rstrip("/")
         if link_dest is None:
-            sync_command = "rsync -l -r -E --exclude=\'.svn/\' \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+            sync_command = "rsync -l -r -E --exclude=\'.svn/\' --exclude=\'*.symlink\' \"{src_dir}\" \"{trg_dir}\"".format(**locals())
         else:
             relative_link_dest = os.path.relpath(link_dest, trg_dir)
-            sync_command = "rsync -l -r -E --exclude=\'.svn/\' --link-dest=\"{relative_link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+            sync_command = "rsync -l -r -E --exclude=\'.svn/\' --exclude=\'*.symlink\' --link-dest=\"{relative_link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
 
         return sync_command
 
     def copy_file_to_dir(self, src_file, trg_dir, link_dest=None):
         assert not src_file.endswith("/")
         if link_dest is None:
-            sync_command = "rsync -l -r -E --exclude=\'.svn/\' \"{src_file}\" \"{trg_dir}\"".format(**locals())
+            sync_command = "rsync -l -r -E --exclude=\'.svn/\' --exclude=\'*.symlink\' \"{src_file}\" \"{trg_dir}\"".format(**locals())
         else:
             relative_link_dest = os.path.relpath(link_dest, trg_dir)
-            sync_command = "rsync -l -r -E --exclude=\'.svn/\' --link-dest=\"{relative_link_dest}\" \"{src_file}\" \"{trg_dir}\"".format(**locals())
+            sync_command = "rsync -l -r -E --exclude=\'.svn/\' --exclude=\'*.symlink\' --link-dest=\"{relative_link_dest}\" \"{src_file}\" \"{trg_dir}\"".format(**locals())
         return sync_command
 
     def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=None):
         if not src_dir.endswith("/"):
             src_dir += "/"
         if link_dest is None:
-            sync_command = "rsync -l -r -E --exclude=\'.svn/\' \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+            sync_command = "rsync -l -r -E --exclude=\'.svn/\' --exclude=\'*.symlink\' \"{src_dir}\" \"{trg_dir}\"".format(**locals())
         else:
             relative_link_dest = os.path.relpath(link_dest, trg_dir)
-            sync_command = "rsync -l -r -E --exclude=\'.svn/\' --link-dest=\"{relative_link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+            sync_command = "rsync -l -r -E --exclude=\'.svn/\' --exclude=\'*.symlink\' --link-dest=\"{relative_link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
         return sync_command
 
     def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=None):
@@ -48,10 +48,10 @@ class CopyToolMacRsync(CopyToolBase):
             src_dir += "/"
         # in order for * to correctly expand, it must be outside the quotes, e.g. to copy all files in folder a: A=a ; "${A}"/* and not "${A}/*"
         if link_dest is None:
-            sync_command = "rsync -l -E -d --exclude=\'.svn/\' \"{src_dir}\"/* \"{trg_dir}\"".format(**locals())
+            sync_command = "rsync -l -E -d --exclude=\'.svn/\' --exclude=\'*.symlink\' \"{src_dir}\"/* \"{trg_dir}\"".format(**locals())
         else:
             relative_link_dest = os.path.relpath(link_dest, trg_dir)
-            sync_command = "rsync -l -E -d --exclude=\'.svn/\' --link-dest=\"{relative_link_dest}..\" \"{src_dir}\"/* \"{trg_dir}\"".format(**locals())
+            sync_command = "rsync -l -E -d --exclude=\'.svn/\' --exclude=\'*.symlink\' --link-dest=\"{relative_link_dest}..\" \"{src_dir}\"/* \"{trg_dir}\"".format(**locals())
 
         return sync_command
 
@@ -136,12 +136,11 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
             even when there were no files found, and therefor the check
         """
         resolve_commands = ("""
-find "$1" -name '*.symlink' | while read readlink_file; do
+find "%s" -name '*.symlink' | while read readlink_file; do
     symlink_contents=`cat "${readlink_file}"`
-    link_target=${readlink_file%.*}
+    link_target=${readlink_file%%.*}
     ln -s "${symlink_contents}" "${link_target}"
-done
-            """)
+done""" % in_dir)
         return resolve_commands
 
 class DownloadTool_mac_curl(DownloadToolBase):
