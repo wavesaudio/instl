@@ -345,7 +345,7 @@ class InstlAdmin(InstlInstanceBase):
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(UP_2_S3_STAMP_FILE_NAME)"])
 
     def do_up_repo_rev(self):
-        file_to_upload = self.cvl.resolve_string("__MAIN_INPUT_FILE__")
+        file_to_upload = self.cvl.resolve_string("$(__MAIN_INPUT_FILE__)")
         contents = open(file_to_upload, "r").read()
         for var in ("AWS_ACCESS_KEY_ID","AWS_SECRET_ACCESS_KEY"):
             if contents.count(var) > 0:
