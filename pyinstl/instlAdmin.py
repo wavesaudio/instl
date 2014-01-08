@@ -345,7 +345,12 @@ class InstlAdmin(InstlInstanceBase):
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(UP_2_S3_STAMP_FILE_NAME)"])
 
     def do_up_repo_rev(self):
-        file_to_upload = self.cvl.get_str("__MAIN_INPUT_FILE__")
+        file_to_upload = self.cvl.resolve_string("__MAIN_INPUT_FILE__")
+        contents = open(file_to_upload, "r").read()
+        for var in ("AWS_ACCESS_KEY_ID","AWS_SECRET_ACCESS_KEY"):
+            if contents.count(var) > 0:
+                print("found", var, "in file, aborting")
+                raise ValueError("file contains "+var+" and so is forbidden to upload")
         _, file_to_upload_name = os.path.split(file_to_upload)
         s3_path = "admin/"+file_to_upload_name
         print("uploading:", file_to_upload, "to", s3_path)
