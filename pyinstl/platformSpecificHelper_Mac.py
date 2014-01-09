@@ -136,10 +136,13 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
             even when there were no files found, and therefor the check
         """
         resolve_commands = ("""
-find "%s" -name '*.symlink' | while read readlink_file; do
-    symlink_contents=`cat "${readlink_file}"`
+find -P "%s" -type f -name '*.symlink' | while read readlink_file; do
     link_target=${readlink_file%%.*}
-    ln -s "${symlink_contents}" "${link_target}"
+    if [ ! -h "${link_target}" ]
+    then
+        symlink_contents=`cat "${readlink_file}"`
+        ln -sfh "${symlink_contents}" "${link_target}"
+    fi
 done""" % in_dir)
         return resolve_commands
 
