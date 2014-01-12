@@ -143,8 +143,8 @@ class DownloadTool_win_wget(DownloadToolBase):
     def create_download_file_to_file_command(self, src_url, trg_file):
         download_command_parts = list()
         download_command_parts.append("$(__RESOLVED_DOWNLOAD_TOOL_PATH__)")
-        download_command_parts.append("--connect-timeout")
         download_command_parts.append("--quiet")
+        download_command_parts.append("--connect-timeout")
         download_command_parts.append("60")
         download_command_parts.append("--read-timeout")
         download_command_parts.append("900")
