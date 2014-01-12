@@ -125,6 +125,8 @@ class InstlAdmin(InstlInstanceBase):
                         except: pass
                 except:
                     pass # no previous base repo rev indication was found so return True to re-create the links
+            else:
+                retVal = False
         else: # no stamp file found
             msg = " ".join( ("creating links for revision", str(revision)) )
             self.batch_accum += self.platform_helper.echo(msg); print(msg)
