@@ -197,6 +197,7 @@ class InstlClient(InstlInstanceBase):
 
         if 'Mac' in self.cvl.get_list("CURRENT_OS_NAMES") and 'Mac' in self.cvl.get_list("TARGET_OS"):
             self.batch_accum += self.platform_helper.resolve_symlink_files(in_dir="$(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)")
+            self.batch_accum += self.platform_helper.progress("resolve .symlink files")
 
         for folder_name, folder_items in installState.install_items_by_target_folder.iteritems():
             self.batch_accum.indent_level += 1
