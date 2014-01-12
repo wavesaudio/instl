@@ -2,9 +2,11 @@
 
 from __future__ import print_function
 
+import filecmp
 import subprocess
 import StringIO
 
+from instlException import *
 from pyinstl.log_utils import func_log_wrapper
 from pyinstl.utils import *
 
@@ -25,7 +27,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def __init__(self, initial_vars):
         super(InstlAdmin, self).__init__(initial_vars)
-        self.cvl.set_variable("__ALLOWED_COMMANDS__").extend( ('trans', 'createlinks', 'up2s3', 'up_repo_rev', 'fix_props', 'fix_symlinks') )
+        self.cvl.set_variable("__ALLOWED_COMMANDS__").extend( ('trans', 'createlinks', 'up2s3', 'up_repo_rev', 'fix_props', 'fix_symlinks', "stage2svn") )
         self.svnTree = svnTree.SVNTree()
 
     def set_default_variables(self):
@@ -45,6 +47,8 @@ class InstlAdmin(InstlInstanceBase):
             self.set_default_variables()
             do_command_func = getattr(self, "do_"+the_command)
             do_command_func()
+        else:
+            raise ValueError(the_command+" is not one of the allowed admin commands: "+" ".join(self.cvl.get_list("__ALLOWED_COMMANDS__")))
 
     def do_trans(self):
         self.read_info_map_file(self.cvl.get_str("__MAIN_INPUT_FILE__"))
@@ -202,7 +206,7 @@ class InstlAdmin(InstlInstanceBase):
         # copy Base folder to revision folder
         accum += self.platform_helper.mkdir("$(ROOT_LINKS_FOLDER)/$(__CURR_REPO_REV__)")
         accum += self.platform_helper.echo("Copying revision $(__CURR_REPO_REV__) to $(ROOT_LINKS_FOLDER)/$(__CURR_REPO_REV__)")
-        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir("$(__CHECKOUT_FOLDER__)", revision_folder_path, "$(ROOT_LINKS_FOLDER)/Base")
+        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir("$(__CHECKOUT_FOLDER__)", revision_folder_path, "$(ROOT_LINKS_FOLDER)/Base", ignore=".svn")
 
         # get info from SVN for all files in revision
         accum += self.platform_helper.mkdir(revision_instl_folder_path)
@@ -452,6 +456,48 @@ class InstlAdmin(InstlInstanceBase):
         self.write_batch_file()
         if "__RUN_BATCH_FILE__" in self.cvl:
             self.run_batch_file()
+
+    def do_stage2svn(self):
+        self.platform_helper.use_copy_tool("rsync")
+        self.batch_accum.set_current_section('admin')
+        stage_folder = self.cvl.resolve_string(("$(__STAGING_FOLDER__)"))
+        svn_folder = self.cvl.resolve_string(("$(__SVN_FOLDER__)"))
+        self.batch_accum += self.platform_helper.cd(svn_folder)
+        comperer = filecmp.dircmp(stage_folder, svn_folder, ignore=[".svn", ".DS_Store", "Icon\015"])
+        self.stage2svn_for_folder(comperer)
+        self.create_variables_assignment()
+        self.write_batch_file()
+        if "__RUN_BATCH_FILE__" in self.cvl:
+            self.run_batch_file()
+
+    def stage2svn_for_folder(self, comperer):
+        # copy new and changed items:
+        for item in comperer.left_only + comperer.diff_files:
+            item_path = os.path.join(comperer.left, item)
+            print(item_path)
+            if os.path.islink(item_path):
+                raise InstlException(item_path+" is a symlink which should not be committed to svn, run instl fix_symlinks and try again")
+            elif os.path.isfile(item_path):
+                self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(item_path, comperer.right, link_dest=comperer.left, ignore=".svn")
+            elif os.path.isdir(item_path):
+                self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(item_path, comperer.right, link_dest=comperer.left, ignore=".svn")
+            else:
+                raise InstlException(item_path+" not a file, dir or symlink, an abomination!")
+
+        # tell svn about new items, svn will not accept 'add' for changed items
+        for item in comperer.left_only:
+            self.batch_accum += self.platform_helper.svn_add_item(os.path.join(comperer.right, item))
+
+        # removed items:
+        for item in comperer.right_only:
+            item_path = os.path.join(comperer.left, item)
+            print(item_path)
+            self.batch_accum += self.platform_helper.svn_remove_item(os.path.join(comperer.right, item))
+
+        # recurse to sub folders
+        for sub_comperer in comperer.subdirs.values():
+            print("going in...", sub_comperer.left)
+            self.stage2svn_for_folder(sub_comperer)
 
 def percent_cb(unused_complete, unused_total):
     sys.stdout.write('.')

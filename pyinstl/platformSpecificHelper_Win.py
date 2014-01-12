@@ -8,33 +8,42 @@ import datetime
 from platformSpecificHelper_Base import PlatformSpecificHelperBase
 from platformSpecificHelper_Base import CopyToolBase
 from platformSpecificHelper_Base import DownloadToolBase
-
-def quoteme(to_qoute):
-    return "".join( ('"', to_qoute, '"') )
+from platformSpecificHelper_Base import quoteme_single
+from platformSpecificHelper_Base import quoteme_double
 
 class CopyTool_win_robocopy(CopyToolBase):
-    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=None):
+    def create_ignore_spec(self, ignore):
+        retVal = ""
+        if not isinstance(ignore, basestring):
+            ignore = " ".join(map(quoteme_double, ignore))
+        retVal = "/XF {ignore} /XD {ignore}".format(**locals())
+        return retVal
+
+    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=None, ignore=None):
         retVal = list()
         _, dir_to_copy = os.path.split(src_dir)
         trg_dir = "/".join( (trg_dir, dir_to_copy) )
-        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /E /XD .svn /R:3 /W:3".format(**locals())
+        ignore_spec = self.create_ignore_spec(ignore)
+        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /E {ignore_spec} /R:3 /W:3".format(**locals())
         retVal.append(copy_command)
         return retVal
 
-    def copy_file_to_dir(self, src_file, trg_dir, link_dest=None):
+    def copy_file_to_dir(self, src_file, trg_dir, link_dest=None, ignore=None):
         src_dir, src_file = os.path.split(src_file)
         copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" \"{src_file}\" /R:3 /W:3".format(**locals())
         return copy_command
 
-    def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=None):
-        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /E /XD .svn /R:3 /W:3".format(**locals())
+    def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=None, ignore=None):
+        ignore_spec = self.create_ignore_spec(ignore)
+        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /E {ignore_spec} /R:3 /W:3".format(**locals())
         return copy_command
 
-    def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=None):
-        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /LEV:1 /XD .svn /R:3 /W:3".format(**locals())
+    def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=None, ignore=None):
+        ignore_spec = self.create_ignore_spec(ignore)
+        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /LEV:1 {ignore_spec} /R:3 /W:3".format(**locals())
         return copy_command
 
-    def copy_file_to_file(self, src_file, trg_file, link_dest=None):
+    def copy_file_to_file(self, src_file, trg_file, link_dest=None, ignore=None):
         sync_command = "copy \"{src_file}\" \"{trg_file}\"".format(**locals())
         return sync_command
 
@@ -111,7 +120,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return "SET "+identifier+'='+value
 
     def echo(self, message):
-        echo_command = " ".join(('echo', quoteme(message)))
+        echo_command = " ".join(('echo', quoteme_double(message)))
         return echo_command
 
     def remark(self, remark):
@@ -149,10 +158,10 @@ class DownloadTool_win_wget(DownloadToolBase):
         download_command_parts.append("--read-timeout")
         download_command_parts.append("900")
         download_command_parts.append("-O")
-        download_command_parts.append(quoteme(trg_file))
+        download_command_parts.append(quoteme_double(trg_file))
         # urls need to escape spaces as %20, but windows batch files already escape % characters
         # so use urllib.quote to escape spaces and then change %20 to %%20.
-        download_command_parts.append(quoteme(urllib.quote(src_url, "$()/:").replace("%", "%%")))
+        download_command_parts.append(quoteme_double(urllib.quote(src_url, "$()/:").replace("%", "%%")))
         return " ".join(download_command_parts)
 
     def create_config_file(self, curl_config_file_path):

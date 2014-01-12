@@ -6,54 +6,13 @@ import urllib
 import datetime
 
 from platformSpecificHelper_Base import PlatformSpecificHelperBase
-from platformSpecificHelper_Base import CopyToolBase
+from platformSpecificHelper_Base import CopyToolRsync
 from platformSpecificHelper_Base import DownloadToolBase
+from platformSpecificHelper_Base import quoteme_single
+from platformSpecificHelper_Base import quoteme_double
 
-def quoteme(to_qoute):
-    return "".join( ('"', to_qoute, '"') )
-
-class CopyToolMacRsync(CopyToolBase):
-    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=None):
-        if src_dir.endswith("/"):
-            src_dir.rstrip("/")
-        if link_dest is None:
-            sync_command = "rsync -l -r -E --exclude=\'.svn/\' --exclude=\'*.symlink\' \"{src_dir}\" \"{trg_dir}\"".format(**locals())
-        else:
-            relative_link_dest = os.path.relpath(link_dest, trg_dir)
-            sync_command = "rsync -l -r -E --exclude=\'.svn/\' --exclude=\'*.symlink\' --link-dest=\"{relative_link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
-
-        return sync_command
-
-    def copy_file_to_dir(self, src_file, trg_dir, link_dest=None):
-        assert not src_file.endswith("/")
-        if link_dest is None:
-            sync_command = "rsync -l -r -E --exclude=\'.svn/\' --exclude=\'*.symlink\' \"{src_file}\" \"{trg_dir}\"".format(**locals())
-        else:
-            relative_link_dest = os.path.relpath(link_dest, trg_dir)
-            sync_command = "rsync -l -r -E --exclude=\'.svn/\' --exclude=\'*.symlink\' --link-dest=\"{relative_link_dest}\" \"{src_file}\" \"{trg_dir}\"".format(**locals())
-        return sync_command
-
-    def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=None):
-        if not src_dir.endswith("/"):
-            src_dir += "/"
-        if link_dest is None:
-            sync_command = "rsync -l -r -E --exclude=\'.svn/\' --exclude=\'*.symlink\' \"{src_dir}\" \"{trg_dir}\"".format(**locals())
-        else:
-            relative_link_dest = os.path.relpath(link_dest, trg_dir)
-            sync_command = "rsync -l -r -E --exclude=\'.svn/\' --exclude=\'*.symlink\' --link-dest=\"{relative_link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
-        return sync_command
-
-    def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=None):
-        if not src_dir.endswith("/"):
-            src_dir += "/"
-        # in order for * to correctly expand, it must be outside the quotes, e.g. to copy all files in folder a: A=a ; "${A}"/* and not "${A}/*"
-        if link_dest is None:
-            sync_command = "rsync -l -E -d --exclude=\'.svn/\' --exclude=\'*.symlink\' \"{src_dir}\"/* \"{trg_dir}\"".format(**locals())
-        else:
-            relative_link_dest = os.path.relpath(link_dest, trg_dir)
-            sync_command = "rsync -l -E -d --exclude=\'.svn/\' --exclude=\'*.symlink\' --link-dest=\"{relative_link_dest}..\" \"{src_dir}\"/* \"{trg_dir}\"".format(**locals())
-
-        return sync_command
+class CopyToolMacRsync(CopyToolRsync):
+    pass
 
 class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
     def __init__(self, instlInstance):
@@ -77,11 +36,11 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         return (self.restore_dir("TOP_SAVE_DIR"), "exit 0")
 
     def mkdir(self, directory):
-        mk_command = " ".join( ("mkdir", "-p", quoteme(directory) ) )
+        mk_command = " ".join( ("mkdir", "-p", quoteme_double(directory) ) )
         return mk_command
 
     def cd(self, directory):
-        cd_command = " ".join( ("cd", quoteme(directory) ) )
+        cd_command = " ".join( ("cd", quoteme_double(directory) ) )
         return cd_command
 
     def save_dir(self, var_name):
@@ -95,13 +54,13 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
     def rmdir(self, directory, recursive=False):
         rmdir_command = ""
         if recursive:
-            rmdir_command = " ".join( ("rm", "-fr", quoteme(directory) ) )
+            rmdir_command = " ".join( ("rm", "-fr", quoteme_double(directory) ) )
         else:
-            rmdir_command = " ".join( ("rmdir", quoteme(directory) ) )
+            rmdir_command = " ".join( ("rmdir", quoteme_double(directory) ) )
         return rmdir_command
 
     def rmfile(self, file):
-        rmfile_command = " ".join( ("rm", "-f", quoteme(file) ) )
+        rmfile_command = " ".join( ("rm", "-f", quoteme_double(file) ) )
         return rmfile_command
 
     def get_svn_folder_cleanup_instructions(self):
@@ -111,7 +70,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         return identifier+'="'+value+'"'
 
     def echo(self, message):
-        echo_command = " ".join(('echo', quoteme(message)))
+        echo_command = " ".join(('echo', quoteme_double(message)))
         return echo_command
 
     def remark(self, remark):
@@ -167,8 +126,8 @@ class DownloadTool_mac_curl(DownloadToolBase):
         download_command_parts.append("--max-time")
         download_command_parts.append("900")
         download_command_parts.append("-o")
-        download_command_parts.append(quoteme(trg_file))
-        download_command_parts.append(quoteme(urllib.quote(src_url, "$()/:")))
+        download_command_parts.append(quoteme_double(trg_file))
+        download_command_parts.append(quoteme_double(urllib.quote(src_url, "$()/:")))
         return " ".join(download_command_parts)
 
     def create_config_file(self, curl_config_file_path):

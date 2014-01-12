@@ -53,6 +53,8 @@ class CommandLineOptions(object):
         self.config_file = None
         self.folder = None
         self.svn = None
+        self.staging_folder = None
+        self.svn_folder = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
@@ -101,9 +103,12 @@ def prepare_args_parser():
                                         help='create svn commands to remove redundant properties such as executable bit from files that should not be marked executable')
     parser_fix_symlinks = subparsers.add_parser('fix_symlinks',
                                         help='replace symlinks with .symlinks files')
+    parser_stage2svn = subparsers.add_parser('stage2svn',
+                                        help='add/remove files in staging to svn sync repository')
 
     # add --out to parsers that need it
-    for subparser in (parser_sync, parser_copy, parser_synccopy, parser_trans, parser_createlinks, parser_up2S3, parser_fix_props, parser_fix_symlinks):
+    for subparser in (parser_sync, parser_copy, parser_synccopy, parser_trans, parser_createlinks, parser_up2S3,
+                      parser_fix_props, parser_fix_symlinks, parser_stage2svn):
         standard_options = subparser.add_argument_group(description='standard arguments:')
         standard_options.add_argument('--out', '-o',
                                     required=True,
@@ -230,6 +235,20 @@ def prepare_args_parser():
     parser_version = subparsers.add_parser('version', help='display instl version')
     parser_version.set_defaults(mode='do_something')
 
+    parser_stage2svn.set_defaults(mode='admin')
+    stage2svn_options = parser_stage2svn.add_argument_group(description='stage2svn arguments:')
+    stage2svn_options.add_argument('--stage_folder',
+                            required=True,
+                            nargs=1,
+                            metavar='staging-folder',
+                            dest='staging_folder',
+                            help="folder to put staging files in")
+    stage2svn_options.add_argument('--svn_folder',
+                            required=True,
+                            nargs=1,
+                            metavar='svn-folder',
+                            dest='svn_folder',
+                            help="folder where svn repository is checked out")
 
     if 'Win' not in current_os_names:
         parser_fix_symlinks.set_defaults(mode='admin')

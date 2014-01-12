@@ -1,6 +1,12 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
+import os
 import abc
+
+def quoteme_single(to_qoute):
+    return "".join( ("'", to_qoute, "'") )
+def quoteme_double(to_qoute):
+    return "".join( ('"', to_qoute, '"') )
 
 def DefaultCopyToolName(target_os):
     retVal = None
@@ -23,7 +29,7 @@ class CopyToolBase(object):
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
-    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=None):
+    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=None, ignore=None):
         """ Copy src_dir as a folder into trg_dir.
             Example: copy_dir_to_dir("a", "/d/c/b") creates the folder:
             "/d/c/b/a"
@@ -31,7 +37,7 @@ class CopyToolBase(object):
         pass
 
     @abc.abstractmethod
-    def copy_file_to_dir(self, src_file, trg_dir, link_dest=None):
+    def copy_file_to_dir(self, src_file, trg_dir, link_dest=None, ignore=None):
         """ Copy the file src_file into trg_dir.
             Example: copy_file_to_dir("a.txt", "/d/c/b") creates the file:
             "/d/c/b/a.txt"
@@ -39,7 +45,7 @@ class CopyToolBase(object):
         pass
 
     @abc.abstractmethod
-    def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=None):
+    def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=None, ignore=None):
         """ Copy the contents of src_dir into trg_dir.
             Example: copy_dir_contents_to_dir("a", "/d/c/b") copies
             everything from a into "/d/c/b"
@@ -47,12 +53,68 @@ class CopyToolBase(object):
         pass
 
     @abc.abstractmethod
-    def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=None):
+    def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=None, ignore=None):
         """ Copy the files of src_dir into trg_dir.
             Example: copy_dir_contents_to_dir("a", "/d/c/b") copies
             all files from a into "/d/c/b", subfolders of a are not copied
         """
         pass
+
+
+class CopyToolRsync(CopyToolBase):
+    def create_ignore_spec(self, ignore):
+        retVal = ""
+        if ignore:
+            if isinstance(ignore, basestring):
+                ignore = (ignore,)
+            retVal = " ".join(["--exclude="+quoteme_single(ignoree) for ignoree in ignore])
+        return retVal
+
+    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=None, ignore=None):
+        if src_dir.endswith("/"):
+            src_dir.rstrip("/")
+        ignore_spec = self.create_ignore_spec(ignore)
+        if link_dest is None:
+            sync_command = "rsync -l -r -E {ignore_spec} \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+        else:
+            relative_link_dest = os.path.relpath(link_dest, trg_dir)
+            sync_command = "rsync -l -r -E {ignore_spec} --link-dest=\"{relative_link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+
+        return sync_command
+
+    def copy_file_to_dir(self, src_file, trg_dir, link_dest=None, ignore=None):
+        assert not src_file.endswith("/")
+        ignore_spec = self.create_ignore_spec(ignore)
+        if link_dest is None:
+            sync_command = "rsync -l -r -E {ignore_spec} \"{src_file}\" \"{trg_dir}\"".format(**locals())
+        else:
+            relative_link_dest = os.path.relpath(link_dest, trg_dir)
+            sync_command = "rsync -l -r -E {ignore_spec} --link-dest=\"{relative_link_dest}\" \"{src_file}\" \"{trg_dir}\"".format(**locals())
+        return sync_command
+
+    def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=None, ignore=None):
+        if not src_dir.endswith("/"):
+            src_dir += "/"
+        ignore_spec = self.create_ignore_spec(ignore)
+        if link_dest is None:
+            sync_command = "rsync -l -r -E {ignore_spec} \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+        else:
+            relative_link_dest = os.path.relpath(link_dest, trg_dir)
+            sync_command = "rsync -l -r -E {ignore_spec} --link-dest=\"{relative_link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+        return sync_command
+
+    def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=None, ignore=None):
+        if not src_dir.endswith("/"):
+            src_dir += "/"
+        # in order for * to correctly expand, it must be outside the quotes, e.g. to copy all files in folder a: A=a ; "${A}"/* and not "${A}/*"
+        ignore_spec = self.create_ignore_spec(ignore)
+        if link_dest is None:
+            sync_command = "rsync -l -E -d {ignore_spec} \"{src_dir}\"/* \"{trg_dir}\"".format(**locals())
+        else:
+            relative_link_dest = os.path.relpath(link_dest, trg_dir)
+            sync_command = "rsync -l -E -d {ignore_spec} --link-dest=\"{relative_link_dest}..\" \"{src_dir}\"/* \"{trg_dir}\"".format(**locals())
+
+        return sync_command
 
 class PlatformSpecificHelperBase(object):
 
@@ -138,6 +200,14 @@ class PlatformSpecificHelperBase(object):
             the file a.txt into "/d/c/bt.txt".
         """
         pass
+
+    def svn_add_item(self, item_path):
+        svn_command = " ".join( ("svn", "add", '"'+item_path+'"') )
+        return svn_command
+
+    def svn_remove_item(self, item_path):
+        svn_command = " ".join( ("svn", "rm", "--force", '"'+item_path+'"') )
+        return svn_command
 
 def PlatformSpecificHelperFactory(in_os, instlInstance):
     retVal = None
