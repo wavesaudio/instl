@@ -81,7 +81,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return retVal
 
     def mkdir(self, directory):
-        mk_command = " ".join( ("mkdir", '"'+directory+'"'))
+        mk_command = " ".join( ("if not exist", '"'+directory+'"', "mkdir", '"'+directory+'"'))
         return mk_command
 
     def cd(self, directory):
