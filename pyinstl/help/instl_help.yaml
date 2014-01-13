@@ -1,0 +1,23 @@
+- name: copy
+  type: command
+  short: create batch file to copy installation files to their destination
+  long: copycopycopycopycopycopy
+  options: --in --out --run
+
+- name: sync
+  type: command
+  short: create batch file to download installation files
+  long: syncsyncsyncsyncsyncsync
+  options: --in --out --run
+
+- name: SYNC_BASE_URL
+  type: variable
+  short: url used as the prefix for creating the full url to download installation files
+  long: SYNC_BASE_URLSYNC_BASE_URLSYNC_BASE_URL
+
+- name: SYNC_TRAGET_OS_URL
+  type: variable
+  short: url used as the prefix for creating the full url to download installation files for the targets operating system.
+  long: SYNC_BASE_URLSYNC_BASE_URLSYNC_BASE_URL
+
+

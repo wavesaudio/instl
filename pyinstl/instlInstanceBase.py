@@ -194,9 +194,9 @@ class InstlInstanceBase(object):
         if "REL_SRC_PATH" not in self.cvl: #?
             if "SYNC_BASE_URL" not in self.cvl:
                 raise ValueError("'SYNC_BASE_URL' was not defined")
-            if "BASE_SRC_URL" not in self.cvl:
-                self.cvl.set_variable("BASE_SRC_URL", var_description).append("$(SYNC_BASE_URL)/$(TARGET_OS)")
-            rel_sources = relative_url(self.cvl.get_str("SYNC_BASE_URL"), self.cvl.get_str("BASE_SRC_URL"))
+            if "SYNC_TRAGET_OS_URL" not in self.cvl:
+                self.cvl.set_variable("SYNC_TRAGET_OS_URL", var_description).append("$(SYNC_BASE_URL)/$(TARGET_OS)")
+            rel_sources = relative_url(self.cvl.get_str("SYNC_BASE_URL"), self.cvl.get_str("SYNC_TRAGET_OS_URL"))
             self.cvl.set_variable("REL_SRC_PATH", var_description).append(rel_sources)
 
         self.cvl.set_value_if_var_does_not_exist("LOCAL_SYNC_DIR", self.get_default_sync_dir(), description=var_description)
@@ -252,3 +252,4 @@ class InstlInstanceBase(object):
         state_file = self.cvl.get_str("__MAIN_STATE_FILE__")
         with write_to_file_or_stdout(state_file) as fd:
             augmentedYaml.writeAsYaml(self, fd)
+

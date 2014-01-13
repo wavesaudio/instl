@@ -1,5 +1,3 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
 
 import time
 import appdirs
@@ -528,7 +526,15 @@ class CMDObj(cmd.Cmd, object):
     def help_hist(self):
         print("hist")
         print("   display command line history")
-        
+
+    def do_hh(self, params):
+        from pyinstl.helpHelper import HelpHelper
+        hh = HelpHelper()
+        help_file_path = os.path.join(os.environ.get("_MEIPASS2", ""), "pyinstl/help/instl_help.yaml")
+        hh.read_help_file(help_file_path)
+        print(hh.type_summery('command'))
+        print(hh.type_summery('variable'))
+
     def report_logging_state(self):
         import pyinstl.log_utils
         top_logger = logging.getLogger()
@@ -560,7 +566,7 @@ class CMDObj(cmd.Cmd, object):
                         pass
                 self.client_prog_inst.cvl.get_configVar_obj("LOG_FILE_DEBUG")[2] = pyinstl.log_utils.debug_logging_started
         self.report_logging_state()
-    
+
     def help_log(self):
         print("log: displays log status")
         print("log debug [on | true | yes]: starts debug level logging")

@@ -43,7 +43,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlInstance.cvl.set_variable("__RESOLVED_DOWNLOAD_TOOL_PATH__", var_description).append(get_url_client_full_path)
 
         self.instlInstance.cvl.set_value_if_var_does_not_exist("REPO_REV", "HEAD", description=var_description)
-        self.instlInstance.cvl.set_value_if_var_does_not_exist("BASE_SRC_URL", "$(SYNC_BASE_URL)/$(TARGET_OS)", description=var_description)
+        self.instlInstance.cvl.set_value_if_var_does_not_exist("SYNC_TRAGET_OS_URL", "$(SYNC_BASE_URL)/$(TARGET_OS)", description=var_description)
         self.instlInstance.cvl.set_value_if_var_does_not_exist("LOCAL_SYNC_DIR", self.instlInstance.get_default_sync_dir(), description=var_description)
 
         self.instlInstance.cvl.set_value_if_var_does_not_exist("BOOKKEEPING_DIR_URL", "$(SYNC_BASE_URL)/instl", description=var_description)
@@ -59,7 +59,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlInstance.cvl.set_value_if_var_does_not_exist("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH", os.path.join( "$(REPO_REV_LOCAL_BOOKKEEPING_PATH)", "remote_info_map.txt" ), description=var_description)
         self.instlInstance.cvl.set_value_if_var_does_not_exist("DL_INSTRUCTIONS_TYPE", "one_by_one", description=var_description)
 
-        for identifier in ("SYNC_BASE_URL", "DOWNLOAD_TOOL_PATH", "REPO_REV", "BASE_SRC_URL", "LOCAL_SYNC_DIR", "BOOKKEEPING_DIR_URL",
+        for identifier in ("SYNC_BASE_URL", "DOWNLOAD_TOOL_PATH", "REPO_REV", "SYNC_TRAGET_OS_URL", "LOCAL_SYNC_DIR", "BOOKKEEPING_DIR_URL",
                            "INFO_MAP_FILE_URL", "LOCAL_BOOKKEEPING_PATH","NEW_HAVE_INFO_MAP_PATH", "REQUIRED_INFO_MAP_PATH",
                             "TO_SYNC_INFO_MAP_PATH", "REPO_REV_LOCAL_BOOKKEEPING_PATH", "LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH",
                             "DL_INSTRUCTIONS_TYPE"):
@@ -178,7 +178,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def create_download_instructions_one_by_one(self):
         self.instlInstance.batch_accum.set_current_section('sync')
         num_files = self.work_info_map.num_subs_in_tree(what="file")
-        self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress("from $(BASE_SRC_URL)".format(**locals()))
+        self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress("from $(SYNC_TRAGET_OS_URL)")
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.mkdir("$(LOCAL_SYNC_DIR)")
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.cd("$(LOCAL_SYNC_DIR)")
         self.instlInstance.batch_accum.indent_level += 1
@@ -187,7 +187,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.create_download_instructions_for_item_one_by_one(need_item)
         self.instlInstance.batch_accum.indent_level -= 1
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.new_line()
-        self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress("sync from $(BASE_SRC_URL)".format(**locals()))
+        self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress("sync from $(SYNC_TRAGET_OS_URL)")
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.copy_file_to_file("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")
 
     def create_download_instructions_for_item_one_by_one(self, item, path_so_far = list()):
@@ -212,7 +212,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def create_download_instructions_config_file(self):
         self.instlInstance.batch_accum.set_current_section('sync')
         num_files = self.work_info_map.num_subs_in_tree(what="file")
-        self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress("from $(BASE_SRC_URL)".format(**locals()))
+        self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress("from $(SYNC_TRAGET_OS_URL)")
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.mkdir("$(LOCAL_SYNC_DIR)")
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.cd("$(LOCAL_SYNC_DIR)")
         self.instlInstance.cvl.set_variable("__CURL_CONFIG_FILE_NAME__").append("curl_config.txt")
@@ -228,7 +228,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.new_line()
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.resolve_readlink_files()
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.new_line()
-        self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress("from $(BASE_SRC_URL)".format(**locals()))
+        self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress("from $(SYNC_TRAGET_OS_URL)")
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.copy_file_to_file("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")
 
 
