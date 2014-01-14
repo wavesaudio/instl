@@ -61,10 +61,15 @@ class HelpHelper(object):
         retVal = "no such item: "+item_name
         item = self.help_items.get(item_name)
         if item:
+            import textwrap
+            long_formated = "\n\n".join([textwrap.fill(line, 90,
+                                          replace_whitespace=False,
+                                          initial_indent='    ',
+                                          subsequent_indent='    ')for line in item.long_text().splitlines()])
             retVal = "\n".join((
                             item.name+": "+item.short_text(),
                             "",
-                            item.long_text()
+                            long_formated
                             ))
         return retVal
 
