@@ -1,3 +1,5 @@
+#!/usr/bin/env python2.7
+from __future__ import print_function
 
 import time
 import appdirs
@@ -437,26 +439,6 @@ class CMDObj(cmd.Cmd, object):
         print("depend [identifier, ...]")
         print("    dependecies for an item")
 
-    def do_alias(self, params):
-        if current_os == 'Mac':
-            params = shlex.split(params)
-            if len(params) == 2:
-                print("creating alias of", params[0], "as", params[1])
-                import do_something
-                do_something.do_something( ('alias', params) )
-            else:
-                print("alias requires two parameters, not", len(params), params)
-        else:
-            print("alias can only be created on Mac OS")
-        return False
-        
-    def help_alias(self):
-        print("alias source_file alias_file")
-        print("    creaets Mac OS alias (Mac OS only)")
-
-    def complete_alias(self, text, line, begidx, endidx):
-        return self.path_completion(text, line, begidx, endidx)
-
     def do_sync(self, params):
         out_file = "stdout"
         if params:
@@ -491,7 +473,6 @@ class CMDObj(cmd.Cmd, object):
         print("version: print", instlInstanceBase.this_program_name, "version")
 
     def do_restart(self, unused_params):
-        print("restarting", instlInstanceBase.this_program_name)
         self.restart = True
         return True # stops cmdloop
 
@@ -528,12 +509,13 @@ class CMDObj(cmd.Cmd, object):
         print("   display command line history")
 
     def do_hh(self, params):
-        from pyinstl.helpHelper import HelpHelper
-        hh = HelpHelper()
-        help_file_path = os.path.join(os.environ.get("_MEIPASS2", ""), "pyinstl/help/instl_help.yaml")
-        hh.read_help_file(help_file_path)
-        print(hh.type_summery('command'))
-        print(hh.type_summery('variable'))
+        params = [param for param in shlex.split(params)]
+        from pyinstl.helpHelper import do_help
+        if not params:
+            do_help(None)
+        else:
+            for param in params:
+                do_help(param)
 
     def report_logging_state(self):
         import pyinstl.log_utils

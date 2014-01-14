@@ -105,6 +105,7 @@ def prepare_args_parser():
                                         help='replace symlinks with .symlinks files')
     parser_stage2svn = subparsers.add_parser('stage2svn',
                                         help='add/remove files in staging to svn sync repository')
+    parser_help = subparsers.add_parser('help')
 
     # add --out to parsers that need it
     for subparser in (parser_sync, parser_copy, parser_synccopy, parser_trans, parser_createlinks, parser_up2S3,
@@ -133,13 +134,6 @@ def prepare_args_parser():
                                     action='store_true',
                                     dest='run',
                                     help="run the installation instructions script")
-        standard_options.add_argument('--state', '-s',
-                                    required=False,
-                                    nargs='?',
-                                    const="stdout",
-                                    metavar='path-to-state-file',
-                                    dest='state_file',
-                                    help="a file to write program state - good for debugging")
 
     for subparser in (parser_trans, ):
         subparser.set_defaults(mode='admin')
@@ -250,6 +244,10 @@ def prepare_args_parser():
                             dest='svn_folder',
                             help="folder where svn repository is checked out")
 
+    help_options = parser_help.add_argument_group(description='help subject:')
+    help_options.set_defaults(mode='help')
+    help_options.add_argument('subject', nargs='?')
+
     if 'Win' not in current_os_names:
         parser_fix_symlinks.set_defaults(mode='admin')
         symlink_options = parser_fix_symlinks.add_argument_group(description='fix_symlinks arguments:')
@@ -271,19 +269,6 @@ def prepare_args_parser():
                                     action='store_true',
                                     dest='run',
                                     help="run the installation instructions script")
-
-    if 'Mac' in current_os_names:
-        parser_alias = subparsers.add_parser('alias',
-                                            help='create Mac OS alias')
-        parser_alias.set_defaults(mode='do_something')
-        parser_alias.add_argument('todo_args',
-                                action='append',
-                                metavar='path_to_original',
-                                help="paths to original file")
-        parser_alias.add_argument('todo_args',
-                                action='append',
-                                metavar='path_to_alias',
-                                help="paths to original file and to alias file")
     return parser
 
 @func_log_wrapper
@@ -341,6 +326,9 @@ def main():
             admin = InstlAdmin(initial_vars)
             admin.init_from_cmd_line_options(options)
             go_interactive(client, admin)
+        elif options.mode == "help":
+            from pyinstl.helpHelper import do_help
+            do_help(options.subject)
         elif options.mode == "do_something":
             from pyinstl.instlMisc import InstlMisc
             instance = InstlMisc(initial_vars)

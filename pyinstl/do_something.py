@@ -5,37 +5,10 @@ import os
 from subprocess import Popen, PIPE
 import threading
 
-def create_mac_alias(args):
-    original = os.path.realpath(args[0])
-    if os.path.exists(original):
-        target = os.path.realpath(args[1])
-        if os.path.isfile(target):
-            os.remove(target)
-        target_folder, target_name = os.path.split(target)
-        applescript_text = """
-        set dest_folder to POSIX file "{original}" as alias
-        set alias_folder to POSIX file "{target_folder}" as alias
-        set alias_name to "{target_name}"
-
-        tell application "Finder"
-            make new alias file at alias_folder to dest_folder
-            set name of result to alias_name
-        end tell
-        """.format(**vars())
-        aso = AppleScript()
-        ret = aso.run_applescript(applescript_text)
-    else:
-        print(args[0], "is not an existing file or folder")
-
-def create_win_shortcut(args):
-    print ("create_win_shortcut, original:", args[0], "target", args[1])
-
 def fix_mac_icon(bundle_path):
     pass
 
-name_to_action = {'alias': create_mac_alias,
-                'shortcut': create_win_shortcut,
-                'fix_mac_icon': fix_mac_icon}
+name_to_action = {}
 
 def do_something(args):
     if args[0] in name_to_action:
