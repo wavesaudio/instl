@@ -204,12 +204,6 @@ def prepare_args_parser():
     for subparser in (parser_up_repo_rev, ):
         subparser.set_defaults(mode='admin')
         parser_up_repo_rev_options = subparser.add_argument_group(description='up repo rev arguments:')
-        parser_up_repo_rev_options.add_argument('--in', '-i',
-                                    required=True,
-                                    nargs=1,
-                                    metavar='list-of-input-file',
-                                    dest='input_file',
-                                    help="file to up load as repo rev")
         parser_up_repo_rev_options.add_argument('--config_file', '-s',
                                     required=True,
                                     nargs=1,

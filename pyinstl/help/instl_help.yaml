@@ -46,12 +46,13 @@ command:
             Keep in mind that up2s3 command does not actaully do anything, unless the --run flag is given. You will need to run the producded batch file in order to actaully create upload the links.
 
     up_repo_rev:
-        short: Uplaod a file containing basic information about uploaded repository.
+        short: Upload a file containing basic information about uploaded repository.
         long: |
-            Usage: instl up_repo_rev --in repro_rev_file --config_file config_file
-            The information in the uploaded repro_rev_file should be the repository name, main url, and base revision.
-            All information about the s3 url and passwords, is taken from the config file.
-            relevant varaibles: S3_BUCKET_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+            Usage: instl up_repo_rev --config_file config_file
+            up_repo_rev will create a repo_rev file according to the information in the config file, and upload said repo_rev file to s3 bucket to a top level folder called 'admin'. The contents of the repo_rev file are a list of variables defined in the "REPO_REV_FILE_VARAIBLES" variable of the config file. Typicaly these variables would be: REPO_REV, REPO_TYPE, SYNC_BASE_URL.
+            relevant varaibles:
+                S3_BUCKET_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY:
+                REPO_REV_FILE_NAME, REPO_REV_FILE_VARAIBLES, REPO_TYPE, REPO_REV, REPO_NAME
 
     fix_props:
         short: Create a batch file with commands to fix certine properties in svn repository.

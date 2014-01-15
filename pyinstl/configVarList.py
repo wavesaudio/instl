@@ -19,7 +19,7 @@ sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 
 from pyinstl.log_utils import func_log_wrapper
 from pyinstl import configVar
-from aYaml.augmentedYaml import YamlDumpWrap
+from aYaml.augmentedYaml import YamlDumpWrap, YamlDumpDocWrap
 
 
 value_ref_re = re.compile("""(
@@ -144,20 +144,25 @@ class ConfigVarList(object):
                 continue
             self.set_variable(env, "from envirnment").append(os.environ[env])
 
-    def repr_for_yaml(self, which_vars=None):
+    def repr_for_yaml(self, which_vars=None, include_comments=True):
         retVal = dict()
         if not which_vars:
             which_vars = self.keys()
         if hasattr(which_vars, '__iter__'):  # if which_vars is a list
+            theComment = ""
             for name in which_vars:
                 if name in self._ConfigVar_objs:
-                    theComment = self._ConfigVar_objs[name].description()
-                    retVal[name] = YamlDumpWrap(value=self.get_list(name), comment=theComment)
+                    if include_comments:
+                        theComment = self._ConfigVar_objs[name].description()
+                    var_value = self.get_list(name)
+                    if len(var_value) == 1:
+                        var_value = var_value[0]
+                    retVal[name] = YamlDumpWrap(var_value, comment=theComment)
                 else:
                     retVal[name] = YamlDumpWrap(value="UNKNOWN VARIABLE", comment=name+" is not in variable list")
         else:   # if which_vars is a single variable name
             retVal.update(self.repr_for_yaml((which_vars,)))
-        return retVal
+        return YamlDumpDocWrap(retVal, tag='!define')
 
     def resolve_string(self, in_str, sep=" "):
         """ resolve a string that might contain references to values """

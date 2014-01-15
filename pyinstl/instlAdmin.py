@@ -5,10 +5,12 @@ from __future__ import print_function
 import filecmp
 import subprocess
 import StringIO
+import boto
 
 from instlException import *
 from pyinstl.log_utils import func_log_wrapper
 from pyinstl.utils import *
+from aYaml.augmentedYaml import writeAsYaml
 
 from instlInstanceBase import InstlInstanceBase
 from pyinstl import svnTree
@@ -351,23 +353,26 @@ class InstlAdmin(InstlInstanceBase):
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(UP_2_S3_STAMP_FILE_NAME)"])
 
     def do_up_repo_rev(self):
-        file_to_upload = self.cvl.resolve_string("$(__MAIN_INPUT_FILE__)")
-        contents = open(file_to_upload, "r").read()
-        for var in ("AWS_ACCESS_KEY_ID","AWS_SECRET_ACCESS_KEY"):
-            if contents.count(var) > 0:
-                print("found", var, "in file, aborting")
-                raise ValueError("file contains "+var+" and so is forbidden to upload")
-        _, file_to_upload_name = os.path.split(file_to_upload)
-        s3_path = "admin/"+file_to_upload_name
-        print("uploading:", file_to_upload, "to", s3_path)
+        repo_rev_vars = self.cvl.get_list("REPO_REV_FILE_VARAIBLES")
+        dangerous_intersection = set(repo_rev_vars).intersection(set(("AWS_ACCESS_KEY_ID","AWS_SECRET_ACCESS_KEY")))
+        if dangerous_intersection:
+            print("found", str(dangerous_intersection), "in REPO_REV_FILE_VARAIBLES, aborting")
+            raise ValueError("file REPO_REV_FILE_VARAIBLES "+str(dangerous_intersection)+" and so is forbidden to upload")
+        self.cvl.set_value_if_var_does_not_exist("REPO_REV_FILE_NAME", "$(REPO_NAME)_repo_rev.yaml")
+        s3_path = self.cvl.resolve_string("admin/$(REPO_REV_FILE_NAME)")
+        print("uploading to:", s3_path)
 
+        repo_rev_yaml = self.cvl.repr_for_yaml(repo_rev_vars, include_comments=False)
+        local_temp_file = self.cvl.resolve_string("$(REPO_REV_FILE_NAME)")
+        with open(local_temp_file, "w") as wfd:
+            writeAsYaml(repo_rev_yaml, out_stream=wfd, indentor=None, sort=True)
         import boto
         s3 		= boto.connect_s3(self.cvl.get_str("AWS_ACCESS_KEY_ID"), self.cvl.get_str("AWS_SECRET_ACCESS_KEY"))
         bucket 	= s3.get_bucket(self.cvl.get_str("S3_BUCKET_NAME"))
         key_obj = boto.s3.key.Key(bucket)
         key_obj.key = s3_path
         key_obj.metadata={'Content-Type': 'text/plain'}
-        key_obj.set_contents_from_filename(file_to_upload, cb=percent_cb, num_cb=4)
+        key_obj.set_contents_from_filename(local_temp_file, cb=percent_cb, num_cb=4)
         key_obj.set_acl('public-read') # must be done after the upload
 
     def do_fix_props(self):
