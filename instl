@@ -106,124 +106,83 @@ def prepare_args_parser():
     parser_stage2svn = subparsers.add_parser('stage2svn',
                                         help='add/remove files in staging to svn sync repository')
     parser_help = subparsers.add_parser('help')
+    parser_version = subparsers.add_parser('version', help='display instl version')
 
-    # add --out to parsers that need it
-    for subparser in (parser_sync, parser_copy, parser_synccopy, parser_trans, parser_createlinks, parser_up2S3,
-                      parser_fix_props, parser_fix_symlinks, parser_stage2svn):
-        standard_options = subparser.add_argument_group(description='standard arguments:')
-        standard_options.add_argument('--out', '-o',
+    modes = {'client': (parser_sync, parser_copy, parser_synccopy),
+             'admin': (parser_trans, parser_createlinks, parser_up2S3,
+                       parser_up_repo_rev, parser_fix_props, parser_fix_symlinks,
+                       parser_stage2svn),
+             'do_something': (parser_version, parser_help)
+            }
+    for the_mode, parsers in modes.iteritems():
+        for some_parser in parsers:
+            some_parser.set_defaults(mode=the_mode)
+
+    need_input_options = (parser_sync, parser_copy, parser_synccopy,
+                          parser_trans)
+    need_output_options = (parser_copy, parser_sync, parser_synccopy,
+                           parser_trans, parser_createlinks, parser_fix_symlinks,
+                           parser_up2S3, parser_fix_props, parser_stage2svn)
+    need_config_file_options = (parser_createlinks, parser_up_repo_rev, parser_up2S3,
+                                parser_fix_props, parser_trans)
+
+    # add --in to parsers that need it
+    for subparser in need_input_options:
+        input_options = subparser.add_argument_group(description='input arguments:')
+        input_options.add_argument('--in', '-i',
+                                    required=True,
+                                    nargs=1,
+                                    metavar='path-to-input-file',
+                                    dest='input_file',
+                                    help="file to read index and definitions from")
+
+    # add --out && --run to parsers that need it
+    for subparser in need_output_options:
+        output_options = subparser.add_argument_group(description='output arguments:')
+        output_options.add_argument('--out', '-o',
                                     required=True,
                                     nargs=1,
                                     metavar='path-to-output-file',
                                     dest='output_file',
                                     help="out put file")
-
-
-    for subparser in (parser_sync, parser_copy, parser_synccopy):
-        subparser.set_defaults(mode='client')
-        standard_options = subparser.add_argument_group(description='standard arguments:')
-        standard_options.add_argument('--in', '-i',
-                                    required=True,
-                                    nargs='+',
-                                    metavar='path-to-input-file',
-                                    dest='input_file',
-                                    help="file to read index and definitions from")
-        standard_options.add_argument('--run', '-r',
+        output_options.add_argument('--run', '-r',
                                     required=False,
                                     default=False,
                                     action='store_true',
                                     dest='run',
                                     help="run the installation instructions script")
 
-    for subparser in (parser_trans, ):
-        subparser.set_defaults(mode='admin')
-        trans_options = subparser.add_argument_group(description='translate arguments:')
-        trans_options.add_argument('--in', '-i',
-                                    required=True,
-                                    nargs=1,
-                                    metavar='list-of-input-file',
-                                    dest='input_file',
-                                    help="file to read svn information from")
-        trans_options.add_argument('--props', '-p',
-                                    required=False,
-                                    nargs=1,
-                                    metavar='path-to-props-file',
-                                    dest='props_file',
-                                    help="file to read svn properties from")
-        trans_options.add_argument('--filter-out',
-                                    required=False,
-                                    nargs='+',
-                                    metavar='paths-to-filter-out',
-                                    dest='filter_out',
-                                    help="paths to filter out, comma separated")
-        trans_options.add_argument('--filter-in',
-                                    required=False,
-                                    nargs=1,
-                                    metavar='version-to-filter-in',
-                                    dest='filter_in',
-                                    help="version to filter in, all other version will be left out")
-        trans_options.add_argument('--config_file', '-s',
-                                    required=False,
-                                    nargs=1,
-                                    metavar='path-to-config-file',
-                                    dest='config_file',
-                                    help="path to config-file")
-
-    for subparser in (parser_createlinks, ):
-        subparser.set_defaults(mode='admin')
-        createlinks_options = subparser.add_argument_group(description='admin arguments:')
-        createlinks_options.add_argument('--config_file', '-s',
+    # add --config_file to parsers that need it
+    for subparser in need_config_file_options:
+        config_file_options = subparser.add_argument_group(description='admin arguments:')
+        config_file_options.add_argument('--config_file', '-s',
                                     required=True,
                                     nargs=1,
                                     metavar='path-to-config-file',
                                     dest='config_file',
                                     help="path to config-file")
-        createlinks_options.add_argument('--run',
-                                    required=False,
-                                    default=False,
-                                    action='store_true',
-                                    dest='run',
-                                    help="run the installation instructions script")
 
-    for subparser in (parser_up2S3, ):
-        subparser.set_defaults(mode='admin')
-        up2S3_options = subparser.add_argument_group(description='s3 arguments:')
-        up2S3_options.add_argument('--config_file', '-s',
-                                    required=True,
-                                    nargs=1,
-                                    metavar='path-to-config-file',
-                                    dest='config_file',
-                                    help="path to config-file")
-        up2S3_options.add_argument('--run',
-                                    required=False,
-                                    default=False,
-                                    action='store_true',
-                                    dest='run',
-                                    help="run the installation instructions script")
 
-    for subparser in (parser_up_repo_rev, ):
-        subparser.set_defaults(mode='admin')
-        parser_up_repo_rev_options = subparser.add_argument_group(description='up repo rev arguments:')
-        parser_up_repo_rev_options.add_argument('--config_file', '-s',
-                                    required=True,
-                                    nargs=1,
-                                    metavar='path-to-config-file',
-                                    dest='config_file',
-                                    help="path to config-file")
-    for subparser in (parser_fix_props, ):
-        subparser.set_defaults(mode='admin')
-        parser_fix_props_options = subparser.add_argument_group(description='fix executable bit options:')
-        parser_fix_props_options.add_argument('--folder', '-f',
-                                    required=True,
-                                    nargs=1,
-                                    metavar='svn-folder-to-check',
-                                    dest='folder',
-                                    help="svn folder to check for exec bit")
+    trans_options = parser_trans.add_argument_group(description='translate arguments:')
+    trans_options.add_argument('--props', '-p',
+                                required=False,
+                                nargs=1,
+                                metavar='path-to-props-file',
+                                dest='props_file',
+                                help="file to read svn properties from")
+    trans_options.add_argument('--filter-out',
+                                required=False,
+                                nargs='+',
+                                metavar='paths-to-filter-out',
+                                dest='filter_out',
+                                help="paths to filter out, comma separated")
+    trans_options.add_argument('--filter-in',
+                                required=False,
+                                nargs=1,
+                                metavar='version-to-filter-in',
+                                dest='filter_in',
+                                help="version to filter in, all other version will be left out")
 
-    parser_version = subparsers.add_parser('version', help='display instl version')
-    parser_version.set_defaults(mode='do_something')
-
-    parser_stage2svn.set_defaults(mode='admin')
     stage2svn_options = parser_stage2svn.add_argument_group(description='stage2svn arguments:')
     stage2svn_options.add_argument('--stage_folder',
                             required=True,
@@ -243,7 +202,6 @@ def prepare_args_parser():
     help_options.add_argument('subject', nargs='?')
 
     if 'Win' not in current_os_names:
-        parser_fix_symlinks.set_defaults(mode='admin')
         symlink_options = parser_fix_symlinks.add_argument_group(description='fix_symlinks arguments:')
         symlink_options.add_argument('--folder', '-f',
                                 required=True,
@@ -257,12 +215,6 @@ def prepare_args_parser():
                                 action='store_true',
                                 dest='svn',
                                 help="issue svn command as well as file system commands")
-        symlink_options.add_argument('--run', '-r',
-                                    required=False,
-                                    default=False,
-                                    action='store_true',
-                                    dest='run',
-                                    help="run the installation instructions script")
     return parser
 
 @func_log_wrapper

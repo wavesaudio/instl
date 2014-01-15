@@ -377,7 +377,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_fix_props(self):
         self.batch_accum.set_current_section('admin')
-        repo_folder = self.cvl.resolve_string("$(__FOLDER__)")
+        repo_folder = self.cvl.resolve_string("$(SVN_CHECKOUT_FOLDER)")
         os.chdir(repo_folder)
 
         # read svn info
@@ -399,6 +399,8 @@ class InstlAdmin(InstlInstanceBase):
 
         for item in self.svnTree.walk_items():
             shouldBeExec = self.should_be_exec(item)
+            print(shouldBeExec, item.full_path())
+            continue
             if item.props:
                 for extra_prop in item.props:
                     self.batch_accum += " ".join( ("svn", "propdel", "svn:"+extra_prop, '"'+item.full_path()+'"') )
@@ -416,14 +418,12 @@ class InstlAdmin(InstlInstanceBase):
         try:
             if item.isDir():
                 raise Exception
-            path_parts = item.full_path_parts()
-            if path_parts[-2] in ("Linux32", "MacOS", "Win32", "Win64"):
-                retVal = True
-                raise Exception
-            fileName, fileExtension = os.path.splitext(path_parts[-1])
-            if fileExtension in (".dll", ".exe", ".dylib", ".sh", ".bat"):
-                retVal = True
-                raise Exception
+            full_path = item.full_path()
+            regex_list = self.cvl.get_list("EXEC_PROP_REGEX")
+            for regex in regex_list:
+                if re.search(regex, full_path):
+                    retVal = True
+                    raise Exception
         except:
             pass
         return retVal
