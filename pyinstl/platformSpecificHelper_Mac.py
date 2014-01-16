@@ -105,6 +105,10 @@ find -P "%s" -type f -name '*.symlink' | while read readlink_file; do
 done""" % in_dir)
         return resolve_commands
 
+    def check_checksum(self, file, checksum):
+        check_command = " ".join( ("a=`openssl sha1", quoteme_double(file), "` ;", "if [ ${a: -40} !=", quoteme_double(checksum)), "];", "then echo bad checksum", quoteme_double(file), "1>&2", ";", "fi") )
+        return check_command
+
 class DownloadTool_mac_curl(DownloadToolBase):
     def __init__(self):
         self.curl_instructions = list()
