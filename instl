@@ -35,6 +35,14 @@ def get_path_to_instl_app():
         application_path = os.path.realpath(__file__)
     return application_path
 
+def get_data_folder():
+    data_folder = None
+    if getattr(sys, 'frozen', False):
+        data_folder = getattr(sys, '_MEIPASS', None)
+    elif __file__:
+        data_folder, _ = os.path.split(os.path.realpath(__file__))
+    return data_folder
+
 class CommandLineOptions(object):
     """ namespace object to give to parse_args
         holds command line options
@@ -198,7 +206,6 @@ def prepare_args_parser():
                             help="folder where svn repository is checked out")
 
     help_options = parser_help.add_argument_group(description='help subject:')
-    help_options.set_defaults(mode='help')
     help_options.add_argument('subject', nargs='?')
 
     if 'Win' not in current_os_names:
@@ -250,7 +257,9 @@ def main():
     """
     try:
         sys.stderr = sys.stdout
-        initial_vars = {"__INSTL_EXE_PATH__": get_path_to_instl_app()}
+        get_data_folder
+        initial_vars = {"__INSTL_EXE_PATH__": get_path_to_instl_app(),
+                        "__INSTL_DATA_FOLDER__": get_data_folder()}
         options = CommandLineOptions()
         read_command_line_options(options, sys.argv[1:])
         if options.mode == "client":
@@ -272,9 +281,6 @@ def main():
             admin = InstlAdmin(initial_vars)
             admin.init_from_cmd_line_options(options)
             go_interactive(client, admin)
-        elif options.mode == "help":
-            from pyinstl.helpHelper import do_help
-            do_help(options.subject)
         elif options.mode == "do_something":
             from pyinstl.instlMisc import InstlMisc
             instance = InstlMisc(initial_vars)

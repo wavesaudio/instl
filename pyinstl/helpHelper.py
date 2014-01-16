@@ -1,5 +1,7 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
+import os
+import fnmatch
 import yaml
 from collections import defaultdict
 from pyinstl.utils import *
@@ -73,11 +75,14 @@ class HelpHelper(object):
                             ))
         return retVal
 
-def do_help(subject):
-    help_file_path = os.path.join(os.environ.get("_MEIPASS2", ""), "pyinstl/help/instl_help.yaml")
+def do_help(subject, help_folder_path):
     hh = HelpHelper()
-    hh.read_help_file(help_file_path)
-    if subject is None:
+    for help_file in os.listdir(help_folder_path):
+        if fnmatch.fnmatch(help_file, '*help.yaml'):
+            hh.read_help_file(os.path.join(help_folder_path, help_file))
+
+    help_file_path = os.path.join(os.environ.get("_MEIPASS2", ""), "pyinstl/help/instl_help.yaml")
+    if not subject:
         for topic in hh.topics():
             print("instl", "help", "<"+topic+">")
     elif subject in hh.topics():

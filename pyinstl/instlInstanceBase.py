@@ -118,6 +118,11 @@ class InstlInstanceBase(object):
         if cmd_line_options_obj.svn_folder:
             self.cvl.add_const_config_variable("__SVN_FOLDER__", "from command line options", cmd_line_options_obj.svn_folder[0])
 
+        if hasattr(cmd_line_options_obj, "subject") and cmd_line_options_obj.subject is not None:
+            self.cvl.add_const_config_variable("__HELP_SUBJECT__", "from command line options", cmd_line_options_obj.subject)
+        else:
+            self.cvl.add_const_config_variable("__HELP_SUBJECT__", "from command line options", "")
+
         for identifier in self.cvl:
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
 
