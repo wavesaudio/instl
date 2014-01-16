@@ -189,7 +189,7 @@ class InstlAdmin(InstlInstanceBase):
             else:
                 msg = " ".join( ("links for revision", str(revision), "are already created") )
                 self.batch_accum += self.platform_helper.echo(msg); print(msg)
-                
+
         self.create_variables_assignment()
         self.write_batch_file()
         if "__RUN_BATCH_FILE__" in self.cvl:
@@ -228,8 +228,7 @@ class InstlAdmin(InstlInstanceBase):
         trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans",
                                "--in", "instl/info_map.info",
                                "--props ", "instl/info_map.props",
-                               "--out ", "instl/info_map.txt",
-                               "--config", "$(__CONFIG_FILE_PATH__)"]
+                               "--out ", "instl/info_map.txt"]
         accum += " ".join(trans_command_parts)
 
         # create Mac only info_map
@@ -339,7 +338,7 @@ class InstlAdmin(InstlInstanceBase):
                     accum += self.platform_helper.rmdir(dir_item.full_path(), recursive=True)
                 else:
                     dir_queue.append(dir_item) # need to check inside the folder
-        
+
         # remove broken links, aws cannot handle them
         accum += " ".join( ("find", ".", "-type", "l", "!", "-exec", "test", "-e", "{}", "\;", "-exec", "rm", "{}", "\;") )
 

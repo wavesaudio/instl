@@ -6,6 +6,7 @@ import datetime
 
 from platformSpecificHelper_Base import PlatformSpecificHelperBase
 from platformSpecificHelper_Base import CopyToolRsync
+from platformSpecificHelper_Base import DownloadToolBase
 from platformSpecificHelper_Base import quoteme_single
 from platformSpecificHelper_Base import quoteme_double
 
