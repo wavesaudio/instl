@@ -131,8 +131,11 @@ def prepare_args_parser():
     need_output_options = (parser_copy, parser_sync, parser_synccopy,
                            parser_trans, parser_createlinks, parser_fix_symlinks,
                            parser_up2S3, parser_fix_props, parser_stage2svn)
+    need_run_option = (parser_copy, parser_sync, parser_synccopy,
+                           parser_createlinks, parser_fix_symlinks,
+                           parser_up2S3, parser_fix_props, parser_stage2svn)
     need_config_file_options = (parser_createlinks, parser_up_repo_rev, parser_up2S3,
-                                parser_fix_props, parser_trans)
+                                parser_fix_props)
 
     # add --in to parsers that need it
     for subparser in need_input_options:
@@ -153,7 +156,9 @@ def prepare_args_parser():
                                     metavar='path-to-output-file',
                                     dest='output_file',
                                     help="out put file")
-        output_options.add_argument('--run', '-r',
+    for subparser in need_run_option:
+        run_option = subparser.add_argument_group(description='run arguments:')
+        run_option.add_argument('--run', '-r',
                                     required=False,
                                     default=False,
                                     action='store_true',

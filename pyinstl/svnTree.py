@@ -96,6 +96,8 @@ class SVNTree(svnItem.SVNTopItem):
                     (?P<flags>[dfsx]+)
                     \s
                     (?P<last_rev>\d+)
+                    (\s
+                    (?P<checksum>[\da-f]+))?
                     )?
                     $
                     """, re.X)
@@ -116,7 +118,7 @@ class SVNTree(svnItem.SVNTopItem):
                         path_parts.append(match.group('path'))
                         if match.group('props'): # it's a file
                             #print(((new_indent * spaces_per_indent)-1) * " ", "/".join(path_parts), match.group('props'))
-                            self.new_item_at_path(path_parts, match.group('flags'), int(match.group('last_rev')))
+                            self.new_item_at_path(path_parts, match.group('flags'), int(match.group('last_rev')), match.group('checksum'))
                         indent = new_indent
                     else: # previous element was a folder
                         #print(((new_indent * spaces_per_indent)-1) * " ", "/".join(path_parts), match.group('props'))
@@ -201,8 +203,8 @@ class SVNTree(svnItem.SVNTopItem):
     def repr_for_yaml(self):
         """         writeAsYaml(svni1, out_stream=sys.stdout, indentor=None, sort=True)         """
         retVal = OrderedDict()
-        for sub_name in sorted(self.__subs.keys()):
-            the_sub = self.get_sub(sub_name)
+        for sub_name in sorted(self.subs().keys()):
+            the_sub = self.subs()[sub_name]
             if the_sub.isDir():
                 retVal[the_sub.name()] = the_sub.repr_for_yaml()
             else:
@@ -217,7 +219,7 @@ class SVNTree(svnItem.SVNTopItem):
         try:
             svn_info_line_re = re.compile("""
                         ^
-                        (?P<key>Path|Last\ Changed\ Rev|Node\ Kind|Revision)
+                        (?P<key>Path|Last\ Changed\ Rev|Node\ Kind|Revision|Checksum)
                         :\s*
                         (?P<rest_of_line>.*)
                         $
@@ -229,7 +231,8 @@ class SVNTree(svnItem.SVNTopItem):
                 revision = record.get("Last Changed Rev", None)
                 if revision is None:
                     revision = record.get("Revision", None)
-                return (record["Path"], short_node_kind[record["Node Kind"]], int(revision))
+                checksum = record.get("Checksum", None)
+                return (record["Path"], short_node_kind[record["Node Kind"]], int(revision), checksum)
 
             short_node_kind = {"file" : "f", "directory" : "d"}
             record = dict()

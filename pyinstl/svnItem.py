@@ -18,6 +18,8 @@ text_line_re = re.compile(r"""
             (?P<flags>[dfsx]+)
             ,\s+
             (?P<last_rev>\d+)
+            (,\s+
+            (?P<checksum>[\da-f]+))?    # 5985e53ba61348d78a067b944f1e57c67f865162
             """, re.X)
 flags_and_last_rev_re = re.compile(r"""
                 ^
@@ -25,6 +27,8 @@ flags_and_last_rev_re = re.compile(r"""
                 (?P<flags>[fdxs]+)
                 \s*
                 (?P<last_rev>\d+)
+                (\s*
+                (?P<checksum>[\da-f]+))? # 5985e53ba61348d78a067b944f1e57c67f865162
                 $
                 """, re.X)
 
@@ -39,7 +43,7 @@ class SVNItem(object):
         s - symlink
     """
 
-    __slots__ = ("__up", "__name", "__flags", "__last_rev", "__subs", "props", "user_data")
+    __slots__ = ("__up", "__name", "__flags", "__last_rev", "__subs", "__checksum", "props", "user_data")
     def __init__(self, in_name, in_flags, in_last_rev):
         """ constructor """
 
@@ -47,6 +51,7 @@ class SVNItem(object):
         self.__name = in_name
         self.__flags = in_flags
         self.__last_rev = in_last_rev
+        self.__checksum = None
         self.__subs = None
         if self.isDir():
             self.__subs = dict()
@@ -56,7 +61,10 @@ class SVNItem(object):
     def __str__(self):
         """ __str__ representation - this is what will be written to info_map.txt files"""
         full_path_str = self.full_path()
-        retVal = "{}, {}, {}".format(full_path_str, self.__flags, self.__last_rev)
+        if self.__checksum:
+            retVal = "{}, {}, {}, {}".format(full_path_str, self.__flags, self.__last_rev, self.__checksum)
+        else:
+            retVal = "{}, {}, {}".format(full_path_str, self.__flags, self.__last_rev)
         return retVal
 
     def __copy__(self):
@@ -118,6 +126,18 @@ class SVNItem(object):
     def set_last_rev(self, new_last_rev):
         """ update last_rev """
         self.__last_rev = new_last_rev
+
+    def checksum(self):
+        """ return checksum """
+        if self.isDir():
+            raise ValueError(self.name()+" is a directory, has no checksum")
+        return self.__checksum
+
+    def set_checksum(self, new_checksum):
+        """ update checksum """
+        if self.isDir():
+            raise ValueError(self.name()+" is a directory, has no checksum")
+        self.__checksum = new_checksum
 
     def flags(self):
         """ return flags """
@@ -193,7 +213,7 @@ class SVNItem(object):
             retVal = retVal.get_item_at_path(path_parts[1:])
         return retVal
 
-    def new_item_at_path(self, at_path, flags, last_rev, create_folders=False):
+    def new_item_at_path(self, at_path, flags, last_rev, checksum=None, create_folders=False):
         """ create a new a sub-item at the give at_path.
             at_path is relative to self of course.
             at_path can be a list or tuple containing individual path parts
@@ -209,6 +229,8 @@ class SVNItem(object):
             path_parts = at_path.split("/")
         if len(path_parts) == 1:
             retVal = SVNItem(path_parts[0], flags, last_rev)
+            if retVal.isFile() and checksum:
+                retVal.set_checksum(checksum)
             self.add_sub_item(retVal)
         else:
             sub_dir_item = self.__subs.get(path_parts[0])
@@ -218,7 +240,7 @@ class SVNItem(object):
                     self.add_sub_item(sub_dir_item)
                 else:
                     raise KeyError(path_parts[0]+" is not in sub items of "+self.full_path())
-            retVal = sub_dir_item.new_item_at_path(path_parts[1:], flags, last_rev, create_folders)
+            retVal = sub_dir_item.new_item_at_path(path_parts[1:], flags, last_rev, checksum, create_folders)
         return retVal
 
     def add_item_at_path(self, at_path, in_item, create_folders=False):
@@ -266,6 +288,7 @@ class SVNItem(object):
             self.new_item_at_path(match.group('path'),
                                   match.group('flags'),
                                   int(match.group('last_rev')),
+                                  match.group('checksum'),
                                   create_folders)
         return retVal
 
@@ -360,7 +383,7 @@ class SVNItem(object):
         retVal["_p_"] = " ".join( (self.flags(), str(self.last_rev())) )
         file_list, dir_list = self.sorted_sub_items()
         for a_file_item in file_list:
-            retVal[a_file_item.name()] = " ".join( (a_file_item.flags(), str(a_file_item.last_rev())) )
+            retVal[a_file_item.name()] = " ".join( (a_file_item.flags(), str(a_file_item.last_rev()), a_file_item.checksum()) )
         for a_dir_item in dir_list:
             retVal[a_dir_item.name()] = a_dir_item.repr_for_yaml()
         return retVal
@@ -373,7 +396,8 @@ class SVNItem(object):
                 if contents.isScalar(): # scalar contents means a file
                     match = flags_and_last_rev_re.match(contents.value)
                     if match:
-                        self.new_item_at_path(identifier, match.group('flags'), int(match.group('last_rev')))
+                        self.new_item_at_path(identifier, match.group('flags'),
+                                              int(match.group('last_rev')), match.group('checksum'))
                     else:
                         raise ValueError("Looks like a file, but is not %s %s" % (identifier, str(contents)))
                 elif contents.isMapping():
