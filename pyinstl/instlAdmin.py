@@ -228,7 +228,7 @@ class InstlAdmin(InstlInstanceBase):
         trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans",
                                "--in", "instl/info_map.info",
                                "--props ", "instl/info_map.props",
-                               "--base-repo-rev", "$(BASE_REPO_REV)"
+                               "--base-repo-rev", "$(BASE_REPO_REV)",
                                "--out ", "instl/info_map.txt"]
         accum += " ".join(trans_command_parts)
 
@@ -242,6 +242,7 @@ class InstlAdmin(InstlInstanceBase):
         trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans", "--in", "instl/info_map.txt", "--out ", "instl/info_map_Win.txt",  "--filter-out", "Mac"]
         accum += " ".join(trans_command_parts)
 
+        accum += self.platform_helper.rmfile("$(UP_2_S3_STAMP_FILE_NAME)")
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(CREATE_LINKS_STAMP_FILE_NAME)"])
 
         accum += self.platform_helper.echo("done version $(__CURR_REPO_REV__)")
