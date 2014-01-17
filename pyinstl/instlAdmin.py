@@ -344,6 +344,9 @@ class InstlAdmin(InstlInstanceBase):
         # remove broken links, aws cannot handle them
         accum += " ".join( ("find", ".", "-type", "l", "!", "-exec", "test", "-e", "{}", "\;", "-exec", "rm", "{}", "\;") )
 
+        # create text versions of info and yaml files, so they can be displayed in browser
+        accum +=  " ".join( ("find", "instl", "-type", "f", "-regextype", "posix-extended", "-regex", "'.*(yaml|info|props)'", "-print0", "|", "xargs", "-0", "-I{}", "cp", "-f", '"{}"', '"{}.txt"') )
+
         accum += " ".join( ["aws", "s3", "sync",
                            ".","s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_REV__)",
                            "--acl", "public-read",
