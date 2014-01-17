@@ -106,6 +106,9 @@ class InstlInstanceBase(object):
 
         if cmd_line_options_obj.repo_rev:
             self.cvl.set_variable("REPO_REV", "from command line options").append(cmd_line_options_obj.repo_rev[0])
+        if cmd_line_options_obj.base_repo_rev:
+            self.cvl.set_variable("BASE_REPO_REV", "from command line options").append(cmd_line_options_obj.base_repo_rev[0])
+
         if cmd_line_options_obj.config_file:
             self.cvl.add_const_config_variable("__CONFIG_FILE__", "from command line options", cmd_line_options_obj.config_file[0])
         if cmd_line_options_obj.folder:

@@ -196,6 +196,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         elif item.isFile():
             source_url =   '/'.join( ["$(SYNC_BASE_URL)", str(item.last_rev())] + path_so_far + [item.name()] )
             self.instlInstance.batch_accum += self.instlInstance.platform_helper.dl_tool.create_download_file_to_file_command(source_url, item.name())
+            self.instlInstance.batch_accum += self.instlInstance.platform_helper.check_checksum(item.name(), item.checksum())
             self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress(item.full_path())
         elif item.isDir():
             path_so_far.append(item.name())

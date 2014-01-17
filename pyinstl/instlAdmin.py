@@ -228,6 +228,7 @@ class InstlAdmin(InstlInstanceBase):
         trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans",
                                "--in", "instl/info_map.info",
                                "--props ", "instl/info_map.props",
+                               "--base-repo-rev", "$(BASE_REPO_REV)"
                                "--out ", "instl/info_map.txt"]
         accum += " ".join(trans_command_parts)
 

@@ -21,7 +21,7 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
 
     def get_install_instructions_prefix(self):
         retVal =  (
-            "#!/bin/sh",
+            "#!/usr/bin/env bash",
             self.remark(self.instlInstance.get_version_str()),
             self.remark(datetime.datetime.today().isoformat()),
             "set -e",

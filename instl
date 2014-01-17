@@ -58,6 +58,7 @@ class CommandLineOptions(object):
         self.filter_out = None
         self.filter_in = None
         self.repo_rev = None
+        self.base_repo_rev = None
         self.config_file = None
         self.folder = None
         self.svn = None
@@ -195,6 +196,12 @@ def prepare_args_parser():
                                 metavar='version-to-filter-in',
                                 dest='filter_in',
                                 help="version to filter in, all other version will be left out")
+    trans_options.add_argument('--base-repo-rev',
+                                required=False,
+                                nargs=1,
+                                metavar='base-repo-rev',
+                                dest='base_repo_rev',
+                                help="minimal version, all version below will be changed to base-repo-rev")
 
     stage2svn_options = parser_stage2svn.add_argument_group(description='stage2svn arguments:')
     stage2svn_options.add_argument('--stage_folder',

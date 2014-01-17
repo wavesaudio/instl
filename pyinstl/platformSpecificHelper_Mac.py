@@ -25,15 +25,30 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
             .sync.sh >& out.txt on the command line will redirect stderr to stdout from without.
         """
         retVal = (
-            "#!/bin/sh",
+            "#!/usr/bin/env bash",
             self.remark(self.instlInstance.get_version_str()),
             self.remark(datetime.datetime.today().isoformat()),
             "set -e",
+            self.start_time_measure(),
             self.save_dir("TOP_SAVE_DIR"))
         return retVal
 
     def get_install_instructions_postfix(self):
-        return (self.restore_dir("TOP_SAVE_DIR"), "exit 0")
+        postfix_command = [self.restore_dir("TOP_SAVE_DIR")]
+        postfix_command += self.end_time_measure()
+        postfix_command += ("exit 0",)
+        return postfix_command
+
+    def start_time_measure(self):
+        time_start_command = "Time_Measure_Start=$(date +%s)"
+        return time_start_command
+
+    def end_time_measure(self):
+        time_end_command = ('Time_Measure_End=$(date +%s)',
+                            'Time_Measure_Diff=$(echo "$Time_Measure_End - $Time_Measure_Start" | bc)',
+                            'convertsecs() { ((h=${1}/3600)) ; ((m=(${1}%3600)/60)) ; ((s=${1}%60)) ; printf "%02dh:%02dm:%02ds" $h $m $s ; }',
+                            'echo $(__MAIN_COMMAND__) Time: $(convertsecs $Time_Measure_Diff)')
+        return time_end_command
 
     def mkdir(self, directory):
         mk_command = " ".join( ("mkdir", "-p", quoteme_double(directory) ) )
@@ -106,7 +121,22 @@ done""" % in_dir)
         return resolve_commands
 
     def check_checksum(self, file, checksum):
-        check_command = " ".join( ("a=`openssl sha1", quoteme_double(file), "` ;", "if [ ${a: -40} !=", quoteme_double(checksum)), "];", "then echo bad checksum", quoteme_double(file), "1>&2", ";", "fi") )
+        chec_command_parts = (  "CHECKSUM_CHECK=`openssl sha1",
+                                quoteme_double(file),
+                                "` ;",
+                                "if [ ${CHECKSUM_CHECK: -40} !=",
+                                quoteme_double(checksum),
+                                "];",
+                                "then",
+                                "echo bad checksum",
+                                quoteme_double("${PWD}/"+file),
+                                "1>&2",
+                                ";",
+                                "exit 1",
+                                ";",
+                                "fi"
+                            )
+        check_command = " ".join( chec_command_parts )
         return check_command
 
 class DownloadTool_mac_curl(DownloadToolBase):
