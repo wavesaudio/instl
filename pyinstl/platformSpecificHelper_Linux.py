@@ -11,13 +11,14 @@ from platformSpecificHelper_Base import quoteme_single
 from platformSpecificHelper_Base import quoteme_double
 
 class CopyToolLinuxRsync(CopyToolRsync):
-    pass
+    def __init__(self, platformHelper):
+        super(CopyToolLinuxRsync, self).__init__(platformHelper)
 
 class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
     def __init__(self, instlInstance):
         super(PlatformSpecificHelperLinux, self).__init__(instlInstance)
         self.var_replacement_pattern = "${\g<var_name>}"
-        self.dl_tool = DownloadTool_linux_curl()
+        self.dl_tool = DownloadTool_linux_curl(self)
 
     def get_install_instructions_prefix(self):
         retVal =  (
@@ -56,7 +57,7 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         return rmdir_command
 
     def rmfile(self, file):
-        rmfile_command = " ".join( ("rm", quoteme_double(file) ) )
+        rmfile_command = " ".join( ("rm", "-f", quoteme_double(file) ) )
         return rmfile_command
 
     def get_svn_folder_cleanup_instructions(self):
@@ -75,7 +76,7 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
 
     def use_copy_tool(self, tool):
         if tool == "rsync":
-            self.copy_tool = CopyToolLinuxRsync()
+            self.copy_tool = CopyToolLinuxRsync(self)
         else:
             raise ValueError(tool, "is not a valid copy tool for Linux")
 
@@ -84,8 +85,10 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         return sync_command
 
 class DownloadTool_linux_curl(DownloadToolBase):
+    def __init__(self, platformHelper):
+        super(DownloadTool_linux_curl, self).__init__(platformHelper)
 
-    def create_download_file_to_file_command(self, src_url, trg_file):
+    def download_url_to_file(self, src_url, trg_file):
         download_command_parts = list()
         download_command_parts.append("$(__RESOLVED_DOWNLOAD_TOOL_PATH__)")
         download_command_parts.append("--insecure")

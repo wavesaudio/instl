@@ -28,6 +28,9 @@ class CopyToolBase(object):
     """
     __metaclass__ = abc.ABCMeta
 
+    def __init__(self, platformHelper):
+        self.platformHelper = platformHelper
+
     @abc.abstractmethod
     def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=None, ignore=None):
         """ Copy src_dir as a folder into trg_dir.
@@ -62,6 +65,9 @@ class CopyToolBase(object):
 
 
 class CopyToolRsync(CopyToolBase):
+    def __init__(self, platformHelper):
+        super(CopyToolRsync, self).__init__(platformHelper)
+
     def create_ignore_spec(self, ignore):
         retVal = ""
         if ignore:
@@ -232,6 +238,21 @@ class DownloadToolBase(object):
     """
     __metaclass__ = abc.ABCMeta
 
+    def __init__(self, platformHelper):
+        self.platformHelper = platformHelper
+        self.urls_to_download = list()
+
     @abc.abstractmethod
-    def create_download_file_to_file_command(self, src_url, trg_file):
+    def download_url_to_file(self, src_url, trg_file):
+        pass
+
+    def add_download_url(self, url, path):
+        self.urls_to_download.append( (urllib.quote(url, "$()/:"), path) )
+
+    @abc.abstractmethod
+    def download_from_config_file(self, config_file):
+        pass
+
+    @abc.abstractmethod
+    def create_config_file(self, curl_config_file_path):
         pass

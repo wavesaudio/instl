@@ -342,7 +342,7 @@ class InstlAdmin(InstlInstanceBase):
                     dir_queue.append(dir_item) # need to check inside the folder
 
         # remove broken links, aws cannot handle them
-        accum += " ".join( ("find", ".", "-type", "l", "!", "-exec", "test", "-e", "{}", "\;", "-exec", "rm", "{}", "\;") )
+        accum += " ".join( ("find", ".", "-type", "l", "!", "-exec", "test", "-e", "{}", "\;", "-exec", "rm", "-f", "{}", "\;") )
 
         # create text versions of info and yaml files, so they can be displayed in browser
         accum +=  " ".join( ("find", "instl", "-type", "f", "-regextype", "posix-extended", "-regex", "'.*(yaml|info|props)'", "-print0", "|", "xargs", "-0", "-I{}", "cp", "-f", '"{}"', '"{}.txt"') )

@@ -195,7 +195,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             print("Found symlink at", item.full_path())
         elif item.isFile():
             source_url =   '/'.join( ["$(SYNC_BASE_URL)", str(item.last_rev())] + path_so_far + [item.name()] )
-            self.instlInstance.batch_accum += self.instlInstance.platform_helper.dl_tool.create_download_file_to_file_command(source_url, item.name())
+            self.instlInstance.batch_accum += self.instlInstance.platform_helper.dl_tool.download_url_to_file(source_url, item.name())
             self.instlInstance.batch_accum += self.instlInstance.platform_helper.check_checksum(item.name(), item.checksum())
             self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress(item.full_path())
         elif item.isDir():
@@ -224,7 +224,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.create_download_instructions_for_item_config_file(need_item)
         curl_config_file_path = self.instlInstance.cvl.resolve_string(os.path.join("$(LOCAL_SYNC_DIR)", "$(__CURL_CONFIG_FILE_NAME__)"))
         self.instlInstance.platform_helper.dl_tool.create_config_file(curl_config_file_path)
-        self.instlInstance.batch_accum += self.instlInstance.platform_helper.dl_tool.create_download_from_config_file("$(__CURL_CONFIG_FILE_NAME__)")
+        self.instlInstance.batch_accum += self.instlInstance.platform_helper.dl_tool.download_from_config_file("$(__CURL_CONFIG_FILE_NAME__)")
         self.instlInstance.batch_accum.indent_level -= 1
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.new_line()
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.resolve_readlink_files()
@@ -236,11 +236,11 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def create_download_instructions_for_item_config_file(self, item, path_so_far = list()):
         if item.isSymlink():
             source_url = '/'.join(( self.sync_base_url, str(item.last_rev()), "/".join(path_so_far), item.name() + ".readlink" ))
-            self.instlInstance.platform_helper.dl_tool.add_dl( source_url, item.full_path() + ".readlink" )
+            self.instlInstance.platform_helper.dl_tool.add_download_url( source_url, item.full_path() + ".readlink" )
             self.symlinks.append( ("/".join(path_so_far), item.name()) )
         elif item.isFile():
             source_url = '/'.join( [ self.sync_base_url, str(item.last_rev())] + path_so_far + [item.name()] )
-            self.instlInstance.platform_helper.dl_tool.add_dl( source_url, item.full_path() )
+            self.instlInstance.platform_helper.dl_tool.add_download_url( source_url, item.full_path() )
         elif item.isDir():
             path_so_far.append(item.name())
             self.instlInstance.batch_accum.indent_level += 1
