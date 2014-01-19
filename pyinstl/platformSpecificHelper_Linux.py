@@ -84,6 +84,9 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         sync_command = "cp -f \"{src_file}\" \"{trg_file}\"".format(**locals())
         return sync_command
 
+    def check_checksum(self, file, checksum):
+        raise NotImplementedError
+
 class DownloadTool_linux_curl(DownloadToolBase):
     def __init__(self, platformHelper):
         super(DownloadTool_linux_curl, self).__init__(platformHelper)

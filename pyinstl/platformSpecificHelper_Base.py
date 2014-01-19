@@ -215,6 +215,10 @@ class PlatformSpecificHelperBase(object):
         svn_command = " ".join( ("svn", "rm", "--force", '"'+item_path+'"') )
         return svn_command
 
+    @abc.abstractmethod
+    def check_checksum(self, file, checksum):
+        pass
+
 def PlatformSpecificHelperFactory(in_os, instlInstance):
     retVal = None
     if in_os == "Mac":
