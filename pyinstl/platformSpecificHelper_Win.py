@@ -115,13 +115,18 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return retVal
 
     def get_install_instructions_postfix(self):
-        retVal = self.restore_dir("TOP_SAVE_DIR")
+        retVal = (
+                self.restore_dir("TOP_SAVE_DIR"),
+                "exit /b 0",
+                "",
+                ":EXIT_ON_ERROR",
+                self.restore_dir("TOP_SAVE_DIR"),
+                "exit /b",
+                )
         return retVal
 
-    def exit_if_error(self, errorlevel = None):
-        retVal = ("IF", "ERRORLEVEL", "1", "exit", "/b")
-        if errorlevel is not None:
-            retVal.append(str(int(errorlevel))) # will raise if errorlevel is not an int
+    def exit_if_error(self):
+        retVal = ("IF", "ERRORLEVEL", "1", "GOTO", "EXIT_ON_ERROR")
         return " ".join(retVal)
 
     def mkdir(self, directory):
@@ -175,6 +180,9 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return sync_command
 
     def resolve_readlink_files(self, in_dir="."):
+        return ()
+
+    def check_checksum(self, file, checksum):
         return ()
 
 class DownloadTool_win_wget(DownloadToolBase):
