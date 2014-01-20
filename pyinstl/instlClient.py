@@ -195,7 +195,7 @@ class InstlClient(InstlInstanceBase):
 
         self.batch_accum += self.platform_helper.progress("from $(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)")
 
-        if 'Mac' in self.cvl.get_list("CURRENT_OS_NAMES") and 'Mac' in self.cvl.get_list("TARGET_OS"):
+        if 'Mac' in self.cvl.get_list("__CURRENT_OS_NAMES__") and 'Mac' in self.cvl.get_list("TARGET_OS"):
             self.batch_accum += self.platform_helper.resolve_symlink_files(in_dir="$(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)")
             self.batch_accum += self.platform_helper.progress("resolve .symlink files")
 

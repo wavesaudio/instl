@@ -192,9 +192,9 @@ class CMDObj(cmd.Cmd, object):
 
     def prepare_coloring_dict(self):
         """ Prepare a dictionary with identifiers mapped to their "colored" representation.
-            Left hand index enrties: 'C1_IID:' translates to colorama.Fore.GREEN+'C1_IID'+colorama.Fore.RESET+":".
-            Right hand index enrties: '- C1_IID:' translates to "- "+colorama.Fore.YELLOW+'C1_IID'+colorama.Fore.RESET.
-            Variable references: $(WAVES_PLUGINS_DIR) translates to colorama.Fore.BLUE+$(WAVES_PLUGINS_DIR).
+            Left hand index enrties: 'SAMPLE_IID:' translates to colorama.Fore.GREEN+'SAMPLE_IID'+colorama.Fore.RESET+":".
+            Right hand index enrties: '- SAMPLE_IID:' translates to "- "+colorama.Fore.YELLOW+'SAMPLE_IID'+colorama.Fore.RESET.
+            Variable references: $(SAMPLE_VARAIBLE) translates to colorama.Fore.BLUE+$(SAMPLE_VARAIBLE).
             The returned dictionary can be used in replace_all_from_dict() for "coloring" the text before output to stdcout.
         """
         retVal = dict()

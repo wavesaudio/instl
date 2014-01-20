@@ -68,9 +68,9 @@ class InstlInstanceBase(object):
                 self.cvl.add_const_config_variable(var, var_description, value)
 
         var_description = "from InstlInstanceBase.init_default_vars"
-        self.cvl.add_const_config_variable("CURRENT_OS", var_description, os_family_name)
-        self.cvl.add_const_config_variable("CURRENT_OS_SECOND_NAME", var_description, os_second_name)
-        self.cvl.add_const_config_variable("CURRENT_OS_NAMES", var_description, *current_os_names)
+        self.cvl.add_const_config_variable("__CURRENT_OS__", var_description, os_family_name)
+        self.cvl.add_const_config_variable("__CURRENT_OS_SECOND_NAME__", var_description, os_second_name)
+        self.cvl.add_const_config_variable("__CURRENT_OS_NAMES__", var_description, *current_os_names)
         self.cvl.set_variable("TARGET_OS", var_description).append(os_family_name)
         self.cvl.set_variable("TARGET_OS_NAMES", var_description).extend(current_os_names)
         self.cvl.add_const_config_variable("__INSTL_VERSION__", var_description, *INSTL_VERSION)

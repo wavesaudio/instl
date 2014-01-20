@@ -142,7 +142,7 @@ class ConfigVarList(object):
         for env in os.environ:
             if env == "":  # not sure why I get an empty string
                 continue
-            self.set_variable(env, "from envirnment").append(os.environ[env])
+            self.set_variable(env, "from environment").append(os.environ[env])
 
     def repr_for_yaml(self, which_vars=None, include_comments=True):
         retVal = dict()
@@ -163,6 +163,11 @@ class ConfigVarList(object):
         else:   # if which_vars is a single variable name
             retVal.update(self.repr_for_yaml((which_vars,)))
         return YamlDumpDocWrap(retVal, tag='!define')
+
+    def is_resolved(self, in_str):
+        match = value_ref_re.search(in_str)
+        retVal = match is None
+        return retVal
 
     def resolve_string(self, in_str, sep=" "):
         """ resolve a string that might contain references to values """
