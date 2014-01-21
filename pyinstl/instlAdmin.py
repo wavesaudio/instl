@@ -10,7 +10,7 @@ import boto
 from instlException import *
 from pyinstl.log_utils import func_log_wrapper
 from pyinstl.utils import *
-from aYaml.augmentedYaml import writeAsYaml
+from aYaml.augmentedYaml import writeAsYaml, YamlDumpDocWrap
 
 from instlInstanceBase import InstlInstanceBase
 from pyinstl import svnTree
@@ -371,7 +371,8 @@ class InstlAdmin(InstlInstanceBase):
         s3_path = self.cvl.resolve_string("admin/$(REPO_REV_FILE_NAME)")
         print("uploading to:", self.cvl.resolve_string("http://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)"))
 
-        repo_rev_yaml = self.cvl.repr_for_yaml(repo_rev_vars, include_comments=False)
+        repo_rev_yaml = YamlDumpDocWrap(self.cvl.repr_for_yaml(repo_rev_vars, include_comments=False),
+                                                    '!define', "Definitions", explicit_start=True, sort_mappings=True)
         safe_makedirs(self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/admin"))
         local_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME)")
         with open(local_file, "w") as wfd:
