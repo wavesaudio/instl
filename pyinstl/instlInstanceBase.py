@@ -144,12 +144,13 @@ class InstlInstanceBase(object):
             logging.info("... Reading input file %s", file_path)
             with open_for_read_file_or_url(file_path, self.search_paths_helper) as file_fd:
                 for a_node in yaml.compose_all(file_fd):
-                    if a_node.tag.startswith('!define'):
-                        self.read_defines(a_node)
-                    elif a_node.tag.startswith('!index'):
-                        self.read_index(a_node)
-                    else:
-                        logging.error("Unknown document tag '%s' while reading file %s; Tag should be one of: !define, !index'", a_node.tag, file_path)
+                    if self.is_acceptable_ydoc(a_node):
+                        if a_node.tag.startswith('!define'):
+                            self.read_defines(a_node)
+                        elif a_node.tag.startswith('!index'):
+                            self.read_index(a_node)
+                        else:
+                            logging.error("Unknown document tag '%s' while reading file %s; Tag should be one of: !define, !index'", a_node.tag, file_path)
         except InstlException as unused_ie:
             raise # re-raise in case of recursive call to read_file
         except yaml.YAMLError as ye:

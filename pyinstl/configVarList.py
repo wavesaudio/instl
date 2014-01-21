@@ -146,23 +146,27 @@ class ConfigVarList(object):
 
     def repr_for_yaml(self, which_vars=None, include_comments=True):
         retVal = dict()
+        vars_list = list()
         if not which_vars:
-            which_vars = self.keys()
-        if hasattr(which_vars, '__iter__'):  # if which_vars is a list
-            theComment = ""
-            for name in which_vars:
-                if name in self._ConfigVar_objs:
-                    if include_comments:
-                        theComment = self._ConfigVar_objs[name].description()
-                    var_value = self.get_list(name)
-                    if len(var_value) == 1:
-                        var_value = var_value[0]
-                    retVal[name] = YamlDumpWrap(var_value, comment=theComment)
-                else:
-                    retVal[name] = YamlDumpWrap(value="UNKNOWN VARIABLE", comment=name+" is not in variable list")
-        else:   # if which_vars is a single variable name
-            retVal.update(self.repr_for_yaml((which_vars,)))
-        return YamlDumpDocWrap(retVal, tag='!define')
+            vars_list.extend(self.keys())
+        elif isinstance(which_vars, basestring):
+            vars_list.append(which_vars)
+        else:
+            vars_list = which_vars
+        if not hasattr(vars_list, '__iter__'):  # if which_vars is a list
+            ValueError("ConfigVarList.repr_for_yaml can except string, list or None, not "+type(which_vars)+" "+str(which_vars))
+        theComment = ""
+        for var_name in vars_list:
+            if var_name in self._ConfigVar_objs:
+                if include_comments:
+                    theComment = self._ConfigVar_objs[var_name].description()
+                var_value = self.get_list(var_name)
+                if len(var_value) == 1:
+                    var_value = var_value[0]
+                retVal[var_name] = YamlDumpWrap(var_value, comment=theComment)
+            else:
+                retVal[var_name] = YamlDumpWrap(value="UNKNOWN VARIABLE", comment=name+" is not in variable list")
+        return retVal
 
     def is_resolved(self, in_str):
         match = value_ref_re.search(in_str)
