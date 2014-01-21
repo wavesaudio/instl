@@ -188,7 +188,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return ()
 
     def check_checksum(self, filepath, checksum):
-        check_command_parts = (  "for /f "delims=" %%i in",
+        check_command_parts = (  'for /f "delims=" %%i in',
                                 "('$(__RESOLVED_CHECKSUM_TOOL_PATH__) -s",
                                 quoteme_double(filepath),
                                 "')",
@@ -197,7 +197,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
                                 "if not \"!CHECKSUM_CHECK:~0,40!\"==",
                                 quoteme_double(checksum),
                                 "(echo bad checksum",
-                                quoteme_double("${PWD}/"+filepath),
+                                quoteme_double("%PWD%/"+filepath),
                                 "1>&2",
                                 "&",
                                 "GOTO EXIT_ON_ERROR)",
