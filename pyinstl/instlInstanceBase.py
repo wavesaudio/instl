@@ -73,6 +73,7 @@ class InstlInstanceBase(object):
         self.cvl.add_const_config_variable("__CURRENT_OS_NAMES__", var_description, *current_os_names)
         self.cvl.set_variable("TARGET_OS", var_description).append(os_family_name)
         self.cvl.set_variable("TARGET_OS_NAMES", var_description).extend(current_os_names)
+        self.cvl.add_const_config_variable("TARGET_OS_SECOND_NAME", var_description, os_second_name)
         self.cvl.add_const_config_variable("__INSTL_VERSION__", var_description, *INSTL_VERSION)
         self.cvl.set_variable("BASE_REPO_REV", var_description).append("1")
 
@@ -252,6 +253,7 @@ class InstlInstanceBase(object):
         if out_file != "stdout":
             self.out_file_realpath = os.path.realpath(out_file)
             os.chmod(self.out_file_realpath, 0755)
+        print(out_file)
 
     @func_log_wrapper
     def run_batch_file(self):

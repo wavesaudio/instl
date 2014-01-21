@@ -33,7 +33,7 @@ command:
             Usage: instl createlinks --config_file config_file --out createlinks.sh [--run]
             For each revision of the svn repository, starting with the base revision, createlinks will checkout the revison from svn to a Base folder, and copy the files to a folder named after the revision. Copying is done using hard links and hense the name of the command. In addition createlinks will create info_map files describing the contents of the specific revision. A revision folder created succesfully will contain a stamp file, that will cause the folder to be skipped the next time creaetlinks is called.
             All information about the svn repository url, the location of the top level links folder, the base revision etc, is taken from the config file.
-            relevant varaibles: REPO_NAME, SVN_REPO_URL, ROOT_REPO_LINKS_FOLDER, BASE_REPO_REV
+            relevant varaibles: REPO_NAME, SVN_REPO_URL, ROOT_LINKS_FOLDER_REPO, BASE_REPO_REV
             Keep in mind that createlinks command does not actaully do anything, unless the --run flag is given. You will need to run the producded batch file in order to actaully create the links.
 
     up2s3:
@@ -42,7 +42,7 @@ command:
             Usage: instl up2s3 --config_file config_file --out up2s3.sh [--run]
             For each revision folder created with the crearelinks command, up2s3 will remove the files not belonging to the specific revision and upload the remaining files to s3. A revision folder uploaded succesfully will contain a stamp file, that will cause the folder to be skipped the next time up2s3 is called.
             All information about the the location of the top level links folder, the s3 url and s3 passwords, is taken from the config file.
-            relevant varaibles: REPO_NAME, ROOT_REPO_LINKS_FOLDER, BASE_REPO_REV, S3_BUCKET_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+            relevant varaibles: REPO_NAME, ROOT_LINKS_FOLDER_REPO, BASE_REPO_REV, S3_BUCKET_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
             Keep in mind that up2s3 command does not actaully do anything, unless the --run flag is given. You will need to run the producded batch file in order to actaully create upload the links.
 
     up_repo_rev:

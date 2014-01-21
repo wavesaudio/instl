@@ -21,7 +21,9 @@
             ACCEPTABLE_YAML_DOC_TAGS: define_$(TARGET_OS)
             Would later read sections starting with !define_Win - if Win is the target os.
     * fixed bugs in interactive mode list command.
-
+    * name of batch file is printed after it is written
+    * variable TARGET_OS_SECOND_NAME defaults to os_second_name
+    
     Changes to V9_test repository that do not effect code
     * 7ZA_CLIENT_PATH renamed WTAR_OPENER, the 7 probably caused problems on windows
     * All Mac rm commands in index were added the -f flags
@@ -39,9 +41,10 @@
     * createlinks will remove the up2s3 stamp file - if there is any
     * up2s4 will upload .txt versions of .yaml|info|props files in the instl folder
         so these files can be displayed in a browser.
-    * ROOT_LINKS_FOLDER renamed ROOT_REPO_LINKS_FOLDER. ROOT_LINKS_FOLDER will point to the links folder above all repositories
+    * ROOT_LINKS_FOLDER renamed ROOT_LINKS_FOLDER_REPO. ROOT_LINKS_FOLDER will point to the links folder above all repositories
     * repo_rev file is saved to "$(ROOT_LINKS_FOLDER)/admin"
-
+    * adjusted createlinks to work on local path urls
+    
     programmer visible changes:
     * Copy tools now accept a list of ignores and don't just assume .svn and *.symlink should be ignored
     * CopyToolMacRsync and CopyToolLinuxRsync now inherit from common CopyToolRsync
