@@ -225,12 +225,15 @@ class CMDObj(cmd.Cmd, object):
         from utils import write_to_list
         out_list = write_to_list()
         if params:
+            identifier_list = list()
             for param in params.split():
-                identifier_list = self.complete_list(param, params, 0, 0)
-                if identifier_list:
-                    self.client_prog_inst.do_list(identifier_list, out_list)
+                comp_list_for_param = self.complete_list(param, params, 0, 0)
+                if comp_list_for_param:
+                    identifier_list.extend(comp_list_for_param)
                 else:
                     print("Unknown identifier:", param)
+            if identifier_list:
+                self.client_prog_inst.do_list(identifier_list, out_list)
         else:
             self.client_prog_inst.do_list(None, out_list)
         joined_list = "".join(out_list.list()).encode('ascii','ignore') # just in case some unicode got in...
@@ -579,25 +582,29 @@ def compact_history():
 def do_list_imp(self, what = None, stream=sys.stdout):
     if what is None:
         augmentedYaml.writeAsYaml(self, stream)
+    list_to_do = list()
+    if isinstance(what, str):
+        list_to_do.append(what)
     elif isinstance(what, list):
-        for item in what:
-            self.do_list(str(item), stream)
-    elif isinstance(what, str):
-        if self.guid_re.match(what):
-            augmentedYaml.writeAsYaml({what: self.iids_from_guid(what)}, stream)
-        elif what == "define":
-            augmentedYaml.writeAsYaml(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True), stream)
-        elif what == "index":
-            augmentedYaml.writeAsYaml(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True), stream)
-        elif what == "guid":
+        list_to_do.extend(what)
+    whole_sections_to_write = list()
+    individual_items_to_write = list()
+    for item_to_do in list_to_do:
+        if self.guid_re.match(item_to_do):
+            whole_sections_to_write.append({item_to_do: self.iids_from_guid(item_to_do)})
+        elif item_to_do == "define":
+            whole_sections_to_write.append(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True))
+        elif item_to_do == "index":
+            whole_sections_to_write.append(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True))
+        elif item_to_do == "guid":
             guid_dict = dict()
             for lic in self.guid_list():
                 guid_dict[lic] = self.iids_from_guid(lic)
-            augmentedYaml.writeAsYaml(guid_dict, stream)
+            whole_sections_to_write.append(guid_dict)
         else:
-            item_list = self.repr_for_yaml((what,))
-            for item in item_list:
-                augmentedYaml.writeAsYaml(item, stream)
+            individual_items_to_write.append(item_to_do)
+
+    augmentedYaml.writeAsYaml(whole_sections_to_write+self.repr_for_yaml(individual_items_to_write), stream)
 
 
 def create_completion_list_imp(self, for_what="all"):
