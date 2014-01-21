@@ -129,13 +129,10 @@ class InstlInstanceBase(object):
         for identifier in self.cvl:
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
 
-    def is_acceptable_ydoc(self, doc_node):
-        retVal = False
-        acceptables = self.cvl.get_list("ACCEPTABLE_YDOCS") + ("define", "index")
+    def is_acceptable_yaml_doc(self, doc_node):
+        acceptables = self.cvl.get_list("ACCEPTABLE_YAML_DOC_TAGS") + ("define", "index")
         acceptables = ["!"+acceptibul for acceptibul in acceptables]
-        if doc_node.tag in acceptables:
-            retVal = True
-        print(doc_node.tag, acceptables, retVal)
+        retVal = doc_node.tag in acceptables
         return retVal
 
     @func_log_wrapper
@@ -144,7 +141,7 @@ class InstlInstanceBase(object):
             logging.info("... Reading input file %s", file_path)
             with open_for_read_file_or_url(file_path, self.search_paths_helper) as file_fd:
                 for a_node in yaml.compose_all(file_fd):
-                    if self.is_acceptable_ydoc(a_node):
+                    if self.is_acceptable_yaml_doc(a_node):
                         if a_node.tag.startswith('!define'):
                             self.read_defines(a_node)
                         elif a_node.tag.startswith('!index'):

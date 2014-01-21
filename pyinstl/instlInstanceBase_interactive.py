@@ -229,7 +229,7 @@ class CMDObj(cmd.Cmd, object):
             for param in params.split():
                 comp_list_for_param = self.complete_list(param, params, 0, 0)
                 if comp_list_for_param:
-                    identifier_list.append(comp_list_for_param)
+                    identifier_list.extend(comp_list_for_param)
                 else:
                     print("Unknown identifier:", param)
             if identifier_list:
@@ -587,22 +587,24 @@ def do_list_imp(self, what = None, stream=sys.stdout):
         list_to_do.append(what)
     elif isinstance(what, list):
         list_to_do.extend(what)
-    to_write = list()
+    whole_sections_to_write = list()
+    individual_items_to_write = list()
     for item_to_do in list_to_do:
         if self.guid_re.match(item_to_do):
-            to_write.append({item_to_do: self.iids_from_guid(item_to_do)})
+            whole_sections_to_write.append({item_to_do: self.iids_from_guid(item_to_do)})
         elif item_to_do == "define":
-            to_write.append(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True), stream)
+            whole_sections_to_write.append(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True))
         elif item_to_do == "index":
-            to_write.append(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True), stream)
+            whole_sections_to_write.append(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True))
         elif item_to_do == "guid":
             guid_dict = dict()
             for lic in self.guid_list():
                 guid_dict[lic] = self.iids_from_guid(lic)
-            to_write.append(guid_dict)
+            whole_sections_to_write.append(guid_dict)
         else:
-            to_write.append(self.repr_for_yaml(what))
-    augmentedYaml.writeAsYaml(to_write, stream)
+            individual_items_to_write.append(item_to_do)
+
+    augmentedYaml.writeAsYaml(whole_sections_to_write+self.repr_for_yaml(individual_items_to_write), stream)
 
 
 def create_completion_list_imp(self, for_what="all"):
