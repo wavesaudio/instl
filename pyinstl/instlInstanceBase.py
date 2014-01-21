@@ -68,11 +68,12 @@ class InstlInstanceBase(object):
                 self.cvl.add_const_config_variable(var, var_description, value)
 
         var_description = "from InstlInstanceBase.init_default_vars"
-        self.cvl.add_const_config_variable("CURRENT_OS", var_description, os_family_name)
-        self.cvl.add_const_config_variable("CURRENT_OS_SECOND_NAME", var_description, os_second_name)
-        self.cvl.add_const_config_variable("CURRENT_OS_NAMES", var_description, *current_os_names)
+        self.cvl.add_const_config_variable("__CURRENT_OS__", var_description, os_family_name)
+        self.cvl.add_const_config_variable("__CURRENT_OS_SECOND_NAME__", var_description, os_second_name)
+        self.cvl.add_const_config_variable("__CURRENT_OS_NAMES__", var_description, *current_os_names)
         self.cvl.set_variable("TARGET_OS", var_description).append(os_family_name)
         self.cvl.set_variable("TARGET_OS_NAMES", var_description).extend(current_os_names)
+        self.cvl.add_const_config_variable("TARGET_OS_SECOND_NAME", var_description, os_second_name)
         self.cvl.add_const_config_variable("__INSTL_VERSION__", var_description, *INSTL_VERSION)
         self.cvl.set_variable("BASE_REPO_REV", var_description).append("1")
 
@@ -129,6 +130,11 @@ class InstlInstanceBase(object):
         for identifier in self.cvl:
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
 
+    def is_acceptable_yaml_doc(self, doc_node):
+        acceptables = self.cvl.get_list("ACCEPTABLE_YAML_DOC_TAGS") + ("define", "index")
+        acceptables = ["!"+acceptibul for acceptibul in acceptables]
+        retVal = doc_node.tag in acceptables
+        return retVal
 
     @func_log_wrapper
     def read_yaml_file(self, file_path):
@@ -136,12 +142,13 @@ class InstlInstanceBase(object):
             logging.info("... Reading input file %s", file_path)
             with open_for_read_file_or_url(file_path, self.search_paths_helper) as file_fd:
                 for a_node in yaml.compose_all(file_fd):
-                    if a_node.tag == '!define':
-                        self.read_defines(a_node)
-                    elif a_node.tag == '!index':
-                        self.read_index(a_node)
-                    else:
-                        logging.error("Unknown document tag '%s' while reading file %s; Tag should be one of: !define, !index'", a_node.tag, file_path)
+                    if self.is_acceptable_yaml_doc(a_node):
+                        if a_node.tag.startswith('!define'):
+                            self.read_defines(a_node)
+                        elif a_node.tag.startswith('!index'):
+                            self.read_index(a_node)
+                        else:
+                            logging.error("Unknown document tag '%s' while reading file %s; Tag should be one of: !define, !index'", a_node.tag, file_path)
         except InstlException as unused_ie:
             raise # re-raise in case of recursive call to read_file
         except yaml.YAMLError as ye:
@@ -246,6 +253,7 @@ class InstlInstanceBase(object):
         if out_file != "stdout":
             self.out_file_realpath = os.path.realpath(out_file)
             os.chmod(self.out_file_realpath, 0755)
+        print(out_file)
 
     @func_log_wrapper
     def run_batch_file(self):

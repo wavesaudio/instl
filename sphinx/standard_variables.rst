@@ -15,12 +15,12 @@ These variable can be supplied by the used in the !define file, but have deafult
     * BASE_SRC_URL: Base Subversion URL for all install_sources sections in the index file. Defaults to "$(SYNC_BASE_URL)/$(TARGET_OS)". 
     * BOOKKEEPING_DIR_URL: Subversion URL for the folder holding the index file. Defaults to "$(SYNC_BASE_URL)/instl"
     * COPY_TOOL: The commandline tool used to copy files. Deafault to 'rsync' on Mac and 'robocopy' on Windows.
-    * CURRENT_OS: The os **instl** is currently running on. Values are 'Win' for Windows and 'Mac' for Mac OS.
+    * __CURRENT_OS__: The os **instl** is currently running on. Values are 'Win' for Windows and 'Mac' for Mac OS.
     * LOCAL_SYNC_DIR: The folder where **instl** will sync the installation sources to. Defaults to the systam's temporary folder.
     * REPO_NAME: The part of SYNC_BASE_URL representing the name of the repository. Defaults to the last URL element of SYNC_BASE_URL.
     * REPO_REV: The version of the subversion reprository to sync. defaults to HEAD.
     * SYNC_LOG_FILE: Path to a file where sync log will be written. Defaults to "${LOCAL_SYNC_DIR}/${REPO_NAME}/"+time.time()+"sync.log.
-    * TARGET_OS: The os **instl** is installing to.  Values are 'Win' for Windows and 'Mac' for Mac OS. Defaults to CURRENT_OS.
+    * TARGET_OS: The os **instl** is installing to.  Values are 'Win' for Windows and 'Mac' for Mac OS. Defaults to __CURRENT_OS__.
     
 Public **instl** created variables
 =================================

@@ -116,7 +116,7 @@ class InstlAdmin(InstlInstanceBase):
         """
         current_base_repo_rev = int(self.cvl.get_str("BASE_REPO_REV"))
         retVal = True
-        create_links_done_stamp_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/"+str(revision)+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
+        create_links_done_stamp_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+str(revision)+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
         if os.path.isfile(create_links_done_stamp_file):
             if revision == current_base_repo_rev: # revision is the new base_repo_rev
                 try:
@@ -127,15 +127,14 @@ class InstlAdmin(InstlInstanceBase):
                         msg = " ".join( ("new base revision", str(current_base_repo_rev), "(was", str(previous_base_repo_rev),") need to refresh links") )
                         self.batch_accum += self.platform_helper.echo(msg); print(msg)
                         # if we need to create links, remove the upload stems in order to force upload
-                        try: os.remove(self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/"+str(rev_dir)+"/$(UP_2_S3_STAMP_FILE_NAME)"))
+                        try: os.remove(self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+str(rev_dir)+"/$(UP_2_S3_STAMP_FILE_NAME)"))
                         except: pass
                 except:
                     pass # no previous base repo rev indication was found so return True to re-create the links
             else:
                 retVal = False
         else: # no stamp file found
-            msg = " ".join( ("creating links for revision", str(revision)) )
-            self.batch_accum += self.platform_helper.echo(msg); print(msg)
+            print("Creating links for revision", str(revision))
         return retVal
 
     def do_createlinks(self):
@@ -143,8 +142,8 @@ class InstlAdmin(InstlInstanceBase):
             raise ValueError("'REPO_NAME' was not defined")
         if "SVN_REPO_URL" not in self.cvl:
             raise ValueError("'SVN_REPO_URL' was not defined")
-        if "ROOT_LINKS_FOLDER" not in self.cvl:
-            raise ValueError("'ROOT_LINKS_FOLDER' was not defined")
+        if "ROOT_LINKS_FOLDER_REPO" not in self.cvl:
+            raise ValueError("'ROOT_LINKS_FOLDER_REPO' was not defined")
         if "COPY_TOOL" not in self.cvl:
             from platformSpecificHelper_Base import DefaultCopyToolName
             self.cvl.set_variable("COPY_TOOL").append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
@@ -155,19 +154,24 @@ class InstlAdmin(InstlInstanceBase):
 
         self.platform_helper.use_copy_tool(self.cvl.resolve_string("$(COPY_TOOL)"))
 
+        info_as_io = None
         # call svn info and to find out the last repo revision
-        svn_info_command = ["svn", "info", self.cvl.resolve_string("$(SVN_REPO_URL)")]
-        proc = subprocess.Popen(svn_info_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        my_stdout, my_stderr = proc.communicate()
-        if proc.returncode != 0 or my_stderr != "":
-            raise ValueError("Could not read info from svn: "+my_stderr)
-
-        info_as_io = StringIO.StringIO(my_stdout)
+        repo_url = self.cvl.resolve_string("$(SVN_REPO_URL)")
+        if os.path.isdir(repo_url):
+            svn_info_command = ["svn", "info", ".", "--depth", "infinity"]
+        else:
+            svn_info_command = ["svn", "info", repo_url, "--depth", "infinity"]
+        with ChangeDirIfExists(repo_url):
+            proc = subprocess.Popen(svn_info_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            my_stdout, my_stderr = proc.communicate()
+            if proc.returncode != 0 or my_stderr != "":
+                raise ValueError("Could not read info from svn: "+my_stderr)
+            info_as_io = StringIO.StringIO(my_stdout)
         self.svnTree.read_from_svn_info(info_as_io)
         _, last_repo_rev = self.svnTree.min_max_rev()
         self.cvl.set_variable("__LAST_REPO_REV__").append(str(last_repo_rev))
 
-        self.cvl.set_variable("__CHECKOUT_FOLDER__").append("$(ROOT_LINKS_FOLDER)/Base")
+        self.cvl.set_variable("__CHECKOUT_FOLDER__").append("$(ROOT_LINKS_FOLDER_REPO)/Base")
         self.batch_accum += self.platform_helper.mkdir("$(__CHECKOUT_FOLDER__)")
 
         accum = BatchAccumulator(self.cvl) # sub-accumulator serves as a template for each version
@@ -196,7 +200,7 @@ class InstlAdmin(InstlInstanceBase):
             self.run_batch_file()
 
     def create_links_for_revision(self, accum):
-        revision_folder_path = "$(ROOT_LINKS_FOLDER)/$(__CURR_REPO_REV__)"
+        revision_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)"
         revision_instl_folder_path = revision_folder_path+"/instl"
 
         accum += self.platform_helper.echo("Creating links for revision $(__CURR_REPO_REV__)")
@@ -206,9 +210,9 @@ class InstlAdmin(InstlInstanceBase):
         accum += " ".join(checkout_command_parts)
 
         # copy Base folder to revision folder
-        accum += self.platform_helper.mkdir("$(ROOT_LINKS_FOLDER)/$(__CURR_REPO_REV__)")
-        accum += self.platform_helper.echo("Copying revision $(__CURR_REPO_REV__) to $(ROOT_LINKS_FOLDER)/$(__CURR_REPO_REV__)")
-        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir("$(__CHECKOUT_FOLDER__)", revision_folder_path, "$(ROOT_LINKS_FOLDER)/Base", ignore=".svn")
+        accum += self.platform_helper.mkdir("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
+        accum += self.platform_helper.echo("Copying revision $(__CURR_REPO_REV__) to $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
+        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir("$(__CHECKOUT_FOLDER__)", revision_folder_path, "$(ROOT_LINKS_FOLDER_REPO)/Base", ignore=".svn")
 
         # get info from SVN for all files in revision
         accum += self.platform_helper.mkdir(revision_instl_folder_path)
@@ -222,9 +226,9 @@ class InstlAdmin(InstlInstanceBase):
         props_command_parts = ['"$(SVN_CLIENT_PATH)"', "proplist", "--depth infinity", ">", "../$(__CURR_REPO_REV__)/instl/info_map.props"]
         accum += " ".join(props_command_parts)
 
-        accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER)/$(__CURR_REPO_REV__)")
+        accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
         # translate SVN info and properties to info_map text format
-        accum += self.platform_helper.echo("Creating $(ROOT_LINKS_FOLDER)/$(__CURR_REPO_REV__)/instl/info_map.txt")
+        accum += self.platform_helper.echo("Creating $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map.txt")
         trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans",
                                "--in", "instl/info_map.info",
                                "--props ", "instl/info_map.props",
@@ -233,19 +237,19 @@ class InstlAdmin(InstlInstanceBase):
         accum += " ".join(trans_command_parts)
 
         # create Mac only info_map
-        accum += self.platform_helper.echo("Creating $(ROOT_LINKS_FOLDER)/$(__CURR_REPO_REV__)/instl/info_map_Mac.txt")
+        accum += self.platform_helper.echo("Creating $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map_Mac.txt")
         trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans", "--in", "instl/info_map.txt", "--out ", "instl/info_map_Mac.txt",  "--filter-out", "Win"]
         accum += " ".join(trans_command_parts)
 
         # create Win only info_map
-        accum += self.platform_helper.echo("Creating $(ROOT_LINKS_FOLDER)/$(__CURR_REPO_REV__)/instl/info_map_Win.txt")
+        accum += self.platform_helper.echo("Creating $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map_Win.txt")
         trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans", "--in", "instl/info_map.txt", "--out ", "instl/info_map_Win.txt",  "--filter-out", "Mac"]
         accum += " ".join(trans_command_parts)
 
         accum += self.platform_helper.rmfile("$(UP_2_S3_STAMP_FILE_NAME)")
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(CREATE_LINKS_STAMP_FILE_NAME)"])
 
-        accum += self.platform_helper.echo("done version $(__CURR_REPO_REV__)")
+        accum += self.platform_helper.echo("done createlinks version $(__CURR_REPO_REV__)")
 
     class RemoveIfNotSpecificVersion:
         def __init__(self, version_not_to_remove):
@@ -259,23 +263,23 @@ class InstlAdmin(InstlInstanceBase):
             return retVal
 
     def do_up2s3(self):
-        root_links_folder = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)")
+        root_links_folder = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)")
         sub_dirs = os.listdir(root_links_folder)
         dirs_to_upload = list()
         for rev_dir in sub_dirs:
             try:
                 dir_as_int = int(rev_dir) # revision dirs should be integers
-                if not os.path.isdir(self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/"+str(rev_dir))):
+                if not os.path.isdir(self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+str(rev_dir))):
                     print(rev_dir, "is not a directory")
                     continue
                 if dir_as_int < int(self.cvl.get_str("BASE_REPO_REV")):
                     print(rev_dir, "is below BASE_REPO_REV", self.cvl.get_str("BASE_REPO_REV"))
                     continue
-                create_links_done_stamp_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/"+str(rev_dir)+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
+                create_links_done_stamp_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+str(rev_dir)+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
                 if not os.path.isfile(create_links_done_stamp_file):
                     print("Ignoring folder", str(rev_dir), "Could not find ", create_links_done_stamp_file)
                     continue
-                up_2_s3_done_stamp_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/"+str(rev_dir)+"/$(UP_2_S3_STAMP_FILE_NAME)")
+                up_2_s3_done_stamp_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+str(rev_dir)+"/$(UP_2_S3_STAMP_FILE_NAME)")
                 if os.path.isfile(up_2_s3_done_stamp_file):
                     print("Ignoring folder", str(rev_dir), "already uploaded to S3")
                     continue
@@ -284,7 +288,7 @@ class InstlAdmin(InstlInstanceBase):
                 pass
         dirs_to_upload.sort(key=int)
         for work_dir in dirs_to_upload:
-            print("Will upload to", self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/"+work_dir))
+            print("Will upload to", self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+work_dir))
 
         self.batch_accum.set_current_section('upload')
         for revision in dirs_to_upload:
@@ -296,6 +300,7 @@ class InstlAdmin(InstlInstanceBase):
             self.do_upload_to_s3_aws_for_revision(accum)
             revision_lines = accum.finalize_list_of_lines() # will resolve with current  __CURR_REPO_REV__
             self.batch_accum += revision_lines
+            self.batch_accum += self.platform_helper.echo("done up2s3 version $(__CURR_REPO_REV__)")
             self.batch_accum += self.platform_helper.restore_dir(save_dir_var)
             self.batch_accum += self.platform_helper.new_line()
 
@@ -306,14 +311,14 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_upload_to_s3_aws_for_revision(self, accum):
         map_file_path = 'instl/info_map.txt'
-        info_map_path = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/$(__CURR_REPO_REV__)/"+map_file_path)
+        info_map_path = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/"+map_file_path)
         repo_rev = int(self.cvl.resolve_string("$(__CURR_REPO_REV__)"))
         self.svnTree.clear_subs()
         self.read_info_map_file(info_map_path)
 
-        accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER)/$(__CURR_REPO_REV__)")
+        accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
 
-        if 'Mac' in self.cvl.get_list("CURRENT_OS_NAMES"):
+        if 'Mac' in self.cvl.get_list("__CURRENT_OS_NAMES__"):
             accum += "find . -name .DS_Store -delete"
 
         # Files a folders that do not be long to __CURR_REPO_REV__ should not be uploaded.
@@ -364,11 +369,12 @@ class InstlAdmin(InstlInstanceBase):
             raise ValueError("file REPO_REV_FILE_VARAIBLES "+str(dangerous_intersection)+" and so is forbidden to upload")
         self.cvl.set_value_if_var_does_not_exist("REPO_REV_FILE_NAME", "$(REPO_NAME)_repo_rev.yaml")
         s3_path = self.cvl.resolve_string("admin/$(REPO_REV_FILE_NAME)")
-        print("uploading to:", s3_path)
+        print("uploading to:", self.cvl.resolve_string("http://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)"))
 
         repo_rev_yaml = self.cvl.repr_for_yaml(repo_rev_vars, include_comments=False)
-        local_temp_file = self.cvl.resolve_string("$(REPO_REV_FILE_NAME)")
-        with open(local_temp_file, "w") as wfd:
+        safe_makedirs(self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/admin"))
+        local_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME)")
+        with open(local_file, "w") as wfd:
             writeAsYaml(repo_rev_yaml, out_stream=wfd, indentor=None, sort=True)
         import boto
         s3 		= boto.connect_s3(self.cvl.get_str("AWS_ACCESS_KEY_ID"), self.cvl.get_str("AWS_SECRET_ACCESS_KEY"))
@@ -376,7 +382,7 @@ class InstlAdmin(InstlInstanceBase):
         key_obj = boto.s3.key.Key(bucket)
         key_obj.key = s3_path
         key_obj.metadata={'Content-Type': 'text/plain'}
-        key_obj.set_contents_from_filename(local_temp_file, cb=percent_cb, num_cb=4)
+        key_obj.set_contents_from_filename(local_file, cb=percent_cb, num_cb=4)
         key_obj.set_acl('public-read') # must be done after the upload
 
     def do_fix_props(self):

@@ -2,6 +2,7 @@
 from __future__ import print_function
 
 import logging
+import hashlib
 
 from pyinstl.log_utils import func_log_wrapper
 from pyinstl.utils import *
@@ -41,6 +42,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
             raise ValueError("'DOWNLOAD_TOOL_PATH' was not defined")
         get_url_client_full_path = self.instlInstance.search_paths_helper.find_file_with_search_paths(self.instlInstance.cvl.resolve_string("$(DOWNLOAD_TOOL_PATH)"), return_original_if_not_found=True)
         self.instlInstance.cvl.set_variable("__RESOLVED_DOWNLOAD_TOOL_PATH__", var_description).append(get_url_client_full_path)
+        get_checksum_client_full_path = self.instlInstance.search_paths_helper.find_file_with_search_paths(self.instlInstance.cvl.resolve_string("$(CHECKSUM_TOOL_PATH)"), return_original_if_not_found=True)
+        self.instlInstance.cvl.set_variable("__RESOLVED_CHECKSUM_TOOL_PATH__", var_description).append(get_checksum_client_full_path)
 
         self.instlInstance.cvl.set_value_if_var_does_not_exist("REPO_REV", "HEAD", description=var_description)
         self.instlInstance.cvl.set_value_if_var_does_not_exist("SYNC_TRAGET_OS_URL", "$(SYNC_BASE_URL)/$(TARGET_OS)", description=var_description)
@@ -190,12 +193,26 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress("sync from $(SYNC_TRAGET_OS_URL)")
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.copy_file_to_file("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")
 
+    def need_to_download_file(self, file_path, file_checksum):
+        retVal = True
+        if os.path.isfile(file_path):
+            sha1ner = hashlib.sha1()
+            sha1ner.update(open(file_path, "r").read())
+            checksum = sha1ner.hexdigest()
+            if checksum == file_checksum:
+                retVal = False
+        return retVal
+
     def create_download_instructions_for_item_one_by_one(self, item, path_so_far = list()):
         if item.isSymlink():
             print("Found symlink at", item.full_path())
         elif item.isFile():
-            source_url =   '/'.join( ["$(SYNC_BASE_URL)", str(item.last_rev())] + path_so_far + [item.name()] )
-            self.instlInstance.batch_accum += self.instlInstance.platform_helper.dl_tool.download_url_to_file(source_url, item.name())
+            expected_path = os.path.join(*[self.instlInstance.cvl.resolve_string("$(LOCAL_SYNC_DIR)")] + path_so_far + [item.name()])
+            # check the off chance that the file already exists. This might happen if a sync batch could not finish downloading all it's files
+            need_to_download = self.need_to_download_file(expected_path, item.checksum())
+            if need_to_download:
+                source_url = '/'.join( ["$(SYNC_BASE_URL)", str(item.last_rev())] + path_so_far + [item.name()] )
+                self.instlInstance.batch_accum += self.instlInstance.platform_helper.dl_tool.download_url_to_file(source_url, item.name())
             self.instlInstance.batch_accum += self.instlInstance.platform_helper.check_checksum(item.name(), item.checksum())
             self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress(item.full_path())
         elif item.isDir():
@@ -235,12 +252,13 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
     def create_download_instructions_for_item_config_file(self, item, path_so_far = list()):
         if item.isSymlink():
-            source_url = '/'.join(( self.sync_base_url, str(item.last_rev()), "/".join(path_so_far), item.name() + ".readlink" ))
-            self.instlInstance.platform_helper.dl_tool.add_download_url( source_url, item.full_path() + ".readlink" )
-            self.symlinks.append( ("/".join(path_so_far), item.name()) )
+            print("Found symlink at", item.full_path())
         elif item.isFile():
-            source_url = '/'.join( [ self.sync_base_url, str(item.last_rev())] + path_so_far + [item.name()] )
-            self.instlInstance.platform_helper.dl_tool.add_download_url( source_url, item.full_path() )
+            expected_path = os.path.join(*[self.instlInstance.cvl.resolve_string("$(LOCAL_SYNC_DIR)")] + path_so_far + [item.name()])
+            need_to_download = self.need_to_download_file(expected_path, item.checksum())
+            if need_to_download:
+                source_url = '/'.join( [ self.sync_base_url, str(item.last_rev())] + path_so_far + [item.name()] )
+                self.instlInstance.platform_helper.dl_tool.add_download_url( source_url, item.full_path() )
         elif item.isDir():
             path_so_far.append(item.name())
             self.instlInstance.batch_accum.indent_level += 1

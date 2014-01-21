@@ -136,13 +136,22 @@ class InstlClient(InstlInstanceBase):
             retVal.append(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True))
             retVal.append(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True))
         else:
+            defines = list()
+            indexes = list()
+            unknowns = list()
             for identifier in what:
                 if identifier in self.cvl:
-                    retVal.append(self.cvl.repr_for_yaml(identifier))
+                    defines.append(self.cvl.repr_for_yaml(identifier))
                 elif identifier in self.install_definitions_index:
-                    retVal.append({identifier: self.install_definitions_index[identifier].repr_for_yaml()})
+                    indexes.append({identifier: self.install_definitions_index[identifier].repr_for_yaml()})
                 else:
-                    retVal.append(augmentedYaml.YamlDumpWrap(value="UNKNOWN VARIABLE", comment=identifier+" is not in variable list"))
+                    unknowns.append(augmentedYaml.YamlDumpWrap(value="UNKNOWN VARIABLE", comment=identifier+" is not in variable list"))
+            if defines:
+                retVal.append(augmentedYaml.YamlDumpDocWrap(defines, '!define', "Definitions", explicit_start=True, sort_mappings=True))
+            if indexes:
+                retVal.append(augmentedYaml.YamlDumpDocWrap(indexes, '!index', "Installation index", explicit_start=True, sort_mappings=True))
+            if unknowns:
+                retVal.append(augmentedYaml.YamlDumpDocWrap(unknowns, '!unknowns', "Installation index", explicit_start=True, sort_mappings=True))
 
         return retVal
 
@@ -195,7 +204,7 @@ class InstlClient(InstlInstanceBase):
 
         self.batch_accum += self.platform_helper.progress("from $(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)")
 
-        if 'Mac' in self.cvl.get_list("CURRENT_OS_NAMES") and 'Mac' in self.cvl.get_list("TARGET_OS"):
+        if 'Mac' in self.cvl.get_list("__CURRENT_OS_NAMES__") and 'Mac' in self.cvl.get_list("TARGET_OS"):
             self.batch_accum += self.platform_helper.resolve_symlink_files(in_dir="$(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)")
             self.batch_accum += self.platform_helper.progress("resolve .symlink files")
 

@@ -232,6 +232,23 @@ def deprecated(deprecated_func):
     return raise_deprecation
 
 
+class ChangeDirIfExists(object):
+    """Context manager for changing the current working directory"""
+    def __init__(self, newPath):
+        if os.path.isdir(newPath):
+            self.newPath = newPath
+        else:
+            self.newPath = None
+
+    def __enter__(self):
+        if self.newPath:
+            self.savedPath = os.getcwd()
+            os.chdir(self.newPath)
+
+    def __exit__(self, etype, value, traceback):
+        if self.newPath:
+            os.chdir(self.savedPath)
+
 def safe_makedirs(path_to_dir):
     """ solves a problem with python 27 where is the dir already exists os.makedirs raises """
     try:
