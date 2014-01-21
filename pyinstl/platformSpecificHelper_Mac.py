@@ -121,23 +121,23 @@ find -P "%s" -type f -name '*.symlink' | while read readlink_file; do
 done""" % in_dir)
         return resolve_commands
 
-    def check_checksum(self, file, checksum):
-        chec_command_parts = (  "CHECKSUM_CHECK=`openssl sha1",
-                                quoteme_double(file),
+    def check_checksum(self, filepath, checksum):
+        check_command_parts = (  "CHECKSUM_CHECK=`$(__RESOLVED_CHECKSUM_TOOL_PATH__) sha1",
+                                quoteme_double(filepath),
                                 "` ;",
                                 "if [ ${CHECKSUM_CHECK: -40} !=",
                                 quoteme_double(checksum),
                                 "];",
                                 "then",
                                 "echo bad checksum",
-                                quoteme_double("${PWD}/"+file),
+                                quoteme_double("${PWD}/"+filepath),
                                 "1>&2",
                                 ";",
                                 "exit 1",
                                 ";",
                                 "fi"
                             )
-        check_command = " ".join( chec_command_parts )
+        check_command = " ".join( check_command_parts )
         return check_command
 
 class DownloadTool_mac_curl(DownloadToolBase):
