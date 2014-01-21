@@ -42,6 +42,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
             raise ValueError("'DOWNLOAD_TOOL_PATH' was not defined")
         get_url_client_full_path = self.instlInstance.search_paths_helper.find_file_with_search_paths(self.instlInstance.cvl.resolve_string("$(DOWNLOAD_TOOL_PATH)"), return_original_if_not_found=True)
         self.instlInstance.cvl.set_variable("__RESOLVED_DOWNLOAD_TOOL_PATH__", var_description).append(get_url_client_full_path)
+        get_checksum_client_full_path = self.instlInstance.search_paths_helper.find_file_with_search_paths(self.instlInstance.cvl.resolve_string("$(CHECKSUM_TOOL_PATH)"), return_original_if_not_found=True)
+        self.instlInstance.cvl.set_variable("__RESOLVED_CHECKSUM_TOOL_PATH__", var_description).append(get_checksum_client_full_path)
 
         self.instlInstance.cvl.set_value_if_var_does_not_exist("REPO_REV", "HEAD", description=var_description)
         self.instlInstance.cvl.set_value_if_var_does_not_exist("SYNC_TRAGET_OS_URL", "$(SYNC_BASE_URL)/$(TARGET_OS)", description=var_description)

@@ -108,6 +108,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
 
     def get_install_instructions_prefix(self):
         retVal = ("@echo off",
+            "setlocal enableextensions enabledelayedexpansion",
             self.remark(self.instlInstance.get_version_str()),
             self.remark(datetime.datetime.today().isoformat()),
             self.save_dir("TOP_SAVE_DIR"),
@@ -117,11 +118,15 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def get_install_instructions_postfix(self):
         retVal = (
                 self.restore_dir("TOP_SAVE_DIR"),
+                "endlocal",
                 "exit /b 0",
                 "",
                 ":EXIT_ON_ERROR",
                 self.restore_dir("TOP_SAVE_DIR"),
-                "exit /b",
+                "set defERRORLEVEL=%ERRORLEVEL%",
+                "if %defERRORLEVEL% == 0 (set defERRORLEVEL=1)",
+                "endlocal",
+                "exit /b %defERRORLEVEL%"
                 )
         return retVal
 
@@ -182,8 +187,24 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def resolve_readlink_files(self, in_dir="."):
         return ()
 
-    def check_checksum(self, file, checksum):
-        return ()
+    def check_checksum(self, filepath, checksum):
+        check_command_parts = (  "for /f "delims=" %%i in",
+                                "('$(__RESOLVED_CHECKSUM_TOOL_PATH__) -s",
+                                quoteme_double(filepath),
+                                "')",
+                                "do (set CHECKSUM_CHECK=%%i",
+                                "&",
+                                "if not \"!CHECKSUM_CHECK:~0,40!\"==",
+                                quoteme_double(checksum),
+                                "(echo bad checksum",
+                                quoteme_double("${PWD}/"+filepath),
+                                "1>&2",
+                                "&",
+                                "GOTO EXIT_ON_ERROR)",
+                                ")"
+                            )
+        check_command = " ".join( check_command_parts )
+        return check_command
 
 class DownloadTool_win_wget(DownloadToolBase):
     def __init__(self, platformHelper):
