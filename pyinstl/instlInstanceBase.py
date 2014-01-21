@@ -47,7 +47,7 @@ class InstlInstanceBase(object):
         self.search_paths_helper = SearchPaths(self.cvl.get_configVar_obj("__SEARCH_PATHS__"))
         self.search_paths_helper.add_search_path(os.getcwd())
         self.search_paths_helper.add_search_path(os.path.dirname(os.path.realpath(sys.argv[0])))
-        self.search_paths_helper.add_search_path(self.cvl.get_str("__INSTL_EXE_PATH__"))
+        self.search_paths_helper.add_search_path(self.cvl.get_str("__INSTL_DATA_FOLDER__"))
 
         self.guid_re = re.compile("""
                         [a-f0-9]{8}

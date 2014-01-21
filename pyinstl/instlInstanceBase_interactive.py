@@ -600,7 +600,7 @@ def do_list_imp(self, what = None, stream=sys.stdout):
             guid_dict = dict()
             for lic in self.guid_list():
                 guid_dict[lic] = self.iids_from_guid(lic)
-            whole_sections_to_write.append(guid_dict)
+            whole_sections_to_write.append(augmentedYaml.YamlDumpDocWrap(guid_dict, '!guid', "guid to IID", explicit_start=True, sort_mappings=True))
         else:
             individual_items_to_write.append(item_to_do)
 

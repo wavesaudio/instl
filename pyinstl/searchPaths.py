@@ -67,7 +67,7 @@ class SearchPaths(object):
         if os.path.isfile(in_file):
             real_file = os.path.realpath(in_file)
             logging.debug("...... is an existing file path returning %s", real_file)
-            real_folder, _ = os.path.split(real_file)
+            real_folder = os.path.dirname(real_file)
             self.add_search_path(real_folder)
             retVal = real_file
         else:
@@ -79,7 +79,7 @@ class SearchPaths(object):
                     logging.debug("......... found returning %s", real_file)
                     # in_file might be a relative path so must add the file's
                     # real folder so it's in the list.
-                    real_folder, _ = os.path.split(real_file)
+                    real_folder = os.path.dirname(real_file)
                     self.add_search_path(real_folder)
                     retVal = real_file
                     break

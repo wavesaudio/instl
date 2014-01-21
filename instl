@@ -40,7 +40,7 @@ def get_data_folder():
     if getattr(sys, 'frozen', False):
         data_folder = getattr(sys, '_MEIPASS', None)
     elif __file__:
-        data_folder, _ = os.path.split(os.path.realpath(__file__))
+        data_folder = os.path.dirname(os.path.realpath(__file__))
     return data_folder
 
 class CommandLineOptions(object):
