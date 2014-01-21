@@ -249,7 +249,7 @@ class InstlAdmin(InstlInstanceBase):
         accum += self.platform_helper.rmfile("$(UP_2_S3_STAMP_FILE_NAME)")
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(CREATE_LINKS_STAMP_FILE_NAME)"])
 
-        accum += self.platform_helper.echo("done version $(__CURR_REPO_REV__)")
+        accum += self.platform_helper.echo("done createlinks version $(__CURR_REPO_REV__)")
 
     class RemoveIfNotSpecificVersion:
         def __init__(self, version_not_to_remove):
@@ -300,6 +300,7 @@ class InstlAdmin(InstlInstanceBase):
             self.do_upload_to_s3_aws_for_revision(accum)
             revision_lines = accum.finalize_list_of_lines() # will resolve with current  __CURR_REPO_REV__
             self.batch_accum += revision_lines
+            self.batch_accum += self.platform_helper.echo("done up2s3 version $(__CURR_REPO_REV__)")
             self.batch_accum += self.platform_helper.restore_dir(save_dir_var)
             self.batch_accum += self.platform_helper.new_line()
 
@@ -368,7 +369,7 @@ class InstlAdmin(InstlInstanceBase):
             raise ValueError("file REPO_REV_FILE_VARAIBLES "+str(dangerous_intersection)+" and so is forbidden to upload")
         self.cvl.set_value_if_var_does_not_exist("REPO_REV_FILE_NAME", "$(REPO_NAME)_repo_rev.yaml")
         s3_path = self.cvl.resolve_string("admin/$(REPO_REV_FILE_NAME)")
-        print("uploading to:", s3_path)
+        print("uploading to:", self.cvl.resolve_string("http://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)"))
 
         repo_rev_yaml = self.cvl.repr_for_yaml(repo_rev_vars, include_comments=False)
         safe_makedirs(self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/admin"))
