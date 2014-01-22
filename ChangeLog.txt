@@ -26,6 +26,7 @@
     * Fixed list guid in interactive mode
     * Variable SEARCH_PATHS enables so set search paths in the yaml file.
     * improved reporting of bad checksum on windows.
+    * Windows: robocopy might exit with error even if there are no errors. So error checking for robocopy is now level dependent.
 
     Changes to V9_test repository that do not effect code
     * 7ZA_CLIENT_PATH renamed WTAR_OPENER, the 7 probably caused problems on windows
@@ -69,6 +70,7 @@
     * Added data folder to search paths, removed the instl executable which was not usefull since it's a file.
     * file read for checksum using "rb" for Windows' sake.
     * download_from_file_or_url writes with "wb" for windows' sake.
+    * option to redirect robocopy log to instl log - currently only from code not for variables.
 
 9/1/2014 0.6.5  Shai Shasag <shai@waves.com>
 

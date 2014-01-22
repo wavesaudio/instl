@@ -14,6 +14,7 @@ from platformSpecificHelper_Base import quoteme_double
 class CopyTool_win_robocopy(CopyToolBase):
     def __init__(self, platformHelper):
         super(CopyTool_win_robocopy, self).__init__(platformHelper)
+        self.robocopy_error_threshold = 4 # see ss64.com/nt/robocopy-exit.html
 
     def create_ignore_spec(self, ignore):
         retVal = ""
@@ -22,38 +23,50 @@ class CopyTool_win_robocopy(CopyToolBase):
         retVal = "/XF {ignore} /XD {ignore}".format(**locals())
         return retVal
 
+    def create_log_spec(self):
+        """ To do: dedicate a variable to copy logging (COPY_LOG_FILE ???)
+        """
+        retVal = ""
+        #log_file = self.platformHelper.instlInstance.cvl.get_str("LOG_FILE")
+        #retVal = " /LOG:{log_file}".format(**locals())
+        return retVal
+
     def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=None, ignore=None):
         retVal = list()
         _, dir_to_copy = os.path.split(src_dir)
         trg_dir = "/".join( (trg_dir, dir_to_copy) )
         ignore_spec = self.create_ignore_spec(ignore)
-        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /E {ignore_spec} /R:3 /W:3".format(**locals())
+        log_file_spec = self.create_log_spec()
+        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /E {ignore_spec} /R:3 /W:3 {log_file_spec}".format(**locals())
         retVal.append(copy_command)
-        retVal.append(self.platformHelper.exit_if_error())
+        retVal.append(self.platformHelper.exit_if_error(self.robocopy_error_threshold))
         return retVal
 
     def copy_file_to_dir(self, src_file, trg_dir, link_dest=None, ignore=None):
         retVal = list()
         src_dir, src_file = os.path.split(src_file)
-        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" \"{src_file}\" /R:3 /W:3".format(**locals())
+        log_file_spec = self.create_log_spec()
+        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" \"{src_file}\" /R:3 /W:3 {log_file_spec}".format(**locals())
         retVal.append(copy_command)
-        retVal.append(self.platformHelper.exit_if_error())
+        retVal.append(self.platformHelper.exit_if_error(self.robocopy_error_threshold))
         return retVal
 
     def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=None, ignore=None):
         retVal = list()
         ignore_spec = self.create_ignore_spec(ignore)
-        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /E {ignore_spec} /R:3 /W:3".format(**locals())
+        log_file_spec = self.create_log_spec()
+        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /E {ignore_spec} /R:3 /W:3 {log_file_spec}".format(**locals())
         retVal.append(copy_command)
-        retVal.append(self.platformHelper.exit_if_error())
+        retVal.append(self.platformHelper.exit_if_error(self.robocopy_error_threshold))
         return retVal
 
     def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=None, ignore=None):
         retVal = list()
         ignore_spec = self.create_ignore_spec(ignore)
-        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /LEV:1 {ignore_spec} /R:3 /W:3".format(**locals())
+        log_file_spec = self.create_log_spec()
+        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /LEV:1 {ignore_spec} /R:3 /W:3 {log_file_spec}".format(**locals())
         retVal.append(copy_command)
-        retVal.append(self.platformHelper.exit_if_error())
+        retVal.append(self.platformHelper.exit_if_error(self.robocopy_error_threshold))
         return retVal
 
     def copy_file_to_file(self, src_file, trg_file, link_dest=None, ignore=None):
@@ -107,7 +120,8 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         self.dl_tool = DownloadTool_win_wget(self)
 
     def get_install_instructions_prefix(self):
-        retVal = ("@echo off",
+        retVal = (
+            "@echo off",
             "setlocal enableextensions enabledelayedexpansion",
             self.remark(self.instlInstance.get_version_str()),
             self.remark(datetime.datetime.today().isoformat()),
@@ -125,13 +139,14 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
                 self.restore_dir("TOP_SAVE_DIR"),
                 "set defERRORLEVEL=%ERRORLEVEL%",
                 "if %defERRORLEVEL% == 0 (set defERRORLEVEL=1)",
+                'echo "Exit on error" 1>&2',
                 "endlocal",
                 "exit /b %defERRORLEVEL%"
                 )
         return retVal
 
-    def exit_if_error(self):
-        retVal = ("IF", "ERRORLEVEL", "1", "GOTO", "EXIT_ON_ERROR")
+    def exit_if_error(self, error_threshold=1):
+        retVal = ("IF", "ERRORLEVEL", str(error_threshold), "(", "echo", '"Error %ERRORLEVEL% at step ' + str(self.num_items_for_progress_report+1)+'"', "1>&2", "&", "GOTO", "EXIT_ON_ERROR", ")")
         return " ".join(retVal)
 
     def mkdir(self, directory):
