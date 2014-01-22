@@ -41,6 +41,7 @@ class InstlAdmin(InstlInstanceBase):
             config_file_resolved = self.search_paths_helper.find_file_with_search_paths(self.cvl.resolve_string("$(__CONFIG_FILE__)"), return_original_if_not_found=True)
             self.cvl.set_variable("__CONFIG_FILE_PATH__").append(config_file_resolved)
             self.read_yaml_file(config_file_resolved)
+            self.search_paths_helper.add_search_paths(self.cvl.get_list("SEARCH_PATHS"))
 
     @func_log_wrapper
     def do_command(self):

@@ -36,8 +36,18 @@ class SearchPaths(object):
         """ Add a folder to the list of search paths
         """
         if a_path not in self.search_paths_var:
-            self.search_paths_var.append(a_path)
-            logging.info("adding %s to search paths",  a_path)
+            if os.path.isdir(a_path):
+                self.search_paths_var.append(a_path)
+                logging.info("adding %s to search paths",  a_path)
+            else:
+                logging.info("Not adding %s to search paths, directory not found",  a_path)
+
+    def add_search_paths(self, some_paths):
+        """ Add a folder to the list of search paths
+        """
+        for some_path in some_paths:
+            some_real_path = os.path.realpath(some_path)
+            self.add_search_path(some_real_path)
 
     @func_log_wrapper
     def add_search_path_recursive(self, *paths):

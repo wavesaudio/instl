@@ -24,6 +24,8 @@
     * name of batch file is printed after it is written
     * variable TARGET_OS_SECOND_NAME defaults to os_second_name
     * Fixed list guid in interactive mode
+    * Variable SEARCH_PATHS enables so set search paths in the yaml file.
+    * improved reporting of bad checksum on windows.
 
     Changes to V9_test repository that do not effect code
     * 7ZA_CLIENT_PATH renamed WTAR_OPENER, the 7 probably caused problems on windows
@@ -65,6 +67,8 @@
         initialized in super, and so now all such classes have __init__ methods
     * ConfigVarList.is_resolved checks is a string has no $() references
     * Added data folder to search paths, removed the instl executable which was not usefull since it's a file.
+    * file read for checksum using "rb" for Windows' sake.
+    * download_from_file_or_url writes with "wb" for windows' sake.
 
 9/1/2014 0.6.5  Shai Shasag <shai@waves.com>
 

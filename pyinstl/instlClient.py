@@ -100,6 +100,7 @@ class InstlClient(InstlInstanceBase):
             #print("client_commands", the_command)
             installState = InstallInstructionsState()
             self.read_yaml_file(self.cvl.get_str("__MAIN_INPUT_FILE__"))
+            self.search_paths_helper.add_search_paths(self.cvl.get_list("SEARCH_PATHS"))
             self.resolve_index_inheritance()
             self.calculate_default_install_item_set(installState)
             if the_command in ("sync", "synccopy"):
