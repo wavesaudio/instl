@@ -166,7 +166,7 @@ class InstlInstanceBase(object):
         self.search_paths_helper.add_search_paths(self.cvl.get_list("SEARCH_PATHS"))
         for path_var_to_resolve in self.cvl.get_list("PATHS_TO_RESOLVE"):
             if path_var_to_resolve in self.cvl:
-                resolved_path = self.instlInstance.search_paths_helper.find_file_with_search_paths(self.cvl.get_str(path_var_to_resolve), return_original_if_not_found=True)
+                resolved_path = self.search_paths_helper.find_file_with_search_paths(self.cvl.get_str(path_var_to_resolve), return_original_if_not_found=True)
                 self.cvl.set_variable(path_var_to_resolve, "resolve_defined_paths").append(resolved_path)
 
 

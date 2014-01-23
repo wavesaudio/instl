@@ -208,13 +208,13 @@ class InstlInstanceSync_url(InstlInstanceSync):
             print("Found symlink at", item.full_path())
         elif item.isFile():
             expected_path = os.path.join(*[self.instlInstance.cvl.resolve_string("$(LOCAL_SYNC_DIR)")] + path_so_far + [item.name()])
-            # check the off chance that the file already exists. This might happen if a sync batch could not finish downloading all it's files
+            # check the off chance that the file already exists. This might happen if a previous sync did not finish downloading all it's files
             need_to_download = self.need_to_download_file(expected_path, item.checksum())
+            source_url = '/'.join( ["$(SYNC_BASE_URL)", str(item.last_rev())] + path_so_far + [item.name()] )
             if need_to_download:
-                source_url = '/'.join( ["$(SYNC_BASE_URL)", str(item.last_rev())] + path_so_far + [item.name()] )
                 self.instlInstance.batch_accum += self.instlInstance.platform_helper.dl_tool.download_url_to_file(source_url, item.name())
             self.instlInstance.batch_accum += self.instlInstance.platform_helper.check_checksum(item.name(), item.checksum())
-            self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress(item.full_path())
+            self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress(source_url)
         elif item.isDir():
             path_so_far.append(item.name())
             self.instlInstance.batch_accum += self.instlInstance.platform_helper.mkdir(item.name())
