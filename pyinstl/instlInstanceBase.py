@@ -212,9 +212,9 @@ class InstlInstanceBase(object):
     @func_log_wrapper
     def init_copy_vars(self):
         var_description = "from InstlInstanceBase.init_copy_vars"
-        if "SET_ICON_PATH" in self.cvl:
-            setIcon_full_path = self.search_paths_helper.find_file_with_search_paths(self.cvl.get_str("SET_ICON_PATH"))
-            self.cvl.set_variable("SET_ICON_PATH", var_description).append(setIcon_full_path)
+        if "SET_ICON_TOOL_PATH" in self.cvl:
+            setIcon_full_path = self.search_paths_helper.find_file_with_search_paths(self.cvl.get_str("SET_ICON_TOOL_PATH"))
+            self.cvl.set_variable("SET_ICON_TOOL_PATH", var_description).append(setIcon_full_path)
 # check which variables are needed for for offline install....
         if "REL_SRC_PATH" not in self.cvl: #?
             if "SYNC_BASE_URL" not in self.cvl:

@@ -45,7 +45,7 @@ class InstlInstanceSync_svn(InstlInstanceSync):
         self.ii.batch_accum += self.ii.platform_helper.cd("$(LOCAL_SYNC_DIR)")
         self.ii.batch_accum.indent_level += 1
         self.ii.batch_accum += " ".join(('"$(__RESOLVED_SVN_CLIENT_PATH__)"', "co", '"$(BOOKKEEPING_DIR_URL)"', '"$(REL_BOOKKIPING_PATH)"', "--revision", "$(REPO_REV)", "--depth", "infinity"))
-        self.ii.batch_accum += self.ii.platform_helper.progress("index file $(BOOKKEEPING_DIR_URL)")
+        self.ii.batch_accum += self.ii.platform_helper.progress("instl folder file $(BOOKKEEPING_DIR_URL)?p=$(REPO_REV)")
         for iid  in installState.full_install_items:
             installi = self.ii.install_definitions_index[iid]
             if installi.source_list():
