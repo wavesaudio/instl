@@ -27,9 +27,10 @@
     * Variable SEARCH_PATHS enables so set search paths in the yaml file.
     * improved reporting of bad checksum on windows.
     * Windows: robocopy might exit with error even if there are no errors. So error checking for robocopy is now level dependent.
+    * resolve_defined_paths: SEARCH_PATHS, PATHS_TO_RESOLVE
 
     Changes to V9_test repository that do not effect code
-    * 7ZA_CLIENT_PATH renamed WTAR_OPENER, the 7 probably caused problems on windows
+    * 7ZA_CLIENT_PATH renamed WTAR_OPENER_TOOL_PATH, the 7 probably caused problems on windows
     * All Mac rm commands in index were added the -f flags
     * DOWNLOAD_TOOL_PATH moved to index.yaml
     * Mac:Setting of .framewoks to be bundles is now done by a new version of setIcon.
