@@ -1,4 +1,4 @@
-????? 0.7.1
+23/1/2014 0.7.1 Shai Shasag <shai@waves.com>
 
     user visible changes, client:
     * progress report for folder actions
