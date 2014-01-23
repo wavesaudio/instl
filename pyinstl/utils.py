@@ -75,13 +75,13 @@ class open_for_read_file_or_url(object):
                         ://
                         """, re.VERBOSE)
 
-    def __init__(self, file_url, search_paths_helper=None):
+    def __init__(self, file_url, path_searcher=None):
         self.file_url = file_url
         self.fd = None
         match = self.protocol_header_re.match(self.file_url)
         if not match:  # it's a local file
-            if search_paths_helper is not None:
-                self.file_url = search_paths_helper.find_file_with_search_paths(self.file_url)
+            if path_searcher is not None:
+                self.file_url = path_searcher.find_file(self.file_url)
             if self.file_url:
                 if 'Win' in get_current_os_names():
                     self.file_url = "file:///"+os.path.abspath(self.file_url)

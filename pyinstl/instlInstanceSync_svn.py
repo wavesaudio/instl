@@ -21,18 +21,18 @@ class InstlInstanceSync_svn(InstlInstanceSync):
             raise ValueError("'SYNC_BASE_URL' was not defined")
         if "SVN_CLIENT_PATH" not in self.ii.cvl:
             raise ValueError("'SVN_CLIENT_PATH' was not defined")
-        svn_client_full_path = self.ii.search_paths_helper.find_file_with_search_paths(self.ii.cvl.resolve_string("$(SVN_CLIENT_PATH)"), return_original_if_not_found=True)
-        self.ii.cvl.set_variable("__RESOLVED_SVN_CLIENT_PATH__", var_description).append(svn_client_full_path)
+        svn_client_full_path = self.ii.path_searcher.find_file(self.ii.cvl.resolve_string("$(SVN_CLIENT_PATH)"), return_original_if_not_found=True)
+        self.ii.cvl.set_var("__RESOLVED_SVN_CLIENT_PATH__", var_description).append(svn_client_full_path)
 
         self.ii.cvl.set_value_if_var_does_not_exist("REPO_REV", "HEAD", description=var_description)
         self.ii.cvl.set_value_if_var_does_not_exist("SYNC_TRAGET_OS_URL", "$(SYNC_BASE_URL)/$(TARGET_OS)", description=var_description)
         self.ii.cvl.set_value_if_var_does_not_exist("LOCAL_SYNC_DIR", self.ii.get_default_sync_dir(), description=var_description)
         self.ii.cvl.set_value_if_var_does_not_exist("BOOKKEEPING_DIR_URL", "$(SYNC_BASE_URL)/instl", description=var_description)
         bookkeeping_relative_path = relative_url(self.ii.cvl.get_str("SYNC_BASE_URL"), self.ii.cvl.get_str("BOOKKEEPING_DIR_URL"))
-        self.ii.cvl.set_variable("REL_BOOKKIPING_PATH", var_description).append(bookkeeping_relative_path)
+        self.ii.cvl.set_var("REL_BOOKKIPING_PATH", var_description).append(bookkeeping_relative_path)
 
         rel_sources = relative_url(self.ii.cvl.get_str("SYNC_BASE_URL"), self.ii.cvl.get_str("SYNC_TRAGET_OS_URL"))
-        self.ii.cvl.set_variable("REL_SRC_PATH", var_description).append(rel_sources)
+        self.ii.cvl.set_var("REL_SRC_PATH", var_description).append(rel_sources)
 
         for identifier in ("SYNC_BASE_URL", "SVN_CLIENT_PATH", "REL_SRC_PATH", "REPO_REV", "SYNC_TRAGET_OS_URL", "BOOKKEEPING_DIR_URL"):
             logging.debug("... %s: %s", identifier, self.ii.cvl.get_str(identifier))

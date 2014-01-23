@@ -40,10 +40,10 @@ class InstlInstanceSync_url(InstlInstanceSync):
             raise ValueError("'SYNC_BASE_URL' was not defined")
         if "DOWNLOAD_TOOL_PATH" not in self.instlInstance.cvl:
             raise ValueError("'DOWNLOAD_TOOL_PATH' was not defined")
-        download_tool_full_path = self.instlInstance.search_paths_helper.find_file_with_search_paths(self.instlInstance.cvl.resolve_string("$(DOWNLOAD_TOOL_PATH)"), return_original_if_not_found=True)
-        self.instlInstance.cvl.set_variable("__RESOLVED_DOWNLOAD_TOOL_PATH__", var_description).append(download_tool_full_path)
-        checksum_tool_full_path = self.instlInstance.search_paths_helper.find_file_with_search_paths(self.instlInstance.cvl.resolve_string("$(CHECKSUM_TOOL_PATH)"), return_original_if_not_found=True)
-        self.instlInstance.cvl.set_variable("__RESOLVED_CHECKSUM_TOOL_PATH__", var_description).append(checksum_tool_full_path)
+        download_tool_full_path = self.instlInstance.path_searcher.find_file(self.instlInstance.cvl.resolve_string("$(DOWNLOAD_TOOL_PATH)"), return_original_if_not_found=True)
+        self.instlInstance.cvl.set_var("__RESOLVED_DOWNLOAD_TOOL_PATH__", var_description).append(download_tool_full_path)
+        checksum_tool_full_path = self.instlInstance.path_searcher.find_file(self.instlInstance.cvl.resolve_string("$(CHECKSUM_TOOL_PATH)"), return_original_if_not_found=True)
+        self.instlInstance.cvl.set_var("__RESOLVED_CHECKSUM_TOOL_PATH__", var_description).append(checksum_tool_full_path)
 
         self.instlInstance.cvl.set_value_if_var_does_not_exist("REPO_REV", "HEAD", description=var_description)
         self.instlInstance.cvl.set_value_if_var_does_not_exist("SYNC_TRAGET_OS_URL", "$(SYNC_BASE_URL)/$(TARGET_OS)", description=var_description)
@@ -233,7 +233,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress("from $(SYNC_TRAGET_OS_URL)")
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.mkdir("$(LOCAL_SYNC_DIR)")
         self.instlInstance.batch_accum += self.instlInstance.platform_helper.cd("$(LOCAL_SYNC_DIR)")
-        self.instlInstance.cvl.set_variable("__CURL_CONFIG_FILE_NAME__").append("curl_config.txt")
+        self.instlInstance.cvl.set_var("__CURL_CONFIG_FILE_NAME__").append("curl_config.txt")
         self.sync_base_url = self.instlInstance.cvl.resolve_string("$(SYNC_BASE_URL)")
         self.instlInstance.batch_accum.indent_level += 1
         file_list, dir_list = self.work_info_map.sorted_sub_items()

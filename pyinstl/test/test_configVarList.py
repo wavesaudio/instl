@@ -29,7 +29,7 @@ class TestConfigVarList(unittest.TestCase):
     def test_set_variable_new(self):
         """ Set one variable. """
         self.cvl = configVarList.ConfigVarList()
-        self.cvl.set_variable("banana", "phone")
+        self.cvl.set_var("banana", "phone")
         self.assertEqual(len(self.cvl), 1)
         self.assertTrue("banana" in self.cvl)
         self.assertIs(self.cvl.get_configVar_obj("banana"), self.cvl["banana"])
@@ -43,9 +43,9 @@ class TestConfigVarList(unittest.TestCase):
     def test_set_variable_reset(self):
         """ Set one variable, reset it. """
         self.cvl = configVarList.ConfigVarList()
-        self.cvl.set_variable("banana", "phone")
+        self.cvl.set_var("banana", "phone")
         self.cvl.get_configVar_obj("banana").extend(("get", "down", "tonight"))
-        self.cvl.set_variable("banana", "kirk")
+        self.cvl.set_var("banana", "kirk")
         self.assertEqual(len(self.cvl), 1)
         self.assertTrue("banana" in self.cvl)
         self.assertIs(self.cvl.get_configVar_obj("banana"), self.cvl["banana"])

@@ -56,7 +56,7 @@ class SearchPaths(object):
         pass  # to do...
 
     @func_log_wrapper
-    def find_file_with_search_paths(self, in_file, return_original_if_not_found=False):
+    def find_file(self, in_file, return_original_if_not_found=False):
         """
         Find the real path to a file.
         If in_file is path to an existing file, it's real full path will be returned.

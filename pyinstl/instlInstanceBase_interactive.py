@@ -289,7 +289,7 @@ class CMDObj(cmd.Cmd, object):
         if params:
             params = shlex.split(params)
             identi, values = params[0], params[1:]
-            self.client_prog_inst.cvl.set_variable(identi, "set interactively").extend(values)
+            self.client_prog_inst.cvl.set_var(identi, "set interactively").extend(values)
             self.do_list(identi)
         return False
 
@@ -446,8 +446,8 @@ class CMDObj(cmd.Cmd, object):
         out_file = "stdout"
         if params:
             out_file = params
-        self.client_prog_inst.cvl.set_variable("__MAIN_OUT_FILE__").append(out_file)
-        self.client_prog_inst.cvl.set_variable("__MAIN_COMMAND__").append("sync")
+        self.client_prog_inst.cvl.set_var("__MAIN_OUT_FILE__").append(out_file)
+        self.client_prog_inst.cvl.set_var("__MAIN_COMMAND__").append("sync")
         self.client_prog_inst.do_command()
         return False
     
@@ -459,8 +459,8 @@ class CMDObj(cmd.Cmd, object):
         out_file = "stdout"
         if params:
             out_file = params
-        self.client_prog_inst.cvl.set_variable("__MAIN_OUT_FILE__").append(out_file)
-        self.client_prog_inst.cvl.set_variable("__MAIN_COMMAND__").append("copy")
+        self.client_prog_inst.cvl.set_var("__MAIN_OUT_FILE__").append(out_file)
+        self.client_prog_inst.cvl.set_var("__MAIN_COMMAND__").append("copy")
         self.client_prog_inst.do_command()
         return False
     

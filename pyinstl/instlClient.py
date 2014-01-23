@@ -91,7 +91,7 @@ class InstlClient(InstlInstanceBase):
     def __init__(self, initial_vars):
         super(InstlClient, self).__init__(initial_vars)
         self.install_definitions_index = dict()
-        self.cvl.set_variable("__ALLOWED_COMMANDS__").extend( ('sync', 'copy', 'synccopy') )
+        self.cvl.set_var("__ALLOWED_COMMANDS__").extend( ('sync', 'copy', 'synccopy') )
 
     @func_log_wrapper
     def do_command(self):
@@ -191,8 +191,8 @@ class InstlClient(InstlInstanceBase):
         installState.root_install_items.extend(self.cvl.get_list("MAIN_INSTALL_TARGETS"))
         installState.root_install_items = filter(bool, installState.root_install_items)
         installState.calculate_full_install_items_set(self)
-        self.cvl.set_variable("__FULL_LIST_OF_INSTALL_TARGETS__").extend(installState.full_install_items)
-        self.cvl.set_variable("__ORPHAN_INSTALL_TARGETS__").extend(installState.orphan_install_items)
+        self.cvl.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(installState.full_install_items)
+        self.cvl.set_var("__ORPHAN_INSTALL_TARGETS__").extend(installState.orphan_install_items)
         for identifier in ("MAIN_INSTALL_TARGETS", "__FULL_LIST_OF_INSTALL_TARGETS__", "__ORPHAN_INSTALL_TARGETS__"):
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
 

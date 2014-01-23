@@ -29,17 +29,17 @@ class InstlAdmin(InstlInstanceBase):
 
     def __init__(self, initial_vars):
         super(InstlAdmin, self).__init__(initial_vars)
-        self.cvl.set_variable("__ALLOWED_COMMANDS__").extend( ('trans', 'createlinks', 'up2s3', 'up_repo_rev', 'fix_props', 'fix_symlinks', "stage2svn") )
+        self.cvl.set_var("__ALLOWED_COMMANDS__").extend( ('trans', 'createlinks', 'up2s3', 'up_repo_rev', 'fix_props', 'fix_symlinks', "stage2svn") )
         self.svnTree = svnTree.SVNTree()
 
     def set_default_variables(self):
         if "CREATE_LINKS_STAMP_FILE_NAME" not in self.cvl:
-            self.cvl.set_variable("CREATE_LINKS_STAMP_FILE_NAME").append("create_links_done.stamp")
+            self.cvl.set_var("CREATE_LINKS_STAMP_FILE_NAME").append("create_links_done.stamp")
         if "UP_2_S3_STAMP_FILE_NAME" not in self.cvl:
-            self.cvl.set_variable("UP_2_S3_STAMP_FILE_NAME").append("up2s3.stamp")
+            self.cvl.set_var("UP_2_S3_STAMP_FILE_NAME").append("up2s3.stamp")
         if "__CONFIG_FILE__" in self.cvl:
-            config_file_resolved = self.search_paths_helper.find_file_with_search_paths(self.cvl.resolve_string("$(__CONFIG_FILE__)"), return_original_if_not_found=True)
-            self.cvl.set_variable("__CONFIG_FILE_PATH__").append(config_file_resolved)
+            config_file_resolved = self.path_searcher.find_file(self.cvl.resolve_string("$(__CONFIG_FILE__)"), return_original_if_not_found=True)
+            self.cvl.set_var("__CONFIG_FILE_PATH__").append(config_file_resolved)
             self.read_yaml_file(config_file_resolved)
             self.resolve_defined_paths()
 
@@ -147,9 +147,9 @@ class InstlAdmin(InstlInstanceBase):
             raise ValueError("'ROOT_LINKS_FOLDER_REPO' was not defined")
         if "COPY_TOOL" not in self.cvl:
             from platformSpecificHelper_Base import DefaultCopyToolName
-            self.cvl.set_variable("COPY_TOOL").append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
+            self.cvl.set_var("COPY_TOOL").append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
         if "SVN_CLIENT_PATH" not in self.cvl:
-            self.cvl.set_variable("SVN_CLIENT_PATH").append("svn")
+            self.cvl.set_var("SVN_CLIENT_PATH").append("svn")
 
         self.batch_accum.set_current_section('links')
 
@@ -170,9 +170,9 @@ class InstlAdmin(InstlInstanceBase):
             info_as_io = StringIO.StringIO(my_stdout)
         self.svnTree.read_from_svn_info(info_as_io)
         _, last_repo_rev = self.svnTree.min_max_rev()
-        self.cvl.set_variable("__LAST_REPO_REV__").append(str(last_repo_rev))
+        self.cvl.set_var("__LAST_REPO_REV__").append(str(last_repo_rev))
 
-        self.cvl.set_variable("__CHECKOUT_FOLDER__").append("$(ROOT_LINKS_FOLDER_REPO)/Base")
+        self.cvl.set_var("__CHECKOUT_FOLDER__").append("$(ROOT_LINKS_FOLDER_REPO)/Base")
         self.batch_accum += self.platform_helper.mkdir("$(__CHECKOUT_FOLDER__)")
 
         accum = BatchAccumulator(self.cvl) # sub-accumulator serves as a template for each version
@@ -186,7 +186,7 @@ class InstlAdmin(InstlInstanceBase):
             if self.needToCreatelinksForRevision(revision):
                 save_dir_var = "REV_"+str(revision)+"_SAVE_DIR"
                 self.batch_accum += self.platform_helper.save_dir(save_dir_var)
-                self.cvl.set_variable("__CURR_REPO_REV__").append(str(revision))
+                self.cvl.set_var("__CURR_REPO_REV__").append(str(revision))
                 revision_lines = accum.finalize_list_of_lines() # will resolve with current  __CURR_REPO_REV__
                 self.batch_accum += revision_lines
                 self.batch_accum += self.platform_helper.restore_dir(save_dir_var)
@@ -297,7 +297,7 @@ class InstlAdmin(InstlInstanceBase):
             accum.set_current_section('upload')
             save_dir_var = "REV_"+revision+"_SAVE_DIR"
             self.batch_accum += self.platform_helper.save_dir(save_dir_var)
-            self.cvl.set_variable("__CURR_REPO_REV__").append(str(revision))
+            self.cvl.set_var("__CURR_REPO_REV__").append(str(revision))
             self.do_upload_to_s3_aws_for_revision(accum)
             revision_lines = accum.finalize_list_of_lines() # will resolve with current  __CURR_REPO_REV__
             self.batch_accum += revision_lines

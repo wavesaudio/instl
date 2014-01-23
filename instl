@@ -250,7 +250,7 @@ def read_command_line_options(name_space_obj, arglist=None):
         #auto_run_file_path = None
         # todo: restore autorun file reading
         #auto_run_file_name = "auto_run_instl.yaml"
-        #auto_run_file_path = self.search_paths_helper.find_file_with_search_paths(auto_run_file_name)
+        #auto_run_file_path = self.path_searcher.find_file(auto_run_file_name)
         #if auto_run_file_path:
         #    arglist = ("@"+auto_run_file_path,)
         #    logging.info("found auto run file %s", auto_run_file_name)

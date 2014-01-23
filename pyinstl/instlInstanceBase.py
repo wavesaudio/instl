@@ -44,10 +44,10 @@ class InstlInstanceBase(object):
         self.init_default_vars(initial_vars)
 
         # initialize the search paths helper with the current directory and dir where instl is now
-        self.search_paths_helper = SearchPaths(self.cvl.get_configVar_obj("__SEARCH_PATHS__"))
-        self.search_paths_helper.add_search_path(os.getcwd())
-        self.search_paths_helper.add_search_path(os.path.dirname(os.path.realpath(sys.argv[0])))
-        self.search_paths_helper.add_search_path(self.cvl.get_str("__INSTL_DATA_FOLDER__"))
+        self.path_searcher = SearchPaths(self.cvl.get_configVar_obj("__SEARCH_PATHS__"))
+        self.path_searcher.add_search_path(os.getcwd())
+        self.path_searcher.add_search_path(os.path.dirname(os.path.realpath(sys.argv[0])))
+        self.path_searcher.add_search_path(self.cvl.get_str("__INSTL_DATA_FOLDER__"))
 
         self.guid_re = re.compile("""
                         [a-f0-9]{8}
@@ -71,16 +71,16 @@ class InstlInstanceBase(object):
         self.cvl.add_const_config_variable("__CURRENT_OS__", var_description, os_family_name)
         self.cvl.add_const_config_variable("__CURRENT_OS_SECOND_NAME__", var_description, os_second_name)
         self.cvl.add_const_config_variable("__CURRENT_OS_NAMES__", var_description, *current_os_names)
-        self.cvl.set_variable("TARGET_OS", var_description).append(os_family_name)
-        self.cvl.set_variable("TARGET_OS_NAMES", var_description).extend(current_os_names)
+        self.cvl.set_var("TARGET_OS", var_description).append(os_family_name)
+        self.cvl.set_var("TARGET_OS_NAMES", var_description).extend(current_os_names)
         self.cvl.add_const_config_variable("TARGET_OS_SECOND_NAME", var_description, os_second_name)
         self.cvl.add_const_config_variable("__INSTL_VERSION__", var_description, *INSTL_VERSION)
-        self.cvl.set_variable("BASE_REPO_REV", var_description).append("1")
+        self.cvl.set_var("BASE_REPO_REV", var_description).append("1")
 
         log_file = pyinstl.log_utils.get_log_file_path(this_program_name, this_program_name, debug=False)
-        self.cvl.set_variable("LOG_FILE", var_description).append(log_file)
+        self.cvl.set_var("LOG_FILE", var_description).append(log_file)
         debug_log_file = pyinstl.log_utils.get_log_file_path(this_program_name, this_program_name, debug=True)
-        self.cvl.set_variable("LOG_FILE_DEBUG", var_description).extend( (debug_log_file, logging.getLevelName(pyinstl.log_utils.debug_logging_level), pyinstl.log_utils.debug_logging_started) )
+        self.cvl.set_var("LOG_FILE_DEBUG", var_description).extend( (debug_log_file, logging.getLevelName(pyinstl.log_utils.debug_logging_level), pyinstl.log_utils.debug_logging_started) )
         for identifier in self.cvl:
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
 
@@ -103,12 +103,12 @@ class InstlInstanceBase(object):
         if cmd_line_options_obj.run:
             self.cvl.add_const_config_variable("__RUN_BATCH_FILE__", "from command line options", "yes")
         if cmd_line_options_obj.command:
-            self.cvl.set_variable("__MAIN_COMMAND__", "from command line options").append(cmd_line_options_obj.command)
+            self.cvl.set_var("__MAIN_COMMAND__", "from command line options").append(cmd_line_options_obj.command)
 
         if cmd_line_options_obj.repo_rev:
-            self.cvl.set_variable("REPO_REV", "from command line options").append(cmd_line_options_obj.repo_rev[0])
+            self.cvl.set_var("REPO_REV", "from command line options").append(cmd_line_options_obj.repo_rev[0])
         if cmd_line_options_obj.base_repo_rev:
-            self.cvl.set_variable("BASE_REPO_REV", "from command line options").append(cmd_line_options_obj.base_repo_rev[0])
+            self.cvl.set_var("BASE_REPO_REV", "from command line options").append(cmd_line_options_obj.base_repo_rev[0])
 
         if cmd_line_options_obj.config_file:
             self.cvl.add_const_config_variable("__CONFIG_FILE__", "from command line options", cmd_line_options_obj.config_file[0])
@@ -140,7 +140,7 @@ class InstlInstanceBase(object):
     def read_yaml_file(self, file_path):
         try:
             logging.info("... Reading input file %s", file_path)
-            with open_for_read_file_or_url(file_path, self.search_paths_helper) as file_fd:
+            with open_for_read_file_or_url(file_path, self.path_searcher) as file_fd:
                 for a_node in yaml.compose_all(file_fd):
                     if self.is_acceptable_yaml_doc(a_node):
                         if a_node.tag.startswith('!define'):
@@ -163,11 +163,11 @@ class InstlInstanceBase(object):
                                         """, re.VERBOSE)
 
     def resolve_defined_paths(self):
-        self.search_paths_helper.add_search_paths(self.cvl.get_list("SEARCH_PATHS"))
+        self.path_searcher.add_search_paths(self.cvl.get_list("SEARCH_PATHS"))
         for path_var_to_resolve in self.cvl.get_list("PATHS_TO_RESOLVE"):
             if path_var_to_resolve in self.cvl:
-                resolved_path = self.search_paths_helper.find_file_with_search_paths(self.cvl.get_str(path_var_to_resolve), return_original_if_not_found=True)
-                self.cvl.set_variable(path_var_to_resolve, "resolve_defined_paths").append(resolved_path)
+                resolved_path = self.path_searcher.find_file(self.cvl.get_str(path_var_to_resolve), return_original_if_not_found=True)
+                self.cvl.set_var(path_var_to_resolve, "resolve_defined_paths").append(resolved_path)
 
 
 
@@ -178,7 +178,7 @@ class InstlInstanceBase(object):
             for identifier, contents in a_node:
                 logging.debug("... %s: %s", identifier, str(contents))
                 if not self.internal_identifier_re.match(identifier): # do not read internal state identifiers
-                    self.cvl.set_variable(identifier, str(contents.start_mark)).extend([item.value for item in contents])
+                    self.cvl.set_var(identifier, str(contents.start_mark)).extend([item.value for item in contents])
                 elif identifier == '__include__':
                     for file_name in contents:
                         resolved_file_name = self.cvl.resolve_string(file_name.value)
@@ -213,22 +213,22 @@ class InstlInstanceBase(object):
     def init_copy_vars(self):
         var_description = "from InstlInstanceBase.init_copy_vars"
         if "SET_ICON_TOOL_PATH" in self.cvl:
-            setIcon_full_path = self.search_paths_helper.find_file_with_search_paths(self.cvl.get_str("SET_ICON_TOOL_PATH"))
-            self.cvl.set_variable("SET_ICON_TOOL_PATH", var_description).append(setIcon_full_path)
+            setIcon_full_path = self.path_searcher.find_file(self.cvl.get_str("SET_ICON_TOOL_PATH"))
+            self.cvl.set_var("SET_ICON_TOOL_PATH", var_description).append(setIcon_full_path)
 # check which variables are needed for for offline install....
         if "REL_SRC_PATH" not in self.cvl: #?
             if "SYNC_BASE_URL" not in self.cvl:
                 raise ValueError("'SYNC_BASE_URL' was not defined")
             if "SYNC_TRAGET_OS_URL" not in self.cvl:
-                self.cvl.set_variable("SYNC_TRAGET_OS_URL", var_description).append("$(SYNC_BASE_URL)/$(TARGET_OS)")
+                self.cvl.set_var("SYNC_TRAGET_OS_URL", var_description).append("$(SYNC_BASE_URL)/$(TARGET_OS)")
             rel_sources = relative_url(self.cvl.get_str("SYNC_BASE_URL"), self.cvl.get_str("SYNC_TRAGET_OS_URL"))
-            self.cvl.set_variable("REL_SRC_PATH", var_description).append(rel_sources)
+            self.cvl.set_var("REL_SRC_PATH", var_description).append(rel_sources)
 
         self.cvl.set_value_if_var_does_not_exist("LOCAL_SYNC_DIR", self.get_default_sync_dir(), description=var_description)
 
         if "COPY_TOOL" not in self.cvl:
             from platformSpecificHelper_Base import DefaultCopyToolName
-            self.cvl.set_variable("COPY_TOOL", var_description).append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
+            self.cvl.set_var("COPY_TOOL", var_description).append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
         for identifier in ("REL_SRC_PATH", "COPY_TOOL"):
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
 
@@ -248,7 +248,7 @@ class InstlInstanceBase(object):
         self.batch_accum.set_current_section('pre')
         self.batch_accum += self.platform_helper.get_install_instructions_prefix()
         self.batch_accum.set_current_section('post')
-        self.cvl.set_variable("TOTAL_ITEMS_FOR_PROGRESS_REPORT").append(str(self.platform_helper.num_items_for_progress_report))
+        self.cvl.set_var("TOTAL_ITEMS_FOR_PROGRESS_REPORT").append(str(self.platform_helper.num_items_for_progress_report))
         self.batch_accum += self.platform_helper.get_install_instructions_postfix()
         lines = self.batch_accum.finalize_list_of_lines()
         lines_after_var_replacement = '\n'.join([value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines])

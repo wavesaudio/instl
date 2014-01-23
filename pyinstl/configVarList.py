@@ -104,7 +104,7 @@ class ConfigVarList(object):
         retVal = self._ConfigVar_objs.setdefault(var_name, configVar.ConfigVar(var_name))
         return retVal
 
-    def set_variable(self, var_name, description=None):
+    def set_var(self, var_name, description=None):
         retVal = self.get_configVar_obj(var_name)
         retVal.clear_values()
         if description is not None:
@@ -133,7 +133,7 @@ class ConfigVarList(object):
 
     def duplicate_variable(self, source_name, target_name):
         if source_name in self._ConfigVar_objs:
-            self.set_variable(target_name, self._ConfigVar_objs[source_name].description()).extend(self._ConfigVar_objs[source_name])
+            self.set_var(target_name, self._ConfigVar_objs[source_name].description()).extend(self._ConfigVar_objs[source_name])
         else:
             raise KeyError("UNKNOWN VARIABLE "+source_name)
 
@@ -142,7 +142,7 @@ class ConfigVarList(object):
         for env in os.environ:
             if env == "":  # not sure why I get an empty string
                 continue
-            self.set_variable(env, "from environment").append(os.environ[env])
+            self.set_var(env, "from environment").append(os.environ[env])
 
     def repr_for_yaml(self, which_vars=None, include_comments=True):
         retVal = dict()
@@ -217,7 +217,7 @@ class ConfigVarList(object):
             loop_on_resolved[target] = ContinuationIter(list_for_target)
         for i in range(max_size):
             for target in loop_on_resolved:
-                self.set_variable(target).append(loop_on_resolved[target].next())
+                self.set_var(target).append(loop_on_resolved[target].next())
             yield
 
 def replace_all_from_dict(in_text, *in_replace_only_these, **in_replacement_dic):
