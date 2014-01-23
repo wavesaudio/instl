@@ -1,4 +1,5 @@
-???? 0.7.0
+23/1/2014 0.7.0 Shai Shasag <shai@waves.com>
+
      Main 0.7 features:
     * Check checksum of files after download.
     * Conditional document tags in yaml (see below)
