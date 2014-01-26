@@ -117,11 +117,6 @@ class InstlInstanceBase(object):
         if cmd_line_options_obj.svn:
             self.cvl.add_const_config_variable("__ISSUE_SVN_COMMANDS__", "from command line options")
 
-        if cmd_line_options_obj.staging_folder:
-            self.cvl.add_const_config_variable("__STAGING_FOLDER__", "from command line options", cmd_line_options_obj.staging_folder[0])
-        if cmd_line_options_obj.svn_folder:
-            self.cvl.add_const_config_variable("__SVN_FOLDER__", "from command line options", cmd_line_options_obj.svn_folder[0])
-
         if hasattr(cmd_line_options_obj, "subject") and cmd_line_options_obj.subject is not None:
             self.cvl.add_const_config_variable("__HELP_SUBJECT__", "from command line options", cmd_line_options_obj.subject)
         else:

@@ -40,10 +40,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
             raise ValueError("'SYNC_BASE_URL' was not defined")
         if "DOWNLOAD_TOOL_PATH" not in self.instlInstance.cvl:
             raise ValueError("'DOWNLOAD_TOOL_PATH' was not defined")
-        download_tool_full_path = self.instlInstance.path_searcher.find_file(self.instlInstance.cvl.resolve_string("$(DOWNLOAD_TOOL_PATH)"), return_original_if_not_found=True)
-        self.instlInstance.cvl.set_var("__RESOLVED_DOWNLOAD_TOOL_PATH__", var_description).append(download_tool_full_path)
         checksum_tool_full_path = self.instlInstance.path_searcher.find_file(self.instlInstance.cvl.resolve_string("$(CHECKSUM_TOOL_PATH)"), return_original_if_not_found=True)
-        self.instlInstance.cvl.set_var("__RESOLVED_CHECKSUM_TOOL_PATH__", var_description).append(checksum_tool_full_path)
+        self.instlInstance.cvl.set_var("CHECKSUM_TOOL_PATH", var_description).append(checksum_tool_full_path)
 
         self.instlInstance.cvl.set_value_if_var_does_not_exist("REPO_REV", "HEAD", description=var_description)
         self.instlInstance.cvl.set_value_if_var_does_not_exist("SYNC_TRAGET_OS_URL", "$(SYNC_BASE_URL)/$(TARGET_OS)", description=var_description)
@@ -214,6 +212,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
             if need_to_download:
                 self.instlInstance.batch_accum += self.instlInstance.platform_helper.dl_tool.download_url_to_file(source_url, item.name())
             self.instlInstance.batch_accum += self.instlInstance.platform_helper.check_checksum(item.name(), item.checksum())
+            if item.name().endswith(".wtar"):
+                self.instlInstance.batch_accum += self.instlInstance.platform_helper.unwtar(item.name())
             self.instlInstance.batch_accum += self.instlInstance.platform_helper.progress(source_url)
         elif item.isDir():
             path_so_far.append(item.name())

@@ -219,6 +219,14 @@ class PlatformSpecificHelperBase(object):
     def check_checksum(self, file, checksum):
         pass
 
+    @abc.abstractmethod
+    def tar(self, to_tar_name):
+        pass
+
+    @abc.abstractmethod
+    def unwtar(self, filepath):
+        pass
+
 def PlatformSpecificHelperFactory(in_os, instlInstance):
     retVal = None
     if in_os == "Mac":

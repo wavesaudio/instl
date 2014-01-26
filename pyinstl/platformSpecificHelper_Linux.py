@@ -87,13 +87,19 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
     def check_checksum(self, file, checksum):
         raise NotImplementedError
 
+    def tar(self, to_tar_name):
+        raise NotImplementedError
+
+    def unwtar(self, filepath):
+        raise NotImplementedError
+
 class DownloadTool_linux_curl(DownloadToolBase):
     def __init__(self, platformHelper):
         super(DownloadTool_linux_curl, self).__init__(platformHelper)
 
     def download_url_to_file(self, src_url, trg_file):
         download_command_parts = list()
-        download_command_parts.append("$(__RESOLVED_DOWNLOAD_TOOL_PATH__)")
+        download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
         download_command_parts.append("--insecure")
         download_command_parts.append("--fail")
         download_command_parts.append("--raw")

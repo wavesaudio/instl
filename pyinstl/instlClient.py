@@ -299,13 +299,13 @@ class InstlClient(InstlInstanceBase):
         source_path = os.path.normpath("$(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)/"+source[0])
 
         if source[1] == '!file':       # get a single file, not recommended
-            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".", source_path, ignore=(".svn", "*.symlink"))
+            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".", source_path, ignore=(".svn", "*.symlink", "*.wtar"))
         elif source[1] == '!dir_cont': # get all files and folders from a folder
-            self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".", source_path, ignore=(".svn", "*.symlink"))
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".", source_path, ignore=(".svn", "*.symlink", "*.wtar"))
         elif source[1] == '!files':    # get all files from a folder
-            self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".", source_path, ignore=(".svn", "*.symlink"))
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".", source_path, ignore=(".svn", "*.symlink", "*.wtar"))
         else:
-            self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path, ".", source_path, ignore=(".svn", "*.symlink"))
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path, ".", source_path, ignore=(".svn", "*.symlink", "*.wtar"))
         logging.info("... %s; (%s - %s)", source_path, self.cvl.resolve_string(source_path), source[1])
 
     @func_log_wrapper

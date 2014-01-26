@@ -21,8 +21,6 @@ class InstlInstanceSync_svn(InstlInstanceSync):
             raise ValueError("'SYNC_BASE_URL' was not defined")
         if "SVN_CLIENT_PATH" not in self.ii.cvl:
             raise ValueError("'SVN_CLIENT_PATH' was not defined")
-        svn_client_full_path = self.ii.path_searcher.find_file(self.ii.cvl.resolve_string("$(SVN_CLIENT_PATH)"), return_original_if_not_found=True)
-        self.ii.cvl.set_var("__RESOLVED_SVN_CLIENT_PATH__", var_description).append(svn_client_full_path)
 
         self.ii.cvl.set_value_if_var_does_not_exist("REPO_REV", "HEAD", description=var_description)
         self.ii.cvl.set_value_if_var_does_not_exist("SYNC_TRAGET_OS_URL", "$(SYNC_BASE_URL)/$(TARGET_OS)", description=var_description)
@@ -44,7 +42,7 @@ class InstlInstanceSync_svn(InstlInstanceSync):
         self.ii.batch_accum += self.ii.platform_helper.mkdir("$(LOCAL_SYNC_DIR)")
         self.ii.batch_accum += self.ii.platform_helper.cd("$(LOCAL_SYNC_DIR)")
         self.ii.batch_accum.indent_level += 1
-        self.ii.batch_accum += " ".join(('"$(__RESOLVED_SVN_CLIENT_PATH__)"', "co", '"$(BOOKKEEPING_DIR_URL)"', '"$(REL_BOOKKIPING_PATH)"', "--revision", "$(REPO_REV)", "--depth", "infinity"))
+        self.ii.batch_accum += " ".join(('"$(SVN_CLIENT_PATH)"', "co", '"$(BOOKKEEPING_DIR_URL)"', '"$(REL_BOOKKIPING_PATH)"', "--revision", "$(REPO_REV)", "--depth", "infinity"))
         self.ii.batch_accum += self.ii.platform_helper.progress("instl folder file $(BOOKKEEPING_DIR_URL)?p=$(REPO_REV)")
         for iid  in installState.full_install_items:
             installi = self.ii.install_definitions_index[iid]
@@ -67,7 +65,7 @@ class InstlInstanceSync_svn(InstlInstanceSync):
         if source[1] == '!file':
             source_url = '/'.join( source_url.split("/")[0:-1]) # skip the file name sync the whole folder
             target_path = '/'.join( target_path.split("/")[0:-1]) # skip the file name sync the whole folder
-        command_parts = ['"$(__RESOLVED_SVN_CLIENT_PATH__)"', "co", '"'+source_url+'"', '"'+target_path+'"', "--revision", "$(REPO_REV)"]
+        command_parts = ['"$(SVN_CLIENT_PATH)"', "co", '"'+source_url+'"', '"'+target_path+'"', "--revision", "$(REPO_REV)"]
         if source[1] in ('!file', '!files'):
             command_parts.extend( ( "--depth", "files") )
         else:

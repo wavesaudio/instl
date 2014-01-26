@@ -112,15 +112,19 @@ def prepare_args_parser():
                                         help='create svn commands to remove redundant properties such as executable bit from files that should not be marked executable')
     parser_fix_symlinks = subparsers.add_parser('fix_symlinks',
                                         help='replace symlinks with .symlinks files')
+    parser_svn2stage = subparsers.add_parser('svn2stage',
+                                        help='svn sync repository and copy to staging folder')
     parser_stage2svn = subparsers.add_parser('stage2svn',
                                         help='add/remove files in staging to svn sync repository')
+    parser_wtar = subparsers.add_parser('wtar',
+                                        help='create .wtar files from specified files and folders')
     parser_help = subparsers.add_parser('help')
     parser_version = subparsers.add_parser('version', help='display instl version')
 
     modes = {'client': (parser_sync, parser_copy, parser_synccopy),
              'admin': (parser_trans, parser_createlinks, parser_up2S3,
                        parser_up_repo_rev, parser_fix_props, parser_fix_symlinks,
-                       parser_stage2svn),
+                       parser_stage2svn, parser_svn2stage, parser_wtar),
              'do_something': (parser_version, parser_help)
             }
     for the_mode, parsers in modes.iteritems():
@@ -131,12 +135,14 @@ def prepare_args_parser():
                           parser_trans)
     need_output_options = (parser_copy, parser_sync, parser_synccopy,
                            parser_trans, parser_createlinks, parser_fix_symlinks,
-                           parser_up2S3, parser_fix_props, parser_stage2svn)
+                           parser_up2S3, parser_fix_props, parser_stage2svn,
+                           parser_svn2stage, parser_wtar)
     need_run_option = (parser_copy, parser_sync, parser_synccopy,
                            parser_createlinks, parser_fix_symlinks,
                            parser_up2S3, parser_fix_props, parser_stage2svn)
     need_config_file_options = (parser_createlinks, parser_up_repo_rev, parser_up2S3,
-                                parser_fix_props)
+                                parser_fix_props, parser_stage2svn, parser_svn2stage,
+                                parser_wtar)
 
     # add --in to parsers that need it
     for subparser in need_input_options:
@@ -203,19 +209,6 @@ def prepare_args_parser():
                                 dest='base_repo_rev',
                                 help="minimal version, all version below will be changed to base-repo-rev")
 
-    stage2svn_options = parser_stage2svn.add_argument_group(description='stage2svn arguments:')
-    stage2svn_options.add_argument('--stage_folder',
-                            required=True,
-                            nargs=1,
-                            metavar='staging-folder',
-                            dest='staging_folder',
-                            help="folder to put staging files in")
-    stage2svn_options.add_argument('--svn_folder',
-                            required=True,
-                            nargs=1,
-                            metavar='svn-folder',
-                            dest='svn_folder',
-                            help="folder where svn repository is checked out")
 
     help_options = parser_help.add_argument_group(description='help subject:')
     help_options.add_argument('subject', nargs='?')

@@ -1,3 +1,16 @@
+???? 0.7.3 
+
+    user visible changes, client:
+    * using STAGING_FOLDER, SVN_CHECKOUT_FOLDER, SVN_CLIENT_PATH, DOWNLOAD_TOOL_PATH, CHECKSUM_TOOL_PATH instead of __STAGING_FOLDER__ , __SVN_FOLDER__, __RESOLVED_SVN_CLIENT_PATH__, __RESOLVED_DOWNLOAD_TOOL_PATH__, __RESOLVED_CHECKSUM_TOOL_PATH__
+    * wtar files are expnaded during sync not during copy
+
+    user visible changes, admin:
+    * new command svn2stage, to prepare folders for entering changes
+    * new command wtar, to proparly tar what needs to be tared
+    
+    programmer visible changes:
+    * new method for PlatformSpecificHelperBase & derivatives: tar/untar
+
 26/1/2014 0.7.2  Shai Shasag <shai@waves.com>
 
     user visible changes, client:

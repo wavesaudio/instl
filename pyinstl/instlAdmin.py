@@ -29,7 +29,8 @@ class InstlAdmin(InstlInstanceBase):
 
     def __init__(self, initial_vars):
         super(InstlAdmin, self).__init__(initial_vars)
-        self.cvl.set_var("__ALLOWED_COMMANDS__").extend( ('trans', 'createlinks', 'up2s3', 'up_repo_rev', 'fix_props', 'fix_symlinks', "stage2svn") )
+        self.cvl.set_var("__ALLOWED_COMMANDS__").extend( ('trans', 'createlinks', 'up2s3', 'up_repo_rev', 'fix_props',
+                                                            'fix_symlinks', 'stage2svn', 'svn2stage', 'wtar') )
         self.svnTree = svnTree.SVNTree()
 
     def set_default_variables(self):
@@ -477,8 +478,8 @@ class InstlAdmin(InstlInstanceBase):
     def do_stage2svn(self):
         self.platform_helper.use_copy_tool("rsync")
         self.batch_accum.set_current_section('admin')
-        stage_folder = self.cvl.resolve_string(("$(__STAGING_FOLDER__)"))
-        svn_folder = self.cvl.resolve_string(("$(__SVN_FOLDER__)"))
+        stage_folder = self.cvl.resolve_string(("$(STAGING_FOLDER)"))
+        svn_folder = self.cvl.resolve_string(("$(SVN_CHECKOUT_FOLDER)"))
         self.batch_accum += self.platform_helper.cd(svn_folder)
         comperer = filecmp.dircmp(stage_folder, svn_folder, ignore=[".svn", ".DS_Store", "Icon\015"])
         self.stage2svn_for_folder(comperer)
@@ -491,7 +492,6 @@ class InstlAdmin(InstlInstanceBase):
         # copy new and changed items:
         for item in comperer.left_only + comperer.diff_files:
             item_path = os.path.join(comperer.left, item)
-            print(item_path)
             if os.path.islink(item_path):
                 raise InstlException(item_path+" is a symlink which should not be committed to svn, run instl fix_symlinks and try again")
             elif os.path.isfile(item_path):
@@ -508,13 +508,75 @@ class InstlAdmin(InstlInstanceBase):
         # removed items:
         for item in comperer.right_only:
             item_path = os.path.join(comperer.left, item)
-            print(item_path)
             self.batch_accum += self.platform_helper.svn_remove_item(os.path.join(comperer.right, item))
 
         # recurse to sub folders
         for sub_comperer in comperer.subdirs.values():
-            print("going in...", sub_comperer.left)
             self.stage2svn_for_folder(sub_comperer)
+
+    def should_wtar(self, dir_item, regexes):
+        retVal = False
+        try:
+            for regex in regexes:
+                if re.search(regex, dir_item):
+                    retVal = True
+                    raise Exception
+        except:
+            pass
+        return retVal
+
+    def do_wtar(self):
+        self.platform_helper.use_copy_tool("rsync")
+        self.batch_accum.set_current_section('admin')
+        stage_folder = self.cvl.resolve_string(("$(STAGING_FOLDER)"))
+        regex_list = self.cvl.get_list("WTAR_REGEX")
+        if not regex_list:
+            return
+
+        compiled_regex_list = list()
+        for regex in regex_list:
+            compiled_regex_list.append(re.compile(regex))
+
+        folders_to_check = [stage_folder]
+        while len(folders_to_check) > 0:
+            folder_to_check = folders_to_check.pop()
+            dir_items = os.listdir(folder_to_check)
+            items_to_tar = list()
+            for dir_item in dir_items:
+                dir_item_full_path = os.path.join(folder_to_check, dir_item)
+                to_tar = self.should_wtar(dir_item, compiled_regex_list)
+                if to_tar:
+                    items_to_tar.append(dir_item)
+                else:
+                    if os.path.isdir(dir_item_full_path):
+                        folders_to_check.append(dir_item_full_path)
+            if items_to_tar:
+                self.batch_accum += self.platform_helper.cd(folder_to_check)
+                for item_to_tar in items_to_tar:
+                    self.batch_accum += self.platform_helper.tar(item_to_tar)
+                    item_to_tar_full_path = os.path.join(folder_to_check, item_to_tar)
+                    if os.path.isdir(item_to_tar_full_path):
+                        self.batch_accum += self.platform_helper.rmdir(item_to_tar, recursive=True)
+                    elif os.path.isfile(item_to_tar_full_path):
+                        self.batch_accum += self.platform_helper.rmfile(item_to_tar)
+                    self.batch_accum += self.platform_helper.progress(item_to_tar_full_path)
+        self.create_variables_assignment()
+        self.write_batch_file()
+        if "__RUN_BATCH_FILE__" in self.cvl:
+            self.run_batch_file()
+
+    def do_svn2stage(self):
+        self.platform_helper.use_copy_tool("rsync")
+        self.batch_accum.set_current_section('admin')
+        stage_folder = self.cvl.resolve_string(("$(STAGING_FOLDER)"))
+        svn_folder = self.cvl.resolve_string(("$(SVN_CHECKOUT_FOLDER)"))
+        svn_command_parts = ['"$(SVN_CLIENT_PATH)"', "checkout", '"$(SVN_REPO_URL)"', '"'+svn_folder+'"', "--depth", "infinity"]
+        self.batch_accum += " ".join(svn_command_parts)
+        self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(svn_folder, stage_folder, link_dest=svn_folder, ignore=(".svn", ".DS_Store"))
+        self.create_variables_assignment()
+        self.write_batch_file()
+        if "__RUN_BATCH_FILE__" in self.cvl:
+            self.run_batch_file()
 
 def percent_cb(unused_complete, unused_total):
     sys.stdout.write('.')

@@ -204,7 +204,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
 
     def check_checksum(self, filepath, checksum):
         check_command_parts = (  'for /f "delims=" %%i in',
-                                "('$(__RESOLVED_CHECKSUM_TOOL_PATH__) -s",
+                                "('$(CHECKSUM_TOOL_PATH) -s",
                                 quoteme_double(filepath),
                                 "')",
                                 "do (set CHECKSUM_CHECK=%%i",
@@ -221,13 +221,21 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         check_command = " ".join( check_command_parts )
         return check_command
 
+    def tar(self, to_tar_name):
+        raise NotImplementedError
+
+    def unwtar(self, filepath):
+        untar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "x", "-y", filepath)
+        untar_command = " ".join( untar_command_parts )
+        return untar_command
+
 class DownloadTool_win_wget(DownloadToolBase):
     def __init__(self, platformHelper):
         super(DownloadTool_win_wget, self).__init__(platformHelper)
 
     def download_url_to_file(self, src_url, trg_file):
         download_command_parts = list()
-        download_command_parts.append("$(__RESOLVED_DOWNLOAD_TOOL_PATH__)")
+        download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
         download_command_parts.append("--quiet")
         download_command_parts.append('--header "Accept-Encoding: gzip"'),
         download_command_parts.append("--connect-timeout")
@@ -251,7 +259,7 @@ class DownloadTool_win_wget(DownloadToolBase):
 
     def download_from_config_file(self, config_file):
         download_command_parts = list()
-        download_command_parts.append("$(__RESOLVED_DOWNLOAD_TOOL_PATH__)")
+        download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
         download_command_parts.append("--read-timeout")
         download_command_parts.append("900")
         return (" ".join(download_command_parts), self.platformHelper.exit_if_error())

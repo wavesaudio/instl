@@ -68,6 +68,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         return restore_dir_command
 
     def rmdir(self, directory, recursive=False):
+        """ If recursive==False, only empty directory will be removed """
         rmdir_command = ""
         if recursive:
             rmdir_command = " ".join( ("rm", "-fr", quoteme_double(directory) ) )
@@ -122,7 +123,7 @@ done""" % in_dir)
         return resolve_commands
 
     def check_checksum(self, filepath, checksum):
-        check_command_parts = (  "CHECKSUM_CHECK=`$(__RESOLVED_CHECKSUM_TOOL_PATH__) sha1",
+        check_command_parts = (  "CHECKSUM_CHECK=`$(CHECKSUM_TOOL_PATH) sha1",
                                 quoteme_double(filepath),
                                 "` ;",
                                 "if [ ${CHECKSUM_CHECK: -40} !=",
@@ -140,13 +141,23 @@ done""" % in_dir)
         check_command = " ".join( check_command_parts )
         return check_command
 
+    def tar(self, to_tar_name):
+        wtar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "-c", "-z", "-f", quoteme_double(to_tar_name+'.wtar'), quoteme_double(to_tar_name))
+        wtar_command = " ".join( wtar_command_parts )
+        return wtar_command
+
+    def unwtar(self, filepath):
+        unwtar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "-x", "-f", quoteme_double(filepath))
+        unwtar_command = " ".join( unwtar_command_parts )
+        return unwtar_command
+
 class DownloadTool_mac_curl(DownloadToolBase):
     def __init__(self, platformHelper):
         super(DownloadTool_mac_curl, self).__init__(platformHelper)
 
     def download_url_to_file(self, src_url, trg_file):
         download_command_parts = list()
-        download_command_parts.append("$(__RESOLVED_DOWNLOAD_TOOL_PATH__)")
+        download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
         download_command_parts.append("--insecure")
         download_command_parts.append("--fail")
         download_command_parts.append("--raw")
@@ -179,7 +190,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
     def download_from_config_file(self, config_file):
 
         download_command_parts = list()
-        download_command_parts.append("$(__RESOLVED_DOWNLOAD_TOOL_PATH__)")
+        download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
         download_command_parts.append("--max-time")
         download_command_parts.append(str(len(self.urls_to_download) * 6 + 300)) # 6 seconds for each item + 5 minutes
         download_command_parts.append("--config")
