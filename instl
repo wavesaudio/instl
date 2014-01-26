@@ -268,8 +268,6 @@ def main():
     """ Main instl entry point. Reads command line options and decides if to go into interactive or client mode.
     """
     try:
-        sys.stderr = sys.stdout
-        get_data_folder
         initial_vars = {"__INSTL_EXE_PATH__": get_path_to_instl_app(),
                         "__INSTL_DATA_FOLDER__": get_data_folder()}
         options = CommandLineOptions()
@@ -301,23 +299,12 @@ def main():
         else:
             raise InstlException("incomprehensible command line options:\n", options)
     except InstlException as instl_except:
-        print("instl exception", instl_except.message)
-        # from pyinstl.log_utils import debug_logging_started
-        #from pyinstl.log_utils import get_log_file_path
-        #print(get_log_file_path('instl', 'instl', True))
-        # if debug_logging_started:
-        #     import traceback
-            # traceback.print_exception(type(instl_except.original_exception),
-            #                           instl_except.original_exception,
-            #                           sys.exc_info()[2])
+        #print("instl exception", instl_except.message)
         raise
-    except InstlFatalException as instlEx:
-        # print(instlEx)
+    except InstlFatalException as instl_except:
+        #print("instl exception", instl_except.message)
         raise
     except Exception:
-        print("unhandled exception")
-        # import traceback
-        # traceback.print_exc()
         raise
 
 if __name__ == "__main__":

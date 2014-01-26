@@ -1,3 +1,9 @@
+26/1/2014 0.7.2  Shai Shasag <shai@waves.com>
+
+    user visible changes, client:
+     * Fixed exception handling and output to stderr.
+        Now all "bad" output should go to stderr. Errorlevel should be proearly set.
+
 23/1/2014 0.7.1 Shai Shasag <shai@waves.com>
 
     user visible changes, client:
