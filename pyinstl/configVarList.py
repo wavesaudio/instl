@@ -165,7 +165,7 @@ class ConfigVarList(object):
                     var_value = var_value[0]
                 retVal[var_name] = YamlDumpWrap(var_value, comment=theComment)
             else:
-                retVal[var_name] = YamlDumpWrap(value="UNKNOWN VARIABLE", comment=name+" is not in variable list")
+                retVal[var_name] = YamlDumpWrap(value="UNKNOWN VARIABLE", comment=var_name+" is not in variable list")
         return retVal
 
     def is_resolved(self, in_str):

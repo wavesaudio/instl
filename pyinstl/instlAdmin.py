@@ -360,12 +360,32 @@ class InstlAdmin(InstlInstanceBase):
                         ] )
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(UP_2_S3_STAMP_FILE_NAME)"])
 
+    def create_info_map_sig(self):
+        retVal = None
+        info_map_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/$(REPO_REV)/instl/info_map.txt")
+        config_dir, _ = os.path.split(self.cvl.get_str("__CONFIG_FILE_PATH__"))
+        private_key_file = os.path.join(config_dir, self.cvl.get_str("REPO_NAME")+".private_key")
+        import rsa
+        import base64
+        with open(private_key_file, "rb") as rfd:
+            privkey = rsa.PrivateKey.load_pkcs1(rfd.read(), format='PEM')
+            with open(info_map_file, "rb") as rfd:
+                binary_sig = rsa.sign(rfd, privkey, 'SHA-512')
+                retVal = base64.b64encode(binary_sig)
+        print(retVal)
+        return retVal
+
     def do_up_repo_rev(self):
         repo_rev_vars = self.cvl.get_list("REPO_REV_FILE_VARAIBLES")
         dangerous_intersection = set(repo_rev_vars).intersection(set(("AWS_ACCESS_KEY_ID","AWS_SECRET_ACCESS_KEY")))
         if dangerous_intersection:
             print("found", str(dangerous_intersection), "in REPO_REV_FILE_VARAIBLES, aborting")
             raise ValueError("file REPO_REV_FILE_VARAIBLES "+str(dangerous_intersection)+" and so is forbidden to upload")
+
+        if "INFO_MAP_SIG" in repo_rev_vars:
+            info_map_sig = self.create_info_map_sig()
+            self.cvl.set_var("INFO_MAP_SIG").append(info_map_sig)
+
         self.cvl.set_value_if_var_does_not_exist("REPO_REV_FILE_NAME", "$(REPO_NAME)_repo_rev.yaml")
         s3_path = self.cvl.resolve_string("admin/$(REPO_REV_FILE_NAME)")
         print("uploading to:", self.cvl.resolve_string("http://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)"))
@@ -376,6 +396,7 @@ class InstlAdmin(InstlInstanceBase):
         local_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME)")
         with open(local_file, "w") as wfd:
             writeAsYaml(repo_rev_yaml, out_stream=wfd, indentor=None, sort=True)
+
         import boto
         s3 		= boto.connect_s3(self.cvl.get_str("AWS_ACCESS_KEY_ID"), self.cvl.get_str("AWS_SECRET_ACCESS_KEY"))
         bucket 	= s3.get_bucket(self.cvl.get_str("S3_BUCKET_NAME"))

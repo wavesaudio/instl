@@ -9,6 +9,7 @@
     * new command svn2stage, to prepare folders for entering changes
     * new command wtar, to proparly tar what needs to be tared
     * new command createkeys
+    * up_repo_rev calculates sig for info_map.txt if INFO_MAP_SIG is defined in config file.
 
     programmer visible changes:
     * new method for PlatformSpecificHelperBase & derivatives: tar/untar
