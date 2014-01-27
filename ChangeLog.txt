@@ -8,10 +8,12 @@
     user visible changes, admin:
     * new command svn2stage, to prepare folders for entering changes
     * new command wtar, to proparly tar what needs to be tared
-    
+    * new command createkeys
+
     programmer visible changes:
     * new method for PlatformSpecificHelperBase & derivatives: tar/untar
     * Implemented rmdir, rmfile for Windows
+    * removed checks for __ALLOWED_COMMANDS__, this functionality is already covered by getattr(self, "do_"+the_command)
 
 26/1/2014 0.7.2  Shai Shasag <shai@waves.com>
 

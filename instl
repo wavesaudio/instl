@@ -118,13 +118,16 @@ def prepare_args_parser():
                                         help='add/remove files in staging to svn sync repository')
     parser_wtar = subparsers.add_parser('wtar',
                                         help='create .wtar files from specified files and folders')
+    parser_createkeys = subparsers.add_parser('createkeys',
+                                        help='create private and public keys')
     parser_help = subparsers.add_parser('help')
     parser_version = subparsers.add_parser('version', help='display instl version')
 
     modes = {'client': (parser_sync, parser_copy, parser_synccopy),
              'admin': (parser_trans, parser_createlinks, parser_up2S3,
                        parser_up_repo_rev, parser_fix_props, parser_fix_symlinks,
-                       parser_stage2svn, parser_svn2stage, parser_wtar),
+                       parser_stage2svn, parser_svn2stage, parser_wtar,
+                       parser_createkeys),
              'do_something': (parser_version, parser_help)
             }
     for the_mode, parsers in modes.iteritems():
@@ -142,7 +145,7 @@ def prepare_args_parser():
                            parser_up2S3, parser_fix_props, parser_stage2svn)
     need_config_file_options = (parser_createlinks, parser_up_repo_rev, parser_up2S3,
                                 parser_fix_props, parser_stage2svn, parser_svn2stage,
-                                parser_wtar)
+                                parser_wtar, parser_createkeys)
 
     # add --in to parsers that need it
     for subparser in need_input_options:

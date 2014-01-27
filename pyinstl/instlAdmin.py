@@ -47,12 +47,9 @@ class InstlAdmin(InstlInstanceBase):
     @func_log_wrapper
     def do_command(self):
         the_command = self.cvl.get_str("__MAIN_COMMAND__")
-        if the_command in self.cvl.get_list("__ALLOWED_COMMANDS__"):
-            self.set_default_variables()
-            do_command_func = getattr(self, "do_"+the_command)
-            do_command_func()
-        else:
-            raise ValueError(the_command+" is not one of the allowed admin commands: "+" ".join(self.cvl.get_list("__ALLOWED_COMMANDS__")))
+        self.set_default_variables()
+        do_command_func = getattr(self, "do_"+the_command)
+        do_command_func()
 
     def do_trans(self):
         self.read_info_map_file(self.cvl.get_str("__MAIN_INPUT_FILE__"))
@@ -577,6 +574,20 @@ class InstlAdmin(InstlInstanceBase):
         self.write_batch_file()
         if "__RUN_BATCH_FILE__" in self.cvl:
             self.run_batch_file()
+
+    def do_createkeys(self):
+        config_dir, _ = os.path.split(self.cvl.get_str("__CONFIG_FILE_PATH__"))
+        public_key_file = os.path.join(config_dir, self.cvl.get_str("REPO_NAME")+".public_key")
+        private_key_file = os.path.join(config_dir, self.cvl.get_str("REPO_NAME")+".private_key")
+        import rsa
+        pubkey, privkey = rsa.newkeys(4096, poolsize=8)
+        with open(public_key_file, "wb") as wfd:
+            wfd.write(pubkey.save_pkcs1(format='PEM'))
+            print("public key created:", public_key_file)
+        with open(private_key_file, "wb") as wfd:
+            wfd.write(privkey.save_pkcs1(format='PEM'))
+            print("private key created:", private_key_file)
+
 
 def percent_cb(unused_complete, unused_total):
     sys.stdout.write('.')
