@@ -166,12 +166,13 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return restore_dir_command
 
     def rmdir(self, directory, recursive=False):
-        """ platform specific rmdir """
-        pass
+        recurse_switch = '/S' if recursive else ''
+        rmdir_command = " ".join( ("rmdir", recurse_switch, quoteme_double(directory) ) )
+        return rmdir_command
 
-    def rmfile(self, file):
-        """ platform specific rm file """
-        pass
+    def rmfile(self, file_to_del):
+        rmfile_command = " ".join( ("del", "/F", quoteme_double(file_to_del) ) )
+        return rmfile_command
 
     def get_svn_folder_cleanup_instructions(self):
         return ()
@@ -225,9 +226,14 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         raise NotImplementedError
 
     def unwtar(self, filepath):
-        untar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "x", "-y", filepath)
-        untar_command = " ".join( untar_command_parts )
-        return untar_command
+        tar_file = filepath+".tar"
+        unzip_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "x", "-y",
+                               quoteme_double(filepath), "-so", ">", quoteme_double(tar_file))
+        untar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "x", "-y",
+                               quoteme_double(tar_file))
+        rm_tar_command = self.rmfile(tar_file)
+        untar_commands = " ".join( unzip_command_parts ), " ".join( untar_command_parts), rm_tar_command
+        return untar_commands
 
 class DownloadTool_win_wget(DownloadToolBase):
     def __init__(self, platformHelper):
