@@ -10,11 +10,9 @@ from instlInstanceSyncBase import InstlInstanceSync
 class InstlInstanceSync_svn(InstlInstanceSync):
     """  Class to create sync instruction using svn.
     """
-    @func_log_wrapper
-    def __init__(self, instlInstance):
-        self.ii = instlInstance
+    def __init__(self, instlObj):
+        self.ii = instlObj
 
-    @func_log_wrapper
     def init_sync_vars(self):
         var_description = "from InstlInstanceBase.init_sync_vars"
         if "SYNC_BASE_URL" not in self.ii.cvl:
@@ -35,7 +33,6 @@ class InstlInstanceSync_svn(InstlInstanceSync):
         for identifier in ("SYNC_BASE_URL", "SVN_CLIENT_PATH", "REL_SRC_PATH", "REPO_REV", "SYNC_TRAGET_OS_URL", "BOOKKEEPING_DIR_URL"):
             logging.debug("... %s: %s", identifier, self.ii.cvl.get_str(identifier))
 
-    @func_log_wrapper
     def create_sync_instructions(self, installState):
         self.ii.batch_accum.set_current_section('sync')
         self.ii.batch_accum += self.ii.platform_helper.progress("from $(SYNC_TRAGET_OS_URL)")
@@ -56,7 +53,6 @@ class InstlInstanceSync_svn(InstlInstanceSync):
         self.ii.batch_accum += self.ii.platform_helper.echo("from $(SYNC_TRAGET_OS_URL)")
 
 
-    @func_log_wrapper
     def create_svn_sync_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
         retVal = list()

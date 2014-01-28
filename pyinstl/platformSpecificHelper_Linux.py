@@ -15,15 +15,15 @@ class CopyToolLinuxRsync(CopyToolRsync):
         super(CopyToolLinuxRsync, self).__init__(platformHelper)
 
 class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
-    def __init__(self, instlInstance):
-        super(PlatformSpecificHelperLinux, self).__init__(instlInstance)
+    def __init__(self, instlObj):
+        super(PlatformSpecificHelperLinux, self).__init__(instlObj)
         self.var_replacement_pattern = "${\g<var_name>}"
         self.dl_tool = DownloadTool_linux_curl(self)
 
     def get_install_instructions_prefix(self):
         retVal =  (
             "#!/usr/bin/env bash",
-            self.remark(self.instlInstance.get_version_str()),
+            self.remark(self.instlObj.get_version_str()),
             self.remark(datetime.datetime.today().isoformat()),
             "set -e",
             self.save_dir("TOP_SAVE_DIR"))

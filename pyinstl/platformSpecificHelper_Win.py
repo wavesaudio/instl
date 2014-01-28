@@ -27,7 +27,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         """ To do: dedicate a variable to copy logging (COPY_LOG_FILE ???)
         """
         retVal = ""
-        #log_file = self.platformHelper.instlInstance.cvl.get_str("LOG_FILE")
+        #log_file = self.platformHelper.instlObj.cvl.get_str("LOG_FILE")
         #retVal = " /LOG:{log_file}".format(**locals())
         return retVal
 
@@ -114,8 +114,8 @@ class CopyTool_win_xcopy(CopyToolBase):
         return retVal
 
 class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
-    def __init__(self, instlInstance):
-        super(PlatformSpecificHelperWin, self).__init__(instlInstance)
+    def __init__(self, instlObj):
+        super(PlatformSpecificHelperWin, self).__init__(instlObj)
         self.var_replacement_pattern = "%\g<var_name>%"
         self.dl_tool = DownloadTool_win_wget(self)
 
@@ -123,7 +123,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         retVal = (
             "@echo off",
             "setlocal enableextensions enabledelayedexpansion",
-            self.remark(self.instlInstance.get_version_str()),
+            self.remark(self.instlObj.get_version_str()),
             self.remark(datetime.datetime.today().isoformat()),
             self.save_dir("TOP_SAVE_DIR"),
             )

@@ -31,7 +31,6 @@ class SearchPaths(object):
     def __iter__(self):
         return iter(self.search_paths_var)
 
-    @func_log_wrapper
     def add_search_path(self, a_path):
         """ Add a folder to the list of search paths
         """
@@ -49,13 +48,11 @@ class SearchPaths(object):
             some_real_path = os.path.realpath(some_path)
             self.add_search_path(some_real_path)
 
-    @func_log_wrapper
     def add_search_path_recursive(self, *paths):
         """ Add folders to the list of search paths
             and also all subfolders """
         pass  # to do...
 
-    @func_log_wrapper
     def find_file(self, in_file, return_original_if_not_found=False):
         """
         Find the real path to a file.
@@ -100,13 +97,11 @@ class SearchPaths(object):
                 retVal = in_file
         return retVal
 
-    @func_log_wrapper
     def get_machine_config_file_path(self, in_app_name):
         retVal = os.path.join(appdirs.site_data_dir(in_app_name))
         logging.debug("... %s", retVal)
         return retVal
 
-    @func_log_wrapper
     def get_user_config_file_path(self, in_app_name):
         retVal = os.path.join(appdirs.user_data_dir(in_app_name))
         logging.debug("... %s", retVal)

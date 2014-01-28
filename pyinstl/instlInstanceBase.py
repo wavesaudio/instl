@@ -33,7 +33,6 @@ class InstlInstanceBase(object):
         or InstlInstance_win.
     """
     __metaclass__ = abc.ABCMeta
-    @func_log_wrapper
     def __init__(self, initial_vars=None):
         # init objects owned by this class
         self.cvl = ConfigVarList()
@@ -60,7 +59,6 @@ class InstlInstanceBase(object):
         retVal = " ".join( (this_program_name, "version", ".".join(self.cvl.get_list("__INSTL_VERSION__"))) )
         return retVal
 
-    @func_log_wrapper
     def init_default_vars(self, initial_vars):
         if initial_vars:
             var_description = "from initial_vars"
@@ -85,7 +83,6 @@ class InstlInstanceBase(object):
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
 
 
-    @func_log_wrapper
     def init_from_cmd_line_options(self, cmd_line_options_obj):
         """ turn command line options into variables """
         if cmd_line_options_obj.input_file:
@@ -131,7 +128,6 @@ class InstlInstanceBase(object):
         retVal = doc_node.tag in acceptables
         return retVal
 
-    @func_log_wrapper
     def read_yaml_file(self, file_path):
         try:
             logging.info("... Reading input file %s", file_path)
@@ -166,7 +162,6 @@ class InstlInstanceBase(object):
 
 
 
-    @func_log_wrapper
     def read_defines(self, a_node):
         # if document is empty we get a scalar node
         if a_node.isMapping():
@@ -179,13 +174,11 @@ class InstlInstanceBase(object):
                         resolved_file_name = self.cvl.resolve_string(file_name.value)
                         self.read_yaml_file(resolved_file_name)
 
-    @func_log_wrapper
     def create_variables_assignment(self):
         self.batch_accum.set_current_section("assign")
         for identifier in self.cvl:
             self.batch_accum += self.platform_helper.var_assign(identifier,self.cvl.get_str(identifier))
 
-    @func_log_wrapper
     def get_default_sync_dir(self):
         retVal = None
         user_cache_dir = None
@@ -204,7 +197,6 @@ class InstlInstanceBase(object):
         #print("1------------------", user_cache_dir, "-", from_url, "-", retVal)
         return retVal
 
-    @func_log_wrapper
     def init_copy_vars(self):
         var_description = "from InstlInstanceBase.init_copy_vars"
         if "SET_ICON_TOOL_PATH" in self.cvl:
@@ -227,7 +219,6 @@ class InstlInstanceBase(object):
         for identifier in ("REL_SRC_PATH", "COPY_TOOL"):
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
 
-    @func_log_wrapper
     def relative_sync_folder_for_source(self, source):
         retVal = None
         if source[1] in ('!dir', '!file'):
@@ -238,7 +229,6 @@ class InstlInstanceBase(object):
             raise ValueError("unknown tag for source "+source[0]+": "+source[1])
         return retVal
 
-    @func_log_wrapper
     def write_batch_file(self):
         self.batch_accum.set_current_section('pre')
         self.batch_accum += self.platform_helper.get_install_instructions_prefix()
@@ -260,14 +250,12 @@ class InstlInstanceBase(object):
             os.chmod(self.out_file_realpath, 0755)
         print(out_file)
 
-    @func_log_wrapper
     def run_batch_file(self):
         logging.info("running batch file %s", self.out_file_realpath)
         from subprocess import Popen
         p = Popen(self.out_file_realpath)
         unused_stdout, unused_stderr = p.communicate()
 
-    @func_log_wrapper
     def write_program_state(self):
         from utils import write_to_file_or_stdout
         state_file = self.cvl.get_str("__MAIN_STATE_FILE__")

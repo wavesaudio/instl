@@ -100,11 +100,17 @@ class open_for_read_file_or_url(object):
     def __exit__(self, unused_type, unused_value, unused_traceback):
         self.fd.close()
 
-def download_from_file_or_url(in_url, in_local_path):
+def download_from_file_or_url(in_url, in_local_path, public_key=None, textual_sig=None):
     with open_for_read_file_or_url(in_url) as rfd:
         with open(in_local_path, "wb") as wfd:
             copy_buffer = rfd.read()
             if copy_buffer:
+                if public_key and textual_sig:
+                    import rsa
+                    import base64
+                    pubkeyObj = rsa.PublicKey.load_pkcs1(public_key, format='PEM')
+                    binary_sig = base64.b64decode(textual_sig)
+                    rsa.verify(copy_buffer, binary_sig, pubkeyObj)
                 wfd.write(copy_buffer)
 
 class unique_list(list):

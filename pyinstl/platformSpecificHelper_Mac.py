@@ -16,8 +16,8 @@ class CopyToolMacRsync(CopyToolRsync):
         super(CopyToolMacRsync, self).__init__(platformHelper)
 
 class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
-    def __init__(self, instlInstance):
-        super(PlatformSpecificHelperMac, self).__init__(instlInstance)
+    def __init__(self, instlObj):
+        super(PlatformSpecificHelperMac, self).__init__(instlObj)
         self.var_replacement_pattern = "${\g<var_name>}"
         self.dl_tool = DownloadTool_mac_curl(self)
 
@@ -27,7 +27,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         """
         retVal = (
             "#!/usr/bin/env bash",
-            self.remark(self.instlInstance.get_version_str()),
+            self.remark(self.instlObj.get_version_str()),
             self.remark(datetime.datetime.today().isoformat()),
             "set -e",
             self.start_time_measure(),

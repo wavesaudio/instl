@@ -124,8 +124,8 @@ class CopyToolRsync(CopyToolBase):
 
 class PlatformSpecificHelperBase(object):
 
-    def __init__(self, instlInstance):
-        self.instlInstance = instlInstance
+    def __init__(self, instlObj):
+        self.instlObj = instlObj
         self.copy_tool = None
         self.dl_tool = None
         self.num_items_for_progress_report = 0
@@ -227,17 +227,17 @@ class PlatformSpecificHelperBase(object):
     def unwtar(self, filepath):
         pass
 
-def PlatformSpecificHelperFactory(in_os, instlInstance):
+def PlatformSpecificHelperFactory(in_os, instlObj):
     retVal = None
     if in_os == "Mac":
         import platformSpecificHelper_Mac
-        retVal = platformSpecificHelper_Mac.PlatformSpecificHelperMac(instlInstance)
+        retVal = platformSpecificHelper_Mac.PlatformSpecificHelperMac(instlObj)
     elif in_os == "Win":
         import platformSpecificHelper_Win
-        retVal = platformSpecificHelper_Win.PlatformSpecificHelperWin(instlInstance)
+        retVal = platformSpecificHelper_Win.PlatformSpecificHelperWin(instlObj)
     elif in_os == "Linux":
         import platformSpecificHelper_Linux
-        retVal = platformSpecificHelper_Linux.PlatformSpecificHelperLinux(instlInstance)
+        retVal = platformSpecificHelper_Linux.PlatformSpecificHelperLinux(instlObj)
     else:
         raise ValueError(in_os, "has no PlatformSpecificHelper")
     return retVal

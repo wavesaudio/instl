@@ -122,7 +122,6 @@ class ConfigVarList(object):
             if description is not None:
                 new_var.set_description(description)
 
-    @func_log_wrapper
     def add_const_config_variable(self, name, description="", *values):
         """ add a const single value object """
         if name in self._ConfigVar_objs:

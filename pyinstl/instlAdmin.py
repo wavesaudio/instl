@@ -44,7 +44,6 @@ class InstlAdmin(InstlInstanceBase):
             self.read_yaml_file(config_file_resolved)
             self.resolve_defined_paths()
 
-    @func_log_wrapper
     def do_command(self):
         the_command = self.cvl.get_str("__MAIN_COMMAND__")
         self.set_default_variables()

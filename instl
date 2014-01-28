@@ -232,7 +232,6 @@ def prepare_args_parser():
                                 help="issue svn command as well as file system commands")
     return parser
 
-@func_log_wrapper
 def read_command_line_options(name_space_obj, arglist=None):
     """ parse command line options """
     #args_str = "No options given"

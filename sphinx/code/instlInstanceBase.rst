@@ -135,7 +135,7 @@ Class InstlInstanceBase
     
         .. method:: write_program_state(self)
     
-            Writes the current state of instlInstance to the path in variable `__MAIN_STATE_FILE__` or if it does not exist to stdout.
+            Writes the current state of instlObj to the path in variable `__MAIN_STATE_FILE__` or if it does not exist to stdout.
     
         .. method:: evaluate_graph(self)
 

@@ -14,7 +14,6 @@ from instlInstanceBase import InstlInstanceBase
 
 class InstallInstructionsState(object):
     """ holds state for specific creating of install instructions """
-    @func_log_wrapper
     def __init__(self):
         self.root_install_items = unique_list()
         self.full_install_items = unique_list()
@@ -23,7 +22,6 @@ class InstallInstructionsState(object):
         self.no_copy_items_by_sync_folder = defaultdict(unique_list)
         self.sync_paths = unique_list()
 
-    @func_log_wrapper
     def repr_for_yaml(self):
         retVal = OrderedDict()
         retVal['root_install_items'] = list(self.root_install_items)
@@ -37,22 +35,20 @@ class InstallInstructionsState(object):
         #retVal['sync_instruction_lines'] = self.instruction_lines['sync']
         return retVal
 
-    @func_log_wrapper
-    def __sort_install_items_by_target_folder(self, instlInstance):
+    def __sort_install_items_by_target_folder(self, instlObj):
         for IID in self.full_install_items:
-            folder_list_for_idd = instlInstance.install_definitions_index[IID].folder_list()
+            folder_list_for_idd = instlObj.install_definitions_index[IID].folder_list()
             if folder_list_for_idd:
                 for folder in folder_list_for_idd:
                     norm_folder = os.path.normpath(folder)
                     self.install_items_by_target_folder[norm_folder].append(IID)
             else: # items that need no copy
-                source_list_for_idd = instlInstance.install_definitions_index[IID].source_list()
+                source_list_for_idd = instlObj.install_definitions_index[IID].source_list()
                 for source in source_list_for_idd:
-                    sync_folder =  os.path.join( ("$(LOCAL_SYNC_DIR)", "$(REL_SRC_PATH)", instlInstance.relative_sync_folder_for_source(source)))
+                    sync_folder =  os.path.join( ("$(LOCAL_SYNC_DIR)", "$(REL_SRC_PATH)", instlObj.relative_sync_folder_for_source(source)))
                     self.no_copy_items_by_sync_folder[sync_folder].append(IID)
 
-    @func_log_wrapper
-    def calculate_full_install_items_set(self, instlInstance):
+    def calculate_full_install_items_set(self, instlObj):
         """ calculate the set of iids to install by starting with the root set and adding all dependencies.
             Initial list of iids should already be in self.root_install_items.
             If an install items was not found for a iid, the iid is added to the orphan set.
@@ -66,8 +62,8 @@ class InstallInstructionsState(object):
 
         root_install_iids_translated = unique_list()
         for IID in self.root_install_items:
-            if instlInstance.guid_re.match(IID): # if it's a guid translate to iid's
-                iids_from_the_guid = instlInstance.iids_from_guid(IID)
+            if instlObj.guid_re.match(IID): # if it's a guid translate to iid's
+                iids_from_the_guid = instlObj.iids_from_guid(IID)
                 if len(iids_from_the_guid) > 0:
                     root_install_iids_translated.extend(iids_from_the_guid)
                     logging.info("GUID %s, translated to %d iids: %s", IID, len(iids_from_the_guid), ", ".join(iids_from_the_guid))
@@ -80,11 +76,11 @@ class InstallInstructionsState(object):
 
         for IID in root_install_iids_translated:
             try:
-                instlInstance.install_definitions_index[IID].get_recursive_depends(instlInstance.install_definitions_index, self.full_install_items, self.orphan_install_items)
+                instlObj.install_definitions_index[IID].get_recursive_depends(instlObj.install_definitions_index, self.full_install_items, self.orphan_install_items)
             except KeyError:
                 self.orphan_install_items.append(IID)
                 logging.warning("%s not found in index", IID)
-        self.__sort_install_items_by_target_folder(instlInstance)
+        self.__sort_install_items_by_target_folder(instlObj)
 
 class InstlClient(InstlInstanceBase):
 
@@ -93,7 +89,6 @@ class InstlClient(InstlInstanceBase):
         self.install_definitions_index = dict()
         self.cvl.set_var("__ALLOWED_COMMANDS__").extend( ('sync', 'copy', 'synccopy') )
 
-    @func_log_wrapper
     def do_command(self):
         the_command = self.cvl.get_str("__MAIN_COMMAND__")
         if the_command in self.cvl.get_list("__ALLOWED_COMMANDS__"):
@@ -124,7 +119,6 @@ class InstlClient(InstlInstanceBase):
             if "__RUN_BATCH_FILE__" in self.cvl:
                 self.run_batch_file()
 
-    @func_log_wrapper
     def repr_for_yaml(self, what=None):
         """ Create representation of self suitable for printing as yaml.
             parameter 'what' is a list of identifiers to represent. If 'what'
@@ -156,22 +150,18 @@ class InstlClient(InstlInstanceBase):
 
         return retVal
 
-    @func_log_wrapper
     def read_index(self, a_node):
         self.install_definitions_index.update(read_index_from_yaml(a_node))
 
-    @func_log_wrapper
     def resolve_index_inheritance(self):
         for install_def in self.install_definitions_index.values():
             install_def.resolve_inheritance(self.install_definitions_index)
 
-    @func_log_wrapper
     def guid_list(self):
         retVal = unique_list()
         retVal.extend(filter(bool, [install_def.guid for install_def in self.install_definitions_index.values()]))
         return retVal
 
-    @func_log_wrapper
     def iids_from_guid(self, guid):
         retVal = list()
         for iid, install_def in self.install_definitions_index.iteritems():
@@ -179,7 +169,6 @@ class InstlClient(InstlInstanceBase):
                 retVal.append(iid)
         return retVal
 
-    @func_log_wrapper
     def calculate_default_install_item_set(self, installState):
         """ calculate the set of iids to install from the "MAIN_INSTALL_TARGETS" variable.
             Full set of install iids and orphan iids are also writen to variable.
@@ -196,7 +185,6 @@ class InstlClient(InstlInstanceBase):
         for identifier in ("MAIN_INSTALL_TARGETS", "__FULL_LIST_OF_INSTALL_TARGETS__", "__ORPHAN_INSTALL_TARGETS__"):
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
 
-    @func_log_wrapper
     def create_copy_instructions(self, installState):
         # copy and actions instructions for sources
         self.batch_accum.set_current_section('copy')
@@ -292,7 +280,6 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum += self.platform_helper.echo("Don't know how to install "+iid)
         self.batch_accum += self.platform_helper.progress("done copy")
 
-    @func_log_wrapper
     def create_copy_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
 
@@ -308,7 +295,6 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path, ".", source_path, ignore=(".svn", "*.symlink", "*.wtar"))
         logging.info("... %s; (%s - %s)", source_path, self.cvl.resolve_string(source_path), source[1])
 
-    @func_log_wrapper
     def find_cycles(self):
             if not self.install_definitions_index:
                 print ("index empty - nothing to check")
@@ -332,7 +318,6 @@ class InstlClient(InstlInstanceBase):
                 except ImportError: # no installItemGraph, no worry
                     print("Could not load installItemGraph")
 
-    @func_log_wrapper
     def needs(self, iid, out_list):
         """ return all items that depend on iid """
         if iid not in self.install_definitions_index:
@@ -346,7 +331,6 @@ class InstlClient(InstlInstanceBase):
                 out_list.append(dep+"(missing)")
         InstallItem.reset_get_for_all_oses()
 
-    @func_log_wrapper
     def needed_by(self, iid):
         try:
             from pyinstl import installItemGraph

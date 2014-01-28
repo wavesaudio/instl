@@ -11,7 +11,6 @@ class BatchAccumulator(object):
     """
     section_order = ("pre", "assign", "links", "upload", "sync", "copy", "admin", "post")
 
-    @func_log_wrapper
     def __init__(self, in_cvl_obj):
         self.cvl = in_cvl_obj
         self.variables_assignment_lines = list()
@@ -19,14 +18,12 @@ class BatchAccumulator(object):
         self.indent_level = 0
         self.current_section = None
 
-    @func_log_wrapper
     def set_current_section(self, section):
         if section in BatchAccumulator.section_order:
             self.current_section = section
         else:
             raise ValueError(section+" is not a known section name")
 
-    @func_log_wrapper
     def add(self, instructions):
         if isinstance(instructions, basestring):
             self.instruction_lines[self.current_section].append(" " * 4 * self.indent_level + instructions)
@@ -38,7 +35,6 @@ class BatchAccumulator(object):
         self.add(instructions)
         return self
 
-    @func_log_wrapper
     def finalize_list_of_lines(self):
         lines = list()
         for section in BatchAccumulator.section_order:

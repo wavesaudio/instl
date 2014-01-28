@@ -564,7 +564,7 @@ class CMDObj(cmd.Cmd, object):
         return False
 
     def help_eval(self):
-        print("evaluate python expressions, instlInstance is accessible as self.client_prog_inst")
+        print("evaluate python expressions, instlObj is accessible as self.client_prog_inst")
 
 def compact_history():
     if hasattr(readline, "replace_history_item"):
