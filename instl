@@ -64,6 +64,8 @@ class CommandLineOptions(object):
         self.svn = None
         self.staging_folder = None
         self.svn_folder = None
+        self.sh1_checksum = None
+        self.rsa_signature = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
@@ -106,11 +108,11 @@ def prepare_args_parser():
                                         help='create links from the base SVN checkout folder for a specific version')
     parser_up2S3 = subparsers.add_parser('up2s3',
                                         help='upload installation sources to S3')
-    parser_up_repo_rev = subparsers.add_parser('up_repo_rev',
+    parser_up_repo_rev = subparsers.add_parser('up-repo-rev',
                                         help='upload repository revision file to admin folder')
-    parser_fix_props = subparsers.add_parser('fix_props',
+    parser_fix_props = subparsers.add_parser('fix-props',
                                         help='create svn commands to remove redundant properties such as executable bit from files that should not be marked executable')
-    parser_fix_symlinks = subparsers.add_parser('fix_symlinks',
+    parser_fix_symlinks = subparsers.add_parser('fix-symlinks',
                                         help='replace symlinks with .symlinks files')
     parser_svn2stage = subparsers.add_parser('svn2stage',
                                         help='svn sync repository and copy to staging folder')
@@ -120,6 +122,10 @@ def prepare_args_parser():
                                         help='create .wtar files from specified files and folders')
     parser_createkeys = subparsers.add_parser('createkeys',
                                         help='create private and public keys')
+    parser_make_sig = subparsers.add_parser('make-sig',
+                                        help='create sha1 checksum and rsa signature for a file')
+    parser_check_sig = subparsers.add_parser('check-sig',
+                                        help='check sha1 checksum and/or rsa signature for a file')
     parser_help = subparsers.add_parser('help')
     parser_version = subparsers.add_parser('version', help='display instl version')
 
@@ -127,7 +133,7 @@ def prepare_args_parser():
              'admin': (parser_trans, parser_createlinks, parser_up2S3,
                        parser_up_repo_rev, parser_fix_props, parser_fix_symlinks,
                        parser_stage2svn, parser_svn2stage, parser_wtar,
-                       parser_createkeys),
+                       parser_createkeys, parser_make_sig, parser_check_sig),
              'do_something': (parser_version, parser_help)
             }
     for the_mode, parsers in modes.iteritems():
@@ -135,7 +141,7 @@ def prepare_args_parser():
             some_parser.set_defaults(mode=the_mode)
 
     need_input_options = (parser_sync, parser_copy, parser_synccopy,
-                          parser_trans)
+                          parser_trans, parser_make_sig, parser_check_sig)
     need_output_options = (parser_copy, parser_sync, parser_synccopy,
                            parser_trans, parser_createlinks, parser_fix_symlinks,
                            parser_up2S3, parser_fix_props, parser_stage2svn,
@@ -145,7 +151,7 @@ def prepare_args_parser():
                            parser_up2S3, parser_fix_props, parser_stage2svn)
     need_config_file_options = (parser_createlinks, parser_up_repo_rev, parser_up2S3,
                                 parser_fix_props, parser_stage2svn, parser_svn2stage,
-                                parser_wtar, parser_createkeys)
+                                parser_wtar, parser_createkeys, parser_make_sig, parser_check_sig)
 
     # add --in to parsers that need it
     for subparser in need_input_options:
@@ -175,10 +181,10 @@ def prepare_args_parser():
                                     dest='run',
                                     help="run the installation instructions script")
 
-    # add --config_file to parsers that need it
+    # add --config-file to parsers that need it
     for subparser in need_config_file_options:
         config_file_options = subparser.add_argument_group(description='admin arguments:')
-        config_file_options.add_argument('--config_file', '-s',
+        config_file_options.add_argument('--config-file', '-s',
                                     required=True,
                                     nargs=1,
                                     metavar='path-to-config-file',
@@ -212,12 +218,25 @@ def prepare_args_parser():
                                 dest='base_repo_rev',
                                 help="minimal version, all version below will be changed to base-repo-rev")
 
+    check_sig_options = parser_check_sig.add_argument_group(description='check sig arguments:')
+    check_sig_options.add_argument('--sha1',
+                                required=False,
+                                nargs=1,
+                                metavar='sh1-checksum',
+                                dest='sh1_checksum',
+                                help="expected sha1 checksum")
+    check_sig_options.add_argument('--rsa',
+                                required=False,
+                                nargs=1,
+                                metavar='rsa-sig',
+                                dest='rsa_signature',
+                                help="expected rsa SHA-512 signature")
 
     help_options = parser_help.add_argument_group(description='help subject:')
     help_options.add_argument('subject', nargs='?')
 
     if 'Win' not in current_os_names:
-        symlink_options = parser_fix_symlinks.add_argument_group(description='fix_symlinks arguments:')
+        symlink_options = parser_fix_symlinks.add_argument_group(description='fix-symlinks arguments:')
         symlink_options.add_argument('--folder', '-f',
                                 required=True,
                                 nargs=1,

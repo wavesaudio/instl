@@ -6,6 +6,9 @@ import os
 import urllib2
 import re
 import urlparse
+import hashlib
+import rsa
+import base64
 
 def Is64Windows():
     return 'PROGRAMFILES(X86)' in os.environ
@@ -100,18 +103,23 @@ class open_for_read_file_or_url(object):
     def __exit__(self, unused_type, unused_value, unused_traceback):
         self.fd.close()
 
-def download_from_file_or_url(in_url, in_local_path, public_key=None, textual_sig=None):
-    with open_for_read_file_or_url(in_url) as rfd:
-        with open(in_local_path, "wb") as wfd:
-            copy_buffer = rfd.read()
-            if copy_buffer:
-                if public_key and textual_sig:
-                    import rsa
-                    import base64
-                    pubkeyObj = rsa.PublicKey.load_pkcs1(public_key, format='PEM')
-                    binary_sig = base64.b64decode(textual_sig)
-                    rsa.verify(copy_buffer, binary_sig, pubkeyObj)
-                wfd.write(copy_buffer)
+def download_from_file_or_url(in_url, in_local_path, public_key=None, textual_sig=None, expected_checksum=None):
+    retVal = False
+    fileExists = False
+    if os.path.isfile(in_local_path):
+        fileOK = check_file_signature_or_checksum(in_local_path, public_key, textual_sig, expected_checksum)
+        if not fileOK:
+            os.remove(in_local_path)
+        fileExists = fileOK
+
+    if not fileExists:
+        with open_for_read_file_or_url(in_url) as rfd:
+            contents_buffer = rfd.read()
+            if contents_buffer:
+                fileOK = check_buffer_signature_or_checksum(contents_buffer, public_key, textual_sig, expected_checksum)
+                if fileOK:
+                    with open(in_local_path, "wb") as wfd:
+                        wfd.write(contents_buffer)
 
 class unique_list(list):
     """
@@ -308,3 +316,75 @@ def ParallelContinuationIter(*iterables):
     continue_iterables = map(ContinuationIter, iterables)
     for i in range(max_size):
         yield map(next, continue_iterables)
+
+def create_file_signatures(file_path, private_key_text=None):
+    """ create rsa signature and sha1 checksum for a file.
+        return a dict with "SHA-512_rsa_sig" and "sha1_checksum" entries.
+    """
+    retVal = dict()
+    with open(file_path, "rb") as rfd:
+        file_contents = rfd.read()
+        sha1ner = hashlib.sha1()
+        sha1ner.update(file_contents)
+        checksum = sha1ner.hexdigest()
+        retVal["sha1_checksum"] = checksum
+        if private_key_text is not None:
+            private_key_obj = rsa.PrivateKey.load_pkcs1(private_key_text, format='PEM')
+            binary_sig = rsa.sign(file_contents, private_key_obj, 'SHA-512')
+            text_sig = base64.b64encode(binary_sig)
+            retVal["SHA-512_rsa_sig"] = text_sig
+    return retVal
+
+def get_buffer_checksum(buff):
+    sha1ner = hashlib.sha1()
+    sha1ner.update(buff)
+    retVal = sha1ner.hexdigest()
+    return retVal
+
+def check_buffer_checksum(buff, expected_checksum):
+    checksum = get_buffer_checksum(buff)
+    retVal = checksum == expected_checksum
+    return retVal
+
+def check_buffer_signature(buff, textual_sig, public_key):
+    try:
+        pubkeyObj = rsa.PublicKey.load_pkcs1(public_key, format='PEM')
+        binary_sig = base64.b64decode(textual_sig)
+        rsa.verify(buff, binary_sig, pubkeyObj)
+        return True
+    except:
+        return False
+
+def check_buffer_signature_or_checksum(buff, public_key=None, textual_sig=None, expected_checksum=None):
+    retVal = False
+    if public_key and textual_sig:
+        public_key = check_buffer_signature(local_fd.read(), textual_sig, public_key)
+    elif expected_checksum:
+        public_key = check_buffer_checksum(local_fd.read(), expected_checksum)
+    return retVal
+
+def check_file_signature_or_checksum(file_path, public_key=None, textual_sig=None, expected_checksum=None):
+    retVal = False
+    with open(file_path, "rb") as rfd:
+        retVal = check_buffer_signature_or_checksum(rfd.read(), public_key, textual_sig, expected_checksum)
+    return retVal
+
+def check_file_checksum(file_path, expected_checksum):
+    retVal = False
+    with open(file_path, "rb") as rfd:
+        retVal = check_buffer_checksum(rfd.read(), expected_checksum)
+    return retVal
+
+def check_file_signature(file_path, textual_sig, public_key):
+    retVal = False
+    with open(file_path, "rb") as rfd:
+        retVal = check_buffer_signature(rfd.read(), textual_sig, public_key)
+    return retVal
+
+
+def need_to_download_file(file_path, file_checksum):
+    retVal = True
+    if os.path.isfile(file_path):
+        sig_dict = create_file_signatures(file_path)
+        retVal =  sig_dict["sha1_checksum"] != file_checksum
+    return retVal

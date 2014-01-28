@@ -29,8 +29,6 @@ class InstlAdmin(InstlInstanceBase):
 
     def __init__(self, initial_vars):
         super(InstlAdmin, self).__init__(initial_vars)
-        self.cvl.set_var("__ALLOWED_COMMANDS__").extend( ('trans', 'createlinks', 'up2s3', 'up_repo_rev', 'fix_props',
-                                                            'fix_symlinks', 'stage2svn', 'svn2stage', 'wtar') )
         self.svnTree = svnTree.SVNTree()
 
     def set_default_variables(self):
@@ -47,7 +45,8 @@ class InstlAdmin(InstlInstanceBase):
     def do_command(self):
         the_command = self.cvl.get_str("__MAIN_COMMAND__")
         self.set_default_variables()
-        do_command_func = getattr(self, "do_"+the_command)
+        fixed_command = the_command.replace('-', '_')
+        do_command_func = getattr(self, "do_"+fixed_command)
         do_command_func()
 
     def do_trans(self):
@@ -364,14 +363,8 @@ class InstlAdmin(InstlInstanceBase):
         info_map_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/$(REPO_REV)/instl/info_map.txt")
         config_dir, _ = os.path.split(self.cvl.get_str("__CONFIG_FILE_PATH__"))
         private_key_file = os.path.join(config_dir, self.cvl.get_str("REPO_NAME")+".private_key")
-        import rsa
-        import base64
-        with open(private_key_file, "rb") as rfd:
-            privkey = rsa.PrivateKey.load_pkcs1(rfd.read(), format='PEM')
-            with open(info_map_file, "rb") as rfd:
-                binary_sig = rsa.sign(rfd, privkey, 'SHA-512')
-                retVal = base64.b64encode(binary_sig)
-        print(retVal)
+        with open(private_key_file, "rb") as private_key_fd:
+            retVal = create_file_signatures(info_map_file, private_key_fd.read())
         return retVal
 
     def do_up_repo_rev(self):
@@ -381,13 +374,14 @@ class InstlAdmin(InstlInstanceBase):
             print("found", str(dangerous_intersection), "in REPO_REV_FILE_VARAIBLES, aborting")
             raise ValueError("file REPO_REV_FILE_VARAIBLES "+str(dangerous_intersection)+" and so is forbidden to upload")
 
+        info_map_sigs = self.create_info_map_sig()
         if "INFO_MAP_SIG" in repo_rev_vars:
-            info_map_sig = self.create_info_map_sig()
-            self.cvl.set_var("INFO_MAP_SIG").append(info_map_sig)
+            self.cvl.set_var("INFO_MAP_SIG").append(info_map_sigs["SHA-512_rsa_sig"])
+        if "INFO_MAP_CHECKSUM" in repo_rev_vars:
+            self.cvl.set_var("INFO_MAP_CHECKSUM").append(info_map_sigs["sha1_checksum"])
 
         self.cvl.set_value_if_var_does_not_exist("REPO_REV_FILE_NAME", "$(REPO_NAME)_repo_rev.yaml")
         s3_path = self.cvl.resolve_string("admin/$(REPO_REV_FILE_NAME)")
-        print("uploading to:", self.cvl.resolve_string("http://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)"))
 
         repo_rev_yaml = YamlDumpDocWrap(self.cvl.repr_for_yaml(repo_rev_vars, include_comments=False),
                                                     '!define', "", explicit_start=True, sort_mappings=True)
@@ -395,7 +389,7 @@ class InstlAdmin(InstlInstanceBase):
         local_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME)")
         with open(local_file, "w") as wfd:
             writeAsYaml(repo_rev_yaml, out_stream=wfd, indentor=None, sort=True)
-
+            print("created", local_file)
         import boto
         s3 		= boto.connect_s3(self.cvl.get_str("AWS_ACCESS_KEY_ID"), self.cvl.get_str("AWS_SECRET_ACCESS_KEY"))
         bucket 	= s3.get_bucket(self.cvl.get_str("S3_BUCKET_NAME"))
@@ -404,6 +398,7 @@ class InstlAdmin(InstlInstanceBase):
         key_obj.metadata={'Content-Type': 'text/plain'}
         key_obj.set_contents_from_filename(local_file, cb=percent_cb, num_cb=4)
         key_obj.set_acl('public-read') # must be done after the upload
+        print("uploaded to:", self.cvl.resolve_string("http://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)"))
 
     def do_fix_props(self):
         self.batch_accum.set_current_section('admin')
@@ -475,7 +470,7 @@ class InstlAdmin(InstlInstanceBase):
                     else:
                         broken_symlinks.append((item_path, link_value))
         if len(broken_symlinks) > 0:
-            print("Found broken symlinks, please fix and run fix_symlinks again")
+            print("Found broken symlinks, please fix and run fix-symlinks again")
             for symlink_file, link_value in broken_symlinks:
                 print(symlink_file, "-?>", link_value)
         else:
@@ -510,7 +505,7 @@ class InstlAdmin(InstlInstanceBase):
         for item in comperer.left_only + comperer.diff_files:
             item_path = os.path.join(comperer.left, item)
             if os.path.islink(item_path):
-                raise InstlException(item_path+" is a symlink which should not be committed to svn, run instl fix_symlinks and try again")
+                raise InstlException(item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
             elif os.path.isfile(item_path):
                 self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(item_path, comperer.right, link_dest=comperer.left, ignore=".svn")
             elif os.path.isdir(item_path):
@@ -607,6 +602,44 @@ class InstlAdmin(InstlInstanceBase):
         with open(private_key_file, "wb") as wfd:
             wfd.write(privkey.save_pkcs1(format='PEM'))
             print("private key created:", private_key_file)
+
+    def do_make_sig(self):
+        private_key = None
+        if "PRIVATE_KEY_FILE" in self.cvl:
+            private_key_file = self.path_searcher.find_file(self.cvl.get_str("PRIVATE_KEY_FILE"),
+                                                    return_original_if_not_found=True)
+            private_key = open(private_key_file, "rb").read()
+        file_to_sign = self.path_searcher.find_file(self.cvl.get_str("__MAIN_INPUT_FILE__"),
+                                                    return_original_if_not_found=True)
+        file_sigs = create_file_signatures(file_to_sign, private_key_text=private_key)
+        print("sha1:\n", file_sigs["sha1_checksum"])
+        print("SHA-512_rsa_sig:\n", file_sigs.get("SHA-512_rsa_sig", "no private key"))
+
+    def do_check_sig(self):
+        file_to_check = self.path_searcher.find_file(self.cvl.get_str("__MAIN_INPUT_FILE__"),
+                                                    return_original_if_not_found=True)
+        file_contents = open(file_to_check, "rb").read()
+
+        sha1_checksum = self.cvl.get_str("__SHA1_CHECKSUM__")
+        if sha1_checksum:
+            checksumOk = check_buffer_checksum(file_contents, sha1_checksum)
+            if checksumOk:
+                print("Checksum OK")
+            else:
+                print("Bad checksum, should be:", get_buffer_checksum(file_contents))
+
+        rsa_signature = self.cvl.get_str("__RSA_SIGNATURE__")
+        if rsa_signature:
+            if "PUBLIC_KEY_FILE" in self.cvl:
+                public_key_file = self.path_searcher.find_file(self.cvl.get_str("PUBLIC_KEY_FILE"),
+                                                        return_original_if_not_found=True)
+                public_key_text = open(public_key_file, "rb").read()
+
+                signatureOk = check_buffer_signature(file_contents, rsa_signature, public_key_text)
+                if signatureOk:
+                    print("Signature OK")
+                else:
+                    print("Bad Signature")
 
 
 def percent_cb(unused_complete, unused_total):

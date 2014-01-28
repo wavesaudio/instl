@@ -4,12 +4,19 @@
     * wtar files are expanded during sync not during copy
     * Fixed unwtar for Windows
     * InstlInstanceSync_url.read_remote_info_map checks signature against public key.
-
+    * If file to download is already present, no not check checksum in batch file.    user visible changes, client:
+    * option --config_file renamed --config-file, for easy typing experience
+    
     user visible changes, admin:
     * new command svn2stage, to prepare folders for entering changes
     * new command wtar, to proparly tar what needs to be tared
     * new command createkeys
     * up_repo_rev calculates sig for info_map.txt if INFO_MAP_SIG is defined in config file.
+    * new command make-sig creates sha1 checksum and rsa signature for a file, needs private key.
+    * new command check-sig checks sha1 checksum and rsa signature for a file, needs public key.
+    * command up_repo_rev renamed up-repo-rev, for easy typing experience
+    * command fix_props renamed fix-props, for easy typing experience
+    * command fix_symlinks renamed fix-symlinks, for easy typing experience
 
     programmer visible changes:
     * new method for PlatformSpecificHelperBase & derivatives: tar/untar
@@ -18,7 +25,10 @@
     * @func_log_wrapper removed from all functions. It interfered with PyCharm debugging.
     * instlInstance replaced with instlObj to make lines shorter.
     * download_from_file_or_url function: added params for checking signature with public key.
-
+    * prevent variables INFO_MAP_SIG, PUBLIC_KEY from being written to batch file.
+    * started checking of info_map.txt when downloading
+    * many new checksum and signature functions
+       
 26/1/2014 0.7.2  Shai Shasag <shai@waves.com>
 
     user visible changes, client:

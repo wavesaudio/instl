@@ -119,6 +119,11 @@ class InstlInstanceBase(object):
         else:
             self.cvl.add_const_config_variable("__HELP_SUBJECT__", "from command line options", "")
 
+        if cmd_line_options_obj.sh1_checksum:
+            self.cvl.add_const_config_variable("__SHA1_CHECKSUM__", "from command line options", cmd_line_options_obj.sh1_checksum[0])
+        if cmd_line_options_obj.rsa_signature:
+            self.cvl.add_const_config_variable("__RSA_SIGNATURE__", "from command line options", cmd_line_options_obj.rsa_signature[0])
+
         for identifier in self.cvl:
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
 
