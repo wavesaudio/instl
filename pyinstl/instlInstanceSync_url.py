@@ -206,7 +206,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             source_url = '/'.join( ["$(SYNC_BASE_URL)", str(item.last_rev())] + path_so_far + [item.name()] )
             if need_to_download:
                 self.instlObj.batch_accum += self.instlObj.platform_helper.dl_tool.download_url_to_file(source_url, item.name())
-            self.instlObj.batch_accum += self.instlObj.platform_helper.check_checksum(item.name(), item.checksum())
+                self.instlObj.batch_accum += self.instlObj.platform_helper.check_checksum(item.name(), item.checksum())
             if item.name().endswith(".wtar"):
                 self.instlObj.batch_accum += self.instlObj.platform_helper.unwtar(item.name())
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress(source_url)
