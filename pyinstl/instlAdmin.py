@@ -415,13 +415,13 @@ class InstlAdmin(InstlInstanceBase):
         key_obj.metadata={'Content-Type': 'text/plain'}
         #key_obj.set_contents_from_filename(local_file, cb=percent_cb, num_cb=4)
         #key_obj.set_acl('public-read') # must be done after the upload
-        print("uploaded to:", key_obj.key)
+        print("uploaded to:", self.cvl.resolve_string("http://$(S3_BUCKET_NAME)/"+key_obj.key))
 
         s3_path = self.cvl.resolve_string("admin/$(REPO_REV_FILE_NAME).$(REPO_REV)")
         key_obj.key = s3_path
         key_obj.set_contents_from_filename(local_file, cb=percent_cb, num_cb=4)
         key_obj.set_acl('public-read') # must be done after the upload
-        print("uploaded to:", key_obj.key)
+        print("uploaded to:", self.cvl.resolve_string("http://$(S3_BUCKET_NAME)/"+key_obj.key))
 
     def do_fix_props(self):
         self.batch_accum.set_current_section('admin')
