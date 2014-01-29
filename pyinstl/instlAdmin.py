@@ -406,11 +406,12 @@ class InstlAdmin(InstlInstanceBase):
         with open(local_file, "w") as wfd:
             writeAsYaml(repo_rev_yaml, out_stream=wfd, indentor=None, sort=True)
             print("created", local_file)
-        s3_path = self.cvl.resolve_string("admin/$(REPO_REV_FILE_NAME)")
 
         s3 		= boto.connect_s3(self.cvl.get_str("AWS_ACCESS_KEY_ID"), self.cvl.get_str("AWS_SECRET_ACCESS_KEY"))
         bucket 	= s3.get_bucket(self.cvl.get_str("S3_BUCKET_NAME"))
         key_obj = boto.s3.key.Key(bucket)
+
+        s3_path = self.cvl.resolve_string("admin/$(REPO_REV_FILE_NAME)")
         key_obj.key = s3_path
         key_obj.metadata={'Content-Type': 'text/plain'}
         key_obj.set_contents_from_filename(local_file)
@@ -419,6 +420,7 @@ class InstlAdmin(InstlInstanceBase):
 
         s3_path = self.cvl.resolve_string("admin/$(REPO_REV_FILE_NAME).$(REPO_REV)")
         key_obj.key = s3_path
+        key_obj.metadata={'Content-Type': 'text/plain'}
         key_obj.set_contents_from_filename(local_file)
         key_obj.set_acl('public-read') # must be done after the upload
         print("uploaded to:", self.cvl.resolve_string("http://$(S3_BUCKET_NAME)/"+key_obj.key))
