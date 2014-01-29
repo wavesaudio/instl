@@ -42,20 +42,20 @@ class InstlAdmin(InstlInstanceBase):
             self.cvl.set_var("__CONFIG_FILE_PATH__").append(config_file_resolved)
             self.read_yaml_file(config_file_resolved)
             self.resolve_defined_paths()
-        if "PUBLIC_KEY" not in self.instlObj.cvl:
-            if "PUBLIC_KEY_FILE" in self.instlObj.cvl:
+        if "PUBLIC_KEY" not in self.cvl:
+            if "PUBLIC_KEY_FILE" in self.cvl:
                 try:
-                    public_key_file = self.instlObj.cvl.get_str("$(PUBLIC_KEY_FILE)")
+                    public_key_file = self.cvl.get_str("$(PUBLIC_KEY_FILE)")
                     public_key_text = open(public_key_file, "rb").read()
-                    self.instlObj.cvl.set_var("PUBLIC_KEY", "from "+public_key_file).append(public_key_text)
+                    self.cvl.set_var("PUBLIC_KEY", "from "+public_key_file).append(public_key_text)
                 except:
                     pass # lo nora
-        if "PRIVATE_KEY" not in self.instlObj.cvl:
-            if "PRIVATE_KEY_FILE" in self.instlObj.cvl:
+        if "PRIVATE_KEY" not in self.cvl:
+            if "PRIVATE_KEY_FILE" in self.cvl:
                 try:
-                    private_key_file = self.instlObj.cvl.get_str("$(PRIVATE_KEY_FILE)")
+                    private_key_file = self.cvl.get_str("$(PRIVATE_KEY_FILE)")
                     private_key_text = open(private_key_file, "rb").read()
-                    self.instlObj.cvl.set_var("PUBLIC_KEY", "from "+private_key_file).append(private_key_text)
+                    self.cvl.set_var("PUBLIC_KEY", "from "+private_key_file).append(private_key_text)
                 except:
                     pass # lo nora
 
@@ -607,8 +607,8 @@ class InstlAdmin(InstlInstanceBase):
             self.run_batch_file()
 
     def do_create_rsa_keys(self):
-        public_key_file = self.cvl.resolve_string("$(REPO_NAME).public_key")
-        private_key_file = self.cvl.resolve_string("$(REPO_NAME).private_key")
+        public_key_file = self.cvl.resolve_string("$(PUBLIC_KEY_FILE)")
+        private_key_file = self.cvl.resolve_string("$(PRIVATE_KEY_FILE)")
         pubkey, privkey = rsa.newkeys(4096, poolsize=8)
         with open(public_key_file, "wb") as wfd:
             wfd.write(pubkey.save_pkcs1(format='PEM'))
