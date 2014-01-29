@@ -413,13 +413,13 @@ class InstlAdmin(InstlInstanceBase):
         key_obj = boto.s3.key.Key(bucket)
         key_obj.key = s3_path
         key_obj.metadata={'Content-Type': 'text/plain'}
-        #key_obj.set_contents_from_filename(local_file, cb=percent_cb, num_cb=4)
-        #key_obj.set_acl('public-read') # must be done after the upload
+        key_obj.set_contents_from_filename(local_file)
+        key_obj.set_acl('public-read') # must be done after the upload
         print("uploaded to:", self.cvl.resolve_string("http://$(S3_BUCKET_NAME)/"+key_obj.key))
 
         s3_path = self.cvl.resolve_string("admin/$(REPO_REV_FILE_NAME).$(REPO_REV)")
         key_obj.key = s3_path
-        key_obj.set_contents_from_filename(local_file, cb=percent_cb, num_cb=4)
+        key_obj.set_contents_from_filename(local_file)
         key_obj.set_acl('public-read') # must be done after the upload
         print("uploaded to:", self.cvl.resolve_string("http://$(S3_BUCKET_NAME)/"+key_obj.key))
 
