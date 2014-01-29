@@ -1,4 +1,4 @@
-???? 0.7.3 
+???? 0.8.0 
     user visible changes, client:
     * using STAGING_FOLDER, SVN_CHECKOUT_FOLDER, SVN_CLIENT_PATH, DOWNLOAD_TOOL_PATH, CHECKSUM_TOOL_PATH instead of __STAGING_FOLDER__ , __SVN_FOLDER__, __RESOLVED_SVN_CLIENT_PATH__, __RESOLVED_DOWNLOAD_TOOL_PATH__, __RESOLVED_CHECKSUM_TOOL_PATH__
     * wtar files are expanded during sync not during copy
@@ -6,6 +6,7 @@
     * InstlInstanceSync_url.read_remote_info_map checks signature against public key.
     * If file to download is already present, no not check checksum in batch file.    user visible changes, client:
     * option --config_file renamed --config-file, for easy typing experience
+    * added help text to some commands that were missing.
     
     user visible changes, admin:
     * new command svn2stage, to prepare folders for entering changes
@@ -17,6 +18,8 @@
     * command up_repo_rev renamed up-repo-rev, for easy typing experience
     * command fix_props renamed fix-props, for easy typing experience
     * command fix_symlinks renamed fix-symlinks, for easy typing experience
+    * command createlinks renamed create-links, for easy typing experience.
+    * command createkeys renamed create-rsa-keys, for easy typing experience and more fitting name.
 
     programmer visible changes:
     * new method for PlatformSpecificHelperBase & derivatives: tar/untar
@@ -26,9 +29,14 @@
     * instlInstance replaced with instlObj to make lines shorter.
     * download_from_file_or_url function: added params for checking signature with public key.
     * prevent variables INFO_MAP_SIG, PUBLIC_KEY from being written to batch file.
-    * started checking of info_map.txt when downloading
-    * many new checksum and signature functions
-       
+    * started checking of info_map.txt when downloading.
+    * many new checksum and signature functions.
+    * rearranged instl_help.yaml commands in alphabetical order.
+    * download_from_file_or_url can check signature or checksum if they are given.
+    * command createlinks renamed create-links, for easy typing experience.
+    * command createkeys renamed create-rsa-keys, for easy typing experience and more fitting name.
+    * parser returns the name of all possible commands.
+    
 26/1/2014 0.7.2  Shai Shasag <shai@waves.com>
 
     user visible changes, client:

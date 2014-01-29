@@ -104,7 +104,7 @@ def prepare_args_parser():
                                         folder and copy files from temp folder to target paths')
     parser_trans = subparsers.add_parser('trans',
                                         help='translate svn map files from one format to another')
-    parser_createlinks = subparsers.add_parser('createlinks',
+    parser_create_links = subparsers.add_parser('create-links',
                                         help='create links from the base SVN checkout folder for a specific version')
     parser_up2S3 = subparsers.add_parser('up2s3',
                                         help='upload installation sources to S3')
@@ -120,7 +120,7 @@ def prepare_args_parser():
                                         help='add/remove files in staging to svn sync repository')
     parser_wtar = subparsers.add_parser('wtar',
                                         help='create .wtar files from specified files and folders')
-    parser_createkeys = subparsers.add_parser('createkeys',
+    parser_create_rsa_keys = subparsers.add_parser('create-rsa-keys',
                                         help='create private and public keys')
     parser_make_sig = subparsers.add_parser('make-sig',
                                         help='create sha1 checksum and rsa signature for a file')
@@ -129,11 +129,13 @@ def prepare_args_parser():
     parser_help = subparsers.add_parser('help')
     parser_version = subparsers.add_parser('version', help='display instl version')
 
+    command_names = sorted(subparsers.choices.keys())
+
     modes = {'client': (parser_sync, parser_copy, parser_synccopy),
-             'admin': (parser_trans, parser_createlinks, parser_up2S3,
+             'admin': (parser_trans, parser_create_links, parser_up2S3,
                        parser_up_repo_rev, parser_fix_props, parser_fix_symlinks,
                        parser_stage2svn, parser_svn2stage, parser_wtar,
-                       parser_createkeys, parser_make_sig, parser_check_sig),
+                       parser_create_rsa_keys, parser_make_sig, parser_check_sig),
              'do_something': (parser_version, parser_help)
             }
     for the_mode, parsers in modes.iteritems():
@@ -143,15 +145,15 @@ def prepare_args_parser():
     need_input_options = (parser_sync, parser_copy, parser_synccopy,
                           parser_trans, parser_make_sig, parser_check_sig)
     need_output_options = (parser_copy, parser_sync, parser_synccopy,
-                           parser_trans, parser_createlinks, parser_fix_symlinks,
+                           parser_trans, parser_create_links, parser_fix_symlinks,
                            parser_up2S3, parser_fix_props, parser_stage2svn,
                            parser_svn2stage, parser_wtar)
     need_run_option = (parser_copy, parser_sync, parser_synccopy,
-                           parser_createlinks, parser_fix_symlinks,
+                           parser_create_links, parser_fix_symlinks,
                            parser_up2S3, parser_fix_props, parser_stage2svn)
-    need_config_file_options = (parser_createlinks, parser_up_repo_rev, parser_up2S3,
+    need_config_file_options = (parser_create_links, parser_up_repo_rev, parser_up2S3,
                                 parser_fix_props, parser_stage2svn, parser_svn2stage,
-                                parser_wtar, parser_createkeys, parser_make_sig, parser_check_sig)
+                                parser_wtar, parser_create_rsa_keys, parser_make_sig, parser_check_sig)
 
     # add --in to parsers that need it
     for subparser in need_input_options:
@@ -249,7 +251,7 @@ def prepare_args_parser():
                                 action='store_true',
                                 dest='svn',
                                 help="issue svn command as well as file system commands")
-    return parser
+    return parser, command_names
 
 def read_command_line_options(name_space_obj, arglist=None):
     """ parse command line options """
@@ -268,14 +270,14 @@ def read_command_line_options(name_space_obj, arglist=None):
         #if auto_run_file_path:
         #    arglist = ("@"+auto_run_file_path,)
         #    logging.info("found auto run file %s", auto_run_file_name)
-
+    parser, command_names = prepare_args_parser()
     if arglist and len(arglist) > 0:
         # Command line options were given or auto run file was found
-        parser = prepare_args_parser()
         parser.parse_args(arglist, namespace=name_space_obj)
     else:
         # No command line options were given
         name_space_obj.mode = "interactive"
+    return command_names
 
 @pyinstl.log_utils.func_log_wrapper
 def main():
@@ -285,7 +287,10 @@ def main():
         initial_vars = {"__INSTL_EXE_PATH__": get_path_to_instl_app(),
                         "__INSTL_DATA_FOLDER__": get_data_folder()}
         options = CommandLineOptions()
-        read_command_line_options(options, sys.argv[1:])
+        command_names = read_command_line_options(options, sys.argv[1:])
+        initial_vars = {"__INSTL_EXE_PATH__": get_path_to_instl_app(),
+                        "__INSTL_DATA_FOLDER__": get_data_folder(),
+                        "__COMMAND_NAMES__": command_names}
         if options.mode == "client":
             from pyinstl.instlClient import InstlClient
             instance = InstlClient(initial_vars)

@@ -1,20 +1,80 @@
 command:
+    check-sig:
+        short: Check file agains it's RSA signature and expected sha1 checksum
+        long: |
+            Usage: instl check-sig --in file_to_check --config-file path_to_config_file [--sha1 expected_sha1_checksum] [--rsa rsa_signature]
+            If --rsa option is given, check-sig will verify the signature agains the file using the public key (variable: PUBLIC_KEY) supplied in the config file.
+            If --sha2 option is given check-sig will calculale the file's sha1 checksum and comapre the rresult to the given checksum.
+            check-sig is a utility command, it is not needed for creating or using instl-based installer.
+            
     copy:
-      short: Create batch file containing instructions to copy files to their destination.
+      short: Copy files to their destination.
       long: |
             Usage: instl copy --in instl_config_yaml_file --out copy.sh [--run]
             instl's copy command will create a batch file containing instructions to copy files to their designated loactions on disk. Said files were previously downloaded using the sync command. Defintion of what to copy to which destination is taken from the instl_config_yaml_file.
             Keep in mind that copy command does not actaully copy anything, unless the --run flag is given. You will need to run the producded batch file in order to actaully install the files.
 
+    create-rsa-keys:
+        short: Create private and public RSA keys.
+        long: | 
+            Key size is 4096. Keys are produced in PEM format. Private key is written to a file named "$(REPO_NAME).private_key". Public key is written to a file named "$(REPO_NAME).public_key". 
+        
+    create-links:
+        short: Maintains a folder of revision specifc folders ready to be uploaded by the up2s3 command.
+        long: |
+            Usage: instl create-links --config-file config_file --out create-links.sh [--run]
+            For each revision of the svn repository, starting with the base revision, create-links will checkout the revison from svn to a Base folder, and copy the files to a folder named after the revision. Copying is done using hard links and hense the name of the command. In addition create-links will create info_map files describing the contents of the specific revision. A revision folder created succesfully will contain a stamp file, that will cause the folder to be skipped the next time creaetlinks is called.
+            All information about the svn repository url, the location of the top level links folder, the base revision etc, is taken from the config file.
+            relevant varaibles: REPO_NAME, SVN_REPO_URL, ROOT_LINKS_FOLDER_REPO, BASE_REPO_REV
+            Keep in mind that create-links command does not actaully do anything, unless the --run flag is given. You will need to run the producded batch file in order to actaully create the links.
+
+    fix-props:
+        short: Fix certine properties in svn repository.
+        long: |
+            Removes or adds svn:executable property where appropriate and removed all otehr properties.
+            Keep in mind that fix-props command does not actaully do anything, unless the --run flag is given. You will need to run the producded batch file in order to actaully fix the properties.
+
+    fix-symlinks:
+        short: Replace symlinks with .symlink files.
+        long: |
+            Usage:instl fix-symlinks --folder folder_to_fix --out fix-symlinks.sh [--run] [--svn]
+            Since s3 cannot deal with symlinks, symlinks should not be commited to svn. Instead the fix-symlinks command will replace each symlinks with file with the same name and the extension .symlink. The .symlink file will contain the relative path of the symlink.
+            If the --svn flag is given, fix-symlinks will issue svn add/remove commands instead of removing the old symlink file. --svn flag given only if folder_to_fix is an svn checkout folder.
+            Keep in mind that fix-symlinks command does not actaully do anything, unless the --run flag is given. You will need to run the producded batch file in order to actaully fix the symlinks.
+
+    help:
+        short: display help text about command, variable or command line option.
+        
+    make-sig:
+        short: Create RSA signature and sha1 checksum for a file.
+        long: |
+            Usage: instl make-sig --in file_to_sig --config-file path_to_config_file
+            RSA signature is created using the private key (variable: PRIVATE_KEY) supplied in the config file.
+            make-sig is a utility command, it is not needed for creating or using instl-based installer.
+            
+    stage2svn:
+        short: Update svn from a staging folder.
+        long: |
+           Usage: instl stage2svn --stage_folder staging-folder --svn_folder svn-folder --out stage2svn.sh [--run]
+           Making changes to the svn repository cannot be done on the svn checkout folder directly, mainly because svn finds it difficult to handle deleted files. svn2stage will checkout the latest revision to the svn folder (variable: SVN_CHECKOUT_FOLDER), and export the revision's files to the staging folder (variable: STAGING_FOLDER). Now changes to the staging folder can be made. When the staging folder is ready, stage2svn can be called to create the svn command to add/delete files. Existing files that were changed will be discovered by svn iteslf. Before calling stage2svn it is advisable to call fix-symlinks, stage2svn will not accept new symlinks.
+            Keep in mind that stage2svn command does not actaully do anything, unless the --run flag is given. You will need to run the producded batch file in order to actaully run the svn commands and then commit the changes to svn.
+
+    svn2stage:
+        short: Create a fresh staging folder by checking out the latest svn revision and copying the files to the staging folder.
+        long: |
+            Usage: instl svn2stage --config-file config-file --out svn2stage.sh [--run]
+            Making changes to the svn repository cannot be done on the svn checkout folder directly, mainly because svn finds it difficult to handle deleted files. svn2stage will checkout the latest revision to the svn folder (variable: SVN_CHECKOUT_FOLDER), and export the revision's files to the staging folder (variable: STAGING_FOLDER). Now changes to the staging folder can be made. When the staging folder is ready, stage2svn can be called to create the svn command to add/delete files
+            Keep in mind that svn2stage command does not actaully do anything, unless the --run flag is given. You will need to run the producded batch file in order to actaully run the svn and copy commands.
+
     sync:
-      short: Create batch file containing instructions to download files.
+      short: Download files.
       long: |
             Usage: instl sync --in instl_config_yaml_file --out sync.sh [--run]
             instl's sync command will create a bacth file containing instructions to download required files. Said files can be later copied to their final destination using instl copy command. Defintion of what to sync from what url is taken from the instl_config_yaml_file.
             Keep in mind that sync command does not actaully download anything, unless the --run flag is given. You will need to run the producded batch file in order to actaully download the files.
 
     synccopy:
-        short: Create batch file containing instructions to download files and these files to their destination.
+        short: Download files and copy them to their destination.
         long: |
             Usage: instl synccopy --in instl_config_yaml_file --out synccopy.sh [--run]
             instl's synccopy combines the actions of the sync and copy cammands. The created batch file will download the required files and copy them to the designated locations on disk. Defintion of what to sync from what url and what to copy to which destination is taken from the instl_config_yaml_file
@@ -25,25 +85,7 @@ command:
         long:  |
             Usage instl trans --in svn_info_file [--props svn_props_file] [--filter-out path_to_filter_out [, path_to_filter_out] ] [--filter-in version_to_filter_in]
             instl's strans command can translate between the format created by svn info command and the native instl info format. Additional input that can be given is the output of the svn proplist command. trans also has limited filtering options.
-            trans command is used mainly in the output of createlinks command.
-
-    createlinks:
-        short: Create a batch file to maintains a folder of revision specifc folders ready to be uploaded by the up2s3 command.
-        long: |
-            Usage: instl createlinks --config-file config_file --out createlinks.sh [--run]
-            For each revision of the svn repository, starting with the base revision, createlinks will checkout the revison from svn to a Base folder, and copy the files to a folder named after the revision. Copying is done using hard links and hense the name of the command. In addition createlinks will create info_map files describing the contents of the specific revision. A revision folder created succesfully will contain a stamp file, that will cause the folder to be skipped the next time creaetlinks is called.
-            All information about the svn repository url, the location of the top level links folder, the base revision etc, is taken from the config file.
-            relevant varaibles: REPO_NAME, SVN_REPO_URL, ROOT_LINKS_FOLDER_REPO, BASE_REPO_REV
-            Keep in mind that createlinks command does not actaully do anything, unless the --run flag is given. You will need to run the producded batch file in order to actaully create the links.
-
-    up2s3:
-        short: Create a batch file to upload revision specific folder created with the createlinks command.
-        long: |
-            Usage: instl up2s3 --config-file config_file --out up2s3.sh [--run]
-            For each revision folder created with the crearelinks command, up2s3 will remove the files not belonging to the specific revision and upload the remaining files to s3. A revision folder uploaded succesfully will contain a stamp file, that will cause the folder to be skipped the next time up2s3 is called.
-            All information about the the location of the top level links folder, the s3 url and s3 passwords, is taken from the config file.
-            relevant varaibles: REPO_NAME, ROOT_LINKS_FOLDER_REPO, BASE_REPO_REV, S3_BUCKET_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
-            Keep in mind that up2s3 command does not actaully do anything, unless the --run flag is given. You will need to run the producded batch file in order to actaully create upload the links.
+            trans command is used mainly in the output of create-links command.
 
     up-repo-rev:
         short: Upload a file containing basic information about uploaded repository.
@@ -54,31 +96,24 @@ command:
                 S3_BUCKET_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY:
                 REPO_REV_FILE_NAME, REPO_REV_FILE_VARAIBLES, REPO_TYPE, REPO_REV, REPO_NAME
 
-    fix-props:
-        short: Create a batch file with commands to fix certine properties in svn repository.
+    up2s3:
+        short: Upload revision specific folders created with the create-links command.
         long: |
-            Removes or adds svn:executable property where appropriate and removed all otehr properties.
-            Keep in mind that fix-props command does not actaully do anything, unless the --run flag is given. You will need to run the producded batch file in order to actaully fix the properties.
-
-    fix-symlinks:
-        short: Create a batch file with commands to replace symlinks with .symlink files.
-        long: |
-            Usage:instl fix-symlinks --folder folder_to_fix --out fix-symlinks.sh [--run] [--svn]
-            Since s3 cannot deal with symlinks, symlinks should not be commited to svn. Instead the fix-symlinks command will replace each symlinks with file with the same name and the extension .symlink. The .symlink file will contain the relative path of the symlink.
-            If the --svn flag is given, fix-symlinks will issue svn add/remove commands instead of removing the old symlink file. --svn flag given only if folder_to_fix is an svn checkout folder.
-            Keep in mind that fix-symlinks command does not actaully do anything, unless the --run flag is given. You will need to run the producded batch file in order to actaully fix the symlinks.
-
-    stage2svn:
-        short: Create a batch file with commands to update svn from a staging folder.
-        long: |
-            Usage: instl stage2svn --stage_folder staging-folder --svn_folder svn-folder --out stage2svn.sh [--run]
-            Making changes to the svn repository cannot be done on the svn checkout folder directly, mainly becasue svn finds it difficult to handle deleted files. The procedure is to checkout the latest version to one folder, export the revision to a second folder (the staging folder) and change the staging folder. When the staging folder is ready stage2svn can be called to create the svn command to add/delete files. Existing files that were changed will be discovered by svn iteslf. Before calling stage2svn it is advisable to call fix-symlinks, stage2svn will not accept new symlinks.
-            Keep in mind that stage2svn command does not actaully do anything, unless the --run flag is given. You will need to run the producded batch file in order to actaully run the svn commands and then commit the changes to svn.
+            Usage: instl up2s3 --config-file config_file --out up2s3.sh [--run]
+            For each revision folder created with the crearelinks command, up2s3 will remove the files not belonging to the specific revision and upload the remaining files to s3. A revision folder uploaded succesfully will contain a stamp file, that will cause the folder to be skipped the next time up2s3 is called.
+            All information about the the location of the top level links folder, the s3 url and s3 passwords, is taken from the config file.
+            relevant varaibles: REPO_NAME, ROOT_LINKS_FOLDER_REPO, BASE_REPO_REV, S3_BUCKET_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+            Keep in mind that up2s3 command does not actaully do anything, unless the --run flag is given. You will need to run the producded batch file in order to actaully create upload the links.
 
     version:
         short: Prints the instl version.
         long: |
             Usage: instl version
+    
+    wtar:
+        short: Compress files and folder to a .wtar file
+        long: |
+            Files to compress are decided accoding to a regex given in the config file (varaible: WTAR_REGEX).
 
 variable:
     SYNC_BASE_URL:

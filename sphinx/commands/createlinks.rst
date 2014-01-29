@@ -1,2 +1,2 @@
-createlinks
+create-links
 ###########

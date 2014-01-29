@@ -31,7 +31,7 @@ The following sections describe each of the various subcommands and options prov
     commands/copy
     commands/synccopy
     commands/trans
-    commands/createlinks
+    commands/create-links
     commands/up2s3
     commands/version
     commands/help

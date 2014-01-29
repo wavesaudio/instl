@@ -134,7 +134,7 @@ class InstlAdmin(InstlInstanceBase):
             print("Creating links for revision", str(revision))
         return retVal
 
-    def do_createlinks(self):
+    def do_create_links(self):
         if "REPO_NAME" not in self.cvl:
             raise ValueError("'REPO_NAME' was not defined")
         if "SVN_REPO_URL" not in self.cvl:
@@ -246,7 +246,7 @@ class InstlAdmin(InstlInstanceBase):
         accum += self.platform_helper.rmfile("$(UP_2_S3_STAMP_FILE_NAME)")
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(CREATE_LINKS_STAMP_FILE_NAME)"])
 
-        accum += self.platform_helper.echo("done createlinks version $(__CURR_REPO_REV__)")
+        accum += self.platform_helper.echo("done create-links version $(__CURR_REPO_REV__)")
 
     class RemoveIfNotSpecificVersion:
         def __init__(self, version_not_to_remove):
@@ -453,7 +453,7 @@ class InstlAdmin(InstlInstanceBase):
             pass
         return retVal
 
-    # to do: prevent createlinks and up2s3 if there are files marked as symlinks
+    # to do: prevent create-links and up2s3 if there are files marked as symlinks
     def do_fix_symlinks(self):
         self.batch_accum.set_current_section('admin')
         folder_to_check = self.cvl.resolve_string("$(__FOLDER__)")
@@ -590,10 +590,10 @@ class InstlAdmin(InstlInstanceBase):
         if "__RUN_BATCH_FILE__" in self.cvl:
             self.run_batch_file()
 
-    def do_createkeys(self):
+    def do_create_rsa_keys(self):
         config_dir, _ = os.path.split(self.cvl.get_str("__CONFIG_FILE_PATH__"))
-        public_key_file = os.path.join(config_dir, self.cvl.get_str("REPO_NAME")+".public_key")
-        private_key_file = os.path.join(config_dir, self.cvl.get_str("REPO_NAME")+".private_key")
+        public_key_file = os.path.join(config_dir, self.cvl.resolve_string("$(REPO_NAME).public_key"))
+        private_key_file = os.path.join(config_dir, self.cvl.resolve_string("$(REPO_NAME).private_key"))
         import rsa
         pubkey, privkey = rsa.newkeys(4096, poolsize=8)
         with open(public_key_file, "wb") as wfd:

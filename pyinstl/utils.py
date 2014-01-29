@@ -105,8 +105,10 @@ class open_for_read_file_or_url(object):
 
 def download_from_file_or_url(in_url, in_local_path, public_key=None, textual_sig=None, expected_checksum=None):
     retVal = False
+    # if local file already exists, check it's signature or checksum. If these match there is no need to download.
     fileExists = False
     if os.path.isfile(in_local_path):
+        # if  public_key, textual_sig, expected_checksum are None, check_file_signature_or_checksum will return False
         fileOK = check_file_signature_or_checksum(in_local_path, public_key, textual_sig, expected_checksum)
         if not fileOK:
             os.remove(in_local_path)
@@ -116,7 +118,10 @@ def download_from_file_or_url(in_url, in_local_path, public_key=None, textual_si
         with open_for_read_file_or_url(in_url) as rfd:
             contents_buffer = rfd.read()
             if contents_buffer:
-                fileOK = check_buffer_signature_or_checksum(contents_buffer, public_key, textual_sig, expected_checksum)
+                fileOK = True
+                # check sig or checksum only if they were given
+                if (public_key, textual_sig, expected_checksum) != (None, None, None):
+                    fileOK = check_buffer_signature_or_checksum(contents_buffer, public_key, textual_sig, expected_checksum)
                 if fileOK:
                     with open(in_local_path, "wb") as wfd:
                         wfd.write(contents_buffer)
