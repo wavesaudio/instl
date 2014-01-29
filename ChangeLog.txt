@@ -20,6 +20,8 @@
     * command fix_symlinks renamed fix-symlinks, for easy typing experience
     * command createlinks renamed create-links, for easy typing experience.
     * command createkeys renamed create-rsa-keys, for easy typing experience and more fitting name.
+    * PUBLIC_KEY variable is created by reading PUBLIC_KEY_FILE, unless it's already defined.
+    * PRIVATE_KEY variable is created by reading PRIVATE_KEY_FILE, unless it's already defined.
 
     programmer visible changes:
     * new method for PlatformSpecificHelperBase & derivatives: tar/untar

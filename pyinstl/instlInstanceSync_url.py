@@ -58,6 +58,12 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.cvl.set_value_if_var_does_not_exist("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH", os.path.join( "$(REPO_REV_LOCAL_BOOKKEEPING_PATH)", "remote_info_map.txt" ), description=var_description)
         self.instlObj.cvl.set_value_if_var_does_not_exist("DL_INSTRUCTIONS_TYPE", "one_by_one", description=var_description)
 
+        if "PUBLIC_KEY" not in self.instlObj.cvl:
+            if "PUBLIC_KEY_FILE" in self.instlObj.cvl:
+                public_key_file = self.instlObj.cvl.get_str("$(PUBLIC_KEY_FILE)")
+                public_key_text = open(public_key_file, "rb").read()
+                self.instlObj.cvl.set_var("PUBLIC_KEY", "from "+public_key_file).append(public_key_text)
+
         for identifier in ("SYNC_BASE_URL", "DOWNLOAD_TOOL_PATH", "REPO_REV", "SYNC_TRAGET_OS_URL", "LOCAL_SYNC_DIR", "BOOKKEEPING_DIR_URL",
                            "INFO_MAP_FILE_URL", "LOCAL_BOOKKEEPING_PATH","NEW_HAVE_INFO_MAP_PATH", "REQUIRED_INFO_MAP_PATH",
                             "TO_SYNC_INFO_MAP_PATH", "REPO_REV_LOCAL_BOOKKEEPING_PATH", "LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH",
