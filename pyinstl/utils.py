@@ -363,9 +363,9 @@ def check_buffer_signature(buff, textual_sig, public_key):
 def check_buffer_signature_or_checksum(buff, public_key=None, textual_sig=None, expected_checksum=None):
     retVal = False
     if public_key and textual_sig:
-        public_key = check_buffer_signature(local_fd.read(), textual_sig, public_key)
+        retVal = check_buffer_signature(buff, textual_sig, public_key)
     elif expected_checksum:
-        public_key = check_buffer_checksum(local_fd.read(), expected_checksum)
+        retVal = check_buffer_checksum(buff, expected_checksum)
     return retVal
 
 def check_file_signature_or_checksum(file_path, public_key=None, textual_sig=None, expected_checksum=None):

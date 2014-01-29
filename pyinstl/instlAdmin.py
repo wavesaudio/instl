@@ -398,23 +398,30 @@ class InstlAdmin(InstlInstanceBase):
             self.cvl.set_var("INFO_MAP_CHECKSUM").append(info_map_sigs["sha1_checksum"])
 
         self.cvl.set_value_if_var_does_not_exist("REPO_REV_FILE_NAME", "$(REPO_NAME)_repo_rev.yaml")
-        s3_path = self.cvl.resolve_string("admin/$(REPO_REV_FILE_NAME)")
 
         repo_rev_yaml = YamlDumpDocWrap(self.cvl.repr_for_yaml(repo_rev_vars, include_comments=False),
                                                     '!define', "", explicit_start=True, sort_mappings=True)
         safe_makedirs(self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/admin"))
-        local_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME)")
+        local_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)")
         with open(local_file, "w") as wfd:
             writeAsYaml(repo_rev_yaml, out_stream=wfd, indentor=None, sort=True)
             print("created", local_file)
+        s3_path = self.cvl.resolve_string("admin/$(REPO_REV_FILE_NAME)")
+
         s3 		= boto.connect_s3(self.cvl.get_str("AWS_ACCESS_KEY_ID"), self.cvl.get_str("AWS_SECRET_ACCESS_KEY"))
         bucket 	= s3.get_bucket(self.cvl.get_str("S3_BUCKET_NAME"))
         key_obj = boto.s3.key.Key(bucket)
         key_obj.key = s3_path
         key_obj.metadata={'Content-Type': 'text/plain'}
+        #key_obj.set_contents_from_filename(local_file, cb=percent_cb, num_cb=4)
+        #key_obj.set_acl('public-read') # must be done after the upload
+        print("uploaded to:", key_obj.key)
+
+        s3_path = self.cvl.resolve_string("admin/$(REPO_REV_FILE_NAME).$(REPO_REV)")
+        key_obj.key = s3_path
         key_obj.set_contents_from_filename(local_file, cb=percent_cb, num_cb=4)
         key_obj.set_acl('public-read') # must be done after the upload
-        print("uploaded to:", self.cvl.resolve_string("http://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)"))
+        print("uploaded to:", key_obj.key)
 
     def do_fix_props(self):
         self.batch_accum.set_current_section('admin')

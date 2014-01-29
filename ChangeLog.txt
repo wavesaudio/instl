@@ -22,6 +22,8 @@
     * command createkeys renamed create-rsa-keys, for easy typing experience and more fitting name.
     * PUBLIC_KEY variable is created by reading PUBLIC_KEY_FILE, unless it's already defined.
     * PRIVATE_KEY variable is created by reading PRIVATE_KEY_FILE, unless it's already defined.
+    * repo rev file will be saved with $(REPO_REV) appended to the name.
+        Will be uploaded twice with and without the $(REPO_REV) in name.
 
     programmer visible changes:
     * new method for PlatformSpecificHelperBase & derivatives: tar/untar
@@ -38,7 +40,9 @@
     * command createlinks renamed create-links, for easy typing experience.
     * command createkeys renamed create-rsa-keys, for easy typing experience and more fitting name.
     * parser returns the name of all possible commands.
-    
+    * fixed bugs in check_buffer_signature_or_checksum
+    * removed redundant double check for info_map file existence in read_remote_info_map
+
 26/1/2014 0.7.2  Shai Shasag <shai@waves.com>
 
     user visible changes, client:

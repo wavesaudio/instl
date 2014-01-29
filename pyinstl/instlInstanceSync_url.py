@@ -60,7 +60,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         if "PUBLIC_KEY" not in self.instlObj.cvl:
             if "PUBLIC_KEY_FILE" in self.instlObj.cvl:
-                public_key_file = self.instlObj.cvl.get_str("$(PUBLIC_KEY_FILE)")
+                public_key_file = self.instlObj.cvl.resolve_string("$(PUBLIC_KEY_FILE)")
                 public_key_text = open(public_key_file, "rb").read()
                 self.instlObj.cvl.set_var("PUBLIC_KEY", "from "+public_key_file).append(public_key_text)
 
@@ -91,12 +91,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         try:
             safe_makedirs(self.instlObj.cvl.get_str("LOCAL_BOOKKEEPING_PATH"))
             safe_makedirs(self.instlObj.cvl.get_str("REPO_REV_LOCAL_BOOKKEEPING_PATH"))
-            need_to_download = True
-            if "INFO_MAP_CHECKSUM" in self.instlObj.cvl:
-                need_to_download = need_to_download_file(self.instlObj.cvl.get_str("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"),
-                                                        self.instlObj.cvl.get_str("INFO_MAP_CHECKSUM"))
-            if need_to_download:
-                download_from_file_or_url(self.instlObj.cvl.get_str("INFO_MAP_FILE_URL"),
+            download_from_file_or_url(self.instlObj.cvl.get_str("INFO_MAP_FILE_URL"),
                                       self.instlObj.cvl.get_str("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"),
                                       public_key=self.instlObj.cvl.get_str("PUBLIC_KEY"),
                                       textual_sig=self.instlObj.cvl.get_str("INFO_MAP_SIG"))
