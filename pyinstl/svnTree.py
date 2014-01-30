@@ -18,6 +18,13 @@ comment_line_re = re.compile(r"""
             $
             """, re.X)
 
+map_info_extension_to_format = {"txt" : "text", "text" : "text",
+                "inf" : "info", "info" : "info",
+                "yml" : "yaml", "yaml" : "yaml",
+                "pick" : "pickle", "pickl" : "pickle", "pickle" : "pickle",
+                "props" : "props", "prop" : "props"
+                }
+
 class SVNTree(svnItem.SVNTopItem):
     """ SVNTree inherites from SVNTopItem and adds the functionality
         of reading and writing itself in variouse text formats:
@@ -44,13 +51,17 @@ class SVNTree(svnItem.SVNTopItem):
         """ returns a list of file formats that can be read by SVNTree """
         return self.read_func_by_format.keys()
 
-    def read_info_map_from_file(self, in_file, format="text"):
+    def read_info_map_from_file(self, in_file, format="guess"):
         """ Reads from file. All previous sub items are cleared
             before reading, unless the format is 'props' in which case
-            the properties are added to esisting sub items.
+            the properties are added to exsisting sub items.
             raises ValueError is format is not supported.
         """
         self.path_to_file = in_file
+        if format == "guess":
+            _, extension = os.path.splitext(self.path_to_file)
+            format = map_info_extension_to_format[extension[1:]]
+        self.comments.append("Original file "+self.path_to_file)
         if format in self.read_func_by_format.keys():
             with open_for_read_file_or_url(self.path_to_file) as rfd:
                 logging.info("opened %s, format: %s", self.path_to_file, format)
@@ -176,11 +187,14 @@ class SVNTree(svnItem.SVNTopItem):
     def valid_write_formats(self):
         return self.write_func_by_format.keys()
 
-    def write_to_file(self, in_file, in_format="text"):
+    def write_to_file(self, in_file, in_format="guess"):
         """ pass in_file="stdout" to output to stdout.
             in_format is either text, yaml, pickle
         """
         self.path_to_file = in_file
+        if in_format == "guess":
+            _, extension = os.path.splitext(self.path_to_file)
+            in_format = map_info_extension_to_format[extension[1:]]
         if in_format in self.write_func_by_format.keys():
             with write_to_file_or_stdout(self.path_to_file) as wfd:
                 logging.info("opened %s, format: %s", self.path_to_file, format)

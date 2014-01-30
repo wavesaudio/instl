@@ -1,3 +1,16 @@
+???? 0.8.1
+
+    user visible changes, client:
+
+    user visible changes, admin:
+    * new command: create-repo-rev-file, to separate repo rev file creation and uploading.
+    * command up-repo-rev only uploads the already created repo rev file.
+    * type fixed REPO_REV_FILE_VARS instead of REPO_REV_FILE_VARAIBLES
+    
+    programmer visible changes:
+    * some rearranging of parser creation, and removed redundant members from CommandLineOptions
+    * moved the discovery of info+map's file type to svnTree.py
+    
 29/1/2014 0.8.0 Shai Shasag <shai@waves.com>
 
     Main 0.8.0 features:

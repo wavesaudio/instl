@@ -14,11 +14,6 @@ command:
             instl's copy command will create a batch file containing instructions to copy files to their designated loactions on disk. Said files were previously downloaded using the sync command. Defintion of what to copy to which destination is taken from the instl_config_yaml_file.
             Keep in mind that copy command does not actaully copy anything, unless the --run flag is given. You will need to run the producded batch file in order to actaully install the files.
 
-    create-rsa-keys:
-        short: Create private and public RSA keys.
-        long: | 
-            Key size is 4096. Keys are produced in PEM format. Private key is written to a file named "$(REPO_NAME).private_key". Public key is written to a file named "$(REPO_NAME).public_key". 
-        
     create-links:
         short: Maintains a folder of revision specifc folders ready to be uploaded by the up2s3 command.
         long: |
@@ -27,6 +22,18 @@ command:
             All information about the svn repository url, the location of the top level links folder, the base revision etc, is taken from the config file.
             relevant varaibles: REPO_NAME, SVN_REPO_URL, ROOT_LINKS_FOLDER_REPO, BASE_REPO_REV
             Keep in mind that create-links command does not actaully do anything, unless the --run flag is given. You will need to run the producded batch file in order to actaully create the links.
+
+    create-repo-rev-file:
+        short: creates a file containing basic information about a specific revision.
+        long: |
+            The created file can be uploded to s3 once the specific revision is ready for distribution, using up-repo-rev command.
+            The variables in the created file are specified in REPO_REV_FILE_VARS variable.
+            This command is usually called automatically by the create-links command.
+
+    create-rsa-keys:
+        short: Create private and public RSA keys.
+        long: |
+            Key size is 4096. Keys are produced in PEM format. Private key is written to a file named "$(REPO_NAME).private_key". Public key is written to a file named "$(REPO_NAME).public_key".
 
     fix-props:
         short: Fix certine properties in svn repository.
@@ -91,10 +98,10 @@ command:
         short: Upload a file containing basic information about uploaded repository.
         long: |
             Usage: instl up-repo-rev --config-file config_file
-            up-repo-rev will create a repo_rev file according to the information in the config file, and upload said repo_rev file to s3 bucket to a top level folder called 'admin'. The contents of the repo_rev file are a list of variables defined in the "REPO_REV_FILE_VARAIBLES" variable of the config file. Typicaly these variables would be: REPO_REV, REPO_TYPE, SYNC_BASE_URL.
+            up-repo-rev will create a repo_rev file according to the information in the config file, and upload said repo_rev file to s3 bucket to a top level folder called 'admin'. The contents of the repo_rev file are a list of variables defined in the "REPO_REV_FILE_VARS" variable of the config file. Typicaly these variables would be: REPO_REV, REPO_TYPE, SYNC_BASE_URL.
             relevant varaibles:
                 S3_BUCKET_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY:
-                REPO_REV_FILE_NAME, REPO_REV_FILE_VARAIBLES, REPO_TYPE, REPO_REV, REPO_NAME
+                REPO_REV_FILE_NAME, REPO_REV_FILE_VARS, REPO_TYPE, REPO_REV, REPO_NAME
 
     up2s3:
         short: Upload revision specific folders created with the create-links command.

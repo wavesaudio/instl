@@ -18,14 +18,6 @@ from pyinstl import svnTree
 
 from batchAccumulator import BatchAccumulator
 
-map_info_extension_to_format = {"txt" : "text", "text" : "text",
-                "inf" : "info", "info" : "info",
-                "yml" : "yaml", "yaml" : "yaml",
-                "pick" : "pickle", "pickl" : "pickle", "pickle" : "pickle",
-                "props" : "props", "prop" : "props"
-                }
-
-
 class InstlAdmin(InstlInstanceBase):
 
     def __init__(self, initial_vars):
@@ -84,15 +76,10 @@ class InstlAdmin(InstlInstanceBase):
             self.run_batch_file()
 
     def read_info_map_file(self, in_file_path):
-        _, extension = os.path.splitext(in_file_path)
-        input_format = map_info_extension_to_format[extension[1:]]
-        self.svnTree.comments.append("Original file "+in_file_path)
-        self.svnTree.read_info_map_from_file(in_file_path, format=input_format)
+        self.svnTree.read_info_map_from_file(in_file_path)
 
     def write_info_map_file(self):
-        _, extension = os.path.splitext(self.cvl.get_str("__MAIN_OUT_FILE__"))
-        output_format = map_info_extension_to_format[extension[1:]]
-        self.svnTree.write_to_file(self.cvl.get_str("__MAIN_OUT_FILE__"), in_format=output_format)
+        self.svnTree.write_to_file(self.cvl.get_str("__MAIN_OUT_FILE__"))
 
     def filter_out_info_map(self, paths_to_filter_out):
         for path in paths_to_filter_out:
@@ -130,7 +117,8 @@ class InstlAdmin(InstlInstanceBase):
         """
         current_base_repo_rev = int(self.cvl.get_str("BASE_REPO_REV"))
         retVal = True
-        create_links_done_stamp_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+str(revision)+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
+        revision_links_folder = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+str(revision))
+        create_links_done_stamp_file = self.cvl.resolve_string(revision_links_folder+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
         if os.path.isfile(create_links_done_stamp_file):
             if revision == current_base_repo_rev: # revision is the new base_repo_rev
                 try:
@@ -147,8 +135,6 @@ class InstlAdmin(InstlInstanceBase):
                     pass # no previous base repo rev indication was found so return True to re-create the links
             else:
                 retVal = False
-        else: # no stamp file found
-            print("Creating links for revision", str(revision))
         return retVal
 
     def do_create_links(self):
@@ -197,6 +183,7 @@ class InstlAdmin(InstlInstanceBase):
             raise ValueError("base_rev "+str(base_rev)+" > last_repo_rev "+str(last_repo_rev))
         for revision in range(base_rev, last_repo_rev+1):
             if self.needToCreatelinksForRevision(revision):
+                print("Need to create links for revision", str(revision))
                 save_dir_var = "REV_"+str(revision)+"_SAVE_DIR"
                 self.batch_accum += self.platform_helper.save_dir(save_dir_var)
                 self.cvl.set_var("__CURR_REPO_REV__").append(str(revision))
@@ -259,6 +246,9 @@ class InstlAdmin(InstlInstanceBase):
         accum += self.platform_helper.echo("Creating $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map_Win.txt")
         trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans", "--in", "instl/info_map.txt", "--out ", "instl/info_map_Win.txt",  "--filter-out", "Mac"]
         accum += " ".join(trans_command_parts)
+
+        create_repo_rev_file_command_parts = ['"$(__INSTL_EXE_PATH__)"', "create-repo-rev-file", "--config-file", '"$(__CONFIG_FILE_PATH__)"', "--rev", "$(__CURR_REPO_REV__)"]
+        accum += " ".join(create_repo_rev_file_command_parts)
 
         accum += self.platform_helper.rmfile("$(UP_2_S3_STAMP_FILE_NAME)")
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(CREATE_LINKS_STAMP_FILE_NAME)"])
@@ -375,41 +365,48 @@ class InstlAdmin(InstlInstanceBase):
                         ] )
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(UP_2_S3_STAMP_FILE_NAME)"])
 
-    def create_info_map_sig(self):
+    def create_info_map_sig(self, which_revision):
         retVal = None
-        info_map_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/$(REPO_REV)/instl/info_map.txt")
+        info_map_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+which_revision+"/instl/info_map.txt")
         config_dir, _ = os.path.split(self.cvl.get_str("__CONFIG_FILE_PATH__"))
         private_key_file = os.path.join(config_dir, self.cvl.get_str("REPO_NAME")+".private_key")
         with open(private_key_file, "rb") as private_key_fd:
             retVal = create_file_signatures(info_map_file, private_key_fd.read())
         return retVal
 
-    def do_up_repo_rev(self):
-        repo_rev_vars = self.cvl.get_list("REPO_REV_FILE_VARAIBLES")
-        dangerous_intersection = set(repo_rev_vars).intersection(set(("AWS_ACCESS_KEY_ID","AWS_SECRET_ACCESS_KEY")))
+    def do_create_repo_rev_file(self):
+        if "REPO_REV_FILE_VARS" not in self.cvl:
+            raise ValueError("REPO_REV_FILE_VARS must be defined")
+        repo_rev_vars = self.cvl.get_list("REPO_REV_FILE_VARS")
+        self.cvl.set_var("REPO_REV").append("$(TARGET_REPO_REV)") # override the repo rev from the config file
+        dangerous_intersection = set(repo_rev_vars).intersection(set(("AWS_ACCESS_KEY_ID","AWS_SECRET_ACCESS_KEY", "PRIVATE_KEY", "PRIVATE_KEY_FILE")))
         if dangerous_intersection:
-            print("found", str(dangerous_intersection), "in REPO_REV_FILE_VARAIBLES, aborting")
-            raise ValueError("file REPO_REV_FILE_VARAIBLES "+str(dangerous_intersection)+" and so is forbidden to upload")
+            print("found", str(dangerous_intersection), "in REPO_REV_FILE_VARS, aborting")
+            raise ValueError("file REPO_REV_FILE_VARS "+str(dangerous_intersection)+" and so is forbidden to upload")
 
-        info_map_sigs = self.create_info_map_sig()
+        info_map_sigs = self.create_info_map_sig(self.cvl.get_str("TARGET_REPO_REV"))
         if "INFO_MAP_SIG" in repo_rev_vars:
             self.cvl.set_var("INFO_MAP_SIG").append(info_map_sigs["SHA-512_rsa_sig"])
         if "INFO_MAP_CHECKSUM" in repo_rev_vars:
             self.cvl.set_var("INFO_MAP_CHECKSUM").append(info_map_sigs["sha1_checksum"])
 
-        self.cvl.set_value_if_var_does_not_exist("REPO_REV_FILE_NAME", "$(REPO_NAME)_repo_rev.yaml")
+        self.cvl.set_value_if_var_does_not_exist("REPO_REV_FILE_NAME", "$(REPO_NAME)_repo_rev.yaml.$(TARGET_REPO_REV)")
 
         repo_rev_yaml = YamlDumpDocWrap(self.cvl.repr_for_yaml(repo_rev_vars, include_comments=False),
                                                     '!define', "", explicit_start=True, sort_mappings=True)
         safe_makedirs(self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/admin"))
-        local_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)")
+        local_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME)")
         with open(local_file, "w") as wfd:
             writeAsYaml(repo_rev_yaml, out_stream=wfd, indentor=None, sort=True)
             print("created", local_file)
 
+    def do_up_repo_rev(self):
         s3 		= boto.connect_s3(self.cvl.get_str("AWS_ACCESS_KEY_ID"), self.cvl.get_str("AWS_SECRET_ACCESS_KEY"))
         bucket 	= s3.get_bucket(self.cvl.get_str("S3_BUCKET_NAME"))
         key_obj = boto.s3.key.Key(bucket)
+
+        self.cvl.set_value_if_var_does_not_exist("REPO_REV_FILE_NAME", "$(REPO_NAME)_repo_rev.yaml")
+        local_file = self.cvl.resolve_string("$(REPO_REV_FILE_NAME).$(REPO_REV)")
 
         s3_path = self.cvl.resolve_string("admin/$(REPO_REV_FILE_NAME)")
         key_obj.key = s3_path

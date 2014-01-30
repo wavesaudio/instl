@@ -102,8 +102,8 @@ class InstlInstanceBase(object):
         if cmd_line_options_obj.command:
             self.cvl.set_var("__MAIN_COMMAND__", "from command line options").append(cmd_line_options_obj.command)
 
-        if cmd_line_options_obj.repo_rev:
-            self.cvl.set_var("REPO_REV", "from command line options").append(cmd_line_options_obj.repo_rev[0])
+        if cmd_line_options_obj.target_repo_rev:
+            self.cvl.set_var("TARGET_REPO_REV", "from command line options").append(cmd_line_options_obj.target_repo_rev[0])
         if cmd_line_options_obj.base_repo_rev:
             self.cvl.set_var("BASE_REPO_REV", "from command line options").append(cmd_line_options_obj.base_repo_rev[0])
 

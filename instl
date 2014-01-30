@@ -53,11 +53,10 @@ class CommandLineOptions(object):
         self.output_file = None
         self.run = False
         self.state_file = None
-        self.todo_args = None
         self.props_file = None
         self.filter_out = None
         self.filter_in = None
-        self.repo_rev = None
+        self.target_repo_rev = None
         self.base_repo_rev = None
         self.config_file = None
         self.folder = None
@@ -95,65 +94,52 @@ def prepare_args_parser():
     argparse.ArgumentParser.convert_arg_line_to_args = decent_convert_arg_line_to_args
 
     subparsers = parser.add_subparsers(dest='command', help='sub-command help')
-    parser_sync = subparsers.add_parser('sync',
-                                        help='sync files to be installed from server to temp folder')
-    parser_copy = subparsers.add_parser('copy',
-                                        help='copy files from temp folder to target paths')
-    parser_synccopy = subparsers.add_parser('synccopy',
-                                        help='sync files to be installed from server to temp \
-                                        folder and copy files from temp folder to target paths')
-    parser_trans = subparsers.add_parser('trans',
-                                        help='translate svn map files from one format to another')
-    parser_create_links = subparsers.add_parser('create-links',
-                                        help='create links from the base SVN checkout folder for a specific version')
-    parser_up2S3 = subparsers.add_parser('up2s3',
-                                        help='upload installation sources to S3')
-    parser_up_repo_rev = subparsers.add_parser('up-repo-rev',
-                                        help='upload repository revision file to admin folder')
-    parser_fix_props = subparsers.add_parser('fix-props',
-                                        help='create svn commands to remove redundant properties such as executable bit from files that should not be marked executable')
-    parser_fix_symlinks = subparsers.add_parser('fix-symlinks',
-                                        help='replace symlinks with .symlinks files')
-    parser_svn2stage = subparsers.add_parser('svn2stage',
-                                        help='svn sync repository and copy to staging folder')
-    parser_stage2svn = subparsers.add_parser('stage2svn',
-                                        help='add/remove files in staging to svn sync repository')
-    parser_wtar = subparsers.add_parser('wtar',
-                                        help='create .wtar files from specified files and folders')
-    parser_create_rsa_keys = subparsers.add_parser('create-rsa-keys',
-                                        help='create private and public keys')
-    parser_make_sig = subparsers.add_parser('make-sig',
-                                        help='create sha1 checksum and rsa signature for a file')
-    parser_check_sig = subparsers.add_parser('check-sig',
-                                        help='check sha1 checksum and/or rsa signature for a file')
-    parser_help = subparsers.add_parser('help')
-    parser_version = subparsers.add_parser('version', help='display instl version')
+    check_sig_parser = subparsers.add_parser('check-sig', help='check sha1 checksum and/or rsa signature for a file')
+    copy_parser = subparsers.add_parser('copy', help='copy files from temp folder to target paths')
+    create_links_parser = subparsers.add_parser('create-links', help='create links from the base SVN checkout folder for a specific version')
+    create_repo_rev_file_parser = subparsers.add_parser('create-repo-rev-file', help='create repo rev file for a specific revision')
+    create_rsa_keys_parser = subparsers.add_parser('create-rsa-keys', help='create private and public keys')
+    fix_props_parser = subparsers.add_parser('fix-props', help='create svn commands to remove redundant properties such as executable bit from files that should not be marked executable')
+    fix_symlinks_parser = subparsers.add_parser('fix-symlinks', help='replace symlinks with .symlinks files')
+    help_parser = subparsers.add_parser('help')
+    make_sig_parser = subparsers.add_parser('make-sig', help='create sha1 checksum and rsa signature for a file')
+    stage2svn_parser = subparsers.add_parser('stage2svn', help='add/remove files in staging to svn sync repository')
+    svn2stage_parser = subparsers.add_parser('svn2stage', help='svn sync repository and copy to staging folder')
+    sync_parser = subparsers.add_parser('sync', help='sync files to be installed from server to temp folder')
+    synccopy_parser = subparsers.add_parser('synccopy', help='sync files to be installed from server to temp folder and copy files from temp folder to target paths')
+    trans_parser = subparsers.add_parser('trans', help='translate svn map files from one format to another')
+    up_repo_rev_parser = subparsers.add_parser('up-repo-rev', help='upload repository revision file to admin folder')
+    up2S3_parser = subparsers.add_parser('up2s3', help='upload installation sources to S3')
+    version_parser = subparsers.add_parser('version', help='display instl version')
+    wtar_parser = subparsers.add_parser('wtar', help='create .wtar files from specified files and folders')
 
     command_names = sorted(subparsers.choices.keys())
 
-    modes = {'client': (parser_sync, parser_copy, parser_synccopy),
-             'admin': (parser_trans, parser_create_links, parser_up2S3,
-                       parser_up_repo_rev, parser_fix_props, parser_fix_symlinks,
-                       parser_stage2svn, parser_svn2stage, parser_wtar,
-                       parser_create_rsa_keys, parser_make_sig, parser_check_sig),
-             'do_something': (parser_version, parser_help)
+    modes = {'client': (sync_parser, copy_parser, synccopy_parser),
+             'admin': (trans_parser, create_links_parser, up2S3_parser,
+                        up_repo_rev_parser, fix_props_parser, fix_symlinks_parser,
+                        stage2svn_parser, svn2stage_parser, wtar_parser,
+                        create_rsa_keys_parser, make_sig_parser, check_sig_parser,
+                        create_repo_rev_file_parser),
+             'do_something': (version_parser, help_parser)
             }
     for the_mode, parsers in modes.iteritems():
         for some_parser in parsers:
             some_parser.set_defaults(mode=the_mode)
 
-    need_input_options = (parser_sync, parser_copy, parser_synccopy,
-                          parser_trans, parser_make_sig, parser_check_sig)
-    need_output_options = (parser_copy, parser_sync, parser_synccopy,
-                           parser_trans, parser_create_links, parser_fix_symlinks,
-                           parser_up2S3, parser_fix_props, parser_stage2svn,
-                           parser_svn2stage, parser_wtar)
-    need_run_option = (parser_copy, parser_sync, parser_synccopy,
-                           parser_create_links, parser_fix_symlinks,
-                           parser_up2S3, parser_fix_props, parser_stage2svn)
-    need_config_file_options = (parser_create_links, parser_up_repo_rev, parser_up2S3,
-                                parser_fix_props, parser_stage2svn, parser_svn2stage,
-                                parser_wtar, parser_create_rsa_keys, parser_make_sig, parser_check_sig)
+    need_input_options = (sync_parser, copy_parser, synccopy_parser,
+                          trans_parser, make_sig_parser, check_sig_parser)
+    need_output_options = (copy_parser, sync_parser, synccopy_parser,
+                           trans_parser, create_links_parser, fix_symlinks_parser,
+                           up2S3_parser, fix_props_parser, stage2svn_parser,
+                           svn2stage_parser, wtar_parser)
+    need_run_option = (copy_parser, sync_parser, synccopy_parser,
+                           create_links_parser, fix_symlinks_parser,
+                           up2S3_parser, fix_props_parser, stage2svn_parser)
+    need_config_file_options = (create_links_parser, up_repo_rev_parser, up2S3_parser,
+                                fix_props_parser, stage2svn_parser, svn2stage_parser,
+                                wtar_parser, create_rsa_keys_parser, make_sig_parser,
+                                check_sig_parser, create_repo_rev_file_parser)
 
     # add --in to parsers that need it
     for subparser in need_input_options:
@@ -194,7 +180,7 @@ def prepare_args_parser():
                                     help="path to config-file")
 
 
-    trans_options = parser_trans.add_argument_group(description='translate arguments:')
+    trans_options = trans_parser.add_argument_group(description='translate arguments:')
     trans_options.add_argument('--props', '-p',
                                 required=False,
                                 nargs=1,
@@ -220,7 +206,7 @@ def prepare_args_parser():
                                 dest='base_repo_rev',
                                 help="minimal version, all version below will be changed to base-repo-rev")
 
-    check_sig_options = parser_check_sig.add_argument_group(description='check sig arguments:')
+    check_sig_options = check_sig_parser.add_argument_group(description='check sig arguments:')
     check_sig_options.add_argument('--sha1',
                                 required=False,
                                 nargs=1,
@@ -234,11 +220,19 @@ def prepare_args_parser():
                                 dest='rsa_signature',
                                 help="expected rsa SHA-512 signature")
 
-    help_options = parser_help.add_argument_group(description='help subject:')
+    create_repo_rev_file_options = create_repo_rev_file_parser.add_argument_group(description='create repo rev file arguments:')
+    create_repo_rev_file_options.add_argument('--rev',
+                                required=False,
+                                nargs=1,
+                                metavar='revision-to-create-file-for',
+                                dest='target_repo_rev',
+                                help="revision to create file for")
+
+    help_options = help_parser.add_argument_group(description='help subject:')
     help_options.add_argument('subject', nargs='?')
 
     if 'Win' not in current_os_names:
-        symlink_options = parser_fix_symlinks.add_argument_group(description='fix-symlinks arguments:')
+        symlink_options = fix_symlinks_parser.add_argument_group(description='fix-symlinks arguments:')
         symlink_options.add_argument('--folder', '-f',
                                 required=True,
                                 nargs=1,
