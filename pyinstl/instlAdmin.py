@@ -406,7 +406,7 @@ class InstlAdmin(InstlInstanceBase):
         key_obj = boto.s3.key.Key(bucket)
 
         self.cvl.set_value_if_var_does_not_exist("REPO_REV_FILE_NAME", "$(REPO_NAME)_repo_rev.yaml")
-        local_file = self.cvl.resolve_string("$(REPO_REV_FILE_NAME).$(REPO_REV)")
+        local_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)")
 
         s3_path = self.cvl.resolve_string("admin/$(REPO_REV_FILE_NAME)")
         key_obj.key = s3_path
