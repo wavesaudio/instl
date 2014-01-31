@@ -177,7 +177,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def get_svn_folder_cleanup_instructions(self):
         return ()
 
-    def var_assign(self, identifier, value):
+    def var_assign(self, identifier, value, comment=None):
         return "SET "+identifier+'='+value
 
     def echo(self, message):

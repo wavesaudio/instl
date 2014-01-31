@@ -183,7 +183,7 @@ class InstlInstanceBase(object):
         self.batch_accum.set_current_section("assign")
         for identifier in self.cvl:
             if identifier not in self.do_not_write_vars:
-                self.batch_accum += self.platform_helper.var_assign(identifier,self.cvl.get_str(identifier))
+                self.batch_accum += self.platform_helper.var_assign(identifier,self.cvl.get_str(identifier), None) # self.cvl[identifier].resolved_num
 
     def get_default_sync_dir(self):
         retVal = None

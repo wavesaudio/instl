@@ -189,9 +189,11 @@ class ConfigVarList(object):
             if value_to_resolve in self.__resolve_stack:
                 raise Exception("circular resolving of {}".format(value_to_resolve))
 
+            var_obj = self._ConfigVar_objs[value_to_resolve]
+            var_obj.resolved_num += 1
             self.__resolve_stack.append(value_to_resolve)
             retVal = resolve_list(
-                self._ConfigVar_objs[value_to_resolve],
+                var_obj,
                 self.resolve_value_callback)
             self.__resolve_stack.pop()
         return retVal

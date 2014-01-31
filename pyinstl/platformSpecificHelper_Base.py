@@ -184,7 +184,7 @@ class PlatformSpecificHelperBase(object):
         pass
 
     @abc.abstractmethod
-    def var_assign(self, identifier, value):
+    def var_assign(self, identifier, value, comment=None):
         pass
 
     @abc.abstractmethod

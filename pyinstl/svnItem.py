@@ -44,14 +44,14 @@ class SVNItem(object):
     """
 
     __slots__ = ("__up", "__name", "__flags", "__last_rev", "__subs", "__checksum", "props", "user_data")
-    def __init__(self, in_name, in_flags, in_last_rev):
+    def __init__(self, in_name, in_flags, in_last_rev, in_checksum=None):
         """ constructor """
 
         self.__up = None
         self.__name = in_name
         self.__flags = in_flags
         self.__last_rev = in_last_rev
-        self.__checksum = None
+        self.__checksum = in_checksum
         self.__subs = None
         if self.isDir():
             self.__subs = dict()
@@ -129,14 +129,10 @@ class SVNItem(object):
 
     def checksum(self):
         """ return checksum """
-        if self.isDir():
-            raise ValueError(self.name()+" is a directory, has no checksum")
         return self.__checksum
 
     def set_checksum(self, new_checksum):
         """ update checksum """
-        if self.isDir():
-            raise ValueError(self.name()+" is a directory, has no checksum")
         self.__checksum = new_checksum
 
     def flags(self):
@@ -163,11 +159,21 @@ class SVNItem(object):
             raise ValueError("in_parent is not a SVNItem it's "+type(in_parent))
 
     def full_path_parts(self):
+        retVal = list()
+        curr_item = self
+        while curr_item is not None:
+            if curr_item.__name != "top_of_tree": # avoid the name of the top item
+                retVal.append(curr_item.__name)
+            curr_item = curr_item.__up
+        retVal.reverse()
+        return retVal
+
+    def full_path_parts_recursive(self):
         retVal = None
         if self.__up is None:
             retVal = [self.__name]
         else:
-            retVal = self.__up.full_path_parts()
+            retVal = self.__up.full_path_parts_recursive()
             retVal.append(self.__name)
         return retVal
 
@@ -221,6 +227,35 @@ class SVNItem(object):
             If create_folders is True, non existing intermediate folders
             will be created, with the same last_rev. create_folders is False,
             and some part of the path does not exist KeyError will be raised.
+            This is the non recursive version of this fuction.
+        """
+        retVal = None
+        #print("--- add sub to", self.name(), path, flags, last_rev)
+        path_parts = at_path
+        if isinstance(at_path, basestring):
+            path_parts = at_path.split("/")
+        curr_item = self
+        for part in path_parts[:-1]:
+            sub_dir_item = curr_item.__subs.get(part)
+            if sub_dir_item is None:
+                if create_folders:
+                    sub_dir_item = SVNItem(path_parts[0], "d", last_rev)
+                    curr_item.add_sub_item(sub_dir_item)
+                else:
+                    raise KeyError(path_parts[0]+" is not in sub items of "+self.full_path())
+            curr_item = sub_dir_item
+        retVal = SVNItem(path_parts[-1], flags, last_rev, checksum)
+        curr_item.add_sub_item(retVal)
+        return retVal
+
+    def new_item_at_path_recursive(self, at_path, flags, last_rev, checksum=None, create_folders=False):
+        """ create a new a sub-item at the give at_path.
+            at_path is relative to self of course.
+            at_path can be a list or tuple containing individual path parts
+            or a string with individual path parts separated by "/".
+            If create_folders is True, non existing intermediate folders
+            will be created, with the same last_rev. create_folders is False,
+            and some part of the path does not exist KeyError will be raised.
         """
         retVal = None
         #print("--- add sub to", self.name(), path, flags, last_rev)
@@ -228,9 +263,7 @@ class SVNItem(object):
         if isinstance(at_path, basestring):
             path_parts = at_path.split("/")
         if len(path_parts) == 1:
-            retVal = SVNItem(path_parts[0], flags, last_rev)
-            if retVal.isFile() and checksum:
-                retVal.set_checksum(checksum)
+            retVal = SVNItem(path_parts[0], flags, last_rev, checksum)
             self.add_sub_item(retVal)
         else:
             sub_dir_item = self.__subs.get(path_parts[0])
@@ -281,6 +314,25 @@ class SVNItem(object):
             If create_folders is True, non existing intermediate folders
             will be created, with the same last_rev. create_folders is False,
             and some part of the path does not exist KeyError will be raised.
+            This is the split version which is 25% faster than the re version below.
+        """
+        retVal = None
+        parts = the_str.rstrip().split(", ", 3)
+        if len(parts) > 2:
+            if len(parts) == 3:
+                parts.append(None)
+            self.new_item_at_path(parts[0],
+                              parts[1],
+                              int(parts[2]),
+                              parts[3],
+                              create_folders)
+        return retVal
+
+    def new_item_from_str_re(self, the_str, create_folders=False):
+        """ create a new a sub-item from string description.
+            If create_folders is True, non existing intermediate folders
+            will be created, with the same last_rev. create_folders is False,
+            and some part of the path does not exist KeyError will be raised.
         """
         retVal = None
         match = text_line_re.match(the_str)
@@ -293,11 +345,11 @@ class SVNItem(object):
         return retVal
 
     def add_sub_item(self, in_item):
-        if not self.isDir():
-            raise ValueError(self.name()+" is not a directory")
-        if in_item.name() in self.__subs:
-            if self.__subs[in_item.name()].flags() != in_item.flags():
-                raise KeyError(in_item.name()+" replacing "+self.__subs[in_item.name()].flags()+" with "+in_item.flags())
+        #if not self.isDir():
+        #    raise ValueError(self.name()+" is not a directory")
+        #if in_item.name() in self.__subs:
+        #    if self.__subs[in_item.name()].flags() != in_item.flags():
+        #        raise KeyError(in_item.name()+" replacing "+self.__subs[in_item.name()].flags()+" with "+in_item.flags())
         in_item.set_parent(self)
         self.__subs[in_item.name()] = in_item
 
@@ -310,7 +362,19 @@ class SVNItem(object):
             item = self.__subs[item_name]
             if item.isFile():
                 file_list.append(item)
-            elif item.isDir():
+            else:
+                dir_list.append(item)
+        return file_list, dir_list
+
+    def unsorted_sub_items(self):
+        if not self.isDir():
+            raise TypeError("Files should not walk themselves, owning dir should do it for them")
+        file_list = list()
+        dir_list = list()
+        for item in self.__subs.itervalues():
+            if item.isFile():
+                file_list.append(item)
+            else:
                 dir_list.append(item)
         return file_list, dir_list
 
@@ -367,7 +431,7 @@ class SVNItem(object):
     def set_user_data(self, value, how): # how=[only|file|all]
         self.user_data = value
         if self.isDir() and how in ("file", "all"):
-            mark_list, dir_list = self.sorted_sub_items()
+            mark_list, dir_list = self.unsorted_sub_items()
             if how == "all":
                 mark_list.extend(dir_list)
             for item in mark_list:
@@ -422,7 +486,7 @@ class SVNTopItem(SVNItem):
     def __init__(self, in_name="top_of_tree"):
         super(SVNTopItem, self).__init__(in_name, "d", 0)
 
-    def full_path_parts(self):
+    def full_path_parts_recursive(self):
         """ override full_path_parts so the top level SVNTopItem will
             no be counted as part of the path.
         """

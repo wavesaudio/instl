@@ -376,7 +376,7 @@ class TestSVNItem(unittest.TestCase):
         svni1.new_item_at_path("SubFile1", "f", 19)
         self.assertEqual(svni1.subs().keys(), ["SubFile1"])
         # should throw when adding and path has non leaf file
-        self.assertRaises(ValueError, svni1.new_item_at_path, "SubFile1/SubFile2", "f", 19)
+        self.assertRaises(TypeError, svni1.new_item_at_path, "SubFile1/SubFile2", "f", 19)
 
     def test_add_sub_positive(self):
         svni1 = SVNTopItem()
@@ -416,7 +416,7 @@ class TestSVNItem(unittest.TestCase):
         """ Check the internal function add_sub_item where is should fail """
         svni1 = SVNItem("TestDir", "f", 15)
         svni2 = SVNItem("SubFile", "f", 1258)
-        self.assertRaises(ValueError, svni1.add_sub_item, svni2)
+        self.assertRaises(TypeError, svni1.add_sub_item, svni2)
         self.assertRaises(ValueError, svni1.subs)
         self.assertRaises(ValueError, svni1.get_item_at_path, "SubFile")
 
