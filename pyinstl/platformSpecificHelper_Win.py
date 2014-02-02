@@ -31,7 +31,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         #retVal = " /LOG:{log_file}".format(**locals())
         return retVal
 
-    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=None, ignore=None):
+    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
         retVal = list()
         _, dir_to_copy = os.path.split(src_dir)
         trg_dir = "/".join( (trg_dir, dir_to_copy) )
@@ -80,7 +80,7 @@ class CopyTool_win_xcopy(CopyToolBase):
     def __init__(self, platformHelper):
         super(CopyTool_win_xcopy, self).__init__(platformHelper)
 
-    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=None):
+    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False):
         retVal = list()
         _, dir_to_copy = os.path.split(src_dir)
         trg_dir = "/".join( (trg_dir, dir_to_copy) )

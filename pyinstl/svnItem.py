@@ -236,41 +236,13 @@ class SVNItem(object):
             sub_dir_item = curr_item.__subs.get(part)
             if sub_dir_item is None:
                 if create_folders:
-                    sub_dir_item = SVNItem(path_parts[0], "d", last_rev)
+                    sub_dir_item = SVNItem(part, "d", last_rev)
                     curr_item.add_sub_item(sub_dir_item)
                 else:
-                    raise KeyError(path_parts[0]+" is not in sub items of "+self.full_path())
+                    raise KeyError(part+" is not in sub items of "+self.full_path())
             curr_item = sub_dir_item
         retVal = SVNItem(path_parts[-1], flags, last_rev, checksum)
         curr_item.add_sub_item(retVal)
-        return retVal
-
-    def new_item_at_path_recursive(self, at_path, flags, last_rev, checksum=None, create_folders=False):
-        """ create a new a sub-item at the give at_path.
-            at_path is relative to self of course.
-            at_path can be a list or tuple containing individual path parts
-            or a string with individual path parts separated by "/".
-            If create_folders is True, non existing intermediate folders
-            will be created, with the same last_rev. create_folders is False,
-            and some part of the path does not exist KeyError will be raised.
-        """
-        retVal = None
-        #print("--- add sub to", self.name(), path, flags, last_rev)
-        path_parts = at_path
-        if isinstance(at_path, basestring):
-            path_parts = at_path.split("/")
-        if len(path_parts) == 1:
-            retVal = SVNItem(path_parts[0], flags, last_rev, checksum)
-            self.add_sub_item(retVal)
-        else:
-            sub_dir_item = self.__subs.get(path_parts[0])
-            if sub_dir_item is None:
-                if create_folders:
-                    sub_dir_item = SVNItem(path_parts[0], "d", last_rev)
-                    self.add_sub_item(sub_dir_item)
-                else:
-                    raise KeyError(path_parts[0]+" is not in sub items of "+self.full_path())
-            retVal = sub_dir_item.new_item_at_path(path_parts[1:], flags, last_rev, checksum, create_folders)
         return retVal
 
     def add_item_at_path(self, at_path, in_item, create_folders=False):

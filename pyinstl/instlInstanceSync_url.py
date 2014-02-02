@@ -129,7 +129,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         for need_item in self.work_info_map.walk_items(what="file"):
             have_item = self.have_map.get_item_at_path(need_item.full_path_parts())
             if have_item is None:   # not found in have map
-                 self.have_map.new_item_at_path(need_item.full_path_parts() , need_item.flags(), need_item.last_rev(), create_folders=True)
+                 self.have_map.new_item_at_path(need_item.full_path_parts() , need_item.flags(), need_item.last_rev(), need_item.checksum(), create_folders=True)
             else:                    # found in have map
                 if have_item.last_rev() == need_item.last_rev():
                     need_item.user_data = False

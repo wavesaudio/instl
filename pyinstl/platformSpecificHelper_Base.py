@@ -32,7 +32,7 @@ class CopyToolBase(object):
         self.platformHelper = platformHelper
 
     @abc.abstractmethod
-    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=None, ignore=None):
+    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
         """ Copy src_dir as a folder into trg_dir.
             Example: copy_dir_to_dir("a", "/d/c/b") creates the folder:
             "/d/c/b/a"
@@ -76,15 +76,15 @@ class CopyToolRsync(CopyToolBase):
             retVal = " ".join(["--exclude="+quoteme_single(ignoree) for ignoree in ignore])
         return retVal
 
-    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=None, ignore=None):
+    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
         if src_dir.endswith("/"):
             src_dir.rstrip("/")
         ignore_spec = self.create_ignore_spec(ignore)
-        if link_dest is None:
-            sync_command = "rsync -l -r -E {ignore_spec} \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+        if link_dest:
+            the_link_dest = os.path.join(src_dir, "..")
+            sync_command = "rsync -l -r -E {ignore_spec} --link-dest=\"{the_link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
         else:
-            relative_link_dest = os.path.relpath(link_dest, trg_dir)
-            sync_command = "rsync -l -r -E {ignore_spec} --link-dest=\"{relative_link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+            sync_command = "rsync -l -r -E {ignore_spec} \"{src_dir}\" \"{trg_dir}\"".format(**locals())
 
         return sync_command
 

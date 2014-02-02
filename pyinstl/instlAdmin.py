@@ -531,7 +531,7 @@ class InstlAdmin(InstlInstanceBase):
             elif os.path.isfile(item_path):
                 self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(item_path, comperer.right, link_dest=comperer.left, ignore=".svn")
             elif os.path.isdir(item_path):
-                self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(item_path, comperer.right, link_dest=comperer.left, ignore=".svn")
+                self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(item_path, comperer.right, ignore=".svn")
             else:
                 raise InstlException(item_path+" not a file, dir or symlink, an abomination!")
 

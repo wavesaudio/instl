@@ -2,6 +2,8 @@
 
     user visible changes, client:
     * Little faster sync/copy/syncopy due to optimiztions in SVNItem.
+    * Fixed copy_dir_to_dir on Mac that did not create hard links
+    * Fixed new_item_at_path that did not create the have map correctly
 
     user visible changes, admin:
     * new command: create-repo-rev-file, to separate repo rev file creation and uploading.
@@ -10,7 +12,7 @@
 
     programmer visible changes:
     * some rearranging of parser creation, and removed redundant members from CommandLineOptions
-    * moved the discovery of info+map's file type to svnTree.py
+    * moved the discovery of info_map's file type to svnTree.py
     * added ConfigVar.resolved_num to help track which var is used in which command.
     * PlatformSpecificHelper's var_assign got new param: comment
     * Many optimizations to SVNItem code.
