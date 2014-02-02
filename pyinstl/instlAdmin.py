@@ -325,7 +325,7 @@ class InstlAdmin(InstlInstanceBase):
         if 'Mac' in self.cvl.get_list("__CURRENT_OS_NAMES__"):
             accum += "find . -name .DS_Store -delete"
 
-        # Files a folders that do not be long to __CURR_REPO_REV__ should not be uploaded.
+        # Files a folders that do not belong to __CURR_REPO_REV__ should not be uploaded.
         # Since aws sync command uploads the whole folder, we delete from disk all files
         # and folders that should not be uploaded.
         # To save delete instructions for every file we rely on the fact that each folder
@@ -336,7 +336,7 @@ class InstlAdmin(InstlInstanceBase):
         dir_queue.append(self.svnTree)
         while len(dir_queue) > 0:
             curr_item = dir_queue.popleft()
-            files, dirs = curr_item.sorted_sub_items()
+            files, dirs = curr_item.unsorted_sub_items()
             for file_item in files:
                 if file_item.last_rev() > repo_rev:
                     raise ValueError(str(file_item)+" last_rev > repo_rev "+str(repo_rev))

@@ -10,10 +10,8 @@ from pyinstl import svnTree
 from instlInstanceSyncBase import InstlInstanceSync
 
 def is_user_data_false_or_dir_empty(svn_item):
-    retVal = False
-    if svn_item.isFile():
-        retVal = svn_item.user_data == False
-    elif svn_item.isDir():
+    retVal = not svn_item.user_data
+    if svn_item.isDir():
         retVal = len(svn_item.subs()) == 0
     return retVal
 
@@ -105,7 +103,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             Items required by each install source are then marked True.
             Finally items marked False and empty directories are removed.
         """
-        self.work_info_map.set_user_data(False, "all")
+        self.work_info_map.set_user_data_all_recursive(False)
         for iid  in self.installState.full_install_items:
             installi = self.instlObj.install_definitions_index[iid]
             if installi.source_list():
@@ -127,7 +125,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             Finally items marked False and empty directories are removed.
             The have map is
         """
-        self.work_info_map.set_user_data(True, "all")
+        self.work_info_map.set_user_data_all_recursive(True)
         for need_item in self.work_info_map.walk_items(what="file"):
             have_item = self.have_map.get_item_at_path(need_item.full_path_parts())
             if have_item is None:   # not found in have map
@@ -157,17 +155,15 @@ class InstlInstanceSync_url(InstlInstanceSync):
         if source[1] == '!file':
             if not remote_sub_item.isFile():
                 raise  ValueError(source[0], "has type", source[1], "but is not a file")
-            how_to_set = "only"
+            remote_sub_item.set_user_data_non_recursive(True)
         elif source[1] == '!files':
             if not remote_sub_item.isDir():
                 raise ValueError(source[0], "has type", source[1], "but is not a dir")
-            how_to_set = "file"
+            remote_sub_item.set_user_data_files_recursive(True)
         elif source[1] == '!dir' or source[1] == '!dir_cont': # !dir and !dir_cont are only different when copying
             if not remote_sub_item.isDir():
                 raise ValueError(source[0], "has type", source[1], "but is not a dir")
-            how_to_set = "all"
-
-        remote_sub_item.set_user_data(True, how_to_set)
+            remote_sub_item.set_user_data_all_recursive(True)
 
     def clear_unrequired_items(self):
         self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)

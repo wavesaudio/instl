@@ -153,10 +153,7 @@ class SVNItem(object):
         return self.__up
 
     def set_parent(self, in_parent):
-        if isinstance(in_parent, SVNItem) or in_parent is None:
-            self.__up = in_parent
-        else:
-            raise ValueError("in_parent is not a SVNItem it's "+type(in_parent))
+        self.__up = in_parent
 
     def full_path_parts(self):
         retVal = list()
@@ -333,6 +330,7 @@ class SVNItem(object):
             If create_folders is True, non existing intermediate folders
             will be created, with the same last_rev. create_folders is False,
             and some part of the path does not exist KeyError will be raised.
+            This is the regular expression version.
         """
         retVal = None
         match = text_line_re.match(the_str)
@@ -417,7 +415,7 @@ class SVNItem(object):
                 yield the_sub
 
     def recursive_remove_depth_first(self, should_remove_func):
-        file_list, dir_list = self.sorted_sub_items()
+        file_list, dir_list = self.unsorted_sub_items()
 
         for the_sub in dir_list:
             the_sub.recursive_remove_depth_first(should_remove_func)
@@ -428,14 +426,26 @@ class SVNItem(object):
             if should_remove_func(the_sub):
                 del (self.__subs[the_sub.name()])
 
-    def set_user_data(self, value, how): # how=[only|file|all]
+    def set_user_data_non_recursive(self, value):
         self.user_data = value
-        if self.isDir() and how in ("file", "all"):
-            mark_list, dir_list = self.unsorted_sub_items()
-            if how == "all":
-                mark_list.extend(dir_list)
-            for item in mark_list:
-                item.set_user_data(value, how)
+
+    def set_user_data_files_recursive(self, value):
+        if self.isFile():
+            self.user_data = value
+        else:
+            files_list, dir_list = self.unsorted_sub_items()
+            for file_item in files_list:
+                file_item.user_data = value
+            for dir_item in dir_list:
+                dir_item.set_user_data_files_recursive(value)
+
+    def set_user_data_all_recursive(self, value):
+        self.user_data = value
+        files_list, dir_list = self.unsorted_sub_items()
+        for file_item in files_list:
+            file_item.user_data = value
+        for dir_item in dir_list:
+            dir_item.set_user_data_all_recursive(value)
 
     def num_subs_in_tree(self, what="all"):
         retVal = sum(1 for i in self.walk_items(what=what))
