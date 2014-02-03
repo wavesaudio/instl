@@ -22,7 +22,7 @@ os_second_name = current_os_names[0]
 if len(current_os_names) > 1:
     os_second_name = current_os_names[1]
 
-INSTL_VERSION=(0, 8, 0)
+INSTL_VERSION=(0, 8, 1)
 this_program_name = "instl"
 
 

@@ -4,7 +4,7 @@ from __future__ import print_function
 
 import filecmp
 import subprocess
-import StringIO
+import cStringIO as StringIO
 import boto
 import rsa
 
