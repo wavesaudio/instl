@@ -14,6 +14,7 @@
     * added ConfigVar.resolved_num to help track which var is used in which command.
     * PlatformSpecificHelper's var_assign got new param: comment
     * Many optimizations to SVNItem code.
+    * Using cStringIO instead of StringIO.
 
 29/1/2014 0.8.0 Shai Shasag <shai@waves.com>
 

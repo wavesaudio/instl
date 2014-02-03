@@ -4,7 +4,7 @@ from __future__ import print_function
 import sys
 import os
 import unittest
-import StringIO 
+import cStringIO as StringIO
 
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 import yaml
