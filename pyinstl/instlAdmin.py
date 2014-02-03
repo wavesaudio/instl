@@ -529,7 +529,7 @@ class InstlAdmin(InstlInstanceBase):
             if os.path.islink(item_path):
                 raise InstlException(item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
             elif os.path.isfile(item_path):
-                self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(item_path, comperer.right, link_dest=comperer.left, ignore=".svn")
+                self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(item_path, comperer.right, ignore=".svn")
             elif os.path.isdir(item_path):
                 self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(item_path, comperer.right, ignore=".svn")
             else:

@@ -35,7 +35,7 @@ class TestSVNTree(unittest.TestCase):
         tree.read_info_map_from_file(SVNInfoTestFile1, format="info")
 
         SVNInfoTestFile1Out = os.path.join(this_dir, "SVNInfoTest1.out.txt")
-        tree.write_to_file(SVNInfoTestFile1Out, in_format="text")
+        tree.write_to_file(SVNInfoTestFile1Out, in_format="text", comments=False)
 
         SVNInfoTestFileRef1 = os.path.join(this_dir, "SVNInfoTest1.ref.txt")
-        self.assertTrue(filecmp.cmp(SVNInfoTestFileRef1, SVNInfoTestFile1Out), "{SVNInfoTestFile1Out} file is different from expected {SVNInfoTestFileRef1}".format(**locals()))
+        self.assertTrue(filecmp.cmp(SVNInfoTestFileRef1, SVNInfoTestFile1Out, shallow=False), "{SVNInfoTestFile1Out} file is different from expected {SVNInfoTestFileRef1}".format(**locals()))

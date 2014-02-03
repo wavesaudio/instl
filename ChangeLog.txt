@@ -17,7 +17,11 @@
     * PlatformSpecificHelper's var_assign got new param: comment
     * Many optimizations to SVNItem code.
     * Using cStringIO instead of StringIO.
-
+    * Test files for SVNTree test will be produced without comments, also changed the reference file.
+    * added tests for test_platformSpecificHelper not finished yet.
+    * copy_tool.copy_file_to_dir accepts bool for link_dest and should figure the destination.
+    * info_map write files accept a comments param.
+    * safe_makedirs will return the dir it made
 29/1/2014 0.8.0 Shai Shasag <shai@waves.com>
 
     Main 0.8.0 features:

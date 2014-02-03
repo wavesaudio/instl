@@ -42,7 +42,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         retVal.append(self.platformHelper.exit_if_error(self.robocopy_error_threshold))
         return retVal
 
-    def copy_file_to_dir(self, src_file, trg_dir, link_dest=None, ignore=None):
+    def copy_file_to_dir(self, src_file, trg_dir, link_dest=False, ignore=None):
         retVal = list()
         src_dir, src_file = os.path.split(src_file)
         log_file_spec = self.create_log_spec()
@@ -90,7 +90,7 @@ class CopyTool_win_xcopy(CopyToolBase):
         retVal.append(self.platformHelper.exit_if_error())
         return retVal
 
-    def copy_file_to_dir(self, src_file, trg_dir, link_dest=None):
+    def copy_file_to_dir(self, src_file, trg_dir, link_dest=False):
         retVal = list()
         #src_dir, src_file = os.path.split(src_file)
         copy_command = "xcopy  /R /Y \"{src_file}\" \"{trg_dir}\"".format(**locals())

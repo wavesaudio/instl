@@ -40,7 +40,7 @@ class CopyToolBase(object):
         pass
 
     @abc.abstractmethod
-    def copy_file_to_dir(self, src_file, trg_dir, link_dest=None, ignore=None):
+    def copy_file_to_dir(self, src_file, trg_dir, link_dest=False, ignore=None):
         """ Copy the file src_file into trg_dir.
             Example: copy_file_to_dir("a.txt", "/d/c/b") creates the file:
             "/d/c/b/a.txt"
@@ -88,14 +88,15 @@ class CopyToolRsync(CopyToolBase):
 
         return sync_command
 
-    def copy_file_to_dir(self, src_file, trg_dir, link_dest=None, ignore=None):
+    def copy_file_to_dir(self, src_file, trg_dir, link_dest=False, ignore=None):
         assert not src_file.endswith("/")
         ignore_spec = self.create_ignore_spec(ignore)
-        if link_dest is None:
-            sync_command = "rsync -l -r -E {ignore_spec} \"{src_file}\" \"{trg_dir}\"".format(**locals())
-        else:
-            relative_link_dest = os.path.relpath(link_dest, trg_dir)
+        if link_dest:
+            the_link_dest, src_file_name = os.path.split(src_file)
+            relative_link_dest = os.path.relpath(the_link_dest, trg_dir)
             sync_command = "rsync -l -r -E {ignore_spec} --link-dest=\"{relative_link_dest}\" \"{src_file}\" \"{trg_dir}\"".format(**locals())
+        else:
+            sync_command = "rsync -l -r -E {ignore_spec} \"{src_file}\" \"{trg_dir}\"".format(**locals())
         return sync_command
 
     def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=None, ignore=None):
@@ -109,16 +110,16 @@ class CopyToolRsync(CopyToolBase):
             sync_command = "rsync -l -r -E {ignore_spec} --link-dest=\"{relative_link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
         return sync_command
 
-    def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=None, ignore=None):
+    def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
         if not src_dir.endswith("/"):
             src_dir += "/"
         # in order for * to correctly expand, it must be outside the quotes, e.g. to copy all files in folder a: A=a ; "${A}"/* and not "${A}/*"
         ignore_spec = self.create_ignore_spec(ignore)
-        if link_dest is None:
-            sync_command = "rsync -l -E -d {ignore_spec} \"{src_dir}\"/* \"{trg_dir}\"".format(**locals())
-        else:
-            relative_link_dest = os.path.relpath(link_dest, trg_dir)
+        if link_dest:
+            relative_link_dest = os.path.relpath(src_dir, trg_dir)
             sync_command = "rsync -l -E -d {ignore_spec} --link-dest=\"{relative_link_dest}..\" \"{src_dir}\"/* \"{trg_dir}\"".format(**locals())
+        else:
+            sync_command = "rsync -l -E -d {ignore_spec} \"{src_dir}\"/* \"{trg_dir}\"".format(**locals())
 
         return sync_command
 

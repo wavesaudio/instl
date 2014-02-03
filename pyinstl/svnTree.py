@@ -187,7 +187,7 @@ class SVNTree(svnItem.SVNTopItem):
     def valid_write_formats(self):
         return self.write_func_by_format.keys()
 
-    def write_to_file(self, in_file, in_format="guess"):
+    def write_to_file(self, in_file, in_format="guess", comments=True):
         """ pass in_file="stdout" to output to stdout.
             in_format is either text, yaml, pickle
         """
@@ -198,20 +198,20 @@ class SVNTree(svnItem.SVNTopItem):
         if in_format in self.write_func_by_format.keys():
             with write_to_file_or_stdout(self.path_to_file) as wfd:
                 logging.info("opened %s, format: %s", self.path_to_file, format)
-                self.write_func_by_format[in_format](wfd)
+                self.write_func_by_format[in_format](wfd, comments)
         else:
             logging.info("%s is not a known map_info format. Cannot write %s", format, in_file)
             ValueError("Unknown write in_format "+in_format)
 
-    def write_as_text(self, wfd):
-        if len(self.comments) > 0:
+    def write_as_text(self, wfd, comments=True):
+        if comments and len(self.comments) > 0:
             for comment in self.comments:
                 wfd.write("# "+comment+"\n")
             wfd.write("\n")
         for item in self.walk_items():
             wfd.write(str(item)+"\n")
 
-    def write_as_yaml(self, wfd):
+    def write_as_yaml(self, wfd, comments=True):
         aYaml.augmentedYaml.writeAsYaml(self, out_stream=wfd, indentor=None, sort=True)
 
     def repr_for_yaml(self):

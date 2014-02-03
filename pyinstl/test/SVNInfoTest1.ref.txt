@@ -1,5 +1,3 @@
-# Original file /p4client/ProAudio/dev_install/instl/pyinstl/test/SVNInfoTest1.info
-
 V9, d, 0
 V9/Win, d, 0
 V9/Win/SoundGrid, d, 186

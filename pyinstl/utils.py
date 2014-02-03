@@ -274,6 +274,7 @@ def safe_makedirs(path_to_dir):
         os.makedirs(path_to_dir)
     except:  # os.makedirs raises is the directory already exists
         pass
+    return path_to_dir
 
 
 def max_widths(list_of_lists):
