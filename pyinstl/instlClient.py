@@ -4,7 +4,6 @@ from __future__ import print_function
 from collections import OrderedDict, defaultdict
 import logging
 
-from pyinstl.log_utils import func_log_wrapper
 from pyinstl.utils import *
 from installItem import read_index_from_yaml, InstallItem
 from aYaml import augmentedYaml
@@ -288,9 +287,9 @@ class InstlClient(InstlInstanceBase):
         if source[1] == '!file':       # get a single file, not recommended
             self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".", link_dest=True, ignore=(".svn", "*.symlink", "*.wtar"))
         elif source[1] == '!dir_cont': # get all files and folders from a folder
-            self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".", source_path, ignore=(".svn", "*.symlink", "*.wtar"))
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".", link_dest=True, ignore=(".svn", "*.symlink", "*.wtar"))
         elif source[1] == '!files':    # get all files from a folder
-            self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".", source_path, ignore=(".svn", "*.symlink", "*.wtar"))
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".", link_dest=True, ignore=(".svn", "*.symlink", "*.wtar"))
         else: # !dir
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path, ".", link_dest=True, ignore=(".svn", "*.symlink", "*.wtar"))
         logging.info("... %s; (%s - %s)", source_path, self.cvl.resolve_string(source_path), source[1])

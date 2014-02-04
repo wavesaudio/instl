@@ -6,10 +6,8 @@ import filecmp
 import subprocess
 import cStringIO as StringIO
 import boto
-import rsa
 
 from instlException import *
-from pyinstl.log_utils import func_log_wrapper
 from pyinstl.utils import *
 from aYaml.augmentedYaml import writeAsYaml, YamlDumpDocWrap
 
@@ -213,7 +211,7 @@ class InstlAdmin(InstlInstanceBase):
         # copy Base folder to revision folder
         accum += self.platform_helper.mkdir("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
         accum += self.platform_helper.echo("Copying revision $(__CURR_REPO_REV__) to $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
-        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir("$(__CHECKOUT_FOLDER__)", revision_folder_path, "$(ROOT_LINKS_FOLDER_REPO)/Base", ignore=".svn")
+        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir("$(__CHECKOUT_FOLDER__)", revision_folder_path, link_dest=True, ignore=".svn")
 
         # get info from SVN for all files in revision
         accum += self.platform_helper.mkdir(revision_instl_folder_path)
@@ -529,9 +527,9 @@ class InstlAdmin(InstlInstanceBase):
             if os.path.islink(item_path):
                 raise InstlException(item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
             elif os.path.isfile(item_path):
-                self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(item_path, comperer.right, ignore=".svn")
+                self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(item_path, comperer.right, link_dest=True, ignore=".svn")
             elif os.path.isdir(item_path):
-                self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(item_path, comperer.right, ignore=".svn")
+                self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(item_path, comperer.right, link_dest=True, ignore=".svn")
             else:
                 raise InstlException(item_path+" not a file, dir or symlink, an abomination!")
 
@@ -606,7 +604,7 @@ class InstlAdmin(InstlInstanceBase):
         svn_folder = self.cvl.resolve_string(("$(SVN_CHECKOUT_FOLDER)"))
         svn_command_parts = ['"$(SVN_CLIENT_PATH)"', "checkout", '"$(SVN_REPO_URL)"', '"'+svn_folder+'"', "--depth", "infinity"]
         self.batch_accum += " ".join(svn_command_parts)
-        self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(svn_folder, stage_folder, link_dest=svn_folder, ignore=(".svn", ".DS_Store"))
+        self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(svn_folder, stage_folder, link_dest=True, ignore=(".svn", ".DS_Store"))
         self.create_variables_assignment()
         self.write_batch_file()
         if "__RUN_BATCH_FILE__" in self.cvl:
