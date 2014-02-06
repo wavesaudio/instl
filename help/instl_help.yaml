@@ -36,7 +36,7 @@ command:
             Key size is 4096. Keys are produced in PEM format. Private key is written to a file named "$(REPO_NAME).private_key". Public key is written to a file named "$(REPO_NAME).public_key".
 
     fix-props:
-        short: Fix certine properties in svn repository.
+        short: Fix certain properties in svn repository.
         long: |
             Removes or adds svn:executable property where appropriate and removed all otehr properties.
             Keep in mind that fix-props command does not actaully do anything, unless the --run flag is given. You will need to run the producded batch file in order to actaully fix the properties.
@@ -62,7 +62,7 @@ command:
     stage2svn:
         short: Update svn from a staging folder.
         long: |
-           Usage: instl stage2svn --stage_folder staging-folder --svn_folder svn-folder --out stage2svn.sh [--run]
+           Usage: instl stage2svn config-file config-file --out stage2svn.sh [--run]
            Making changes to the svn repository cannot be done on the svn checkout folder directly, mainly because svn finds it difficult to handle deleted files. svn2stage will checkout the latest revision to the svn folder (variable: SVN_CHECKOUT_FOLDER), and export the revision's files to the staging folder (variable: STAGING_FOLDER). Now changes to the staging folder can be made. When the staging folder is ready, stage2svn can be called to create the svn command to add/delete files. Existing files that were changed will be discovered by svn iteslf. Before calling stage2svn it is advisable to call fix-symlinks, stage2svn will not accept new symlinks.
             Keep in mind that stage2svn command does not actaully do anything, unless the --run flag is given. You will need to run the producded batch file in order to actaully run the svn commands and then commit the changes to svn.
 
