@@ -171,7 +171,9 @@ class InstlAdmin(InstlInstanceBase):
 
         self.cvl.set_var("__CHECKOUT_FOLDER__").append("$(ROOT_LINKS_FOLDER_REPO)/Base")
         self.batch_accum += self.platform_helper.mkdir("$(__CHECKOUT_FOLDER__)")
-
+        # $(ROOT_LINKS_FOLDER_REPO)/Base is used instead of $(__CHECKOUT_FOLDER__) hereafter,
+        # so that relative paths to $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__) would work.
+        
         accum = BatchAccumulator(self.cvl) # sub-accumulator serves as a template for each version
         accum.set_current_section('links')
         self.create_links_for_revision(accum)
@@ -205,17 +207,17 @@ class InstlAdmin(InstlInstanceBase):
         accum += self.platform_helper.echo("Creating links for revision $(__CURR_REPO_REV__)")
         # sync revision from SVN to Base folder
         accum += self.platform_helper.echo("Getting revision $(__CURR_REPO_REV__) from $(SVN_REPO_URL)")
-        checkout_command_parts = ['"$(SVN_CLIENT_PATH)"', "co", '"'+"$(SVN_REPO_URL)@$(__CURR_REPO_REV__)"+'"', '"'+"$(__CHECKOUT_FOLDER__)"+'"', "--depth", "infinity"]
+        checkout_command_parts = ['"$(SVN_CLIENT_PATH)"', "co", '"'+"$(SVN_REPO_URL)@$(__CURR_REPO_REV__)"+'"', '"'+"$(ROOT_LINKS_FOLDER_REPO)/Base"+'"', "--depth", "infinity"]
         accum += " ".join(checkout_command_parts)
 
         # copy Base folder to revision folder
         accum += self.platform_helper.mkdir("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
         accum += self.platform_helper.echo("Copying revision $(__CURR_REPO_REV__) to $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
-        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir("$(__CHECKOUT_FOLDER__)", revision_folder_path, link_dest=True, ignore=".svn")
+        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir("$(ROOT_LINKS_FOLDER_REPO)/Base", revision_folder_path, link_dest=True, ignore=".svn")
 
         # get info from SVN for all files in revision
         accum += self.platform_helper.mkdir(revision_instl_folder_path)
-        accum += self.platform_helper.cd("$(__CHECKOUT_FOLDER__)")
+        accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)/Base")
         accum += self.platform_helper.echo("Getting info from svn to ../$(__CURR_REPO_REV__)/instl/info_map.info")
         info_command_parts = ['"$(SVN_CLIENT_PATH)"', "info", "--depth infinity", ">", "../$(__CURR_REPO_REV__)/instl/info_map.info"]
         accum += " ".join(info_command_parts)
