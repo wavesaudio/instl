@@ -125,6 +125,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
             "setlocal enableextensions enabledelayedexpansion",
             self.remark(self.instlObj.get_version_str()),
             self.remark(datetime.datetime.today().isoformat()),
+            self.start_time_measure(),
             self.save_dir("TOP_SAVE_DIR"),
             )
         return retVal
@@ -132,6 +133,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def get_install_instructions_postfix(self):
         retVal = (
                 self.restore_dir("TOP_SAVE_DIR"),
+                self.end_time_measure(),
                 "endlocal",
                 "exit /b 0",
                 "",
@@ -140,10 +142,28 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
                 "set defERRORLEVEL=%ERRORLEVEL%",
                 "if %defERRORLEVEL% == 0 (set defERRORLEVEL=1)",
                 'echo "Exit on error" 1>&2',
+                self.end_time_measure(),
                 "endlocal",
                 "exit /b %defERRORLEVEL%"
                 )
         return retVal
+
+    def start_time_measure(self):
+        time_start_command = "set Time_Measure_Start=%time%"
+        return time_start_command
+
+    def end_time_measure(self):
+        time_end_commands = (
+            'set Time_Measure_End=%time%',
+            'set options="tokens=1-4 delims=:."',
+            'for /f %options% %%a in ("%Time_Measure_Start%") do set start_h=%%a & set /a start_m=100%%b %% 100 & set /a start_s=100%%c %% 100 & set /a start_ms=100%%d %% 100',
+            'set /a Time_Measure_Start=%start_h%*3600 + %start_m%*60 + %start_s%',
+            'for /f %options% %%a in ("%Time_Measure_End%") do set end_h=%%a & set /a end_m=100%%b %% 100 & set /a end_s=100%%c %% 100 & set /a end_ms=100%%d %% 100',
+            'set /a Time_Measure_End=%end_h%*3600 + %end_m%*60 + %end_s%',
+            'set /a Time_Measure_Diff=%Time_Measure_End% - %Time_Measure_Start%',
+            'echo %__MAIN_COMMAND__% Time: %Time_Measure_Diff% seconds'
+)
+        return time_end_commands
 
     def exit_if_error(self, error_threshold=1):
         retVal = ("IF", "ERRORLEVEL", str(error_threshold), "(", "echo", '"Error %ERRORLEVEL% at step ' + str(self.num_items_for_progress_report+1)+'"', "1>&2", "&", "GOTO", "EXIT_ON_ERROR", ")")
@@ -181,7 +201,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return "SET "+identifier+'='+value
 
     def echo(self, message):
-        echo_command = " ".join(('echo', quoteme_double(message)))
+        echo_command = " ".join(('echo', message))
         return echo_command
 
     def remark(self, remark):

@@ -2,7 +2,9 @@
     
     user visible changes, admin:
     * Fixed wrong relative path created for create-links command.
-    
+    * Added time measurements to batch file produces for windows.
+    * Removed redundant quotes from echo messages on windows.
+
 3/2/2014 0.8.1 Shai Shasag <shai@waves.com>
 
     user visible changes, client:
