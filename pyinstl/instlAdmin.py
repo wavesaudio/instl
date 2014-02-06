@@ -13,6 +13,7 @@ from aYaml.augmentedYaml import writeAsYaml, YamlDumpDocWrap
 
 from instlInstanceBase import InstlInstanceBase
 from pyinstl import svnTree
+from platformSpecificHelper_Base import PlatformSpecificHelperFactory
 
 from batchAccumulator import BatchAccumulator
 
@@ -52,6 +53,7 @@ class InstlAdmin(InstlInstanceBase):
     def do_command(self):
         the_command = self.cvl.get_str("__MAIN_COMMAND__")
         self.set_default_variables()
+        self.platform_helper = PlatformSpecificHelperFactory(self.cvl.get_str("__CURRENT_OS__"), self)
         fixed_command = the_command.replace('-', '_')
         do_command_func = getattr(self, "do_"+fixed_command)
         do_command_func()

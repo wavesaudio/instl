@@ -13,7 +13,6 @@ from aYaml import augmentedYaml
 from pyinstl.utils import *
 from pyinstl.searchPaths import SearchPaths
 from instlException import InstlException
-from platformSpecificHelper_Base import PlatformSpecificHelperFactory
 from batchAccumulator import BatchAccumulator
 
 current_os_names = get_current_os_names()
@@ -36,7 +35,6 @@ class InstlInstanceBase(object):
     def __init__(self, initial_vars=None):
         # init objects owned by this class
         self.cvl = ConfigVarList()
-        self.platform_helper = PlatformSpecificHelperFactory(os_family_name, self)
         self.batch_accum = BatchAccumulator(self.cvl)
         self.do_not_write_vars = ("INFO_MAP_SIG", "PUBLIC_KEY")
         self.out_file_realpath = None

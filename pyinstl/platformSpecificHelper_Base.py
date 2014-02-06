@@ -2,6 +2,7 @@
 from __future__ import print_function
 import os
 import abc
+import urllib
 
 def quoteme_single(to_qoute):
     return "".join( ("'", to_qoute, "'") )

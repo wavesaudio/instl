@@ -4,6 +4,14 @@
     * Fixed wrong relative path created for create-links command.
     * Added time measurements to batch file produces for windows.
     * Removed redundant quotes from echo messages on windows.
+    * Added DownloadTool_win_curl in one-by-one and config-file modes.
+
+    user visible changes, admin:
+    * usage of wsvn instead of svn in all adming commands.
+    * Fixed: fis-props.bat was written to the wrong folder.
+    
+    programmer visible changes:
+    * Creation of PlatformSpecificHelper moved to do_command so it can take to consideration settings from the yaml file.
 
 3/2/2014 0.8.1 Shai Shasag <shai@waves.com>
 

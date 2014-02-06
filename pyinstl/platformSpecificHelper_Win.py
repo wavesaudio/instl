@@ -117,7 +117,13 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def __init__(self, instlObj):
         super(PlatformSpecificHelperWin, self).__init__(instlObj)
         self.var_replacement_pattern = "%\g<var_name>%"
-        self.dl_tool = DownloadTool_win_wget(self)
+        download_tool_name = instlObj.cvl.get_str("DOWNLOAD_TOOL_PATH")
+        if download_tool_name.endswith("wget.exe"):
+            self.dl_tool = DownloadTool_win_wget(self)
+        elif download_tool_name.endswith("curl.exe"):
+            self.dl_tool = DownloadTool_win_curl(self)
+        else:
+            self.dl_tool = None
 
     def get_install_instructions_prefix(self):
         retVal = (
@@ -289,3 +295,54 @@ class DownloadTool_win_wget(DownloadToolBase):
         download_command_parts.append("--read-timeout")
         download_command_parts.append("900")
         return (" ".join(download_command_parts), self.platformHelper.exit_if_error())
+
+
+class DownloadTool_win_curl(DownloadToolBase):
+    def __init__(self, platformHelper):
+        super(DownloadTool_win_curl, self).__init__(platformHelper)
+
+    def download_url_to_file(self, src_url, trg_file):
+        download_command_parts = list()
+        download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
+        download_command_parts.append("--insecure")
+        download_command_parts.append("--fail")
+        download_command_parts.append("--raw")
+        download_command_parts.append("--silent")
+        download_command_parts.append("--show-error")
+        download_command_parts.append("--compressed")
+        download_command_parts.append("--connect-timeout")
+        download_command_parts.append("60")
+        download_command_parts.append("--max-time")
+        download_command_parts.append("900")
+        download_command_parts.append("-o")
+        download_command_parts.append(quoteme_double(trg_file))
+        download_command_parts.append(quoteme_double(urllib.quote(src_url, "$()/:")))
+        return " ".join(download_command_parts)
+
+    def create_config_file(self, curl_config_file_path):
+        with open(curl_config_file_path, "wb") as wfd:
+            wfd.write("insecure\n")
+            wfd.write("raw\n")
+            wfd.write("fail\n")
+            wfd.write("silent\n")
+            wfd.write("show-error\n")
+            wfd.write("compressed\n")
+            wfd.write("create-dirs\n")
+            wfd.write("connect-timeout = 60\n")
+            wfd.write("\n")
+            for url, path in self.urls_to_download:
+                win_style_path = os.path.normpath(path)
+                win_style_path = win_style_path.replace("\\", "\\\\")
+                dl_lines = '''url = "%s"\noutput = "%s"\n\n''' % (url, win_style_path)
+                wfd.write(dl_lines)
+
+    def download_from_config_file(self, config_file):
+
+        download_command_parts = list()
+        download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
+        download_command_parts.append("--max-time")
+        download_command_parts.append(str(len(self.urls_to_download) * 6 + 300)) # 6 seconds for each item + 5 minutes
+        download_command_parts.append("--config")
+        download_command_parts.append(config_file)
+
+        return " ".join(download_command_parts)
