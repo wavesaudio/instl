@@ -7,6 +7,7 @@ import logging
 from pyinstl.utils import *
 from installItem import read_index_from_yaml, InstallItem
 from aYaml import augmentedYaml
+from platformSpecificHelper_Base import PlatformSpecificHelperFactory
 
 from instlInstanceBase import InstlInstanceBase
 
@@ -97,6 +98,7 @@ class InstlClient(InstlInstanceBase):
             self.resolve_defined_paths()
             self.resolve_index_inheritance()
             self.calculate_default_install_item_set(installState)
+            self.platform_helper = PlatformSpecificHelperFactory(self.cvl.get_str("__CURRENT_OS__"), self)
             if the_command in ("sync", "synccopy"):
                 logging.info("Creating sync instructions")
                 if self.cvl.get_str("REPO_TYPE") == "URL":

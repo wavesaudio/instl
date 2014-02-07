@@ -13,6 +13,7 @@ from aYaml.augmentedYaml import writeAsYaml, YamlDumpDocWrap
 
 from instlInstanceBase import InstlInstanceBase
 from pyinstl import svnTree
+from platformSpecificHelper_Base import PlatformSpecificHelperFactory
 
 from batchAccumulator import BatchAccumulator
 
@@ -52,6 +53,7 @@ class InstlAdmin(InstlInstanceBase):
     def do_command(self):
         the_command = self.cvl.get_str("__MAIN_COMMAND__")
         self.set_default_variables()
+        self.platform_helper = PlatformSpecificHelperFactory(self.cvl.get_str("__CURRENT_OS__"), self)
         fixed_command = the_command.replace('-', '_')
         do_command_func = getattr(self, "do_"+fixed_command)
         do_command_func()
@@ -146,7 +148,7 @@ class InstlAdmin(InstlInstanceBase):
             from platformSpecificHelper_Base import DefaultCopyToolName
             self.cvl.set_var("COPY_TOOL").append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
         if "SVN_CLIENT_PATH" not in self.cvl:
-            self.cvl.set_var("SVN_CLIENT_PATH").append("svn")
+            self.cvl.set_var("SVN_CLIENT_PATH").append("wsvn")
 
         self.batch_accum.set_current_section('links')
 
@@ -156,9 +158,9 @@ class InstlAdmin(InstlInstanceBase):
         # call svn info and to find out the last repo revision
         repo_url = self.cvl.resolve_string("$(SVN_REPO_URL)")
         if os.path.isdir(repo_url):
-            svn_info_command = ["svn", "info", ".", "--depth", "infinity"]
+            svn_info_command = [self.cvl.get_str("SVN_CLIENT_PATH"), "info", ".", "--depth", "infinity"]
         else:
-            svn_info_command = ["svn", "info", repo_url, "--depth", "infinity"]
+            svn_info_command = [self.cvl.get_str("SVN_CLIENT_PATH"), "info", repo_url, "--depth", "infinity"]
         with ChangeDirIfExists(repo_url):
             proc = subprocess.Popen(svn_info_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             my_stdout, my_stderr = proc.communicate()
@@ -171,7 +173,9 @@ class InstlAdmin(InstlInstanceBase):
 
         self.cvl.set_var("__CHECKOUT_FOLDER__").append("$(ROOT_LINKS_FOLDER_REPO)/Base")
         self.batch_accum += self.platform_helper.mkdir("$(__CHECKOUT_FOLDER__)")
-
+        # $(ROOT_LINKS_FOLDER_REPO)/Base is used instead of $(__CHECKOUT_FOLDER__) hereafter,
+        # so that relative paths to $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__) would work.
+        
         accum = BatchAccumulator(self.cvl) # sub-accumulator serves as a template for each version
         accum.set_current_section('links')
         self.create_links_for_revision(accum)
@@ -205,17 +209,17 @@ class InstlAdmin(InstlInstanceBase):
         accum += self.platform_helper.echo("Creating links for revision $(__CURR_REPO_REV__)")
         # sync revision from SVN to Base folder
         accum += self.platform_helper.echo("Getting revision $(__CURR_REPO_REV__) from $(SVN_REPO_URL)")
-        checkout_command_parts = ['"$(SVN_CLIENT_PATH)"', "co", '"'+"$(SVN_REPO_URL)@$(__CURR_REPO_REV__)"+'"', '"'+"$(__CHECKOUT_FOLDER__)"+'"', "--depth", "infinity"]
+        checkout_command_parts = ['"$(SVN_CLIENT_PATH)"', "co", '"'+"$(SVN_REPO_URL)@$(__CURR_REPO_REV__)"+'"', '"'+"$(ROOT_LINKS_FOLDER_REPO)/Base"+'"', "--depth", "infinity"]
         accum += " ".join(checkout_command_parts)
 
         # copy Base folder to revision folder
         accum += self.platform_helper.mkdir("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
         accum += self.platform_helper.echo("Copying revision $(__CURR_REPO_REV__) to $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
-        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir("$(__CHECKOUT_FOLDER__)", revision_folder_path, link_dest=True, ignore=".svn")
+        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir("$(ROOT_LINKS_FOLDER_REPO)/Base", revision_folder_path, link_dest=True, ignore=".svn")
 
         # get info from SVN for all files in revision
         accum += self.platform_helper.mkdir(revision_instl_folder_path)
-        accum += self.platform_helper.cd("$(__CHECKOUT_FOLDER__)")
+        accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)/Base")
         accum += self.platform_helper.echo("Getting info from svn to ../$(__CURR_REPO_REV__)/instl/info_map.info")
         info_command_parts = ['"$(SVN_CLIENT_PATH)"', "info", "--depth infinity", ">", "../$(__CURR_REPO_REV__)/instl/info_map.info"]
         accum += " ".join(info_command_parts)
@@ -423,10 +427,11 @@ class InstlAdmin(InstlInstanceBase):
     def do_fix_props(self):
         self.batch_accum.set_current_section('admin')
         repo_folder = self.cvl.resolve_string("$(SVN_CHECKOUT_FOLDER)")
+        save_dir = os.getcwd()
         os.chdir(repo_folder)
 
         # read svn info
-        svn_info_command = ["svn", "info", "--depth", "infinity"]
+        svn_info_command = [self.cvl.get_str("SVN_CLIENT_PATH"), "info", "--depth", "infinity"]
         proc = subprocess.Popen(svn_info_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         my_stdout, my_stderr = proc.communicate()
         if proc.returncode != 0 or my_stderr != "":
@@ -435,11 +440,11 @@ class InstlAdmin(InstlInstanceBase):
         self.svnTree.read_from_svn_info(svn_info)
 
         # read svn props
-        svn_props_command = ['svn', "proplist", "--depth", "infinity"]
+        svn_props_command = [self.cvl.get_str("SVN_CLIENT_PATH"), "proplist", "--depth", "infinity"]
         proc = subprocess.Popen(svn_props_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         my_stdout, my_stderr = proc.communicate()
         svn_props = StringIO.StringIO(my_stdout)
-        svn_props.name = "svn info"
+        #svn_props.name = "svn info"
         self.svnTree.read_props(svn_props)
 
         for item in self.svnTree.walk_items():
@@ -448,12 +453,13 @@ class InstlAdmin(InstlInstanceBase):
             continue
             if item.props:
                 for extra_prop in item.props:
-                    self.batch_accum += " ".join( ("svn", "propdel", "svn:"+extra_prop, '"'+item.full_path()+'"') )
+                    self.batch_accum += " ".join( (self.cvl.get_str("SVN_CLIENT_PATH"), "propdel", "svn:"+extra_prop, '"'+item.full_path()+'"') )
             if item.isExecutable() and not shouldBeExec:
-                self.batch_accum += " ".join( ("svn", "propdel", 'svn:executable', '"'+item.full_path()+'"') )
+                self.batch_accum += " ".join( (self.cvl.get_str("SVN_CLIENT_PATH"), "propdel", 'svn:executable', '"'+item.full_path()+'"') )
             elif not item.isExecutable() and shouldBeExec:
-                self.batch_accum += " ".join( ("svn", "propset", 'svn:executable', 'yes', '"'+item.full_path()+'"') )
+                self.batch_accum += " ".join( (self.cvl.get_str("SVN_CLIENT_PATH"), "propset", 'svn:executable', 'yes', '"'+item.full_path()+'"') )
         self.create_variables_assignment()
+        os.chdir(save_dir)
         self.write_batch_file()
         if "__RUN_BATCH_FILE__" in self.cvl:
             self.run_batch_file()
@@ -498,8 +504,8 @@ class InstlAdmin(InstlInstanceBase):
                 symlink_text_path = symlink_file+".symlink"
                 self.batch_accum += " ".join( ("echo", "-n", "'"+link_value+"'", ">", "'"+symlink_text_path+"'") )
                 if "__ISSUE_SVN_COMMANDS__" in self.cvl:
-                    self.batch_accum += " ".join( ("svn", "add", "'"+symlink_text_path+"'") )
-                    self.batch_accum += " ".join( ("svn", "rm",  "'"+symlink_file+"'") )
+                    self.batch_accum += " ".join( (self.cvl.get_str("SVN_CLIENT_PATH"), "add", "'"+symlink_text_path+"'") )
+                    self.batch_accum += " ".join( (self.cvl.get_str("SVN_CLIENT_PATH"), "rm",  "'"+symlink_file+"'") )
                 else:
                     self.batch_accum += self.platform_helper.rmfile(symlink_file)
         self.create_variables_assignment()

@@ -45,11 +45,11 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         return time_start_command
 
     def end_time_measure(self):
-        time_end_command = ('Time_Measure_End=$(date +%s)',
+        time_end_commands = ('Time_Measure_End=$(date +%s)',
                             'Time_Measure_Diff=$(echo "$Time_Measure_End - $Time_Measure_Start" | bc)',
                             'convertsecs() { ((h=${1}/3600)) ; ((m=(${1}%3600)/60)) ; ((s=${1}%60)) ; printf "%02dh:%02dm:%02ds" $h $m $s ; }',
                             'echo $(__MAIN_COMMAND__) Time: $(convertsecs $Time_Measure_Diff)')
-        return time_end_command
+        return time_end_commands
 
     def mkdir(self, directory):
         mk_command = " ".join( ("mkdir", "-p", quoteme_double(directory) ) )
