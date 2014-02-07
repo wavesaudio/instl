@@ -91,6 +91,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             safe_makedirs(self.instlObj.cvl.get_str("REPO_REV_LOCAL_BOOKKEEPING_PATH"))
             download_from_file_or_url(self.instlObj.cvl.get_str("INFO_MAP_FILE_URL"),
                                       self.instlObj.cvl.get_str("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"),
+                                      cache=True,
                                       public_key=self.instlObj.cvl.get_str("PUBLIC_KEY"),
                                       textual_sig=self.instlObj.cvl.get_str("INFO_MAP_SIG"))
             self.work_info_map.read_info_map_from_file(self.instlObj.cvl.get_str("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"), format="text")

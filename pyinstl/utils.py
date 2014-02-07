@@ -103,13 +103,17 @@ class open_for_read_file_or_url(object):
     def __exit__(self, unused_type, unused_value, unused_traceback):
         self.fd.close()
 
-def download_from_file_or_url(in_url, in_local_path, public_key=None, textual_sig=None, expected_checksum=None):
+def download_from_file_or_url(in_url, in_local_path, cache=False, public_key=None, textual_sig=None, expected_checksum=None):
+
     retVal = False
     # if local file already exists, check it's signature or checksum. If these match there is no need to download.
     fileExists = False
-    if os.path.isfile(in_local_path):
+    if cache and os.path.isfile(in_local_path):
+        fileOK = True
         # if  public_key, textual_sig, expected_checksum are None, check_file_signature_or_checksum will return False
-        fileOK = check_file_signature_or_checksum(in_local_path, public_key, textual_sig, expected_checksum)
+        if (public_key, textual_sig, expected_checksum) != (None, None, None):
+            fileOK = check_file_signature_or_checksum(in_local_path, public_key, textual_sig, expected_checksum)
+            #print("cache and check file is", fileOK)
         if not fileOK:
             os.remove(in_local_path)
         fileExists = fileOK
