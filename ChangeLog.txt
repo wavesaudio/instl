@@ -8,12 +8,13 @@
 
     user visible changes, admin:
     * usage of wsvn instead of svn in all adming commands.
-    * Fixed: fis-props.bat was written to the wrong folder.
+    * Fixed: fix-props output batch file was not written to the current folder.
     * Fixed wrong relative path created for create-links command.
 
     programmer visible changes:
-    * Creation of PlatformSpecificHelper moved to do_command so it can take to consideration settings from the yaml file.
-
+    * Creation of PlatformSpecificHelper moved to do_command so it can take to consideration settings from the yaml input file.
+    * Many tests added to check hard-link creation by rsync (Mac & Linux).
+    
 3/2/2014 0.8.1 Shai Shasag <shai@waves.com>
 
     user visible changes, client:
