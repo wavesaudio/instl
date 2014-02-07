@@ -226,9 +226,6 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         sync_command = "copy \"{src_file}\" \"{trg_file}\"".format(**locals())
         return sync_command
 
-    def resolve_readlink_files(self, in_dir="."):
-        return ()
-
     def check_checksum(self, filepath, checksum):
         check_command_parts = (  'for /f "delims=" %%i in',
                                 "('$(CHECKSUM_TOOL_PATH) -s",
@@ -260,6 +257,9 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         rm_tar_command = self.rmfile(tar_file)
         untar_commands = " ".join( unzip_command_parts ), " ".join( untar_command_parts), rm_tar_command
         return untar_commands
+
+    def wait_for_child_processes(self):
+        return ("echo wait_for_child_processes not implemented yet for windows",)
 
 class DownloadTool_win_wget(DownloadToolBase):
     def __init__(self, platformHelper):
@@ -335,9 +335,15 @@ class DownloadTool_win_curl(DownloadToolBase):
                 win_style_path = win_style_path.replace("\\", "\\\\")
                 dl_lines = '''url = "%s"\noutput = "%s"\n\n''' % (url, win_style_path)
                 wfd.write(dl_lines)
+        return curl_config_file_path
+
+    def create_config_files(self, curl_config_file_path, num_files):
+        print("Creating 1 config file instead of", num_files)
+        self.create_config_file(curl_config_file_path)
+        return (curl_config_file_path,)
 
     def download_from_config_file(self, config_file):
-
+        #http://stackoverflow.com/questions/649634/how-do-i-run-a-bat-file-in-the-background-from-another-bat-file/649937#649937
         download_command_parts = list()
         download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
         download_command_parts.append("--max-time")

@@ -25,7 +25,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
                                                 # are filtered out and then items that are already downloaded are filtered out. So finally
                                                 # the download instructions are created from the remaining items.
         self.have_map = svnTree.SVNTree()       # info map of what was already downloaded
-        self.symlinks = list()
 
     def init_sync_vars(self):
         """ Prepares variables for sync. Will raise ValueError if a mandatory variable
@@ -225,11 +224,12 @@ class InstlInstanceSync_url(InstlInstanceSync):
         for need_item in file_list + dir_list:
             self.create_download_instructions_for_item_config_file(need_item)
         curl_config_file_path = self.instlObj.cvl.resolve_string(os.path.join("$(LOCAL_SYNC_DIR)", "$(__CURL_CONFIG_FILE_NAME__)"))
-        self.instlObj.platform_helper.dl_tool.create_config_file(curl_config_file_path)
-        self.instlObj.batch_accum += self.instlObj.platform_helper.dl_tool.download_from_config_file("$(__CURL_CONFIG_FILE_NAME__)")
+        config_file_list = self.instlObj.platform_helper.dl_tool.create_config_files(curl_config_file_path, 8)
+        for config_file in config_file_list:
+            self.instlObj.batch_accum += self.instlObj.platform_helper.dl_tool.download_from_config_file(config_file)
+        self.instlObj.batch_accum += self.instlObj.platform_helper.wait_for_child_processes()
         self.instlObj.batch_accum.indent_level -= 1
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
-        self.instlObj.batch_accum += self.instlObj.platform_helper.resolve_readlink_files()
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("from $(SYNC_TRAGET_OS_URL)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.copy_file_to_file("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")

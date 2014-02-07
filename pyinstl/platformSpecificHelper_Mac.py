@@ -154,6 +154,9 @@ done""" % in_dir)
         unwtar_command = " ".join( unwtar_command_parts )
         return unwtar_command
 
+    def wait_for_child_processes(self):
+        return ("wait",)
+
 class DownloadTool_mac_curl(DownloadToolBase):
     def __init__(self, platformHelper):
         super(DownloadTool_mac_curl, self).__init__(platformHelper)
@@ -189,6 +192,34 @@ class DownloadTool_mac_curl(DownloadToolBase):
             wfd.write("\n")
             for url, path in self.urls_to_download:
                 wfd.write('''url = "{url}"\noutput = "{path}"\n\n'''.format(**locals()))
+        return curl_config_file_path
+
+    def create_config_files(self, curl_config_file_path, num_files):
+        import itertools
+        file_name_list = [curl_config_file_path+str(file_i) for file_i in xrange(num_files)]
+        wfd_list = list()
+        for file_name in file_name_list:
+            wfd_list.append(open(file_name, "w"))
+
+        for wfd in wfd_list:
+            wfd.write("insecure\n")
+            wfd.write("raw\n")
+            wfd.write("fail\n")
+            wfd.write("silent\n")
+            wfd.write("show-error\n")
+            wfd.write("compressed\n")
+            wfd.write("create-dirs\n")
+            wfd.write("connect-timeout = 60\n")
+            wfd.write("\n")
+
+        wfd_cycler = itertools.cycle(wfd_list)
+        for url, path in self.urls_to_download:
+            wfd = wfd_cycler.next()
+            wfd.write('''url = "{url}"\noutput = "{path}"\n\n'''.format(**locals()))
+
+        for wfd in wfd_list:
+            wfd.close()
+        return file_name_list
 
     def download_from_config_file(self, config_file):
 
@@ -197,6 +228,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
         download_command_parts.append("--max-time")
         download_command_parts.append(str(len(self.urls_to_download) * 6 + 300)) # 6 seconds for each item + 5 minutes
         download_command_parts.append("--config")
-        download_command_parts.append(config_file)
+        download_command_parts.append(quoteme_double(config_file))
+        download_command_parts.append("&")
 
         return " ".join(download_command_parts)
