@@ -196,7 +196,8 @@ class DownloadTool_mac_curl(DownloadToolBase):
 
     def create_config_files(self, curl_config_file_path, num_files):
         import itertools
-        file_name_list = [curl_config_file_path+str(file_i) for file_i in xrange(num_files)]
+        curl_config_file_path_parts = curl_config_file_path.split(".")
+        file_name_list = [".".join( curl_config_file_path_parts[:-1]+[str(file_i)]+curl_config_file_path_parts[-1:]  ) for file_i in xrange(num_files)]
         wfd_list = list()
         for file_name in file_name_list:
             wfd_list.append(open(file_name, "w"))
