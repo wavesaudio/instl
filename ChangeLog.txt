@@ -6,7 +6,8 @@
     * Added DownloadTool_win_curl in one-by-one and config-file modes.
     * Concurrent running of config files by curl.
     * Variable PARALLEL_SYNC has the number of parallel sync processes in config_file mode.
-    
+    * Some more progress messages for config-file downloads
+
     user visible changes, admin:
     * usage of wsvn instead of svn in all adming commands.
     * Fixed: fix-props output batch file was not written to the current folder.
@@ -17,7 +18,8 @@
     * Many tests added to check hard-link creation by rsync (Mac & Linux).
     * create_prefix_instructions_for_item_config_file, create_download_instructions_for_item_config_file,
         create_postfix_instructions_for_item_config_file: created and perfected.
-        
+    * make_executable method for PlatformSpecificHelper(s)
+
 3/2/2014 0.8.1 Shai Shasag <shai@waves.com>
 
     user visible changes, client:

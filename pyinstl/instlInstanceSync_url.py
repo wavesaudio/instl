@@ -237,6 +237,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
+        self.instlObj.batch_accum += self.instlObj.platform_helper.progress(self.instlObj.cvl.resolve_string("Downloading $(PARALLEL_SYNC) in parallel"))
         for need_item in file_list + dir_list:
             self.create_prefix_instructions_for_item_config_file(need_item)
 
@@ -254,6 +255,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
+        self.instlObj.batch_accum += self.instlObj.platform_helper.progress(self.instlObj.cvl.resolve_string("Post download processing"))
         for need_item in file_list + dir_list:
             self.create_postfix_instructions_for_item_config_file(need_item)
 

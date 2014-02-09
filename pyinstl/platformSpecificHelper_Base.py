@@ -233,6 +233,10 @@ class PlatformSpecificHelperBase(object):
     def wait_for_child_processes(self):
         pass
 
+    @abc.abstractmethod
+    def make_executable(self, filepath):
+        pass
+
 def PlatformSpecificHelperFactory(in_os, instlObj):
     retVal = None
     if in_os == "Mac":

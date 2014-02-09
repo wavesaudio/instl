@@ -261,6 +261,9 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def wait_for_child_processes(self):
         return ("echo wait_for_child_processes not implemented yet for windows",)
 
+    def make_executable(self, filepath):
+        pass
+
 class DownloadTool_win_wget(DownloadToolBase):
     def __init__(self, platformHelper):
         super(DownloadTool_win_wget, self).__init__(platformHelper)
