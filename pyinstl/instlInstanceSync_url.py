@@ -55,6 +55,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.cvl.set_value_if_var_does_not_exist("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH", os.path.join( "$(REPO_REV_LOCAL_BOOKKEEPING_PATH)", "remote_info_map.txt" ), description=var_description)
         self.instlObj.cvl.set_value_if_var_does_not_exist("DL_INSTRUCTIONS_TYPE", "one_by_one", description=var_description)
         self.instlObj.cvl.set_value_if_var_does_not_exist("PARALLEL_SYNC", "1", description=var_description)
+        self.instlObj.cvl.set_value_if_var_does_not_exist("CURL_CONFIG_FILE_NAME", "curl_config.txt", description=var_description)
 
         if "PUBLIC_KEY" not in self.instlObj.cvl:
             if "PUBLIC_KEY_FILE" in self.instlObj.cvl:
@@ -231,7 +232,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("from $(SYNC_TRAGET_OS_URL)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir("$(LOCAL_SYNC_DIR)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.cd("$(LOCAL_SYNC_DIR)")
-        self.instlObj.cvl.set_var("__CURL_CONFIG_FILE_NAME__").append("curl_config.txt")
         self.sync_base_url = self.instlObj.cvl.resolve_string("$(SYNC_BASE_URL)")
         file_list, dir_list = self.work_info_map.sorted_sub_items()
 
@@ -246,7 +246,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         for need_item in file_list + dir_list:
             self.create_download_instructions_for_item_config_file(need_item)
 
-        curl_config_file_path = self.instlObj.cvl.resolve_string(os.path.join("$(LOCAL_SYNC_DIR)", "$(__CURL_CONFIG_FILE_NAME__)"))
+        curl_config_file_path = self.instlObj.cvl.resolve_string(os.path.join("$(LOCAL_SYNC_DIR)", "$(CURL_CONFIG_FILE_NAME)"))
         num_config_files = int(self.instlObj.cvl.get_str("PARALLEL_SYNC"))
         config_file_list = self.instlObj.platform_helper.dl_tool.create_config_files(curl_config_file_path, num_config_files)
         for config_file in config_file_list:
