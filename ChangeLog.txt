@@ -7,7 +7,7 @@
     * curl: shorter connect-time - 3 sec.
     * curl: shorter max-time - 60sec.
     * curl: three retries
-
+    * create_prefix_instructions_for_item_config_file checks if folder exists before issuing mkdir.
 
 10/2/2014 0.8.2  Shai Shasag <shai@waves.com>
     

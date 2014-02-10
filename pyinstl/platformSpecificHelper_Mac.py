@@ -181,7 +181,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
         download_command_parts.append("--retry")
         download_command_parts.append("3")
         download_command_parts.append("write-out")
-        download_command_parts.append(DownloadToolBase.write_out_str)
+        download_command_parts.append(DownloadToolBase.curl_write_out_str)
         download_command_parts.append("-o")
         download_command_parts.append(quoteme_double(trg_file))
         download_command_parts.append(quoteme_double(urllib.quote(src_url, "$()/:")))
@@ -208,7 +208,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
             wfd.write("connect-timeout = 3\n")
             wfd.write("max-time = 60\n")
             wfd.write("retry = 3\n")
-            wfd.write("write-out = " + quoteme_double(os.path.basename(wfd.name)+": "+DownloadToolBase.write_out_str))
+            wfd.write("write-out = " + quoteme_double(os.path.basename(wfd.name)+": "+DownloadToolBase.curl_write_out_str))
             wfd.write("\n")
             wfd.write("\n")
 

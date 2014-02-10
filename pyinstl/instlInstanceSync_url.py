@@ -271,7 +271,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
         elif item.isDir():
             path_so_far.append(item.name())
             containing_folder = os.path.join(*[self.instlObj.cvl.resolve_string("$(LOCAL_SYNC_DIR)")] + path_so_far)
-            self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir(containing_folder)
+            if not os.path.isdir(containing_folder):
+                self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir(containing_folder)
             file_list, dir_list = item.sorted_sub_items()
             for sub_item in file_list + dir_list:
                 self.create_prefix_instructions_for_item_config_file(sub_item, path_so_far)

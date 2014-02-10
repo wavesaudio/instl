@@ -320,7 +320,7 @@ class DownloadTool_win_curl(DownloadToolBase):
         download_command_parts.append("--retry")
         download_command_parts.append("3")
         download_command_parts.append("write-out")
-        download_command_parts.append(DownloadToolBase.write_out_str)
+        download_command_parts.append(DownloadToolBase.curl_write_out_str)
         download_command_parts.append("-o")
         download_command_parts.append(quoteme_double(trg_file))
         download_command_parts.append(quoteme_double(urllib.quote(src_url, "$()/:")))
@@ -338,7 +338,7 @@ class DownloadTool_win_curl(DownloadToolBase):
             wfd.write("connect-timeout = 3\n")
             wfd.write("max-time = 60\n")
             wfd.write("retry = 3\n")
-            wfd.write("write-out = " + quoteme_double(os.path.basename(wfd.name)+": "+DownloadToolBase.write_out_str))
+            wfd.write("write-out = " + quoteme_double(os.path.basename(wfd.name)+": "+DownloadToolBase.curl_write_out_str))
             wfd.write("\n")
             wfd.write("\n")
             for url, path in self.urls_to_download:
@@ -357,9 +357,7 @@ class DownloadTool_win_curl(DownloadToolBase):
         #http://stackoverflow.com/questions/649634/how-do-i-run-a-bat-file-in-the-background-from-another-bat-file/649937#649937
         download_command_parts = list()
         download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
-        download_command_parts.append("--max-time")
-        download_command_parts.append(str(len(self.urls_to_download) * 6 + 300)) # 6 seconds for each item + 5 minutes
         download_command_parts.append("--config")
-        download_command_parts.append(config_file)
+        download_command_parts.append(quoteme_double(config_file))
 
         return " ".join(download_command_parts)
