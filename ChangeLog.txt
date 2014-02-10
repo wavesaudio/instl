@@ -9,7 +9,7 @@
     user visible changes, admin:
     * usage of wsvn instead of svn in all adming commands.
     * Fixed: fis-props.bat was written to the wrong folder.
-    
+
     programmer visible changes:
     * Creation of PlatformSpecificHelper moved to do_command so it can take to consideration settings from the yaml file.
 
