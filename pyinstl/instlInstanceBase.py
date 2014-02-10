@@ -249,7 +249,7 @@ class InstlInstanceBase(object):
         if out_file != "stdout":
             self.out_file_realpath = os.path.realpath(out_file)
             os.chmod(self.out_file_realpath, 0755)
-        print(out_file, "full path:", self.out_file_realpath)
+        print(self.out_file_realpath)
 
     def run_batch_file(self):
         logging.info("running batch file %s", self.out_file_realpath)

@@ -96,6 +96,13 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
     def unwtar(self, filepath):
         raise NotImplementedError
 
+    def wait_for_child_processes(self):
+        return ("wait",)
+
+    def make_executable(self, filepath):
+        make_exec_command = " ".join( ("chmod a+x", filepath) )
+        return make_exec_command
+
 class DownloadTool_linux_curl(DownloadToolBase):
     def __init__(self, platformHelper):
         super(DownloadTool_linux_curl, self).__init__(platformHelper)

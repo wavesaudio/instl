@@ -25,7 +25,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
                                                 # are filtered out and then items that are already downloaded are filtered out. So finally
                                                 # the download instructions are created from the remaining items.
         self.have_map = svnTree.SVNTree()       # info map of what was already downloaded
-        self.symlinks = list()
 
     def init_sync_vars(self):
         """ Prepares variables for sync. Will raise ValueError if a mandatory variable
@@ -55,6 +54,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.cvl.set_value_if_var_does_not_exist("REPO_REV_LOCAL_BOOKKEEPING_PATH", os.path.join( "$(LOCAL_BOOKKEEPING_PATH)", "$(REPO_REV)" ), description=var_description)
         self.instlObj.cvl.set_value_if_var_does_not_exist("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH", os.path.join( "$(REPO_REV_LOCAL_BOOKKEEPING_PATH)", "remote_info_map.txt" ), description=var_description)
         self.instlObj.cvl.set_value_if_var_does_not_exist("DL_INSTRUCTIONS_TYPE", "one_by_one", description=var_description)
+        self.instlObj.cvl.set_value_if_var_does_not_exist("PARALLEL_SYNC", "1", description=var_description)
+        self.instlObj.cvl.set_value_if_var_does_not_exist("CURL_CONFIG_FILE_NAME", "curl_config.txt", description=var_description)
 
         if "PUBLIC_KEY" not in self.instlObj.cvl:
             if "PUBLIC_KEY_FILE" in self.instlObj.cvl:
@@ -91,6 +92,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             safe_makedirs(self.instlObj.cvl.get_str("REPO_REV_LOCAL_BOOKKEEPING_PATH"))
             download_from_file_or_url(self.instlObj.cvl.get_str("INFO_MAP_FILE_URL"),
                                       self.instlObj.cvl.get_str("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"),
+                                      cache=True,
                                       public_key=self.instlObj.cvl.get_str("PUBLIC_KEY"),
                                       textual_sig=self.instlObj.cvl.get_str("INFO_MAP_SIG"))
             self.work_info_map.read_info_map_from_file(self.instlObj.cvl.get_str("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"), format="text")
@@ -118,6 +120,19 @@ class InstlInstanceSync_url(InstlInstanceSync):
         if os.path.isfile(self.instlObj.cvl.get_str("HAVE_INFO_MAP_PATH")):
             self.have_map.read_info_map_from_file(self.instlObj.cvl.get_str("HAVE_INFO_MAP_PATH"), format="text")
 
+    class RemoveIfChecksumOK:
+        def __init__(self, base_path):
+            self.base_path = base_path
+        def __call__(self, svn_item):
+            retVal = None
+            if svn_item.isFile():
+                file_path = os.path.join(*[self.base_path] + svn_item.full_path_parts())
+                need_to_download = need_to_download_file(file_path, svn_item.checksum())
+                retVal = not need_to_download
+            elif svn_item.isDir():
+                retVal = len(svn_item.subs()) == 0
+            return retVal
+
     def filter_out_already_synced_items(self):
         """ Removes from work_info_map items not required to be synced and updates the in memory have map.
             First all items are marked True.
@@ -142,6 +157,10 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
         self.work_info_map.write_to_file(self.instlObj.cvl.get_str("TO_SYNC_INFO_MAP_PATH"), in_format="text")
         self.have_map.write_to_file(self.instlObj.cvl.get_str("NEW_HAVE_INFO_MAP_PATH"), in_format="text")
+        # now that work_info_map and have_map ar written to files, check if there are some files marked for
+        # download that happen to be on disk. This might happen if a previous sync did not finish downloading all it's files
+        remove_predicate = self.RemoveIfChecksumOK(self.instlObj.cvl.resolve_string("$(LOCAL_SYNC_DIR)"))
+        self.work_info_map.recursive_remove_depth_first(remove_predicate)
 
     def mark_required_items_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
@@ -189,13 +208,9 @@ class InstlInstanceSync_url(InstlInstanceSync):
         if item.isSymlink():
             print("Found symlink at", item.full_path())
         elif item.isFile():
-            expected_path = os.path.join(*[self.instlObj.cvl.resolve_string("$(LOCAL_SYNC_DIR)")] + path_so_far + [item.name()])
-            # check the off chance that the file already exists. This might happen if a previous sync did not finish downloading all it's files
-            need_to_download = need_to_download_file(expected_path, item.checksum())
-            source_url = '/'.join( ["$(SYNC_BASE_URL)", str(item.last_rev())] + path_so_far + [item.name()] )
-            if need_to_download:
-                self.instlObj.batch_accum += self.instlObj.platform_helper.dl_tool.download_url_to_file(source_url, item.name())
-                self.instlObj.batch_accum += self.instlObj.platform_helper.check_checksum(item.name(), item.checksum())
+            source_url = '/'.join( [ self.sync_base_url, str(item.last_rev())] + path_so_far + [item.name()] )
+            self.instlObj.batch_accum += self.instlObj.platform_helper.dl_tool.download_url_to_file(source_url, item.name())
+            self.instlObj.batch_accum += self.instlObj.platform_helper.check_checksum(item.name(), item.checksum())
             if item.name().endswith(".wtar"):
                 self.instlObj.batch_accum += self.instlObj.platform_helper.unwtar(item.name())
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress(source_url)
@@ -217,37 +232,79 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("from $(SYNC_TRAGET_OS_URL)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir("$(LOCAL_SYNC_DIR)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.cd("$(LOCAL_SYNC_DIR)")
-        self.instlObj.cvl.set_var("__CURL_CONFIG_FILE_NAME__").append("curl_config.txt")
         self.sync_base_url = self.instlObj.cvl.resolve_string("$(SYNC_BASE_URL)")
-        self.instlObj.batch_accum.indent_level += 1
         file_list, dir_list = self.work_info_map.sorted_sub_items()
+
+        self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
+
+        self.instlObj.batch_accum += self.instlObj.platform_helper.progress(self.instlObj.cvl.resolve_string("Downloading $(PARALLEL_SYNC) in parallel"))
+        for need_item in file_list + dir_list:
+            self.create_prefix_instructions_for_item_config_file(need_item)
+
+        self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
+
         for need_item in file_list + dir_list:
             self.create_download_instructions_for_item_config_file(need_item)
-        curl_config_file_path = self.instlObj.cvl.resolve_string(os.path.join("$(LOCAL_SYNC_DIR)", "$(__CURL_CONFIG_FILE_NAME__)"))
-        self.instlObj.platform_helper.dl_tool.create_config_file(curl_config_file_path)
-        self.instlObj.batch_accum += self.instlObj.platform_helper.dl_tool.download_from_config_file("$(__CURL_CONFIG_FILE_NAME__)")
-        self.instlObj.batch_accum.indent_level -= 1
+
+        curl_config_file_path = self.instlObj.cvl.resolve_string(os.path.join("$(LOCAL_SYNC_DIR)", "$(CURL_CONFIG_FILE_NAME)"))
+        num_config_files = int(self.instlObj.cvl.get_str("PARALLEL_SYNC"))
+        config_file_list = self.instlObj.platform_helper.dl_tool.create_config_files(curl_config_file_path, num_config_files)
+        for config_file in config_file_list:
+            self.instlObj.batch_accum += self.instlObj.platform_helper.dl_tool.download_from_config_file(config_file)
+        self.instlObj.batch_accum += self.instlObj.platform_helper.wait_for_child_processes()
+
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
-        self.instlObj.batch_accum += self.instlObj.platform_helper.resolve_readlink_files()
+
+        self.instlObj.batch_accum += self.instlObj.platform_helper.progress(self.instlObj.cvl.resolve_string("Post download processing"))
+        for need_item in file_list + dir_list:
+            self.create_postfix_instructions_for_item_config_file(need_item)
+
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("from $(SYNC_TRAGET_OS_URL)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.copy_file_to_file("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")
+
+    def create_prefix_instructions_for_item_config_file(self, item, path_so_far = list()):
+        if item.isSymlink():
+            print("Found symlink at", item.full_path())
+        elif item.isFile():
+            pass
+        elif item.isDir():
+            path_so_far.append(item.name())
+            containing_folder = os.path.join(*[self.instlObj.cvl.resolve_string("$(LOCAL_SYNC_DIR)")] + path_so_far)
+            self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir(containing_folder)
+            file_list, dir_list = item.sorted_sub_items()
+            for sub_item in file_list + dir_list:
+                self.create_prefix_instructions_for_item_config_file(sub_item, path_so_far)
+            path_so_far.pop()
 
 
     def create_download_instructions_for_item_config_file(self, item, path_so_far = list()):
         if item.isSymlink():
             print("Found symlink at", item.full_path())
         elif item.isFile():
-            expected_path = os.path.join(*[self.instlObj.cvl.resolve_string("$(LOCAL_SYNC_DIR)")] + path_so_far + [item.name()])
-            need_to_download = need_to_download_file(expected_path, item.checksum())
-            if need_to_download:
-                source_url = '/'.join( [ self.sync_base_url, str(item.last_rev())] + path_so_far + [item.name()] )
-                self.instlObj.platform_helper.dl_tool.add_download_url( source_url, item.full_path() )
+            source_url = '/'.join( [ self.sync_base_url, str(item.last_rev())] + path_so_far + [item.name()] )
+            self.instlObj.platform_helper.dl_tool.add_download_url( source_url, item.full_path() )
         elif item.isDir():
             path_so_far.append(item.name())
-            self.instlObj.batch_accum.indent_level += 1
             file_list, dir_list = item.sorted_sub_items()
             for sub_item in file_list + dir_list:
                 self.create_download_instructions_for_item_config_file(sub_item, path_so_far)
+            path_so_far.pop()
+
+    def create_postfix_instructions_for_item_config_file(self, item, path_so_far = list()):
+        if item.isSymlink():
+            print("Found symlink at", item.full_path())
+        elif item.isFile():
+            self.instlObj.batch_accum += self.instlObj.platform_helper.check_checksum(item.name(), item.checksum())
+            if item.name().endswith(".wtar"):
+                self.instlObj.batch_accum += self.instlObj.platform_helper.unwtar(item.name())
+        elif item.isDir():
+            path_so_far.append(item.name())
+            self.instlObj.batch_accum += self.instlObj.platform_helper.cd(item.name())
+            self.instlObj.batch_accum.indent_level += 1
+            file_list, dir_list = item.sorted_sub_items()
+            for sub_item in file_list + dir_list:
+                self.create_postfix_instructions_for_item_config_file(sub_item, path_so_far)
             self.instlObj.batch_accum.indent_level -= 1
+            self.instlObj.batch_accum += self.instlObj.platform_helper.cd("..")
             path_so_far.pop()
