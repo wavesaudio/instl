@@ -175,31 +175,22 @@ class DownloadTool_mac_curl(DownloadToolBase):
         download_command_parts.append("--show-error")
         download_command_parts.append("--compressed")
         download_command_parts.append("--connect-timeout")
-        download_command_parts.append("60")
+        download_command_parts.append("3")
         download_command_parts.append("--max-time")
-        download_command_parts.append("900")
+        download_command_parts.append("60")
+        download_command_parts.append("--retry")
+        download_command_parts.append("3")
+        download_command_parts.append("write-out")
+        download_command_parts.append(DownloadToolBase.write_out_str)
         download_command_parts.append("-o")
         download_command_parts.append(quoteme_double(trg_file))
         download_command_parts.append(quoteme_double(urllib.quote(src_url, "$()/:")))
         return " ".join(download_command_parts)
 
-    def create_config_file(self, curl_config_file_path):
-        with open(curl_config_file_path, "w") as wfd:
-            wfd.write("insecure\n")
-            wfd.write("raw\n")
-            wfd.write("fail\n")
-            wfd.write("silent\n")
-            wfd.write("show-error\n")
-            wfd.write("compressed\n")
-            wfd.write("create-dirs\n")
-            wfd.write("connect-timeout = 60\n")
-            wfd.write("\n")
-            for url, path in self.urls_to_download:
-                wfd.write('''url = "{url}"\noutput = "{path}"\n\n'''.format(**locals()))
-        return curl_config_file_path
-
     def create_config_files(self, curl_config_file_path, num_files):
         import itertools
+        if len(self.urls_to_download) / num_files < 4:
+            num_files = max(1, len(self.urls_to_download) / 4)
         curl_config_file_path_parts = curl_config_file_path.split(".")
         file_name_list = [".".join( curl_config_file_path_parts[:-1]+[str(file_i)]+curl_config_file_path_parts[-1:]  ) for file_i in xrange(num_files)]
         wfd_list = list()
@@ -214,7 +205,11 @@ class DownloadTool_mac_curl(DownloadToolBase):
             wfd.write("show-error\n")
             wfd.write("compressed\n")
             wfd.write("create-dirs\n")
-            wfd.write("connect-timeout = 60\n")
+            wfd.write("connect-timeout = 3\n")
+            wfd.write("max-time = 60\n")
+            wfd.write("retry = 3\n")
+            wfd.write("write-out = " + quoteme_double(os.path.basename(wfd.name)+": "+DownloadToolBase.write_out_str))
+            wfd.write("\n")
             wfd.write("\n")
 
         wfd_cycler = itertools.cycle(wfd_list)
@@ -230,8 +225,6 @@ class DownloadTool_mac_curl(DownloadToolBase):
 
         download_command_parts = list()
         download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
-        download_command_parts.append("--max-time")
-        download_command_parts.append(str(len(self.urls_to_download) * 6 + 300)) # 6 seconds for each item + 5 minutes
         download_command_parts.append("--config")
         download_command_parts.append(quoteme_double(config_file))
         download_command_parts.append("&")

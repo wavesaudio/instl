@@ -115,9 +115,9 @@ class DownloadTool_linux_curl(DownloadToolBase):
         download_command_parts.append("--raw")
         download_command_parts.append("--silent")
         download_command_parts.append("--connect-timeout")
-        download_command_parts.append("60")
+        download_command_parts.append("3")
         download_command_parts.append("--max-time")
-        download_command_parts.append("900")
+        download_command_parts.append("60")
         #download_command_parts.append(" --write-out")
         #download_command_parts.append(quoteme_double("%{http_code}"))
         download_command_parts.append("-o")
@@ -125,7 +125,5 @@ class DownloadTool_linux_curl(DownloadToolBase):
         download_command_parts.append(quoteme_double(src_url))
         return " ".join(download_command_parts)
 
-    def create_config_file(self):
-        pass
     def download_from_config_file(self):
         pass

@@ -1,6 +1,17 @@
+???? 0.8.3
+
+    user visible changes, client:
+    * curl connect-timeout = 3 instead of 60
+    * improved reporting on config file curl downloads.
+    * Fixed: empty config files were created if the number of files to download was smaller than the number of config files. Now each config file will have at least 4 urls.
+    * curl: shorter connect-time - 3 sec.
+    * curl: shorter max-time - 60sec.
+    * curl: three retries
+
+
 10/2/2014 0.8.2  Shai Shasag <shai@waves.com>
     
-    user visible changes, admin:
+    user visible changes, client:
     * Fixed wrong relative path created for create-links command.
     * Added time measurements to batch file produces for windows.
     * Removed redundant quotes from echo messages on windows.

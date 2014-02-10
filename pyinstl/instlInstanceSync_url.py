@@ -55,7 +55,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.cvl.set_value_if_var_does_not_exist("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH", os.path.join( "$(REPO_REV_LOCAL_BOOKKEEPING_PATH)", "remote_info_map.txt" ), description=var_description)
         self.instlObj.cvl.set_value_if_var_does_not_exist("DL_INSTRUCTIONS_TYPE", "one_by_one", description=var_description)
         self.instlObj.cvl.set_value_if_var_does_not_exist("PARALLEL_SYNC", "1", description=var_description)
-        self.instlObj.cvl.set_value_if_var_does_not_exist("CURL_CONFIG_FILE_NAME", "curl_config.txt", description=var_description)
+        self.instlObj.cvl.set_value_if_var_does_not_exist("CURL_CONFIG_FILE_NAME", "curl-config.txt", description=var_description)
 
         if "PUBLIC_KEY" not in self.instlObj.cvl:
             if "PUBLIC_KEY_FILE" in self.instlObj.cvl:

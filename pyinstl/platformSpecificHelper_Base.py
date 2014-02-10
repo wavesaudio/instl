@@ -258,6 +258,10 @@ class DownloadToolBase(object):
         a list of commands, even if there is only one. This will allow to return
         multiple commands if needed.
     """
+    curl_write_out_str = r'%{url_effective}, %{size_download} bytes, %{time_total} sec. %{speed_download} bps\n'
+    # for debugging:
+    curl_extra_write_out_str = r'    num_connects:%{num_connects}, time_namelookup: %{time_namelookup}, time_connect: %{time_connect}, time_pretransfer: %{time_pretransfer}, time_redirect: %{time_redirect}, time_starttransfer: %{time_starttransfer}\n\n'
+
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, platformHelper):
@@ -273,8 +277,4 @@ class DownloadToolBase(object):
 
     @abc.abstractmethod
     def download_from_config_file(self, config_file):
-        pass
-
-    @abc.abstractmethod
-    def create_config_file(self, curl_config_file_path):
         pass
