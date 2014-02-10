@@ -86,7 +86,6 @@ class InstlClient(InstlInstanceBase):
 
     def __init__(self, initial_vars):
         super(InstlClient, self).__init__(initial_vars)
-        self.install_definitions_index = dict()
         self.cvl.set_var("__ALLOWED_COMMANDS__").extend( ('sync', 'copy', 'synccopy') )
 
     def do_command(self):
@@ -150,9 +149,6 @@ class InstlClient(InstlInstanceBase):
                 retVal.append(augmentedYaml.YamlDumpDocWrap(unknowns, '!unknowns', "Installation index", explicit_start=True, sort_mappings=True))
 
         return retVal
-
-    def read_index(self, a_node):
-        self.install_definitions_index.update(read_index_from_yaml(a_node))
 
     def resolve_index_inheritance(self):
         for install_def in self.install_definitions_index.values():

@@ -14,6 +14,7 @@ from pyinstl.utils import *
 from pyinstl.searchPaths import SearchPaths
 from instlException import InstlException
 from batchAccumulator import BatchAccumulator
+from installItem import read_index_from_yaml, InstallItem
 
 current_os_names = get_current_os_names()
 os_family_name = current_os_names[0]
@@ -35,6 +36,7 @@ class InstlInstanceBase(object):
     def __init__(self, initial_vars=None):
         # init objects owned by this class
         self.cvl = ConfigVarList()
+        self.install_definitions_index = dict()
         self.batch_accum = BatchAccumulator(self.cvl)
         self.do_not_write_vars = ("INFO_MAP_SIG", "PUBLIC_KEY")
         self.out_file_realpath = None
@@ -263,3 +265,5 @@ class InstlInstanceBase(object):
         with write_to_file_or_stdout(state_file) as fd:
             augmentedYaml.writeAsYaml(self, fd)
 
+    def read_index(self, a_node):
+        self.install_definitions_index.update(read_index_from_yaml(a_node))

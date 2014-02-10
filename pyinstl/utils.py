@@ -398,3 +398,9 @@ def need_to_download_file(file_path, file_checksum):
         sig_dict = create_file_signatures(file_path)
         retVal =  sig_dict["sha1_checksum"] != file_checksum
     return retVal
+
+def quoteme_single(to_qoute):
+    return "".join( ("'", to_qoute, "'") )
+
+def quoteme_double(to_qoute):
+    return "".join( ('"', to_qoute, '"') )

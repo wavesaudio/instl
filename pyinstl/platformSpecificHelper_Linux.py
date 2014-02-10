@@ -3,12 +3,11 @@ from __future__ import print_function
 
 import os
 import datetime
+from pyinstl.utils import *
 
 from platformSpecificHelper_Base import PlatformSpecificHelperBase
 from platformSpecificHelper_Base import CopyToolRsync
 from platformSpecificHelper_Base import DownloadToolBase
-from platformSpecificHelper_Base import quoteme_single
-from platformSpecificHelper_Base import quoteme_double
 
 class CopyToolLinuxRsync(CopyToolRsync):
     def __init__(self, platformHelper):

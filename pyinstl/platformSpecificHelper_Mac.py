@@ -4,12 +4,11 @@ from __future__ import print_function
 import os
 import urllib
 import datetime
+from pyinstl.utils import *
 
 from platformSpecificHelper_Base import PlatformSpecificHelperBase
 from platformSpecificHelper_Base import CopyToolRsync
 from platformSpecificHelper_Base import DownloadToolBase
-from platformSpecificHelper_Base import quoteme_single
-from platformSpecificHelper_Base import quoteme_double
 
 class CopyToolMacRsync(CopyToolRsync):
     def __init__(self, platformHelper):

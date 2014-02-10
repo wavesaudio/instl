@@ -9,6 +9,13 @@
     * curl: three retries
     * create_prefix_instructions_for_item_config_file checks if folder exists before issuing mkdir.
 
+    user visible changes, admin:
+    * New command: verify-index, helps admin find problems in index and info map.
+
+    programmer visible changes:
+    * quoteme_single, quoteme_double moved to utils for all to enjoy.
+    * member install_definitions_index, method read_index, moved to InstlInstanceBase so instlAdmin can also use them.
+    * InstallItem.add_source also adds the type for the source (!file, !dir, et...)
 10/2/2014 0.8.2  Shai Shasag <shai@waves.com>
     
     user visible changes, client:

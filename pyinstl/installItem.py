@@ -233,7 +233,7 @@ class InstallItem(object):
     def add_source(self, new_source, file_type='!dir'):
         if file_type not in InstallItem.file_types:
             file_type = '!dir'
-        self.__add_item_to_default_os_by_category('install_sources', (new_source, file_type) )
+        self.__add_item_to_default_os_by_category('install_sources', (new_source, file_type, self.__set_for_os[-1]) )
 
     def source_list(self):
         return self.__get_item_list_for_default_oses_by_category('install_sources')

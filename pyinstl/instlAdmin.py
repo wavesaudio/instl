@@ -6,6 +6,7 @@ import filecmp
 import subprocess
 import cStringIO as StringIO
 import boto
+from collections import defaultdict
 
 from instlException import *
 from pyinstl.utils import *
@@ -14,7 +15,7 @@ from aYaml.augmentedYaml import writeAsYaml, YamlDumpDocWrap
 from instlInstanceBase import InstlInstanceBase
 from pyinstl import svnTree
 from platformSpecificHelper_Base import PlatformSpecificHelperFactory
-
+from installItem import InstallItem
 from batchAccumulator import BatchAccumulator
 
 class InstlAdmin(InstlInstanceBase):
@@ -665,6 +666,53 @@ class InstlAdmin(InstlInstanceBase):
                 else:
                     print("Bad Signature")
 
+
+    def do_verify_index(self):
+        self.read_yaml_file(self.cvl.get_str("__MAIN_INPUT_FILE__"))
+        self.cvl.set_value_if_var_does_not_exist("INFO_MAP_FILE_URL", "$(SYNC_BASE_URL)/$(REPO_REV)/instl/info_map.txt")
+        info_map = svnTree.SVNTree()
+        with open_for_read_file_or_url(self.cvl.get_str("INFO_MAP_FILE_URL")) as rfd:
+            info_map.read_from_text(rfd)
+
+        iid_to_sources = defaultdict(list)
+        InstallItem.begin_get_for_all_oses()
+        for iid in sorted(self.install_definitions_index):
+            installi = self.install_definitions_index[iid]
+            if installi.source_list():
+                for source in installi.source_list():
+                    if source[2] in ("common", "Mac"):
+                        iid_to_sources[iid].append( ("/".join( ("Mac", source[0])), source[1]))
+                    if source[2] in ("common", "Win", "Win32", "Win64"):
+                        iid_to_sources[iid].append( ("/".join( ("Win", source[0])), source[1]))
+        InstallItem.reset_get_for_all_oses()
+        for iid in sorted(iid_to_sources):
+            if iid == "USELESS_IID":
+                pass
+            iid_problem_messages = list()
+            for source in iid_to_sources[iid]:
+                map_item = info_map.get_item_at_path(source[0])
+                if map_item is None:
+                    iid_problem_messages.append(" ".join( (quoteme_single(source[0]), "does not exist") ))
+                else:
+                    if source[1] in ("!dir", "!dir_cont", "!files"):
+                        if map_item.isFile():
+                            iid_problem_messages.append(" ".join( (quoteme_single(source[0]), "is a file but type is", source[1]) ))
+                        else:
+                            file_list, dir_list = map_item.unsorted_sub_items()
+                            if source[1] == "!files" and len(file_list) == 0:
+                                iid_problem_messages.append(" ".join( (quoteme_single(source[0]), "has no files but type is", source[1]) ))
+                            if source[1] in ("!dir", "!dir_cont") and len(file_list)+len(dir_list) == 0:
+                                iid_problem_messages.append(" ".join( (quoteme_single(source[0]), "has no files or dirs but type is", source[1]) ))
+                    if source[1] == "!file"  and not map_item.isFile():
+                        iid_problem_messages.append(" ".join( (quoteme_single(source[0]), "is a dir but type is", source[1]) ))
+            if iid_problem_messages:
+                print(iid+":")
+                for problem_message in iid_problem_messages:
+                    print("   ", problem_message)
+        print("index:", len(self.install_definitions_index), "iids")
+        num_files = info_map.num_subs_in_tree(what="file")
+        num_dirs = info_map.num_subs_in_tree(what="dir")
+        print("info map:", num_files, "files in", num_dirs, "folders")
 
 def percent_cb(unused_complete, unused_total):
     sys.stdout.write('.')

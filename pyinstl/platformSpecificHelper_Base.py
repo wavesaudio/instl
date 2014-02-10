@@ -3,11 +3,8 @@ from __future__ import print_function
 import os
 import abc
 import urllib
+from pyinstl.utils import *
 
-def quoteme_single(to_qoute):
-    return "".join( ("'", to_qoute, "'") )
-def quoteme_double(to_qoute):
-    return "".join( ('"', to_qoute, '"') )
 
 def DefaultCopyToolName(target_os):
     retVal = None
