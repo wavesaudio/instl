@@ -292,29 +292,6 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path, ".", link_dest=True, ignore=(".svn", "*.symlink", "*.wtar"))
         logging.info("... %s; (%s - %s)", source_path, self.cvl.resolve_string(source_path), source[1])
 
-    def find_cycles(self):
-            if not self.install_definitions_index:
-                print ("index empty - nothing to check")
-            else:
-                try:
-                    from pyinstl import installItemGraph
-                    depend_graph = installItemGraph.create_dependencies_graph(self.install_definitions_index)
-                    depend_cycles = installItemGraph.find_cycles(depend_graph)
-                    if not depend_cycles:
-                        print ("No depend cycles found")
-                    else:
-                        for cy in depend_cycles:
-                            print("depend cycle:", " -> ".join(cy))
-                    inherit_graph = installItemGraph.create_inheritItem_graph(self.install_definitions_index)
-                    inherit_cycles = installItemGraph.find_cycles(inherit_graph)
-                    if not inherit_cycles:
-                        print ("No inherit cycles found")
-                    else:
-                        for cy in inherit_cycles:
-                            print("inherit cycle:", " -> ".join(cy))
-                except ImportError: # no installItemGraph, no worry
-                    print("Could not load installItemGraph")
-
     def needs(self, iid, out_list):
         """ return all items that depend on iid """
         if iid not in self.install_definitions_index:
