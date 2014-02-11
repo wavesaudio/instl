@@ -249,9 +249,9 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
 
     def unwtar(self, filepath):
         tar_file = filepath+".tar"
-        unzip_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "x", "-y",
+        unzip_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "x", "-y", "-bd",
                                quoteme_double(filepath), "-so", ">", quoteme_double(tar_file))
-        untar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "x", "-y",
+        untar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "x", "-y", "-bd",
                                quoteme_double(tar_file))
         rm_tar_command = self.rmfile(tar_file)
         untar_commands = " ".join( unzip_command_parts ), " ".join( untar_command_parts), rm_tar_command
@@ -326,31 +326,36 @@ class DownloadTool_win_curl(DownloadToolBase):
         return " ".join(download_command_parts)
 
     def create_config_file(self, curl_config_file_path):
-        with open(curl_config_file_path, "wb") as wfd:
-            wfd.write("insecure\n")
-            wfd.write("raw\n")
-            wfd.write("fail\n")
-            wfd.write("silent\n")
-            wfd.write("show-error\n")
-            wfd.write("compressed\n")
-            wfd.write("create-dirs\n")
-            wfd.write("connect-timeout = 3\n")
-            wfd.write("max-time = 60\n")
-            wfd.write("retry = 3\n")
-            wfd.write("write-out = " + quoteme_double(os.path.basename(wfd.name)+": "+DownloadToolBase.curl_write_out_str))
-            wfd.write("\n")
-            wfd.write("\n")
-            for url, path in self.urls_to_download:
-                win_style_path = os.path.normpath(path)
-                win_style_path = win_style_path.replace("\\", "\\\\")
-                dl_lines = '''url = "%s"\noutput = "%s"\n\n''' % (url, win_style_path)
-                wfd.write(dl_lines)
-        return curl_config_file_path
+        if len(self.urls_to_download) > 0:
+            with open(curl_config_file_path, "wb") as wfd:
+                wfd.write("insecure\n")
+                wfd.write("raw\n")
+                wfd.write("fail\n")
+                wfd.write("silent\n")
+                wfd.write("show-error\n")
+                wfd.write("compressed\n")
+                wfd.write("create-dirs\n")
+                wfd.write("connect-timeout = 3\n")
+                wfd.write("max-time = 60\n")
+                wfd.write("retry = 3\n")
+                wfd.write("write-out = " + quoteme_double(os.path.basename(wfd.name)+": "+DownloadToolBase.curl_write_out_str))
+                wfd.write("\n")
+                wfd.write("\n")
+                for url, path in self.urls_to_download:
+                    win_style_path = os.path.normpath(path)
+                    win_style_path = win_style_path.replace("\\", "\\\\")
+                    dl_lines = '''url = "%s"\noutput = "%s"\n\n''' % (url, win_style_path)
+                    wfd.write(dl_lines)
+            return curl_config_file_path
+        else:
+            return None
 
     def create_config_files(self, curl_config_file_path, num_files):
-        print("Creating 1 config file instead of", num_files)
-        self.create_config_file(curl_config_file_path)
-        return (curl_config_file_path,)
+        curl_config_file_path=  self.create_config_file(curl_config_file_path)
+        if curl_config_file_path is not None:
+            return (curl_config_file_path,)
+        else:
+            return ()
 
     def download_from_config_file(self, config_file):
         #http://stackoverflow.com/questions/649634/how-do-i-run-a-bat-file-in-the-background-from-another-bat-file/649937#649937

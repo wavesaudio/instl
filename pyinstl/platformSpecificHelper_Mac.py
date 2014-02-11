@@ -188,37 +188,40 @@ class DownloadTool_mac_curl(DownloadToolBase):
 
     def create_config_files(self, curl_config_file_path, num_files):
         import itertools
-        if len(self.urls_to_download) / num_files < 4:
-            num_files = max(1, len(self.urls_to_download) / 4)
-        curl_config_file_path_parts = curl_config_file_path.split(".")
-        file_name_list = [".".join( curl_config_file_path_parts[:-1]+[str(file_i)]+curl_config_file_path_parts[-1:]  ) for file_i in xrange(num_files)]
-        wfd_list = list()
-        for file_name in file_name_list:
-            wfd_list.append(open(file_name, "w"))
+        if self.urls_to_download > 0:
+            if len(self.urls_to_download) / num_files < 4:
+                num_files = max(1, len(self.urls_to_download) / 4)
+            curl_config_file_path_parts = curl_config_file_path.split(".")
+            file_name_list = [".".join( curl_config_file_path_parts[:-1]+[str(file_i)]+curl_config_file_path_parts[-1:]  ) for file_i in xrange(num_files)]
+            wfd_list = list()
+            for file_name in file_name_list:
+                wfd_list.append(open(file_name, "w"))
 
-        for wfd in wfd_list:
-            wfd.write("insecure\n")
-            wfd.write("raw\n")
-            wfd.write("fail\n")
-            wfd.write("silent\n")
-            wfd.write("show-error\n")
-            wfd.write("compressed\n")
-            wfd.write("create-dirs\n")
-            wfd.write("connect-timeout = 3\n")
-            wfd.write("max-time = 60\n")
-            wfd.write("retry = 3\n")
-            wfd.write("write-out = " + quoteme_double(os.path.basename(wfd.name)+": "+DownloadToolBase.curl_write_out_str))
-            wfd.write("\n")
-            wfd.write("\n")
+            for wfd in wfd_list:
+                wfd.write("insecure\n")
+                wfd.write("raw\n")
+                wfd.write("fail\n")
+                wfd.write("silent\n")
+                wfd.write("show-error\n")
+                wfd.write("compressed\n")
+                wfd.write("create-dirs\n")
+                wfd.write("connect-timeout = 3\n")
+                wfd.write("max-time = 60\n")
+                wfd.write("retry = 3\n")
+                wfd.write("write-out = " + quoteme_double(os.path.basename(wfd.name)+": "+DownloadToolBase.curl_write_out_str))
+                wfd.write("\n")
+                wfd.write("\n")
 
-        wfd_cycler = itertools.cycle(wfd_list)
-        for url, path in self.urls_to_download:
-            wfd = wfd_cycler.next()
-            wfd.write('''url = "{url}"\noutput = "{path}"\n\n'''.format(**locals()))
+            wfd_cycler = itertools.cycle(wfd_list)
+            for url, path in self.urls_to_download:
+                wfd = wfd_cycler.next()
+                wfd.write('''url = "{url}"\noutput = "{path}"\n\n'''.format(**locals()))
 
-        for wfd in wfd_list:
-            wfd.close()
-        return file_name_list
+            for wfd in wfd_list:
+                wfd.close()
+            return file_name_list
+        else:
+            return ()
 
     def download_from_config_file(self, config_file):
 

@@ -128,6 +128,14 @@ class InstlInstanceSync_url(InstlInstanceSync):
             if svn_item.isFile():
                 file_path = os.path.join(*[self.base_path] + svn_item.full_path_parts())
                 need_to_download = need_to_download_file(file_path, svn_item.checksum())
+                # a hack to force download of wtars if they were not untared correctly.
+                # Actually a full download is not needed but there is not other way to force
+                # post sync processing. Also folder might exist even if untar was not completed.
+                # So Todo: find way to force untar without marking the item for download.
+                if not need_to_download and svn_item.name().endswith(".wtar"):
+                    untared_folder, _ = os.path.splitext(file_path)
+                    if not os.path.isdir(untared_folder):
+                        need_to_download = True
                 retVal = not need_to_download
             elif svn_item.isDir():
                 retVal = len(svn_item.subs()) == 0
@@ -251,7 +259,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
         config_file_list = self.instlObj.platform_helper.dl_tool.create_config_files(curl_config_file_path, num_config_files)
         for config_file in config_file_list:
             self.instlObj.batch_accum += self.instlObj.platform_helper.dl_tool.download_from_config_file(config_file)
-        self.instlObj.batch_accum += self.instlObj.platform_helper.wait_for_child_processes()
+        if len(config_file_list) > 0:
+            self.instlObj.batch_accum += self.instlObj.platform_helper.wait_for_child_processes()
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
