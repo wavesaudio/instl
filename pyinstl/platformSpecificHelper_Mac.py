@@ -188,11 +188,11 @@ class DownloadTool_mac_curl(DownloadToolBase):
 
     def create_config_files(self, curl_config_file_path, num_files):
         import itertools
-        if self.urls_to_download > 0:
-            if len(self.urls_to_download) / num_files < 4:
-                num_files = max(1, len(self.urls_to_download) / 4)
+        num_urls_to_download = len(self.urls_to_download)
+        if num_urls_to_download > 0:
+            actual_num_files = max(1, min(num_urls_to_download / 8, num_files))
             curl_config_file_path_parts = curl_config_file_path.split(".")
-            file_name_list = [".".join( curl_config_file_path_parts[:-1]+[str(file_i)]+curl_config_file_path_parts[-1:]  ) for file_i in xrange(num_files)]
+            file_name_list = [".".join( curl_config_file_path_parts[:-1]+[str(file_i)]+curl_config_file_path_parts[-1:]  ) for file_i in xrange(actual_num_files)]
             wfd_list = list()
             for file_name in file_name_list:
                 wfd_list.append(open(file_name, "w"))
@@ -213,9 +213,11 @@ class DownloadTool_mac_curl(DownloadToolBase):
                 wfd.write("\n")
 
             wfd_cycler = itertools.cycle(wfd_list)
+            url_num = 0
             for url, path in self.urls_to_download:
                 wfd = wfd_cycler.next()
                 wfd.write('''url = "{url}"\noutput = "{path}"\n\n'''.format(**locals()))
+                url_num += 1
 
             for wfd in wfd_list:
                 wfd.close()
