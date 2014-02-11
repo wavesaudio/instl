@@ -19,7 +19,7 @@
     * quoteme_single, quoteme_double moved to utils for all to enjoy.
     * member install_definitions_index, method read_index, moved to InstlInstanceBase so instlAdmin can also use them.
     * InstallItem.add_source also adds the type for the source (!file, !dir, et...)
-    
+
 10/2/2014 0.8.2  Shai Shasag <shai@waves.com>
     
     user visible changes, client:
@@ -27,6 +27,9 @@
     * Added time measurements to batch file produces for windows.
     * Removed redundant quotes from echo messages on windows.
     * Added DownloadTool_win_curl in one-by-one and config-file modes.
+    * Added progress message to pre and post parallel sync actions.
+    * Windows: Added checking of 7za return value and goto exit if > 0
+    * Windows: Divert 7za stderr message to NUL since non-error messages are directed to stderr by 7za.
 
     user visible changes, admin:
     * usage of $(SVN_CLIENT_PATH) instead of svn in all adming commands.

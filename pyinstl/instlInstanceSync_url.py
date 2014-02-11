@@ -282,6 +282,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             containing_folder = os.path.join(*[self.instlObj.cvl.resolve_string("$(LOCAL_SYNC_DIR)")] + path_so_far)
             if not os.path.isdir(containing_folder):
                 self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir(containing_folder)
+                self.instlObj.batch_accum += self.instlObj.platform_helper.progress(containing_folder)
             file_list, dir_list = item.sorted_sub_items()
             for sub_item in file_list + dir_list:
                 self.create_prefix_instructions_for_item_config_file(sub_item, path_so_far)
@@ -308,6 +309,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.instlObj.batch_accum += self.instlObj.platform_helper.check_checksum(item.name(), item.checksum())
             if item.name().endswith(".wtar"):
                 self.instlObj.batch_accum += self.instlObj.platform_helper.unwtar(item.name())
+            self.instlObj.batch_accum += self.instlObj.platform_helper.progress(item.full_path())
         elif item.isDir():
             path_so_far.append(item.name())
             self.instlObj.batch_accum += self.instlObj.platform_helper.cd(item.name())

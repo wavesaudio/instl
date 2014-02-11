@@ -146,7 +146,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
                 self.restore_dir("TOP_SAVE_DIR"),
                 "set defERRORLEVEL=%ERRORLEVEL%",
                 "if %defERRORLEVEL% == 0 (set defERRORLEVEL=1)",
-                'echo "Exit on error" 1>&2',
+                'echo Exit on error 1>&2',
                 self.end_time_measure(),
                 "endlocal",
                 "exit /b %defERRORLEVEL%"
@@ -171,7 +171,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return time_end_commands
 
     def exit_if_error(self, error_threshold=1):
-        retVal = ("IF", "ERRORLEVEL", str(error_threshold), "(", "echo", '"Error %ERRORLEVEL% at step ' + str(self.num_items_for_progress_report+1)+'"', "1>&2", "&", "GOTO", "EXIT_ON_ERROR", ")")
+        retVal = ("IF", "ERRORLEVEL", str(error_threshold), "(", "echo", 'Error %ERRORLEVEL% at step ' + str(self.num_items_for_progress_report+1), "1>&2", "&", "GOTO", "EXIT_ON_ERROR", ")")
         return " ".join(retVal)
 
     def mkdir(self, directory):
@@ -247,14 +247,17 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def tar(self, to_tar_name):
         raise NotImplementedError
 
-    def unwtar(self, filepath):
-        tar_file = filepath+".tar"
+    def unwtar(self, wtar_file):
+        tar_file = wtar_file+".tar"
         unzip_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "x", "-y", "-bd",
-                               quoteme_double(filepath), "-so", ">", quoteme_double(tar_file))
+                               quoteme_double(wtar_file), "-so", ">", quoteme_double(tar_file),
+                                "2>NUL")
         untar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "x", "-y", "-bd",
-                               quoteme_double(tar_file))
+                               quoteme_double(tar_file), "2>NUL")
         rm_tar_command = self.rmfile(tar_file)
-        untar_commands = " ".join( unzip_command_parts ), " ".join( untar_command_parts), rm_tar_command
+        untar_commands = " ".join( unzip_command_parts ), self.exit_if_error(),\
+                         " ".join( untar_command_parts), self.exit_if_error(), \
+                         rm_tar_command
         return untar_commands
 
     def wait_for_child_processes(self):
