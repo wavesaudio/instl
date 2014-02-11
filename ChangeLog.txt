@@ -1,4 +1,4 @@
-???? 0.8.3
+11/2/2014 0.8.3 Shai Shasag <shai@waves.com>
 
     user visible changes, client:
     * curl connect-timeout = 3 instead of 60
@@ -10,7 +10,9 @@
     * create_prefix_instructions_for_item_config_file checks if folder exists before issuing mkdir.
     * sync command: Hack to force untaring of .wtar files by forcing them to be downloaded again.
     * create_config_files will return empty list if there were no files to download.
-    * Windows untaring got a -bd flag to reduce verbosity.
+    * Windows 7za untaring got a -bd flag to reduce verbosity.
+    * Windows: errorlevel checking on 7za untaring.
+    * Windows: 7za untaring redirect stderr to NUL, because 7za trash-talks no error messages to stderr.
 
     user visible changes, admin:
     * New command: verify-index, helps admin find problems in index and info map.
