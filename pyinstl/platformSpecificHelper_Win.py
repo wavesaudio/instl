@@ -10,6 +10,10 @@ from platformSpecificHelper_Base import PlatformSpecificHelperBase
 from platformSpecificHelper_Base import CopyToolBase
 from platformSpecificHelper_Base import DownloadToolBase
 
+def dos_escape(some_string):
+    escaped_string = some_string.replace("&", "^&")
+    return escaped_string
+
 class CopyTool_win_robocopy(CopyToolBase):
     def __init__(self, platformHelper):
         super(CopyTool_win_robocopy, self).__init__(platformHelper)
@@ -206,7 +210,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return "SET "+identifier+'='+value
 
     def echo(self, message):
-        echo_command = " ".join(('echo', message))
+        echo_command = " ".join(('echo', dos_escape(message)))
         return echo_command
 
     def remark(self, remark):
@@ -226,23 +230,18 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return sync_command
 
     def check_checksum(self, filepath, checksum):
-        check_command_parts = (  'for /f "delims=" %%i in',
-                                "('$(CHECKSUM_TOOL_PATH) -s",
-                                quoteme_double(filepath),
-                                "')",
-                                "do (set CHECKSUM_CHECK=%%i",
-                                "&",
-                                "if not \"!CHECKSUM_CHECK:~0,40!\"==",
-                                quoteme_double(checksum),
-                                '(echo bad checksum',
-                                "%CD%/"+filepath,
-                                "1>&2",
-                                "&",
-                                "GOTO EXIT_ON_ERROR)",
-                                ")"
-                            )
-        check_command = " ".join( check_command_parts )
-        return check_command
+        check_commands = (
+            """for /f "delims=\" %%i in ('C:\\p4client\\dev_install\\bin\\Win\\sha1deep.exe -s \"{filepath}\"') do (@set sha1deep_ret=%%i)""".format(**locals()),
+            """@set CHECKSUM_CHECK=\"%sha1deep_ret:~0,40%\"""",
+            """if not %CHECKSUM_CHECK% == \"{checksum}\" (""".format(**locals()),
+            self.echo("""echo bad checksum \"{filepath}\"""".format(**locals())),
+            self.echo("""@echo Expected: {checksum}, Got: %CHECKSUM_CHECK%""".format(**locals())),
+            """GOTO EXIT_ON_ERROR""",
+            ")"
+            )
+
+        return check_commands
+
 
     def tar(self, to_tar_name):
         raise NotImplementedError
@@ -328,9 +327,18 @@ class DownloadTool_win_curl(DownloadToolBase):
         download_command_parts.append(quoteme_double(urllib.quote(src_url, "$()/:")))
         return " ".join(download_command_parts)
 
-    def create_config_file(self, curl_config_file_path):
-        if len(self.urls_to_download) > 0:
-            with open(curl_config_file_path, "wb") as wfd:
+    def create_config_files(self, curl_config_file_path, num_files):
+        import itertools
+        num_urls_to_download = len(self.urls_to_download)
+        if num_urls_to_download > 0:
+            actual_num_files = max(1, min(num_urls_to_download / 8, num_files))
+            curl_config_file_path_parts = curl_config_file_path.split(".")
+            file_name_list = [".".join( curl_config_file_path_parts[:-1]+[str(file_i)]+curl_config_file_path_parts[-1:]  ) for file_i in xrange(actual_num_files)]
+            wfd_list = list()
+            for file_name in file_name_list:
+                wfd_list.append(open(file_name, "w"))
+
+            for wfd in wfd_list:
                 wfd.write("insecure\n")
                 wfd.write("raw\n")
                 wfd.write("fail\n")
@@ -344,19 +352,17 @@ class DownloadTool_win_curl(DownloadToolBase):
                 wfd.write("write-out = " + quoteme_double(os.path.basename(wfd.name)+": "+DownloadToolBase.curl_write_out_str))
                 wfd.write("\n")
                 wfd.write("\n")
-                for url, path in self.urls_to_download:
-                    win_style_path = os.path.normpath(path)
-                    win_style_path = win_style_path.replace("\\", "\\\\")
-                    dl_lines = '''url = "%s"\noutput = "%s"\n\n''' % (url, win_style_path)
-                    wfd.write(dl_lines)
-            return curl_config_file_path
-        else:
-            return None
 
-    def create_config_files(self, curl_config_file_path, num_files):
-        curl_config_file_path=  self.create_config_file(curl_config_file_path)
-        if curl_config_file_path is not None:
-            return (curl_config_file_path,)
+            wfd_cycler = itertools.cycle(wfd_list)
+            url_num = 0
+            for url, path in self.urls_to_download:
+                wfd = wfd_cycler.next()
+                wfd.write('''url = "{url}"\noutput = "{path}"\n\n'''.format(**locals()))
+                url_num += 1
+
+            for wfd in wfd_list:
+                wfd.close()
+            return file_name_list
         else:
             return ()
 

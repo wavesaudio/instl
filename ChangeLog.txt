@@ -1,6 +1,7 @@
 ???? 0.8.4
 
     user visible changes, client:
+    * Fixed: on windows files with '&' in name would not pass checksum check.
 
     user visible changes, admin:
     * platfotmSpecificHelper methods svn_add_item, svn_remove_item use $(SVN_CLIENT_PATH) instead of plain svn.
@@ -9,6 +10,7 @@
     * svn2stage, stage2svn will not use rsync link_dest, because it confuses svn.
 
     programmer visible changes:
+    * new function for windows dos_escape, escapes the & character with ^&
 
 11/2/2014 0.8.3 Shai Shasag <shai@waves.com>
 
