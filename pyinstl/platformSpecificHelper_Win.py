@@ -1,7 +1,7 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
-import os
+import sys
 import urllib
 import datetime
 from pyinstl.utils import *
@@ -347,8 +347,8 @@ class DownloadTool_win_curl(DownloadToolBase):
                 wfd.write("compressed\n")
                 wfd.write("create-dirs\n")
                 wfd.write("connect-timeout = 3\n")
-                wfd.write("max-time = 60\n")
-                wfd.write("retry = 3\n")
+                wfd.write("max-time = 120\n")
+                wfd.write("retry = 5\n")
                 wfd.write("write-out = " + quoteme_double(os.path.basename(wfd.name)+": "+DownloadToolBase.curl_write_out_str))
                 wfd.write("\n")
                 wfd.write("\n")
@@ -367,10 +367,13 @@ class DownloadTool_win_curl(DownloadToolBase):
             return ()
 
     def download_from_config_files(self, parallel_run_config_file_path, config_files):
-
         with open(parallel_run_config_file_path, "w") as wfd:
             for config_file in config_files:
                 wfd.write(self.platformHelper.instlObj.cvl.resolve_string("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+config_file+"\"\n"))
 
-        download_command = "\"$(__INSTL_EXE_PATH__)\" parallel-run --in \""+parallel_run_config_file_path+"\""
-        return download_command
+        command_prefix = ""
+        if not getattr(sys, 'frozen', False):
+            command_prefix = "python "
+
+        download_command = command_prefix+"\"$(__INSTL_EXE_PATH__)\" parallel-run --in \""+parallel_run_config_file_path+"\""
+        return (download_command, self.platformHelper.exit_if_error())

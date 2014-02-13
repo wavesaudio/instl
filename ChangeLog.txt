@@ -1,4 +1,4 @@
-???? 0.8.4
+13/2/2015 0.8.4 Shai Shasag <shai@waves.com>
 
     user visible changes, client:
     * Fixed: on windows files with '&' in name would not pass checksum check.

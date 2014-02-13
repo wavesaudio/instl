@@ -271,7 +271,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_up2s3(self):
         root_links_folder = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)")
-        revision_list = range(int(self.cvl.get_str("BASE_REPO_REV"), int(self.cvl.get_str("REPO_REV")+1)
+        revision_list = range(int(self.cvl.get_str("BASE_REPO_REV"), int(self.cvl.get_str("REPO_REV"))+1)
         dirs_to_upload = list()
         for dir_as_int in revision_list:
             dir_name = str(dir_as_int)
