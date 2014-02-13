@@ -2,6 +2,7 @@
 
     user visible changes, client:
     * Fixed: on windows files with '&' in name would not pass checksum check.
+    * All curl downloads are performed though instl own parallel-run command.
 
     user visible changes, admin:
     * platfotmSpecificHelper methods svn_add_item, svn_remove_item use $(SVN_CLIENT_PATH) instead of plain svn.

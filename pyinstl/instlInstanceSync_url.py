@@ -257,10 +257,9 @@ class InstlInstanceSync_url(InstlInstanceSync):
         curl_config_file_path = self.instlObj.cvl.resolve_string(os.path.join("$(LOCAL_SYNC_DIR)", "$(CURL_CONFIG_FILE_NAME)"))
         num_config_files = int(self.instlObj.cvl.get_str("PARALLEL_SYNC"))
         config_file_list = self.instlObj.platform_helper.dl_tool.create_config_files(curl_config_file_path, num_config_files)
-        for config_file in config_file_list:
-            self.instlObj.batch_accum += self.instlObj.platform_helper.dl_tool.download_from_config_file(config_file)
         if len(config_file_list) > 0:
-            self.instlObj.batch_accum += self.instlObj.platform_helper.wait_for_child_processes()
+            parallel_run_config_file_path = self.instlObj.cvl.resolve_string(os.path.join("$(LOCAL_SYNC_DIR)", "$(CURL_CONFIG_FILE_NAME).parallel-run"))
+            self.instlObj.batch_accum += self.instlObj.platform_helper.dl_tool.download_from_config_files(parallel_run_config_file_path, config_file_list)
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 

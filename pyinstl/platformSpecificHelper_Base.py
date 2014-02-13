@@ -272,6 +272,9 @@ class DownloadToolBase(object):
     def add_download_url(self, url, path):
         self.urls_to_download.append( (urllib.quote(url, "$()/:"), path) )
 
-    @abc.abstractmethod
     def download_from_config_file(self, config_file):
+        pass
+
+    @abc.abstractmethod
+    def download_from_config_files(self, config_file):
         pass

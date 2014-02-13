@@ -366,11 +366,11 @@ class DownloadTool_win_curl(DownloadToolBase):
         else:
             return ()
 
-    def download_from_config_file(self, config_file):
-        #http://stackoverflow.com/questions/649634/how-do-i-run-a-bat-file-in-the-background-from-another-bat-file/649937#649937
-        download_command_parts = list()
-        download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
-        download_command_parts.append("--config")
-        download_command_parts.append(quoteme_double(config_file))
+    def download_from_config_files(self, parallel_run_config_file_path, config_files):
 
-        return " ".join(download_command_parts)
+        with open(parallel_run_config_file_path, "w") as wfd:
+            for config_file in config_files:
+                wfd.write(self.platformHelper.instlObj.cvl.resolve_string("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+config_file+"\"\n"))
+
+        download_command = "\"$(__INSTL_EXE_PATH__)\" parallel-run --in \""+parallel_run_config_file_path+"\""
+        return download_command
