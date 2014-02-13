@@ -124,5 +124,5 @@ class DownloadTool_linux_curl(DownloadToolBase):
         download_command_parts.append(quoteme_double(src_url))
         return " ".join(download_command_parts)
 
-    def download_from_config_files(self):
+    def download_from_config_files(self, config_file):
         pass
