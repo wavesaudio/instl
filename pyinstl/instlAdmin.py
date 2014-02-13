@@ -271,43 +271,34 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_up2s3(self):
         root_links_folder = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)")
-        sub_dirs = os.listdir(root_links_folder)
+        revision_list = range(int(self.cvl.get_str("BASE_REPO_REV"), int(self.cvl.get_str("REPO_REV")+1)
         dirs_to_upload = list()
-        for rev_dir in sub_dirs:
-            try:
-                dir_as_int = int(rev_dir) # revision dirs should be integers
-                if not os.path.isdir(self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+str(rev_dir))):
-                    print(rev_dir, "is not a directory")
-                    continue
-                if dir_as_int < int(self.cvl.get_str("BASE_REPO_REV")):
-                    print(rev_dir, "is below BASE_REPO_REV", self.cvl.get_str("BASE_REPO_REV"))
-                    continue
-                create_links_done_stamp_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+str(rev_dir)+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
+        for dir_as_int in revision_list:
+            dir_name = str(dir_as_int)
+            if not os.path.isdir(self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+dir_name)):
+                print("revision dir", dir_name, "is missing, run create-links to create this folder")
+            else:
+                create_links_done_stamp_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+dir_name+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
                 if not os.path.isfile(create_links_done_stamp_file):
-                    print("Ignoring folder", str(rev_dir), "Could not find ", create_links_done_stamp_file)
-                    continue
-                up_2_s3_done_stamp_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+str(rev_dir)+"/$(UP_2_S3_STAMP_FILE_NAME)")
-                if os.path.isfile(up_2_s3_done_stamp_file):
-                    print("Ignoring folder", str(rev_dir), "already uploaded to S3")
-                    continue
-                dirs_to_upload.append(rev_dir)
-            except:
-                pass
-        dirs_to_upload.sort(key=int)
-        for work_dir in dirs_to_upload:
-            print("Will upload to", self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+work_dir))
+                    print("revision dir", dir_name, "doen not have create-links stamp file:", create_links_done_stamp_file)
+                else:
+                    up_2_s3_done_stamp_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+dir_name+"/$(UP_2_S3_STAMP_FILE_NAME)")
+                    if os.path.isfile(up_2_s3_done_stamp_file):
+                        print("revision dir", dir_name, "already uploaded to S3")
+                    else:
+                        print("revision dir", dir_name, "will be uploaded to S3")
+                        dirs_to_upload.append(dir_name)
 
         self.batch_accum.set_current_section('upload')
-        for revision in dirs_to_upload:
+        for dir_name in dirs_to_upload:
             accum = BatchAccumulator(self.cvl) # sub-accumulator serves as a template for each version
             accum.set_current_section('upload')
-            save_dir_var = "REV_"+revision+"_SAVE_DIR"
+            save_dir_var = "REV_"+dir_name+"_SAVE_DIR"
             self.batch_accum += self.platform_helper.save_dir(save_dir_var)
-            self.cvl.set_var("__CURR_REPO_REV__").append(str(revision))
+            self.cvl.set_var("__CURR_REPO_REV__").append(dir_name)
             self.do_upload_to_s3_aws_for_revision(accum)
             revision_lines = accum.finalize_list_of_lines() # will resolve with current  __CURR_REPO_REV__
             self.batch_accum += revision_lines
-            self.batch_accum += self.platform_helper.echo("done up2s3 version $(__CURR_REPO_REV__)")
             self.batch_accum += self.platform_helper.restore_dir(save_dir_var)
             self.batch_accum += self.platform_helper.new_line()
 
@@ -367,6 +358,7 @@ class InstlAdmin(InstlInstanceBase):
                            "--exclude", '"$(CREATE_LINKS_STAMP_FILE_NAME)"'
                         ] )
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(UP_2_S3_STAMP_FILE_NAME)"])
+        accum += self.platform_helper.echo("done up2s3 revision $(__CURR_REPO_REV__)")
 
     def create_info_map_sig(self, which_revision):
         retVal = None
@@ -454,10 +446,13 @@ class InstlAdmin(InstlInstanceBase):
             continue
             if item.props:
                 for extra_prop in item.props:
+                    print("remove prop", extra_prop, "from", item.full_path())
                     self.batch_accum += " ".join( (self.cvl.get_str("SVN_CLIENT_PATH"), "propdel", "svn:"+extra_prop, '"'+item.full_path()+'"') )
             if item.isExecutable() and not shouldBeExec:
+                print("remove prop", "executable", "from", item.full_path())
                 self.batch_accum += " ".join( (self.cvl.get_str("SVN_CLIENT_PATH"), "propdel", 'svn:executable', '"'+item.full_path()+'"') )
             elif not item.isExecutable() and shouldBeExec:
+                print("add prop", "executable", "to", item.full_path())
                 self.batch_accum += " ".join( (self.cvl.get_str("SVN_CLIENT_PATH"), "propset", 'svn:executable', 'yes', '"'+item.full_path()+'"') )
         self.create_variables_assignment()
         os.chdir(save_dir)
@@ -534,9 +529,9 @@ class InstlAdmin(InstlInstanceBase):
             if os.path.islink(item_path):
                 raise InstlException(item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
             elif os.path.isfile(item_path):
-                self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(item_path, comperer.right, link_dest=True, ignore=".svn")
+                self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(item_path, comperer.right, link_dest=False, ignore=".svn")
             elif os.path.isdir(item_path):
-                self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(item_path, comperer.right, link_dest=True, ignore=".svn")
+                self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(item_path, comperer.right, link_dest=False, ignore=".svn")
             else:
                 raise InstlException(item_path+" not a file, dir or symlink, an abomination!")
 
@@ -611,7 +606,7 @@ class InstlAdmin(InstlInstanceBase):
         svn_folder = self.cvl.resolve_string(("$(SVN_CHECKOUT_FOLDER)"))
         svn_command_parts = ['"$(SVN_CLIENT_PATH)"', "checkout", '"$(SVN_REPO_URL)"', '"'+svn_folder+'"', "--depth", "infinity"]
         self.batch_accum += " ".join(svn_command_parts)
-        self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(svn_folder, stage_folder, link_dest=True, ignore=(".svn", ".DS_Store"))
+        self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(svn_folder, stage_folder, link_dest=False, ignore=(".svn", ".DS_Store"))
         self.create_variables_assignment()
         self.write_batch_file()
         if "__RUN_BATCH_FILE__" in self.cvl:

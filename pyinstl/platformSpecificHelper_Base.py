@@ -207,11 +207,11 @@ class PlatformSpecificHelperBase(object):
         pass
 
     def svn_add_item(self, item_path):
-        svn_command = " ".join( ("svn", "add", '"'+item_path+'"') )
+        svn_command = " ".join( ("$(SVN_CLIENT_PATH)", "add", '"'+item_path+'"') )
         return svn_command
 
     def svn_remove_item(self, item_path):
-        svn_command = " ".join( ("svn", "rm", "--force", '"'+item_path+'"') )
+        svn_command = " ".join( ("$(SVN_CLIENT_PATH)", "rm", "--force", '"'+item_path+'"') )
         return svn_command
 
     @abc.abstractmethod
