@@ -271,7 +271,12 @@ class InstallItem(object):
             for depend in self.depend_list():
                 if depend not in out_set: # avoid cycles, save time
                     try:
-                        items_map[depend].get_recursive_depends(items_map, out_set, orphan_set)
+                        if guid_re.match(depend): # if it's a guid translate to iid's
+                            dependees = iids_from_guid(items_map, depend)
+                        else:
+                            dependees = [depend]
+                        for dependee in dependees:
+                            items_map[dependee].get_recursive_depends(items_map, out_set, orphan_set)
                     except KeyError:
                         orphan_set.append(depend)
 
@@ -354,3 +359,17 @@ class InstallItem(object):
                         missingIDDMessage = "While reading "+IID+", Inheritance IID '"+ke.message+" " +inherite_node.start_mark
                         raise KeyError(missingIDDMessage)
 """
+
+
+def guid_list(items_map):
+    retVal = unique_list()
+    retVal.extend(filter(bool, [install_def.guid for install_def in items_map.values()]))
+    return retVal
+
+
+def iids_from_guid(items_map, guid):
+    retVal = list()
+    for iid, install_def in items_map.iteritems():
+        if install_def.guid == guid:
+            retVal.append(iid)
+    return retVal

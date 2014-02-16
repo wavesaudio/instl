@@ -7,6 +7,7 @@ import logging
 import shlex
 from pyinstl.instlException import InstlException
 from pyinstl.utils import *
+from installItem import guid_list, iids_from_guid
 
 import platform
 current_os = platform.system()
@@ -317,6 +318,7 @@ class CMDObj(cmd.Cmd, object):
             for afile in shlex.split(params):
                 try:
                     self.client_prog_inst.read_yaml_file(afile)
+                    self.client_prog_inst.add_deafult_items()
                 except Exception as ex:
                     print("read", afile, ex)
         else:
@@ -590,16 +592,16 @@ def do_list_imp(self, what = None, stream=sys.stdout):
     whole_sections_to_write = list()
     individual_items_to_write = list()
     for item_to_do in list_to_do:
-        if self.guid_re.match(item_to_do):
-            whole_sections_to_write.append({item_to_do: self.iids_from_guid(item_to_do)})
+        if guid_re.match(item_to_do):
+            whole_sections_to_write.append({item_to_do: iids_from_guid(self.install_definitions_index, item_to_do)})
         elif item_to_do == "define":
             whole_sections_to_write.append(augmentedYaml.YamlDumpDocWrap(self.cvl, '!define', "Definitions", explicit_start=True, sort_mappings=True))
         elif item_to_do == "index":
             whole_sections_to_write.append(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True))
         elif item_to_do == "guid":
             guid_dict = dict()
-            for lic in self.guid_list():
-                guid_dict[lic] = self.iids_from_guid(lic)
+            for lic in guid_list(self.install_definitions_index):
+                guid_dict[lic] = iids_from_guid(self.install_definitions_index, lic)
             whole_sections_to_write.append(augmentedYaml.YamlDumpDocWrap(guid_dict, '!guid', "guid to IID", explicit_start=True, sort_mappings=True))
         else:
             individual_items_to_write.append(item_to_do)
@@ -615,7 +617,7 @@ def create_completion_list_imp(self, for_what="all"):
         if for_what in ("all", "define"):
             retVal.extend(self.cvl.keys())
         if for_what in ("all", "guid"):
-            retVal.extend(self.guid_list())
+            retVal.extend(guid_list(self.install_definitions_index))
     except Exception as ex:
         print("create_completion_list:",   ex)
     return retVal

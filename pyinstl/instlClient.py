@@ -5,7 +5,7 @@ from collections import OrderedDict, defaultdict
 import logging
 
 from pyinstl.utils import *
-from installItem import read_index_from_yaml, InstallItem
+from installItem import read_index_from_yaml, InstallItem, guid_list, iids_from_guid
 from aYaml import augmentedYaml
 from platformSpecificHelper_Base import PlatformSpecificHelperFactory
 
@@ -45,7 +45,8 @@ class InstallInstructionsState(object):
             else: # items that need no copy
                 source_list_for_idd = instlObj.install_definitions_index[IID].source_list()
                 for source in source_list_for_idd:
-                    sync_folder =  os.path.join( ("$(LOCAL_SYNC_DIR)", "$(REL_SRC_PATH)", instlObj.relative_sync_folder_for_source(source)))
+                    relative_sync_folder = instlObj.relative_sync_folder_for_source(source)
+                    sync_folder =  os.path.join( "$(LOCAL_SYNC_DIR)", "$(REL_SRC_PATH)", relative_sync_folder )
                     self.no_copy_items_by_sync_folder[sync_folder].append(IID)
 
     def calculate_full_install_items_set(self, instlObj):
@@ -62,8 +63,8 @@ class InstallInstructionsState(object):
 
         root_install_iids_translated = unique_list()
         for IID in self.root_install_items:
-            if instlObj.guid_re.match(IID): # if it's a guid translate to iid's
-                iids_from_the_guid = instlObj.iids_from_guid(IID)
+            if guid_re.match(IID): # if it's a guid translate to iid's
+                iids_from_the_guid = iids_from_guid(instlObj.install_definitions_index, IID)
                 if len(iids_from_the_guid) > 0:
                     root_install_iids_translated.extend(iids_from_the_guid)
                     logging.info("GUID %s, translated to %d iids: %s", IID, len(iids_from_the_guid), ", ".join(iids_from_the_guid))
@@ -96,6 +97,7 @@ class InstlClient(InstlInstanceBase):
             self.read_yaml_file(self.cvl.get_str("__MAIN_INPUT_FILE__"))
             self.resolve_defined_paths()
             self.resolve_index_inheritance()
+            self.add_deafult_items()
             self.calculate_default_install_item_set(installState)
             self.platform_helper = PlatformSpecificHelperFactory(self.cvl.get_str("__CURRENT_OS__"), self)
             if the_command in ("sync", "synccopy"):
@@ -154,17 +156,20 @@ class InstlClient(InstlInstanceBase):
         for install_def in self.install_definitions_index.values():
             install_def.resolve_inheritance(self.install_definitions_index)
 
-    def guid_list(self):
-        retVal = unique_list()
-        retVal.extend(filter(bool, [install_def.guid for install_def in self.install_definitions_index.values()]))
-        return retVal
+    def add_deafult_items(self):
+        all_items_item = InstallItem()
+        all_items_item.iid = "__ALL_ITEMS_IID__"
+        all_items_item.name = "All IIDs"
+        for item_name in self.install_definitions_index:
+            all_items_item.add_depend(item_name)
+        self.install_definitions_index["__ALL_ITEMS_IID__"] = all_items_item
 
-    def iids_from_guid(self, guid):
-        retVal = list()
-        for iid, install_def in self.install_definitions_index.iteritems():
-            if install_def.guid == guid:
-                retVal.append(iid)
-        return retVal
+        all_guids_item = InstallItem()
+        all_guids_item.iid = "__ALL_GUIDS_IID__"
+        all_guids_item.name = "All GUIDs"
+        for guid in guid_list(self.install_definitions_index):
+            all_guids_item.add_depend(guid)
+        self.install_definitions_index["__ALL_GUIDS_IID__"] = all_guids_item
 
     def calculate_default_install_item_set(self, installState):
         """ calculate the set of iids to install from the "MAIN_INSTALL_TARGETS" variable.
@@ -283,13 +288,13 @@ class InstlClient(InstlInstanceBase):
         source_path = os.path.normpath("$(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)/"+source[0])
 
         if source[1] == '!file':       # get a single file, not recommended
-            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".", link_dest=True, ignore=(".svn", "*.symlink", "*.wtar"))
+            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".", link_dest=True, ignore=(".svn", "*.symlink", "*.wtar", "*.done"))
         elif source[1] == '!dir_cont': # get all files and folders from a folder
-            self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".", link_dest=True, ignore=(".svn", "*.symlink", "*.wtar"))
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".", link_dest=True, ignore=(".svn", "*.symlink", "*.wtar", "*.done"))
         elif source[1] == '!files':    # get all files from a folder
-            self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".", link_dest=True, ignore=(".svn", "*.symlink", "*.wtar"))
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".", link_dest=True, ignore=(".svn", "*.symlink", "*.wtar", "*.done"))
         else: # !dir
-            self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path, ".", link_dest=True, ignore=(".svn", "*.symlink", "*.wtar"))
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path, ".", link_dest=True, ignore=(".svn", "*.symlink", "*.wtar", "*.done"))
         logging.info("... %s; (%s - %s)", source_path, self.cvl.resolve_string(source_path), source[1])
 
     def needs(self, iid, out_list):

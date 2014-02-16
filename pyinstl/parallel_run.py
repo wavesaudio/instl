@@ -30,7 +30,7 @@ def run_parallels(commands):
         try:
             proc = subprocess.Popen(command, executable=command[0], shell=False)#, stdout=subprocess.PIPE, stderr=subprocess.PIPE
             #print("Started", command, proc.pid)
-            sys.stdout.flush()
+            #sys.stdout.flush()
             proc_que.append(proc)
         except Exception as es:
             print("failed to start", command, es.strerror, file=sys.stderr)
@@ -44,6 +44,7 @@ def run_parallels(commands):
         if status is None: # None means it's still alive
             #print(proc.pid, "still alive")
             proc_que.append(proc)
+            #continue
         else:
             #print(proc.pid, "just died", status)
             if status != 0:

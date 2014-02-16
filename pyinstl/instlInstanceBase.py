@@ -48,13 +48,6 @@ class InstlInstanceBase(object):
         self.path_searcher.add_search_path(os.path.dirname(os.path.realpath(sys.argv[0])))
         self.path_searcher.add_search_path(self.cvl.get_str("__INSTL_DATA_FOLDER__"))
 
-        self.guid_re = re.compile("""
-                        [a-f0-9]{8}
-                        (-[a-f0-9]{4}){3}
-                        -[a-f0-9]{12}
-                        $
-                        """, re.VERBOSE)
-
     def get_version_str(self):
         retVal = " ".join( (this_program_name, "version", ".".join(self.cvl.get_list("__INSTL_VERSION__"))) )
         return retVal

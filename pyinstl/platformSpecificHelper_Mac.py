@@ -29,15 +29,24 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
             self.remark(self.instlObj.get_version_str()),
             self.remark(datetime.datetime.today().isoformat()),
             "set -e",
-            self.start_time_measure(),
-            self.save_dir("TOP_SAVE_DIR"))
+            #"set -u",
+            self.get_install_instructions_exit_func(),
+            self.save_dir("TOP_SAVE_DIR"),
+            self.start_time_measure())
+        return retVal
+
+    def get_install_instructions_exit_func(self):
+        retVal = (
+            "exit_func() {",
+            self.restore_dir("TOP_SAVE_DIR"),
+            self.end_time_measure(),
+            "exit $?",
+            "}",
+            "trap \"exit_func\" EXIT")
         return retVal
 
     def get_install_instructions_postfix(self):
-        postfix_command = [self.restore_dir("TOP_SAVE_DIR")]
-        postfix_command += self.end_time_measure()
-        postfix_command += ("exit 0",)
-        return postfix_command
+        return ()
 
     def start_time_measure(self):
         time_start_command = "Time_Measure_Start=$(date +%s)"
@@ -57,6 +66,14 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
     def cd(self, directory):
         cd_command = " ".join( ("cd", quoteme_double(directory) ) )
         return cd_command
+
+    def pushd(self, directory):
+        pushd_command = " ".join( ("pushd", quoteme_double(directory), ">", "/dev/null") )
+        return pushd_command
+
+    def popd(self):
+        pop_command = " ".join( ("popd", ">", "/dev/null") )
+        return pop_command
 
     def save_dir(self, var_name):
         save_dir_command = var_name+"=`pwd`"
@@ -149,9 +166,9 @@ done""" % in_dir)
         return wtar_command
 
     def unwtar(self, filepath):
-        unwtar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "-x", "-f", quoteme_double(filepath))
-        unwtar_command = " ".join( unwtar_command_parts )
-        return unwtar_command
+        unwtar_command = " ".join( ("$(WTAR_OPENER_TOOL_PATH)", "-x", "-f", quoteme_double(filepath)) )
+        done_stamp_file = filepath + ".done"
+        return unwtar_command, self.touch(done_stamp_file)
 
     def wait_for_child_processes(self):
         return ("wait",)
@@ -159,6 +176,10 @@ done""" % in_dir)
     def make_executable(self, filepath):
         make_exec_command = " ".join( ("chmod a+x", filepath) )
         return make_exec_command
+
+    def touch(self, filepath):
+        touch_command = " ".join( ("touch", quoteme_double(filepath)) )
+        return touch_command
 
 class DownloadTool_mac_curl(DownloadToolBase):
     def __init__(self, platformHelper):
@@ -205,9 +226,9 @@ class DownloadTool_mac_curl(DownloadToolBase):
                 wfd.write("show-error\n")
                 wfd.write("compressed\n")
                 wfd.write("create-dirs\n")
-                wfd.write("connect-timeout = 3\n")
-                wfd.write("max-time = 60\n")
-                wfd.write("retry = 3\n")
+                wfd.write("connect-timeout = 6\n")
+                wfd.write("max-time = 180\n")
+                wfd.write("retry = 5\n")
                 wfd.write("write-out = " + quoteme_double(os.path.basename(wfd.name)+": "+DownloadToolBase.curl_write_out_str))
                 wfd.write("\n")
                 wfd.write("\n")

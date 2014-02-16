@@ -186,6 +186,13 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         cd_command = " ".join( ("cd", '/d', '"'+directory+'"') )
         return cd_command
 
+    def pushd(self, directory):
+        pushd_command = " ".join( ("pushd", quoteme_double(directory) ) )
+        return pushd_command
+
+    def popd(self):
+        return "popd"
+
     def save_dir(self, var_name):
         save_dir_command = "SET "+ var_name +"=%CD%"
         return save_dir_command
@@ -254,9 +261,10 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         untar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "x", "-y", "-bd",
                                quoteme_double(tar_file), "2>NUL")
         rm_tar_command = self.rmfile(tar_file)
+        done_stamp_file = filepath += ".done"
         untar_commands = " ".join( unzip_command_parts ), self.exit_if_error(),\
                          " ".join( untar_command_parts), self.exit_if_error(), \
-                         rm_tar_command
+                         rm_tar_command, self.touch(done_stamp_file)
         return untar_commands
 
     def wait_for_child_processes(self):
@@ -264,6 +272,10 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
 
     def make_executable(self, filepath):
         pass
+
+    def touch(self, filepath):
+        touch_command = " ".join( ("copy", "/b", quoteme_double(filepath), "+,,") )
+        return touch_command
 
 class DownloadTool_win_wget(DownloadToolBase):
     def __init__(self, platformHelper):
@@ -346,9 +358,9 @@ class DownloadTool_win_curl(DownloadToolBase):
                 wfd.write("show-error\n")
                 wfd.write("compressed\n")
                 wfd.write("create-dirs\n")
-                wfd.write("connect-timeout = 3\n")
-                wfd.write("max-time = 120\n")
-                wfd.write("retry = 5\n")
+                wfd.write("connect-timeout = 12\n")
+                wfd.write("max-time = 240\n")
+                wfd.write("retry = 10\n")
                 wfd.write("write-out = " + quoteme_double(os.path.basename(wfd.name)+": "+DownloadToolBase.curl_write_out_str))
                 wfd.write("\n")
                 wfd.write("\n")

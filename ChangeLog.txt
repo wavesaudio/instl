@@ -1,3 +1,27 @@
+???? 0.8.5 Shai
+
+    user visible changes, client:
+    * New automatic installation items:
+        __ALL_ITEMS_IID__:  all the iids from the index
+        __ALL_GUIDS_IID__: all the iids from the index that have guids.
+    * Fixed a bug where depending on a guid would not register as depend.
+    * time reporting on exit with error on Mac.
+    * download max-time, connect-timeout and retry have all been increased.
+    * More precise, and less verbose, progress messages. No fake progress message when there's nothing to be done.
+    * More precise decision when to untar existing wtar files.
+
+    programmer visible changes:
+    * new utils function: safe_remove_file, removes a file and does not complain if file does not exist.
+    * new utils function: make_one_list, takes a bunch of things and returns them as a long list.
+    * new PlatformSpecificHelperBase function progress_staccato, issues a progress message only after a predefined number of requests.
+    * new param to PlatformSpecificHelperBase function progress, num_items, can be used to increase the number of total progress items not just by one.
+    * new PlatformSpecificHelperBase functions: pushd, popd. They do same as they do on the command line.
+    * new PlatformSpecificHelperBase function: touch. Does same as it does on the command line.
+    * Mac: exit is done by a function that catches the EXIT trap os that all final instructions are performed even on error.
+    * Untaring writes a stamp file when finished corectly. Will prevent redundant re-untar.
+    * New BatchAccumulator function __len__, returns the total assignments and instrauction lines.
+
+
 13/2/2015 0.8.4 Shai Shasag <shai@waves.com>
 
     user visible changes, client:

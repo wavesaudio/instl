@@ -35,6 +35,12 @@ class BatchAccumulator(object):
         self.add(instructions)
         return self
 
+    def __len__(self):
+        retVal = len(self.variables_assignment_lines)
+        for section, section_lines in self.instruction_lines.iteritems():
+            retVal += len(section_lines)
+        return retVal
+
     def finalize_list_of_lines(self):
         lines = list()
         for section in BatchAccumulator.section_order:
@@ -48,6 +54,7 @@ class BatchAccumulator(object):
         return lines
 
     def merge_with(self, another_accum):
+        self.variables_assignment_lines.extend(another_accum.variables_assignment_lines)
         save_section = self.current_section
         for section in BatchAccumulator.section_order:
             self.set_current_section(section)

@@ -9,6 +9,7 @@ import urlparse
 import hashlib
 import rsa
 import base64
+import collections
 
 def Is64Windows():
     return 'PROGRAMFILES(X86)' in os.environ
@@ -273,13 +274,20 @@ class ChangeDirIfExists(object):
             os.chdir(self.savedPath)
 
 def safe_makedirs(path_to_dir):
-    """ solves a problem with python 27 where is the dir already exists os.makedirs raises """
+    """ solves a problem with python 2.7 where os.makedirs raises if the dir already exist  """
     try:
         os.makedirs(path_to_dir)
     except:  # os.makedirs raises is the directory already exists
         pass
     return path_to_dir
 
+def safe_remove_file(path_to_file):
+    """ solves a problem with python 2.7 where os.remove raises if the file does not exist  """
+    try:
+        os.remove(path_to_file)
+    except:  # os.remove raises is the file does not exists
+        pass
+    return path_to_file
 
 def max_widths(list_of_lists):
     """ inputs is a list of lists. output is a list of maximum str length for each
@@ -404,3 +412,22 @@ def quoteme_single(to_qoute):
 
 def quoteme_double(to_qoute):
     return "".join( ('"', to_qoute, '"') )
+
+guid_re = re.compile("""
+                [a-f0-9]{8}
+                (-[a-f0-9]{4}){3}
+                -[a-f0-9]{12}
+                $
+                """, re.VERBOSE)
+
+
+def make_one_list(*things):
+    """ flaten things to one single list.
+    """
+    retVal = list()
+    for thing in things:
+        if isinstance(thing, collections.Iterable) and not isinstance(thing, basestring):
+            retVal.extend(thing)
+        else:
+            retVal.append(thing)
+    return retVal

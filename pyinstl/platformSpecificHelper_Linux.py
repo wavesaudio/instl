@@ -39,6 +39,14 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         cd_command = " ".join( ("cd", quoteme_double(directory) ) )
         return cd_command
 
+    def pushd(self, directory):
+        pushd_command = " ".join( ("pushd", quoteme_double(directory), ">", "/dev/null") )
+        return pushd_command
+
+    def popd(self):
+        pop_command = " ".join( ("popd", ">", "/dev/null") )
+        return pop_command
+
     def save_dir(self, var_name):
         save_dir_command = var_name+"=`pwd`"
         return save_dir_command
@@ -101,6 +109,10 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
     def make_executable(self, filepath):
         make_exec_command = " ".join( ("chmod a+x", filepath) )
         return make_exec_command
+
+    def touch(self, filepath):
+        touch_command = " ".join( ("touch", quoteme_double(filepath) )
+        return touch_command
 
 class DownloadTool_linux_curl(DownloadToolBase):
     def __init__(self, platformHelper):

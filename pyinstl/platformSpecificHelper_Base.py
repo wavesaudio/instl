@@ -128,6 +128,8 @@ class PlatformSpecificHelperBase(object):
         self.copy_tool = None
         self.dl_tool = None
         self.num_items_for_progress_report = 0
+        self.progress_staccato_period = 128
+        self.progress_staccato_count = 0
 
     @abc.abstractmethod
     def get_install_instructions_prefix(self):
@@ -147,6 +149,14 @@ class PlatformSpecificHelperBase(object):
     @abc.abstractmethod
     def cd(self, directory):
         """ platform specific cd """
+        pass
+
+    @abc.abstractmethod
+    def pushd(self, directory):
+        pass
+
+    @abc.abstractmethod
+    def popd(self):
         pass
 
     @abc.abstractmethod
@@ -172,10 +182,18 @@ class PlatformSpecificHelperBase(object):
     def new_line(self):
         return "" # empty string because write_batch_file adds \n to each line
 
-    def progress(self, msg):
-        self.num_items_for_progress_report += 1
+    def progress(self, msg, num_items = 0):
+        self.num_items_for_progress_report += num_items+1
         prog_msg = "Progress: {} of $(TOTAL_ITEMS_FOR_PROGRESS_REPORT); ".format(str(self.num_items_for_progress_report)) + msg
         return self.echo(prog_msg)
+
+    def progress_staccato(self, msg):
+        retVal = ()
+        self.progress_staccato_count = (self.progress_staccato_count + 1) % self.progress_staccato_period
+        if self.progress_staccato_count == 0:
+            prog_instruction = self.progress(msg)
+            retVal = prog_instruction
+        return retVal
 
     @abc.abstractmethod
     def get_svn_folder_cleanup_instructions(self):
@@ -234,6 +252,10 @@ class PlatformSpecificHelperBase(object):
     def make_executable(self, filepath):
         pass
 
+    @abc.abstractmethod
+    def touch(self, filepath):
+        pass
+
 def PlatformSpecificHelperFactory(in_os, instlObj):
     retVal = None
     if in_os == "Mac":
@@ -255,7 +277,7 @@ class DownloadToolBase(object):
         a list of commands, even if there is only one. This will allow to return
         multiple commands if needed.
     """
-    curl_write_out_str = r'%{url_effective}, %{size_download} bytes, %{time_total} sec. %{speed_download} bps\n'
+    curl_write_out_str = r'%{url_effective}, %{size_download} bytes, %{time_total} sec., %{speed_download} bps.\n'
     # for debugging:
     curl_extra_write_out_str = r'    num_connects:%{num_connects}, time_namelookup: %{time_namelookup}, time_connect: %{time_connect}, time_pretransfer: %{time_pretransfer}, time_redirect: %{time_redirect}, time_starttransfer: %{time_starttransfer}\n\n'
 
