@@ -15,6 +15,11 @@
         This number can be passed to the next invocation of instl as LAST_PROGRESS variable.
     * curl will print "Progress ... of ...;" at the beginning of each report line, to allow the invoker of
         the batch file to track progress even in the absent of absolute numbers.
+    * new include style:
+        url: $(INDEX_URL)
+        checksum: $(INDEX_CHECKSUM)
+        sig: $(INDEX_SIG)
+        This will cache the file and use the local copy if it matches signature and checksum.
 
     programmer visible changes:
     * new utils function: safe_remove_file, removes a file and does not complain if file does not exist.

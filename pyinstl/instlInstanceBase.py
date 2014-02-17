@@ -169,29 +169,29 @@ class InstlInstanceBase(object):
                 if not self.internal_identifier_re.match(identifier): # do not read internal state identifiers
                     self.cvl.set_var(identifier, str(contents.start_mark)).extend([item.value for item in contents])
                 elif identifier == '__include__':
-                    for file_name in contents:
-                        resolved_file_name = self.cvl.resolve_string(file_name.value)
-                        self.read_yaml_file(resolved_file_name)
-                    #self.read_include_node(contents)
+                    self.read_include_node(contents)
 
     def read_include_node(self, i_node):
         if i_node.isScalar():
             resolved_file_name = self.cvl.resolve_string(i_node.value)
-            print("scalar:", resolved_file_name)
             self.read_yaml_file(resolved_file_name)
         elif i_node.isSequence():
-            print("sequence")
             for sub_i_node in i_node:
                 self.read_include_node(sub_i_node)
         elif i_node.isMapping():
-            print("mapping")
             if "url" in i_node and "checksum" in i_node and "sig" in i_node:
                 resolved_file_url = self.cvl.resolve_string(i_node["url"].value)
                 resolved_checksum = self.cvl.resolve_string(i_node["checksum"].value)
                 resolved_signature = self.cvl.resolve_string(i_node["sig"].value)
                 cached_files_dir = os.path.join(self.get_default_sync_dir(), "cache")
+                safe_makedirs(cached_files_dir)
                 cached_file = os.path.join(cached_files_dir, resolved_checksum)
-                download_from_file_or_url(resolved_file_url, cached_file, cache=True)#, public_key=None, textual_sig=resolved_signature, expected_checksum=resolved_checksum)
+                public_key_file = self.cvl.resolve_string("$(PUBLIC_KEY_FILE)")
+                public_key_text = open(public_key_file, "rb").read()
+                download_from_file_or_url(resolved_file_url, cached_file, cache=True,
+                                          public_key=public_key_text,
+                                          textual_sig=resolved_signature,
+                                          expected_checksum=resolved_checksum)
                 self.read_yaml_file(cached_file)
 
     def create_variables_assignment(self):
@@ -200,7 +200,7 @@ class InstlInstanceBase(object):
             if identifier not in self.do_not_write_vars:
                 self.batch_accum += self.platform_helper.var_assign(identifier,self.cvl.get_str(identifier), None) # self.cvl[identifier].resolved_num
 
-    def get_default_sync_dir(self, url=None):
+    def get_default_sync_dir(self, url=None, mkdir=True):
         retVal = None
         if os_family_name == "Mac":
             user_cache_dir_param = self.cvl.get_str("COMPANY_NAME")+"/"+this_program_name
@@ -219,6 +219,8 @@ class InstlInstanceBase(object):
             else:
                 raise ValueError("'SYNC_BASE_URL' was not properly defined")
         #print("1------------------", user_cache_dir, "-", from_url, "-", retVal)
+        if mkdir and retVal:
+            safe_makedirs(retVal)
         return retVal
 
     def init_copy_vars(self):
