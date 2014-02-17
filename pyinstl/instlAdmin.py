@@ -361,7 +361,7 @@ class InstlAdmin(InstlInstanceBase):
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(UP_2_S3_STAMP_FILE_NAME)"])
         accum += self.platform_helper.echo("done up2s3 revision $(__CURR_REPO_REV__)")
 
-    def create_sig for_file(self, file_to_sig):
+    def create_sig_for_file(self, file_to_sig):
         retVal = None
         config_dir, _ = os.path.split(self.cvl.get_str("__CONFIG_FILE_PATH__"))
         private_key_file = os.path.join(config_dir, self.cvl.get_str("REPO_NAME")+".private_key")
