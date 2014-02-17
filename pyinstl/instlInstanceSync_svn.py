@@ -22,7 +22,7 @@ class InstlInstanceSync_svn(InstlInstanceSync):
 
         self.ii.cvl.set_value_if_var_does_not_exist("REPO_REV", "HEAD", description=var_description)
         self.ii.cvl.set_value_if_var_does_not_exist("SYNC_TRAGET_OS_URL", "$(SYNC_BASE_URL)/$(TARGET_OS)", description=var_description)
-        self.ii.cvl.set_value_if_var_does_not_exist("LOCAL_SYNC_DIR", self.ii.get_default_sync_dir(), description=var_description)
+        self.ii.cvl.set_value_if_var_does_not_exist("LOCAL_SYNC_DIR", self.ii.get_default_sync_dir(self.cvl.get_str("SYNC_BASE_URL")), description=var_description)
         self.ii.cvl.set_value_if_var_does_not_exist("BOOKKEEPING_DIR_URL", "$(SYNC_BASE_URL)/instl", description=var_description)
         bookkeeping_relative_path = relative_url(self.ii.cvl.get_str("SYNC_BASE_URL"), self.ii.cvl.get_str("BOOKKEEPING_DIR_URL"))
         self.ii.cvl.set_var("REL_BOOKKIPING_PATH", var_description).append(bookkeeping_relative_path)

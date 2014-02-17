@@ -111,7 +111,7 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         return make_exec_command
 
     def touch(self, filepath):
-        touch_command = " ".join( ("touch", quoteme_double(filepath) )
+        touch_command = " ".join( ("touch", quoteme_double(filepath) ) )
         return touch_command
 
 class DownloadTool_linux_curl(DownloadToolBase):

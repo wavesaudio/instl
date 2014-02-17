@@ -261,7 +261,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         untar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "x", "-y", "-bd",
                                quoteme_double(tar_file), "2>NUL")
         rm_tar_command = self.rmfile(tar_file)
-        done_stamp_file = filepath += ".done"
+        done_stamp_file = filepath + ".done"
         untar_commands = " ".join( unzip_command_parts ), self.exit_if_error(),\
                          " ".join( untar_command_parts), self.exit_if_error(), \
                          rm_tar_command, self.touch(done_stamp_file)
@@ -361,7 +361,7 @@ class DownloadTool_win_curl(DownloadToolBase):
                 wfd.write("connect-timeout = 12\n")
                 wfd.write("max-time = 240\n")
                 wfd.write("retry = 10\n")
-                wfd.write("write-out = " + quoteme_double(os.path.basename(wfd.name)+": "+DownloadToolBase.curl_write_out_str))
+                wfd.write("write-out = \"Progress: ... of ...; " + os.path.basename(wfd.name) + ": " + DownloadToolBase.curl_write_out_str + "\"\n")
                 wfd.write("\n")
                 wfd.write("\n")
 

@@ -67,6 +67,7 @@ class InstlInstanceBase(object):
         self.cvl.add_const_config_variable("TARGET_OS_SECOND_NAME", var_description, os_second_name)
         self.cvl.add_const_config_variable("__INSTL_VERSION__", var_description, *INSTL_VERSION)
         self.cvl.set_var("BASE_REPO_REV", var_description).append("1")
+        self.cvl.set_var("LAST_PROGRESS", var_description).append("0")
 
         log_file = pyinstl.log_utils.get_log_file_path(this_program_name, this_program_name, debug=False)
         self.cvl.set_var("LOG_FILE", var_description).append(log_file)
@@ -171,6 +172,27 @@ class InstlInstanceBase(object):
                     for file_name in contents:
                         resolved_file_name = self.cvl.resolve_string(file_name.value)
                         self.read_yaml_file(resolved_file_name)
+                    #self.read_include_node(contents)
+
+    def read_include_node(self, i_node):
+        if i_node.isScalar():
+            resolved_file_name = self.cvl.resolve_string(i_node.value)
+            print("scalar:", resolved_file_name)
+            self.read_yaml_file(resolved_file_name)
+        elif i_node.isSequence():
+            print("sequence")
+            for sub_i_node in i_node:
+                self.read_include_node(sub_i_node)
+        elif i_node.isMapping():
+            print("mapping")
+            if "url" in i_node and "checksum" in i_node and "sig" in i_node:
+                resolved_file_url = self.cvl.resolve_string(i_node["url"].value)
+                resolved_checksum = self.cvl.resolve_string(i_node["checksum"].value)
+                resolved_signature = self.cvl.resolve_string(i_node["sig"].value)
+                cached_files_dir = os.path.join(self.get_default_sync_dir(), "cache")
+                cached_file = os.path.join(cached_files_dir, resolved_checksum)
+                download_from_file_or_url(resolved_file_url, cached_file, cache=True)#, public_key=None, textual_sig=resolved_signature, expected_checksum=resolved_checksum)
+                self.read_yaml_file(cached_file)
 
     def create_variables_assignment(self):
         self.batch_accum.set_current_section("assign")
@@ -178,21 +200,24 @@ class InstlInstanceBase(object):
             if identifier not in self.do_not_write_vars:
                 self.batch_accum += self.platform_helper.var_assign(identifier,self.cvl.get_str(identifier), None) # self.cvl[identifier].resolved_num
 
-    def get_default_sync_dir(self):
+    def get_default_sync_dir(self, url=None):
         retVal = None
-        user_cache_dir = None
         if os_family_name == "Mac":
             user_cache_dir_param = self.cvl.get_str("COMPANY_NAME")+"/"+this_program_name
-            user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
+            retVal = appdirs.user_cache_dir(user_cache_dir_param)
         elif os_family_name == "Win":
-            user_cache_dir = appdirs.user_cache_dir(this_program_name, self.cvl.get_str("COMPANY_NAME"))
-        from_url = main_url_item(self.cvl.get_str("SYNC_BASE_URL"))
-        if from_url:
-            from_url = from_url.lstrip("/\\")
-            from_url = from_url.rstrip("/\\")
-            retVal = os.path.normpath(os.path.join(user_cache_dir, from_url))
-        else:
-            raise ValueError("'SYNC_BASE_URL' was not properly defined")
+            retVal = appdirs.user_cache_dir(this_program_name, self.cvl.get_str("COMPANY_NAME"))
+        elif os_family_name == "Linux":
+            user_cache_dir_param = self.cvl.get_str("COMPANY_NAME")+"/"+this_program_name
+            retVal = appdirs.user_cache_dir(user_cache_dir_param)
+        if url:
+            from_url = main_url_item(url)
+            if from_url:
+                from_url = from_url.lstrip("/\\")
+                from_url = from_url.rstrip("/\\")
+                retVal = os.path.normpath(os.path.join(retVal, from_url))
+            else:
+                raise ValueError("'SYNC_BASE_URL' was not properly defined")
         #print("1------------------", user_cache_dir, "-", from_url, "-", retVal)
         return retVal
 
@@ -207,7 +232,7 @@ class InstlInstanceBase(object):
             rel_sources = relative_url(self.cvl.get_str("SYNC_BASE_URL"), self.cvl.get_str("SYNC_TRAGET_OS_URL"))
             self.cvl.set_var("REL_SRC_PATH", var_description).append(rel_sources)
 
-        self.cvl.set_value_if_var_does_not_exist("LOCAL_SYNC_DIR", self.get_default_sync_dir(), description=var_description)
+        self.cvl.set_value_if_var_does_not_exist("LOCAL_SYNC_DIR", self.get_default_sync_dir(self.cvl.get_str("SYNC_BASE_URL")), description=var_description)
 
         if "COPY_TOOL" not in self.cvl:
             from platformSpecificHelper_Base import DefaultCopyToolName
@@ -244,7 +269,7 @@ class InstlInstanceBase(object):
         if out_file != "stdout":
             self.out_file_realpath = os.path.realpath(out_file)
             os.chmod(self.out_file_realpath, 0755)
-        print(self.out_file_realpath)
+        print(self.out_file_realpath+",", self.platform_helper.num_items_for_progress_report, "progress items")
 
     def run_batch_file(self):
         logging.info("running batch file %s", self.out_file_realpath)

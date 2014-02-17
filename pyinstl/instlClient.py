@@ -100,6 +100,7 @@ class InstlClient(InstlInstanceBase):
             self.add_deafult_items()
             self.calculate_default_install_item_set(installState)
             self.platform_helper = PlatformSpecificHelperFactory(self.cvl.get_str("__CURRENT_OS__"), self)
+            self.platform_helper.num_items_for_progress_report = int(self.cvl.get_str("LAST_PROGRESS"))
             if the_command in ("sync", "synccopy"):
                 logging.info("Creating sync instructions")
                 if self.cvl.get_str("REPO_TYPE") == "URL":

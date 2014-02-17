@@ -55,6 +55,7 @@ class InstlAdmin(InstlInstanceBase):
         the_command = self.cvl.get_str("__MAIN_COMMAND__")
         self.set_default_variables()
         self.platform_helper = PlatformSpecificHelperFactory(self.cvl.get_str("__CURRENT_OS__"), self)
+        self.platform_helper.num_items_for_progress_report = int(self.cvl.get_str("LAST_PROGRESS"))
         fixed_command = the_command.replace('-', '_')
         do_command_func = getattr(self, "do_"+fixed_command)
         do_command_func()
@@ -360,13 +361,12 @@ class InstlAdmin(InstlInstanceBase):
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(UP_2_S3_STAMP_FILE_NAME)"])
         accum += self.platform_helper.echo("done up2s3 revision $(__CURR_REPO_REV__)")
 
-    def create_info_map_sig(self, which_revision):
+    def create_sig for_file(self, file_to_sig):
         retVal = None
-        info_map_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+which_revision+"/instl/info_map.txt")
         config_dir, _ = os.path.split(self.cvl.get_str("__CONFIG_FILE_PATH__"))
         private_key_file = os.path.join(config_dir, self.cvl.get_str("REPO_NAME")+".private_key")
         with open(private_key_file, "rb") as private_key_fd:
-            retVal = create_file_signatures(info_map_file, private_key_fd.read())
+            retVal = create_file_signatures(file_to_sig, private_key_fd.read())
         return retVal
 
     def do_create_repo_rev_file(self):
@@ -379,11 +379,19 @@ class InstlAdmin(InstlInstanceBase):
             print("found", str(dangerous_intersection), "in REPO_REV_FILE_VARS, aborting")
             raise ValueError("file REPO_REV_FILE_VARS "+str(dangerous_intersection)+" and so is forbidden to upload")
 
-        info_map_sigs = self.create_info_map_sig(self.cvl.get_str("TARGET_REPO_REV"))
+        info_map_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/$(TARGET_REPO_REV)/instl/info_map.txt")
+        info_map_sigs = self.for_file(info_map_file)
         if "INFO_MAP_SIG" in repo_rev_vars:
             self.cvl.set_var("INFO_MAP_SIG").append(info_map_sigs["SHA-512_rsa_sig"])
         if "INFO_MAP_CHECKSUM" in repo_rev_vars:
             self.cvl.set_var("INFO_MAP_CHECKSUM").append(info_map_sigs["sha1_checksum"])
+
+        index_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/$(TARGET_REPO_REV)/instl/index.yaml")
+        index_file_sigs = self.for_file(index_file)
+        if "INDEX_SIG" in repo_rev_vars:
+            self.cvl.set_var("INFO_MAP_SIG").append(index_file_sigs["SHA-512_rsa_sig"])
+        if "INDEX_CHECKSUM" in repo_rev_vars:
+            self.cvl.set_var("INFO_MAP_CHECKSUM").append(index_file_sigs["sha1_checksum"])
 
         self.cvl.set_value_if_var_does_not_exist("REPO_REV_FILE_NAME", "$(REPO_NAME)_repo_rev.yaml.$(TARGET_REPO_REV)")
 

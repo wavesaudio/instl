@@ -229,7 +229,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
                 wfd.write("connect-timeout = 6\n")
                 wfd.write("max-time = 180\n")
                 wfd.write("retry = 5\n")
-                wfd.write("write-out = " + quoteme_double(os.path.basename(wfd.name)+": "+DownloadToolBase.curl_write_out_str))
+                wfd.write("write-out = \"Progress: ... of ...; " + os.path.basename(wfd.name) + ": " + DownloadToolBase.curl_write_out_str + "\"\n")
                 wfd.write("\n")
                 wfd.write("\n")
 
