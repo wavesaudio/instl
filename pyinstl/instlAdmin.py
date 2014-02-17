@@ -386,12 +386,13 @@ class InstlAdmin(InstlInstanceBase):
         if "INFO_MAP_CHECKSUM" in repo_rev_vars:
             self.cvl.set_var("INFO_MAP_CHECKSUM").append(info_map_sigs["sha1_checksum"])
 
+        self.cvl.set_var("INDEX_URL").append("$(SYNC_BASE_URL)/$(REPO_REV)/instl/index.yaml")
         index_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/$(TARGET_REPO_REV)/instl/index.yaml")
         index_file_sigs = self.create_sig_for_file(index_file)
         if "INDEX_SIG" in repo_rev_vars:
-            self.cvl.set_var("INFO_MAP_SIG").append(index_file_sigs["SHA-512_rsa_sig"])
+            self.cvl.set_var("INDEX_SIG").append(index_file_sigs["SHA-512_rsa_sig"])
         if "INDEX_CHECKSUM" in repo_rev_vars:
-            self.cvl.set_var("INFO_MAP_CHECKSUM").append(index_file_sigs["sha1_checksum"])
+            self.cvl.set_var("INDEX_CHECKSUM").append(index_file_sigs["sha1_checksum"])
 
         self.cvl.set_value_if_var_does_not_exist("REPO_REV_FILE_NAME", "$(REPO_NAME)_repo_rev.yaml.$(TARGET_REPO_REV)")
 
