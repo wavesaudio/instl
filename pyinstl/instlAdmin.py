@@ -380,14 +380,14 @@ class InstlAdmin(InstlInstanceBase):
             raise ValueError("file REPO_REV_FILE_VARS "+str(dangerous_intersection)+" and so is forbidden to upload")
 
         info_map_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/$(TARGET_REPO_REV)/instl/info_map.txt")
-        info_map_sigs = self.for_file(info_map_file)
+        info_map_sigs = self.create_sig_for_file(info_map_file)
         if "INFO_MAP_SIG" in repo_rev_vars:
             self.cvl.set_var("INFO_MAP_SIG").append(info_map_sigs["SHA-512_rsa_sig"])
         if "INFO_MAP_CHECKSUM" in repo_rev_vars:
             self.cvl.set_var("INFO_MAP_CHECKSUM").append(info_map_sigs["sha1_checksum"])
 
         index_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/$(TARGET_REPO_REV)/instl/index.yaml")
-        index_file_sigs = self.for_file(index_file)
+        index_file_sigs = self.create_sig_for_file(index_file)
         if "INDEX_SIG" in repo_rev_vars:
             self.cvl.set_var("INFO_MAP_SIG").append(index_file_sigs["SHA-512_rsa_sig"])
         if "INDEX_CHECKSUM" in repo_rev_vars:
