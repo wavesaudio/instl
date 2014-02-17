@@ -396,6 +396,10 @@ class InstlAdmin(InstlInstanceBase):
 
         self.cvl.set_value_if_var_does_not_exist("REPO_REV_FILE_NAME", "$(REPO_NAME)_repo_rev.yaml.$(TARGET_REPO_REV)")
 
+        for var in repo_rev_vars:
+            if var not in self.cvl:
+                raise ValueError(var+" is missing cannot write repo rev file")
+            
         repo_rev_yaml = YamlDumpDocWrap(self.cvl.repr_for_yaml(repo_rev_vars, include_comments=False),
                                                     '!define', "", explicit_start=True, sort_mappings=True)
         safe_makedirs(self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/admin"))
