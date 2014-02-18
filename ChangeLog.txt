@@ -4,7 +4,7 @@
     * New automatic installation items:
         __ALL_ITEMS_IID__:  all the iids from the index
         __ALL_GUIDS_IID__: all the iids from the index that have guids.
-    * Fixed a bug where depending on a guid would not register as depend.
+    * Fixed a bug where depend on a guid would not register as depend.
     * time reporting on exit with error on Mac.
     * download max-time, connect-timeout and retry have all been increased.
     * More precise, and less verbose, progress messages. No fake progress message when there's nothing to be done.
@@ -15,21 +15,23 @@
         This number can be passed to the next invocation of instl as LAST_PROGRESS variable.
     * curl will print "Progress ... of ...;" at the beginning of each report line, to allow the invoker of
         the batch file to track progress even in the absent of absolute numbers.
-    * new include style:
+    * New include style:
         url: $(INDEX_URL)
         checksum: $(INDEX_CHECKSUM)
         sig: $(INDEX_SIG)
         This will cache the file and use the local copy if it matches signature and checksum.
     * Sync command adds __NUM_FILES_TO_DOWNLOAD__ variable with the number of files to download.
     * New yaml doc type !define_const - will create const variables and will not except __include__'s.
-
+    * curl config files and file with list of curl commands are written to a folder named "curl".
+        This will avoid clutter in the sync folder and make deleting easier.
+        
     programmer visible changes:
-    * new utils function: safe_remove_file, removes a file and does not complain if file does not exist.
-    * new utils function: make_one_list, takes a bunch of things and returns them as a long list.
-    * new PlatformSpecificHelperBase function progress_staccato, issues a progress message only after a predefined number of requests.
-    * new param to PlatformSpecificHelperBase function progress, num_items, can be used to increase the number of total progress items not just by one.
-    * new PlatformSpecificHelperBase functions: pushd, popd. They do same as they do on the command line.
-    * new PlatformSpecificHelperBase function: touch. Does same as it does on the command line.
+    * New utils function: safe_remove_file, removes a file and does not complain if file does not exist.
+    * New utils function: make_one_list, takes a bunch of things and returns them as a long flat list.
+    * New PlatformSpecificHelperBase function progress_staccato, issues a progress message only after a predefined number of requests.
+    * New param to PlatformSpecificHelperBase function progress, num_items, can be used to increase the number of total progress items not just by one.
+    * New PlatformSpecificHelperBase functions: pushd, popd. They do same as they do on the command line.
+    * New PlatformSpecificHelperBase function: touch. Does same as it does on the command line.
     * Mac: exit is done by a function that catches the EXIT trap os that all final instructions are performed even on error.
     * Untaring writes a stamp file when finished corectly. Will prevent redundant re-untar.
     * New BatchAccumulator function __len__, returns the total assignments and instrauction lines.
@@ -59,7 +61,7 @@
     * svn2stage, stage2svn will not use rsync link_dest, because it confuses svn.
 
     programmer visible changes:
-    * new function for windows dos_escape, escapes the & character with ^&
+    * New function for windows dos_escape, escapes the & character with ^&
 
 11/2/2014 0.8.3 Shai Shasag <shai@waves.com>
 
@@ -112,7 +114,7 @@
     * Fixed new_item_at_path that did not create the have map correctly
 
     user visible changes, admin:
-    * new command: create-repo-rev-file, to separate repo rev file creation and uploading.
+    * New command: create-repo-rev-file, to separate repo rev file creation and uploading.
     * command up-repo-rev only uploads the already created repo rev file.
     * type fixed REPO_REV_FILE_VARS instead of REPO_REV_FILE_VARAIBLES
 
@@ -144,12 +146,12 @@
     * added some missing command help text.
 
     user visible changes, admin:
-    * new command svn2stage, to prepare folders for entering changes
-    * new command wtar, to proparly tar what needs to be tared
-    * new command createkeys
+    * New command svn2stage, to prepare folders for entering changes
+    * New command wtar, to proparly tar what needs to be tared
+    * New command createkeys
     * up_repo_rev calculates sig for info_map.txt if INFO_MAP_SIG is defined in config file.
-    * new command make-sig creates sha1 checksum and rsa signature for a file, needs private key.
-    * new command check-sig checks sha1 checksum and rsa signature for a file, needs public key.
+    * New command make-sig creates sha1 checksum and rsa signature for a file, needs private key.
+    * New command check-sig checks sha1 checksum and rsa signature for a file, needs public key.
     * command up_repo_rev renamed up-repo-rev, for easy typing experience
     * command fix_props renamed fix-props, for easy typing experience
     * command fix_symlinks renamed fix-symlinks, for easy typing experience
@@ -161,7 +163,7 @@
         Will be uploaded twice with and without the $(REPO_REV) in name.
 
     programmer visible changes:
-    * new method for PlatformSpecificHelperBase & derivatives: tar/untar
+    * New method for PlatformSpecificHelperBase & derivatives: tar/untar
     * Implemented rmdir, rmfile for Windows
     * removed checks for __ALLOWED_COMMANDS__, this functionality is already covered by getattr(self, "do_"+the_command)
     * @func_log_wrapper removed from all functions. It interfered with PyCharm debugging.
