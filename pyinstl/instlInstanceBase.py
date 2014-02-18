@@ -48,9 +48,6 @@ class InstlInstanceBase(object):
 
 
     def get_version_str(self):
-        digits = self.cvl.get_list("__INSTL_VERSION__")
-        digits_joined = ".".join(digits)
-        print(digits_joined)
         retVal = " ".join( (self.cvl.get_str("INSTL_EXEC_DISPLAY_NAME"), "version", ".".join(self.cvl.get_list("__INSTL_VERSION__"))) )
         return retVal
 
