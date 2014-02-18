@@ -22,9 +22,6 @@ os_second_name = current_os_names[0]
 if len(current_os_names) > 1:
     os_second_name = current_os_names[1]
 
-INSTL_VERSION=(0, 8, 4)
-this_program_name = "instl"
-
 
 class InstlInstanceBase(object):
     """ Main object of instl. Keeps the state of variables and install index
@@ -36,20 +33,25 @@ class InstlInstanceBase(object):
     def __init__(self, initial_vars=None):
         # init objects owned by this class
         self.cvl = ConfigVarList()
-        self.install_definitions_index = dict()
-        self.batch_accum = BatchAccumulator(self.cvl)
-        self.do_not_write_vars = ("INFO_MAP_SIG", "PUBLIC_KEY")
-        self.out_file_realpath = None
-        self.init_default_vars(initial_vars)
-
-        # initialize the search paths helper with the current directory and dir where instl is now
         self.path_searcher = SearchPaths(self.cvl.get_configVar_obj("__SEARCH_PATHS__"))
+        # initialize the search paths helper with the current directory and dir where instl is now
         self.path_searcher.add_search_path(os.getcwd())
         self.path_searcher.add_search_path(os.path.dirname(os.path.realpath(sys.argv[0])))
         self.path_searcher.add_search_path(self.cvl.get_str("__INSTL_DATA_FOLDER__"))
 
+        self.init_default_vars(initial_vars)
+
+        self.install_definitions_index = dict()
+        self.batch_accum = BatchAccumulator(self.cvl)
+        self.do_not_write_vars = ("INFO_MAP_SIG", "PUBLIC_KEY")
+        self.out_file_realpath = None
+
+
     def get_version_str(self):
-        retVal = " ".join( (this_program_name, "version", ".".join(self.cvl.get_list("__INSTL_VERSION__"))) )
+        digits = self.cvl.get_list("__INSTL_VERSION__")
+        digits_joined = ".".join(digits)
+        print(digits_joined)
+        retVal = " ".join( (self.cvl.get_str("INSTL_EXEC_DISPLAY_NAME"), "version", ".".join(self.cvl.get_list("__INSTL_VERSION__"))) )
         return retVal
 
     def init_default_vars(self, initial_vars):
@@ -58,20 +60,23 @@ class InstlInstanceBase(object):
             for var, value in initial_vars.iteritems():
                 self.cvl.add_const_config_variable(var, var_description, value)
 
+        # read defaults/main.yaml
+        main_defaults_file_path = os.path.join(self.cvl.resolve_string("$(__INSTL_DATA_FOLDER__)"), "defaults", "main.yaml")
+        self.read_yaml_file(main_defaults_file_path)
+
+        # read class specific defaults/*.yaml
+        class_specific_defaults_file_path = os.path.join(self.cvl.resolve_string("$(__INSTL_DATA_FOLDER__)"), "defaults", type(self).__name__+".yaml")
+        if os.path.isfile(class_specific_defaults_file_path):
+            self.read_yaml_file(class_specific_defaults_file_path)
+
         var_description = "from InstlInstanceBase.init_default_vars"
         self.cvl.add_const_config_variable("__CURRENT_OS__", var_description, os_family_name)
         self.cvl.add_const_config_variable("__CURRENT_OS_SECOND_NAME__", var_description, os_second_name)
         self.cvl.add_const_config_variable("__CURRENT_OS_NAMES__", var_description, *current_os_names)
-        self.cvl.set_var("TARGET_OS", var_description).append(os_family_name)
-        self.cvl.set_var("TARGET_OS_NAMES", var_description).extend(current_os_names)
-        self.cvl.add_const_config_variable("TARGET_OS_SECOND_NAME", var_description, os_second_name)
-        self.cvl.add_const_config_variable("__INSTL_VERSION__", var_description, *INSTL_VERSION)
-        self.cvl.set_var("BASE_REPO_REV", var_description).append("1")
-        self.cvl.set_var("LAST_PROGRESS", var_description).append("0")
 
-        log_file = pyinstl.log_utils.get_log_file_path(this_program_name, this_program_name, debug=False)
+        log_file = pyinstl.log_utils.get_log_file_path(self.cvl.get_str("INSTL_EXEC_DISPLAY_NAME"), self.cvl.get_str("INSTL_EXEC_DISPLAY_NAME"), debug=False)
         self.cvl.set_var("LOG_FILE", var_description).append(log_file)
-        debug_log_file = pyinstl.log_utils.get_log_file_path(this_program_name, this_program_name, debug=True)
+        debug_log_file = pyinstl.log_utils.get_log_file_path(self.cvl.get_str("INSTL_EXEC_DISPLAY_NAME"), self.cvl.get_str("INSTL_EXEC_DISPLAY_NAME"), debug=True)
         self.cvl.set_var("LOG_FILE_DEBUG", var_description).extend( (debug_log_file, logging.getLevelName(pyinstl.log_utils.debug_logging_level), pyinstl.log_utils.debug_logging_started) )
         for identifier in self.cvl:
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
@@ -122,7 +127,7 @@ class InstlInstanceBase(object):
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
 
     def is_acceptable_yaml_doc(self, doc_node):
-        acceptables = self.cvl.get_list("ACCEPTABLE_YAML_DOC_TAGS") + ("define", "index")
+        acceptables = self.cvl.get_list("ACCEPTABLE_YAML_DOC_TAGS") + ("define", "define_const", "index")
         acceptables = ["!"+acceptibul for acceptibul in acceptables]
         retVal = doc_node.tag in acceptables
         return retVal
@@ -133,7 +138,9 @@ class InstlInstanceBase(object):
             with open_for_read_file_or_url(file_path, self.path_searcher) as file_fd:
                 for a_node in yaml.compose_all(file_fd):
                     if self.is_acceptable_yaml_doc(a_node):
-                        if a_node.tag.startswith('!define'):
+                        if a_node.tag.startswith('!define_const'):
+                            self.read_const_defines(a_node)
+                        elif a_node.tag.startswith('!define'):
                             self.read_defines(a_node)
                         elif a_node.tag.startswith('!index'):
                             self.read_index(a_node)
@@ -171,6 +178,18 @@ class InstlInstanceBase(object):
                 elif identifier == '__include__':
                     self.read_include_node(contents)
 
+    def read_const_defines(self, a_node):
+        """ Read a !define_const sub-doc. All variables will be made const.
+            Reading of internal state identifiers is allowed.
+            __include__ is not allowed.
+        """
+        if a_node.isMapping():
+            for identifier, contents in a_node:
+                if identifier == "__include__":
+                    raise ValueError("!define_const doc cannot except __incldue__")
+                logging.debug("... %s: %s", identifier, str(contents))
+                self.cvl.add_const_config_variable(identifier, "from !define_const section", *[item.value for item in contents])
+
     def read_include_node(self, i_node):
         if i_node.isScalar():
             resolved_file_name = self.cvl.resolve_string(i_node.value)
@@ -183,8 +202,7 @@ class InstlInstanceBase(object):
                 resolved_file_url = self.cvl.resolve_string(i_node["url"].value)
                 resolved_checksum = self.cvl.resolve_string(i_node["checksum"].value)
                 resolved_signature = self.cvl.resolve_string(i_node["sig"].value)
-                cached_files_dir = os.path.join(self.get_default_sync_dir(), "cache")
-                safe_makedirs(cached_files_dir)
+                cached_files_dir = self.get_default_sync_dir(continue_dir="cache", mkdir=True)
                 cached_file = os.path.join(cached_files_dir, resolved_checksum)
                 public_key_file = self.cvl.resolve_string("$(PUBLIC_KEY_FILE)")
                 public_key_text = open(public_key_file, "rb").read()
@@ -200,47 +218,26 @@ class InstlInstanceBase(object):
             if identifier not in self.do_not_write_vars:
                 self.batch_accum += self.platform_helper.var_assign(identifier,self.cvl.get_str(identifier), None) # self.cvl[identifier].resolved_num
 
-    def get_default_sync_dir(self, url=None, mkdir=True):
+    def get_default_sync_dir(self, continue_dir=None, mkdir=True):
+
         retVal = None
         if os_family_name == "Mac":
-            user_cache_dir_param = self.cvl.get_str("COMPANY_NAME")+"/"+this_program_name
+            user_cache_dir_param = "$(COMPANY_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
             retVal = appdirs.user_cache_dir(user_cache_dir_param)
         elif os_family_name == "Win":
-            retVal = appdirs.user_cache_dir(this_program_name, self.cvl.get_str("COMPANY_NAME"))
+            retVal = appdirs.user_cache_dir("$(INSTL_EXEC_DISPLAY_NAME)", "$(COMPANY_NAME)")
         elif os_family_name == "Linux":
-            user_cache_dir_param = self.cvl.get_str("COMPANY_NAME")+"/"+this_program_name
+            user_cache_dir_param = "$(COMPANY_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
             retVal = appdirs.user_cache_dir(user_cache_dir_param)
-        if url:
-            from_url = main_url_item(url)
-            if from_url:
-                from_url = from_url.lstrip("/\\")
-                from_url = from_url.rstrip("/\\")
-                retVal = os.path.normpath(os.path.join(retVal, from_url))
-            else:
-                raise ValueError("'SYNC_BASE_URL' was not properly defined")
+        if continue_dir:
+            #from_url = from_url.lstrip("/\\")
+            #from_url = from_url.rstrip("/\\")
+            retVal = os.path.join(retVal, continue_dir)
         #print("1------------------", user_cache_dir, "-", from_url, "-", retVal)
         if mkdir and retVal:
+            retVal = self.cvl.resolve_string(retVal)
             safe_makedirs(retVal)
         return retVal
-
-    def init_copy_vars(self):
-        var_description = "from InstlInstanceBase.init_copy_vars"
-        # check which variables are needed for for offline install....
-        if "REL_SRC_PATH" not in self.cvl: #?
-            if "SYNC_BASE_URL" not in self.cvl:
-                raise ValueError("'SYNC_BASE_URL' was not defined")
-            if "SYNC_TRAGET_OS_URL" not in self.cvl:
-                self.cvl.set_var("SYNC_TRAGET_OS_URL", var_description).append("$(SYNC_BASE_URL)/$(TARGET_OS)")
-            rel_sources = relative_url(self.cvl.get_str("SYNC_BASE_URL"), self.cvl.get_str("SYNC_TRAGET_OS_URL"))
-            self.cvl.set_var("REL_SRC_PATH", var_description).append(rel_sources)
-
-        self.cvl.set_value_if_var_does_not_exist("LOCAL_SYNC_DIR", self.get_default_sync_dir(self.cvl.get_str("SYNC_BASE_URL")), description=var_description)
-
-        if "COPY_TOOL" not in self.cvl:
-            from platformSpecificHelper_Base import DefaultCopyToolName
-            self.cvl.set_var("COPY_TOOL", var_description).append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
-        for identifier in ("REL_SRC_PATH", "COPY_TOOL"):
-            logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
 
     def relative_sync_folder_for_source(self, source):
         retVal = None

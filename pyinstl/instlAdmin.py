@@ -24,11 +24,8 @@ class InstlAdmin(InstlInstanceBase):
         super(InstlAdmin, self).__init__(initial_vars)
         self.svnTree = svnTree.SVNTree()
 
+
     def set_default_variables(self):
-        if "CREATE_LINKS_STAMP_FILE_NAME" not in self.cvl:
-            self.cvl.set_var("CREATE_LINKS_STAMP_FILE_NAME").append("create_links_done.stamp")
-        if "UP_2_S3_STAMP_FILE_NAME" not in self.cvl:
-            self.cvl.set_var("UP_2_S3_STAMP_FILE_NAME").append("up2s3.stamp")
         if "__CONFIG_FILE__" in self.cvl:
             config_file_resolved = self.path_searcher.find_file(self.cvl.resolve_string("$(__CONFIG_FILE__)"), return_original_if_not_found=True)
             self.cvl.set_var("__CONFIG_FILE_PATH__").append(config_file_resolved)
@@ -56,8 +53,8 @@ class InstlAdmin(InstlInstanceBase):
         self.set_default_variables()
         self.platform_helper = PlatformSpecificHelperFactory(self.cvl.get_str("__CURRENT_OS__"), self)
         self.platform_helper.num_items_for_progress_report = int(self.cvl.get_str("LAST_PROGRESS"))
-        fixed_command = the_command.replace('-', '_')
-        do_command_func = getattr(self, "do_"+fixed_command)
+        fixed_command_name = the_command.replace('-', '_')
+        do_command_func = getattr(self, "do_"+fixed_command_name)
         do_command_func()
 
     def do_trans(self):
@@ -149,8 +146,6 @@ class InstlAdmin(InstlInstanceBase):
         if "COPY_TOOL" not in self.cvl:
             from platformSpecificHelper_Base import DefaultCopyToolName
             self.cvl.set_var("COPY_TOOL").append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
-        if "SVN_CLIENT_PATH" not in self.cvl:
-            self.cvl.set_var("SVN_CLIENT_PATH").append("wsvn")
 
         self.batch_accum.set_current_section('links')
 
@@ -399,7 +394,7 @@ class InstlAdmin(InstlInstanceBase):
         for var in repo_rev_vars:
             if var not in self.cvl:
                 raise ValueError(var+" is missing cannot write repo rev file")
-            
+
         repo_rev_yaml = YamlDumpDocWrap(self.cvl.repr_for_yaml(repo_rev_vars, include_comments=False),
                                                     '!define', "", explicit_start=True, sort_mappings=True)
         safe_makedirs(self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/admin"))
@@ -677,7 +672,6 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_verify_index(self):
         self.read_yaml_file(self.cvl.get_str("__MAIN_INPUT_FILE__"))
-        self.cvl.set_value_if_var_does_not_exist("INFO_MAP_FILE_URL", "$(SYNC_BASE_URL)/$(REPO_REV)/instl/info_map.txt")
         info_map = svnTree.SVNTree()
         with open_for_read_file_or_url(self.cvl.get_str("INFO_MAP_FILE_URL")) as rfd:
             info_map.read_from_text(rfd)

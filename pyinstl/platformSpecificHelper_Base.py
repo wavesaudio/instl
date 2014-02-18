@@ -294,6 +294,9 @@ class DownloadToolBase(object):
     def add_download_url(self, url, path):
         self.urls_to_download.append( (urllib.quote(url, "$()/:"), path) )
 
+    def get_num_urls_to_download(self):
+        return len(self.urls_to_download)
+
     def download_from_config_file(self, config_file):
         pass
 

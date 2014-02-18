@@ -20,6 +20,8 @@
         checksum: $(INDEX_CHECKSUM)
         sig: $(INDEX_SIG)
         This will cache the file and use the local copy if it matches signature and checksum.
+    * Sync command adds __NUM_FILES_TO_DOWNLOAD__ variable with the number of files to download.
+    * New yaml doc type !define_const - will create const variables and will not except __include__'s.
 
     programmer visible changes:
     * new utils function: safe_remove_file, removes a file and does not complain if file does not exist.
@@ -31,6 +33,17 @@
     * Mac: exit is done by a function that catches the EXIT trap os that all final instructions are performed even on error.
     * Untaring writes a stamp file when finished corectly. Will prevent redundant re-untar.
     * New BatchAccumulator function __len__, returns the total assignments and instrauction lines.
+    * parallel_run.py: plain exit() did not work in compiled code, replaced with sys.exit().
+    * got rid of redundant __ALLOWED_COMMANDS__ variable and checking.
+    * instlInstanceBase.get_default_sync_dir overhaul  - will use $() variables and will need resolving.
+    * Fixed ConfigVar.__str__ so values appear before description.
+    * Removed redundant imports from helpHelper.py.
+    * Refactored InstlClient to work with standard do_ ... functions for commands.
+    * InstlClient.installState is now a member.
+    * InstlClient.init_copy_vars moved from instlInstanceBase.
+    * Many default variables read from files instead of being hard coded.
+    * Added default files for all instl (main.yaml) and for specific classes (instlAdmin, InstlClient).
+
 
 
 13/2/2015 0.8.4 Shai Shasag <shai@waves.com>

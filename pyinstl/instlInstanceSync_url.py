@@ -2,7 +2,6 @@
 from __future__ import print_function
 
 import logging
-import hashlib
 
 from pyinstl.log_utils import func_log_wrapper
 from pyinstl.utils import *
@@ -41,23 +40,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
         checksum_tool_full_path = self.instlObj.path_searcher.find_file(self.instlObj.cvl.resolve_string("$(CHECKSUM_TOOL_PATH)"), return_original_if_not_found=True)
         self.instlObj.cvl.set_var("CHECKSUM_TOOL_PATH", var_description).append(checksum_tool_full_path)
 
-        self.instlObj.cvl.set_value_if_var_does_not_exist("REPO_REV", "HEAD", description=var_description)
-        self.instlObj.cvl.set_value_if_var_does_not_exist("SYNC_TRAGET_OS_URL", "$(SYNC_BASE_URL)/$(TARGET_OS)", description=var_description)
-        self.instlObj.cvl.set_value_if_var_does_not_exist("LOCAL_SYNC_DIR", self.instlObj.get_default_sync_dir(self.instlObj.cvl.get_str("SYNC_BASE_URL")), description=var_description)
-        self.instlObj.cvl.set_value_if_var_does_not_exist("BOOKKEEPING_DIR_URL", "$(SYNC_BASE_URL)/instl", description=var_description)
-        bookkeeping_relative_path = relative_url(self.instlObj.cvl.get_str("SYNC_BASE_URL"), self.instlObj.cvl.get_str("BOOKKEEPING_DIR_URL"))
-
-        self.instlObj.cvl.set_value_if_var_does_not_exist("INFO_MAP_FILE_URL", "$(SYNC_BASE_URL)/$(REPO_REV)/instl/info_map.txt", description=var_description)
-        self.instlObj.cvl.set_value_if_var_does_not_exist("LOCAL_BOOKKEEPING_PATH", os.path.join( "$(LOCAL_SYNC_DIR)", "bookkeeping" ), description=var_description)
-        self.instlObj.cvl.set_value_if_var_does_not_exist("HAVE_INFO_MAP_PATH", os.path.join( "$(LOCAL_BOOKKEEPING_PATH)", "have_info_map.txt" ), description=var_description)
-        self.instlObj.cvl.set_value_if_var_does_not_exist("NEW_HAVE_INFO_MAP_PATH", os.path.join( "$(LOCAL_BOOKKEEPING_PATH)", "new_have_info_map.txt" ), description=var_description)
-        self.instlObj.cvl.set_value_if_var_does_not_exist("REQUIRED_INFO_MAP_PATH", os.path.join( "$(LOCAL_BOOKKEEPING_PATH)", "required_info_map.txt" ), description=var_description)
-        self.instlObj.cvl.set_value_if_var_does_not_exist("TO_SYNC_INFO_MAP_PATH", os.path.join( "$(LOCAL_BOOKKEEPING_PATH)", "to_sync_info_map.txt" ), description=var_description)
-        self.instlObj.cvl.set_value_if_var_does_not_exist("REPO_REV_LOCAL_BOOKKEEPING_PATH", os.path.join( "$(LOCAL_BOOKKEEPING_PATH)", "$(REPO_REV)" ), description=var_description)
-        self.instlObj.cvl.set_value_if_var_does_not_exist("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH", os.path.join( "$(REPO_REV_LOCAL_BOOKKEEPING_PATH)", "remote_info_map.txt" ), description=var_description)
-        self.instlObj.cvl.set_value_if_var_does_not_exist("DL_INSTRUCTIONS_TYPE", "one_by_one", description=var_description)
-        self.instlObj.cvl.set_value_if_var_does_not_exist("PARALLEL_SYNC", "1", description=var_description)
-        self.instlObj.cvl.set_value_if_var_does_not_exist("CURL_CONFIG_FILE_NAME", "curl-config.txt", description=var_description)
+        if "REPO_REV" not in self.instlObj.cvl:
+            raise ValueError("'REPO_REV' was not defined")
 
         if "PUBLIC_KEY" not in self.instlObj.cvl:
             if "PUBLIC_KEY_FILE" in self.instlObj.cvl:
@@ -260,13 +244,17 @@ class InstlInstanceSync_url(InstlInstanceSync):
         for need_item in file_list + dir_list:
             self.create_download_instructions_for_item_config_file(need_item)
 
-        curl_config_file_path = self.instlObj.cvl.resolve_string(os.path.join("$(LOCAL_SYNC_DIR)", "$(CURL_CONFIG_FILE_NAME)"))
+        self.instlObj.cvl.add_const_config_variable("__NUM_FILES_TO_DOWNLOAD__", "create_download_instructions_config_file", self.instlObj.platform_helper.dl_tool.get_num_urls_to_download())
+
+        curl_config_folder = self.instlObj.cvl.resolve_string(os.path.join("$(LOCAL_SYNC_DIR)", "curl"))
+        safe_makedirs(curl_config_folder)
+        curl_config_file_path = self.instlObj.cvl.resolve_string(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"))
         num_config_files = int(self.instlObj.cvl.get_str("PARALLEL_SYNC"))
         config_file_list = self.instlObj.platform_helper.dl_tool.create_config_files(curl_config_file_path, num_config_files)
         if len(config_file_list) > 0:
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress(self.instlObj.cvl.resolve_string("Downloading with "+str(len(config_file_list))+" processes in parallel"))
-            parallel_run_config_file_path = self.instlObj.cvl.resolve_string(os.path.join("$(LOCAL_SYNC_DIR)", "$(CURL_CONFIG_FILE_NAME).parallel-run"))
+            parallel_run_config_file_path = self.instlObj.cvl.resolve_string(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME).parallel-run"))
             self.instlObj.batch_accum += self.instlObj.platform_helper.dl_tool.download_from_config_files(parallel_run_config_file_path, config_file_list)
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Downloading "+str(self.files_to_download)+" files done", self.files_to_download)
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()

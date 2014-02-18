@@ -1,11 +1,9 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
-import os
+
 import fnmatch
 import yaml
-from collections import defaultdict
 from pyinstl.utils import *
-from aYaml import augmentedYaml
 
 class HelpItem(object):
     def __init__(self, topic, name):

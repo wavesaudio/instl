@@ -62,9 +62,6 @@ def insensitive_glob(pattern):
         return '[%s%s]'%(c.lower(),c.upper()) if c.isalpha() else c
     return glob.glob(''.join(map(either,pattern)))
 
-
-this_program_name = instlInstanceBase.this_program_name
-
 def go_interactive(client, admin):
     try:
         instlInstanceBase.InstlInstanceBase.create_completion_list = create_completion_list_imp
@@ -92,6 +89,7 @@ class CMDObj(cmd.Cmd, object):
         self.history_file_path = None
         self.prompt = None
         self.save_dir = None
+        self.this_program_name = self.client_prog_inst.cvl.get_str("INSTL_EXEC_DISPLAY_NAME")
 
     def __enter__(self):
         if readline_loaded:
@@ -104,12 +102,12 @@ class CMDObj(cmd.Cmd, object):
             readline.parse_and_bind("set completion-map-case on")
             readline.parse_and_bind("set show-all-if-unmodified on")
             readline.parse_and_bind("set expand-tilde on")
-            history_file_dir = appdirs.user_data_dir(instlInstanceBase.this_program_name, instlInstanceBase.this_program_name)
+            history_file_dir = appdirs.user_data_dir(self.this_program_name, self.this_program_name)
             try:
                 os.makedirs(history_file_dir)
             except: # os.makedirs raises is the directory already exists
                 pass
-            self.history_file_path = os.path.join(history_file_dir, "."+instlInstanceBase.this_program_name+"_console_history")
+            self.history_file_path = os.path.join(history_file_dir, "."+self.this_program_name+"_console_history")
             try:
                 readline.read_history_file(self.history_file_path)
             except: # Corrupt or non existent history file might raise an exception
@@ -119,7 +117,7 @@ class CMDObj(cmd.Cmd, object):
                     pass # if removing the file also fail - just ignore it
         if colorama_loaded:
             colorama.init()
-        self.prompt = instlInstanceBase.this_program_name+": "
+        self.prompt = self.this_program_name+": "
         self.save_dir = os.getcwd()
         return self
 
@@ -475,20 +473,20 @@ class CMDObj(cmd.Cmd, object):
         return False
 
     def help_version(self):
-        print("version: print", instlInstanceBase.this_program_name, "version")
+        print("version: print", self.this_program_name, "version")
 
     def do_restart(self, unused_params):
         self.restart = True
         return True # stops cmdloop
 
     def help_restart(self):
-        print("restart:", "reloads", instlInstanceBase.this_program_name)
+        print("restart:", "reloads", self.this_program_name)
 
     def do_quit(self, unused_params):
         return True
 
     def help_quit(self):
-        print("quit, q: quits", instlInstanceBase.this_program_name)
+        print("quit, q: quits", self.this_program_name)
 
     def do_q(self, params):
         return self.do_quit(params)
@@ -526,9 +524,9 @@ class CMDObj(cmd.Cmd, object):
         import pyinstl.log_utils
         top_logger = logging.getLogger()
         print("logging level:", logging.getLevelName(top_logger.getEffectiveLevel()))
-        log_file_path = pyinstl.log_utils.get_log_file_path(this_program_name, this_program_name, debug=False)
+        log_file_path = pyinstl.log_utils.get_log_file_path(self.this_program_name, self.this_program_name, debug=False)
         print("logging INFO level to",  log_file_path)
-        debug_log_file_path = pyinstl.log_utils.get_log_file_path(this_program_name, this_program_name, debug=True)
+        debug_log_file_path = pyinstl.log_utils.get_log_file_path(self.this_program_name, self.this_program_name, debug=True)
         if os.path.isfile(debug_log_file_path):
             print("logging DEBUG level to",  debug_log_file_path)
         else:
@@ -540,7 +538,7 @@ class CMDObj(cmd.Cmd, object):
         if params:
             params = shlex.split(params)
             if params[0].lower() == "debug":
-                debug_log_file_path = pyinstl.log_utils.get_log_file_path(this_program_name, this_program_name, debug=True)
+                debug_log_file_path = pyinstl.log_utils.get_log_file_path(self.this_program_name, self.this_program_name, debug=True)
                 if len(params) == 1 or params[1].lower() in ("on", "true", "yes"):
                     if top_logger.getEffectiveLevel() > pyinstl.log_utils.debug_logging_level or not os.path.isfile(debug_log_file_path):
                         pyinstl.log_utils.setup_file_logging(debug_log_file_path, pyinstl.log_utils.debug_logging_level)

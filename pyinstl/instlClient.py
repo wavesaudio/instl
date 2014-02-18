@@ -87,40 +87,59 @@ class InstlClient(InstlInstanceBase):
 
     def __init__(self, initial_vars):
         super(InstlClient, self).__init__(initial_vars)
-        self.cvl.set_var("__ALLOWED_COMMANDS__").extend( ('sync', 'copy', 'synccopy') )
 
     def do_command(self):
         the_command = self.cvl.get_str("__MAIN_COMMAND__")
-        if the_command in self.cvl.get_list("__ALLOWED_COMMANDS__"):
-            #print("client_commands", the_command)
-            installState = InstallInstructionsState()
-            self.read_yaml_file(self.cvl.get_str("__MAIN_INPUT_FILE__"))
-            self.resolve_defined_paths()
-            self.resolve_index_inheritance()
-            self.add_deafult_items()
-            self.calculate_default_install_item_set(installState)
-            self.platform_helper = PlatformSpecificHelperFactory(self.cvl.get_str("__CURRENT_OS__"), self)
-            self.platform_helper.num_items_for_progress_report = int(self.cvl.get_str("LAST_PROGRESS"))
-            if the_command in ("sync", "synccopy"):
-                logging.info("Creating sync instructions")
-                if self.cvl.get_str("REPO_TYPE") == "URL":
-                    from instlInstanceSync_url import InstlInstanceSync_url
-                    syncer = InstlInstanceSync_url(self)
-                elif self.cvl.get_str("REPO_TYPE") == "SVN":
-                    from instlInstanceSync_svn import InstlInstanceSync_svn
-                    syncer = InstlInstanceSync_svn(self)
-                else:
-                    raise ValueError('REPO_TYPE is not defined in input file')
-                syncer.init_sync_vars()
-                syncer.create_sync_instructions(installState)
-            if the_command in ("copy", 'synccopy'):
-                logging.info("Creating copy instructions")
-                self.init_copy_vars()
-                self.create_copy_instructions(installState)
-            self.create_variables_assignment()
-            self.write_batch_file()
-            if "__RUN_BATCH_FILE__" in self.cvl:
-                self.run_batch_file()
+        #print("client_commands", the_command)
+        self.installState = InstallInstructionsState()
+        self.read_yaml_file(self.cvl.get_str("__MAIN_INPUT_FILE__"))
+        self.init_default_client_vars()
+        self.resolve_defined_paths()
+        self.resolve_index_inheritance()
+        self.add_deafult_items()
+        self.calculate_default_install_item_set()
+        self.platform_helper = PlatformSpecificHelperFactory(self.cvl.get_str("__CURRENT_OS__"), self)
+        self.platform_helper.num_items_for_progress_report = int(self.cvl.get_str("LAST_PROGRESS"))
+
+        fixed_command_name = the_command.replace('-', '_')
+        do_command_func = getattr(self, "do_"+fixed_command_name)
+        do_command_func()
+
+        self.create_variables_assignment()
+        self.write_batch_file()
+        if "__RUN_BATCH_FILE__" in self.cvl:
+            self.run_batch_file()
+
+    def init_default_client_vars(self):
+        if "LOCAL_SYNC_DIR" not in self.cvl:
+            if "SYNC_BASE_URL" not in self.cvl:
+                raise ValueError("'SYNC_BASE_URL' was not defined")
+            resolved_sync_base_url = self.cvl.get_str("SYNC_BASE_URL")
+            url_main_item = main_url_item(resolved_sync_base_url)
+            default_sync_dir = self.get_default_sync_dir(continue_dir=url_main_item, mkdir=True)
+            self.cvl.set_var("LOCAL_SYNC_DIR", description="from init_default_client_vars").append(default_sync_dir)
+
+    def do_sync(self):
+        logging.info("Creating sync instructions")
+        if self.cvl.get_str("REPO_TYPE") == "URL":
+            from instlInstanceSync_url import InstlInstanceSync_url
+            syncer = InstlInstanceSync_url(self)
+        elif self.cvl.get_str("REPO_TYPE") == "SVN":
+            from instlInstanceSync_svn import InstlInstanceSync_svn
+            syncer = InstlInstanceSync_svn(self)
+        else:
+            raise ValueError('REPO_TYPE is not defined in input file')
+        syncer.init_sync_vars()
+        syncer.create_sync_instructions(self.installState)
+
+    def do_copy(self):
+        logging.info("Creating copy instructions")
+        self.init_copy_vars()
+        self.create_copy_instructions()
+
+    def do_synccopy(self):
+        self.do_sync()
+        self.do_copy()
 
     def repr_for_yaml(self, what=None):
         """ Create representation of self suitable for printing as yaml.
@@ -172,7 +191,7 @@ class InstlClient(InstlInstanceBase):
             all_guids_item.add_depend(guid)
         self.install_definitions_index["__ALL_GUIDS_IID__"] = all_guids_item
 
-    def calculate_default_install_item_set(self, installState):
+    def calculate_default_install_item_set(self):
         """ calculate the set of iids to install from the "MAIN_INSTALL_TARGETS" variable.
             Full set of install iids and orphan iids are also writen to variable.
         """
@@ -180,15 +199,32 @@ class InstlClient(InstlInstanceBase):
             raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
         for os_name in self.cvl.get_list("TARGET_OS_NAMES"):
             InstallItem.begin_get_for_specific_os(os_name)
-        installState.root_install_items.extend(self.cvl.get_list("MAIN_INSTALL_TARGETS"))
-        installState.root_install_items = filter(bool, installState.root_install_items)
-        installState.calculate_full_install_items_set(self)
-        self.cvl.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(installState.full_install_items)
-        self.cvl.set_var("__ORPHAN_INSTALL_TARGETS__").extend(installState.orphan_install_items)
+        self.installState.root_install_items.extend(self.cvl.get_list("MAIN_INSTALL_TARGETS"))
+        self.installState.root_install_items = filter(bool, self.installState.root_install_items)
+        self.installState.calculate_full_install_items_set(self)
+        self.cvl.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(self.installState.full_install_items)
+        self.cvl.set_var("__ORPHAN_INSTALL_TARGETS__").extend(self.installState.orphan_install_items)
         for identifier in ("MAIN_INSTALL_TARGETS", "__FULL_LIST_OF_INSTALL_TARGETS__", "__ORPHAN_INSTALL_TARGETS__"):
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
 
-    def create_copy_instructions(self, installState):
+    def init_copy_vars(self):
+        var_description = "from InstlInstanceBase.init_copy_vars"
+        # check which variables are needed for for offline install....
+        if "REL_SRC_PATH" not in self.cvl: #?
+            if "SYNC_BASE_URL" not in self.cvl:
+                raise ValueError("'SYNC_BASE_URL' was not defined")
+            rel_sources = relative_url(self.cvl.get_str("SYNC_BASE_URL"), self.cvl.get_str("SYNC_TRAGET_OS_URL"))
+            self.cvl.set_var("REL_SRC_PATH", var_description).append(rel_sources)
+
+        self.cvl.set_value_if_var_does_not_exist("LOCAL_SYNC_DIR", self.get_default_sync_dir(self.cvl.get_str("SYNC_BASE_URL")), description=var_description)
+
+        if "COPY_TOOL" not in self.cvl:
+            from platformSpecificHelper_Base import DefaultCopyToolName
+            self.cvl.set_var("COPY_TOOL", var_description).append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
+        for identifier in ("REL_SRC_PATH", "COPY_TOOL"):
+            logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
+
+    def create_copy_instructions(self):
         # copy and actions instructions for sources
         self.batch_accum.set_current_section('copy')
         self.batch_accum += self.platform_helper.progress("starting copy")
@@ -200,7 +236,7 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum += self.platform_helper.resolve_symlink_files(in_dir="$(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)")
             self.batch_accum += self.platform_helper.progress("resolve .symlink files")
 
-        for folder_name, items_in_folder in installState.install_items_by_target_folder.iteritems():
+        for folder_name, items_in_folder in self.installState.install_items_by_target_folder.iteritems():
             self.batch_accum.indent_level += 1
             logging.info("... folder %s (%s)", folder_name, self.cvl.resolve_string(folder_name))
             self.batch_accum += self.platform_helper.mkdir(folder_name)
@@ -243,7 +279,7 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum.indent_level -= 1
 
         # actions instructions for sources that do not need copying
-        for folder_name, items_in_folder in installState.no_copy_items_by_sync_folder.iteritems():
+        for folder_name, items_in_folder in self.installState.no_copy_items_by_sync_folder.iteritems():
             logging.info("... non-copy items folder %s (%s)", folder_name, self.cvl.resolve_string(folder_name))
             self.batch_accum += self.platform_helper.cd(folder_name)
 
@@ -278,7 +314,7 @@ class InstlClient(InstlInstanceBase):
 
             self.batch_accum += self.platform_helper.progress("{folder_name}".format(**locals()))
         # messages about orphan iids
-        for iid in installState.orphan_install_items:
+        for iid in self.installState.orphan_install_items:
             logging.info("Orphan item: %s", iid)
             self.batch_accum += self.platform_helper.echo("Don't know how to install "+iid)
         self.batch_accum += self.platform_helper.progress("done copy")

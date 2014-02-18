@@ -12,7 +12,6 @@ class InstlMisc(InstlInstanceBase):
 
     def __init__(self, initial_vars):
         super(InstlMisc, self).__init__(initial_vars)
-        self.cvl.set_var("__ALLOWED_COMMANDS__").extend( ('version', 'help') )
         self.svnTree = svnTree.SVNTree()
 
     def do_command(self):

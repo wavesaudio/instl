@@ -55,7 +55,7 @@ class ConfigVar(object):
     def __str__(self):
         ln = '\n'
         indent = "    "
-        retVal = "{self._ConfigVar__name}:{ln}{indent}description:{self._ConfigVar__description}{ln}{indent}values:{self._ConfigVar__values})".format(**locals())
+        retVal = "{self._ConfigVar__name}:{ln}{indent}values:{self._ConfigVar__values}{ln}{indent}description:{self._ConfigVar__description})".format(**locals())
         return retVal
 
     def __repr__(self):

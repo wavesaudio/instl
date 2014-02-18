@@ -62,7 +62,7 @@ def signal_handler(signum, frame):
 def killall_and_exit():
     for proc in proc_que:
         proc.kill()
-    exit(exit_val)
+    sys.exit(exit_val)
     
 def install_signal_handlers():
     for sig in (signal.SIGABRT, signal.SIGFPE, signal.SIGILL, signal.SIGINT, signal.SIGSEGV, signal.SIGTERM):

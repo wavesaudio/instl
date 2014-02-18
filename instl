@@ -276,18 +276,16 @@ def read_command_line_options(name_space_obj, arglist=None):
         name_space_obj.mode = "interactive"
     return command_names
 
-@pyinstl.log_utils.func_log_wrapper
 def main():
     """ Main instl entry point. Reads command line options and decides if to go into interactive or client mode.
     """
     try:
-        initial_vars = {"__INSTL_EXE_PATH__": get_path_to_instl_app(),
-                        "__INSTL_DATA_FOLDER__": get_data_folder()}
         options = CommandLineOptions()
         command_names = read_command_line_options(options, sys.argv[1:])
         initial_vars = {"__INSTL_EXE_PATH__": get_path_to_instl_app(),
                         "__INSTL_DATA_FOLDER__": get_data_folder(),
                         "__COMMAND_NAMES__": command_names}
+
         if options.mode == "client":
             from pyinstl.instlClient import InstlClient
             instance = InstlClient(initial_vars)
