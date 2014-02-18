@@ -261,7 +261,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         untar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "x", "-y", "-bd",
                                quoteme_double(tar_file), "2>NUL")
         rm_tar_command = self.rmfile(tar_file)
-        done_stamp_file = filepath + ".done"
+        done_stamp_file = wtar_file + ".done"
         untar_commands = " ".join( unzip_command_parts ), self.exit_if_error(),\
                          " ".join( untar_command_parts), self.exit_if_error(), \
                          rm_tar_command, self.touch(done_stamp_file)
