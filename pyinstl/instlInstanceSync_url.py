@@ -37,8 +37,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
             raise ValueError("'SYNC_BASE_URL' was not defined")
         if "DOWNLOAD_TOOL_PATH" not in self.instlObj.cvl:
             raise ValueError("'DOWNLOAD_TOOL_PATH' was not defined")
-        checksum_tool_full_path = self.instlObj.path_searcher.find_file(self.instlObj.cvl.resolve_string("$(CHECKSUM_TOOL_PATH)"), return_original_if_not_found=True)
-        self.instlObj.cvl.set_var("CHECKSUM_TOOL_PATH", var_description).append(checksum_tool_full_path)
 
         if "REPO_REV" not in self.instlObj.cvl:
             raise ValueError("'REPO_REV' was not defined")
@@ -53,8 +51,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         for identifier in ("SYNC_BASE_URL", "DOWNLOAD_TOOL_PATH", "REPO_REV", "SYNC_TRAGET_OS_URL", "LOCAL_SYNC_DIR", "BOOKKEEPING_DIR_URL",
                            "INFO_MAP_FILE_URL", "LOCAL_BOOKKEEPING_PATH","NEW_HAVE_INFO_MAP_PATH", "REQUIRED_INFO_MAP_PATH",
-                            "TO_SYNC_INFO_MAP_PATH", "REPO_REV_LOCAL_BOOKKEEPING_PATH", "LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH",
-                            "DL_INSTRUCTIONS_TYPE"):
+                            "TO_SYNC_INFO_MAP_PATH", "REPO_REV_LOCAL_BOOKKEEPING_PATH", "LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"):
             #print(identifier, self.instlObj.cvl.get_str(identifier))
             logging.debug("... %s: %s", identifier, self.instlObj.cvl.get_str(identifier))
 
@@ -65,11 +62,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.filter_out_unrequired_items()      # removes items not required to be installed
         self.read_have_info_map()               # reads the info map of items already synced
         self.filter_out_already_synced_items()  # removes items that are already on the user's disk
-        ld_instructions_type = self.instlObj.cvl.get_str("DL_INSTRUCTIONS_TYPE") # either config_file or one_by_one
-        if ld_instructions_type == "config_file":
-            self.create_download_instructions_config_file()
-        elif ld_instructions_type == "one_by_one":
-            self.create_download_instructions_one_by_one()
+        self.create_download_instructions()
 
     def read_remote_info_map(self):
         """ Reads the info map of the static files available for syncing.
@@ -182,44 +175,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         work_info_map_path = self.instlObj.cvl.get_str("REQUIRED_INFO_MAP_PATH")
         self.work_info_map.write_to_file(work_info_map_path, in_format="text")
 
-    def create_download_instructions_one_by_one(self):
-        self.instlObj.batch_accum.set_current_section('sync')
-        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("from $(SYNC_TRAGET_OS_URL)")
-        self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir("$(LOCAL_SYNC_DIR)")
-        self.instlObj.batch_accum += self.instlObj.platform_helper.cd("$(LOCAL_SYNC_DIR)")
-        self.instlObj.batch_accum.indent_level += 1
-        file_list, dir_list = self.work_info_map.sorted_sub_items()
-        for need_item in file_list + dir_list:
-            self.create_download_instructions_for_item_one_by_one(need_item)
-        self.instlObj.batch_accum.indent_level -= 1
-        self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
-        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("sync from $(SYNC_TRAGET_OS_URL)")
-        self.instlObj.batch_accum += self.instlObj.platform_helper.copy_file_to_file("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")
-
-    def create_download_instructions_for_item_one_by_one(self, item, path_so_far = list()):
-        if item.isSymlink():
-            print("Found symlink at", item.full_path())
-        elif item.isFile():
-            file_path = os.path.join(*make_one_list(self.local_sync_dir, item.full_path_parts()))
-            need_to_download = need_to_download_file(file_path, item.checksum())
-            if need_to_download:
-                source_url = '/'.join( make_one_list(self.sync_base_url, str(item.last_rev()), path_so_far, item.name()) )
-                self.instlObj.batch_accum += self.instlObj.platform_helper.dl_tool.download_url_to_file(source_url, item.name())
-                self.instlObj.batch_accum += self.instlObj.platform_helper.check_checksum(item.name(), item.checksum())
-                self.instlObj.batch_accum += self.instlObj.platform_helper.progress(source_url)
-        elif item.isDir():
-            path_so_far.append(item.name())
-            self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir(item.name())
-            self.instlObj.batch_accum += self.instlObj.platform_helper.cd(item.name())
-            self.instlObj.batch_accum.indent_level += 1
-            file_list, dir_list = item.sorted_sub_items()
-            for sub_item in file_list + dir_list:
-                self.create_download_instructions_for_item_one_by_one(sub_item, path_so_far)
-            self.instlObj.batch_accum.indent_level -= 1
-            self.instlObj.batch_accum += self.instlObj.platform_helper.cd("..")
-            path_so_far.pop()
-
-    def create_download_instructions_config_file(self):
+    def create_download_instructions(self):
         self.instlObj.batch_accum.set_current_section('sync')
         num_files = self.work_info_map.num_subs_in_tree(what="file")
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("from $(SYNC_TRAGET_OS_URL)")
@@ -234,7 +190,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         prefix_accum = BatchAccumulator(self.instlObj.cvl) # sub-accumulator for unwtar
         prefix_accum.set_current_section('sync')
         for need_item in file_list + dir_list:
-            self.create_prefix_instructions_for_item_config_file(prefix_accum, need_item)
+            self.create_prefix_instructions_for_item(prefix_accum, need_item)
         if len(prefix_accum) > 0:
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Pre download processing")
             self.instlObj.batch_accum.merge_with(prefix_accum)
@@ -242,9 +198,9 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         self.work_info_map.set_user_data_all_recursive(False) # items that need checksum will b emarked True
         for need_item in file_list + dir_list:
-            self.create_download_instructions_for_item_config_file(need_item)
+            self.create_download_instructions_for_item(need_item)
 
-        self.instlObj.cvl.add_const_config_variable("__NUM_FILES_TO_DOWNLOAD__", "create_download_instructions_config_file", self.instlObj.platform_helper.dl_tool.get_num_urls_to_download())
+        self.instlObj.cvl.add_const_config_variable("__NUM_FILES_TO_DOWNLOAD__", "create_download_instructions", self.instlObj.platform_helper.dl_tool.get_num_urls_to_download())
 
         curl_config_folder = self.instlObj.cvl.resolve_string(os.path.join("$(LOCAL_SYNC_DIR)", "curl"))
         safe_makedirs(curl_config_folder)
@@ -279,7 +235,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("from $(SYNC_TRAGET_OS_URL)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.copy_file_to_file("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")
 
-    def create_prefix_instructions_for_item_config_file(self, accum, item, path_so_far = list()):
+    def create_prefix_instructions_for_item(self, accum, item, path_so_far = list()):
         if item.isSymlink():
             print("Found symlink at", item.full_path())
         elif item.isFile():
@@ -293,12 +249,12 @@ class InstlInstanceSync_url(InstlInstanceSync):
                     self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir(folder_path)
                     self.instlObj.batch_accum += self.instlObj.platform_helper.progress_staccato("creating folders")
             for sub_item in file_list + dir_list:
-                self.create_prefix_instructions_for_item_config_file(accum, sub_item, path_so_far)
+                self.create_prefix_instructions_for_item(accum, sub_item, path_so_far)
             path_so_far.pop()
 
 
 
-    def create_download_instructions_for_item_config_file(self, item, path_so_far = list()):
+    def create_download_instructions_for_item(self, item, path_so_far = list()):
         if item.isSymlink():
             print("Found symlink at", item.full_path())
         elif item.isFile():
@@ -317,7 +273,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             path_so_far.append(item.name())
             file_list, dir_list = item.sorted_sub_items()
             for sub_item in file_list + dir_list:
-                self.create_download_instructions_for_item_config_file(sub_item, path_so_far)
+                self.create_download_instructions_for_item(sub_item, path_so_far)
             path_so_far.pop()
 
     def create_unwtar_instructions_for_item(self, accum, item, path_so_far = list()):

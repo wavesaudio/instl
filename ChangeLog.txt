@@ -1,12 +1,13 @@
-???? 0.8.5 Shai
+19/2/2014 0.8.5 Shai Shasag <shai@waves.com>
 
     user visible changes, client:
+    * Fixed may sync bugs especialy on Windows.
     * New automatic installation items:
         __ALL_ITEMS_IID__:  all the iids from the index
         __ALL_GUIDS_IID__: all the iids from the index that have guids.
     * Fixed a bug where depend on a guid would not register as depend.
-    * time reporting on exit with error on Mac.
-    * download max-time, connect-timeout and retry have all been increased.
+    * Time reporting on exit with error on Mac.
+    * Download max-time, connect-timeout and retry have all been increased.
     * More precise, and less verbose, progress messages. No fake progress message when there's nothing to be done.
     * More precise decision when to untar existing wtar files.
     * New Yaml variable: LAST_PROGRESS, set the number of progress items to start with, so two batch files can have
@@ -24,7 +25,11 @@
     * New yaml doc type !define_const - will create const variables and will not except __include__'s.
     * curl config files and file with list of curl commands are written to a folder named "curl".
         This will avoid clutter in the sync folder and make deleting easier.
-        
+    * No more DL_INSTRUCTIONS_TYPE, always use config file. To do non parallel download set PARALLEL_SYNC: 1.
+    * Variables ending with _PATH or _DIR will have their value go through os.path.normpath - for proper paths on Windows.
+    * New variable: __READ_YAML_FILES__ will list all yaml files that were read.
+    * Fixed on Windows: PlatformSpecificHelperWin.touch implemented correctly.
+
     programmer visible changes:
     * New utils function: safe_remove_file, removes a file and does not complain if file does not exist.
     * New utils function: make_one_list, takes a bunch of things and returns them as a long flat list.
@@ -45,7 +50,8 @@
     * InstlClient.init_copy_vars moved from instlInstanceBase.
     * Many default variables read from files instead of being hard coded.
     * Added default files for all instl (main.yaml) and for specific classes (instlAdmin, InstlClient).
-
+    * Fix on Windows: Hard coded path replaced by $(CHECKSUM_TOOL_PATH) check_checksum.
+    * CopyTool_win_robocopy, CopyTool_win_xcopy, PlatformSpecificHelperWin will call os.path.normpath on parameters containing paths.
 
 
 13/2/2015 0.8.4 Shai Shasag <shai@waves.com>

@@ -57,6 +57,8 @@ class InstlInstanceBase(object):
             for var, value in initial_vars.iteritems():
                 self.cvl.add_const_config_variable(var, var_description, value)
 
+        var_description = "from InstlInstanceBase.init_default_vars"
+
         # read defaults/main.yaml
         main_defaults_file_path = os.path.join(self.cvl.resolve_string("$(__INSTL_DATA_FOLDER__)"), "defaults", "main.yaml")
         self.read_yaml_file(main_defaults_file_path)
@@ -66,7 +68,6 @@ class InstlInstanceBase(object):
         if os.path.isfile(class_specific_defaults_file_path):
             self.read_yaml_file(class_specific_defaults_file_path)
 
-        var_description = "from InstlInstanceBase.init_default_vars"
         self.cvl.add_const_config_variable("__CURRENT_OS__", var_description, os_family_name)
         self.cvl.add_const_config_variable("__CURRENT_OS_SECOND_NAME__", var_description, os_second_name)
         self.cvl.add_const_config_variable("__CURRENT_OS_NAMES__", var_description, *current_os_names)
@@ -149,6 +150,7 @@ class InstlInstanceBase(object):
             raise InstlException(" ".join( ("YAML error while reading file", "'"+file_path+"':\n", str(ye)) ), ye)
         except IOError as ioe:
             raise InstlException(" ".join(("Failed to read file", "'"+file_path+"'", ":")), ioe)
+        self.cvl.get_configVar_obj("__READ_YAML_FILES__").append(file_path)
 
     internal_identifier_re = re.compile("""
                                         __                  # dunder here

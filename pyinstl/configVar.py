@@ -9,6 +9,7 @@ from __future__ import print_function
 """
 
 import sys
+import os
 
 import platform
 current_os = platform.system()
@@ -85,13 +86,20 @@ class ConfigVar(object):
         self.__values = list()
 
     def append(self, value):
-        self.__values.append(str(value))
+        if self.__name.endswith(("_PATH", "_DIR")):
+            self.__values.append(os.path.normpath(value))
+        else:
+            self.__values.append(str(value))
 
     def extend(self, values):
         if values:
             if not hasattr(values, '__iter__'):
                 raise TypeError(str(values)+" is not a iterable")
-        self.__values.extend([str(value) for value in values])
+        if self.__name.endswith(("_PATH", "_DIR")):
+            normed_values = [os.path.normpath(value) for value in values]
+            self.__values.extend(normed_values)
+        else:
+            self.__values.extend([str(value) for value in values])
 
 
 class ConstConfigVar(ConfigVar):

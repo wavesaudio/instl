@@ -40,16 +40,19 @@ class CopyTool_win_robocopy(CopyToolBase):
         trg_dir = "/".join( (trg_dir, dir_to_copy) )
         ignore_spec = self.create_ignore_spec(ignore)
         log_file_spec = self.create_log_spec()
-        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /E {ignore_spec} /R:3 /W:3 {log_file_spec}".format(**locals())
+        norm_src_dir = os.path.normpath(src_dir)
+        norm_trg_dir = os.path.normpath(trg_dir)
+        copy_command = "robocopy \"{norm_src_dir}\" \"{norm_trg_dir}\" /E {ignore_spec} /R:3 /W:3 {log_file_spec}".format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platformHelper.exit_if_error(self.robocopy_error_threshold))
         return retVal
 
     def copy_file_to_dir(self, src_file, trg_dir, link_dest=False, ignore=None):
         retVal = list()
-        src_dir, src_file = os.path.split(src_file)
+        norm_src_dir, norm_src_file = os.path.split(os.path.normpath(src_file))
+        norm_trg_dir = os.path.normpath(trg_dir)
         log_file_spec = self.create_log_spec()
-        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" \"{src_file}\" /R:3 /W:3 {log_file_spec}".format(**locals())
+        copy_command = "robocopy \"{norm_src_dir}\" \"{norm_trg_dir}\" \"{norm_src_file}\" /R:3 /W:3 {log_file_spec}".format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platformHelper.exit_if_error(self.robocopy_error_threshold))
         return retVal
@@ -58,7 +61,9 @@ class CopyTool_win_robocopy(CopyToolBase):
         retVal = list()
         ignore_spec = self.create_ignore_spec(ignore)
         log_file_spec = self.create_log_spec()
-        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /E {ignore_spec} /R:3 /W:3 {log_file_spec}".format(**locals())
+        norm_src_dir = os.path.normpath(src_dir)
+        norm_trg_dir = os.path.normpath(trg_dir)
+        copy_command = "robocopy \"{norm_src_dir}\" \"{norm_trg_dir}\" /E {ignore_spec} /R:3 /W:3 {log_file_spec}".format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platformHelper.exit_if_error(self.robocopy_error_threshold))
         return retVal
@@ -67,14 +72,18 @@ class CopyTool_win_robocopy(CopyToolBase):
         retVal = list()
         ignore_spec = self.create_ignore_spec(ignore)
         log_file_spec = self.create_log_spec()
-        copy_command = "robocopy \"{src_dir}\" \"{trg_dir}\" /LEV:1 {ignore_spec} /R:3 /W:3 {log_file_spec}".format(**locals())
+        norm_src_dir = os.path.normpath(src_dir)
+        norm_trg_dir = os.path.normpath(trg_dir)
+        copy_command = "robocopy \"{norm_src_dir}\" \"{norm_trg_dir}\" /LEV:1 {ignore_spec} /R:3 /W:3 {log_file_spec}".format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platformHelper.exit_if_error(self.robocopy_error_threshold))
         return retVal
 
     def copy_file_to_file(self, src_file, trg_file, link_dest=None, ignore=None):
         retVal = list()
-        copy_command = "copy \"{src_file}\" \"{trg_file}\"".format(**locals())
+        norm_src_file = os.path.normpath(src_file)
+        norm_trg_file = os.path.normpath(trg_file)
+        copy_command = "copy \"{norm_src_file}\" \"{norm_trg_file}\"".format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platformHelper.exit_if_error())
         return retVal
@@ -85,18 +94,22 @@ class CopyTool_win_xcopy(CopyToolBase):
 
     def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False):
         retVal = list()
-        _, dir_to_copy = os.path.split(src_dir)
-        trg_dir = "/".join( (trg_dir, dir_to_copy) )
-        mkdir_command  = "mkdir \"{trg_dir}\"".format(**locals())
+        norm_src_dir = os.path.normpath(src_dir)
+        norm_trg_dir = os.path.normpath(trg_dir)
+        _, dir_to_copy = os.path.split(norm_src_dir)
+        norm_trg_dir = "/".join( (norm_trg_dir, dir_to_copy) )
+        mkdir_command  = "mkdir \"{norm_trg_dir}\"".format(**locals())
         retVal.append(mkdir_command)
-        retVal.extend(self.copy_dir_contents_to_dir(src_dir, trg_dir))
+        retVal.extend(self.copy_dir_contents_to_dir(norm_src_dir, norm_trg_dir))
         retVal.append(self.platformHelper.exit_if_error())
         return retVal
 
     def copy_file_to_dir(self, src_file, trg_dir, link_dest=False):
         retVal = list()
         #src_dir, src_file = os.path.split(src_file)
-        copy_command = "xcopy  /R /Y \"{src_file}\" \"{trg_dir}\"".format(**locals())
+        norm_src_file = os.path.normpath(src_file)
+        norm_trg_file = os.path.normpath(trg_file)
+        copy_command = "xcopy  /R /Y \"{norm_src_file}\" \"{norm_trg_file}\"".format(**locals())
         copy_command.replace("\\", "/")
         retVal.append(copy_command)
         retVal.append(self.platformHelper.exit_if_error())
@@ -104,14 +117,18 @@ class CopyTool_win_xcopy(CopyToolBase):
 
     def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=None):
         retVal = list()
-        copy_command = "xcopy /E /R /Y \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+        norm_src_dir = os.path.normpath(src_dir)
+        norm_trg_dir = os.path.normpath(trg_dir)
+        copy_command = "xcopy /E /R /Y \"{norm_src_dir}\" \"{norm_trg_dir}\"".format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platformHelper.exit_if_error())
         return retVal
 
-    def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=None):
+    def copy_dir_files_to_dir(self, src_dir, norm_trg_dir, link_dest=None):
         retVal = list()
-        copy_command = "xcopy  /R /Y \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+        norm_src_dir = os.path.normpath(src_dir)
+        norm_trg_dir = os.path.normpath(trg_dir)
+        copy_command = "xcopy  /R /Y \"{norm_src_dir}\" \"{trg_dir}\"".format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platformHelper.exit_if_error())
         return retVal
@@ -179,15 +196,18 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return " ".join(retVal)
 
     def mkdir(self, directory):
-        mk_command = " ".join( ("if not exist", '"'+directory+'"', "mkdir", '"'+directory+'"'))
+        norm_directory = quoteme_double(os.path.normpath(directory))
+        mk_command = " ".join( ("if not exist", norm_directory, "mkdir", norm_directory))
         return mk_command
 
     def cd(self, directory):
-        cd_command = " ".join( ("cd", '/d', '"'+directory+'"') )
+        norm_directory = quoteme_double(os.path.normpath(directory))
+        cd_command = " ".join( ("cd", '/d', norm_directory) )
         return cd_command
 
     def pushd(self, directory):
-        pushd_command = " ".join( ("pushd", quoteme_double(directory) ) )
+        norm_directory = quoteme_double(os.path.normpath(directory))
+        pushd_command = " ".join( ("pushd", norm_directory ) )
         return pushd_command
 
     def popd(self):
@@ -203,11 +223,13 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
 
     def rmdir(self, directory, recursive=False):
         recurse_switch = '/S' if recursive else ''
-        rmdir_command = " ".join( ("rmdir", recurse_switch, quoteme_double(directory) ) )
+        norm_directory = quoteme_double(os.path.normpath(directory))
+        rmdir_command = " ".join( ("rmdir", recurse_switch, norm_directory ) )
         return rmdir_command
 
     def rmfile(self, file_to_del):
-        rmfile_command = " ".join( ("del", "/F", quoteme_double(file_to_del) ) )
+        norm_file = quoteme_double(os.path.normpath(file_to_del))
+        rmfile_command = " ".join( ("del", "/F", norm_file ) )
         return rmfile_command
 
     def get_svn_folder_cleanup_instructions(self):
@@ -233,15 +255,18 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
             raise ValueError(tool_name, "is not a valid copy tool for", target_os)
 
     def copy_file_to_file(self, src_file, trg_file):
-        sync_command = "copy \"{src_file}\" \"{trg_file}\"".format(**locals())
-        return sync_command
+        norm_src_file = quoteme_double(os.path.normpath(src_file))
+        norm_trg_file = quoteme_double(os.path.normpath(trg_file))
+        copy_command = " ".join( ("copy", norm_src_file,  norm_trg_file) )
+        return copy_command
 
     def check_checksum(self, filepath, checksum):
+        norm_file = os.path.normpath(filepath)
         check_commands = (
-            """for /f "delims=\" %%i in ('C:\\p4client\\dev_install\\bin\\Win\\sha1deep.exe -s \"{filepath}\"') do (@set sha1deep_ret=%%i)""".format(**locals()),
+            """for /f "delims=\" %%i in ('$(CHECKSUM_TOOL_PATH) -s \"{norm_file}\"') do (@set sha1deep_ret=%%i)""".format(**locals()),
             """@set CHECKSUM_CHECK=\"%sha1deep_ret:~0,40%\"""",
             """if not %CHECKSUM_CHECK% == \"{checksum}\" (""".format(**locals()),
-            self.echo("""echo bad checksum \"{filepath}\"""".format(**locals())),
+            self.echo("""echo bad checksum \"{norm_file}\"""".format(**locals())),
             self.echo("""@echo Expected: {checksum}, Got: %CHECKSUM_CHECK%""".format(**locals())),
             """GOTO EXIT_ON_ERROR""",
             ")"
@@ -274,7 +299,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         pass
 
     def touch(self, filepath):
-        touch_command = " ".join( ("copy", "/b", quoteme_double(filepath), "+,,") )
+        touch_command = " ".join( ("type", "NUL", ">", quoteme_double(filepath)) )
         return touch_command
 
 class DownloadTool_win_wget(DownloadToolBase):
