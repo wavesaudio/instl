@@ -9,7 +9,7 @@ __INSTL_VERSION__:
 
 INSTL_EXEC_DISPLAY_NAME: instl 
 
-# inslt version command will display: $(INSTL_EXEC_DISPLAY_NAME) version $(__INSTL_VERSION__)
+# instl version command will display: $(INSTL_EXEC_DISPLAY_NAME) version $(__INSTL_VERSION__)
 
 TARGET_OS: $(__CURRENT_OS__)
 TARGET_OS_SECOND_NAME: $(__CURRENT_OS_SECOND_NAME__)

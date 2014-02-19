@@ -43,7 +43,7 @@ class InstlInstanceBase(object):
 
         self.install_definitions_index = dict()
         self.batch_accum = BatchAccumulator(self.cvl)
-        self.do_not_write_vars = ("INFO_MAP_SIG", "PUBLIC_KEY")
+        self.do_not_write_vars = ("INFO_MAP_SIG", "INDEX_SIG","PUBLIC_KEY")
         self.out_file_realpath = None
 
 
@@ -185,7 +185,7 @@ class InstlInstanceBase(object):
         if a_node.isMapping():
             for identifier, contents in a_node:
                 if identifier == "__include__":
-                    raise ValueError("!define_const doc cannot except __incldue__")
+                    raise ValueError("!define_const doc cannot except __include__")
                 logging.debug("... %s: %s", identifier, str(contents))
                 self.cvl.add_const_config_variable(identifier, "from !define_const section", *[item.value for item in contents])
 

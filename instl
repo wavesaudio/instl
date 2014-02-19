@@ -12,10 +12,8 @@ import argparse
 # setup logging, must be done before other imports
 from pyinstl.log_utils import setup_logging
 setup_logging("instl", "instl")
-from pyinstl.log_utils import func_log_wrapper
 from pyinstl.utils import get_current_os_names
 
-import pyinstl
 from pyinstl.instlException import InstlFatalException, InstlException
 
 current_os_names = get_current_os_names()

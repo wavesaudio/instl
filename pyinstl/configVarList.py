@@ -17,7 +17,6 @@ import logging
 
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 
-from pyinstl.log_utils import func_log_wrapper
 from pyinstl import configVar
 from aYaml.augmentedYaml import YamlDumpWrap, YamlDumpDocWrap
 
@@ -43,7 +42,6 @@ only_one_value_ref_re = re.compile("""
 class ConfigVarList(object):
     """ Keeps a list of named build config values.
         Help values resolve $() style references. """
-    parser = None
     __slots__ = ("_ConfigVar_objs", "__resolve_stack")
 
     def __init__(self):
@@ -270,3 +268,5 @@ def resolve_list(needsResolveList, resolve_callback):
     if need_to_resolve_again:  # another resolve round until no ref-in-ref are left
         resolved_list = resolve_list(resolved_list, resolve_callback)
     return tuple(resolved_list)
+
+var_list = ConfigVarList()
