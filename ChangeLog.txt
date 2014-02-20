@@ -1,7 +1,12 @@
+???? 0.8.6
+
+    programmer visible changes:
+    * augmentedYaml when running as __main__ can open urls.
+
 19/2/2014 0.8.5 Shai Shasag <shai@waves.com>
 
     user visible changes, client:
-    * Fixed may sync bugs especialy on Windows.
+    * Fixed many sync bugs especialy on Windows.
     * New automatic installation items:
         __ALL_ITEMS_IID__:  all the iids from the index
         __ALL_GUIDS_IID__: all the iids from the index that have guids.

@@ -365,8 +365,9 @@ def nodeToYamlDumpWrap(a_node):
 
 if __name__ == "__main__":
     try:
+        import pyinstl.utils
         for afile in sys.argv[1:]:
-            with open(afile, "r") as fd:
+            with pyinstl.utils.open_for_read_file_or_url(afile) as fd:
                 for a_node in yaml.compose_all(fd):
                     a_node_as_tdw = nodeToYamlDumpWrap(a_node)
                     docWrap = YamlDumpDocWrap(a_node_as_tdw)
