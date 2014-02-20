@@ -69,7 +69,6 @@ class TestPlatformSpecificHelper(unittest.TestCase):
         """ .
         """
         self.ps_helper = PlatformSpecificHelperFactory(os_family_name, None)
-        self.ps_helper.use_copy_tool(DefaultCopyToolName(os_family_name))
 
     def tearDown(self):
         pass

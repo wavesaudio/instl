@@ -16,6 +16,7 @@ from pyinstl.utils import get_current_os_names
 
 from pyinstl.instlException import InstlFatalException, InstlException
 
+
 current_os_names = get_current_os_names()
 os_family_name = current_os_names[0]
 os_second_name = current_os_names[0]
@@ -282,7 +283,10 @@ def main():
         command_names = read_command_line_options(options, sys.argv[1:])
         initial_vars = {"__INSTL_EXE_PATH__": get_path_to_instl_app(),
                         "__INSTL_DATA_FOLDER__": get_data_folder(),
-                        "__COMMAND_NAMES__": command_names}
+                        "__COMMAND_NAMES__": command_names,
+                        "__CURRENT_OS__": os_family_name,
+                        "__CURRENT_OS_SECOND_NAME__": os_second_name,
+                        "__CURRENT_OS_NAMES__": current_os_names}
 
         if options.mode == "client":
             from pyinstl.instlClient import InstlClient

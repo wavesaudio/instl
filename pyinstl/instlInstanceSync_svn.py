@@ -15,13 +15,9 @@ class InstlInstanceSync_svn(InstlInstanceSync):
 
     def init_sync_vars(self):
         var_description = "from InstlInstanceBase.init_sync_vars"
-        if "SYNC_BASE_URL" not in self.ii.cvl:
-            raise ValueError("'SYNC_BASE_URL' was not defined")
-        if "SVN_CLIENT_PATH" not in self.ii.cvl:
-            raise ValueError("'SVN_CLIENT_PATH' was not defined")
+        self.check_prerequisite_var_existence(("SYNC_BASE_URL", "SVN_CLIENT_PATH"))
 
         self.ii.cvl.set_value_if_var_does_not_exist("REPO_REV", "HEAD", description=var_description)
-        self.ii.cvl.set_value_if_var_does_not_exist("LOCAL_SYNC_DIR", self.ii.get_default_sync_dir(self.cvl.get_str("SYNC_BASE_URL")), description=var_description)
         bookkeeping_relative_path = relative_url(self.ii.cvl.get_str("SYNC_BASE_URL"), self.ii.cvl.get_str("BOOKKEEPING_DIR_URL"))
         self.ii.cvl.set_var("REL_BOOKKIPING_PATH", var_description).append(bookkeeping_relative_path)
 

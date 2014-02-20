@@ -9,7 +9,7 @@ class BatchAccumulator(object):
     """ from batchAccumulator import BatchAccumulator
         accumulate batch instructions and prepare them for writing to file
     """
-    section_order = ("pre", "assign", "links", "upload", "sync", "copy", "admin", "post")
+    section_order = ("pre", "assign", "links", "upload", "sync", "post-sync", "copy", "post-copy", "admin", "post")
 
     def __init__(self, in_cvl_obj):
         self.cvl = in_cvl_obj

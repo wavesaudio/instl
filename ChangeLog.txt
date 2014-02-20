@@ -2,6 +2,11 @@
 
     programmer visible changes:
     * augmentedYaml when running as __main__ can open urls.
+    * platformHelper's copy tool is now initialized early so it can be used by InstlInstanceBase.
+    * check_prerequisite_var_existence put to good use.
+    * copy field added to cached includes, specifying where to copy the file.
+    * new batchAccum sections post-sync, post-copy.
+    * platformHelper's copy_file_to_file can create a hard link on Mac/linux.
 
 19/2/2014 0.8.5 Shai Shasag <shai@waves.com>
 

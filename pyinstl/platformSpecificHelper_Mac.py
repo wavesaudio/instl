@@ -113,15 +113,18 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         remark_command = " ".join(('#', remark))
         return remark_command
 
-    def use_copy_tool(self, tool):
-        if tool == "rsync":
+    def use_copy_tool(self, tool_name):
+        if tool_name == "rsync":
             self.copy_tool = CopyToolMacRsync(self)
         else:
-            raise ValueError(tool, "is not a valid copy tool for Mac OS")
+            raise ValueError(tool_name, "is not a valid copy tool for Mac OS")
 
-    def copy_file_to_file(self, src_file, trg_file):
-        sync_command = "cp -f \"{src_file}\" \"{trg_file}\"".format(**locals())
-        return sync_command
+    def copy_file_to_file(self, src_file, trg_file, hard_link=False):
+        if hard_link:
+            copy_command = "ln -f \"{src_file}\" \"{trg_file}\"".format(**locals())
+        else:
+            copy_command = "cp -f \"{src_file}\" \"{trg_file}\"".format(**locals())
+        return copy_command
 
     def resolve_symlink_files(self, in_dir="."):
         """ create instructions to turn .readlink files into symlinks.

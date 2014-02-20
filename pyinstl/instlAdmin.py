@@ -14,7 +14,6 @@ from aYaml.augmentedYaml import writeAsYaml, YamlDumpDocWrap
 
 from instlInstanceBase import InstlInstanceBase
 from pyinstl import svnTree
-from platformSpecificHelper_Base import PlatformSpecificHelperFactory
 from installItem import InstallItem
 from batchAccumulator import BatchAccumulator
 
@@ -51,7 +50,6 @@ class InstlAdmin(InstlInstanceBase):
     def do_command(self):
         the_command = self.cvl.get_str("__MAIN_COMMAND__")
         self.set_default_variables()
-        self.platform_helper = PlatformSpecificHelperFactory(self.cvl.get_str("__CURRENT_OS__"), self)
         self.platform_helper.num_items_for_progress_report = int(self.cvl.get_str("LAST_PROGRESS"))
         fixed_command_name = the_command.replace('-', '_')
         do_command_func = getattr(self, "do_"+fixed_command_name)
@@ -137,19 +135,9 @@ class InstlAdmin(InstlInstanceBase):
         return retVal
 
     def do_create_links(self):
-        if "REPO_NAME" not in self.cvl:
-            raise ValueError("'REPO_NAME' was not defined")
-        if "SVN_REPO_URL" not in self.cvl:
-            raise ValueError("'SVN_REPO_URL' was not defined")
-        if "ROOT_LINKS_FOLDER_REPO" not in self.cvl:
-            raise ValueError("'ROOT_LINKS_FOLDER_REPO' was not defined")
-        if "COPY_TOOL" not in self.cvl:
-            from platformSpecificHelper_Base import DefaultCopyToolName
-            self.cvl.set_var("COPY_TOOL").append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
+        self.check_prerequisite_var_existence(("REPO_NAME", "SVN_REPO_URL", "ROOT_LINKS_FOLDER_REPO"))
 
         self.batch_accum.set_current_section('links')
-
-        self.platform_helper.use_copy_tool(self.cvl.resolve_string("$(COPY_TOOL)"))
 
         info_as_io = None
         # call svn info and to find out the last repo revision
@@ -376,20 +364,14 @@ class InstlAdmin(InstlInstanceBase):
 
         info_map_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/$(TARGET_REPO_REV)/instl/info_map.txt")
         info_map_sigs = self.create_sig_for_file(info_map_file)
-        if "INFO_MAP_SIG" in repo_rev_vars:
-            self.cvl.set_var("INFO_MAP_SIG").append(info_map_sigs["SHA-512_rsa_sig"])
-        if "INFO_MAP_CHECKSUM" in repo_rev_vars:
-            self.cvl.set_var("INFO_MAP_CHECKSUM").append(info_map_sigs["sha1_checksum"])
+        self.cvl.set_var("INFO_MAP_SIG").append(info_map_sigs["SHA-512_rsa_sig"])
+        self.cvl.set_var("INFO_MAP_CHECKSUM").append(info_map_sigs["sha1_checksum"])
 
         self.cvl.set_var("INDEX_URL").append("$(SYNC_BASE_URL)/$(REPO_REV)/instl/index.yaml")
         index_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/$(TARGET_REPO_REV)/instl/index.yaml")
         index_file_sigs = self.create_sig_for_file(index_file)
-        if "INDEX_SIG" in repo_rev_vars:
-            self.cvl.set_var("INDEX_SIG").append(index_file_sigs["SHA-512_rsa_sig"])
-        if "INDEX_CHECKSUM" in repo_rev_vars:
-            self.cvl.set_var("INDEX_CHECKSUM").append(index_file_sigs["sha1_checksum"])
-
-        self.cvl.set_value_if_var_does_not_exist("REPO_REV_FILE_NAME", "$(REPO_NAME)_repo_rev.yaml.$(TARGET_REPO_REV)")
+        self.cvl.set_var("INDEX_SIG").append(index_file_sigs["SHA-512_rsa_sig"])
+        self.cvl.set_var("INDEX_CHECKSUM").append(index_file_sigs["sha1_checksum"])
 
         for var in repo_rev_vars:
             if var not in self.cvl:
@@ -398,7 +380,7 @@ class InstlAdmin(InstlInstanceBase):
         repo_rev_yaml = YamlDumpDocWrap(self.cvl.repr_for_yaml(repo_rev_vars, include_comments=False),
                                                     '!define', "", explicit_start=True, sort_mappings=True)
         safe_makedirs(self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/admin"))
-        local_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME)")
+        local_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
         with open(local_file, "w") as wfd:
             writeAsYaml(repo_rev_yaml, out_stream=wfd, indentor=None, sort=True)
             print("created", local_file)
@@ -408,7 +390,6 @@ class InstlAdmin(InstlInstanceBase):
         bucket 	= s3.get_bucket(self.cvl.get_str("S3_BUCKET_NAME"))
         key_obj = boto.s3.key.Key(bucket)
 
-        self.cvl.set_value_if_var_does_not_exist("REPO_REV_FILE_NAME", "$(REPO_NAME)_repo_rev.yaml")
         local_file = self.cvl.resolve_string("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)")
 
         s3_path = self.cvl.resolve_string("admin/$(REPO_REV_FILE_NAME)")
@@ -518,7 +499,6 @@ class InstlAdmin(InstlInstanceBase):
             self.run_batch_file()
 
     def do_stage2svn(self):
-        self.platform_helper.use_copy_tool("rsync")
         self.batch_accum.set_current_section('admin')
         stage_folder = self.cvl.resolve_string(("$(STAGING_FOLDER)"))
         svn_folder = self.cvl.resolve_string(("$(SVN_CHECKOUT_FOLDER)"))
@@ -568,7 +548,6 @@ class InstlAdmin(InstlInstanceBase):
         return retVal
 
     def do_wtar(self):
-        self.platform_helper.use_copy_tool("rsync")
         self.batch_accum.set_current_section('admin')
         stage_folder = self.cvl.resolve_string(("$(STAGING_FOLDER)"))
         regex_list = self.cvl.get_list("WTAR_REGEX")
@@ -608,7 +587,6 @@ class InstlAdmin(InstlInstanceBase):
             self.run_batch_file()
 
     def do_svn2stage(self):
-        self.platform_helper.use_copy_tool("rsync")
         self.batch_accum.set_current_section('admin')
         stage_folder = self.cvl.resolve_string(("$(STAGING_FOLDER)"))
         svn_folder = self.cvl.resolve_string(("$(SVN_CHECKOUT_FOLDER)"))

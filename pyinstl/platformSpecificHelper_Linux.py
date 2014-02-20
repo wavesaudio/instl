@@ -90,9 +90,12 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         else:
             raise ValueError(tool, "is not a valid copy tool for Linux")
 
-    def copy_file_to_file(self, src_file, trg_file):
-        sync_command = "cp -f \"{src_file}\" \"{trg_file}\"".format(**locals())
-        return sync_command
+    def copy_file_to_file(self, src_file, trg_file, hard_link=False):
+        if hard_link:
+            copy_command = "ln -f \"{src_file}\" \"{trg_file}\"".format(**locals())
+        else:
+            copy_command = "cp -f \"{src_file}\" \"{trg_file}\"".format(**locals())
+        return copy_command
 
     def check_checksum(self, file, checksum):
         raise NotImplementedError

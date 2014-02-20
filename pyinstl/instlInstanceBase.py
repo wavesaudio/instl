@@ -15,12 +15,7 @@ from pyinstl.searchPaths import SearchPaths
 from instlException import InstlException
 from batchAccumulator import BatchAccumulator
 from installItem import read_index_from_yaml, InstallItem
-
-current_os_names = get_current_os_names()
-os_family_name = current_os_names[0]
-os_second_name = current_os_names[0]
-if len(current_os_names) > 1:
-    os_second_name = current_os_names[1]
+from platformSpecificHelper_Base import PlatformSpecificHelperFactory
 
 
 class InstlInstanceBase(object):
@@ -34,12 +29,14 @@ class InstlInstanceBase(object):
         # init objects owned by this class
         self.cvl = ConfigVarList()
         self.path_searcher = SearchPaths(self.cvl.get_configVar_obj("__SEARCH_PATHS__"))
+        self.init_default_vars(initial_vars)
         # initialize the search paths helper with the current directory and dir where instl is now
         self.path_searcher.add_search_path(os.getcwd())
         self.path_searcher.add_search_path(os.path.dirname(os.path.realpath(sys.argv[0])))
         self.path_searcher.add_search_path(self.cvl.get_str("__INSTL_DATA_FOLDER__"))
 
-        self.init_default_vars(initial_vars)
+        self.platform_helper = PlatformSpecificHelperFactory(self.cvl.get_str("__CURRENT_OS__"), self)
+
 
         self.install_definitions_index = dict()
         self.batch_accum = BatchAccumulator(self.cvl)
@@ -68,10 +65,6 @@ class InstlInstanceBase(object):
         if os.path.isfile(class_specific_defaults_file_path):
             self.read_yaml_file(class_specific_defaults_file_path)
 
-        self.cvl.add_const_config_variable("__CURRENT_OS__", var_description, os_family_name)
-        self.cvl.add_const_config_variable("__CURRENT_OS_SECOND_NAME__", var_description, os_second_name)
-        self.cvl.add_const_config_variable("__CURRENT_OS_NAMES__", var_description, *current_os_names)
-
         log_file = pyinstl.log_utils.get_log_file_path(self.cvl.get_str("INSTL_EXEC_DISPLAY_NAME"), self.cvl.get_str("INSTL_EXEC_DISPLAY_NAME"), debug=False)
         self.cvl.set_var("LOG_FILE", var_description).append(log_file)
         debug_log_file = pyinstl.log_utils.get_log_file_path(self.cvl.get_str("INSTL_EXEC_DISPLAY_NAME"), self.cvl.get_str("INSTL_EXEC_DISPLAY_NAME"), debug=True)
@@ -79,6 +72,12 @@ class InstlInstanceBase(object):
         for identifier in self.cvl:
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
 
+    def check_prerequisite_var_existence(self, prerequisite_vars):
+        missing_vars = [var for var in prerequisite_vars if var not in self.cvl]
+        if len(missing_vars) > 0:
+            msg = "Prerequisite variables were not defined: "+", ".join(missing_vars)
+            logging.info("msg")
+            raise ValueError(msg)
 
     def init_from_cmd_line_options(self, cmd_line_options_obj):
         """ turn command line options into variables """
@@ -131,25 +130,18 @@ class InstlInstanceBase(object):
         return retVal
 
     def read_yaml_file(self, file_path):
-        try:
-            logging.info("... Reading input file %s", file_path)
-            with open_for_read_file_or_url(file_path, self.path_searcher) as file_fd:
-                for a_node in yaml.compose_all(file_fd):
-                    if self.is_acceptable_yaml_doc(a_node):
-                        if a_node.tag.startswith('!define_const'):
-                            self.read_const_defines(a_node)
-                        elif a_node.tag.startswith('!define'):
-                            self.read_defines(a_node)
-                        elif a_node.tag.startswith('!index'):
-                            self.read_index(a_node)
-                        else:
-                            logging.error("Unknown document tag '%s' while reading file %s; Tag should be one of: !define, !index'", a_node.tag, file_path)
-        except InstlException as unused_ie:
-            raise # re-raise in case of recursive call to read_file
-        except yaml.YAMLError as ye:
-            raise InstlException(" ".join( ("YAML error while reading file", "'"+file_path+"':\n", str(ye)) ), ye)
-        except IOError as ioe:
-            raise InstlException(" ".join(("Failed to read file", "'"+file_path+"'", ":")), ioe)
+        logging.info("... Reading input file %s", file_path)
+        with open_for_read_file_or_url(file_path, self.path_searcher) as file_fd:
+            for a_node in yaml.compose_all(file_fd):
+                if self.is_acceptable_yaml_doc(a_node):
+                    if a_node.tag.startswith('!define_const'):
+                        self.read_const_defines(a_node)
+                    elif a_node.tag.startswith('!define'):
+                        self.read_defines(a_node)
+                    elif a_node.tag.startswith('!index'):
+                        self.read_index(a_node)
+                    else:
+                        logging.error("Unknown document tag '%s' while reading file %s; Tag should be one of: !define, !index'", a_node.tag, file_path)
         self.cvl.get_configVar_obj("__READ_YAML_FILES__").append(file_path)
 
     internal_identifier_re = re.compile("""
@@ -210,6 +202,9 @@ class InstlInstanceBase(object):
                                           textual_sig=resolved_signature,
                                           expected_checksum=resolved_checksum)
                 self.read_yaml_file(cached_file)
+                if "copy" in i_node:
+                    self.batch_accum.set_current_section('post-sync')
+                    self.batch_accum += self.platform_helper.copy_file_to_file(cached_file, self.cvl.resolve_string(i_node["copy"].value), hard_link=True)
 
     def create_variables_assignment(self):
         self.batch_accum.set_current_section("assign")
@@ -218,8 +213,8 @@ class InstlInstanceBase(object):
                 self.batch_accum += self.platform_helper.var_assign(identifier,self.cvl.get_str(identifier), None) # self.cvl[identifier].resolved_num
 
     def get_default_sync_dir(self, continue_dir=None, mkdir=True):
-
         retVal = None
+        os_family_name = self.cvl.get_str("__CURRENT_OS__")
         if os_family_name == "Mac":
             user_cache_dir_param = "$(COMPANY_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
             retVal = appdirs.user_cache_dir(user_cache_dir_param)

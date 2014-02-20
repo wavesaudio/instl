@@ -254,7 +254,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         else:
             raise ValueError(tool_name, "is not a valid copy tool for", target_os)
 
-    def copy_file_to_file(self, src_file, trg_file):
+    def copy_file_to_file(self, src_file, trg_file, hard_link=False):
         norm_src_file = quoteme_double(os.path.normpath(src_file))
         norm_trg_file = quoteme_double(os.path.normpath(trg_file))
         copy_command = " ".join( ("copy", norm_src_file,  norm_trg_file) )

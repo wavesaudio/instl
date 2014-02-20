@@ -7,7 +7,6 @@ import logging
 from pyinstl.utils import *
 from installItem import read_index_from_yaml, InstallItem, guid_list, iids_from_guid
 from aYaml import augmentedYaml
-from platformSpecificHelper_Base import PlatformSpecificHelperFactory
 
 from instlInstanceBase import InstlInstanceBase
 
@@ -98,7 +97,6 @@ class InstlClient(InstlInstanceBase):
         self.resolve_index_inheritance()
         self.add_deafult_items()
         self.calculate_default_install_item_set()
-        self.platform_helper = PlatformSpecificHelperFactory(self.cvl.get_str("__CURRENT_OS__"), self)
         self.platform_helper.num_items_for_progress_report = int(self.cvl.get_str("LAST_PROGRESS"))
 
         fixed_command_name = the_command.replace('-', '_')
@@ -131,6 +129,7 @@ class InstlClient(InstlInstanceBase):
             raise ValueError('REPO_TYPE is not defined in input file')
         syncer.init_sync_vars()
         syncer.create_sync_instructions(self.installState)
+        self.batch_accum += self.platform_helper.progress("done sync")
 
     def do_copy(self):
         logging.info("Creating copy instructions")
@@ -140,6 +139,7 @@ class InstlClient(InstlInstanceBase):
     def do_synccopy(self):
         self.do_sync()
         self.do_copy()
+        self.batch_accum += self.platform_helper.progress("done synccopy")
 
     def repr_for_yaml(self, what=None):
         """ Create representation of self suitable for printing as yaml.
@@ -216,11 +216,6 @@ class InstlClient(InstlInstanceBase):
             rel_sources = relative_url(self.cvl.get_str("SYNC_BASE_URL"), self.cvl.get_str("SYNC_TRAGET_OS_URL"))
             self.cvl.set_var("REL_SRC_PATH", var_description).append(rel_sources)
 
-        self.cvl.set_value_if_var_does_not_exist("LOCAL_SYNC_DIR", self.get_default_sync_dir(self.cvl.get_str("SYNC_BASE_URL")), description=var_description)
-
-        if "COPY_TOOL" not in self.cvl:
-            from platformSpecificHelper_Base import DefaultCopyToolName
-            self.cvl.set_var("COPY_TOOL", var_description).append(DefaultCopyToolName(self.cvl.get_str("TARGET_OS")))
         for identifier in ("REL_SRC_PATH", "COPY_TOOL"):
             logging.debug("... %s: %s", identifier, self.cvl.get_str(identifier))
 
@@ -228,7 +223,6 @@ class InstlClient(InstlInstanceBase):
         # copy and actions instructions for sources
         self.batch_accum.set_current_section('copy')
         self.batch_accum += self.platform_helper.progress("starting copy")
-        self.platform_helper.use_copy_tool(self.cvl.get_str("COPY_TOOL"))
 
         self.batch_accum += self.platform_helper.progress("from $(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)")
 
@@ -237,7 +231,6 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum += self.platform_helper.progress("resolve .symlink files")
 
         for folder_name, items_in_folder in self.installState.install_items_by_target_folder.iteritems():
-            self.batch_accum.indent_level += 1
             logging.info("... folder %s (%s)", folder_name, self.cvl.resolve_string(folder_name))
             self.batch_accum += self.platform_helper.mkdir(folder_name)
             self.batch_accum += self.platform_helper.cd(folder_name)
@@ -276,12 +269,12 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum += folder_out_actions
 
             self.batch_accum.indent_level -= 1
-            self.batch_accum.indent_level -= 1
 
         # actions instructions for sources that do not need copying
         for folder_name, items_in_folder in self.installState.no_copy_items_by_sync_folder.iteritems():
             logging.info("... non-copy items folder %s (%s)", folder_name, self.cvl.resolve_string(folder_name))
             self.batch_accum += self.platform_helper.cd(folder_name)
+            self.batch_accum.indent_level += 1
 
             # accumulate folder_in actions from all items, eliminating duplicates
             folder_in_actions = unique_list() # unique_list will eliminate identical actions while keeping the order
@@ -313,6 +306,8 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum += folder_out_actions
 
             self.batch_accum += self.platform_helper.progress("{folder_name}".format(**locals()))
+            self.batch_accum.indent_level -= 1
+
         # messages about orphan iids
         for iid in self.installState.orphan_install_items:
             logging.info("Orphan item: %s", iid)

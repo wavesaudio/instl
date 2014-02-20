@@ -4,3 +4,4 @@ CREATE_LINKS_STAMP_FILE_NAME: create-links.done
 UP_2_S3_STAMP_FILE_NAME: up2s3.done
 SVN_CLIENT_PATH: wsvn
 INFO_MAP_FILE_URL: $(SYNC_BASE_URL)/$(REPO_REV)/instl/info_map.txt
+REPO_REV_FILE_NAME: $(REPO_NAME)_repo_rev.yaml

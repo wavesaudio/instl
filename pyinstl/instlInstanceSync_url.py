@@ -33,13 +33,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             is not defined.
         """
         var_description = "from InstlInstanceBase.init_sync_vars"
-        if "SYNC_BASE_URL" not in self.instlObj.cvl:
-            raise ValueError("'SYNC_BASE_URL' was not defined")
-        if "DOWNLOAD_TOOL_PATH" not in self.instlObj.cvl:
-            raise ValueError("'DOWNLOAD_TOOL_PATH' was not defined")
-
-        if "REPO_REV" not in self.instlObj.cvl:
-            raise ValueError("'REPO_REV' was not defined")
+        self.instlObj.check_prerequisite_var_existence(("SYNC_BASE_URL", "DOWNLOAD_TOOL_PATH", "REPO_REV"))
 
         if "PUBLIC_KEY" not in self.instlObj.cvl:
             if "PUBLIC_KEY_FILE" in self.instlObj.cvl:
@@ -63,6 +57,9 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.read_have_info_map()               # reads the info map of items already synced
         self.filter_out_already_synced_items()  # removes items that are already on the user's disk
         self.create_download_instructions()
+        self.instlObj.batch_accum.set_current_section('post-sync')
+        self.instlObj.batch_accum += self.instlObj.platform_helper.copy_file_to_file("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")
+
 
     def read_remote_info_map(self):
         """ Reads the info map of the static files available for syncing.
@@ -177,6 +174,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
     def create_download_instructions(self):
         self.instlObj.batch_accum.set_current_section('sync')
+        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("starting sync")
         num_files = self.work_info_map.num_subs_in_tree(what="file")
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("from $(SYNC_TRAGET_OS_URL)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir("$(LOCAL_SYNC_DIR)")
@@ -232,8 +230,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.instlObj.batch_accum.merge_with(wuntar_accum)
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress(self.instlObj.cvl.resolve_string("untar done"))
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
-        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("from $(SYNC_TRAGET_OS_URL)")
-        self.instlObj.batch_accum += self.instlObj.platform_helper.copy_file_to_file("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")
 
     def create_prefix_instructions_for_item(self, accum, item, path_so_far = list()):
         if item.isSymlink():

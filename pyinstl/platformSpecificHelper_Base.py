@@ -6,17 +6,6 @@ import urllib
 from pyinstl.utils import *
 
 
-def DefaultCopyToolName(target_os):
-    retVal = None
-    if target_os == "Win":
-        retVal = "robocopy"
-    elif target_os == "Mac":
-        retVal = "rsync"
-    elif target_os == 'Linux':
-        retVal = "rsync"
-    else:
-        raise ValueError(target_os, "has no valid default copy tool")
-    return retVal
 
 class CopyToolBase(object):
     """ Create copy commands. Each function should be overridden to implement the copying
@@ -60,7 +49,6 @@ class CopyToolBase(object):
             all files from a into "/d/c/b", subfolders of a are not copied
         """
         pass
-
 
 class CopyToolRsync(CopyToolBase):
     def __init__(self, platformHelper):
@@ -130,6 +118,22 @@ class PlatformSpecificHelperBase(object):
         self.num_items_for_progress_report = 0
         self.progress_staccato_period = int(self.instlObj.cvl.get_str("PROGRESS_STACCATO_PERIOD"))
         self.progress_staccato_count = 0
+        copy_tool_name = self.DefaultCopyToolName(self.instlObj.cvl.get_str("__CURRENT_OS__")) # copy instructions are always produced for the current os
+        if "COPY_TOOL" in self.instlObj.cvl:
+            copy_tool_name = self.instlObj.cvl.get_str("COPY_TOOL")
+        self.use_copy_tool(copy_tool_name)
+
+    def DefaultCopyToolName(self, target_os):
+        retVal = None
+        if target_os == "Win":
+            retVal = "robocopy"
+        elif target_os == "Mac":
+            retVal = "rsync"
+        elif target_os == 'Linux':
+            retVal = "rsync"
+        else:
+            raise ValueError(target_os, "has no valid default copy tool")
+        return retVal
 
     @abc.abstractmethod
     def get_install_instructions_prefix(self):
