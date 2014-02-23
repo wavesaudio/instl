@@ -418,8 +418,10 @@ class InstlAdmin(InstlInstanceBase):
         my_stdout, my_stderr = proc.communicate()
         if proc.returncode != 0 or my_stderr != "":
             raise ValueError("Could not read info from svn: "+my_stderr)
-        svn_info = StringIO.StringIO(my_stdout)
-        self.svnTree.read_from_svn_info(svn_info)
+        with open("../svn-info-for-fix-props.txt", "w") as wfd:
+            wfd.write(my_stdout)
+        with open("../svn-info-for-fix-props.txt", "r") as rfd:
+            self.svnTree.read_from_svn_info(rfd)
 
         # read svn props
         svn_props_command = [self.cvl.get_str("SVN_CLIENT_PATH"), "proplist", "--depth", "infinity"]

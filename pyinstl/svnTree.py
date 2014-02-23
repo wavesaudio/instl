@@ -233,7 +233,7 @@ class SVNTree(svnItem.SVNTopItem):
         try:
             svn_info_line_re = re.compile("""
                         ^
-                        (?P<key>Path|Last\ Changed\ Rev|Node\ Kind|Revision|Checksum)
+                        (?P<key>Path|Last\ Changed\ Rev|Node\ Kind|Revision|Checksum|Tree\ conflict)
                         :\s*
                         (?P<rest_of_line>.*)
                         $
@@ -256,6 +256,8 @@ class SVNTree(svnItem.SVNTopItem):
                 if line != "\n":
                     the_match = svn_info_line_re.match(line)
                     if the_match:
+                        if the_match.group('key') == "Tree conflict":
+                            raise ValueError(" ".join(("Tree conflict at line", str(line_num), "Path:", record['Path'])))
                         record[the_match.group('key')] = the_match.group('rest_of_line')
                 else:
                     if record and record["Path"] != ".": # in case there were several empty lines between blocks
@@ -264,7 +266,8 @@ class SVNTree(svnItem.SVNTopItem):
             if record and record["Path"] != ".": # in case there was no extra line at the end of file
                 yield create_info_line_from_record(record)
         except KeyError as unused_ke:
-            print("key error, file:", long_info_fd.name, "line:", line_num, "record:", record)
+            print(unused_ke)
+            print("Error:",  "line:", line_num, "record:", record)
             raise
 
 if __name__ == "__main__":
