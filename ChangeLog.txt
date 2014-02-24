@@ -1,4 +1,12 @@
-???? 0.8.6
+24/2/2014 0.8.6 Shai Shasag <shai@waves.com>
+
+    user visible changes, client:
+    * ACCEPTABLE_YAML_DOC_TAGS from main.yaml was missing from th ecompiled version.
+    * version command will add "(not compiled)" if instl is running though python interpreter.
+    * New var: __INSTL_COMPILED__ set to True is instl was compiled and False is running though python interpreter.
+
+    user visible changes, admin:
+    * fix props:    write svn info to file for debugging and reference. But go one folder up so not to be in the svn repo.
 
     programmer visible changes:
     * augmentedYaml when running as __main__ can open urls.
