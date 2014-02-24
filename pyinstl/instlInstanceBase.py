@@ -270,8 +270,12 @@ class InstlInstanceBase(object):
     def run_batch_file(self):
         logging.info("running batch file %s", self.out_file_realpath)
         from subprocess import Popen
-        p = Popen(self.out_file_realpath)
+        p = Popen(self.out_file_realpath, executable=self.out_file_realpath, shell=False)
         unused_stdout, unused_stderr = p.communicate()
+        retcode = p.returncode
+        print("returning", retcode, dir(p))
+        if retcode != 0:
+            raise SystemExit(self.out_file_realpath + " returned exit code " + str(retcode))
 
     def write_program_state(self):
         from utils import write_to_file_or_stdout
