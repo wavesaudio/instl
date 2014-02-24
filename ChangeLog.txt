@@ -1,3 +1,8 @@
+???? 0.8.7
+
+    user visible changes, client:
+    * Mac: When using --run and script fails, exit code is passed correctly.
+
 24/2/2014 0.8.6 Shai Shasag <shai@waves.com>
 
     user visible changes, client:

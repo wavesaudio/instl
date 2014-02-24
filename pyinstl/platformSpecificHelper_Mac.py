@@ -38,9 +38,11 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
     def get_install_instructions_exit_func(self):
         retVal = (
             "exit_func() {",
+            "CATCH_EXIT_VALUE=$?",
             self.restore_dir("TOP_SAVE_DIR"),
             self.end_time_measure(),
-            "exit $?",
+            self.echo("exit code ${CATCH_EXIT_VALUE}"),
+            "exit ${CATCH_EXIT_VALUE}",
             "}",
             "trap \"exit_func\" EXIT")
         return retVal

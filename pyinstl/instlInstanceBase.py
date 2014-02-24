@@ -273,7 +273,6 @@ class InstlInstanceBase(object):
         p = Popen(self.out_file_realpath, executable=self.out_file_realpath, shell=False)
         unused_stdout, unused_stderr = p.communicate()
         retcode = p.returncode
-        print("returning", retcode, dir(p))
         if retcode != 0:
             raise SystemExit(self.out_file_realpath + " returned exit code " + str(retcode))
 
