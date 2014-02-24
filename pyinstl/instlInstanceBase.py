@@ -46,6 +46,9 @@ class InstlInstanceBase(object):
 
     def get_version_str(self):
         retVal = " ".join( (self.cvl.get_str("INSTL_EXEC_DISPLAY_NAME"), "version", ".".join(self.cvl.get_list("__INSTL_VERSION__"))) )
+        if self.cvl.get_str("__INSTL_COMPILED__") == "False":
+             retVal += " (not compiled)"
+
         return retVal
 
     def init_default_vars(self, initial_vars):

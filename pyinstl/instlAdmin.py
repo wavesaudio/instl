@@ -418,6 +418,7 @@ class InstlAdmin(InstlInstanceBase):
         my_stdout, my_stderr = proc.communicate()
         if proc.returncode != 0 or my_stderr != "":
             raise ValueError("Could not read info from svn: "+my_stderr)
+        # write svn info to file for debugging and reference. But go one folder up so not to be in the svn repo.
         with open("../svn-info-for-fix-props.txt", "w") as wfd:
             wfd.write(my_stdout)
         with open("../svn-info-for-fix-props.txt", "r") as rfd:
