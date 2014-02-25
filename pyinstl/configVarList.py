@@ -269,4 +269,5 @@ def resolve_list(needsResolveList, resolve_callback):
         resolved_list = resolve_list(resolved_list, resolve_callback)
     return tuple(resolved_list)
 
+# This is the global variable list serving all parts of instl
 var_list = ConfigVarList()

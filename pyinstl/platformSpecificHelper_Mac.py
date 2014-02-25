@@ -193,9 +193,9 @@ class DownloadTool_mac_curl(DownloadToolBase):
         super(DownloadTool_mac_curl, self).__init__(platformHelper)
 
     def download_url_to_file(self, src_url, trg_file):
-        connect_time_out = self.platformHelper.instlObj.cvl.get_str("CURL_CONNECT_TIMEOUT")
-        max_time         = self.platformHelper.instlObj.cvl.get_str("CURL_MAX_TIME")
-        retries          = self.platformHelper.instlObj.cvl.get_str("CURL_RETRIES")
+        connect_time_out = var_list.get_str("CURL_CONNECT_TIMEOUT")
+        max_time         = var_list.get_str("CURL_MAX_TIME")
+        retries          = var_list.get_str("CURL_RETRIES")
         download_command_parts = list()
         download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
         download_command_parts.append("--insecure")
@@ -221,9 +221,9 @@ class DownloadTool_mac_curl(DownloadToolBase):
         import itertools
         num_urls_to_download = len(self.urls_to_download)
         if num_urls_to_download > 0:
-            connect_time_out = self.platformHelper.instlObj.cvl.get_str("CURL_CONNECT_TIMEOUT")
-            max_time         = self.platformHelper.instlObj.cvl.get_str("CURL_MAX_TIME")
-            retries          = self.platformHelper.instlObj.cvl.get_str("CURL_RETRIES")
+            connect_time_out = var_list.get_str("CURL_CONNECT_TIMEOUT")
+            max_time         = var_list.get_str("CURL_MAX_TIME")
+            retries          = var_list.get_str("CURL_RETRIES")
 
             actual_num_files = max(1, min(num_urls_to_download / 8, num_files))
             curl_config_file_path_parts = curl_config_file_path.split(".")
@@ -264,7 +264,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
 
         with open(parallel_run_config_file_path, "w") as wfd:
             for config_file in config_files:
-                wfd.write(self.platformHelper.instlObj.cvl.resolve_string("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+config_file+"\"\n"))
+                wfd.write(var_list.resolve_string("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+config_file+"\"\n"))
 
         download_command = "\"$(__INSTL_EXE_PATH__)\" parallel-run --in \""+parallel_run_config_file_path+"\""
         return download_command

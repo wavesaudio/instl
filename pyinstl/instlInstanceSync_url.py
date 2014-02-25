@@ -3,11 +3,11 @@ from __future__ import print_function
 
 import logging
 
-from pyinstl.log_utils import func_log_wrapper
 from pyinstl.utils import *
 from pyinstl import svnTree
 from instlInstanceSyncBase import InstlInstanceSync
 from batchAccumulator import BatchAccumulator
+from configVarList import var_list
 
 def is_user_data_false_or_dir_empty(svn_item):
     retVal = not svn_item.user_data
@@ -35,19 +35,19 @@ class InstlInstanceSync_url(InstlInstanceSync):
         var_description = "from InstlInstanceBase.init_sync_vars"
         self.instlObj.check_prerequisite_var_existence(("SYNC_BASE_URL", "DOWNLOAD_TOOL_PATH", "REPO_REV"))
 
-        if "PUBLIC_KEY" not in self.instlObj.cvl:
-            if "PUBLIC_KEY_FILE" in self.instlObj.cvl:
-                public_key_file = self.instlObj.cvl.resolve_string("$(PUBLIC_KEY_FILE)")
+        if "PUBLIC_KEY" not in var_list:
+            if "PUBLIC_KEY_FILE" in var_list:
+                public_key_file = var_list.resolve_string("$(PUBLIC_KEY_FILE)")
                 public_key_text = open(public_key_file, "rb").read()
-                self.instlObj.cvl.set_var("PUBLIC_KEY", "from "+public_key_file).append(public_key_text)
+                var_list.set_var("PUBLIC_KEY", "from "+public_key_file).append(public_key_text)
 
-        self.local_sync_dir = self.instlObj.cvl.get_str("LOCAL_SYNC_DIR")
+        self.local_sync_dir = var_list.get_str("LOCAL_SYNC_DIR")
 
         for identifier in ("SYNC_BASE_URL", "DOWNLOAD_TOOL_PATH", "REPO_REV", "SYNC_TRAGET_OS_URL", "LOCAL_SYNC_DIR", "BOOKKEEPING_DIR_URL",
                            "INFO_MAP_FILE_URL", "LOCAL_BOOKKEEPING_PATH","NEW_HAVE_INFO_MAP_PATH", "REQUIRED_INFO_MAP_PATH",
                             "TO_SYNC_INFO_MAP_PATH", "REPO_REV_LOCAL_BOOKKEEPING_PATH", "LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"):
-            #print(identifier, self.instlObj.cvl.get_str(identifier))
-            logging.debug("... %s: %s", identifier, self.instlObj.cvl.get_str(identifier))
+            #print(identifier, var_list.get_str(identifier))
+            logging.debug("... %s: %s", identifier, var_list.get_str(identifier))
 
     def create_sync_instructions(self, installState):
         self.instlObj.batch_accum.set_current_section('sync')
@@ -66,14 +66,14 @@ class InstlInstanceSync_url(InstlInstanceSync):
             Writes the map to local sync folder for reference and debugging.
         """
         try:
-            safe_makedirs(self.instlObj.cvl.get_str("LOCAL_BOOKKEEPING_PATH"))
-            safe_makedirs(self.instlObj.cvl.get_str("REPO_REV_LOCAL_BOOKKEEPING_PATH"))
-            download_from_file_or_url(self.instlObj.cvl.get_str("INFO_MAP_FILE_URL"),
-                                      self.instlObj.cvl.get_str("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"),
+            safe_makedirs(var_list.get_str("LOCAL_BOOKKEEPING_PATH"))
+            safe_makedirs(var_list.get_str("REPO_REV_LOCAL_BOOKKEEPING_PATH"))
+            download_from_file_or_url(var_list.get_str("INFO_MAP_FILE_URL"),
+                                      var_list.get_str("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"),
                                       cache=True,
-                                      public_key=self.instlObj.cvl.get_str("PUBLIC_KEY"),
-                                      textual_sig=self.instlObj.cvl.get_str("INFO_MAP_SIG"))
-            self.work_info_map.read_info_map_from_file(self.instlObj.cvl.get_str("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"), format="text")
+                                      public_key=var_list.get_str("PUBLIC_KEY"),
+                                      textual_sig=var_list.get_str("INFO_MAP_SIG"))
+            self.work_info_map.read_info_map_from_file(var_list.get_str("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"), format="text")
         except:
             raise
 
@@ -90,13 +90,13 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 for source in installi.source_list():
                     self.mark_required_items_for_source(source)
         self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
-        self.work_info_map.write_to_file(self.instlObj.cvl.get_str("REQUIRED_INFO_MAP_PATH"), in_format="text")
+        self.work_info_map.write_to_file(var_list.get_str("REQUIRED_INFO_MAP_PATH"), in_format="text")
 
     def read_have_info_map(self):
         """ Reads the map of files previously synced - if there is one.
         """
-        if os.path.isfile(self.instlObj.cvl.get_str("HAVE_INFO_MAP_PATH")):
-            self.have_map.read_info_map_from_file(self.instlObj.cvl.get_str("HAVE_INFO_MAP_PATH"), format="text")
+        if os.path.isfile(var_list.get_str("HAVE_INFO_MAP_PATH")):
+            self.have_map.read_info_map_from_file(var_list.get_str("HAVE_INFO_MAP_PATH"), format="text")
 
     class RemoveIfChecksumOK:
         def __init__(self, base_path):
@@ -141,14 +141,14 @@ class InstlInstanceSync_url(InstlInstanceSync):
                     have_item.set_flags(need_item.flags())
                     have_item.set_last_rev(need_item.last_rev())
         self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
-        self.work_info_map.write_to_file(self.instlObj.cvl.get_str("TO_SYNC_INFO_MAP_PATH"), in_format="text")
-        self.have_map.write_to_file(self.instlObj.cvl.get_str("NEW_HAVE_INFO_MAP_PATH"), in_format="text")
+        self.work_info_map.write_to_file(var_list.get_str("TO_SYNC_INFO_MAP_PATH"), in_format="text")
+        self.have_map.write_to_file(var_list.get_str("NEW_HAVE_INFO_MAP_PATH"), in_format="text")
 
     def mark_required_items_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
-        target_os_remote_info_map = self.work_info_map.get_item_at_path(self.instlObj.cvl.get_str("TARGET_OS"))
+        target_os_remote_info_map = self.work_info_map.get_item_at_path(var_list.get_str("TARGET_OS"))
         if target_os_remote_info_map is None:
-            raise ValueError(self.instlObj.cvl.get_str("TARGET_OS"), "does not exist in remote map")
+            raise ValueError(var_list.get_str("TARGET_OS"), "does not exist in remote map")
         remote_sub_item = target_os_remote_info_map.get_item_at_path(source[0])
         if remote_sub_item is None:
             raise ValueError(source[0], "does not exist in remote map")
@@ -169,7 +169,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def clear_unrequired_items(self):
         self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
         # for debugging
-        work_info_map_path = self.instlObj.cvl.get_str("REQUIRED_INFO_MAP_PATH")
+        work_info_map_path = var_list.get_str("REQUIRED_INFO_MAP_PATH")
         self.work_info_map.write_to_file(work_info_map_path, in_format="text")
 
     def create_download_instructions(self):
@@ -179,13 +179,13 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("from $(SYNC_TRAGET_OS_URL)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir("$(LOCAL_SYNC_DIR)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.cd("$(LOCAL_SYNC_DIR)")
-        self.sync_base_url = self.instlObj.cvl.resolve_string("$(SYNC_BASE_URL)")
+        self.sync_base_url = var_list.resolve_string("$(SYNC_BASE_URL)")
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
         file_list, dir_list = self.work_info_map.sorted_sub_items()
 
-        prefix_accum = BatchAccumulator(self.instlObj.cvl) # sub-accumulator for unwtar
+        prefix_accum = BatchAccumulator() # sub-accumulator for unwtar
         prefix_accum.set_current_section('sync')
         for need_item in file_list + dir_list:
             self.create_prefix_instructions_for_item(prefix_accum, need_item)
@@ -198,37 +198,37 @@ class InstlInstanceSync_url(InstlInstanceSync):
         for need_item in file_list + dir_list:
             self.create_download_instructions_for_item(need_item)
 
-        self.instlObj.cvl.add_const_config_variable("__NUM_FILES_TO_DOWNLOAD__", "create_download_instructions", self.instlObj.platform_helper.dl_tool.get_num_urls_to_download())
+        var_list.add_const_config_variable("__NUM_FILES_TO_DOWNLOAD__", "create_download_instructions", self.instlObj.platform_helper.dl_tool.get_num_urls_to_download())
 
-        curl_config_folder = self.instlObj.cvl.resolve_string(os.path.join("$(LOCAL_SYNC_DIR)", "curl"))
+        curl_config_folder = var_list.resolve_string(os.path.join("$(LOCAL_SYNC_DIR)", "curl"))
         safe_makedirs(curl_config_folder)
-        curl_config_file_path = self.instlObj.cvl.resolve_string(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"))
-        num_config_files = int(self.instlObj.cvl.get_str("PARALLEL_SYNC"))
+        curl_config_file_path = var_list.resolve_string(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"))
+        num_config_files = int(var_list.get_str("PARALLEL_SYNC"))
         config_file_list = self.instlObj.platform_helper.dl_tool.create_config_files(curl_config_file_path, num_config_files)
         if len(config_file_list) > 0:
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
-            self.instlObj.batch_accum += self.instlObj.platform_helper.progress(self.instlObj.cvl.resolve_string("Downloading with "+str(len(config_file_list))+" processes in parallel"))
-            parallel_run_config_file_path = self.instlObj.cvl.resolve_string(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME).parallel-run"))
+            self.instlObj.batch_accum += self.instlObj.platform_helper.progress(var_list.resolve_string("Downloading with "+str(len(config_file_list))+" processes in parallel"))
+            parallel_run_config_file_path = var_list.resolve_string(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME).parallel-run"))
             self.instlObj.batch_accum += self.instlObj.platform_helper.dl_tool.download_from_config_files(parallel_run_config_file_path, config_file_list)
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Downloading "+str(self.files_to_download)+" files done", self.files_to_download)
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
-        checksum_accum = BatchAccumulator(self.instlObj.cvl) # sub-accumulator for unwtar
+        checksum_accum = BatchAccumulator() # sub-accumulator for unwtar
         checksum_accum.set_current_section('sync')
         for need_item in file_list + dir_list:
             self.create_checksum_instructions_for_item(checksum_accum, need_item)
         if len(checksum_accum) > 0:
             self.instlObj.batch_accum.merge_with(checksum_accum)
-            self.instlObj.batch_accum += self.instlObj.platform_helper.progress(self.instlObj.cvl.resolve_string("Check checksum done"))
+            self.instlObj.batch_accum += self.instlObj.platform_helper.progress(var_list.resolve_string("Check checksum done"))
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
-        wuntar_accum = BatchAccumulator(self.instlObj.cvl) # sub-accumulator for unwtar
+        wuntar_accum = BatchAccumulator() # sub-accumulator for unwtar
         wuntar_accum.set_current_section('sync')
         for need_item in file_list + dir_list:
             self.create_unwtar_instructions_for_item(wuntar_accum, need_item)
         if len(wuntar_accum) > 0:
             self.instlObj.batch_accum.merge_with(wuntar_accum)
-            self.instlObj.batch_accum += self.instlObj.platform_helper.progress(self.instlObj.cvl.resolve_string("untar done"))
+            self.instlObj.batch_accum += self.instlObj.platform_helper.progress(var_list.resolve_string("untar done"))
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
     def create_prefix_instructions_for_item(self, accum, item, path_so_far = list()):
@@ -240,7 +240,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             path_so_far.append(item.name())
             file_list, dir_list = item.sorted_sub_items()
             if len(dir_list) == 0: # folders that have sub-folders will be created implicitly by the sub-folders.
-                folder_path = os.path.join(*make_one_list(self.instlObj.cvl.resolve_string("$(LOCAL_SYNC_DIR)"), path_so_far))
+                folder_path = os.path.join(*make_one_list(var_list.resolve_string("$(LOCAL_SYNC_DIR)"), path_so_far))
                 if not os.path.isdir(folder_path):
                     self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir(folder_path)
                     self.instlObj.batch_accum += self.instlObj.platform_helper.progress_staccato("creating folders")

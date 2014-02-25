@@ -255,7 +255,7 @@ def read_command_line_options(name_space_obj, arglist=None):
     # todo: restore __COMMAND_LINE_OPTIONS__
     #if arglist is not None:
     #    logging.info("arglist: %s", " ".join(arglist))
-    #self.cvl.add_const_config_variable('__COMMAND_LINE_OPTIONS__', "read only value", args_str)
+    #var_list.add_const_config_variable('__COMMAND_LINE_OPTIONS__', "read only value", args_str)
     if not arglist or len(arglist) == 0:
         pass
         # No command line options given, but there maybe a "auto run" file with options

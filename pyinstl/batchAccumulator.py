@@ -3,7 +3,7 @@ from __future__ import print_function
 
 from collections import defaultdict
 
-from pyinstl.log_utils import func_log_wrapper
+from configVarList import var_list
 
 class BatchAccumulator(object):
     """ from batchAccumulator import BatchAccumulator
@@ -11,8 +11,7 @@ class BatchAccumulator(object):
     """
     section_order = ("pre", "assign", "links", "upload", "sync", "post-sync", "copy", "post-copy", "admin", "post")
 
-    def __init__(self, in_cvl_obj):
-        self.cvl = in_cvl_obj
+    def __init__(self):
         self.variables_assignment_lines = list()
         self.instruction_lines = defaultdict(list)
         self.indent_level = 0
@@ -48,7 +47,7 @@ class BatchAccumulator(object):
             if section_lines:
                 if section == "assign":
                     section_lines.sort()
-                resolved_sync_instruction_lines = map(self.cvl.resolve_string, section_lines)
+                resolved_sync_instruction_lines = map(var_list.resolve_string, section_lines)
                 lines.extend(resolved_sync_instruction_lines)
                 lines.append("") # empty string will cause to emit new line
         return lines

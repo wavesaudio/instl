@@ -1,10 +1,10 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
-import os
+
 import abc
 import urllib
 from pyinstl.utils import *
-
+from configVarList import var_list
 
 
 class CopyToolBase(object):
@@ -116,11 +116,11 @@ class PlatformSpecificHelperBase(object):
         self.copy_tool = None
         self.dl_tool = None
         self.num_items_for_progress_report = 0
-        self.progress_staccato_period = int(self.instlObj.cvl.get_str("PROGRESS_STACCATO_PERIOD"))
+        self.progress_staccato_period = int(var_list.get_str("PROGRESS_STACCATO_PERIOD"))
         self.progress_staccato_count = 0
-        copy_tool_name = self.DefaultCopyToolName(self.instlObj.cvl.get_str("__CURRENT_OS__")) # copy instructions are always produced for the current os
-        if "COPY_TOOL" in self.instlObj.cvl:
-            copy_tool_name = self.instlObj.cvl.get_str("COPY_TOOL")
+        copy_tool_name = self.DefaultCopyToolName(var_list.get_str("__CURRENT_OS__")) # copy instructions are always produced for the current os
+        if "COPY_TOOL" in var_list:
+            copy_tool_name = var_list.get_str("COPY_TOOL")
         self.use_copy_tool(copy_tool_name)
 
     def DefaultCopyToolName(self, target_os):

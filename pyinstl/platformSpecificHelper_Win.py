@@ -30,7 +30,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         """ To do: dedicate a variable to copy logging (COPY_LOG_FILE ???)
         """
         retVal = ""
-        #log_file = self.platformHelper.instlObj.cvl.get_str("LOG_FILE")
+        #log_file = var_list.get_str("LOG_FILE")
         #retVal = " /LOG:{log_file}".format(**locals())
         return retVal
 
@@ -139,7 +139,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         self.var_replacement_pattern = "%\g<var_name>%"
 
     def init_download_tool(self):
-        download_tool_name = self.instlObj.cvl.get_str("DOWNLOAD_TOOL_PATH")
+        download_tool_name = var_list.get_str("DOWNLOAD_TOOL_PATH")
         if download_tool_name.endswith("wget.exe"):
             self.dl_tool = DownloadTool_win_wget(self)
         elif download_tool_name.endswith("curl.exe"):
@@ -341,9 +341,9 @@ class DownloadTool_win_curl(DownloadToolBase):
         super(DownloadTool_win_curl, self).__init__(platformHelper)
 
     def download_url_to_file(self, src_url, trg_file):
-        connect_time_out = self.platformHelper.instlObj.cvl.get_str("CURL_CONNECT_TIMEOUT")
-        max_time         = self.platformHelper.instlObj.cvl.get_str("CURL_MAX_TIME")
-        retries          = self.platformHelper.instlObj.cvl.get_str("CURL_RETRIES")
+        connect_time_out = var_list.get_str("CURL_CONNECT_TIMEOUT")
+        max_time         = var_list.get_str("CURL_MAX_TIME")
+        retries          = var_list.get_str("CURL_RETRIES")
         download_command_parts = list()
         download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
         download_command_parts.append("--insecure")
@@ -369,9 +369,9 @@ class DownloadTool_win_curl(DownloadToolBase):
         import itertools
         num_urls_to_download = len(self.urls_to_download)
         if num_urls_to_download > 0:
-            connect_time_out = self.platformHelper.instlObj.cvl.get_str("CURL_CONNECT_TIMEOUT")
-            max_time         = self.platformHelper.instlObj.cvl.get_str("CURL_MAX_TIME")
-            retries          = self.platformHelper.instlObj.cvl.get_str("CURL_RETRIES")
+            connect_time_out = var_list.get_str("CURL_CONNECT_TIMEOUT")
+            max_time         = var_list.get_str("CURL_MAX_TIME")
+            retries          = var_list.get_str("CURL_RETRIES")
             actual_num_files = max(1, min(num_urls_to_download / 8, num_files))
             curl_config_file_path_parts = curl_config_file_path.split(".")
             file_name_list = [".".join( curl_config_file_path_parts[:-1]+[str(file_i)]+curl_config_file_path_parts[-1:]  ) for file_i in xrange(actual_num_files)]
@@ -410,7 +410,7 @@ class DownloadTool_win_curl(DownloadToolBase):
     def download_from_config_files(self, parallel_run_config_file_path, config_files):
         with open(parallel_run_config_file_path, "w") as wfd:
             for config_file in config_files:
-                wfd.write(self.platformHelper.instlObj.cvl.resolve_string("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+config_file+"\"\n"))
+                wfd.write(var_list.resolve_string("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+config_file+"\"\n"))
 
         command_prefix = ""
         if not getattr(sys, 'frozen', False):

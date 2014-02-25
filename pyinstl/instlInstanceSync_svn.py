@@ -2,9 +2,9 @@
 from __future__ import print_function
 import logging
 
-from pyinstl.log_utils import func_log_wrapper
 from pyinstl.utils import *
 from instlInstanceSyncBase import InstlInstanceSync
+from configVarList import var_list
 
 
 class InstlInstanceSync_svn(InstlInstanceSync):
@@ -17,15 +17,15 @@ class InstlInstanceSync_svn(InstlInstanceSync):
         var_description = "from InstlInstanceBase.init_sync_vars"
         self.check_prerequisite_var_existence(("SYNC_BASE_URL", "SVN_CLIENT_PATH"))
 
-        self.ii.cvl.set_value_if_var_does_not_exist("REPO_REV", "HEAD", description=var_description)
-        bookkeeping_relative_path = relative_url(self.ii.cvl.get_str("SYNC_BASE_URL"), self.ii.cvl.get_str("BOOKKEEPING_DIR_URL"))
-        self.ii.cvl.set_var("REL_BOOKKIPING_PATH", var_description).append(bookkeeping_relative_path)
+        var_list.set_value_if_var_does_not_exist("REPO_REV", "HEAD", description=var_description)
+        bookkeeping_relative_path = relative_url(var_list.get_str("SYNC_BASE_URL"), var_list.get_str("BOOKKEEPING_DIR_URL"))
+        var_list.set_var("REL_BOOKKIPING_PATH", var_description).append(bookkeeping_relative_path)
 
-        rel_sources = relative_url(self.ii.cvl.get_str("SYNC_BASE_URL"), self.ii.cvl.get_str("SYNC_TRAGET_OS_URL"))
-        self.ii.cvl.set_var("REL_SRC_PATH", var_description).append(rel_sources)
+        rel_sources = relative_url(var_list.get_str("SYNC_BASE_URL"), var_list.get_str("SYNC_TRAGET_OS_URL"))
+        var_list.set_var("REL_SRC_PATH", var_description).append(rel_sources)
 
         for identifier in ("SYNC_BASE_URL", "SVN_CLIENT_PATH", "REL_SRC_PATH", "REPO_REV", "SYNC_TRAGET_OS_URL", "BOOKKEEPING_DIR_URL"):
-            logging.debug("... %s: %s", identifier, self.ii.cvl.get_str(identifier))
+            logging.debug("... %s: %s", identifier, var_list.get_str(identifier))
 
     def create_sync_instructions(self, installState):
         self.ii.batch_accum.set_current_section('sync')
