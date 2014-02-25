@@ -122,7 +122,12 @@ class InstlClient(InstlInstanceBase):
         # an OS which is not the current
         if var_list.get_str("TARGET_OS") != var_list.get_str("__CURRENT_OS__"):
             the_list_var = var_list.resolve_string("$(TARGET_OS)_ALL_OS_NAMES")
-            var_list.set_var("TARGET_OS_NAMES").extend(var_list.get_list(the_list_var))
+            target_os_names = var_list.get_list(the_list_var)
+            var_list.set_var("TARGET_OS_NAMES").extend(target_os_names)
+            second_name = var_list.get_str("TARGET_OS")
+            if len(target_os_names) > 1:
+                second_name = target_os_names[1]
+            var_list.set_var("TARGET_OS_SECOND_NAME").append(second_name)
 
     def do_sync(self):
         logging.info("Creating sync instructions")
