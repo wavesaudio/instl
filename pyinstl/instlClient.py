@@ -118,6 +118,11 @@ class InstlClient(InstlInstanceBase):
             url_main_item = main_url_item(resolved_sync_base_url)
             default_sync_dir = self.get_default_sync_dir(continue_dir=url_main_item, mkdir=True)
             var_list.set_var("LOCAL_SYNC_DIR", description="from init_default_client_vars").append(default_sync_dir)
+        # TARGET_OS_NAMES defaults to __CURRENT_OS_NAMES__, which is not what we want if syncing to
+        # an OS which is not the current
+        if var_list.get_str("TARGET_OS") != var_list.get_str("__CURRENT_OS__"):
+            the_list_var = var_list.resolve_string("$(TARGET_OS)_ALL_OS_NAMES")
+            var_list.set_var("TARGET_OS_NAMES").extend(var_list.get_list(the_list_var))
 
     def do_sync(self):
         logging.info("Creating sync instructions")

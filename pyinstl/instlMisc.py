@@ -7,6 +7,7 @@ import shlex
 from pyinstl.utils import *
 from instlInstanceBase import InstlInstanceBase
 from pyinstl import svnTree
+from configVarList import var_list
 
 class InstlMisc(InstlInstanceBase):
 

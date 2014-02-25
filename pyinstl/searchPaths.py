@@ -14,6 +14,7 @@ import logging
 
 from pyinstl.log_utils import func_log_wrapper
 from pyinstl.utils import *
+from configVarList import var_list
 
 # noinspection PyPep8Naming
 class SearchPaths(object):

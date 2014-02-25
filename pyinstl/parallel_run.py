@@ -5,7 +5,6 @@ import subprocess
 import time
 import sys
 import signal
-import shlex
 from collections import deque
 
 exit_val = 0

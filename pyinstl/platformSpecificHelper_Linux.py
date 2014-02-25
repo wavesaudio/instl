@@ -8,6 +8,7 @@ from pyinstl.utils import *
 from platformSpecificHelper_Base import PlatformSpecificHelperBase
 from platformSpecificHelper_Base import CopyToolRsync
 from platformSpecificHelper_Base import DownloadToolBase
+from configVarList import var_list
 
 class CopyToolLinuxRsync(CopyToolRsync):
     def __init__(self, platformHelper):

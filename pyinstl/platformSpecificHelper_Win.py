@@ -1,7 +1,6 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
-import sys
 import urllib
 import datetime
 from pyinstl.utils import *
@@ -9,6 +8,7 @@ from pyinstl.utils import *
 from platformSpecificHelper_Base import PlatformSpecificHelperBase
 from platformSpecificHelper_Base import CopyToolBase
 from platformSpecificHelper_Base import DownloadToolBase
+from configVarList import var_list
 
 def dos_escape(some_string):
     escaped_string = some_string.replace("&", "^&")
