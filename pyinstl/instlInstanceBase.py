@@ -86,32 +86,26 @@ class InstlInstanceBase(object):
 
     def init_from_cmd_line_options(self, cmd_line_options_obj):
         """ turn command line options into variables """
-        if cmd_line_options_obj.input_file:
-            var_list.add_const_config_variable("__MAIN_INPUT_FILE__", "from command line options", cmd_line_options_obj.input_file[0])
-        if cmd_line_options_obj.output_file:
-            var_list.add_const_config_variable("__MAIN_OUT_FILE__", "from command line options", cmd_line_options_obj.output_file[0])
-        if cmd_line_options_obj.state_file:
-            var_list.add_const_config_variable("__MAIN_STATE_FILE__", "from command line options", cmd_line_options_obj.state_file)
-        if cmd_line_options_obj.props_file:
-            var_list.add_const_config_variable("__PROPS_FILE__", "from command line options", cmd_line_options_obj.props_file[0])
-        if cmd_line_options_obj.filter_out:
-            var_list.add_const_config_variable("__FILTER_OUT_PATHS__", "from command line options", *cmd_line_options_obj.filter_out)
-        if cmd_line_options_obj.filter_in:
-            var_list.add_const_config_variable("__FILTER_IN_VERSION__", "from command line options", cmd_line_options_obj.filter_in[0])
-        if cmd_line_options_obj.run:
-            var_list.add_const_config_variable("__RUN_BATCH_FILE__", "from command line options", "yes")
+        attrib_to_var = {"input_file":      "__MAIN_INPUT_FILE__",
+                         "output_file":     "__MAIN_OUT_FILE__",
+                         "props_file":      "__PROPS_FILE__",
+                         "filter_in":       "__FILTER_IN_VERSION__",
+                         "target_repo_rev": "TARGET_REPO_REV",
+                         "base_repo_rev":   "BASE_REPO_REV",
+                         "config_file":     "__CONFIG_FILE__",
+                         "folder":          "__FOLDER__",
+                         "sh1_checksum":    "__SHA1_CHECKSUM__",
+                         "rsa_signature":   "__RSA_SIGNATURE__",
+                         }
+
+        for attrib, var in attrib_to_var.iteritems():
+            attrib_value = getattr(cmd_line_options_obj, attrib)
+            if attrib_value:
+                var_list.add_const_config_variable(var, "from command line options", attrib_value[0])
+
         if cmd_line_options_obj.command:
             var_list.set_var("__MAIN_COMMAND__", "from command line options").append(cmd_line_options_obj.command)
 
-        if cmd_line_options_obj.target_repo_rev:
-            var_list.set_var("TARGET_REPO_REV", "from command line options").append(cmd_line_options_obj.target_repo_rev[0])
-        if cmd_line_options_obj.base_repo_rev:
-            var_list.set_var("BASE_REPO_REV", "from command line options").append(cmd_line_options_obj.base_repo_rev[0])
-
-        if cmd_line_options_obj.config_file:
-            var_list.add_const_config_variable("__CONFIG_FILE__", "from command line options", cmd_line_options_obj.config_file[0])
-        if cmd_line_options_obj.folder:
-            var_list.add_const_config_variable("__FOLDER__", "from command line options", cmd_line_options_obj.folder[0])
         if cmd_line_options_obj.svn:
             var_list.add_const_config_variable("__ISSUE_SVN_COMMANDS__", "from command line options")
 
@@ -120,10 +114,13 @@ class InstlInstanceBase(object):
         else:
             var_list.add_const_config_variable("__HELP_SUBJECT__", "from command line options", "")
 
-        if cmd_line_options_obj.sh1_checksum:
-            var_list.add_const_config_variable("__SHA1_CHECKSUM__", "from command line options", cmd_line_options_obj.sh1_checksum[0])
-        if cmd_line_options_obj.rsa_signature:
-            var_list.add_const_config_variable("__RSA_SIGNATURE__", "from command line options", cmd_line_options_obj.rsa_signature[0])
+
+        if cmd_line_options_obj.state_file:
+            var_list.add_const_config_variable("__MAIN_STATE_FILE__", "from command line options", cmd_line_options_obj.state_file)
+        if cmd_line_options_obj.filter_out:
+            var_list.add_const_config_variable("__FILTER_OUT_PATHS__", "from command line options", *cmd_line_options_obj.filter_out)
+        if cmd_line_options_obj.run:
+            var_list.add_const_config_variable("__RUN_BATCH_FILE__", "from command line options", "yes")
 
         for identifier in var_list:
             logging.debug("... %s: %s", identifier, var_list.get_str(identifier))
