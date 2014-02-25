@@ -18,6 +18,8 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
     def __init__(self, instlObj):
         super(PlatformSpecificHelperMac, self).__init__(instlObj)
         self.var_replacement_pattern = "${\g<var_name>}"
+
+    def init_download_tool(self):
         self.dl_tool = DownloadTool_mac_curl(self)
 
     def get_install_instructions_prefix(self):

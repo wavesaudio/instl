@@ -94,6 +94,7 @@ class InstlClient(InstlInstanceBase):
         self.read_yaml_file(self.cvl.get_str("__MAIN_INPUT_FILE__"))
         self.init_default_client_vars()
         self.resolve_defined_paths()
+        self.platform_helper.init_download_tool()
         self.resolve_index_inheritance()
         self.add_deafult_items()
         self.calculate_default_install_item_set()

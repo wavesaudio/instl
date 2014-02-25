@@ -136,6 +136,12 @@ class PlatformSpecificHelperBase(object):
         return retVal
 
     @abc.abstractmethod
+    def init_download_tool(self):
+        """ platform specific initialization of the download tool object.
+            Can be done only after the definitions for index have been read."""
+        pass
+
+    @abc.abstractmethod
     def get_install_instructions_prefix(self):
         """ platform specific """
         pass

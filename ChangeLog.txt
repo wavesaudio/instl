@@ -1,7 +1,10 @@
 ???? 0.8.7
 
     user visible changes, client:
-    * Mac: When using --run and script fails, exit code is passed correctly.
+    * When using --run and script fails, exit code is passed correctly.
+
+    programmer visible changes:
+    * init_download_tool method added to platformHelper so that the dl_tool can be initialized after the yaml files were read.
 
 24/2/2014 0.8.6 Shai Shasag <shai@waves.com>
 

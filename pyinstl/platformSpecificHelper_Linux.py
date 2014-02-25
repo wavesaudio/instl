@@ -19,6 +19,10 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         self.var_replacement_pattern = "${\g<var_name>}"
         self.dl_tool = DownloadTool_linux_curl(self)
 
+
+    def init_download_tool(self):
+        self.dl_tool = DownloadTool_linux_curl(self)
+
     def get_install_instructions_prefix(self):
         retVal =  (
             "#!/usr/bin/env bash",

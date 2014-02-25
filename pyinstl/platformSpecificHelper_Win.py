@@ -137,13 +137,13 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def __init__(self, instlObj):
         super(PlatformSpecificHelperWin, self).__init__(instlObj)
         self.var_replacement_pattern = "%\g<var_name>%"
-        download_tool_name = instlObj.cvl.get_str("DOWNLOAD_TOOL_PATH")
+
+    def init_download_tool(self):
+        download_tool_name = self.instlObj.cvl.get_str("DOWNLOAD_TOOL_PATH")
         if download_tool_name.endswith("wget.exe"):
             self.dl_tool = DownloadTool_win_wget(self)
         elif download_tool_name.endswith("curl.exe"):
             self.dl_tool = DownloadTool_win_curl(self)
-        else:
-            self.dl_tool = None
 
     def get_install_instructions_prefix(self):
         retVal = (
@@ -160,17 +160,15 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         retVal = (
                 self.restore_dir("TOP_SAVE_DIR"),
                 self.end_time_measure(),
-                "endlocal",
                 "exit /b 0",
                 "",
                 ":EXIT_ON_ERROR",
                 self.restore_dir("TOP_SAVE_DIR"),
-                "set defERRORLEVEL=%ERRORLEVEL%",
-                "if %defERRORLEVEL% == 0 (set defERRORLEVEL=1)",
-                'echo Exit on error 1>&2',
+                "set CATCH_EXIT_VALUE=%ERRORLEVEL%",
+                "if %CATCH_EXIT_VALUE% == 0 (set CATCH_EXIT_VALUE=1)",
                 self.end_time_measure(),
-                "endlocal",
-                "exit /b %defERRORLEVEL%"
+                'echo Exit on error %CATCH_EXIT_VALUE% 1>&2',
+                "exit /b %CATCH_EXIT_VALUE%"
                 )
         return retVal
 
