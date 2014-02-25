@@ -193,6 +193,9 @@ class DownloadTool_mac_curl(DownloadToolBase):
         super(DownloadTool_mac_curl, self).__init__(platformHelper)
 
     def download_url_to_file(self, src_url, trg_file):
+        connect_time_out = self.platformHelper.instlObj.cvl.get_str("CURL_CONNECT_TIMEOUT")
+        max_time         = self.platformHelper.instlObj.cvl.get_str("CURL_MAX_TIME")
+        retries          = self.platformHelper.instlObj.cvl.get_str("CURL_RETRIES")
         download_command_parts = list()
         download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
         download_command_parts.append("--insecure")
@@ -202,11 +205,11 @@ class DownloadTool_mac_curl(DownloadToolBase):
         download_command_parts.append("--show-error")
         download_command_parts.append("--compressed")
         download_command_parts.append("--connect-timeout")
-        download_command_parts.append("3")
+        download_command_parts.append(connect_time_out)
         download_command_parts.append("--max-time")
-        download_command_parts.append("60")
+        download_command_parts.append(max_time)
         download_command_parts.append("--retry")
-        download_command_parts.append("3")
+        download_command_parts.append(retries)
         download_command_parts.append("write-out")
         download_command_parts.append(DownloadToolBase.curl_write_out_str)
         download_command_parts.append("-o")
@@ -218,6 +221,10 @@ class DownloadTool_mac_curl(DownloadToolBase):
         import itertools
         num_urls_to_download = len(self.urls_to_download)
         if num_urls_to_download > 0:
+            connect_time_out = self.platformHelper.instlObj.cvl.get_str("CURL_CONNECT_TIMEOUT")
+            max_time         = self.platformHelper.instlObj.cvl.get_str("CURL_MAX_TIME")
+            retries          = self.platformHelper.instlObj.cvl.get_str("CURL_RETRIES")
+
             actual_num_files = max(1, min(num_urls_to_download / 8, num_files))
             curl_config_file_path_parts = curl_config_file_path.split(".")
             file_name_list = [".".join( curl_config_file_path_parts[:-1]+[str(file_i)]+curl_config_file_path_parts[-1:]  ) for file_i in xrange(actual_num_files)]
@@ -233,9 +240,9 @@ class DownloadTool_mac_curl(DownloadToolBase):
                 wfd.write("show-error\n")
                 wfd.write("compressed\n")
                 wfd.write("create-dirs\n")
-                wfd.write("connect-timeout = 6\n")
-                wfd.write("max-time = 180\n")
-                wfd.write("retry = 5\n")
+                wfd.write("connect-timeout = {connect_time_out}\n".format(**locals()))
+                wfd.write("max-time = {max_time}\n".format(**locals()))
+                wfd.write("retry = {retries}\n".format(**locals()))
                 wfd.write("write-out = \"Progress: ... of ...; " + os.path.basename(wfd.name) + ": " + DownloadToolBase.curl_write_out_str + "\"\n")
                 wfd.write("\n")
                 wfd.write("\n")
