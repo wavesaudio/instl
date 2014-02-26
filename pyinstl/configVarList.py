@@ -123,10 +123,14 @@ class ConfigVarList(object):
     def add_const_config_variable(self, name, description="", *values):
         """ add a const single value object """
         if name in self._ConfigVar_objs:
-            raise Exception("Const variable {} already defined".format(name))
-        addedValue = configVar.ConstConfigVar(name, description, *values)
-        self._ConfigVar_objs[addedValue.name()] = addedValue
-        logging.debug("... %s: %s", name, ", ".join(map(str, values)))
+            if list(self._ConfigVar_objs[name]) != list(values):
+                raise Exception("Const variable {} ({}) already defined: new values: {}, previous values: {}".format(name, self._ConfigVar_objs[name].description(), str(values), str(list(self._ConfigVar_objs[name]))))
+            #else:
+            #    print("Const variable {} ({}) already defined, with same value: {}".format(name, self._ConfigVar_objs[name].description(), str(values)))
+        else:
+            addedValue = configVar.ConstConfigVar(name, description, *values)
+            self._ConfigVar_objs[addedValue.name()] = addedValue
+            logging.debug("... %s: %s", name, ", ".join(map(str, values)))
 
     def duplicate_variable(self, source_name, target_name):
         if source_name in self._ConfigVar_objs:
