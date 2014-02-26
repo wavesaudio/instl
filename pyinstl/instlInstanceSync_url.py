@@ -194,7 +194,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.instlObj.batch_accum.merge_with(prefix_accum)
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
-        self.work_info_map.set_user_data_all_recursive(False) # items that need checksum will b emarked True
+        self.work_info_map.set_user_data_all_recursive(False) # items that need checksum will be marked True
         for need_item in file_list + dir_list:
             self.create_download_instructions_for_item(need_item)
 
