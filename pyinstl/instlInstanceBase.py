@@ -86,7 +86,8 @@ class InstlInstanceBase(object):
 
     def init_from_cmd_line_options(self, cmd_line_options_obj):
         """ turn command line options into variables """
-        const_attrib_to_var = {"input_file":      "__MAIN_INPUT_FILE__",
+        const_attrib_to_var = {
+                         "input_file":      "__MAIN_INPUT_FILE__",
                          "output_file":     "__MAIN_OUT_FILE__",
                          "props_file":      "__PROPS_FILE__",
                          "config_file":     "__CONFIG_FILE__",
@@ -100,7 +101,7 @@ class InstlInstanceBase(object):
             if attrib_value:
                 var_list.add_const_config_variable(var, "from command line options", attrib_value[0])
 
-        non_const_attrib_to_var = {"input_file":      "__MAIN_INPUT_FILE__",
+        non_const_attrib_to_var = {
                         "filter_in":       "__FILTER_IN_VERSION__",
                          "target_repo_rev": "TARGET_REPO_REV",
                          "base_repo_rev":   "BASE_REPO_REV",
