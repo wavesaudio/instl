@@ -5,6 +5,7 @@
     * Proper downloading for all possible required items when target_os != current_os (offline sync).
     * Fixed: When running compiled instl in interactive mode exception was raised when instlClient and instlAdmin
         defined the same const values.
+    * Better message if checking signature of a downloaded file fails.
 
     programmer visible changes:
     * init_download_tool method added to platformHelper so that the dl_tool can be initialized after the yaml files were read.

@@ -105,8 +105,6 @@ class open_for_read_file_or_url(object):
         self.fd.close()
 
 def download_from_file_or_url(in_url, in_local_path, cache=False, public_key=None, textual_sig=None, expected_checksum=None):
-
-    retVal = False
     fileExists = False
     if cache and os.path.isfile(in_local_path):
         # cache=True means: if local file already exists, there is no need to download.
@@ -130,6 +128,8 @@ def download_from_file_or_url(in_url, in_local_path, cache=False, public_key=Non
                 if fileOK:
                     with open(in_local_path, "wb") as wfd:
                         wfd.write(contents_buffer)
+                else:
+                    raise IOError("Checksum or Signature mismatch", in_url, in_local_path)
 
 class unique_list(list):
     """
