@@ -227,36 +227,38 @@ class DownloadTool_mac_curl(DownloadToolBase):
             retries          = var_list.get_str("CURL_RETRIES")
 
             actual_num_files = max(1, min(num_urls_to_download / 8, num_files))
-            curl_config_file_path_parts = curl_config_file_path.split(".")
-            file_name_list = [".".join( curl_config_file_path_parts[:-1]+[str(file_i)]+curl_config_file_path_parts[-1:]  ) for file_i in xrange(actual_num_files)]
-            wfd_list = list()
-            for file_name in file_name_list:
-                wfd_list.append(open(file_name, "w"))
-
-            for wfd in wfd_list:
-                wfd.write("insecure\n")
-                wfd.write("raw\n")
-                wfd.write("fail\n")
-                wfd.write("silent\n")
-                wfd.write("show-error\n")
-                wfd.write("compressed\n")
-                wfd.write("create-dirs\n")
-                wfd.write("connect-timeout = {connect_time_out}\n".format(**locals()))
-                wfd.write("max-time = {max_time}\n".format(**locals()))
-                wfd.write("retry = {retries}\n".format(**locals()))
-                wfd.write("write-out = \"Progress: ... of ...; " + os.path.basename(wfd.name) + ": " + DownloadToolBase.curl_write_out_str + "\"\n")
-                wfd.write("\n")
-                wfd.write("\n")
-
-            wfd_cycler = itertools.cycle(wfd_list)
+            list_of_lines_for_files = [list() for i in range(actual_num_files)]
+            list_for_file_cycler = itertools.cycle(list_of_lines_for_files)
             url_num = 0
             for url, path in self.urls_to_download:
-                wfd = wfd_cycler.next()
-                wfd.write('''url = "{url}"\noutput = "{path}"\n\n'''.format(**locals()))
+                line_list = list_for_file_cycler.next()
+                line_list.append('''url = "{url}"\noutput = "{path}"\n\n'''.format(**locals()))
                 url_num += 1
 
-            for wfd in wfd_list:
-                wfd.close()
+
+            curl_config_file_path_parts = curl_config_file_path.split(".")
+            file_name_list = [".".join( curl_config_file_path_parts[:-1]+[str(file_i)]+curl_config_file_path_parts[-1:]  ) for file_i in xrange(actual_num_files)]
+
+            lise_of_lines_iter = iter(list_of_lines_for_files)
+            for file_name in file_name_list:
+                with open(file_name, "w") as wfd:
+                    wfd.write("insecure\n")
+                    wfd.write("raw\n")
+                    wfd.write("fail\n")
+                    wfd.write("silent\n")
+                    wfd.write("show-error\n")
+                    wfd.write("compressed\n")
+                    wfd.write("create-dirs\n")
+                    wfd.write("connect-timeout = {connect_time_out}\n".format(**locals()))
+                    wfd.write("max-time = {max_time}\n".format(**locals()))
+                    wfd.write("retry = {retries}\n".format(**locals()))
+                    wfd.write("write-out = \"Progress: ... of ...; " + os.path.basename(wfd.name) + ": " + DownloadToolBase.curl_write_out_str + "\"\n")
+                    wfd.write("\n")
+                    wfd.write("\n")
+                    list_of_lines = lise_of_lines_iter.next()
+                    for line in list_of_lines:
+                        wfd.write(line)
+
             return file_name_list
         else:
             return ()
