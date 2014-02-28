@@ -272,7 +272,10 @@ class InstlInstanceBase(object):
 
         if out_file != "stdout":
             self.out_file_realpath = os.path.realpath(out_file)
-            os.chmod(self.out_file_realpath, 0755)
+            # chmod to 0777 so that file created under sudo, can be re-written under regular user.
+            # However regular user cannot chmod for file created under sudo, hense the try/except
+            try: os.chmod(self.out_file_realpath, 0777)
+            except: pass
         print(self.out_file_realpath+",", self.platform_helper.num_items_for_progress_report, "progress items")
 
     def run_batch_file(self):

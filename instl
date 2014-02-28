@@ -9,6 +9,9 @@ import sys
 import os
 import argparse
 
+# umask to 0 so that all files created under sudo, can be re-written under regular user.
+os.umask(0)
+
 # setup logging, must be done before other imports
 from pyinstl.log_utils import setup_logging
 setup_logging("instl", "instl")
