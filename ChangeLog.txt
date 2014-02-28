@@ -1,3 +1,13 @@
+???? 0.8.8
+
+    user visible changes, client:
+    * Fixed a problem where files created when instl runs under sudo,
+        could not be re-written under regular user.
+
+    programmer visible changes:
+    * os.umask(0) is called first thing.
+    * batch file creation does chmod(777)
+
 26/2/2014 0.8.7 Shai Shasag <shai@waves.com>
 
     user visible changes, client:
