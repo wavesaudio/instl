@@ -582,8 +582,11 @@ class InstlAdmin(InstlInstanceBase):
             if items_to_tar:
                 self.batch_accum += self.platform_helper.cd(folder_to_check)
                 for item_to_tar in items_to_tar:
-                    self.batch_accum += self.platform_helper.tar(item_to_tar)
-                    self.batch_accum += self.platform_helper.split(item_to_tar+".wtar")
+                    if item_to_tar.endswith(".wtar"):
+                        self.batch_accum += self.platform_helper.split(item_to_tar)
+                    else:
+                        self.batch_accum += self.platform_helper.tar(item_to_tar)
+                        self.batch_accum += self.platform_helper.split(item_to_tar+".wtar")
                     item_to_tar_full_path = os.path.join(folder_to_check, item_to_tar)
                     if os.path.isdir(item_to_tar_full_path):
                         self.batch_accum += self.platform_helper.rmdir(item_to_tar, recursive=True)
