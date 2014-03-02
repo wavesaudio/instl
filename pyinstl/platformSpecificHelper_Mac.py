@@ -178,6 +178,25 @@ done""" % in_dir)
         done_stamp_file = filepath + ".done"
         return unwtar_command, self.touch(done_stamp_file)
 
+    def split_func(self):
+        the_split_func = ("""
+split_file()
+{
+    file_size=$(stat -f %z "$1")
+    if [ "$(MAX_FILE_SIZE)" -lt "$file_size" ]
+    then
+        let "part_size=($file_size / (($file_size / $(MAX_FILE_SIZE)) + ($file_size % $(MAX_FILE_SIZE) > 0 ? 1 : 0)))+1"
+        split -a 2 -b $part_size "$1" "$1."
+        rm -fr "$1"
+    fi
+}
+""")
+        return the_split_func
+
+    def split(self, file_to_split):
+        split_command = " ".join( ("split_file", quoteme_double(file_to_split)) )
+        return split_command
+
     def wait_for_child_processes(self):
         return ("wait",)
 

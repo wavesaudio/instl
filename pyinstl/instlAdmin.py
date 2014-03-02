@@ -540,28 +540,32 @@ class InstlAdmin(InstlInstanceBase):
         for sub_comperer in comperer.subdirs.values():
             self.stage2svn_for_folder(sub_comperer)
 
-    def should_wtar(self, dir_item, regexes):
+    def should_wtar(self, dir_item, regexes, max_file_size):
         retVal = False
         try:
             for regex in regexes:
                 if re.search(regex, dir_item):
                     retVal = True
                     raise Exception
+            if os.path.isfile(dir_item):
+                if os.path.getsize(dir_item) > max_file_size:
+                    retVal = True
         except:
             pass
         return retVal
 
     def do_wtar(self):
         self.batch_accum.set_current_section('admin')
-        stage_folder = var_list.resolve_string(("$(STAGING_FOLDER)"))
         regex_list = var_list.get_list("WTAR_REGEX")
-        if not regex_list:
-            return
 
         compiled_regex_list = list()
         for regex in regex_list:
             compiled_regex_list.append(re.compile(regex))
 
+        self.batch_accum += self.platform_helper.split_func()
+
+        max_file_size = int(var_list.resolve_string(("$(MAX_FILE_SIZE)")))
+        stage_folder = var_list.resolve_string(("$(STAGING_FOLDER)"))
         folders_to_check = [stage_folder]
         while len(folders_to_check) > 0:
             folder_to_check = folders_to_check.pop()
@@ -569,7 +573,7 @@ class InstlAdmin(InstlInstanceBase):
             items_to_tar = list()
             for dir_item in dir_items:
                 dir_item_full_path = os.path.join(folder_to_check, dir_item)
-                to_tar = self.should_wtar(dir_item, compiled_regex_list)
+                to_tar = self.should_wtar(dir_item_full_path, compiled_regex_list, max_file_size)
                 if to_tar:
                     items_to_tar.append(dir_item)
                 else:
@@ -579,6 +583,7 @@ class InstlAdmin(InstlInstanceBase):
                 self.batch_accum += self.platform_helper.cd(folder_to_check)
                 for item_to_tar in items_to_tar:
                     self.batch_accum += self.platform_helper.tar(item_to_tar)
+                    self.batch_accum += self.platform_helper.split(item_to_tar+".wtar")
                     item_to_tar_full_path = os.path.join(folder_to_check, item_to_tar)
                     if os.path.isdir(item_to_tar_full_path):
                         self.batch_accum += self.platform_helper.rmdir(item_to_tar, recursive=True)
@@ -596,7 +601,9 @@ class InstlAdmin(InstlInstanceBase):
         svn_folder = var_list.resolve_string(("$(SVN_CHECKOUT_FOLDER)"))
         svn_command_parts = ['"$(SVN_CLIENT_PATH)"', "checkout", '"$(SVN_REPO_URL)"', '"'+svn_folder+'"', "--depth", "infinity"]
         self.batch_accum += " ".join(svn_command_parts)
+        self.batch_accum += self.platform_helper.progress("Checkout $(SVN_REPO_URL) to $(SVN_CHECKOUT_FOLDER)")
         self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(svn_folder, stage_folder, link_dest=False, ignore=(".svn", ".DS_Store"))
+        self.batch_accum += self.platform_helper.progress("rsync $(SVN_CHECKOUT_FOLDER) to $(STAGING_FOLDER)")
         self.create_variables_assignment()
         self.write_batch_file()
         if "__RUN_BATCH_FILE__" in var_list:
