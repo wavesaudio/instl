@@ -224,8 +224,9 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         wuntar_accum = BatchAccumulator() # sub-accumulator for unwtar
         wuntar_accum.set_current_section('sync')
-        for need_item in file_list + dir_list:
-            self.create_unwtar_instructions_for_item(wuntar_accum, need_item)
+        wuntar_accum += self.instlObj.platform_helper.unwtar_current_folder()
+        #for need_item in file_list + dir_list:
+        #    self.create_unwtar_instructions_for_item(wuntar_accum, need_item)
         if len(wuntar_accum) > 0:
             self.instlObj.batch_accum.merge_with(wuntar_accum)
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress(var_list.resolve_string("untar done"))

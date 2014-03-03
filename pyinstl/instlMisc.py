@@ -51,15 +51,16 @@ class InstlMisc(InstlInstanceBase):
                 if afile_path.endswith(".wtar.aa"):
                     wtar_file_path = join_split_files(afile_path)
                 elif afile_path.endswith(".wtar"):
-                    wtar_file_path = wtar_file_path
+                    wtar_file_path = afile_path
                 if wtar_file_path:
                     done_file = wtar_file_path+".done"
-                    if os.path.isfile(done_file):
-                        print("already extracted", wtar_file_path)
-                    else:
-                        print("extracting", wtar_file_path)
-                        with tarfile.open(wtar_file_path, "r") as tar:
-                            tar.extractall(root)
+                    if not os.path.isfile(done_file):
+                        try:
+                            with tarfile.open(wtar_file_path, "r") as tar:
+                                tar.extractall(root)
+                        except tarfile.ReadError as re_er:
+                            print("tarfile read error while opening file", os.path.abspath(wtar_file_path))
+                            raise
                         with open(done_file, "a"): os.utime(done_file, None)
 
 

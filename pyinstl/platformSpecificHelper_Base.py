@@ -254,6 +254,10 @@ class PlatformSpecificHelperBase(object):
     def unwtar(self, filepath):
         pass
 
+    def unwtar_current_folder(self):
+        unwtar_command = " ".join( ("$(__INSTL_EXE_PATH__)", "unwtar") )
+        return unwtar_command
+
     @abc.abstractmethod
     def wait_for_child_processes(self):
         pass

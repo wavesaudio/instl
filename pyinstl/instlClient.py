@@ -331,14 +331,16 @@ class InstlClient(InstlInstanceBase):
 
         source_path = os.path.normpath("$(LOCAL_SYNC_DIR)/$(REL_SRC_PATH)/"+source[0])
 
+        ignore_list = var_list.get_list("COPY_IGNORE_PATTERNS")
+
         if source[1] == '!file':       # get a single file, not recommended
-            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".", link_dest=True, ignore=(".svn", "*.symlink", "*.wtar", "*.done"))
+            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".", link_dest=True, ignore=ignore_list)
         elif source[1] == '!dir_cont': # get all files and folders from a folder
-            self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".", link_dest=True, ignore=(".svn", "*.symlink", "*.wtar", "*.done"))
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".", link_dest=True, ignore=ignore_list)
         elif source[1] == '!files':    # get all files from a folder
-            self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".", link_dest=True, ignore=(".svn", "*.symlink", "*.wtar", "*.done"))
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".", link_dest=True, ignore=ignore_list)
         else: # !dir
-            self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path, ".", link_dest=True, ignore=(".svn", "*.symlink", "*.wtar", "*.done"))
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path, ".", link_dest=True, ignore=ignore_list)
         logging.info("... %s; (%s - %s)", source_path, var_list.resolve_string(source_path), source[1])
 
     def needs(self, iid, out_list):
