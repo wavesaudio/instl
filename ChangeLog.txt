@@ -3,7 +3,8 @@
     user visible changes, client:
     * Fixed a problem where files created when instl runs under sudo,
         could not be re-written under regular user.
-
+    * unwtar command added
+    
     programmer visible changes:
     * os.umask(0) is called first thing.
     * batch file creation does chmod(777)

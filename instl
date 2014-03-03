@@ -116,6 +116,7 @@ def prepare_args_parser():
     wtar_parser = subparsers.add_parser('wtar', help='create .wtar files from specified files and folders')
     verify_index_parser = subparsers.add_parser('verify-index', help='Verify that index and info map are compatible')
     parallel_run_parser = subparsers.add_parser('parallel-run', help="Run processes in parallel")
+    unwtar_parser = subparsers.add_parser('unwtar', help='uncompress .wtar files in current folder')
 
     command_names = sorted(subparsers.choices.keys())
 
@@ -125,7 +126,7 @@ def prepare_args_parser():
                         stage2svn_parser, svn2stage_parser, wtar_parser,
                         create_rsa_keys_parser, make_sig_parser, check_sig_parser,
                         create_repo_rev_file_parser, verify_index_parser),
-             'do_something': (version_parser, help_parser, parallel_run_parser)
+             'do_something': (version_parser, help_parser, parallel_run_parser, unwtar_parser)
             }
     for the_mode, parsers in modes.iteritems():
         for some_parser in parsers:

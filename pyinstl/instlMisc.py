@@ -3,6 +3,8 @@
 from __future__ import print_function
 
 import shlex
+import tarfile
+import fnmatch
 
 from pyinstl.utils import *
 from instlInstanceBase import InstlInstanceBase
@@ -40,3 +42,37 @@ class InstlMisc(InstlInstanceBase):
                     commands.append(args)
         from parallel_run import run_processes_in_parallel
         run_processes_in_parallel(commands)
+
+    def do_unwtar(self):
+        for root, dirs, files in os.walk(".", followlinks=False):
+            for afile in files:
+                afile_path = os.path.join(root, afile)
+                wtar_file_path = None
+                if afile_path.endswith(".wtar.aa"):
+                    wtar_file_path = join_split_files(afile_path)
+                elif afile_path.endswith(".wtar"):
+                    wtar_file_path = wtar_file_path
+                if wtar_file_path:
+                    done_file = wtar_file_path+".done"
+                    if os.path.isfile(done_file):
+                        print("already extracted", wtar_file_path)
+                    else:
+                        print("extracting", wtar_file_path)
+                        with tarfile.open(wtar_file_path, "r") as tar:
+                            tar.extractall(root)
+                        with open(done_file, "a"): os.utime(done_file, None)
+
+
+def join_split_files(first_file):
+    base_folder, base_name = os.path.split(first_file)
+    joined_file_path = first_file[:-3] # without the final '.aa'
+    done_file = first_file+".done"
+    if not os.path.isfile(done_file):
+        filter_pattern = base_name[:-2]+"??" # with ?? instead of aa
+        matching_files = sorted(fnmatch.filter(os.listdir(base_folder), filter_pattern))
+        with open(joined_file_path, "wb") as wfd:
+            for afile in matching_files:
+                with open(os.path.join(base_folder, afile), "rb") as rfd:
+                    wfd.write(rfd.read())
+        with open(done_file, "a"): os.utime(done_file, None)
+    return joined_file_path
