@@ -15,8 +15,8 @@ class CopyToolBase(object):
     """
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, platformHelper):
-        self.platformHelper = platformHelper
+    def __init__(self, platform_helper):
+        self.platform_helper = platform_helper
 
     @abc.abstractmethod
     def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
@@ -51,8 +51,8 @@ class CopyToolBase(object):
         pass
 
 class CopyToolRsync(CopyToolBase):
-    def __init__(self, platformHelper):
-        super(CopyToolRsync, self).__init__(platformHelper)
+    def __init__(self, platform_helper):
+        super(CopyToolRsync, self).__init__(platform_helper)
 
     def create_ignore_spec(self, ignore):
         retVal = ""
@@ -300,8 +300,8 @@ class DownloadToolBase(object):
 
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, platformHelper):
-        self.platformHelper = platformHelper
+    def __init__(self, platform_helper):
+        self.platform_helper = platform_helper
         self.urls_to_download = list()
 
     @abc.abstractmethod

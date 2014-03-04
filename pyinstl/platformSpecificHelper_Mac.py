@@ -12,8 +12,8 @@ from platformSpecificHelper_Base import CopyToolRsync
 from platformSpecificHelper_Base import DownloadToolBase
 
 class CopyToolMacRsync(CopyToolRsync):
-    def __init__(self, platformHelper):
-        super(CopyToolMacRsync, self).__init__(platformHelper)
+    def __init__(self, platform_helper):
+        super(CopyToolMacRsync, self).__init__(platform_helper)
 
 class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
     def __init__(self, instlObj):
@@ -209,8 +209,8 @@ split_file()
         return touch_command
 
 class DownloadTool_mac_curl(DownloadToolBase):
-    def __init__(self, platformHelper):
-        super(DownloadTool_mac_curl, self).__init__(platformHelper)
+    def __init__(self, platform_helper):
+        super(DownloadTool_mac_curl, self).__init__(platform_helper)
 
     def download_url_to_file(self, src_url, trg_file):
         connect_time_out = var_list.get_str("CURL_CONNECT_TIMEOUT")
@@ -288,5 +288,5 @@ class DownloadTool_mac_curl(DownloadToolBase):
             for config_file in config_files:
                 wfd.write(var_list.resolve_string("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+config_file+"\"\n"))
 
-        download_command = " ".join( (self.platformHelper.run_instl(),  "parallel-run", "--in", quoteme_double(parallel_run_config_file_path)) )
+        download_command = " ".join( (self.platform_helper.run_instl(),  "parallel-run", "--in", quoteme_double(parallel_run_config_file_path)) )
         return download_command

@@ -11,8 +11,8 @@ from platformSpecificHelper_Base import DownloadToolBase
 from configVarList import var_list
 
 class CopyToolLinuxRsync(CopyToolRsync):
-    def __init__(self, platformHelper):
-        super(CopyToolLinuxRsync, self).__init__(platformHelper)
+    def __init__(self, platform_helper):
+        super(CopyToolLinuxRsync, self).__init__(platform_helper)
 
 class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
     def __init__(self, instlObj):
@@ -123,8 +123,8 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         return touch_command
 
 class DownloadTool_linux_curl(DownloadToolBase):
-    def __init__(self, platformHelper):
-        super(DownloadTool_linux_curl, self).__init__(platformHelper)
+    def __init__(self, platform_helper):
+        super(DownloadTool_linux_curl, self).__init__(platform_helper)
 
     def download_url_to_file(self, src_url, trg_file):
         download_command_parts = list()

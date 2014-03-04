@@ -1,3 +1,11 @@
+???? 0.8.9
+
+    user visible changes, admin:
+    * Creation of .txt files for all files in instl directory was moved from up2s3 command to create-links command.
+
+    programmer visible changes:
+    * platformHelper renamed platform_helper everywhere
+
 4/3/2014 0.8.8 Shai Shasag <shai@waves.com>
 
     user visible changes, client:

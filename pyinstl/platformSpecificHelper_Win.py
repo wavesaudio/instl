@@ -15,8 +15,8 @@ def dos_escape(some_string):
     return escaped_string
 
 class CopyTool_win_robocopy(CopyToolBase):
-    def __init__(self, platformHelper):
-        super(CopyTool_win_robocopy, self).__init__(platformHelper)
+    def __init__(self, platform_helper):
+        super(CopyTool_win_robocopy, self).__init__(platform_helper)
         self.robocopy_error_threshold = 4 # see ss64.com/nt/robocopy-exit.html
 
     def create_ignore_spec(self, ignore):
@@ -44,7 +44,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         norm_trg_dir = os.path.normpath(trg_dir)
         copy_command = "robocopy \"{norm_src_dir}\" \"{norm_trg_dir}\" /E {ignore_spec} /R:3 /W:3 {log_file_spec}".format(**locals())
         retVal.append(copy_command)
-        retVal.append(self.platformHelper.exit_if_error(self.robocopy_error_threshold))
+        retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
         return retVal
 
     def copy_file_to_dir(self, src_file, trg_dir, link_dest=False, ignore=None):
@@ -54,7 +54,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         log_file_spec = self.create_log_spec()
         copy_command = "robocopy \"{norm_src_dir}\" \"{norm_trg_dir}\" \"{norm_src_file}\" /R:3 /W:3 {log_file_spec}".format(**locals())
         retVal.append(copy_command)
-        retVal.append(self.platformHelper.exit_if_error(self.robocopy_error_threshold))
+        retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
         return retVal
 
     def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=None, ignore=None):
@@ -65,7 +65,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         norm_trg_dir = os.path.normpath(trg_dir)
         copy_command = "robocopy \"{norm_src_dir}\" \"{norm_trg_dir}\" /E {ignore_spec} /R:3 /W:3 {log_file_spec}".format(**locals())
         retVal.append(copy_command)
-        retVal.append(self.platformHelper.exit_if_error(self.robocopy_error_threshold))
+        retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
         return retVal
 
     def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=None, ignore=None):
@@ -76,7 +76,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         norm_trg_dir = os.path.normpath(trg_dir)
         copy_command = "robocopy \"{norm_src_dir}\" \"{norm_trg_dir}\" /LEV:1 {ignore_spec} /R:3 /W:3 {log_file_spec}".format(**locals())
         retVal.append(copy_command)
-        retVal.append(self.platformHelper.exit_if_error(self.robocopy_error_threshold))
+        retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
         return retVal
 
     def copy_file_to_file(self, src_file, trg_file, link_dest=None, ignore=None):
@@ -85,12 +85,12 @@ class CopyTool_win_robocopy(CopyToolBase):
         norm_trg_file = os.path.normpath(trg_file)
         copy_command = "copy \"{norm_src_file}\" \"{norm_trg_file}\"".format(**locals())
         retVal.append(copy_command)
-        retVal.append(self.platformHelper.exit_if_error())
+        retVal.append(self.platform_helper.exit_if_error())
         return retVal
 
 class CopyTool_win_xcopy(CopyToolBase):
-    def __init__(self, platformHelper):
-        super(CopyTool_win_xcopy, self).__init__(platformHelper)
+    def __init__(self, platform_helper):
+        super(CopyTool_win_xcopy, self).__init__(platform_helper)
 
     def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False):
         retVal = list()
@@ -101,7 +101,7 @@ class CopyTool_win_xcopy(CopyToolBase):
         mkdir_command  = "mkdir \"{norm_trg_dir}\"".format(**locals())
         retVal.append(mkdir_command)
         retVal.extend(self.copy_dir_contents_to_dir(norm_src_dir, norm_trg_dir))
-        retVal.append(self.platformHelper.exit_if_error())
+        retVal.append(self.platform_helper.exit_if_error())
         return retVal
 
     def copy_file_to_dir(self, src_file, trg_dir, link_dest=False):
@@ -112,7 +112,7 @@ class CopyTool_win_xcopy(CopyToolBase):
         copy_command = "xcopy  /R /Y \"{norm_src_file}\" \"{norm_trg_file}\"".format(**locals())
         copy_command.replace("\\", "/")
         retVal.append(copy_command)
-        retVal.append(self.platformHelper.exit_if_error())
+        retVal.append(self.platform_helper.exit_if_error())
         return retVal
 
     def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=None):
@@ -121,7 +121,7 @@ class CopyTool_win_xcopy(CopyToolBase):
         norm_trg_dir = os.path.normpath(trg_dir)
         copy_command = "xcopy /E /R /Y \"{norm_src_dir}\" \"{norm_trg_dir}\"".format(**locals())
         retVal.append(copy_command)
-        retVal.append(self.platformHelper.exit_if_error())
+        retVal.append(self.platform_helper.exit_if_error())
         return retVal
 
     def copy_dir_files_to_dir(self, src_dir, norm_trg_dir, link_dest=None):
@@ -130,7 +130,7 @@ class CopyTool_win_xcopy(CopyToolBase):
         norm_trg_dir = os.path.normpath(trg_dir)
         copy_command = "xcopy  /R /Y \"{norm_src_dir}\" \"{trg_dir}\"".format(**locals())
         retVal.append(copy_command)
-        retVal.append(self.platformHelper.exit_if_error())
+        retVal.append(self.platform_helper.exit_if_error())
         return retVal
 
 class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
@@ -308,8 +308,8 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return instl_command
 
 class DownloadTool_win_wget(DownloadToolBase):
-    def __init__(self, platformHelper):
-        super(DownloadTool_win_wget, self).__init__(platformHelper)
+    def __init__(self, platform_helper):
+        super(DownloadTool_win_wget, self).__init__(platform_helper)
 
     def download_url_to_file(self, src_url, trg_file):
         download_command_parts = list()
@@ -325,7 +325,7 @@ class DownloadTool_win_wget(DownloadToolBase):
         # urls need to escape spaces as %20, but windows batch files already escape % characters
         # so use urllib.quote to escape spaces and then change %20 to %%20.
         download_command_parts.append(quoteme_double(urllib.quote(src_url, "$()/:").replace("%", "%%")))
-        return (" ".join(download_command_parts), self.platformHelper.exit_if_error())
+        return (" ".join(download_command_parts), self.platform_helper.exit_if_error())
 
     def create_config_file(self, curl_config_file_path):
         with open(curl_config_file_path, "w") as wfd:
@@ -340,12 +340,12 @@ class DownloadTool_win_wget(DownloadToolBase):
         download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
         download_command_parts.append("--read-timeout")
         download_command_parts.append("900")
-        return (" ".join(download_command_parts), self.platformHelper.exit_if_error())
+        return (" ".join(download_command_parts), self.platform_helper.exit_if_error())
 
 
 class DownloadTool_win_curl(DownloadToolBase):
-    def __init__(self, platformHelper):
-        super(DownloadTool_win_curl, self).__init__(platformHelper)
+    def __init__(self, platform_helper):
+        super(DownloadTool_win_curl, self).__init__(platform_helper)
 
     def download_url_to_file(self, src_url, trg_file):
         connect_time_out = var_list.get_str("CURL_CONNECT_TIMEOUT")
@@ -419,5 +419,5 @@ class DownloadTool_win_curl(DownloadToolBase):
             for config_file in config_files:
                 wfd.write(var_list.resolve_string("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+config_file+"\"\n"))
 
-        download_command = " ".join( (self.platformHelper.run_instl(),  "parallel-run", "--in", quoteme_double(parallel_run_config_file_path)) )
-        return (download_command, self.platformHelper.exit_if_error())
+        download_command = " ".join( (self.platform_helper.run_instl(),  "parallel-run", "--in", quoteme_double(parallel_run_config_file_path)) )
+        return (download_command, self.platform_helper.exit_if_error())
