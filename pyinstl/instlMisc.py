@@ -76,4 +76,7 @@ def join_split_files(first_file):
                 with open(os.path.join(base_folder, afile), "rb") as rfd:
                     wfd.write(rfd.read())
         with open(done_file, "a"): os.utime(done_file, None)
+        joined_file_done_path = joined_file_path+".done"
+        if os.path.isfile(joined_file_done_path):
+            os.remove(joined_file_done_path)
     return joined_file_path
