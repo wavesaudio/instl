@@ -255,7 +255,11 @@ class PlatformSpecificHelperBase(object):
         pass
 
     def unwtar_current_folder(self):
-        unwtar_command = " ".join( (self.run_instl(),  "unwtar") )
+        unwtar_command = " ".join( (self.instlObj.platform_helper.run_instl(),
+                                                    "unwtar",
+                                                    "--start-progress", str(self.num_items_for_progress_report),
+                                                    "--total-progress", "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)",
+                                                    ) )
         return unwtar_command
 
     @abc.abstractmethod

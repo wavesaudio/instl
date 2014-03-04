@@ -17,11 +17,24 @@ class InstlMisc(InstlInstanceBase):
         super(InstlMisc, self).__init__(initial_vars)
         self.svnTree = svnTree.SVNTree()
 
+    def __del__(self):
+        if self.curr_progress != self.actual_progress:
+            print("curr_progress: {self.curr_progress} != actual_progress: {self.actual_progress}".format(**locals()))
+
     def do_command(self):
         the_command = var_list.get_str("__MAIN_COMMAND__")
         fixed_command = the_command.replace('-', '_')
+        self.curr_progress =  int(var_list.get_str("__START_DYNAMIC_PROGRESS__")) + 1
+        self.total_progress = int(var_list.get_str("__TOTAL_DYNAMIC_PROGRESS__"))
+        self.actual_progress = 1
         do_command_func = getattr(self, "do_"+fixed_command)
         do_command_func()
+
+    def dynamic_progress(self, msg):
+        if self.total_progress > 0:
+            print("Progress: {self.curr_progress} of {self.total_progress}; {msg}".format(**locals()))
+            self.curr_progress += 1
+            self.actual_progress += 1
 
     def do_version(self):
         print(self.get_version_str())
@@ -49,7 +62,7 @@ class InstlMisc(InstlInstanceBase):
                 afile_path = os.path.join(root, afile)
                 wtar_file_path = None
                 if afile_path.endswith(".wtar.aa"):
-                    wtar_file_path = join_split_files(afile_path)
+                    wtar_file_path = self.join_split_files(afile_path)
                 elif afile_path.endswith(".wtar"):
                     wtar_file_path = afile_path
                 if wtar_file_path:
@@ -58,25 +71,43 @@ class InstlMisc(InstlInstanceBase):
                         try:
                             with tarfile.open(wtar_file_path, "r") as tar:
                                 tar.extractall(root)
+                            self.dynamic_progress("unwtar {wtar_file_path}".format(**locals()))
                         except tarfile.ReadError as re_er:
                             print("tarfile read error while opening file", os.path.abspath(wtar_file_path))
                             raise
                         with open(done_file, "a"): os.utime(done_file, None)
 
+    def join_split_files(self, first_file):
+        base_folder, base_name = os.path.split(first_file)
+        joined_file_path = first_file[:-3] # without the final '.aa'
+        done_file = first_file+".done"
+        if not os.path.isfile(done_file):
+            filter_pattern = base_name[:-2]+"??" # with ?? instead of aa
+            matching_files = sorted(fnmatch.filter(os.listdir(base_folder), filter_pattern))
+            with open(joined_file_path, "wb") as wfd:
+                for afile in matching_files:
+                    with open(os.path.join(base_folder, afile), "rb") as rfd:
+                        wfd.write(rfd.read())
+            with open(done_file, "a"): os.utime(done_file, None)
+            joined_file_done_path = joined_file_path+".done"
+            if os.path.isfile(joined_file_done_path):
+                os.remove(joined_file_done_path)
+            self.dynamic_progress("Merge wtar parts {first_file}".format(**locals()))
+        return joined_file_path
 
-def join_split_files(first_file):
-    base_folder, base_name = os.path.split(first_file)
-    joined_file_path = first_file[:-3] # without the final '.aa'
-    done_file = first_file+".done"
-    if not os.path.isfile(done_file):
-        filter_pattern = base_name[:-2]+"??" # with ?? instead of aa
-        matching_files = sorted(fnmatch.filter(os.listdir(base_folder), filter_pattern))
-        with open(joined_file_path, "wb") as wfd:
-            for afile in matching_files:
-                with open(os.path.join(base_folder, afile), "rb") as rfd:
-                    wfd.write(rfd.read())
-        with open(done_file, "a"): os.utime(done_file, None)
-        joined_file_done_path = joined_file_path+".done"
-        if os.path.isfile(joined_file_done_path):
-            os.remove(joined_file_done_path)
-    return joined_file_path
+    def do_check_checksum(self):
+        bad_checksum_list = list()
+        self.read_info_map_file(var_list.get_str("__MAIN_INPUT_FILE__"))
+        for file_item in self.svnTree.walk_items(what="file"):
+            file_path = file_item.full_path()
+            if os.path.isfile(file_path):
+                checkOK = check_file_checksum(file_path, file_item.checksum())
+                if not checkOK:
+                    bad_checksum_list.append( " ".join((file_path, "bad checksum")) )
+            else:
+                bad_checksum_list.append( " ".join((file_path, "does not exist")) )
+            self.dynamic_progress("Check checksum {file_path}".format(**locals()))
+        if bad_checksum_list:
+            for msg in bad_checksum_list:
+                print(bad_checksum_list)
+            raise ValueError("Bad checksum for "+str(len(bad_checksum_list))+" files")

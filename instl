@@ -67,6 +67,8 @@ class CommandLineOptions(object):
         self.svn_folder = None
         self.sh1_checksum = None
         self.rsa_signature = None
+        self.start_progress = None
+        self.total_progress = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
@@ -96,6 +98,7 @@ def prepare_args_parser():
     argparse.ArgumentParser.convert_arg_line_to_args = decent_convert_arg_line_to_args
 
     subparsers = parser.add_subparsers(dest='command', help='sub-command help')
+    check_checksum_parser = subparsers.add_parser('check-checksum', help='check checksum for a list of files from info_map file')
     check_sig_parser = subparsers.add_parser('check-sig', help='check sha1 checksum and/or rsa signature for a file')
     copy_parser = subparsers.add_parser('copy', help='copy files from temp folder to target paths')
     create_links_parser = subparsers.add_parser('create-links', help='create links from the base SVN checkout folder for a specific version')
@@ -105,18 +108,18 @@ def prepare_args_parser():
     fix_symlinks_parser = subparsers.add_parser('fix-symlinks', help='replace symlinks with .symlinks files')
     help_parser = subparsers.add_parser('help')
     make_sig_parser = subparsers.add_parser('make-sig', help='create sha1 checksum and rsa signature for a file')
+    parallel_run_parser = subparsers.add_parser('parallel-run', help="Run processes in parallel")
     stage2svn_parser = subparsers.add_parser('stage2svn', help='add/remove files in staging to svn sync repository')
     svn2stage_parser = subparsers.add_parser('svn2stage', help='svn sync repository and copy to staging folder')
     sync_parser = subparsers.add_parser('sync', help='sync files to be installed from server to temp folder')
     synccopy_parser = subparsers.add_parser('synccopy', help='sync files to be installed from server to temp folder and copy files from temp folder to target paths')
     trans_parser = subparsers.add_parser('trans', help='translate svn map files from one format to another')
+    unwtar_parser = subparsers.add_parser('unwtar', help='uncompress .wtar files in current folder')
     up_repo_rev_parser = subparsers.add_parser('up-repo-rev', help='upload repository revision file to admin folder')
     up2S3_parser = subparsers.add_parser('up2s3', help='upload installation sources to S3')
+    verify_index_parser = subparsers.add_parser('verify-index', help='Verify that index and info map are compatible')
     version_parser = subparsers.add_parser('version', help='display instl version')
     wtar_parser = subparsers.add_parser('wtar', help='create .wtar files from specified files and folders')
-    verify_index_parser = subparsers.add_parser('verify-index', help='Verify that index and info map are compatible')
-    parallel_run_parser = subparsers.add_parser('parallel-run', help="Run processes in parallel")
-    unwtar_parser = subparsers.add_parser('unwtar', help='uncompress .wtar files in current folder')
 
     command_names = sorted(subparsers.choices.keys())
 
@@ -126,7 +129,8 @@ def prepare_args_parser():
                         stage2svn_parser, svn2stage_parser, wtar_parser,
                         create_rsa_keys_parser, make_sig_parser, check_sig_parser,
                         create_repo_rev_file_parser, verify_index_parser),
-             'do_something': (version_parser, help_parser, parallel_run_parser, unwtar_parser)
+             'do_something': (version_parser, help_parser, parallel_run_parser,
+                              unwtar_parser, check_checksum_parser)
             }
     for the_mode, parsers in modes.iteritems():
         for some_parser in parsers:
@@ -134,7 +138,7 @@ def prepare_args_parser():
 
     need_input_options = (sync_parser, copy_parser, synccopy_parser,
                           trans_parser, make_sig_parser, check_sig_parser,
-                            verify_index_parser, parallel_run_parser)
+                            verify_index_parser, parallel_run_parser, check_checksum_parser)
     need_output_options = (copy_parser, sync_parser, synccopy_parser,
                            trans_parser, create_links_parser, fix_symlinks_parser,
                            up2S3_parser, fix_props_parser, stage2svn_parser,
@@ -146,6 +150,7 @@ def prepare_args_parser():
                                 fix_props_parser, stage2svn_parser, svn2stage_parser,
                                 wtar_parser, create_rsa_keys_parser, make_sig_parser,
                                 check_sig_parser, create_repo_rev_file_parser)
+    need_progress_options = (check_checksum_parser, unwtar_parser)
 
     # add --in to parsers that need it
     for subparser in need_input_options:
@@ -184,6 +189,22 @@ def prepare_args_parser():
                                     metavar='path-to-config-file',
                                     dest='config_file',
                                     help="path to config-file")
+
+    # add --start-progress --total-progress to parsers that need it
+    for subparser in need_progress_options:
+        progress_options = subparser.add_argument_group(description='dynamic progress report')
+        progress_options.add_argument('--start-progress',
+                                    required=True,
+                                    nargs=1,
+                                    metavar='start-progress-number',
+                                    dest='start_progress',
+                                    help="num progress items to begin with")
+        progress_options.add_argument('--total-progress',
+                                    required=True,
+                                    nargs=1,
+                                    metavar='total-progress-number',
+                                    dest='total_progress',
+                                    help="num total progress items")
 
 
     trans_options = trans_parser.add_argument_group(description='translate arguments:')

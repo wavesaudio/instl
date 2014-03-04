@@ -87,19 +87,23 @@ class InstlInstanceBase(object):
     def init_from_cmd_line_options(self, cmd_line_options_obj):
         """ turn command line options into variables """
         const_attrib_to_var = {
-                         "input_file":      "__MAIN_INPUT_FILE__",
-                         "output_file":     "__MAIN_OUT_FILE__",
-                         "props_file":      "__PROPS_FILE__",
-                         "config_file":     "__CONFIG_FILE__",
-                         "folder":          "__FOLDER__",
-                         "sh1_checksum":    "__SHA1_CHECKSUM__",
-                         "rsa_signature":   "__RSA_SIGNATURE__",
+                         "input_file":      ("__MAIN_INPUT_FILE__", None),
+                         "output_file":     ("__MAIN_OUT_FILE__", None),
+                         "props_file":      ("__PROPS_FILE__", None),
+                         "config_file":     ("__CONFIG_FILE__", None),
+                         "folder":          ("__FOLDER__", None),
+                         "sh1_checksum":    ("__SHA1_CHECKSUM__", None),
+                         "rsa_signature":   ("__RSA_SIGNATURE__", None),
+                         "start_progress":  ("__START_DYNAMIC_PROGRESS__", "0"),
+                         "total_progress":  ("__TOTAL_DYNAMIC_PROGRESS__", "0"),
                          }
 
         for attrib, var in const_attrib_to_var.iteritems():
             attrib_value = getattr(cmd_line_options_obj, attrib)
             if attrib_value:
-                var_list.add_const_config_variable(var, "from command line options", attrib_value[0])
+                var_list.add_const_config_variable(var[0], "from command line options", attrib_value[0])
+            elif var[1]: # there's a default
+                var_list.add_const_config_variable(var[0], "from default", var[1])
 
         non_const_attrib_to_var = {
                         "filter_in":       "__FILTER_IN_VERSION__",
@@ -318,3 +322,10 @@ class InstlInstanceBase(object):
                             print("inherit cycle:", " -> ".join(cy))
                 except ImportError: # no installItemGraph, no worry
                     print("Could not load installItemGraph")
+
+    def read_info_map_file(self, in_file_path):
+        self.svnTree.read_info_map_from_file(in_file_path)
+
+    def write_info_map_file(self):
+        self.svnTree.write_to_file(var_list.get_str("__MAIN_OUT_FILE__"))
+

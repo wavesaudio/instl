@@ -73,12 +73,6 @@ class InstlAdmin(InstlInstanceBase):
         if "__RUN_BATCH_FILE__" in var_list:
             self.run_batch_file()
 
-    def read_info_map_file(self, in_file_path):
-        self.svnTree.read_info_map_from_file(in_file_path)
-
-    def write_info_map_file(self):
-        self.svnTree.write_to_file(var_list.get_str("__MAIN_OUT_FILE__"))
-
     def filter_out_info_map(self, paths_to_filter_out):
         for path in paths_to_filter_out:
             self.svnTree.remove_item_at_path(path)

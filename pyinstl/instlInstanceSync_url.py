@@ -172,6 +172,15 @@ class InstlInstanceSync_url(InstlInstanceSync):
         work_info_map_path = var_list.get_str("REQUIRED_INFO_MAP_PATH")
         self.work_info_map.write_to_file(work_info_map_path, in_format="text")
 
+    def estimate_num_unwtar_actions(self):
+        retVal = 0
+        for file_item in self.work_info_map.walk_items(what="file"):
+            if file_item.name().endswith(".wtar"):
+                retVal += 1
+            elif file_item.name().endswith(".wtar.aa"):
+                retVal += 2
+        return retVal
+
     def create_download_instructions(self):
         self.instlObj.batch_accum.set_current_section('sync')
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("starting sync")
@@ -215,24 +224,23 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Downloading "+str(self.files_to_download)+" files done", self.files_to_download)
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
-        checksum_accum = BatchAccumulator() # sub-accumulator for checksum
-        checksum_accum.set_current_section('sync')
-        for need_item in file_list + dir_list:
-            self.create_checksum_instructions_for_item(checksum_accum, need_item)
-        if len(checksum_accum) > 0:
-            self.instlObj.batch_accum.merge_with(checksum_accum)
+        num_files_to_check = self.work_info_map.num_subs_in_tree(what="file")
+        if num_files_to_check > 0:
+            self.instlObj.batch_accum += " ".join( (self.instlObj.platform_helper.run_instl(),
+                                                    "check-checksum",
+                                                    "--in", quoteme_double("$(TO_SYNC_INFO_MAP_PATH)"),
+                                                    "--start-progress", str(self.instlObj.platform_helper.num_items_for_progress_report),
+                                                    "--total-progress", "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)",
+                                                    ) )
+            self.instlObj.platform_helper.num_items_for_progress_report += num_files_to_check
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress(var_list.resolve_string("Check checksum done"))
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
-        wuntar_accum = BatchAccumulator() # sub-accumulator for unwtar
-        wuntar_accum.set_current_section('sync')
-        wuntar_accum += self.instlObj.platform_helper.unwtar_current_folder()
-        #for need_item in file_list + dir_list:
-        #    self.create_unwtar_instructions_for_item(wuntar_accum, need_item)
-        if len(wuntar_accum) > 0:
-            self.instlObj.batch_accum.merge_with(wuntar_accum)
-            self.instlObj.batch_accum += self.instlObj.platform_helper.progress(var_list.resolve_string("untar done"))
-            self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
+        num_files_to_unwtar_estimation = self.estimate_num_unwtar_actions()
+        self.instlObj.batch_accum += self.instlObj.platform_helper.unwtar_current_folder()
+        self.instlObj.platform_helper.num_items_for_progress_report += num_files_to_unwtar_estimation
+        self.instlObj.batch_accum += self.instlObj.platform_helper.progress(var_list.resolve_string("unwtar done"))
+        self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
     def create_prefix_instructions_for_item(self, accum, item, path_so_far = list()):
         if item.isSymlink():
