@@ -1,10 +1,12 @@
-???? 0.8.8
+4/3/2014 0.8.8 Shai Shasag <shai@waves.com>
+
     user visible changes, client:
     * Fixed a problem where files created when instl runs under sudo,
         could not be re-written under regular user.
     * unwtar command added - replaced individual batch file unwtar commands with inst unwtar.
+    * Big files above 5MB will be wtared and split into chuncks is the result wtar if is larger than 5MB.
     * New variable: COPY_IGNORE_PATTERNS instead of hard coded in the copy producing code.
-    * sync command will report the number of files to download.
+    * sync command will report the number of files to sync.
 
     programmer visible changes:
     * os.umask(0) is called first thing.

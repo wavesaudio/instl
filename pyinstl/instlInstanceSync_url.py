@@ -200,7 +200,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         var_list.add_const_config_variable("__NUM_FILES_TO_DOWNLOAD__", "create_download_instructions", self.instlObj.platform_helper.dl_tool.get_num_urls_to_download())
 
-        print(self.instlObj.platform_helper.dl_tool.get_num_urls_to_download(), "files to download")
+        print(self.instlObj.platform_helper.dl_tool.get_num_urls_to_download(), "files to sync")
 
         curl_config_folder = var_list.resolve_string(os.path.join("$(LOCAL_SYNC_DIR)", "curl"))
         safe_makedirs(curl_config_folder)
