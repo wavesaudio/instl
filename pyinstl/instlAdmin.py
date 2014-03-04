@@ -135,6 +135,30 @@ class InstlAdmin(InstlInstanceBase):
                 retVal = False
         return retVal
 
+    def get_last_repo_rev(self):
+        retVal = 0
+        revision_line_re = re.compile("^Revision:\s+(?P<last_rev>\d+)$")
+        repo_url = var_list.resolve_string("$(SVN_REPO_URL)")
+        if os.path.isdir(repo_url):
+            svn_info_command = [var_list.get_str("SVN_CLIENT_PATH"), "info", "."]
+        else:
+            svn_info_command = [var_list.get_str("SVN_CLIENT_PATH"), "info", repo_url]
+        with ChangeDirIfExists(repo_url):
+            proc = subprocess.Popen(svn_info_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            my_stdout, my_stderr = proc.communicate()
+            if proc.returncode != 0 or my_stderr != "":
+                raise ValueError("Could not read info from svn: "+my_stderr)
+            info_as_io = StringIO.StringIO(my_stdout)
+            for line in info_as_io:
+                match = revision_line_re.match(line)
+                if match:
+                    retVal = int(match.group("last_rev"))
+                    break
+        if retVal <= 0:
+            raise ValueError("Could not find last repo rev for "+repo_url)
+        var_list.set_var("__LAST_REPO_REV__").append(str(retVal))
+        return retVal
+
     def do_create_links(self):
         self.check_prerequisite_var_existence(("REPO_NAME", "SVN_REPO_URL", "ROOT_LINKS_FOLDER_REPO"))
 
@@ -142,20 +166,7 @@ class InstlAdmin(InstlInstanceBase):
 
         info_as_io = None
         # call svn info and to find out the last repo revision
-        repo_url = var_list.resolve_string("$(SVN_REPO_URL)")
-        if os.path.isdir(repo_url):
-            svn_info_command = [var_list.get_str("SVN_CLIENT_PATH"), "info", ".", "--depth", "infinity"]
-        else:
-            svn_info_command = [var_list.get_str("SVN_CLIENT_PATH"), "info", repo_url, "--depth", "infinity"]
-        with ChangeDirIfExists(repo_url):
-            proc = subprocess.Popen(svn_info_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            my_stdout, my_stderr = proc.communicate()
-            if proc.returncode != 0 or my_stderr != "":
-                raise ValueError("Could not read info from svn: "+my_stderr)
-            info_as_io = StringIO.StringIO(my_stdout)
-        self.svnTree.read_from_svn_info(info_as_io)
-        _, last_repo_rev = self.svnTree.min_max_rev()
-        var_list.set_var("__LAST_REPO_REV__").append(str(last_repo_rev))
+        last_repo_rev = self.get_last_repo_rev()
 
         var_list.set_var("__CHECKOUT_FOLDER__").append("$(ROOT_LINKS_FOLDER_REPO)/Base")
         self.batch_accum += self.platform_helper.mkdir("$(__CHECKOUT_FOLDER__)")
@@ -259,7 +270,9 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_up2s3(self):
         root_links_folder = var_list.resolve_string("$(ROOT_LINKS_FOLDER_REPO)")
-        revision_list = range(int(var_list.get_str("BASE_REPO_REV")), int(var_list.get_str("REPO_REV"))+1)
+        # call svn info and to find out the last repo revision
+        last_repo_rev = self.get_last_repo_rev()
+        revision_list = range(int(var_list.get_str("BASE_REPO_REV")), last_repo_rev+1)
         dirs_to_upload = list()
         for dir_as_int in revision_list:
             dir_name = str(dir_as_int)
