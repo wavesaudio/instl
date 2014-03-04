@@ -1,15 +1,16 @@
 ???? 0.8.8
-
     user visible changes, client:
     * Fixed a problem where files created when instl runs under sudo,
         could not be re-written under regular user.
     * unwtar command added - replaced individual batch file unwtar commands with inst unwtar.
     * New variable: COPY_IGNORE_PATTERNS instead of hard coded in the copy producing code.
+    * sync command will report the number of files to download.
 
     programmer visible changes:
     * os.umask(0) is called first thing.
     * batch file creation does chmod(777).
     * New method PlatformSpecificHelperBase.unwtar_current_folder.
+    * Fixed: instl would not create a correct call for itself (e.g. instl unwtar) when running uncompiled on windows.
 
 26/2/2014 0.8.7 Shai Shasag <shai@waves.com>
 

@@ -218,7 +218,7 @@ class InstlAdmin(InstlInstanceBase):
         accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
         # translate SVN info and properties to info_map text format
         accum += self.platform_helper.echo("Creating $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map.txt")
-        trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans",
+        trans_command_parts = [self.platformHelper.run_instl(), "trans",
                                "--in", "instl/info_map.info",
                                "--props ", "instl/info_map.props",
                                "--base-repo-rev", "$(BASE_REPO_REV)",
@@ -227,15 +227,15 @@ class InstlAdmin(InstlInstanceBase):
 
         # create Mac only info_map
         accum += self.platform_helper.echo("Creating $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map_Mac.txt")
-        trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans", "--in", "instl/info_map.txt", "--out ", "instl/info_map_Mac.txt",  "--filter-out", "Win"]
+        trans_command_parts = [self.platformHelper.run_instl(), "trans", "--in", "instl/info_map.txt", "--out ", "instl/info_map_Mac.txt",  "--filter-out", "Win"]
         accum += " ".join(trans_command_parts)
 
         # create Win only info_map
         accum += self.platform_helper.echo("Creating $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map_Win.txt")
-        trans_command_parts = ['"$(__INSTL_EXE_PATH__)"', "trans", "--in", "instl/info_map.txt", "--out ", "instl/info_map_Win.txt",  "--filter-out", "Mac"]
+        trans_command_parts = [self.platformHelper.run_instl(), "trans", "--in", "instl/info_map.txt", "--out ", "instl/info_map_Win.txt",  "--filter-out", "Mac"]
         accum += " ".join(trans_command_parts)
 
-        create_repo_rev_file_command_parts = ['"$(__INSTL_EXE_PATH__)"', "create-repo-rev-file", "--config-file", '"$(__CONFIG_FILE_PATH__)"', "--rev", "$(__CURR_REPO_REV__)"]
+        create_repo_rev_file_command_parts = [self.platformHelper.run_instl(), "create-repo-rev-file", "--config-file", '"$(__CONFIG_FILE_PATH__)"', "--rev", "$(__CURR_REPO_REV__)"]
         accum += " ".join(create_repo_rev_file_command_parts)
 
         accum += self.platform_helper.rmfile("$(UP_2_S3_STAMP_FILE_NAME)")

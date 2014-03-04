@@ -300,6 +300,13 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         touch_command = " ".join( ("type", "NUL", ">", quoteme_double(filepath)) )
         return touch_command
 
+    def run_instl(self):
+        command_prefix = ""
+        if not getattr(sys, 'frozen', False):
+            command_prefix = "python "
+        instl_command = command_prefix+'\"$(__INSTL_EXE_PATH__)\"'
+        return instl_command
+
 class DownloadTool_win_wget(DownloadToolBase):
     def __init__(self, platformHelper):
         super(DownloadTool_win_wget, self).__init__(platformHelper)
@@ -412,9 +419,5 @@ class DownloadTool_win_curl(DownloadToolBase):
             for config_file in config_files:
                 wfd.write(var_list.resolve_string("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+config_file+"\"\n"))
 
-        command_prefix = ""
-        if not getattr(sys, 'frozen', False):
-            command_prefix = "python "
-
-        download_command = command_prefix+"\"$(__INSTL_EXE_PATH__)\" parallel-run --in \""+parallel_run_config_file_path+"\""
+        download_command = " ".join( (self.platformHelper.run_instl(),  "parallel-run", "--in", quoteme_double(parallel_run_config_file_path)) )
         return (download_command, self.platformHelper.exit_if_error())

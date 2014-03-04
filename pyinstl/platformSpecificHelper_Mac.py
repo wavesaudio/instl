@@ -288,5 +288,5 @@ class DownloadTool_mac_curl(DownloadToolBase):
             for config_file in config_files:
                 wfd.write(var_list.resolve_string("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+config_file+"\"\n"))
 
-        download_command = "\"$(__INSTL_EXE_PATH__)\" parallel-run --in \""+parallel_run_config_file_path+"\""
+        download_command = " ".join( (self.platformHelper.run_instl(),  "parallel-run", "--in", quoteme_double(parallel_run_config_file_path)) )
         return download_command

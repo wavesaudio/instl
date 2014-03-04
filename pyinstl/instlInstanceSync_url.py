@@ -200,6 +200,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         var_list.add_const_config_variable("__NUM_FILES_TO_DOWNLOAD__", "create_download_instructions", self.instlObj.platform_helper.dl_tool.get_num_urls_to_download())
 
+        print(self.instlObj.platform_helper.dl_tool.get_num_urls_to_download(), "files to download")
+
         curl_config_folder = var_list.resolve_string(os.path.join("$(LOCAL_SYNC_DIR)", "curl"))
         safe_makedirs(curl_config_folder)
         curl_config_file_path = var_list.resolve_string(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"))
@@ -213,7 +215,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Downloading "+str(self.files_to_download)+" files done", self.files_to_download)
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
-        checksum_accum = BatchAccumulator() # sub-accumulator for unwtar
+        checksum_accum = BatchAccumulator() # sub-accumulator for checksum
         checksum_accum.set_current_section('sync')
         for need_item in file_list + dir_list:
             self.create_checksum_instructions_for_item(checksum_accum, need_item)
@@ -260,7 +262,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             item.set_user_data_non_recursive(need_to_download)
             if need_to_download:
                 self.files_to_download += 1
-                # some files place a stamp fiel after post-download processing. Remove such file if it exist
+                # For some files a stamp file (.done) is placed after post-download processing. Remove such file if it exist
                 done_stam__path = os.path.join(*make_one_list(self.local_sync_dir, path_so_far, item.name()+".done"))
                 safe_remove_file(done_stam__path)
 

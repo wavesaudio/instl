@@ -255,7 +255,7 @@ class PlatformSpecificHelperBase(object):
         pass
 
     def unwtar_current_folder(self):
-        unwtar_command = " ".join( ("$(__INSTL_EXE_PATH__)", "unwtar") )
+        unwtar_command = " ".join( (self.run_instl(),  "unwtar") )
         return unwtar_command
 
     @abc.abstractmethod
@@ -269,6 +269,9 @@ class PlatformSpecificHelperBase(object):
     @abc.abstractmethod
     def touch(self, filepath):
         pass
+
+    def run_instl(self):
+        return '\"$(__INSTL_EXE_PATH__)\"'
 
 def PlatformSpecificHelperFactory(in_os, instlObj):
     retVal = None
