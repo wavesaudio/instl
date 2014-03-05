@@ -1,8 +1,10 @@
-???? 0.8.9
+5/3/2014 0.8.9 Shai Shasag <shai@waves.com>
+
     user visible changes, client:
-    * unwtar and check-checksum are now done as internal instl commands instead of using command line tools.
+    * create-folders, unwtar and check-checksum are now done as internal instl commands instead of relying on external utilities.
     * During unwtar if .wtar.aa file is joined, .wtar.done file is removed.
-    * New command check_checksum_for_file will check checksums according to the to_sync_info_map.txt instead of relying on external .exe.
+    * New command create-folders will create folders for sync according to the to_sync_info_map.txt.
+    * New command check-checksum will check checksums according to the to_sync_info_map.txt.
     * InstlMisc commands report execution time.
     * Windows: robocopy copy_dir_to_dir has /PURGE parameter so that redundant files in the target will be removed.
     * Mac: rsync copy_dir_to_dir has --delete parameter so that redundant files in the target will be removed.
