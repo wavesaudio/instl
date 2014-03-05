@@ -4,7 +4,8 @@
     * During unwtar if .wtar.aa file is joined, .wtar.done file is removed.
     * New command check_checksum_for_file will check checksums according to the to_sync_info_map.txt instead of relying on external .exe.
     * InstlMisc commands report execution time.
-    * Windows: robocopy copy_dir_to_dir has /PUSRGE parameters so that redundant files in hte target will be removed.
+    * Windows: robocopy copy_dir_to_dir has /PURGE parameter so that redundant files in the target will be removed.
+    * Mac: rsync copy_dir_to_dir has --delete parameter so that redundant files in the target will be removed.
 
     user visible changes, admin:
     * Creation of .txt files for all files in instl directory was moved from up2s3 command to create-links command.
@@ -18,9 +19,9 @@
     * init_from_cmd_line_options can now assign defaults to options that were not specifed on the command line.
     * InstlMisc commands can now report progress by using --start-progress and --total-progress command line options.
     * PlatformSpecificHelperBase.check_checksum renamed check_checksum_for_file.
-     * New method PlatformSpecificHelperBase.check_checksum_for_folder
-     * PlatformSpecificHelperBase.unwtar renamed unwtar_file.
-     * Method PlatformSpecificHelperBase.unwtar_current_folder, with added exit_if_error for windows.
+    * New method PlatformSpecificHelperBase.check_checksum_for_folder
+    * PlatformSpecificHelperBase.unwtar renamed unwtar_file.
+    * Method PlatformSpecificHelperBase.unwtar_current_folder, with added exit_if_error for windows.
 
 4/3/2014 0.8.8 Shai Shasag <shai@waves.com>
 
