@@ -226,12 +226,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         num_files_to_check = self.work_info_map.num_subs_in_tree(what="file")
         if num_files_to_check > 0:
-            self.instlObj.batch_accum += " ".join( (self.instlObj.platform_helper.run_instl(),
-                                                    "check-checksum",
-                                                    "--in", quoteme_double("$(TO_SYNC_INFO_MAP_PATH)"),
-                                                    "--start-progress", str(self.instlObj.platform_helper.num_items_for_progress_report),
-                                                    "--total-progress", "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)",
-                                                    ) )
+            self.instlObj.batch_accum += self.instlObj.platform_helper.check_checksum_for_folder("$(TO_SYNC_INFO_MAP_PATH)")
             self.instlObj.platform_helper.num_items_for_progress_report += num_files_to_check
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress(var_list.resolve_string("Check checksum done"))
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
@@ -298,7 +293,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 accum += self.instlObj.platform_helper.pushd(os.path.join(*path_so_far))
                 accum.indent_level += 1
                 for awtar in wtar_that_need_untar_file_list:
-                    accum += self.instlObj.platform_helper.unwtar(awtar.name())
+                    accum += self.instlObj.platform_helper.unwtar_file(awtar.name())
                     accum += self.instlObj.platform_helper.progress(awtar.full_path())
                 accum += self.instlObj.platform_helper.popd()
 
@@ -313,7 +308,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             print("Found symlink at", item.full_path())
         elif item.isFile():
             if item.user_data:
-                accum += self.instlObj.platform_helper.check_checksum(item.full_path(), item.checksum())
+                accum += self.instlObj.platform_helper.check_checksum_for_file(item.full_path(), item.checksum())
                 accum += self.instlObj.platform_helper.progress_staccato("checking checksum")
         elif item.isDir():
             path_so_far.append(item.name())

@@ -102,13 +102,13 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
             copy_command = "cp -f \"{src_file}\" \"{trg_file}\"".format(**locals())
         return copy_command
 
-    def check_checksum(self, file, checksum):
+    def check_checksum_for_file(self, file, checksum):
         raise NotImplementedError
 
     def tar(self, to_tar_name):
         raise NotImplementedError
 
-    def unwtar(self, filepath):
+    def unwtar_file(self, filepath):
         raise NotImplementedError
 
     def wait_for_child_processes(self):

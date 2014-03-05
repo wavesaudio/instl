@@ -243,15 +243,24 @@ class PlatformSpecificHelperBase(object):
         return svn_command
 
     @abc.abstractmethod
-    def check_checksum(self, file, checksum):
+    def check_checksum_for_file(self, file, checksum):
         pass
+
+    def check_checksum_for_folder(self, info_map_file):
+        check_checksum_for_folder_command = " ".join( (self.run_instl(),
+                                                    "check-checksum",
+                                                    "--in", quoteme_double(info_map_file),
+                                                    "--start-progress", str(self.num_items_for_progress_report),
+                                                    "--total-progress", "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)",
+                                                    ) )
+        return check_checksum_for_folder_command
 
     @abc.abstractmethod
     def tar(self, to_tar_name):
         pass
 
     @abc.abstractmethod
-    def unwtar(self, filepath):
+    def unwtar_file(self, filepath):
         pass
 
     def unwtar_current_folder(self):

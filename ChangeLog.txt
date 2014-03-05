@@ -3,7 +3,7 @@
     user visible changes, client:
     * unwtar and check-checksum are now done as internal instl commands instead of using command line tools.
     * During unwtar if .wtar.aa file is joined, .wtar.done file is removed.
-    * New command check_checksum will check checksums according to the to_sync_info_map.txt instead of relying on external .exe.
+    * New command check_checksum_for_file will check checksums according to the to_sync_info_map.txt instead of relying on external .exe.
 
     user visible changes, admin:
     * Creation of .txt files for all files in instl directory was moved from up2s3 command to create-links command.
@@ -11,9 +11,13 @@
 
     programmer visible changes:
     * platformHelper renamed platform_helper everywhere.
-    * New method InstlAdmin.get_last_repo_rev
+    * New method InstlAdmin.get_last_repo_rev.
     * init_from_cmd_line_options can now assign defaults to options that were not specifed on the command line.
     * InstlMisc commands can now report progress by using --start-progress and --total-progress command line options.
+    * PlatformSpecificHelperBase.check_checksum renamed check_checksum_for_file.
+     * New method PlatformSpecificHelperBase.check_checksum_for_folder
+     * PlatformSpecificHelperBase.unwtar renamed unwtar_file.
+     * Method PlatformSpecificHelperBase.unwtar_current_folder, with added exit_on_error for windows.
 
 4/3/2014 0.8.8 Shai Shasag <shai@waves.com>
 
@@ -116,7 +120,7 @@
     * InstlClient.init_copy_vars moved from instlInstanceBase.
     * Many default variables read from files instead of being hard coded.
     * Added default files for all instl (main.yaml) and for specific classes (instlAdmin, InstlClient).
-    * Fix on Windows: Hard coded path replaced by $(CHECKSUM_TOOL_PATH) check_checksum.
+    * Fix on Windows: Hard coded path replaced by $(CHECKSUM_TOOL_PATH) check_checksum_for_file.
     * CopyTool_win_robocopy, CopyTool_win_xcopy, PlatformSpecificHelperWin will call os.path.normpath on parameters containing paths.
 
 

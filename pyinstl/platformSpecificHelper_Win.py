@@ -258,7 +258,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         copy_command = " ".join( ("copy", norm_src_file,  norm_trg_file) )
         return copy_command
 
-    def check_checksum(self, filepath, checksum):
+    def check_checksum_for_file(self, filepath, checksum):
         norm_file = os.path.normpath(filepath)
         check_commands = (
             """for /f "delims=\" %%i in ('$(CHECKSUM_TOOL_PATH) -s \"{norm_file}\"') do (@set sha1deep_ret=%%i)""".format(**locals()),
@@ -272,11 +272,14 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
 
         return check_commands
 
+    def check_checksum_for_folder(self, info_map_file):
+        check_checksum_for_folder_command = super(PlatformSpecificHelperWin, self).check_checksum_for_folder(info_map_file)
+        return (check_checksum_for_folder_command, self.exit_on_error())
 
     def tar(self, to_tar_name):
         raise NotImplementedError
 
-    def unwtar(self, wtar_file):
+    def unwtar_file(self, wtar_file):
         tar_file = wtar_file+".tar"
         unzip_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "x", "-y", "-bd",
                                quoteme_double(wtar_file), "-so", ">", quoteme_double(tar_file),
@@ -289,6 +292,10 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
                          " ".join( untar_command_parts), self.exit_if_error(), \
                          rm_tar_command, self.touch(done_stamp_file)
         return untar_commands
+
+    def unwtar_current_folder(self):
+        unwtar_command = super(PlatformSpecificHelperWin, self).unwtar_current_folder()
+        return (unwtar_command, self.exit_on_error())
 
     def wait_for_child_processes(self):
         return ("echo wait_for_child_processes not implemented yet for windows",)

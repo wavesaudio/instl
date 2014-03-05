@@ -149,7 +149,7 @@ find -P "%s" -type f -name '*.symlink' | while read readlink_file; do
 done""" % in_dir)
         return resolve_commands
 
-    def check_checksum(self, filepath, checksum):
+    def check_checksum_for_file(self, filepath, checksum):
         check_command_parts = (  "CHECKSUM_CHECK=`$(CHECKSUM_TOOL_PATH) sha1",
                                 quoteme_double(filepath),
                                 "` ;",
@@ -173,7 +173,7 @@ done""" % in_dir)
         wtar_command = " ".join( wtar_command_parts )
         return wtar_command
 
-    def unwtar(self, filepath):
+    def unwtar_file(self, filepath):
         unwtar_command = " ".join( ("$(WTAR_OPENER_TOOL_PATH)", "-x", "-f", quoteme_double(filepath)) )
         done_stamp_file = filepath + ".done"
         return unwtar_command, self.touch(done_stamp_file)
