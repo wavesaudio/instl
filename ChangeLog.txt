@@ -1,13 +1,16 @@
 ???? 0.8.9
-
     user visible changes, client:
     * unwtar and check-checksum are now done as internal instl commands instead of using command line tools.
     * During unwtar if .wtar.aa file is joined, .wtar.done file is removed.
     * New command check_checksum_for_file will check checksums according to the to_sync_info_map.txt instead of relying on external .exe.
+    * InstlMisc commands report execution time.
+    * Windows: robocopy copy_dir_to_dir has /PUSRGE parameters so that redundant files in hte target will be removed.
 
     user visible changes, admin:
     * Creation of .txt files for all files in instl directory was moved from up2s3 command to create-links command.
     * up2s3 will upload up to the latest repo revision and not up to BASE_REPO_REV.
+    * Options --start-progress and --total-progress become optional (for commands that accept them). Not supplying means there will be no progress report.
+    * InstlMisc commands can report progress, some do it with staccato.
 
     programmer visible changes:
     * platformHelper renamed platform_helper everywhere.
@@ -17,7 +20,7 @@
     * PlatformSpecificHelperBase.check_checksum renamed check_checksum_for_file.
      * New method PlatformSpecificHelperBase.check_checksum_for_folder
      * PlatformSpecificHelperBase.unwtar renamed unwtar_file.
-     * Method PlatformSpecificHelperBase.unwtar_current_folder, with added exit_on_error for windows.
+     * Method PlatformSpecificHelperBase.unwtar_current_folder, with added exit_if_error for windows.
 
 4/3/2014 0.8.8 Shai Shasag <shai@waves.com>
 

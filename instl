@@ -101,6 +101,7 @@ def prepare_args_parser():
     check_checksum_parser = subparsers.add_parser('check-checksum', help='check checksum for a list of files from info_map file')
     check_sig_parser = subparsers.add_parser('check-sig', help='check sha1 checksum and/or rsa signature for a file')
     copy_parser = subparsers.add_parser('copy', help='copy files from temp folder to target paths')
+    create_folders_parser = subparsers.add_parser('create-folders', help='create folders from info_map file')
     create_links_parser = subparsers.add_parser('create-links', help='create links from the base SVN checkout folder for a specific version')
     create_repo_rev_file_parser = subparsers.add_parser('create-repo-rev-file', help='create repo rev file for a specific revision')
     create_rsa_keys_parser = subparsers.add_parser('create-rsa-keys', help='create private and public keys')
@@ -130,7 +131,7 @@ def prepare_args_parser():
                         create_rsa_keys_parser, make_sig_parser, check_sig_parser,
                         create_repo_rev_file_parser, verify_index_parser),
              'do_something': (version_parser, help_parser, parallel_run_parser,
-                              unwtar_parser, check_checksum_parser)
+                              unwtar_parser, check_checksum_parser, create_folders_parser)
             }
     for the_mode, parsers in modes.iteritems():
         for some_parser in parsers:
@@ -138,7 +139,8 @@ def prepare_args_parser():
 
     need_input_options = (sync_parser, copy_parser, synccopy_parser,
                           trans_parser, make_sig_parser, check_sig_parser,
-                            verify_index_parser, parallel_run_parser, check_checksum_parser)
+                            verify_index_parser, parallel_run_parser, check_checksum_parser,
+                            create_folders_parser)
     need_output_options = (copy_parser, sync_parser, synccopy_parser,
                            trans_parser, create_links_parser, fix_symlinks_parser,
                            up2S3_parser, fix_props_parser, stage2svn_parser,
@@ -150,7 +152,7 @@ def prepare_args_parser():
                                 fix_props_parser, stage2svn_parser, svn2stage_parser,
                                 wtar_parser, create_rsa_keys_parser, make_sig_parser,
                                 check_sig_parser, create_repo_rev_file_parser)
-    need_progress_options = (check_checksum_parser, unwtar_parser)
+    need_progress_options = (check_checksum_parser, unwtar_parser, create_folders_parser)
 
     # add --in to parsers that need it
     for subparser in need_input_options:
@@ -194,13 +196,13 @@ def prepare_args_parser():
     for subparser in need_progress_options:
         progress_options = subparser.add_argument_group(description='dynamic progress report')
         progress_options.add_argument('--start-progress',
-                                    required=True,
+                                    required=False,
                                     nargs=1,
                                     metavar='start-progress-number',
                                     dest='start_progress',
                                     help="num progress items to begin with")
         progress_options.add_argument('--total-progress',
-                                    required=True,
+                                    required=False,
                                     nargs=1,
                                     metavar='total-progress-number',
                                     dest='total_progress',

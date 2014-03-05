@@ -255,6 +255,15 @@ class PlatformSpecificHelperBase(object):
                                                     ) )
         return check_checksum_for_folder_command
 
+    def create_folders(self, info_map_file):
+        create_folders_command = " ".join( (self.run_instl(),
+                                                    "create-folders",
+                                                    "--in", quoteme_double(info_map_file),
+                                                    "--start-progress", str(self.num_items_for_progress_report),
+                                                    "--total-progress", "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)",
+                                                    ) )
+        return create_folders_command
+
     @abc.abstractmethod
     def tar(self, to_tar_name):
         pass

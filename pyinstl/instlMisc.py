@@ -5,6 +5,7 @@ from __future__ import print_function
 import shlex
 import tarfile
 import fnmatch
+import time
 
 from pyinstl.utils import *
 from instlInstanceBase import InstlInstanceBase
@@ -26,15 +27,23 @@ class InstlMisc(InstlInstanceBase):
         fixed_command = the_command.replace('-', '_')
         self.curr_progress =  int(var_list.get_str("__START_DYNAMIC_PROGRESS__")) + 1
         self.total_progress = int(var_list.get_str("__TOTAL_DYNAMIC_PROGRESS__"))
+        self.progress_staccato_period = int(var_list.get_str("PROGRESS_STACCATO_PERIOD"))
+        self.progress_staccato_count = 0
         self.actual_progress = 1
+        self.progress_staccato_command = False
         do_command_func = getattr(self, "do_"+fixed_command)
+        before_time = time.time()
         do_command_func()
+        after_time = time.time()
+        print(the_command, "time:", round(after_time - before_time, 2), "sec.")
 
     def dynamic_progress(self, msg):
         if self.total_progress > 0:
-            print("Progress: {self.curr_progress} of {self.total_progress}; {msg}".format(**locals()))
+            self.progress_staccato_count = (self.progress_staccato_count + 1) % self.progress_staccato_period
             self.curr_progress += 1
             self.actual_progress += 1
+            if not self.progress_staccato_command or self.progress_staccato_count == 0:
+                print("Progress: {self.curr_progress} of {self.total_progress}; {msg}".format(**locals()))
 
     def do_version(self):
         print(self.get_version_str())
@@ -96,6 +105,7 @@ class InstlMisc(InstlInstanceBase):
         return joined_file_path
 
     def do_check_checksum(self):
+        self.progress_staccato_command = True
         bad_checksum_list = list()
         self.read_info_map_file(var_list.get_str("__MAIN_INPUT_FILE__"))
         for file_item in self.svnTree.walk_items(what="file"):
@@ -111,3 +121,11 @@ class InstlMisc(InstlInstanceBase):
             for msg in bad_checksum_list:
                 print(bad_checksum_list)
             raise ValueError("Bad checksum for "+str(len(bad_checksum_list))+" files")
+
+    def do_create_folders(self):
+        self.progress_staccato_command = True
+        self.read_info_map_file(var_list.get_str("__MAIN_INPUT_FILE__"))
+        for dir_item in self.svnTree.walk_items(what="dir"):
+            dir_path = dir_item.full_path()
+            safe_makedirs(dir_path)
+            self.dynamic_progress("Create folder {dir_path}".format(**locals()))

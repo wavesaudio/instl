@@ -42,7 +42,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         log_file_spec = self.create_log_spec()
         norm_src_dir = os.path.normpath(src_dir)
         norm_trg_dir = os.path.normpath(trg_dir)
-        copy_command = "robocopy \"{norm_src_dir}\" \"{norm_trg_dir}\" /E {ignore_spec} /R:3 /W:3 {log_file_spec}".format(**locals())
+        copy_command = "robocopy \"{norm_src_dir}\" \"{norm_trg_dir}\" {ignore_spec} /E /R:3 /W:3 /PURGE {log_file_spec}".format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
         return retVal
@@ -274,7 +274,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
 
     def check_checksum_for_folder(self, info_map_file):
         check_checksum_for_folder_command = super(PlatformSpecificHelperWin, self).check_checksum_for_folder(info_map_file)
-        return (check_checksum_for_folder_command, self.exit_on_error())
+        return (check_checksum_for_folder_command, self.exit_if_error())
 
     def tar(self, to_tar_name):
         raise NotImplementedError
@@ -295,7 +295,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
 
     def unwtar_current_folder(self):
         unwtar_command = super(PlatformSpecificHelperWin, self).unwtar_current_folder()
-        return (unwtar_command, self.exit_on_error())
+        return (unwtar_command, self.exit_if_error())
 
     def wait_for_child_processes(self):
         return ("echo wait_for_child_processes not implemented yet for windows",)
@@ -313,6 +313,10 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
             command_prefix = "python "
         instl_command = command_prefix+'\"$(__INSTL_EXE_PATH__)\"'
         return instl_command
+
+    def create_folders(self, info_map_file):
+        create_folders_command = super(PlatformSpecificHelperWin, self).create_folders(info_map_file)
+        return (create_folders_command, self.exit_if_error())
 
 class DownloadTool_win_wget(DownloadToolBase):
     def __init__(self, platform_helper):

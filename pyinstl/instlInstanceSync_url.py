@@ -203,6 +203,12 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.instlObj.batch_accum.merge_with(prefix_accum)
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
+        num_dirs_to_create = self.work_info_map.num_subs_in_tree(what="dir")
+        self.instlObj.batch_accum += self.instlObj.platform_helper.create_folders("$(TO_SYNC_INFO_MAP_PATH)")
+        self.instlObj.platform_helper.num_items_for_progress_report += num_dirs_to_create
+        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Create folders")
+        self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
+
         self.work_info_map.set_user_data_all_recursive(False) # items that need checksum will be marked True
         for need_item in file_list + dir_list:
             self.create_download_instructions_for_item(need_item)
@@ -243,16 +249,13 @@ class InstlInstanceSync_url(InstlInstanceSync):
         elif item.isFile():
             pass
         elif item.isDir():
-            path_so_far.append(item.name())
-            file_list, dir_list = item.sorted_sub_items()
-            if len(dir_list) == 0: # folders that have sub-folders will be created implicitly by the sub-folders.
-                folder_path = os.path.join(*make_one_list(var_list.resolve_string("$(LOCAL_SYNC_DIR)"), path_so_far))
-                if not os.path.isdir(folder_path):
-                    self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir(folder_path)
-                    self.instlObj.batch_accum += self.instlObj.platform_helper.progress_staccato("creating folders")
-            for sub_item in file_list + dir_list:
-                self.create_prefix_instructions_for_item(accum, sub_item, path_so_far)
-            path_so_far.pop()
+            pass
+            #path_so_far.append(item.name())
+            #file_list, dir_list = item.sorted_sub_items()
+            # do something
+            #for sub_item in file_list + dir_list:
+            #    self.create_prefix_instructions_for_item(accum, sub_item, path_so_far)
+            #path_so_far.pop()
 
 
 
