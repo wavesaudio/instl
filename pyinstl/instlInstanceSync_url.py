@@ -122,9 +122,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def filter_out_already_synced_items(self):
         """ Removes from work_info_map items not required to be synced and updates the in memory have map.
             First all items are marked True.
-            Items found in have map are then marked False - provided their have version is equal to tge required version.
-            Finally items marked False and empty directories are removed.
-            The have map is
+            Items found in have map are then marked False - provided their "have" version is equal to required version.
+            Finally all items marked False and empty directories are removed.
         """
         self.work_info_map.set_user_data_all_recursive(True)
         for need_item in self.work_info_map.walk_items(what="file"):
@@ -184,7 +183,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def create_download_instructions(self):
         self.instlObj.batch_accum.set_current_section('sync')
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("starting sync")
-        num_files = self.work_info_map.num_subs_in_tree(what="file")
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("from $(SYNC_TRAGET_OS_URL)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir("$(LOCAL_SYNC_DIR)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.cd("$(LOCAL_SYNC_DIR)")

@@ -403,8 +403,7 @@ def check_file_signature(file_path, textual_sig, public_key):
 def need_to_download_file(file_path, file_checksum):
     retVal = True
     if os.path.isfile(file_path):
-        sig_dict = create_file_signatures(file_path)
-        retVal =  sig_dict["sha1_checksum"] != file_checksum
+        check_file_checksum(file_path, file_checksum)
     return retVal
 
 def quoteme_single(to_qoute):
