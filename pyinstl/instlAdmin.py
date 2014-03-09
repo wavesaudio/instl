@@ -189,13 +189,17 @@ class InstlAdmin(InstlInstanceBase):
             else:
                 no_need_link_nums.append( str(revision))
 
-        no_need_links_str = ", ".join(no_need_link_nums)
-        msg = " ".join( ("Links already created for revisions:", no_need_links_str) )
-        print(msg)
-
-        yes_need_links_str = ", ".join(yes_need_link_nums)
-        msg = " ".join( ("Need to create links for revisions:", yes_need_links_str) )
-        print(msg)
+        if yes_need_link_nums:
+             if no_need_link_nums:
+                no_need_links_str = ", ".join(no_need_link_nums)
+                msg = " ".join( ("Links already created for revisions:", no_need_links_str) )
+                print(msg)
+           yes_need_links_str = ", ".join(yes_need_link_nums)
+            msg = " ".join( ("Need to create links for revisions:", yes_need_links_str) )
+            print(msg)
+        else:
+            msg = " ".join( ("Links already created for all revisions:", str(base_rev), "-" str(last_repo_rev)) )
+            print(msg)
 
         self.create_variables_assignment()
         self.write_batch_file()
@@ -278,8 +282,9 @@ class InstlAdmin(InstlInstanceBase):
     def do_up2s3(self):
         root_links_folder = var_list.resolve_string("$(ROOT_LINKS_FOLDER_REPO)")
         # call svn info and to find out the last repo revision
+        base_repo_rev = int(var_list.get_str("BASE_REPO_REV"))
         last_repo_rev = self.get_last_repo_rev()
-        revision_list = range(int(var_list.get_str("BASE_REPO_REV")), last_repo_rev+1)
+        revision_list = range(base_repo_rev, last_repo_rev+1)
         dirs_to_upload = list()
         no_need_upload_nums = list()
         yes_need_upload_nums = list()
@@ -299,13 +304,23 @@ class InstlAdmin(InstlInstanceBase):
                         yes_need_upload_nums.append(dir_name)
                         dirs_to_upload.append(dir_name)
 
-        no_need_upload__str = ", ".join(no_need_upload_nums)
-        msg = " ".join( ("Revisions already uploaded to S3:", no_need_upload__str) )
-        print(msg)
 
         yes_need_upload_str = ", ".join(yes_need_upload_nums)
         msg = " ".join( ("Revisions will be uploaded to S3:", yes_need_upload_str) )
         print(msg)
+
+
+        if yes_need_upload_nums:
+            if no_need_upload_nums:
+                no_need_upload__str = ", ".join(no_need_upload_nums)
+                msg = " ".join( ("Revisions already uploaded to S3:", no_need_upload__str) )
+                print(msg)
+            yes_need_upload_str = ", ".join(yes_need_upload_nums)
+            msg = " ".join( ("Revisions will be uploaded to S3:", yes_need_upload_str) )
+            print(msg)
+        else:
+            msg = " ".join( ("All revisions already uploaded to S3 :", str(base_repo_rev), "-" str(last_repo_rev)) )
+            print(msg)
 
         self.batch_accum.set_current_section('upload')
         for dir_name in dirs_to_upload:
