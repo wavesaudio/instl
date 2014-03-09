@@ -171,12 +171,14 @@ class InstlAdmin(InstlInstanceBase):
         accum.set_current_section('links')
         self.create_links_for_revision(accum)
 
+        no_need_link_nums = list()
+        yes_need_link_nums = list()
         base_rev = int(var_list.get_str("BASE_REPO_REV"))
         if base_rev > last_repo_rev:
             raise ValueError("base_rev "+str(base_rev)+" > last_repo_rev "+str(last_repo_rev))
         for revision in range(base_rev, last_repo_rev+1):
             if self.needToCreatelinksForRevision(revision):
-                print("Need to create links for revision", str(revision))
+                yes_need_link_nums.append( str(revision))
                 save_dir_var = "REV_"+str(revision)+"_SAVE_DIR"
                 self.batch_accum += self.platform_helper.save_dir(save_dir_var)
                 var_list.set_var("__CURR_REPO_REV__").append(str(revision))
@@ -185,8 +187,15 @@ class InstlAdmin(InstlInstanceBase):
                 self.batch_accum += self.platform_helper.restore_dir(save_dir_var)
                 self.batch_accum += self.platform_helper.new_line()
             else:
-                msg = " ".join( ("links for revision", str(revision), "are already created") )
-                self.batch_accum += self.platform_helper.echo(msg); print(msg)
+                no_need_link_nums.append( str(revision))
+
+        no_need_links_str = ", ".join(no_need_link_nums)
+        msg = " ".join( ("Links already created for revisions:", no_need_links_str) )
+        print(msg)
+
+        yes_need_links_str = ", ".join(yes_need_link_nums)
+        msg = " ".join( ("Need to create links for revisions:", yes_need_links_str) )
+        print(msg)
 
         self.create_variables_assignment()
         self.write_batch_file()
@@ -268,6 +277,8 @@ class InstlAdmin(InstlInstanceBase):
         last_repo_rev = self.get_last_repo_rev()
         revision_list = range(int(var_list.get_str("BASE_REPO_REV")), last_repo_rev+1)
         dirs_to_upload = list()
+        no_need_upload_nums = list()
+        yes_need_upload_nums = list()
         for dir_as_int in revision_list:
             dir_name = str(dir_as_int)
             if not os.path.isdir(var_list.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+dir_name)):
@@ -279,10 +290,18 @@ class InstlAdmin(InstlInstanceBase):
                 else:
                     up_2_s3_done_stamp_file = var_list.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+dir_name+"/$(UP_2_S3_STAMP_FILE_NAME)")
                     if os.path.isfile(up_2_s3_done_stamp_file):
-                        print("revision dir", dir_name, "already uploaded to S3")
+                        no_need_upload_nums.append(dir_name)
                     else:
-                        print("revision dir", dir_name, "will be uploaded to S3")
+                        yes_need_upload_nums.append(dir_name)
                         dirs_to_upload.append(dir_name)
+
+        no_need_upload__str = ", ".join(no_need_upload_nums)
+        msg = " ".join( ("Revisions already uploaded to S3:", no_need_upload__str) )
+        print(msg)
+
+        yes_need_upload_str = ", ".join(yes_need_upload_nums)
+        msg = " ".join( ("Revisions will be uploaded to S3:", yes_need_upload_str) )
+        print(msg)
 
         self.batch_accum.set_current_section('upload')
         for dir_name in dirs_to_upload:

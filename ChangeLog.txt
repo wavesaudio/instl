@@ -1,3 +1,8 @@
+???? 0.8.10
+
+    user visible changes, admin:
+    * More concise messages for create-links and up2s3
+
 5/3/2014 0.8.9 Shai Shasag <shai@waves.com>
 
     user visible changes, client:
