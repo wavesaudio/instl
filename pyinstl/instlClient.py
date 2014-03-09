@@ -257,7 +257,7 @@ class InstlClient(InstlInstanceBase):
                     len_before = len(folder_in_actions)
                     folder_in_actions.append(an_action)
                     if len_before < len(folder_in_actions): # add progress only for the first same action
-                        folder_in_actions.append(self.platform_helper.progress("folder in action"))
+                        folder_in_actions.append(self.platform_helper.progress("folder in action: "+IID))
             self.batch_accum += folder_in_actions
 
             for IID in items_in_folder:
@@ -277,7 +277,7 @@ class InstlClient(InstlInstanceBase):
                     len_before = len(folder_out_actions)
                     folder_out_actions.append(an_action)
                     if len_before < len(folder_out_actions): # add progress only for the first same action
-                        folder_out_actions.append(self.platform_helper.progress("folder out action"))
+                        folder_out_actions.append(self.platform_helper.progress("folder out action: "+IID))
             self.batch_accum += folder_out_actions
 
             self.batch_accum.indent_level -= 1
@@ -297,7 +297,7 @@ class InstlClient(InstlInstanceBase):
                     len_before = len(folder_in_actions)
                     folder_in_actions.append(an_action)
                     if len_before < len(folder_in_actions): # add progress only for the first same action
-                        folder_in_actions.append(self.platform_helper.progress("no copy folder in action"))
+                        folder_in_actions.append(self.platform_helper.progress("no copy folder in actionn: "+IID))
             self.batch_accum += folder_in_actions
 
             for IID in items_in_folder:
@@ -314,7 +314,7 @@ class InstlClient(InstlInstanceBase):
                     len_before = len(folder_out_actions)
                     folder_out_actions.append(an_action)
                     if len_before < len(folder_out_actions): # add progress only for the first same action
-                        folder_out_actions.append(self.platform_helper.progress("folder out action"))
+                        folder_out_actions.append(self.platform_helper.progress("folder out actionn: "+IID))
             self.batch_accum += folder_out_actions
 
             self.batch_accum += self.platform_helper.progress("{folder_name}".format(**locals()))
