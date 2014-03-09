@@ -248,19 +248,19 @@ class InstlAdmin(InstlInstanceBase):
         # create Win only info_map
         trans_command_parts = [self.platform_helper.run_instl(), "trans", "--in", "instl/info_map.txt", "--out ", "instl/info_map_Win.txt",  "--filter-out", "Mac"]
         accum += " ".join(trans_command_parts)
-        accum += self.platform_helper.progrrss("Create $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map_Win.txt")
+        accum += self.platform_helper.progress("Create $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map_Win.txt")
 
         create_repo_rev_file_command_parts = [self.platform_helper.run_instl(), "create-repo-rev-file", "--config-file", '"$(__CONFIG_FILE_PATH__)"', "--rev", "$(__CURR_REPO_REV__)"]
         accum += " ".join(create_repo_rev_file_command_parts)
-        accum += self.platform_helper.progrrss("Create repo-rev file")
+        accum += self.platform_helper.progress("Create repo-rev file")
 
         # create text versions of info and yaml files, so they can be displayed in browser
         accum +=  " ".join( ("find", "instl", "-type", "f", "-regextype", "posix-extended", "-regex", "'.*(yaml|info|props)'", "-print0", "|", "xargs", "-0", "-I{}", "cp", "-f", '"{}"', '"{}.txt"') )
 
         accum += self.platform_helper.rmfile("$(UP_2_S3_STAMP_FILE_NAME)")
-        accum += self.platform_helper.progrrss("Remove $(UP_2_S3_STAMP_FILE_NAME)")
+        accum += self.platform_helper.progress("Remove $(UP_2_S3_STAMP_FILE_NAME)")
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(CREATE_LINKS_STAMP_FILE_NAME)"])
-        accum += self.platform_helper.progrrss("Create $(CREATE_LINKS_STAMP_FILE_NAME)")
+        accum += self.platform_helper.progress("Create $(CREATE_LINKS_STAMP_FILE_NAME)")
 
         accum += self.platform_helper.echo("done create-links version $(__CURR_REPO_REV__)")
 
