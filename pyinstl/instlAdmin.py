@@ -198,7 +198,7 @@ class InstlAdmin(InstlInstanceBase):
             msg = " ".join( ("Need to create links for revisions:", yes_need_links_str) )
             print(msg)
         else:
-            msg = " ".join( ("Links already created for all revisions:", str(base_rev), "-", str(last_repo_rev)) )
+            msg = " ".join( ("Links already created for all revisions:", str(base_rev), "...", str(last_repo_rev)) )
             print(msg)
 
         self.create_variables_assignment()
@@ -304,12 +304,6 @@ class InstlAdmin(InstlInstanceBase):
                         yes_need_upload_nums.append(dir_name)
                         dirs_to_upload.append(dir_name)
 
-
-        yes_need_upload_str = ", ".join(yes_need_upload_nums)
-        msg = " ".join( ("Revisions will be uploaded to S3:", yes_need_upload_str) )
-        print(msg)
-
-
         if yes_need_upload_nums:
             if no_need_upload_nums:
                 no_need_upload__str = ", ".join(no_need_upload_nums)
@@ -319,7 +313,7 @@ class InstlAdmin(InstlInstanceBase):
             msg = " ".join( ("Revisions will be uploaded to S3:", yes_need_upload_str) )
             print(msg)
         else:
-            msg = " ".join( ("All revisions already uploaded to S3 :", str(base_repo_rev), "-", str(last_repo_rev)) )
+            msg = " ".join( ("All revisions already uploaded to S3:", str(base_repo_rev), "...", str(last_repo_rev)) )
             print(msg)
 
         self.batch_accum.set_current_section('upload')
