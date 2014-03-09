@@ -360,7 +360,7 @@ class InstlAdmin(InstlInstanceBase):
                     raise ValueError(str(dir_item)+" last_rev > repo_rev "+str(repo_rev))
                 elif dir_item.last_rev() < repo_rev: # whole folder should be removed
                     accum += self.platform_helper.rmdir(dir_item.full_path(), recursive=True)
-                    accum += self.platform_helper.progress("rmdir "+file_item.full_path())
+                    accum += self.platform_helper.progress("rmdir "+dir_item.full_path())
                 else:
                     dir_queue.append(dir_item) # need to check inside the folder
 
