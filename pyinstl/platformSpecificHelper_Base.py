@@ -295,6 +295,10 @@ class PlatformSpecificHelperBase(object):
     def run_instl(self):
         return '\"$(__INSTL_EXE_PATH__)\"'
 
+    @abc.abstractmethod
+    def append_file_to_file(self, source_file, target_file):
+        pass
+
 def PlatformSpecificHelperFactory(in_os, instlObj):
     retVal = None
     if in_os == "Mac":

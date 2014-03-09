@@ -318,6 +318,10 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         create_folders_command = super(PlatformSpecificHelperWin, self).create_folders(info_map_file)
         return (create_folders_command, self.exit_if_error())
 
+    def append_file_to_file(self, source_file, target_file):
+        append_command = " ".join( ("type", quoteme_double(source_file), ">>", quoteme_double(target_file)) )
+        return append_command
+
 class DownloadTool_win_wget(DownloadToolBase):
     def __init__(self, platform_helper):
         super(DownloadTool_win_wget, self).__init__(platform_helper)

@@ -1,6 +1,7 @@
 #!/usr/bin/env python2.7
 
 from __future__ import print_function
+import time
 from collections import OrderedDict, defaultdict
 import logging
 
@@ -104,11 +105,19 @@ class InstlClient(InstlInstanceBase):
         fixed_command_name = the_command.replace('-', '_')
         do_command_func = getattr(self, "do_"+fixed_command_name)
         do_command_func()
+        self.create_instl_history_file()
 
         self.create_variables_assignment()
         self.write_batch_file()
         if "__RUN_BATCH_FILE__" in var_list:
             self.run_batch_file()
+
+    def create_instl_history_file(self):
+        var_list.set_var("__BATCH_CREATE_TIME__").append(time.strftime("%Y/%m/%d %H:%M:%S"))
+        yaml_of_defines = augmentedYaml.YamlDumpDocWrap(var_list, '!define', "Definitions", explicit_start=True, sort_mappings=True)
+        with open(var_list.get_str("INSTL_HISTORY_TEMP_PATH"), "w") as wfd:
+            augmentedYaml.writeAsYaml(yaml_of_defines, wfd)
+        self.batch_accum += self.platform_helper.append_file_to_file("$(INSTL_HISTORY_TEMP_PATH)", "$(INSTL_HISTORY_PATH)")
 
     def init_default_client_vars(self):
         if "LOCAL_SYNC_DIR" not in var_list:

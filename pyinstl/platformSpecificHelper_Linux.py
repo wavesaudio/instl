@@ -122,6 +122,10 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         touch_command = " ".join( ("touch", quoteme_double(filepath) ) )
         return touch_command
 
+    def append_file_to_file(self, source_file, target_file):
+        append_command = " ".join( ("cat", quoteme_double(source_file), ">>", quoteme_double(target_file)) )
+        return append_command
+
 class DownloadTool_linux_curl(DownloadToolBase):
     def __init__(self, platform_helper):
         super(DownloadTool_linux_curl, self).__init__(platform_helper)
