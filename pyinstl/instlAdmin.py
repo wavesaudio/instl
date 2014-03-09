@@ -206,16 +206,16 @@ class InstlAdmin(InstlInstanceBase):
         revision_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)"
         revision_instl_folder_path = revision_folder_path+"/instl"
 
-        accum += self.platform_helper.echo("Creating links for revision $(__CURR_REPO_REV__)")
         # sync revision from SVN to Base folder
         accum += self.platform_helper.echo("Getting revision $(__CURR_REPO_REV__) from $(SVN_REPO_URL)")
         checkout_command_parts = ['"$(SVN_CLIENT_PATH)"', "co", '"'+"$(SVN_REPO_URL)@$(__CURR_REPO_REV__)"+'"', '"'+"$(ROOT_LINKS_FOLDER_REPO)/Base"+'"', "--depth", "infinity"]
         accum += " ".join(checkout_command_parts)
+        accum += self.platform_helper.progress("Create links for revision $(__CURR_REPO_REV__)")
 
         # copy Base folder to revision folder
         accum += self.platform_helper.mkdir("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
-        accum += self.platform_helper.echo("Copying revision $(__CURR_REPO_REV__) to $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
         accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir("$(ROOT_LINKS_FOLDER_REPO)/Base", revision_folder_path, link_dest=True, ignore=".svn")
+        accum += self.platform_helper.progress("Copy revision $(__CURR_REPO_REV__) to $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
 
         # get info from SVN for all files in revision
         accum += self.platform_helper.mkdir(revision_instl_folder_path)
@@ -223,15 +223,16 @@ class InstlAdmin(InstlInstanceBase):
         accum += self.platform_helper.echo("Getting info from svn to ../$(__CURR_REPO_REV__)/instl/info_map.info")
         info_command_parts = ['"$(SVN_CLIENT_PATH)"', "info", "--depth infinity", ">", "../$(__CURR_REPO_REV__)/instl/info_map.info"]
         accum += " ".join(info_command_parts)
+        accum += self.platform_helper.progress("Get info from svn to ../$(__CURR_REPO_REV__)/instl/info_map.info")
 
         # get properties from SVN for all files in revision
-        accum += self.platform_helper.echo("Getting props from svn to ../$(__CURR_REPO_REV__)/instl/info_map.props")
         props_command_parts = ['"$(SVN_CLIENT_PATH)"', "proplist", "--depth infinity", ">", "../$(__CURR_REPO_REV__)/instl/info_map.props"]
         accum += " ".join(props_command_parts)
+        accum += self.platform_helper.progress("Get props from svn to ../$(__CURR_REPO_REV__)/instl/info_map.props")
 
         accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
         # translate SVN info and properties to info_map text format
-        accum += self.platform_helper.echo("Creating $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map.txt")
+        accum += self.platform_helper.progress("Create $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map.txt")
         trans_command_parts = [self.platform_helper.run_instl(), "trans",
                                "--in", "instl/info_map.info",
                                "--props ", "instl/info_map.props",
@@ -240,23 +241,26 @@ class InstlAdmin(InstlInstanceBase):
         accum += " ".join(trans_command_parts)
 
         # create Mac only info_map
-        accum += self.platform_helper.echo("Creating $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map_Mac.txt")
         trans_command_parts = [self.platform_helper.run_instl(), "trans", "--in", "instl/info_map.txt", "--out ", "instl/info_map_Mac.txt",  "--filter-out", "Win"]
         accum += " ".join(trans_command_parts)
+        accum += self.platform_helper.progress("Create $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map_Mac.txt")
 
         # create Win only info_map
-        accum += self.platform_helper.echo("Creating $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map_Win.txt")
         trans_command_parts = [self.platform_helper.run_instl(), "trans", "--in", "instl/info_map.txt", "--out ", "instl/info_map_Win.txt",  "--filter-out", "Mac"]
         accum += " ".join(trans_command_parts)
+        accum += self.platform_helper.progrrss("Create $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map_Win.txt")
 
         create_repo_rev_file_command_parts = [self.platform_helper.run_instl(), "create-repo-rev-file", "--config-file", '"$(__CONFIG_FILE_PATH__)"', "--rev", "$(__CURR_REPO_REV__)"]
         accum += " ".join(create_repo_rev_file_command_parts)
+        accum += self.platform_helper.progrrss("Create repo-rev file")
 
         # create text versions of info and yaml files, so they can be displayed in browser
         accum +=  " ".join( ("find", "instl", "-type", "f", "-regextype", "posix-extended", "-regex", "'.*(yaml|info|props)'", "-print0", "|", "xargs", "-0", "-I{}", "cp", "-f", '"{}"', '"{}.txt"') )
 
         accum += self.platform_helper.rmfile("$(UP_2_S3_STAMP_FILE_NAME)")
+        accum += self.platform_helper.progrrss("Remove $(UP_2_S3_STAMP_FILE_NAME)")
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(CREATE_LINKS_STAMP_FILE_NAME)"])
+        accum += self.platform_helper.progrrss("Create $(CREATE_LINKS_STAMP_FILE_NAME)")
 
         accum += self.platform_helper.echo("done create-links version $(__CURR_REPO_REV__)")
 
@@ -350,11 +354,13 @@ class InstlAdmin(InstlInstanceBase):
                     raise ValueError(str(file_item)+" last_rev > repo_rev "+str(repo_rev))
                 elif file_item.last_rev() < repo_rev:
                     accum += self.platform_helper.rmfile(file_item.full_path())
+                    accum += self.platform_helper.progress("rmfile "+file_item.full_path())
             for dir_item in dirs:
                 if dir_item.last_rev() > repo_rev:
                     raise ValueError(str(dir_item)+" last_rev > repo_rev "+str(repo_rev))
                 elif dir_item.last_rev() < repo_rev: # whole folder should be removed
                     accum += self.platform_helper.rmdir(dir_item.full_path(), recursive=True)
+                    accum += self.platform_helper.progress("rmdir "+file_item.full_path())
                 else:
                     dir_queue.append(dir_item) # need to check inside the folder
 
@@ -369,6 +375,7 @@ class InstlAdmin(InstlInstanceBase):
                            "--exclude", '"$(CREATE_LINKS_STAMP_FILE_NAME)"'
                         ] )
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(UP_2_S3_STAMP_FILE_NAME)"])
+        accum += self.platform_helper.progress("Uploaded $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__")
         accum += self.platform_helper.echo("done up2s3 revision $(__CURR_REPO_REV__)")
 
     def create_sig_for_file(self, file_to_sig):
