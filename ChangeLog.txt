@@ -2,6 +2,9 @@
 
     user visible changes, client:
     * Fixed: COPY_TOOL set to xcopy was ignored (WinXP).
+    * Solved weird problems with xcopy. The /EXCLUDE option of xcopy cannot except a file with space it's path,
+        nor will it except a quoted path. So the excludes file is copied to each and every target folder
+        during the copy stage.
 
     user visible changes, admin:
     * More concise messages for create-links and up2s3
@@ -9,6 +12,8 @@
     programmer visible changes:
     * Moved the initialization of copytool to after reading the main yaml file.
     * Fixed: Some inconsitancies in CopyTool_win_xcopy commands.
+    * New variables: XCOPY_EXCLUDE_FILE_NAME, XCOPY_EXCLUDE_FILE_PATH to overcome xcopy limitations.
+    * New copy tools methods begin_copy_folder, end_copy_folder  to overcome xcopy limitations.
 
 5/3/2014 0.8.9 Shai Shasag <shai@waves.com>
 

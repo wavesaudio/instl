@@ -19,6 +19,12 @@ class CopyTool_win_robocopy(CopyToolBase):
         super(CopyTool_win_robocopy, self).__init__(platform_helper)
         self.robocopy_error_threshold = 4 # see ss64.com/nt/robocopy-exit.html
 
+    def begin_copy_folder(self):
+        return ()
+
+    def end_copy_folder(self):
+        return ()
+
     def create_ignore_spec(self, ignore):
         retVal = ""
         if not isinstance(ignore, basestring):
@@ -91,6 +97,31 @@ class CopyTool_win_robocopy(CopyToolBase):
 class CopyTool_win_xcopy(CopyToolBase):
     def __init__(self, platform_helper):
         super(CopyTool_win_xcopy, self).__init__(platform_helper)
+        self.excludes_set = set()
+
+    def finalize(self):
+        self.create_excludes_file()
+
+    def create_ignore_spec(self, ignore):
+        retVal = ""
+        if ignore:
+            if isinstance(ignore, basestring):
+                ignore = (ignore,)
+            print([ignoree.lstrip("*") for ignoree in ignore])
+            self.excludes_set.update([ignoree.lstrip("*") for ignoree in ignore])
+            retVal = var_list.resolve_string("/EXCLUDE:$(XCOPY_EXCLUDE_FILE_NAME)")
+        return retVal
+
+    def begin_copy_folder(self):
+        """ xcopy's /EXCLUDE option cannot except a file with spaces in it's path or quoted path.
+            So here we are coping the excludes file for each directory...
+        """
+        return self.copy_file_to_dir("$(XCOPY_EXCLUDE_FILE_PATH)", ".")
+
+    def end_copy_folder(self):
+        """ .... And here we dispose of it.
+        """
+        return self.platform_helper.rmfile("$(XCOPY_EXCLUDE_FILE_NAME)")
 
     def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
         retVal = list()
@@ -98,10 +129,8 @@ class CopyTool_win_xcopy(CopyToolBase):
         norm_trg_dir = os.path.normpath(trg_dir)
         _, dir_to_copy = os.path.split(norm_src_dir)
         norm_trg_dir = "/".join( (norm_trg_dir, dir_to_copy) )
-        mkdir_command  = "mkdir \"{norm_trg_dir}\"".format(**locals())
-        retVal.append(mkdir_command)
-        retVal.extend(self.copy_dir_contents_to_dir(norm_src_dir, norm_trg_dir))
-        retVal.append(self.platform_helper.exit_if_error())
+        retVal.append(self.platform_helper.mkdir(norm_trg_dir))
+        retVal.extend(self.copy_dir_contents_to_dir(norm_src_dir, norm_trg_dir, ignore=ignore))
         return retVal
 
     def copy_file_to_dir(self, src_file, trg_dir, link_dest=False, ignore=None):
@@ -119,7 +148,8 @@ class CopyTool_win_xcopy(CopyToolBase):
         retVal = list()
         norm_src_dir = os.path.normpath(src_dir)
         norm_trg_dir = os.path.normpath(trg_dir)
-        copy_command = "xcopy /E /R /Y \"{norm_src_dir}\" \"{norm_trg_dir}\"".format(**locals())
+        ignore_spec = self.create_ignore_spec(ignore)
+        copy_command = "xcopy /E /R /Y {ignore_spec} \"{norm_src_dir}\" \"{norm_trg_dir}\"".format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error())
         return retVal
@@ -128,10 +158,16 @@ class CopyTool_win_xcopy(CopyToolBase):
         retVal = list()
         norm_src_dir = os.path.normpath(src_dir)
         norm_trg_dir = os.path.normpath(trg_dir)
-        copy_command = "xcopy  /R /Y \"{norm_src_dir}\" \"{trg_dir}\"".format(**locals())
+        ignore_spec = self.create_ignore_spec(ignore)
+        copy_command = "xcopy  /R /Y {ignore_spec} \"{norm_src_dir}\" \"{trg_dir}\"".format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error())
         return retVal
+
+    def create_excludes_file(self):
+        if self.excludes_set:
+            with open(var_list.get_str("XCOPY_EXCLUDE_FILE_PATH"), "w") as wfd:
+                wfd.write("\n".join(self.excludes_set))
 
 class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def __init__(self, instlObj):

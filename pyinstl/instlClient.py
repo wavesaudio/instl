@@ -270,6 +270,7 @@ class InstlClient(InstlInstanceBase):
                         folder_in_actions.append(self.platform_helper.progress("folder in action: "+IID))
             self.batch_accum += folder_in_actions
 
+            self.batch_accum += self.platform_helper.copy_tool.begin_copy_folder()
             for IID in items_in_folder:
                 installi = self.install_definitions_index[IID]
                 for source in installi.source_list():
@@ -277,6 +278,7 @@ class InstlClient(InstlInstanceBase):
                     self.create_copy_instructions_for_source(source)
                     self.batch_accum += installi.action_list('after')
                     self.batch_accum += self.platform_helper.progress("{installi.iid}: {installi.name}".format(**locals()))
+            self.batch_accum += self.platform_helper.copy_tool.end_copy_folder()
 
             # accumulate folder_out actions from all items, eliminating duplicates
             folder_out_actions = unique_list() # unique_list will eliminate identical actions while keeping the order
@@ -329,6 +331,8 @@ class InstlClient(InstlInstanceBase):
 
             self.batch_accum += self.platform_helper.progress("{folder_name}".format(**locals()))
             self.batch_accum.indent_level -= 1
+
+        self.platform_helper.copy_tool.finalize()
 
         # messages about orphan iids
         for iid in self.installState.orphan_install_items:

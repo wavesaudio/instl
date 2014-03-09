@@ -19,6 +19,18 @@ class CopyToolBase(object):
         self.platform_helper = platform_helper
 
     @abc.abstractmethod
+    def finalize(self):
+        pass
+
+    @abc.abstractmethod
+    def begin_copy_folder(self):
+        pass
+
+    @abc.abstractmethod
+    def end_copy_folder(self):
+        pass
+
+    @abc.abstractmethod
     def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
         """ Copy src_dir as a folder into trg_dir.
             Example: copy_dir_to_dir("a", "/d/c/b") creates the folder:
@@ -53,6 +65,15 @@ class CopyToolBase(object):
 class CopyToolRsync(CopyToolBase):
     def __init__(self, platform_helper):
         super(CopyToolRsync, self).__init__(platform_helper)
+
+    def finalize(self):
+        pass
+
+    def begin_copy_folder(self):
+        return ()
+
+    def end_copy_folder(self):
+        return ()
 
     def create_ignore_spec(self, ignore):
         retVal = ""
