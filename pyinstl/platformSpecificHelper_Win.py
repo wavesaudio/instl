@@ -92,7 +92,7 @@ class CopyTool_win_xcopy(CopyToolBase):
     def __init__(self, platform_helper):
         super(CopyTool_win_xcopy, self).__init__(platform_helper)
 
-    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False):
+    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
         retVal = list()
         norm_src_dir = os.path.normpath(src_dir)
         norm_trg_dir = os.path.normpath(trg_dir)
@@ -104,18 +104,18 @@ class CopyTool_win_xcopy(CopyToolBase):
         retVal.append(self.platform_helper.exit_if_error())
         return retVal
 
-    def copy_file_to_dir(self, src_file, trg_dir, link_dest=False):
+    def copy_file_to_dir(self, src_file, trg_dir, link_dest=False, ignore=None):
         retVal = list()
         #src_dir, src_file = os.path.split(src_file)
         norm_src_file = os.path.normpath(src_file)
-        norm_trg_file = os.path.normpath(trg_file)
-        copy_command = "xcopy  /R /Y \"{norm_src_file}\" \"{norm_trg_file}\"".format(**locals())
+        norm_trg_dir = os.path.normpath(trg_dir)
+        copy_command = "xcopy  /R /Y \"{norm_src_file}\" \"{norm_trg_dir}\"".format(**locals())
         copy_command.replace("\\", "/")
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error())
         return retVal
 
-    def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=None):
+    def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
         retVal = list()
         norm_src_dir = os.path.normpath(src_dir)
         norm_trg_dir = os.path.normpath(trg_dir)
@@ -124,7 +124,7 @@ class CopyTool_win_xcopy(CopyToolBase):
         retVal.append(self.platform_helper.exit_if_error())
         return retVal
 
-    def copy_dir_files_to_dir(self, src_dir, norm_trg_dir, link_dest=None):
+    def copy_dir_files_to_dir(self, src_dir, norm_trg_dir, link_dest=False, ignore=None):
         retVal = list()
         norm_src_dir = os.path.normpath(src_dir)
         norm_trg_dir = os.path.normpath(trg_dir)

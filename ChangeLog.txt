@@ -1,7 +1,14 @@
 ???? 0.8.10
 
+    user visible changes, client:
+    * Fixed: COPY_TOOL set to xcopy was ignored (WinXP).
+
     user visible changes, admin:
     * More concise messages for create-links and up2s3
+
+    programmer visible changes:
+    * Moved the initialization of copytool to after reading the main yaml file.
+    * Fixed: Some inconsitancies in CopyTool_win_xcopy commands.
 
 5/3/2014 0.8.9 Shai Shasag <shai@waves.com>
 

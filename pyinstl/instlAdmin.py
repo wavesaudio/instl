@@ -52,6 +52,7 @@ class InstlAdmin(InstlInstanceBase):
         the_command = var_list.get_str("__MAIN_COMMAND__")
         self.set_default_variables()
         self.platform_helper.num_items_for_progress_report = int(var_list.get_str("LAST_PROGRESS"))
+        self.platform_helper.init_copy_tool()
         fixed_command_name = the_command.replace('-', '_')
         do_command_func = getattr(self, "do_"+fixed_command_name)
         do_command_func()
