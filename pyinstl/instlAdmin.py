@@ -190,11 +190,11 @@ class InstlAdmin(InstlInstanceBase):
                 no_need_link_nums.append( str(revision))
 
         if yes_need_link_nums:
-             if no_need_link_nums:
+            if no_need_link_nums:
                 no_need_links_str = ", ".join(no_need_link_nums)
                 msg = " ".join( ("Links already created for revisions:", no_need_links_str) )
                 print(msg)
-           yes_need_links_str = ", ".join(yes_need_link_nums)
+            yes_need_links_str = ", ".join(yes_need_link_nums)
             msg = " ".join( ("Need to create links for revisions:", yes_need_links_str) )
             print(msg)
         else:
