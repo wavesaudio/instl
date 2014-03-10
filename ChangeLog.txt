@@ -5,6 +5,9 @@
     * Solved weird problems with xcopy. The /EXCLUDE option of xcopy cannot except a file with space it's path,
         nor will it except a quoted path. So the excludes file is copied to each and every target folder
         during the copy stage.
+    * Fixed: when compiled raised exceptions would not cause exit code > 0 (Windows).
+    * Fixed: Redundant messages when checksum fails.
+    * Shorter max time for curl since now no file is > 5MB.
 
     user visible changes, admin:
     * More concise messages for create-links and up2s3

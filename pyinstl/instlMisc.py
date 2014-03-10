@@ -113,13 +113,12 @@ class InstlMisc(InstlInstanceBase):
             if os.path.isfile(file_path):
                 checkOK = check_file_checksum(file_path, file_item.checksum())
                 if not checkOK:
-                    bad_checksum_list.append( " ".join((file_path, "bad checksum")) )
+                    bad_checksum_list.append( " ".join(("Bad checksum:", file_path)) )
             else:
                 bad_checksum_list.append( " ".join((file_path, "does not exist")) )
             self.dynamic_progress("Check checksum {file_path}".format(**locals()))
         if bad_checksum_list:
-            for msg in bad_checksum_list:
-                print(bad_checksum_list)
+            print("\n".join(bad_checksum_list))
             raise ValueError("Bad checksum for "+str(len(bad_checksum_list))+" files")
 
     def do_create_folders(self):

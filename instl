@@ -352,4 +352,9 @@ def main():
         raise
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except:
+        # When compiled as instl.exe (Windows) raised exceptions do not cause exit code > 0.
+        # When running uncompiled they do. So this forces the correct exit code.
+        sys.exit(1)
