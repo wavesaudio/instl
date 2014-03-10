@@ -35,7 +35,8 @@ class InstlMisc(InstlInstanceBase):
         before_time = time.time()
         do_command_func()
         after_time = time.time()
-        print(the_command, "time:", round(after_time - before_time, 2), "sec.")
+        if the_command not in ("help", "version"):
+            print(the_command, "time:", round(after_time - before_time, 2), "sec.")
 
     def dynamic_progress(self, msg):
         if self.total_progress > 0:
