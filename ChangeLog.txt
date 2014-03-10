@@ -1,6 +1,7 @@
-???? 0.8.10
+10/3/2014 0.8.10  Shai Shasag <shai@waves.com>
 
     user visible changes, client:
+    * Main feature: support for Windows XP.
     * Fixed: COPY_TOOL set to xcopy was ignored (WinXP).
     * Solved weird problems with xcopy. The /EXCLUDE option of xcopy cannot except a file with space it's path,
         nor will it except a quoted path. So the excludes file is copied to each and every target folder
