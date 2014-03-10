@@ -354,7 +354,9 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except:
+    # By catching Exception, we make sure not to catch SystemExit.
+    # SystemExit is raised by calling sys.exit, which happends when parallel-run is finished.
+    except Exception:
         # When compiled as instl.exe (Windows) raised exceptions do not cause exit code > 0.
         # When running uncompiled they do. So this forces the correct exit code.
         sys.exit(1)
