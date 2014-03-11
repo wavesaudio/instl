@@ -27,7 +27,10 @@ def run_parallels(commands):
     start_time = time.time()
     for command in commands:
         try:
-            proc = subprocess.Popen(command, executable=command[0], shell=False, preexec_fn=os.setsid)#, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            if getattr(os, "setsid", None):
+                proc = subprocess.Popen(command, executable=command[0], shell=False, preexec_fn=os.setsid) # Unix
+            else:
+                proc = subprocess.Popen(command, executable=command[0], shell=False) # Windows
             #print("Started", command, proc.pid)
             #sys.stdout.flush()
             process_list.append(proc)
@@ -47,8 +50,8 @@ def run_parallels(commands):
                 active_process_list.append(proc)
                 #continue
             else:
-                sys.stdout.write(str(proc.pid) + " just died " + str(status) + "\n")
-                sys.stdout.flush()
+                #sys.stdout.write(str(proc.pid) + " just died " + str(status) + "\n")
+                #sys.stdout.flush()
                 if status != 0:
                     exit_val = status
                     killall_and_exit()
@@ -67,10 +70,12 @@ def killall_and_exit():
     for proc in process_list:
         status = proc.poll()
         if status is None: # None means it's still alive
-            sys.stdout.write("killall_and_exit: "+str(proc.pid) + " gets killed\n")
-            sys.stdout.flush()
-            os.killpg(proc.pid, signal.SIGTERM)
-            #proc.kill()
+            #sys.stdout.write("killall_and_exit: "+str(proc.pid) + " gets killed\n")
+            #sys.stdout.flush()
+            if getattr(os, "killpg", None):
+                os.killpg(proc.pid, signal.SIGTERM) # Unix
+            else:
+                proc.kill() # Windows
     sys.exit(exit_val)
     
 def install_signal_handlers():

@@ -19,6 +19,9 @@ class CopyTool_win_robocopy(CopyToolBase):
         super(CopyTool_win_robocopy, self).__init__(platform_helper)
         self.robocopy_error_threshold = 4 # see ss64.com/nt/robocopy-exit.html
 
+    def finalize(self):
+        pass
+
     def begin_copy_folder(self):
         return ()
 
@@ -107,7 +110,6 @@ class CopyTool_win_xcopy(CopyToolBase):
         if ignore:
             if isinstance(ignore, basestring):
                 ignore = (ignore,)
-            print([ignoree.lstrip("*") for ignoree in ignore])
             self.excludes_set.update([ignoree.lstrip("*") for ignoree in ignore])
             retVal = var_list.resolve_string("/EXCLUDE:$(XCOPY_EXCLUDE_FILE_NAME)")
         return retVal
