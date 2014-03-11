@@ -305,56 +305,42 @@ def read_command_line_options(name_space_obj, arglist=None):
 def main():
     """ Main instl entry point. Reads command line options and decides if to go into interactive or client mode.
     """
-    try:
-        options = CommandLineOptions()
-        command_names = read_command_line_options(options, sys.argv[1:])
-        initial_vars = {"__INSTL_EXE_PATH__": get_path_to_instl_app(),
-                        "__INSTL_DATA_FOLDER__": get_data_folder(),
-                        "__INSTL_COMPILED__": str(getattr(sys, 'frozen', False)),
-                        "__COMMAND_NAMES__": command_names,
-                        "__CURRENT_OS__": os_family_name,
-                        "__CURRENT_OS_SECOND_NAME__": os_second_name,
-                        "__CURRENT_OS_NAMES__": current_os_names}
+    options = CommandLineOptions()
+    command_names = read_command_line_options(options, sys.argv[1:])
+    initial_vars = {"__INSTL_EXE_PATH__": get_path_to_instl_app(),
+                    "__INSTL_DATA_FOLDER__": get_data_folder(),
+                    "__INSTL_COMPILED__": str(getattr(sys, 'frozen', False)),
+                    "__COMMAND_NAMES__": command_names,
+                    "__CURRENT_OS__": os_family_name,
+                    "__CURRENT_OS_SECOND_NAME__": os_second_name,
+                    "__CURRENT_OS_NAMES__": current_os_names}
 
-        if options.mode == "client":
-            from pyinstl.instlClient import InstlClient
-            instance = InstlClient(initial_vars)
-            instance.init_from_cmd_line_options(options)
-            instance.do_command()
-        elif options.mode == "admin":
-            from pyinstl.instlAdmin import InstlAdmin
-            instance = InstlAdmin(initial_vars)
-            instance.init_from_cmd_line_options(options)
-            instance.do_command()
-        elif options.mode == "interactive":
-            from pyinstl.instlClient import InstlClient
-            client = InstlClient(initial_vars)
-            client.init_from_cmd_line_options(options)
-            from pyinstl.instlAdmin import InstlAdmin
-            from pyinstl.instlInstanceBase_interactive import go_interactive
-            admin = InstlAdmin(initial_vars)
-            admin.init_from_cmd_line_options(options)
-            go_interactive(client, admin)
-        elif options.mode == "do_something":
-            from pyinstl.instlMisc import InstlMisc
-            instance = InstlMisc(initial_vars)
-            instance.init_from_cmd_line_options(options)
-            instance.do_command()
-        else:
-            raise InstlException("incomprehensible command line options:\n", options)
-    except InstlException as instl_except:
-        #print("instl exception", instl_except.message)
-        raise
-    except InstlFatalException as instl_except:
-        #print("instl exception", instl_except.message)
-        raise
-    except Exception:
-        raise
+    if options.mode == "client":
+        from pyinstl.instlClient import InstlClient
+        instance = InstlClient(initial_vars)
+        instance.init_from_cmd_line_options(options)
+        instance.do_command()
+    elif options.mode == "admin":
+        from pyinstl.instlAdmin import InstlAdmin
+        instance = InstlAdmin(initial_vars)
+        instance.init_from_cmd_line_options(options)
+        instance.do_command()
+    elif options.mode == "interactive":
+        from pyinstl.instlClient import InstlClient
+        client = InstlClient(initial_vars)
+        client.init_from_cmd_line_options(options)
+        from pyinstl.instlAdmin import InstlAdmin
+        from pyinstl.instlInstanceBase_interactive import go_interactive
+        admin = InstlAdmin(initial_vars)
+        admin.init_from_cmd_line_options(options)
+        go_interactive(client, admin)
+    elif options.mode == "do_something":
+        from pyinstl.instlMisc import InstlMisc
+        instance = InstlMisc(initial_vars)
+        instance.init_from_cmd_line_options(options)
+        instance.do_command()
+    else:
+        raise InstlException("incomprehensible command line options:\n", options)
 
 if __name__ == "__main__":
-    try:
-        main()
-    except:
-        # When compiled as instl.exe (Windows) raised exceptions do not cause exit code > 0.
-        # When running uncompiled they do. So this forces the correct exit code.
-        sys.exit(1)
+    main()
