@@ -162,10 +162,6 @@ variable:
         short: url used as the prefix for creating the full url to download installation files
         long: SYNC_BASE_URLSYNC_BASE_URLSYNC_BASE_URL
 
-    SYNC_TRAGET_OS_URL:
-        short: url used as the prefix for creating the full url to download installation files for the targets operating system.
-        long: SYNC_BASE_URLSYNC_BASE_URLSYNC_BASE_URL
-
 option:
     in:
         short: -i, --in input_file.

@@ -25,7 +25,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
                                                 # are filtered out and then items that are already downloaded are filtered out. So finally
                                                 # the download instructions are created from the remaining items.
         self.have_map = svnTree.SVNTree()       # info map of what was already downloaded
-        self.local_sync_dir = None              # will be resolved from $(LOCAL_SYNC_DIR)
+        self.local_sync_dir = None              # will be resolved from $(LOCAL_REPO_SYNC_DIR)
         self.files_to_download = 0
 
     def init_sync_vars(self):
@@ -41,11 +41,11 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 public_key_text = open(public_key_file, "rb").read()
                 var_list.set_var("PUBLIC_KEY", "from "+public_key_file).append(public_key_text)
 
-        self.local_sync_dir = var_list.get_str("LOCAL_SYNC_DIR")
+        self.local_sync_dir = var_list.get_str("LOCAL_REPO_SYNC_DIR")
 
-        for identifier in ("SYNC_BASE_URL", "DOWNLOAD_TOOL_PATH", "REPO_REV", "SYNC_TRAGET_OS_URL", "LOCAL_SYNC_DIR", "BOOKKEEPING_DIR_URL",
-                           "INFO_MAP_FILE_URL", "LOCAL_BOOKKEEPING_PATH","NEW_HAVE_INFO_MAP_PATH", "REQUIRED_INFO_MAP_PATH",
-                            "TO_SYNC_INFO_MAP_PATH", "REPO_REV_LOCAL_BOOKKEEPING_PATH", "LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"):
+        for identifier in ("SYNC_BASE_URL", "DOWNLOAD_TOOL_PATH", "REPO_REV", "LOCAL_SYNC_DIR", "LOCAL_REPO_SYNC_DIR","BOOKKEEPING_DIR_URL",
+                           "INFO_MAP_FILE_URL", "LOCAL_REPO_BOOKKEEPING_DIR","NEW_HAVE_INFO_MAP_PATH", "REQUIRED_INFO_MAP_PATH",
+                            "TO_SYNC_INFO_MAP_PATH", "LOCAL_REPO_REV_BOOKKEEPING_DIR", "LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"):
             #print(identifier, var_list.get_str(identifier))
             logging.debug("... %s: %s", identifier, var_list.get_str(identifier))
 
@@ -66,8 +66,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
             Writes the map to local sync folder for reference and debugging.
         """
         try:
-            safe_makedirs(var_list.get_str("LOCAL_BOOKKEEPING_PATH"))
-            safe_makedirs(var_list.get_str("REPO_REV_LOCAL_BOOKKEEPING_PATH"))
+            safe_makedirs(var_list.get_str("LOCAL_REPO_BOOKKEEPING_DIR"))
+            safe_makedirs(var_list.get_str("LOCAL_REPO_REV_BOOKKEEPING_DIR"))
             download_from_file_or_url(var_list.get_str("INFO_MAP_FILE_URL"),
                                       var_list.get_str("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"),
                                       cache=True,
@@ -183,9 +183,9 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def create_download_instructions(self):
         self.instlObj.batch_accum.set_current_section('sync')
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("starting sync")
-        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("from $(SYNC_TRAGET_OS_URL)")
-        self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir("$(LOCAL_SYNC_DIR)")
-        self.instlObj.batch_accum += self.instlObj.platform_helper.cd("$(LOCAL_SYNC_DIR)")
+        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("from $(SYNC_BASE_URL)/$(TARGET_OS)")
+        self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir("$(LOCAL_REPO_SYNC_DIR)")
+        self.instlObj.batch_accum += self.instlObj.platform_helper.cd("$(LOCAL_REPO_SYNC_DIR)")
         self.sync_base_url = var_list.resolve_string("$(SYNC_BASE_URL)")
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
@@ -215,7 +215,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         print(self.instlObj.platform_helper.dl_tool.get_num_urls_to_download(), "files to sync")
 
-        curl_config_folder = var_list.resolve_string(os.path.join("$(LOCAL_SYNC_DIR)", "curl"))
+        curl_config_folder = var_list.resolve_string(os.path.join("$(LOCAL_REPO_SYNC_DIR)", "curl"))
         safe_makedirs(curl_config_folder)
         curl_config_file_path = var_list.resolve_string(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"))
         num_config_files = int(var_list.get_str("PARALLEL_SYNC"))

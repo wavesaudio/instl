@@ -231,9 +231,6 @@ def main_url_item(url):
         retVal = parseResult.netloc
         if not retVal:
             retVal = parseResult.path
-        else:
-            if parseResult.path:
-                retVal += parseResult.path
     except:
         retVal = ""
     return retVal
@@ -403,7 +400,7 @@ def check_file_signature(file_path, textual_sig, public_key):
 def need_to_download_file(file_path, file_checksum):
     retVal = True
     if os.path.isfile(file_path):
-        check_file_checksum(file_path, file_checksum)
+        retVal = not check_file_checksum(file_path, file_checksum)
     return retVal
 
 def quoteme_single(to_qoute):

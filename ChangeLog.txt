@@ -1,4 +1,4 @@
-10/3/2014 0.8.10  Shai Shasag <shai@waves.com>
+???? 0.8.10  Shai Shasag <shai@waves.com>
 
     user visible changes, client:
     * Main feature: support for Windows XP.
@@ -9,6 +9,8 @@
     * Fixed: when compiled raised exceptions would not cause exit code > 0 (Windows).
     * Fixed: Redundant messages when checksum fails.
     * Shorter max time for curl since now no file is > 5MB.
+    * Fixed a bug in function need_to_download_file where True was always returned. This caused already downloaded files
+        to be redownloaded if some situations.
 
     user visible changes, admin:
     * More concise messages for create-links and up2s3
@@ -18,6 +20,16 @@
     * Fixed: Some inconsitancies in CopyTool_win_xcopy commands.
     * New variables: XCOPY_EXCLUDE_FILE_NAME, XCOPY_EXCLUDE_FILE_PATH to overcome xcopy limitations.
     * New copy tools methods begin_copy_folder, end_copy_folder  to overcome xcopy limitations.
+    * Changes to variable names:
+         LOCAL_SYNC_DIR now always refers to the to level
+         SYNC_TRAGET_OS_URL - removed - replaced by $(SYNC_BASE_URL)/$(TARGET_OS)
+         LOCAL_REPO_SYNC_DIR -new - defaults to $(LOCAL_SYNC_DIR)/$(REPO_NAME), e.g. /Users/shai/Library/Caches/Waves Audio/instl/instl.waves.com/V9_test
+         LOCAL_BOOKKEEPING_PATH - renamed LOCAL_REPO_BOOKKEEPING_DIR
+         REPO_REV_LOCAL_BOOKKEEPING_PATH - renamed LOCAL_REPO_REV_BOOKKEEPING_DIR
+         SOURCE_PREFIX - new defaults to $(TARGET_OS)
+         LOCAL_REPO_SOURCES_DIR - new - defaults to $(LOCAL_REPO_SYNC_DIR)/$(SOURCE_PREFIX)
+    * Due to variable changed method InstlClient.init_copy_vars is empty now.
+    * functions main_url_item now return parseResult.netloc OR parseResult.path not both
 
 5/3/2014 0.8.9 Shai Shasag <shai@waves.com>
 
