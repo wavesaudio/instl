@@ -21,7 +21,7 @@ class InstlInstanceSync_svn(InstlInstanceSync):
         bookkeeping_relative_path = relative_url(var_list.get_str("SYNC_BASE_URL"), var_list.get_str("BOOKKEEPING_DIR_URL"))
         var_list.set_var("REL_BOOKKIPING_PATH", var_description).append(bookkeeping_relative_path)
 
-        rel_sources = relative_url(var_list.get_str("SYNC_BASE_URL"), var_list.resolve_string("$(SYNC_BASE_URL)/$(TARGET_OS)"))
+        rel_sources = relative_url(var_list.get_str("SYNC_BASE_URL"), var_list.resolve_string("$(SYNC_BASE_URL)/$(SOURCE_PREFIX)"))
         var_list.set_var("REL_SRC_PATH", var_description).append(rel_sources)
 
         for identifier in ("SYNC_BASE_URL", "SVN_CLIENT_PATH", "REL_SRC_PATH", "REPO_REV", "BOOKKEEPING_DIR_URL"):
@@ -29,7 +29,7 @@ class InstlInstanceSync_svn(InstlInstanceSync):
 
     def create_sync_instructions(self, installState):
         self.ii.batch_accum.set_current_section('sync')
-        self.ii.batch_accum += self.ii.platform_helper.progress("from $(SYNC_BASE_URL)/$(TARGET_OS)")
+        self.ii.batch_accum += self.ii.platform_helper.progress("from $(SYNC_BASE_URL)/$(SOURCE_PREFIX)")
         self.ii.batch_accum += self.ii.platform_helper.mkdir("$(LOCAL_SYNC_DIR)")
         self.ii.batch_accum += self.ii.platform_helper.cd("$(LOCAL_SYNC_DIR)")
         self.ii.batch_accum.indent_level += 1
@@ -44,13 +44,13 @@ class InstlInstanceSync_svn(InstlInstanceSync):
         for iid in installState.orphan_install_items:
             self.ii.batch_accum += self.ii.platform_helper.echo("Don't know how to sync "+iid)
         self.ii.batch_accum.indent_level -= 1
-        self.ii.batch_accum += self.ii.platform_helper.echo("from $(SYNC_BASE_URL)/$(TARGET_OS)")
+        self.ii.batch_accum += self.ii.platform_helper.echo("from $(SYNC_BASE_URL)/$(SOURCE_PREFIX)")
 
 
     def create_svn_sync_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
         retVal = list()
-        source_url =   '/'.join( ("$(SYNC_BASE_URL)/$(TARGET_OS)", source[0]) )
+        source_url =   '/'.join( ("$(SYNC_BASE_URL)/$(SOURCE_PREFIX)", source[0]) )
         target_path =  '/'.join( ("$(REL_SRC_PATH)", source[0]) )
         if source[1] == '!file':
             source_url = '/'.join( source_url.split("/")[0:-1]) # skip the file name sync the whole folder

@@ -47,7 +47,7 @@ class InstallInstructionsState(object):
                 source_list_for_idd = instlObj.install_definitions_index[IID].source_list()
                 for source in source_list_for_idd:
                     relative_sync_folder = instlObj.relative_sync_folder_for_source(source)
-                    sync_folder =  os.path.join( "$(LOCAL_REPO_SOURCES_DIR)", relative_sync_folder )
+                    sync_folder =  os.path.join( "$(LOCAL_REPO_SYNC_DIR)", "$(SOURCE_PREFIX)", relative_sync_folder )
                     self.no_copy_items_by_sync_folder[sync_folder].append(IID)
 
     def calculate_full_install_items_set(self, instlObj):
@@ -237,7 +237,7 @@ class InstlClient(InstlInstanceBase):
         self.batch_accum.set_current_section('copy')
         self.batch_accum += self.platform_helper.progress("starting copy")
 
-        self.batch_accum += self.platform_helper.progress("from $(LOCAL_REPO_SOURCES_DIR)")
+        self.batch_accum += self.platform_helper.progress("from $(LOCAL_REPO_SYNC_DIR)/$(SOURCE_PREFIX)")
 
         if 'Mac' in var_list.get_list("__CURRENT_OS_NAMES__") and 'Mac' in var_list.get_list("TARGET_OS"):
             self.batch_accum += self.platform_helper.resolve_symlink_files(in_dir="$(LOCAL_REPO_SYNC_DIR)")
@@ -334,7 +334,7 @@ class InstlClient(InstlInstanceBase):
     def create_copy_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
 
-        source_path = os.path.normpath("$(LOCAL_REPO_SOURCES_DIR)/"+source[0])
+        source_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/$(SOURCE_PREFIX)/"+source[0])
 
         ignore_list = var_list.get_list("COPY_IGNORE_PATTERNS")
 

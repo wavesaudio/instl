@@ -145,10 +145,10 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
     def mark_required_items_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
-        target_os_remote_info_map = self.work_info_map.get_item_at_path(var_list.get_str("TARGET_OS"))
-        if target_os_remote_info_map is None:
-            raise ValueError(var_list.get_str("TARGET_OS"), "does not exist in remote map")
-        remote_sub_item = target_os_remote_info_map.get_item_at_path(source[0])
+        source_prefixed_remote_info_map = self.work_info_map.get_item_at_path(var_list.get_str("SOURCE_PREFIX"))
+        if source_prefixed_remote_info_map is None:
+            raise ValueError(var_list.get_str("SOURCE_PREFIX"), "does not exist in remote map")
+        remote_sub_item = source_prefixed_remote_info_map.get_item_at_path(source[0])
         if remote_sub_item is None:
             raise ValueError(source[0], "does not exist in remote map")
         how_to_set = "all"
@@ -183,7 +183,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def create_download_instructions(self):
         self.instlObj.batch_accum.set_current_section('sync')
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("starting sync")
-        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("from $(SYNC_BASE_URL)/$(TARGET_OS)")
+        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("from $(SYNC_BASE_URL)/$(SOURCE_PREFIX)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir("$(LOCAL_REPO_SYNC_DIR)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.cd("$(LOCAL_REPO_SYNC_DIR)")
         self.sync_base_url = var_list.resolve_string("$(SYNC_BASE_URL)")
