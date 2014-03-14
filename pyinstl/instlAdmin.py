@@ -163,11 +163,8 @@ class InstlAdmin(InstlInstanceBase):
         # call svn info and to find out the last repo revision
         last_repo_rev = self.get_last_repo_rev()
 
-        var_list.set_var("__CHECKOUT_FOLDER__").append("$(ROOT_LINKS_FOLDER_REPO)/Base")
-        self.batch_accum += self.platform_helper.mkdir("$(__CHECKOUT_FOLDER__)")
-        # $(ROOT_LINKS_FOLDER_REPO)/Base is used instead of $(__CHECKOUT_FOLDER__) hereafter,
-        # so that relative paths to $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__) would work.
-        
+        self.batch_accum += self.platform_helper.mkdir("$(ROOT_LINKS_FOLDER_REPO)/Base")
+
         accum = BatchAccumulator() # sub-accumulator serves as a template for each version
         accum.set_current_section('links')
         self.create_links_for_revision(accum)
