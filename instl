@@ -4,8 +4,6 @@
 
 from __future__ import print_function
 
-# from branch shai on Windows
-
 import sys
 import os
 import argparse
