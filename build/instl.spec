@@ -1,0 +1,44 @@
+# -*- mode: python -*-
+import os
+import fnmatch
+import platform
+import inspect
+
+# assuming the instl main is one level above this instl.spec file.
+script_folder = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+print("script_folder", script_folder)
+instl_folder = os.path.join(script_folder, '..')
+print("instl_folder", instl_folder)
+org_folder = os.getcwd()
+os.chdir(instl_folder)
+
+instl_main_path = os.path.join(instl_folder, "instl")
+a = Analysis([instl_main_path],
+             hiddenimports=[],
+             hookspath=None)
+
+instl_defaults_path = os.path.join(instl_folder, "defaults")
+for defaults_file in os.listdir(instl_defaults_path):
+    if fnmatch.fnmatch(defaults_file, '*.yaml'):
+        a.datas += [("defaults/"+defaults_file, os.path.join(instl_defaults_path, defaults_file), "DATA")]
+
+instl_help_path = os.path.join(instl_folder, "help")
+for help_file in os.listdir(instl_help_path):
+    if fnmatch.fnmatch(help_file, '*.yaml'):
+        a.datas += [("help/"+help_file, os.path.join(instl_help_path, help_file), "DATA")]
+
+compiled_instl_name = os.path.join('build', 'instl')
+if platform.system() == 'Windows':
+    compiled_instl_name += ".exe"
+
+pyz = PYZ(a.pure)
+exe = EXE(pyz,
+          a.scripts,
+          a.binaries,
+          a.zipfiles,
+          a.datas,
+          name=compiled_instl_name,
+          debug=False,
+          strip=None,
+          upx=False,
+          console=True )

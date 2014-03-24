@@ -6,7 +6,7 @@
 
     programmer visible changes:
     * Removed variable __CHECKOUT_FOLDER__, it is totaly replaced by $(ROOT_LINKS_FOLDER_REPO)/Base.
-
+    * Moved pyinstaller build scripts to inside the instl repository
 
 13/3/2014 0.8.10  Shai Shasag <shai@waves.com>
 
