@@ -6,9 +6,9 @@ import inspect
 
 # assuming the instl main is one level above this instl.spec file.
 script_folder = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-print("script_folder", script_folder)
+#print("script_folder", script_folder)
 instl_folder = os.path.join(script_folder, '..')
-print("instl_folder", instl_folder)
+#print("instl_folder", instl_folder)
 org_folder = os.getcwd()
 os.chdir(instl_folder)
 
