@@ -559,13 +559,22 @@ class CMDObj(cmd.Cmd, object):
         print("log debug off | false | no: stops debug level logging")
 
     # evaluate python expressions
-    def do_eval(self, param):
+    def do_python(self, param):
         if param:
             print(eval(param))
         return False
 
-    def help_eval(self):
+    def help_python(self):
         print("evaluate python expressions, instlObj is accessible as self.client_prog_inst")
+
+    # resolve a string comataining varables.
+    def do_resolve(self, param):
+        if param:
+            print(var_list.resolve_string(param))
+        return False
+
+    def help_resolve(self):
+        print("")
 
 def compact_history():
     if hasattr(readline, "replace_history_item"):
