@@ -7,7 +7,8 @@
     programmer visible changes:
     * Removed variable __CHECKOUT_FOLDER__, it is totaly replaced by $(ROOT_LINKS_FOLDER_REPO)/Base.
     * Moved pyinstaller build scripts to inside the instl repository
-
+    * PUBLIC_KEY is read from  PUBLIC_KEY_FILE and PUBLIC_KEY_FILE is searched with search paths in read_include_node and in init_sync_vars.
+    
 13/3/2014 0.8.10  Shai Shasag <shai@waves.com>
 
     user visible changes, client:

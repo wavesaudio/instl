@@ -210,8 +210,16 @@ class InstlInstanceBase(object):
                 resolved_signature = var_list.resolve_string(i_node["sig"].value)
                 cached_files_dir = self.get_default_sync_dir(continue_dir="cache", mkdir=True)
                 cached_file = os.path.join(cached_files_dir, resolved_checksum)
-                public_key_file = var_list.resolve_string("$(PUBLIC_KEY_FILE)")
-                public_key_text = open(public_key_file, "rb").read()
+
+                if "PUBLIC_KEY" not in var_list:
+                    if "PUBLIC_KEY_FILE" in var_list:
+                        public_key_file = var_list.resolve_string("$(PUBLIC_KEY_FILE)")
+                        with open_for_read_file_or_url(public_key_file, self.path_searcher) as file_fd:
+                            public_key_text = file_fd.read()
+                            var_list.set_var("PUBLIC_KEY", "from "+public_key_file).append(public_key_text)
+
+
+                public_key_text = var_list.get_str("PUBLIC_KEY")
                 download_from_file_or_url(resolved_file_url, cached_file, cache=True,
                                           public_key=public_key_text,
                                           textual_sig=resolved_signature,
