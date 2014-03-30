@@ -1,6 +1,8 @@
 ???? 0.8.11
 
     user visible changes, client:
+    * interactive command eval renamed python.
+    * New interactive command: resolve, will resolve variables in a string.
 
     user visible changes, admin:
 
