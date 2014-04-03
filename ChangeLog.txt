@@ -1,3 +1,7 @@
+???? 0.9.1
+    user visible changes, client:
+    * Fixed exception when trying to read public key file.
+
 30/3/2014 0.9.0
 
     user visible changes, client:

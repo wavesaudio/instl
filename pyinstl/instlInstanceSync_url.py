@@ -38,7 +38,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         if "PUBLIC_KEY" not in var_list:
             if "PUBLIC_KEY_FILE" in var_list:
                 public_key_file = var_list.resolve_string("$(PUBLIC_KEY_FILE)")
-                with open_for_read_file_or_url(file_path, self.instlObj.path_searcher) as file_fd:
+                with open_for_read_file_or_url(public_key_file, self.instlObj.path_searcher) as file_fd:
                     public_key_text = file_fd.read()
                     var_list.set_var("PUBLIC_KEY", "from "+public_key_file).append(public_key_text)
 
