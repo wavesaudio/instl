@@ -7,6 +7,7 @@ from __future__ import print_function
 import sys
 import os
 import argparse
+import logging
 
 # umask to 0 so that all files created under sudo, can be re-written under regular user.
 os.umask(0)
@@ -314,6 +315,7 @@ def main():
                     "__CURRENT_OS_SECOND_NAME__": os_second_name,
                     "__CURRENT_OS_NAMES__": current_os_names}
 
+    logging.info("Command %s", options.command)
     if options.mode == "client":
         from pyinstl.instlClient import InstlClient
         instance = InstlClient(initial_vars)

@@ -74,7 +74,9 @@ class InstallInstructionsState(object):
                     logging.warning("%s is a guid but could not be translated to iids", IID)
             else:
                 root_install_iids_translated.append(IID)
-                logging.info("%s added to root_install_iids_translated", IID)
+                logging.debug("%s added to root_install_iids_translated", IID)
+
+        logging.info(" ".join(("Main install items translated:", ", ".join(root_install_iids_translated))))
 
         for IID in root_install_iids_translated:
             try:
@@ -82,6 +84,7 @@ class InstallInstructionsState(object):
             except KeyError:
                 self.orphan_install_items.append(IID)
                 logging.warning("%s not found in index", IID)
+        logging.info(" ".join(("Full install items:", ", ".join(self.full_install_items))))
         self.__sort_install_items_by_target_folder(instlObj)
 
 class InstlClient(InstlInstanceBase):
@@ -244,7 +247,7 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum += self.platform_helper.progress("resolve .symlink files")
 
         for folder_name, items_in_folder in self.installState.install_items_by_target_folder.iteritems():
-            logging.info("... folder %s (%s)", folder_name, var_list.resolve_string(folder_name))
+            logging.debug("folder %s (%s)", folder_name, var_list.resolve_string(folder_name))
             self.batch_accum += self.platform_helper.mkdir(folder_name)
             self.batch_accum += self.platform_helper.cd(folder_name)
 
@@ -287,7 +290,7 @@ class InstlClient(InstlInstanceBase):
 
         # actions instructions for sources that do not need copying
         for folder_name, items_in_folder in self.installState.no_copy_items_by_sync_folder.iteritems():
-            logging.info("... non-copy items folder %s (%s)", folder_name, var_list.resolve_string(folder_name))
+            logging.debug("non-copy items folder %s (%s)", folder_name, var_list.resolve_string(folder_name))
             self.batch_accum += self.platform_helper.cd(folder_name)
             self.batch_accum.indent_level += 1
 
@@ -346,7 +349,7 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".", link_dest=True, ignore=ignore_list)
         else: # !dir
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path, ".", link_dest=True, ignore=ignore_list)
-        logging.info("... %s; (%s - %s)", source_path, var_list.resolve_string(source_path), source[1])
+        logging.debug("%s; (%s - %s)", source_path, var_list.resolve_string(source_path), source[1])
 
     def needs(self, iid, out_list):
         """ return all items that depend on iid """
