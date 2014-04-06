@@ -1,3 +1,8 @@
+???? 0.9.2
+
+    user visible changes, client:
+    * Fix --run where path to batch has spaces in name (Windows).
+
 3/4/2014 0.9.1
 
     user visible changes, client:
