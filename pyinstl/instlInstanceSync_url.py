@@ -48,7 +48,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
                            "INFO_MAP_FILE_URL", "LOCAL_REPO_BOOKKEEPING_DIR","NEW_HAVE_INFO_MAP_PATH", "REQUIRED_INFO_MAP_PATH",
                             "TO_SYNC_INFO_MAP_PATH", "LOCAL_REPO_REV_BOOKKEEPING_DIR", "LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"):
             #print(identifier, var_list.get_str(identifier))
-            logging.debug("... %s: %s", identifier, var_list.get_str(identifier))
+            logging.debug("%s: %s", identifier, var_list.get_str(identifier))
 
     def create_sync_instructions(self, installState):
         self.instlObj.batch_accum.set_current_section('sync')
@@ -203,6 +203,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
         num_dirs_to_create = self.work_info_map.num_subs_in_tree(what="dir")
+        logging.info("Num directories to create: %d", num_dirs_to_create)
         self.instlObj.batch_accum += self.instlObj.platform_helper.create_folders("$(TO_SYNC_INFO_MAP_PATH)")
         self.instlObj.platform_helper.num_items_for_progress_report += num_dirs_to_create
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Create folders")
@@ -215,12 +216,14 @@ class InstlInstanceSync_url(InstlInstanceSync):
         var_list.add_const_config_variable("__NUM_FILES_TO_DOWNLOAD__", "create_download_instructions", self.instlObj.platform_helper.dl_tool.get_num_urls_to_download())
 
         print(self.instlObj.platform_helper.dl_tool.get_num_urls_to_download(), "files to sync")
+        logging.info("Num files to sync: %d", self.instlObj.platform_helper.dl_tool.get_num_urls_to_download())
 
         curl_config_folder = var_list.resolve_string(os.path.join("$(LOCAL_REPO_SYNC_DIR)", "curl"))
         safe_makedirs(curl_config_folder)
         curl_config_file_path = var_list.resolve_string(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"))
         num_config_files = int(var_list.get_str("PARALLEL_SYNC"))
         config_file_list = self.instlObj.platform_helper.dl_tool.create_config_files(curl_config_file_path, num_config_files)
+        logging.info("Num parallel syncs: %d", len(config_file_list))
         if len(config_file_list) > 0:
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress(var_list.resolve_string("Downloading with "+str(len(config_file_list))+" processes in parallel"))
@@ -230,6 +233,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
         num_files_to_check = self.work_info_map.num_subs_in_tree(what="file")
+        logging.info("Num files to checksum check: %d", num_files_to_check)
         if num_files_to_check > 0:
             self.instlObj.batch_accum += self.instlObj.platform_helper.check_checksum_for_folder("$(TO_SYNC_INFO_MAP_PATH)")
             self.instlObj.platform_helper.num_items_for_progress_report += num_files_to_check
@@ -237,6 +241,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
         num_files_to_unwtar_estimation = self.estimate_num_unwtar_actions()
+        logging.info("Num files to unwtar: %d", num_files_to_unwtar_estimation)
         self.instlObj.batch_accum += self.instlObj.platform_helper.unwtar_current_folder()
         self.instlObj.platform_helper.num_items_for_progress_report += num_files_to_unwtar_estimation
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress(var_list.resolve_string("unwtar done"))

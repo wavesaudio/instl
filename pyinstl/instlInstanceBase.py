@@ -75,7 +75,7 @@ class InstlInstanceBase(object):
         debug_log_file = pyinstl.log_utils.get_log_file_path(var_list.get_str("INSTL_EXEC_DISPLAY_NAME"), var_list.get_str("INSTL_EXEC_DISPLAY_NAME"), debug=True)
         var_list.set_var("LOG_FILE_DEBUG", var_description).extend( (debug_log_file, logging.getLevelName(pyinstl.log_utils.debug_logging_level), pyinstl.log_utils.debug_logging_started) )
         for identifier in var_list:
-            logging.debug("... %s: %s", identifier, var_list.get_str(identifier))
+            logging.debug("%s: %s", identifier, var_list.get_str(identifier))
 
     def check_prerequisite_var_existence(self, prerequisite_vars):
         missing_vars = [var for var in prerequisite_vars if var not in var_list]
@@ -136,7 +136,7 @@ class InstlInstanceBase(object):
             var_list.add_const_config_variable("__RUN_BATCH_FILE__", "from command line options", "yes")
 
         for identifier in var_list:
-            logging.debug("... %s: %s", identifier, var_list.get_str(identifier))
+            logging.debug("%s: %s", identifier, var_list.get_str(identifier))
 
     def is_acceptable_yaml_doc(self, doc_node):
         acceptables = var_list.get_list("ACCEPTABLE_YAML_DOC_TAGS") + ("define", "define_const", "index")
@@ -145,7 +145,7 @@ class InstlInstanceBase(object):
         return retVal
 
     def read_yaml_file(self, file_path):
-        logging.info("... Reading input file %s", file_path)
+        logging.info("%s", file_path)
         with open_for_read_file_or_url(file_path, self.path_searcher) as file_fd:
             for a_node in yaml.compose_all(file_fd):
                 if self.is_acceptable_yaml_doc(a_node):
@@ -178,7 +178,7 @@ class InstlInstanceBase(object):
         # if document is empty we get a scalar node
         if a_node.isMapping():
             for identifier, contents in a_node:
-                logging.debug("... %s: %s", identifier, str(contents))
+                logging.debug("%s: %s", identifier, str(contents))
                 if not self.internal_identifier_re.match(identifier): # do not read internal state identifiers
                     var_list.set_var(identifier, str(contents.start_mark)).extend([item.value for item in contents])
                 elif identifier == '__include__':
@@ -193,7 +193,7 @@ class InstlInstanceBase(object):
             for identifier, contents in a_node:
                 if identifier == "__include__":
                     raise ValueError("!define_const doc cannot except __include__")
-                logging.debug("... %s: %s", identifier, str(contents))
+                logging.debug("%s: %s", identifier, str(contents))
                 var_list.add_const_config_variable(identifier, "from !define_const section", *[item.value for item in contents])
 
     def read_include_node(self, i_node):
@@ -277,7 +277,6 @@ class InstlInstanceBase(object):
 
         from utils import write_to_file_or_stdout
         out_file = var_list.get_str("__MAIN_OUT_FILE__")
-        logging.info("... %s", out_file)
         with write_to_file_or_stdout(out_file) as fd:
             fd.write(lines_after_var_replacement)
             fd.write('\n')
@@ -285,10 +284,14 @@ class InstlInstanceBase(object):
         if out_file != "stdout":
             self.out_file_realpath = os.path.realpath(out_file)
             # chmod to 0777 so that file created under sudo, can be re-written under regular user.
-            # However regular user cannot chmod for file created under sudo, hense the try/except
+            # However regular user cannot chmod for file created under sudo, hence the try/except
             try: os.chmod(self.out_file_realpath, 0777)
             except: pass
-        print(self.out_file_realpath+",", self.platform_helper.num_items_for_progress_report, "progress items")
+        else:
+            self.out_file_realpath = "stdout"
+        msg = " ".join( (self.out_file_realpath, str(self.platform_helper.num_items_for_progress_report), "progress items") )
+        print(msg)
+        logging.info(msg)
 
     def run_batch_file(self):
         logging.info("running batch file %s", self.out_file_realpath)

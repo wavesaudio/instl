@@ -63,7 +63,7 @@ class SVNTree(svnItem.SVNTopItem):
         self.comments.append("Original file "+self.path_to_file)
         if format in self.read_func_by_format.keys():
             with open_for_read_file_or_url(self.path_to_file) as rfd:
-                logging.info("opened %s, format: %s", self.path_to_file, format)
+                logging.info("%s, format: %s", self.path_to_file, format)
                 if format != "props":
                     self.clear_subs()
                 self.read_func_by_format[format](rfd)
@@ -196,10 +196,10 @@ class SVNTree(svnItem.SVNTopItem):
             in_format = map_info_extension_to_format[extension[1:]]
         if in_format in self.write_func_by_format.keys():
             with write_to_file_or_stdout(self.path_to_file) as wfd:
-                logging.info("opened %s, format: %s", self.path_to_file, format)
+                logging.info("%s, format: %s", self.path_to_file, in_format)
                 self.write_func_by_format[in_format](wfd, comments)
         else:
-            logging.info("%s is not a known map_info format. Cannot write %s", format, in_file)
+            logging.info("%s is not a known map_info format. Cannot write %s", in_format, in_file)
             ValueError("Unknown write in_format "+in_format)
 
     def write_as_text(self, wfd, comments=True):

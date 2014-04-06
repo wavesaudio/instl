@@ -38,9 +38,9 @@ class SearchPaths(object):
         if a_path not in self.search_paths_var:
             if os.path.isdir(a_path):
                 self.search_paths_var.append(a_path)
-                logging.info("adding %s to search paths",  a_path)
+                logging.debug("adding %s",  a_path)
             else:
-                logging.info("Not adding %s to search paths, directory not found",  a_path)
+                logging.debug("Not adding %s, directory not found",  a_path)
 
     def add_search_paths(self, some_paths):
         """ Add a folder to the list of search paths
@@ -71,7 +71,7 @@ class SearchPaths(object):
         input path if file was not found, instead of None.
         """
         retVal = None
-        logging.debug("... find %s", in_file)
+        logging.debug("find %s", in_file)
         if os.path.isfile(in_file):
             real_file = os.path.realpath(in_file)
             logging.debug("...... is an existing file path returning %s", real_file)
@@ -80,11 +80,11 @@ class SearchPaths(object):
             retVal = real_file
         else:
             for try_path in self.search_paths_var:
-                logging.debug("...... looking in %s", try_path)
+                logging.debug("looking in %s", try_path)
                 real_file = os.path.join(try_path, in_file)
                 if os.path.isfile(real_file):
                     real_file = os.path.realpath(real_file)
-                    logging.debug("......... found returning %s", real_file)
+                    logging.debug("found returning %s", real_file)
                     # in_file might be a relative path so must add the file's
                     # real folder so it's in the list.
                     real_folder = os.path.dirname(real_file)
@@ -92,7 +92,7 @@ class SearchPaths(object):
                     retVal = real_file
                     break
         if retVal is None:
-            logging.info("%s was not found ", in_file)
+            logging.debug("%s was not found ", in_file)
             if return_original_if_not_found:
                 logging.debug("Returning original file - %s", in_file)
                 retVal = in_file
@@ -100,12 +100,12 @@ class SearchPaths(object):
 
     def get_machine_config_file_path(self, in_app_name):
         retVal = os.path.join(appdirs.site_data_dir(in_app_name))
-        logging.debug("... %s", retVal)
+        logging.debug("%s", retVal)
         return retVal
 
     def get_user_config_file_path(self, in_app_name):
         retVal = os.path.join(appdirs.user_data_dir(in_app_name))
-        logging.debug("... %s", retVal)
+        logging.debug("%s", retVal)
         return retVal
 
 
