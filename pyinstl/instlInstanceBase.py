@@ -293,7 +293,7 @@ class InstlInstanceBase(object):
     def run_batch_file(self):
         logging.info("running batch file %s", self.out_file_realpath)
         from subprocess import Popen
-        p = Popen(self.out_file_realpath, executable=self.out_file_realpath, shell=False)
+        p = Popen([self.out_file_realpath], shell=False)
         unused_stdout, unused_stderr = p.communicate()
         retcode = p.returncode
         if retcode != 0:
