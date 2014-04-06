@@ -342,6 +342,7 @@ def main():
         instance.do_command()
     else:
         raise InstlException("incomprehensible command line options:\n", options)
+    logging.info("Done %s", options.command)
 
 if __name__ == "__main__":
     main()

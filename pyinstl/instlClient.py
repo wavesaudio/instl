@@ -68,7 +68,7 @@ class InstallInstructionsState(object):
                 iids_from_the_guid = iids_from_guid(instlObj.install_definitions_index, IID)
                 if len(iids_from_the_guid) > 0:
                     root_install_iids_translated.extend(iids_from_the_guid)
-                    logging.info("GUID %s, translated to %d iids: %s", IID, len(iids_from_the_guid), ", ".join(iids_from_the_guid))
+                    logging.debug("GUID %s, translated to %d iids: %s", IID, len(iids_from_the_guid), ", ".join(iids_from_the_guid))
                 else:
                     self.orphan_install_items.append(IID)
                     logging.warning("%s is a guid but could not be translated to iids", IID)
@@ -247,7 +247,7 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum += self.platform_helper.progress("resolve .symlink files")
 
         for folder_name, items_in_folder in self.installState.install_items_by_target_folder.iteritems():
-            logging.debug("folder %s (%s)", folder_name, var_list.resolve_string(folder_name))
+            logging.info("folder %s", var_list.resolve_string(folder_name))
             self.batch_accum += self.platform_helper.mkdir(folder_name)
             self.batch_accum += self.platform_helper.cd(folder_name)
 
@@ -263,7 +263,9 @@ class InstlClient(InstlInstanceBase):
                     if len_before < len(folder_in_actions): # add progress only for the first same action
                         folder_in_actions.append(self.platform_helper.progress("folder in action: "+IID))
             self.batch_accum += folder_in_actions
+            logging.info("... folder_in actions: %d", len(folder_in_actions))
 
+            batch_accum_len_before = len(self.batch_accum)
             self.batch_accum += self.platform_helper.copy_tool.begin_copy_folder()
             for IID in items_in_folder:
                 installi = self.install_definitions_index[IID]
@@ -273,6 +275,7 @@ class InstlClient(InstlInstanceBase):
                     self.batch_accum += installi.action_list('after')
                     self.batch_accum += self.platform_helper.progress("{installi.iid}: {installi.name}".format(**locals()))
             self.batch_accum += self.platform_helper.copy_tool.end_copy_folder()
+            logging.info("... copy actions: %d", len(self.batch_accum) - batch_accum_len_before)
 
             # accumulate folder_out actions from all items, eliminating duplicates
             folder_out_actions = unique_list() # unique_list will eliminate identical actions while keeping the order
@@ -285,6 +288,7 @@ class InstlClient(InstlInstanceBase):
                     if len_before < len(folder_out_actions): # add progress only for the first same action
                         folder_out_actions.append(self.platform_helper.progress("folder out action: "+IID))
             self.batch_accum += folder_out_actions
+            logging.info("... folder_out actions: %d", len(folder_out_actions))
 
             self.batch_accum.indent_level -= 1
 
@@ -305,6 +309,7 @@ class InstlClient(InstlInstanceBase):
                     if len_before < len(folder_in_actions): # add progress only for the first same action
                         folder_in_actions.append(self.platform_helper.progress("no copy folder in actionn: "+IID))
             self.batch_accum += folder_in_actions
+            logging.info("... folder_in (no copy) actions: %d", len(folder_in_actions))
 
             for IID in items_in_folder:
                 installi = self.install_definitions_index[IID]
@@ -322,6 +327,7 @@ class InstlClient(InstlInstanceBase):
                     if len_before < len(folder_out_actions): # add progress only for the first same action
                         folder_out_actions.append(self.platform_helper.progress("folder out actionn: "+IID))
             self.batch_accum += folder_out_actions
+            logging.info("... folder_out (no copy) actions: %d", len(folder_out_actions))
 
             self.batch_accum += self.platform_helper.progress("{folder_name}".format(**locals()))
             self.batch_accum.indent_level -= 1
