@@ -2,7 +2,13 @@
 
     user visible changes, client:
     * Streamlined logging. Removed many redundant messages added some useful others.
+    * Fixed: Executable files on Mac would not get executable bit.
 
+    user visible changes, admin:
+    * New command set_exec, sets executable bit for files marked as fx in info_map.txt
+
+    programmer visible changes:
+    * SVNItem.num_subs_in_tree has new parameter: predicate this can be used to filter the number of files, defaults to True so previous behaviour remains.
 
 6/4/2014 0.9.2  Shai Shasag <shai@waves.com>
 

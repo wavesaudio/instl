@@ -287,6 +287,15 @@ class PlatformSpecificHelperBase(object):
                                                     ) )
         return create_folders_command
 
+    def set_exec_for_folder(self, info_map_file):
+        set_exec_for_folder_command = " ".join( (self.run_instl(),
+                                                    "set-exec",
+                                                    "--in", quoteme_double(info_map_file),
+                                                    "--start-progress", str(self.num_items_for_progress_report),
+                                                    "--total-progress", "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)",
+                                                    ) )
+        return set_exec_for_folder_command
+
     @abc.abstractmethod
     def tar(self, to_tar_name):
         pass

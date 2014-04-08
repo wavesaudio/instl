@@ -419,8 +419,9 @@ class SVNItem(object):
         for dir_item in dir_list:
             dir_item.set_user_data_all_recursive(value)
 
-    def num_subs_in_tree(self, what="all"):
-        retVal = sum(1 for i in self.walk_items(what=what))
+
+    def num_subs_in_tree(self, what="all", predicate=lambda in_item: True ):
+        retVal = sum(1 for item in self.walk_items(what=what) if predicate(item))
         return retVal
 
     def repr_for_yaml(self):
