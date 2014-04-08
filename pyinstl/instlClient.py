@@ -11,7 +11,7 @@ from aYaml import augmentedYaml
 
 from instlInstanceBase import InstlInstanceBase
 from configVarList import var_list
-
+import svnTree
 
 class InstallInstructionsState(object):
     """ holds state for specific creating of install instructions """
@@ -245,6 +245,20 @@ class InstlClient(InstlInstanceBase):
         if 'Mac' in var_list.get_list("__CURRENT_OS_NAMES__") and 'Mac' in var_list.get_list("TARGET_OS"):
             self.batch_accum += self.platform_helper.resolve_symlink_files(in_dir="$(LOCAL_REPO_SYNC_DIR)")
             self.batch_accum += self.platform_helper.progress("resolve .symlink files")
+
+            have_map = svnTree.SVNTree()
+            have_info_path = var_list.get_str("HAVE_INFO_MAP_PATH")
+            if os.path.isfile(have_info_path):
+                have_map.read_info_map_from_file(have_info_path, format="text")
+                num_files_to_set_exec = have_map.num_subs_in_tree(what="file", predicate=lambda in_item: in_item.isExecutable())
+                logging.info("Num files to set exec: %d", num_files_to_set_exec)
+                if num_files_to_set_exec > 0:
+                    self.batch_accum += self.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")
+                    self.batch_accum += self.platform_helper.set_exec_for_folder("$(HAVE_INFO_MAP_PATH)")
+                    self.platform_helper.num_items_for_progress_report += num_files_to_set_exec
+                    self.batch_accum += self.platform_helper.progress(var_list.resolve_string("Set exec done"))
+                    self.batch_accum += self.platform_helper.new_line()
+                    self.batch_accum += self.platform_helper.popd()
 
         for folder_name, items_in_folder in self.installState.install_items_by_target_folder.iteritems():
             logging.info("folder %s", var_list.resolve_string(folder_name))

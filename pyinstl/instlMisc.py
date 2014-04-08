@@ -6,6 +6,7 @@ import shlex
 import tarfile
 import fnmatch
 import time
+import stat
 
 from pyinstl.utils import *
 from instlInstanceBase import InstlInstanceBase
@@ -121,6 +122,17 @@ class InstlMisc(InstlInstanceBase):
         if bad_checksum_list:
             print("\n".join(bad_checksum_list))
             raise ValueError("Bad checksum for "+str(len(bad_checksum_list))+" files")
+
+    def do_set_exec(self):
+        self.progress_staccato_command = True
+        self.read_info_map_file(var_list.get_str("__MAIN_INPUT_FILE__"))
+        for file_item in self.svnTree.walk_items(what="file"):
+            if file_item.isExecutable():
+                file_path = file_item.full_path()
+                if os.path.isfile(file_path):
+                    file_stat = os.stat(file_path)
+                    os.chmod(file_path, file_stat.st_mode | stat.S_IEXEC)
+                self.dynamic_progress("Set exec {file_path}".format(**locals()))
 
     def do_create_folders(self):
         self.progress_staccato_command = True
