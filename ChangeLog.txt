@@ -1,4 +1,4 @@
-???? 0.9.3
+8/4/2014 0.9.3 Shai Shasag <shai@waves.com>
 
     user visible changes, client:
     * Streamlined logging. Removed many redundant messages added some useful others.
