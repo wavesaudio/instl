@@ -1,3 +1,13 @@
+???? 0.9.4
+
+    user visible changes, client:
+    * Added new actions types for install items: copy_in, copy_out.
+    * Added  copy_in actions for Au regi utility
+
+    programmer visible changes:
+    * new method accumulate_unique_actions to replace repeating code.
+
+
 8/4/2014 0.9.3 Shai Shasag <shai@waves.com>
 
     user visible changes, client:
