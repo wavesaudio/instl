@@ -80,7 +80,7 @@ class InstallItem(object):
                 '__set_for_os', '__items', '__resolved_inherit')
     os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
     item_types = ('install_sources', 'install_folders', 'depends', 'actions')
-    action_types = ('folder_in', 'before', 'after', 'folder_out')
+    action_types = ('copy_in', 'folder_in', 'before', 'after', 'folder_out', 'copy_out')
     file_types = ('!dir_cont', '!files', '!file', '!dir')
     resolve_inheritance_stack = list()
     _get_for_os = [os_names[0]] # _get_for_os is a class member since we usually want to get for same oses for all InstallItems

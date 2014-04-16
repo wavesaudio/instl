@@ -242,6 +242,8 @@ class InstlClient(InstlInstanceBase):
 
         self.batch_accum += self.platform_helper.progress("from $(LOCAL_REPO_SYNC_DIR)/$(SOURCE_PREFIX)")
 
+        self.accumulate_unique_actions('copy_in', self.installState.full_install_items)
+
         if 'Mac' in var_list.get_list("__CURRENT_OS_NAMES__") and 'Mac' in var_list.get_list("TARGET_OS"):
             self.batch_accum += self.platform_helper.resolve_symlink_files(in_dir="$(LOCAL_REPO_SYNC_DIR)")
             self.batch_accum += self.platform_helper.progress("resolve .symlink files")
@@ -266,18 +268,7 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum += self.platform_helper.cd(folder_name)
 
             # accumulate folder_in actions from all items, eliminating duplicates
-            self.batch_accum.indent_level += 1
-            folder_in_actions = unique_list() # unique_list to eliminate identical actions while keeping the order
-            for IID in items_in_folder: # folder_in actions
-                installi = self.install_definitions_index[IID]
-                item_actions = installi.action_list('folder_in')
-                for an_action in item_actions:
-                    len_before = len(folder_in_actions)
-                    folder_in_actions.append(an_action)
-                    if len_before < len(folder_in_actions): # add progress only for the first same action
-                        folder_in_actions.append(self.platform_helper.progress("folder in action: "+IID))
-            self.batch_accum += folder_in_actions
-            logging.info("... folder_in actions: %d", len(folder_in_actions))
+            self.accumulate_unique_actions('folder_in', items_in_folder)
 
             batch_accum_len_before = len(self.batch_accum)
             self.batch_accum += self.platform_helper.copy_tool.begin_copy_folder()
@@ -292,17 +283,7 @@ class InstlClient(InstlInstanceBase):
             logging.info("... copy actions: %d", len(self.batch_accum) - batch_accum_len_before)
 
             # accumulate folder_out actions from all items, eliminating duplicates
-            folder_out_actions = unique_list() # unique_list will eliminate identical actions while keeping the order
-            for IID in items_in_folder:
-                installi = self.install_definitions_index[IID]
-                item_actions = installi.action_list('folder_out')
-                for an_action in item_actions:
-                    len_before = len(folder_out_actions)
-                    folder_out_actions.append(an_action)
-                    if len_before < len(folder_out_actions): # add progress only for the first same action
-                        folder_out_actions.append(self.platform_helper.progress("folder out action: "+IID))
-            self.batch_accum += folder_out_actions
-            logging.info("... folder_out actions: %d", len(folder_out_actions))
+            self.accumulate_unique_actions('folder_out', items_in_folder)
 
             self.batch_accum.indent_level -= 1
 
@@ -313,17 +294,7 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum.indent_level += 1
 
             # accumulate folder_in actions from all items, eliminating duplicates
-            folder_in_actions = unique_list() # unique_list will eliminate identical actions while keeping the order
-            for IID in items_in_folder: # folder_in actions
-                installi = self.install_definitions_index[IID]
-                item_actions = installi.action_list('folder_in')
-                for an_action in item_actions:
-                    len_before = len(folder_in_actions)
-                    folder_in_actions.append(an_action)
-                    if len_before < len(folder_in_actions): # add progress only for the first same action
-                        folder_in_actions.append(self.platform_helper.progress("no copy folder in actionn: "+IID))
-            self.batch_accum += folder_in_actions
-            logging.info("... folder_in (no copy) actions: %d", len(folder_in_actions))
+            self.accumulate_unique_actions('folder_in', items_in_folder)
 
             for IID in items_in_folder:
                 installi = self.install_definitions_index[IID]
@@ -331,20 +302,12 @@ class InstlClient(InstlInstanceBase):
                 self.batch_accum += installi.action_list('after')
 
             # accumulate folder_out actions from all items, eliminating duplicates
-            folder_out_actions = unique_list() # unique_list will eliminate identical actions while keeping the order
-            for IID in items_in_folder:
-                installi = self.install_definitions_index[IID]
-                item_actions = installi.action_list('folder_out')
-                for an_action in item_actions:
-                    len_before = len(folder_out_actions)
-                    folder_out_actions.append(an_action)
-                    if len_before < len(folder_out_actions): # add progress only for the first same action
-                        folder_out_actions.append(self.platform_helper.progress("folder out actionn: "+IID))
-            self.batch_accum += folder_out_actions
-            logging.info("... folder_out (no copy) actions: %d", len(folder_out_actions))
+            self.accumulate_unique_actions('folder_out', items_in_folder)
 
             self.batch_accum += self.platform_helper.progress("{folder_name}".format(**locals()))
             self.batch_accum.indent_level -= 1
+
+        self.accumulate_unique_actions('copy_out', self.installState.full_install_items)
 
         self.platform_helper.copy_tool.finalize()
 
@@ -353,6 +316,20 @@ class InstlClient(InstlInstanceBase):
             logging.info("Orphan item: %s", iid)
             self.batch_accum += self.platform_helper.echo("Don't know how to install "+iid)
         self.batch_accum += self.platform_helper.progress("done copy")
+
+    def accumulate_unique_actions(self, action_type, iid_list):
+            """ accumulate action_type actions from iid_list, eliminating duplicates"""
+            unique_actions = unique_list() # unique_list will eliminate identical actions while keeping the order
+            for IID in iid_list:
+                installi = self.install_definitions_index[IID]
+                item_actions = installi.action_list(action_type)
+                for an_action in item_actions:
+                    len_before = len(unique_actions)
+                    unique_actions.append(an_action)
+                    if len_before < len(unique_actions): # add progress only for the first same action
+                        unique_actions.append(self.platform_helper.progress(action_type+" action: "+IID))
+            self.batch_accum += unique_actions
+            logging.info("... %s actions: %d", action_type, len(unique_actions))
 
     def create_copy_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
