@@ -150,6 +150,9 @@ class InstlClient(InstlInstanceBase):
         elif var_list.get_str("REPO_TYPE") == "SVN":
             from instlInstanceSync_svn import InstlInstanceSync_svn
             syncer = InstlInstanceSync_svn(self)
+        elif var_list.get_str("REPO_TYPE") == "P4":
+            from instlInstanceSync_p4 import InstlInstanceSync_p4
+            syncer = InstlInstanceSync_p4(self)
         else:
             raise ValueError('REPO_TYPE is not defined in input file')
         syncer.init_sync_vars()
