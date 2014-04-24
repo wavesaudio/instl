@@ -47,7 +47,7 @@ class InstallInstructionsState(object):
                 source_list_for_idd = instlObj.install_definitions_index[IID].source_list()
                 for source in source_list_for_idd:
                     relative_sync_folder = instlObj.relative_sync_folder_for_source(source)
-                    sync_folder =  os.path.join( "$(LOCAL_REPO_SYNC_DIR)", "$(SOURCE_PREFIX)", relative_sync_folder )
+                    sync_folder =  os.path.join( "$(LOCAL_REPO_SOURCES_DIR)", relative_sync_folder )
                     self.no_copy_items_by_sync_folder[sync_folder].append(IID)
 
     def calculate_full_install_items_set(self, instlObj):
@@ -123,6 +123,11 @@ class InstlClient(InstlInstanceBase):
             augmentedYaml.writeAsYaml(yaml_of_defines, wfd)
         self.batch_accum += self.platform_helper.append_file_to_file("$(INSTL_HISTORY_TEMP_PATH)", "$(INSTL_HISTORY_PATH)")
 
+    def read_repo_type_defaults(self):
+        repo_type_defaults_file_path = os.path.join(var_list.resolve_string("$(__INSTL_DATA_FOLDER__)"), "defaults", var_list.resolve_string("$(REPO_TYPE).yaml"))
+        if os.path.isfile(repo_type_defaults_file_path):
+            self.read_yaml_file(repo_type_defaults_file_path)
+
     def init_default_client_vars(self):
         if "LOCAL_SYNC_DIR" not in var_list:
             if "SYNC_BASE_URL" not in var_list:
@@ -141,6 +146,13 @@ class InstlClient(InstlInstanceBase):
             if len(target_os_names) > 1:
                 second_name = target_os_names[1]
             var_list.set_var("TARGET_OS_SECOND_NAME").append(second_name)
+
+        self.read_repo_type_defaults()
+        if var_list.get_str("REPO_TYPE") == "P4":
+            if "P4_SYNC_DIR" not in var_list:
+                if "SYNC_BASE_URL" in var_list:
+                    p4_sync_dir = P4GetPathFromDepotPath(var_list.get_str("SYNC_BASE_URL"))
+                    var_list.set_var("P4_SYNC_DIR", "from SYNC_BASE_URL").append(p4_sync_dir)
 
     def do_sync(self):
         logging.info("Creating sync instructions")
@@ -243,12 +255,12 @@ class InstlClient(InstlInstanceBase):
         self.batch_accum.set_current_section('copy')
         self.batch_accum += self.platform_helper.progress("starting copy")
 
-        self.batch_accum += self.platform_helper.progress("from $(LOCAL_REPO_SYNC_DIR)/$(SOURCE_PREFIX)")
+        self.batch_accum += self.platform_helper.progress("from $(LOCAL_REPO_SOURCES_DIR)")
 
         self.accumulate_unique_actions('copy_in', self.installState.full_install_items)
 
         if 'Mac' in var_list.get_list("__CURRENT_OS_NAMES__") and 'Mac' in var_list.get_list("TARGET_OS"):
-            self.batch_accum += self.platform_helper.resolve_symlink_files(in_dir="$(LOCAL_REPO_SYNC_DIR)")
+            self.batch_accum += self.platform_helper.resolve_symlink_files(in_dir="$(LOCAL_REPO_SOURCES_DIR)")
             self.batch_accum += self.platform_helper.progress("resolve .symlink files")
 
             have_map = svnTree.SVNTree()
@@ -337,7 +349,7 @@ class InstlClient(InstlInstanceBase):
     def create_copy_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
 
-        source_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/$(SOURCE_PREFIX)/"+source[0])
+        source_path = os.path.normpath("$(LOCAL_REPO_SOURCES_DIR)/"+source[0])
 
         ignore_list = var_list.get_list("COPY_IGNORE_PATTERNS")
 
