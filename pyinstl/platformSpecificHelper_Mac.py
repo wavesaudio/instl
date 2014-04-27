@@ -112,6 +112,8 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
 
     def echo(self, message):
         echo_command = " ".join(('echo', quoteme_double(message)))
+        if var_list.defined('ECHO_LOG_FILE'):
+            echo_command = " ".join((echo_command, "|", "tee", "-a", quoteme_double("$(ECHO_LOG_FILE)")))
         return echo_command
 
     def remark(self, remark):

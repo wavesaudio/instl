@@ -1,3 +1,11 @@
+???? 0.9.5
+
+    user visible changes, client:
+    * new variable: ECHO_LOG_FILE. If defined all echos from batch file will be teeed to this file. (Mac).    user visible changes, admin:
+
+    programmer visible changes:
+    * new method  configVarList.defined returns true if a value is defined and has none empty value. So calling with a variable name who's value consists of an empty string will return False.
+
 16/4/2014 0.9.4
 
     user visible changes, client:
