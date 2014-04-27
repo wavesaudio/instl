@@ -1,12 +1,17 @@
-???? 0.9.5
+27/4/2014 0.9.5  Shai Shasag <shai@waves.com>
 
     user visible changes, client:
-    * new variable: ECHO_LOG_FILE. If defined all echos from batch file will be teeed to this file. (Mac).    user visible changes, admin:
+    * Improved support for syncing from perforce.
+    * Logging of echo messages from batch files by using new variable ECHO_LOG_FILE. (Mac)
 
     programmer visible changes:
+    * New type of defaults file by repo type, i.e. P4.yaml, URL.yaml. Currently added P4.yaml to defaults folder.
+    * New utility function: P4GetPathFromDepotPath to get teh local disk path from p4 depot path.
+    * Usage of $(LOCAL_REPO_SOURCES_DIR) instead of $(LOCAL_REPO_SYNC_DIR)/$(SOURCE_PREFIX) - because p4 does not need SOURCE_PREFIX.
+    * new variable: ECHO_LOG_FILE. If defined all echos from batch file will be teeed to this file. (Mac).    user visible changes, admin:
     * new method  configVarList.defined returns true if a value is defined and has none empty value. So calling with a variable name who's value consists of an empty string will return False.
 
-16/4/2014 0.9.4
+16/4/2014 0.9.4  Shai Shasag <shai@waves.com>
 
     user visible changes, client:
     * Added new actions types for install items: copy_in, copy_out.

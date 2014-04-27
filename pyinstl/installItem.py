@@ -268,7 +268,9 @@ class InstallItem(object):
     def get_recursive_depends(self, items_map, out_set, orphan_set):
         if self.iid not in out_set:
             out_set.append(self.iid)
+            #print("get_recursive_depends: added", self.iid)
             for depend in self.depend_list():
+                #print("get_recursive_depends:", self.iid, "depends on", depend)
                 if depend not in out_set: # avoid cycles, save time
                     try:
                         if guid_re.match(depend): # if it's a guid translate to iid's
@@ -279,6 +281,8 @@ class InstallItem(object):
                             items_map[dependee].get_recursive_depends(items_map, out_set, orphan_set)
                     except KeyError:
                         orphan_set.append(depend)
+        #else:
+        #    print("get_recursive_depends: already added", self.iid)
 
 
     def repr_for_yaml_items(self, for_which_os):

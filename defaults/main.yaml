@@ -3,7 +3,7 @@
 __INSTL_VERSION__:
     - 0
     - 9
-    - 4
+    - 5
     
 --- !define
 
@@ -33,5 +33,4 @@ PROGRESS_STACCATO_PERIOD: 128
 # max file size 5 * 1024 * 1024
 MAX_FILE_SIZE: 5242880
 
-
-ECHO_LOG_FILE: $(__MAIN_OUT_FILE__).log
+#ECHO_LOG_FILE: $(__MAIN_OUT_FILE__).echo.log
