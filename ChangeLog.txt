@@ -3,6 +3,7 @@
     user visible changes, client:
     * Improved support for syncing from perforce.
     * Logging of echo messages from batch files by using new variable ECHO_LOG_FILE. (Mac)
+    * added --group --owner to rsync commands - should preserve user/group when copying under sudo.
 
     programmer visible changes:
     * New type of defaults file by repo type, i.e. P4.yaml, URL.yaml. Currently added P4.yaml to defaults folder.
