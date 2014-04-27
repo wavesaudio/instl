@@ -1,3 +1,13 @@
+???? 0.9.5
+
+    user visible changes, client:
+    * Improved support for syncing from perforce.
+
+    programmer visible changes:
+    * New type of defaults file by repo type, i.e. P4.yaml, URL.yaml. Currently added P4.yaml to defaults folder.
+    * New utility function: P4GetPathFromDepotPath to get teh local disk path from p4 depot path.
+    * Usage of $(LOCAL_REPO_SOURCES_DIR) instead of $(LOCAL_REPO_SYNC_DIR)/$(SOURCE_PREFIX) - because p4 does not need SOURCE_PREFIX.
+
 16/4/2014 0.9.4
 
     user visible changes, client:

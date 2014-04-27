@@ -10,6 +10,7 @@ import hashlib
 import rsa
 import base64
 import collections
+import subprocess
 
 def Is64Windows():
     return 'PROGRAMFILES(X86)' in os.environ
@@ -426,4 +427,21 @@ def make_one_list(*things):
             retVal.extend(thing)
         else:
             retVal.append(thing)
+    return retVal
+
+
+def P4GetPathFromDepotPath(depot_path):
+    retVal = None
+    command_parts = ["p4", "where", depot_path]
+    proc = subprocess.Popen(command_parts, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
+    _stdout, _stderr = proc.communicate()
+    retcode = proc.returncode
+    if retcode == 0:
+        lines = _stdout.split("\n")
+        where_line_reg_str = "".join( (re.escape(depot_path), "\s+", "//.+", "\s+", "(?P<disk_path>/.+)") )
+        match = re.match(where_line_reg_str, lines[0])
+        if match:
+            retVal = match.group('disk_path')
+            if retVal.endswith("/..."):
+                retVal = retVal[0:-4]
     return retVal
