@@ -89,9 +89,9 @@ class CopyToolRsync(CopyToolBase):
         ignore_spec = self.create_ignore_spec(ignore)
         if link_dest:
             the_link_dest = os.path.join(src_dir, "..")
-            sync_command = "rsync -l -r -E --delete {ignore_spec} --link-dest=\"{the_link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+            sync_command = "rsync --owner --group -l -r -E --delete {ignore_spec} --link-dest=\"{the_link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
         else:
-            sync_command = "rsync -l -r -E --delete {ignore_spec} \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+            sync_command = "rsync --owner --group -l -r -E --delete {ignore_spec} \"{src_dir}\" \"{trg_dir}\"".format(**locals())
 
         return sync_command
 
@@ -101,9 +101,9 @@ class CopyToolRsync(CopyToolBase):
         if link_dest:
             the_link_dest, src_file_name = os.path.split(src_file)
             relative_link_dest = os.path.relpath(the_link_dest, trg_dir)
-            sync_command = "rsync -l -r -E {ignore_spec} --link-dest=\"{relative_link_dest}\" \"{src_file}\" \"{trg_dir}\"".format(**locals())
+            sync_command = "rsync --owner --group -l -r -E {ignore_spec} --link-dest=\"{relative_link_dest}\" \"{src_file}\" \"{trg_dir}\"".format(**locals())
         else:
-            sync_command = "rsync -l -r -E {ignore_spec} \"{src_file}\" \"{trg_dir}\"".format(**locals())
+            sync_command = "rsync --owner --group -l -r -E {ignore_spec} \"{src_file}\" \"{trg_dir}\"".format(**locals())
         return sync_command
 
     def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
@@ -112,9 +112,9 @@ class CopyToolRsync(CopyToolBase):
         ignore_spec = self.create_ignore_spec(ignore)
         if link_dest:
             relative_link_dest = os.path.relpath(src_dir, trg_dir)
-            sync_command = "rsync -l -r -E {ignore_spec} --link-dest=\"{relative_link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+            sync_command = "rsync --owner --group -l -r -E {ignore_spec} --link-dest=\"{relative_link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
         else:
-            sync_command = "rsync -l -r -E {ignore_spec} \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+            sync_command = "rsync --owner --group -l -r -E {ignore_spec} \"{src_dir}\" \"{trg_dir}\"".format(**locals())
         return sync_command
 
     def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
@@ -124,9 +124,9 @@ class CopyToolRsync(CopyToolBase):
         ignore_spec = self.create_ignore_spec(ignore)
         if link_dest:
             relative_link_dest = os.path.relpath(src_dir, trg_dir)
-            sync_command = "rsync -l -E -d {ignore_spec} --link-dest=\"{relative_link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+            sync_command = "rsync --owner --group -l -E -d {ignore_spec} --link-dest=\"{relative_link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
         else:
-            sync_command = "rsync -l -E -d {ignore_spec} \"{src_dir}\"/* \"{trg_dir}\"".format(**locals())
+            sync_command = "rsync --owner --group -l -E -d {ignore_spec} \"{src_dir}\"/* \"{trg_dir}\"".format(**locals())
 
         return sync_command
 
