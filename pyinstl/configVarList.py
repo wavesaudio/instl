@@ -78,6 +78,10 @@ class ConfigVarList(object):
             retVal = sep.join(resolved_list)
         return retVal
 
+    def defined(self, var_name):
+        retVal = (var_name in self._ConfigVar_objs) and any(self._ConfigVar_objs[var_name])
+        return retVal
+
     def __str__(self):
         var_names = [''.join((name, ": ", self.get_str(name))) for name in self._ConfigVar_objs]
         return '\n'.join(var_names)
