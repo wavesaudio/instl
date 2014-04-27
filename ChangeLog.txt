@@ -1,7 +1,7 @@
 ???? 0.9.5
 
     user visible changes, client:
-    * Imporved support for syncing from perforce.
+    * Improved support for syncing from perforce.
 
     programmer visible changes:
     * New type of defaults file by repo type, i.e. P4.yaml, URL.yaml. Currently added P4.yaml to defaults folder.
