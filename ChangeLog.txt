@@ -1,3 +1,14 @@
+???? 0.9.6
+
+
+    user visible changes, client:
+    * new initial vars defined in main: __USRER_ID__, __GROUP_ID__ record the user and group when instl was called. Useful for usaing in the produced script, when called as sudo, to set permissions to the original owner.
+    * New variable from main.yaml: MKDIR_CMD to be able to call from index and mkdir command defined by instl. In this case on Mac MKDIR_CMD expands to mkdir_with_owner.
+    * Copy now calls mkdir_with_owner on Mac so to properly set owner and permissions for created folders.
+    * Copy scripts on Mac get a function mkdir_with_owner so to properly set owner and permissions for created folders.
+    * new method PlatformSpecificHelperBase.mkdir_with_owner defaults to PlatformSpecificHelperBase.mkdir, implemented on Mac to call locally defined mkdir_with_owner.
+
+
 27/4/2014 0.9.5  Shai Shasag <shai@waves.com>
 
     user visible changes, client:

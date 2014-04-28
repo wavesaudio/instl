@@ -316,7 +316,9 @@ def main():
                     "__COMMAND_NAMES__": command_names,
                     "__CURRENT_OS__": os_family_name,
                     "__CURRENT_OS_SECOND_NAME__": os_second_name,
-                    "__CURRENT_OS_NAMES__": current_os_names}
+                    "__CURRENT_OS_NAMES__": current_os_names,
+                    "__USRER_ID__": str(os.getuid()),
+                    "__GROUP_ID__": str(os.getgid())}
 
     logging.info("Command %s", options.command)
     if options.mode == "client":

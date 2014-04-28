@@ -34,6 +34,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
             "set -e",
             #"set -u",
             self.get_install_instructions_exit_func(),
+            self.get_install_instructions_mkdir_with_owner_func(),
             self.save_dir("TOP_SAVE_DIR"),
             self.start_time_measure())
         return retVal
@@ -53,6 +54,16 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
     def get_install_instructions_postfix(self):
         return ()
 
+    def get_install_instructions_mkdir_with_owner_func(self):
+        retVal = (
+            'mkdir_with_owner() {',
+            'if [ ! -e "$1" ]; then',
+            'mkdir -p "$1"',
+            'chown $(__USRER_ID__):$(__GROUP_ID__) "$1"',
+            'chmod a+rwx "$1"',
+            'fi }')
+        return retVal
+
     def start_time_measure(self):
         time_start_command = "Time_Measure_Start=$(date +%s)"
         return time_start_command
@@ -66,6 +77,10 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
 
     def mkdir(self, directory):
         mk_command = " ".join( ("mkdir", "-p", quoteme_double(directory) ) )
+        return mk_command
+
+    def mkdir_with_owner(self, directory):
+        mk_command = " ".join( ("mkdir_with_owner", quoteme_double(directory) ) )
         return mk_command
 
     def cd(self, directory):

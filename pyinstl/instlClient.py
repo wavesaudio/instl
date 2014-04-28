@@ -279,7 +279,7 @@ class InstlClient(InstlInstanceBase):
 
         for folder_name, items_in_folder in self.installState.install_items_by_target_folder.iteritems():
             logging.info("folder %s", var_list.resolve_string(folder_name))
-            self.batch_accum += self.platform_helper.mkdir(folder_name)
+            self.batch_accum += self.platform_helper.mkdir_with_owner(folder_name)
             self.batch_accum += self.platform_helper.cd(folder_name)
 
             # accumulate folder_in actions from all items, eliminating duplicates

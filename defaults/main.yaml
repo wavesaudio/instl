@@ -34,3 +34,9 @@ PROGRESS_STACCATO_PERIOD: 128
 MAX_FILE_SIZE: 5242880
 
 #ECHO_LOG_FILE: $(__MAIN_OUT_FILE__).echo.log
+
+--- !define_Mac
+MKDIR_CMD: mkdir_with_owner
+
+--- !define_Win
+MKDIR_CMD: mkdir
