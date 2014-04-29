@@ -1,4 +1,4 @@
-???? 0.9.6
+29/4/2014 0.9.6   Shai Shasag <shai@waves.com>
 
 
     user visible changes, client:
