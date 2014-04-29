@@ -179,6 +179,9 @@ class PlatformSpecificHelperBase(object):
         """ platform specific mkdir """
         pass
 
+    def mkdir_with_owner(self, directory):
+        return self.mkdir(directory)
+
     @abc.abstractmethod
     def cd(self, directory):
         """ platform specific cd """
