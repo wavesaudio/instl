@@ -96,6 +96,7 @@ class InstlInstanceBase(object):
                          "rsa_signature":   ("__RSA_SIGNATURE__", None),
                          "start_progress":  ("__START_DYNAMIC_PROGRESS__", "0"),
                          "total_progress":  ("__TOTAL_DYNAMIC_PROGRESS__", "0"),
+                         "just_with_number":  ("__JUST_WITH_NUMBER__", "0"),
                          }
 
         for attrib, var in const_attrib_to_var.iteritems():

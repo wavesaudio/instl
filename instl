@@ -69,6 +69,7 @@ class CommandLineOptions(object):
         self.rsa_signature = None
         self.start_progress = None
         self.total_progress = None
+        self.just_with_number = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
@@ -259,6 +260,15 @@ def prepare_args_parser():
                                 metavar='revision-to-create-file-for',
                                 dest='target_repo_rev',
                                 help="revision to create file for")
+
+
+    up_repo_rev_options = up_repo_rev_parser.add_argument_group(description='up_repo_rev arguments:')
+    up_repo_rev_options.add_argument('--just-with-number', '-j',
+                            required=False,
+                            nargs=1,
+                            metavar='just-with-number',
+                            dest='just_with_number',
+                            help="up load just the repo-rev file that ends with a specific number, not the general one")
 
     help_options = help_parser.add_argument_group(description='help subject:')
     help_options.add_argument('subject', nargs='?')

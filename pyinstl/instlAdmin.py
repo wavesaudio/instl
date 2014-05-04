@@ -381,6 +381,11 @@ class InstlAdmin(InstlInstanceBase):
                            "--exclude", '"$(UP_2_S3_STAMP_FILE_NAME)"',
                            "--exclude", '"$(CREATE_LINKS_STAMP_FILE_NAME)"'
                         ] )
+
+        up_repo_rev_file_command_parts = [self.platform_helper.run_instl(), "up-repo-rev", "--config-file", '"$(__CONFIG_FILE_PATH__)"', "--just-with-number", "$(__CURR_REPO_REV__)"]
+        accum += " ".join(up_repo_rev_file_command_parts)
+        accum += self.platform_helper.progress("up-repo-rev file - just with number")
+
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(UP_2_S3_STAMP_FILE_NAME)"])
         accum += self.platform_helper.progress("Uploaded $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
         accum += self.platform_helper.echo("done up2s3 revision $(__CURR_REPO_REV__)")
@@ -431,14 +436,19 @@ class InstlAdmin(InstlInstanceBase):
         bucket 	= s3.get_bucket(var_list.get_str("S3_BUCKET_NAME"))
         key_obj = boto.s3.key.Key(bucket)
 
+        just_with_number = int(var_list.get_str("__JUST_WITH_NUMBER__"))
+        if just_with_number > 0:
+            var_list.set_var("REPO_REV").append("$(__JUST_WITH_NUMBER__)")
+
         local_file = var_list.resolve_string("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)")
 
-        s3_path = var_list.resolve_string("admin/$(REPO_REV_FILE_NAME)")
-        key_obj.key = s3_path
-        key_obj.metadata={'Content-Type': 'text/plain'}
-        key_obj.set_contents_from_filename(local_file)
-        key_obj.set_acl('public-read') # must be done after the upload
-        print("uploaded to:", var_list.resolve_string("http://$(S3_BUCKET_NAME)/"+key_obj.key))
+        if just_with_number == 0:
+            s3_path = var_list.resolve_string("admin/$(REPO_REV_FILE_NAME)")
+            key_obj.key = s3_path
+            key_obj.metadata={'Content-Type': 'text/plain'}
+            key_obj.set_contents_from_filename(local_file)
+            key_obj.set_acl('public-read') # must be done after the upload
+            print("uploaded to:", var_list.resolve_string("http://$(S3_BUCKET_NAME)/"+key_obj.key))
 
         s3_path = var_list.resolve_string("admin/$(REPO_REV_FILE_NAME).$(REPO_REV)")
         key_obj.key = s3_path
@@ -469,24 +479,28 @@ class InstlAdmin(InstlInstanceBase):
         svn_props_command = [var_list.get_str("SVN_CLIENT_PATH"), "proplist", "--depth", "infinity"]
         proc = subprocess.Popen(svn_props_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         my_stdout, my_stderr = proc.communicate()
-        svn_props = StringIO.StringIO(my_stdout)
-        #svn_props.name = "svn info"
-        self.svnTree.read_props(svn_props)
+        with open("../svn-proplist-for-fix-props.txt", "w") as wfd:
+            wfd.write(my_stdout)
+        with open("../svn-proplist-for-fix-props.txt", "r") as rfd:
+            self.svnTree.read_props(rfd)
+
+        self.batch_accum += self.platform_helper.cd(repo_folder)
 
         for item in self.svnTree.walk_items():
             shouldBeExec = self.should_be_exec(item)
-            print(shouldBeExec, item.full_path())
-            continue
             if item.props:
                 for extra_prop in item.props:
-                    print("remove prop", extra_prop, "from", item.full_path())
+                    #print("remove prop", extra_prop, "from", item.full_path())
                     self.batch_accum += " ".join( (var_list.get_str("SVN_CLIENT_PATH"), "propdel", "svn:"+extra_prop, '"'+item.full_path()+'"') )
+                    self.batch_accum += self.platform_helper.progress(" ".join(("remove prop", extra_prop, "from", item.full_path())) )
             if item.isExecutable() and not shouldBeExec:
-                print("remove prop", "executable", "from", item.full_path())
+                #print("remove prop", "executable", "from", item.full_path())
                 self.batch_accum += " ".join( (var_list.get_str("SVN_CLIENT_PATH"), "propdel", 'svn:executable', '"'+item.full_path()+'"') )
+                self.batch_accum += self.platform_helper.progress(" ".join(("remove prop", "executable", "from", item.full_path())) )
             elif not item.isExecutable() and shouldBeExec:
-                print("add prop", "executable", "to", item.full_path())
+                #print("add prop", "executable", "to", item.full_path())
                 self.batch_accum += " ".join( (var_list.get_str("SVN_CLIENT_PATH"), "propset", 'svn:executable', 'yes', '"'+item.full_path()+'"') )
+                self.batch_accum += self.platform_helper.progress(" ".join(("add prop", "executable", "from", item.full_path())) )
         self.create_variables_assignment()
         os.chdir(save_dir)
         self.write_batch_file()
