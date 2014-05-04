@@ -1,9 +1,14 @@
 ???? 0.9.7
 
     user visible changes, admin:
-    * Fixed a probelm where softlinks would be followed during wtar.
+    * Fixed a problem where softlinks would be followed during wtar.
     * Added progress report to fix-symlinks
     * Added progress report to stage2svn
+    * Command up-repo-rev: added the option to up load only the repo rev file with the number at it's tail, not the official one. The option in called --just-with-number.
+    * Command up2s3: Now uploads the numbers repo-rev file using the new option --just-with-num of command up-repo-rev.
+    * Command file-props:
+          - The command did not actually work until now, just printed what should have been done - now it works.
+          - file svn-proplist-for-fix-props.txt is created for reference.
 
 29/4/2014 0.9.6   Shai Shasag <shai@waves.com>
 
