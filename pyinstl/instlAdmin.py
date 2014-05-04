@@ -537,6 +537,8 @@ class InstlAdmin(InstlInstanceBase):
                     self.batch_accum += " ".join( (var_list.get_str("SVN_CLIENT_PATH"), "rm",  "'"+symlink_file+"'") )
                 else:
                     self.batch_accum += self.platform_helper.rmfile(symlink_file)
+                self.batch_accum += self.platform_helper.progress(symlink_text_path)
+                self.batch_accum += self.platform_helper.new_line()
         self.create_variables_assignment()
         self.write_batch_file()
         if "__RUN_BATCH_FILE__" in var_list:
@@ -566,15 +568,18 @@ class InstlAdmin(InstlInstanceBase):
                 self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(item_path, comperer.right, link_dest=False, ignore=".svn")
             else:
                 raise InstlException(item_path+" not a file, dir or symlink, an abomination!")
+            self.batch_accum += self.platform_helper.progress(item_path)
 
         # tell svn about new items, svn will not accept 'add' for changed items
         for item in comperer.left_only:
             self.batch_accum += self.platform_helper.svn_add_item(os.path.join(comperer.right, item))
+            self.batch_accum += self.platform_helper.progress(os.path.join(comperer.right, item))
 
         # removed items:
         for item in comperer.right_only:
             item_path = os.path.join(comperer.left, item)
             self.batch_accum += self.platform_helper.svn_remove_item(os.path.join(comperer.right, item))
+            self.batch_accum += self.platform_helper.progress(os.path.join(comperer.right, item))
 
         # recurse to sub folders
         for sub_comperer in comperer.subdirs.values():
@@ -613,12 +618,13 @@ class InstlAdmin(InstlInstanceBase):
             items_to_tar = list()
             for dir_item in dir_items:
                 dir_item_full_path = os.path.join(folder_to_check, dir_item)
-                to_tar = self.should_wtar(dir_item_full_path, compiled_regex_list, max_file_size)
-                if to_tar:
-                    items_to_tar.append(dir_item)
-                else:
-                    if os.path.isdir(dir_item_full_path):
-                        folders_to_check.append(dir_item_full_path)
+                if not os.path.islink(dir_item_full_path):
+                    to_tar = self.should_wtar(dir_item_full_path, compiled_regex_list, max_file_size)
+                    if to_tar:
+                        items_to_tar.append(dir_item)
+                    else:
+                        if os.path.isdir(dir_item_full_path):
+                            folders_to_check.append(dir_item_full_path)
             if items_to_tar:
                 self.batch_accum += self.platform_helper.cd(folder_to_check)
                 for item_to_tar in items_to_tar:
@@ -633,6 +639,7 @@ class InstlAdmin(InstlInstanceBase):
                     elif os.path.isfile(item_to_tar_full_path):
                         self.batch_accum += self.platform_helper.rmfile(item_to_tar)
                     self.batch_accum += self.platform_helper.progress(item_to_tar_full_path)
+                    self.batch_accum += self.platform_helper.new_line()
         self.create_variables_assignment()
         self.write_batch_file()
         if "__RUN_BATCH_FILE__" in var_list:
