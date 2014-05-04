@@ -1,5 +1,8 @@
 ???? 0.9.7
 
+    user visible changes, client:
+    * display if checksum fails for a file, output expected and found checksums.
+
     user visible changes, admin:
     * Fixed a problem where softlinks would be followed during wtar.
     * Added progress report to fix-symlinks
