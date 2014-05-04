@@ -1,3 +1,10 @@
+???? 0.9.7
+
+    user visible changes, admin:
+    * Fixed a probelm where softlinks would be followed during wtar.
+    * Added progress report to fix-symlinks
+    * Added progress report to stage2svn
+
 29/4/2014 0.9.6   Shai Shasag <shai@waves.com>
 
 
