@@ -193,7 +193,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         file_list, dir_list = self.work_info_map.sorted_sub_items()
 
-        prefix_accum = BatchAccumulator() # sub-accumulator for unwtar
+        prefix_accum = BatchAccumulator() # sub-accumulator for prefix instructions
         prefix_accum.set_current_section('sync')
         for need_item in file_list + dir_list:
             self.create_prefix_instructions_for_item(prefix_accum, need_item)

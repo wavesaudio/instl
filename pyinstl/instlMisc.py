@@ -69,24 +69,30 @@ class InstlMisc(InstlInstanceBase):
 
     def do_unwtar(self):
         for root, dirs, files in os.walk(".", followlinks=False):
+            files_to_unwtar = list()
+            # find split files and join them
             for afile in files:
                 afile_path = os.path.join(root, afile)
-                wtar_file_path = None
                 if afile_path.endswith(".wtar.aa"):
-                    wtar_file_path = self.join_split_files(afile_path)
-                elif afile_path.endswith(".wtar"):
-                    wtar_file_path = afile_path
-                if wtar_file_path:
-                    done_file = wtar_file_path+".done"
-                    if not os.path.isfile(done_file):
-                        try:
-                            with tarfile.open(wtar_file_path, "r") as tar:
-                                tar.extractall(root)
-                            self.dynamic_progress("unwtar {wtar_file_path}".format(**locals()))
-                        except tarfile.ReadError as re_er:
-                            print("tarfile read error while opening file", os.path.abspath(wtar_file_path))
-                            raise
-                        with open(done_file, "a"): os.utime(done_file, None)
+                    files_to_unwtar.append(self.join_split_files(afile_path))
+
+            # find unsplit wtar files
+            for afile in files:
+                afile_path = os.path.join(root, afile)
+                if afile_path.endswith(".wtar"):
+                    files_to_unwtar.append(afile_path)
+
+            for wtar_file_path in files_to_unwtar:
+                done_file = wtar_file_path+".done"
+                if not os.path.isfile(done_file):
+                    try:
+                        with tarfile.open(wtar_file_path, "r") as tar:
+                            tar.extractall(root)
+                        self.dynamic_progress("unwtar {wtar_file_path}".format(**locals()))
+                    except tarfile.ReadError as re_er:
+                        print("tarfile read error while opening file", os.path.abspath(wtar_file_path))
+                        raise
+                    with open(done_file, "a"): os.utime(done_file, None)
 
     def join_split_files(self, first_file):
         base_folder, base_name = os.path.split(first_file)
@@ -99,7 +105,9 @@ class InstlMisc(InstlInstanceBase):
                 for afile in matching_files:
                     with open(os.path.join(base_folder, afile), "rb") as rfd:
                         wfd.write(rfd.read())
+            # create done file for the .wtar.aa file
             with open(done_file, "a"): os.utime(done_file, None)
+            # now remove the done file for the newly created .wtar file
             joined_file_done_path = joined_file_path+".done"
             if os.path.isfile(joined_file_done_path):
                 os.remove(joined_file_done_path)
