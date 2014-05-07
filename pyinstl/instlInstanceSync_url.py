@@ -183,8 +183,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
     def create_download_instructions(self):
         self.instlObj.batch_accum.set_current_section('sync')
-        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("starting sync")
-        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("from $(SYNC_BASE_URL)/$(SOURCE_PREFIX)")
+        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Starting sync from $(SYNC_BASE_URL)/$(SOURCE_PREFIX)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir("$(LOCAL_REPO_SYNC_DIR)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.cd("$(LOCAL_REPO_SYNC_DIR)")
         self.sync_base_url = var_list.resolve_string("$(SYNC_BASE_URL)")
@@ -237,14 +236,14 @@ class InstlInstanceSync_url(InstlInstanceSync):
         if num_files_to_check > 0:
             self.instlObj.batch_accum += self.instlObj.platform_helper.check_checksum_for_folder("$(TO_SYNC_INFO_MAP_PATH)")
             self.instlObj.platform_helper.num_items_for_progress_report += num_files_to_check
-            self.instlObj.batch_accum += self.instlObj.platform_helper.progress(var_list.resolve_string("Check checksum done"))
+            self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Check checksum done")
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
         num_files_to_unwtar_estimation = self.estimate_num_unwtar_actions()
         logging.info("Num files to unwtar: %d", num_files_to_unwtar_estimation)
         self.instlObj.batch_accum += self.instlObj.platform_helper.unwtar_current_folder()
         self.instlObj.platform_helper.num_items_for_progress_report += num_files_to_unwtar_estimation
-        self.instlObj.batch_accum += self.instlObj.platform_helper.progress(var_list.resolve_string("unwtar done"))
+        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Unwtar done")
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
     def create_prefix_instructions_for_item(self, accum, item, path_so_far = list()):
@@ -316,7 +315,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         elif item.isFile():
             if item.user_data:
                 accum += self.instlObj.platform_helper.check_checksum_for_file(item.full_path(), item.checksum())
-                accum += self.instlObj.platform_helper.progress_staccato("checking checksum")
+                accum += self.instlObj.platform_helper.progress_staccato("Checking checksum")
         elif item.isDir():
             path_so_far.append(item.name())
             file_list, dir_list = item.sorted_sub_items()

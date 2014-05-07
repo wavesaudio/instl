@@ -433,8 +433,8 @@ class DownloadTool_win_curl(DownloadToolBase):
             max_time         = var_list.get_str("CURL_MAX_TIME")
             retries          = var_list.get_str("CURL_RETRIES")
             actual_num_files = max(1, min(num_urls_to_download / 8, num_files))
-            curl_config_file_path_parts = curl_config_file_path.split(".")
-            file_name_list = [".".join( curl_config_file_path_parts[:-1]+[str(file_i)]+curl_config_file_path_parts[-1:]  ) for file_i in xrange(actual_num_files)]
+
+            file_name_list = ["-".join( (curl_config_file_path, str(file_i))  ) for file_i in xrange(actual_num_files)]
             wfd_list = list()
             for file_name in file_name_list:
                 wfd_list.append(open(file_name, "w"))

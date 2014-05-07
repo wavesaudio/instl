@@ -169,7 +169,7 @@ class InstlClient(InstlInstanceBase):
             raise ValueError('REPO_TYPE is not defined in input file')
         syncer.init_sync_vars()
         syncer.create_sync_instructions(self.installState)
-        self.batch_accum += self.platform_helper.progress("done sync")
+        self.batch_accum += self.platform_helper.progress("Done sync")
 
     def do_copy(self):
         logging.info("Creating copy instructions")
@@ -179,7 +179,7 @@ class InstlClient(InstlInstanceBase):
     def do_synccopy(self):
         self.do_sync()
         self.do_copy()
-        self.batch_accum += self.platform_helper.progress("done synccopy")
+        self.batch_accum += self.platform_helper.progress("Done synccopy")
 
     def repr_for_yaml(self, what=None):
         """ Create representation of self suitable for printing as yaml.
@@ -248,20 +248,19 @@ class InstlClient(InstlInstanceBase):
             logging.debug("... %s: %s", identifier, var_list.get_str(identifier))
 
     def init_copy_vars(self):
-        pass
+        self.action_type_to_progress_message = {'copy_in': "before action", 'copy_out': "after action",
+                                                'folder_in': "before action", 'folder_out': "after action"}
 
     def create_copy_instructions(self):
         # copy and actions instructions for sources
         self.batch_accum.set_current_section('copy')
-        self.batch_accum += self.platform_helper.progress("starting copy")
-
-        self.batch_accum += self.platform_helper.progress("from $(LOCAL_REPO_SOURCES_DIR)")
+        self.batch_accum += self.platform_helper.progress("Starting copy from $(LOCAL_REPO_SOURCES_DIR)")
 
         self.accumulate_unique_actions('copy_in', self.installState.full_install_items)
 
         if 'Mac' in var_list.get_list("__CURRENT_OS_NAMES__") and 'Mac' in var_list.get_list("TARGET_OS"):
             self.batch_accum += self.platform_helper.resolve_symlink_files(in_dir="$(LOCAL_REPO_SOURCES_DIR)")
-            self.batch_accum += self.platform_helper.progress("resolve .symlink files")
+            self.batch_accum += self.platform_helper.progress("Resolve .symlink files")
 
             have_map = svnTree.SVNTree()
             have_info_path = var_list.get_str("HAVE_INFO_MAP_PATH")
@@ -273,7 +272,7 @@ class InstlClient(InstlInstanceBase):
                     self.batch_accum += self.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")
                     self.batch_accum += self.platform_helper.set_exec_for_folder("$(HAVE_INFO_MAP_PATH)")
                     self.platform_helper.num_items_for_progress_report += num_files_to_set_exec
-                    self.batch_accum += self.platform_helper.progress(var_list.resolve_string("Set exec done"))
+                    self.batch_accum += self.platform_helper.progress("Set exec done")
                     self.batch_accum += self.platform_helper.new_line()
                     self.batch_accum += self.platform_helper.popd()
 
@@ -293,7 +292,7 @@ class InstlClient(InstlInstanceBase):
                     self.batch_accum += installi.action_list('before')
                     self.create_copy_instructions_for_source(source)
                     self.batch_accum += installi.action_list('after')
-                    self.batch_accum += self.platform_helper.progress("{installi.iid}: {installi.name}".format(**locals()))
+                    self.batch_accum += self.platform_helper.progress("Copy {installi.name}".format(**locals()))
             self.batch_accum += self.platform_helper.copy_tool.end_copy_folder()
             logging.info("... copy actions: %d", len(self.batch_accum) - batch_accum_len_before)
 
@@ -330,7 +329,7 @@ class InstlClient(InstlInstanceBase):
         for iid in self.installState.orphan_install_items:
             logging.info("Orphan item: %s", iid)
             self.batch_accum += self.platform_helper.echo("Don't know how to install "+iid)
-        self.batch_accum += self.platform_helper.progress("done copy")
+        self.batch_accum += self.platform_helper.progress("Done copy")
 
     def accumulate_unique_actions(self, action_type, iid_list):
             """ accumulate action_type actions from iid_list, eliminating duplicates"""
@@ -338,11 +337,17 @@ class InstlClient(InstlInstanceBase):
             for IID in iid_list:
                 installi = self.install_definitions_index[IID]
                 item_actions = installi.action_list(action_type)
+                num_unique_actions = 0
                 for an_action in item_actions:
                     len_before = len(unique_actions)
                     unique_actions.append(an_action)
-                    if len_before < len(unique_actions): # add progress only for the first same action
-                        unique_actions.append(self.platform_helper.progress(action_type+" action: "+IID))
+                    len_after = len(unique_actions)
+                    if len_before < len_after: # add progress only for the first same action
+                        num_unique_actions += 1
+                        action_description = self.action_type_to_progress_message[action_type]
+                        if num_unique_actions > 1:
+                            action_description = " ".join( (action_description, str(num_unique_actions)) )
+                        unique_actions.append(self.platform_helper.progress("{installi.name} {action_description}".format(**locals())))
             self.batch_accum += unique_actions
             logging.info("... %s actions: %d", action_type, len(unique_actions))
 

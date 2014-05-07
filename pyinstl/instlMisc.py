@@ -88,7 +88,7 @@ class InstlMisc(InstlInstanceBase):
                     try:
                         with tarfile.open(wtar_file_path, "r") as tar:
                             tar.extractall(root)
-                        self.dynamic_progress("unwtar {wtar_file_path}".format(**locals()))
+                        self.dynamic_progress("Unwtar {wtar_file_path}".format(**locals()))
                     except tarfile.ReadError as re_er:
                         print("tarfile read error while opening file", os.path.abspath(wtar_file_path))
                         raise
