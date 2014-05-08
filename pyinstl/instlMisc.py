@@ -53,7 +53,7 @@ class InstlMisc(InstlInstanceBase):
     def do_help(self):
         import pyinstl.helpHelper
         help_folder_path = os.path.join(var_list.resolve_string("$(__INSTL_DATA_FOLDER__)"), "help")
-        pyinstl.helpHelper.do_help(var_list.get_str("__HELP_SUBJECT__"), help_folder_path)
+        pyinstl.helpHelper.do_help(var_list.get_str("__HELP_SUBJECT__"), help_folder_path, self)
 
     def do_parallel_run(self):
         processes_list_file = var_list.get_str("__MAIN_INPUT_FILE__")

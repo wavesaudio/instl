@@ -23,8 +23,9 @@ class HelpItem(object):
         return self.texts.get("long", "")
 
 class HelpHelper(object):
-    def __init__(self):
+    def __init__(self, instlObj):
         self.help_items = dict()
+        self.instlObj = instlObj
 
     def read_help_file(self, help_file_path):
         with open_for_read_file_or_url(help_file_path, None) as file_fd:
@@ -74,17 +75,41 @@ class HelpHelper(object):
                             ))
         return retVal
 
-def do_help(subject, help_folder_path):
-    hh = HelpHelper()
+    def defaults_help(self):
+        defaults_folder_path = os.path.join(var_list.resolve_string("$(__INSTL_DATA_FOLDER__)"), "defaults")
+        for yaml_file in os.listdir(defaults_folder_path):
+            if fnmatch.fnmatch(yaml_file, '*.yaml') and yaml_file != "P4.yaml": # hack to not read the P4 defaults
+                self.instlObj.read_yaml_file(os.path.join(defaults_folder_path, yaml_file))
+        defaults_list = [("Variable name", "Raw value", "Resolved value"),
+                         ("_____________", "_________", "______________")]
+        for var in sorted(var_list):
+            if not var.startswith("__"):
+                cv = var_list.get_configVar_obj(var)
+                raw_value = " ".join([value for value in cv])
+                resolved_value = var_list.get_str(var)
+                if raw_value != resolved_value:
+                    defaults_list.append( (var, raw_value, resolved_value) )
+                else:
+                    defaults_list.append( (var, raw_value) )
+
+        col_format = gen_col_format(max_widths(defaults_list))
+        for res_line in defaults_list:
+            print(col_format[len(res_line)].format(*res_line))
+
+def do_help(subject, help_folder_path, instlObj):
+    hh = HelpHelper(instlObj)
     for help_file in os.listdir(help_folder_path):
         if fnmatch.fnmatch(help_file, '*help.yaml'):
             hh.read_help_file(os.path.join(help_folder_path, help_file))
 
-    help_file_path = os.path.join(os.environ.get("_MEIPASS2", ""), "pyinstl/help/instl_help.yaml")
     if not subject:
         for topic in hh.topics():
             print("instl", "help", "<"+topic+">")
+        print("instl", "help", "<defaults>")
     elif subject in hh.topics():
         print(hh.topic_summery(subject))
     else:
-        print(hh.item_help(subject))
+        if subject == "defaults":
+            hh.defaults_help()
+        else:
+            print(hh.item_help(subject))

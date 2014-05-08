@@ -2,6 +2,11 @@
 
     user visible changes, client:
     * Made progress messages more suitable for display in Central.
+    * Improved help texts.
+    * New help topic 'defaults' will display default variables and their values.
+
+    user visible changes, admin:
+    Added variables PUBLIC_KEY_FILE, PRIVATE_KEY_FILE to defaults file InstlAdmin.yaml.
 
 4/5/2014 0.9.7   Shai Shasag <shai@waves.com>
 
