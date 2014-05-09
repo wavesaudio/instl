@@ -4,9 +4,13 @@
     * Made progress messages more suitable for display in Central.
     * Improved help texts.
     * New help topic 'defaults' will display default variables and their values.
+    * Copy instructions are performed from top folder down.
 
     user visible changes, admin:
     Added variables PUBLIC_KEY_FILE, PRIVATE_KEY_FILE to defaults file InstlAdmin.yaml.
+
+    programmer visible changes:
+    * Copy now sorts the install_items_by_target_folder list.
 
 4/5/2014 0.9.7   Shai Shasag <shai@waves.com>
 

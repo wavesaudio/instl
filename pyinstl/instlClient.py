@@ -276,7 +276,9 @@ class InstlClient(InstlInstanceBase):
                     self.batch_accum += self.platform_helper.new_line()
                     self.batch_accum += self.platform_helper.popd()
 
-        for folder_name, items_in_folder in self.installState.install_items_by_target_folder.iteritems():
+        sorted_folder_list = sorted(self.installState.install_items_by_target_folder, key=lambda fold: var_list.resolve_string(fold))
+        for folder_name in sorted_folder_list:
+            items_in_folder = self.installState.install_items_by_target_folder[folder_name]
             logging.info("folder %s", var_list.resolve_string(folder_name))
             self.batch_accum += self.platform_helper.mkdir_with_owner(folder_name)
             self.batch_accum += self.platform_helper.cd(folder_name)
