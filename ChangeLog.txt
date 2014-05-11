@@ -2,7 +2,7 @@
 
     user visible changes, client:
     * Made progress messages more suitable for display in Central.
-    * actions output messages changed to pre-install step" "post-install step",  "pre-copy step", "post-copy step"
+    * actions output messages changed to "pre-install step" "post-install step",  "pre-copy step", "post-copy step"
     * Improved help texts.
     * New help topic 'defaults' will display default variables and their values.
     * Copy instructions are performed from top folder down.
