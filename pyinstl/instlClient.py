@@ -248,13 +248,20 @@ class InstlClient(InstlInstanceBase):
             logging.debug("... %s: %s", identifier, var_list.get_str(identifier))
 
     def init_copy_vars(self):
-        self.action_type_to_progress_message = {'copy_in': "before action", 'copy_out': "after action",
-                                                'folder_in': "before action", 'folder_out': "after action"}
+        self.action_type_to_progress_message = {'copy_in': "pre-install step", 'copy_out': "post-install step",
+                                                'folder_in': "pre-copy step", 'folder_out': "post-copy step"}
 
     def create_copy_instructions(self):
         # copy and actions instructions for sources
         self.batch_accum.set_current_section('copy')
         self.batch_accum += self.platform_helper.progress("Starting copy from $(LOCAL_REPO_SOURCES_DIR)")
+
+        sorted_target_folder_list = sorted(self.installState.install_items_by_target_folder, key=lambda fold: var_list.resolve_string(fold))
+
+        # first create all target folders so to avoid dependency order problems such as creating links between folders
+        for folder_name in sorted_target_folder_list:
+            self.batch_accum += self.platform_helper.mkdir_with_owner(folder_name)
+        self.batch_accum += self.platform_helper.progress("Make directories done")
 
         self.accumulate_unique_actions('copy_in', self.installState.full_install_items)
 
@@ -276,11 +283,9 @@ class InstlClient(InstlInstanceBase):
                     self.batch_accum += self.platform_helper.new_line()
                     self.batch_accum += self.platform_helper.popd()
 
-        sorted_folder_list = sorted(self.installState.install_items_by_target_folder, key=lambda fold: var_list.resolve_string(fold))
-        for folder_name in sorted_folder_list:
+        for folder_name in sorted_target_folder_list:
             items_in_folder = self.installState.install_items_by_target_folder[folder_name]
             logging.info("folder %s", var_list.resolve_string(folder_name))
-            self.batch_accum += self.platform_helper.mkdir_with_owner(folder_name)
             self.batch_accum += self.platform_helper.cd(folder_name)
 
             # accumulate folder_in actions from all items, eliminating duplicates
