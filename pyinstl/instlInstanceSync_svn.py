@@ -29,7 +29,7 @@ class InstlInstanceSync_svn(InstlInstanceSync):
 
     def create_sync_instructions(self, installState):
         self.ii.batch_accum.set_current_section('sync')
-        self.ii.batch_accum += self.ii.platform_helper.progress("from $(SYNC_BASE_URL)/$(SOURCE_PREFIX)")
+        self.ii.batch_accum += self.ii.platform_helper.progress("Starting sync from $(SYNC_BASE_URL)/$(SOURCE_PREFIX)")
         self.ii.batch_accum += self.ii.platform_helper.mkdir("$(LOCAL_SYNC_DIR)")
         self.ii.batch_accum += self.ii.platform_helper.cd("$(LOCAL_SYNC_DIR)")
         self.ii.batch_accum.indent_level += 1
@@ -40,7 +40,7 @@ class InstlInstanceSync_svn(InstlInstanceSync):
             if installi.source_list():
                 for source in installi.source_list():
                     self.ii.batch_accum += self.create_svn_sync_instructions_for_source(source)
-            self.ii.batch_accum += self.ii.platform_helper.progress("{installi.iid}: {installi.name}".format(**locals()))
+            self.ii.batch_accum += self.ii.platform_helper.progress("Sync {installi.name}".format(**locals()))
         for iid in installState.orphan_install_items:
             self.ii.batch_accum += self.ii.platform_helper.echo("Don't know how to sync "+iid)
         self.ii.batch_accum.indent_level -= 1

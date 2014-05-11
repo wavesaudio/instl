@@ -1,3 +1,19 @@
+11/5/2014 0.9.8   Shai Shasag <shai@waves.com>
+
+    user visible changes, client:
+    * Made progress messages more suitable for display in Central.
+    * actions output messages changed to "pre-install step" "post-install step",  "pre-copy step", "post-copy step"
+    * Improved help texts.
+    * New help topic 'defaults' will display default variables and their values.
+    * Copy instructions are performed from top folder down.
+    * During copy all target folders are created before any other action, so to avoid dependency order problems such as creating links between folders
+
+    user visible changes, admin:
+    Added variables PUBLIC_KEY_FILE, PRIVATE_KEY_FILE to defaults file InstlAdmin.yaml.
+
+    programmer visible changes:
+    * Copy now sorts the install_items_by_target_folder list.
+
 4/5/2014 0.9.7   Shai Shasag <shai@waves.com>
 
     user visible changes, client:
