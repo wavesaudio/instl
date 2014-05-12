@@ -224,6 +224,16 @@ split_file()
     def make_executable(self, filepath):
         return self.chmod("a+x", filepath)
 
+    def unlock(self, filepath, recursive=False):
+        """ Remove the system's read-only flag, this is different from permissions.
+            For changing permissions use chmod.
+        """
+        recurse_flag = ""
+        if recursive:
+            recurse_flag = "-R"
+        nouchg_command = " ".join( ("chflags", recurse_flag, "nouchg", quoteme_double(filepath)) )
+        return nouchg_command
+
     def touch(self, filepath):
         touch_command = " ".join( ("touch", quoteme_double(filepath)) )
         return touch_command

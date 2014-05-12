@@ -1,4 +1,4 @@
-12/5/2014 0.9.9   Shai Shasag <shai@waves.com>
+??? 0.9.9   Shai Shasag <shai@waves.com>
 
     user visible changes, client:
     * New line after each folder in copy operations.
@@ -7,12 +7,14 @@
 
     user visible changes, admin:
     * wtar command checks if tared files should be executable and adjust. it's permissions.
+    * stage2svn uses chflags -R nouchg to remove the Lock flag that might be on files copied from smb server.
 
     programmer visible changes:
     * New method InstlItem.all_action_list, returns a list of all actions for an item (before, after, folder_in, folder_out, copy_in, copy_out) intended so the total number of actions for item can be known.
     * New methods for InstlAdmin: is_file_exec, should_file_be_exec to deal with executable bits in the staging folder.
     * Removed unused methods of InstlInstanceSync_url: create_unwtar_instructions_for_item, create_checksum_instructions_for_item, these already have their own instl command.
     * New platformHelper method chmod: implemented for Linux and Mac only. make_executable is now implemented using chmod.
+    * New platfromHelper method: unlock, Remove the system's read-only flag, implemented for Mac only.
 
 11/5/2014 0.9.8   Shai Shasag <shai@waves.com>
 

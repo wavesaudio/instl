@@ -121,6 +121,12 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
     def make_executable(self, filepath):
         return self.chmod("a+x", filepath)
 
+    def unlock(self, filepath, recursive=False):
+        """ Remove the system's read-only flag, this is different from permissions.
+            Not relevant for Linux.
+        """
+        return ""
+
     def touch(self, filepath):
         touch_command = " ".join( ("touch", quoteme_double(filepath) ) )
         return touch_command

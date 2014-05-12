@@ -328,6 +328,13 @@ class PlatformSpecificHelperBase(object):
         pass
 
     @abc.abstractmethod
+    def unlock(self, filepath, recursive=False):
+        """ Remove the system's read-only flag, this is different from permissions.
+            For changing permissions use chmod.
+        """
+        pass
+
+    @abc.abstractmethod
     def touch(self, filepath):
         pass
 

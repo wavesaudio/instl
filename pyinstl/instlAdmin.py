@@ -570,6 +570,7 @@ class InstlAdmin(InstlInstanceBase):
         self.batch_accum.set_current_section('admin')
         stage_folder = var_list.resolve_string(("$(STAGING_FOLDER)"))
         svn_folder = var_list.resolve_string(("$(SVN_CHECKOUT_FOLDER)"))
+        self.batch_accum += self.platform_helper.unlock(stage_folder, recursive=True)
         self.batch_accum += self.platform_helper.cd(svn_folder)
         comperer = filecmp.dircmp(stage_folder, svn_folder, ignore=[".svn", ".DS_Store", "Icon\015"])
         self.stage2svn_for_folder(comperer)

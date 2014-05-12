@@ -344,6 +344,12 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def make_executable(self, filepath):
         raise NotImplementedError
 
+    def unlock(self, filepath, recursive=False):
+        """ Remove the system's read-only flag, this is different from permissions.
+            Not relevant for Linux.
+        """
+        raise NotImplementedError
+
     def touch(self, filepath):
         touch_command = " ".join( ("type", "NUL", ">", quoteme_double(filepath)) )
         return touch_command
