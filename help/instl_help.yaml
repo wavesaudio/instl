@@ -73,9 +73,9 @@ command:
     fix-symlinks:
         short: Replace symlinks with .symlink files. (admin command)
         long: |
-            Usage:instl fix-symlinks --out path-to-output-file --folder folder-to-replace-symlinks-in [--svn] [--run]
+            Usage:instl fix-symlinks  --config-file path_to_config_file --out path-to-output-file [--run]
             Since s3 cannot deal with symlinks, symlinks should not be committed to svn. Instead the fix-symlinks command will replace each symlinks with file with the same name and the extension .symlink. The .symlink file will contain the relative path of the symlink.
-            If the --svn flag is given, fix-symlinks will issue svn add/remove commands instead of removing the old symlink file. --svn flag given only if folder_to_fix is an svn checkout folder.
+            The folder where symlinks will be fixed is specifies in STAGING_FOLDER variable in path_to_config_file.
             Keep in mind that fix-symlinks command does not actually do anything, unless the --run flag is given. You will need to run the produced batch file in order to actually fix the symlinks.
 
     help:

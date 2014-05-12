@@ -533,7 +533,7 @@ class InstlAdmin(InstlInstanceBase):
     # to do: prevent create-links and up2s3 if there are files marked as symlinks
     def do_fix_symlinks(self):
         self.batch_accum.set_current_section('admin')
-        folder_to_check = var_list.resolve_string("$(__FOLDER__)")
+        folder_to_check = var_list.resolve_string("$(STAGING_FOLDER)")
         valid_symlinks = list()
         broken_symlinks = list()
         for root, dirs, files in os.walk(folder_to_check, followlinks=False):
@@ -554,11 +554,7 @@ class InstlAdmin(InstlInstanceBase):
             for symlink_file, link_value in valid_symlinks:
                 symlink_text_path = symlink_file+".symlink"
                 self.batch_accum += " ".join( ("echo", "-n", "'"+link_value+"'", ">", "'"+symlink_text_path+"'") )
-                if "__ISSUE_SVN_COMMANDS__" in var_list:
-                    self.batch_accum += " ".join( (var_list.get_str("SVN_CLIENT_PATH"), "add", "'"+symlink_text_path+"'") )
-                    self.batch_accum += " ".join( (var_list.get_str("SVN_CLIENT_PATH"), "rm",  "'"+symlink_file+"'") )
-                else:
-                    self.batch_accum += self.platform_helper.rmfile(symlink_file)
+                self.batch_accum += self.platform_helper.rmfile(symlink_file)
                 self.batch_accum += self.platform_helper.progress(symlink_text_path)
                 self.batch_accum += self.platform_helper.new_line()
         self.create_variables_assignment()

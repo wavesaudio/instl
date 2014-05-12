@@ -61,8 +61,6 @@ class CommandLineOptions(object):
         self.target_repo_rev = None
         self.base_repo_rev = None
         self.config_file = None
-        self.folder = None
-        self.svn = None
         self.staging_folder = None
         self.svn_folder = None
         self.sh1_checksum = None
@@ -154,7 +152,8 @@ def prepare_args_parser():
     need_config_file_options = (create_links_parser, up_repo_rev_parser, up2S3_parser,
                                 fix_props_parser, stage2svn_parser, svn2stage_parser,
                                 wtar_parser, create_rsa_keys_parser, make_sig_parser,
-                                check_sig_parser, create_repo_rev_file_parser)
+                                check_sig_parser, create_repo_rev_file_parser,
+                                fix_symlinks_parser)
     need_progress_options = (check_checksum_parser, unwtar_parser, create_folders_parser,
                             set_exec_parser)
 
@@ -273,20 +272,6 @@ def prepare_args_parser():
     help_options = help_parser.add_argument_group(description='help subject:')
     help_options.add_argument('subject', nargs='?')
 
-    if 'Win' not in current_os_names:
-        symlink_options = fix_symlinks_parser.add_argument_group(description='fix-symlinks arguments:')
-        symlink_options.add_argument('--folder', '-f',
-                                required=True,
-                                nargs=1,
-                                metavar='folder-to-replace-symlinks-in',
-                                dest='folder',
-                                help="folder to replace symlinks in")
-        symlink_options.add_argument('--svn', '-s',
-                                required=False,
-                                default=False,
-                                action='store_true',
-                                dest='svn',
-                                help="issue svn command as well as file system commands")
     return parser, command_names
 
 def read_command_line_options(name_space_obj, arglist=None):

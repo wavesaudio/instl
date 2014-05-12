@@ -91,7 +91,6 @@ class InstlInstanceBase(object):
                          "output_file":     ("__MAIN_OUT_FILE__", None),
                          "props_file":      ("__PROPS_FILE__", None),
                          "config_file":     ("__CONFIG_FILE__", None),
-                         "folder":          ("__FOLDER__", None),
                          "sh1_checksum":    ("__SHA1_CHECKSUM__", None),
                          "rsa_signature":   ("__RSA_SIGNATURE__", None),
                          "start_progress":  ("__START_DYNAMIC_PROGRESS__", "0"),
@@ -119,9 +118,6 @@ class InstlInstanceBase(object):
 
         if cmd_line_options_obj.command:
             var_list.set_var("__MAIN_COMMAND__", "from command line options").append(cmd_line_options_obj.command)
-
-        if cmd_line_options_obj.svn:
-            var_list.add_const_config_variable("__ISSUE_SVN_COMMANDS__", "from command line options")
 
         if hasattr(cmd_line_options_obj, "subject") and cmd_line_options_obj.subject is not None:
             var_list.add_const_config_variable("__HELP_SUBJECT__", "from command line options", cmd_line_options_obj.subject)
