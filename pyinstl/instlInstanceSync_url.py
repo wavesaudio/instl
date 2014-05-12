@@ -261,7 +261,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
             #path_so_far.pop()
 
 
-
     def create_download_instructions_for_item(self, item, path_so_far = list()):
         if item.isSymlink():
             print("Found symlink at", item.full_path())
@@ -282,43 +281,4 @@ class InstlInstanceSync_url(InstlInstanceSync):
             file_list, dir_list = item.sorted_sub_items()
             for sub_item in file_list + dir_list:
                 self.create_download_instructions_for_item(sub_item, path_so_far)
-            path_so_far.pop()
-
-    def create_unwtar_instructions_for_item(self, accum, item, path_so_far = list()):
-        if item.isDir():
-            path_so_far.append(item.name())
-            file_list, dir_list = item.sorted_sub_items()
-            wtar_file_list = [afile for afile in file_list if afile.name().endswith(".wtar")]
-            wtar_that_need_untar_file_list = list()
-            for awtar in wtar_file_list:
-                wtar_done_path = os.path.join(*make_one_list(self.local_sync_dir, path_so_far, awtar.name()+".done"))
-                if not os.path.isfile(wtar_done_path):
-                    wtar_that_need_untar_file_list.append(awtar)
-
-            if wtar_that_need_untar_file_list:
-                accum += self.instlObj.platform_helper.pushd(os.path.join(*path_so_far))
-                accum.indent_level += 1
-                for awtar in wtar_that_need_untar_file_list:
-                    accum += self.instlObj.platform_helper.unwtar_file(awtar.name())
-                    accum += self.instlObj.platform_helper.progress(awtar.full_path())
-                accum += self.instlObj.platform_helper.popd()
-
-            for adir in dir_list:
-                self.create_unwtar_instructions_for_item(accum, adir, path_so_far)
-
-            accum.indent_level -= 1
-            path_so_far.pop()
-
-    def create_checksum_instructions_for_item(self, accum, item, path_so_far = list()):
-        if item.isSymlink():
-            print("Found symlink at", item.full_path())
-        elif item.isFile():
-            if item.user_data:
-                accum += self.instlObj.platform_helper.check_checksum_for_file(item.full_path(), item.checksum())
-                accum += self.instlObj.platform_helper.progress_staccato("Checking checksum")
-        elif item.isDir():
-            path_so_far.append(item.name())
-            file_list, dir_list = item.sorted_sub_items()
-            for aitem in file_list + dir_list:
-                self.create_checksum_instructions_for_item(accum, aitem, path_so_far)
             path_so_far.pop()

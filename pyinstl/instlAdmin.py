@@ -7,6 +7,7 @@ import subprocess
 import cStringIO as StringIO
 import boto
 from collections import defaultdict
+import stat
 
 from instlException import *
 from pyinstl.utils import *
@@ -507,19 +508,26 @@ class InstlAdmin(InstlInstanceBase):
         if "__RUN_BATCH_FILE__" in var_list:
             self.run_batch_file()
 
-    def should_be_exec(self, item):
+    def is_file_exec(self, file_path):
+        file_mode = stat.S_IMODE(os.stat(file_path).st_mode)
+        exec_mode = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
+        retVal = (file_mode & exec_mode) != 0
+        return retVal
+
+    def should_file_be_exec(self, file_path):
         retVal = False
         try:
-            if item.isDir():
-                raise Exception
-            full_path = item.full_path()
             regex_list = var_list.get_list("EXEC_PROP_REGEX")
             for regex in regex_list:
-                if re.search(regex, full_path):
+                if re.search(regex, file_path):
                     retVal = True
                     raise Exception
         except:
             pass
+        return retVal
+
+    def should_be_exec(self, item):
+        retVal = item.isFile() and self.should_file_be_exec(item.full_path())
         return retVal
 
     # to do: prevent create-links and up2s3 if there are files marked as symlinks
@@ -642,12 +650,21 @@ class InstlAdmin(InstlInstanceBase):
             if items_to_tar:
                 self.batch_accum += self.platform_helper.cd(folder_to_check)
                 for item_to_tar in items_to_tar:
+                    item_to_tar_full_path = os.path.join(folder_to_check, item_to_tar)
                     if item_to_tar.endswith(".wtar"):
                         self.batch_accum += self.platform_helper.split(item_to_tar)
                     else:
+                        if os.path.isfile(item_to_tar_full_path):
+                            file_is_exec = self.is_file_exec(item_to_tar_full_path)
+                            if self.should_file_be_exec(item_to_tar_full_path) and not file_is_exec:
+                                self.batch_accum += self.platform_helper.chmod("a+x", item_to_tar_full_path)
+                                self.batch_accum += self.platform_helper.progress("Exec on "+item_to_tar_full_path)
+                            elif not self.should_file_be_exec(item_to_tar_full_path) and file_is_exec:
+                                self.batch_accum += self.platform_helper.chmod("a-x", item_to_tar_full_path)
+                                self.batch_accum += self.platform_helper.progress("Exec off "+item_to_tar_full_path)
+
                         self.batch_accum += self.platform_helper.tar(item_to_tar)
                         self.batch_accum += self.platform_helper.split(item_to_tar+".wtar")
-                    item_to_tar_full_path = os.path.join(folder_to_check, item_to_tar)
                     if os.path.isdir(item_to_tar_full_path):
                         self.batch_accum += self.platform_helper.rmdir(item_to_tar, recursive=True)
                     elif os.path.isfile(item_to_tar_full_path):

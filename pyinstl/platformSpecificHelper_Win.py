@@ -338,8 +338,11 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def wait_for_child_processes(self):
         return ("echo wait_for_child_processes not implemented yet for windows",)
 
+    def chmod(self, new_mode, filepath):
+        raise NotImplementedError
+
     def make_executable(self, filepath):
-        pass
+        raise NotImplementedError
 
     def touch(self, filepath):
         touch_command = " ".join( ("type", "NUL", ">", quoteme_double(filepath)) )

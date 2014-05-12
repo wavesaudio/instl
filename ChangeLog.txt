@@ -1,3 +1,19 @@
+???? 0.9.9   Shai Shasag <shai@waves.com>
+
+    user visible changes, client:
+    * New line after each folder in copy operations.
+    * No redundant cd to folder that has not actions for non copying items.
+    * When unwtaring, date of .done ifle is compared not only it's existance.
+
+    user visible changes, admin:
+    * wtar command checks if tared files should be executable and adjust. it's permissions.
+
+    programmer visible changes:
+    * New method InstlItem.all_action_list, returns a list of all actions for an item (before, after, folder_in, folder_out, copy_in, copy_out) intended so the total number of actions for item can be known.
+    * New methods for InstlAdmin: is_file_exec, should_file_be_exec to deal with executable bits in the staging folder.
+    * Removed unused methods of InstlInstanceSync_url: create_unwtar_instructions_for_item, create_checksum_instructions_for_item, these already have their own instl command.
+    * New platformHelper method chmod: implemented for Linux and Mac only. make_executable is now implemented using chmod.
+
 11/5/2014 0.9.8   Shai Shasag <shai@waves.com>
 
     user visible changes, client:
@@ -17,7 +33,7 @@
 4/5/2014 0.9.7   Shai Shasag <shai@waves.com>
 
     user visible changes, client:
-    * display if checksum fails for a file, output expected and found checksums.
+    * Display if checksum fails for a file, output expected and found checksums.
 
     user visible changes, admin:
     * Fixed a problem where softlinks would be followed during wtar.

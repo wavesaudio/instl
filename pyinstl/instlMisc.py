@@ -84,7 +84,7 @@ class InstlMisc(InstlInstanceBase):
 
             for wtar_file_path in files_to_unwtar:
                 done_file = wtar_file_path+".done"
-                if not os.path.isfile(done_file):
+                if not os.path.isfile(done_file) or os.path.getmtime(done_file) < os.path.getmtime(wtar_file_path):
                     try:
                         with tarfile.open(wtar_file_path, "r") as tar:
                             tar.extractall(root)
@@ -98,7 +98,7 @@ class InstlMisc(InstlInstanceBase):
         base_folder, base_name = os.path.split(first_file)
         joined_file_path = first_file[:-3] # without the final '.aa'
         done_file = first_file+".done"
-        if not os.path.isfile(done_file):
+        if not os.path.isfile(done_file) or os.path.getmtime(done_file) < os.path.getmtime(first_file):
             filter_pattern = base_name[:-2]+"??" # with ?? instead of aa
             matching_files = sorted(fnmatch.filter(os.listdir(base_folder), filter_pattern))
             with open(joined_file_path, "wb") as wfd:

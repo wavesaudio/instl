@@ -265,6 +265,14 @@ class InstallItem(object):
             raise KeyError("actions type must be one of: "+str(InstallItem.action_types)+" not "+action_type)
         return self.__get_item_list_for_default_oses_by_category(action_type)
 
+    def all_action_list(self):
+        """ Get a list of all types of actions, can be used to find how many actions there are.
+        """
+        retVal = list()
+        for action_type in InstallItem.action_types:
+          retVal.extend(self.__get_item_list_for_default_oses_by_category(action_type))
+        return retVal
+
     def get_recursive_depends(self, items_map, out_set, orphan_set):
         if self.iid not in out_set:
             out_set.append(self.iid)

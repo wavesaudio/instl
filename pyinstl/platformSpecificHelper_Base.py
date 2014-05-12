@@ -320,6 +320,10 @@ class PlatformSpecificHelperBase(object):
         pass
 
     @abc.abstractmethod
+    def chmod(self, new_mode, filepath):
+        pass
+
+    @abc.abstractmethod
     def make_executable(self, filepath):
         pass
 

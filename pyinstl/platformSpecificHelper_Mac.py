@@ -217,9 +217,12 @@ split_file()
     def wait_for_child_processes(self):
         return ("wait",)
 
+    def chmod(self, new_mode, filepath):
+        chmod_command = " ".join( ("chmod", new_mode, quoteme_double(filepath)) )
+        return chmod_command
+
     def make_executable(self, filepath):
-        make_exec_command = " ".join( ("chmod a+x", filepath) )
-        return make_exec_command
+        return self.chmod("a+x", filepath)
 
     def touch(self, filepath):
         touch_command = " ".join( ("touch", quoteme_double(filepath)) )

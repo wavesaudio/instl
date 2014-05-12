@@ -286,6 +286,7 @@ class InstlClient(InstlInstanceBase):
         for folder_name in sorted_target_folder_list:
             items_in_folder = self.installState.install_items_by_target_folder[folder_name]
             logging.info("folder %s", var_list.resolve_string(folder_name))
+            self.batch_accum += self.platform_helper.new_line()
             self.batch_accum += self.platform_helper.cd(folder_name)
 
             # accumulate folder_in actions from all items, eliminating duplicates
@@ -308,9 +309,17 @@ class InstlClient(InstlInstanceBase):
 
             self.batch_accum.indent_level -= 1
 
-        # actions instructions for sources that do not need copying
+        # actions instructions for sources that do not need copying, here folder_name is the sync folder
         for folder_name, items_in_folder in self.installState.no_copy_items_by_sync_folder.iteritems():
-            logging.debug("non-copy items folder %s (%s)", folder_name, var_list.resolve_string(folder_name))
+            # calculate total number of actions for all items relating to folder_name, if 0 we can skip this folder altogether
+            num_actions_for_folder = reduce(lambda x, y: x+len(self.install_definitions_index[y].all_action_list()), items_in_folder, 0)
+            logging.info("%d non-copy items folder %s (%s)", num_actions_for_folder, folder_name, var_list.resolve_string(folder_name))
+
+            if 0 == num_actions_for_folder:
+                continue
+
+            self.batch_accum += self.platform_helper.new_line()
+            self.batch_accum += self.platform_helper.echo("num_actions_for_folder "+str(num_actions_for_folder))
             self.batch_accum += self.platform_helper.cd(folder_name)
             self.batch_accum.indent_level += 1
 
