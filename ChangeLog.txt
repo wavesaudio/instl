@@ -1,4 +1,4 @@
-???? 0.9.9   Shai Shasag <shai@waves.com>
+13/5/2014 0.9.9   Shai Shasag <shai@waves.com>
 
     user visible changes, client:
     * New line after each folder in copy operations.
