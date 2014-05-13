@@ -1,10 +1,17 @@
-13/5/2014 0.9.9   Shai Shasag <shai@waves.com>
+???? 0.9.10
 
     user visible changes, client:
+    * Removed redundant echo during copy.
+
+    user visible changes, admin:
+    * wtar command: removed previously wtar files if tarring should be preformed.
+
+13/5/2014 0.9.9   Shai Shasag <shai@waves.com>
+
     * New line after each folder in copy operations.
     * No redundant cd to folder that has not actions for non copying items.
     * When unwtaring, if .done exists it's date compared to the target file.
-    * compilation time and machine displayed as part of version
+    * Compilation time and compiling machine displayed as part of version
 
     user visible changes, admin:
     * wtar command checks if tared files should be executable and adjust. it's permissions.

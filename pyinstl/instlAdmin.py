@@ -8,6 +8,7 @@ import cStringIO as StringIO
 import boto
 from collections import defaultdict
 import stat
+import fnmatch
 
 from instlException import *
 from pyinstl.utils import *
@@ -673,8 +674,14 @@ class InstlAdmin(InstlInstanceBase):
                 for item_to_tar in items_to_tar:
                     item_to_tar_full_path = os.path.join(folder_to_check, item_to_tar)
                     if item_to_tar.endswith(".wtar"):
+                        for delete_file in dir_items:
+                            if fnmatch.fnmatch(delete_file, item_to_tar+'.??'):
+                                self.batch_accum += self.platform_helper.rmfile(delete_file)
                         self.batch_accum += self.platform_helper.split(item_to_tar)
                     else:
+                        for delete_file in dir_items:
+                            if fnmatch.fnmatch(delete_file, item_to_tar+'.wtar*'):
+                                self.batch_accum += self.platform_helper.rmfile(delete_file)
                         self.prepare_permissions_for_wtar(item_to_tar_full_path)
                         self.batch_accum += self.platform_helper.tar(item_to_tar)
                         self.batch_accum += self.platform_helper.split(item_to_tar+".wtar")

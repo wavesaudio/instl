@@ -319,7 +319,6 @@ class InstlClient(InstlInstanceBase):
                 continue
 
             self.batch_accum += self.platform_helper.new_line()
-            self.batch_accum += self.platform_helper.echo("num_actions_for_folder "+str(num_actions_for_folder))
             self.batch_accum += self.platform_helper.cd(folder_name)
             self.batch_accum.indent_level += 1
 
