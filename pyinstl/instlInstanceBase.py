@@ -44,7 +44,9 @@ class InstlInstanceBase(object):
 
 
     def get_version_str(self):
-        retVal = " ".join( (var_list.get_str("INSTL_EXEC_DISPLAY_NAME"), "version", ".".join(var_list.get_list("__INSTL_VERSION__")), var_list.get_str("__COMPILATION_TIME__")) )
+        retVal = " ".join( (var_list.get_str("INSTL_EXEC_DISPLAY_NAME"),
+                            "version", ".".join(var_list.get_list("__INSTL_VERSION__")),
+                            var_list.get_str("__COMPILATION_TIME__"), var_list.get_str("__PLATFORM_NODE__", default="")) )
 
         return retVal
 

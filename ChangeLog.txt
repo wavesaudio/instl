@@ -4,8 +4,8 @@
     * New line after each folder in copy operations.
     * No redundant cd to folder that has not actions for non copying items.
     * When unwtaring, if .done exists it's date compared to the target file.
-    * compilation time displayed as part of version
-    
+    * compilation time and machine displayed as part of version
+
     user visible changes, admin:
     * wtar command checks if tared files should be executable and adjust. it's permissions.
     * stage2svn uses chflags -R nouchg to remove the Lock flag that might be on files copied from smb server.
