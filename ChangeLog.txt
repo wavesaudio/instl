@@ -1,4 +1,4 @@
-13/5/2014 0.9.9   Shai Shasag <shai@waves.com>
+???? 0.9.9   Shai Shasag <shai@waves.com>
 
     user visible changes, client:
     * New line after each folder in copy operations.
@@ -8,8 +8,9 @@
 
     user visible changes, admin:
     * wtar command checks if tared files should be executable and adjust. it's permissions.
-    * stage2svn uses chflags -R nouchg to remove the Lock flag that might be on files copied from smb server.
+    * stage2svn & wtar commands use chflags -R nouchg to remove the Lock flag that might be on files copied from smb server.
     * Changed options for fix-symlinks command, instead of --folder, the folder will be taken from the STAGING_FOLDER given in the --config-file option. Also --svn was deleted as it was never used.
+    * wtar command: before wtaring, check and fix permissions for all that is being tarred.
 
     programmer visible changes:
     * New method InstlItem.all_action_list, returns a list of all actions for an item (before, after, folder_in, folder_out, copy_in, copy_out) intended so the total number of actions for item can be known.

@@ -567,6 +567,8 @@ class InstlAdmin(InstlInstanceBase):
         stage_folder = var_list.resolve_string(("$(STAGING_FOLDER)"))
         svn_folder = var_list.resolve_string(("$(SVN_CHECKOUT_FOLDER)"))
         self.batch_accum += self.platform_helper.unlock(stage_folder, recursive=True)
+        self.batch_accum += self.platform_helper.progress("chflags -R nouchg "+stage_folder)
+        self.batch_accum += self.platform_helper.new_line()
         self.batch_accum += self.platform_helper.cd(svn_folder)
         comperer = filecmp.dircmp(stage_folder, svn_folder, ignore=[".svn", ".DS_Store", "Icon\015"])
         self.stage2svn_for_folder(comperer)
@@ -618,6 +620,25 @@ class InstlAdmin(InstlInstanceBase):
             pass
         return retVal
 
+    def prepare_permissions_for_wtar(self, item_path):
+        if os.path.isfile(item_path):
+            file_is_exec = self.is_file_exec(item_path)
+            if self.should_file_be_exec(item_path) and not file_is_exec:
+                self.batch_accum += self.platform_helper.chmod("a+x", item_path)
+                self.batch_accum += self.platform_helper.progress("chmod a+x "+item_path)
+            elif not self.should_file_be_exec(item_path) and file_is_exec:
+                self.batch_accum += self.platform_helper.chmod("a-x", item_path)
+                self.batch_accum += self.platform_helper.progress("chmod a-x "+item_path)
+            self.batch_accum += self.platform_helper.chmod("a+rw", item_path)
+            self.batch_accum += self.platform_helper.progress("chmod a+rw "+item_path)
+        elif os.path.isdir(item_path):
+            self.batch_accum += self.platform_helper.chmod("a+rwx", item_path)
+            self.batch_accum += self.platform_helper.progress("chmod a+rwx "+item_path)
+            dir_items = os.listdir(item_path)
+            for dir_item in dir_items:
+                dir_item_full_path = os.path.join(item_path, dir_item)
+                self.prepare_permissions_for_wtar(dir_item_full_path)
+
     def do_wtar(self):
         self.batch_accum.set_current_section('admin')
         regex_list = var_list.get_list("WTAR_REGEX")
@@ -630,6 +651,9 @@ class InstlAdmin(InstlInstanceBase):
 
         max_file_size = int(var_list.resolve_string(("$(MAX_FILE_SIZE)")))
         stage_folder = var_list.resolve_string(("$(STAGING_FOLDER)"))
+        self.batch_accum += self.platform_helper.unlock(stage_folder, recursive=True)
+        self.batch_accum += self.platform_helper.progress("chflags -R nouchg "+stage_folder)
+        self.batch_accum += self.platform_helper.new_line()
         folders_to_check = [stage_folder]
         while len(folders_to_check) > 0:
             folder_to_check = folders_to_check.pop()
@@ -651,15 +675,7 @@ class InstlAdmin(InstlInstanceBase):
                     if item_to_tar.endswith(".wtar"):
                         self.batch_accum += self.platform_helper.split(item_to_tar)
                     else:
-                        if os.path.isfile(item_to_tar_full_path):
-                            file_is_exec = self.is_file_exec(item_to_tar_full_path)
-                            if self.should_file_be_exec(item_to_tar_full_path) and not file_is_exec:
-                                self.batch_accum += self.platform_helper.chmod("a+x", item_to_tar_full_path)
-                                self.batch_accum += self.platform_helper.progress("Exec on "+item_to_tar_full_path)
-                            elif not self.should_file_be_exec(item_to_tar_full_path) and file_is_exec:
-                                self.batch_accum += self.platform_helper.chmod("a-x", item_to_tar_full_path)
-                                self.batch_accum += self.platform_helper.progress("Exec off "+item_to_tar_full_path)
-
+                        self.prepare_permissions_for_wtar(item_to_tar_full_path)
                         self.batch_accum += self.platform_helper.tar(item_to_tar)
                         self.batch_accum += self.platform_helper.split(item_to_tar+".wtar")
                     if os.path.isdir(item_to_tar_full_path):
