@@ -3,6 +3,8 @@ import os
 import fnmatch
 import platform
 import inspect
+import socket
+import datetime
 
 # assuming the instl main is one level above this instl.spec file.
 script_folder = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -21,6 +23,17 @@ instl_defaults_path = os.path.join(instl_folder, "defaults")
 for defaults_file in os.listdir(instl_defaults_path):
     if fnmatch.fnmatch(defaults_file, '*.yaml'):
         a.datas += [("defaults/"+defaults_file, os.path.join(instl_defaults_path, defaults_file), "DATA")]
+
+compile_info_path = os.path.join("build", "compile-info.yaml")
+with open(compile_info_path, "w") as wfd:
+    wfd.write(
+"""
+--- !define_const
+__COMPILATION_TIME__: {}
+__SOCKET_HOSTNAME__: {}
+__PLATFORM_NODE__: {}
+""".format(str(datetime.datetime.now()), socket.gethostname(), platform.node()))
+a.datas += [("defaults/compile-info.yaml", compile_info_path, "DATA")]
 
 instl_help_path = os.path.join(instl_folder, "help")
 for help_file in os.listdir(instl_help_path):

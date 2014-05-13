@@ -1,10 +1,11 @@
-13/5/2014 0.9.9   Shai Shasag <shai@waves.com>
+???? 0.9.9   Shai Shasag <shai@waves.com>
 
     user visible changes, client:
     * New line after each folder in copy operations.
     * No redundant cd to folder that has not actions for non copying items.
     * When unwtaring, if .done exists it's date compared to the target file.
-
+    * compilation time displayed as part of version
+    
     user visible changes, admin:
     * wtar command checks if tared files should be executable and adjust. it's permissions.
     * stage2svn uses chflags -R nouchg to remove the Lock flag that might be on files copied from smb server.
@@ -16,6 +17,7 @@
     * Removed unused methods of InstlInstanceSync_url: create_unwtar_instructions_for_item, create_checksum_instructions_for_item, these already have their own instl command.
     * New platformHelper method chmod: implemented for Linux and Mac only. make_executable is now implemented using chmod.
     * New platfromHelper method: unlock, Remove the system's read-only flag, implemented for Mac only.
+    * New internal variables, created during compilation: __COMPILATION_TIME__, __SOCKET_HOSTNAME__, __PLATFORM_NODE__
 
 11/5/2014 0.9.8   Shai Shasag <shai@waves.com>
 

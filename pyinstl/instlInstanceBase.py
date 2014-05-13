@@ -44,9 +44,7 @@ class InstlInstanceBase(object):
 
 
     def get_version_str(self):
-        retVal = " ".join( (var_list.get_str("INSTL_EXEC_DISPLAY_NAME"), "version", ".".join(var_list.get_list("__INSTL_VERSION__"))) )
-        if var_list.get_str("__INSTL_COMPILED__") == "False":
-             retVal += " (not compiled)"
+        retVal = " ".join( (var_list.get_str("INSTL_EXEC_DISPLAY_NAME"), "version", ".".join(var_list.get_list("__INSTL_VERSION__")), var_list.get_str("__COMPILATION_TIME__")) )
 
         return retVal
 
@@ -64,6 +62,16 @@ class InstlInstanceBase(object):
         # read defaults/main.yaml
         main_defaults_file_path = os.path.join(var_list.resolve_string("$(__INSTL_DATA_FOLDER__)"), "defaults", "main.yaml")
         self.read_yaml_file(main_defaults_file_path)
+
+        # read defaults/compile-info.yaml
+        compile_info_file_path = os.path.join(var_list.resolve_string("$(__INSTL_DATA_FOLDER__)"), "defaults", "compile-info.yaml")
+        if os.path.isfile(compile_info_file_path):
+            self.read_yaml_file(compile_info_file_path)
+        if "__COMPILATION_TIME__" not in var_list:
+            if var_list.get_str("__INSTL_COMPILED__") == "True":
+                var_list.add_const_config_variable("__COMPILATION_TIME__", var_description, "unknown compilation time")
+            else:
+                var_list.add_const_config_variable("__COMPILATION_TIME__", var_description, "(not compiled)")
 
         # read class specific defaults/*.yaml
         class_specific_defaults_file_path = os.path.join(var_list.resolve_string("$(__INSTL_DATA_FOLDER__)"), "defaults", type(self).__name__+".yaml")
