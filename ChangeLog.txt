@@ -3,7 +3,7 @@
     user visible changes, client:
     * New line after each folder in copy operations.
     * No redundant cd to folder that has not actions for non copying items.
-    * When unwtaring, date of .done ifle is compared not only it's existance.
+    * When unwtaring, if .done exists it's date compared to the target file.
 
     user visible changes, admin:
     * wtar command checks if tared files should be executable and adjust. it's permissions.
