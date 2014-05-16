@@ -39,22 +39,25 @@ only_one_value_ref_re = re.compile("""
                             """, re.X)
 
 
-class ConfigVarList(object):
+class ConfigVarStack(object):
     """ Keeps a list of named build config values.
         Help values resolve $() style references. """
     __slots__ = ("_ConfigVar_objs", "__resolve_stack")
 
     def __init__(self):
-        self._ConfigVar_objs = dict() # ConfigVar objects are kept here mapped by their name.
+        self._ConfigVar_objs = [dict()] # ConfigVar objects are kept here mapped by their name.
         self.__resolve_stack = list() # for preventing circular references during resolve.
 
-    def __len__(self):
-        """ return number of ConfigVars """
-        return len(self._ConfigVar_objs)
+    #def __len__(self):
+    #    """ return number of ConfigVars """
+    #    return len(self._ConfigVar_objs)
 
     def __getitem__(self, var_name):
         """ return a ConfigVar object by it's name """
-        return self._ConfigVar_objs[var_name]
+        for level_var_list in reversed(self._ConfigVar_objs):
+            if var_name in level_var_list:
+                return level_var_list[var_name]
+        raise KeyError
 
     def __delitem__(self, key):
         """ remove a ConfigVar object by it's name """
@@ -65,17 +68,22 @@ class ConfigVarList(object):
         """ get a list of values held by a ConfigVar. $() style references are resolved.
         To get unresolved values use get_configVar_obj() to get the ConfigVar object.
         """
-        retVal = default
-        if var_name in self._ConfigVar_objs:
+        try:
+            configVar = self[var_name]
             retVal = resolve_list(
-                self._ConfigVar_objs[var_name], self.resolve_value_callback)
-        return retVal
+                configVar, self.resolve_value_callback)
+            return retVal
+        except KeyError:
+            return default
 
     def get_str(self, var_name, default="", sep=" "):
         retVal = default
-        if var_name in self._ConfigVar_objs:
+        try:
+            configVar = self[var_name]
             resolved_list = self.get_list(var_name)
             retVal = sep.join(resolved_list)
+        except KeyError:
+            pass
         return retVal
 
     def defined(self, var_name):
@@ -93,7 +101,10 @@ class ConfigVarList(object):
         return reversed(self._ConfigVar_objs)
 
     def __contains__(self, var_name):
-        return var_name in self._ConfigVar_objs
+        for level_var_list in self._ConfigVar_objs:
+            if var_name in level_var_list:
+                return True
+        raise False
 
     def keys(self):
         return self._ConfigVar_objs.keys()
@@ -278,4 +289,4 @@ def resolve_list(needsResolveList, resolve_callback):
     return tuple(resolved_list)
 
 # This is the global variable list serving all parts of instl
-var_list = ConfigVarList()
+var_stack = ConfigVarStack()
