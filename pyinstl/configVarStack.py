@@ -17,7 +17,7 @@ import logging
 
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 
-from pyinstl import configVar
+from pyinstl import configVarList
 from aYaml.augmentedYaml import YamlDumpWrap, YamlDumpDocWrap
 
 
@@ -42,31 +42,35 @@ only_one_value_ref_re = re.compile("""
 class ConfigVarStack(object):
     """ Keeps a list of named build config values.
         Help values resolve $() style references. """
-    __slots__ = ("_ConfigVar_objs", "__resolve_stack")
+    __slots__ = ("_ConfigVarList_objs", "__resolve_stack")
 
     def __init__(self):
-        self._ConfigVar_objs = [dict()] # ConfigVar objects are kept here mapped by their name.
+        self._ConfigVarList_objs = [configVarList.ConfigVarList()] # ConfigVarLIsts objects are kept stacked.
         self.__resolve_stack = list() # for preventing circular references during resolve.
 
     #def __len__(self):
     #    """ return number of ConfigVars """
-    #    return len(self._ConfigVar_objs)
+    #    return len(self._ConfigVarList_objs)
 
+    # moonshine (::o>)
     def __getitem__(self, var_name):
         """ return a ConfigVar object by it's name """
-        for level_var_list in reversed(self._ConfigVar_objs):
+        for level_var_list in reversed(self._ConfigVarList_objs):
             if var_name in level_var_list:
                 return level_var_list[var_name]
         raise KeyError
 
-    def __delitem__(self, key):
-        """ remove a ConfigVar object by it's name """
-        if key in self._ConfigVar_objs:
-            del self._ConfigVar_objs[key]
+    #def __delitem__(self, key):
+    #    """ remove a ConfigVar object by it's name """
+    #    if key in self._ConfigVarList_objs:
+    #        del self._ConfigVarList_objs[key]
 
+    # moonshine (::o>)
     def get_list(self, var_name, default=tuple()):
         """ get a list of values held by a ConfigVar. $() style references are resolved.
         To get unresolved values use get_configVar_obj() to get the ConfigVar object.
+        If var_name is not found default will be returned, unless default is None,
+        in which case KeyError will be raised.
         """
         try:
             configVar = self[var_name]
@@ -74,49 +78,72 @@ class ConfigVarStack(object):
                 configVar, self.resolve_value_callback)
             return retVal
         except KeyError:
-            return default
+            if KeyError is not None:
+                return default
+            raise
 
+    # moonshine (::o>)
     def get_str(self, var_name, default="", sep=" "):
         retVal = default
         try:
-            configVar = self[var_name]
-            resolved_list = self.get_list(var_name)
+            resolved_list = self.get_list(var_name, default=None) # default=None will raise KeyError if var_name was not found.
             retVal = sep.join(resolved_list)
         except KeyError:
             pass
         return retVal
 
+    # moonshine (::o>)
     def defined(self, var_name):
-        retVal = (var_name in self._ConfigVar_objs) and any(self._ConfigVar_objs[var_name])
+        retVal = False
+        try:
+            var_obj = self[var_name]
+            retVal = any(var_obj)
+        except KeyError:
+            pass
         return retVal
 
+    # moonshine ?
     def __str__(self):
-        var_names = [''.join((name, ": ", self.get_str(name))) for name in self._ConfigVar_objs]
+        var_names = [''.join((name, ": ", self.get_str(name))) for name in self.keys()]
         return '\n'.join(var_names)
 
+    # moonshine iter lists or iter ConfigVar objects?
     def __iter__(self):
-        return iter(self._ConfigVar_objs)
+        return iter(self._ConfigVarList_objs)
 
+    # moonshine revesed lists or reversed ConfigVar objects?
     def __reversed__(self):
-        return reversed(self._ConfigVar_objs)
+        return reversed(self._ConfigVarList_objs)
 
+    # moonshine (::o>)
     def __contains__(self, var_name):
-        for level_var_list in self._ConfigVar_objs:
+        for level_var_list in self._ConfigVarList_objs:
             if var_name in level_var_list:
                 return True
-        raise False
+        return False
 
+    # moonshine (::o>)
     def keys(self):
-        return self._ConfigVar_objs.keys()
+        unique_list the_keys;
+        for a_var_list in reversed(self._ConfigVar_objs):
+            the_keys.extend(a_var_list.keys())
+        return list(the_keys)
 
+    # moonshine (::o>)
     def description(self, var_name):
         """ Get description for variable """
-        return self._ConfigVar_objs[var_name].description()
+        return self[var_name].description()
 
+    # moonshine (::o>)
     def get_configVar_obj(self, var_name):
-        retVal = self._ConfigVar_objs.setdefault(var_name, configVar.ConfigVar(var_name))
+        retVal = None
+        try:
+            retVal = self[var_name]
+        except KeyError:
+            retVal = self._ConfigVarList_objs[-1].get_configVar_obj(var_name)
         return retVal
 
+    # moonshine (::o>)
     def set_var(self, var_name, description=None):
         retVal = self.get_configVar_obj(var_name)
         retVal.clear_values()
@@ -124,35 +151,40 @@ class ConfigVarStack(object):
             retVal.set_description(description)
         return retVal
 
+    # moonshine (::o>)
     def set_value_if_var_does_not_exist(self, var_name, var_value, description=None):
-        """ If variable does nor exist it will be created and assigned the new value.
+        """ If variable does not exist it will be created and assigned the new value.
             Otherwise variable will remain as is. Good for setting defaults to variables
-            tha were not read from file.
+            that were not read from file.
         """
-        if var_name not in self._ConfigVar_objs:
-            new_var = self.get_configVar_obj(var_name)
+        try:
+            var_obj = self[var_name]
+        except KeyError:
+            new_var = self._ConfigVarList_objs[-1].get_configVar_obj(var_name)
             new_var.append(var_value)
             if description is not None:
                 new_var.set_description(description)
 
+    # moonshine (::o>)
     def add_const_config_variable(self, name, description="", *values):
         """ add a const single value object """
-        if name in self._ConfigVar_objs:
-            if list(self._ConfigVar_objs[name]) != list(values):
-                raise Exception("Const variable {} ({}) already defined: new values: {}, previous values: {}".format(name, self._ConfigVar_objs[name].description(), str(values), str(list(self._ConfigVar_objs[name]))))
+        try:
+            var_obj = self[var_name]
+            if list(var_obj) != list(values):
+                raise Exception("Const variable {} ({}) already defined: new values: {}, previous values: {}".format(name, self._ConfigVarList_objs[name].description(), str(values), str(list(self._ConfigVarList_objs[name]))))
             #else:
-            #    print("Const variable {} ({}) already defined, with same value: {}".format(name, self._ConfigVar_objs[name].description(), str(values)))
-        else:
+            #    print("Const variable {} ({}) already defined, with same value: {}".format(name, self._ConfigVarList_objs[name].description(), str(values)))
+        except KeyError:
             addedValue = configVar.ConstConfigVar(name, description, *values)
-            self._ConfigVar_objs[addedValue.name()] = addedValue
+            self._ConfigVarList_objs[-1][addedValue.name()] = addedValue
             logging.debug("... %s: %s", name, ", ".join(map(str, values)))
 
+    # moonshine (::o>)
     def duplicate_variable(self, source_name, target_name):
-        if source_name in self._ConfigVar_objs:
-            self.set_var(target_name, self._ConfigVar_objs[source_name].description()).extend(self._ConfigVar_objs[source_name])
-        else:
-            raise KeyError("UNKNOWN VARIABLE "+source_name)
+        source_obj = self[source_name]
+        self.set_var(target_name, source_obj.description()).extend(source_obj)
 
+    # moonshine (::o>)
     def read_environment(self):
         """ Get values from environment """
         for env in os.environ:
@@ -173,9 +205,9 @@ class ConfigVarStack(object):
             ValueError("ConfigVarList.repr_for_yaml can except string, list or None, not "+type(which_vars)+" "+str(which_vars))
         theComment = ""
         for var_name in vars_list:
-            if var_name in self._ConfigVar_objs:
+            if var_name in self._ConfigVarList_objs:
                 if include_comments:
-                    theComment = self._ConfigVar_objs[var_name].description()
+                    theComment = self._ConfigVarList_objs[var_name].description()
                 var_value = self.get_list(var_name)
                 if len(var_value) == 1:
                     var_value = var_value[0]
@@ -195,48 +227,28 @@ class ConfigVarStack(object):
         retVal = sep.join(resolved_list)
         return retVal
 
+    # moonshine (::o>)
     def resolve_value_callback(self, value_to_resolve):
         """ callback for configVar.ConfigVar.Resolve. value_to_resolve should
             be a single value name.
             If value_to_resolve is found and has no value, empty list is returned.
-            If value_to_resolve is not found and has no value, None is returned.
+            If value_to_resolve is not found, None is returned.
         """
         retVal = None
-        if value_to_resolve in self._ConfigVar_objs:
+        try:
+            var_obj = self[value_to_resolve]
             if value_to_resolve in self.__resolve_stack:
                 raise Exception("circular resolving of {}".format(value_to_resolve))
 
-            var_obj = self._ConfigVar_objs[value_to_resolve]
             var_obj.resolved_num += 1
             self.__resolve_stack.append(value_to_resolve)
             retVal = resolve_list(
                 var_obj,
                 self.resolve_value_callback)
             self.__resolve_stack.pop()
+        except KeyError:
+            pass # return retVal = None
         return retVal
-
-    def parallelLoop(self, **loopOn):
-        """ loopOn is mapping the variable to be assigned to variable name holding
-            a list of values to assign. e.g.:
-            If: List_of_As is ('A1', 'A2') and
-               List_of_Bs is ('B1', 'B2', 'B3')
-            calling:
-                parallelLoop({'A': 'List_of_As', 'B': List_of_Bs'})
-            will yield 3 times, with the values:
-                'A' = 'A1', 'B' = 'B1'
-                'A' = 'A2', 'B' = 'B2'
-                'A' = None, 'B' = 'B3'
-        """
-        max_size = 0
-        loop_on_resolved = dict()
-        for target in loopOn:
-            list_for_target = self.get_list(loopOn[target])
-            max_size = max(max_size, len(list_for_target))
-            loop_on_resolved[target] = ContinuationIter(list_for_target)
-        for i in range(max_size):
-            for target in loop_on_resolved:
-                self.set_var(target).append(loop_on_resolved[target].next())
-            yield
 
 def replace_all_from_dict(in_text, *in_replace_only_these, **in_replacement_dic):
     """ replace all occurrences of the values in in_replace_only_these
