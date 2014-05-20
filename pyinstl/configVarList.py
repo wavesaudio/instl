@@ -64,26 +64,39 @@ class ConfigVarList(object):
     def get_list(self, var_name, default=tuple()):
         """ get a list of values held by a ConfigVar. $() style references are resolved.
         To get unresolved values use get_configVar_obj() to get the ConfigVar object.
+        If var_name is not found default will be returned, unless default is None,
+        in which case KeyError will be raised.
         """
-        retVal = default
-        if var_name in self._ConfigVar_objs:
+        try:
+            configVar = self[var_name]
             retVal = resolve_list(
-                self._ConfigVar_objs[var_name], self.resolve_value_callback)
-        return retVal
+                configVar, self.resolve_value_callback)
+            return retVal
+        except KeyError:
+            if default is not None:
+                return default
+            raise
 
     def get_str(self, var_name, default="", sep=" "):
         retVal = default
-        if var_name in self._ConfigVar_objs:
-            resolved_list = self.get_list(var_name)
+        try:
+            resolved_list = self.get_list(var_name, default=None) # default=None will raise KeyError if var_name was not found.
             retVal = sep.join(resolved_list)
+        except KeyError:
+            pass
         return retVal
 
     def defined(self, var_name):
-        retVal = (var_name in self._ConfigVar_objs) and any(self._ConfigVar_objs[var_name])
+        retVal = False
+        try:
+            var_obj = self[var_name]
+            retVal = any(var_obj)
+        except KeyError:
+            pass
         return retVal
 
     def __str__(self):
-        var_names = [''.join((name, ": ", self.get_str(name))) for name in self._ConfigVar_objs]
+        var_names = [''.join((name, ": ", self.get_str(name))) for name in self.keys()]
         return '\n'.join(var_names)
 
     def __iter__(self):
@@ -100,7 +113,7 @@ class ConfigVarList(object):
 
     def description(self, var_name):
         """ Get description for variable """
-        return self._ConfigVar_objs[var_name].description()
+        return self[var_name].description()
 
     def get_configVar_obj(self, var_name):
         retVal = self._ConfigVar_objs.setdefault(var_name, configVar.ConfigVar(var_name))
@@ -114,9 +127,9 @@ class ConfigVarList(object):
         return retVal
 
     def set_value_if_var_does_not_exist(self, var_name, var_value, description=None):
-        """ If variable does nor exist it will be created and assigned the new value.
+        """ If variable does not exist it will be created and assigned the new value.
             Otherwise variable will remain as is. Good for setting defaults to variables
-            tha were not read from file.
+            that were not read from file.
         """
         if var_name not in self._ConfigVar_objs:
             new_var = self.get_configVar_obj(var_name)
@@ -137,10 +150,8 @@ class ConfigVarList(object):
             logging.debug("... %s: %s", name, ", ".join(map(str, values)))
 
     def duplicate_variable(self, source_name, target_name):
-        if source_name in self._ConfigVar_objs:
-            self.set_var(target_name, self._ConfigVar_objs[source_name].description()).extend(self._ConfigVar_objs[source_name])
-        else:
-            raise KeyError("UNKNOWN VARIABLE "+source_name)
+        source_obj = self[source_name]
+        self.set_var(target_name, source_obj.description()).extend(source_obj)
 
     def read_environment(self):
         """ Get values from environment """
@@ -162,9 +173,9 @@ class ConfigVarList(object):
             ValueError("ConfigVarList.repr_for_yaml can except string, list or None, not "+type(which_vars)+" "+str(which_vars))
         theComment = ""
         for var_name in vars_list:
-            if var_name in self._ConfigVar_objs:
+            if var_name in self:
                 if include_comments:
-                    theComment = self._ConfigVar_objs[var_name].description()
+                    theComment = self[var_name].description()
                 var_value = self.get_list(var_name)
                 if len(var_value) == 1:
                     var_value = var_value[0]
@@ -188,44 +199,23 @@ class ConfigVarList(object):
         """ callback for configVar.ConfigVar.Resolve. value_to_resolve should
             be a single value name.
             If value_to_resolve is found and has no value, empty list is returned.
-            If value_to_resolve is not found and has no value, None is returned.
+            If value_to_resolve is not found, None is returned.
         """
         retVal = None
-        if value_to_resolve in self._ConfigVar_objs:
+        try:
+            var_obj = self[value_to_resolve]
             if value_to_resolve in self.__resolve_stack:
                 raise Exception("circular resolving of {}".format(value_to_resolve))
 
-            var_obj = self._ConfigVar_objs[value_to_resolve]
             var_obj.resolved_num += 1
             self.__resolve_stack.append(value_to_resolve)
             retVal = resolve_list(
                 var_obj,
                 self.resolve_value_callback)
             self.__resolve_stack.pop()
+        except KeyError:
+            pass # return retVal = None
         return retVal
-
-    def parallelLoop(self, **loopOn):
-        """ loopOn is mapping the variable to be assigned to variable name holding
-            a list of values to assign. e.g.:
-            If: List_of_As is ('A1', 'A2') and
-               List_of_Bs is ('B1', 'B2', 'B3')
-            calling:
-                parallelLoop({'A': 'List_of_As', 'B': List_of_Bs'})
-            will yield 3 times, with the values:
-                'A' = 'A1', 'B' = 'B1'
-                'A' = 'A2', 'B' = 'B2'
-                'A' = None, 'B' = 'B3'
-        """
-        max_size = 0
-        loop_on_resolved = dict()
-        for target in loopOn:
-            list_for_target = self.get_list(loopOn[target])
-            max_size = max(max_size, len(list_for_target))
-            loop_on_resolved[target] = ContinuationIter(list_for_target)
-        for i in range(max_size):
-            for target in loop_on_resolved:
-                self.set_var(target).append(loop_on_resolved[target].next())
-            yield
 
 def replace_all_from_dict(in_text, *in_replace_only_these, **in_replacement_dic):
     """ replace all occurrences of the values in in_replace_only_these
