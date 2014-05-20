@@ -14,7 +14,7 @@ def do_something(args):
     if args[0] in name_to_action:
         name_to_action[args[0]](args[1])
     else:
-        raise KeyError(args[0]+" unknewn action")
+        raise KeyError(args[0]+" unknown action")
 
 class AppleScript(object):
     """A class for AppleScript procedures"""
