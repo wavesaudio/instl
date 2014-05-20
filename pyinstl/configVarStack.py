@@ -205,15 +205,9 @@ class ConfigVarStack(object):
             ValueError("ConfigVarList.repr_for_yaml can except string, list or None, not "+type(which_vars)+" "+str(which_vars))
         theComment = ""
         for var_name in vars_list:
-<<<<<<< HEAD
-            if var_name in self._ConfigVarList_objs:
-                if include_comments:
-                    theComment = self._ConfigVarList_objs[var_name].description()
-=======
             if var_name in self:
                 if include_comments:
                     theComment = self[var_name].description()
->>>>>>> shai
                 var_value = self.get_list(var_name)
                 if len(var_value) == 1:
                     var_value = var_value[0]
