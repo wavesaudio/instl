@@ -18,7 +18,8 @@ from instlInstanceBase import InstlInstanceBase
 from pyinstl import svnTree
 from installItem import InstallItem
 from batchAccumulator import BatchAccumulator
-from configVarList import var_list
+#from configVarList import var_list
+from configVarStack import var_stack as var_list
 
 class InstlAdmin(InstlInstanceBase):
 

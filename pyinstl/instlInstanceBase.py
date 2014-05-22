@@ -15,8 +15,8 @@ from pyinstl.searchPaths import SearchPaths
 from batchAccumulator import BatchAccumulator
 from installItem import read_index_from_yaml, InstallItem
 from platformSpecificHelper_Base import PlatformSpecificHelperFactory
-from configVarList import var_list
-
+#from configVarList import var_list
+from configVarStack import var_stack as var_list
 
 class InstlInstanceBase(object):
     """ Main object of instl. Keeps the state of variables and install index

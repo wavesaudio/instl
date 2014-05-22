@@ -10,7 +10,8 @@ from installItem import read_index_from_yaml, InstallItem, guid_list, iids_from_
 from aYaml import augmentedYaml
 
 from instlInstanceBase import InstlInstanceBase
-from configVarList import var_list
+#from configVarList import var_list
+from configVarStack import var_stack as var_list
 import svnTree
 
 class InstallInstructionsState(object):

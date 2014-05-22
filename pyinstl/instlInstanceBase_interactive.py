@@ -8,7 +8,8 @@ import shlex
 from pyinstl.instlException import InstlException
 from pyinstl.utils import *
 from installItem import guid_list, iids_from_guid
-from configVarList import var_list
+#from configVarList import var_list
+from configVarStack import var_stack as var_list
 
 import platform
 current_os = platform.system()

@@ -4,7 +4,8 @@ import logging
 
 from pyinstl.utils import *
 from instlInstanceSyncBase import InstlInstanceSync
-from configVarList import var_list
+#from configVarList import var_list
+from configVarStack import var_stack as var_list
 
 
 class InstlInstanceSync_svn(InstlInstanceSync):

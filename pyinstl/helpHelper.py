@@ -4,7 +4,8 @@ from __future__ import print_function
 import fnmatch
 import yaml
 from pyinstl.utils import *
-from configVarList import var_list
+#from configVarList import var_list
+from configVarStack import var_stack as var_list
 
 class HelpItem(object):
     def __init__(self, topic, name):
