@@ -27,6 +27,11 @@ value_ref_re = re.compile("""(
                             \(                          # (
                             (?P<var_name>[\w\s]+?|[\w\s(]+[\w\s)]+?)           # value
                             \))                         # )
+                            (?P<array_pattern>
+                                ([[]
+                                (?P<array_subscript>\d+)
+                                [\]])+
+                            )?
                             )""", re.X)
 only_one_value_ref_re = re.compile("""
                             ^
@@ -35,6 +40,11 @@ only_one_value_ref_re = re.compile("""
                             \(                          # (
                             (?P<var_name>[\w\s]+?|[\w\s(]+[\w\s)]+?)           # value
                             \))                         # )
+                            (?P<array_pattern>
+                                ([[]
+                                (?P<array_subscript>\d+)
+                                [\]])+
+                            )?
                             $
                             """, re.X)
 
