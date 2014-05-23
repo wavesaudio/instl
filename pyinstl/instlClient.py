@@ -271,14 +271,16 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum += self.platform_helper.progress("Resolve .symlink files")
 
             have_map = svnTree.SVNTree()
-            have_info_path = var_list.get_str("HAVE_INFO_MAP_PATH")
+            have_info_path = var_list.get_str("NEW_HAVE_INFO_MAP_PATH") # in case we're in synccopy command
+            if not os.path.isfile(have_info_path):
+                have_info_path = var_list.get_str("HAVE_INFO_MAP_PATH") # in case we're in copy command
             if os.path.isfile(have_info_path):
                 have_map.read_info_map_from_file(have_info_path, format="text")
                 num_files_to_set_exec = have_map.num_subs_in_tree(what="file", predicate=lambda in_item: in_item.isExecutable())
                 logging.info("Num files to set exec: %d", num_files_to_set_exec)
                 if num_files_to_set_exec > 0:
                     self.batch_accum += self.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")
-                    self.batch_accum += self.platform_helper.set_exec_for_folder("$(HAVE_INFO_MAP_PATH)")
+                    self.batch_accum += self.platform_helper.set_exec_for_folder(have_info_path)
                     self.platform_helper.num_items_for_progress_report += num_files_to_set_exec
                     self.batch_accum += self.platform_helper.progress("Set exec done")
                     self.batch_accum += self.platform_helper.new_line()

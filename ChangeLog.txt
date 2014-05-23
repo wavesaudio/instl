@@ -2,6 +2,7 @@
 
     user visible changes, client:
     * Removed redundant echo during copy.
+    * Fixed: set-exec was not called or caled using the wrong have-info-map file if command was synccopy.
 
     user visible changes, admin:
     * wtar command: removed previously wtar files if tarring should be preformed.
