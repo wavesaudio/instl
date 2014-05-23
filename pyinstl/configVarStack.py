@@ -33,7 +33,6 @@ class ConfigVarStack(configVarList.ConfigVarList):
     #    """ return number of ConfigVars """
     #    return len(self._ConfigVarList_objs)
 
-    # moonshine (::o>)
     def __getitem__(self, var_name):
         """ return a ConfigVar object by it's name """
         for level_var_list in reversed(self._ConfigVarList_objs):
@@ -47,29 +46,24 @@ class ConfigVarStack(configVarList.ConfigVarList):
     #        del self._ConfigVarList_objs[key]
 
 
-    # moonshine (::o>)
     def __iter__(self):
         return iter(self.keys())
 
-    # moonshine revesed lists or reversed ConfigVar objects?
     def __reversed__(self):
-        return reversed(self._ConfigVarList_objs)
+        return reversed(self.keys())
 
-    # moonshine (::o>)
     def __contains__(self, var_name):
         for level_var_list in self._ConfigVarList_objs:
             if var_name in level_var_list:
                 return True
         return False
 
-    # moonshine (::o>)
     def keys(self):
         the_keys = unique_list()
         for a_var_list in reversed(self._ConfigVarList_objs):
             the_keys.extend(a_var_list.keys())
         return list(the_keys)
 
-    # moonshine (::o>)
     def get_configVar_obj(self, var_name):
         retVal = None
         try:
@@ -78,7 +72,6 @@ class ConfigVarStack(configVarList.ConfigVarList):
             retVal = self._ConfigVarList_objs[-1].get_configVar_obj(var_name)
         return retVal
 
-    # moonshine (::o>)
     def set_value_if_var_does_not_exist(self, var_name, var_value, description=None):
         """ If variable does not exist it will be created and assigned the new value.
             Otherwise variable will remain as is. Good for setting defaults to variables
@@ -92,7 +85,6 @@ class ConfigVarStack(configVarList.ConfigVarList):
             if description is not None:
                 new_var.set_description(description)
 
-    # moonshine (::o>)
     def add_const_config_variable(self, var_name, description="", *values):
         """ add a const single value object """
         try:
@@ -127,6 +119,17 @@ class ConfigVarStack(configVarList.ConfigVarList):
             else:
                 retVal[var_name] = YamlDumpWrap(value="UNKNOWN VARIABLE", comment=var_name+" is not in variable list")
         return retVal
+
+    def push_scope(self, scope=None):
+        if scope is None:
+            scope = configVarList.ConfigVarList()
+        if type(scope) is not configVarList.ConfigVarList:
+            raise TypeError("scope must be of type ConfigVarList")
+        self._ConfigVarList_objs.append(scope)
+
+    def pop_scope(self):
+        self._ConfigVarList_objs.pop()
+
 
 # This is the global variable list serving all parts of instl
 var_stack = ConfigVarStack()

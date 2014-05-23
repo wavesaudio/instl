@@ -57,6 +57,7 @@ import sys
 sys.path.append("..")
 from aYaml import augmentedYaml
 from pyinstl.utils import *
+from pyinstl import configVarList
 
 current_os_names = get_current_os_names()
 os_family_name = current_os_names[0]
@@ -360,6 +361,19 @@ class InstallItem(object):
                 self.merge_all_item_sections(ancestor_item)
                 self.remark += ", "+ancestor_item.name+", "+ancestor_item.remark
             self.resolve_inheritance_stack.pop()
+
+    def get_ConfiVarList(self):
+        retVal = configVarList.ConfigVarList()
+        retVal.add_const_config_variable('iid_iid', "-", self.iid)
+        retVal.add_const_config_variable('iid_name', "-", self.name)
+        retVal.add_const_config_variable('iid_remark, "-"', self.remark)
+        retVal.add_const_config_variable('iid_guid', "-", self.guid)
+        retVal.add_const_config_variable('iid_inherit', "-", *self.inherit_list())
+        retVal.add_const_config_variable('iid_install_sources', "-", *self.source_list())
+
+        return retVal
+
+from pyinstl import configVarList
 
 
 """

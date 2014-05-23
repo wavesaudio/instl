@@ -299,11 +299,14 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum += self.platform_helper.copy_tool.begin_copy_folder()
             for IID in items_in_folder:
                 installi = self.install_definitions_index[IID]
+                var_list.push_scope(installi.get_ConfiVarList())
+#                for source in var_list.get_list("iid_install_sources"):
                 for source in installi.source_list():
                     self.batch_accum += installi.action_list('before')
                     self.create_copy_instructions_for_source(source)
                     self.batch_accum += installi.action_list('after')
                     self.batch_accum += self.platform_helper.progress("Copy {installi.name}".format(**locals()))
+                var_list.pop_scope()
             self.batch_accum += self.platform_helper.copy_tool.end_copy_folder()
             logging.info("... copy actions: %d", len(self.batch_accum) - batch_accum_len_before)
 
