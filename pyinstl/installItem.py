@@ -76,9 +76,9 @@ def read_index_from_yaml(all_items_node):
 
 
 class InstallItem(object):
-    __slots__ = ('iid', 'name', 'guid',
-                'remark', "description", 'inherit',
-                '__set_for_os', '__items', '__resolved_inherit')
+    __slots__ = ('remark', "description", 'inherit',
+                '__set_for_os', '__items', '__resolved_inherit',
+                'var_list')
     os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
     item_types = ('install_sources', 'install_folders', 'depends', 'actions')
     action_types = ('copy_in', 'folder_in', 'before', 'after', 'folder_out', 'copy_out')
@@ -144,20 +144,17 @@ class InstallItem(object):
 
     def __init__(self):
         self.__resolved_inherit = False
-        self.iid = None
-        self.name = ""
-        self.guid = None
-        self.remark = ""
-        self.description = ""
         self.inherit = unique_list()
         self.__set_for_os = [InstallItem.os_names[0]] # reading for all platforms ('common') or for which specific platforms ('Mac', 'Win')?
         self.__items = defaultdict(InstallItem.create_items_section)
+        self.var_list = configVarList.ConfigVarList()
 
     def read_from_yaml_by_idd(self, IID, all_items_node):
         my_node = all_items_node[IID]
         self.read_from_yaml(my_node)
-        self.iid = IID # restore the IID that might have been overwritten by inheritance
-        self.description = str(my_node.start_mark)
+        #self.iid = IID # restore the IID that might have been overwritten by inheritance
+        self.var_list.add_const_config_variable('iid_iid', "-", IID)
+        self.var_list.set_var("iid_description").append(str(my_node.start_mark))
 
     def read_from_yaml(self, my_node):
         if 'inherit' in my_node:
@@ -165,11 +162,11 @@ class InstallItem(object):
             for inheritoree in inherite_node:
                 self.add_inherit(inheritoree.value)
         if 'name' in my_node:
-            self.name = my_node['name'].value
+            self.var_list.add_const_config_variable('iid_name', "-", my_node['name'].value)
         if 'guid' in my_node:
-            self.guid = my_node['guid'].value
+            self.var_list.add_const_config_variable('iid_guid', "-", my_node['guid'].value)
         if 'remark' in my_node:
-            self.remark = my_node['remark'].value
+            self.var_list.set_var('iid_remark').append(my_node['remark'].value)
         if 'install_sources' in my_node:
             for source in my_node['install_sources']:
                 self.add_source(source.value, source.tag)
@@ -275,8 +272,9 @@ class InstallItem(object):
         return retVal
 
     def get_recursive_depends(self, items_map, out_set, orphan_set):
-        if self.iid not in out_set:
-            out_set.append(self.iid)
+        IID = self.var_list.get_str("iid_iid")
+        if IID not in out_set:
+            out_set.append(IID)
             #print("get_recursive_depends: added", self.iid)
             for depend in self.depend_list():
                 #print("get_recursive_depends:", self.iid, "depends on", depend)
@@ -318,11 +316,11 @@ class InstallItem(object):
 
     def repr_for_yaml(self):
         retVal = OrderedDict()
-        retVal['name'] = self.name
-        if self.guid:
-            retVal['guid'] = self.guid
-        if self.remark:
-            retVal['remark'] = self.remark
+        retVal['name'] = self.var_list.get_str("iid_name")
+        if "iid_guid" in self.var_list:
+            retVal['guid'] = self.var_list.get_str("iid_guid")
+        if "iid_remark" in self.var_list:
+            retVal['remark'] = self.var_list.get_str("iid_remark")
         if self.inherit:
             retVal['inherit'] = self.inherit_list()
 
@@ -339,35 +337,35 @@ class InstallItem(object):
     def merge_from_another_InstallItem(self, otherInstallItem):
         """ merge the contents of another InstallItem """
         # self.iid = iid is not merged
-        # self.name = name is not merged
-        # self.guid = guid is not merged
+        # name is not merged
+        # guid is not merged
         # name of the other item is added to the remark
-        if not self.remark:
-            self.remark = self.name
-        self.remark += ", "+otherInstallItem.name
+        the_remark = ""
+        if "iid_remark" not in self.var_list:
+            the_remark = self.var_list.get_str("iid_name")
+        the_remark += ", "+otherInstallItem.var_list.get_str("iid_name")
+        self.var_list.set_var("iid_remark").append(the_remark)
         self.inherit.update(otherInstallItem.inherit)
         self.merge_all_item_sections(otherInstallItem)
 
     def resolve_inheritance(self, InstallItemsDict):
         if not self.__resolved_inherit:
-            if self.iid in self.resolve_inheritance_stack:
-                raise Exception("circular resolve_inheritance of "+self.iid)
-            self.resolve_inheritance_stack.append(self.iid)
+            IID = self.var_list.get_str("iid_iid")
+            if IID in self.resolve_inheritance_stack:
+                raise Exception("circular resolve_inheritance of "+IID)
+            self.resolve_inheritance_stack.append(IID)
             for ancestor in self.inherit_list():
                 if ancestor not in InstallItemsDict:
-                    raise KeyError(self.iid+" inherites from "+ancestor+" which is not in InstallItemsDict")
+                    raise KeyError(IID+" inherites from "+ancestor+" which is not in InstallItemsDict")
                 ancestor_item = InstallItemsDict[ancestor]
                 ancestor_item.resolve_inheritance(InstallItemsDict)
                 self.merge_all_item_sections(ancestor_item)
-                self.remark += ", "+ancestor_item.name+", "+ancestor_item.remark
+                the_remark = ", ".join( (self.var_list.get_str("iid_remark"), ancestor_item.var_list.get_str("iid_name"), ancestor_item.var_list.get_str("iid_remark")) )
+                self.var_list.set_var("iid_remark").append(the_remark)
             self.resolve_inheritance_stack.pop()
 
     def get_ConfiVarList(self):
         retVal = configVarList.ConfigVarList()
-        retVal.add_const_config_variable('iid_iid', "-", self.iid)
-        retVal.add_const_config_variable('iid_name', "-", self.name)
-        retVal.add_const_config_variable('iid_remark, "-"', self.remark)
-        retVal.add_const_config_variable('iid_guid', "-", self.guid)
         retVal.add_const_config_variable('iid_inherit', "-", *self.inherit_list())
         retVal.add_const_config_variable('iid_install_sources', "-", *self.source_list())
 
@@ -389,13 +387,13 @@ from pyinstl import configVarList
 
 def guid_list(items_map):
     retVal = unique_list()
-    retVal.extend(filter(bool, [install_def.guid for install_def in items_map.values()]))
+    retVal.extend(filter(bool, [install_def.var_list.get_str("iid_guid") for install_def in items_map.values()]))
     return retVal
 
 
 def iids_from_guid(items_map, guid):
     retVal = list()
     for iid, install_def in items_map.iteritems():
-        if install_def.guid == guid:
+        if install_def.var_list.get_str("iid_guid") == guid:
             retVal.append(iid)
     return retVal
