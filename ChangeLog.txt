@@ -1,4 +1,4 @@
-???? 0.9.11
+28/5/2014 0.9.11   Shai Shasag <shai@waves.com>
     user visible changes, client:
     * Fixed a problem where index.yaml would not be copied to bookkeeping when syncing to DOK.
     
