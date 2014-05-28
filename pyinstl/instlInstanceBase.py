@@ -107,12 +107,13 @@ class InstlInstanceBase(object):
                          "start_progress":  ("__START_DYNAMIC_PROGRESS__", "0"),
                          "total_progress":  ("__TOTAL_DYNAMIC_PROGRESS__", "0"),
                          "just_with_number":  ("__JUST_WITH_NUMBER__", "0"),
+                         "limit_command_to":  ("__LIMIT_COMMAND_TO__", None),
                          }
 
         for attrib, var in const_attrib_to_var.iteritems():
             attrib_value = getattr(cmd_line_options_obj, attrib)
             if attrib_value:
-                var_list.add_const_config_variable(var[0], "from command line options", attrib_value[0])
+                var_list.add_const_config_variable(var[0], "from command line options", *attrib_value)
             elif var[1]: # there's a default
                 var_list.add_const_config_variable(var[0], "from default", var[1])
 

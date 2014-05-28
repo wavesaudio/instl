@@ -68,6 +68,7 @@ class CommandLineOptions(object):
         self.start_progress = None
         self.total_progress = None
         self.just_with_number = None
+        self.limit_command_to = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
@@ -156,6 +157,7 @@ def prepare_args_parser():
                                 fix_symlinks_parser)
     need_progress_options = (check_checksum_parser, unwtar_parser, create_folders_parser,
                             set_exec_parser)
+    need_limit_options = (stage2svn_parser, svn2stage_parser)
 
     # add --in to parsers that need it
     for subparser in need_input_options:
@@ -211,6 +213,14 @@ def prepare_args_parser():
                                     dest='total_progress',
                                     help="num total progress items")
 
+    for subparser in need_limit_options:
+        limit_options = subparser.add_argument_group(description='limit command to specific folder')
+        limit_options.add_argument('--limit',
+                                    required=False,
+                                    nargs='+',
+                                    metavar='limit-command-to',
+                                    dest='limit_command_to',
+                                    help="list of command to limit the action to")
 
     trans_options = trans_parser.add_argument_group(description='translate arguments:')
     trans_options.add_argument('--props', '-p',
