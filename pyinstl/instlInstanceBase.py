@@ -35,6 +35,7 @@ class InstlInstanceBase(object):
         self.path_searcher.add_search_path(var_list.get_str("__INSTL_DATA_FOLDER__"))
 
         self.platform_helper = PlatformSpecificHelperFactory(var_list.get_str("__CURRENT_OS__"), self)
+        self.platform_helper.init_copy_tool() # init initial copy tool, tool might be later overridden after reading variable COPY_TOOL from yaml.
 
 
         self.install_definitions_index = dict()
@@ -106,12 +107,13 @@ class InstlInstanceBase(object):
                          "start_progress":  ("__START_DYNAMIC_PROGRESS__", "0"),
                          "total_progress":  ("__TOTAL_DYNAMIC_PROGRESS__", "0"),
                          "just_with_number":  ("__JUST_WITH_NUMBER__", "0"),
+                         "limit_command_to":  ("__LIMIT_COMMAND_TO__", None),
                          }
 
         for attrib, var in const_attrib_to_var.iteritems():
             attrib_value = getattr(cmd_line_options_obj, attrib)
             if attrib_value:
-                var_list.add_const_config_variable(var[0], "from command line options", attrib_value[0])
+                var_list.add_const_config_variable(var[0], "from command line options", *attrib_value)
             elif var[1]: # there's a default
                 var_list.add_const_config_variable(var[0], "from default", var[1])
 
@@ -234,7 +236,7 @@ class InstlInstanceBase(object):
                 self.read_yaml_file(cached_file)
                 if "copy" in i_node:
                     self.batch_accum.set_current_section('post-sync')
-                    self.batch_accum += self.platform_helper.copy_file_to_file(cached_file, var_list.resolve_string(i_node["copy"].value), hard_link=True)
+                    self.batch_accum += self.platform_helper.copy_tool.copy_file_to_file(cached_file, var_list.resolve_string(i_node["copy"].value), link_dest=True)
 
     def create_variables_assignment(self):
         self.batch_accum.set_current_section("assign")

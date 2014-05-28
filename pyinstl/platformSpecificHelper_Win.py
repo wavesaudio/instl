@@ -167,6 +167,16 @@ class CopyTool_win_xcopy(CopyToolBase):
         retVal.append(self.platform_helper.exit_if_error())
         return retVal
 
+    def copy_file_to_file(self, src_file, trg_file, link_dest=None, ignore=None):
+        retVal = list()
+        norm_src_file = os.path.normpath(src_file)
+        norm_trg_file = os.path.normpath(trg_file)
+        ignore_spec = self.create_ignore_spec(ignore)
+        copy_command = "xcopy  /R /Y {ignore_spec} \"{norm_src_file}\" \"{norm_trg_file}\"".format(**locals())
+        retVal.append(copy_command)
+        retVal.append(self.platform_helper.exit_if_error())
+        return retVal
+
     def create_excludes_file(self):
         if self.excludes_set:
             with open(var_list.get_str("XCOPY_EXCLUDE_FILE_PATH"), "w") as wfd:

@@ -566,14 +566,26 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_stage2svn(self):
         self.batch_accum.set_current_section('admin')
+        if var_list.defined("__LIMIT_COMMAND_TO__"):
+            print("limiting to ", "; ".join(var_list.get_list("__LIMIT_COMMAND_TO__")))
+        else:
+            print ("no limiting to specific folder")
         stage_folder = var_list.resolve_string(("$(STAGING_FOLDER)"))
         svn_folder = var_list.resolve_string(("$(SVN_CHECKOUT_FOLDER)"))
         self.batch_accum += self.platform_helper.unlock(stage_folder, recursive=True)
         self.batch_accum += self.platform_helper.progress("chflags -R nouchg "+stage_folder)
         self.batch_accum += self.platform_helper.new_line()
         self.batch_accum += self.platform_helper.cd(svn_folder)
-        comperer = filecmp.dircmp(stage_folder, svn_folder, ignore=[".svn", ".DS_Store", "Icon\015"])
-        self.stage2svn_for_folder(comperer)
+        stage_folder_svn_folder_pairs = []
+        if var_list.defined("__LIMIT_COMMAND_TO__"):
+            limit_list = var_list.get_list("__LIMIT_COMMAND_TO__")
+            for limit in limit_list:
+                stage_folder_svn_folder_pairs.append( (os.path.join(stage_folder,limit) , os.path.join(svn_folder, limit) ) )
+        else:
+                stage_folder_svn_folder_pairs.append( (stage_folder , svn_folder) )
+        for pair in stage_folder_svn_folder_pairs:
+            comperer = filecmp.dircmp(pair[0], pair[1], ignore=[".svn", ".DS_Store", "Icon\015"])
+            self.stage2svn_for_folder(comperer)
         self.create_variables_assignment()
         self.write_batch_file()
         if "__RUN_BATCH_FILE__" in var_list:
