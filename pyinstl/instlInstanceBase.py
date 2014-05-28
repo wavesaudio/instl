@@ -35,6 +35,7 @@ class InstlInstanceBase(object):
         self.path_searcher.add_search_path(var_list.get_str("__INSTL_DATA_FOLDER__"))
 
         self.platform_helper = PlatformSpecificHelperFactory(var_list.get_str("__CURRENT_OS__"), self)
+        self.platform_helper.init_copy_tool() # init initial copy tool, tool might be later overridden after reading variable COPY_TOOL from yaml.
 
 
         self.install_definitions_index = dict()
@@ -234,7 +235,7 @@ class InstlInstanceBase(object):
                 self.read_yaml_file(cached_file)
                 if "copy" in i_node:
                     self.batch_accum.set_current_section('post-sync')
-                    self.batch_accum += self.platform_helper.copy_file_to_file(cached_file, var_list.resolve_string(i_node["copy"].value), hard_link=True)
+                    self.batch_accum += self.platform_helper.copy_tool.copy_file_to_file(cached_file, var_list.resolve_string(i_node["copy"].value), link_dest=True)
 
     def create_variables_assignment(self):
         self.batch_accum.set_current_section("assign")

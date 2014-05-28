@@ -100,7 +100,7 @@ class InstlClient(InstlInstanceBase):
         self.init_default_client_vars()
         self.resolve_defined_paths()
         self.platform_helper.init_download_tool()
-        self.platform_helper.init_copy_tool()
+        self.platform_helper.init_copy_tool() # after reading variable COPY_TOOL from yaml, we might need to re-init the copy tool.
         self.resolve_index_inheritance()
         self.add_deafult_items()
         self.calculate_default_install_item_set()

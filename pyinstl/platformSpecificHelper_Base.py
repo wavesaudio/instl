@@ -62,6 +62,14 @@ class CopyToolBase(object):
         """
         pass
 
+    @abc.abstractmethod
+    def copy_file_to_file(self, src_file, trg_file, link_dest=False, ignore=None):
+        """ Copy file src_file into trg_file.
+            Example: copy_file_to_file("a", "/d/c/b") copies
+            the file a to the file "/d/c/b".
+        """
+        pass
+
 class CopyToolRsync(CopyToolBase):
     def __init__(self, platform_helper):
         super(CopyToolRsync, self).__init__(platform_helper)
@@ -104,6 +112,18 @@ class CopyToolRsync(CopyToolBase):
             sync_command = "rsync --owner --group -l -r -E {ignore_spec} --link-dest=\"{relative_link_dest}\" \"{src_file}\" \"{trg_dir}\"".format(**locals())
         else:
             sync_command = "rsync --owner --group -l -r -E {ignore_spec} \"{src_file}\" \"{trg_dir}\"".format(**locals())
+        return sync_command
+
+    def copy_file_to_file(self, src_file, trg_file, link_dest=False, ignore=None):
+        assert not src_file.endswith("/")
+        ignore_spec = self.create_ignore_spec(ignore)
+        if link_dest:
+            src_folder_name, src_file_name = os.path.split(src_file)
+            trg_folder_name, trg_file_name = os.path.split(trg_file)
+            relative_link_dest = os.path.relpath(src_folder_name, trg_folder_name)
+            sync_command = "rsync --owner --group -l -r -E {ignore_spec} --link-dest=\"{relative_link_dest}\" \"{src_file}\" \"{trg_file}\"".format(**locals())
+        else:
+            sync_command = "rsync --owner --group -l -r -E {ignore_spec} \"{src_file}\" \"{trg_file}\"".format(**locals())
         return sync_command
 
     def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):

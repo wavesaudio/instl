@@ -1,6 +1,10 @@
 ???? 0.9.11
-
-
+    user visible changes, client:
+    * Fixed a problem where index.yaml would not be copied to bookkeeping when syncing to DOK.
+    
+    programmer visible changes:
+    * Copy tools got a new method copy_file_to_file.
+    
 27/5/2014 0.9.10   Shai Shasag <shai@waves.com>
 
     user visible changes, client:
@@ -12,6 +16,7 @@
 
 13/5/2014 0.9.9   Shai Shasag <shai@waves.com>
 
+    user visible changes, client:
     * New line after each folder in copy operations.
     * No redundant cd to folder that has not actions for non copying items.
     * When unwtaring, if .done exists it's date compared to the target file.
