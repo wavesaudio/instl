@@ -27,11 +27,6 @@ value_ref_re = re.compile("""(
                             \(                          # (
                             (?P<var_name>[\w\s]+?|[\w\s(]+[\w\s)]+?)           # value
                             \))                         # )
-                            (?P<array_pattern>
-                                ([[]
-                                (?P<array_subscript>\d+)
-                                [\]])+
-                            )?
                             )""", re.X)
 only_one_value_ref_re = re.compile("""
                             ^
@@ -40,11 +35,6 @@ only_one_value_ref_re = re.compile("""
                             \(                          # (
                             (?P<var_name>[\w\s]+?|[\w\s(]+[\w\s)]+?)           # value
                             \))                         # )
-                            (?P<array_pattern>
-                                ([[]
-                                (?P<array_subscript>\d+)
-                                [\]])+
-                            )?
                             $
                             """, re.X)
 
@@ -203,6 +193,23 @@ class ConfigVarList(object):
         resolved_list = resolve_list((in_str,), self.resolve_value_callback)
         retVal = sep.join(resolved_list)
         return retVal
+
+    # do we need to also resolve lists of strings?
+    def resolveW(self, to_resolve, default="", sep=" "):
+        if not isinstance(to_resolve, str):
+            raise TypeError("Expected to_resolve to be str not ".type(to_resolve))
+        done = False
+        while not done:
+            value_ref_match = value_ref_re.search(to_resolve)
+            if value_ref_match:
+                replace_ref, value_ref = value_ref_match.group('varref_pattern', 'var_name')
+                replace_to = default
+                if value_ref in self:
+                    replace_to = sep.join(self[value_ref])
+                to_resolve = to_resolve.replace(replace_ref, replace_to)
+            else:
+                done = True
+        return to_resolve
 
     def resolve_value_callback(self, value_to_resolve):
         """ callback for configVar.ConfigVar.Resolve. value_to_resolve should
