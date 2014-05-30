@@ -275,6 +275,3 @@ def resolve_list(needsResolveList, resolve_callback):
     if need_to_resolve_again:  # another resolve round until no ref-in-ref are left
         resolved_list = resolve_list(resolved_list, resolve_callback)
     return tuple(resolved_list)
-
-# This is the global variable list serving all parts of instl
-var_list = ConfigVarList()
