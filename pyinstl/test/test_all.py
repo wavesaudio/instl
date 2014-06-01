@@ -8,7 +8,7 @@ from test_SVNItem import TestSVNItem
 from test_SVNTree import TestSVNTree
 from test_InstallItem import TestInstallItem
 from test_utils import TestUtils
-from test_platformSpecificHelper import TestPlatformSpecificHelper
+#from test_platformSpecificHelper import TestPlatformSpecificHelper
 
 if __name__ == '__main__':
     unittest.main(verbosity=0)

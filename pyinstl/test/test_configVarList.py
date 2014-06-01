@@ -15,6 +15,27 @@ class TestConfigVarList(unittest.TestCase):
     def tearDown(self):
         del self.cvl
 
+    def test_new_resolve(self):
+        self.cvl.set_var("A").extend( ("a", "a", "a") )
+        self.cvl.set_var("B").append("$(Bee)")
+        self.cvl.set_var("Bee").append("bbb")
+        self.cvl.set_var("C").extend( ("$(B)",))
+        self.cvl.set_var("LastName").append("$(LastName_for_$(FirstName))")
+        self.cvl.set_var("LastName_for_Shai").append("Shasag")
+        self.cvl.set_var("LastName_for_Chilik").append("Maymoni")
+
+        self.cvl.set_var("FirstName").append("Shai")
+        resolved = self.cvl.resolve("$(A)$(D)$(B)$(C) - $(LastName)", list_sep=".")
+        self.assertEqual(resolved, "a.a.a$(D)bbbbbb - Shasag")
+
+        self.cvl.set_var("FirstName").append("Chilik")
+        resolved = self.cvl.resolve("$(A)$(D)$(B)$(C) - $(LastName)", list_sep=".")
+        self.assertEqual(resolved, "a.a.a$(D)bbbbbb - Maymoni")
+
+        self.cvl.set_var("FirstName").append("$(LastName)")
+        with self.assertRaises(Exception):
+            resolved = self.cvl.resolve("$(A)$(D)$(B)$(C) - $(LastName)", list_sep=".")
+
     def test_construction_empty(self):
         """ Construct ConfigVarList without values. """
         self.cvl = configVarList.ConfigVarList()
