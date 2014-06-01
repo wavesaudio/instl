@@ -18,10 +18,10 @@ class InstlInstanceSync_svn(InstlInstanceSync):
         self.check_prerequisite_var_existence(("SYNC_BASE_URL", "SVN_CLIENT_PATH"))
 
         var_list.set_value_if_var_does_not_exist("REPO_REV", "HEAD", description=var_description)
-        bookkeeping_relative_path = relative_url(var_list.get_str("SYNC_BASE_URL"), var_list.get_str("BOOKKEEPING_DIR_URL"))
+        bookkeeping_relative_path = relative_url(var_list.resolve("$(SYNC_BASE_URL)"), var_list.resolve("$(BOOKKEEPING_DIR_URL)"))
         var_list.set_var("REL_BOOKKIPING_PATH", var_description).append(bookkeeping_relative_path)
 
-        rel_sources = relative_url(var_list.get_str("SYNC_BASE_URL"), var_list.resolve_string("$(SYNC_BASE_URL)/$(SOURCE_PREFIX)"))
+        rel_sources = relative_url(var_list.resolve("$(SYNC_BASE_URL)"), var_list.resolve("$(SYNC_BASE_URL)/$(SOURCE_PREFIX)"))
         var_list.set_var("REL_SRC_PATH", var_description).append(rel_sources)
 
         for identifier in ("SYNC_BASE_URL", "SVN_CLIENT_PATH", "REL_SRC_PATH", "REPO_REV", "BOOKKEEPING_DIR_URL"):

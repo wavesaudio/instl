@@ -90,7 +90,7 @@ class CMDObj(cmd.Cmd, object):
         self.history_file_path = None
         self.prompt = None
         self.save_dir = None
-        self.this_program_name = var_list.get_str("INSTL_EXEC_DISPLAY_NAME")
+        self.this_program_name = var_list.resolve("$(INSTL_EXEC_DISPLAY_NAME)")
 
     def __enter__(self):
         if readline_loaded:
@@ -570,7 +570,7 @@ class CMDObj(cmd.Cmd, object):
     # resolve a string comataining varables.
     def do_resolve(self, param):
         if param:
-            print(var_list.resolve_string(param))
+            print(var_list.resolve(param))
         return False
 
     def help_resolve(self):

@@ -32,9 +32,9 @@ class InstlInstanceBase(object):
         # initialize the search paths helper with the current directory and dir where instl is now
         self.path_searcher.add_search_path(os.getcwd())
         self.path_searcher.add_search_path(os.path.dirname(os.path.realpath(sys.argv[0])))
-        self.path_searcher.add_search_path(var_list.get_str("__INSTL_DATA_FOLDER__"))
+        self.path_searcher.add_search_path(var_list.resolve("$(__INSTL_DATA_FOLDER__)"))
 
-        self.platform_helper = PlatformSpecificHelperFactory(var_list.get_str("__CURRENT_OS__"), self)
+        self.platform_helper = PlatformSpecificHelperFactory(var_list.resolve("$(__CURRENT_OS__)"), self)
         self.platform_helper.init_copy_tool() # init initial copy tool, tool might be later overridden after reading variable COPY_TOOL from yaml.
 
 
@@ -45,9 +45,9 @@ class InstlInstanceBase(object):
 
 
     def get_version_str(self):
-        retVal = " ".join( (var_list.get_str("INSTL_EXEC_DISPLAY_NAME"),
+        retVal = " ".join( (var_list.resolve("$(INSTL_EXEC_DISPLAY_NAME)"),
                             "version", ".".join(var_list.get_list("__INSTL_VERSION__")),
-                            var_list.get_str("__COMPILATION_TIME__"), var_list.get_str("__PLATFORM_NODE__", default="")) )
+                            var_list.resolve("$(__COMPILATION_TIME__)"), var_list.get_str("__PLATFORM_NODE__", default="")) )
 
         return retVal
 
@@ -63,27 +63,27 @@ class InstlInstanceBase(object):
         var_description = "from InstlInstanceBase.init_default_vars"
 
         # read defaults/main.yaml
-        main_defaults_file_path = os.path.join(var_list.resolve_string("$(__INSTL_DATA_FOLDER__)"), "defaults", "main.yaml")
+        main_defaults_file_path = os.path.join(var_list.resolve("$(__INSTL_DATA_FOLDER__)"), "defaults", "main.yaml")
         self.read_yaml_file(main_defaults_file_path)
 
         # read defaults/compile-info.yaml
-        compile_info_file_path = os.path.join(var_list.resolve_string("$(__INSTL_DATA_FOLDER__)"), "defaults", "compile-info.yaml")
+        compile_info_file_path = os.path.join(var_list.resolve("$(__INSTL_DATA_FOLDER__)"), "defaults", "compile-info.yaml")
         if os.path.isfile(compile_info_file_path):
             self.read_yaml_file(compile_info_file_path)
         if "__COMPILATION_TIME__" not in var_list:
-            if var_list.get_str("__INSTL_COMPILED__") == "True":
+            if var_list.resolve("$(__INSTL_COMPILED__)") == "True":
                 var_list.add_const_config_variable("__COMPILATION_TIME__", var_description, "unknown compilation time")
             else:
                 var_list.add_const_config_variable("__COMPILATION_TIME__", var_description, "(not compiled)")
 
         # read class specific defaults/*.yaml
-        class_specific_defaults_file_path = os.path.join(var_list.resolve_string("$(__INSTL_DATA_FOLDER__)"), "defaults", type(self).__name__+".yaml")
+        class_specific_defaults_file_path = os.path.join(var_list.resolve("$(__INSTL_DATA_FOLDER__)"), "defaults", type(self).__name__+".yaml")
         if os.path.isfile(class_specific_defaults_file_path):
             self.read_yaml_file(class_specific_defaults_file_path)
 
-        log_file = pyinstl.log_utils.get_log_file_path(var_list.get_str("INSTL_EXEC_DISPLAY_NAME"), var_list.get_str("INSTL_EXEC_DISPLAY_NAME"), debug=False)
+        log_file = pyinstl.log_utils.get_log_file_path(var_list.resolve("$(INSTL_EXEC_DISPLAY_NAME)"), var_list.resolve("$(INSTL_EXEC_DISPLAY_NAME)"), debug=False)
         var_list.set_var("LOG_FILE", var_description).append(log_file)
-        debug_log_file = pyinstl.log_utils.get_log_file_path(var_list.get_str("INSTL_EXEC_DISPLAY_NAME"), var_list.get_str("INSTL_EXEC_DISPLAY_NAME"), debug=True)
+        debug_log_file = pyinstl.log_utils.get_log_file_path(var_list.resolve("$(INSTL_EXEC_DISPLAY_NAME)"), var_list.resolve("$(INSTL_EXEC_DISPLAY_NAME)"), debug=True)
         var_list.set_var("LOG_FILE_DEBUG", var_description).extend( (debug_log_file, logging.getLevelName(pyinstl.log_utils.debug_logging_level), pyinstl.log_utils.debug_logging_started) )
         for identifier in var_list:
             logging.debug("%s: %s", identifier, var_list.get_str(identifier))
@@ -207,28 +207,28 @@ class InstlInstanceBase(object):
 
     def read_include_node(self, i_node):
         if i_node.isScalar():
-            resolved_file_name = var_list.resolve_string(i_node.value)
+            resolved_file_name = var_list.resolve(i_node.value)
             self.read_yaml_file(resolved_file_name)
         elif i_node.isSequence():
             for sub_i_node in i_node:
                 self.read_include_node(sub_i_node)
         elif i_node.isMapping():
             if "url" in i_node and "checksum" in i_node and "sig" in i_node:
-                resolved_file_url = var_list.resolve_string(i_node["url"].value)
-                resolved_checksum = var_list.resolve_string(i_node["checksum"].value)
-                resolved_signature = var_list.resolve_string(i_node["sig"].value)
+                resolved_file_url = var_list.resolve(i_node["url"].value)
+                resolved_checksum = var_list.resolve(i_node["checksum"].value)
+                resolved_signature = var_list.resolve(i_node["sig"].value)
                 cached_files_dir = self.get_default_sync_dir(continue_dir="cache", mkdir=True)
                 cached_file = os.path.join(cached_files_dir, resolved_checksum)
 
                 if "PUBLIC_KEY" not in var_list:
                     if "PUBLIC_KEY_FILE" in var_list:
-                        public_key_file = var_list.resolve_string("$(PUBLIC_KEY_FILE)")
+                        public_key_file = var_list.resolve("$(PUBLIC_KEY_FILE)")
                         with open_for_read_file_or_url(public_key_file, self.path_searcher) as file_fd:
                             public_key_text = file_fd.read()
                             var_list.set_var("PUBLIC_KEY", "from "+public_key_file).append(public_key_text)
 
 
-                public_key_text = var_list.get_str("PUBLIC_KEY")
+                public_key_text = var_list.resolve("$(PUBLIC_KEY)")
                 download_from_file_or_url(resolved_file_url, cached_file, cache=True,
                                           public_key=public_key_text,
                                           textual_sig=resolved_signature,
@@ -236,7 +236,7 @@ class InstlInstanceBase(object):
                 self.read_yaml_file(cached_file)
                 if "copy" in i_node:
                     self.batch_accum.set_current_section('post-sync')
-                    self.batch_accum += self.platform_helper.copy_tool.copy_file_to_file(cached_file, var_list.resolve_string(i_node["copy"].value), link_dest=True)
+                    self.batch_accum += self.platform_helper.copy_tool.copy_file_to_file(cached_file, var_list.resolve(i_node["copy"].value), link_dest=True)
 
     def create_variables_assignment(self):
         self.batch_accum.set_current_section("assign")
@@ -246,7 +246,7 @@ class InstlInstanceBase(object):
 
     def get_default_sync_dir(self, continue_dir=None, mkdir=True):
         retVal = None
-        os_family_name = var_list.get_str("__CURRENT_OS__")
+        os_family_name = var_list.resolve("$(__CURRENT_OS__)")
         if os_family_name == "Mac":
             user_cache_dir_param = "$(COMPANY_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
             retVal = appdirs.user_cache_dir(user_cache_dir_param)
@@ -261,7 +261,7 @@ class InstlInstanceBase(object):
             retVal = os.path.join(retVal, continue_dir)
         #print("1------------------", user_cache_dir, "-", from_url, "-", retVal)
         if mkdir and retVal:
-            retVal = var_list.resolve_string(retVal)
+            retVal = var_list.resolve(retVal)
             safe_makedirs(retVal)
         return retVal
 
@@ -285,7 +285,7 @@ class InstlInstanceBase(object):
         lines_after_var_replacement = '\n'.join([value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines])
 
         from utils import write_to_file_or_stdout
-        out_file = var_list.get_str("__MAIN_OUT_FILE__")
+        out_file = var_list.resolve("$(__MAIN_OUT_FILE__)")
         with write_to_file_or_stdout(out_file) as fd:
             fd.write(lines_after_var_replacement)
             fd.write('\n')
@@ -313,7 +313,7 @@ class InstlInstanceBase(object):
 
     def write_program_state(self):
         from utils import write_to_file_or_stdout
-        state_file = var_list.get_str("__MAIN_STATE_FILE__")
+        state_file = var_list.resolve("$(__MAIN_STATE_FILE__)")
         with write_to_file_or_stdout(state_file) as fd:
             augmentedYaml.writeAsYaml(self, fd)
 
@@ -347,5 +347,5 @@ class InstlInstanceBase(object):
         self.svnTree.read_info_map_from_file(in_file_path)
 
     def write_info_map_file(self):
-        self.svnTree.write_to_file(var_list.get_str("__MAIN_OUT_FILE__"))
+        self.svnTree.write_to_file(var_list.resolve("$(__MAIN_OUT_FILE__)"))
 

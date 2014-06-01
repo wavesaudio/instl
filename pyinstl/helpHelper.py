@@ -76,7 +76,7 @@ class HelpHelper(object):
         return retVal
 
     def defaults_help(self):
-        defaults_folder_path = os.path.join(var_list.resolve_string("$(__INSTL_DATA_FOLDER__)"), "defaults")
+        defaults_folder_path = os.path.join(var_list.resolve("$(__INSTL_DATA_FOLDER__)"), "defaults")
         for yaml_file in os.listdir(defaults_folder_path):
             if fnmatch.fnmatch(yaml_file, '*.yaml') and yaml_file != "P4.yaml": # hack to not read the P4 defaults
                 self.instlObj.read_yaml_file(os.path.join(defaults_folder_path, yaml_file))
