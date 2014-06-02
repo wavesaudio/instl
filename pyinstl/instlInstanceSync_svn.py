@@ -24,9 +24,6 @@ class InstlInstanceSync_svn(InstlInstanceSync):
         rel_sources = relative_url(var_list.resolve("$(SYNC_BASE_URL)"), var_list.resolve("$(SYNC_BASE_URL)/$(SOURCE_PREFIX)"))
         var_list.set_var("REL_SRC_PATH", var_description).append(rel_sources)
 
-        for identifier in ("SYNC_BASE_URL", "SVN_CLIENT_PATH", "REL_SRC_PATH", "REPO_REV", "BOOKKEEPING_DIR_URL"):
-            logging.debug("... %s: %s", identifier, var_list.get_str(identifier))
-
     def create_sync_instructions(self, installState):
         self.ii.batch_accum.set_current_section('sync')
         self.ii.batch_accum += self.ii.platform_helper.progress("Starting sync from $(SYNC_BASE_URL)/$(SOURCE_PREFIX)")

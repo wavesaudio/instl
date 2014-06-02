@@ -30,10 +30,6 @@ class InstlInstanceSync_p4(InstlInstanceSync):
 
         safe_makedirs(var_list.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)"))
 
-        for identifier in ("SYNC_BASE_URL", "DOWNLOAD_TOOL_PATH", "REPO_REV"):
-            #print(identifier, var_list.get_str(identifier))
-            logging.debug("%s: %s", identifier, var_list.get_str(identifier))
-
     def create_sync_instructions(self, installState):
         self.instlObj.batch_accum.set_current_section('sync')
         self.installState = installState

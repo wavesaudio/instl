@@ -54,7 +54,6 @@ class TestConfigVarList(unittest.TestCase):
 
     def test_construction_empty(self):
         """ Construct ConfigVarList without values. """
-        self.cvl = configVarList.ConfigVarList()
         self.assertEqual(len(self.cvl), 0)
         self.assertFalse("no man's land" in self.cvl)
         with self.assertRaises(KeyError):
@@ -65,7 +64,6 @@ class TestConfigVarList(unittest.TestCase):
 
     def test_set_variable_new(self):
         """ Set one variable. """
-        self.cvl = configVarList.ConfigVarList()
         self.cvl.set_var("banana", "phone")
         self.assertEqual(len(self.cvl), 1)
         self.assertTrue("banana" in self.cvl)
@@ -73,13 +71,12 @@ class TestConfigVarList(unittest.TestCase):
         self.assertEqual(self.cvl.get_configVar_obj("banana").description(), "phone")
         self.assertEqual(len(self.cvl), 1)
         self.cvl.get_configVar_obj("banana").extend(("get", "down", "tonight"))
-        self.assertEqual(self.cvl.get_list("banana"), ("get", "down", "tonight"))
-        self.assertEqual(self.cvl.get_str("banana"), "get down tonight")
+        self.assertEqual(self.cvl.resolve_to_list("$(banana)"), ["get", "down", "tonight"])
+        self.assertEqual(self.cvl.resolve("$(banana)"), "get down tonight")
         self.assertEqual(self.cvl.keys(), ["banana"])
 
     def test_set_variable_reset(self):
         """ Set one variable, reset it. """
-        self.cvl = configVarList.ConfigVarList()
         self.cvl.set_var("banana", "phone")
         self.cvl.get_configVar_obj("banana").extend(("get", "down", "tonight"))
         self.cvl.set_var("banana", "kirk")
@@ -89,13 +86,12 @@ class TestConfigVarList(unittest.TestCase):
         self.assertEqual(self.cvl.get_configVar_obj("banana").description(), "kirk")
         self.assertEqual(len(self.cvl), 1)
         self.cvl.get_configVar_obj("banana").extend(("set", "up", "tomorrow"))
-        self.assertEqual(self.cvl.get_list("banana"), ("set", "up", "tomorrow"))
-        self.assertEqual(self.cvl.get_str("banana"), "set up tomorrow")
+        self.assertEqual(self.cvl.resolve_to_list("$(banana)"), ["set", "up", "tomorrow"])
+        self.assertEqual(self.cvl.resolve("$(banana)"), "set up tomorrow")
         self.assertEqual(self.cvl.keys(), ["banana"])
 
     def test_get_configVar_obj(self):
         """ Set one variable, by getting it. """
-        self.cvl = configVarList.ConfigVarList()
         self.cvl.get_configVar_obj("banana")
         self.assertEqual(len(self.cvl), 1)
         self.assertTrue("banana" in self.cvl)
@@ -104,12 +100,11 @@ class TestConfigVarList(unittest.TestCase):
         self.cvl.get_configVar_obj("banana").extend(("get", "down", "tonight"))
         resolved_list = [self.cvl.resolve(val) for val in self.cvl["banana"]]
         self.assertSequenceEqual(resolved_list, ("get", "down", "tonight"))
-        self.assertEqual(self.cvl.get_str("banana"), "get down tonight")
+        self.assertEqual(self.cvl.resolve("$(banana)"), "get down tonight")
         self.assertEqual(self.cvl.keys(), ["banana"])
 
     def test_del(self):
         """ Set one variable, and delete it. """
-        self.cvl = configVarList.ConfigVarList()
         self.cvl.get_configVar_obj("banana")
         self.assertEqual(len(self.cvl), 1)
         del self.cvl["banana"]
@@ -118,32 +113,29 @@ class TestConfigVarList(unittest.TestCase):
 
     def test_duplicate_variable_good(self):
         """ Create variable, duplicate it """
-        self.cvl = configVarList.ConfigVarList()
         self.cvl.get_configVar_obj("banana")
         self.cvl.get_configVar_obj("banana").extend(("grease", "is", "the", "world"))
         self.assertEqual(len(self.cvl), 1)
         self.cvl.duplicate_variable("banana", "oranges")
         self.assertEqual(len(self.cvl), 2)
-        self.assertEqual(self.cvl.get_list("banana"), self.cvl.get_list("oranges"))
-        self.assertEqual(self.cvl.get_str("banana"), self.cvl.get_str("oranges"))
+        self.assertEqual(self.cvl.resolve_to_list("$(banana)"), self.cvl.resolve_to_list("$(oranges)"))
+        self.assertEqual(self.cvl.resolve("$(banana)"), self.cvl.resolve("$(oranges)"))
         self.assertEqual(sorted(self.cvl.keys()), ["banana", "oranges"])
 
     def test_duplicate_variable_bad(self):
         """ Dont's create variable, duplicate it anyway"""
-        self.cvl = configVarList.ConfigVarList()
         self.cvl.get_configVar_obj("banana")
         self.cvl.get_configVar_obj("banana").extend(("grease", "is", "the", "world"))
         self.assertEqual(len(self.cvl), 1)
         with self.assertRaises(KeyError):
             self.cvl.duplicate_variable("peaches", "oranges")
         self.assertEqual(len(self.cvl), 1)
-        self.assertEqual(self.cvl.get_list("oranges"), ())
-        self.assertEqual(self.cvl.get_str("oranges"), "")
+        self.assertEqual(self.cvl.resolve_to_list("$(oranges)"), ["$(oranges)"])
+        self.assertEqual(self.cvl.resolve("$(oranges)"), "$(oranges)")
         self.assertEqual(sorted(self.cvl.keys()), ["banana"])
 
     def test_resolve_string_from_nothing(self):
         """ resolve values from variables where list is empty """
-        self.cvl = configVarList.ConfigVarList()
         resolved = self.cvl.resolve("Kupperbush")
         self.assertEqual(resolved, "Kupperbush")
         resolved = self.cvl.resolve("$(Kupperbush)")
@@ -155,7 +147,6 @@ class TestConfigVarList(unittest.TestCase):
 
     def test_resolve_string_from_empty(self):
         """ resolve values from variables where list has empty variables """
-        self.cvl = configVarList.ConfigVarList()
         self.cvl.get_configVar_obj("Kupperbush")
         self.cvl.get_configVar_obj("bush")
         resolved = self.cvl.resolve("Kupperbush")
@@ -183,7 +174,6 @@ class TestConfigVarList(unittest.TestCase):
 
     def test_resolve_string_with_separator_1(self):
         """ resolve values from variables with single value with non-default separator """
-        self.cvl = configVarList.ConfigVarList()
         self.cvl.get_configVar_obj("Kupperbush").append("kid creole")
         self.cvl.get_configVar_obj("bush").append("bush")
         resolved = self.cvl.resolve("Kupperbush", list_sep="-")
@@ -197,7 +187,6 @@ class TestConfigVarList(unittest.TestCase):
 
     def test_resolve_string_with_separator_2(self):
         """ resolve values from variables with multi value with non-default separator """
-        self.cvl = configVarList.ConfigVarList()
         self.cvl.get_configVar_obj("name").extend(("kid","creole"))
         self.cvl.get_configVar_obj("beer").extend(("Anheuser", "Busch"))
         resolved = self.cvl.resolve("$(name) drinks $(beer)", list_sep="-")

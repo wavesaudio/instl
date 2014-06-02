@@ -45,10 +45,7 @@ class InstlInstanceBase(object):
 
 
     def get_version_str(self):
-        retVal = " ".join( (var_list.resolve("$(INSTL_EXEC_DISPLAY_NAME)"),
-                            "version", ".".join(var_list.get_list("__INSTL_VERSION__")),
-                            var_list.resolve("$(__COMPILATION_TIME__)"), var_list.get_str("__PLATFORM_NODE__", default="")) )
-
+        retVal = var_list.resolve("$(INSTL_EXEC_DISPLAY_NAME) version $(__INSTL_VERSION__) $(__COMPILATION_TIME__) $(__PLATFORM_NODE__)", list_sep=".", default="")
         return retVal
 
     def init_default_vars(self, initial_vars):
@@ -85,8 +82,6 @@ class InstlInstanceBase(object):
         var_list.set_var("LOG_FILE", var_description).append(log_file)
         debug_log_file = pyinstl.log_utils.get_log_file_path(var_list.resolve("$(INSTL_EXEC_DISPLAY_NAME)"), var_list.resolve("$(INSTL_EXEC_DISPLAY_NAME)"), debug=True)
         var_list.set_var("LOG_FILE_DEBUG", var_description).extend( (debug_log_file, logging.getLevelName(pyinstl.log_utils.debug_logging_level), pyinstl.log_utils.debug_logging_started) )
-        for identifier in var_list:
-            logging.debug("%s: %s", identifier, var_list.get_str(identifier))
 
     def check_prerequisite_var_existence(self, prerequisite_vars):
         missing_vars = [var for var in prerequisite_vars if var not in var_list]
@@ -144,11 +139,8 @@ class InstlInstanceBase(object):
         if cmd_line_options_obj.run:
             var_list.add_const_config_variable("__RUN_BATCH_FILE__", "from command line options", "yes")
 
-        for identifier in var_list:
-            logging.debug("%s: %s", identifier, var_list.get_str(identifier))
-
     def is_acceptable_yaml_doc(self, doc_node):
-        acceptables = var_list.get_list("ACCEPTABLE_YAML_DOC_TAGS") + ("define", "define_const", "index")
+        acceptables = var_list.resolve_to_list("$(ACCEPTABLE_YAML_DOC_TAGS)") + ["define", "define_const", "index"]
         acceptables = ["!"+acceptibul for acceptibul in acceptables]
         retVal = doc_node.tag in acceptables
         return retVal
@@ -175,10 +167,10 @@ class InstlInstanceBase(object):
                                         """, re.VERBOSE)
 
     def resolve_defined_paths(self):
-        self.path_searcher.add_search_paths(var_list.get_list("SEARCH_PATHS"))
-        for path_var_to_resolve in var_list.get_list("PATHS_TO_RESOLVE"):
+        self.path_searcher.add_search_paths(var_list.resolve_to_list("$(SEARCH_PATHS)"))
+        for path_var_to_resolve in var_list.resolve_to_list("$(PATHS_TO_RESOLVE)"):
             if path_var_to_resolve in var_list:
-                resolved_path = self.path_searcher.find_file(var_list.get_str(path_var_to_resolve), return_original_if_not_found=True)
+                resolved_path = self.path_searcher.find_file(var_list.resolve_var(path_var_to_resolve), return_original_if_not_found=True)
                 var_list.set_var(path_var_to_resolve, "resolve_defined_paths").append(resolved_path)
 
 
@@ -242,7 +234,7 @@ class InstlInstanceBase(object):
         self.batch_accum.set_current_section("assign")
         for identifier in var_list:
             if identifier not in self.do_not_write_vars:
-                self.batch_accum += self.platform_helper.var_assign(identifier,var_list.get_str(identifier), None) # var_list[identifier].resolved_num
+                self.batch_accum += self.platform_helper.var_assign(identifier,var_list.resolve_var(identifier), None) # var_list[identifier].resolved_num
 
     def get_default_sync_dir(self, continue_dir=None, mkdir=True):
         retVal = None

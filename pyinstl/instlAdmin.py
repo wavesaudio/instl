@@ -63,7 +63,7 @@ class InstlAdmin(InstlInstanceBase):
         self.read_info_map_file(var_list.resolve("$(__MAIN_INPUT_FILE__)"))
         if "__PROPS_FILE__" in var_list:
             self.read_info_map_file(var_list.resolve("$(__PROPS_FILE__)"))
-        self.filter_out_info_map(var_list.get_list("__FILTER_OUT_PATHS__"))
+        self.filter_out_info_map(var_list.resolve_to_list("$(__FILTER_OUT_PATHS__)"))
 
         base_rev = int(var_list.resolve("$(BASE_REPO_REV)"))
         if base_rev > 0:
@@ -343,7 +343,7 @@ class InstlAdmin(InstlInstanceBase):
 
         accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
 
-        if 'Mac' in var_list.get_list("__CURRENT_OS_NAMES__"):
+        if 'Mac' in var_list.resolve_to_list("$(__CURRENT_OS_NAMES__)"):
             accum += "find . -name .DS_Store -delete"
 
         # Files a folders that do not belong to __CURR_REPO_REV__ should not be uploaded.
@@ -403,7 +403,7 @@ class InstlAdmin(InstlInstanceBase):
     def do_create_repo_rev_file(self):
         if "REPO_REV_FILE_VARS" not in var_list:
             raise ValueError("REPO_REV_FILE_VARS must be defined")
-        repo_rev_vars = var_list.get_list("REPO_REV_FILE_VARS")
+        repo_rev_vars = var_list.resolve_to_list("$(REPO_REV_FILE_VARS)")
         var_list.set_var("REPO_REV").append("$(TARGET_REPO_REV)") # override the repo rev from the config file
         dangerous_intersection = set(repo_rev_vars).intersection(set(("AWS_ACCESS_KEY_ID","AWS_SECRET_ACCESS_KEY", "PRIVATE_KEY", "PRIVATE_KEY_FILE")))
         if dangerous_intersection:
@@ -518,7 +518,7 @@ class InstlAdmin(InstlInstanceBase):
     def should_file_be_exec(self, file_path):
         retVal = False
         try:
-            regex_list = var_list.get_list("EXEC_PROP_REGEX")
+            regex_list = var_list.resolve_to_list("$(EXEC_PROP_REGEX)")
             for regex in regex_list:
                 if re.search(regex, file_path):
                     retVal = True
@@ -566,7 +566,7 @@ class InstlAdmin(InstlInstanceBase):
     def do_stage2svn(self):
         self.batch_accum.set_current_section('admin')
         if var_list.defined("__LIMIT_COMMAND_TO__"):
-            print("limiting to ", "; ".join(var_list.get_list("__LIMIT_COMMAND_TO__")))
+            print("limiting to ", "; ".join(var_list.resolve_to_list("$(__LIMIT_COMMAND_TO__)")))
         else:
             print ("no limiting to specific folder")
         stage_folder = var_list.resolve(("$(STAGING_FOLDER)"))
@@ -577,7 +577,7 @@ class InstlAdmin(InstlInstanceBase):
         self.batch_accum += self.platform_helper.cd(svn_folder)
         stage_folder_svn_folder_pairs = []
         if var_list.defined("__LIMIT_COMMAND_TO__"):
-            limit_list = var_list.get_list("__LIMIT_COMMAND_TO__")
+            limit_list = var_list.resolve_to_list("$(__LIMIT_COMMAND_TO__)")
             for limit in limit_list:
                 stage_folder_svn_folder_pairs.append( (os.path.join(stage_folder,limit) , os.path.join(svn_folder, limit) ) )
         else:
@@ -654,7 +654,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_wtar(self):
         self.batch_accum.set_current_section('admin')
-        regex_list = var_list.get_list("WTAR_REGEX")
+        regex_list = var_list.resolve_to_list("$(WTAR_REGEX)")
 
         compiled_regex_list = list()
         for regex in regex_list:

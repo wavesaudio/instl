@@ -66,33 +66,6 @@ class ConfigVarStack(object):
     #        del self._ConfigVarList_objs[key]
 
     # moonshine (::o>)
-    def get_list(self, var_name, default=tuple()):
-        """ get a list of values held by a ConfigVar. $() style references are resolved.
-        To get unresolved values use get_configVar_obj() to get the ConfigVar object.
-        If var_name is not found default will be returned, unless default is None,
-        in which case KeyError will be raised.
-        """
-        try:
-            configVar = self[var_name]
-            retVal = resolve_list(
-                configVar, self.resolve_value_callback)
-            return retVal
-        except KeyError:
-            if KeyError is not None:
-                return default
-            raise
-
-    # moonshine (::o>)
-    def get_str(self, var_name, default="", sep=" "):
-        retVal = default
-        try:
-            resolved_list = self.get_list(var_name, default=None) # default=None will raise KeyError if var_name was not found.
-            retVal = sep.join(resolved_list)
-        except KeyError:
-            pass
-        return retVal
-
-    # moonshine (::o>)
     def defined(self, var_name):
         retVal = False
         try:
@@ -101,11 +74,6 @@ class ConfigVarStack(object):
         except KeyError:
             pass
         return retVal
-
-    # moonshine ?
-    def __str__(self):
-        var_names = [''.join((name, ": ", self.get_str(name))) for name in self.keys()]
-        return '\n'.join(var_names)
 
     # moonshine iter lists or iter ConfigVar objects?
     def __iter__(self):
@@ -208,7 +176,7 @@ class ConfigVarStack(object):
             if var_name in self:
                 if include_comments:
                     theComment = self[var_name].description()
-                var_value = self.get_list(var_name)
+                var_value = self.resolve_var(var_name)
                 if len(var_value) == 1:
                     var_value = var_value[0]
                 retVal[var_name] = YamlDumpWrap(var_value, comment=theComment)

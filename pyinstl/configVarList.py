@@ -61,31 +61,6 @@ class ConfigVarList(object):
         if key in self._ConfigVar_objs:
             del self._ConfigVar_objs[key]
 
-    def get_list(self, var_name, default=tuple()):
-        """ get a list of values held by a ConfigVar. $() style references are resolved.
-        To get unresolved values use get_configVar_obj() to get the ConfigVar object.
-        If var_name is not found default will be returned, unless default is None,
-        in which case KeyError will be raised.
-        """
-        try:
-            configVar = self[var_name]
-            retVal = resolve_list(
-                configVar, self.resolve_value_callback)
-            return retVal
-        except KeyError:
-            if default is not None:
-                return default
-            raise
-
-    def get_str(self, var_name, default="", sep=" "):
-        retVal = default
-        try:
-            resolved_list = self.get_list(var_name, default=None) # default=None will raise KeyError if var_name was not found.
-            retVal = sep.join(resolved_list)
-        except KeyError:
-            pass
-        return retVal
-
     def defined(self, var_name):
         retVal = False
         try:
@@ -96,7 +71,7 @@ class ConfigVarList(object):
         return retVal
 
     def __str__(self):
-        var_names = [''.join((name, ": ", self.get_str(name))) for name in self.keys()]
+        var_names = [''.join((name, ": ", self.resolve_var(name))) for name in self.keys()]
         return '\n'.join(var_names)
 
     def __iter__(self):
@@ -176,7 +151,7 @@ class ConfigVarList(object):
             if var_name in self:
                 if include_comments:
                     theComment = self[var_name].description()
-                var_value = self.get_list(var_name)
+                var_value = self.resolve_var(var_name)
                 if len(var_value) == 1:
                     var_value = var_value[0]
                 retVal[var_name] = YamlDumpWrap(var_value, comment=theComment)
@@ -189,9 +164,11 @@ class ConfigVarList(object):
         retVal = match is None
         return retVal
 
-    def resolve(self, str_to_resolve, list_sep=" "):
+    def resolve(self, str_to_resolve, list_sep=" ", default=None):
         """ Resolve a string, possibly with $() style references.
-            For Variables that hold more than one value, the values are connected with list_sep which defaults to a single space.
+            For Variables that hold more than one value, the values are connected with list_sep
+            which defaults to a single space.
+            None existant variables are left as is if default==None, otherwise valie of default is inserted
         """
         resolved_str = str_to_resolve
         search_start_pos = 0
@@ -210,10 +187,13 @@ class ConfigVarList(object):
                 self.__resolve_stack.pop()
             else:
                 # if var_name was not found skip it on the next search
-                search_start_pos = match.end('varref_pattern')
+                if default is None:
+                    search_start_pos = match.end('varref_pattern')
+                else:
+                    resolved_str = resolved_str.replace(match.group('varref_pattern'), default)
         return resolved_str
 
-    def resolve_to_list(self, str_to_resolve, list_sep=" "):
+    def resolve_to_list(self, str_to_resolve, list_sep=" ", default=None):
         """ Resolve a string, possibly with $() style references.
             If the string is a single reference to a variable, a list of resolved values is returned.
             If the values themselves are a single reference to a variable, their own values extend teh list
@@ -223,83 +203,30 @@ class ConfigVarList(object):
         resolved_list = list()
         match = only_one_value_ref_re.search(str_to_resolve)
         if match:
-            for value in self[match.group('var_name')]:
-                resolved_list.extend(self.resolve_to_list(value, list_sep))
+            var_name = match.group('var_name')
+            if var_name in self.__resolve_stack:
+                raise Exception("circular resolving of '$({})', resolve stack: {}".format(var_name, self.__resolve_stack))
+            self.__resolve_stack.append(var_name)
+            if var_name in self:
+                for value in self[var_name]:
+                    resolved_list.extend(self.resolve_to_list(value, list_sep))
+            else:
+                if default is None:
+                    resolved_list.append(str_to_resolve)
+                else:
+                    resolved_list.append(default)
+            self.__resolve_stack.pop()
         else:
             resolved_list.append(self.resolve(str_to_resolve, list_sep))
         return resolved_list
 
-    def resolve_value_callback(self, value_to_resolve):
-        """ callback for configVar.ConfigVar.Resolve. value_to_resolve should
-            be a single value name.
-            If value_to_resolve is found and has no value, empty list is returned.
-            If value_to_resolve is not found, None is returned.
-        """
-        retVal = None
-        try:
-            var_obj = self[value_to_resolve]
-            if value_to_resolve in self.__resolve_stack:
-                raise Exception("circular resolving of {}".format(value_to_resolve))
-
-            var_obj.resolved_num += 1
-            self.__resolve_stack.append(value_to_resolve)
-            retVal = resolve_list(
-                var_obj,
-                self.resolve_value_callback)
-            self.__resolve_stack.pop()
-        except KeyError:
-            pass # return retVal = None
+    def resolve_var(self, var_name, list_sep=" ", default=""):
+        retVal = self.resolve( "".join( ("$(", var_name, ")") ))
         return retVal
 
-def replace_all_from_dict(in_text, *in_replace_only_these, **in_replacement_dic):
-    """ replace all occurrences of the values in in_replace_only_these
-        with the values in in_replacement_dic. If in_replace_only_these is empty
-        use in_replacement_dic.keys() as the list of values to replace."""
-    retVal = in_text
-    if not in_replace_only_these:
-        # use the keys of of the replacement_dic as replace_only_these
-        in_replace_only_these = list(in_replacement_dic.keys())[:]
-    # sort the list by size (longer first) so longer string will be replace before their shorter sub strings
-    for look_for in sorted(in_replace_only_these, key=lambda s: -len(s)):
-        retVal = retVal.replace(look_for, in_replacement_dic[look_for])
-    return retVal
-
-
-def resolve_list(needsResolveList, resolve_callback):
-    """ resolve a list, possibly with $() style references with the help of a resolving function.
-        needsResolveList could be of type that emulates list, specifically configVar.ConfigVar.
-    """
-    replace_dic = dict()
-    resolved_list = list()
-    need_to_resolve_again = False
-    for valueText in needsResolveList:
-        # if the value is only a single $() reference, no quotes,
-        # the resolved values are extending the resolved list
-        single_value_ref_match = only_one_value_ref_re.match(valueText)
-        if single_value_ref_match:
-            var_name = single_value_ref_match.group('var_name')
-            new_values = resolve_callback(var_name)
-            if new_values is not None:
-                resolved_list.extend(new_values)
-                need_to_resolve_again = True
-            else: # var was not found, leave $() reference as is
-                resolved_list.extend( (valueText, ) )
-            continue
-        # if the value is more than a single $() reference,
-        # the resolved values are joined and appended to the resolved list
-        for value_ref_match in value_ref_re.finditer(valueText):
-            # group 'varref_pattern' is the full $(X), group 'var_name' is the X
-            replace_ref, value_ref = value_ref_match.group('varref_pattern', 'var_name')
-            if replace_ref not in replace_dic:
-                resolved_vals = resolve_callback(value_ref)
-                if resolved_vals is not None:
-                    replace_dic[replace_ref] = " ".join(resolved_vals)
-                    need_to_resolve_again = True
-        value_text_resolved = replace_all_from_dict(valueText, **replace_dic)
-        resolved_list.append(value_text_resolved)
-    if need_to_resolve_again:  # another resolve round until no ref-in-ref are left
-        resolved_list = resolve_list(resolved_list, resolve_callback)
-    return tuple(resolved_list)
+    def resolve_var_to_list(self, var_name, list_sep=" ", default=""):
+        retVal = self.resolve_to_list( "".join( ("$(", var_name, ")") ))
+        return retVal
 
 # This is the global variable list serving all parts of instl
 var_list = ConfigVarList()

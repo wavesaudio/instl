@@ -139,8 +139,7 @@ class InstlClient(InstlInstanceBase):
         # TARGET_OS_NAMES defaults to __CURRENT_OS_NAMES__, which is not what we want if syncing to
         # an OS which is not the current
         if var_list.resolve("$(TARGET_OS)") != var_list.resolve("$(__CURRENT_OS__)"):
-            the_list_var = var_list.resolve("$(TARGET_OS)_ALL_OS_NAMES")
-            target_os_names = var_list.get_list(the_list_var)
+            target_os_names = var_list.resolve_var_to_list(var_list.resolve("$(TARGET_OS)_ALL_OS_NAMES"))
             var_list.set_var("TARGET_OS_NAMES").extend(target_os_names)
             second_name = var_list.resolve("$(TARGET_OS)")
             if len(target_os_names) > 1:
@@ -237,15 +236,13 @@ class InstlClient(InstlInstanceBase):
         """
         if "MAIN_INSTALL_TARGETS" not in var_list:
             raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
-        for os_name in var_list.get_list("TARGET_OS_NAMES"):
+        for os_name in var_list.resolve_to_list("$(TARGET_OS_NAMES)"):
             InstallItem.begin_get_for_specific_os(os_name)
-        self.installState.root_install_items.extend(var_list.get_list("MAIN_INSTALL_TARGETS"))
+        self.installState.root_install_items.extend(var_list.resolve_to_list("$(MAIN_INSTALL_TARGETS)"))
         self.installState.root_install_items = filter(bool, self.installState.root_install_items)
         self.installState.calculate_full_install_items_set(self)
         var_list.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(self.installState.full_install_items)
         var_list.set_var("__ORPHAN_INSTALL_TARGETS__").extend(self.installState.orphan_install_items)
-        for identifier in ("MAIN_INSTALL_TARGETS", "__FULL_LIST_OF_INSTALL_TARGETS__", "__ORPHAN_INSTALL_TARGETS__"):
-            logging.debug("... %s: %s", identifier, var_list.get_str(identifier))
 
     def init_copy_vars(self):
         self.action_type_to_progress_message = {'copy_in': "pre-install step", 'copy_out': "post-install step",
@@ -265,7 +262,7 @@ class InstlClient(InstlInstanceBase):
 
         self.accumulate_unique_actions('copy_in', self.installState.full_install_items)
 
-        if 'Mac' in var_list.get_list("__CURRENT_OS_NAMES__") and 'Mac' in var_list.get_list("TARGET_OS"):
+        if 'Mac' in var_list.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_list.resolve_to_list("$(TARGET_OS)"):
             self.batch_accum += self.platform_helper.resolve_symlink_files(in_dir="$(LOCAL_REPO_SOURCES_DIR)")
             self.batch_accum += self.platform_helper.progress("Resolve .symlink files")
 
@@ -373,7 +370,7 @@ class InstlClient(InstlInstanceBase):
 
         source_path = os.path.normpath("$(LOCAL_REPO_SOURCES_DIR)/"+source[0])
 
-        ignore_list = var_list.get_list("COPY_IGNORE_PATTERNS")
+        ignore_list = var_list.resolve_to_list("$(COPY_IGNORE_PATTERNS)")
 
         if source[1] == '!file':       # get a single file, not recommended
             self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".", link_dest=True, ignore=ignore_list)

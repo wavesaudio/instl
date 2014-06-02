@@ -44,12 +44,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         self.local_sync_dir = var_list.resolve("$(LOCAL_REPO_SYNC_DIR)")
 
-        for identifier in ("SYNC_BASE_URL", "DOWNLOAD_TOOL_PATH", "REPO_REV", "LOCAL_SYNC_DIR", "LOCAL_REPO_SYNC_DIR","BOOKKEEPING_DIR_URL",
-                           "INFO_MAP_FILE_URL", "LOCAL_REPO_BOOKKEEPING_DIR","NEW_HAVE_INFO_MAP_PATH", "REQUIRED_INFO_MAP_PATH",
-                            "TO_SYNC_INFO_MAP_PATH", "LOCAL_REPO_REV_BOOKKEEPING_DIR", "LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"):
-            #print(identifier, var_list.get_str(identifier))
-            logging.debug("%s: %s", identifier, var_list.get_str(identifier))
-
     def create_sync_instructions(self, installState):
         self.instlObj.batch_accum.set_current_section('sync')
         self.installState = installState

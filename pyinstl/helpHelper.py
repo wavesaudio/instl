@@ -86,7 +86,7 @@ class HelpHelper(object):
             if not var.startswith("__"):
                 cv = var_list.get_configVar_obj(var)
                 raw_value = " ".join([value for value in cv])
-                resolved_value = var_list.get_str(var)
+                resolved_value = var_list.resolve_var(var)
                 if raw_value != resolved_value:
                     defaults_list.append( (var, raw_value, resolved_value) )
                 else:
