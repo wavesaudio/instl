@@ -189,13 +189,10 @@ class ConfigVarList(object):
         retVal = match is None
         return retVal
 
-    def resolve_string(self, in_str, sep=" "):
-        """ resolve a string that might contain references to values """
-        resolved_list = resolve_list((in_str,), self.resolve_value_callback)
-        retVal = sep.join(resolved_list)
-        return retVal
-
     def resolve(self, str_to_resolve, list_sep=" "):
+        """ Resolve a string, possibly with $() style references.
+            For Variables that hold more than one value, the values are connected with list_sep which defaults to a single space.
+        """
         resolved_str = str_to_resolve
         search_start_pos = 0
         while True:
@@ -215,6 +212,22 @@ class ConfigVarList(object):
                 # if var_name was not found skip it on the next search
                 search_start_pos = match.end('varref_pattern')
         return resolved_str
+
+    def resolve_to_list(self, str_to_resolve, list_sep=" "):
+        """ Resolve a string, possibly with $() style references.
+            If the string is a single reference to a variable, a list of resolved values is returned.
+            If the values themselves are a single reference to a variable, their own values extend teh list
+            list_sep is used to combine values which are not part of single reference to a variable.
+            otherwise if the string is NOT a single reference to a variable, a list with single value is returned.
+         """
+        resolved_list = list()
+        match = only_one_value_ref_re.search(str_to_resolve)
+        if match:
+            for value in self[match.group('var_name')]:
+                resolved_list.extend(self.resolve_to_list(value, list_sep))
+        else:
+            resolved_list.append(self.resolve(str_to_resolve, list_sep))
+        return resolved_list
 
     def resolve_value_callback(self, value_to_resolve):
         """ callback for configVar.ConfigVar.Resolve. value_to_resolve should

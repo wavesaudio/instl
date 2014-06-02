@@ -3,6 +3,12 @@
     user visible changes, admin:
     * Added option to limit stage2svn to specific folders, to save time.
 
+    programmer visible changes:
+    * New resolve methods for ConfigVarList: resolve, resolve_to_list, replace previous methods: get_str, resolve_string
+        get_list.New methods are faster and simpler to unserstand.
+    * Tests for new resolve methods.
+    * Removed unused member Configvar.__resolving_in_progress, preventing circular resolves is done in ConfigVarList.
+
 28/5/2014 0.9.11   Shai Shasag <shai@waves.com>
     user visible changes, client:
     * Fixed a problem where index.yaml would not be copied to bookkeeping when syncing to DOK.

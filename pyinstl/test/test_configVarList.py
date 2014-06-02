@@ -15,7 +15,23 @@ class TestConfigVarList(unittest.TestCase):
     def tearDown(self):
         del self.cvl
 
-    def test_new_resolve(self):
+    def test_resolve_to_list(self):
+        self.cvl.set_var("A").extend( ("a", "b", "c") )
+        resolved_list = self.cvl.resolve_to_list("$(A)", list_sep="&")
+        self.assertEqual(resolved_list, ["a", "b", "c"])
+
+        resolved_list = self.cvl.resolve_to_list("_$(A)_", list_sep="&")
+        self.assertEqual(resolved_list, ["_a&b&c_"])
+
+        self.cvl.set_var("B").extend( ("$(A)", "nunchaku", "$(A)") )
+        resolved_list = self.cvl.resolve_to_list("$(B)", list_sep="&")
+        self.assertEqual(resolved_list, ["a", "b", "c", "nunchaku", "a", "b", "c"])
+
+        self.cvl.set_var("C").extend( ("$(A)", "nunchaku", "-$(A)") )
+        resolved_list = self.cvl.resolve_to_list("$(C)", list_sep="&")
+        self.assertEqual(resolved_list, ["a", "b", "c", "nunchaku", "-a&b&c"])
+
+    def test_resolve(self):
         self.cvl.set_var("A").extend( ("a", "a", "a") )
         self.cvl.set_var("B").append("$(Bee)")
         self.cvl.set_var("Bee").append("bbb")
@@ -40,11 +56,11 @@ class TestConfigVarList(unittest.TestCase):
         """ Construct ConfigVarList without values. """
         self.cvl = configVarList.ConfigVarList()
         self.assertEqual(len(self.cvl), 0)
-        with self.assertRaises(KeyError):
-            self.cvl["no man's land"].get_str()
         self.assertFalse("no man's land" in self.cvl)
-        self.assertEqual(self.cvl.get_list("no man's land"), ())
-        self.assertEqual(self.cvl.get_str("no man's land"), "")
+        with self.assertRaises(KeyError):
+            self.cvl["no man's land"]
+        self.assertEqual(self.cvl.resolve("no man's land"), "no man's land")
+        self.assertEqual(self.cvl.resolve("$(no man's land)"), "$(no man's land)")
         self.assertEqual(self.cvl.keys(), [])
 
     def test_set_variable_new(self):
@@ -86,7 +102,8 @@ class TestConfigVarList(unittest.TestCase):
         self.assertIs(self.cvl.get_configVar_obj("banana"), self.cvl["banana"])
         self.assertEqual(len(self.cvl), 1)
         self.cvl.get_configVar_obj("banana").extend(("get", "down", "tonight"))
-        self.assertEqual(self.cvl.get_list("banana"), ("get", "down", "tonight"))
+        resolved_list = [self.cvl.resolve(val) for val in self.cvl["banana"]]
+        self.assertSequenceEqual(resolved_list, ("get", "down", "tonight"))
         self.assertEqual(self.cvl.get_str("banana"), "get down tonight")
         self.assertEqual(self.cvl.keys(), ["banana"])
 
@@ -127,13 +144,13 @@ class TestConfigVarList(unittest.TestCase):
     def test_resolve_string_from_nothing(self):
         """ resolve values from variables where list is empty """
         self.cvl = configVarList.ConfigVarList()
-        resolved = self.cvl.resolve_string("Kupperbush")
+        resolved = self.cvl.resolve("Kupperbush")
         self.assertEqual(resolved, "Kupperbush")
-        resolved = self.cvl.resolve_string("$(Kupperbush)")
+        resolved = self.cvl.resolve("$(Kupperbush)")
         self.assertEqual(resolved, "$(Kupperbush)")
-        resolved = self.cvl.resolve_string("Kupper$(bush)")
+        resolved = self.cvl.resolve("Kupper$(bush)")
         self.assertEqual(resolved, "Kupper$(bush)")
-        resolved = self.cvl.resolve_string("$(Kupper$(bush))")
+        resolved = self.cvl.resolve("$(Kupper$(bush))")
         self.assertEqual(resolved, "$(Kupper$(bush))")
 
     def test_resolve_string_from_empty(self):
@@ -141,13 +158,13 @@ class TestConfigVarList(unittest.TestCase):
         self.cvl = configVarList.ConfigVarList()
         self.cvl.get_configVar_obj("Kupperbush")
         self.cvl.get_configVar_obj("bush")
-        resolved = self.cvl.resolve_string("Kupperbush")
+        resolved = self.cvl.resolve("Kupperbush")
         self.assertEqual(resolved, "Kupperbush")
-        resolved = self.cvl.resolve_string("$(Kupperbush)")
+        resolved = self.cvl.resolve("$(Kupperbush)")
         self.assertEqual(resolved, "")
-        resolved = self.cvl.resolve_string("Kupper$(bush)")
+        resolved = self.cvl.resolve("Kupper$(bush)")
         self.assertEqual(resolved, "Kupper")
-        resolved = self.cvl.resolve_string("$(Kupper$(bush))")
+        resolved = self.cvl.resolve("$(Kupper$(bush))")
         self.assertEqual(resolved, "$(Kupper)")
 
     def test_resolve_string_from_partial(self):
@@ -155,13 +172,13 @@ class TestConfigVarList(unittest.TestCase):
         self.cvl = configVarList.ConfigVarList()
         self.cvl.get_configVar_obj("Kupperbush").append("kid creole")
         self.cvl.get_configVar_obj("bush").append("bush")
-        resolved = self.cvl.resolve_string("Kupperbush")
+        resolved = self.cvl.resolve("Kupperbush")
         self.assertEqual(resolved, "Kupperbush")
-        resolved = self.cvl.resolve_string("$(Kupperbush)")
+        resolved = self.cvl.resolve("$(Kupperbush)")
         self.assertEqual(resolved, "kid creole")
-        resolved = self.cvl.resolve_string("Kupper$(bush)")
+        resolved = self.cvl.resolve("Kupper$(bush)")
         self.assertEqual(resolved, "Kupperbush")
-        resolved = self.cvl.resolve_string("$(Kupper$(bush))")
+        resolved = self.cvl.resolve("$(Kupper$(bush))")
         self.assertEqual(resolved, "kid creole")
 
     def test_resolve_string_with_separator_1(self):
@@ -169,13 +186,13 @@ class TestConfigVarList(unittest.TestCase):
         self.cvl = configVarList.ConfigVarList()
         self.cvl.get_configVar_obj("Kupperbush").append("kid creole")
         self.cvl.get_configVar_obj("bush").append("bush")
-        resolved = self.cvl.resolve_string("Kupperbush", sep="-")
+        resolved = self.cvl.resolve("Kupperbush", list_sep="-")
         self.assertEqual(resolved, "Kupperbush")
-        resolved = self.cvl.resolve_string("$(Kupperbush)", sep="-")
+        resolved = self.cvl.resolve("$(Kupperbush)", list_sep="-")
         self.assertEqual(resolved, "kid creole")
-        resolved = self.cvl.resolve_string("Kupper$(bush)", sep="-")
+        resolved = self.cvl.resolve("Kupper$(bush)", list_sep="-")
         self.assertEqual(resolved, "Kupperbush")
-        resolved = self.cvl.resolve_string("$(Kupper$(bush))", sep="-")
+        resolved = self.cvl.resolve("$(Kupper$(bush))", list_sep="-")
         self.assertEqual(resolved, "kid creole")
 
     def test_resolve_string_with_separator_2(self):
@@ -183,10 +200,10 @@ class TestConfigVarList(unittest.TestCase):
         self.cvl = configVarList.ConfigVarList()
         self.cvl.get_configVar_obj("name").extend(("kid","creole"))
         self.cvl.get_configVar_obj("beer").extend(("Anheuser", "Busch"))
-        resolved = self.cvl.resolve_string("$(name) drinks $(beer)", sep="-")
-        self.assertEqual(resolved, "kid creole drinks Anheuser Busch")
-        resolved = self.cvl.resolve_string("$(name)", sep="-")
+        resolved = self.cvl.resolve("$(name) drinks $(beer)", list_sep="-")
+        self.assertEqual(resolved, "kid-creole drinks Anheuser-Busch")
+        resolved = self.cvl.resolve("$(name)", list_sep="-")
         self.assertEqual(resolved, "kid-creole")
-        resolved = self.cvl.resolve_string("$(beer)", sep="-")
+        resolved = self.cvl.resolve("$(beer)", list_sep="-")
         self.assertEqual(resolved, "Anheuser-Busch")
 

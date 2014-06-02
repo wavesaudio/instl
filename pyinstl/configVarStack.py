@@ -221,12 +221,6 @@ class ConfigVarStack(object):
         retVal = match is None
         return retVal
 
-    def resolve_string(self, in_str, sep=" "):
-        """ resolve a string that might contain references to values """
-        resolved_list = resolve_list((in_str,), self.resolve_value_callback)
-        retVal = sep.join(resolved_list)
-        return retVal
-
     # moonshine (::o>)
     def resolve_value_callback(self, value_to_resolve):
         """ callback for configVar.ConfigVar.Resolve. value_to_resolve should
