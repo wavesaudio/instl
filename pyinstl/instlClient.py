@@ -218,15 +218,15 @@ class InstlClient(InstlInstanceBase):
 
     def add_deafult_items(self):
         all_items_item = InstallItem()
-        all_items_item.var_list.add_const_config_variable('iid_iid', "-", "__ALL_ITEMS_IID__")
-        all_items_item.var_list.add_const_config_variable('iid_name', "-", "All IIDs")
+        all_items_item.iid = "__ALL_ITEMS_IID__"
+        all_items_item.name = "All IIDs"
         for item_name in self.install_definitions_index:
             all_items_item.add_depend(item_name)
         self.install_definitions_index["__ALL_ITEMS_IID__"] = all_items_item
 
         all_guids_item = InstallItem()
-        all_guids_item.var_list.add_const_config_variable('iid_iid', "-", "__ALL_GUIDS_IID__")
-        all_guids_item.var_list.add_const_config_variable('iid_name', "-", "All GUIDs")
+        all_guids_item.iid = "__ALL_GUIDS_IID__"
+        all_guids_item.name = "All GUIDs"
         for guid in guid_list(self.install_definitions_index):
             all_guids_item.add_depend(guid)
         self.install_definitions_index["__ALL_GUIDS_IID__"] = all_guids_item
@@ -296,14 +296,11 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum += self.platform_helper.copy_tool.begin_copy_folder()
             for IID in items_in_folder:
                 installi = self.install_definitions_index[IID]
-                var_list.push_scope(installi.get_ConfiVarList())
-#                for source in var_list.get_list("iid_install_sources"):
                 for source in installi.source_list():
                     self.batch_accum += installi.action_list('before')
                     self.create_copy_instructions_for_source(source)
                     self.batch_accum += installi.action_list('after')
-                    self.batch_accum += self.platform_helper.progress("Copy {}".format(installi.var_list.get_str("iid_name")))
-                var_list.pop_scope()
+                    self.batch_accum += self.platform_helper.progress("Copy {installi.name}".format(**locals()))
             self.batch_accum += self.platform_helper.copy_tool.end_copy_folder()
             logging.info("... copy actions: %d", len(self.batch_accum) - batch_accum_len_before)
 
@@ -365,7 +362,7 @@ class InstlClient(InstlInstanceBase):
                         action_description = self.action_type_to_progress_message[action_type]
                         if num_unique_actions > 1:
                             action_description = " ".join( (action_description, str(num_unique_actions)) )
-                        unique_actions.append(self.platform_helper.progress("{} {}".format(installi.var_list.get_str("iid_name"), action_description)))
+                        unique_actions.append(self.platform_helper.progress("{installi.name} {action_description}".format(**locals())))
             self.batch_accum += unique_actions
             logging.info("... %s actions: %d", action_type, len(unique_actions))
 
