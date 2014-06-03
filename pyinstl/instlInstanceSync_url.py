@@ -219,7 +219,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         logging.info("Num parallel syncs: %d", len(config_file_list))
         if len(config_file_list) > 0:
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
-            self.instlObj.batch_accum += self.instlObj.platform_helper.progress(var_list.resolve("Downloading with "+str(len(config_file_list))+" processes in parallel"))
+            self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Downloading with "+str(len(config_file_list))+" processes in parallel")
             parallel_run_config_file_path = var_list.resolve(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME).parallel-run"))
             self.instlObj.batch_accum += self.instlObj.platform_helper.dl_tool.download_from_config_files(parallel_run_config_file_path, config_file_list)
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Downloading "+str(self.files_to_download)+" files done", self.files_to_download)
