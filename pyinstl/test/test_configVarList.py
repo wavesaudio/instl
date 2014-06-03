@@ -15,8 +15,33 @@ class TestConfigVarList(unittest.TestCase):
     def tearDown(self):
         del self.cvl
 
+    def test_a_resolve_array(self):
+        self.cvl.set_var("A").extend( ("a", "b", "c") )
+        resolved_str = self.cvl.resolve("$(A[0]), $(A[1]), $(A[2]), $(A[3])", list_sep="&")
+        self.assertEqual(resolved_str, "a, b, c, $(A[3])")
+        resolved_str = self.cvl.resolve("$(A[0]), $(A[1]), $(A[2]), $(A[3])", default="lady gaga", list_sep="&")
+        self.assertEqual(resolved_str, "a, b, c, lady gaga")
+
+        self.cvl.set_var("zero").append( "0" )
+        self.cvl.set_var("one").append( "1" )
+        self.cvl.set_var("two").append( "2" )
+        self.cvl.set_var("three").append( "3" )
+        resolved_str = self.cvl.resolve("$(A[$(zero)]), $(A[$(one)]), $(A[$(two)]), $(A[$(three)])", list_sep="&")
+        self.assertEqual(resolved_str, "a, b, c, $(A[3])")
+        resolved_str = self.cvl.resolve("$(A[$(zero)]), $(A[$(one)]), $(A[$(two)]), $(A[$(three)])", default="lady godiva", list_sep="&")
+        self.assertEqual(resolved_str, "a, b, c, lady godiva")
+
+        self.cvl.set_var("numbers").extend( ("0", "1",  "2", "3") )
+        resolved_str = self.cvl.resolve("$(A[$(numbers[0])]), $(A[$(numbers[1])]), $(A[$(numbers[2])]), $(A[$(numbers[3])])", list_sep="&")
+        self.assertEqual(resolved_str, "a, b, c, $(A[3])")
+        resolved_str = self.cvl.resolve("$(A[$(numbers[0])]), $(A[$(numbers[1])]), $(A[$(numbers[2])]), $(A[$(numbers[3])])", default="lady madonna", list_sep="&")
+        self.assertEqual(resolved_str, "a, b, c, lady madonna")
+
     def test_resolve_to_list(self):
         self.cvl.set_var("A").extend( ("a", "b", "c") )
+        resolved_str = self.cvl.resolve("$(A)", list_sep="&")
+        self.assertEqual(resolved_str, "a&b&c")
+
         resolved_list = self.cvl.resolve_to_list("$(A)", list_sep="&")
         self.assertEqual(resolved_list, ["a", "b", "c"])
 
