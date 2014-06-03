@@ -27,7 +27,8 @@ class ConfigVarStack(configVarList.ConfigVarList):
 
     def __init__(self):
         super(ConfigVarStack, self).__init__()
-        self._ConfigVarList_objs = [configVarList.ConfigVarList()] # ConfigVarLIsts objects are kept stacked.
+        self._ConfigVarList_objs = list()
+        self.push_scope()
 
     #def __len__(self):
     #    """ return number of ConfigVars """
@@ -122,7 +123,7 @@ class ConfigVarStack(configVarList.ConfigVarList):
     def push_scope(self, scope=None):
         if scope is None:
             scope = configVarList.ConfigVarList()
-        if type(scope) is not configVarList.ConfigVarList:
+        if not isinstance(scope, configVarList.ConfigVarList):
             raise TypeError("scope must be of type ConfigVarList")
         self._ConfigVarList_objs.append(scope)
 
