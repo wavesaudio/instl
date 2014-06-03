@@ -23,18 +23,26 @@ from aYaml.augmentedYaml import YamlDumpWrap, YamlDumpDocWrap
 
 value_ref_re = re.compile("""(
                             (?P<varref_pattern>
-                            (?P<varref_marker>[$])      # $
-                            \(                          # (
-                            (?P<var_name>[\w\s]+?|[\w\s(]+[\w\s)]+?)           # value
-                            \))                         # )
+                                (?P<varref_marker>[$])      # $
+                                \(                          # (
+                                    (?P<var_name>[\w\s]+?|[\w\s(]+[\w\s)]+?)           # value
+                                    (?P<varref_array>\[
+                                        (?P<array_index>\d+)
+                                    \])?
+                                \)
+                            )                         # )
                             )""", re.X)
 only_one_value_ref_re = re.compile("""
                             ^
                             (?P<varref_pattern>
-                            (?P<varref_marker>[$])      # $
-                            \(                          # (
-                            (?P<var_name>[\w\s]+?|[\w\s(]+[\w\s)]+?)           # value
-                            \))                         # )
+                                (?P<varref_marker>[$])      # $
+                                \(                          # (
+                                    (?P<var_name>[\w\s]+?|[\w\s(]+[\w\s)]+?)           # value
+                                    (?P<varref_array>\[
+                                        (?P<array_index>\d+)
+                                    \])?
+                                \)
+                            )                         # )
                             $
                             """, re.X)
 
@@ -171,25 +179,33 @@ class ConfigVarList(object):
         """
         resolved_str = str_to_resolve
         search_start_pos = 0
+        #print("resolving:", str_to_resolve)
         while True:
             match = value_ref_re.search(resolved_str, search_start_pos)
             if not match:
                 break
+            replacement = default
             var_name = match.group('var_name')
             if var_name in self:
                 if var_name in self.__resolve_stack:
                     raise Exception("circular resolving of '$({})', resolve stack: {}".format(var_name, self.__resolve_stack))
                 self.__resolve_stack.append(var_name)
-                var_joint_values = list_sep.join([val for val in self[var_name]])
-                replacement = self.resolve(var_joint_values, list_sep)
-                resolved_str = resolved_str.replace(match.group('varref_pattern'), replacement)
-                self.__resolve_stack.pop()
-            else:
-                # if var_name was not found skip it on the next search
-                if default is None:
-                    search_start_pos = match.end('varref_pattern')
+                if match.group('varref_array'):
+                    array_index = int(match.group('array_index'))
+                    if array_index < len(self[var_name]):
+                        replacement = self[var_name][array_index]
                 else:
-                    resolved_str = resolved_str.replace(match.group('varref_pattern'), default)
+                    var_joint_values = list_sep.join([val for val in self[var_name]])
+                    replacement = self.resolve(var_joint_values, list_sep)
+
+                self.__resolve_stack.pop()
+
+            # if var_name was not found skip it on the next search
+            if replacement is None:
+                search_start_pos = match.end('varref_pattern')
+            else:
+                resolved_str = resolved_str.replace(match.group('varref_pattern'), replacement)
+            #print("    ", resolved_str)
         return resolved_str
 
     def resolve_to_list(self, str_to_resolve, list_sep=" ", default=None):
