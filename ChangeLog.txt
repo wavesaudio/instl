@@ -8,7 +8,8 @@
         get_list.New methods are faster and simpler to unserstand.
     * Tests for new resolve methods.
     * Removed unused member Configvar.__resolving_in_progress, preventing circular resolves is done in ConfigVarList.
-
+    * Intrduced $(A[0]) array style references.
+    
 28/5/2014 0.9.11   Shai Shasag <shai@waves.com>
     user visible changes, client:
     * Fixed a problem where index.yaml would not be copied to bookkeeping when syncing to DOK.
