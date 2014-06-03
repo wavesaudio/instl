@@ -40,7 +40,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         """ To do: dedicate a variable to copy logging (COPY_LOG_FILE ???)
         """
         retVal = ""
-        #log_file = var_list.get_str("LOG_FILE")
+        #log_file = var_list.resolve("$(LOG_FILE)")
         #retVal = " /LOG:{log_file}".format(**locals())
         return retVal
 
@@ -112,7 +112,7 @@ class CopyTool_win_xcopy(CopyToolBase):
             if isinstance(ignore, basestring):
                 ignore = (ignore,)
             self.excludes_set.update([ignoree.lstrip("*") for ignoree in ignore])
-            retVal = var_list.resolve_string("/EXCLUDE:$(XCOPY_EXCLUDE_FILE_NAME)")
+            retVal = var_list.resolve("/EXCLUDE:$(XCOPY_EXCLUDE_FILE_NAME)")
         return retVal
 
     def begin_copy_folder(self):
@@ -179,7 +179,7 @@ class CopyTool_win_xcopy(CopyToolBase):
 
     def create_excludes_file(self):
         if self.excludes_set:
-            with open(var_list.get_str("XCOPY_EXCLUDE_FILE_PATH"), "w") as wfd:
+            with open(var_list.resolve("$(XCOPY_EXCLUDE_FILE_PATH)"), "w") as wfd:
                 wfd.write("\n".join(self.excludes_set))
 
 class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
@@ -188,7 +188,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         self.var_replacement_pattern = "%\g<var_name>%"
 
     def init_download_tool(self):
-        download_tool_name = var_list.get_str("DOWNLOAD_TOOL_PATH")
+        download_tool_name = var_list.resolve("$(DOWNLOAD_TOOL_PATH)")
         if download_tool_name.endswith("wget.exe"):
             self.dl_tool = DownloadTool_win_wget(self)
         elif download_tool_name.endswith("curl.exe"):
@@ -299,7 +299,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         elif tool_name == "xcopy":
             self.copy_tool = CopyTool_win_xcopy(self)
         else:
-            raise ValueError(tool_name, "is not a valid copy tool for", var_list.get_str("TARGET_OS"))
+            raise ValueError(tool_name, "is not a valid copy tool for", var_list.resolve("$(TARGET_OS)"))
 
     def copy_file_to_file(self, src_file, trg_file, hard_link=False):
         norm_src_file = quoteme_double(os.path.normpath(src_file))
@@ -421,9 +421,9 @@ class DownloadTool_win_curl(DownloadToolBase):
         super(DownloadTool_win_curl, self).__init__(platform_helper)
 
     def download_url_to_file(self, src_url, trg_file):
-        connect_time_out = var_list.get_str("CURL_CONNECT_TIMEOUT")
-        max_time         = var_list.get_str("CURL_MAX_TIME")
-        retries          = var_list.get_str("CURL_RETRIES")
+        connect_time_out = var_list.resolve("$(CURL_CONNECT_TIMEOUT)")
+        max_time         = var_list.resolve("$(CURL_MAX_TIME)")
+        retries          = var_list.resolve("$(CURL_RETRIES)")
         download_command_parts = list()
         download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
         download_command_parts.append("--insecure")
@@ -449,9 +449,9 @@ class DownloadTool_win_curl(DownloadToolBase):
         import itertools
         num_urls_to_download = len(self.urls_to_download)
         if num_urls_to_download > 0:
-            connect_time_out = var_list.get_str("CURL_CONNECT_TIMEOUT")
-            max_time         = var_list.get_str("CURL_MAX_TIME")
-            retries          = var_list.get_str("CURL_RETRIES")
+            connect_time_out = var_list.resolve("$(CURL_CONNECT_TIMEOUT)")
+            max_time         = var_list.resolve("$(CURL_MAX_TIME)")
+            retries          = var_list.resolve("$(CURL_RETRIES)")
             actual_num_files = max(1, min(num_urls_to_download / 8, num_files))
 
             file_name_list = ["-".join( (curl_config_file_path, str(file_i))  ) for file_i in xrange(actual_num_files)]
@@ -490,7 +490,7 @@ class DownloadTool_win_curl(DownloadToolBase):
     def download_from_config_files(self, parallel_run_config_file_path, config_files):
         with open(parallel_run_config_file_path, "w") as wfd:
             for config_file in config_files:
-                wfd.write(var_list.resolve_string("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+config_file+"\"\n"))
+                wfd.write(var_list.resolve("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+config_file+"\"\n"))
 
         download_command = " ".join( (self.platform_helper.run_instl(),  "parallel-run", "--in", quoteme_double(parallel_run_config_file_path)) )
         return (download_command, self.platform_helper.exit_if_error())

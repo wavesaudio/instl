@@ -48,7 +48,7 @@ class BatchAccumulator(object):
             if section_lines:
                 if section == "assign":
                     section_lines.sort()
-                resolved_sync_instruction_lines = map(var_list.resolve_string, section_lines)
+                resolved_sync_instruction_lines = map(var_list.resolve, section_lines)
                 lines.extend(resolved_sync_instruction_lines)
                 lines.append("") # empty string will cause to emit new line
         return lines

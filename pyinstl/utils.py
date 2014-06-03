@@ -445,3 +445,17 @@ def P4GetPathFromDepotPath(depot_path):
             if retVal.endswith("/..."):
                 retVal = retVal[0:-4]
     return retVal
+
+
+def replace_all_from_dict(in_text, *in_replace_only_these, **in_replacement_dic):
+    """ replace all occurrences of the values in in_replace_only_these
+        with the values in in_replacement_dic. If in_replace_only_these is empty
+        use in_replacement_dic.keys() as the list of values to replace."""
+    retVal = in_text
+    if not in_replace_only_these:
+        # use the keys of of the replacement_dic as replace_only_these
+        in_replace_only_these = list(in_replacement_dic.keys())[:]
+    # sort the list by size (longer first) so longer string will be replace before their shorter sub strings
+    for look_for in sorted(in_replace_only_these, key=lambda s: -len(s)):
+        retVal = retVal.replace(look_for, in_replacement_dic[look_for])
+    return retVal

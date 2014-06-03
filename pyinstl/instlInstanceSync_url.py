@@ -38,18 +38,12 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         if "PUBLIC_KEY" not in var_list:
             if "PUBLIC_KEY_FILE" in var_list:
-                public_key_file = var_list.resolve_string("$(PUBLIC_KEY_FILE)")
+                public_key_file = var_list.resolve("$(PUBLIC_KEY_FILE)")
                 with open_for_read_file_or_url(public_key_file, self.instlObj.path_searcher) as file_fd:
                     public_key_text = file_fd.read()
                     var_list.set_var("PUBLIC_KEY", "from "+public_key_file).append(public_key_text)
 
-        self.local_sync_dir = var_list.get_str("LOCAL_REPO_SYNC_DIR")
-
-        for identifier in ("SYNC_BASE_URL", "DOWNLOAD_TOOL_PATH", "REPO_REV", "LOCAL_SYNC_DIR", "LOCAL_REPO_SYNC_DIR","BOOKKEEPING_DIR_URL",
-                           "INFO_MAP_FILE_URL", "LOCAL_REPO_BOOKKEEPING_DIR","NEW_HAVE_INFO_MAP_PATH", "REQUIRED_INFO_MAP_PATH",
-                            "TO_SYNC_INFO_MAP_PATH", "LOCAL_REPO_REV_BOOKKEEPING_DIR", "LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"):
-            #print(identifier, var_list.get_str(identifier))
-            logging.debug("%s: %s", identifier, var_list.get_str(identifier))
+        self.local_sync_dir = var_list.resolve("$(LOCAL_REPO_SYNC_DIR)")
 
     def create_sync_instructions(self, installState):
         self.instlObj.batch_accum.set_current_section('sync')
@@ -68,14 +62,14 @@ class InstlInstanceSync_url(InstlInstanceSync):
             Writes the map to local sync folder for reference and debugging.
         """
         try:
-            safe_makedirs(var_list.get_str("LOCAL_REPO_BOOKKEEPING_DIR"))
-            safe_makedirs(var_list.get_str("LOCAL_REPO_REV_BOOKKEEPING_DIR"))
-            download_from_file_or_url(var_list.get_str("INFO_MAP_FILE_URL"),
-                                      var_list.get_str("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"),
+            safe_makedirs(var_list.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)"))
+            safe_makedirs(var_list.resolve("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)"))
+            download_from_file_or_url(var_list.resolve("$(INFO_MAP_FILE_URL)"),
+                                      var_list.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)"),
                                       cache=True,
-                                      public_key=var_list.get_str("PUBLIC_KEY"),
-                                      textual_sig=var_list.get_str("INFO_MAP_SIG"))
-            self.work_info_map.read_info_map_from_file(var_list.get_str("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"), format="text")
+                                      public_key=var_list.resolve("$(PUBLIC_KEY)"),
+                                      textual_sig=var_list.resolve("$(INFO_MAP_SIG)"))
+            self.work_info_map.read_info_map_from_file(var_list.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)"), format="text")
         except:
             raise
 
@@ -92,13 +86,13 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 for source in installi.source_list():
                     self.mark_required_items_for_source(source)
         self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
-        self.work_info_map.write_to_file(var_list.get_str("REQUIRED_INFO_MAP_PATH"), in_format="text")
+        self.work_info_map.write_to_file(var_list.resolve("$(REQUIRED_INFO_MAP_PATH)"), in_format="text")
 
     def read_have_info_map(self):
         """ Reads the map of files previously synced - if there is one.
         """
-        if os.path.isfile(var_list.get_str("HAVE_INFO_MAP_PATH")):
-            self.have_map.read_info_map_from_file(var_list.get_str("HAVE_INFO_MAP_PATH"), format="text")
+        if os.path.isfile(var_list.resolve("$(HAVE_INFO_MAP_PATH)")):
+            self.have_map.read_info_map_from_file(var_list.resolve("$(HAVE_INFO_MAP_PATH)"), format="text")
 
     class RemoveIfChecksumOK:
         def __init__(self, base_path):
@@ -142,14 +136,14 @@ class InstlInstanceSync_url(InstlInstanceSync):
                     have_item.set_flags(need_item.flags())
                     have_item.set_last_rev(need_item.last_rev())
         self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
-        self.work_info_map.write_to_file(var_list.get_str("TO_SYNC_INFO_MAP_PATH"), in_format="text")
-        self.have_map.write_to_file(var_list.get_str("NEW_HAVE_INFO_MAP_PATH"), in_format="text")
+        self.work_info_map.write_to_file(var_list.resolve("$(TO_SYNC_INFO_MAP_PATH)"), in_format="text")
+        self.have_map.write_to_file(var_list.resolve("$(NEW_HAVE_INFO_MAP_PATH)"), in_format="text")
 
     def mark_required_items_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
-        source_prefixed_remote_info_map = self.work_info_map.get_item_at_path(var_list.get_str("SOURCE_PREFIX"))
+        source_prefixed_remote_info_map = self.work_info_map.get_item_at_path(var_list.resolve("$(SOURCE_PREFIX)"))
         if source_prefixed_remote_info_map is None:
-            raise ValueError(var_list.get_str("SOURCE_PREFIX"), "does not exist in remote map")
+            raise ValueError(var_list.resolve("$(SOURCE_PREFIX)"), "does not exist in remote map")
         remote_sub_item = source_prefixed_remote_info_map.get_item_at_path(source[0])
         if remote_sub_item is None:
             raise ValueError(source[0], "does not exist in remote map")
@@ -170,7 +164,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def clear_unrequired_items(self):
         self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
         # for debugging
-        work_info_map_path = var_list.get_str("REQUIRED_INFO_MAP_PATH")
+        work_info_map_path = var_list.resolve("$(REQUIRED_INFO_MAP_PATH)")
         self.work_info_map.write_to_file(work_info_map_path, in_format="text")
 
     def estimate_num_unwtar_actions(self):
@@ -187,7 +181,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Starting sync from $(SYNC_BASE_URL)/$(SOURCE_PREFIX)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir("$(LOCAL_REPO_SYNC_DIR)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.cd("$(LOCAL_REPO_SYNC_DIR)")
-        self.sync_base_url = var_list.resolve_string("$(SYNC_BASE_URL)")
+        self.sync_base_url = var_list.resolve("$(SYNC_BASE_URL)")
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
@@ -218,16 +212,16 @@ class InstlInstanceSync_url(InstlInstanceSync):
         print(self.instlObj.platform_helper.dl_tool.get_num_urls_to_download(), "files to sync")
         logging.info("Num files to sync: %d", self.instlObj.platform_helper.dl_tool.get_num_urls_to_download())
 
-        curl_config_folder = var_list.resolve_string(os.path.join("$(LOCAL_REPO_SYNC_DIR)", "curl"))
+        curl_config_folder = var_list.resolve(os.path.join("$(LOCAL_REPO_SYNC_DIR)", "curl"))
         safe_makedirs(curl_config_folder)
-        curl_config_file_path = var_list.resolve_string(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"))
-        num_config_files = int(var_list.get_str("PARALLEL_SYNC"))
+        curl_config_file_path = var_list.resolve(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"))
+        num_config_files = int(var_list.resolve("$(PARALLEL_SYNC)"))
         config_file_list = self.instlObj.platform_helper.dl_tool.create_config_files(curl_config_file_path, num_config_files)
         logging.info("Num parallel syncs: %d", len(config_file_list))
         if len(config_file_list) > 0:
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
-            self.instlObj.batch_accum += self.instlObj.platform_helper.progress(var_list.resolve_string("Downloading with "+str(len(config_file_list))+" processes in parallel"))
-            parallel_run_config_file_path = var_list.resolve_string(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME).parallel-run"))
+            self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Downloading with "+str(len(config_file_list))+" processes in parallel")
+            parallel_run_config_file_path = var_list.resolve(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME).parallel-run"))
             self.instlObj.batch_accum += self.instlObj.platform_helper.dl_tool.download_from_config_files(parallel_run_config_file_path, config_file_list)
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Downloading "+str(self.files_to_download)+" files done", self.files_to_download)
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()

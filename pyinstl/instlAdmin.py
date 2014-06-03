@@ -30,14 +30,14 @@ class InstlAdmin(InstlInstanceBase):
 
     def set_default_variables(self):
         if "__CONFIG_FILE__" in var_list:
-            config_file_resolved = self.path_searcher.find_file(var_list.resolve_string("$(__CONFIG_FILE__)"), return_original_if_not_found=True)
+            config_file_resolved = self.path_searcher.find_file(var_list.resolve("$(__CONFIG_FILE__)"), return_original_if_not_found=True)
             var_list.set_var("__CONFIG_FILE_PATH__").append(config_file_resolved)
             self.read_yaml_file(config_file_resolved)
             self.resolve_defined_paths()
         if "PUBLIC_KEY" not in var_list:
             if "PUBLIC_KEY_FILE" in var_list:
                 try:
-                    public_key_file = var_list.get_str("$(PUBLIC_KEY_FILE)")
+                    public_key_file = var_list.resove("$(PUBLIC_KEY_FILE)")
                     public_key_text = open(public_key_file, "rb").read()
                     var_list.set_var("PUBLIC_KEY", "from "+public_key_file).append(public_key_text)
                 except:
@@ -45,34 +45,34 @@ class InstlAdmin(InstlInstanceBase):
         if "PRIVATE_KEY" not in var_list:
             if "PRIVATE_KEY_FILE" in var_list:
                 try:
-                    private_key_file = var_list.get_str("$(PRIVATE_KEY_FILE)")
+                    private_key_file = var_list.resove("$(PRIVATE_KEY_FILE)")
                     private_key_text = open(private_key_file, "rb").read()
                     var_list.set_var("PUBLIC_KEY", "from "+private_key_file).append(private_key_text)
                 except:
                     pass # lo nora
 
     def do_command(self):
-        the_command = var_list.get_str("__MAIN_COMMAND__")
+        the_command = var_list.resolve("$(__MAIN_COMMAND__)")
         self.set_default_variables()
-        self.platform_helper.num_items_for_progress_report = int(var_list.get_str("LAST_PROGRESS"))
+        self.platform_helper.num_items_for_progress_report = int(var_list.resolve("$(LAST_PROGRESS)"))
         self.platform_helper.init_copy_tool()
         fixed_command_name = the_command.replace('-', '_')
         do_command_func = getattr(self, "do_"+fixed_command_name)
         do_command_func()
 
     def do_trans(self):
-        self.read_info_map_file(var_list.get_str("__MAIN_INPUT_FILE__"))
+        self.read_info_map_file(var_list.resolve("$(__MAIN_INPUT_FILE__)"))
         if "__PROPS_FILE__" in var_list:
-            self.read_info_map_file(var_list.get_str("__PROPS_FILE__"))
-        self.filter_out_info_map(var_list.get_list("__FILTER_OUT_PATHS__"))
+            self.read_info_map_file(var_list.resolve("$(__PROPS_FILE__)"))
+        self.filter_out_info_map(var_list.resolve_to_list("$(__FILTER_OUT_PATHS__)"))
 
-        base_rev = int(var_list.get_str("BASE_REPO_REV"))
+        base_rev = int(var_list.resolve("$(BASE_REPO_REV)"))
         if base_rev > 0:
             for item in self.svnTree.walk_items():
                 item.set_last_rev(max(item.last_rev(), base_rev))
 
         if "__FILTER_IN_VERSION__" in var_list:
-            self.filter_in_specific_version(var_list.get_str("__FILTER_IN_VERSION__"))
+            self.filter_in_specific_version(var_list.resolve("$(__FILTER_IN_VERSION__)"))
         self.write_info_map_file()
         if "__RUN_BATCH_FILE__" in var_list:
             self.run_batch_file()
@@ -94,7 +94,7 @@ class InstlAdmin(InstlInstanceBase):
                                 """, re.VERBOSE)
         min_rev = 0
         max_rev = 1
-        match = revision_range_re.match(var_list.get_str("REPO_REV"))
+        match = revision_range_re.match(var_list.resolve("$(REPO_REV)"))
         if match:
             min_rev += int(match.group('min_rev'))
             if match.group('max_rev'):
@@ -111,10 +111,10 @@ class InstlAdmin(InstlInstanceBase):
             base revision and now this revision is the base revision. In which case
             the whole revision will need to be uploaded.
         """
-        current_base_repo_rev = int(var_list.get_str("BASE_REPO_REV"))
+        current_base_repo_rev = int(var_list.resolve("$(BASE_REPO_REV)"))
         retVal = True
-        revision_links_folder = var_list.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+str(revision))
-        create_links_done_stamp_file = var_list.resolve_string(revision_links_folder+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
+        revision_links_folder = var_list.resolve("$(ROOT_LINKS_FOLDER_REPO)/"+str(revision))
+        create_links_done_stamp_file = var_list.resolve(revision_links_folder+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
         if os.path.isfile(create_links_done_stamp_file):
             if revision == current_base_repo_rev: # revision is the new base_repo_rev
                 try:
@@ -125,7 +125,7 @@ class InstlAdmin(InstlInstanceBase):
                         msg = " ".join( ("new base revision", str(current_base_repo_rev), "(was", str(previous_base_repo_rev),") need to refresh links") )
                         self.batch_accum += self.platform_helper.echo(msg); print(msg)
                         # if we need to create links, remove the upload stems in order to force upload
-                        try: os.remove(var_list.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+str(rev_dir)+"/$(UP_2_S3_STAMP_FILE_NAME)"))
+                        try: os.remove(var_list.resolve("$(ROOT_LINKS_FOLDER_REPO)/"+str(rev_dir)+"/$(UP_2_S3_STAMP_FILE_NAME)"))
                         except: pass
                 except:
                     pass # no previous base repo rev indication was found so return True to re-create the links
@@ -136,11 +136,11 @@ class InstlAdmin(InstlInstanceBase):
     def get_last_repo_rev(self):
         retVal = 0
         revision_line_re = re.compile("^Revision:\s+(?P<last_rev>\d+)$")
-        repo_url = var_list.resolve_string("$(SVN_REPO_URL)")
+        repo_url = var_list.resolve("$(SVN_REPO_URL)")
         if os.path.isdir(repo_url):
-            svn_info_command = [var_list.get_str("SVN_CLIENT_PATH"), "info", "."]
+            svn_info_command = [var_list.resolve("$(SVN_CLIENT_PATH)"), "info", "."]
         else:
-            svn_info_command = [var_list.get_str("SVN_CLIENT_PATH"), "info", repo_url]
+            svn_info_command = [var_list.resolve("$(SVN_CLIENT_PATH)"), "info", repo_url]
         with ChangeDirIfExists(repo_url):
             proc = subprocess.Popen(svn_info_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             my_stdout, my_stderr = proc.communicate()
@@ -174,7 +174,7 @@ class InstlAdmin(InstlInstanceBase):
 
         no_need_link_nums = list()
         yes_need_link_nums = list()
-        base_rev = int(var_list.get_str("BASE_REPO_REV"))
+        base_rev = int(var_list.resolve("$(BASE_REPO_REV)"))
         if base_rev > last_repo_rev:
             raise ValueError("base_rev "+str(base_rev)+" > last_repo_rev "+str(last_repo_rev))
         for revision in range(base_rev, last_repo_rev+1):
@@ -281,9 +281,9 @@ class InstlAdmin(InstlInstanceBase):
             return retVal
 
     def do_up2s3(self):
-        root_links_folder = var_list.resolve_string("$(ROOT_LINKS_FOLDER_REPO)")
+        root_links_folder = var_list.resolve("$(ROOT_LINKS_FOLDER_REPO)")
         # call svn info and to find out the last repo revision
-        base_repo_rev = int(var_list.get_str("BASE_REPO_REV"))
+        base_repo_rev = int(var_list.resolve("$(BASE_REPO_REV)"))
         last_repo_rev = self.get_last_repo_rev()
         revision_list = range(base_repo_rev, last_repo_rev+1)
         dirs_to_upload = list()
@@ -291,14 +291,14 @@ class InstlAdmin(InstlInstanceBase):
         yes_need_upload_nums = list()
         for dir_as_int in revision_list:
             dir_name = str(dir_as_int)
-            if not os.path.isdir(var_list.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+dir_name)):
+            if not os.path.isdir(var_list.resolve("$(ROOT_LINKS_FOLDER_REPO)/"+dir_name)):
                 print("revision dir", dir_name, "is missing, run create-links to create this folder")
             else:
-                create_links_done_stamp_file = var_list.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+dir_name+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
+                create_links_done_stamp_file = var_list.resolve("$(ROOT_LINKS_FOLDER_REPO)/"+dir_name+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
                 if not os.path.isfile(create_links_done_stamp_file):
                     print("revision dir", dir_name, "does not have create-links stamp file:", create_links_done_stamp_file)
                 else:
-                    up_2_s3_done_stamp_file = var_list.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+dir_name+"/$(UP_2_S3_STAMP_FILE_NAME)")
+                    up_2_s3_done_stamp_file = var_list.resolve("$(ROOT_LINKS_FOLDER_REPO)/"+dir_name+"/$(UP_2_S3_STAMP_FILE_NAME)")
                     if os.path.isfile(up_2_s3_done_stamp_file):
                         no_need_upload_nums.append(dir_name)
                     else:
@@ -337,14 +337,14 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_upload_to_s3_aws_for_revision(self, accum):
         map_file_path = 'instl/info_map.txt'
-        info_map_path = var_list.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/"+map_file_path)
-        repo_rev = int(var_list.resolve_string("$(__CURR_REPO_REV__)"))
+        info_map_path = var_list.resolve("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/"+map_file_path)
+        repo_rev = int(var_list.resolve("$(__CURR_REPO_REV__)"))
         self.svnTree.clear_subs()
         self.read_info_map_file(info_map_path)
 
         accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
 
-        if 'Mac' in var_list.get_list("__CURRENT_OS_NAMES__"):
+        if 'Mac' in var_list.resolve_to_list("$(__CURRENT_OS_NAMES__)"):
             accum += "find . -name .DS_Store -delete"
 
         # Files a folders that do not belong to __CURR_REPO_REV__ should not be uploaded.
@@ -395,8 +395,8 @@ class InstlAdmin(InstlInstanceBase):
 
     def create_sig_for_file(self, file_to_sig):
         retVal = None
-        config_dir, _ = os.path.split(var_list.get_str("__CONFIG_FILE_PATH__"))
-        private_key_file = os.path.join(config_dir, var_list.get_str("REPO_NAME")+".private_key")
+        config_dir, _ = os.path.split(var_list.resolve("$(__CONFIG_FILE_PATH__)"))
+        private_key_file = os.path.join(config_dir, var_list.resolve("$(REPO_NAME)")+".private_key")
         with open(private_key_file, "rb") as private_key_fd:
             retVal = create_file_signatures(file_to_sig, private_key_fd.read())
         return retVal
@@ -404,20 +404,20 @@ class InstlAdmin(InstlInstanceBase):
     def do_create_repo_rev_file(self):
         if "REPO_REV_FILE_VARS" not in var_list:
             raise ValueError("REPO_REV_FILE_VARS must be defined")
-        repo_rev_vars = var_list.get_list("REPO_REV_FILE_VARS")
+        repo_rev_vars = var_list.resolve_to_list("$(REPO_REV_FILE_VARS)")
         var_list.set_var("REPO_REV").append("$(TARGET_REPO_REV)") # override the repo rev from the config file
         dangerous_intersection = set(repo_rev_vars).intersection(set(("AWS_ACCESS_KEY_ID","AWS_SECRET_ACCESS_KEY", "PRIVATE_KEY", "PRIVATE_KEY_FILE")))
         if dangerous_intersection:
             print("found", str(dangerous_intersection), "in REPO_REV_FILE_VARS, aborting")
             raise ValueError("file REPO_REV_FILE_VARS "+str(dangerous_intersection)+" and so is forbidden to upload")
 
-        info_map_file = var_list.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/$(TARGET_REPO_REV)/instl/info_map.txt")
+        info_map_file = var_list.resolve("$(ROOT_LINKS_FOLDER_REPO)/$(TARGET_REPO_REV)/instl/info_map.txt")
         info_map_sigs = self.create_sig_for_file(info_map_file)
         var_list.set_var("INFO_MAP_SIG").append(info_map_sigs["SHA-512_rsa_sig"])
         var_list.set_var("INFO_MAP_CHECKSUM").append(info_map_sigs["sha1_checksum"])
 
         var_list.set_var("INDEX_URL").append("$(SYNC_BASE_URL)/$(REPO_REV)/instl/index.yaml")
-        index_file = var_list.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/$(TARGET_REPO_REV)/instl/index.yaml")
+        index_file = var_list.resolve("$(ROOT_LINKS_FOLDER_REPO)/$(TARGET_REPO_REV)/instl/index.yaml")
         index_file_sigs = self.create_sig_for_file(index_file)
         var_list.set_var("INDEX_SIG").append(index_file_sigs["SHA-512_rsa_sig"])
         var_list.set_var("INDEX_CHECKSUM").append(index_file_sigs["sha1_checksum"])
@@ -428,46 +428,46 @@ class InstlAdmin(InstlInstanceBase):
 
         repo_rev_yaml = YamlDumpDocWrap(var_list.repr_for_yaml(repo_rev_vars, include_comments=False),
                                                     '!define', "", explicit_start=True, sort_mappings=True)
-        safe_makedirs(var_list.resolve_string("$(ROOT_LINKS_FOLDER)/admin"))
-        local_file = var_list.resolve_string("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
+        safe_makedirs(var_list.resolve("$(ROOT_LINKS_FOLDER)/admin"))
+        local_file = var_list.resolve("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
         with open(local_file, "w") as wfd:
             writeAsYaml(repo_rev_yaml, out_stream=wfd, indentor=None, sort=True)
             print("created", local_file)
 
     def do_up_repo_rev(self):
-        s3 		= boto.connect_s3(var_list.get_str("AWS_ACCESS_KEY_ID"), var_list.get_str("AWS_SECRET_ACCESS_KEY"))
-        bucket 	= s3.get_bucket(var_list.get_str("S3_BUCKET_NAME"))
+        s3 		= boto.connect_s3(var_list.resolve("$(AWS_ACCESS_KEY_ID)"), var_list.resolve("$(AWS_SECRET_ACCESS_KEY)"))
+        bucket 	= s3.get_bucket(var_list.resolve("$(S3_BUCKET_NAME)"))
         key_obj = boto.s3.key.Key(bucket)
 
-        just_with_number = int(var_list.get_str("__JUST_WITH_NUMBER__"))
+        just_with_number = int(var_list.resolve("$(__JUST_WITH_NUMBER__)"))
         if just_with_number > 0:
             var_list.set_var("REPO_REV").append("$(__JUST_WITH_NUMBER__)")
 
-        local_file = var_list.resolve_string("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)")
+        local_file = var_list.resolve("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)")
 
         if just_with_number == 0:
-            s3_path = var_list.resolve_string("admin/$(REPO_REV_FILE_NAME)")
+            s3_path = var_list.resolve("admin/$(REPO_REV_FILE_NAME)")
             key_obj.key = s3_path
             key_obj.metadata={'Content-Type': 'text/plain'}
             key_obj.set_contents_from_filename(local_file)
             key_obj.set_acl('public-read') # must be done after the upload
-            print("uploaded to:", var_list.resolve_string("http://$(S3_BUCKET_NAME)/"+key_obj.key))
+            print("uploaded to:", var_list.resolve("http://$(S3_BUCKET_NAME)/"+key_obj.key))
 
-        s3_path = var_list.resolve_string("admin/$(REPO_REV_FILE_NAME).$(REPO_REV)")
+        s3_path = var_list.resolve("admin/$(REPO_REV_FILE_NAME).$(REPO_REV)")
         key_obj.key = s3_path
         key_obj.metadata={'Content-Type': 'text/plain'}
         key_obj.set_contents_from_filename(local_file)
         key_obj.set_acl('public-read') # must be done after the upload
-        print("uploaded to:", var_list.resolve_string("http://$(S3_BUCKET_NAME)/"+key_obj.key))
+        print("uploaded to:", var_list.resolve("http://$(S3_BUCKET_NAME)/"+key_obj.key))
 
     def do_fix_props(self):
         self.batch_accum.set_current_section('admin')
-        repo_folder = var_list.resolve_string("$(SVN_CHECKOUT_FOLDER)")
+        repo_folder = var_list.resolve("$(SVN_CHECKOUT_FOLDER)")
         save_dir = os.getcwd()
         os.chdir(repo_folder)
 
         # read svn info
-        svn_info_command = [var_list.get_str("SVN_CLIENT_PATH"), "info", "--depth", "infinity"]
+        svn_info_command = [var_list.resolve("$(SVN_CLIENT_PATH)"), "info", "--depth", "infinity"]
         proc = subprocess.Popen(svn_info_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         my_stdout, my_stderr = proc.communicate()
         if proc.returncode != 0 or my_stderr != "":
@@ -479,7 +479,7 @@ class InstlAdmin(InstlInstanceBase):
             self.svnTree.read_from_svn_info(rfd)
 
         # read svn props
-        svn_props_command = [var_list.get_str("SVN_CLIENT_PATH"), "proplist", "--depth", "infinity"]
+        svn_props_command = [var_list.resolve("$(SVN_CLIENT_PATH)"), "proplist", "--depth", "infinity"]
         proc = subprocess.Popen(svn_props_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         my_stdout, my_stderr = proc.communicate()
         with open("../svn-proplist-for-fix-props.txt", "w") as wfd:
@@ -494,15 +494,15 @@ class InstlAdmin(InstlInstanceBase):
             if item.props:
                 for extra_prop in item.props:
                     #print("remove prop", extra_prop, "from", item.full_path())
-                    self.batch_accum += " ".join( (var_list.get_str("SVN_CLIENT_PATH"), "propdel", "svn:"+extra_prop, '"'+item.full_path()+'"') )
+                    self.batch_accum += " ".join( (var_list.resolve("$(SVN_CLIENT_PATH)"), "propdel", "svn:"+extra_prop, '"'+item.full_path()+'"') )
                     self.batch_accum += self.platform_helper.progress(" ".join(("remove prop", extra_prop, "from", item.full_path())) )
             if item.isExecutable() and not shouldBeExec:
                 #print("remove prop", "executable", "from", item.full_path())
-                self.batch_accum += " ".join( (var_list.get_str("SVN_CLIENT_PATH"), "propdel", 'svn:executable', '"'+item.full_path()+'"') )
+                self.batch_accum += " ".join( (var_list.resolve("$(SVN_CLIENT_PATH)"), "propdel", 'svn:executable', '"'+item.full_path()+'"') )
                 self.batch_accum += self.platform_helper.progress(" ".join(("remove prop", "executable", "from", item.full_path())) )
             elif not item.isExecutable() and shouldBeExec:
                 #print("add prop", "executable", "to", item.full_path())
-                self.batch_accum += " ".join( (var_list.get_str("SVN_CLIENT_PATH"), "propset", 'svn:executable', 'yes', '"'+item.full_path()+'"') )
+                self.batch_accum += " ".join( (var_list.resolve("$(SVN_CLIENT_PATH)"), "propset", 'svn:executable', 'yes', '"'+item.full_path()+'"') )
                 self.batch_accum += self.platform_helper.progress(" ".join(("add prop", "executable", "from", item.full_path())) )
         self.create_variables_assignment()
         os.chdir(save_dir)
@@ -519,7 +519,7 @@ class InstlAdmin(InstlInstanceBase):
     def should_file_be_exec(self, file_path):
         retVal = False
         try:
-            regex_list = var_list.get_list("EXEC_PROP_REGEX")
+            regex_list = var_list.resolve_to_list("$(EXEC_PROP_REGEX)")
             for regex in regex_list:
                 if re.search(regex, file_path):
                     retVal = True
@@ -535,7 +535,7 @@ class InstlAdmin(InstlInstanceBase):
     # to do: prevent create-links and up2s3 if there are files marked as symlinks
     def do_fix_symlinks(self):
         self.batch_accum.set_current_section('admin')
-        folder_to_check = var_list.resolve_string("$(STAGING_FOLDER)")
+        folder_to_check = var_list.resolve("$(STAGING_FOLDER)")
         valid_symlinks = list()
         broken_symlinks = list()
         for root, dirs, files in os.walk(folder_to_check, followlinks=False):
@@ -567,18 +567,18 @@ class InstlAdmin(InstlInstanceBase):
     def do_stage2svn(self):
         self.batch_accum.set_current_section('admin')
         if var_list.defined("__LIMIT_COMMAND_TO__"):
-            print("limiting to ", "; ".join(var_list.get_list("__LIMIT_COMMAND_TO__")))
+            print("limiting to ", "; ".join(var_list.resolve_to_list("$(__LIMIT_COMMAND_TO__)")))
         else:
             print ("no limiting to specific folder")
-        stage_folder = var_list.resolve_string(("$(STAGING_FOLDER)"))
-        svn_folder = var_list.resolve_string(("$(SVN_CHECKOUT_FOLDER)"))
+        stage_folder = var_list.resolve(("$(STAGING_FOLDER)"))
+        svn_folder = var_list.resolve(("$(SVN_CHECKOUT_FOLDER)"))
         self.batch_accum += self.platform_helper.unlock(stage_folder, recursive=True)
         self.batch_accum += self.platform_helper.progress("chflags -R nouchg "+stage_folder)
         self.batch_accum += self.platform_helper.new_line()
         self.batch_accum += self.platform_helper.cd(svn_folder)
         stage_folder_svn_folder_pairs = []
         if var_list.defined("__LIMIT_COMMAND_TO__"):
-            limit_list = var_list.get_list("__LIMIT_COMMAND_TO__")
+            limit_list = var_list.resolve_to_list("$(__LIMIT_COMMAND_TO__)")
             for limit in limit_list:
                 stage_folder_svn_folder_pairs.append( (os.path.join(stage_folder,limit) , os.path.join(svn_folder, limit) ) )
         else:
@@ -655,7 +655,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_wtar(self):
         self.batch_accum.set_current_section('admin')
-        regex_list = var_list.get_list("WTAR_REGEX")
+        regex_list = var_list.resolve_to_list("$(WTAR_REGEX)")
 
         compiled_regex_list = list()
         for regex in regex_list:
@@ -663,8 +663,8 @@ class InstlAdmin(InstlInstanceBase):
 
         self.batch_accum += self.platform_helper.split_func()
 
-        max_file_size = int(var_list.resolve_string(("$(MAX_FILE_SIZE)")))
-        stage_folder = var_list.resolve_string(("$(STAGING_FOLDER)"))
+        max_file_size = int(var_list.resolve(("$(MAX_FILE_SIZE)")))
+        stage_folder = var_list.resolve(("$(STAGING_FOLDER)"))
         self.batch_accum += self.platform_helper.unlock(stage_folder, recursive=True)
         self.batch_accum += self.platform_helper.progress("chflags -R nouchg "+stage_folder)
         self.batch_accum += self.platform_helper.new_line()
@@ -711,8 +711,8 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_svn2stage(self):
         self.batch_accum.set_current_section('admin')
-        stage_folder = var_list.resolve_string(("$(STAGING_FOLDER)"))
-        svn_folder = var_list.resolve_string(("$(SVN_CHECKOUT_FOLDER)"))
+        stage_folder = var_list.resolve(("$(STAGING_FOLDER)"))
+        svn_folder = var_list.resolve(("$(SVN_CHECKOUT_FOLDER)"))
         svn_command_parts = ['"$(SVN_CLIENT_PATH)"', "checkout", '"$(SVN_REPO_URL)"', '"'+svn_folder+'"', "--depth", "infinity"]
         self.batch_accum += " ".join(svn_command_parts)
         self.batch_accum += self.platform_helper.progress("Checkout $(SVN_REPO_URL) to $(SVN_CHECKOUT_FOLDER)")
@@ -724,8 +724,8 @@ class InstlAdmin(InstlInstanceBase):
             self.run_batch_file()
 
     def do_create_rsa_keys(self):
-        public_key_file = var_list.resolve_string("$(PUBLIC_KEY_FILE)")
-        private_key_file = var_list.resolve_string("$(PRIVATE_KEY_FILE)")
+        public_key_file = var_list.resolve("$(PUBLIC_KEY_FILE)")
+        private_key_file = var_list.resolve("$(PRIVATE_KEY_FILE)")
         pubkey, privkey = rsa.newkeys(4096, poolsize=8)
         with open(public_key_file, "wb") as wfd:
             wfd.write(pubkey.save_pkcs1(format='PEM'))
@@ -737,21 +737,21 @@ class InstlAdmin(InstlInstanceBase):
     def do_make_sig(self):
         private_key = None
         if "PRIVATE_KEY_FILE" in var_list:
-            private_key_file = self.path_searcher.find_file(var_list.get_str("PRIVATE_KEY_FILE"),
+            private_key_file = self.path_searcher.find_file(var_list.resolve("$(PRIVATE_KEY_FILE)"),
                                                     return_original_if_not_found=True)
             private_key = open(private_key_file, "rb").read()
-        file_to_sign = self.path_searcher.find_file(var_list.get_str("__MAIN_INPUT_FILE__"),
+        file_to_sign = self.path_searcher.find_file(var_list.resolve("$(__MAIN_INPUT_FILE__)"),
                                                     return_original_if_not_found=True)
         file_sigs = create_file_signatures(file_to_sign, private_key_text=private_key)
         print("sha1:\n", file_sigs["sha1_checksum"])
         print("SHA-512_rsa_sig:\n", file_sigs.get("SHA-512_rsa_sig", "no private key"))
 
     def do_check_sig(self):
-        file_to_check = self.path_searcher.find_file(var_list.get_str("__MAIN_INPUT_FILE__"),
+        file_to_check = self.path_searcher.find_file(var_list.resolve("$(__MAIN_INPUT_FILE__)"),
                                                     return_original_if_not_found=True)
         file_contents = open(file_to_check, "rb").read()
 
-        sha1_checksum = var_list.get_str("__SHA1_CHECKSUM__")
+        sha1_checksum = var_list.resolve("$(__SHA1_CHECKSUM__)")
         if sha1_checksum:
             checksumOk = check_buffer_checksum(file_contents, sha1_checksum)
             if checksumOk:
@@ -759,10 +759,10 @@ class InstlAdmin(InstlInstanceBase):
             else:
                 print("Bad checksum, should be:", get_buffer_checksum(file_contents))
 
-        rsa_signature = var_list.get_str("__RSA_SIGNATURE__")
+        rsa_signature = var_list.resolve("$(__RSA_SIGNATURE__)")
         if rsa_signature:
             if "PUBLIC_KEY_FILE" in var_list:
-                public_key_file = self.path_searcher.find_file(var_list.get_str("PUBLIC_KEY_FILE"),
+                public_key_file = self.path_searcher.find_file(var_list.resolve("$(PUBLIC_KEY_FILE)"),
                                                         return_original_if_not_found=True)
                 public_key_text = open(public_key_file, "rb").read()
 
@@ -774,9 +774,9 @@ class InstlAdmin(InstlInstanceBase):
 
 
     def do_verify_index(self):
-        self.read_yaml_file(var_list.get_str("__MAIN_INPUT_FILE__"))
+        self.read_yaml_file(var_list.resolve("$(__MAIN_INPUT_FILE__)"))
         info_map = svnTree.SVNTree()
-        with open_for_read_file_or_url(var_list.get_str("INFO_MAP_FILE_URL")) as rfd:
+        with open_for_read_file_or_url(var_list.resolve("$(INFO_MAP_FILE_URL)")) as rfd:
             info_map.read_from_text(rfd)
 
         # for each iid get full paths to it's sources

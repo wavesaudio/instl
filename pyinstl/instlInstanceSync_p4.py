@@ -29,11 +29,7 @@ class InstlInstanceSync_p4(InstlInstanceSync):
         var_description = "from InstlInstanceBase.init_sync_vars"
         self.instlObj.check_prerequisite_var_existence(("SYNC_BASE_URL", "DOWNLOAD_TOOL_PATH", "REPO_REV"))
 
-        safe_makedirs(var_list.get_str("LOCAL_REPO_BOOKKEEPING_DIR"))
-
-        for identifier in ("SYNC_BASE_URL", "DOWNLOAD_TOOL_PATH", "REPO_REV"):
-            #print(identifier, var_list.get_str(identifier))
-            logging.debug("%s: %s", identifier, var_list.get_str(identifier))
+        safe_makedirs(var_list.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)"))
 
     def create_sync_instructions(self, installState):
         self.instlObj.batch_accum.set_current_section('sync')
@@ -44,7 +40,7 @@ class InstlInstanceSync_p4(InstlInstanceSync):
     def create_download_instructions(self):
         self.instlObj.batch_accum.set_current_section('sync')
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Starting sync from $(SYNC_BASE_URL)")
-        self.sync_base_url = var_list.resolve_string("$(SYNC_BASE_URL)")
+        self.sync_base_url = var_list.resolve("$(SYNC_BASE_URL)")
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 

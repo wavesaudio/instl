@@ -45,7 +45,6 @@ class ConfigVarStack(configVarList.ConfigVarList):
     #    if key in self._ConfigVarList_objs:
     #        del self._ConfigVarList_objs[key]
 
-
     def __iter__(self):
         return iter(self.keys())
 
@@ -112,7 +111,7 @@ class ConfigVarStack(configVarList.ConfigVarList):
             if var_name in self:
                 if include_comments:
                     theComment = self[var_name].description()
-                var_value = self.get_list(var_name)
+                var_value = self.resolve_var(var_name)
                 if len(var_value) == 1:
                     var_value = var_value[0]
                 retVal[var_name] = YamlDumpWrap(var_value, comment=theComment)

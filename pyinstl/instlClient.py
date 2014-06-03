@@ -94,10 +94,10 @@ class InstlClient(InstlInstanceBase):
         super(InstlClient, self).__init__(initial_vars)
 
     def do_command(self):
-        the_command = var_list.get_str("__MAIN_COMMAND__")
+        the_command = var_list.resolve("$(__MAIN_COMMAND__)")
         #print("client_commands", the_command)
         self.installState = InstallInstructionsState()
-        self.read_yaml_file(var_list.get_str("__MAIN_INPUT_FILE__"))
+        self.read_yaml_file(var_list.resolve("$(__MAIN_INPUT_FILE__)"))
         self.init_default_client_vars()
         self.resolve_defined_paths()
         self.platform_helper.init_download_tool()
@@ -105,7 +105,7 @@ class InstlClient(InstlInstanceBase):
         self.resolve_index_inheritance()
         self.add_deafult_items()
         self.calculate_default_install_item_set()
-        self.platform_helper.num_items_for_progress_report = int(var_list.get_str("LAST_PROGRESS"))
+        self.platform_helper.num_items_for_progress_report = int(var_list.resolve("$(LAST_PROGRESS)"))
 
         fixed_command_name = the_command.replace('-', '_')
         do_command_func = getattr(self, "do_"+fixed_command_name)
@@ -120,12 +120,12 @@ class InstlClient(InstlInstanceBase):
     def create_instl_history_file(self):
         var_list.set_var("__BATCH_CREATE_TIME__").append(time.strftime("%Y/%m/%d %H:%M:%S"))
         yaml_of_defines = augmentedYaml.YamlDumpDocWrap(var_list, '!define', "Definitions", explicit_start=True, sort_mappings=True)
-        with open(var_list.get_str("INSTL_HISTORY_TEMP_PATH"), "w") as wfd:
+        with open(var_list.resolve("$(INSTL_HISTORY_TEMP_PATH)"), "w") as wfd:
             augmentedYaml.writeAsYaml(yaml_of_defines, wfd)
         self.batch_accum += self.platform_helper.append_file_to_file("$(INSTL_HISTORY_TEMP_PATH)", "$(INSTL_HISTORY_PATH)")
 
     def read_repo_type_defaults(self):
-        repo_type_defaults_file_path = os.path.join(var_list.resolve_string("$(__INSTL_DATA_FOLDER__)"), "defaults", var_list.resolve_string("$(REPO_TYPE).yaml"))
+        repo_type_defaults_file_path = os.path.join(var_list.resolve("$(__INSTL_DATA_FOLDER__)"), "defaults", var_list.resolve("$(REPO_TYPE).yaml"))
         if os.path.isfile(repo_type_defaults_file_path):
             self.read_yaml_file(repo_type_defaults_file_path)
 
@@ -133,37 +133,36 @@ class InstlClient(InstlInstanceBase):
         if "LOCAL_SYNC_DIR" not in var_list:
             if "SYNC_BASE_URL" not in var_list:
                 raise ValueError("'SYNC_BASE_URL' was not defined")
-            resolved_sync_base_url = var_list.get_str("SYNC_BASE_URL")
+            resolved_sync_base_url = var_list.resolve("$(SYNC_BASE_URL)")
             url_main_item = main_url_item(resolved_sync_base_url)
             default_sync_dir = self.get_default_sync_dir(continue_dir=url_main_item, mkdir=True)
             var_list.set_var("LOCAL_SYNC_DIR", description="from init_default_client_vars").append(default_sync_dir)
         # TARGET_OS_NAMES defaults to __CURRENT_OS_NAMES__, which is not what we want if syncing to
         # an OS which is not the current
-        if var_list.get_str("TARGET_OS") != var_list.get_str("__CURRENT_OS__"):
-            the_list_var = var_list.resolve_string("$(TARGET_OS)_ALL_OS_NAMES")
-            target_os_names = var_list.get_list(the_list_var)
+        if var_list.resolve("$(TARGET_OS)") != var_list.resolve("$(__CURRENT_OS__)"):
+            target_os_names = var_list.resolve_var_to_list(var_list.resolve("$(TARGET_OS)_ALL_OS_NAMES"))
             var_list.set_var("TARGET_OS_NAMES").extend(target_os_names)
-            second_name = var_list.get_str("TARGET_OS")
+            second_name = var_list.resolve("$(TARGET_OS)")
             if len(target_os_names) > 1:
                 second_name = target_os_names[1]
             var_list.set_var("TARGET_OS_SECOND_NAME").append(second_name)
 
         self.read_repo_type_defaults()
-        if var_list.get_str("REPO_TYPE") == "P4":
+        if var_list.resolve("$(REPO_TYPE)") == "P4":
             if "P4_SYNC_DIR" not in var_list:
                 if "SYNC_BASE_URL" in var_list:
-                    p4_sync_dir = P4GetPathFromDepotPath(var_list.get_str("SYNC_BASE_URL"))
+                    p4_sync_dir = P4GetPathFromDepotPath(var_list.resolve("$(SYNC_BASE_URL)"))
                     var_list.set_var("P4_SYNC_DIR", "from SYNC_BASE_URL").append(p4_sync_dir)
 
     def do_sync(self):
         logging.info("Creating sync instructions")
-        if var_list.get_str("REPO_TYPE") == "URL":
+        if var_list.resolve("$(REPO_TYPE)") == "URL":
             from instlInstanceSync_url import InstlInstanceSync_url
             syncer = InstlInstanceSync_url(self)
-        elif var_list.get_str("REPO_TYPE") == "SVN":
+        elif var_list.resolve("$(REPO_TYPE)") == "SVN":
             from instlInstanceSync_svn import InstlInstanceSync_svn
             syncer = InstlInstanceSync_svn(self)
-        elif var_list.get_str("REPO_TYPE") == "P4":
+        elif var_list.resolve("$(REPO_TYPE)") == "P4":
             from instlInstanceSync_p4 import InstlInstanceSync_p4
             syncer = InstlInstanceSync_p4(self)
         else:
@@ -238,15 +237,13 @@ class InstlClient(InstlInstanceBase):
         """
         if "MAIN_INSTALL_TARGETS" not in var_list:
             raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
-        for os_name in var_list.get_list("TARGET_OS_NAMES"):
+        for os_name in var_list.resolve_to_list("$(TARGET_OS_NAMES)"):
             InstallItem.begin_get_for_specific_os(os_name)
-        self.installState.root_install_items.extend(var_list.get_list("MAIN_INSTALL_TARGETS"))
+        self.installState.root_install_items.extend(var_list.resolve_to_list("$(MAIN_INSTALL_TARGETS)"))
         self.installState.root_install_items = filter(bool, self.installState.root_install_items)
         self.installState.calculate_full_install_items_set(self)
         var_list.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(self.installState.full_install_items)
         var_list.set_var("__ORPHAN_INSTALL_TARGETS__").extend(self.installState.orphan_install_items)
-        for identifier in ("MAIN_INSTALL_TARGETS", "__FULL_LIST_OF_INSTALL_TARGETS__", "__ORPHAN_INSTALL_TARGETS__"):
-            logging.debug("... %s: %s", identifier, var_list.get_str(identifier))
 
     def init_copy_vars(self):
         self.action_type_to_progress_message = {'copy_in': "pre-install step", 'copy_out': "post-install step",
@@ -257,7 +254,7 @@ class InstlClient(InstlInstanceBase):
         self.batch_accum.set_current_section('copy')
         self.batch_accum += self.platform_helper.progress("Starting copy from $(LOCAL_REPO_SOURCES_DIR)")
 
-        sorted_target_folder_list = sorted(self.installState.install_items_by_target_folder, key=lambda fold: var_list.resolve_string(fold))
+        sorted_target_folder_list = sorted(self.installState.install_items_by_target_folder, key=lambda fold: var_list.resolve(fold))
 
         # first create all target folders so to avoid dependency order problems such as creating links between folders
         for folder_name in sorted_target_folder_list:
@@ -266,14 +263,14 @@ class InstlClient(InstlInstanceBase):
 
         self.accumulate_unique_actions('copy_in', self.installState.full_install_items)
 
-        if 'Mac' in var_list.get_list("__CURRENT_OS_NAMES__") and 'Mac' in var_list.get_list("TARGET_OS"):
+        if 'Mac' in var_list.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_list.resolve_to_list("$(TARGET_OS)"):
             self.batch_accum += self.platform_helper.resolve_symlink_files(in_dir="$(LOCAL_REPO_SOURCES_DIR)")
             self.batch_accum += self.platform_helper.progress("Resolve .symlink files")
 
             have_map = svnTree.SVNTree()
-            have_info_path = var_list.get_str("NEW_HAVE_INFO_MAP_PATH") # in case we're in synccopy command
+            have_info_path = var_list.resolve("$(NEW_HAVE_INFO_MAP_PATH)") # in case we're in synccopy command
             if not os.path.isfile(have_info_path):
-                have_info_path = var_list.get_str("HAVE_INFO_MAP_PATH") # in case we're in copy command
+                have_info_path = var_list.resolve("$(HAVE_INFO_MAP_PATH)") # in case we're in copy command
             if os.path.isfile(have_info_path):
                 have_map.read_info_map_from_file(have_info_path, format="text")
                 num_files_to_set_exec = have_map.num_subs_in_tree(what="file", predicate=lambda in_item: in_item.isExecutable())
@@ -288,7 +285,7 @@ class InstlClient(InstlInstanceBase):
 
         for folder_name in sorted_target_folder_list:
             items_in_folder = self.installState.install_items_by_target_folder[folder_name]
-            logging.info("folder %s", var_list.resolve_string(folder_name))
+            logging.info("folder %s", var_list.resolve(folder_name))
             self.batch_accum += self.platform_helper.new_line()
             self.batch_accum += self.platform_helper.cd(folder_name)
 
@@ -319,7 +316,7 @@ class InstlClient(InstlInstanceBase):
         for folder_name, items_in_folder in self.installState.no_copy_items_by_sync_folder.iteritems():
             # calculate total number of actions for all items relating to folder_name, if 0 we can skip this folder altogether
             num_actions_for_folder = reduce(lambda x, y: x+len(self.install_definitions_index[y].all_action_list()), items_in_folder, 0)
-            logging.info("%d non-copy items folder %s (%s)", num_actions_for_folder, folder_name, var_list.resolve_string(folder_name))
+            logging.info("%d non-copy items folder %s (%s)", num_actions_for_folder, folder_name, var_list.resolve(folder_name))
 
             if 0 == num_actions_for_folder:
                 continue
@@ -377,7 +374,7 @@ class InstlClient(InstlInstanceBase):
 
         source_path = os.path.normpath("$(LOCAL_REPO_SOURCES_DIR)/"+source[0])
 
-        ignore_list = var_list.get_list("COPY_IGNORE_PATTERNS")
+        ignore_list = var_list.resolve_to_list("$(COPY_IGNORE_PATTERNS)")
 
         if source[1] == '!file':       # get a single file, not recommended
             self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".", link_dest=True, ignore=ignore_list)
@@ -387,7 +384,7 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".", link_dest=True, ignore=ignore_list)
         else: # !dir
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path, ".", link_dest=True, ignore=ignore_list)
-        logging.debug("%s; (%s - %s)", source_path, var_list.resolve_string(source_path), source[1])
+        logging.debug("%s; (%s - %s)", source_path, var_list.resolve(source_path), source[1])
 
     def needs(self, iid, out_list):
         """ return all items that depend on iid """

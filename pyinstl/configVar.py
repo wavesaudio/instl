@@ -32,13 +32,12 @@ class ConfigVar(object):
         Values are kept as strings and are converted to strings upon append/extend.
         ConfigVar Emulates a list container
     """
-    __slots__ = ("__name", "__description", "__values", "__resolving_in_progress", "resolved_num")
+    __slots__ = ("__name", "__description", "__values", "resolved_num")
 
     def __init__(self, name, description="", *values):
         self.__name = name
         self.__description = description
         self.__values = map(str, values)
-        self.__resolving_in_progress = False  # prevent circular resolves
         self.resolved_num = 0
 
     def name(self):

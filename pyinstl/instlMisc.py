@@ -25,11 +25,11 @@ class InstlMisc(InstlInstanceBase):
             print("curr_progress: {self.curr_progress} != actual_progress: {self.actual_progress}".format(**locals()))
 
     def do_command(self):
-        the_command = var_list.get_str("__MAIN_COMMAND__")
+        the_command = var_list.resolve("$(__MAIN_COMMAND__)")
         fixed_command = the_command.replace('-', '_')
-        self.curr_progress =  int(var_list.get_str("__START_DYNAMIC_PROGRESS__")) + 1
-        self.total_progress = int(var_list.get_str("__TOTAL_DYNAMIC_PROGRESS__"))
-        self.progress_staccato_period = int(var_list.get_str("PROGRESS_STACCATO_PERIOD"))
+        self.curr_progress =  int(var_list.resolve("$(__START_DYNAMIC_PROGRESS__)")) + 1
+        self.total_progress = int(var_list.resolve("$(__TOTAL_DYNAMIC_PROGRESS__)"))
+        self.progress_staccato_period = int(var_list.resolve("$(PROGRESS_STACCATO_PERIOD)"))
         self.progress_staccato_count = 0
         self.actual_progress = 1
         self.progress_staccato_command = False
@@ -53,11 +53,11 @@ class InstlMisc(InstlInstanceBase):
 
     def do_help(self):
         import pyinstl.helpHelper
-        help_folder_path = os.path.join(var_list.resolve_string("$(__INSTL_DATA_FOLDER__)"), "help")
-        pyinstl.helpHelper.do_help(var_list.get_str("__HELP_SUBJECT__"), help_folder_path, self)
+        help_folder_path = os.path.join(var_list.resolve("$(__INSTL_DATA_FOLDER__)"), "help")
+        pyinstl.helpHelper.do_help(var_list.resolve("$(__HELP_SUBJECT__)"), help_folder_path, self)
 
     def do_parallel_run(self):
-        processes_list_file = var_list.get_str("__MAIN_INPUT_FILE__")
+        processes_list_file = var_list.resolve("$(__MAIN_INPUT_FILE__)")
         commands = list()
         with open(processes_list_file, "r") as rfd:
             for line in rfd:
@@ -118,7 +118,7 @@ class InstlMisc(InstlInstanceBase):
     def do_check_checksum(self):
         self.progress_staccato_command = True
         bad_checksum_list = list()
-        self.read_info_map_file(var_list.get_str("__MAIN_INPUT_FILE__"))
+        self.read_info_map_file(var_list.resolve("$(__MAIN_INPUT_FILE__)"))
         for file_item in self.svnTree.walk_items(what="file"):
             file_path = file_item.full_path()
             if os.path.isfile(file_path):
@@ -135,7 +135,7 @@ class InstlMisc(InstlInstanceBase):
 
     def do_set_exec(self):
         self.progress_staccato_command = True
-        self.read_info_map_file(var_list.get_str("__MAIN_INPUT_FILE__"))
+        self.read_info_map_file(var_list.resolve("$(__MAIN_INPUT_FILE__)"))
         for file_item in self.svnTree.walk_items(what="file"):
             if file_item.isExecutable():
                 file_path = file_item.full_path()
@@ -146,7 +146,7 @@ class InstlMisc(InstlInstanceBase):
 
     def do_create_folders(self):
         self.progress_staccato_command = True
-        self.read_info_map_file(var_list.get_str("__MAIN_INPUT_FILE__"))
+        self.read_info_map_file(var_list.resolve("$(__MAIN_INPUT_FILE__)"))
         for dir_item in self.svnTree.walk_items(what="dir"):
             dir_path = dir_item.full_path()
             safe_makedirs(dir_path)
