@@ -81,10 +81,10 @@ class InstlInstanceSync_url(InstlInstanceSync):
         """
         self.work_info_map.set_user_data_all_recursive(False)
         for iid  in self.installState.full_install_items:
-            installi = self.instlObj.install_definitions_index[iid]
-            if installi.source_list():
-                for source in installi.source_list():
-                    self.mark_required_items_for_source(source)
+            with self.instlObj.install_definitions_index[iid] as installi:
+                if installi.source_list():
+                    for source in installi.source_list():
+                        self.mark_required_items_for_source(source)
         self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
         self.work_info_map.write_to_file(var_list.resolve("$(REQUIRED_INFO_MAP_PATH)"), in_format="text")
 

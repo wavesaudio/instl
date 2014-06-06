@@ -295,12 +295,12 @@ class InstlClient(InstlInstanceBase):
             batch_accum_len_before = len(self.batch_accum)
             self.batch_accum += self.platform_helper.copy_tool.begin_copy_folder()
             for IID in items_in_folder:
-                installi = self.install_definitions_index[IID]
-                for source in installi.source_list():
-                    self.batch_accum += installi.action_list('before')
-                    self.create_copy_instructions_for_source(source)
-                    self.batch_accum += installi.action_list('after')
-                    self.batch_accum += self.platform_helper.progress("Copy {installi.name}".format(**locals()))
+                with self.install_definitions_index[IID] as installi:
+                    for source in installi.source_list():
+                        self.batch_accum += var_list.resolve_to_list("$(iid_action_list_before)")
+                        self.create_copy_instructions_for_source(source)
+                        self.batch_accum += var_list.resolve_to_list("$(iid_action_list_after)")
+                        self.batch_accum += self.platform_helper.progress("Copy {installi.name}".format(**locals()))
             self.batch_accum += self.platform_helper.copy_tool.end_copy_folder()
             logging.info("... copy actions: %d", len(self.batch_accum) - batch_accum_len_before)
 
@@ -326,9 +326,9 @@ class InstlClient(InstlInstanceBase):
             self.accumulate_unique_actions('folder_in', items_in_folder)
 
             for IID in items_in_folder:
-                installi = self.install_definitions_index[IID]
-                self.batch_accum += installi.action_list('before')
-                self.batch_accum += installi.action_list('after')
+                with self.install_definitions_index[IID]:
+                    self.batch_accum += var_list.resolve_to_list("$(iid_action_list_before)")
+                    self.batch_accum += var_list.resolve_to_list("$(iid_action_list_after)")
 
             # accumulate folder_out actions from all items, eliminating duplicates
             self.accumulate_unique_actions('folder_out', items_in_folder)
@@ -350,19 +350,19 @@ class InstlClient(InstlInstanceBase):
             """ accumulate action_type actions from iid_list, eliminating duplicates"""
             unique_actions = unique_list() # unique_list will eliminate identical actions while keeping the order
             for IID in iid_list:
-                installi = self.install_definitions_index[IID]
-                item_actions = installi.action_list(action_type)
-                num_unique_actions = 0
-                for an_action in item_actions:
-                    len_before = len(unique_actions)
-                    unique_actions.append(an_action)
-                    len_after = len(unique_actions)
-                    if len_before < len_after: # add progress only for the first same action
-                        num_unique_actions += 1
-                        action_description = self.action_type_to_progress_message[action_type]
-                        if num_unique_actions > 1:
-                            action_description = " ".join( (action_description, str(num_unique_actions)) )
-                        unique_actions.append(self.platform_helper.progress("{installi.name} {action_description}".format(**locals())))
+                with self.install_definitions_index[IID] as installi:
+                    item_actions = var_list.resolve_to_list("$(iid_action_list_"+action_type+")")
+                    num_unique_actions = 0
+                    for an_action in item_actions:
+                        len_before = len(unique_actions)
+                        unique_actions.append(an_action)
+                        len_after = len(unique_actions)
+                        if len_before < len_after: # add progress only for the first same action
+                            num_unique_actions += 1
+                            action_description = self.action_type_to_progress_message[action_type]
+                            if num_unique_actions > 1:
+                                action_description = " ".join( (action_description, str(num_unique_actions)) )
+                            unique_actions.append(self.platform_helper.progress("{installi.name} {action_description}".format(**locals())))
             self.batch_accum += unique_actions
             logging.info("... %s actions: %d", action_type, len(unique_actions))
 

@@ -57,6 +57,8 @@ import sys
 sys.path.append("..")
 from aYaml import augmentedYaml
 from pyinstl.utils import *
+from pyinstl.configVarList import ConfigVarList
+from configVarStack import var_stack as var_list
 
 current_os_names = get_current_os_names()
 os_family_name = current_os_names[0]
@@ -77,7 +79,8 @@ def read_index_from_yaml(all_items_node):
 class InstallItem(object):
     __slots__ = ('iid', 'name', 'guid',
                 'remark', "description", 'inherit',
-                '__set_for_os', '__items', '__resolved_inherit')
+                '__set_for_os', '__items', '__resolved_inherit',
+                'var_list')
     os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
     item_types = ('install_sources', 'install_folders', 'depends', 'actions')
     action_types = ('copy_in', 'folder_in', 'before', 'after', 'folder_out', 'copy_out')
@@ -151,6 +154,7 @@ class InstallItem(object):
         self.inherit = unique_list()
         self.__set_for_os = [InstallItem.os_names[0]] # reading for all platforms ('common') or for which specific platforms ('Mac', 'Win')?
         self.__items = defaultdict(InstallItem.create_items_section)
+        self.var_list = None
 
     def read_from_yaml_by_idd(self, IID, all_items_node):
         my_node = all_items_node[IID]
@@ -185,6 +189,30 @@ class InstallItem(object):
                 self.begin_set_for_specific_os(os_)
                 self.read_from_yaml(my_node[os_])
                 self.end_set_for_specific_os()
+
+    def get_var_list(self):
+        if self.var_list is None:
+            self.var_list = ConfigVarList()
+            self.var_list.set_var("iid_name").append(self.name)
+            if self.guid:
+                self.var_list.set_var("iid_guid").append(self.guid)
+            if self.remark:
+                self.var_list.set_var("iid_remark").append(self.remark)
+            self.var_list.set_var("iid_inherite").extend(self.inherit_list())
+            self.var_list.set_var("iid_source_list").extend(self.source_list())
+            self.var_list.set_var("iid_folder_list").extend(self.folder_list())
+            self.var_list.set_var("iid_depend_list").extend(self.depend_list())
+            for action_type in self.action_types:
+                self.var_list.set_var("iid_action_list_"+action_type).extend(self.action_list(action_type))
+            self.var_list.set_var("iid_depend_list").extend(self.depend_list())
+        return self.var_list
+
+    def __enter__(self):
+        var_list.push_scope(self.get_var_list())
+        return self
+
+    def __exit__(self, etype, value, traceback):
+        var_list.pop_scope()
 
     def begin_set_for_specific_os(self, for_os):
         self.__set_for_os.append(for_os)
