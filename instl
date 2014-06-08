@@ -146,7 +146,7 @@ def prepare_args_parser():
     need_output_options = (copy_parser, sync_parser, synccopy_parser,
                            trans_parser, create_links_parser, fix_symlinks_parser,
                            up2S3_parser, fix_props_parser, stage2svn_parser,
-                           svn2stage_parser, wtar_parser)
+                           svn2stage_parser, wtar_parser, up_repo_rev_parser)
     need_run_option = (copy_parser, sync_parser, synccopy_parser,
                            create_links_parser, fix_symlinks_parser,
                            up2S3_parser, fix_props_parser, stage2svn_parser)
