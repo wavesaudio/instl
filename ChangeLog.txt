@@ -11,7 +11,12 @@
     * InstallItem creates it's own var_list.
     * InstallItem pushes it's own var_list to var_stack through 'with' statement.
     * All action lists for an Installitem are taken from var_stack with variable.
-    
+    * Intrduced $(A[0]) array style references.
+
+    user visible changes, admin:
+    * up-repo-rev now creates a batch file like all other commands.
+    * up-repo-rev does not use boto - depends on aws command line tools.
+
 28/5/2014 0.9.11   Shai Shasag <shai@waves.com>
     user visible changes, client:
     * Fixed a problem where index.yaml would not be copied to bookkeeping when syncing to DOK.

@@ -5,7 +5,6 @@ from __future__ import print_function
 import filecmp
 import subprocess
 import cStringIO as StringIO
-import boto
 from collections import defaultdict
 import stat
 import fnmatch
@@ -435,30 +434,33 @@ class InstlAdmin(InstlInstanceBase):
             print("created", local_file)
 
     def do_up_repo_rev(self):
-        s3 		= boto.connect_s3(var_list.resolve("$(AWS_ACCESS_KEY_ID)"), var_list.resolve("$(AWS_SECRET_ACCESS_KEY)"))
-        bucket 	= s3.get_bucket(var_list.resolve("$(S3_BUCKET_NAME)"))
-        key_obj = boto.s3.key.Key(bucket)
+        self.batch_accum.set_current_section('admin')
 
         just_with_number = int(var_list.resolve("$(__JUST_WITH_NUMBER__)"))
         if just_with_number > 0:
             var_list.set_var("REPO_REV").append("$(__JUST_WITH_NUMBER__)")
 
-        local_file = var_list.resolve("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)")
-
         if just_with_number == 0:
-            s3_path = var_list.resolve("admin/$(REPO_REV_FILE_NAME)")
-            key_obj.key = s3_path
-            key_obj.metadata={'Content-Type': 'text/plain'}
-            key_obj.set_contents_from_filename(local_file)
-            key_obj.set_acl('public-read') # must be done after the upload
-            print("uploaded to:", var_list.resolve("http://$(S3_BUCKET_NAME)/"+key_obj.key))
-
-        s3_path = var_list.resolve("admin/$(REPO_REV_FILE_NAME).$(REPO_REV)")
-        key_obj.key = s3_path
-        key_obj.metadata={'Content-Type': 'text/plain'}
-        key_obj.set_contents_from_filename(local_file)
-        key_obj.set_acl('public-read') # must be done after the upload
-        print("uploaded to:", var_list.resolve("http://$(S3_BUCKET_NAME)/"+key_obj.key))
+            self.batch_accum += " ".join( ["aws", "s3", "cp",
+                   "\"$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
+                   "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
+                   "--acl", "public-read",
+                   "--content-type", 'text/plain'
+                ] )
+            self.batch_accum += self.platform_helper.progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)'")
+            
+        self.batch_accum += " ".join( ["aws", "s3", "cp",
+               "\"$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
+               "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)\"",
+               "--acl", "public-read",
+               "--content-type", 'text/plain'
+            ] )
+        self.batch_accum += self.platform_helper.progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)'")
+        
+        self.create_variables_assignment()
+        self.write_batch_file()
+        if "__RUN_BATCH_FILE__" in var_list:
+            self.run_batch_file()
 
     def do_fix_props(self):
         self.batch_accum.set_current_section('admin')
