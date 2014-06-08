@@ -39,17 +39,18 @@ class InstallInstructionsState(object):
 
     def __sort_install_items_by_target_folder(self, instlObj):
         for IID in self.full_install_items:
-            folder_list_for_idd = instlObj.install_definitions_index[IID].folder_list()
-            if folder_list_for_idd:
-                for folder in folder_list_for_idd:
-                    norm_folder = os.path.normpath(folder)
-                    self.install_items_by_target_folder[norm_folder].append(IID)
-            else: # items that need no copy
-                source_list_for_idd = instlObj.install_definitions_index[IID].source_list()
-                for source in source_list_for_idd:
-                    relative_sync_folder = instlObj.relative_sync_folder_for_source(source)
-                    sync_folder =  os.path.join( "$(LOCAL_REPO_SOURCES_DIR)", relative_sync_folder )
-                    self.no_copy_items_by_sync_folder[sync_folder].append(IID)
+            with instlObj.install_definitions_index[IID] as installi:
+                folder_list_for_idd = [folder for folder in var_list["iid_folder_list"]]
+                if folder_list_for_idd:
+                    for folder in folder_list_for_idd:
+                        norm_folder = os.path.normpath(folder)
+                        self.install_items_by_target_folder[norm_folder].append(IID)
+                else: # items that need no copy
+                    for source_var in var_list.get_configVar_obj("iid_source_var_list"):
+                        source = var_list.resolve_var_to_list(source_var)
+                        relative_sync_folder = instlObj.relative_sync_folder_for_source(source)
+                        sync_folder =  os.path.join( "$(LOCAL_REPO_SOURCES_DIR)", relative_sync_folder )
+                        self.no_copy_items_by_sync_folder[sync_folder].append(IID)
 
     def calculate_full_install_items_set(self, instlObj):
         """ calculate the set of iids to install by starting with the root set and adding all dependencies.
@@ -296,7 +297,8 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum += self.platform_helper.copy_tool.begin_copy_folder()
             for IID in items_in_folder:
                 with self.install_definitions_index[IID] as installi:
-                    for source in installi.source_list():
+                    for source_var in var_list.get_configVar_obj("iid_source_var_list"):
+                        source = var_list.resolve_var_to_list(source_var)
                         self.batch_accum += var_list.resolve_to_list("$(iid_action_list_before)")
                         self.create_copy_instructions_for_source(source)
                         self.batch_accum += var_list.resolve_to_list("$(iid_action_list_after)")

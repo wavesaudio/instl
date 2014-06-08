@@ -199,12 +199,16 @@ class InstallItem(object):
             if self.remark:
                 self.var_list.set_var("iid_remark").append(self.remark)
             self.var_list.set_var("iid_inherite").extend(self.inherit_list())
-            self.var_list.set_var("iid_source_list").extend(self.source_list())
-            self.var_list.set_var("iid_folder_list").extend(self.folder_list())
+            self.var_list.set_var("iid_folder_list").extend(self._folder_list())
             self.var_list.set_var("iid_depend_list").extend(self.depend_list())
             for action_type in self.action_types:
-                self.var_list.set_var("iid_action_list_"+action_type).extend(self.action_list(action_type))
-            self.var_list.set_var("iid_depend_list").extend(self.depend_list())
+                self.var_list.set_var("iid_action_list_"+action_type).extend(self._action_list(action_type))
+            source_vars_obj = self.var_list.set_var("iid_source_var_list")
+            source_list = self._source_list()
+            for i, source in enumerate(source_list):
+                source_var = "iid_source_"+str(i)
+                source_vars_obj.append(source_var)
+                self.var_list.set_var(source_var).extend(source)
         return self.var_list
 
     def __enter__(self):
@@ -263,13 +267,13 @@ class InstallItem(object):
             file_type = '!dir'
         self.__add_item_to_default_os_by_category('install_sources', (new_source, file_type, self.__set_for_os[-1]) )
 
-    def source_list(self):
+    def _source_list(self):
         return self.__get_item_list_for_default_oses_by_category('install_sources')
 
     def add_folder(self, new_folder):
         self.__add_item_to_default_os_by_category('install_folders', new_folder )
 
-    def folder_list(self):
+    def _folder_list(self):
         return self.__get_item_list_for_default_oses_by_category('install_folders')
 
     def add_depend(self, new_depend):
@@ -288,7 +292,7 @@ class InstallItem(object):
             for action in new_actions:
                 self.add_action(action_type, action.value)
 
-    def action_list(self, action_type):
+    def _action_list(self, action_type):
         if action_type not in InstallItem.action_types:
             raise KeyError("actions type must be one of: "+str(InstallItem.action_types)+" not "+action_type)
         return self.__get_item_list_for_default_oses_by_category(action_type)
