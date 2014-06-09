@@ -384,10 +384,7 @@ class InstlAdmin(InstlInstanceBase):
                            "--exclude", '"$(CREATE_LINKS_STAMP_FILE_NAME)"'
                         ])
 
-        batch_dir, _ = os.path.split(var_list.get_str("__MAIN_OUT_FILE__"))
-        safe_makedirs(batch_dir)
-        up_repo_rev_batch_file = os.path.join(batch_dir, "up_repo_rev.$(__CURR_REPO_REV__)")
-        up_repo_rev_file_command_parts = [self.platform_helper.run_instl(), "up-repo-rev", "--config-file", '"$(__CONFIG_FILE_PATH__)"', "--out", up_repo_rev_batch_file, "--just-with-number", "$(__CURR_REPO_REV__)"]
+        up_repo_rev_file_command_parts = [self.platform_helper.run_instl(), "up-repo-rev", "--config-file", '"$(__CONFIG_FILE_PATH__)"', "--out", "up_repo_rev.$(__CURR_REPO_REV__)", "--just-with-number", "$(__CURR_REPO_REV__)"]
         accum += " ".join(up_repo_rev_file_command_parts)
         accum += self.platform_helper.progress("up-repo-rev file - just with number")
 
