@@ -1,7 +1,10 @@
-???? 0.9.12
+9/6/2014 0.9.12   Shai Shasag <shai@waves.com>
 
     user visible changes, admin:
     * Added option to limit stage2svn to specific folders, to save time.
+    * up-repo-rev now creates a batch file like all other commands.
+    * up-repo-rev does not use boto - depends on aws command line tools.
+    * No more usage of AWS keys inside instl or created batch files. All AWS config comes from the ./aws/config file.
 
     programmer visible changes:
     * New resolve methods for ConfigVarList: resolve, resolve_to_list, replace previous methods: get_str, resolve_string
@@ -9,10 +12,6 @@
     * Tests for new resolve methods.
     * Removed unused member Configvar.__resolving_in_progress, preventing circular resolves is done in ConfigVarList.
     * Intrduced $(A[0]) array style references.
-
-    user visible changes, admin:
-    * up-repo-rev now creates a batch file like all other commands.
-    * up-repo-rev does not use boto - depends on aws command line tools.
     * up2s3 calls up-repo-rev with --out parameter
 
 28/5/2014 0.9.11   Shai Shasag <shai@waves.com>
