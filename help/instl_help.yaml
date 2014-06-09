@@ -158,7 +158,7 @@ command:
             Usage: instl up-repo-rev --config-file config_file
             up-repo-rev will create a repo_rev file according to the information in the config file, and upload said repo_rev file to s3 bucket to a top level folder called 'admin'. The contents of the repo_rev file are a list of variables defined in the "REPO_REV_FILE_VARS" variable of the config file. Typically these variables would be: REPO_REV, REPO_TYPE, SYNC_BASE_URL.
             relevant variables:
-                S3_BUCKET_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY:
+                S3_BUCKET_NAME
                 REPO_REV_FILE_NAME, REPO_REV_FILE_VARS, REPO_TYPE, REPO_REV, REPO_NAME
 
     up2s3:
@@ -167,7 +167,7 @@ command:
             Usage: instl up2s3 --config-file config_file --out up2s3.sh [--run]
             For each revision folder created with the create-links command, up2s3 will remove the files not belonging to the specific revision and upload the remaining files to s3. A revision folder uploaded successfully will contain a stamp file, that will cause the folder to be skipped the next time up2s3 is called.
             All information about the the location of the top level links folder, the s3 url and s3 passwords, is taken from the config file.
-            relevant variables: REPO_NAME, ROOT_LINKS_FOLDER_REPO, BASE_REPO_REV, S3_BUCKET_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+            relevant variables: REPO_NAME, ROOT_LINKS_FOLDER_REPO, BASE_REPO_REV, S3_BUCKET_NAME
             Keep in mind that up2s3 command does not actually do anything, unless the --run flag is given. You will need to run the produced batch file in order to actually create upload the links.
 
     verify-index:
