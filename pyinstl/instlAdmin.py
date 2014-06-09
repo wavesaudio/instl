@@ -384,7 +384,11 @@ class InstlAdmin(InstlInstanceBase):
                            "--exclude", '"$(CREATE_LINKS_STAMP_FILE_NAME)"'
                         ])
 
-        up_repo_rev_file_command_parts = [self.platform_helper.run_instl(), "up-repo-rev", "--config-file", '"$(__CONFIG_FILE_PATH__)"', "--out", "up_repo_rev.$(__CURR_REPO_REV__)", "--just-with-number", "$(__CURR_REPO_REV__)"]
+        up_repo_rev_file_command_parts = [self.platform_helper.run_instl(), "up-repo-rev",
+                                          "--config-file", '"$(__CONFIG_FILE_PATH__)"',
+                                          "--out", "up_repo_rev.$(__CURR_REPO_REV__)",
+                                          "--just-with-number", "$(__CURR_REPO_REV__)",
+                                          "--run"]
         accum += " ".join(up_repo_rev_file_command_parts)
         accum += self.platform_helper.progress("up-repo-rev file - just with number")
 
@@ -443,7 +447,7 @@ class InstlAdmin(InstlInstanceBase):
         if just_with_number == 0:
             self.batch_accum += " ".join( ["aws", "s3", "cp",
                                 "\"$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
-                               "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
+                               "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)\"",
                                "--acl", "public-read",
                                "--content-type", 'text/plain'
                                 ] )
@@ -451,7 +455,7 @@ class InstlAdmin(InstlInstanceBase):
             
         self.batch_accum += " ".join( ["aws", "s3", "cp",
                            "\"$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
-                           "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)\"",
+                           "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
                            "--acl", "public-read",
                            "--content-type", 'text/plain'
                             ] )
