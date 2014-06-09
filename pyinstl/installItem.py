@@ -198,9 +198,9 @@ class InstallItem(object):
                 self.var_list.set_var("iid_guid").append(self.guid)
             if self.remark:
                 self.var_list.set_var("iid_remark").append(self.remark)
-            self.var_list.set_var("iid_inherite").extend(self.inherit_list())
+            self.var_list.set_var("iid_inherite").extend(self._inherit_list())
             self.var_list.set_var("iid_folder_list").extend(self._folder_list())
-            self.var_list.set_var("iid_depend_list").extend(self.depend_list())
+            self.var_list.set_var("iid_depend_list").extend(self._depend_list())
             for action_type in self.action_types:
                 self.var_list.set_var("iid_action_list_"+action_type).extend(self._action_list(action_type))
             source_vars_obj = self.var_list.set_var("iid_source_var_list")
@@ -258,7 +258,7 @@ class InstallItem(object):
     def add_inherit(self, inherit_idd):
         self.inherit.append(inherit_idd)
 
-    def inherit_list(self):
+    def _inherit_list(self):
         retVal = self.inherit
         return retVal
 
@@ -279,7 +279,7 @@ class InstallItem(object):
     def add_depend(self, new_depend):
         self.__add_item_to_default_os_by_category('depends', new_depend )
 
-    def depend_list(self):
+    def _depend_list(self):
         return self.__get_item_list_for_default_oses_by_category('depends')
 
     def add_action(self, action_type, new_action):
@@ -309,7 +309,7 @@ class InstallItem(object):
         if self.iid not in out_set:
             out_set.append(self.iid)
             #print("get_recursive_depends: added", self.iid)
-            for depend in self.depend_list():
+            for depend in self._depend_list():
                 #print("get_recursive_depends:", self.iid, "depends on", depend)
                 if depend not in out_set: # avoid cycles, save time
                     try:
@@ -384,7 +384,7 @@ class InstallItem(object):
             if self.iid in self.resolve_inheritance_stack:
                 raise Exception("circular resolve_inheritance of "+self.iid)
             self.resolve_inheritance_stack.append(self.iid)
-            for ancestor in self.inherit_list():
+            for ancestor in self._inherit_list():
                 if ancestor not in InstallItemsDict:
                     raise KeyError(self.iid+" inherites from "+ancestor+" which is not in InstallItemsDict")
                 ancestor_item = InstallItemsDict[ancestor]

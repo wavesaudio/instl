@@ -390,12 +390,13 @@ class InstlClient(InstlInstanceBase):
         if iid not in self.install_definitions_index:
             raise KeyError(iid+" is not in index")
         InstallItem.begin_get_for_all_oses()
-        for dep in self.install_definitions_index[iid].depend_list():
-            if dep in self.install_definitions_index:
-                out_list.append(dep)
-                self.needs(dep, out_list)
-            else:
-                out_list.append(dep+"(missing)")
+        with self.install_definitions_index[iid]:
+            for dep in var_list.resolve_var_to_list("iid_depend_list"):
+                if dep in self.install_definitions_index:
+                    out_list.append(dep)
+                    self.needs(dep, out_list)
+                else:
+                    out_list.append(dep+"(missing)")
         InstallItem.reset_get_for_all_oses()
 
     def needed_by(self, iid):

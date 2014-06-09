@@ -1,6 +1,7 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 from pyinstl.utils import *
+from configVarStack import var_stack as var_list
 
 try:
     import networkx as nx
@@ -10,15 +11,17 @@ except ImportError as IE:
 def create_dependencies_graph(item_map):
     retVal = nx.DiGraph()
     for item in item_map:
-        for dependant in item_map[item].depend_list():
-            retVal.add_edge(item_map[item].iid, dependant)
+        with item_map[item]:
+            for dependant in var_list.resolve_var_to_list("iid_depend_list"):
+                retVal.add_edge(var_list.resolve_var("iid_name"), dependant)
     return retVal
 
 def create_inheritItem_graph(item_map):
     retVal = nx.DiGraph()
     for item in item_map:
-        for dependant in item_map[item].inherit_list():
-            retVal.add_edge(item_map[item].iid, dependant)
+        with item_map[item]:
+            for dependant in var_list.resolve_var_to_list("iid_inherite"):
+                retVal.add_edge(var_list.resolve_var("iid_name"), dependant)
     return retVal
 
 def find_cycles(item_graph):
