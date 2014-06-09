@@ -3,7 +3,6 @@
 from __future__ import print_function
 
 import filecmp
-import subprocess
 import cStringIO as StringIO
 from collections import defaultdict
 import stat
@@ -19,12 +18,12 @@ from installItem import InstallItem
 from batchAccumulator import BatchAccumulator
 from configVarList import var_list
 
+# noinspection PyPep8,PyPep8,PyPep8
 class InstlAdmin(InstlInstanceBase):
 
     def __init__(self, initial_vars):
         super(InstlAdmin, self).__init__(initial_vars)
         self.svnTree = svnTree.SVNTree()
-
 
     def set_default_variables(self):
         if "__CONFIG_FILE__" in var_list:
@@ -39,7 +38,7 @@ class InstlAdmin(InstlInstanceBase):
                     public_key_text = open(public_key_file, "rb").read()
                     var_list.set_var("PUBLIC_KEY", "from "+public_key_file).append(public_key_text)
                 except:
-                    pass # lo nora
+                    pass  # lo nora
         if "PRIVATE_KEY" not in var_list:
             if "PRIVATE_KEY_FILE" in var_list:
                 try:
@@ -47,7 +46,7 @@ class InstlAdmin(InstlInstanceBase):
                     private_key_text = open(private_key_file, "rb").read()
                     var_list.set_var("PUBLIC_KEY", "from "+private_key_file).append(private_key_text)
                 except:
-                    pass # lo nora
+                    pass  # lo nora
 
     def do_command(self):
         the_command = var_list.get_str("__MAIN_COMMAND__")
@@ -114,19 +113,20 @@ class InstlAdmin(InstlInstanceBase):
         revision_links_folder = var_list.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+str(revision))
         create_links_done_stamp_file = var_list.resolve_string(revision_links_folder+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
         if os.path.isfile(create_links_done_stamp_file):
-            if revision == current_base_repo_rev: # revision is the new base_repo_rev
+            if revision == current_base_repo_rev:  # revision is the new base_repo_rev
                 try:
-                    previous_base_repo_rev = int(open(create_links_done_stamp_file, "r").read()) # try to read the previous
+                    previous_base_repo_rev = int(open(create_links_done_stamp_file, "r").read())  # try to read the previous
                     if previous_base_repo_rev == current_base_repo_rev:
                         retVal = False
                     else:
                         msg = " ".join( ("new base revision", str(current_base_repo_rev), "(was", str(previous_base_repo_rev),") need to refresh links") )
-                        self.batch_accum += self.platform_helper.echo(msg); print(msg)
-                        # if we need to create links, remove the upload stems in order to force upload
-                        try: os.remove(var_list.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+str(rev_dir)+"/$(UP_2_S3_STAMP_FILE_NAME)"))
+                        self.batch_accum += self.platform_helper.echo(msg);
+                        print(msg)
+                        # if we need to create links, remove the upload stamps in order to force upload
+                        try: os.remove(var_list.resolve_string("$(ROOT_LINKS_FOLDER_REPO)/"+str(revision)+"/$(UP_2_S3_STAMP_FILE_NAME)"))
                         except: pass
                 except:
-                    pass # no previous base repo rev indication was found so return True to re-create the links
+                    pass  # no previous base repo rev indication was found so return True to re-create the links
             else:
                 retVal = False
         return retVal
@@ -166,7 +166,7 @@ class InstlAdmin(InstlInstanceBase):
 
         self.batch_accum += self.platform_helper.mkdir("$(ROOT_LINKS_FOLDER_REPO)/Base")
 
-        accum = BatchAccumulator() # sub-accumulator serves as a template for each version
+        accum = BatchAccumulator()  # sub-accumulator serves as a template for each version
         accum.set_current_section('links')
         self.create_links_for_revision(accum)
 
@@ -177,16 +177,16 @@ class InstlAdmin(InstlInstanceBase):
             raise ValueError("base_rev "+str(base_rev)+" > last_repo_rev "+str(last_repo_rev))
         for revision in range(base_rev, last_repo_rev+1):
             if self.needToCreatelinksForRevision(revision):
-                yes_need_link_nums.append( str(revision))
+                yes_need_link_nums.append(str(revision))
                 save_dir_var = "REV_"+str(revision)+"_SAVE_DIR"
                 self.batch_accum += self.platform_helper.save_dir(save_dir_var)
                 var_list.set_var("__CURR_REPO_REV__").append(str(revision))
-                revision_lines = accum.finalize_list_of_lines() # will resolve with current  __CURR_REPO_REV__
+                revision_lines = accum.finalize_list_of_lines()  # will resolve with current  __CURR_REPO_REV__
                 self.batch_accum += revision_lines
                 self.batch_accum += self.platform_helper.restore_dir(save_dir_var)
                 self.batch_accum += self.platform_helper.new_line()
             else:
-                no_need_link_nums.append( str(revision))
+                no_need_link_nums.append(str(revision))
 
         if yes_need_link_nums:
             if no_need_link_nums:
@@ -270,6 +270,7 @@ class InstlAdmin(InstlInstanceBase):
     class RemoveIfNotSpecificVersion:
         def __init__(self, version_not_to_remove):
             self.version_not_to_remove = version_not_to_remove
+
         def __call__(self, svn_item):
             retVal = None
             if svn_item.isFile():
@@ -317,13 +318,13 @@ class InstlAdmin(InstlInstanceBase):
 
         self.batch_accum.set_current_section('upload')
         for dir_name in dirs_to_upload:
-            accum = BatchAccumulator() # sub-accumulator serves as a template for each version
+            accum = BatchAccumulator()  # sub-accumulator serves as a template for each version
             accum.set_current_section('upload')
             save_dir_var = "REV_"+dir_name+"_SAVE_DIR"
             self.batch_accum += self.platform_helper.save_dir(save_dir_var)
             var_list.set_var("__CURR_REPO_REV__").append(dir_name)
             self.do_upload_to_s3_aws_for_revision(accum)
-            revision_lines = accum.finalize_list_of_lines() # will resolve with current  __CURR_REPO_REV__
+            revision_lines = accum.finalize_list_of_lines()  # will resolve with current  __CURR_REPO_REV__
             self.batch_accum += revision_lines
             self.batch_accum += self.platform_helper.restore_dir(save_dir_var)
             self.batch_accum += self.platform_helper.new_line()
@@ -350,7 +351,7 @@ class InstlAdmin(InstlInstanceBase):
         # and folders that should not be uploaded.
         # To save delete instructions for every file we rely on the fact that each folder
         # has last_rev which is the maximum last_rev of it's sub-items.
-        self.svnTree.remove_item_at_path('instl') # never remove the instl folder
+        self.svnTree.remove_item_at_path('instl')  # never remove the instl folder
         from collections import deque
         dir_queue = deque()
         dir_queue.append(self.svnTree)
@@ -366,24 +367,26 @@ class InstlAdmin(InstlInstanceBase):
             for dir_item in dirs:
                 if dir_item.last_rev() > repo_rev:
                     raise ValueError(str(dir_item)+" last_rev > repo_rev "+str(repo_rev))
-                elif dir_item.last_rev() < repo_rev: # whole folder should be removed
+                elif dir_item.last_rev() < repo_rev:  # whole folder should be removed
                     accum += self.platform_helper.rmdir(dir_item.full_path(), recursive=True)
                     accum += self.platform_helper.progress("rmdir "+dir_item.full_path())
                 else:
-                    dir_queue.append(dir_item) # need to check inside the folder
+                    dir_queue.append(dir_item)  # need to check inside the folder
 
         # remove broken links, aws cannot handle them
         accum += " ".join( ("find", ".", "-type", "l", "!", "-exec", "test", "-e", "{}", "\;", "-exec", "rm", "-f", "{}", "\;") )
 
-        accum += " ".join( ["aws", "s3", "sync",
-                           ".","s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_REV__)",
+        accum += " ".join(["aws", "s3", "sync",
+                           ".", "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_REV__)",
                            "--acl", "public-read",
                            "--exclude", '"*.DS_Store"',
                            "--exclude", '"$(UP_2_S3_STAMP_FILE_NAME)"',
                            "--exclude", '"$(CREATE_LINKS_STAMP_FILE_NAME)"'
-                        ] )
+                        ])
 
-        up_repo_rev_file_command_parts = [self.platform_helper.run_instl(), "up-repo-rev", "--config-file", '"$(__CONFIG_FILE_PATH__)"', "--just-with-number", "$(__CURR_REPO_REV__)"]
+        batch_dir, _ = os.path.split(var_list.get_str("__MAIN_OUT_FILE__"))
+        up_repo_rev_batch_file = os.path.join(batch_dir, "up_repo_rev.$(__CURR_REPO_REV__)")
+        up_repo_rev_file_command_parts = [self.platform_helper.run_instl(), "up-repo-rev", "--config-file", '"$(__CONFIG_FILE_PATH__)"', "--out", up_repo_rev_batch_file, "--just-with-number", "$(__CURR_REPO_REV__)"]
         accum += " ".join(up_repo_rev_file_command_parts)
         accum += self.platform_helper.progress("up-repo-rev file - just with number")
 
@@ -403,7 +406,7 @@ class InstlAdmin(InstlInstanceBase):
         if "REPO_REV_FILE_VARS" not in var_list:
             raise ValueError("REPO_REV_FILE_VARS must be defined")
         repo_rev_vars = var_list.get_list("REPO_REV_FILE_VARS")
-        var_list.set_var("REPO_REV").append("$(TARGET_REPO_REV)") # override the repo rev from the config file
+        var_list.set_var("REPO_REV").append("$(TARGET_REPO_REV)")  # override the repo rev from the config file
         dangerous_intersection = set(repo_rev_vars).intersection(set(("AWS_ACCESS_KEY_ID","AWS_SECRET_ACCESS_KEY", "PRIVATE_KEY", "PRIVATE_KEY_FILE")))
         if dangerous_intersection:
             print("found", str(dangerous_intersection), "in REPO_REV_FILE_VARS, aborting")
@@ -425,7 +428,7 @@ class InstlAdmin(InstlInstanceBase):
                 raise ValueError(var+" is missing cannot write repo rev file")
 
         repo_rev_yaml = YamlDumpDocWrap(var_list.repr_for_yaml(repo_rev_vars, include_comments=False),
-                                                    '!define', "", explicit_start=True, sort_mappings=True)
+                                        '!define', "", explicit_start=True, sort_mappings=True)
         safe_makedirs(var_list.resolve_string("$(ROOT_LINKS_FOLDER)/admin"))
         local_file = var_list.resolve_string("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
         with open(local_file, "w") as wfd:
@@ -441,19 +444,19 @@ class InstlAdmin(InstlInstanceBase):
 
         if just_with_number == 0:
             self.batch_accum += " ".join( ["aws", "s3", "cp",
-                   "\"$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
-                   "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
-                   "--acl", "public-read",
-                   "--content-type", 'text/plain'
-                ] )
+                                "\"$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
+                               "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
+                               "--acl", "public-read",
+                               "--content-type", 'text/plain'
+                                ] )
             self.batch_accum += self.platform_helper.progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)'")
             
         self.batch_accum += " ".join( ["aws", "s3", "cp",
-               "\"$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
-               "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)\"",
-               "--acl", "public-read",
-               "--content-type", 'text/plain'
-            ] )
+                           "\"$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
+                           "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)\"",
+                           "--acl", "public-read",
+                           "--content-type", 'text/plain'
+                            ] )
         self.batch_accum += self.platform_helper.progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)'")
         
         self.create_variables_assignment()
@@ -567,47 +570,47 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_stage2svn(self):
         self.batch_accum.set_current_section('admin')
-        stage_folder = var_list.resolve_string(("$(STAGING_FOLDER)"))
-        svn_folder = var_list.resolve_string(("$(SVN_CHECKOUT_FOLDER)"))
+        stage_folder = var_list.resolve_string("$(STAGING_FOLDER)")
+        svn_folder = var_list.resolve_string("$(SVN_CHECKOUT_FOLDER)")
         self.batch_accum += self.platform_helper.unlock(stage_folder, recursive=True)
         self.batch_accum += self.platform_helper.progress("chflags -R nouchg "+stage_folder)
         self.batch_accum += self.platform_helper.new_line()
         self.batch_accum += self.platform_helper.cd(svn_folder)
-        comperer = filecmp.dircmp(stage_folder, svn_folder, ignore=[".svn", ".DS_Store", "Icon\015"])
-        self.stage2svn_for_folder(comperer)
+        comparer = filecmp.dircmp(stage_folder, svn_folder, ignore=[".svn", ".DS_Store", "Icon\015"])
+        self.stage2svn_for_folder(comparer)
         self.create_variables_assignment()
         self.write_batch_file()
         if "__RUN_BATCH_FILE__" in var_list:
             self.run_batch_file()
 
-    def stage2svn_for_folder(self, comperer):
+    def stage2svn_for_folder(self, comparer):
         # copy new and changed items:
-        for item in comperer.left_only + comperer.diff_files:
-            item_path = os.path.join(comperer.left, item)
+        for item in comparer.left_only + comparer.diff_files:
+            item_path = os.path.join(comparer.left, item)
             if os.path.islink(item_path):
                 raise InstlException(item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
             elif os.path.isfile(item_path):
-                self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(item_path, comperer.right, link_dest=False, ignore=".svn")
+                self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(item_path, comparer.right, link_dest=False, ignore=".svn")
             elif os.path.isdir(item_path):
-                self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(item_path, comperer.right, link_dest=False, ignore=".svn")
+                self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(item_path, comparer.right, link_dest=False, ignore=".svn")
             else:
                 raise InstlException(item_path+" not a file, dir or symlink, an abomination!")
             self.batch_accum += self.platform_helper.progress(item_path)
 
         # tell svn about new items, svn will not accept 'add' for changed items
-        for item in comperer.left_only:
-            self.batch_accum += self.platform_helper.svn_add_item(os.path.join(comperer.right, item))
-            self.batch_accum += self.platform_helper.progress(os.path.join(comperer.right, item))
+        for item in comparer.left_only:
+            self.batch_accum += self.platform_helper.svn_add_item(os.path.join(comparer.right, item))
+            self.batch_accum += self.platform_helper.progress(os.path.join(comparer.right, item))
 
         # removed items:
-        for item in comperer.right_only:
-            item_path = os.path.join(comperer.left, item)
-            self.batch_accum += self.platform_helper.svn_remove_item(os.path.join(comperer.right, item))
-            self.batch_accum += self.platform_helper.progress(os.path.join(comperer.right, item))
+        for item in comparer.right_only:
+            item_path = os.path.join(comparer.left, item)
+            self.batch_accum += self.platform_helper.svn_remove_item(os.path.join(comparer.right, item))
+            self.batch_accum += self.platform_helper.progress(os.path.join(comparer.right, item))
 
         # recurse to sub folders
-        for sub_comperer in comperer.subdirs.values():
-            self.stage2svn_for_folder(sub_comperer)
+        for sub_comparer in comparer.subdirs.values():
+            self.stage2svn_for_folder(sub_comparer)
 
     def should_wtar(self, dir_item, regexes, max_file_size):
         retVal = False
@@ -652,8 +655,8 @@ class InstlAdmin(InstlInstanceBase):
 
         self.batch_accum += self.platform_helper.split_func()
 
-        max_file_size = int(var_list.resolve_string(("$(MAX_FILE_SIZE)")))
-        stage_folder = var_list.resolve_string(("$(STAGING_FOLDER)"))
+        max_file_size = int(var_list.resolve_string("$(MAX_FILE_SIZE)"))
+        stage_folder = var_list.resolve_string("$(STAGING_FOLDER)")
         self.batch_accum += self.platform_helper.unlock(stage_folder, recursive=True)
         self.batch_accum += self.platform_helper.progress("chflags -R nouchg "+stage_folder)
         self.batch_accum += self.platform_helper.new_line()
@@ -700,8 +703,8 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_svn2stage(self):
         self.batch_accum.set_current_section('admin')
-        stage_folder = var_list.resolve_string(("$(STAGING_FOLDER)"))
-        svn_folder = var_list.resolve_string(("$(SVN_CHECKOUT_FOLDER)"))
+        stage_folder = var_list.resolve_string("$(STAGING_FOLDER)")
+        svn_folder = var_list.resolve_string("$(SVN_CHECKOUT_FOLDER)")
         svn_command_parts = ['"$(SVN_CLIENT_PATH)"', "checkout", '"$(SVN_REPO_URL)"', '"'+svn_folder+'"', "--depth", "infinity"]
         self.batch_accum += " ".join(svn_command_parts)
         self.batch_accum += self.platform_helper.progress("Checkout $(SVN_REPO_URL) to $(SVN_CHECKOUT_FOLDER)")
@@ -727,7 +730,7 @@ class InstlAdmin(InstlInstanceBase):
         private_key = None
         if "PRIVATE_KEY_FILE" in var_list:
             private_key_file = self.path_searcher.find_file(var_list.get_str("PRIVATE_KEY_FILE"),
-                                                    return_original_if_not_found=True)
+                                                            return_original_if_not_found=True)
             private_key = open(private_key_file, "rb").read()
         file_to_sign = self.path_searcher.find_file(var_list.get_str("__MAIN_INPUT_FILE__"),
                                                     return_original_if_not_found=True)
@@ -737,7 +740,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_check_sig(self):
         file_to_check = self.path_searcher.find_file(var_list.get_str("__MAIN_INPUT_FILE__"),
-                                                    return_original_if_not_found=True)
+                                                        return_original_if_not_found=True)
         file_contents = open(file_to_check, "rb").read()
 
         sha1_checksum = var_list.get_str("__SHA1_CHECKSUM__")
@@ -752,7 +755,7 @@ class InstlAdmin(InstlInstanceBase):
         if rsa_signature:
             if "PUBLIC_KEY_FILE" in var_list:
                 public_key_file = self.path_searcher.find_file(var_list.get_str("PUBLIC_KEY_FILE"),
-                                                        return_original_if_not_found=True)
+                                                                return_original_if_not_found=True)
                 public_key_text = open(public_key_file, "rb").read()
 
                 signatureOk = check_buffer_signature(file_contents, rsa_signature, public_key_text)
@@ -760,7 +763,6 @@ class InstlAdmin(InstlInstanceBase):
                     print("Signature OK")
                 else:
                     print("Bad Signature")
-
 
     def do_verify_index(self):
         self.read_yaml_file(var_list.get_str("__MAIN_INPUT_FILE__"))
@@ -816,6 +818,7 @@ class InstlAdmin(InstlInstanceBase):
         num_files = info_map.num_subs_in_tree(what="file")
         num_dirs = info_map.num_subs_in_tree(what="dir")
         print("info map:", num_files, "files in", num_dirs, "folders")
+
 
 def percent_cb(unused_complete, unused_total):
     sys.stdout.write('.')
