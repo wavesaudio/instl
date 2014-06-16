@@ -122,7 +122,7 @@ class ConfigVarList(object):
     def add_const_config_variable(self, name, description="", *values):
         """ add a const single value object """
         if name in self._ConfigVar_objs:
-            if list(self._ConfigVar_objs[name]) != list(values):
+            if list(self._ConfigVar_objs[name]) != list(map(str, values)):
                 raise Exception("Const variable {} ({}) already defined: new values: {}, previous values: {}".format(name, self._ConfigVar_objs[name].description(), str(values), str(list(self._ConfigVar_objs[name]))))
             #else:
             #    print("Const variable {} ({}) already defined, with same value: {}".format(name, self._ConfigVar_objs[name].description(), str(values)))
