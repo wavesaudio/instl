@@ -5,7 +5,6 @@ import os
 import urllib
 import datetime
 from pyinstl.utils import *
-#from configVarList import var_list
 from configVarStack import var_stack as var_list
 
 from platformSpecificHelper_Base import PlatformSpecificHelperBase

@@ -8,7 +8,6 @@ from pyinstl.utils import *
 from platformSpecificHelper_Base import PlatformSpecificHelperBase
 from platformSpecificHelper_Base import CopyToolBase
 from platformSpecificHelper_Base import DownloadToolBase
-#from configVarList import var_list
 from configVarStack import var_stack as var_list
 
 def dos_escape(some_string):

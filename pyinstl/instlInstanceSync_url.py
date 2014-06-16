@@ -7,7 +7,6 @@ from pyinstl.utils import *
 from pyinstl import svnTree
 from instlInstanceSyncBase import InstlInstanceSync
 from batchAccumulator import BatchAccumulator
-#from configVarList import var_list
 from configVarStack import var_stack as var_list
 
 def is_user_data_false_or_dir_empty(svn_item):

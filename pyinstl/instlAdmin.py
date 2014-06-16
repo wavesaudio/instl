@@ -16,7 +16,6 @@ from instlInstanceBase import InstlInstanceBase
 from pyinstl import svnTree
 from installItem import InstallItem
 from batchAccumulator import BatchAccumulator
-#from configVarList import var_list
 from configVarStack import var_stack as var_list
 
 # noinspection PyPep8,PyPep8,PyPep8
@@ -453,7 +452,7 @@ class InstlAdmin(InstlInstanceBase):
                                "--content-type", 'text/plain'
                                 ] )
             self.batch_accum += self.platform_helper.progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)'")
-            
+
         self.batch_accum += " ".join( ["aws", "s3", "cp",
                            "\"$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
                            "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
@@ -461,7 +460,7 @@ class InstlAdmin(InstlInstanceBase):
                            "--content-type", 'text/plain'
                             ] )
         self.batch_accum += self.platform_helper.progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)'")
-        
+
         self.create_variables_assignment()
         self.write_batch_file()
         if "__RUN_BATCH_FILE__" in var_list:

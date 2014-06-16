@@ -8,7 +8,6 @@ import shlex
 from pyinstl.instlException import InstlException
 from pyinstl.utils import *
 from installItem import guid_list, iids_from_guid
-#from configVarList import var_list
 from configVarStack import var_stack as var_list
 
 import platform
@@ -452,11 +451,11 @@ class CMDObj(cmd.Cmd, object):
         var_list.set_var("__MAIN_COMMAND__").append("sync")
         self.client_prog_inst.do_command()
         return False
-    
+
     def help_sync(self):
         print("sync [file_name]")
         print("    write sync commands to stdout or to file_name if given")
-        
+
     def do_copy(self, params):
         out_file = "stdout"
         if params:
@@ -465,7 +464,7 @@ class CMDObj(cmd.Cmd, object):
         var_list.set_var("__MAIN_COMMAND__").append("copy")
         self.client_prog_inst.do_command()
         return False
-    
+
     def help_copy(self):
         print("copy [file_name]")
         print("    write copy commands to stdout or to file_name if given")
@@ -508,7 +507,7 @@ class CMDObj(cmd.Cmd, object):
             print(index, readline.get_history_item(index))
         print(readline.get_current_history_length(), "items in history")
         return False
-    
+
     def help_hist(self):
         print("hist")
         print("   display command line history")
@@ -533,7 +532,7 @@ class CMDObj(cmd.Cmd, object):
             print("logging DEBUG level to",  debug_log_file_path)
         else:
             print("Not logging DEBUG level to",  debug_log_file_path)
-        
+
     def do_log(self, params):
         import pyinstl.log_utils
         top_logger = logging.getLogger()
