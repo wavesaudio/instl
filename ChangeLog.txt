@@ -1,3 +1,11 @@
+16/6/2014 0.9.13   Shai Shasag <shai@waves.com>
+
+    programmer visible changes:
+    Integrated all var-stack features:
+    * InstallItem creates it's own var_list.
+    * InstallItem pushes it's own var_list to var_stack through 'with' statement.
+    * All action lists for an Installitem are taken from var_stack with variables.
+
 9/6/2014 0.9.12   Shai Shasag <shai@waves.com>
 
     user visible changes, client:
@@ -14,7 +22,7 @@
         get_list.New methods are faster and simpler to unserstand.
     * Tests for new resolve methods.
     * Removed unused member Configvar.__resolving_in_progress, preventing circular resolves is done in ConfigVarList.
-    * Intrduced $(A[0]) array style references.
+    * Introduced $(A[0]) array style references.
     * up2s3 calls up-repo-rev with --out parameter
 
 28/5/2014 0.9.11   Shai Shasag <shai@waves.com>

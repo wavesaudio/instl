@@ -50,7 +50,6 @@ only_one_value_ref_re = re.compile("""
 class ConfigVarList(object):
     """ Keeps a list of named build config values.
         Help values resolve $() style references. """
-    __slots__ = ("_ConfigVar_objs", "__resolve_stack")
 
     def __init__(self):
         self._ConfigVar_objs = dict() # ConfigVar objects are kept here mapped by their name.
@@ -243,6 +242,3 @@ class ConfigVarList(object):
     def resolve_var_to_list(self, var_name, list_sep=" ", default=""):
         retVal = self.resolve_to_list( "".join( ("$(", var_name, ")") ))
         return retVal
-
-# This is the global variable list serving all parts of instl
-var_list = ConfigVarList()

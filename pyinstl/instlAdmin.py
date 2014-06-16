@@ -16,7 +16,7 @@ from instlInstanceBase import InstlInstanceBase
 from pyinstl import svnTree
 from installItem import InstallItem
 from batchAccumulator import BatchAccumulator
-from configVarList import var_list
+from configVarStack import var_stack as var_list
 
 # noinspection PyPep8,PyPep8,PyPep8
 class InstlAdmin(InstlInstanceBase):
@@ -452,7 +452,7 @@ class InstlAdmin(InstlInstanceBase):
                                "--content-type", 'text/plain'
                                 ] )
             self.batch_accum += self.platform_helper.progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)'")
-            
+
         self.batch_accum += " ".join( ["aws", "s3", "cp",
                            "\"$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
                            "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
@@ -460,7 +460,7 @@ class InstlAdmin(InstlInstanceBase):
                            "--content-type", 'text/plain'
                             ] )
         self.batch_accum += self.platform_helper.progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)'")
-        
+
         self.create_variables_assignment()
         self.write_batch_file()
         if "__RUN_BATCH_FILE__" in var_list:
@@ -788,45 +788,46 @@ class InstlAdmin(InstlInstanceBase):
         iid_to_sources = defaultdict(list)
         InstallItem.begin_get_for_all_oses()
         for iid in sorted(self.install_definitions_index):
-            installi = self.install_definitions_index[iid]
-            if installi.source_list():
-                for source in installi.source_list():
+            with self.install_definitions_index[iid]:
+                for source_var in var_list.get_configVar_obj("iid_source_var_list"):
+                    source = var_list.resolve_var_to_list(source_var)
                     if source[2] in ("common", "Mac"):
                         iid_to_sources[iid].append( ("/".join( ("Mac", source[0])), source[1]))
                     if source[2] in ("common", "Win", "Win32", "Win64"):
                         iid_to_sources[iid].append( ("/".join( ("Win", source[0])), source[1]))
 
         for iid in sorted(iid_to_sources):
-            iid_problem_messages = list()
-            # check inherits
-            for inheritee in self.install_definitions_index[iid].inherit_list():
-                if inheritee not in self.install_definitions_index:
-                    iid_problem_messages.append(" ".join( ("inherits from non existing", inheritee ) ))
-            # check depends
-            for dependee in self.install_definitions_index[iid].depend_list():
-                if dependee not in self.install_definitions_index:
-                    iid_problem_messages.append(" ".join( ("depends on non existing", dependee ) ))
-            # check sources
-            for source in iid_to_sources[iid]:
-                map_item = info_map.get_item_at_path(source[0])
-                if map_item is None:
-                    iid_problem_messages.append(" ".join( ("source", quoteme_single(source[0]), "does not exist") ))
-                else:
-                    if source[1] in ("!dir", "!dir_cont", "!files"):
-                        if map_item.isFile():
-                            iid_problem_messages.append(" ".join( ("source", quoteme_single(source[0]), "is a file but type is", source[1]) ))
-                        else:
-                            file_list, dir_list = map_item.unsorted_sub_items()
-                            if source[1] == "!files" and len(file_list) == 0:
-                                iid_problem_messages.append(" ".join( ("source", quoteme_single(source[0]), "has no files but type is", source[1]) ))
-                            if source[1] in ("!dir", "!dir_cont") and len(file_list)+len(dir_list) == 0:
-                                iid_problem_messages.append(" ".join( ("source", quoteme_single(source[0]), "has no files or dirs but type is", source[1]) ))
-                    if source[1] == "!file"  and not map_item.isFile():
-                        iid_problem_messages.append(" ".join( ("source", quoteme_single(source[0]), "is a dir but type is", source[1]) ))
-            if iid_problem_messages:
-                print(iid+":")
-                for problem_message in sorted(iid_problem_messages):
-                    print("   ", problem_message)
+            with self.install_definitions_index[iid]:
+                iid_problem_messages = list()
+                # check inherits
+                for inheritee in var_list.resolve_var_to_list("iid_inherite"):
+                    if inheritee not in self.install_definitions_index:
+                        iid_problem_messages.append(" ".join( ("inherits from non existing", inheritee ) ))
+                # check depends
+                for dependee in var_list.resolve_var_to_list("iid_depend_list"):
+                    if dependee not in self.install_definitions_index:
+                        iid_problem_messages.append(" ".join( ("depends on non existing", dependee ) ))
+                # check sources
+                for source in iid_to_sources[iid]:
+                    map_item = info_map.get_item_at_path(source[0])
+                    if map_item is None:
+                        iid_problem_messages.append(" ".join( ("source", quoteme_single(source[0]), "does not exist") ))
+                    else:
+                        if source[1] in ("!dir", "!dir_cont", "!files"):
+                            if map_item.isFile():
+                                iid_problem_messages.append(" ".join( ("source", quoteme_single(source[0]), "is a file but type is", source[1]) ))
+                            else:
+                                file_list, dir_list = map_item.unsorted_sub_items()
+                                if source[1] == "!files" and len(file_list) == 0:
+                                    iid_problem_messages.append(" ".join( ("source", quoteme_single(source[0]), "has no files but type is", source[1]) ))
+                                if source[1] in ("!dir", "!dir_cont") and len(file_list)+len(dir_list) == 0:
+                                    iid_problem_messages.append(" ".join( ("source", quoteme_single(source[0]), "has no files or dirs but type is", source[1]) ))
+                        if source[1] == "!file"  and not map_item.isFile():
+                            iid_problem_messages.append(" ".join( ("source", quoteme_single(source[0]), "is a dir but type is", source[1]) ))
+                if iid_problem_messages:
+                    print(iid+":")
+                    for problem_message in sorted(iid_problem_messages):
+                        print("   ", problem_message)
         self.find_cycles()
         print("index:", len(self.install_definitions_index), "iids")
         num_files = info_map.num_subs_in_tree(what="file")

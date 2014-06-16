@@ -4,7 +4,7 @@ import logging
 
 from pyinstl.utils import *
 from instlInstanceSyncBase import InstlInstanceSync
-from configVarList import var_list
+from configVarStack import var_stack as var_list
 
 
 class InstlInstanceSync_svn(InstlInstanceSync):
@@ -33,11 +33,11 @@ class InstlInstanceSync_svn(InstlInstanceSync):
         self.ii.batch_accum += " ".join(('"$(SVN_CLIENT_PATH)"', "co", '"$(BOOKKEEPING_DIR_URL)"', '"$(REL_BOOKKIPING_PATH)"', "--revision", "$(REPO_REV)", "--depth", "infinity"))
         self.ii.batch_accum += self.ii.platform_helper.progress("instl folder file $(BOOKKEEPING_DIR_URL)?p=$(REPO_REV)")
         for iid  in installState.full_install_items:
-            installi = self.ii.install_definitions_index[iid]
-            if installi.source_list():
-                for source in installi.source_list():
+            with self.install_definitions_index[iid]:
+                for source_var in var_list.get_configVar_obj("iid_source_var_list"):
+                    source = var_list.resolve_var_to_list(source_var)
                     self.ii.batch_accum += self.create_svn_sync_instructions_for_source(source)
-            self.ii.batch_accum += self.ii.platform_helper.progress("Sync {installi.name}".format(**locals()))
+                self.ii.batch_accum += self.ii.platform_helper.progress("Sync {}".format(var_list.resolve("iid_name")))
         for iid in installState.orphan_install_items:
             self.ii.batch_accum += self.ii.platform_helper.echo("Don't know how to sync "+iid)
         self.ii.batch_accum.indent_level -= 1

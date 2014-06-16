@@ -10,7 +10,7 @@ from installItem import read_index_from_yaml, InstallItem, guid_list, iids_from_
 from aYaml import augmentedYaml
 
 from instlInstanceBase import InstlInstanceBase
-from configVarList import var_list
+from configVarStack import var_stack as var_list
 import svnTree
 
 class InstallInstructionsState(object):
@@ -38,17 +38,18 @@ class InstallInstructionsState(object):
 
     def __sort_install_items_by_target_folder(self, instlObj):
         for IID in self.full_install_items:
-            folder_list_for_idd = instlObj.install_definitions_index[IID].folder_list()
-            if folder_list_for_idd:
-                for folder in folder_list_for_idd:
-                    norm_folder = os.path.normpath(folder)
-                    self.install_items_by_target_folder[norm_folder].append(IID)
-            else: # items that need no copy
-                source_list_for_idd = instlObj.install_definitions_index[IID].source_list()
-                for source in source_list_for_idd:
-                    relative_sync_folder = instlObj.relative_sync_folder_for_source(source)
-                    sync_folder =  os.path.join( "$(LOCAL_REPO_SOURCES_DIR)", relative_sync_folder )
-                    self.no_copy_items_by_sync_folder[sync_folder].append(IID)
+            with instlObj.install_definitions_index[IID] as installi:
+                folder_list_for_idd = [folder for folder in var_list["iid_folder_list"]]
+                if folder_list_for_idd:
+                    for folder in folder_list_for_idd:
+                        norm_folder = os.path.normpath(folder)
+                        self.install_items_by_target_folder[norm_folder].append(IID)
+                else: # items that need no copy
+                    for source_var in var_list.get_configVar_obj("iid_source_var_list"):
+                        source = var_list.resolve_var_to_list(source_var)
+                        relative_sync_folder = instlObj.relative_sync_folder_for_source(source)
+                        sync_folder =  os.path.join( "$(LOCAL_REPO_SOURCES_DIR)", relative_sync_folder )
+                        self.no_copy_items_by_sync_folder[sync_folder].append(IID)
 
     def calculate_full_install_items_set(self, instlObj):
         """ calculate the set of iids to install by starting with the root set and adding all dependencies.
@@ -294,12 +295,13 @@ class InstlClient(InstlInstanceBase):
             batch_accum_len_before = len(self.batch_accum)
             self.batch_accum += self.platform_helper.copy_tool.begin_copy_folder()
             for IID in items_in_folder:
-                installi = self.install_definitions_index[IID]
-                for source in installi.source_list():
-                    self.batch_accum += installi.action_list('before')
-                    self.create_copy_instructions_for_source(source)
-                    self.batch_accum += installi.action_list('after')
-                    self.batch_accum += self.platform_helper.progress("Copy {installi.name}".format(**locals()))
+                with self.install_definitions_index[IID] as installi:
+                    for source_var in var_list.get_configVar_obj("iid_source_var_list"):
+                        source = var_list.resolve_var_to_list(source_var)
+                        self.batch_accum += var_list.resolve_to_list("$(iid_action_list_before)")
+                        self.create_copy_instructions_for_source(source)
+                        self.batch_accum += var_list.resolve_to_list("$(iid_action_list_after)")
+                        self.batch_accum += self.platform_helper.progress("Copy {installi.name}".format(**locals()))
             self.batch_accum += self.platform_helper.copy_tool.end_copy_folder()
             logging.info("... copy actions: %d", len(self.batch_accum) - batch_accum_len_before)
 
@@ -325,9 +327,9 @@ class InstlClient(InstlInstanceBase):
             self.accumulate_unique_actions('folder_in', items_in_folder)
 
             for IID in items_in_folder:
-                installi = self.install_definitions_index[IID]
-                self.batch_accum += installi.action_list('before')
-                self.batch_accum += installi.action_list('after')
+                with self.install_definitions_index[IID]:
+                    self.batch_accum += var_list.resolve_to_list("$(iid_action_list_before)")
+                    self.batch_accum += var_list.resolve_to_list("$(iid_action_list_after)")
 
             # accumulate folder_out actions from all items, eliminating duplicates
             self.accumulate_unique_actions('folder_out', items_in_folder)
@@ -349,19 +351,19 @@ class InstlClient(InstlInstanceBase):
             """ accumulate action_type actions from iid_list, eliminating duplicates"""
             unique_actions = unique_list() # unique_list will eliminate identical actions while keeping the order
             for IID in iid_list:
-                installi = self.install_definitions_index[IID]
-                item_actions = installi.action_list(action_type)
-                num_unique_actions = 0
-                for an_action in item_actions:
-                    len_before = len(unique_actions)
-                    unique_actions.append(an_action)
-                    len_after = len(unique_actions)
-                    if len_before < len_after: # add progress only for the first same action
-                        num_unique_actions += 1
-                        action_description = self.action_type_to_progress_message[action_type]
-                        if num_unique_actions > 1:
-                            action_description = " ".join( (action_description, str(num_unique_actions)) )
-                        unique_actions.append(self.platform_helper.progress("{installi.name} {action_description}".format(**locals())))
+                with self.install_definitions_index[IID] as installi:
+                    item_actions = var_list.resolve_to_list("$(iid_action_list_"+action_type+")")
+                    num_unique_actions = 0
+                    for an_action in item_actions:
+                        len_before = len(unique_actions)
+                        unique_actions.append(an_action)
+                        len_after = len(unique_actions)
+                        if len_before < len_after: # add progress only for the first same action
+                            num_unique_actions += 1
+                            action_description = self.action_type_to_progress_message[action_type]
+                            if num_unique_actions > 1:
+                                action_description = " ".join( (action_description, str(num_unique_actions)) )
+                            unique_actions.append(self.platform_helper.progress("{installi.name} {action_description}".format(**locals())))
             self.batch_accum += unique_actions
             logging.info("... %s actions: %d", action_type, len(unique_actions))
 
@@ -387,12 +389,13 @@ class InstlClient(InstlInstanceBase):
         if iid not in self.install_definitions_index:
             raise KeyError(iid+" is not in index")
         InstallItem.begin_get_for_all_oses()
-        for dep in self.install_definitions_index[iid].depend_list():
-            if dep in self.install_definitions_index:
-                out_list.append(dep)
-                self.needs(dep, out_list)
-            else:
-                out_list.append(dep+"(missing)")
+        with self.install_definitions_index[iid]:
+            for dep in var_list.resolve_var_to_list("iid_depend_list"):
+                if dep in self.install_definitions_index:
+                    out_list.append(dep)
+                    self.needs(dep, out_list)
+                else:
+                    out_list.append(dep+"(missing)")
         InstallItem.reset_get_for_all_oses()
 
     def needed_by(self, iid):

@@ -6,7 +6,7 @@ import logging
 from pyinstl.utils import *
 from pyinstl import svnTree
 from instlInstanceSyncBase import InstlInstanceSync
-from configVarList import var_list
+from configVarStack import var_stack as var_list
 
 
 class InstlInstanceSync_p4(InstlInstanceSync):
@@ -44,9 +44,9 @@ class InstlInstanceSync_p4(InstlInstanceSync):
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
         for iid  in self.installState.full_install_items:
-            installi = self.instlObj.install_definitions_index[iid]
-            if installi.source_list():
-                for source in installi.source_list():
+            with self.install_definitions_index[iid]:
+                for source_var in var_list.get_configVar_obj("iid_source_var_list"):
+                    source = var_list.resolve_var_to_list(source_var)
                     self.p4_sync_for_source(source)
 
     def p4_sync_for_source(self, source):

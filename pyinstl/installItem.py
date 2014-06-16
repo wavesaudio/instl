@@ -57,6 +57,8 @@ import sys
 sys.path.append("..")
 from aYaml import augmentedYaml
 from pyinstl.utils import *
+from pyinstl.configVarList import ConfigVarList
+from configVarStack import var_stack as var_list
 
 current_os_names = get_current_os_names()
 os_family_name = current_os_names[0]
@@ -77,7 +79,8 @@ def read_index_from_yaml(all_items_node):
 class InstallItem(object):
     __slots__ = ('iid', 'name', 'guid',
                 'remark', "description", 'inherit',
-                '__set_for_os', '__items', '__resolved_inherit')
+                '__set_for_os', '__items', '__resolved_inherit',
+                'var_list')
     os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
     item_types = ('install_sources', 'install_folders', 'depends', 'actions')
     action_types = ('copy_in', 'folder_in', 'before', 'after', 'folder_out', 'copy_out')
@@ -151,6 +154,7 @@ class InstallItem(object):
         self.inherit = unique_list()
         self.__set_for_os = [InstallItem.os_names[0]] # reading for all platforms ('common') or for which specific platforms ('Mac', 'Win')?
         self.__items = defaultdict(InstallItem.create_items_section)
+        self.var_list = None
 
     def read_from_yaml_by_idd(self, IID, all_items_node):
         my_node = all_items_node[IID]
@@ -185,6 +189,34 @@ class InstallItem(object):
                 self.begin_set_for_specific_os(os_)
                 self.read_from_yaml(my_node[os_])
                 self.end_set_for_specific_os()
+
+    def get_var_list(self):
+        if self.var_list is None:
+            self.var_list = ConfigVarList()
+            self.var_list.set_var("iid_name").append(self.name)
+            if self.guid:
+                self.var_list.set_var("iid_guid").append(self.guid)
+            if self.remark:
+                self.var_list.set_var("iid_remark").append(self.remark)
+            self.var_list.set_var("iid_inherite").extend(self._inherit_list())
+            self.var_list.set_var("iid_folder_list").extend(self._folder_list())
+            self.var_list.set_var("iid_depend_list").extend(self._depend_list())
+            for action_type in self.action_types:
+                self.var_list.set_var("iid_action_list_"+action_type).extend(self._action_list(action_type))
+            source_vars_obj = self.var_list.set_var("iid_source_var_list")
+            source_list = self._source_list()
+            for i, source in enumerate(source_list):
+                source_var = "iid_source_"+str(i)
+                source_vars_obj.append(source_var)
+                self.var_list.set_var(source_var).extend(source)
+        return self.var_list
+
+    def __enter__(self):
+        var_list.push_scope(self.get_var_list())
+        return self
+
+    def __exit__(self, etype, value, traceback):
+        var_list.pop_scope()
 
     def begin_set_for_specific_os(self, for_os):
         self.__set_for_os.append(for_os)
@@ -226,7 +258,7 @@ class InstallItem(object):
     def add_inherit(self, inherit_idd):
         self.inherit.append(inherit_idd)
 
-    def inherit_list(self):
+    def _inherit_list(self):
         retVal = self.inherit
         return retVal
 
@@ -235,19 +267,19 @@ class InstallItem(object):
             file_type = '!dir'
         self.__add_item_to_default_os_by_category('install_sources', (new_source, file_type, self.__set_for_os[-1]) )
 
-    def source_list(self):
+    def _source_list(self):
         return self.__get_item_list_for_default_oses_by_category('install_sources')
 
     def add_folder(self, new_folder):
         self.__add_item_to_default_os_by_category('install_folders', new_folder )
 
-    def folder_list(self):
+    def _folder_list(self):
         return self.__get_item_list_for_default_oses_by_category('install_folders')
 
     def add_depend(self, new_depend):
         self.__add_item_to_default_os_by_category('depends', new_depend )
 
-    def depend_list(self):
+    def _depend_list(self):
         return self.__get_item_list_for_default_oses_by_category('depends')
 
     def add_action(self, action_type, new_action):
@@ -260,7 +292,7 @@ class InstallItem(object):
             for action in new_actions:
                 self.add_action(action_type, action.value)
 
-    def action_list(self, action_type):
+    def _action_list(self, action_type):
         if action_type not in InstallItem.action_types:
             raise KeyError("actions type must be one of: "+str(InstallItem.action_types)+" not "+action_type)
         return self.__get_item_list_for_default_oses_by_category(action_type)
@@ -277,7 +309,7 @@ class InstallItem(object):
         if self.iid not in out_set:
             out_set.append(self.iid)
             #print("get_recursive_depends: added", self.iid)
-            for depend in self.depend_list():
+            for depend in self._depend_list():
                 #print("get_recursive_depends:", self.iid, "depends on", depend)
                 if depend not in out_set: # avoid cycles, save time
                     try:
@@ -352,7 +384,7 @@ class InstallItem(object):
             if self.iid in self.resolve_inheritance_stack:
                 raise Exception("circular resolve_inheritance of "+self.iid)
             self.resolve_inheritance_stack.append(self.iid)
-            for ancestor in self.inherit_list():
+            for ancestor in self._inherit_list():
                 if ancestor not in InstallItemsDict:
                     raise KeyError(self.iid+" inherites from "+ancestor+" which is not in InstallItemsDict")
                 ancestor_item = InstallItemsDict[ancestor]

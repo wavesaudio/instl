@@ -7,7 +7,7 @@ from pyinstl.utils import *
 from pyinstl import svnTree
 from instlInstanceSyncBase import InstlInstanceSync
 from batchAccumulator import BatchAccumulator
-from configVarList import var_list
+from configVarStack import var_stack as var_list
 
 def is_user_data_false_or_dir_empty(svn_item):
     retVal = not svn_item.user_data
@@ -80,9 +80,9 @@ class InstlInstanceSync_url(InstlInstanceSync):
         """
         self.work_info_map.set_user_data_all_recursive(False)
         for iid  in self.installState.full_install_items:
-            installi = self.instlObj.install_definitions_index[iid]
-            if installi.source_list():
-                for source in installi.source_list():
+            with self.instlObj.install_definitions_index[iid] as installi:
+                for source_var in var_list.get_configVar_obj("iid_source_var_list"):
+                    source = var_list.resolve_var_to_list(source_var)
                     self.mark_required_items_for_source(source)
         self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
         self.work_info_map.write_to_file(var_list.resolve("$(REQUIRED_INFO_MAP_PATH)"), in_format="text")
