@@ -90,9 +90,9 @@ class ConfigVarStack(configVarList.ConfigVarList):
         try:
             var_obj = self[var_name]
             if list(var_obj) != list(values):
-                raise Exception("Const variable {} ({}) already defined: new values: {}, previous values: {}".format(name, self._ConfigVarList_objs[name].description(), str(values), str(list(self._ConfigVarList_objs[name]))))
+                raise Exception("Const variable {} ({}) already defined: new values: {}, previous values: {}".format(var_name, self.get_configVar_obj(var_name).description(), str(values), str(list(self.get_configVar_obj(var_name)))))
             #else:
-            #    print("Const variable {} ({}) already defined, with same value: {}".format(name, self._ConfigVarList_objs[name].description(), str(values)))
+            #    print("Const variable {} ({}) already defined, with same value: {}".format(var_name, self._ConfigVarList_objs[var_name].description(), str(values)))
         except KeyError:
             self._ConfigVarList_objs[-1].add_const_config_variable(var_name, description, *values)
 
