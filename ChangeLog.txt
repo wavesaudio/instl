@@ -1,5 +1,6 @@
-???? 0.9.14
-
+20/6/2014 0.9.13.1   Shai Shasag <shai@waves.com>
+    user visible changes, client & admin:
+    * Fixed exceptions in interactive mode - no functionality change.
 
 16/6/2014 0.9.13   Shai Shasag <shai@waves.com>
 

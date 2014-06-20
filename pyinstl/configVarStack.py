@@ -88,13 +88,14 @@ class ConfigVarStack(configVarList.ConfigVarList):
     def add_const_config_variable(self, var_name, description="", *values):
         """ add a const single value object """
         try:
+            values_as_strs = map(str, values)
             var_obj = self[var_name]
-            if list(var_obj) != list(values):
+            if list(var_obj) != values_as_strs:
                 raise Exception("Const variable {} ({}) already defined: new values: {}, previous values: {}".format(var_name, self.get_configVar_obj(var_name).description(), str(values), str(list(self.get_configVar_obj(var_name)))))
             #else:
             #    print("Const variable {} ({}) already defined, with same value: {}".format(var_name, self._ConfigVarList_objs[var_name].description(), str(values)))
         except KeyError:
-            self._ConfigVarList_objs[-1].add_const_config_variable(var_name, description, *values)
+            self._ConfigVarList_objs[-1].add_const_config_variable(var_name, description, *values_as_strs)
 
     def repr_for_yaml(self, which_vars=None, include_comments=True):
         retVal = dict()
