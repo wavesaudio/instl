@@ -20,12 +20,19 @@ sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 from pyinstl import configVar
 from aYaml.augmentedYaml import YamlDumpWrap, YamlDumpDocWrap
 
+""" Variable references formats:
+    $(ABC)      - normal reference
+    $(ABC[1])   - array reference
+
+    Variables names can have the characters [a-zA-Z0-9] and also a opening '(' and closing ')'
+    - to accomodate for Micro$oft's infamous PROGRAMFILES(x86) environment varaible
+"""
 
 value_ref_re = re.compile("""(
                             (?P<varref_pattern>
                                 (?P<varref_marker>[$])      # $
                                 \(                          # (
-                                    (?P<var_name>[\w\s]+?|[\w\s(]+[\w\s)]+?)           # value
+                                    (?P<var_name>[\w]+?|[\w(]+[\w)]+?)           # value
                                     (?P<varref_array>\[
                                         (?P<array_index>\d+)
                                     \])?
@@ -37,7 +44,7 @@ only_one_value_ref_re = re.compile("""
                             (?P<varref_pattern>
                                 (?P<varref_marker>[$])      # $
                                 \(                          # (
-                                    (?P<var_name>[\w\s]+?|[\w\s(]+[\w\s)]+?)           # value
+                                    (?P<var_name>[\w]+?|[\w(]+[\w)]+?)           # value
                                     (?P<varref_array>\[
                                         (?P<array_index>\d+)
                                     \])?
