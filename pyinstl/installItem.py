@@ -355,7 +355,7 @@ class InstallItem(object):
         if self.remark:
             retVal['remark'] = self.remark
         if self.inherit:
-            retVal['inherit'] = self.inherit_list()
+            retVal['inherit'] = self._inherit_list()
 
         common_items = self.repr_for_yaml_items(InstallItem.os_names[0])
         if common_items:
