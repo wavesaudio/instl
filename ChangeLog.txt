@@ -1,4 +1,8 @@
-???? 0.9.14
+22/6/2014 0.9.14   Shai Shasag <shai@waves.com>
+
+     user visible changes, client:
+     * new command test_import to force loading of all required modules provoking error if any import fails.
+
 
 20/6/2014 0.9.13.1   Shai Shasag <shai@waves.com>
     user visible changes, client & admin:

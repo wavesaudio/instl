@@ -150,3 +150,14 @@ class InstlMisc(InstlInstanceBase):
             dir_path = dir_item.full_path()
             safe_makedirs(dir_path)
             self.dynamic_progress("Create folder {dir_path}".format(**locals()))
+
+    def do_test_import(self):
+        import importlib
+        bad_modules = list()
+        for module in ("yaml", "appdirs", "readline", "colorama", "rsa"):
+            try:
+                importlib.import_module(module)
+            except ImportError as im_err:
+                bad_modules.append(module)
+                print(im_err)
+        map(importlib.import_module, bad_modules) # import again to force exception and exit code
