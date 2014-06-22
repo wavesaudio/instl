@@ -154,10 +154,11 @@ class InstlMisc(InstlInstanceBase):
     def do_test_import(self):
         import importlib
         bad_modules = list()
-        for module in ("yaml", "appdirs", "readline", "colorama", "rsa"):
+        for module in ("yaml", "rosalinda","appdirs", "readline", "colorama", "rsa"):
             try:
                 importlib.import_module(module)
             except ImportError as im_err:
                 bad_modules.append(module)
-                print(im_err)
-        map(importlib.import_module, bad_modules) # import again to force exception and exit code
+        if len(bad_modules) > 0:
+            print("missing modules:", bad_modules)
+            sys.exit(17)
