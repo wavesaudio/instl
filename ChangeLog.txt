@@ -1,3 +1,10 @@
+24/6/2014 0.9.14   Shai Shasag <shai@waves.com>
+
+     user visible changes, client:
+     * Names of curl config files have same legth due to 0 padding the number. This will creaet more stable
+       progress report in a progress dialog.
+
+
 22/6/2014 0.9.14   Shai Shasag <shai@waves.com>
 
      user visible changes, client:
