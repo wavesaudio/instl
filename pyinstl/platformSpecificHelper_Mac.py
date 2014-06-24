@@ -288,7 +288,8 @@ class DownloadTool_mac_curl(DownloadToolBase):
                 line_list.append('''url = "{url}"\noutput = "{path}"\n\n'''.format(**locals()))
                 url_num += 1
 
-            file_name_list = ["-".join( (curl_config_file_path, str(file_i))  ) for file_i in xrange(actual_num_files)]
+            num_digits = len(str(actual_num_files))
+            file_name_list = ["-".join( (curl_config_file_path, str(file_i).zfill(num_digits)) )  for file_i in xrange(actual_num_files)]
 
             lise_of_lines_iter = iter(list_of_lines_for_files)
             for file_name in file_name_list:

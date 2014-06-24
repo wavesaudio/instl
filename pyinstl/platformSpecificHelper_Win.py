@@ -453,7 +453,8 @@ class DownloadTool_win_curl(DownloadToolBase):
             retries          = var_list.resolve("$(CURL_RETRIES)")
             actual_num_files = max(1, min(num_urls_to_download / 8, num_files))
 
-            file_name_list = ["-".join( (curl_config_file_path, str(file_i))  ) for file_i in xrange(actual_num_files)]
+            num_digits = len(str(actual_num_files))
+            file_name_list = ["-".join( (curl_config_file_path, str(file_i).zfill(num_digits))  ) for file_i in xrange(actual_num_files)]
             wfd_list = list()
             for file_name in file_name_list:
                 wfd_list.append(open(file_name, "w"))
