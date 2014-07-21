@@ -84,6 +84,7 @@ class InstallItem(object):
     os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
     item_types = ('install_sources', 'install_folders', 'depends', 'actions')
     action_types = ('copy_in', 'folder_in', 'before', 'after', 'folder_out', 'copy_out')
+    remove_action_types = ('remove')
     file_types = ('!dir_cont', '!files', '!file', '!dir')
     resolve_inheritance_stack = list()
     _get_for_os = [os_names[0]] # _get_for_os is a class member since we usually want to get for same oses for all InstallItems
@@ -184,6 +185,8 @@ class InstallItem(object):
                 self.add_depend(source.value)
         if 'actions' in my_node:
             self.read_actions(my_node['actions'])
+        if 'remove_actions' in my_node:
+            self.read_actions(my_node['remove_actions'])
         for os_ in InstallItem.os_names[1:]:
             if os_ in my_node:
                 self.begin_set_for_specific_os(os_)
@@ -287,10 +290,20 @@ class InstallItem(object):
             raise KeyError("actions type must be one of: "+str(InstallItem.action_types)+" not "+action_type)
         self.__add_item_to_default_os_by_category(action_type, new_action)
 
+    def add_remove_action(self, action_type, new_action):
+        if action_type not in InstallItem.remove_action_types:
+            raise KeyError("actions type must be one of: "+str(InstallItem.remove_action_types)+" not "+action_type)
+        self.__add_item_to_default_os_by_category(action_type, new_action)
+
     def read_actions(self, action_nodes):
         for action_type, new_actions in action_nodes:
             for action in new_actions:
                 self.add_action(action_type, action.value)
+
+    def read_remove_actions(self, action_nodes):
+        for action_type, new_actions in action_nodes:
+            for action in new_actions:
+                self.add_remove_action(action_type, action.value)
 
     def _action_list(self, action_type):
         if action_type not in InstallItem.action_types:

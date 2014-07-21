@@ -176,6 +176,11 @@ class InstlClient(InstlInstanceBase):
         self.init_copy_vars()
         self.create_copy_instructions()
 
+    def do_remove(self):
+        logging.info("Creating copy instructions")
+        self.init_remove_vars()
+        self.create_remove_instructions()
+
     def do_synccopy(self):
         self.do_sync()
         self.do_copy()
@@ -248,6 +253,8 @@ class InstlClient(InstlInstanceBase):
     def init_copy_vars(self):
         self.action_type_to_progress_message = {'copy_in': "pre-install step", 'copy_out': "post-install step",
                                                 'folder_in': "pre-copy step", 'folder_out': "post-copy step"}
+    def init_remove_vars(self):
+        pass
 
     def create_copy_instructions(self):
         # copy and actions instructions for sources
@@ -409,3 +416,9 @@ class InstlClient(InstlInstanceBase):
         except ImportError: # no installItemGraph, no worry
             print("Could not load installItemGraph")
             return None
+
+    def create_remove_instructions(self):
+        self.batch_accum.set_current_section('remove')
+        self.batch_accum += self.platform_helper.progress("Starting remove")
+        sorted_target_folder_list = sorted(self.installState.install_items_by_target_folder, key=lambda fold: var_list.resolve(fold))
+        print("create_remove_instructions")
