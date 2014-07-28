@@ -242,3 +242,9 @@ class ConfigVarList(object):
     def resolve_var_to_list(self, var_name, list_sep=" ", default=""):
         retVal = self.resolve_to_list( "".join( ("$(", var_name, ")") ))
         return retVal
+
+    def resolve_var_to_list_if_exists(self, var_name, list_sep=" ", default=""):
+        retVal = ()
+        if var_name in self:
+            retVal = self.resolve_to_list( "".join( ("$(", var_name, ")") ))
+        return retVal

@@ -254,7 +254,9 @@ class InstlClient(InstlInstanceBase):
         self.action_type_to_progress_message = {'copy_in': "pre-install step", 'copy_out': "post-install step",
                                                 'folder_in': "pre-copy step", 'folder_out': "post-copy step"}
     def init_remove_vars(self):
-        pass
+        self.action_type_to_progress_message = {'remove_in': "pre-remove step", 'remove_out': "post-remove step",
+                                                'remove_folder_in': "pre-remove-from-folder step", 'remove_folder_out': "post-remove-from-folder step",
+                                                'remove_before': "pre-delete step", 'remove_after': "post-delete step"}
 
     def create_copy_instructions(self):
         # copy and actions instructions for sources
@@ -305,9 +307,9 @@ class InstlClient(InstlInstanceBase):
                 with self.install_definitions_index[IID] as installi:
                     for source_var in var_list.get_configVar_obj("iid_source_var_list"):
                         source = var_list.resolve_var_to_list(source_var)
-                        self.batch_accum += var_list.resolve_to_list("$(iid_action_list_before)")
+                        self.batch_accum += var_list.resolve_var_to_list_if_exists("iid_action_list_before")
                         self.create_copy_instructions_for_source(source)
-                        self.batch_accum += var_list.resolve_to_list("$(iid_action_list_after)")
+                        self.batch_accum += var_list.resolve_var_to_list_if_exists("iid_action_list_after")
                         self.batch_accum += self.platform_helper.progress("Copy {installi.name}".format(**locals()))
             self.batch_accum += self.platform_helper.copy_tool.end_copy_folder()
             logging.info("... copy actions: %d", len(self.batch_accum) - batch_accum_len_before)
@@ -335,8 +337,8 @@ class InstlClient(InstlInstanceBase):
 
             for IID in items_in_folder:
                 with self.install_definitions_index[IID]:
-                    self.batch_accum += var_list.resolve_to_list("$(iid_action_list_before)")
-                    self.batch_accum += var_list.resolve_to_list("$(iid_action_list_after)")
+                    self.batch_accum += var_list.resolve_to_list("iid_action_list_before")
+                    self.batch_accum += var_list.resolve_var_to_list_if_exists("iid_action_list_after")
 
             # accumulate folder_out actions from all items, eliminating duplicates
             self.accumulate_unique_actions('folder_out', items_in_folder)
@@ -359,7 +361,7 @@ class InstlClient(InstlInstanceBase):
             unique_actions = unique_list() # unique_list will eliminate identical actions while keeping the order
             for IID in iid_list:
                 with self.install_definitions_index[IID] as installi:
-                    item_actions = var_list.resolve_to_list("$(iid_action_list_"+action_type+")")
+                    item_actions = var_list.resolve_var_to_list_if_exists("iid_action_list_"+action_type)
                     num_unique_actions = 0
                     for an_action in item_actions:
                         len_before = len(unique_actions)
@@ -421,4 +423,45 @@ class InstlClient(InstlInstanceBase):
         self.batch_accum.set_current_section('remove')
         self.batch_accum += self.platform_helper.progress("Starting remove")
         sorted_target_folder_list = sorted(self.installState.install_items_by_target_folder, key=lambda fold: var_list.resolve(fold))
-        print("create_remove_instructions")
+
+        self.accumulate_unique_actions('remove_in', self.installState.full_install_items)
+
+        for folder_name in sorted_target_folder_list:
+            items_in_folder = self.installState.install_items_by_target_folder[folder_name]
+            logging.info("folder %s", var_list.resolve(folder_name))
+            self.batch_accum += self.platform_helper.new_line()
+
+            self.accumulate_unique_actions('remove_folder_in', items_in_folder)
+
+            for IID in items_in_folder:
+                with self.install_definitions_index[IID] as installi:
+                    for source_var in var_list.get_configVar_obj("iid_source_var_list"):
+                        source = var_list.resolve_var_to_list(source_var)
+                        self.batch_accum += var_list.resolve_var_to_list_if_exists("iid_action_list_remove_before")
+                        self.create_remove_instructions_for_source(folder_name, source)
+                        self.batch_accum += var_list.resolve_var_to_list_if_exists("iid_action_list_remove_after")
+                        self.batch_accum += self.platform_helper.progress("Remove {installi.name}".format(**locals()))
+
+            self.accumulate_unique_actions('remove_folder_out', items_in_folder)
+
+        self.accumulate_unique_actions('remove_out', self.installState.full_install_items)
+
+    def create_remove_instructions_for_source(self, folder, source):
+        """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
+
+        base_, leaf = os.path.split(source[0])
+        to_remove_path = os.path.normpath(os.path.join(folder, leaf))
+
+        ignore_list = var_list.resolve_to_list("$(COPY_IGNORE_PATTERNS)")
+
+        remove_actions = var_list.resolve_var_to_list_if_exists("iid_action_list_remove")
+        if len(remove_actions) == 0:
+            if source[1] == '!file':       # remove single file
+                remove_actions = self.platform_helper.copy_tool.remove_file(to_remove_path)
+            #elif source[1] == '!dir_cont': # get all files and folders from a folder
+            #    self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".", link_dest=True, ignore=ignore_list)
+            #elif source[1] == '!files':    # get all files from a folder
+            #    self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".", link_dest=True, ignore=ignore_list)
+            else: # !dir
+                remove_actions = self.platform_helper.copy_tool.remove_dir(to_remove_path)
+        self.batch_accum += remove_actions

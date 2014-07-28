@@ -97,6 +97,12 @@ class CopyTool_win_robocopy(CopyToolBase):
         retVal.append(self.platform_helper.exit_if_error())
         return retVal
 
+    def remove_file(self, file_to_remove):
+        print("removing", file_to_remove)
+
+    def remove_dir(self, dir_to_remove):
+        print("removing", dir_to_remove)
+
 class CopyTool_win_xcopy(CopyToolBase):
     def __init__(self, platform_helper):
         super(CopyTool_win_xcopy, self).__init__(platform_helper)
@@ -180,6 +186,14 @@ class CopyTool_win_xcopy(CopyToolBase):
         if self.excludes_set:
             with open(var_list.resolve("$(XCOPY_EXCLUDE_FILE_PATH)"), "w") as wfd:
                 wfd.write("\n".join(self.excludes_set))
+
+    def remove_file(self, file_to_remove):
+        remove_command = "removing \"{file_to_remove}\"".format(**locals())
+        return remove_command
+
+    def remove_dir(self, dir_to_remove):
+        remove_command = "removing \"{dir_to_remove}\"".format(**locals())
+        return remove_command
 
 class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def __init__(self, instlObj):

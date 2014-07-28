@@ -17,14 +17,37 @@ from __future__ import print_function
         install_folders - folders to install the install_sources to.
         depends - iids of other InstallItems that must be installed before the current item.
         actions - actions to preform. These actions are further divided into:
-            folder_in - actions to preform before installing to each folder in install_folders section.
-                        if several InstallItems have the same actions for the folder, each action
+            copy_in - actions to preform before starting the whole copy operation.
+                        If several InstallItems have the same copy_in actions, each action
                         will be preformed only once.
-            folder_out - actions to preform after installing to each folder in install_folders section.
-                        if several InstallItems have the same actions for the folder, each action
+            copy_out - actions to preform after finishing the whole copy operation.
+                        If several InstallItems have the same copy_out actions, each action
                         will be preformed only once.
-            before -    actions to preform before installing the install_sources in each folder.
-            after -    actions to preform after installing the install_sources in each folder.
+            folder_in - actions to preform before installing to each of the folders in install_folders section.
+                        If several InstallItems have the same folder_in actions for the folder, each action
+                        will be preformed only once.
+            folder_out - actions to preform after installing to each of the folders in install_folders section.
+                        if several InstallItems have the same folder_out actions for the folder, each action
+                        will be preformed only once.
+            before -    actions to preform before copying each of the install_sources in each folder.
+            after -     actions to preform after installing each of the install_sources in each folder.
+            remove_in - actions to preform before starting the whole remove operation.
+                        If several InstallItems have the same remove_in actions, each action
+                        will be preformed only once.
+            remove_out - actions to preform after finishing the whole remove operation.
+                        If several InstallItems have the same remove_out actions, each action
+                        will be preformed only once.
+            remove_folder_in - actions to preform before removing from each of the folders in install_folders section.
+                        If several InstallItems have the same remove_folder_in actions for the folder, each action
+                        will be preformed only once.
+            remove_folder_out - actions to preform after removing from each of the folders in install_folders section.
+                        if several InstallItems have the same remove_folder_out actions for the folder, each action
+                        will be preformed only once.
+            remove_before -    actions to preform before removing each of the install_sources from each target folder.
+            remove -           by deafult the remove action is to delete the files that were copied by the copy action.
+                                if remove action is explicitly specified, it will be done instead of deleting.
+            remove_after -     actions to preform after removing each of the install_sources from each target folder.
+
     Except iid field, all fields are optional.
 
     Example in Yaml:
@@ -75,7 +98,6 @@ def read_index_from_yaml(all_items_node):
             retVal[IID] = item
     return retVal
 
-
 class InstallItem(object):
     __slots__ = ('iid', 'name', 'guid',
                 'remark', "description", 'inherit',
@@ -83,8 +105,8 @@ class InstallItem(object):
                 'var_list')
     os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
     item_types = ('install_sources', 'install_folders', 'depends', 'actions')
-    action_types = ('copy_in', 'folder_in', 'before', 'after', 'folder_out', 'copy_out')
-    remove_action_types = ('remove')
+    action_types = ('copy_in', 'folder_in', 'before', 'after', 'folder_out', 'copy_out',
+                    'remove_in', 'remove_folder_in', 'remove_before', 'remove', 'remove_after', 'remove_folder_out', 'remove_out')
     file_types = ('!dir_cont', '!files', '!file', '!dir')
     resolve_inheritance_stack = list()
     _get_for_os = [os_names[0]] # _get_for_os is a class member since we usually want to get for same oses for all InstallItems
@@ -185,8 +207,6 @@ class InstallItem(object):
                 self.add_depend(source.value)
         if 'actions' in my_node:
             self.read_actions(my_node['actions'])
-        if 'remove_actions' in my_node:
-            self.read_actions(my_node['remove_actions'])
         for os_ in InstallItem.os_names[1:]:
             if os_ in my_node:
                 self.begin_set_for_specific_os(os_)
@@ -205,7 +225,9 @@ class InstallItem(object):
             self.var_list.set_var("iid_folder_list").extend(self._folder_list())
             self.var_list.set_var("iid_depend_list").extend(self._depend_list())
             for action_type in self.action_types:
-                self.var_list.set_var("iid_action_list_"+action_type).extend(self._action_list(action_type))
+                action_list_for_type = self._action_list(action_type)
+                if len(action_list_for_type) > 0:
+                    self.var_list.set_var("iid_action_list_"+action_type).extend(action_list_for_type)
             source_vars_obj = self.var_list.set_var("iid_source_var_list")
             source_list = self._source_list()
             for i, source in enumerate(source_list):
@@ -290,20 +312,10 @@ class InstallItem(object):
             raise KeyError("actions type must be one of: "+str(InstallItem.action_types)+" not "+action_type)
         self.__add_item_to_default_os_by_category(action_type, new_action)
 
-    def add_remove_action(self, action_type, new_action):
-        if action_type not in InstallItem.remove_action_types:
-            raise KeyError("actions type must be one of: "+str(InstallItem.remove_action_types)+" not "+action_type)
-        self.__add_item_to_default_os_by_category(action_type, new_action)
-
     def read_actions(self, action_nodes):
         for action_type, new_actions in action_nodes:
             for action in new_actions:
                 self.add_action(action_type, action.value)
-
-    def read_remove_actions(self, action_nodes):
-        for action_type, new_actions in action_nodes:
-            for action in new_actions:
-                self.add_remove_action(action_type, action.value)
 
     def _action_list(self, action_type):
         if action_type not in InstallItem.action_types:
