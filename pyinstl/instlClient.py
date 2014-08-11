@@ -464,4 +464,11 @@ class InstlClient(InstlInstanceBase):
             #    self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".", link_dest=True, ignore=ignore_list)
             else: # !dir
                 remove_actions = self.platform_helper.copy_tool.remove_dir(to_remove_path)
+        else:
+            #remove_actions = filter(None, remove_actions) # filter out None values
+            rumba = list()
+            for item in remove_actions:
+                if item:
+                    rumba.append(item)
+
         self.batch_accum += remove_actions

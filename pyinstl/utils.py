@@ -459,3 +459,9 @@ def replace_all_from_dict(in_text, *in_replace_only_these, **in_replacement_dic)
     for look_for in sorted(in_replace_only_these, key=lambda s: -len(s)):
         retVal = retVal.replace(look_for, in_replacement_dic[look_for])
     return retVal
+
+def convert_to_str_unless_None(to_convert):
+    if to_convert is None:
+        return None
+    else:
+        return str(to_convert)

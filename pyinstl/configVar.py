@@ -10,8 +10,10 @@ from __future__ import print_function
 
 import sys
 import os
-
 import platform
+
+from pyinstl.utils import *
+
 current_os = platform.system()
 if current_os == 'Darwin':
     def dereference_var(in_var):
@@ -88,7 +90,7 @@ class ConfigVar(object):
         if self.__name.endswith(("_PATH", "_DIR")):
             self.__values.append(os.path.normpath(value))
         else:
-            self.__values.append(str(value))
+            self.__values.append(convert_to_str_unless_None(value))
 
     def extend(self, values):
         if values:
@@ -98,7 +100,7 @@ class ConfigVar(object):
             normed_values = [os.path.normpath(value) for value in values]
             self.__values.extend(normed_values)
         else:
-            self.__values.extend([str(value) for value in values])
+            self.__values.extend([convert_to_str_unless_None(value) for value in values])
 
 
 class ConstConfigVar(ConfigVar):
