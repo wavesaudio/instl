@@ -17,7 +17,7 @@ from pyinstl.log_utils import setup_logging
 setup_logging("instl", "instl")
 from pyinstl.utils import get_current_os_names
 
-from pyinstl.instlException import InstlFatalException, InstlException
+from pyinstl.instlException import InstlException
 
 
 current_os_names = get_current_os_names()

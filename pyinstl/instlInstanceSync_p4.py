@@ -1,8 +1,6 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
-import logging
-
 from pyinstl.utils import *
 from pyinstl import svnTree
 from instlInstanceSyncBase import InstlInstanceSync

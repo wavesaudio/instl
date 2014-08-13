@@ -6,7 +6,7 @@ from collections import OrderedDict, defaultdict
 import logging
 
 from pyinstl.utils import *
-from installItem import read_index_from_yaml, InstallItem, guid_list, iids_from_guid
+from installItem import InstallItem, guid_list, iids_from_guid
 from aYaml import augmentedYaml
 
 from instlInstanceBase import InstlInstanceBase
