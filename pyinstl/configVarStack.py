@@ -12,14 +12,12 @@ from __future__ import print_function
 
 import os
 import sys
-import re
-import logging
 
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 
 from pyinstl.utils import *
 from pyinstl import configVarList
-from aYaml.augmentedYaml import YamlDumpWrap, YamlDumpDocWrap
+from aYaml.augmentedYaml import YamlDumpWrap
 
 class ConfigVarStack(configVarList.ConfigVarList):
     """ Keeps a list of named build config values.

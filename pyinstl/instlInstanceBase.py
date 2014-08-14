@@ -7,13 +7,12 @@ import yaml
 import appdirs
 
 import pyinstl.log_utils
-from pyinstl.log_utils import func_log_wrapper
 from configVarList import value_ref_re
 from aYaml import augmentedYaml
 from pyinstl.utils import *
 from pyinstl.searchPaths import SearchPaths
 from batchAccumulator import BatchAccumulator
-from installItem import read_index_from_yaml, InstallItem
+from installItem import read_index_from_yaml
 from platformSpecificHelper_Base import PlatformSpecificHelperFactory
 from configVarStack import var_stack as var_list
 

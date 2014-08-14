@@ -12,9 +12,7 @@ from __future__ import print_function
 import appdirs
 import logging
 
-from pyinstl.log_utils import func_log_wrapper
 from pyinstl.utils import *
-from configVarStack import var_stack as var_list
 
 # noinspection PyPep8Naming
 class SearchPaths(object):

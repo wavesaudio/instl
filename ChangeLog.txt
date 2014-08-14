@@ -1,3 +1,9 @@
+????
+
+    programmer visible changes:
+    * Removed redundant imports using snakefood
+    * Removed redundant file do_something.py
+
 24/6/2014 0.9.14   Shai Shasag <shai@waves.com>
 
      user visible changes, client:
