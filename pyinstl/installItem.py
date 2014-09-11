@@ -17,36 +17,37 @@ from __future__ import print_function
         install_folders - folders to install the install_sources to.
         depends - iids of other InstallItems that must be installed before the current item.
         actions - actions to preform. These actions are further divided into:
-            copy_in - actions to preform before starting the whole copy operation.
-                        If several InstallItems have the same copy_in actions, each action
+            pre_copy - actions to preform before starting the whole copy operation.
+                        If several InstallItems have the same pre_copy actions, each such action
                         will be preformed only once.
-            copy_out - actions to preform after finishing the whole copy operation.
-                        If several InstallItems have the same copy_out actions, each action
+            post_copy - actions to preform after finishing the whole copy operation.
+                        If several InstallItems have the same post_copy actions, each such action
                         will be preformed only once.
-            folder_in - actions to preform before installing to each of the folders in install_folders section.
-                        If several InstallItems have the same folder_in actions for the folder, each action
+            pre_copy_to_folder - actions to preform before installing to each of the folders in install_folders section.
+                        If several InstallItems have the same pre_copy_to_folder actions for the folder, each such action
                         will be preformed only once.
-            folder_out - actions to preform after installing to each of the folders in install_folders section.
-                        if several InstallItems have the same folder_out actions for the folder, each action
+            post_copy_to_folder - actions to preform after installing to each of the folders in install_folders section.
+                        if several InstallItems have the same post_copy_to_folder actions for the folder, each such action
                         will be preformed only once.
-            before -    actions to preform before copying each of the install_sources in each folder.
-            after -     actions to preform after installing each of the install_sources in each folder.
-            remove_in - actions to preform before starting the whole remove operation.
-                        If several InstallItems have the same remove_in actions, each action
+            pre_copy_item -    actions to preform before copying each of the install_sources in each folder.
+            post_copy_item -     actions to preform after installing each of the install_sources in each folder.
+            pre_remove - actions to preform before starting the whole remove operation.
+                        If several InstallItems have the same pre_remove actions, each such action
                         will be preformed only once.
-            remove_out - actions to preform after finishing the whole remove operation.
-                        If several InstallItems have the same remove_out actions, each action
+            post_remove - actions to preform after finishing the whole remove operation.
+                        If several InstallItems have the same post_remove actions, each such action
                         will be preformed only once.
-            remove_folder_in - actions to preform before removing from each of the folders in install_folders section.
-                        If several InstallItems have the same remove_folder_in actions for the folder, each action
+            pre_remove_from_folder - actions to preform before removing from each of the folders in install_folders section.
+                        If several InstallItems have the same pre_remove_from_folder actions for the folder, such each action
                         will be preformed only once.
-            remove_folder_out - actions to preform after removing from each of the folders in install_folders section.
-                        if several InstallItems have the same remove_folder_out actions for the folder, each action
+            post_remove_from_folder - actions to preform after removing from each of the folders in install_folders section.
+                        if several InstallItems have the same post_remove_from_folder actions for the folder, such each action
                         will be preformed only once.
-            remove_before -    actions to preform before removing each of the install_sources from each target folder.
-            remove -           by deafult the remove action is to delete the files that were copied by the copy action.
-                                if remove action is explicitly specified, it will be done instead of deleting.
-            remove_after -     actions to preform after removing each of the install_sources from each target folder.
+            pre_remove_item -    actions to preform before removing each of the install_sources from each target folder.
+            remove_item -        by default the remove_item action is to delete the files that were copied by the copy action.
+                                 if remove_item action is explicitly specified, it will be done instead of deleting.
+                                 To disable deleting the item specify a Null actions, thus: remove_item: ~
+            post_remove_item -     actions to preform after removing each of the install_sources from each target folder.
 
     Except iid field, all fields are optional.
 
@@ -64,13 +65,13 @@ from __future__ import print_function
             - test_target_folder_1
             - test_target_folder_2
         actions:
-            folder_in:
+            pre_copy_to_folder:
                 - action when entering folder
-            before:
+            pre_copy_item:
                 - action before item
-            after:
+            post_copy_item:
                 - action after item
-            folder_out:
+            post_copy_to_folder:
                 - action when leaving folder
 """
 
@@ -105,8 +106,9 @@ class InstallItem(object):
                 'var_list')
     os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
     item_types = ('install_sources', 'install_folders', 'depends', 'actions')
-    action_types = ('copy_in', 'folder_in', 'before', 'after', 'folder_out', 'copy_out',
-                    'remove_in', 'remove_folder_in', 'remove_before', 'remove', 'remove_after', 'remove_folder_out', 'remove_out')
+    action_types = ('pre_copy', 'pre_copy_to_folder', 'pre_copy_item',
+                    'post_copy_item', 'post_copy_to_folder', 'post_copy',
+                    'pre_remove', 'pre_remove_from_folder', 'pre_remove_item', 'remove_item', 'post_remove_item', 'post_remove_from_folder', 'post_remove')
     file_types = ('!dir_cont', '!files', '!file', '!dir')
     resolve_inheritance_stack = list()
     _get_for_os = [os_names[0]] # _get_for_os is a class member since we usually want to get for same oses for all InstallItems
