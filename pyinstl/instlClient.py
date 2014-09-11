@@ -337,7 +337,7 @@ class InstlClient(InstlInstanceBase):
 
             for IID in items_in_folder:
                 with self.install_definitions_index[IID]:
-                    self.batch_accum += var_list.resolve_to_list("iid_action_list_pre_copy_item")
+                    self.batch_accum += var_list.resolve_var_to_list_if_exists("iid_action_list_pre_copy_item")
                     self.batch_accum += var_list.resolve_var_to_list_if_exists("iid_action_list_post_copy_item")
 
             # accumulate post_copy_to_folder actions from all items, eliminating duplicates
@@ -428,6 +428,7 @@ class InstlClient(InstlInstanceBase):
         self.accumulate_unique_actions('pre_remove', self.installState.full_install_items)
 
         for folder_name in sorted_target_folder_list:
+            var_list.set_var("__TARGET_DIR__").append(os.path.normpath(folder_name))
             items_in_folder = self.installState.install_items_by_target_folder[folder_name]
             logging.info("folder %s", var_list.resolve(folder_name))
             self.batch_accum += self.platform_helper.new_line()
@@ -453,18 +454,16 @@ class InstlClient(InstlInstanceBase):
         base_, leaf = os.path.split(source[0])
         to_remove_path = os.path.normpath(os.path.join(folder, leaf))
 
-        ignore_list = var_list.resolve_to_list("$(COPY_IGNORE_PATTERNS)")
-
         remove_actions = var_list.resolve_var_to_list_if_exists("iid_action_list_remove_item")
         if len(remove_actions) == 0:
             if source[1] == '!file':       # remove single file
-                remove_actions = self.platform_helper.copy_tool.remove_file(to_remove_path)
+                remove_actions = self.platform_helper.rmfile(to_remove_path)
             #elif source[1] == '!dir_cont': # get all files and folders from a folder
             #    self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".", link_dest=True, ignore=ignore_list)
             #elif source[1] == '!files':    # get all files from a folder
             #    self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".", link_dest=True, ignore=ignore_list)
             else: # !dir
-                remove_actions = self.platform_helper.copy_tool.remove_dir(to_remove_path)
+                remove_actions = self.platform_helper.rmdir(to_remove_path, recursive=True)
         else:
             #remove_actions = filter(None, remove_actions) # filter out None values
             rumba = list()

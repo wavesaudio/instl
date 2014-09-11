@@ -1,11 +1,14 @@
 ????
 
     user visible changes, client:
-    * Overhual of all actions names. New names are:
-    'pre_copy', 'pre_copy_to_folder', 'pre_copy_item',
-    'post_copy_item', 'post_copy_to_folder', 'post_copy',
-    'pre_remove', 'pre_remove_from_folder', 'pre_remove_item',
-    'remove_item', 'post_remove_item', 'post_remove_from_folder', 'post_remove'
+    * Fixed handling of pre_copy_item when no items to copy to folder.
+    * Added __TARGET_DIR__ var on remove folder loop - still need to add in other loops
+    * Fixed Windows recursive rmdir in PlatformSpecificHelperWin
+    * Overhaul of all actions names. New names are:
+        'pre_copy', 'pre_copy_to_folder', 'pre_copy_item',
+        'post_copy_item', 'post_copy_to_folder', 'post_copy',
+        'pre_remove', 'pre_remove_from_folder', 'pre_remove_item',
+        'remove_item', 'post_remove_item', 'post_remove_from_folder', 'post_remove'
 
 
     user visible changes, admin:

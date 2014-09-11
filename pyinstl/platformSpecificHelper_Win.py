@@ -282,7 +282,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return restore_dir_command
 
     def rmdir(self, directory, recursive=False):
-        recurse_switch = '/S' if recursive else ''
+        recurse_switch = '/S /Q' if recursive else ''
         norm_directory = quoteme_double(os.path.normpath(directory))
         rmdir_command = " ".join( ("rmdir", recurse_switch, norm_directory ) )
         return rmdir_command
