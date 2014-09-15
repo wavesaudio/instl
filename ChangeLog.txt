@@ -9,6 +9,7 @@
         'post_copy_item', 'post_copy_to_folder', 'post_copy',
         'pre_remove', 'pre_remove_from_folder', 'pre_remove_item',
         'remove_item', 'post_remove_item', 'post_remove_from_folder', 'post_remove'
+    * target folders in remove sorted in reverse
 
 
     user visible changes, admin:
@@ -16,8 +17,9 @@
     programmer visible changes:
     * Removed redundant imports using snakefood
     * Removed redundant file do_something.py
-
-24/6/2014 0.9.14   Shai Shasag <shai@waves.com>
+    * improved handling of Null values in resolve_to_list
+    
+ 24/6/2014 0.9.14   Shai Shasag <shai@waves.com>
 
      user visible changes, client:
      * Names of curl config files have same legth due to 0 padding the number. This will creaet more stable

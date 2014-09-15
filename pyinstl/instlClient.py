@@ -423,8 +423,10 @@ class InstlClient(InstlInstanceBase):
     def create_remove_instructions(self):
         self.batch_accum.set_current_section('remove')
         self.batch_accum += self.platform_helper.progress("Starting remove")
-        sorted_target_folder_list = sorted(self.installState.install_items_by_target_folder, key=lambda fold: var_list.resolve(fold))
-
+        sorted_target_folder_list = sorted(self.installState.install_items_by_target_folder,
+                                            key=lambda fold: var_list.resolve(fold),
+                                            reverse=True)
+        #print(sorted_target_folder_list)
         self.accumulate_unique_actions('pre_remove', self.installState.full_install_items)
 
         for folder_name in sorted_target_folder_list:
@@ -465,10 +467,6 @@ class InstlClient(InstlInstanceBase):
             else: # !dir
                 remove_actions = self.platform_helper.rmdir(to_remove_path, recursive=True)
         else:
-            #remove_actions = filter(None, remove_actions) # filter out None values
-            rumba = list()
-            for item in remove_actions:
-                if item:
-                    rumba.append(item)
+            remove_actions = filter(None, remove_actions) # filter out None values
 
         self.batch_accum += remove_actions

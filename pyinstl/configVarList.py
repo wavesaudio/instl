@@ -225,7 +225,10 @@ class ConfigVarList(object):
             self.__resolve_stack.append(var_name)
             if var_name in self:
                 for value in self[var_name]:
-                    resolved_list.extend(self.resolve_to_list(value, list_sep))
+                    if value is None:
+                        resolved_list.append(None)
+                    else:
+                        resolved_list.extend(self.resolve_to_list(value, list_sep))
             else:
                 if default is None:
                     resolved_list.append(str_to_resolve)
@@ -247,5 +250,6 @@ class ConfigVarList(object):
     def resolve_var_to_list_if_exists(self, var_name, list_sep=" ", default=""):
         retVal = ()
         if var_name in self:
-            retVal = self.resolve_to_list( "".join( ("$(", var_name, ")") ))
+            var_reference = "".join( ("$(", var_name, ")") )
+            retVal = self.resolve_to_list(var_reference)
         return retVal
