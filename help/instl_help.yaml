@@ -101,6 +101,13 @@ command:
             parallel-run will read the list-of-processes-to-run file and will launch a process running the command in each line . It will return when all processes have finished or when any process returns non zero value.
             parallel-run command is used in the batch file created by the sync or synccopy commands.
 
+    remove:
+      short: Remove installed files.
+      long: |
+            Usage: instl remove --in instl-config-yaml-file --out remove.sh [--run]
+            instl's remove command will create a batch file containing instructions to remove files from their designated locations on disk. Said files were previously copied using the copy command. Definition of what to remove from which destination is taken from the instl-config-yaml-file. Default remove action for installed item is to erase the files from disk, but oother instructions can be given in the instl-config-yaml-file.
+            Keep in mind that remove command does not actually copy anything, unless the --run flag is given. You will need to run the produced batch file in order to actually remove the files.
+
     set-exec:
         short:
         long: |
