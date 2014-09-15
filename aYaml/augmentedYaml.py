@@ -298,7 +298,7 @@ def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False):
     if indentor is None:
         indentor = Indentor(4)
     if pyObj is None:
-        pass
+        out_stream.write("~")
     elif isinstance(pyObj, (list, tuple)):
         indentor.push('l')
         for item in pyObj:

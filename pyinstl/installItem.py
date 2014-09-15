@@ -417,7 +417,6 @@ class InstallItem(object):
                 ancestor_item = InstallItemsDict[ancestor]
                 ancestor_item.resolve_inheritance(InstallItemsDict)
                 self.merge_all_item_sections(ancestor_item)
-                self.remark += ", "+ancestor_item.name+", "+ancestor_item.remark
             self.resolve_inheritance_stack.pop()
 
 

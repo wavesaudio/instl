@@ -269,6 +269,20 @@ class CMDObj(cmd.Cmd, object):
         print( "list" )
         print( "    lists all definitions, index & guid entries" )
 
+    def do_listindex(self, params):
+        if params:
+            params = shlex.split(params)
+            params_not_in_index = list()
+            for param in params:
+                if param in self.client_prog_inst.install_definitions_index:
+                    self.client_prog_inst.install_definitions_index[param].resolve_inheritance(self.client_prog_inst.install_definitions_index)
+                    augmentedYaml.writeAsYaml({param: self.client_prog_inst.install_definitions_index[param].repr_for_yaml()})
+                else:
+                    params_not_in_index.append(param)
+            if params_not_in_index:
+                print("Not found in index:\n    ", "\n    ".join(params_not_in_index))
+
+
     def do_statistics(self, unused_params):
         num_files = self.admin_prog_inst.svnTree.num_subs_in_tree(what="file")
         num_dirs = self.admin_prog_inst.svnTree.num_subs_in_tree(what="dir")
