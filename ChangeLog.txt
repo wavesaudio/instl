@@ -10,7 +10,8 @@
         'pre_remove', 'pre_remove_from_folder', 'pre_remove_item',
         'remove_item', 'post_remove_item', 'post_remove_from_folder', 'post_remove'
     * target folders in remove sorted in reverse
-
+    * New command remove-empty-folders: removes empty folders or folders containing only ignired files.
+        List of ignored files are specified in REMOVE_EMPTY_FOLDERS_IGNORE_FILES variable.
 
     user visible changes, admin:
 
@@ -18,7 +19,8 @@
     * Removed redundant imports using snakefood
     * Removed redundant file do_something.py
     * improved handling of Null values in resolve_to_list
-    
+    * New defaults file InstlMisc.yaml with definition of REMOVE_EMPTY_FOLDERS_IGNORE_FILES
+
  24/6/2014 0.9.14   Shai Shasag <shai@waves.com>
 
      user visible changes, client:
