@@ -216,7 +216,6 @@ class ConfigVarList(object):
             otherwise if the string is NOT a single reference to a variable, a list with single value is returned.
          """
         resolved_list = list()
-        # need to handle None str_to_resolve
         match = only_one_value_ref_re.search(str_to_resolve)
         if match:
             var_name = match.group('var_name')

@@ -177,7 +177,7 @@ class InstlClient(InstlInstanceBase):
         self.create_copy_instructions()
 
     def do_remove(self):
-        logging.info("Creating copy instructions")
+        logging.info("Creating remove instructions")
         self.init_remove_vars()
         self.create_remove_instructions()
 

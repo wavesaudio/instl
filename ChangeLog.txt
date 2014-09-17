@@ -1,6 +1,7 @@
-????
+17/9/2014 0.9.15   Shai Shasag <shai@waves.com>
 
     user visible changes, client:
+    * remove command fully implemented.
     * Fixed handling of pre_copy_item when no items to copy to folder.
     * Added __TARGET_DIR__ var on remove folder loop - still need to add in other loops
     * Fixed Windows recursive rmdir in PlatformSpecificHelperWin
