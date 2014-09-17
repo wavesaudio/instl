@@ -17,14 +17,38 @@ from __future__ import print_function
         install_folders - folders to install the install_sources to.
         depends - iids of other InstallItems that must be installed before the current item.
         actions - actions to preform. These actions are further divided into:
-            folder_in - actions to preform before installing to each folder in install_folders section.
-                        if several InstallItems have the same actions for the folder, each action
+            pre_copy - actions to preform before starting the whole copy operation.
+                        If several InstallItems have the same pre_copy actions, each such action
                         will be preformed only once.
-            folder_out - actions to preform after installing to each folder in install_folders section.
-                        if several InstallItems have the same actions for the folder, each action
+            post_copy - actions to preform after finishing the whole copy operation.
+                        If several InstallItems have the same post_copy actions, each such action
                         will be preformed only once.
-            before -    actions to preform before installing the install_sources in each folder.
-            after -    actions to preform after installing the install_sources in each folder.
+            pre_copy_to_folder - actions to preform before installing to each of the folders in install_folders section.
+                        If several InstallItems have the same pre_copy_to_folder actions for the folder, each such action
+                        will be preformed only once.
+            post_copy_to_folder - actions to preform after installing to each of the folders in install_folders section.
+                        if several InstallItems have the same post_copy_to_folder actions for the folder, each such action
+                        will be preformed only once.
+            pre_copy_item -    actions to preform before copying each of the install_sources in each folder.
+            post_copy_item -     actions to preform after installing each of the install_sources in each folder.
+            pre_remove - actions to preform before starting the whole remove operation.
+                        If several InstallItems have the same pre_remove actions, each such action
+                        will be preformed only once.
+            post_remove - actions to preform after finishing the whole remove operation.
+                        If several InstallItems have the same post_remove actions, each such action
+                        will be preformed only once.
+            pre_remove_from_folder - actions to preform before removing from each of the folders in install_folders section.
+                        If several InstallItems have the same pre_remove_from_folder actions for the folder, such each action
+                        will be preformed only once.
+            post_remove_from_folder - actions to preform after removing from each of the folders in install_folders section.
+                        if several InstallItems have the same post_remove_from_folder actions for the folder, such each action
+                        will be preformed only once.
+            pre_remove_item -    actions to preform before removing each of the install_sources from each target folder.
+            remove_item -        by default the remove_item action is to delete the files that were copied by the copy action.
+                                 if remove_item action is explicitly specified, it will be done instead of deleting.
+                                 To disable deleting the item specify a Null actions, thus: remove_item: ~
+            post_remove_item -     actions to preform after removing each of the install_sources from each target folder.
+
     Except iid field, all fields are optional.
 
     Example in Yaml:
@@ -41,13 +65,13 @@ from __future__ import print_function
             - test_target_folder_1
             - test_target_folder_2
         actions:
-            folder_in:
+            pre_copy_to_folder:
                 - action when entering folder
-            before:
+            pre_copy_item:
                 - action before item
-            after:
+            post_copy_item:
                 - action after item
-            folder_out:
+            post_copy_to_folder:
                 - action when leaving folder
 """
 
@@ -75,7 +99,6 @@ def read_index_from_yaml(all_items_node):
             retVal[IID] = item
     return retVal
 
-
 class InstallItem(object):
     __slots__ = ('iid', 'name', 'guid',
                 'remark', "description", 'inherit',
@@ -83,7 +106,9 @@ class InstallItem(object):
                 'var_list')
     os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
     item_types = ('install_sources', 'install_folders', 'depends', 'actions')
-    action_types = ('copy_in', 'folder_in', 'before', 'after', 'folder_out', 'copy_out')
+    action_types = ('pre_copy', 'pre_copy_to_folder', 'pre_copy_item',
+                    'post_copy_item', 'post_copy_to_folder', 'post_copy',
+                    'pre_remove', 'pre_remove_from_folder', 'pre_remove_item', 'remove_item', 'post_remove_item', 'post_remove_from_folder', 'post_remove')
     file_types = ('!dir_cont', '!files', '!file', '!dir')
     resolve_inheritance_stack = list()
     _get_for_os = [os_names[0]] # _get_for_os is a class member since we usually want to get for same oses for all InstallItems
@@ -202,7 +227,9 @@ class InstallItem(object):
             self.var_list.set_var("iid_folder_list").extend(self._folder_list())
             self.var_list.set_var("iid_depend_list").extend(self._depend_list())
             for action_type in self.action_types:
-                self.var_list.set_var("iid_action_list_"+action_type).extend(self._action_list(action_type))
+                action_list_for_type = self._action_list(action_type)
+                if len(action_list_for_type) > 0:
+                    self.var_list.set_var("iid_action_list_"+action_type).extend(action_list_for_type)
             source_vars_obj = self.var_list.set_var("iid_source_var_list")
             source_list = self._source_list()
             for i, source in enumerate(source_list):
@@ -390,7 +417,6 @@ class InstallItem(object):
                 ancestor_item = InstallItemsDict[ancestor]
                 ancestor_item.resolve_inheritance(InstallItemsDict)
                 self.merge_all_item_sections(ancestor_item)
-                self.remark += ", "+ancestor_item.name+", "+ancestor_item.remark
             self.resolve_inheritance_stack.pop()
 
 

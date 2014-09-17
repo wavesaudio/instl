@@ -1,10 +1,27 @@
 ????
 
+    user visible changes, client:
+    * Fixed handling of pre_copy_item when no items to copy to folder.
+    * Added __TARGET_DIR__ var on remove folder loop - still need to add in other loops
+    * Fixed Windows recursive rmdir in PlatformSpecificHelperWin
+    * Overhaul of all actions names. New names are:
+        'pre_copy', 'pre_copy_to_folder', 'pre_copy_item',
+        'post_copy_item', 'post_copy_to_folder', 'post_copy',
+        'pre_remove', 'pre_remove_from_folder', 'pre_remove_item',
+        'remove_item', 'post_remove_item', 'post_remove_from_folder', 'post_remove'
+    * target folders in remove sorted in reverse
+    * New command remove-empty-folders: removes empty folders or folders containing only ignired files.
+        List of ignored files are specified in REMOVE_EMPTY_FOLDERS_IGNORE_FILES variable.
+
+    user visible changes, admin:
+
     programmer visible changes:
     * Removed redundant imports using snakefood
     * Removed redundant file do_something.py
+    * improved handling of Null values in resolve_to_list
+    * New defaults file InstlMisc.yaml with definition of REMOVE_EMPTY_FOLDERS_IGNORE_FILES
 
-24/6/2014 0.9.14   Shai Shasag <shai@waves.com>
+ 24/6/2014 0.9.14   Shai Shasag <shai@waves.com>
 
      user visible changes, client:
      * Names of curl config files have same legth due to 0 padding the number. This will creaet more stable
@@ -14,7 +31,7 @@
 22/6/2014 0.9.14   Shai Shasag <shai@waves.com>
 
      user visible changes, client:
-     * new command test_import to force loading of all required modules provoking error if any import fails.
+     * new command test-import to force loading of all required modules provoking error if any import fails.
 
 
 20/6/2014 0.9.13.1   Shai Shasag <shai@waves.com>

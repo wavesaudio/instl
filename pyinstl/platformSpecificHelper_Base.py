@@ -70,6 +70,14 @@ class CopyToolBase(object):
         """
         pass
 
+    @abc.abstractmethod
+    def remove_file(self, file_to_remove):
+        pass
+
+    @abc.abstractmethod
+    def remove_dir(self, dir_to_remove):
+        pass
+
 class CopyToolRsync(CopyToolBase):
     def __init__(self, platform_helper):
         super(CopyToolRsync, self).__init__(platform_helper)
@@ -149,6 +157,14 @@ class CopyToolRsync(CopyToolBase):
             sync_command = "rsync --owner --group -l -E -d {ignore_spec} \"{src_dir}\"/* \"{trg_dir}\"".format(**locals())
 
         return sync_command
+
+    def remove_file(self, file_to_remove):
+        remove_command = "rm -f -v \"{file_to_remove}\"".format(**locals())
+        return remove_command
+
+    def remove_dir(self, dir_to_remove):
+        remove_command = "rm -f -v -r \"{dir_to_remove}\"".format(**locals())
+        return remove_command
 
 class PlatformSpecificHelperBase(object):
 

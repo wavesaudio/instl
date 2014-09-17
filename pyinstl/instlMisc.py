@@ -162,3 +162,23 @@ class InstlMisc(InstlInstanceBase):
         if len(bad_modules) > 0:
             print("missing modules:", bad_modules)
             sys.exit(17)
+
+    def do_remove_empty_folders(self):
+        folder_to_remove = var_list.resolve("$(__MAIN_INPUT_FILE__)")
+        files_to_ignore = var_list.resolve_to_list("$(REMOVE_EMPTY_FOLDERS_IGNORE_FILES)")
+        for rootpath, dirnames, filenames in os.walk(folder_to_remove, topdown=False, onerror=None, followlinks=False):
+            # when topdown=False os.walk creates dirnames for each rootpath at the beginning and has
+            # no knowledge if a directory has already been deleted.
+            existing_dirs = [dirname for dirname in dirnames if os.path.isdir(os.path.join(rootpath, dirname))]
+            if len(existing_dirs) == 0:
+                ignored_files = list()
+                for filename in filenames:
+                    if filename in files_to_ignore:
+                        ignored_files.append(filename)
+                    else:
+                        break
+                if len(filenames) == len(ignored_files):
+                    # only remove the ignored files if the folder is to be removed
+                    for filename in ignored_files:
+                        os.remove(os.path.join(rootpath, filename))
+                    os.rmdir(rootpath)

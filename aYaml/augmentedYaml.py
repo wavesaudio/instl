@@ -34,6 +34,8 @@ from collections import OrderedDict
 if __name__ == "__main__":
     sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 
+yaml.Node.isNone = lambda self: self.tag.endswith(":null")
+
 # patch yaml.Node derivatives to identify themselves.
 yaml.ScalarNode.isScalar = lambda self: True
 yaml.SequenceNode.isScalar = lambda self: False
@@ -69,6 +71,8 @@ def iter_mapping(self):
         is that mapping key is a scalar
     """
     for map_tuple in self.value:
+        if map_tuple[1].isNone():
+            map_tuple[1].value = None
         yield str(map_tuple[0].value), map_tuple[1]
 
 
@@ -84,6 +88,8 @@ def iter_mapping_keys(self):
 def iter_sequence(self):
     """ iterator for sequence just iterates over the values """
     for item in self.value:
+        if item.isNone():
+            item.value = None
         yield item
 
 yaml.ScalarNode.__iter__ = iter_scalar
@@ -292,7 +298,7 @@ def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False):
     if indentor is None:
         indentor = Indentor(4)
     if pyObj is None:
-        pass
+        out_stream.write("~")
     elif isinstance(pyObj, (list, tuple)):
         indentor.push('l')
         for item in pyObj:
