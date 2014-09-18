@@ -195,6 +195,15 @@ class InstlInstanceBase(object):
                 logging.debug("%s: %s", identifier, str(contents))
                 var_list.add_const_config_variable(identifier, "from !define_const section", *[item.value for item in contents])
 
+    def provision_public_key_text(self):
+        if "PUBLIC_KEY" not in var_list:
+            if "PUBLIC_KEY_FILE" in var_list:
+                public_key_file = var_list.resolve("$(PUBLIC_KEY_FILE)")
+                with open_for_read_file_or_url(public_key_file, self.path_searcher) as file_fd:
+                    public_key_text = file_fd.read()
+                    var_list.set_var("PUBLIC_KEY", "from "+public_key_file).append(public_key_text)
+        return var_list.resolve("$(PUBLIC_KEY)")
+
     def read_include_node(self, i_node):
         if i_node.isScalar():
             resolved_file_name = var_list.resolve(i_node.value)
@@ -203,30 +212,45 @@ class InstlInstanceBase(object):
             for sub_i_node in i_node:
                 self.read_include_node(sub_i_node)
         elif i_node.isMapping():
-            if "url" in i_node and "checksum" in i_node and "sig" in i_node:
+            if "url" in i_node:
                 resolved_file_url = var_list.resolve(i_node["url"].value)
-                resolved_checksum = var_list.resolve(i_node["checksum"].value)
-                resolved_signature = var_list.resolve(i_node["sig"].value)
                 cached_files_dir = self.get_default_sync_dir(continue_dir="cache", mkdir=True)
-                cached_file = os.path.join(cached_files_dir, resolved_checksum)
+                cached_file_path = None
+                expected_checksum = None
+                if "checksum" in i_node:
+                    expected_checksum = var_list.resolve(i_node["checksum"].value)
+                    cached_file_path = os.path.join(cached_files_dir, expected_checksum)
 
-                if "PUBLIC_KEY" not in var_list:
-                    if "PUBLIC_KEY_FILE" in var_list:
-                        public_key_file = var_list.resolve("$(PUBLIC_KEY_FILE)")
-                        with open_for_read_file_or_url(public_key_file, self.path_searcher) as file_fd:
-                            public_key_text = file_fd.read()
-                            var_list.set_var("PUBLIC_KEY", "from "+public_key_file).append(public_key_text)
+                expected_signature = None
+                public_key_text = None
+                if "sig" in i_node:
+                    expected_signature = var_list.resolve(i_node["sig"].value)
+                    public_key_text = self.provision_public_key_text()
 
-
-                public_key_text = var_list.resolve("$(PUBLIC_KEY)")
-                download_from_file_or_url(resolved_file_url, cached_file, cache=True,
+                if expected_checksum is None:
+                    file_content = read_from_file_or_url(resolved_file_url,
                                           public_key=public_key_text,
-                                          textual_sig=resolved_signature,
-                                          expected_checksum=resolved_checksum)
-                self.read_yaml_file(cached_file)
+                                          textual_sig=expected_signature,
+                                          expected_checksum=expected_checksum)
+                    expected_checksum = get_buffer_checksum(file_content)
+                    cached_file_path = os.path.join(cached_files_dir, expected_checksum)
+                    with open(cached_file_path, "wb") as wfd:
+                        wfd.write(file_content)
+                    del file_content
+
+                if expected_checksum is not None:
+                    download_from_file_or_url(resolved_file_url, cached_file_path, cache=True,
+                                              public_key=public_key_text,
+                                              textual_sig=expected_signature,
+                                              expected_checksum=expected_checksum)
+
+                self.read_yaml_file(cached_file_path)
                 if "copy" in i_node:
-                    self.batch_accum.set_current_section('post-sync')
-                    self.batch_accum += self.platform_helper.copy_tool.copy_file_to_file(cached_file, var_list.resolve(i_node["copy"].value), link_dest=True)
+                    self.batch_accum.set_current_section('post')
+                    for copy_destination in i_node["copy"]:
+                        destination_folder, destination_file_name = os.path.split(copy_destination.value)
+                        self.batch_accum += self.platform_helper.mkdir(destination_folder)
+                        self.batch_accum += self.platform_helper.copy_tool.copy_file_to_file(cached_file_path, var_list.resolve(copy_destination.value), link_dest=True)
 
     def create_variables_assignment(self):
         self.batch_accum.set_current_section("assign")

@@ -96,18 +96,6 @@ class SearchPaths(object):
                 retVal = in_file
         return retVal
 
-    def get_machine_config_file_path(self, in_app_name):
-        retVal = os.path.join(appdirs.site_data_dir(in_app_name))
-        logging.debug("%s", retVal)
-        return retVal
-
-    def get_user_config_file_path(self, in_app_name):
-        retVal = os.path.join(appdirs.user_data_dir(in_app_name))
-        logging.debug("%s", retVal)
-        return retVal
-
 
 if __name__ == "__main__":
     SearchPathsObj = SearchPaths("var")
-    print (SearchPathsObj.get_machine_config_file_path("myke"))
-    print (SearchPathsObj.get_user_config_file_path("myke"))

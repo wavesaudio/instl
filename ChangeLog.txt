@@ -1,3 +1,14 @@
+????
+
+    programmer visible changes:
+    * more refined yaml reading options: url with/without sig and checksum. with multuple copy destinations.
+    * removed redundant functions get_machine_config_file_path, get_user_config_file_path
+    * Split new function read_from_file_or_url from download_from_file_or_url
+    * new initial vars: "__SITE_DATA_DIR__": appdirs.site_data_dir(),
+                        "__SITE_CONFIG_DIR__": appdirs.site_config_dir(),
+                        "__USER_DATA_DIR__": appdirs.user_data_dir(),
+                         "__USER_CONFIG_DIR__": appdirs.user_config_dir()
+
 17/9/2014 0.9.15   Shai Shasag <shai@waves.com>
 
     user visible changes, client:

@@ -105,12 +105,24 @@ class open_for_read_file_or_url(object):
     def __exit__(self, unused_type, unused_value, unused_traceback):
         self.fd.close()
 
+def read_from_file_or_url(in_url, public_key=None, textual_sig=None, expected_checksum=None):
+    contents_buffer = None
+    with open_for_read_file_or_url(in_url) as rfd:
+        contents_buffer = rfd.read()
+        if contents_buffer:
+            # check sig or checksum only if they were given
+            if (public_key, textual_sig, expected_checksum) != (None, None, None):
+                buffer_ok = check_buffer_signature_or_checksum(contents_buffer, public_key, textual_sig, expected_checksum)
+                if not buffer_ok:
+                    raise IOError("Checksum or Signature mismatch", in_url)
+    return contents_buffer
+
 def download_from_file_or_url(in_url, in_local_path, cache=False, public_key=None, textual_sig=None, expected_checksum=None):
     fileExists = False
     if cache and os.path.isfile(in_local_path):
         # cache=True means: if local file already exists, there is no need to download.
         # if public_key, textual_sig, expected_checksum are given, check local file signature or checksum.
-        # If these do not match earse the file so it will be downloaded again.
+        # If these do not match erase the file so it will be downloaded again.
         fileOK = True
         if (public_key, textual_sig, expected_checksum) != (None, None, None):
             fileOK = check_file_signature_or_checksum(in_local_path, public_key, textual_sig, expected_checksum)
@@ -119,18 +131,10 @@ def download_from_file_or_url(in_url, in_local_path, cache=False, public_key=Non
         fileExists = fileOK
 
     if not fileExists:
-        with open_for_read_file_or_url(in_url) as rfd:
-            contents_buffer = rfd.read()
-            if contents_buffer:
-                fileOK = True
-                # check sig or checksum only if they were given
-                if (public_key, textual_sig, expected_checksum) != (None, None, None):
-                    fileOK = check_buffer_signature_or_checksum(contents_buffer, public_key, textual_sig, expected_checksum)
-                if fileOK:
-                    with open(in_local_path, "wb") as wfd:
-                        wfd.write(contents_buffer)
-                else:
-                    raise IOError("Checksum or Signature mismatch", in_url, in_local_path)
+        contents_buffer = read_from_file_or_url(in_url, public_key, textual_sig, expected_checksum)
+        if contents_buffer:
+            with open(in_local_path, "wb") as wfd:
+                wfd.write(contents_buffer)
 
 class unique_list(list):
     """
