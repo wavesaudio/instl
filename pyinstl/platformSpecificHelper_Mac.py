@@ -1,7 +1,6 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
-import os
 import urllib
 import datetime
 from pyinstl.utils import *
@@ -112,7 +111,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
             rmdir_command = " ".join( ("rmdir", quoteme_double(directory) ) )
         return rmdir_command
 
-    def rmfile(self, file):
+    def rmfile(self, a_file):
         rmfile_command = " ".join( ("rm", "-f", quoteme_double(file) ) )
         return rmfile_command
 

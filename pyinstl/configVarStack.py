@@ -63,7 +63,6 @@ class ConfigVarStack(configVarList.ConfigVarList):
         return list(the_keys)
 
     def get_configVar_obj(self, var_name):
-        retVal = None
         try:
             retVal = self[var_name]
         except KeyError:
@@ -93,6 +92,7 @@ class ConfigVarStack(configVarList.ConfigVarList):
             #else:
             #    print("Const variable {} ({}) already defined, with same value: {}".format(var_name, self._ConfigVarList_objs[var_name].description(), str(values)))
         except KeyError:
+            # noinspection PyUnboundLocalVariable
             self._ConfigVarList_objs[-1].add_const_config_variable(var_name, description, *values_as_strs)
 
     def repr_for_yaml(self, which_vars=None, include_comments=True):

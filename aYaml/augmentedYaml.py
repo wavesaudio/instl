@@ -119,7 +119,7 @@ def get_mapping_item(self, key):
 
 def get_sequence_item(self, index):
     """ operator[] for sequence, support both positive and negative indexes """
-    if index < len(self.value) and index >= -len(self.value):
+    if len(self.value) > index >= -len(self.value):
         return self.value[index]
     raise IndexError
 

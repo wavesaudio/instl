@@ -120,7 +120,7 @@ class InstlAdmin(InstlInstanceBase):
                         retVal = False
                     else:
                         msg = " ".join( ("new base revision", str(current_base_repo_rev), "(was", str(previous_base_repo_rev),") need to refresh links") )
-                        self.batch_accum += self.platform_helper.echo(msg);
+                        self.batch_accum += self.platform_helper.echo(msg)
                         print(msg)
                         # if we need to create links, remove the upload stems in order to force upload
                         try: os.remove(var_list.resolve("$(ROOT_LINKS_FOLDER_REPO)/"+str(revision)+"/$(UP_2_S3_STAMP_FILE_NAME)"))
@@ -280,7 +280,6 @@ class InstlAdmin(InstlInstanceBase):
             return retVal
 
     def do_up2s3(self):
-        root_links_folder = var_list.resolve("$(ROOT_LINKS_FOLDER_REPO)")
         # call svn info and to find out the last repo revision
         base_repo_rev = int(var_list.resolve("$(BASE_REPO_REV)"))
         last_repo_rev = self.get_last_repo_rev()
@@ -409,7 +408,8 @@ class InstlAdmin(InstlInstanceBase):
             raise ValueError("REPO_REV_FILE_VARS must be defined")
         repo_rev_vars = var_list.resolve_to_list("$(REPO_REV_FILE_VARS)")
         var_list.set_var("REPO_REV").append("$(TARGET_REPO_REV)") # override the repo rev from the config file
-        dangerous_intersection = set(repo_rev_vars).intersection(set(("AWS_ACCESS_KEY_ID","AWS_SECRET_ACCESS_KEY", "PRIVATE_KEY", "PRIVATE_KEY_FILE")))
+        dangerous_intersection = set(repo_rev_vars).intersection(
+            {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "PRIVATE_KEY", "PRIVATE_KEY_FILE"})
         if dangerous_intersection:
             print("found", str(dangerous_intersection), "in REPO_REV_FILE_VARS, aborting")
             raise ValueError("file REPO_REV_FILE_VARS "+str(dangerous_intersection)+" and so is forbidden to upload")
@@ -576,8 +576,8 @@ class InstlAdmin(InstlInstanceBase):
             print("limiting to ", "; ".join(var_list.resolve_to_list("$(__LIMIT_COMMAND_TO__)")))
         else:
             print ("no limiting to specific folder")
-        stage_folder = var_list.resolve(("$(STAGING_FOLDER)"))
-        svn_folder = var_list.resolve(("$(SVN_CHECKOUT_FOLDER)"))
+        stage_folder = var_list.resolve("$(STAGING_FOLDER)")
+        svn_folder = var_list.resolve("$(SVN_CHECKOUT_FOLDER)")
         self.batch_accum += self.platform_helper.unlock(stage_folder, recursive=True)
         self.batch_accum += self.platform_helper.progress("chflags -R nouchg "+stage_folder)
         self.batch_accum += self.platform_helper.new_line()
@@ -670,7 +670,7 @@ class InstlAdmin(InstlInstanceBase):
         self.batch_accum += self.platform_helper.split_func()
 
         max_file_size = int(var_list.resolve(("$(MAX_FILE_SIZE)")))
-        stage_folder = var_list.resolve(("$(STAGING_FOLDER)"))
+        stage_folder = var_list.resolve("$(STAGING_FOLDER)")
         self.batch_accum += self.platform_helper.unlock(stage_folder, recursive=True)
         self.batch_accum += self.platform_helper.progress("chflags -R nouchg "+stage_folder)
         self.batch_accum += self.platform_helper.new_line()
@@ -718,7 +718,7 @@ class InstlAdmin(InstlInstanceBase):
     def do_svn2stage(self):
         self.batch_accum.set_current_section('admin')
         stage_folder = var_list.resolve(("$(STAGING_FOLDER)"))
-        svn_folder = var_list.resolve(("$(SVN_CHECKOUT_FOLDER)"))
+        svn_folder = var_list.resolve("$(SVN_CHECKOUT_FOLDER)")
         svn_command_parts = ['"$(SVN_CLIENT_PATH)"', "checkout", '"$(SVN_REPO_URL)"', '"'+svn_folder+'"', "--depth", "infinity"]
         self.batch_accum += " ".join(svn_command_parts)
         self.batch_accum += self.platform_helper.progress("Checkout $(SVN_REPO_URL) to $(SVN_CHECKOUT_FOLDER)")

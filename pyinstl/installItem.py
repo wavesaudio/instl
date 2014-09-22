@@ -78,6 +78,7 @@ from __future__ import print_function
 from collections import OrderedDict, defaultdict
 
 import sys
+
 sys.path.append("..")
 from aYaml import augmentedYaml
 from pyinstl.utils import *
@@ -87,11 +88,12 @@ from configVarStack import var_stack as var_list
 current_os_names = get_current_os_names()
 os_family_name = current_os_names[0]
 
+
 def read_index_from_yaml(all_items_node):
     retVal = dict()
     for IID in all_items_node.iterkeys():
         if IID in retVal:
-            pass #print(IID, "already in all_items_node")
+            pass  # print(IID, "already in all_items_node")
         else:
             # print(IID, "not in all_items_node")
             item = InstallItem()
@@ -99,19 +101,23 @@ def read_index_from_yaml(all_items_node):
             retVal[IID] = item
     return retVal
 
+
 class InstallItem(object):
     __slots__ = ('iid', 'name', 'guid',
-                'remark', "description", 'inherit',
-                '__set_for_os', '__items', '__resolved_inherit',
-                'var_list')
+                 'remark', "description", 'inherit',
+                 '__set_for_os', '__items', '__resolved_inherit',
+                 'var_list')
     os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
     item_types = ('install_sources', 'install_folders', 'depends', 'actions')
     action_types = ('pre_copy', 'pre_copy_to_folder', 'pre_copy_item',
                     'post_copy_item', 'post_copy_to_folder', 'post_copy',
-                    'pre_remove', 'pre_remove_from_folder', 'pre_remove_item', 'remove_item', 'post_remove_item', 'post_remove_from_folder', 'post_remove')
+                    'pre_remove', 'pre_remove_from_folder', 'pre_remove_item',
+                    'remove_item', 'post_remove_item', 'post_remove_from_folder',
+                    'post_remove')
     file_types = ('!dir_cont', '!files', '!file', '!dir')
     resolve_inheritance_stack = list()
-    _get_for_os = [os_names[0]] # _get_for_os is a class member since we usually want to get for same oses for all InstallItems
+    _get_for_os = [
+        os_names[0]]  # _get_for_os is a class member since we usually want to get for same oses for all InstallItems
 
     @staticmethod
     def create_items_section():
@@ -184,7 +190,7 @@ class InstallItem(object):
     def read_from_yaml_by_idd(self, IID, all_items_node):
         my_node = all_items_node[IID]
         self.read_from_yaml(my_node)
-        self.iid = IID # restore the IID that might have been overwritten by inheritance
+        self.iid = IID  # restore the IID that might have been overwritten by inheritance
         self.description = str(my_node.start_mark)
 
     def read_from_yaml(self, my_node):
@@ -229,11 +235,11 @@ class InstallItem(object):
             for action_type in self.action_types:
                 action_list_for_type = self._action_list(action_type)
                 if len(action_list_for_type) > 0:
-                    self.var_list.set_var("iid_action_list_"+action_type).extend(action_list_for_type)
+                    self.var_list.set_var("iid_action_list_" + action_type).extend(action_list_for_type)
             source_vars_obj = self.var_list.set_var("iid_source_var_list")
             source_list = self._source_list()
             for i, source in enumerate(source_list):
-                source_var = "iid_source_"+str(i)
+                source_var = "iid_source_" + str(i)
                 source_vars_obj.append(source_var)
                 self.var_list.set_var(source_var).extend(source)
         return self.var_list
@@ -259,16 +265,16 @@ class InstallItem(object):
         self.__items[item_os][item_category].append(item_value)
 
     def __add_item_to_default_os_by_category(self, item_category, item_value):
-       """ Add an item to currently default os and category, e.g.:
-            begin_set_for_specific_os("Win")
-            __add_item_to_default_os_by_category("install_sources", "x.dll")
-            self.end_set_for_specific_os()
-            __add_item_to_default_os_by_category("install_sources", "AudioTrack.bundle")
+        """ Add an item to currently default os and category, e.g.:
+             begin_set_for_specific_os("Win")
+             __add_item_to_default_os_by_category("install_sources", "x.dll")
+             self.end_set_for_specific_os()
+             __add_item_to_default_os_by_category("install_sources", "AudioTrack.bundle")
 
-            The default os is the one at the top of the __set_for_os stack. __set_for_os
-            starts with "common" as the first o.
-        """
-       self.__add_item_by_os_and_category(self.__set_for_os[-1], item_category, item_value)
+             The default os is the one at the top of the __set_for_os stack. __set_for_os
+             starts with "common" as the first o.
+         """
+        self.__add_item_by_os_and_category(self.__set_for_os[-1], item_category, item_value)
 
     def __get_item_list_by_os_and_category(self, item_os, item_category):
         retVal = list()
@@ -278,8 +284,8 @@ class InstallItem(object):
 
     def __get_item_list_for_default_oses_by_category(self, item_category):
         retVal = unique_list()
-        for os in InstallItem._get_for_os:
-            retVal.extend(self.__get_item_list_by_os_and_category(os, item_category))
+        for os_name in InstallItem._get_for_os:
+            retVal.extend(self.__get_item_list_by_os_and_category(os_name, item_category))
         return retVal
 
     def add_inherit(self, inherit_idd):
@@ -292,26 +298,26 @@ class InstallItem(object):
     def add_source(self, new_source, file_type='!dir'):
         if file_type not in InstallItem.file_types:
             file_type = '!dir'
-        self.__add_item_to_default_os_by_category('install_sources', (new_source, file_type, self.__set_for_os[-1]) )
+        self.__add_item_to_default_os_by_category('install_sources', (new_source, file_type, self.__set_for_os[-1]))
 
     def _source_list(self):
         return self.__get_item_list_for_default_oses_by_category('install_sources')
 
     def add_folder(self, new_folder):
-        self.__add_item_to_default_os_by_category('install_folders', new_folder )
+        self.__add_item_to_default_os_by_category('install_folders', new_folder)
 
     def _folder_list(self):
         return self.__get_item_list_for_default_oses_by_category('install_folders')
 
     def add_depend(self, new_depend):
-        self.__add_item_to_default_os_by_category('depends', new_depend )
+        self.__add_item_to_default_os_by_category('depends', new_depend)
 
     def _depend_list(self):
         return self.__get_item_list_for_default_oses_by_category('depends')
 
     def add_action(self, action_type, new_action):
         if action_type not in InstallItem.action_types:
-            raise KeyError("actions type must be one of: "+str(InstallItem.action_types)+" not "+action_type)
+            raise KeyError("actions type must be one of: " + str(InstallItem.action_types) + " not " + action_type)
         self.__add_item_to_default_os_by_category(action_type, new_action)
 
     def read_actions(self, action_nodes):
@@ -321,7 +327,7 @@ class InstallItem(object):
 
     def _action_list(self, action_type):
         if action_type not in InstallItem.action_types:
-            raise KeyError("actions type must be one of: "+str(InstallItem.action_types)+" not "+action_type)
+            raise KeyError("actions type must be one of: " + str(InstallItem.action_types) + " not " + action_type)
         return self.__get_item_list_for_default_oses_by_category(action_type)
 
     def all_action_list(self):
@@ -329,18 +335,18 @@ class InstallItem(object):
         """
         retVal = list()
         for action_type in InstallItem.action_types:
-          retVal.extend(self.__get_item_list_for_default_oses_by_category(action_type))
+            retVal.extend(self.__get_item_list_for_default_oses_by_category(action_type))
         return retVal
 
     def get_recursive_depends(self, items_map, out_set, orphan_set):
         if self.iid not in out_set:
             out_set.append(self.iid)
-            #print("get_recursive_depends: added", self.iid)
+            # print("get_recursive_depends: added", self.iid)
             for depend in self._depend_list():
                 #print("get_recursive_depends:", self.iid, "depends on", depend)
-                if depend not in out_set: # avoid cycles, save time
+                if depend not in out_set:  # avoid cycles, save time
                     try:
-                        if guid_re.match(depend): # if it's a guid translate to iid's
+                        if guid_re.match(depend):  # if it's a guid translate to iid's
                             dependees = iids_from_guid(items_map, depend)
                         else:
                             dependees = [depend]
@@ -402,18 +408,18 @@ class InstallItem(object):
         # name of the other item is added to the remark
         if not self.remark:
             self.remark = self.name
-        self.remark += ", "+otherInstallItem.name
+        self.remark += ", " + otherInstallItem.name
         self.inherit.update(otherInstallItem.inherit)
         self.merge_all_item_sections(otherInstallItem)
 
     def resolve_inheritance(self, InstallItemsDict):
         if not self.__resolved_inherit:
             if self.iid in self.resolve_inheritance_stack:
-                raise Exception("circular resolve_inheritance of "+self.iid)
+                raise Exception("circular resolve_inheritance of " + self.iid)
             self.resolve_inheritance_stack.append(self.iid)
             for ancestor in self._inherit_list():
                 if ancestor not in InstallItemsDict:
-                    raise KeyError(self.iid+" inherites from "+ancestor+" which is not in InstallItemsDict")
+                    raise KeyError(self.iid + " inherites from " + ancestor + " which is not in InstallItemsDict")
                 ancestor_item = InstallItemsDict[ancestor]
                 ancestor_item.resolve_inheritance(InstallItemsDict)
                 self.merge_all_item_sections(ancestor_item)

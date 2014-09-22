@@ -32,7 +32,7 @@ class TestSVNTree(unittest.TestCase):
         this_dir, this_script = os.path.split(__file__)
         SVNInfoTestFile1 = os.path.join(this_dir, "SVNInfoTest1.info")
         tree = SVNTree()
-        tree.read_info_map_from_file(SVNInfoTestFile1, format="info")
+        tree.read_info_map_from_file(SVNInfoTestFile1, a_format="info")
 
         SVNInfoTestFile1Out = os.path.join(this_dir, "SVNInfoTest1.out.txt")
         tree.write_to_file(SVNInfoTestFile1Out, in_format="text", comments=False)

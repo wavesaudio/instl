@@ -13,8 +13,11 @@ from instlInstanceBase import InstlInstanceBase
 from configVarStack import var_stack as var_list
 import svnTree
 
+
+# noinspection PyPep8Naming
 class InstallInstructionsState(object):
     """ holds state for specific creating of install instructions """
+
     def __init__(self):
         self.root_install_items = unique_list()
         self.full_install_items = unique_list()
@@ -28,9 +31,10 @@ class InstallInstructionsState(object):
         retVal['root_install_items'] = list(self.root_install_items)
         retVal['full_install_items'] = list(self.full_install_items)
         retVal['orphan_install_items'] = list(self.orphan_install_items)
-        retVal['install_items_by_target_folder'] = {folder: list(self.install_items_by_target_folder[folder]) for folder in self.install_items_by_target_folder}
+        retVal['install_items_by_target_folder'] = {folder: list(self.install_items_by_target_folder[folder]) for folder
+                                                    in self.install_items_by_target_folder}
         retVal['no_copy_items_by_sync_folder'] = list(self.no_copy_items_by_sync_folder)
-        #retVal['variables_assignment_lines'] = list(self.variables_assignment_lines)
+        # retVal['variables_assignment_lines'] = list(self.variables_assignment_lines)
         #retVal['copy_instruction_lines'] = self.instruction_lines['copy']
         retVal['sync_paths'] = list(self.sync_paths)
         #retVal['sync_instruction_lines'] = self.instruction_lines['sync']
@@ -44,11 +48,11 @@ class InstallInstructionsState(object):
                     for folder in folder_list_for_idd:
                         norm_folder = os.path.normpath(folder)
                         self.install_items_by_target_folder[norm_folder].append(IID)
-                else: # items that need no copy
+                else:  # items that need no copy
                     for source_var in var_list.get_configVar_obj("iid_source_var_list"):
                         source = var_list.resolve_var_to_list(source_var)
                         relative_sync_folder = instlObj.relative_sync_folder_for_source(source)
-                        sync_folder =  os.path.join( "$(LOCAL_REPO_SOURCES_DIR)", relative_sync_folder )
+                        sync_folder = os.path.join("$(LOCAL_REPO_SOURCES_DIR)", relative_sync_folder)
                         self.no_copy_items_by_sync_folder[sync_folder].append(IID)
 
     def calculate_full_install_items_set(self, instlObj):
@@ -65,11 +69,12 @@ class InstallInstructionsState(object):
 
         root_install_iids_translated = unique_list()
         for IID in self.root_install_items:
-            if guid_re.match(IID): # if it's a guid translate to iid's
+            if guid_re.match(IID):  # if it's a guid translate to iid's
                 iids_from_the_guid = iids_from_guid(instlObj.install_definitions_index, IID)
                 if len(iids_from_the_guid) > 0:
                     root_install_iids_translated.extend(iids_from_the_guid)
-                    logging.debug("GUID %s, translated to %d iids: %s", IID, len(iids_from_the_guid), ", ".join(iids_from_the_guid))
+                    logging.debug("GUID %s, translated to %d iids: %s", IID, len(iids_from_the_guid),
+                                  ", ".join(iids_from_the_guid))
                 else:
                     self.orphan_install_items.append(IID)
                     logging.warning("%s is a guid but could not be translated to iids", IID)
@@ -81,34 +86,37 @@ class InstallInstructionsState(object):
 
         for IID in root_install_iids_translated:
             try:
-                instlObj.install_definitions_index[IID].get_recursive_depends(instlObj.install_definitions_index, self.full_install_items, self.orphan_install_items)
+                instlObj.install_definitions_index[IID].get_recursive_depends(instlObj.install_definitions_index,
+                                                                              self.full_install_items,
+                                                                              self.orphan_install_items)
             except KeyError:
                 self.orphan_install_items.append(IID)
                 logging.warning("%s not found in index", IID)
         logging.info(" ".join(("Full install items:", ", ".join(self.full_install_items))))
         self.__sort_install_items_by_target_folder(instlObj)
 
-class InstlClient(InstlInstanceBase):
 
+class InstlClient(InstlInstanceBase):
     def __init__(self, initial_vars):
         super(InstlClient, self).__init__(initial_vars)
 
     def do_command(self):
         the_command = var_list.resolve("$(__MAIN_COMMAND__)")
-        #print("client_commands", the_command)
+        # print("client_commands", the_command)
         self.installState = InstallInstructionsState()
         self.read_yaml_file(var_list.resolve("$(__MAIN_INPUT_FILE__)"))
         self.init_default_client_vars()
         self.resolve_defined_paths()
         self.platform_helper.init_download_tool()
-        self.platform_helper.init_copy_tool() # after reading variable COPY_TOOL from yaml, we might need to re-init the copy tool.
+        # after reading variable COPY_TOOL from yaml, we might need to re-init the copy tool.
+        self.platform_helper.init_copy_tool()
         self.resolve_index_inheritance()
         self.add_deafult_items()
         self.calculate_default_install_item_set()
         self.platform_helper.num_items_for_progress_report = int(var_list.resolve("$(LAST_PROGRESS)"))
 
         fixed_command_name = the_command.replace('-', '_')
-        do_command_func = getattr(self, "do_"+fixed_command_name)
+        do_command_func = getattr(self, "do_" + fixed_command_name)
         do_command_func()
         self.create_instl_history_file()
 
@@ -119,13 +127,16 @@ class InstlClient(InstlInstanceBase):
 
     def create_instl_history_file(self):
         var_list.set_var("__BATCH_CREATE_TIME__").append(time.strftime("%Y/%m/%d %H:%M:%S"))
-        yaml_of_defines = augmentedYaml.YamlDumpDocWrap(var_list, '!define', "Definitions", explicit_start=True, sort_mappings=True)
+        yaml_of_defines = augmentedYaml.YamlDumpDocWrap(var_list, '!define', "Definitions",
+                                                        explicit_start=True, sort_mappings=True)
         with open(var_list.resolve("$(INSTL_HISTORY_TEMP_PATH)"), "w") as wfd:
             augmentedYaml.writeAsYaml(yaml_of_defines, wfd)
-        self.batch_accum += self.platform_helper.append_file_to_file("$(INSTL_HISTORY_TEMP_PATH)", "$(INSTL_HISTORY_PATH)")
+        self.batch_accum += self.platform_helper.append_file_to_file("$(INSTL_HISTORY_TEMP_PATH)",
+                                                                     "$(INSTL_HISTORY_PATH)")
 
     def read_repo_type_defaults(self):
-        repo_type_defaults_file_path = os.path.join(var_list.resolve("$(__INSTL_DATA_FOLDER__)"), "defaults", var_list.resolve("$(REPO_TYPE).yaml"))
+        repo_type_defaults_file_path = os.path.join(var_list.resolve("$(__INSTL_DATA_FOLDER__)"), "defaults",
+                                                    var_list.resolve("$(REPO_TYPE).yaml"))
         if os.path.isfile(repo_type_defaults_file_path):
             self.read_yaml_file(repo_type_defaults_file_path)
 
@@ -194,9 +205,12 @@ class InstlClient(InstlInstanceBase):
             one for define (tagged !define), one for the index (tagged !index).
         """
         retVal = list()
-        if what is None: # None is all
-            retVal.append(augmentedYaml.YamlDumpDocWrap(var_list, '!define', "Definitions", explicit_start=True, sort_mappings=True))
-            retVal.append(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True))
+        if what is None:  # None is all
+            retVal.append(augmentedYaml.YamlDumpDocWrap(var_list, '!define', "Definitions",
+                                                        explicit_start=True, sort_mappings=True))
+            retVal.append(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index,
+                                                        '!index', "Installation index",
+                                                        explicit_start=True, sort_mappings=True))
         else:
             defines = list()
             indexes = list()
@@ -207,13 +221,19 @@ class InstlClient(InstlInstanceBase):
                 elif identifier in self.install_definitions_index:
                     indexes.append({identifier: self.install_definitions_index[identifier].repr_for_yaml()})
                 else:
-                    unknowns.append(augmentedYaml.YamlDumpWrap(value="UNKNOWN VARIABLE", comment=identifier+" is not in variable list"))
+                    unknowns.append(augmentedYaml.YamlDumpWrap(value="UNKNOWN VARIABLE",
+                                                               comment=identifier + " is not in variable list"))
             if defines:
-                retVal.append(augmentedYaml.YamlDumpDocWrap(defines, '!define', "Definitions", explicit_start=True, sort_mappings=True))
+                retVal.append(augmentedYaml.YamlDumpDocWrap(defines, '!define', "Definitions",
+                                                            explicit_start=True, sort_mappings=True))
             if indexes:
-                retVal.append(augmentedYaml.YamlDumpDocWrap(indexes, '!index', "Installation index", explicit_start=True, sort_mappings=True))
+                retVal.append(
+                    augmentedYaml.YamlDumpDocWrap(indexes, '!index', "Installation index",
+                                                explicit_start=True, sort_mappings=True))
             if unknowns:
-                retVal.append(augmentedYaml.YamlDumpDocWrap(unknowns, '!unknowns', "Installation index", explicit_start=True, sort_mappings=True))
+                retVal.append(
+                    augmentedYaml.YamlDumpDocWrap(unknowns, '!unknowns', "Installation index",
+                                                  explicit_start=True, sort_mappings=True))
 
         return retVal
 
@@ -251,19 +271,26 @@ class InstlClient(InstlInstanceBase):
         var_list.set_var("__ORPHAN_INSTALL_TARGETS__").extend(self.installState.orphan_install_items)
 
     def init_copy_vars(self):
-        self.action_type_to_progress_message = {'pre_copy': "pre-install step", 'post_copy': "post-install step",
-                                                'pre_copy_to_folder': "pre-copy step", 'post_copy_to_folder': "post-copy step"}
+        self.action_type_to_progress_message = {'pre_copy': "pre-install step",
+                                                'post_copy': "post-install step",
+                                                'pre_copy_to_folder': "pre-copy step",
+                                                'post_copy_to_folder': "post-copy step"}
+
     def init_remove_vars(self):
-        self.action_type_to_progress_message = {'pre_remove': "pre-remove step", 'post_remove': "post-remove step",
-                                                'pre_remove_from_folder': "pre-remove-from-folder step", 'post_remove_from_folder': "post-remove-from-folder step",
-                                                'pre_remove_item': "pre-delete step", 'post_remove_item': "post-delete step"}
+        self.action_type_to_progress_message = {'pre_remove': "pre-remove step",
+                                                'post_remove': "post-remove step",
+                                                'pre_remove_from_folder': "pre-remove-from-folder step",
+                                                'post_remove_from_folder': "post-remove-from-folder step",
+                                                'pre_remove_item': "pre-delete step",
+                                                'post_remove_item': "post-delete step"}
 
     def create_copy_instructions(self):
         # copy and actions instructions for sources
         self.batch_accum.set_current_section('copy')
         self.batch_accum += self.platform_helper.progress("Starting copy from $(LOCAL_REPO_SOURCES_DIR)")
 
-        sorted_target_folder_list = sorted(self.installState.install_items_by_target_folder, key=lambda fold: var_list.resolve(fold))
+        sorted_target_folder_list = sorted(self.installState.install_items_by_target_folder,
+                                           key=lambda fold: var_list.resolve(fold))
 
         # first create all target folders so to avoid dependency order problems such as creating links between folders
         for folder_name in sorted_target_folder_list:
@@ -272,17 +299,19 @@ class InstlClient(InstlInstanceBase):
 
         self.accumulate_unique_actions('pre_copy', self.installState.full_install_items)
 
-        if 'Mac' in var_list.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_list.resolve_to_list("$(TARGET_OS)"):
+        if 'Mac' in var_list.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_list.resolve_to_list(
+                "$(TARGET_OS)"):
             self.batch_accum += self.platform_helper.resolve_symlink_files(in_dir="$(LOCAL_REPO_SOURCES_DIR)")
             self.batch_accum += self.platform_helper.progress("Resolve .symlink files")
 
             have_map = svnTree.SVNTree()
-            have_info_path = var_list.resolve("$(NEW_HAVE_INFO_MAP_PATH)") # in case we're in synccopy command
+            have_info_path = var_list.resolve("$(NEW_HAVE_INFO_MAP_PATH)")  # in case we're in synccopy command
             if not os.path.isfile(have_info_path):
-                have_info_path = var_list.resolve("$(HAVE_INFO_MAP_PATH)") # in case we're in copy command
+                have_info_path = var_list.resolve("$(HAVE_INFO_MAP_PATH)")  # in case we're in copy command
             if os.path.isfile(have_info_path):
-                have_map.read_info_map_from_file(have_info_path, format="text")
-                num_files_to_set_exec = have_map.num_subs_in_tree(what="file", predicate=lambda in_item: in_item.isExecutable())
+                have_map.read_info_map_from_file(have_info_path, a_format="text")
+                num_files_to_set_exec = have_map.num_subs_in_tree(what="file",
+                                                                  predicate=lambda in_item: in_item.isExecutable())
                 logging.info("Num files to set exec: %d", num_files_to_set_exec)
                 if num_files_to_set_exec > 0:
                     self.batch_accum += self.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")
@@ -321,9 +350,12 @@ class InstlClient(InstlInstanceBase):
 
         # actions instructions for sources that do not need copying, here folder_name is the sync folder
         for folder_name, items_in_folder in self.installState.no_copy_items_by_sync_folder.iteritems():
-            # calculate total number of actions for all items relating to folder_name, if 0 we can skip this folder altogether
-            num_actions_for_folder = reduce(lambda x, y: x+len(self.install_definitions_index[y].all_action_list()), items_in_folder, 0)
-            logging.info("%d non-copy items folder %s (%s)", num_actions_for_folder, folder_name, var_list.resolve(folder_name))
+            # calculate total number of actions for all items relating to folder_name,
+            # if 0 we can skip this folder altogether
+            num_actions_for_folder = reduce(lambda x, y: x + len(self.install_definitions_index[y].all_action_list()),
+                                            items_in_folder, 0)
+            logging.info("%d non-copy items folder %s (%s)", num_actions_for_folder, folder_name,
+                         var_list.resolve(folder_name))
 
             if 0 == num_actions_for_folder:
                 continue
@@ -353,51 +385,60 @@ class InstlClient(InstlInstanceBase):
         # messages about orphan iids
         for iid in self.installState.orphan_install_items:
             logging.info("Orphan item: %s", iid)
-            self.batch_accum += self.platform_helper.echo("Don't know how to install "+iid)
+            self.batch_accum += self.platform_helper.echo("Don't know how to install " + iid)
         self.batch_accum += self.platform_helper.progress("Done copy")
 
     def accumulate_unique_actions(self, action_type, iid_list):
-            """ accumulate action_type actions from iid_list, eliminating duplicates"""
-            unique_actions = unique_list() # unique_list will eliminate identical actions while keeping the order
-            for IID in iid_list:
-                with self.install_definitions_index[IID] as installi:
-                    action_var_name = "iid_action_list_"+action_type
-                    item_actions = var_list.resolve_var_to_list_if_exists(action_var_name)
-                    num_unique_actions = 0
-                    for an_action in item_actions:
-                        len_before = len(unique_actions)
-                        unique_actions.append(an_action)
-                        len_after = len(unique_actions)
-                        if len_before < len_after: # add progress only for the first same action
-                            num_unique_actions += 1
-                            action_description = self.action_type_to_progress_message[action_type]
-                            if num_unique_actions > 1:
-                                action_description = " ".join( (action_description, str(num_unique_actions)) )
-                            unique_actions.append(self.platform_helper.progress("{installi.name} {action_description}".format(**locals())))
-            self.batch_accum += unique_actions
-            logging.info("... %s actions: %d", action_type, len(unique_actions))
+        """ accumulate action_type actions from iid_list, eliminating duplicates"""
+        unique_actions = unique_list()  # unique_list will eliminate identical actions while keeping the order
+        for IID in iid_list:
+            with self.install_definitions_index[IID] as installi:
+                action_var_name = "iid_action_list_" + action_type
+                item_actions = var_list.resolve_var_to_list_if_exists(action_var_name)
+                num_unique_actions = 0
+                for an_action in item_actions:
+                    len_before = len(unique_actions)
+                    unique_actions.append(an_action)
+                    len_after = len(unique_actions)
+                    if len_before < len_after:  # add progress only for the first same action
+                        num_unique_actions += 1
+                        action_description = self.action_type_to_progress_message[action_type]
+                        if num_unique_actions > 1:
+                            action_description = " ".join((action_description, str(num_unique_actions)))
+                        unique_actions.append(
+                            self.platform_helper.progress("{installi.name} {action_description}".format(**locals())))
+        self.batch_accum += unique_actions
+        logging.info("... %s actions: %d", action_type, len(unique_actions))
 
     def create_copy_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
 
-        source_path = os.path.normpath("$(LOCAL_REPO_SOURCES_DIR)/"+source[0])
+        source_path = os.path.normpath("$(LOCAL_REPO_SOURCES_DIR)/" + source[0])
 
         ignore_list = var_list.resolve_to_list("$(COPY_IGNORE_PATTERNS)")
 
-        if source[1] == '!file':       # get a single file, not recommended
-            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".", link_dest=True, ignore=ignore_list)
-        elif source[1] == '!dir_cont': # get all files and folders from a folder
-            self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".", link_dest=True, ignore=ignore_list)
-        elif source[1] == '!files':    # get all files from a folder
-            self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".", link_dest=True, ignore=ignore_list)
-        else: # !dir
-            self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path, ".", link_dest=True, ignore=ignore_list)
+        if source[1] == '!file':  # get a single file, not recommended
+            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".",
+                                                                                link_dest=True,
+                                                                                ignore=ignore_list)
+        elif source[1] == '!dir_cont':  # get all files and folders from a folder
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".",
+                                                                                        link_dest=True,
+                                                                                        ignore=ignore_list)
+        elif source[1] == '!files':  # get all files from a folder
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".",
+                                                                                     link_dest=True,
+                                                                                     ignore=ignore_list)
+        else:  # !dir
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path, ".",
+                                                                               link_dest=True,
+                                                                               ignore=ignore_list)
         logging.debug("%s; (%s - %s)", source_path, var_list.resolve(source_path), source[1])
 
     def needs(self, iid, out_list):
         """ return all items that depend on iid """
         if iid not in self.install_definitions_index:
-            raise KeyError(iid+" is not in index")
+            raise KeyError(iid + " is not in index")
         InstallItem.begin_get_for_all_oses()
         with self.install_definitions_index[iid]:
             for dep in var_list.resolve_var_to_list("iid_depend_list"):
@@ -405,18 +446,19 @@ class InstlClient(InstlInstanceBase):
                     out_list.append(dep)
                     self.needs(dep, out_list)
                 else:
-                    out_list.append(dep+"(missing)")
+                    out_list.append(dep + "(missing)")
         InstallItem.reset_get_for_all_oses()
 
     def needed_by(self, iid):
         try:
             from pyinstl import installItemGraph
+
             InstallItem.begin_get_for_all_oses()
             graph = installItemGraph.create_dependencies_graph(self.install_definitions_index)
             needed_by_list = installItemGraph.find_needed_by(graph, iid)
             InstallItem.reset_get_for_all_oses()
             return needed_by_list
-        except ImportError: # no installItemGraph, no worry
+        except ImportError:  # no installItemGraph, no worry
             print("Could not load installItemGraph")
             return None
 
@@ -424,9 +466,9 @@ class InstlClient(InstlInstanceBase):
         self.batch_accum.set_current_section('remove')
         self.batch_accum += self.platform_helper.progress("Starting remove")
         sorted_target_folder_list = sorted(self.installState.install_items_by_target_folder,
-                                            key=lambda fold: var_list.resolve(fold),
-                                            reverse=True)
-        #print(sorted_target_folder_list)
+                                           key=lambda fold: var_list.resolve(fold),
+                                           reverse=True)
+        # print(sorted_target_folder_list)
         self.accumulate_unique_actions('pre_remove', self.installState.full_install_items)
 
         for folder_name in sorted_target_folder_list:
@@ -458,15 +500,15 @@ class InstlClient(InstlInstanceBase):
 
         remove_actions = var_list.resolve_var_to_list_if_exists("iid_action_list_remove_item")
         if len(remove_actions) == 0:
-            if source[1] == '!file':       # remove single file
+            if source[1] == '!file':  # remove single file
                 remove_actions = self.platform_helper.rmfile(to_remove_path)
-            #elif source[1] == '!dir_cont': # get all files and folders from a folder
+            # elif source[1] == '!dir_cont': # get all files and folders from a folder
             #    self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".", link_dest=True, ignore=ignore_list)
             #elif source[1] == '!files':    # get all files from a folder
             #    self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".", link_dest=True, ignore=ignore_list)
-            else: # !dir
+            else:  # !dir
                 remove_actions = self.platform_helper.rmdir(to_remove_path, recursive=True)
         else:
-            remove_actions = filter(None, remove_actions) # filter out None values
+            remove_actions = filter(None, remove_actions)  # filter out None values
 
         self.batch_accum += remove_actions

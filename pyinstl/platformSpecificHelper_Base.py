@@ -177,7 +177,6 @@ class PlatformSpecificHelperBase(object):
         self.progress_staccato_count = 0
 
     def DefaultCopyToolName(self, target_os):
-        retVal = None
         if target_os == "Win":
             retVal = "robocopy"
         elif target_os == "Mac":
@@ -247,7 +246,7 @@ class PlatformSpecificHelperBase(object):
         pass
 
     @abc.abstractmethod
-    def rmfile(self, file):
+    def rmfile(self, a_file):
         """ platform specific rm file """
         pass
 
@@ -305,7 +304,7 @@ class PlatformSpecificHelperBase(object):
         return svn_command
 
     @abc.abstractmethod
-    def check_checksum_for_file(self, file, checksum):
+    def check_checksum_for_file(self, a_file, checksum):
         pass
 
     def check_checksum_for_folder(self, info_map_file):
@@ -382,7 +381,6 @@ class PlatformSpecificHelperBase(object):
         pass
 
 def PlatformSpecificHelperFactory(in_os, instlObj):
-    retVal = None
     if in_os == "Mac":
         import platformSpecificHelper_Mac
         retVal = platformSpecificHelper_Mac.PlatformSpecificHelperMac(instlObj)
@@ -426,5 +424,5 @@ class DownloadToolBase(object):
         pass
 
     @abc.abstractmethod
-    def download_from_config_files(self, config_file):
+    def download_from_config_files(self, parallel_run_config_file_path, config_files):
         pass

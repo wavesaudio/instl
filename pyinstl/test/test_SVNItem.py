@@ -258,12 +258,12 @@ class TestSVNItem(unittest.TestCase):
         sub1 = svni1.get_item_at_path("Dir1")
         files, dirs = sub1.sorted_sub_items()
         # test item keys
-        self.assertEqual([file.name() for file in files], sorted(["File1.1", "File1.2", "File1.3"]))
+        self.assertEqual([a_file.name() for a_file in files], sorted(["File1.1", "File1.2", "File1.3"]))
 
         sub3 = svni1.get_item_at_path("Dir3")
         files, dirs = sub3.sorted_sub_items()
-        self.assertEqual([file.name() for file in files], sorted(["File3.1", "File3.2"]))
-        self.assertEqual([dir.name() for dir in dirs], sorted(["Dir3.1", "Dir3.2"]))
+        self.assertEqual([a_file.name() for a_file in files], sorted(["File3.1", "File3.2"]))
+        self.assertEqual([a_dir.name() for a_dir in dirs], sorted(["Dir3.1", "Dir3.2"]))
 
     def test_deepcopy(self):
         svni1 = SVNTopItem()

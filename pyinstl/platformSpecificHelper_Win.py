@@ -336,7 +336,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
 
     def check_checksum_for_folder(self, info_map_file):
         check_checksum_for_folder_command = super(PlatformSpecificHelperWin, self).check_checksum_for_folder(info_map_file)
-        return (check_checksum_for_folder_command, self.exit_if_error())
+        return check_checksum_for_folder_command, self.exit_if_error()
 
     def tar(self, to_tar_name):
         raise NotImplementedError
@@ -357,7 +357,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
 
     def unwtar_current_folder(self):
         unwtar_command = super(PlatformSpecificHelperWin, self).unwtar_current_folder()
-        return (unwtar_command, self.exit_if_error())
+        return unwtar_command, self.exit_if_error()
 
     def wait_for_child_processes(self):
         return ("echo wait_for_child_processes not implemented yet for windows",)
@@ -387,7 +387,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
 
     def create_folders(self, info_map_file):
         create_folders_command = super(PlatformSpecificHelperWin, self).create_folders(info_map_file)
-        return (create_folders_command, self.exit_if_error())
+        return create_folders_command, self.exit_if_error()
 
     def append_file_to_file(self, source_file, target_file):
         append_command = " ".join( ("type", quoteme_double(source_file), ">>", quoteme_double(target_file)) )
@@ -426,7 +426,7 @@ class DownloadTool_win_wget(DownloadToolBase):
         download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
         download_command_parts.append("--read-timeout")
         download_command_parts.append("900")
-        return (" ".join(download_command_parts), self.platform_helper.exit_if_error())
+        return " ".join(download_command_parts), self.platform_helper.exit_if_error()
 
 
 class DownloadTool_win_curl(DownloadToolBase):

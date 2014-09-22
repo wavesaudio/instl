@@ -1,8 +1,6 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
-import sys
-import os
 import time
 import unittest
 import filecmp
@@ -105,7 +103,7 @@ class TestPlatformSpecificHelper(unittest.TestCase):
                 else:
                     retVal = False
                     report.append( (cfile, linode, "!=", rinode) )
-        elif (comperer.left_only or comperer.right_only):
+        elif comperer.left_only or comperer.right_only:
             retVal = False
             report.append( ("no common files",) )
             report.append((".",))
@@ -155,7 +153,7 @@ class TestPlatformSpecificHelper(unittest.TestCase):
                     report.append( (cfile, linode, "==", rinode) )
                 else:
                     report.append( (cfile, linode, "!=", rinode) )
-        elif (comperer.left_only or comperer.right_only):
+        elif comperer.left_only or comperer.right_only:
             retVal = False
             report.append( ("no common files",) )
             report.append((".",))

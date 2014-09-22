@@ -1,6 +1,7 @@
 ????
 
     programmer visible changes:
+    * ran "inspect code..." fixed a (few) issues.
     * more refined yaml reading options: url with/without sig and checksum. with multuple copy destinations.
     * removed redundant functions get_machine_config_file_path, get_user_config_file_path
     * Split new function read_from_file_or_url from download_from_file_or_url

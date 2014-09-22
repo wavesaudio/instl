@@ -68,7 +68,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
                                       cache=True,
                                       public_key=var_list.resolve("$(PUBLIC_KEY)"),
                                       textual_sig=var_list.resolve("$(INFO_MAP_SIG)"))
-            self.work_info_map.read_info_map_from_file(var_list.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)"), format="text")
+            self.work_info_map.read_info_map_from_file(var_list.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)"), a_format="text")
         except:
             raise
 
@@ -91,7 +91,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         """ Reads the map of files previously synced - if there is one.
         """
         if os.path.isfile(var_list.resolve("$(HAVE_INFO_MAP_PATH)")):
-            self.have_map.read_info_map_from_file(var_list.resolve("$(HAVE_INFO_MAP_PATH)"), format="text")
+            self.have_map.read_info_map_from_file(var_list.resolve("$(HAVE_INFO_MAP_PATH)"), a_format="text")
 
     class RemoveIfChecksumOK:
         def __init__(self, base_path):

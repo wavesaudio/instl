@@ -229,7 +229,6 @@ def last_url_item(url):
     return retVal
 
 def main_url_item(url):
-    retVal = ""
     try:
         parseResult = urlparse.urlparse(url)
         #print("+++++++", url, "+", parseResult)

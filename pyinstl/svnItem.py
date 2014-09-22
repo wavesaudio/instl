@@ -103,8 +103,7 @@ class SVNItem(object):
         both_are_files = self.isFile() and other.isFile()
          # do not bother checking subs if the containing objects are either both files or their members are not the equal
         if retVal and not both_are_files:
-            same_subs = self.subs() == other.subs()
-            retVal = retVal and same_subs
+            retVal = self.subs() == other.subs()
 
         return retVal
 
@@ -166,7 +165,6 @@ class SVNItem(object):
         return retVal
 
     def full_path_parts_recursive(self):
-        retVal = None
         if self.__up is None:
             retVal = [self.__name]
         else:
@@ -226,7 +224,6 @@ class SVNItem(object):
             and some part of the path does not exist KeyError will be raised.
             This is the non recursive version of this fuction.
         """
-        retVal = None
         #print("--- add sub to", self.name(), path, flags, last_rev)
         path_parts = at_path
         if isinstance(at_path, basestring):

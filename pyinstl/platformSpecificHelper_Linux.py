@@ -1,7 +1,6 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
-import os
 import datetime
 from pyinstl.utils import *
 
@@ -33,7 +32,7 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         return retVal
 
     def get_install_instructions_postfix(self):
-        return (self.restore_dir("TOP_SAVE_DIR"), "exit 0")
+        return self.restore_dir("TOP_SAVE_DIR"), "exit 0"
 
     def mkdir(self, directory):
         mk_command = " ".join( ("mkdir", "-p", quoteme_double(directory) ) )
@@ -60,14 +59,13 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         return restore_dir_command
 
     def rmdir(self, directory, recursive=False):
-        rmdir_command = ""
         if recursive:
             rmdir_command = " ".join( ("rm", "-fr", quoteme_double(directory) ) )
         else:
             rmdir_command = " ".join( ("rmdir", quoteme_double(directory) ) )
         return rmdir_command
 
-    def rmfile(self, file):
+    def rmfile(self, a_file):
         rmfile_command = " ".join( ("rm", "-f", quoteme_double(file) ) )
         return rmfile_command
 
@@ -101,7 +99,7 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
             copy_command = "cp -f \"{src_file}\" \"{trg_file}\"".format(**locals())
         return copy_command
 
-    def check_checksum_for_file(self, file, checksum):
+    def check_checksum_for_file(self, a_file, checksum):
         raise NotImplementedError
 
     def tar(self, to_tar_name):
@@ -156,5 +154,5 @@ class DownloadTool_linux_curl(DownloadToolBase):
         download_command_parts.append(quoteme_double(src_url))
         return " ".join(download_command_parts)
 
-    def download_from_config_files(self, config_file):
+    def download_from_config_files(self, parallel_run_config_file_path, config_files):
         pass

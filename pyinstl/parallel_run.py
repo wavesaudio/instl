@@ -22,8 +22,6 @@ def run_processes_in_parallel(commands):
 
 def run_parallels(commands):
     global exit_val
-    retVal = 0
-    max_time = 6
     start_time = time.time()
     for command in commands:
         try:

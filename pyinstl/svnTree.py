@@ -10,6 +10,7 @@ import aYaml
 import svnItem
 
 import re
+
 comment_line_re = re.compile(r"""
             ^
             \s*\#\s*
@@ -17,12 +18,13 @@ comment_line_re = re.compile(r"""
             $
             """, re.X)
 
-map_info_extension_to_format = {"txt" : "text", "text" : "text",
-                "inf" : "info", "info" : "info",
-                "yml" : "yaml", "yaml" : "yaml",
-                "pick" : "pickle", "pickl" : "pickle", "pickle" : "pickle",
-                "props" : "props", "prop" : "props"
-                }
+map_info_extension_to_format = {"txt": "text", "text": "text",
+                                "inf": "info", "info": "info",
+                                "yml": "yaml", "yaml": "yaml",
+                                "pick": "pickle", "pickl": "pickle", "pickle": "pickle",
+                                "props": "props", "prop": "props"
+}
+
 
 class SVNTree(svnItem.SVNTopItem):
     """ SVNTree inherites from SVNTopItem and adds the functionality
@@ -32,6 +34,7 @@ class SVNTree(svnItem.SVNTopItem):
             text: SVNItem's native format (read and write)
             yaml: yaml... (read and write)
     """
+
     def __init__(self):
         """ Initializes a SVNTree object """
         super(SVNTree, self).__init__()
@@ -41,8 +44,8 @@ class SVNTree(svnItem.SVNTopItem):
                                     "props": self.read_props}
 
         self.write_func_by_format = {"text": self.write_as_text,
-                                    "yaml": self.write_as_yaml,
-                                    }
+                                     "yaml": self.write_as_yaml,
+        }
         self.path_to_file = None
         self.comments = list()
 
@@ -50,26 +53,26 @@ class SVNTree(svnItem.SVNTopItem):
         """ returns a list of file formats that can be read by SVNTree """
         return self.read_func_by_format.keys()
 
-    def read_info_map_from_file(self, in_file, format="guess"):
+    def read_info_map_from_file(self, in_file, a_format="guess"):
         """ Reads from file. All previous sub items are cleared
-            before reading, unless the format is 'props' in which case
+            before reading, unless the a_format is 'props' in which case
             the properties are added to exsisting sub items.
-            raises ValueError is format is not supported.
+            raises ValueError is a_format is not supported.
         """
         self.path_to_file = in_file
-        if format == "guess":
+        if a_format == "guess":
             _, extension = os.path.splitext(self.path_to_file)
-            format = map_info_extension_to_format[extension[1:]]
-        self.comments.append("Original file "+self.path_to_file)
-        if format in self.read_func_by_format.keys():
+            a_format = map_info_extension_to_format[extension[1:]]
+        self.comments.append("Original file " + self.path_to_file)
+        if a_format in self.read_func_by_format.keys():
             with open_for_read_file_or_url(self.path_to_file) as rfd:
-                logging.info("%s, format: %s", self.path_to_file, format)
-                if format != "props":
+                logging.info("%s, a_format: %s", self.path_to_file, a_format)
+                if a_format != "props":
                     self.clear_subs()
-                self.read_func_by_format[format](rfd)
+                self.read_func_by_format[a_format](rfd)
         else:
-            logging.info("%s is not a known map_info format. Cannot read %s", format, in_file)
-            ValueError("Unknown read format "+format)
+            logging.info("%s is not a known map_info a_format. Cannot read %s", a_format, in_file)
+            ValueError("Unknown read a_format " + a_format)
 
     def read_from_svn_info(self, rfd):
         """ reads new items from svn info items prepared by iter_svn_info """
@@ -89,9 +92,9 @@ class SVNTree(svnItem.SVNTopItem):
             for a_node in yaml.compose_all(rfd):
                 self.read_yaml_node(a_node)
         except yaml.YAMLError as ye:
-            raise InstlException(" ".join( ("YAML error while reading file", "'"+file_path+"':\n", str(ye)) ), ye)
+            raise InstlException(" ".join(("YAML error while reading file", "'" + file_path + "':\n", str(ye))), ye)
         except IOError as ioe:
-            raise InstlException(" ".join(("Failed to read file", "'"+file_path+"'", ":")), ioe)
+            raise InstlException(" ".join(("Failed to read file", "'" + file_path + "'", ":")), ioe)
 
     def pseudo_read_from_yaml(self, rfd):
         """ read from yaml file without the yaml parser - much faster
@@ -113,7 +116,7 @@ class SVNTree(svnItem.SVNTopItem):
                     """, re.X)
         try:
             line_num = 0
-            indent = -1 # so indent of first line (0) > indent (-1)
+            indent = -1  # so indent of first line (0) > indent (-1)
             spaces_per_indent = 4
             path_parts = list()
             for line in rfd:
@@ -122,20 +125,21 @@ class SVNTree(svnItem.SVNTopItem):
                 if match:
                     new_indent = len(match.group('indent')) / spaces_per_indent
                     if match.group('path') != "_p_":
-                        how_much_to_pop = indent-new_indent+1
+                        how_much_to_pop = indent - new_indent + 1
                         if how_much_to_pop > 0:
                             path_parts = path_parts[0: -how_much_to_pop]
                         path_parts.append(match.group('path'))
-                        if match.group('props'): # it's a file
-                            #print(((new_indent * spaces_per_indent)-1) * " ", "/".join(path_parts), match.group('props'))
-                            self.new_item_at_path(path_parts, match.group('flags'), int(match.group('last_rev')), match.group('checksum'))
+                        if match.group('props'):  # it's a file
+                            # print(((new_indent * spaces_per_indent)-1) * " ", "/".join(path_parts), match.group('props'))
+                            self.new_item_at_path(path_parts, match.group('flags'), int(match.group('last_rev')),
+                                                  match.group('checksum'))
                         indent = new_indent
-                    else: # previous element was a folder
-                        #print(((new_indent * spaces_per_indent)-1) * " ", "/".join(path_parts), match.group('props'))
+                    else:  # previous element was a folder
+                        # print(((new_indent * spaces_per_indent)-1) * " ", "/".join(path_parts), match.group('props'))
                         self.new_item_at_path(path_parts, match.group('flags'), int(match.group('last_rev')))
                 else:
-                    if indent != -1: # first lines might be empty
-                        ValueError("no match at line "+str(line_num)+": "+line)
+                    if indent != -1:  # first lines might be empty
+                        ValueError("no match at line " + str(line_num) + ": " + line)
         except Exception as unused_ex:
             print("exception at line:", line_num, line)
             raise
@@ -178,7 +182,7 @@ class SVNTree(svnItem.SVNTopItem):
                                     item.props = list()
                                 item.props.append(prop_name)
                 else:
-                    ValueError("no match at file: "+rfd.name+", line: "+str(line_num)+": "+line)
+                    ValueError("no match at file: " + rfd.name + ", line: " + str(line_num) + ": " + line)
         except Exception as ex:
             print("Line:", line_num, ex)
             raise
@@ -200,15 +204,15 @@ class SVNTree(svnItem.SVNTopItem):
                 self.write_func_by_format[in_format](wfd, comments)
         else:
             logging.info("%s is not a known map_info format. Cannot write %s", in_format, in_file)
-            ValueError("Unknown write in_format "+in_format)
+            ValueError("Unknown write in_format " + in_format)
 
     def write_as_text(self, wfd, comments=True):
         if comments and len(self.comments) > 0:
             for comment in self.comments:
-                wfd.write("# "+comment+"\n")
+                wfd.write("# " + comment + "\n")
             wfd.write("\n")
         for item in self.walk_items():
-            wfd.write(str(item)+"\n")
+            wfd.write(str(item) + "\n")
 
     def write_as_yaml(self, wfd, comments=True):
         aYaml.augmentedYaml.writeAsYaml(self, out_stream=wfd, indentor=None, sort=True)
@@ -237,17 +241,18 @@ class SVNTree(svnItem.SVNTopItem):
                         (?P<rest_of_line>.*)
                         $
                         """, re.VERBOSE)
-            def create_info_line_from_record(record):
+
+            def create_info_line_from_record(a_record):
                 """ On rare occasions there is no 'Last Changed Rev' field, just 'Revision'.
                     So we use 'Revision' as 'Last Changed Rev'.
                 """
-                revision = record.get("Last Changed Rev", None)
+                revision = a_record.get("Last Changed Rev", None)
                 if revision is None:
-                    revision = record.get("Revision", None)
-                checksum = record.get("Checksum", None)
-                return (record["Path"], short_node_kind[record["Node Kind"]], int(revision), checksum)
+                    revision = a_record.get("Revision", None)
+                checksum = a_record.get("Checksum", None)
+                return a_record["Path"], short_node_kind[a_record["Node Kind"]], int(revision), checksum
 
-            short_node_kind = {"file" : "f", "directory" : "d"}
+            short_node_kind = {"file": "f", "directory": "d"}
             record = dict()
             line_num = 0
             for line in long_info_fd:
@@ -256,21 +261,23 @@ class SVNTree(svnItem.SVNTopItem):
                     the_match = svn_info_line_re.match(line)
                     if the_match:
                         if the_match.group('key') == "Tree conflict":
-                            raise ValueError(" ".join(("Tree conflict at line", str(line_num), "Path:", record['Path'])))
+                            raise ValueError(
+                                " ".join(("Tree conflict at line", str(line_num), "Path:", record['Path'])))
                         record[the_match.group('key')] = the_match.group('rest_of_line')
                 else:
-                    if record and record["Path"] != ".": # in case there were several empty lines between blocks
+                    if record and record["Path"] != ".":  # in case there were several empty lines between blocks
                         yield create_info_line_from_record(record)
                     record.clear()
-            if record and record["Path"] != ".": # in case there was no extra line at the end of file
+            if record and record["Path"] != ".":  # in case there was no extra line at the end of file
                 yield create_info_line_from_record(record)
         except KeyError as unused_ke:
             print(unused_ke)
-            print("Error:",  "line:", line_num, "record:", record)
+            print("Error:", "line:", line_num, "record:", record)
             raise
+
 
 if __name__ == "__main__":
     t = SVNTree()
     t.read_svn_info_file(sys.argv[1])
-    #for item in t.walk_items():
+    # for item in t.walk_items():
     #    print(str(item))
