@@ -1,4 +1,9 @@
-17/9/2014 0.9.16   Shai Shasag <shai@waves.com>
+29/9/2014 0.9.16.2   Shai Shasag <shai@waves.com>
+
+    programmer visible changes:
+    * Fixed a bug in rmfile implementation
+
+28/9/2014 0.9.16.1   Shai Shasag <shai@waves.com>
 
     programmer visible changes:
     * ran "inspect code..." fixed a (few) issues.
