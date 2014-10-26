@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<ScrivenerProject Version="1.0" Creator="SCRMAC-2.6-25480" Modified="2014-10-26 11:46:19 +0200">
+<ScrivenerProject Version="1.0" Creator="SCRMAC-2.6-25480" Modified="2014-10-26 12:23:17 +0200">
     <Binder>
         <BinderItem ID="0" Type="DraftFolder" Created="2014-10-26 11:30:34 +0200" Modified="2014-10-26 11:30:34 +0200">
             <Title>Draft</Title>
@@ -7,17 +7,18 @@
                 <IncludeInCompile>Yes</IncludeInCompile>
             </MetaData>
             <CorkboardAndOutliner>
-                <SelectedSubdocumentIDs>11</SelectedSubdocumentIDs>
+                <SelectedSubdocumentIDs>3</SelectedSubdocumentIDs>
             </CorkboardAndOutliner>
             <Children>
-                <BinderItem ID="11" Type="Text" Created="2014-10-26 11:35:48 +0200" Modified="2014-10-26 11:41:13 +0200">
+                <BinderItem ID="11" Type="Text" Created="2014-10-26 11:35:48 +0200" Modified="2014-10-26 12:23:03 +0200">
                     <Title>About instl</Title>
                     <MetaData>
                         <IncludeInCompile>Yes</IncludeInCompile>
                         <NotesTextSelection>0,0</NotesTextSelection>
+                        <IconFileName>Notes (Blue Notepad).tiff</IconFileName>
                     </MetaData>
                     <TextSettings>
-                        <TextSelection>170,0</TextSelection>
+                        <TextSelection>0,0</TextSelection>
                     </TextSettings>
                 </BinderItem>
                 <BinderItem ID="3" Type="Text" Created="2014-10-26 11:30:34 +0200" Modified="2014-10-26 11:31:19 +0200">
@@ -25,6 +26,7 @@
                     <MetaData>
                         <IncludeInCompile>Yes</IncludeInCompile>
                         <NotesTextSelection>0,0</NotesTextSelection>
+                        <IconFileName>Book (Blue Book).tiff</IconFileName>
                     </MetaData>
                     <TextSettings>
                         <TextSelection>0,0</TextSelection>
@@ -35,6 +37,7 @@
                     <MetaData>
                         <IncludeInCompile>Yes</IncludeInCompile>
                         <NotesTextSelection>0,0</NotesTextSelection>
+                        <IconFileName>Book (Blue Book).tiff</IconFileName>
                     </MetaData>
                     <TextSettings>
                         <TextSelection>0,0</TextSelection>
@@ -45,26 +48,62 @@
                     <MetaData>
                         <IncludeInCompile>Yes</IncludeInCompile>
                         <NotesTextSelection>0,0</NotesTextSelection>
+                        <IconFileName>Book (Blue Book).tiff</IconFileName>
                     </MetaData>
                     <TextSettings>
                         <TextSelection>0,0</TextSelection>
                     </TextSettings>
                 </BinderItem>
-                <BinderItem ID="9" Type="Text" Created="2014-10-26 11:34:03 +0200" Modified="2014-10-26 11:34:10 +0200">
+                <BinderItem ID="9" Type="Text" Created="2014-10-26 11:34:03 +0200" Modified="2014-10-26 12:16:16 +0200">
                     <Title>Command reference</Title>
                     <MetaData>
                         <IncludeInCompile>Yes</IncludeInCompile>
                         <NotesTextSelection>0,0</NotesTextSelection>
+                        <IconFileName>Information.tiff</IconFileName>
                     </MetaData>
                     <TextSettings>
-                        <TextSelection>0,0</TextSelection>
+                        <TextSelection>1,0</TextSelection>
                     </TextSettings>
+                    <Children>
+                        <BinderItem ID="16" Type="Text" Created="2014-10-26 12:07:45 +0200" Modified="2014-10-26 12:11:42 +0200">
+                            <Title>check-checksum</Title>
+                            <MetaData>
+                                <IncludeInCompile>Yes</IncludeInCompile>
+                                <NotesTextSelection>0,0</NotesTextSelection>
+                            </MetaData>
+                            <TextSettings>
+                                <TextSelection>1192,0</TextSelection>
+                            </TextSettings>
+                        </BinderItem>
+                        <BinderItem ID="17" Type="Text" Created="2014-10-26 12:14:29 +0200" Modified="2014-10-26 12:22:01 +0200">
+                            <Title>check-sig</Title>
+                            <MetaData>
+                                <IncludeInCompile>Yes</IncludeInCompile>
+                                <NotesTextSelection>0,0</NotesTextSelection>
+                            </MetaData>
+                            <TextSettings>
+                                <TextSelection>56,8</TextSelection>
+                            </TextSettings>
+                        </BinderItem>
+                    </Children>
                 </BinderItem>
                 <BinderItem ID="10" Type="Text" Created="2014-10-26 11:34:11 +0200" Modified="2014-10-26 11:34:18 +0200">
                     <Title>Variable reference</Title>
                     <MetaData>
                         <IncludeInCompile>Yes</IncludeInCompile>
                         <NotesTextSelection>0,0</NotesTextSelection>
+                        <IconFileName>Information.tiff</IconFileName>
+                    </MetaData>
+                    <TextSettings>
+                        <TextSelection>0,0</TextSelection>
+                    </TextSettings>
+                </BinderItem>
+                <BinderItem ID="18" Type="Folder" Created="2014-10-26 12:19:28 +0200" Modified="2014-10-26 12:19:33 +0200">
+                    <Title>File formats</Title>
+                    <MetaData>
+                        <IncludeInCompile>Yes</IncludeInCompile>
+                        <NotesTextSelection>0,0</NotesTextSelection>
+                        <IconFileName>Information.tiff</IconFileName>
                     </MetaData>
                     <TextSettings>
                         <TextSelection>0,0</TextSelection>
@@ -83,40 +122,6 @@
             <MetaData>
                 <IncludeInCompile>Yes</IncludeInCompile>
             </MetaData>
-            <Children>
-                <BinderItem ID="6" Type="Text" Created="2014-10-26 11:32:02 +0200" Modified="2014-10-26 11:32:02 +0200">
-                    <Title>Untitled</Title>
-                    <MetaData>
-                        <IncludeInCompile>Yes</IncludeInCompile>
-                        <NotesTextSelection>0,0</NotesTextSelection>
-                    </MetaData>
-                    <TextSettings>
-                        <TextSelection>0,0</TextSelection>
-                    </TextSettings>
-                    <Children>
-                        <BinderItem ID="7" Type="Text" Created="2014-10-26 11:32:11 +0200" Modified="2014-10-26 11:32:11 +0200">
-                            <Title>Untitled</Title>
-                            <MetaData>
-                                <IncludeInCompile>Yes</IncludeInCompile>
-                                <NotesTextSelection>0,0</NotesTextSelection>
-                            </MetaData>
-                            <TextSettings>
-                                <TextSelection>0,0</TextSelection>
-                            </TextSettings>
-                        </BinderItem>
-                    </Children>
-                </BinderItem>
-                <BinderItem ID="8" Type="Folder" Created="2014-10-26 11:33:12 +0200" Modified="2014-10-26 11:33:12 +0200">
-                    <Title>New Folder</Title>
-                    <MetaData>
-                        <IncludeInCompile>Yes</IncludeInCompile>
-                        <NotesTextSelection>0,0</NotesTextSelection>
-                    </MetaData>
-                    <TextSettings>
-                        <TextSelection>0,0</TextSelection>
-                    </TextSettings>
-                </BinderItem>
-            </Children>
         </BinderItem>
     </Binder>
     <Collections>
@@ -151,7 +156,7 @@
     <ProjectTargets Notify="No">
         <DraftTarget Type="Words" CountIncludedOnly="Yes" CurrentCompileGroupOnly="No" Deadline="2014-10-26 11:30:33 +0200" IgnoreDeadline="Yes">0</DraftTarget>
         <SessionTarget Type="Words" CountDraftOnly="Yes" AllowNegatives="Yes" ResetType="Midnight" DeterminedFromDeadline="No" WritingDays="" CanWriteOnDeadlineDate="No">0</SessionTarget>
-        <PreviousSession Words="136" Characters="820" Date="2014-10-26 11:30:33 +0200"></PreviousSession>
+        <PreviousSession Words="2563" Characters="17701" Date="2014-10-26 11:47:32 +0200"></PreviousSession>
     </ProjectTargets>
     <PrintSettings PaperSize="595.0,842.0" LeftMargin="72.0" RightMargin="72.0" TopMargin="90.0" BottomMargin="90.0" PaperType="iso-a4" Orientation="Portrait" HorizontalPagination="Clip" VerticalPagination="Auto" ScaleFactor="1.0" HorizontallyCentered="Yes" VerticallyCentered="Yes" Collates="Yes" PagesAcross="1" PagesDown="1"></PrintSettings>
 </ScrivenerProject>

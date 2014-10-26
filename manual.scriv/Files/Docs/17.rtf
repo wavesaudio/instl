@@ -1,0 +1,27 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1138\cocoasubrtf510
+{\fonttbl\f0\froman\fcharset0 Palatino-Roman;}
+{\colortbl;\red255\green255\blue255;}
+{\*\listtable{\list\listtemplateid1\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid1\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid1}}
+{\*\listoverridetable{\listoverride\listid1\listoverridecount0\ls1}}
+\deftab720
+\pard\pardeftab720\pardirnatural
+
+\f0\fs32 \cf0 Check file against it's RSA signature and expected sha1 checksum\
+\
+Usage: instl 
+\b check-sig
+\b0  --in file_to_check --config-file path_to_config_file [--sha1 expected_sha1_checksum] [--rsa rsa_signature]\
+\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\pardirnatural
+\ls1\ilvl0{\listtext	\'95	}file_to_check is the file for which RSA signature and/or sha1 checksum will be checked.\
+{\listtext	\'95	}path_to_config_file is a YAML configuration file with relevant variables.\
+{\listtext	\'95	}If --rsa option is given, 
+\b check-sig
+\b0  will verify the signature agains the file using the public key (variable: PUBLIC_KEY) supplied in the config file.\
+{\listtext	\'95	}If --sha2 option is given 
+\b check-sig
+\b0  will calculate the file's sha1 checksum and compare the result to the given checksum.\
+\ls1\ilvl0
+\b {\listtext	\'95	}check-sig
+\b0  is a utility command, it is not needed for creating or using instl-based installer.\
+}
