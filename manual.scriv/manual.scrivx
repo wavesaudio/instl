@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<ScrivenerProject Version="1.0" Creator="SCRMAC-2.6-25480" Modified="2014-10-26 18:57:03 +0200">
+<ScrivenerProject Version="1.0" Creator="SCRMAC-2.6-25480" Modified="2014-10-29 15:00:55 +0200">
     <Binder>
         <BinderItem ID="0" Type="DraftFolder" Created="2014-10-26 11:30:34 +0200" Modified="2014-10-26 11:30:34 +0200">
             <Title>Draft</Title>
@@ -7,7 +7,7 @@
                 <IncludeInCompile>Yes</IncludeInCompile>
             </MetaData>
             <CorkboardAndOutliner>
-                <SelectedSubdocumentIDs>3</SelectedSubdocumentIDs>
+                <SelectedSubdocumentIDs>20</SelectedSubdocumentIDs>
             </CorkboardAndOutliner>
             <Children>
                 <BinderItem ID="20" Type="Folder" Created="2014-10-26 18:52:59 +0200" Modified="2014-10-26 18:54:03 +0200">
@@ -79,8 +79,8 @@
                         <TextSelection>0,0</TextSelection>
                     </TextSettings>
                 </BinderItem>
-                <BinderItem ID="9" Type="Text" Created="2014-10-26 11:34:03 +0200" Modified="2014-10-26 12:16:16 +0200">
-                    <Title>Command reference</Title>
+                <BinderItem ID="9" Type="Text" Created="2014-10-26 11:34:03 +0200" Modified="2014-10-29 14:53:33 +0200">
+                    <Title>Command line reference</Title>
                     <MetaData>
                         <IncludeInCompile>Yes</IncludeInCompile>
                         <NotesTextSelection>0,0</NotesTextSelection>
@@ -90,6 +90,37 @@
                         <TextSelection>1,0</TextSelection>
                     </TextSettings>
                     <Children>
+                        <BinderItem ID="28" Type="Text" Created="2014-10-29 14:55:35 +0200" Modified="2014-10-29 14:58:53 +0200">
+                            <Title>draft</Title>
+                            <MetaData>
+                                <IncludeInCompile>Yes</IncludeInCompile>
+                                <NotesTextSelection>0,0</NotesTextSelection>
+                                <IconFileName>Information.tiff</IconFileName>
+                            </MetaData>
+                            <TextSettings>
+                                <TextSelection>14,0</TextSelection>
+                            </TextSettings>
+                        </BinderItem>
+                        <BinderItem ID="23" Type="Text" Created="2014-10-29 13:41:12 +0200" Modified="2014-10-29 14:52:43 +0200">
+                            <Title>Command line syntax</Title>
+                            <MetaData>
+                                <IncludeInCompile>Yes</IncludeInCompile>
+                                <NotesTextSelection>0,0</NotesTextSelection>
+                            </MetaData>
+                            <TextSettings>
+                                <TextSelection>103,0</TextSelection>
+                            </TextSettings>
+                        </BinderItem>
+                        <BinderItem ID="24" Type="Text" Created="2014-10-29 14:33:03 +0200" Modified="2014-10-29 14:57:04 +0200">
+                            <Title>Commands options</Title>
+                            <MetaData>
+                                <IncludeInCompile>Yes</IncludeInCompile>
+                                <NotesTextSelection>0,0</NotesTextSelection>
+                            </MetaData>
+                            <TextSettings>
+                                <TextSelection>281,0</TextSelection>
+                            </TextSettings>
+                        </BinderItem>
                         <BinderItem ID="16" Type="Text" Created="2014-10-26 12:07:45 +0200" Modified="2014-10-26 12:11:42 +0200">
                             <Title>check-checksum</Title>
                             <MetaData>
@@ -97,8 +128,11 @@
                                 <NotesTextSelection>0,0</NotesTextSelection>
                             </MetaData>
                             <TextSettings>
-                                <TextSelection>228,0</TextSelection>
+                                <TextSelection>209,0</TextSelection>
                             </TextSettings>
+                            <References>
+                                <Reference BinderID="23" Destination="[Internal Link]">Command line syntax</Reference>
+                            </References>
                         </BinderItem>
                         <BinderItem ID="17" Type="Text" Created="2014-10-26 12:14:29 +0200" Modified="2014-10-26 12:22:01 +0200">
                             <Title>check-sig</Title>
@@ -109,8 +143,99 @@
                             <TextSettings>
                                 <TextSelection>56,8</TextSelection>
                             </TextSettings>
+                            <References>
+                                <Reference BinderID="23" Destination="[Internal Link]">Command line syntax</Reference>
+                            </References>
+                        </BinderItem>
+                        <BinderItem ID="26" Type="Text" Created="2014-10-29 14:53:57 +0200" Modified="2014-10-29 14:54:04 +0200">
+                            <Title>copy</Title>
+                            <MetaData>
+                                <IncludeInCompile>Yes</IncludeInCompile>
+                                <NotesTextSelection>0,0</NotesTextSelection>
+                            </MetaData>
+                            <TextSettings>
+                                <TextSelection>626,0</TextSelection>
+                            </TextSettings>
+                        </BinderItem>
+                        <BinderItem ID="27" Type="Text" Created="2014-10-29 14:55:01 +0200" Modified="2014-10-29 14:55:11 +0200">
+                            <Title>create-folders
+        short: Create folders in preparation for sync.
+        long: |
+            Usage: instl create-folders --in path-to-input-file [--start-progress start-progress-number] [--total-progress total-progress-number]
+            For each item marked as folder in path-to-input-file create-folders will create the folder relative to the current directory.
+            path-to-input-file should be a path to a file in info_map.txt format containing a list of the folders to check.
+            create-folders command is used in the batch created by the sync or synccopy commands and path-to-input-file would be bookkeeping/to_sync_info_map.txt.
+            If --start-progress and --total-progress options are given, check-checksum will output progress messages starting with the number given in --start-progress with a total given in total-progress. Progress message for action N would be:
+            Progress start-progress-number+N of total-progress;
+</Title>
+                            <MetaData>
+                                <IncludeInCompile>Yes</IncludeInCompile>
+                                <NotesTextSelection>0,0</NotesTextSelection>
+                            </MetaData>
+                            <TextSettings>
+                                <TextSelection>968,0</TextSelection>
+                            </TextSettings>
+                        </BinderItem>
+                        <BinderItem ID="25" Type="Text" Created="2014-10-29 14:53:31 +0200" Modified="2014-10-29 14:55:47 +0200">
+                            <Title> create-links</Title>
+                            <MetaData>
+                                <IncludeInCompile>Yes</IncludeInCompile>
+                                <NotesTextSelection>0,0</NotesTextSelection>
+                            </MetaData>
+                            <TextSettings>
+                                <TextSelection>9,13</TextSelection>
+                            </TextSettings>
+                        </BinderItem>
+                        <BinderItem ID="29" Type="Text" Created="2014-10-29 14:57:25 +0200" Modified="2014-10-29 14:57:29 +0200">
+                            <Title>create-repo-rev-file</Title>
+                            <MetaData>
+                                <IncludeInCompile>Yes</IncludeInCompile>
+                                <NotesTextSelection>0,0</NotesTextSelection>
+                            </MetaData>
+                            <TextSettings>
+                                <TextSelection>444,0</TextSelection>
+                            </TextSettings>
+                        </BinderItem>
+                        <BinderItem ID="30" Type="Text" Created="2014-10-29 14:57:42 +0200" Modified="2014-10-29 14:59:06 +0200">
+                            <Title>create-rsa-keys
+        short: Create private and public RSA keys. (admin command)
+        long: |
+            Usage: instl create-rsa-keys --config-file path_to_config_file.
+            Private key is written to a file named in variable PRIVATE_KEY_FILE which defaults to "$(REPO_NAME).private_key".
+            Public key is written to a file named in variable PUBLIC_KEY_FILE which defaults to "$(REPO_NAME).public_key".
+            Variables PRIVATE_KEY_FILE, PUBLIC_KEY_FILE, REPO_NAME are read from path_to_config_file.
+            Key size is 4096. Keys are produced in PEM format. 
+</Title>
+                            <MetaData>
+                                <IncludeInCompile>Yes</IncludeInCompile>
+                                <NotesTextSelection>0,0</NotesTextSelection>
+                            </MetaData>
+                            <TextSettings>
+                                <TextSelection>16,0</TextSelection>
+                            </TextSettings>
+                        </BinderItem>
+                        <BinderItem ID="31" Type="Text" Created="2014-10-29 14:58:49 +0200" Modified="2014-10-29 14:58:53 +0200">
+                            <Title>fix-props</Title>
+                            <MetaData>
+                                <IncludeInCompile>Yes</IncludeInCompile>
+                                <NotesTextSelection>0,0</NotesTextSelection>
+                            </MetaData>
+                            <TextSettings>
+                                <TextSelection>840,0</TextSelection>
+                            </TextSettings>
                         </BinderItem>
                     </Children>
+                </BinderItem>
+                <BinderItem ID="22" Type="Folder" Created="2014-10-29 13:01:54 +0200" Modified="2014-10-29 13:02:03 +0200">
+                    <Title>Interactive mode reference</Title>
+                    <MetaData>
+                        <IncludeInCompile>Yes</IncludeInCompile>
+                        <NotesTextSelection>0,0</NotesTextSelection>
+                        <IconFileName>Information.tiff</IconFileName>
+                    </MetaData>
+                    <TextSettings>
+                        <TextSelection>0,0</TextSelection>
+                    </TextSettings>
                 </BinderItem>
                 <BinderItem ID="10" Type="Text" Created="2014-10-26 11:34:11 +0200" Modified="2014-10-26 11:34:18 +0200">
                     <Title>Variable reference</Title>
@@ -188,10 +313,17 @@
             <Status ID="4">Done</Status>
         </StatusItems>
     </StatusSettings>
+    <ProjectProperties>
+        <ProjectTitle>instl manual</ProjectTitle>
+        <AbbreviatedTitle>instl manual</AbbreviatedTitle>
+        <FullName>Shai Shasag</FullName>
+        <LastName></LastName>
+        <FirstName></FirstName>
+    </ProjectProperties>
     <ProjectTargets Notify="No">
         <DraftTarget Type="Words" CountIncludedOnly="Yes" CurrentCompileGroupOnly="No" Deadline="2014-10-26 11:30:33 +0200" IgnoreDeadline="Yes">0</DraftTarget>
         <SessionTarget Type="Words" CountDraftOnly="Yes" AllowNegatives="Yes" ResetType="Midnight" DeterminedFromDeadline="No" WritingDays="" CanWriteOnDeadlineDate="No">0</SessionTarget>
-        <PreviousSession Words="2677" Characters="18394" Date="2014-10-26 18:23:33 +0200"></PreviousSession>
+        <PreviousSession Words="211" Characters="1349" Date="2014-10-29 12:00:54 +0200"></PreviousSession>
     </ProjectTargets>
     <PrintSettings PaperSize="595.0,842.0" LeftMargin="72.0" RightMargin="72.0" TopMargin="90.0" BottomMargin="90.0" PaperType="iso-a4" Orientation="Portrait" HorizontalPagination="Clip" VerticalPagination="Auto" ScaleFactor="1.0" HorizontallyCentered="Yes" VerticallyCentered="Yes" Collates="Yes" PagesAcross="1" PagesDown="1"></PrintSettings>
 </ScrivenerProject>
