@@ -20,7 +20,7 @@ def create_inheritItem_graph(item_map):
     retVal = nx.DiGraph()
     for item in item_map:
         with item_map[item]:
-            for dependant in var_list.resolve_var_to_list("iid_inherite"):
+            for dependant in var_list.resolve_var_to_list("iid_inherit"):
                 retVal.add_edge(var_list.resolve_var("iid_name"), dependant)
     return retVal
 

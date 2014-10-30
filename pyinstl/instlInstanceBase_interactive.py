@@ -330,7 +330,7 @@ class CMDObj(cmd.Cmd, object):
             for afile in shlex.split(params):
                 try:
                     self.client_prog_inst.read_yaml_file(afile)
-                    self.client_prog_inst.add_deafult_items()
+                    self.client_prog_inst.add_default_items()
                 except Exception as ex:
                     print("read", afile, ex)
         else:

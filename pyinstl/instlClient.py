@@ -111,7 +111,7 @@ class InstlClient(InstlInstanceBase):
         # after reading variable COPY_TOOL from yaml, we might need to re-init the copy tool.
         self.platform_helper.init_copy_tool()
         self.resolve_index_inheritance()
-        self.add_deafult_items()
+        self.add_default_items()
         self.calculate_default_install_item_set()
         self.platform_helper.num_items_for_progress_report = int(var_list.resolve("$(LAST_PROGRESS)"))
 
@@ -241,7 +241,7 @@ class InstlClient(InstlInstanceBase):
         for install_def in self.install_definitions_index.values():
             install_def.resolve_inheritance(self.install_definitions_index)
 
-    def add_deafult_items(self):
+    def add_default_items(self):
         all_items_item = InstallItem()
         all_items_item.iid = "__ALL_ITEMS_IID__"
         all_items_item.name = "All IIDs"

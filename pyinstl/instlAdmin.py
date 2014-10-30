@@ -800,7 +800,7 @@ class InstlAdmin(InstlInstanceBase):
             with self.install_definitions_index[iid]:
                 iid_problem_messages = list()
                 # check inherits
-                for inheritee in var_list.resolve_var_to_list("iid_inherite"):
+                for inheritee in var_list.resolve_var_to_list("iid_inherit"):
                     if inheritee not in self.install_definitions_index:
                         iid_problem_messages.append(" ".join( ("inherits from non existing", inheritee ) ))
                 # check depends

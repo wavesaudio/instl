@@ -56,8 +56,6 @@ from __future__ import print_function
     test:
         name: test
         guid: f01f84d6-ad21-11e0-822a-b7fd7bebd530
-        remarks: testing, testing 1, 2, 3
-        description: index.txt line 1245
         install_sources:
             - Plugins/test_1
             - Plugins/test_2
@@ -108,7 +106,8 @@ class InstallItem(object):
                  '__set_for_os', '__items', '__resolved_inherit',
                  'var_list')
     os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
-    item_types = ('install_sources', 'install_folders', 'depends', 'actions')
+    allowed_item_keys = ('name', 'guid','install_sources', 'install_folders', 'inherit', 'depends', 'actions', 'remark')
+    allowed_top_level_keys = os_names[1:] + allowed_item_keys
     action_types = ('pre_copy', 'pre_copy_to_folder', 'pre_copy_item',
                     'post_copy_item', 'post_copy_to_folder', 'post_copy',
                     'pre_remove', 'pre_remove_from_folder', 'pre_remove_item',
@@ -189,11 +188,17 @@ class InstallItem(object):
 
     def read_from_yaml_by_idd(self, IID, all_items_node):
         my_node = all_items_node[IID]
+        self.iid = IID
+        self.description = str(my_node.start_mark)
         self.read_from_yaml(my_node)
-        self.iid = IID  # restore the IID that might have been overwritten by inheritance
+        self.iid = IID  # restore the IID & description that might have been overwritten by inheritance
         self.description = str(my_node.start_mark)
 
     def read_from_yaml(self, my_node):
+        element_names = set([akey for akey in my_node.iterkeys()])
+        if not element_names.issubset(self.allowed_top_level_keys):
+            raise KeyError("illegal keys {}; IID: {}, {}".format(list(element_names.difference(self.allowed_top_level_keys)), self.iid, self.description))
+
         if 'inherit' in my_node:
             inherite_node = my_node['inherit']
             for inheritoree in inherite_node:
@@ -224,12 +229,14 @@ class InstallItem(object):
     def get_var_list(self):
         if self.var_list is None:
             self.var_list = ConfigVarList()
-            self.var_list.set_var("iid_name").append(self.name)
+            self.var_list.set_var("iid_iid").append(self.iid)
+            if self.name:
+                self.var_list.set_var("iid_name").append(self.name)
             if self.guid:
                 self.var_list.set_var("iid_guid").append(self.guid)
             if self.remark:
                 self.var_list.set_var("iid_remark").append(self.remark)
-            self.var_list.set_var("iid_inherite").extend(self._inherit_list())
+            self.var_list.set_var("iid_inherit").extend(self._inherit_list())
             self.var_list.set_var("iid_folder_list").extend(self._folder_list())
             self.var_list.set_var("iid_depend_list").extend(self._depend_list())
             for action_type in self.action_types:

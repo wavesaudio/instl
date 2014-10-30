@@ -108,7 +108,7 @@ class SVNItem(object):
         return retVal
 
     def __ne__(self, other):
-        """ compare items and it's subs - pythin does not implement the default != by negating
+        """ compare items and it's subs - python does not implement the default != by negating
             the defined __eq__, so if defining __eq__, __ne__ must be also defined.
         """
         retVal = not (self == other)
@@ -363,6 +363,29 @@ class SVNItem(object):
                 yield the_sub
             for yielded_from in the_sub.walk_items(what):
                 yield yielded_from
+
+    def walk_items_with_filter(self, a_filter, what="all"):
+        """  Walk the item list and yield items.
+            for each folder the files will be listed alphabetically, than each sub folder
+            with it's sub items.
+        """
+        file_list, dir_list = self.sorted_sub_items()
+        yield_files = what in ("f", "file", "a", "all")
+        yield_dirs = what in ("d", "dir", "a", "all")
+
+        if yield_files:
+            for the_sub in file_list:
+                if a_filter(the_sub):
+                    yield the_sub
+                else:
+                    continue
+
+        for the_sub in dir_list:
+            if a_filter(the_sub):
+                if yield_dirs:
+                    yield the_sub
+                for yielded_from in the_sub.walk_items(what):
+                    yield yielded_from
 
     def walk_items_depth_first(self, what="all"):
         """  Walk the item list and yield items.

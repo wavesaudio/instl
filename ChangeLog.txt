@@ -1,3 +1,26 @@
+30/10/2014 0.9.17.1
+
+    user visible changes, client:
+    * Better messages when exception is raised in case a file/folder is specified as source
+        but does not exist in repository.
+
+    user visible changes, admin:
+    * Fixed a "lacuna" where fiels or folders that were wtared could not be downloaded as
+        a stand alone item, only their parent folder could be. Now they can.
+    * If a file/folder is missing for the map look for .wtar files with the same name and download them instead.
+
+    programmer visible changes:
+    * New method: SVNItem.walk_items_with_filter.
+    * New method: InstlInstanceSync_url.mark_wtar_items_for_source
+    * InstallItem.get_var_list adds a variable named "iid_iid" which is the actual iid.
+        prevously only the name field was added as iid_name, but many items do not have a name field.
+    * InstallItem variable iid_inherite renamed iid_inherit
+    * Fixed some typos
+    * InstallItem.read_from_yaml check key names and raises KeyError for illegal keys
+    * InstlClient.add_deafult_items renamed add_default_items
+    * InstlInstanceSync_url.mark_required_items_for_source: better messages in case a source is missing from map
+    * New method SVNItem.walk_items_with_filter to be able to walk only items that pass a condition
+
 29/9/2014 0.9.16.2   Shai Shasag <shai@waves.com>
 
     programmer visible changes:
