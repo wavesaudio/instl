@@ -148,10 +148,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
     def mark_required_items_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
-        source_prefixed_remote_info_map = self.work_info_map.get_item_at_path(var_list.resolve("$(SOURCE_PREFIX)"))
-        if source_prefixed_remote_info_map is None:
-            raise ValueError(var_list.resolve("$(SOURCE_PREFIX)"), "does not exist in remote map, IID: $(iid_iid)")
-        remote_sub_item = source_prefixed_remote_info_map.get_item_at_path(source[0])
+        remote_sub_item = self.work_info_map.get_item_at_path(source[0])
         if remote_sub_item is None:
             # if item was not found it might have been wtared. So look for wtar parts and mark them.
             item_is_wtared = self.mark_wtar_items_for_source(source)
@@ -176,9 +173,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
 
     def mark_wtar_items_for_source(self, source):
-        source_prefixed_remote_info_map = self.work_info_map.get_item_at_path(var_list.resolve("$(SOURCE_PREFIX)"))
         split_source_folder, split_source_leaf = os.path.split(source[0])
-        parent_folder_item = source_prefixed_remote_info_map.get_item_at_path(split_source_folder)
+        parent_folder_item = self.work_info_map.get_item_at_path(split_source_folder)
         # Regex fo find files who's name starts with the source's name and have .wtar or wtar.aa... extension
         wtar_file_re = re.compile(
             split_source_leaf +
@@ -218,7 +214,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def create_download_instructions(self):
         self.instlObj.batch_accum.set_current_section('sync')
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress(
-            "Starting sync from $(SYNC_BASE_URL)/$(SOURCE_PREFIX)")
+            "Starting sync from $(SYNC_BASE_URL)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir("$(LOCAL_REPO_SYNC_DIR)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.cd("$(LOCAL_REPO_SYNC_DIR)")
         self.sync_base_url = var_list.resolve("$(SYNC_BASE_URL)")

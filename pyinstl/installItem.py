@@ -305,6 +305,12 @@ class InstallItem(object):
     def add_source(self, new_source, file_type='!dir'):
         if file_type not in InstallItem.file_types:
             file_type = '!dir'
+        if new_source.startswith("/"): # absolute path
+            new_source = new_source[1:]
+        elif new_source.startswith("$("): # explicitly relative to some variable
+            pass
+        else: # implicitly relative to $(SOURCE_PREFIX)
+            new_source = "$(SOURCE_PREFIX)/"+new_source
         self.__add_item_to_default_os_by_category('install_sources', (new_source, file_type, self.__set_for_os[-1]))
 
     def _source_list(self):

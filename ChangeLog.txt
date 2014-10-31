@@ -1,3 +1,13 @@
+???? 0.9.18.1
+
+    user visible changes, client:
+    * LOCAL_REPO_SOURCES_DIR varaible is no longer used, use $(LOCAL_REPO_SYNC_DIR) instead.
+
+    user visible changes, admin:
+    * Install sources starting with '/' are absolute.
+    * Install sources starting with '$(' are explicitly relative to that prefix variable.
+    * Other install source remain relative to $(SOURCE_PREFIX).
+
 30/10/2014 0.9.17.1
 
     user visible changes, client:

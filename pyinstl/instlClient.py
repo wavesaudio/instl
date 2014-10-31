@@ -52,7 +52,7 @@ class InstallInstructionsState(object):
                     for source_var in var_list.get_configVar_obj("iid_source_var_list"):
                         source = var_list.resolve_var_to_list(source_var)
                         relative_sync_folder = instlObj.relative_sync_folder_for_source(source)
-                        sync_folder = os.path.join("$(LOCAL_REPO_SOURCES_DIR)", relative_sync_folder)
+                        sync_folder = os.path.join("$(LOCAL_REPO_SYNC_DIR)", relative_sync_folder)
                         self.no_copy_items_by_sync_folder[sync_folder].append(IID)
 
     def calculate_full_install_items_set(self, instlObj):
@@ -287,7 +287,7 @@ class InstlClient(InstlInstanceBase):
     def create_copy_instructions(self):
         # copy and actions instructions for sources
         self.batch_accum.set_current_section('copy')
-        self.batch_accum += self.platform_helper.progress("Starting copy from $(LOCAL_REPO_SOURCES_DIR)")
+        self.batch_accum += self.platform_helper.progress("Starting copy from $(LOCAL_REPO_SYNC_DIR)")
 
         sorted_target_folder_list = sorted(self.installState.install_items_by_target_folder,
                                            key=lambda fold: var_list.resolve(fold))
@@ -301,7 +301,7 @@ class InstlClient(InstlInstanceBase):
 
         if 'Mac' in var_list.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_list.resolve_to_list(
                 "$(TARGET_OS)"):
-            self.batch_accum += self.platform_helper.resolve_symlink_files(in_dir="$(LOCAL_REPO_SOURCES_DIR)")
+            self.batch_accum += self.platform_helper.resolve_symlink_files(in_dir="$(LOCAL_REPO_SYNC_DIR)")
             self.batch_accum += self.platform_helper.progress("Resolve .symlink files")
 
             have_map = svnTree.SVNTree()
@@ -413,7 +413,7 @@ class InstlClient(InstlInstanceBase):
     def create_copy_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
 
-        source_path = os.path.normpath("$(LOCAL_REPO_SOURCES_DIR)/" + source[0])
+        source_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + source[0])
 
         ignore_list = var_list.resolve_to_list("$(COPY_IGNORE_PATTERNS)")
 
