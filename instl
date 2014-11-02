@@ -334,7 +334,8 @@ def main():
                     "__SITE_DATA_DIR__": appdirs.site_data_dir(),
                     "__SITE_CONFIG_DIR__": appdirs.site_config_dir(),
                     "__USER_DATA_DIR__": appdirs.user_data_dir(),
-                    "__USER_CONFIG_DIR__": appdirs.user_config_dir()
+                    "__USER_CONFIG_DIR__": appdirs.user_config_dir(),
+                    "__USER_HOME_DIR__": os.path.expanduser("~")
                     }
     if os_family_name != "Win":
         initial_vars.update(

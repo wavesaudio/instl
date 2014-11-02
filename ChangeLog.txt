@@ -2,6 +2,7 @@
 
     user visible changes, client:
     * LOCAL_REPO_SOURCES_DIR varaible is no longer used, use $(LOCAL_REPO_SYNC_DIR) instead.
+    * new internal variable: __USER_HOME_DIR__ will point to the local home folder of the user.
 
     user visible changes, admin:
     * Install sources starting with '/' are absolute.
