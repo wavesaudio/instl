@@ -175,6 +175,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def mark_wtar_items_for_source(self, source):
         split_source_folder, split_source_leaf = os.path.split(source[0])
         parent_folder_item = self.work_info_map.get_item_at_path(split_source_folder)
+        if parent_folder_item is None:
+            raise ValueError(split_source_folder, var_list.resolve("does not exist in remote map, IID: $(iid_iid)"))
         # Regex fo find files who's name starts with the source's name and have .wtar or wtar.aa... extension
         wtar_file_re = re.compile(
             split_source_leaf +
@@ -249,7 +251,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         print(self.instlObj.platform_helper.dl_tool.get_num_urls_to_download(), "files to sync")
         logging.info("Num files to sync: %d", self.instlObj.platform_helper.dl_tool.get_num_urls_to_download())
 
-        curl_config_folder = var_list.resolve(os.path.join("$(LOCAL_REPO_SYNC_DIR)", "curl"))
+        curl_config_folder = var_list.resolve(os.path.join("$(LOCAL_REPO_BOOKKEEPING_DIR)", "curl"))
         safe_makedirs(curl_config_folder)
         curl_config_file_path = var_list.resolve(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"))
         num_config_files = int(var_list.resolve("$(PARALLEL_SYNC)"))

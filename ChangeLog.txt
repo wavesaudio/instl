@@ -1,6 +1,7 @@
 ???? 0.9.18.1
 
     user visible changes, client:
+    * Moved the curl files to $(LOCAL_REPO_BOOKKEEPING_DIR)/curl instead of $(LOCAL_REPO_SYNC_DIR)/curl
     * LOCAL_REPO_SOURCES_DIR varaible is no longer used, use $(LOCAL_REPO_SYNC_DIR) instead.
     * new internal variable: __USER_HOME_DIR__ will point to the local home folder of the user.
 
