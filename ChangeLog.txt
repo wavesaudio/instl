@@ -1,3 +1,8 @@
+???? 0.9.17.2
+
+    user visible changes, client:
+    * new internal variable: __USER_HOME_DIR__ will point to the local home folder of the user.
+
 30/10/2014 0.9.17.1
 
     user visible changes, client:
