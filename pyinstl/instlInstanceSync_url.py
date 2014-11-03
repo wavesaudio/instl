@@ -178,13 +178,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
         if parent_folder_item is None:
             raise ValueError(split_source_folder, var_list.resolve("does not exist in remote map, IID: $(iid_iid)"))
         # Regex fo find files who's name starts with the source's name and have .wtar or wtar.aa... extension
-        wtar_file_re = re.compile(
-            split_source_leaf +
-            """
-                \.wtar
-                (\...)?
-                $
-                """, re.VERBOSE)
+        # NOT compiled with re.VERBOSE since the file name may contain spaces
+        wtar_file_re = re.compile(split_source_leaf + r"""\.wtar(\...)?$""")
 
         def is_wtar_file(file_item):
             match = wtar_file_re.match(file_item.name())

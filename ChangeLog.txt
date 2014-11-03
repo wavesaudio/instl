@@ -1,4 +1,4 @@
-???? 0.9.8.2
+???? 0.9.8.4
 
     user visible changes, client:
     * Reading a user config file if such file exists. User config file named
@@ -6,6 +6,8 @@
         format is regular instl !define format.
         File name is in variable __USER_CONFIG_FILE_NAME__.
 
+    programmer visible changes:
+    * Fixed the regex to find wtar versions of files to handle spaces in file names.
 
 2/11/2014 0.9.18.1
 
