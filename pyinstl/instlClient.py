@@ -463,6 +463,11 @@ class InstlClient(InstlInstanceBase):
             return None
 
     def create_remove_instructions(self):
+        have_map = svnTree.SVNTree()
+        have_info_path = var_list.resolve("$(HAVE_INFO_MAP_PATH)")
+        if os.path.isfile(have_info_path):
+            have_map.read_info_map_from_file(have_info_path, a_format="text")
+
         self.batch_accum.set_current_section('remove')
         self.batch_accum += self.platform_helper.progress("Starting remove")
         sorted_target_folder_list = sorted(self.installState.install_items_by_target_folder,
