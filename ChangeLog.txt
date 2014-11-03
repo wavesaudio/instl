@@ -5,6 +5,7 @@
         instl_config.yaml can be placed in the home folder,
         format is regular instl !define format.
         File name is in variable __USER_CONFIG_FILE_NAME__.
+    * Better error message when public ky cannot be determined.
 
     programmer visible changes:
     * Fixed the regex to find wtar versions of files to handle spaces in file names.

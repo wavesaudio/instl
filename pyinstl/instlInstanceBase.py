@@ -223,6 +223,8 @@ class InstlInstanceBase(object):
                 with open_for_read_file_or_url(public_key_file, self.path_searcher) as file_fd:
                     public_key_text = file_fd.read()
                     var_list.set_var("PUBLIC_KEY", "from " + public_key_file).append(public_key_text)
+            else:
+                raise ValueError("No public key, varaibles PUBLIC_KEY & PUBLIC_KEY_FILE are not defined")
         resolved_public_key = var_list.resolve("$(PUBLIC_KEY)")
         return resolved_public_key
 
