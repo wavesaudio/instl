@@ -1,8 +1,17 @@
+???? 0.9.8.2
+
+    user visible changes, client:
+    * Reading a user config file if such file exists. User config file named
+        instl_config.yaml can be placed in the home folder,
+        format is regular instl !define format.
+        File name is in variable __USER_CONFIG_FILE_NAME__.
+
+
 2/11/2014 0.9.18.1
 
     * It's possible now to install sources from any folder regardless of OS. This mainly enables the uses
         of Common folder in the same level of Win and Mac.
-        
+
     user visible changes, client:
     * Moved the curl files to $(LOCAL_REPO_BOOKKEEPING_DIR)/curl instead of $(LOCAL_REPO_SYNC_DIR)/curl
     * LOCAL_REPO_SOURCES_DIR varaible is no longer used, use $(LOCAL_REPO_SYNC_DIR) instead.

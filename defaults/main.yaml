@@ -6,6 +6,8 @@ __INSTL_VERSION__:
     - 18
     - 1
 
+__USER_CONFIG_FILE_NAME__: instl_config.yaml
+
 --- !define
 
 ACCEPTABLE_YAML_DOC_TAGS:
@@ -34,7 +36,6 @@ PROGRESS_STACCATO_PERIOD: 128
 # max file size 5 * 1024 * 1024
 MAX_FILE_SIZE: 5242880
 
-#ECHO_LOG_FILE: $(__MAIN_OUT_FILE__).echo.log
 
 --- !define_Mac
 MKDIR_CMD: mkdir_with_owner

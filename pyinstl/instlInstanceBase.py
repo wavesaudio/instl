@@ -35,6 +35,8 @@ class InstlInstanceBase(object):
         self.path_searcher.add_search_path(os.path.dirname(os.path.realpath(sys.argv[0])))
         self.path_searcher.add_search_path(var_list.resolve("$(__INSTL_DATA_FOLDER__)"))
 
+        self.read_user_config()
+
         self.platform_helper = PlatformSpecificHelperFactory(var_list.resolve("$(__CURRENT_OS__)"), self)
         # init initial copy tool, tool might be later overridden after reading variable COPY_TOOL from yaml.
         self.platform_helper.init_copy_tool()
@@ -90,6 +92,11 @@ class InstlInstanceBase(object):
         var_list.set_var("LOG_FILE_DEBUG", var_description).extend((
                         debug_log_file, logging.getLevelName(pyinstl.log_utils.debug_logging_level),
                         pyinstl.log_utils.debug_logging_started))
+
+    def read_user_config(self):
+        user_config_path = var_list.resolve("$(__USER_HOME_DIR__)/$(__USER_CONFIG_FILE_NAME__)")
+        if os.path.isfile(user_config_path):
+            self.read_yaml_file(user_config_path)
 
     def check_prerequisite_var_existence(self, prerequisite_vars):
         missing_vars = [var for var in prerequisite_vars if var not in var_list]
