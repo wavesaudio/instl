@@ -1,4 +1,4 @@
-???? 0.9.8.4
+4/11/2014 0.9.18.4
 
     user visible changes, client:
     * Enabled the removal of !dir_cont and !files sources
@@ -6,7 +6,7 @@
         instl_config.yaml can be placed in the home folder,
         format is regular instl !define format.
         File name is in variable __USER_CONFIG_FILE_NAME__.
-    * Better error message when public ky cannot be determined.
+    * Better error message when public key cannot be determined.
 
     programmer visible changes:
     * Fixed the regex to find wtar versions of files to handle spaces in file names.
