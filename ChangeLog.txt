@@ -1,6 +1,7 @@
 ???? 0.9.8.4
 
     user visible changes, client:
+    * Enabled the removal of !dir_cont and !files sources
     * Reading a user config file if such file exists. User config file named
         instl_config.yaml can be placed in the home folder,
         format is regular instl !define format.

@@ -284,6 +284,28 @@ class InstlClient(InstlInstanceBase):
                                                 'pre_remove_item': "pre-delete step",
                                                 'post_remove_item': "post-delete step"}
 
+    # special handling when running on Mac OS
+    def pre_copy_mac_handling(self):
+        self.batch_accum += self.platform_helper.resolve_symlink_files(in_dir="$(LOCAL_REPO_SYNC_DIR)")
+        self.batch_accum += self.platform_helper.progress("Resolve .symlink files")
+
+        have_map = svnTree.SVNTree()
+        have_info_path = var_list.resolve("$(NEW_HAVE_INFO_MAP_PATH)")  # in case we're in synccopy command
+        if not os.path.isfile(have_info_path):
+            have_info_path = var_list.resolve("$(HAVE_INFO_MAP_PATH)")  # in case we're in copy command
+        if os.path.isfile(have_info_path):
+            have_map.read_info_map_from_file(have_info_path, a_format="text")
+            num_files_to_set_exec = have_map.num_subs_in_tree(what="file",
+                                                              predicate=lambda in_item: in_item.isExecutable())
+            logging.info("Num files to set exec: %d", num_files_to_set_exec)
+            if num_files_to_set_exec > 0:
+                self.batch_accum += self.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")
+                self.batch_accum += self.platform_helper.set_exec_for_folder(have_info_path)
+                self.platform_helper.num_items_for_progress_report += num_files_to_set_exec
+                self.batch_accum += self.platform_helper.progress("Set exec done")
+                self.batch_accum += self.platform_helper.new_line()
+                self.batch_accum += self.platform_helper.popd()
+
     def create_copy_instructions(self):
         # copy and actions instructions for sources
         self.batch_accum.set_current_section('copy')
@@ -299,27 +321,8 @@ class InstlClient(InstlInstanceBase):
 
         self.accumulate_unique_actions('pre_copy', self.installState.full_install_items)
 
-        if 'Mac' in var_list.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_list.resolve_to_list(
-                "$(TARGET_OS)"):
-            self.batch_accum += self.platform_helper.resolve_symlink_files(in_dir="$(LOCAL_REPO_SYNC_DIR)")
-            self.batch_accum += self.platform_helper.progress("Resolve .symlink files")
-
-            have_map = svnTree.SVNTree()
-            have_info_path = var_list.resolve("$(NEW_HAVE_INFO_MAP_PATH)")  # in case we're in synccopy command
-            if not os.path.isfile(have_info_path):
-                have_info_path = var_list.resolve("$(HAVE_INFO_MAP_PATH)")  # in case we're in copy command
-            if os.path.isfile(have_info_path):
-                have_map.read_info_map_from_file(have_info_path, a_format="text")
-                num_files_to_set_exec = have_map.num_subs_in_tree(what="file",
-                                                                  predicate=lambda in_item: in_item.isExecutable())
-                logging.info("Num files to set exec: %d", num_files_to_set_exec)
-                if num_files_to_set_exec > 0:
-                    self.batch_accum += self.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")
-                    self.batch_accum += self.platform_helper.set_exec_for_folder(have_info_path)
-                    self.platform_helper.num_items_for_progress_report += num_files_to_set_exec
-                    self.batch_accum += self.platform_helper.progress("Set exec done")
-                    self.batch_accum += self.platform_helper.new_line()
-                    self.batch_accum += self.platform_helper.popd()
+        if 'Mac' in var_list.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_list.resolve_to_list("$(TARGET_OS)"):
+            self.pre_copy_mac_handling()
 
         for folder_name in sorted_target_folder_list:
             items_in_folder = self.installState.install_items_by_target_folder[folder_name]
@@ -463,10 +466,9 @@ class InstlClient(InstlInstanceBase):
             return None
 
     def create_remove_instructions(self):
-        have_map = svnTree.SVNTree()
+        self.have_map = svnTree.SVNTree()
         have_info_path = var_list.resolve("$(HAVE_INFO_MAP_PATH)")
-        if os.path.isfile(have_info_path):
-            have_map.read_info_map_from_file(have_info_path, a_format="text")
+        self.have_map.read_info_map_from_file(have_info_path, a_format="text")
 
         self.batch_accum.set_current_section('remove')
         self.batch_accum += self.platform_helper.progress("Starting remove")
@@ -497,6 +499,13 @@ class InstlClient(InstlInstanceBase):
 
         self.accumulate_unique_actions('post_remove', self.installState.full_install_items)
 
+    # create_remove_instructions_for_source:
+    # Create instructions to remove a specific source from a specific target folder.
+    # There can be 3 possibilities according to the value of the item's remove_item section:
+    # No remove_item was specified - so all item's sources should be deleted.
+    # Null remove_item was specified (remove_item: ~) - so nothing should be done.
+    # Specific remove_item action specified - so specific action should be done.
+
     def create_remove_instructions_for_source(self, folder, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
 
@@ -505,15 +514,31 @@ class InstlClient(InstlInstanceBase):
 
         remove_actions = var_list.resolve_var_to_list_if_exists("iid_action_list_remove_item")
         if len(remove_actions) == 0:
-            if source[1] == '!file':  # remove single file
-                remove_actions = self.platform_helper.rmfile(to_remove_path)
-            # elif source[1] == '!dir_cont': # get all files and folders from a folder
-            #    self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".", link_dest=True, ignore=ignore_list)
-            #elif source[1] == '!files':    # get all files from a folder
-            #    self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".", link_dest=True, ignore=ignore_list)
-            else:  # !dir
-                remove_actions = self.platform_helper.rmdir(to_remove_path, recursive=True)
+            if source[1] == '!dir':  # remove whole folder
+                remove_action = self.platform_helper.rmdir(to_remove_path, recursive=True)
+                self.batch_accum += remove_action
+            elif source[1] == '!file':  # remove single file
+                remove_action = self.platform_helper.rmfile(to_remove_path)
+                self.batch_accum += remove_action
+            elif source[1] == '!dir_cont': # remove all source's files and folders from a folder
+                source_folder_info_map_item = self.have_map.get_item_at_path(source[0])
+                file_list, folder_list = source_folder_info_map_item.sorted_sub_items()
+                for sub_file in file_list:
+                    to_remove_path = os.path.normpath(os.path.join(folder, sub_file.name()))
+                    remove_action = self.platform_helper.rmfile(to_remove_path)
+                    self.batch_accum += remove_action
+                for sub_folder in folder_list:
+                    to_remove_path = os.path.normpath(os.path.join(folder, sub_folder.name()))
+                    remove_action = self.platform_helper.rmdir(to_remove_path, recursive=True)
+                    self.batch_accum += remove_action
+            elif source[1] == '!files':    # # remove all source's files from a folder
+                source_folder_info_map_item = self.have_map.get_item_at_path(source[0])
+                file_list, folder_list = source_folder_info_map_item.sorted_sub_items()
+                for sub_file in file_list:
+                    to_remove_path = os.path.normpath(os.path.join(folder, sub_file.name()))
+                    remove_action = self.platform_helper.rmfile(to_remove_path)
+                    self.batch_accum += remove_action
         else:
             remove_actions = filter(None, remove_actions)  # filter out None values
+            self.batch_accum += remove_actions
 
-        self.batch_accum += remove_actions
