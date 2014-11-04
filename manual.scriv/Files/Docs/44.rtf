@@ -1,0 +1,39 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1138\cocoasubrtf510
+{\fonttbl\f0\fnil\fcharset0 AndaleMono;\f1\froman\fcharset0 Palatino-Roman;\f2\fmodern\fcharset0 Courier;
+}
+{\colortbl;\red255\green255\blue255;\red169\green219\blue111;}
+\deftab720
+\pard\pardeftab720\pardirnatural
+
+\f0\fs32 \cf0 __SITE_CONFIG_DIR__
+\f1 \
+\
+Internal variable, const, cannot be changed in !define files.\
+\
+Contains the path to the local machine config directory on the machine were instl is currently running. Value is usually same as __SITE_DATA_DIR__.\
+\
+Note: "Site" in operating system jargon means location on disk that are common to all users yet are local to the machine.\
+\
+On Windows this will typically be:\
+C:\\ProgramData\
+\
+On Mac:\
+/Library/Application Support\
+\
+Usage:\
+\
+
+\f2 \cb2 --- !define\
+ACME_SITE_CONFIG_DIR: $(__SITE_CONFIG_DIR__)/acme.site.config\
+\
+--- !index\
+SOME_ACME_SOFTWARE:\
+	install_sources:\
+		- default_config_file.txt\
+	install_folders:\
+		- $(ACME_SITE_CONFIG_DIR)\
+
+\f1 \cb1 \
+Variable value is set by: \
+In main function, by calling appdirs.site_config_dir().\
+}
