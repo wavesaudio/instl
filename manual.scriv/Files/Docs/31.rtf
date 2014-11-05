@@ -8,7 +8,7 @@
         short: Fix certain properties in svn repository. (admin command)\
         long: |\
             Usage: instl fix-props --out path-to-output-file --config-file path-to-config-file [--run]\
-            Removes or adds svn:executable property where appropriate and removes all other properties. Files are assumed to be executables if their path matchs the regexs specified in variable EXEC_PROP_REGEX. The path to SVN repository is taken from the SVN_CHECKOUT_FOLDER variable.\
+            Removes or adds svn:executable property where appropriate and removes all other properties. Files are assumed to be executables if their path matches the regexes specified in variable EXEC_PROP_REGEX. The path to SVN repository is taken from the SVN_CHECKOUT_FOLDER variable.\
             Keep in mind that fix-props command does not actually do anything, unless the --run flag is given. You will need to run the produced batch file in order to actually fix the properties. Also, running the batch file does not commit the properties changes, this should be manually done, after proper inspection, with an SVM client software.\
 \
 }

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<ScrivenerProject Version="1.0" Creator="SCRMAC-2.6-25480" Modified="2014-11-03 14:38:39 +0200">
+<ScrivenerProject Version="1.0" Creator="SCRMAC-2.6-25480" Modified="2014-11-05 18:15:24 +0200">
     <Binder>
         <BinderItem ID="0" Type="DraftFolder" Created="2014-10-26 11:30:34 +0200" Modified="2014-10-26 11:30:34 +0200">
             <Title>Draft</Title>
@@ -214,14 +214,14 @@
                                 <TextSelection>16,0</TextSelection>
                             </TextSettings>
                         </BinderItem>
-                        <BinderItem ID="31" Type="Text" Created="2014-10-29 14:58:49 +0200" Modified="2014-10-29 14:58:53 +0200">
+                        <BinderItem ID="31" Type="Text" Created="2014-10-29 14:58:49 +0200" Modified="2014-11-05 18:15:10 +0200">
                             <Title>fix-props</Title>
                             <MetaData>
                                 <IncludeInCompile>Yes</IncludeInCompile>
                                 <NotesTextSelection>0,0</NotesTextSelection>
                             </MetaData>
                             <TextSettings>
-                                <TextSelection>840,0</TextSelection>
+                                <TextSelection>490,0</TextSelection>
                             </TextSettings>
                         </BinderItem>
                     </Children>
@@ -248,6 +248,28 @@
                         <TextSelection>0,0</TextSelection>
                     </TextSettings>
                     <Children>
+                        <BinderItem ID="46" Type="Folder" Created="2014-11-05 18:01:04 +0200" Modified="2014-11-05 18:01:18 +0200">
+                            <Title>User variables</Title>
+                            <MetaData>
+                                <IncludeInCompile>Yes</IncludeInCompile>
+                                <NotesTextSelection>0,0</NotesTextSelection>
+                            </MetaData>
+                            <TextSettings>
+                                <TextSelection>0,0</TextSelection>
+                            </TextSettings>
+                            <Children>
+                                <BinderItem ID="48" Type="Text" Created="2014-11-05 18:10:26 +0200" Modified="2014-11-05 18:14:18 +0200">
+                                    <Title>INSTL_MINIMAL_VERSION</Title>
+                                    <MetaData>
+                                        <IncludeInCompile>Yes</IncludeInCompile>
+                                        <NotesTextSelection>0,0</NotesTextSelection>
+                                    </MetaData>
+                                    <TextSettings>
+                                        <TextSelection>626,0</TextSelection>
+                                    </TextSettings>
+                                </BinderItem>
+                            </Children>
+                        </BinderItem>
                         <BinderItem ID="38" Type="Folder" Created="2014-11-02 14:57:55 +0200" Modified="2014-11-02 14:58:03 +0200">
                             <Title>Internal variables</Title>
                             <MetaData>
@@ -265,7 +287,7 @@
                                         <NotesTextSelection>0,0</NotesTextSelection>
                                     </MetaData>
                                     <TextSettings>
-                                        <TextSelection>637,0</TextSelection>
+                                        <TextSelection>494,90</TextSelection>
                                     </TextSettings>
                                 </BinderItem>
                                 <BinderItem ID="41" Type="Text" Created="2014-11-02 15:10:22 +0200" Modified="2014-11-03 14:37:05 +0200">
@@ -285,7 +307,7 @@
                                         <NotesTextSelection>0,0</NotesTextSelection>
                                     </MetaData>
                                     <TextSettings>
-                                        <TextSelection>566,0</TextSelection>
+                                        <TextSelection>401,0</TextSelection>
                                     </TextSettings>
                                 </BinderItem>
                                 <BinderItem ID="42" Type="Text" Created="2014-11-02 15:10:22 +0200" Modified="2014-11-03 14:37:16 +0200">
@@ -325,7 +347,17 @@
                                         <NotesTextSelection>0,0</NotesTextSelection>
                                     </MetaData>
                                     <TextSettings>
-                                        <TextSelection>247,16</TextSelection>
+                                        <TextSelection>519,1</TextSelection>
+                                    </TextSettings>
+                                </BinderItem>
+                                <BinderItem ID="47" Type="Text" Created="2014-11-05 18:02:50 +0200" Modified="2014-11-05 18:10:13 +0200">
+                                    <Title>__INSTL_VERSION__</Title>
+                                    <MetaData>
+                                        <IncludeInCompile>Yes</IncludeInCompile>
+                                        <NotesTextSelection>0,0</NotesTextSelection>
+                                    </MetaData>
+                                    <TextSettings>
+                                        <TextSelection>246,0</TextSelection>
                                     </TextSettings>
                                 </BinderItem>
                             </Children>
@@ -370,7 +402,7 @@
                                         <NotesTextSelection>0,0</NotesTextSelection>
                                     </MetaData>
                                     <TextSettings>
-                                        <TextSelection>1062,0</TextSelection>
+                                        <TextSelection>0,0</TextSelection>
                                     </TextSettings>
                                 </BinderItem>
                                 <BinderItem ID="37" Type="Text" Created="2014-10-31 17:03:46 +0200" Modified="2014-10-31 17:03:46 +0200">
@@ -473,7 +505,7 @@
     <ProjectTargets Notify="No">
         <DraftTarget Type="Words" CountIncludedOnly="Yes" CurrentCompileGroupOnly="No" Deadline="2014-10-26 11:30:33 +0200" IgnoreDeadline="Yes">0</DraftTarget>
         <SessionTarget Type="Words" CountDraftOnly="Yes" AllowNegatives="Yes" ResetType="Midnight" DeterminedFromDeadline="No" WritingDays="" CanWriteOnDeadlineDate="No">0</SessionTarget>
-        <PreviousSession Words="75" Characters="311" Date="2014-11-03 12:29:11 +0200"></PreviousSession>
+        <PreviousSession Words="168" Characters="1255" Date="2014-11-05 18:00:01 +0200"></PreviousSession>
     </ProjectTargets>
     <PrintSettings PaperSize="595.0,842.0" LeftMargin="72.0" RightMargin="72.0" TopMargin="90.0" BottomMargin="90.0" PaperType="iso-a4" Orientation="Portrait" HorizontalPagination="Clip" VerticalPagination="Auto" ScaleFactor="1.0" HorizontallyCentered="Yes" VerticallyCentered="Yes" Collates="Yes" PagesAcross="1" PagesDown="1"></PrintSettings>
 </ScrivenerProject>
