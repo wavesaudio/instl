@@ -252,8 +252,8 @@ class PlatformSpecificHelperBase(object):
 
     @abc.abstractmethod
     def rm_file_or_dir(self, file_or_dir):
-         """ platform specific rm file or a dir """
-       pass
+        """ platform specific rm file or a dir """
+        pass
 
     def new_line(self):
         return "" # empty string because write_batch_file adds \n to each line
