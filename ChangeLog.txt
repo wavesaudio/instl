@@ -1,14 +1,15 @@
-???? 0.9.18.6
+5/11 0.9.18.6
 
     user visible changes, client:
     * New optional variable INSTL_MINIMAL_VERSION will be compared to current instl version,
         raise exception if INSTL_MINIMAL_VERSION > __INSTL_VERSION__. Can be used to check
         compatibility between input file and instl reading it.
+    * Improved removal of !dir_cont and !files sources.
 
 4/11/2014 0.9.18.4
 
     user visible changes, client:
-    * Enabled the removal of !dir_cont and !files sources
+    * Enabled the removal of !dir_cont and !files sources.
     * Reading a user config file if such file exists. User config file named
         instl_config.yaml can be placed in the home folder,
         format is regular instl !define format.
