@@ -1,3 +1,10 @@
+???? 0.9.18.6
+
+    user visible changes, client:
+    * New optional variable INSTL_MINIMAL_VERSION will be compared to current instl version,
+        raise exception if INSTL_MINIMAL_VERSION > __INSTL_VERSION__. Can be used to check
+        compatibility between input file and instl reading it.
+
 4/11/2014 0.9.18.4
 
     user visible changes, client:
@@ -223,7 +230,7 @@
 
     programmer visible changes:
     * New type of defaults file by repo type, i.e. P4.yaml, URL.yaml. Currently added P4.yaml to defaults folder.
-    * New utility function: P4GetPathFromDepotPath to get teh local disk path from p4 depot path.
+    * New utility function: P4GetPathFromDepotPath to get the local disk path from p4 depot path.
     * Usage of $(LOCAL_REPO_SOURCES_DIR) instead of $(LOCAL_REPO_SYNC_DIR)/$(SOURCE_PREFIX) - because p4 does not need SOURCE_PREFIX.
     * new variable: ECHO_LOG_FILE. If defined all echos from batch file will be teeed to this file. (Mac).    user visible changes, admin:
     * new method  configVarList.defined returns true if a value is defined and has none empty value. So calling with a variable name who's value consists of an empty string will return False.

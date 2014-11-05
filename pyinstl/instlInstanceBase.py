@@ -177,6 +177,8 @@ class InstlInstanceBase(object):
                         logging.error(
                             "Unknown document tag '%s' while reading file %s; Tag should be one of: !define, !index'",
                             a_node.tag, file_path)
+        if not self.check_version_compatibility():
+            raise ValueError(var_list.resolve("Minimal instl version $(INSTL_MINIMAL_VERSION) > current version $(__INSTL_VERSION__); ")+var_list.get_configVar_obj("INSTL_MINIMAL_VERSION").description())
         var_list.get_configVar_obj("__READ_YAML_FILES__").append(file_path)
 
     internal_identifier_re = re.compile("""
@@ -224,7 +226,7 @@ class InstlInstanceBase(object):
                     public_key_text = file_fd.read()
                     var_list.set_var("PUBLIC_KEY", "from " + public_key_file).append(public_key_text)
             else:
-                raise ValueError("No public key, varaibles PUBLIC_KEY & PUBLIC_KEY_FILE are not defined")
+                raise ValueError("No public key, variables PUBLIC_KEY & PUBLIC_KEY_FILE are not defined")
         resolved_public_key = var_list.resolve("$(PUBLIC_KEY)")
         return resolved_public_key
 
@@ -399,3 +401,26 @@ class InstlInstanceBase(object):
     def write_info_map_file(self):
         self.svnTree.write_to_file(var_list.resolve("$(__MAIN_OUT_FILE__)"))
 
+    def check_version_compatibility(self):
+        retVal = True
+        if "INSTL_MINIMAL_VERSION" in var_list:
+            inst_ver =     map(int, var_list.resolve_to_list("$(__INSTL_VERSION__)"))
+            required_ver = map(int, var_list.resolve_to_list("$(INSTL_MINIMAL_VERSION)"))
+            retVal = inst_ver >= required_ver
+        return retVal
+
+    wtar_file_re = re.compile("""(?P<base_name>.+?)(\.wtar(\.[a-z]{2})?)?$""")
+
+    # Give a name remove the trailing wtar or wtar.?? if any
+    # E.g. "a" => "a", "a.wtar" => "a", "a.wtar.aa" => "a"
+    def original_name_from_wtar_name(self, wtar_name):
+        original_name = self.wtar_file_re.match(wtar_name).group('base_name')
+        return original_name
+
+    # Given a list of file/folder names, replace those which a rewtared with the original file name.
+    # E.g. ['a', 'b.wtar', 'c.wtar.aa', 'c.wtar.ab'] => ['a', 'b', 'c']
+    # We must work on the whole list since several wtar file names might merge to a single original file name.
+    def replace_wtar_names_with_real_names(self, original_list):
+        replaced_list = unique_list()
+        replaced_list.extend([self.original_name_from_wtar_name(file_name) for file_name in original_list])
+        return replaced_list

@@ -289,8 +289,14 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
 
     def rmfile(self, file_to_del):
         norm_file = quoteme_double(os.path.normpath(file_to_del))
-        rmfile_command = " ".join( ("del", "/F", norm_file ) )
+        rmfile_command = " ".join( ("del", "/F", "/Q", norm_file ) )
         return rmfile_command
+
+    def rm_file_or_dir(self, file_or_dir):
+        norm_path = quoteme_double(os.path.normpath(file_or_dir))
+        rmdir_command  = " ".join( ("rmdir", '/S', '/Q', norm_path, '>nul', '2>&1'))
+        rmfile_command = " ".join( ("del",   '/F', '/Q', norm_path, '>nul', '2>&1'))
+        return (rmdir_command, rmfile_command)
 
     def get_svn_folder_cleanup_instructions(self):
         return ()

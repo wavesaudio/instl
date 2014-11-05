@@ -115,6 +115,11 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         rmfile_command = " ".join( ("rm", "-f", quoteme_double(a_file) ) )
         return rmfile_command
 
+    def rm_file_or_dir(self, file_or_dir):
+        # on mac rmdir -fr will remove a file or a directory without complaint.
+        rm_command = self.rmdir(file_or_dir, recursive=True)
+        return rm_command
+
     def get_svn_folder_cleanup_instructions(self):
         return 'find . -maxdepth 1 -mindepth 1 -type d -print0 | xargs -0 "$(SVN_CLIENT_PATH)" cleanup --non-interactive'
 

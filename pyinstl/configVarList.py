@@ -211,7 +211,7 @@ class ConfigVarList(object):
     def resolve_to_list(self, str_to_resolve, list_sep=" ", default=None):
         """ Resolve a string, possibly with $() style references.
             If the string is a single reference to a variable, a list of resolved values is returned.
-            If the values themselves are a single reference to a variable, their own values extend teh list
+            If the values themselves are a single reference to a variable, their own values extend the list
             list_sep is used to combine values which are not part of single reference to a variable.
             otherwise if the string is NOT a single reference to a variable, a list with single value is returned.
          """

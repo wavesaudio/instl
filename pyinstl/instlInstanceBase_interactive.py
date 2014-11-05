@@ -580,7 +580,7 @@ class CMDObj(cmd.Cmd, object):
     def help_python(self):
         print("evaluate python expressions, instlObj is accessible as self.client_prog_inst")
 
-    # resolve a string comataining varables.
+    # resolve a string containing variables.
     def do_resolve(self, param):
         if param:
             print(var_list.resolve(param))
