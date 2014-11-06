@@ -104,7 +104,7 @@ class InstallItem(object):
     __slots__ = ('iid', 'name', 'guid',
                  'remark', "description", 'inherit',
                  '__set_for_os', '__items', '__resolved_inherit',
-                 'var_list')
+                 'var_list', 'requirement_of')
     os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
     allowed_item_keys = ('name', 'guid','install_sources', 'install_folders', 'inherit', 'depends', 'actions', 'remark')
     allowed_top_level_keys = os_names[1:] + allowed_item_keys
@@ -185,6 +185,7 @@ class InstallItem(object):
         self.__set_for_os = [InstallItem.os_names[0]] # reading for all platforms ('common') or for which specific platforms ('Mac', 'Win')?
         self.__items = defaultdict(InstallItem.create_items_section)
         self.var_list = None
+        self.requirement_of = unique_list()
 
     def read_from_yaml_by_idd(self, IID, all_items_node):
         my_node = all_items_node[IID]
@@ -356,6 +357,7 @@ class InstallItem(object):
             out_set.append(self.iid)
             # print("get_recursive_depends: added", self.iid)
             for depend in self._depend_list():
+                items_map[depend].requirement_of.append(self.iid)
                 #print("get_recursive_depends:", self.iid, "depends on", depend)
                 if depend not in out_set:  # avoid cycles, save time
                     try:

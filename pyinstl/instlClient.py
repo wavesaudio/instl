@@ -86,6 +86,7 @@ class InstallInstructionsState(object):
 
         for IID in root_install_iids_translated:
             try:
+                instlObj.install_definitions_index[IID].requirement_of.append(IID)
                 instlObj.install_definitions_index[IID].get_recursive_depends(instlObj.install_definitions_index,
                                                                               self.full_install_items,
                                                                               self.orphan_install_items)
@@ -269,6 +270,11 @@ class InstlClient(InstlInstanceBase):
         self.installState.calculate_full_install_items_set(self)
         var_list.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(self.installState.full_install_items)
         var_list.set_var("__ORPHAN_INSTALL_TARGETS__").extend(self.installState.orphan_install_items)
+
+        # report
+        for IID in sorted(self.install_definitions_index):
+            if len(self.install_definitions_index[IID].requirement_of) > 0:
+                print(IID+":", self.install_definitions_index[IID].requirement_of)
 
     def init_copy_vars(self):
         self.action_type_to_progress_message = {'pre_copy': "pre-install step",
