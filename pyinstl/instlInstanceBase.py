@@ -411,7 +411,7 @@ class InstlInstanceBase(object):
 
     wtar_file_re = re.compile("""(?P<base_name>.+?)(\.wtar(\.[a-z]{2})?)?$""")
 
-    # Give a name remove the trailing wtar or wtar.?? if any
+    # Given a name remove the trailing wtar or wtar.?? if any
     # E.g. "a" => "a", "a.wtar" => "a", "a.wtar.aa" => "a"
     def original_name_from_wtar_name(self, wtar_name):
         original_name = self.wtar_file_re.match(wtar_name).group('base_name')

@@ -69,23 +69,22 @@ class InstallInstructionsState(object):
 
         root_install_iids_translated = unique_list()
         for IID in self.root_install_items:
-            if guid_re.match(IID):  # if it's a guid translate to iid's
-                iids_from_the_guid = iids_from_guid(instlObj.install_definitions_index, IID)
-                if len(iids_from_the_guid) > 0:
-                    root_install_iids_translated.extend(iids_from_the_guid)
-                    logging.debug("GUID %s, translated to %d iids: %s", IID, len(iids_from_the_guid),
-                                  ", ".join(iids_from_the_guid))
-                else:
-                    self.orphan_install_items.append(IID)
-                    logging.warning("%s is a guid but could not be translated to iids", IID)
+            # if IID is a guid iids_from_guid will translate to iid's, or return the IID otherwise
+            iids_from_the_guid = iids_from_guid(instlObj.install_definitions_index, IID)
+            if len(iids_from_the_guid) > 0:
+                root_install_iids_translated.extend(iids_from_the_guid)
+                logging.debug("GUID %s, translated to %d iids: %s", IID, len(iids_from_the_guid),
+                              ", ".join(iids_from_the_guid))
             else:
-                root_install_iids_translated.append(IID)
-                logging.debug("%s added to root_install_iids_translated", IID)
+                self.orphan_install_items.append(IID)
+                logging.warning("%s is a guid but could not be translated to iids", IID)
 
         logging.info(" ".join(("Main install items translated:", ", ".join(root_install_iids_translated))))
 
         for IID in root_install_iids_translated:
             try:
+                # all items in the root list are marked as required by them selves
+                instlObj.install_definitions_index[IID].requirment_of.append(IID)
                 instlObj.install_definitions_index[IID].get_recursive_depends(instlObj.install_definitions_index,
                                                                               self.full_install_items,
                                                                               self.orphan_install_items)
@@ -267,8 +266,15 @@ class InstlClient(InstlInstanceBase):
         self.installState.root_install_items.extend(var_list.resolve_to_list("$(MAIN_INSTALL_TARGETS)"))
         self.installState.root_install_items = filter(bool, self.installState.root_install_items)
         self.installState.calculate_full_install_items_set(self)
+        self.clear_unrequired_items()
         var_list.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(self.installState.full_install_items)
         var_list.set_var("__ORPHAN_INSTALL_TARGETS__").extend(self.installState.orphan_install_items)
+
+    def clear_unrequired_items(self):
+        unrequired_iids = set(self.install_definitions_index) - set(self.installState.full_install_items)
+        for unrequired in unrequired_iids: del self.install_definitions_index[unrequired]
+        for IID in sorted(self.install_definitions_index.iterkeys()):
+            print(IID, "required by:",self.install_definitions_index[IID].requirment_of)
 
     def init_copy_vars(self):
         self.action_type_to_progress_message = {'pre_copy': "pre-install step",
