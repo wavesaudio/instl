@@ -196,6 +196,11 @@ class InstlClient(InstlInstanceBase):
         self.do_copy()
         self.batch_accum += self.platform_helper.progress("Done synccopy")
 
+    def do_uninstall(self):
+        logging.info("Creating uninstall instructions")
+        self.init_uninstall_vars()
+        self.create_uninstall_instructions()
+
     def repr_for_yaml(self, what=None):
         """ Create representation of self suitable for printing as yaml.
             parameter 'what' is a list of identifiers to represent. If 'what'
@@ -266,11 +271,11 @@ class InstlClient(InstlInstanceBase):
         self.installState.root_install_items.extend(var_list.resolve_to_list("$(MAIN_INSTALL_TARGETS)"))
         self.installState.root_install_items = filter(bool, self.installState.root_install_items)
         self.installState.calculate_full_install_items_set(self)
-        self.adjust_requirements()
+        self.read_previous_requirements()
         var_list.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(self.installState.full_install_items)
         var_list.set_var("__ORPHAN_INSTALL_TARGETS__").extend(self.installState.orphan_install_items)
 
-    def adjust_requirements(self):
+    def read_previous_requirements(self):
         require_file_path = var_list.resolve("$(SITE_REQUIRE_FILE_PATH)")
         if os.path.isfile(require_file_path):
             self.read_yaml_file(require_file_path)
@@ -556,3 +561,9 @@ class InstlClient(InstlInstanceBase):
         else:
             remove_actions = filter(None, remove_actions)  # filter out None values
             self.batch_accum += remove_actions
+
+    def init_uninstall_vars(self):
+        pass
+
+    def create_uninstall_instructions(self):
+        pass
