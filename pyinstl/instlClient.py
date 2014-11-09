@@ -84,7 +84,7 @@ class InstallInstructionsState(object):
         for IID in root_install_iids_translated:
             try:
                 # all items in the root list are marked as required by them selves
-                instlObj.install_definitions_index[IID].requirement_of.append(IID)
+                instlObj.install_definitions_index[IID].required_by.append(IID)
                 instlObj.install_definitions_index[IID].get_recursive_depends(instlObj.install_definitions_index,
                                                                               self.full_install_items,
                                                                               self.orphan_install_items)
@@ -266,15 +266,14 @@ class InstlClient(InstlInstanceBase):
         self.installState.root_install_items.extend(var_list.resolve_to_list("$(MAIN_INSTALL_TARGETS)"))
         self.installState.root_install_items = filter(bool, self.installState.root_install_items)
         self.installState.calculate_full_install_items_set(self)
-        self.clear_unrequired_items()
+        self.adjust_requirements()
         var_list.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(self.installState.full_install_items)
         var_list.set_var("__ORPHAN_INSTALL_TARGETS__").extend(self.installState.orphan_install_items)
 
-    def clear_unrequired_items(self):
-        unrequired_iids = set(self.install_definitions_index) - set(self.installState.full_install_items)
-        for unrequired in unrequired_iids: del self.install_definitions_index[unrequired]
-        for IID in sorted(self.install_definitions_index.iterkeys()):
-            print(IID, "required by:",self.install_definitions_index[IID].requirement_of)
+    def adjust_requirements(self):
+        require_file_path = var_list.resolve("$(SITE_REQUIRE_FILE_PATH)")
+        if os.path.isfile(require_file_path):
+            self.read_yaml_file(require_file_path)
 
     def init_copy_vars(self):
         self.action_type_to_progress_message = {'pre_copy': "pre-install step",
@@ -390,6 +389,13 @@ class InstlClient(InstlInstanceBase):
         self.accumulate_unique_actions('post_copy', self.installState.full_install_items)
 
         self.platform_helper.copy_tool.finalize()
+
+        # write the require file as it should look after copy is done
+        new_require_file_path = var_list.resolve("$(NEW_SITE_REQUIRE_FILE_PATH)")
+        self.write_require_file(new_require_file_path)
+        # Copy the new require file over the old one, if copy fails the old file remains.
+        self.batch_accum += self.platform_helper.copy_file_to_file("$(NEW_SITE_REQUIRE_FILE_PATH)",
+                                                                        "$(SITE_REQUIRE_FILE_PATH)")
 
         # messages about orphan iids
         for iid in self.installState.orphan_install_items:
