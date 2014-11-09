@@ -357,18 +357,15 @@ class InstallItem(object):
             out_set.append(self.iid)
             # print("get_recursive_depends: added", self.iid)
             for depend in self._depend_list():
-                items_map[depend].requirement_of.append(self.iid)
-                #print("get_recursive_depends:", self.iid, "depends on", depend)
-                if depend not in out_set:  # avoid cycles, save time
-                    try:
-                        if guid_re.match(depend):  # if it's a guid translate to iid's
-                            dependees = iids_from_guid(items_map, depend)
-                        else:
-                            dependees = [depend]
-                        for dependee in dependees:
+                try:
+                    # if IID is a guid iids_from_guid will translate to iid's, or return the IID otherwise
+                    dependees = iids_from_guid(items_map, depend)
+                    for dependee in dependees:
+                        items_map[dependee].requirement_of.append(self.iid)
+                        if dependee not in out_set:  # avoid cycles, save time
                             items_map[dependee].get_recursive_depends(items_map, out_set, orphan_set)
-                    except KeyError:
-                        orphan_set.append(depend)
+                except KeyError:
+                    orphan_set.append(depend)
         #else:
         #    print("get_recursive_depends: already added", self.iid)
 
@@ -460,7 +457,10 @@ def guid_list(items_map):
 
 def iids_from_guid(items_map, guid):
     retVal = list()
-    for iid, install_def in items_map.iteritems():
-        if install_def.guid == guid:
-            retVal.append(iid)
+    if guid_re.match(guid): # it's a guid, get iids for all items with that guid
+        for iid, install_def in items_map.iteritems():
+            if install_def.guid == guid:
+                retVal.append(iid)
+    else:
+        retVal.append(guid) # it's a regular iid, not a guid
     return retVal
