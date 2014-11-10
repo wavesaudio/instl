@@ -40,7 +40,7 @@ class InstallInstructionsState(object):
         #retVal['sync_instruction_lines'] = self.instruction_lines['sync']
         return retVal
 
-    def __sort_install_items_by_target_folder(self, instlObj):
+    def sort_install_items_by_target_folder(self, instlObj):
         for IID in self.full_install_items:
             with instlObj.install_definitions_index[IID] as installi:
                 folder_list_for_idd = [folder for folder in var_list["iid_folder_list"]]
@@ -92,7 +92,7 @@ class InstallInstructionsState(object):
                 self.orphan_install_items.append(IID)
                 logging.warning("%s not found in index", IID)
         logging.info(" ".join(("Full install items:", ", ".join(self.full_install_items))))
-        self.__sort_install_items_by_target_folder(instlObj)
+        self.sort_install_items_by_target_folder(instlObj)
 
 
 class InstlClient(InstlInstanceBase):
@@ -396,14 +396,7 @@ class InstlClient(InstlInstanceBase):
 
         self.platform_helper.copy_tool.finalize()
 
-        # write the require file as it should look after copy is done
-        new_require_file_path = var_list.resolve("$(NEW_SITE_REQUIRE_FILE_PATH)")
-        new_require_file_dir, new_require_file_name = os.path.split(new_require_file_path)
-        safe_makedirs(new_require_file_dir)
-        self.write_require_file(new_require_file_path)
-        # Copy the new require file over the old one, if copy fails the old file remains.
-        self.batch_accum += self.platform_helper.copy_file_to_file("$(NEW_SITE_REQUIRE_FILE_PATH)",
-                                                                        "$(SITE_REQUIRE_FILE_PATH)")
+        self.create_require_file_instructions()
 
         # messages about orphan iids
         for iid in self.installState.orphan_install_items:
@@ -571,7 +564,7 @@ class InstlClient(InstlInstanceBase):
     def create_uninstall_instructions(self):
         self.init_uninstall_vars()
         #self.uninstall_definitions_index = dict()
-        full_list_of_items_to_uninstall = list()
+        full_list_of_iids_to_uninstall = list()
         from collections import deque
         iids_to_check = deque()
         iids_to_check.extend(self.installState.root_install_items)
@@ -581,8 +574,26 @@ class InstlClient(InstlInstanceBase):
                 if len(item.required_by) > 0: # to avoid repeated checks
                     item.required_by.remove(curr_iid)
                     if len(item.required_by) == 0:
-                        full_list_of_items_to_uninstall.append(item.iid)
+                        full_list_of_iids_to_uninstall.append(item.iid)
                         iids_to_check.append(item.iid)
 
-        print("root items:", self.installState.root_install_items)
-        print("full items:", full_list_of_items_to_uninstall)
+        print("requested items to uninstall:", self.installState.root_install_items)
+        if len(full_list_of_iids_to_uninstall) > 0:
+            self.installState.full_install_items.extend(full_list_of_iids_to_uninstall)
+            self.installState.sort_install_items_by_target_folder(self)
+            print("actual items to uninstall:", self.installState.full_install_items)
+            self.create_require_file_instructions()
+            self.init_remove_vars()
+            self.create_remove_instructions()
+        else:
+            print("nothing to uninstall")
+
+    def create_require_file_instructions(self):
+        # write the require file as it should look after copy is done
+        new_require_file_path = var_list.resolve("$(NEW_SITE_REQUIRE_FILE_PATH)")
+        new_require_file_dir, new_require_file_name = os.path.split(new_require_file_path)
+        safe_makedirs(new_require_file_dir)
+        self.write_require_file(new_require_file_path)
+        # Copy the new require file over the old one, if copy fails the old file remains.
+        self.batch_accum += self.platform_helper.copy_file_to_file("$(NEW_SITE_REQUIRE_FILE_PATH)",
+                                                                        "$(SITE_REQUIRE_FILE_PATH)")

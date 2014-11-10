@@ -1,4 +1,8 @@
 ???? 0.9.18.8
+
+    user visible changes, client:
+    * implemented uninstall command by filtering the !require file and creating remove instaructions.
+
     programmer visible changes:
     * implemented requirement_of filed in InstallItem
     * iids_from_guid check if input is guid and return the original iid if not. This will save checking by claaer of iids_from_guid.
