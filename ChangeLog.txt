@@ -1,3 +1,12 @@
+???? 0.9.18.8
+
+    user visible changes, admin:
+    * Implemented --limit option to svn2stage
+    * Added quoted string handling to --limit options of svn2stage and stage2svn
+
+    programmer visible changes:
+    * New util function unquoteme sister to quoteme_single & quoteme_double
+
 5/11 0.9.18.6
 
     user visible changes, client:

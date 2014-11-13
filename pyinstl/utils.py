@@ -407,11 +407,20 @@ def need_to_download_file(file_path, file_checksum):
         retVal = not check_file_checksum(file_path, file_checksum)
     return retVal
 
-def quoteme_single(to_qoute):
-    return "".join( ("'", to_qoute, "'") )
+def quoteme_single(to_quote):
+    return "".join( ("'", to_quote, "'") )
 
-def quoteme_double(to_qoute):
-    return "".join( ('"', to_qoute, '"') )
+def quoteme_double(to_quote):
+    return "".join( ('"', to_quote, '"') )
+
+detect_quotations = re.compile("(?P<prefix>[\"'])(?P<the_unquoted_text>.+)(?P=prefix)")
+
+def unquoteme(to_unquote):
+    retVal = to_unquote
+    has_quotations = detect_quotations.match(to_unquote)
+    if has_quotations:
+        retVal = has_quotations.group('the_unquoted_text')
+    return retVal
 
 guid_re = re.compile("""
                 [a-f0-9]{8}

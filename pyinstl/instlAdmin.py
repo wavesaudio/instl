@@ -573,9 +573,9 @@ class InstlAdmin(InstlInstanceBase):
     def do_stage2svn(self):
         self.batch_accum.set_current_section('admin')
         if var_list.defined("__LIMIT_COMMAND_TO__"):
-            print("limiting to ", "; ".join(var_list.resolve_to_list("$(__LIMIT_COMMAND_TO__)")))
+            print("stage2svn limited to ", "; ".join(var_list.resolve_to_list("$(__LIMIT_COMMAND_TO__)")))
         else:
-            print ("no limiting to specific folder")
+            print ("stage2svn for the whole repository")
         stage_folder = var_list.resolve("$(STAGING_FOLDER)")
         svn_folder = var_list.resolve("$(SVN_CHECKOUT_FOLDER)")
         self.batch_accum += self.platform_helper.unlock(stage_folder, recursive=True)
@@ -586,6 +586,7 @@ class InstlAdmin(InstlInstanceBase):
         if var_list.defined("__LIMIT_COMMAND_TO__"):
             limit_list = var_list.resolve_to_list("$(__LIMIT_COMMAND_TO__)")
             for limit in limit_list:
+                limit = unquoteme(limit)
                 stage_folder_svn_folder_pairs.append( (os.path.join(stage_folder,limit) , os.path.join(svn_folder, limit) ) )
         else:
                 stage_folder_svn_folder_pairs.append( (stage_folder , svn_folder) )
@@ -715,15 +716,38 @@ class InstlAdmin(InstlInstanceBase):
         if "__RUN_BATCH_FILE__" in var_list:
             self.run_batch_file()
 
+
     def do_svn2stage(self):
         self.batch_accum.set_current_section('admin')
         stage_folder = var_list.resolve(("$(STAGING_FOLDER)"))
         svn_folder = var_list.resolve("$(SVN_CHECKOUT_FOLDER)")
-        svn_command_parts = ['"$(SVN_CLIENT_PATH)"', "checkout", '"$(SVN_REPO_URL)"', '"'+svn_folder+'"', "--depth", "infinity"]
-        self.batch_accum += " ".join(svn_command_parts)
-        self.batch_accum += self.platform_helper.progress("Checkout $(SVN_REPO_URL) to $(SVN_CHECKOUT_FOLDER)")
-        self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(svn_folder, stage_folder, link_dest=False, ignore=(".svn", ".DS_Store"))
-        self.batch_accum += self.platform_helper.progress("rsync $(SVN_CHECKOUT_FOLDER) to $(STAGING_FOLDER)")
+
+        # --limit command line option might have been specified
+        if var_list.defined("__LIMIT_COMMAND_TO__"):
+            limit_list = var_list.resolve_to_list("$(__LIMIT_COMMAND_TO__)")
+            joined_limit_list = "; ".join(limit_list)
+            print("svn2stage limited to ", joined_limit_list)
+        else:
+            print ("svn2stage for the whole repository")
+
+        limit_info_list = []
+        if var_list.defined("__LIMIT_COMMAND_TO__"):
+            limit_list = var_list.resolve_to_list("$(__LIMIT_COMMAND_TO__)")
+            for limit in limit_list:
+                limit = unquoteme(limit)
+                limit_info_list.append( (limit, os.path.join(svn_folder, limit), os.path.join(stage_folder,limit) ) )
+        else:
+                limit_info_list.append(("", svn_folder, stage_folder))
+        for limit_info in limit_info_list:
+            checkout_url = var_list.resolve("$(SVN_REPO_URL)")
+            if limit_info[0] != "":
+                checkout_url += "/"+limit_info[0]
+            checkout_url = quoteme_double(checkout_url)
+            svn_command_parts = ['"$(SVN_CLIENT_PATH)"', "checkout", checkout_url, '"'+limit_info[1]+'"', "--depth", "infinity"]
+            self.batch_accum += " ".join(svn_command_parts)
+            self.batch_accum += self.platform_helper.progress("Checkout {} to {}".format(checkout_url, limit_info[1]))
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(limit_info[1], limit_info[2], link_dest=False, ignore=(".svn", ".DS_Store"))
+            self.batch_accum += self.platform_helper.progress("rsync {} to {}".format(limit_info[1], limit_info[2]))
         self.create_variables_assignment()
         self.write_batch_file()
         if "__RUN_BATCH_FILE__" in var_list:
