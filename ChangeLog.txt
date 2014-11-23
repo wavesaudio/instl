@@ -1,7 +1,7 @@
 ???? 0.9.18.8
 
     user visible changes, client:
-    * New command gui
+    * New command gui client mode working, admin mode not fully working yet.
 
     user visible changes, admin:
     * Implemented --limit option to svn2stage
