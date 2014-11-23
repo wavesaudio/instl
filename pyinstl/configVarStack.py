@@ -127,7 +127,8 @@ class ConfigVarStack(configVarList.ConfigVarList):
         self._ConfigVarList_objs.append(scope)
 
     def pop_scope(self):
-        self._ConfigVarList_objs.pop()
+        retVal = self._ConfigVarList_objs.pop()
+        return retVal
 
 
 # This is the global variable list serving all parts of instl

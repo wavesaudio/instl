@@ -11,17 +11,20 @@ from aYaml import augmentedYaml
 
 from instlInstanceBase import InstlInstanceBase
 from configVarStack import var_stack as var_list
-import svnTree
+from configVarList import ConfigVarList
+
 from Tkinter import *
 from ttk import *
-
-def say_hi(self):
-    print ("hi there, everyone!")
 
 class InstlGui(InstlInstanceBase):
     def __init__(self, initial_vars):
         super(InstlGui, self).__init__(initial_vars)
         self.master = None
+        self.history_file_name = "instl-gui.yaml"
+        self.master = Tk()
+        self.command_name_var = StringVar()
+        self.input_path_var = StringVar()
+        self.output_path_var = StringVar()
 
     def do_command(self):
         self.read_history()
@@ -29,10 +32,23 @@ class InstlGui(InstlInstanceBase):
         self.write_history()
 
     def read_history(self):
-        print("read_history")
+        var_list.push_scope()
+        try:
+            self.read_yaml_file(self.history_file_name)
+            self.command_name_var.set(var_list.resolve("$(CLIENT_GUI_COMMAND)", default="sync"))
+            self.input_path_var.set(var_list.resolve("$(CLIENT_GUI_INPUT_FILE)", default="sync.yaml"))
+            self.output_path_var.set(var_list.resolve("$(CLIENT_GUI_OUTPUT_FILE)", default="sync.sh"))
+        except:
+            pass
 
     def write_history(self):
-        print("write_history")
+        the_list = var_list.pop_scope()
+        the_list.set_var("CLIENT_GUI_COMMAND").append(self.command_name_var.get())
+        the_list.set_var("CLIENT_GUI_INPUT_FILE").append(self.input_path_var.get())
+        the_list.set_var("CLIENT_GUI_OUTPUT_FILE").append(self.output_path_var.get())
+        the_list_yaml_ready = augmentedYaml.YamlDumpDocWrap(the_list, '!define', "Definitions", explicit_start=True, sort_mappings=True)
+        with open("instl-gui.yaml", "w") as wfd:
+            augmentedYaml.writeAsYaml(the_list_yaml_ready, wfd)
 
     def get_input_file(self):
         import tkFileDialog
@@ -79,23 +95,19 @@ class InstlGui(InstlInstanceBase):
 
         # instl command selection
         commnads = ("sync", "copy", "synccopy", "remove")
-        self.command_name_var = StringVar(client_frame)
+        #self.command_name_var = StringVar(client_frame)
         #self.command_name_var.set(commnads[0]) # default value
-        OptionMenu(client_frame, self.command_name_var, commnads[0], *commnads, command=self.update_commandline).grid(row=curr_row, column=1, sticky=W)
+        OptionMenu(client_frame, self.command_name_var, self.command_name_var.get(), *commnads, command=self.update_commandline).grid(row=curr_row, column=1, sticky=W)
 
         # path to input file
         curr_row += 1
         Button(client_frame, width=6, text="Input:", command=self.get_input_file).grid(row=curr_row, column=0, sticky=W)
-        self.input_path_var = StringVar()
-        self.input_path_var.set("?")
         Entry(client_frame, textvariable=self.input_path_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
         self.input_path_var.trace('w', self.update_commandline)
 
         # path to output file
         curr_row += 1
         Button(client_frame, width=6, text="Output:", command=self.get_output_file).grid(row=curr_row, column=0, sticky=W)
-        self.output_path_var = StringVar()
-        self.output_path_var.set("?")
         Entry(client_frame, textvariable=self.output_path_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
         self.output_path_var.trace('w', self.update_commandline)
 
@@ -118,7 +130,6 @@ class InstlGui(InstlInstanceBase):
 
     def create_gui(self):
 
-        self.master = Tk()
         self.master.title("instl")
 
         notebook = Notebook(self.master)
