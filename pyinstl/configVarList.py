@@ -142,7 +142,7 @@ class ConfigVarList(object):
                 continue
             self.set_var(env, "from environment").append(os.environ[env])
 
-    def repr_for_yaml(self, which_vars=None, include_comments=True):
+    def repr_for_yaml(self, which_vars=None, include_comments=True, ignore_unknown_vars=False):
         retVal = dict()
         vars_list = list()
         if not which_vars:
@@ -162,7 +162,7 @@ class ConfigVarList(object):
                 if len(var_value) == 1:
                     var_value = var_value[0]
                 retVal[var_name] = YamlDumpWrap(var_value, comment=theComment)
-            else:
+            elif not ignore_unknown_vars:
                 retVal[var_name] = YamlDumpWrap(value="UNKNOWN VARIABLE", comment=var_name+" is not in variable list")
         return retVal
 

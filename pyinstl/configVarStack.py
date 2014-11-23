@@ -95,7 +95,7 @@ class ConfigVarStack(configVarList.ConfigVarList):
             # noinspection PyUnboundLocalVariable
             self._ConfigVarList_objs[-1].add_const_config_variable(var_name, description, *values_as_strs)
 
-    def repr_for_yaml(self, which_vars=None, include_comments=True, resolve=True):
+    def repr_for_yaml(self, which_vars=None, include_comments=True, resolve=True, ignore_unknown_vars=False):
         retVal = dict()
         vars_list = list()
         if not which_vars:
@@ -118,7 +118,7 @@ class ConfigVarStack(configVarList.ConfigVarList):
                 if len(var_value) == 1:
                     var_value = var_value[0]
                 retVal[var_name] = YamlDumpWrap(var_value, comment=theComment)
-            else:
+            elif not ignore_unknown_vars:
                 retVal[var_name] = YamlDumpWrap(value="UNKNOWN VARIABLE", comment=var_name+" is not in variable list")
         return retVal
 
