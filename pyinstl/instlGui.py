@@ -20,35 +20,35 @@ class InstlGui(InstlInstanceBase):
     def __init__(self, initial_vars):
         super(InstlGui, self).__init__(initial_vars)
         self.master = None
-        self.history_file_name = "instl-gui.yaml"
         self.master = Tk()
         self.command_name_var = StringVar()
         self.input_path_var = StringVar()
         self.output_path_var = StringVar()
 
+    def set_default_variables(self):
+        client_command_list = var_list.resolve_var_to_list("__CLIENT_GUI_COMMAND_LIST__")
+        var_list.set_var("CLIENT_GUI_COMMAND").append(client_command_list[0])
+
     def do_command(self):
+        self.set_default_variables()
         self.read_history()
         self.create_gui()
         self.write_history()
 
     def read_history(self):
-        var_list.push_scope()
         try:
-            self.read_yaml_file(self.history_file_name)
-            self.command_name_var.set(var_list.resolve("$(CLIENT_GUI_COMMAND)", default="sync"))
-            self.input_path_var.set(var_list.resolve("$(CLIENT_GUI_INPUT_FILE)", default="sync.yaml"))
-            self.output_path_var.set(var_list.resolve("$(CLIENT_GUI_OUTPUT_FILE)", default="sync.sh"))
+            self.read_yaml_file(var_list.resolve_var("INSTL_GUI_CONFIG_FILE_NAME"))
         except:
             pass
+        self.command_name_var.set(var_list.resolve("$(CLIENT_GUI_COMMAND)", default="sync"))
+        self.input_path_var.set(var_list.unresolved_var("CLIENT_GUI_INPUT_FILE", default="$(CLIENT_GUI_COMMAND).yaml"))
+        self.output_path_var.set(var_list.unresolved_var("CLIENT_GUI_OUTPUT_FILE", default="$(CLIENT_GUI_COMMAND).sh"))
 
     def write_history(self):
-        the_list = var_list.pop_scope()
-        the_list.set_var("CLIENT_GUI_COMMAND").append(self.command_name_var.get())
-        the_list.set_var("CLIENT_GUI_INPUT_FILE").append(self.input_path_var.get())
-        the_list.set_var("CLIENT_GUI_OUTPUT_FILE").append(self.output_path_var.get())
-        the_list_yaml_ready = augmentedYaml.YamlDumpDocWrap(the_list, '!define', "Definitions", explicit_start=True, sort_mappings=True)
-        with open("instl-gui.yaml", "w") as wfd:
-            augmentedYaml.writeAsYaml(the_list_yaml_ready, wfd)
+        the_list_yaml_ready= var_list.repr_for_yaml(which_vars=var_list.resolve_var_to_list("__GUI_CONFIG_FILE_VARS__"), include_comments=False, resolve=False)
+        the_doc_yaml_ready = augmentedYaml.YamlDumpDocWrap(the_list_yaml_ready, '!define', "Definitions", explicit_start=True, sort_mappings=True)
+        with open(var_list.resolve_var("INSTL_GUI_CONFIG_FILE_NAME"), "w") as wfd:
+            augmentedYaml.writeAsYaml(the_doc_yaml_ready, wfd)
 
     def get_input_file(self):
         import tkFileDialog
@@ -71,10 +71,11 @@ class InstlGui(InstlInstanceBase):
             print("output file:", "user canceled")
 
     def update_commandline(self, *args):
-        command_name_var = self.command_name_var.get()
-        input_path_var = self.input_path_var.get()
-        output_path_var = self.output_path_var.get()
-        self.command_line_var.set("{command_name_var} --in {input_path_var} --out {output_path_var}".format(**locals()))
+        var_list.set_var("CLIENT_GUI_COMMAND").append(self.command_name_var.get())
+        var_list.set_var("CLIENT_GUI_INPUT_FILE").append(self.input_path_var.get())
+        var_list.set_var("CLIENT_GUI_OUTPUT_FILE").append(self.input_path_var.get())
+        command_line = "$(CLIENT_GUI_COMMAND) --in $(CLIENT_GUI_INPUT_FILE) --out $(CLIENT_GUI_OUTPUT_FILE)"
+        self.command_line_var.set(var_list.resolve(command_line))
 
     def go(self):
         self.update_commandline()
@@ -94,10 +95,10 @@ class InstlGui(InstlInstanceBase):
         command_label.grid(row=curr_row, column=0, sticky=W)
 
         # instl command selection
-        commnads = ("sync", "copy", "synccopy", "remove")
+        client_command_list = var_list.resolve_var_to_list("__CLIENT_GUI_COMMAND_LIST__")
         #self.command_name_var = StringVar(client_frame)
         #self.command_name_var.set(commnads[0]) # default value
-        OptionMenu(client_frame, self.command_name_var, self.command_name_var.get(), *commnads, command=self.update_commandline).grid(row=curr_row, column=1, sticky=W)
+        OptionMenu(client_frame, self.command_name_var, self.command_name_var.get(), *client_command_list, command=self.update_commandline).grid(row=curr_row, column=1, sticky=W)
 
         # path to input file
         curr_row += 1

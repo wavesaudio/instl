@@ -175,7 +175,7 @@ class ConfigVarList(object):
         """ Resolve a string, possibly with $() style references.
             For Variables that hold more than one value, the values are connected with list_sep
             which defaults to a single space.
-            None existant variables are left as is if default==None, otherwise valie of default is inserted
+            None existent variables are left as is if default==None, otherwise value of default is inserted
         """
         resolved_str = str_to_resolve
         search_start_pos = 0
@@ -251,4 +251,16 @@ class ConfigVarList(object):
         if var_name in self:
             var_reference = "".join( ("$(", var_name, ")") )
             retVal = self.resolve_to_list(var_reference)
+        return retVal
+
+    def unresolved_var(self, var_name, list_sep=" ", default=None):
+        retVal = default
+        if var_name in self:
+            retVal = list_sep.join([val for val in self[var_name]])
+        return retVal
+
+    def unresolved_var_to_list(self, var_name, default=None):
+        retVal = default
+        if var_name in self:
+            retVal = [val for val in self[var_name]]
         return retVal

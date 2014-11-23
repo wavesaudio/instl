@@ -1,0 +1,29 @@
+--- !define_const
+
+INSTL_GUI_CONFIG_FILE_NAME: instl-gui.yaml
+
+__CLIENT_GUI_COMMAND_LIST__:
+  - sync
+  - copy
+  - synccopy
+  - remove
+
+# these vars will be written to the config file
+__GUI_CONFIG_FILE_VARS__:
+  - CLIENT_GUI_COMMAND
+  - CLIENT_GUI_INPUT_FILE
+  - CLIENT_GUI_OUTPUT_FILE
+
+--- !define
+
+CLIENT_GUI_INPUT_FILE:  $(CLIENT_GUI_COMMAND).yaml
+
+--- !define_Mac
+
+CLIENT_GUI_OUTPUT_FILE: $(CLIENT_GUI_COMMAND).sh
+
+--- !defin_Win
+
+CLIENT_GUI_OUTPUT_FILE: $(CLIENT_GUI_COMMAND).bat
+
+--- !define

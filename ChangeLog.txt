@@ -1,10 +1,19 @@
 ???? 0.9.18.8
 
+    user visible changes, client:
+    * New command gui
+
     user visible changes, admin:
     * Implemented --limit option to svn2stage
     * Added quoted string handling to --limit options of svn2stage and stage2svn
     * mac OS mkdir_with_owner batch file function now sets only user id for new directory not group id.    programmer visible changes:
     * New util function unquoteme sister to quoteme_single & quoteme_double
+
+    programmer visible changes:
+    * gui command saves and restores state to config file.
+    * gui command fully uses var_list variables.
+    * New methods: ConfigVarList.unresolved_var &  ConfigVarList.unresolved_var_to_list.
+    * ConfigVarStack.repr_for_yaml new parameter resolve, so we can write var list to yaml without resolving. Default is resolve=True.
 
 5/11 0.9.18.6
 
