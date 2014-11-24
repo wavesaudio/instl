@@ -1,17 +1,12 @@
 #!/usr/bin/env python2.7
 
 from __future__ import print_function
-import time
-from collections import OrderedDict, defaultdict
-import logging
 
 from pyinstl.utils import *
-from installItem import InstallItem, guid_list, iids_from_guid
 from aYaml import augmentedYaml
 
 from instlInstanceBase import InstlInstanceBase
 from configVarStack import var_stack as var_list
-from configVarList import ConfigVarList
 
 from Tkinter import *
 from ttk import *

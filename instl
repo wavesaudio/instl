@@ -370,10 +370,13 @@ def main():
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "gui":
-        from pyinstl.instlGui import InstlGui
-        instance = InstlGui(initial_vars)
-        instance.init_from_cmd_line_options(options)
-        instance.do_command()
+        if getattr(sys, 'frozen', False):
+            print("gui command not available in compiled instl")
+        else:
+            from pyinstl.instlGui import InstlGui
+            instance = InstlGui(initial_vars)
+            instance.init_from_cmd_line_options(options)
+            instance.do_command()
     else:
         raise InstlException("incomprehensible command line options:\n", options)
     logging.info("Done %s", options.command)
