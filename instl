@@ -108,6 +108,7 @@ def prepare_args_parser():
     create_rsa_keys_parser = subparsers.add_parser('create-rsa-keys', help='create private and public keys')
     fix_props_parser = subparsers.add_parser('fix-props', help='create svn commands to remove redundant properties such as executable bit from files that should not be marked executable')
     fix_symlinks_parser = subparsers.add_parser('fix-symlinks', help='replace symlinks with .symlinks files')
+    gui_parser = subparsers.add_parser('gui', help="graphical user interface")
     help_parser = subparsers.add_parser('help')
     make_sig_parser = subparsers.add_parser('make-sig', help='create sha1 checksum and rsa signature for a file')
     parallel_run_parser = subparsers.add_parser('parallel-run', help="Run processes in parallel")
@@ -138,7 +139,8 @@ def prepare_args_parser():
                         create_repo_rev_file_parser, verify_index_parser),
              'do_something': (version_parser, help_parser, parallel_run_parser,
                               unwtar_parser, check_checksum_parser, create_folders_parser,
-                              set_exec_parser, test_import_parser, remove_empty_folders)
+                              set_exec_parser, test_import_parser, remove_empty_folders),
+             'gui': (gui_parser,)
             }
     for the_mode, parsers in modes.iteritems():
         for some_parser in parsers:
@@ -157,7 +159,8 @@ def prepare_args_parser():
     need_run_option = (copy_parser, sync_parser, synccopy_parser,
                            create_links_parser, fix_symlinks_parser,
                            up2S3_parser, fix_props_parser, stage2svn_parser,
-                           up_repo_rev_parser, remove_parser)
+                           svn2stage_parser, up_repo_rev_parser, remove_parser,
+                            wtar_parser)
     need_config_file_options = (create_links_parser, up_repo_rev_parser, up2S3_parser,
                                 fix_props_parser, stage2svn_parser, svn2stage_parser,
                                 wtar_parser, create_rsa_keys_parser, make_sig_parser,
@@ -367,6 +370,14 @@ def main():
         instance = InstlMisc(initial_vars)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
+    elif options.mode == "gui":
+        if getattr(sys, 'frozen', False):
+            print("gui command not available in compiled instl")
+        else:
+            from pyinstl.instlGui import InstlGui
+            instance = InstlGui(initial_vars)
+            instance.init_from_cmd_line_options(options)
+            instance.do_command()
     else:
         raise InstlException("incomprehensible command line options:\n", options)
     logging.info("Done %s", options.command)

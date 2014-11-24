@@ -95,7 +95,7 @@ class ConfigVarStack(configVarList.ConfigVarList):
             # noinspection PyUnboundLocalVariable
             self._ConfigVarList_objs[-1].add_const_config_variable(var_name, description, *values_as_strs)
 
-    def repr_for_yaml(self, which_vars=None, include_comments=True):
+    def repr_for_yaml(self, which_vars=None, include_comments=True, resolve=True, ignore_unknown_vars=False):
         retVal = dict()
         vars_list = list()
         if not which_vars:
@@ -111,11 +111,14 @@ class ConfigVarStack(configVarList.ConfigVarList):
             if var_name in self:
                 if include_comments:
                     theComment = self[var_name].description()
-                var_value = self.resolve_var(var_name)
+                if resolve:
+                    var_value = self.resolve_var(var_name)
+                else:
+                    var_value = self.unresolved_var_to_list(var_name)
                 if len(var_value) == 1:
                     var_value = var_value[0]
                 retVal[var_name] = YamlDumpWrap(var_value, comment=theComment)
-            else:
+            elif not ignore_unknown_vars:
                 retVal[var_name] = YamlDumpWrap(value="UNKNOWN VARIABLE", comment=var_name+" is not in variable list")
         return retVal
 
@@ -127,7 +130,8 @@ class ConfigVarStack(configVarList.ConfigVarList):
         self._ConfigVarList_objs.append(scope)
 
     def pop_scope(self):
-        self._ConfigVarList_objs.pop()
+        retVal = self._ConfigVarList_objs.pop()
+        return retVal
 
 
 # This is the global variable list serving all parts of instl

@@ -142,7 +142,7 @@ class ConfigVarList(object):
                 continue
             self.set_var(env, "from environment").append(os.environ[env])
 
-    def repr_for_yaml(self, which_vars=None, include_comments=True):
+    def repr_for_yaml(self, which_vars=None, include_comments=True, ignore_unknown_vars=False):
         retVal = dict()
         vars_list = list()
         if not which_vars:
@@ -162,7 +162,7 @@ class ConfigVarList(object):
                 if len(var_value) == 1:
                     var_value = var_value[0]
                 retVal[var_name] = YamlDumpWrap(var_value, comment=theComment)
-            else:
+            elif not ignore_unknown_vars:
                 retVal[var_name] = YamlDumpWrap(value="UNKNOWN VARIABLE", comment=var_name+" is not in variable list")
         return retVal
 
@@ -175,7 +175,7 @@ class ConfigVarList(object):
         """ Resolve a string, possibly with $() style references.
             For Variables that hold more than one value, the values are connected with list_sep
             which defaults to a single space.
-            None existant variables are left as is if default==None, otherwise valie of default is inserted
+            None existent variables are left as is if default==None, otherwise value of default is inserted
         """
         resolved_str = str_to_resolve
         search_start_pos = 0
@@ -251,4 +251,16 @@ class ConfigVarList(object):
         if var_name in self:
             var_reference = "".join( ("$(", var_name, ")") )
             retVal = self.resolve_to_list(var_reference)
+        return retVal
+
+    def unresolved_var(self, var_name, list_sep=" ", default=None):
+        retVal = default
+        if var_name in self:
+            retVal = list_sep.join([val for val in self[var_name]])
+        return retVal
+
+    def unresolved_var_to_list(self, var_name, default=None):
+        retVal = default
+        if var_name in self:
+            retVal = [val for val in self[var_name]]
         return retVal

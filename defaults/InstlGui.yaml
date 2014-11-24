@@ -1,0 +1,50 @@
+--- !define_const
+
+INSTL_GUI_CONFIG_FILE_NAME: instl-gui.yaml
+
+__CLIENT_GUI_COMMAND_LIST__:
+  - sync
+  - copy
+  - synccopy
+  - remove
+
+__ADMIN_GUI_COMMAND_LIST__:
+  - svn2stage
+  - fix-symlinks
+  - wtar
+  - stage2svn
+  - fix-props
+
+# these vars will be written to the config file
+__GUI_CONFIG_FILE_VARS__:
+  - SELECTED_TAB
+  - CLIENT_GUI_COMMAND
+  - CLIENT_GUI_INPUT_FILE
+  - CLIENT_GUI_OUTPUT_FILE
+  - CLIENT_GUI_RUN_BATCH_FILE
+  - ADMIN_GUI_COMMAND
+  - ADMIN_GUI_CONFIG_FILE
+  - ADMIN_GUI_OUTPUT_FILE
+  - ADMIN_GUI_RUN_BATCH_FILE
+  - ADMIN_GUI_LIMIT_PATH
+
+--- !define
+
+SELECTED_TAB: Client
+CLIENT_GUI_INPUT_FILE:  $(CLIENT_GUI_COMMAND).yaml
+CLIENT_GUI_RUN_BATCH_FILE: no
+ADMIN_GUI_CONFIG_FILE: ""
+ADMIN_GUI_RUN_BATCH_FILE: yes
+ADMIN_GUI_LIMIT_PATH: ""
+
+--- !define_Mac
+
+CLIENT_GUI_OUTPUT_FILE: $(CLIENT_GUI_COMMAND).sh
+ADMIN_GUI_OUTPUT_FILE: $(ADMIN_GUI_COMMAND).sh
+
+--- !defin_Win
+
+CLIENT_GUI_OUTPUT_FILE: $(CLIENT_GUI_COMMAND).bat
+ADMIN_GUI_OUTPUT_FILE: $(ADMIN_GUI_COMMAND).bat
+
+--- !define
