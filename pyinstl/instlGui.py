@@ -2,6 +2,7 @@
 
 from __future__ import print_function
 
+import shlex
 from pyinstl.utils import *
 from aYaml import augmentedYaml
 
@@ -43,7 +44,7 @@ class InstlGui(InstlInstanceBase):
         self.admin_config_path_var = StringVar()
         self.admin_output_path_var = StringVar()
         self.run_admin_batch_file_var = IntVar()
-        self.admin_limit_path_var = StringVar()
+        self.admin_limit_var = StringVar()
         self.limit_path_entry_widget = None
 
     def set_default_variables(self):
@@ -73,7 +74,7 @@ class InstlGui(InstlInstanceBase):
         self.admin_config_path_var.set(var_list.unresolved_var("ADMIN_GUI_CONFIG_FILE", default=""))
         self.admin_output_path_var.set(var_list.unresolved_var("ADMIN_GUI_OUTPUT_FILE", default="$(ADMIN_GUI_COMMAND).sh"))
         self.run_admin_batch_file_var.set(str_to_bool_int(var_list.resolve("$(ADMIN_GUI_RUN_BATCH_FILE)", default="yes")))
-        self.admin_limit_path_var.set(var_list.unresolved_var("ADMIN_GUI_LIMIT_PATH", default=""))
+        self.admin_limit_var.set(var_list.unresolved_var("ADMIN_GUI_LIMIT", default=""))
 
 
     def write_history(self):
@@ -127,10 +128,11 @@ class InstlGui(InstlInstanceBase):
                         "--out", var_list.resolve_var("ADMIN_GUI_OUTPUT_FILE")]
 
         if self.admin_command_name_var.get() in self.commands_that_accept_limit_option:
-            limit_path = self.admin_limit_path_var.get()
+            limit_path = self.admin_limit_var.get()
             if limit_path != "":
                 retVal.append("--limit")
-                retVal.append(limit_path)
+                limit_paths = shlex.split(limit_path) # there might be space separated paths
+                retVal.extend(limit_paths)
 
         if self.run_admin_batch_file_var.get() == 1:
             retVal.append("--run")
@@ -151,7 +153,7 @@ class InstlGui(InstlInstanceBase):
         var_list.set_var("ADMIN_GUI_CONFIG_FILE").append(self.admin_config_path_var.get())
         var_list.set_var("ADMIN_GUI_OUTPUT_FILE").append(self.admin_output_path_var.get())
         var_list.set_var("ADMIN_GUI_RUN_BATCH_FILE").append(bool_int_to_str(self.run_admin_batch_file_var.get()))
-        var_list.set_var("ADMIN_GUI_LIMIT_PATH").append(self.admin_limit_path_var.get())
+        var_list.set_var("ADMIN_GUI_LIMIT").append(self.admin_limit_var.get())
 
         if self.admin_command_name_var.get() in self.commands_that_accept_limit_option:
             self.limit_path_entry_widget.configure(state='normal')
@@ -221,9 +223,9 @@ class InstlGui(InstlInstanceBase):
         # relative path to limit folder
         curr_row += 1
         Label(admin_frame, text="Limit:").grid(row=curr_row, column=0)
-        self.limit_path_entry_widget = Entry(admin_frame, textvariable=self.admin_limit_path_var)
+        self.limit_path_entry_widget = Entry(admin_frame, textvariable=self.admin_limit_var)
         self.limit_path_entry_widget.grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
-        self.admin_limit_path_var.trace('w', self.update_admin_state)
+        self.admin_limit_var.trace('w', self.update_admin_state)
 
         # the combined command line text
         curr_row += 1

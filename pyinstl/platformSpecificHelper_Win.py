@@ -66,13 +66,16 @@ class CopyTool_win_robocopy(CopyToolBase):
         retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
         return retVal
 
-    def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=None, ignore=None):
+    def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=None, ignore=None, preserve_dest_files=True):
         retVal = list()
         ignore_spec = self.create_ignore_spec(ignore)
+        delete_spec = ""
+        if not preserve_dest_files:
+            delete_spec = "/PURGE"
         log_file_spec = self.create_log_spec()
         norm_src_dir = os.path.normpath(src_dir)
         norm_trg_dir = os.path.normpath(trg_dir)
-        copy_command = "robocopy \"{norm_src_dir}\" \"{norm_trg_dir}\" /E {ignore_spec} /R:3 /W:3 {log_file_spec}".format(**locals())
+        copy_command = "robocopy \"{norm_src_dir}\" \"{norm_trg_dir}\" /E {delete_spec} {ignore_spec} /R:3 /W:3 {log_file_spec}".format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
         return retVal
@@ -152,12 +155,13 @@ class CopyTool_win_xcopy(CopyToolBase):
         retVal.append(self.platform_helper.exit_if_error())
         return retVal
 
-    def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
+    def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None, preserve_dest_files=True):
         retVal = list()
         norm_src_dir = os.path.normpath(src_dir)
         norm_trg_dir = os.path.normpath(trg_dir)
         ignore_spec = self.create_ignore_spec(ignore)
-        copy_command = "xcopy /E /R /Y {ignore_spec} \"{norm_src_dir}\" \"{norm_trg_dir}\"".format(**locals())
+        # preserve_dest_files is ignored - xcopy has no support for removing target file that are not in source
+        copy_command = "xcopy /E /R /Y /I {ignore_spec} \"{norm_src_dir}\" \"{norm_trg_dir}\"".format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error())
         return retVal

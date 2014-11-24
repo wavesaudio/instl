@@ -427,7 +427,8 @@ class InstlClient(InstlInstanceBase):
         elif source[1] == '!dir_cont':  # get all files and folders from a folder
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".",
                                                                                         link_dest=True,
-                                                                                        ignore=ignore_list)
+                                                                                        ignore=ignore_list,
+                                                                                        preserve_dest_files=True) # preserve files already in destination
         elif source[1] == '!files':  # get all files from a folder
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".",
                                                                                      link_dest=True,
