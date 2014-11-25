@@ -114,12 +114,24 @@ class InstlGui(InstlInstanceBase):
             self.admin_output_path_var.set(retVal)
             self.update_admin_state()
 
+    def open_file_for_edit(self, var_name):
+        path_to_file = var_list.resolve_var(var_name)
+        try:
+            os.startfile(path_to_file)
+        except AttributeError:
+            subprocess.call(['open', path_to_file])
+
     def create_client_command_line(self):
         retVal = [var_list.resolve_var("__INSTL_EXE_PATH__"), var_list.resolve_var("CLIENT_GUI_COMMAND"),
                         "--in", var_list.resolve_var("CLIENT_GUI_INPUT_FILE"),
                         "--out", var_list.resolve_var("CLIENT_GUI_OUTPUT_FILE")]
         if self.run_client_batch_file_var.get() == 1:
             retVal.append("--run")
+
+        if 'Win' in var_list.resolve_to_list("$(__CURRENT_OS_NAMES__)"):
+            if not getattr(sys, 'frozen', False):
+                retVal.insert(0, sys.executable)
+
         return retVal
 
     def create_admin_command_line(self):
@@ -136,6 +148,11 @@ class InstlGui(InstlInstanceBase):
 
         if self.run_admin_batch_file_var.get() == 1:
             retVal.append("--run")
+
+        if 'Win' in var_list.resolve_to_list("$(__CURRENT_OS_NAMES__)"):
+            if not getattr(sys, 'frozen', False):
+                retVal.insert(0, sys.executable)
+
         return retVal
 
     def update_client_state(self, *args):
@@ -176,7 +193,7 @@ class InstlGui(InstlInstanceBase):
         unused_stdout, unused_stderr = proc.communicate()
         retcode = proc.returncode
         if retcode != 0:
-            raise SystemExit(command_line + " returned exit code " + str(retcode))
+            raise SystemExit(" ".join(command_line) + " returned exit code " + str(retcode))
 
     def run_admin(self):
         self.update_admin_state()
@@ -212,6 +229,7 @@ class InstlGui(InstlInstanceBase):
         Entry(admin_frame, textvariable=self.admin_config_path_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
         self.admin_config_path_var.trace('w', self.update_admin_state)
         Button(admin_frame, width=2, text="...", command=self.get_admin_config_file).grid(row=curr_row, column=3, sticky=W)
+        Button(admin_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit("ADMIN_GUI_CONFIG_FILE")).grid(row=curr_row, column=4, sticky=W)
 
         # path to output file
         curr_row += 1
@@ -219,6 +237,7 @@ class InstlGui(InstlInstanceBase):
         Entry(admin_frame, textvariable=self.admin_output_path_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
         self.admin_output_path_var.trace('w', self.update_admin_state)
         Button(admin_frame, width=2, text="...", command=self.get_admin_output_file).grid(row=curr_row, column=3, sticky=W)
+        Button(admin_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit("ADMIN_GUI_OUTPUT_FILE")).grid(row=curr_row, column=4, sticky=W)
 
         # relative path to limit folder
         curr_row += 1
@@ -260,6 +279,7 @@ class InstlGui(InstlInstanceBase):
         Entry(client_frame, textvariable=self.client_input_path_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
         self.client_input_path_var.trace('w', self.update_client_state)
         Button(client_frame, width=2, text="...", command=self.get_client_input_file).grid(row=curr_row, column=3, sticky=W)
+        Button(client_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit("CLIENT_GUI_INPUT_FILE")).grid(row=curr_row, column=4, sticky=W)
 
         # path to output file
         curr_row += 1
@@ -267,6 +287,7 @@ class InstlGui(InstlInstanceBase):
         Entry(client_frame, textvariable=self.client_output_path_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
         self.client_output_path_var.trace('w', self.update_client_state)
         Button(client_frame, width=2, text="...", command=self.get_client_output_file).grid(row=curr_row, column=3, sticky=W)
+        Button(client_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit("CLIENT_GUI_OUTPUT_FILE")).grid(row=curr_row, column=4, sticky=W)
 
         # the combined command line text
         curr_row += 1
