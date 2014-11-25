@@ -477,3 +477,30 @@ def convert_to_str_unless_None(to_convert):
         return None
     else:
         return str(to_convert)
+
+# find sequences in a sorted list. 
+# in_sorted_list: a sorted list of things to search sequences in.
+# is_next_func: The function that determines if one thing is the consecutive of another.
+#               The default is to compare as integers.
+# return_string: If true (the default) return a string in the format: "1-3, 4-5, 6, 8-9"
+#                If false return a list of sequences
+def find_sequences(in_sorted_list, is_next_func=lambda a,b: int(a)+1==int(b), return_string=True):
+    sequences = [[in_sorted_list[0]]]
+
+    for item in in_sorted_list[1:]:
+        if is_next_func(sequences[-1][-1], item):
+            sequences[-1].append(item)
+        else:
+            sequences.append([item])
+
+    if return_string:
+        sequence_strings = []
+        for sequence in sequences:
+            if len(sequence) == 1:
+                sequence_strings.append(str(sequence[0]))
+            else:
+                sequence_strings.append(str(sequence[0])+"-"+str(sequence[-1]))
+        retVal = ", ".join(sequence_strings)
+        return retVal
+    else:
+        return sequences

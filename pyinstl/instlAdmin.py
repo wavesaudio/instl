@@ -190,10 +190,10 @@ class InstlAdmin(InstlInstanceBase):
 
         if yes_need_link_nums:
             if no_need_link_nums:
-                no_need_links_str = ", ".join(no_need_link_nums)
+                no_need_links_str = find_sequences(no_need_link_nums)
                 msg = " ".join( ("Links already created for revisions:", no_need_links_str) )
                 print(msg)
-            yes_need_links_str = ", ".join(yes_need_link_nums)
+            yes_need_links_str = find_sequences(yes_need_link_nums)
             msg = " ".join( ("Need to create links for revisions:", yes_need_links_str) )
             print(msg)
         else:
@@ -305,10 +305,10 @@ class InstlAdmin(InstlInstanceBase):
 
         if yes_need_upload_nums:
             if no_need_upload_nums:
-                no_need_upload__str = ", ".join(no_need_upload_nums)
+                no_need_upload__str = find_sequences(no_need_upload_nums)
                 msg = " ".join( ("Revisions already uploaded to S3:", no_need_upload__str) )
                 print(msg)
-            yes_need_upload_str = ", ".join(yes_need_upload_nums)
+            yes_need_upload_str = find_sequences(yes_need_upload_nums)
             msg = " ".join( ("Revisions will be uploaded to S3:", yes_need_upload_str) )
             print(msg)
         else:
