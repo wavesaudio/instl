@@ -193,7 +193,7 @@ class InstlGui(InstlInstanceBase):
         unused_stdout, unused_stderr = proc.communicate()
         retcode = proc.returncode
         if retcode != 0:
-            raise SystemExit(" ".join(command_line) + " returned exit code " + str(retcode))
+            print(" ".join(command_line) + " returned exit code " + str(retcode))
 
     def run_admin(self):
         self.update_admin_state()
@@ -207,7 +207,7 @@ class InstlGui(InstlInstanceBase):
         unused_stdout, unused_stderr = proc.communicate()
         retcode = proc.returncode
         if retcode != 0:
-            raise SystemExit(" ".join(command_line) + " returned exit code " + str(retcode))
+            print(" ".join(command_line) + " returned exit code " + str(retcode))
 
     def create_admin_frame(self, master):
         admin_frame = Frame(master)

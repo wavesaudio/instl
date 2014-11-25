@@ -15,7 +15,7 @@ from batchAccumulator import BatchAccumulator
 from installItem import read_index_from_yaml
 from platformSpecificHelper_Base import PlatformSpecificHelperFactory
 from configVarStack import var_stack as var_list
-
+from installItem import InstallItem
 
 # noinspection PyPep8Naming
 class InstlInstanceBase(object):
@@ -157,7 +157,7 @@ class InstlInstanceBase(object):
             var_list.add_const_config_variable("__RUN_BATCH_FILE__", "from command line options", "yes")
 
     def is_acceptable_yaml_doc(self, doc_node):
-        acceptables = var_list.resolve_to_list("$(ACCEPTABLE_YAML_DOC_TAGS)") + ["define", "define_const", "index"]
+        acceptables = var_list.resolve_to_list("$(ACCEPTABLE_YAML_DOC_TAGS)") + ["define", "define_const", "index", 'require']
         acceptables = ["!" + acceptibul for acceptibul in acceptables]
         retVal = doc_node.tag in acceptables
         return retVal
@@ -173,6 +173,8 @@ class InstlInstanceBase(object):
                         self.read_defines(a_node)
                     elif a_node.tag.startswith('!index'):
                         self.read_index(a_node)
+                    elif a_node.tag.startswith('!require'):
+                        self.read_require(a_node)
                     else:
                         logging.error(
                             "Unknown document tag '%s' while reading file %s; Tag should be one of: !define, !index'",
@@ -180,6 +182,31 @@ class InstlInstanceBase(object):
         if not self.check_version_compatibility():
             raise ValueError(var_list.resolve("Minimal instl version $(INSTL_MINIMAL_VERSION) > current version $(__INSTL_VERSION__); ")+var_list.get_configVar_obj("INSTL_MINIMAL_VERSION").description())
         var_list.get_configVar_obj("__READ_YAML_FILES__").append(file_path)
+
+    def read_require(self, a_node):
+        #dependencies_file_path = var_list.resolve("$(SITE_REQUIRE_FILE_PATH)")
+        if a_node.isMapping():
+            for identifier, contents in a_node:
+                logging.debug("%s: %s", identifier, str(contents))
+                if identifier in self.install_definitions_index:
+                    self.install_definitions_index[identifier].required_by.extend([required_iid.value for required_iid in contents])
+                else:
+                    # require file might contain IIDs form previous installations that are no longer in the index
+                    item_not_in_index = InstallItem()
+                    item_not_in_index.iid = identifier
+                    item_not_in_index.required_by.extend([required_iid.value for required_iid in contents])
+                    self.install_definitions_index[identifier] = item_not_in_index
+
+
+    def write_require_file(self, file_path):
+        require_dict = dict()
+        for IID in sorted(self.install_definitions_index.iterkeys()):
+            if len(self.install_definitions_index[IID].required_by) > 0:
+                require_dict[IID] = sorted(self.install_definitions_index[IID].required_by)
+        with open(file_path, "w") as wfd:
+            require_dict = augmentedYaml.YamlDumpDocWrap(require_dict, '!require', "requirements",
+                                                        explicit_start=True, sort_mappings=True)
+            augmentedYaml.writeAsYaml(require_dict, wfd)
 
     internal_identifier_re = re.compile("""
                                         __                  # dunder here
@@ -411,7 +438,7 @@ class InstlInstanceBase(object):
 
     wtar_file_re = re.compile("""(?P<base_name>.+?)(\.wtar(\.[a-z]{2})?)?$""")
 
-    # Give a name remove the trailing wtar or wtar.?? if any
+    # Given a name remove the trailing wtar or wtar.?? if any
     # E.g. "a" => "a", "a.wtar" => "a", "a.wtar.aa" => "a"
     def original_name_from_wtar_name(self, wtar_name):
         original_name = self.wtar_file_re.match(wtar_name).group('base_name')

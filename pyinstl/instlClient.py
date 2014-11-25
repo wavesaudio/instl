@@ -40,7 +40,7 @@ class InstallInstructionsState(object):
         #retVal['sync_instruction_lines'] = self.instruction_lines['sync']
         return retVal
 
-    def __sort_install_items_by_target_folder(self, instlObj):
+    def sort_install_items_by_target_folder(self, instlObj):
         for IID in self.full_install_items:
             with instlObj.install_definitions_index[IID] as installi:
                 folder_list_for_idd = [folder for folder in var_list["iid_folder_list"]]
@@ -69,23 +69,22 @@ class InstallInstructionsState(object):
 
         root_install_iids_translated = unique_list()
         for IID in self.root_install_items:
-            if guid_re.match(IID):  # if it's a guid translate to iid's
-                iids_from_the_guid = iids_from_guid(instlObj.install_definitions_index, IID)
-                if len(iids_from_the_guid) > 0:
-                    root_install_iids_translated.extend(iids_from_the_guid)
-                    logging.debug("GUID %s, translated to %d iids: %s", IID, len(iids_from_the_guid),
-                                  ", ".join(iids_from_the_guid))
-                else:
-                    self.orphan_install_items.append(IID)
-                    logging.warning("%s is a guid but could not be translated to iids", IID)
+            # if IID is a guid iids_from_guid will translate to iid's, or return the IID otherwise
+            iids_from_the_guid = iids_from_guid(instlObj.install_definitions_index, IID)
+            if len(iids_from_the_guid) > 0:
+                root_install_iids_translated.extend(iids_from_the_guid)
+                logging.debug("GUID %s, translated to %d iids: %s", IID, len(iids_from_the_guid),
+                              ", ".join(iids_from_the_guid))
             else:
-                root_install_iids_translated.append(IID)
-                logging.debug("%s added to root_install_iids_translated", IID)
+                self.orphan_install_items.append(IID)
+                logging.warning("%s is a guid but could not be translated to iids", IID)
 
         logging.info(" ".join(("Main install items translated:", ", ".join(root_install_iids_translated))))
 
         for IID in root_install_iids_translated:
             try:
+                # all items in the root list are marked as required by them selves
+                instlObj.install_definitions_index[IID].required_by.append(IID)
                 instlObj.install_definitions_index[IID].get_recursive_depends(instlObj.install_definitions_index,
                                                                               self.full_install_items,
                                                                               self.orphan_install_items)
@@ -93,7 +92,7 @@ class InstallInstructionsState(object):
                 self.orphan_install_items.append(IID)
                 logging.warning("%s not found in index", IID)
         logging.info(" ".join(("Full install items:", ", ".join(self.full_install_items))))
-        self.__sort_install_items_by_target_folder(instlObj)
+        self.sort_install_items_by_target_folder(instlObj)
 
 
 class InstlClient(InstlInstanceBase):
@@ -102,7 +101,8 @@ class InstlClient(InstlInstanceBase):
 
     def do_command(self):
         the_command = var_list.resolve("$(__MAIN_COMMAND__)")
-        # print("client_commands", the_command)
+        fixed_command_name = the_command.replace('-', '_')
+        # print("client_commands", fixed_command_name)
         self.installState = InstallInstructionsState()
         self.read_yaml_file(var_list.resolve("$(__MAIN_INPUT_FILE__)"))
         self.init_default_client_vars()
@@ -115,7 +115,6 @@ class InstlClient(InstlInstanceBase):
         self.calculate_default_install_item_set()
         self.platform_helper.num_items_for_progress_report = int(var_list.resolve("$(LAST_PROGRESS)"))
 
-        fixed_command_name = the_command.replace('-', '_')
         do_command_func = getattr(self, "do_" + fixed_command_name)
         do_command_func()
         self.create_instl_history_file()
@@ -197,6 +196,11 @@ class InstlClient(InstlInstanceBase):
         self.do_copy()
         self.batch_accum += self.platform_helper.progress("Done synccopy")
 
+    def do_uninstall(self):
+        logging.info("Creating uninstall instructions")
+        self.init_uninstall_vars()
+        self.create_uninstall_instructions()
+
     def repr_for_yaml(self, what=None):
         """ Create representation of self suitable for printing as yaml.
             parameter 'what' is a list of identifiers to represent. If 'what'
@@ -266,9 +270,16 @@ class InstlClient(InstlInstanceBase):
             InstallItem.begin_get_for_specific_os(os_name)
         self.installState.root_install_items.extend(var_list.resolve_to_list("$(MAIN_INSTALL_TARGETS)"))
         self.installState.root_install_items = filter(bool, self.installState.root_install_items)
-        self.installState.calculate_full_install_items_set(self)
+        if var_list.resolve("$(__MAIN_COMMAND__)") != "uninstall":
+            self.installState.calculate_full_install_items_set(self)
+        self.read_previous_requirements()
         var_list.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(self.installState.full_install_items)
         var_list.set_var("__ORPHAN_INSTALL_TARGETS__").extend(self.installState.orphan_install_items)
+
+    def read_previous_requirements(self):
+        require_file_path = var_list.resolve("$(SITE_REQUIRE_FILE_PATH)")
+        if os.path.isfile(require_file_path):
+            self.read_yaml_file(require_file_path)
 
     def init_copy_vars(self):
         self.action_type_to_progress_message = {'pre_copy': "pre-install step",
@@ -384,6 +395,8 @@ class InstlClient(InstlInstanceBase):
         self.accumulate_unique_actions('post_copy', self.installState.full_install_items)
 
         self.platform_helper.copy_tool.finalize()
+
+        self.create_require_file_instructions()
 
         # messages about orphan iids
         for iid in self.installState.orphan_install_items:
@@ -545,3 +558,43 @@ class InstlClient(InstlInstanceBase):
         else:
             remove_actions = filter(None, remove_actions)  # filter out None values
             self.batch_accum += remove_actions
+
+    def init_uninstall_vars(self):
+        pass
+
+    def create_uninstall_instructions(self):
+        self.init_uninstall_vars()
+        #self.uninstall_definitions_index = dict()
+        full_list_of_iids_to_uninstall = list()
+        from collections import deque
+        iids_to_check = deque()
+        iids_to_check.extend(self.installState.root_install_items)
+        while len(iids_to_check) > 0:
+            curr_iid = iids_to_check.popleft()
+            for item in self.install_definitions_index.itervalues():
+                if len(item.required_by) > 0: # to avoid repeated checks
+                    item.required_by.remove(curr_iid)
+                    if len(item.required_by) == 0:
+                        full_list_of_iids_to_uninstall.append(item.iid)
+                        iids_to_check.append(item.iid)
+
+        print("requested items to uninstall:", self.installState.root_install_items)
+        if len(full_list_of_iids_to_uninstall) > 0:
+            self.installState.full_install_items.extend(full_list_of_iids_to_uninstall)
+            self.installState.sort_install_items_by_target_folder(self)
+            print("actual items to uninstall:", self.installState.full_install_items)
+            self.create_require_file_instructions()
+            self.init_remove_vars()
+            self.create_remove_instructions()
+        else:
+            print("nothing to uninstall")
+
+    def create_require_file_instructions(self):
+        # write the require file as it should look after copy is done
+        new_require_file_path = var_list.resolve("$(NEW_SITE_REQUIRE_FILE_PATH)")
+        new_require_file_dir, new_require_file_name = os.path.split(new_require_file_path)
+        safe_makedirs(new_require_file_dir)
+        self.write_require_file(new_require_file_path)
+        # Copy the new require file over the old one, if copy fails the old file remains.
+        self.batch_accum += self.platform_helper.copy_file_to_file("$(NEW_SITE_REQUIRE_FILE_PATH)",
+                                                                        "$(SITE_REQUIRE_FILE_PATH)")
