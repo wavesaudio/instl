@@ -214,8 +214,7 @@ class InstlGui(InstlInstanceBase):
         admin_frame.grid(row=0, column=1)
 
         curr_row = 0
-        command_label = Label(admin_frame, text="Command:")
-        command_label.grid(row=curr_row, column=0)
+        Label(admin_frame, text="Command:").grid(row=curr_row, column=0, sticky=E)
 
         # instl command selection
         admin_command_list = var_list.resolve_var_to_list("__ADMIN_GUI_COMMAND_LIST__")
@@ -225,7 +224,7 @@ class InstlGui(InstlInstanceBase):
 
         # path to config file
         curr_row += 1
-        Label(admin_frame, text="Config file:").grid(row=curr_row, column=0)
+        Label(admin_frame, text="Config file:").grid(row=curr_row, column=0, sticky=E)
         Entry(admin_frame, textvariable=self.admin_config_path_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
         self.admin_config_path_var.trace('w', self.update_admin_state)
         Button(admin_frame, width=2, text="...", command=self.get_admin_config_file).grid(row=curr_row, column=3, sticky=W)
@@ -233,7 +232,7 @@ class InstlGui(InstlInstanceBase):
 
         # path to output file
         curr_row += 1
-        command_label = Label(admin_frame, text="Batch file:").grid(row=curr_row, column=0)
+        Label(admin_frame, text="Batch file:").grid(row=curr_row, column=0, sticky=E)
         Entry(admin_frame, textvariable=self.admin_output_path_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
         self.admin_output_path_var.trace('w', self.update_admin_state)
         Button(admin_frame, width=2, text="...", command=self.get_admin_output_file).grid(row=curr_row, column=3, sticky=W)
@@ -241,7 +240,7 @@ class InstlGui(InstlInstanceBase):
 
         # relative path to limit folder
         curr_row += 1
-        Label(admin_frame, text="Limit:").grid(row=curr_row, column=0)
+        Label(admin_frame, text="Limit to:").grid(row=curr_row, column=0, sticky=E)
         self.limit_path_entry_widget = Entry(admin_frame, textvariable=self.admin_limit_var)
         self.limit_path_entry_widget.grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
         self.admin_limit_var.trace('w', self.update_admin_state)
