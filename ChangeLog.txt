@@ -1,11 +1,31 @@
 ???? 0.9.18.8
 
     user visible changes, client:
+    * New command gui client mode.
+    * disabled gui command when instl is compiled, since PuInstaller cannot find the frameworks required by Tkinter.
+    * added Edit button besides all file fields in gui mode
     * implemented uninstall command by filtering the !require file and creating remove instaructions.
 
+    user visible changes, admin:
+    * Implemented --limit option to svn2stage
+    * Added quoted string handling to --limit options of svn2stage and stage2svn
+    * mac OS mkdir_with_owner batch file function now sets only user id for new directory not group id.    programmer visible changes:
+    * New util function unquoteme sister to quoteme_single & quoteme_double
+    * Added --run to some admin commands
+    * Fixed Admin commands create_links and svn2stage to remove target files that are not in source using the new
+        preserve_dest_files flag.
+    * In gui mode /Admin section, enabled to have more than one limit paths.
+
     programmer visible changes:
-    * implemented requirement_of filed in InstallItem
-    * iids_from_guid check if input is guid and return the original iid if not. This will save checking by claaer of iids_from_guid.
+    * New methods: ConfigVarList.unresolved_var &  ConfigVarList.unresolved_var_to_list.
+    * ConfigVarStack.repr_for_yaml new parameter resolve, so we can write var list to yaml without resolving. Default is resolve=True.
+    * copy_dir_contents_to_dir has new option preserve_dest_files=True.
+        If explicitly set to False copy_dir_contents_to_dir will try to remove target files that are not in source.
+        Does not work for xcopy tool on Windows.
+    * writeAsYaml will no write None values as '~' and empty strings as '""'
+    * implemented requirement_of field in InstallItem
+    * iids_from_guid check if input is guid and return the original iid if not.
+        This will save checking by claaer of iids_from_guid.
 
 5/11/2014 0.9.18.6
 

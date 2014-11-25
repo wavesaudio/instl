@@ -58,7 +58,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
             'mkdir_with_owner() {',
             'if [ ! -e "$1" ]; then',
             'mkdir -p "$1"',
-            'chown $(__USRER_ID__):$(__GROUP_ID__) "$1"',
+            'chown $(__USRER_ID__): "$1"',
             'chmod a+rwx "$1"',
             'fi }')
         return retVal
