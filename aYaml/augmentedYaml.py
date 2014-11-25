@@ -338,7 +338,13 @@ def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False):
         if hasattr(pyObj, "repr_for_yaml"):
             writeAsYaml(pyObj.repr_for_yaml(), out_stream, indentor, sort)
         else:
-            out_stream.write(str(pyObj))
+            if pyObj is None:
+                pyObj_as_string = '~'
+            else:
+                pyObj_as_string = str(pyObj)
+                if not pyObj_as_string: # it's a string but an empty one
+                    pyObj_as_string = '""'
+            out_stream.write(pyObj_as_string)
     # add the final end-of-line. But if writeAsYaml is recursed from outside writeAsYaml
     # this will not work.
     if sys._getframe(0).f_code.co_name != sys._getframe(1).f_code.co_name:

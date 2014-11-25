@@ -2,6 +2,7 @@
     user visible changes, client:
     * New command gui client mode.
     * disabled gui command when instl is compiled, since PuInstaller cannot find the frameworks required by Tkinter.
+    * added Edit button besides all file fields in gui mode
 
     user visible changes, admin:
     * Implemented --limit option to svn2stage
@@ -19,6 +20,7 @@
     * copy_dir_contents_to_dir has new option preserve_dest_files=True.
         If explicitly set to False copy_dir_contents_to_dir will try to remove target files that are not in source.
         Does not work for xcopy tool on Windows.
+    * writeAsYaml will no write None values as '~' and empty strings as '""'
 
 5/11 0.9.18.6
 
