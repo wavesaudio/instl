@@ -43,6 +43,8 @@ class InstlGui(InstlInstanceBase):
         self.admin_command_name_var = StringVar()
         self.admin_config_path_var = StringVar()
         self.admin_output_path_var = StringVar()
+        self.admin_stage_index_var = StringVar()
+        self.admin_config_file_dirty = True
         self.run_admin_batch_file_var = IntVar()
         self.admin_limit_var = StringVar()
         self.limit_path_entry_widget = None
@@ -114,8 +116,7 @@ class InstlGui(InstlInstanceBase):
             self.admin_output_path_var.set(retVal)
             self.update_admin_state()
 
-    def open_file_for_edit(self, var_name):
-        path_to_file = var_list.resolve_var(var_name)
+    def open_file_for_edit(self, path_to_file):
         try:
             os.startfile(path_to_file)
         except AttributeError:
@@ -165,12 +166,31 @@ class InstlGui(InstlInstanceBase):
 
         self.client_command_line_var.set(var_list.resolve(command_line))
 
+    def read_admin_config_file(self):
+        config_path = var_list.resolve_var("ADMIN_GUI_CONFIG_FILE", default="")
+        if os.path.isfile(config_path):
+            self.read_yaml_file(config_path)
+            self.admin_config_file_dirty = False
+        else:
+            print("File not found:", config_path)
+
+
     def update_admin_state(self, *args):
         var_list.set_var("ADMIN_GUI_COMMAND").append(self.admin_command_name_var.get())
-        var_list.set_var("ADMIN_GUI_CONFIG_FILE").append(self.admin_config_path_var.get())
+
+        current_config_path = var_list.resolve_var("ADMIN_GUI_CONFIG_FILE", default="")
+        new_config_path = self.admin_config_path_var.get()
+        if current_config_path != new_config_path:
+            self.admin_config_file_dirty = True
+        var_list.set_var("ADMIN_GUI_CONFIG_FILE").append(new_config_path)
+        if self.admin_config_file_dirty:
+             self.read_admin_config_file()
+
         var_list.set_var("ADMIN_GUI_OUTPUT_FILE").append(self.admin_output_path_var.get())
         var_list.set_var("ADMIN_GUI_RUN_BATCH_FILE").append(bool_int_to_str(self.run_admin_batch_file_var.get()))
         var_list.set_var("ADMIN_GUI_LIMIT").append(self.admin_limit_var.get())
+
+        self.admin_stage_index_var.set(var_list.resolve("$(STAGING_FOLDER)/instl/index.yaml"))
 
         if self.admin_command_name_var.get() in self.commands_that_accept_limit_option:
             self.limit_path_entry_widget.configure(state='normal')
@@ -228,7 +248,13 @@ class InstlGui(InstlInstanceBase):
         Entry(admin_frame, textvariable=self.admin_config_path_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
         self.admin_config_path_var.trace('w', self.update_admin_state)
         Button(admin_frame, width=2, text="...", command=self.get_admin_config_file).grid(row=curr_row, column=3, sticky=W)
-        Button(admin_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit("ADMIN_GUI_CONFIG_FILE")).grid(row=curr_row, column=4, sticky=W)
+        Button(admin_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_list.resolve_var("ADMIN_GUI_CONFIG_FILE"))).grid(row=curr_row, column=4, sticky=W)
+
+        # path to stage index file
+        curr_row += 1
+        Label(admin_frame, text="Stage index:").grid(row=curr_row, column=0, sticky=E)
+        Label(admin_frame, text="Stage index:", textvariable=self.admin_stage_index_var).grid(row=curr_row, column=1, columnspan=2, sticky=W)
+        Button(admin_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_list.resolve("$(STAGING_FOLDER)/instl/index.yaml"))).grid(row=curr_row, column=4, sticky=W)
 
         # path to output file
         curr_row += 1
@@ -236,7 +262,7 @@ class InstlGui(InstlInstanceBase):
         Entry(admin_frame, textvariable=self.admin_output_path_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
         self.admin_output_path_var.trace('w', self.update_admin_state)
         Button(admin_frame, width=2, text="...", command=self.get_admin_output_file).grid(row=curr_row, column=3, sticky=W)
-        Button(admin_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit("ADMIN_GUI_OUTPUT_FILE")).grid(row=curr_row, column=4, sticky=W)
+        Button(admin_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_list.resolve_var("ADMIN_GUI_OUTPUT_FILE"))).grid(row=curr_row, column=4, sticky=W)
 
         # relative path to limit folder
         curr_row += 1
@@ -251,9 +277,6 @@ class InstlGui(InstlInstanceBase):
         self.admin_command_line_var = StringVar()
         Label(admin_frame, textvariable=self.admin_command_line_var, wraplength=400, anchor=W).grid(row=curr_row, column=1, columnspan=2, sticky=W)
 
-        #admin_frame.grid_columnconfigure(0, minsize=80)
-        #admin_frame.grid_columnconfigure(1, minsize=300)
-        #admin_frame.grid_columnconfigure(2, minsize=80)
         return admin_frame
 
     def create_client_frame(self, master):
@@ -278,7 +301,7 @@ class InstlGui(InstlInstanceBase):
         Entry(client_frame, textvariable=self.client_input_path_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
         self.client_input_path_var.trace('w', self.update_client_state)
         Button(client_frame, width=2, text="...", command=self.get_client_input_file).grid(row=curr_row, column=3, sticky=W)
-        Button(client_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit("CLIENT_GUI_INPUT_FILE")).grid(row=curr_row, column=4, sticky=W)
+        Button(client_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_list.resolve_var("CLIENT_GUI_INPUT_FILE"))).grid(row=curr_row, column=4, sticky=W)
 
         # path to output file
         curr_row += 1
@@ -286,7 +309,7 @@ class InstlGui(InstlInstanceBase):
         Entry(client_frame, textvariable=self.client_output_path_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
         self.client_output_path_var.trace('w', self.update_client_state)
         Button(client_frame, width=2, text="...", command=self.get_client_output_file).grid(row=curr_row, column=3, sticky=W)
-        Button(client_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit("CLIENT_GUI_OUTPUT_FILE")).grid(row=curr_row, column=4, sticky=W)
+        Button(client_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_list.resolve_var("CLIENT_GUI_OUTPUT_FILE"))).grid(row=curr_row, column=4, sticky=W)
 
         # the combined command line text
         curr_row += 1
@@ -300,12 +323,23 @@ class InstlGui(InstlInstanceBase):
 
         return client_frame
 
+    def tabChangedEvent(self, *args):
+        tab_id = self.notebook.select()
+        tab_name = self.notebook.tab(tab_id, option='text')
+        if tab_name == "Admin":
+            self.update_admin_state()
+        elif tab_name == "Client":
+            self.update_client_state()
+        else:
+            print("Unknown tab", tab_name)
+
     def create_gui(self):
 
-        self.master.title("instl")
+        self.master.title(self.get_version_str())
 
         self.notebook = Notebook(self.master)
         self.notebook.grid(row=0, column=0)
+        self.notebook.bind_all("<<NotebookTabChanged>>", self.tabChangedEvent)
 
         # action buttons
         quit_button = Button(self.master, text="Quit", command=self.master.quit)
@@ -325,8 +359,6 @@ class InstlGui(InstlInstanceBase):
                 self.notebook.select(tab_id)
                 break
 
-        self.update_client_state()
-        self.update_admin_state()
         self.master.resizable(0, 0)
         self.master.mainloop()
         #self.master.destroy() # optional; see description below

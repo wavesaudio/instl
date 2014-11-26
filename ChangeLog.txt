@@ -16,7 +16,8 @@
         preserve_dest_files flag.
     * In gui mode /Admin section, enabled to have more than one limit paths.
     * Admin commands report revisions already created or uploaded as sequence not a long list.
-    
+    * In gui mode added access to the stage folder index file.
+
     programmer visible changes:
     * New methods: ConfigVarList.unresolved_var &  ConfigVarList.unresolved_var_to_list.
     * ConfigVarStack.repr_for_yaml new parameter resolve, so we can write var list to yaml without resolving. Default is resolve=True.
