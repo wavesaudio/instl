@@ -341,11 +341,6 @@ class InstlGui(InstlInstanceBase):
         self.notebook.grid(row=0, column=0)
         self.notebook.bind_all("<<NotebookTabChanged>>", self.tabChangedEvent)
 
-        # action buttons
-        quit_button = Button(self.master, text="Quit", command=self.master.quit)
-        quit_button.grid(row=1, column=0, sticky=N+S, padx=5, pady=5)
-        #self.master.grid_rowconfigure(2, pad=20)
-
         client_frame = self.create_client_frame(self.notebook)
         admin_frame = self.create_admin_frame(self.notebook)
 

@@ -18,7 +18,10 @@ class HelpItem(object):
             self.texts[value_name] = value_text.value
 
     def short_text(self):
-        return self.texts.get("short", "?")
+        retVal = self.texts.get("short", "")
+        if retVal is None:
+            retVal = ""
+        return retVal
 
     def long_text(self):
         return self.texts.get("long", "")
@@ -72,7 +75,8 @@ class HelpHelper(object):
             retVal = "\n".join((
                             item.name+": "+item.short_text(),
                             "",
-                            long_formated
+                            long_formated,
+                            ""
                             ))
         return retVal
 
@@ -113,4 +117,6 @@ def do_help(subject, help_folder_path, instlObj):
         if subject == "defaults":
             hh.defaults_help()
         else:
-            print(hh.item_help(subject))
+            for sub in hh.help_items:
+                if sub.startswith(subject):
+                    print(hh.item_help(sub))
