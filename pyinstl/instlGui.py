@@ -116,7 +116,7 @@ class InstlGui(InstlInstanceBase):
             self.admin_output_path_var.set(retVal)
             self.update_admin_state()
 
-    def open_file_for_edit(self, var_name):
+    def open_file_for_edit(self, path_to_file):
         path_to_file = os.path.relpath(path_to_file)
         try:
             os.startfile(path_to_file, 'edit')
