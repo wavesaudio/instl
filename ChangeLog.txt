@@ -1,4 +1,4 @@
-???? 0.9.18.8
+30/11/2014 0.9.19.0
 
     user visible changes, client:
     * New command gui client mode.
@@ -9,7 +9,7 @@
     user visible changes, admin:
     * Implemented --limit option to svn2stage
     * Added quoted string handling to --limit options of svn2stage and stage2svn
-    * mac OS mkdir_with_owner batch file function now sets only user id for new directory not group id.    programmer visible changes:
+    * Mac OS mkdir_with_owner batch file function now sets only user id for new directory not group id.    programmer visible changes:
     * New util function unquoteme sister to quoteme_single & quoteme_double
     * Added --run to some admin commands
     * Fixed Admin commands create_links and svn2stage to remove target files that are not in source using the new
