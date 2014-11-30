@@ -116,8 +116,9 @@ class InstlGui(InstlInstanceBase):
 
     def open_file_for_edit(self, var_name):
         path_to_file = var_list.resolve_var(var_name)
+        path_to_file = os.path.relpath(path_to_file)
         try:
-            os.startfile(path_to_file)
+            os.startfile(path_to_file, 'edit')
         except AttributeError:
             subprocess.call(['open', path_to_file])
 
