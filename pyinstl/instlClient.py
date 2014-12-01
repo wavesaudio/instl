@@ -591,7 +591,7 @@ class InstlClient(InstlInstanceBase):
 
     def create_require_file_instructions(self):
         # write the require file as it should look after copy is done
-        new_require_file_path = var_list.resolve("$(NEW_SITE_REQUIRE_FILE_PATH)")
+        new_require_file_path = var_list.resolve("$(NEW_SITE_REQUIRE_FILE_PATH)", raise_on_fail=True)
         new_require_file_dir, new_require_file_name = os.path.split(new_require_file_path)
         safe_makedirs(new_require_file_dir)
         self.write_require_file(new_require_file_path)

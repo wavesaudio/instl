@@ -26,7 +26,7 @@ class InstlInstanceSync_p4(InstlInstanceSync):
         var_description = "from InstlInstanceBase.init_sync_vars"
         self.instlObj.check_prerequisite_var_existence(("SYNC_BASE_URL", "DOWNLOAD_TOOL_PATH", "REPO_REV"))
 
-        safe_makedirs(var_list.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)"))
+        safe_makedirs(var_list.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)", raise_on_fail=True))
 
     def create_sync_instructions(self, installState):
         self.instlObj.batch_accum.set_current_section('sync')

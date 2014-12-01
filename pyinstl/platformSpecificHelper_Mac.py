@@ -251,9 +251,9 @@ class DownloadTool_mac_curl(DownloadToolBase):
         super(DownloadTool_mac_curl, self).__init__(platform_helper)
 
     def download_url_to_file(self, src_url, trg_file):
-        connect_time_out = var_list.resolve("$(CURL_CONNECT_TIMEOUT)")
-        max_time         = var_list.resolve("$(CURL_MAX_TIME)")
-        retries          = var_list.resolve("$(CURL_RETRIES)")
+        connect_time_out = var_list.resolve("$(CURL_CONNECT_TIMEOUT)", raise_on_fail=True)
+        max_time         = var_list.resolve("$(CURL_MAX_TIME)", raise_on_fail=True)
+        retries          = var_list.resolve("$(CURL_RETRIES)", raise_on_fail=True)
         download_command_parts = list()
         download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
         download_command_parts.append("--insecure")
@@ -279,9 +279,9 @@ class DownloadTool_mac_curl(DownloadToolBase):
         import itertools
         num_urls_to_download = len(self.urls_to_download)
         if num_urls_to_download > 0:
-            connect_time_out = var_list.resolve("$(CURL_CONNECT_TIMEOUT)")
-            max_time         = var_list.resolve("$(CURL_MAX_TIME)")
-            retries          = var_list.resolve("$(CURL_RETRIES)")
+            connect_time_out = var_list.resolve("$(CURL_CONNECT_TIMEOUT)", raise_on_fail=True)
+            max_time         = var_list.resolve("$(CURL_MAX_TIME)", raise_on_fail=True)
+            retries          = var_list.resolve("$(CURL_RETRIES)", raise_on_fail=True)
 
             actual_num_files = max(1, min(num_urls_to_download / 8, num_files))
             list_of_lines_for_files = [list() for i in range(actual_num_files)]
@@ -323,7 +323,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
 
         with open(parallel_run_config_file_path, "w") as wfd:
             for config_file in config_files:
-                wfd.write(var_list.resolve("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+config_file+"\"\n"))
+                wfd.write(var_list.resolve("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+config_file+"\"\n", raise_on_fail=True))
 
         download_command = " ".join( (self.platform_helper.run_instl(),  "parallel-run", "--in", quoteme_double(parallel_run_config_file_path)) )
         return download_command

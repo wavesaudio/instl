@@ -332,7 +332,7 @@ class InstlInstanceBase(object):
             retVal = os.path.join(retVal, continue_dir)
         # print("1------------------", user_cache_dir, "-", from_url, "-", retVal)
         if mkdir and retVal:
-            retVal = var_list.resolve(retVal)
+            retVal = var_list.resolve(retVal, raise_on_fail=True)
             safe_makedirs(retVal)
         return retVal
 
@@ -358,7 +358,7 @@ class InstlInstanceBase(object):
 
         from utils import write_to_file_or_stdout
 
-        out_file = var_list.resolve("$(__MAIN_OUT_FILE__)")
+        out_file = var_list.resolve("$(__MAIN_OUT_FILE__)", raise_on_fail=True)
         with write_to_file_or_stdout(out_file) as fd:
             fd.write(lines_after_var_replacement)
             fd.write('\n')
@@ -391,7 +391,7 @@ class InstlInstanceBase(object):
     def write_program_state(self):
         from utils import write_to_file_or_stdout
 
-        state_file = var_list.resolve("$(__MAIN_STATE_FILE__)")
+        state_file = var_list.resolve("$(__MAIN_STATE_FILE__)", raise_on_fail=True)
         with write_to_file_or_stdout(state_file) as fd:
             augmentedYaml.writeAsYaml(self, fd)
 
@@ -426,7 +426,7 @@ class InstlInstanceBase(object):
         self.svnTree.read_info_map_from_file(in_file_path)
 
     def write_info_map_file(self):
-        self.svnTree.write_to_file(var_list.resolve("$(__MAIN_OUT_FILE__)"))
+        self.svnTree.write_to_file(var_list.resolve("$(__MAIN_OUT_FILE__)", raise_on_fail=True))
 
     def check_version_compatibility(self):
         retVal = True

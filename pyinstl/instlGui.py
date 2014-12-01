@@ -259,7 +259,7 @@ class InstlGui(InstlInstanceBase):
         curr_row += 1
         Label(admin_frame, text="Stage index:").grid(row=curr_row, column=0, sticky=E)
         Label(admin_frame, text="Stage index:", textvariable=self.admin_stage_index_var).grid(row=curr_row, column=1, columnspan=2, sticky=W)
-        Button(admin_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_list.resolve("$(STAGING_FOLDER)/instl/index.yaml"))).grid(row=curr_row, column=4, sticky=W)
+        Button(admin_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_list.resolve("$(STAGING_FOLDER)/instl/index.yaml", raise_on_fail=True))).grid(row=curr_row, column=4, sticky=W)
 
         # path to output file
         curr_row += 1
