@@ -32,7 +32,8 @@ class InstlGui(InstlInstanceBase):
     def __init__(self, initial_vars):
         super(InstlGui, self).__init__(initial_vars)
         self.master = Tk()
-
+        self.master.createcommand('exit', self.quit_app) # exit from quit menu or Command-Q
+        self.master.protocol('WM_DELETE_WINDOW', self.quit_app) # exit from closing the window
         self.commands_that_accept_limit_option = ("stage2svn", "svn2stage")
 
         self.client_command_name_var = StringVar()
@@ -49,6 +50,10 @@ class InstlGui(InstlInstanceBase):
         self.admin_limit_var = StringVar()
         self.limit_path_entry_widget = None
 
+    def quit_app(self):
+        self.write_history()
+        exit()
+
     def set_default_variables(self):
         client_command_list = var_list.resolve_var_to_list("__CLIENT_GUI_COMMAND_LIST__")
         var_list.set_var("CLIENT_GUI_COMMAND").append(client_command_list[0])
@@ -59,7 +64,6 @@ class InstlGui(InstlInstanceBase):
         self.set_default_variables()
         self.read_history()
         self.create_gui()
-        self.write_history()
 
     def read_history(self):
         try:
@@ -357,4 +361,5 @@ class InstlGui(InstlInstanceBase):
 
         self.master.resizable(0, 0)
         self.master.mainloop()
+        self.quit_app()
         #self.master.destroy() # optional; see description below
