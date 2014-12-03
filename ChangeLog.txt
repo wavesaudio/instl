@@ -3,6 +3,11 @@
     user visible changes, client:
     * In gui mode: fixed saving state on Quit which failed to work after removing the Quit button.
 
+    user visible changes, admin:
+    * New variable __INSTL_LAUNCH_COMMAND__ based on new function get_instl_launch_command.
+        Will enable running instl from batch file if instl was compiled and if it was not.
+    * New variable __USER_DESKTOP_DIR__
+
     programmer visible changes:
     * Added a flag to ConfigVarList.resolve to allow raising an exception if string was not fully resolved.
         This is useful when dealing with the file system (read file, make dir, ...) and will prevent,
