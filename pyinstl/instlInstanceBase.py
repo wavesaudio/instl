@@ -154,7 +154,7 @@ class InstlInstanceBase(object):
             var_list.add_const_config_variable("__FILTER_OUT_PATHS__", "from command line options",
                                                *cmd_line_options_obj.filter_out)
         if cmd_line_options_obj.run:
-            var_list.add_const_config_variable("__RUN_BATCH_FILE__", "from command line options", "yes")
+            var_list.add_const_config_variable("__RUN_BATCH__", "from command line options", "yes")
 
     def is_acceptable_yaml_doc(self, doc_node):
         acceptables = var_list.resolve_to_list("$(ACCEPTABLE_YAML_DOC_TAGS)") + ["define", "define_const", "index", 'require']

@@ -71,7 +71,7 @@ class InstlAdmin(InstlInstanceBase):
         if "__FILTER_IN_VERSION__" in var_list:
             self.filter_in_specific_version(var_list.resolve("$(__FILTER_IN_VERSION__)"))
         self.write_info_map_file()
-        if "__RUN_BATCH_FILE__" in var_list:
+        if "__RUN_BATCH__" in var_list:
             self.run_batch_file()
 
     def filter_out_info_map(self, paths_to_filter_out):
@@ -202,7 +202,7 @@ class InstlAdmin(InstlInstanceBase):
 
         self.create_variables_assignment()
         self.write_batch_file()
-        if "__RUN_BATCH_FILE__" in var_list:
+        if "__RUN_BATCH__" in var_list:
             self.run_batch_file()
 
     def create_links_for_revision(self, accum):
@@ -330,7 +330,7 @@ class InstlAdmin(InstlInstanceBase):
 
         self.create_variables_assignment()
         self.write_batch_file()
-        if "__RUN_BATCH_FILE__" in var_list:
+        if "__RUN_BATCH__" in var_list:
             self.run_batch_file()
 
     def do_upload_to_s3_aws_for_revision(self, accum):
@@ -463,7 +463,7 @@ class InstlAdmin(InstlInstanceBase):
 
         self.create_variables_assignment()
         self.write_batch_file()
-        if "__RUN_BATCH_FILE__" in var_list:
+        if "__RUN_BATCH__" in var_list:
             self.run_batch_file()
 
     def do_fix_props(self):
@@ -513,7 +513,7 @@ class InstlAdmin(InstlInstanceBase):
         self.create_variables_assignment()
         os.chdir(save_dir)
         self.write_batch_file()
-        if "__RUN_BATCH_FILE__" in var_list:
+        if "__RUN_BATCH__" in var_list:
             self.run_batch_file()
 
     def is_file_exec(self, file_path):
@@ -567,7 +567,7 @@ class InstlAdmin(InstlInstanceBase):
                 self.batch_accum += self.platform_helper.new_line()
         self.create_variables_assignment()
         self.write_batch_file()
-        if "__RUN_BATCH_FILE__" in var_list:
+        if "__RUN_BATCH__" in var_list:
             self.run_batch_file()
 
     def do_stage2svn(self):
@@ -595,7 +595,7 @@ class InstlAdmin(InstlInstanceBase):
             self.stage2svn_for_folder(comparer)
         self.create_variables_assignment()
         self.write_batch_file()
-        if "__RUN_BATCH_FILE__" in var_list:
+        if "__RUN_BATCH__" in var_list:
             self.run_batch_file()
 
     def stage2svn_for_folder(self, comparer):
@@ -713,7 +713,7 @@ class InstlAdmin(InstlInstanceBase):
                     self.batch_accum += self.platform_helper.new_line()
         self.create_variables_assignment()
         self.write_batch_file()
-        if "__RUN_BATCH_FILE__" in var_list:
+        if "__RUN_BATCH__" in var_list:
             self.run_batch_file()
 
 
@@ -750,7 +750,7 @@ class InstlAdmin(InstlInstanceBase):
             self.batch_accum += self.platform_helper.progress("rsync {} to {}".format(limit_info[1], limit_info[2]))
         self.create_variables_assignment()
         self.write_batch_file()
-        if "__RUN_BATCH_FILE__" in var_list:
+        if "__RUN_BATCH__" in var_list:
             self.run_batch_file()
 
     def do_create_rsa_keys(self):

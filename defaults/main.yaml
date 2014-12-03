@@ -39,6 +39,8 @@ MAX_FILE_SIZE: 5242880
 
 --- !define_Mac
 MKDIR_CMD: mkdir_with_owner
+BATCH_EXT: sh
 
 --- !define_Win
 MKDIR_CMD: mkdir
+BATCH_EXT: bat

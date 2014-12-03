@@ -3,11 +3,20 @@
     user visible changes, client:
     * In gui mode: fixed saving state on Quit which failed to work after removing the Quit button.
 
+    programmer visible changes:
+    * Added a flag to ConfigVarList.resolve to allow raising an exception if string was not fully resolved.
+        This is useful when dealing with the file system (read file, make dir, ...) and will prevent,
+        for example, creations of folders named "$(COMPANY_NAME)".
+    * Shorten some variable names,
+
+    gui mode changes:
+    * Client input file is now a combo box that lets you choose files from the folder of the current choses input file.
+
 30/11/2014 0.9.19.0
 
     user visible changes, client:
     * New command gui client mode.
-    * disabled gui command when instl is compiled, since PuInstaller cannot find the frameworks required by Tkinter.
+    * disabled gui command when instl is compiled, since PyInstaller cannot find the frameworks required by Tkinter.
     * added Edit button besides all file fields in gui mode
     * implemented uninstall command by filtering the !require file and creating remove instaructions.
 

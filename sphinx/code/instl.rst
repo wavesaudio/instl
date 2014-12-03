@@ -17,7 +17,7 @@
 .. function:: run_instl_instructions()
 
     Normally the process that launched **instl** will run the batch file that was created. If the --run command line option was given **instl** will run the batch file.
-    `run_instl_instructions` implements this functionality. The file to run is the file who's path is in `__RUN_BATCH_FILE__` variable.
+    `run_instl_instructions` implements this functionality. The file to run is the file who's path is in `__RUN_BATCH__` variable.
 
 .. data:: current_os
 

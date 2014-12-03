@@ -121,7 +121,7 @@ class InstlClient(InstlInstanceBase):
 
         self.create_variables_assignment()
         self.write_batch_file()
-        if "__RUN_BATCH_FILE__" in var_list:
+        if "__RUN_BATCH__" in var_list:
             self.run_batch_file()
 
     def create_instl_history_file(self):
