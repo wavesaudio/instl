@@ -182,3 +182,15 @@ class InstlMisc(InstlInstanceBase):
                     for filename in ignored_files:
                         os.remove(os.path.join(rootpath, filename))
                     os.rmdir(rootpath)
+
+    def do_win_shortcut(self):
+        shortcut_path = var_list.resolve("$(__SHORTCUT_PATH__)", raise_on_fail=True)
+        target_path   = var_list.resolve("$(__SHORTCUT_TARGET_PATH__)", raise_on_fail=True)
+        working_directory, target_name = os.path.split(target_path)
+        import win32com
+        from win32com.client import Dispatch
+        shell = Dispatch("WScript.Shell")
+        shortcut = shell.CreateShortCut(shortcut_path)
+        shortcut.Targetpath = target_path
+        shortcut.WorkingDirectory = working_directory
+        shortcut.save()

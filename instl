@@ -70,6 +70,8 @@ class CommandLineOptions(object):
         self.total_progress = None
         self.just_with_number = None
         self.limit_command_to = None
+        self.target_path = None
+        self.shortcut_path = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
@@ -126,6 +128,7 @@ def prepare_args_parser():
     up2S3_parser = subparsers.add_parser('up2s3', help='upload installation sources to S3')
     verify_index_parser = subparsers.add_parser('verify-index', help='Verify that index and info map are compatible')
     version_parser = subparsers.add_parser('version', help='display instl version')
+    win_shortcut_parser = subparsers.add_parser('win-shortcut', help='create a windows shortcut')
     wtar_parser = subparsers.add_parser('wtar', help='create .wtar files from specified files and folders')
     uninstall_parser = subparsers.add_parser('uninstall', help='uninstall previously copied files, considering dependencies')
 
@@ -140,7 +143,8 @@ def prepare_args_parser():
                         create_repo_rev_file_parser, verify_index_parser),
              'do_something': (version_parser, help_parser, parallel_run_parser,
                               unwtar_parser, check_checksum_parser, create_folders_parser,
-                              set_exec_parser, test_import_parser, remove_empty_folders),
+                              set_exec_parser, test_import_parser, remove_empty_folders,
+                              win_shortcut_parser),
              'gui': (gui_parser,)
             }
     for the_mode, parsers in modes.iteritems():
@@ -291,6 +295,21 @@ def prepare_args_parser():
                             metavar='just-with-number',
                             dest='just_with_number',
                             help="up load just the repo-rev file that ends with a specific number, not the general one")
+
+
+    short_cut_options = win_shortcut_parser.add_argument_group(description='win-shortcut arguments:')
+    short_cut_options.add_argument('--shortcut',
+                            required=True,
+                            nargs=1,
+                            metavar='shortcut',
+                            dest='shortcut_path',
+                            help="path to the shortcut itself")
+    short_cut_options.add_argument('--target',
+                            required=True,
+                            nargs=1,
+                            metavar='target',
+                            dest='target_path',
+                            help="path to the item being shortcut")
 
     help_options = help_parser.add_argument_group(description='help subject:')
     help_options.add_argument('subject', nargs='?')
