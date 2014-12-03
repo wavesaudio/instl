@@ -16,7 +16,7 @@ os.umask(0)
 # setup logging, must be done before other imports
 from pyinstl.log_utils import setup_logging
 setup_logging("instl", "instl")
-from pyinstl.utils import get_current_os_names
+from pyinstl.utils import *
 
 from pyinstl.instlException import InstlException
 
@@ -37,6 +37,20 @@ def get_path_to_instl_app():
     elif __file__:
         application_path = os.path.realpath(__file__)
     return application_path
+
+def get_instl_launch_command():
+    """
+    @return: returns the path to this
+    """
+    launch_command = None
+    if getattr(sys, 'frozen', False):
+        launch_command = quoteme_double(os.path.realpath(sys.executable))
+    elif __file__:
+        if os_family_name == "Win":
+            launch_command =  quoteme_double(sys.executable) + " " + quoteme_double(os.path.realpath(__file__))
+        else:
+            launch_command = quoteme_double(os.path.realpath(__file__))
+    return launch_command
 
 def get_data_folder():
     data_folder = None
@@ -70,6 +84,8 @@ class CommandLineOptions(object):
         self.total_progress = None
         self.just_with_number = None
         self.limit_command_to = None
+        self.target_path = None
+        self.shortcut_path = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
@@ -126,6 +142,7 @@ def prepare_args_parser():
     up2S3_parser = subparsers.add_parser('up2s3', help='upload installation sources to S3')
     verify_index_parser = subparsers.add_parser('verify-index', help='Verify that index and info map are compatible')
     version_parser = subparsers.add_parser('version', help='display instl version')
+    win_shortcut_parser = subparsers.add_parser('win-shortcut', help='create a windows shortcut')
     wtar_parser = subparsers.add_parser('wtar', help='create .wtar files from specified files and folders')
     uninstall_parser = subparsers.add_parser('uninstall', help='uninstall previously copied files, considering dependencies')
 
@@ -140,7 +157,8 @@ def prepare_args_parser():
                         create_repo_rev_file_parser, verify_index_parser),
              'do_something': (version_parser, help_parser, parallel_run_parser,
                               unwtar_parser, check_checksum_parser, create_folders_parser,
-                              set_exec_parser, test_import_parser, remove_empty_folders),
+                              set_exec_parser, test_import_parser, remove_empty_folders,
+                              win_shortcut_parser),
              'gui': (gui_parser,)
             }
     for the_mode, parsers in modes.iteritems():
@@ -292,6 +310,21 @@ def prepare_args_parser():
                             dest='just_with_number',
                             help="up load just the repo-rev file that ends with a specific number, not the general one")
 
+
+    short_cut_options = win_shortcut_parser.add_argument_group(description='win-shortcut arguments:')
+    short_cut_options.add_argument('--shortcut',
+                            required=True,
+                            nargs=1,
+                            metavar='shortcut',
+                            dest='shortcut_path',
+                            help="path to the shortcut itself")
+    short_cut_options.add_argument('--target',
+                            required=True,
+                            nargs=1,
+                            metavar='target',
+                            dest='target_path',
+                            help="path to the item being shortcut")
+
     help_options = help_parser.add_argument_group(description='help subject:')
     help_options.add_argument('subject', nargs='?')
 
@@ -329,6 +362,7 @@ def main():
     options = CommandLineOptions()
     command_names = read_command_line_options(options, sys.argv[1:])
     initial_vars = {"__INSTL_EXE_PATH__": get_path_to_instl_app(),
+                    "__INSTL_LAUNCH_COMMAND__": get_instl_launch_command(),
                     "__INSTL_DATA_FOLDER__": get_data_folder(),
                     "__INSTL_COMPILED__": str(getattr(sys, 'frozen', False)),
                     "__PYTHON_VERSION__": sys.version_info,
@@ -340,7 +374,8 @@ def main():
                     "__SITE_CONFIG_DIR__": appdirs.site_config_dir(),
                     "__USER_DATA_DIR__": appdirs.user_data_dir(),
                     "__USER_CONFIG_DIR__": appdirs.user_config_dir(),
-                    "__USER_HOME_DIR__": os.path.expanduser("~")
+                    "__USER_HOME_DIR__": os.path.expanduser("~"),
+                    "__USER_DESKTOP_DIR__": "$(__USER_HOME_DIR__)/Desktop"
                     }
     if os_family_name != "Win":
         initial_vars.update(

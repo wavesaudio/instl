@@ -118,6 +118,8 @@ class InstlInstanceBase(object):
             "total_progress": ("__TOTAL_DYNAMIC_PROGRESS__", "0"),
             "just_with_number": ("__JUST_WITH_NUMBER__", "0"),
             "limit_command_to": ("__LIMIT_COMMAND_TO__", None),
+            "shortcut_path": ("__SHORTCUT_PATH__", None),
+            "target_path": ("__SHORTCUT_TARGET_PATH__", None),
         }
 
         for attrib, var in const_attrib_to_var.iteritems():
