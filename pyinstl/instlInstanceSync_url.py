@@ -65,10 +65,10 @@ class InstlInstanceSync_url(InstlInstanceSync):
             Writes the map to local sync folder for reference and debugging.
         """
         try:
-            safe_makedirs(var_list.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)"))
-            safe_makedirs(var_list.resolve("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)"))
+            safe_makedirs(var_list.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)", raise_on_fail=True))
+            safe_makedirs(var_list.resolve("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)", raise_on_fail=True))
             download_from_file_or_url(var_list.resolve("$(INFO_MAP_FILE_URL)"),
-                                      var_list.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)"),
+                                      var_list.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)", raise_on_fail=True),
                                       cache=True,
                                       public_key=var_list.resolve("$(PUBLIC_KEY)"),
                                       textual_sig=var_list.resolve("$(INFO_MAP_SIG)"))
@@ -95,8 +95,9 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def read_have_info_map(self):
         """ Reads the map of files previously synced - if there is one.
         """
-        if os.path.isfile(var_list.resolve("$(HAVE_INFO_MAP_PATH)")):
-            self.have_map.read_info_map_from_file(var_list.resolve("$(HAVE_INFO_MAP_PATH)"), a_format="text")
+        have_info_map_path = var_list.resolve("$(HAVE_INFO_MAP_PATH)")
+        if os.path.isfile(have_info_map_path):
+            self.have_map.read_info_map_from_file(have_info_map_path, a_format="text")
 
     class RemoveIfChecksumOK:
         def __init__(self, base_path):
@@ -143,8 +144,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
                     have_item.set_flags(need_item.flags())
                     have_item.set_last_rev(need_item.last_rev())
         self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
-        self.work_info_map.write_to_file(var_list.resolve("$(TO_SYNC_INFO_MAP_PATH)"), in_format="text")
-        self.have_map.write_to_file(var_list.resolve("$(NEW_HAVE_INFO_MAP_PATH)"), in_format="text")
+        self.work_info_map.write_to_file(var_list.resolve("$(TO_SYNC_INFO_MAP_PATH)", raise_on_fail=True), in_format="text")
+        self.have_map.write_to_file(var_list.resolve("$(NEW_HAVE_INFO_MAP_PATH)", raise_on_fail=True), in_format="text")
 
     def mark_required_items_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
@@ -196,7 +197,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def clear_unrequired_items(self):
         self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
         # for debugging
-        work_info_map_path = var_list.resolve("$(REQUIRED_INFO_MAP_PATH)")
+        work_info_map_path = var_list.resolve("$(REQUIRED_INFO_MAP_PATH)", raise_on_fail=True)
         self.work_info_map.write_to_file(work_info_map_path, in_format="text")
 
     def estimate_num_unwtar_actions(self):
@@ -246,9 +247,9 @@ class InstlInstanceSync_url(InstlInstanceSync):
         print(self.instlObj.platform_helper.dl_tool.get_num_urls_to_download(), "files to sync")
         logging.info("Num files to sync: %d", self.instlObj.platform_helper.dl_tool.get_num_urls_to_download())
 
-        curl_config_folder = var_list.resolve(os.path.join("$(LOCAL_REPO_BOOKKEEPING_DIR)", "curl"))
+        curl_config_folder = var_list.resolve(os.path.join("$(LOCAL_REPO_BOOKKEEPING_DIR)", "curl"), raise_on_fail=True)
         safe_makedirs(curl_config_folder)
-        curl_config_file_path = var_list.resolve(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"))
+        curl_config_file_path = var_list.resolve(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"), raise_on_fail=True)
         num_config_files = int(var_list.resolve("$(PARALLEL_SYNC)"))
         config_file_list = self.instlObj.platform_helper.dl_tool.create_config_files(curl_config_file_path,
                                                                                      num_config_files)

@@ -171,7 +171,7 @@ class ConfigVarList(object):
         retVal = match is None
         return retVal
 
-    def resolve(self, str_to_resolve, list_sep=" ", default=None):
+    def resolve(self, str_to_resolve, list_sep=" ", default=None, raise_on_fail=False):
         """ Resolve a string, possibly with $() style references.
             For Variables that hold more than one value, the values are connected with list_sep
             which defaults to a single space.
@@ -206,6 +206,8 @@ class ConfigVarList(object):
             else:
                 resolved_str = resolved_str.replace(match.group('varref_pattern'), replacement)
             #print("    ", resolved_str)
+        if raise_on_fail and not self.is_resolved(resolved_str):
+            raise ValueError("Cannot full resolve "+str_to_resolve+ ": "+resolved_str)
         return resolved_str
 
     def resolve_to_list(self, str_to_resolve, list_sep=" ", default=None):
