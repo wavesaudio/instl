@@ -194,7 +194,14 @@ command:
         short: Prints the instl version.
         long: |
             Usage: instl version
-    
+
+    win-shortcut:
+      short: Creates a Windows shortcut. (runtime command)
+      long: |
+        Usage: instl win-shortcut --shortcut in-path-to-shortcut --target in-path-to-target
+        Creates a windows shortcut in the path specified by in-path-to-shortcut. in-path-to-shortcut must end with .lnk.
+        in-path-to-target is what the shortcut will lead to. The "Starts in" section of the shortcut is set to the parent folder of in-path-to-target.
+
     wtar:
         short: Compress files and folder to a .wtar file. (admin command)
         long: |
