@@ -155,9 +155,9 @@ class CopyToolRsync(CopyToolBase):
         ignore_spec = self.create_ignore_spec(ignore)
         if link_dest:
             relative_link_dest = os.path.relpath(src_dir, trg_dir)
-            sync_command = "rsync --owner --group -l -E -d {ignore_spec} --link-dest=\"{relative_link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+            sync_command = "rsync --owner --group -l -E -d --exclude='*/' {ignore_spec} --link-dest=\"{relative_link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
         else:
-            sync_command = "rsync --owner --group -l -E -d {ignore_spec} \"{src_dir}\"/* \"{trg_dir}\"".format(**locals())
+            sync_command = "rsync --owner --group -l -E -d --exclude='*/' {ignore_spec} \"{src_dir}\"/* \"{trg_dir}\"".format(**locals())
 
         return sync_command
 

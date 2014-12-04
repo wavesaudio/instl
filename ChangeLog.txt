@@ -2,6 +2,7 @@
 
     user visible changes, client:
     * In gui mode: fixed saving state on Quit which failed to work after removing the Quit button.
+    * copy_dir_files_to_dir with rsync fixed to really copy only files.
 
     user visible changes, admin:
     * New variable __INSTL_LAUNCH_COMMAND__ based on new function get_instl_launch_command.
