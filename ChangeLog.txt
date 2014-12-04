@@ -1,4 +1,4 @@
-???? 0.9.19.2
+4/12/2014 0.9.19.2
 
     user visible changes, client:
     * In gui mode: fixed saving state on Quit which failed to work after removing the Quit button.
