@@ -1,6 +1,7 @@
 #!/usr/bin/env python2.7
 
 from __future__ import print_function
+import stat
 import time
 from collections import OrderedDict, defaultdict
 import logging
@@ -107,6 +108,8 @@ class InstlClient(InstlInstanceBase):
         self.read_yaml_file(var_list.resolve("$(__MAIN_INPUT_FILE__)"))
         self.init_default_client_vars()
         self.resolve_defined_paths()
+        self.batch_accum.set_current_section('begin')
+        self.batch_accum += self.platform_helper.setup_echo()
         self.platform_helper.init_download_tool()
         # after reading variable COPY_TOOL from yaml, we might need to re-init the copy tool.
         self.platform_helper.init_copy_tool()
@@ -129,6 +132,7 @@ class InstlClient(InstlInstanceBase):
         yaml_of_defines = augmentedYaml.YamlDumpDocWrap(var_list, '!define', "Definitions",
                                                         explicit_start=True, sort_mappings=True)
         with open(var_list.resolve("$(INSTL_HISTORY_TEMP_PATH)"), "w") as wfd:
+            os.fchmod(wfd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
             augmentedYaml.writeAsYaml(yaml_of_defines, wfd)
         self.batch_accum += self.platform_helper.append_file_to_file("$(INSTL_HISTORY_TEMP_PATH)",
                                                                      "$(INSTL_HISTORY_PATH)")

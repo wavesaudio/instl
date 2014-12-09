@@ -1,3 +1,13 @@
+???? 0.9.19.4
+
+    user visible changes, client:
+    * When writing echo's to log the log file is created in the begin sections and permissions are set to 666 so later launches of instl can append to log.
+    * For many files that are created during instl run permissions are set to 666.
+
+    programmer visible changes:
+    * BatchAccumulator new sections: begin happens after pre & assign and before links
+
+
 4/12/2014 0.9.19.2
 
     user visible changes, client:

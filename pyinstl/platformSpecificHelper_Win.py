@@ -2,6 +2,7 @@
 from __future__ import print_function
 
 import urllib
+import stat
 import datetime
 from pyinstl.utils import *
 
@@ -189,6 +190,7 @@ class CopyTool_win_xcopy(CopyToolBase):
     def create_excludes_file(self):
         if self.excludes_set:
             with open(var_list.resolve("$(XCOPY_EXCLUDE_FILE_PATH)", raise_on_fail=True), "w") as wfd:
+                os.fchmod(wfd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
                 wfd.write("\n".join(self.excludes_set))
 
     def remove_file(self, file_to_remove):
@@ -425,6 +427,7 @@ class DownloadTool_win_wget(DownloadToolBase):
 
     def create_config_file(self, curl_config_file_path):
         with open(curl_config_file_path, "w") as wfd:
+            os.fchmod(wfd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
             wfd.write("dirstruct = on\n")
             wfd.write("timeout = 60\n")
             wfd.write("\n")
@@ -513,6 +516,7 @@ class DownloadTool_win_curl(DownloadToolBase):
 
     def download_from_config_files(self, parallel_run_config_file_path, config_files):
         with open(parallel_run_config_file_path, "w") as wfd:
+            os.fchmod(wfd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
             for config_file in config_files:
                 wfd.write(var_list.resolve("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+config_file+"\"\n", raise_on_fail=True))
 

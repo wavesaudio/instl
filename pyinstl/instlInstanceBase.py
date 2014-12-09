@@ -1,5 +1,7 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
+
+import stat
 import abc
 import logging
 import yaml
@@ -206,6 +208,7 @@ class InstlInstanceBase(object):
             if len(self.install_definitions_index[IID].required_by) > 0:
                 require_dict[IID] = sorted(self.install_definitions_index[IID].required_by)
         with open(file_path, "w") as wfd:
+            os.fchmod(wfd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
             require_dict = augmentedYaml.YamlDumpDocWrap(require_dict, '!require', "requirements",
                                                         explicit_start=True, sort_mappings=True)
             augmentedYaml.writeAsYaml(require_dict, wfd)
@@ -290,6 +293,7 @@ class InstlInstanceBase(object):
                     expected_checksum = get_buffer_checksum(file_content)
                     cached_file_path = os.path.join(cached_files_dir, expected_checksum)
                     with open(cached_file_path, "wb") as wfd:
+                        os.fchmod(wfd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
                         wfd.write(file_content)
                     del file_content
 

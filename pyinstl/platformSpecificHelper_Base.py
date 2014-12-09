@@ -283,6 +283,9 @@ class PlatformSpecificHelperBase(object):
     def var_assign(self, identifier, value, comment=None):
         pass
 
+    def setup_echo(self):
+        pass
+
     @abc.abstractmethod
     def echo(self, message):
         pass

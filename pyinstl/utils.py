@@ -3,6 +3,7 @@ from __future__ import print_function
 
 import sys
 import os
+import stat
 import urllib2
 import re
 import urlparse
@@ -134,6 +135,7 @@ def download_from_file_or_url(in_url, in_local_path, cache=False, public_key=Non
         contents_buffer = read_from_file_or_url(in_url, public_key, textual_sig, expected_checksum)
         if contents_buffer:
             with open(in_local_path, "wb") as wfd:
+                os.fchmod(wfd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
                 wfd.write(contents_buffer)
 
 class unique_list(list):

@@ -3,6 +3,7 @@ from __future__ import print_function
 
 import urllib
 import datetime
+import stat
 from pyinstl.utils import *
 from configVarStack import var_stack as var_list
 
@@ -18,6 +19,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
     def __init__(self, instlObj):
         super(PlatformSpecificHelperMac, self).__init__(instlObj)
         self.var_replacement_pattern = "${\g<var_name>}"
+        self.echo_template = "echo {}"
 
     def init_download_tool(self):
         self.dl_tool = DownloadTool_mac_curl(self)
@@ -129,10 +131,18 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
             retVal += ' '+self.remark(str(comment))
         return retVal
 
-    def echo(self, message):
-        echo_command = " ".join(('echo', quoteme_double(message)))
+    def setup_echo(self):
+        retVal = []
+        echo_template = ['echo', '"{}"']
         if var_list.defined('ECHO_LOG_FILE'):
-            echo_command = " ".join((echo_command, "|", "tee", "-a", quoteme_double("$(ECHO_LOG_FILE)")))
+            retVal.append(self.touch("$(ECHO_LOG_FILE)"))
+            retVal.append(self.chmod("0666", "$(ECHO_LOG_FILE)"))
+            echo_template.extend(("|", "tee", "-a", quoteme_double("$(ECHO_LOG_FILE)")))
+        self.echo_template = " ".join(echo_template)
+        return retVal
+
+    def echo(self, message):
+        echo_command = self.echo_template.format(message)
         return echo_command
 
     def remark(self, remark):
@@ -222,7 +232,7 @@ split_file()
         return ("wait",)
 
     def chmod(self, new_mode, filepath):
-        chmod_command = " ".join( ("chmod", new_mode, quoteme_double(filepath)) )
+        chmod_command = " ".join( ("chmod", str(new_mode), quoteme_double(filepath)) )
         return chmod_command
 
     def make_executable(self, filepath):
@@ -298,6 +308,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
             lise_of_lines_iter = iter(list_of_lines_for_files)
             for file_name in file_name_list:
                 with open(file_name, "w") as wfd:
+                    os.fchmod(wfd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
                     wfd.write("insecure\n")
                     wfd.write("raw\n")
                     wfd.write("fail\n")
@@ -322,6 +333,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
     def download_from_config_files(self, parallel_run_config_file_path, config_files):
 
         with open(parallel_run_config_file_path, "w") as wfd:
+            os.fchmod(wfd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
             for config_file in config_files:
                 wfd.write(var_list.resolve("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+config_file+"\"\n", raise_on_fail=True))
 
