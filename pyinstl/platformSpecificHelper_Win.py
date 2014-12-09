@@ -190,7 +190,7 @@ class CopyTool_win_xcopy(CopyToolBase):
     def create_excludes_file(self):
         if self.excludes_set:
             with open(var_list.resolve("$(XCOPY_EXCLUDE_FILE_PATH)", raise_on_fail=True), "w") as wfd:
-                os.fchmod(wfd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+                make_open_file_read_write_for_all(wfd)
                 wfd.write("\n".join(self.excludes_set))
 
     def remove_file(self, file_to_remove):
@@ -427,7 +427,7 @@ class DownloadTool_win_wget(DownloadToolBase):
 
     def create_config_file(self, curl_config_file_path):
         with open(curl_config_file_path, "w") as wfd:
-            os.fchmod(wfd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+            make_open_file_read_write_for_all(wfd)
             wfd.write("dirstruct = on\n")
             wfd.write("timeout = 60\n")
             wfd.write("\n")
@@ -484,7 +484,9 @@ class DownloadTool_win_curl(DownloadToolBase):
             file_name_list = ["-".join( (curl_config_file_path, str(file_i).zfill(num_digits))  ) for file_i in xrange(actual_num_files)]
             wfd_list = list()
             for file_name in file_name_list:
-                wfd_list.append(open(file_name, "w"))
+                wfd = open(file_name, "w")
+                make_open_file_read_write_for_all(wfd)
+                wfd_list.append(wfd)
 
             for wfd in wfd_list:
                 wfd.write("insecure\n")
@@ -516,9 +518,10 @@ class DownloadTool_win_curl(DownloadToolBase):
 
     def download_from_config_files(self, parallel_run_config_file_path, config_files):
         with open(parallel_run_config_file_path, "w") as wfd:
-            os.fchmod(wfd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+            make_open_file_read_write_for_all(wfd)
             for config_file in config_files:
-                wfd.write(var_list.resolve("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+config_file+"\"\n", raise_on_fail=True))
+                normalized_path = config_file.replace("\\", "/")
+                wfd.write(var_list.resolve("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+normalized_path+"\"\n", raise_on_fail=True))
 
         download_command = " ".join( (self.platform_helper.run_instl(),  "parallel-run", "--in", quoteme_double(parallel_run_config_file_path)) )
         return (download_command, self.platform_helper.exit_if_error())

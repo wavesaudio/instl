@@ -81,7 +81,7 @@ class InstlGui(InstlInstanceBase):
         the_list_yaml_ready= var_list.repr_for_yaml(which_vars=var_list.resolve_var_to_list("__GUI_CONFIG_FILE_VARS__"), include_comments=False, resolve=False, ignore_unknown_vars=True)
         the_doc_yaml_ready = augmentedYaml.YamlDumpDocWrap(the_list_yaml_ready, '!define', "Definitions", explicit_start=True, sort_mappings=True)
         with open(var_list.resolve_var("INSTL_GUI_CONFIG_FILE_NAME"), "w") as wfd:
-            os.fchmod(wfd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+            make_open_file_read_write_for_all(wfd)
             augmentedYaml.writeAsYaml(the_doc_yaml_ready, wfd)
 
     def get_client_input_file(self):

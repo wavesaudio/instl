@@ -284,7 +284,7 @@ class PlatformSpecificHelperBase(object):
         pass
 
     def setup_echo(self):
-        pass
+        return ()
 
     @abc.abstractmethod
     def echo(self, message):

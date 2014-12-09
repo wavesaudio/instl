@@ -308,7 +308,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
             lise_of_lines_iter = iter(list_of_lines_for_files)
             for file_name in file_name_list:
                 with open(file_name, "w") as wfd:
-                    os.fchmod(wfd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+                    make_open_file_read_write_for_all(wfd)
                     wfd.write("insecure\n")
                     wfd.write("raw\n")
                     wfd.write("fail\n")
@@ -333,7 +333,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
     def download_from_config_files(self, parallel_run_config_file_path, config_files):
 
         with open(parallel_run_config_file_path, "w") as wfd:
-            os.fchmod(wfd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+            make_open_file_read_write_for_all(wfd)
             for config_file in config_files:
                 wfd.write(var_list.resolve("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+config_file+"\"\n", raise_on_fail=True))
 

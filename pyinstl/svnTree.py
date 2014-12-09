@@ -56,7 +56,7 @@ class SVNTree(svnItem.SVNTopItem):
     def read_info_map_from_file(self, in_file, a_format="guess"):
         """ Reads from file. All previous sub items are cleared
             before reading, unless the a_format is 'props' in which case
-            the properties are added to exsisting sub items.
+            the properties are added to existing sub items.
             raises ValueError is a_format is not supported.
         """
         self.path_to_file = in_file

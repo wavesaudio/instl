@@ -214,7 +214,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress(
             "Starting sync from $(SYNC_BASE_URL)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir("$(LOCAL_REPO_SYNC_DIR)")
-        self.instlObj.batch_accum += self.instlObj.platform_helper.cd("$(LOCAL_REPO_SYNC_DIR)")
+        self.instlObj.batch_accum += self.instlObj.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")
         self.sync_base_url = var_list.resolve("$(SYNC_BASE_URL)")
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
@@ -281,6 +281,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.platform_helper.num_items_for_progress_report += num_files_to_unwtar_estimation
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Unwtar done")
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
+
+        self.instlObj.batch_accum += self.instlObj.platform_helper.popd()
 
     def create_prefix_instructions_for_item(self, accum, item, path_so_far=list()):
         if item.isSymlink():

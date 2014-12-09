@@ -90,15 +90,22 @@ class open_for_read_file_or_url(object):
                 self.file_url = path_searcher.find_file(self.file_url)
             if self.file_url:
                 if 'Win' in get_current_os_names():
-                    self.file_url = "file:///"+os.path.abspath(self.file_url)
+                    abs_path = os.path.abspath(self.file_url)
+                    if abs_path.startswith(r"\\"):
+                        self.file_url = "file:"+abs_path
+                    else:
+                        self.file_url = "file:///"+abs_path
                 else:
                     self.file_url = "file://"+os.path.realpath(self.file_url)
             else:
                 raise IOError("Could not locate local file", file_url)
 
     def __enter__(self):
-        #print("opening", self.file_url)
-        self.fd = urllib2.urlopen(self.file_url)
+        try:
+            self.fd = urllib2.urlopen(self.file_url)
+        except:
+            print ("exception opening", self.file_url)
+            raise
         if "name" not in dir(self.fd) and "url" in dir(self.fd):
             self.fd.name = self.fd.url # so we can get the url with the same attribute as file object
         return self.fd
@@ -135,7 +142,7 @@ def download_from_file_or_url(in_url, in_local_path, cache=False, public_key=Non
         contents_buffer = read_from_file_or_url(in_url, public_key, textual_sig, expected_checksum)
         if contents_buffer:
             with open(in_local_path, "wb") as wfd:
-                os.fchmod(wfd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+                make_open_file_read_write_for_all(wfd)
                 wfd.write(contents_buffer)
 
 class unique_list(list):
@@ -506,3 +513,9 @@ def find_sequences(in_sorted_list, is_next_func=lambda a,b: int(a)+1==int(b), re
         return retVal
     else:
         return sequences
+
+def make_open_file_read_write_for_all(fd):
+    try:
+        os.fchmod(fd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+    except:
+        os.chmod(fd.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)

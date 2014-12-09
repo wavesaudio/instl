@@ -132,7 +132,7 @@ class InstlClient(InstlInstanceBase):
         yaml_of_defines = augmentedYaml.YamlDumpDocWrap(var_list, '!define', "Definitions",
                                                         explicit_start=True, sort_mappings=True)
         with open(var_list.resolve("$(INSTL_HISTORY_TEMP_PATH)"), "w") as wfd:
-            os.fchmod(wfd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+            make_open_file_read_write_for_all(wfd)
             augmentedYaml.writeAsYaml(yaml_of_defines, wfd)
         self.batch_accum += self.platform_helper.append_file_to_file("$(INSTL_HISTORY_TEMP_PATH)",
                                                                      "$(INSTL_HISTORY_PATH)")
