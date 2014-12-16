@@ -3,6 +3,8 @@
     user visible changes, client:
     * When writing echo's to log the log file is created in the begin sections and permissions are set to 666 so later launches of instl can append to log.
     * For many files that are created during instl run permissions are set to 666.
+    * Moved  the curl config file to a local directory instead of being in the bookkeeping directory.
+    * Fixed echo function on Mac - it was missing quotes.
 
     programmer visible changes:
     * BatchAccumulator new sections: begin happens after pre & assign and before links

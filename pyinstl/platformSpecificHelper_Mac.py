@@ -19,7 +19,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
     def __init__(self, instlObj):
         super(PlatformSpecificHelperMac, self).__init__(instlObj)
         self.var_replacement_pattern = "${\g<var_name>}"
-        self.echo_template = "echo {}"
+        self.echo_template = 'echo "{}"'
 
     def init_download_tool(self):
         self.dl_tool = DownloadTool_mac_curl(self)
