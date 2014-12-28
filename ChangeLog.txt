@@ -9,6 +9,11 @@
     programmer visible changes:
     * BatchAccumulator new sections: begin happens after pre & assign and before links
 
+    user visible changes, admin:
+    When taring bzip2 is used instead of zip (--use-compress-program bzip2 instead of -z). Using zip
+        created a different tar file every time something was re-tarred. This caused redundant uploads
+        SVN and S3 of files that were not really different.
+
 
 4/12/2014 0.9.19.2
 

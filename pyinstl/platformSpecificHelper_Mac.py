@@ -200,7 +200,7 @@ done""" % in_dir)
         return check_command
 
     def tar(self, to_tar_name):
-        wtar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "-c", "-z", "-f", quoteme_double(to_tar_name+'.wtar'), quoteme_double(to_tar_name))
+        wtar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "-c", "--use-compress-program bzip2", "-f", quoteme_double(to_tar_name+'.wtar'), quoteme_double(to_tar_name))
         wtar_command = " ".join( wtar_command_parts )
         return wtar_command
 
