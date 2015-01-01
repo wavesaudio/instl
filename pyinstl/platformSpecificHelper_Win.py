@@ -367,10 +367,6 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
                          rm_tar_command, self.touch(done_stamp_file)
         return untar_commands
 
-    def unwtar_current_folder(self):
-        unwtar_command = super(PlatformSpecificHelperWin, self).unwtar_current_folder()
-        return unwtar_command, self.exit_if_error()
-
     def wait_for_child_processes(self):
         return ("echo wait_for_child_processes not implemented yet for windows",)
 

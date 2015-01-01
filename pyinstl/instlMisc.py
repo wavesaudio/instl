@@ -68,6 +68,9 @@ class InstlMisc(InstlInstanceBase):
         run_processes_in_parallel(commands)
 
     def do_unwtar(self):
+        self.no_artifacts = False
+        if "__NO_WTAR_ARTIFACTS__" in var_list:
+            self.no_artifacts = True
         for root, dirs, files in os.walk(".", followlinks=False):
             files_to_unwtar = list()
             # find split files and join them
@@ -88,11 +91,14 @@ class InstlMisc(InstlInstanceBase):
                     try:
                         with tarfile.open(wtar_file_path, "r") as tar:
                             tar.extractall(root)
+                        if self.no_artifacts:
+                            os.remove(wtar_file_path)
                         self.dynamic_progress("Unwtar {wtar_file_path}".format(**locals()))
                     except tarfile.ReadError as re_er:
                         print("tarfile read error while opening file", os.path.abspath(wtar_file_path))
                         raise
-                    with open(done_file, "a"): os.utime(done_file, None)
+                    if not self.no_artifacts:
+                        with open(done_file, "a"): os.utime(done_file, None)
 
     def join_split_files(self, first_file):
         base_folder, base_name = os.path.split(first_file)
@@ -105,8 +111,12 @@ class InstlMisc(InstlInstanceBase):
                 for afile in matching_files:
                     with open(os.path.join(base_folder, afile), "rb") as rfd:
                         wfd.write(rfd.read())
+            if self.no_artifacts:
+                for afile in matching_files:
+                    os.remove(afile)
             # create done file for the .wtar.aa file
-            with open(done_file, "a"): os.utime(done_file, None)
+            if not self.no_artifacts:
+                with open(done_file, "a"): os.utime(done_file, None)
             # now remove the done file for the newly created .wtar file
             joined_file_done_path = joined_file_path+".done"
             if os.path.isfile(joined_file_done_path):

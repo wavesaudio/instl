@@ -6,12 +6,12 @@ Move unwtar to copy stage:
 4. Unwtar on target folders.
 5. Check that remove works OK.
 
-Test environmet with password:
+Test environment with password:
 
 On stage computer:
 How to move between repos with little confusion?
 
 On server:
-Scripts will upload for all repos automatcally. Keep list of active repos.
+Scripts will upload for all repos automatically. Keep list of active repos.
 set-repo-rev and upload-repo-rev need additional repo param.
-Do sripts need to consider download premissions when uplodaing?
+Do scripts need to consider download permissions when uploading?

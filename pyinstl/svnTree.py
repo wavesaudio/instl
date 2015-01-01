@@ -276,6 +276,18 @@ class SVNTree(svnItem.SVNTopItem):
             raise
 
 
+# WtarFilter is passed to SVNItem.walk_items_with_filter as the filter parameter
+# to match files that end with .wtar, .wtar.aa,...
+class WtarFilter(object):
+    def __init__(self, base_name):
+        # Regex fo find files who's name starts with the source's name and have .wtar or wtar.aa... extension
+        # NOT compiled with re.VERBOSE since the file name may contain spaces
+        self.wtar_file_re = re.compile(base_name + r"""\.wtar(\...)?$""")
+    def __call__(self, file_item):
+        match = self.wtar_file_re.match(file_item.name())
+        retVal = match is not None
+        return retVal
+
 if __name__ == "__main__":
     t = SVNTree()
     t.read_svn_info_file(sys.argv[1])

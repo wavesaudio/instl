@@ -86,6 +86,7 @@ class CommandLineOptions(object):
         self.limit_command_to = None
         self.target_path = None
         self.shortcut_path = None
+        self.no_wtar_artifacts = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
@@ -324,6 +325,14 @@ def prepare_args_parser():
                             metavar='target',
                             dest='target_path',
                             help="path to the item being shortcut")
+
+    unwtar_options = unwtar_parser.add_argument_group(description='unwtar arguments:')
+    unwtar_options.add_argument('--no-artifacts',
+                                required=False,
+                                default=False,
+                                action='store_true',
+                                dest='no_wtar_artifacts',
+                                help="remove all .wtar files and .done files")
 
     help_options = help_parser.add_argument_group(description='help subject:')
     help_options.add_argument('subject', nargs='?')

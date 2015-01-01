@@ -353,12 +353,15 @@ class PlatformSpecificHelperBase(object):
     def unwtar_file(self, filepath):
         pass
 
-    def unwtar_current_folder(self):
-        unwtar_command = " ".join( (self.instlObj.platform_helper.run_instl(),
+    def unwtar_current_folder(self, no_artifacts=False):
+        unwtar_command_parts = [self.instlObj.platform_helper.run_instl(),
                                                     "unwtar",
                                                     "--start-progress", str(self.num_items_for_progress_report),
                                                     "--total-progress", "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)",
-                                                    ) )
+                                                    ]
+        if no_artifacts:
+            unwtar_command_parts.append("--no-artifacts")
+        unwtar_command = " ".join( unwtar_command_parts )
         return unwtar_command
 
     @abc.abstractmethod
