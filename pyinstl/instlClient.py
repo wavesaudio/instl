@@ -392,7 +392,7 @@ class InstlClient(InstlInstanceBase):
             # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
             self.accumulate_unique_actions('pre_copy_to_folder', items_in_folder)
 
-            self.batch_accum += self.platform_helper.unwtar_current_folder(no_artifacts=True)
+            self.batch_accum += self.platform_helper.unwtar_current_folder()
 
             for IID in items_in_folder:
                 with self.install_definitions_index[IID]:

@@ -72,12 +72,13 @@ class InstlMisc(InstlInstanceBase):
         if "__NO_WTAR_ARTIFACTS__" in var_list:
             self.no_artifacts = True
         for root, dirs, files in os.walk(".", followlinks=False):
-            files_to_unwtar = list()
+            files_to_unwtar = unique_list() # unique_list so if both .wtar and .wtar.aa exists the list after joining will not have double entries
             # find split files and join them
             for afile in files:
                 afile_path = os.path.join(root, afile)
                 if afile_path.endswith(".wtar.aa"):
-                    files_to_unwtar.append(self.join_split_files(afile_path))
+                    joint_file = self.join_split_files(afile_path)
+                    files_to_unwtar.append(joint_file)
 
             # find unsplit wtar files
             for afile in files:
