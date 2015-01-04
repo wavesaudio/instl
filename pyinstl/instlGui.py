@@ -42,11 +42,13 @@ class InstlGui(InstlInstanceBase):
         self.client_input_combobox = None
         self.client_output_path_var = StringVar()
         self.run_client_batch_file_var = IntVar()
-        
+
         self.admin_command_name_var = StringVar()
         self.admin_config_path_var = StringVar()
         self.admin_output_path_var = StringVar()
         self.admin_stage_index_var = StringVar()
+        self.admin_sync_url_var = StringVar()
+        self.admin_svn_repo_var = StringVar()
         self.admin_config_file_dirty = True
         self.run_admin_batch_file_var = IntVar()
         self.admin_limit_var = StringVar()
@@ -206,6 +208,8 @@ class InstlGui(InstlInstanceBase):
         var_list.set_var("ADMIN_GUI_LIMIT").append(self.admin_limit_var.get())
 
         self.admin_stage_index_var.set(var_list.resolve("$(STAGING_FOLDER)/instl/index.yaml"))
+        self.admin_svn_repo_var.set(var_list.resolve("$(SVN_REPO_URL)"))
+        self.admin_sync_url_var.set(var_list.resolve("$(SYNC_BASE_URL)"))
 
         if self.admin_command_name_var.get() in self.commands_that_accept_limit_option:
             self.limit_path_entry_widget.configure(state='normal')
@@ -272,8 +276,18 @@ class InstlGui(InstlInstanceBase):
         # path to stage index file
         curr_row += 1
         Label(admin_frame, text="Stage index:").grid(row=curr_row, column=0, sticky=E)
-        Label(admin_frame, text="Stage index:", textvariable=self.admin_stage_index_var).grid(row=curr_row, column=1, columnspan=2, sticky=W)
+        Label(admin_frame, text="---", textvariable=self.admin_stage_index_var).grid(row=curr_row, column=1, columnspan=2, sticky=W)
         Button(admin_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_list.resolve("$(STAGING_FOLDER)/instl/index.yaml", raise_on_fail=True))).grid(row=curr_row, column=4, sticky=W)
+
+        # path to svn repository
+        curr_row += 1
+        Label(admin_frame, text="Svn repo:").grid(row=curr_row, column=0, sticky=E)
+        Label(admin_frame, text="---", textvariable=self.admin_svn_repo_var).grid(row=curr_row, column=1, columnspan=2, sticky=W)
+
+        # sync URL
+        curr_row += 1
+        Label(admin_frame, text="Sync URL:").grid(row=curr_row, column=0, sticky=E)
+        Label(admin_frame, text="---", textvariable=self.admin_sync_url_var).grid(row=curr_row, column=1, columnspan=2, sticky=W)
 
         # path to output file
         curr_row += 1
