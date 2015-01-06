@@ -176,7 +176,7 @@ class PlatformSpecificHelperBase(object):
         self.copy_tool = None
         self.dl_tool = None
         self.num_items_for_progress_report = 0
-        self.progress_staccato_period = int(var_list.resolve("$(PROGRESS_STACCATO_PERIOD)"))
+        self.progress_staccato_period = int(var_list.resolve("$(PROGRESS_STACCATO_PERIOD)", default="128"))
         self.progress_staccato_count = 0
 
     def DefaultCopyToolName(self, target_os):
