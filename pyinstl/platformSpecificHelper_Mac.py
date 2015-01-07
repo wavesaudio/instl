@@ -36,6 +36,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
             #"set -u",
             self.get_install_instructions_exit_func(),
             self.get_install_instructions_mkdir_with_owner_func(),
+            self.get_resolve_symlinks_func(),
             self.save_dir("TOP_SAVE_DIR"),
             self.start_time_measure())
         return retVal
@@ -63,6 +64,26 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
             'chown $(__USRER_ID__): "$1"',
             'chmod a+rwx "$1"',
             'fi }')
+        return retVal
+
+    def get_resolve_symlinks_func(self):
+        """ create instructions to turn .readlink files into symlinks.
+            Main problem was with files that had space in their name, just
+            adding \" was no enough, had to separate each step to a single line
+            which solved the spaces problem. Also find returns an empty string
+            even when there were no files found, and therefor the check
+        """
+        retVal = (
+            '''resolve_symlinks() {''',
+            '''find -P "$1" -type f -name '*.symlink' | while read readlink_file; do''',
+            '''     link_target=${readlink_file%%.symlink}''',
+            '''     if [ ! -h "${link_target}" ]''',
+            '''     then''',
+            '''         symlink_contents=`cat "${readlink_file}"`''',
+            '''         ln -sfh "${symlink_contents}" "${link_target}"''',
+            '''     fi''',
+            '''     rm -f "${readlink_file}"''',
+            '''done }''')
         return retVal
 
     def start_time_measure(self):
@@ -169,16 +190,8 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
             which solved the spaces problem. Also find returns an empty string
             even when there were no files found, and therefor the check
         """
-        resolve_commands = ("""
-find -P "%s" -type f -name '*.symlink' | while read readlink_file; do
-    link_target=${readlink_file%%.*}
-    if [ ! -h "${link_target}" ]
-    then
-        symlink_contents=`cat "${readlink_file}"`
-        ln -sfh "${symlink_contents}" "${link_target}"
-    fi
-done""" % in_dir)
-        return resolve_commands
+        resolve_command = " ".join( ("resolve_symlinks", quoteme_double(in_dir) ) )
+        return resolve_command
 
     def check_checksum_for_file(self, filepath, checksum):
         check_command_parts = (  "CHECKSUM_CHECK=`$(CHECKSUM_TOOL_PATH) sha1",

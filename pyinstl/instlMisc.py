@@ -114,7 +114,7 @@ class InstlMisc(InstlInstanceBase):
                         wfd.write(rfd.read())
             if self.no_artifacts:
                 for afile in matching_files:
-                    os.remove(afile)
+                    os.remove(os.path.join(base_folder, afile))
             # create done file for the .wtar.aa file
             if not self.no_artifacts:
                 with open(done_file, "a"): os.utime(done_file, None)

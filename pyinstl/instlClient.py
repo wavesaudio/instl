@@ -301,8 +301,6 @@ class InstlClient(InstlInstanceBase):
 
     # special handling when running on Mac OS
     def pre_copy_mac_handling(self):
-        self.batch_accum += self.platform_helper.resolve_symlink_files(in_dir="$(LOCAL_REPO_SYNC_DIR)")
-        self.batch_accum += self.platform_helper.progress("Resolve .symlink files")
 
         have_map = svnTree.SVNTree()
         have_info_path = var_list.resolve("$(NEW_HAVE_INFO_MAP_PATH)")  # in case we're in synccopy command
@@ -366,6 +364,11 @@ class InstlClient(InstlInstanceBase):
             logging.info("... copy actions: %d", len(self.batch_accum) - batch_accum_len_before)
 
             self.batch_accum += self.platform_helper.unwtar_current_folder(no_artifacts=True)
+            self.batch_accum += self.platform_helper.progress("Unwtar files")
+
+            if 'Mac' in var_list.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_list.resolve_to_list("$(TARGET_OS)"):
+                self.batch_accum += self.platform_helper.resolve_symlink_files()
+                self.batch_accum += self.platform_helper.progress("Resolve .symlink files")
 
             # accumulate post_copy_to_folder actions from all items, eliminating duplicates
             self.accumulate_unique_actions('post_copy_to_folder', items_in_folder)
