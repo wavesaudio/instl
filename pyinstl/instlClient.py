@@ -301,8 +301,6 @@ class InstlClient(InstlInstanceBase):
 
     # special handling when running on Mac OS
     def pre_copy_mac_handling(self):
-        self.batch_accum += self.platform_helper.resolve_symlink_files(in_dir="$(LOCAL_REPO_SYNC_DIR)")
-        self.batch_accum += self.platform_helper.progress("Resolve .symlink files")
 
         have_map = svnTree.SVNTree()
         have_info_path = var_list.resolve("$(NEW_HAVE_INFO_MAP_PATH)")  # in case we're in synccopy command
@@ -322,6 +320,10 @@ class InstlClient(InstlInstanceBase):
                 self.batch_accum += self.platform_helper.popd()
 
     def create_copy_instructions(self):
+        self.have_map = svnTree.SVNTree()
+        have_info_path = var_list.resolve("$(HAVE_INFO_MAP_PATH)")
+        self.have_map.read_info_map_from_file(have_info_path, a_format="text")
+
         # copy and actions instructions for sources
         self.batch_accum.set_current_section('copy')
         self.batch_accum += self.platform_helper.progress("Starting copy from $(LOCAL_REPO_SYNC_DIR)")
@@ -361,6 +363,13 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum += self.platform_helper.copy_tool.end_copy_folder()
             logging.info("... copy actions: %d", len(self.batch_accum) - batch_accum_len_before)
 
+            self.batch_accum += self.platform_helper.unwtar_current_folder(no_artifacts=True)
+            self.batch_accum += self.platform_helper.progress("Unwtar files")
+
+            if 'Mac' in var_list.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_list.resolve_to_list("$(TARGET_OS)"):
+                self.batch_accum += self.platform_helper.resolve_symlink_files()
+                self.batch_accum += self.platform_helper.progress("Resolve .symlink files")
+
             # accumulate post_copy_to_folder actions from all items, eliminating duplicates
             self.accumulate_unique_actions('post_copy_to_folder', items_in_folder)
 
@@ -370,13 +379,14 @@ class InstlClient(InstlInstanceBase):
         for folder_name, items_in_folder in self.installState.no_copy_items_by_sync_folder.iteritems():
             # calculate total number of actions for all items relating to folder_name,
             # if 0 we can skip this folder altogether
-            num_actions_for_folder = reduce(lambda x, y: x + len(self.install_definitions_index[y].all_action_list()),
-                                            items_in_folder, 0)
-            logging.info("%d non-copy items folder %s (%s)", num_actions_for_folder, folder_name,
-                         var_list.resolve(folder_name))
+            if False:
+                num_actions_for_folder = reduce(lambda x, y: x + len(self.install_definitions_index[y].all_action_list()),
+                                                items_in_folder, 0)
+                logging.info("%d non-copy items folder %s (%s)", num_actions_for_folder, folder_name,
+                             var_list.resolve(folder_name))
 
-            if 0 == num_actions_for_folder:
-                continue
+                if 0 == num_actions_for_folder:
+                    continue
 
             self.batch_accum += self.platform_helper.new_line()
             self.batch_accum += self.platform_helper.cd(folder_name)
@@ -384,6 +394,8 @@ class InstlClient(InstlInstanceBase):
 
             # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
             self.accumulate_unique_actions('pre_copy_to_folder', items_in_folder)
+
+            self.batch_accum += self.platform_helper.unwtar_current_folder()
 
             for IID in items_in_folder:
                 with self.install_definitions_index[IID]:
@@ -431,16 +443,28 @@ class InstlClient(InstlInstanceBase):
         logging.info("... %s actions: %d", action_type, len(unique_actions))
 
     def create_copy_instructions_for_source(self, source):
-        """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
+        """ source is a tuple (source_path, tag), where tag is either !file or !dir """
 
         source_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + source[0])
 
         ignore_list = var_list.resolve_to_list("$(COPY_IGNORE_PATTERNS)")
 
         if source[1] == '!file':  # get a single file, not recommended
-            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".",
+            source_item = self.have_map.get_item_at_path(source[0])
+            if source_item:
+                self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".",
                                                                                 link_dest=True,
                                                                                 ignore=ignore_list)
+            else:
+                source_folder, source_name = os.path.split(source[0])
+                source_folder_item = self.have_map.get_item_at_path(source_folder)
+                if source_folder_item:
+                    for wtar_item in source_folder_item.walk_items_with_filter(svnTree.WtarFilter(source_name), what="file"):
+                        source_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + wtar_item.full_path())
+                        self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".",
+                                                                                link_dest=True,
+                                                                                ignore=ignore_list)
+
         elif source[1] == '!dir_cont':  # get all files and folders from a folder
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".",
                                                                                         link_dest=True,
@@ -451,9 +475,20 @@ class InstlClient(InstlInstanceBase):
                                                                                      link_dest=True,
                                                                                      ignore=ignore_list)
         else:  # !dir
-            self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path, ".",
+            source_item = self.have_map.get_item_at_path(source[0])
+            if source_item:
+                self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path, ".",
                                                                                link_dest=True,
                                                                                ignore=ignore_list)
+            else:
+                source_folder, source_name = os.path.split(source[0])
+                source_folder_item = self.have_map.get_item_at_path(source_folder)
+                if source_folder_item:
+                    for wtar_item in source_folder_item.walk_items_with_filter(svnTree.WtarFilter(source_name), what="file"):
+                        source_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + wtar_item.full_path())
+                        self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".",
+                                                                                link_dest=True,
+                                                                                ignore=ignore_list)
         logging.debug("%s; (%s - %s)", source_path, var_list.resolve(source_path), source[1])
 
     def needs(self, iid, out_list):
@@ -553,7 +588,6 @@ class InstlClient(InstlInstanceBase):
             elif source[1] == '!files':    # # remove all source's files from a folder
                 source_folder_info_map_item = self.have_map.get_item_at_path(source[0])
                 file_list, folder_list = source_folder_info_map_item.sorted_sub_items()
-                print("before:", file_list)
                 unwtared_file_name_list = self.replace_wtar_names_with_real_names(file_item.name() for file_item in file_list)
                 for sub_file_name in unwtared_file_name_list:
                     to_remove_path = os.path.normpath(os.path.join(folder, sub_file_name))

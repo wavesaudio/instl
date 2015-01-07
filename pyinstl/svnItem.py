@@ -222,7 +222,7 @@ class SVNItem(object):
             If create_folders is True, non existing intermediate folders
             will be created, with the same last_rev. create_folders is False,
             and some part of the path does not exist KeyError will be raised.
-            This is the non recursive version of this fuction.
+            This is the non recursive version of this function.
         """
         #print("--- add sub to", self.name(), path, flags, last_rev)
         path_parts = at_path
@@ -522,3 +522,4 @@ class SVNTopItem(SVNItem):
                 min_revision = min(min_revision, item.last_rev())
                 max_revision = max(max_revision, item.last_rev())
         return min_revision, max_revision
+

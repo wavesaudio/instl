@@ -395,6 +395,11 @@ class InstlGui(InstlInstanceBase):
                 break
 
         self.master.resizable(0, 0)
+
+        # bring window to front, be default it stays behind the Terminal window
+        if var_list.resolve_var("__CURRENT_OS__") == "Mac":
+            os.system('''/usr/bin/osascript -e 'tell app "Finder" to set frontmost of process "Python" to true' ''')
+
         self.master.mainloop()
         self.quit_app()
         #self.master.destroy() # optional; see description below

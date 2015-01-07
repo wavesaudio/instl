@@ -4,6 +4,11 @@
     * For many files that are created during instl run permissions are set to 666.
     * Moved  the curl config file to a local directory instead of being in the bookkeeping directory.
     * Fixed echo function on Mac - it was missing quotes.
+    * New default __USER_CONFIG_FILE_PATH__: $(__USER_HOME_DIR__)/$(__USER_CONFIG_FILE_NAME__)
+    * Added bash function resolve_symlinks (Mac only).
+    * Moved resolving symlink files to the target folder.
+    * In gui mode send window to front (Mac only).
+    * Fixed removing of split wtar files (...wtar.aa, ...).
 
     programmer visible changes:
     * BatchAccumulator new sections: begin happens after pre & assign and before links

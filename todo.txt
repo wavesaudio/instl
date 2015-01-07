@@ -1,0 +1,17 @@
+Move unwtar to copy stage:
+
+1. Uncopied files must unwtar in place before taking any action. E.g. MS redistributables.
+2. !file items that were wtared must be explicitly copied.
+3. Resolve symlink files must be done in target folder after any unwtaring so symlinks would point to real files.
+4. Unwtar on target folders.
+5. Check that remove works OK.
+
+Test environment with password:
+
+On stage computer:
+How to move between repos with little confusion?
+
+On server:
+Scripts will upload for all repos automatically. Keep list of active repos.
+set-repo-rev and upload-repo-rev need additional repo param.
+Do scripts need to consider download permissions when uploading?

@@ -178,17 +178,9 @@ class InstlInstanceSync_url(InstlInstanceSync):
         parent_folder_item = self.work_info_map.get_item_at_path(split_source_folder)
         if parent_folder_item is None:
             raise ValueError(split_source_folder, var_list.resolve("does not exist in remote map, IID: $(iid_iid)"))
-        # Regex fo find files who's name starts with the source's name and have .wtar or wtar.aa... extension
-        # NOT compiled with re.VERBOSE since the file name may contain spaces
-        wtar_file_re = re.compile(split_source_leaf + r"""\.wtar(\...)?$""")
-
-        def is_wtar_file(file_item):
-            match = wtar_file_re.match(file_item.name())
-            retVal = match is not None
-            return retVal
 
         wtar_files_count = 0
-        for wtar_file in parent_folder_item.walk_items_with_filter(a_filter=is_wtar_file, what="file"):
+        for wtar_file in parent_folder_item.walk_items_with_filter(a_filter=svnTree.WtarFilter(split_source_leaf), what="file"):
             wtar_file.set_user_data_non_recursive(True)
             wtar_files_count += 1
         retVal = wtar_files_count > 0
@@ -275,12 +267,13 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Check checksum done")
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
-        num_files_to_unwtar_estimation = self.estimate_num_unwtar_actions()
-        logging.info("Num files to unwtar: %d", num_files_to_unwtar_estimation)
-        self.instlObj.batch_accum += self.instlObj.platform_helper.unwtar_current_folder()
-        self.instlObj.platform_helper.num_items_for_progress_report += num_files_to_unwtar_estimation
-        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Unwtar done")
-        self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
+        if False:
+            num_files_to_unwtar_estimation = self.estimate_num_unwtar_actions()
+            logging.info("Num files to unwtar: %d", num_files_to_unwtar_estimation)
+            self.instlObj.batch_accum += self.instlObj.platform_helper.unwtar_current_folder()
+            self.instlObj.platform_helper.num_items_for_progress_report += num_files_to_unwtar_estimation
+            self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Unwtar done")
+            self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.popd()
 

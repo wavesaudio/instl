@@ -96,7 +96,7 @@ class InstlInstanceBase(object):
                         pyinstl.log_utils.debug_logging_started))
 
     def read_user_config(self):
-        user_config_path = var_list.resolve("$(__USER_HOME_DIR__)/$(__USER_CONFIG_FILE_NAME__)")
+        user_config_path = var_list.resolve("$(__USER_CONFIG_FILE_PATH__)")
         if os.path.isfile(user_config_path):
             self.read_yaml_file(user_config_path)
 
@@ -128,7 +128,7 @@ class InstlInstanceBase(object):
             attrib_value = getattr(cmd_line_options_obj, attrib)
             if attrib_value:
                 var_list.add_const_config_variable(var[0], "from command line options", *attrib_value)
-            elif var[1]:  # there's a default
+            elif var[1] is not None:  # there's a default
                 var_list.add_const_config_variable(var[0], "from default", var[1])
 
         non_const_attrib_to_var = {
@@ -159,6 +159,9 @@ class InstlInstanceBase(object):
                                                *cmd_line_options_obj.filter_out)
         if cmd_line_options_obj.run:
             var_list.add_const_config_variable("__RUN_BATCH__", "from command line options", "yes")
+
+        if cmd_line_options_obj.no_wtar_artifacts:
+            var_list.add_const_config_variable("__NO_WTAR_ARTIFACTS__", "from command line options", "yes")
 
     def is_acceptable_yaml_doc(self, doc_node):
         acceptables = var_list.resolve_to_list("$(ACCEPTABLE_YAML_DOC_TAGS)") + ["define", "define_const", "index", 'require']
