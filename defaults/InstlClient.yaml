@@ -38,7 +38,4 @@ SOURCE_PREFIX: $(TARGET_OS)
 
 COPY_IGNORE_PATTERNS:
     - ".svn"
-#    - "*.symlink"
-#    - "*.wtar"
-#    - "*.wtar.??"
     - "*.done"

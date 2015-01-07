@@ -267,14 +267,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Check checksum done")
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
-        if False:
-            num_files_to_unwtar_estimation = self.estimate_num_unwtar_actions()
-            logging.info("Num files to unwtar: %d", num_files_to_unwtar_estimation)
-            self.instlObj.batch_accum += self.instlObj.platform_helper.unwtar_current_folder()
-            self.instlObj.platform_helper.num_items_for_progress_report += num_files_to_unwtar_estimation
-            self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Unwtar done")
-            self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
-
         self.instlObj.batch_accum += self.instlObj.platform_helper.popd()
 
     def create_prefix_instructions_for_item(self, accum, item, path_so_far=list()):

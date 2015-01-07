@@ -377,16 +377,6 @@ class InstlClient(InstlInstanceBase):
 
         # actions instructions for sources that do not need copying, here folder_name is the sync folder
         for folder_name, items_in_folder in self.installState.no_copy_items_by_sync_folder.iteritems():
-            # calculate total number of actions for all items relating to folder_name,
-            # if 0 we can skip this folder altogether
-            if False:
-                num_actions_for_folder = reduce(lambda x, y: x + len(self.install_definitions_index[y].all_action_list()),
-                                                items_in_folder, 0)
-                logging.info("%d non-copy items folder %s (%s)", num_actions_for_folder, folder_name,
-                             var_list.resolve(folder_name))
-
-                if 0 == num_actions_for_folder:
-                    continue
 
             self.batch_accum += self.platform_helper.new_line()
             self.batch_accum += self.platform_helper.cd(folder_name)
