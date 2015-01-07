@@ -51,9 +51,10 @@ class ConfigVarList(object):
     """ Keeps a list of named build config values.
         Help values resolve $() style references. """
 
+    __resolve_stack = list() # for preventing circular references during resolve.
+
     def __init__(self):
         self._ConfigVar_objs = dict() # ConfigVar objects are kept here mapped by their name.
-        self.__resolve_stack = list() # for preventing circular references during resolve.
 
     def __len__(self):
         """ return number of ConfigVars """
@@ -195,7 +196,7 @@ class ConfigVarList(object):
                     if array_index < len(self[var_name]):
                         replacement = self[var_name][array_index]
                 else:
-                    var_joint_values = list_sep.join([val for val in self[var_name]])
+                    var_joint_values = list_sep.join([val for val in self[var_name] if val])
                     replacement = self.resolve(var_joint_values, list_sep)
 
                 self.__resolve_stack.pop()
@@ -258,7 +259,7 @@ class ConfigVarList(object):
     def unresolved_var(self, var_name, list_sep=" ", default=None):
         retVal = default
         if var_name in self:
-            retVal = list_sep.join([val for val in self[var_name]])
+            retVal = list_sep.join([str(val) for val in self[var_name] if val is not None])
         return retVal
 
     def unresolved_var_to_list(self, var_name, default=None):

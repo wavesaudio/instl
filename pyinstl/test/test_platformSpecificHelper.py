@@ -1,18 +1,18 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
-import time
+import sys
 import unittest
 import filecmp
-import subprocess
+import os
 import shutil
 import random
 import string
 import inspect
 
-from platformSpecificHelper_Base import DefaultCopyToolName
+from configVarStack import var_stack as var_list
 from instlInstanceBase import PlatformSpecificHelperFactory
-from pyinstl.utils import *
+from utils import *
 
 current_os_names = get_current_os_names()
 os_family_name = current_os_names[0]
@@ -63,13 +63,19 @@ def create_random_files(where, num=32, name_len=32, contents_len=256):
 
 class TestPlatformSpecificHelper(unittest.TestCase):
 
+    @classmethod
+    def setUpClass(cls):
+        var_list.set_var("__CURRENT_OS__").append(os_family_name)
+        var_list.set_var("__CURRENT_OS_SECOND_NAME__").append(os_second_name)
+
     def setUp(self):
         """ .
         """
         self.ps_helper = PlatformSpecificHelperFactory(os_family_name, None)
+        self.ps_helper.init_copy_tool()
 
     def tearDown(self):
-        pass
+        del self.ps_helper
 
     def check_indoes_Equal(self, left_dir, right_dir, test_name, report=None):
         """ compare two folders that should have the same hard-linked files.
@@ -173,7 +179,7 @@ class TestPlatformSpecificHelper(unittest.TestCase):
 
     def test_copy_dir_to_dir_with_hard_links(self):
         """ copy a complete folder into another, with hard-linking,
-            files' inodes should be different."""
+            files' inodes should be the same."""
 
         test_folder = prepare_test_folder("test copy dir to dir with hard links")
         originals_folder = safe_makedirs(os.path.join(test_folder, "originals"))

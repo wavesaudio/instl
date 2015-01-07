@@ -1,5 +1,4 @@
 ???? 0.9.19.4
-
     user visible changes, client:
     * When writing echo's to log the log file is created in the begin sections and permissions are set to 666 so later launches of instl can append to log.
     * For many files that are created during instl run permissions are set to 666.
@@ -8,11 +7,15 @@
 
     programmer visible changes:
     * BatchAccumulator new sections: begin happens after pre & assign and before links
+    * ConfigVarList.__resolve_stack is now a class member.
+    * ConfigVarList.resolve, when joining values will not join None values.
 
     user visible changes, admin:
-    When taring bzip2 is used instead of zip (--use-compress-program bzip2 instead of -z). Using zip
+    * When taring bzip2 is used instead of zip (--use-compress-program bzip2 instead of -z). Using zip
         created a different tar file every time something was re-tarred. This caused redundant uploads
         SVN and S3 of files that were not really different.
+    * In GUI mode /Admin added indication to SVN repo and S3 bucket.
+    * Fixed misleading messages in up-repo-rev
 
 
 4/12/2014 0.9.19.2
