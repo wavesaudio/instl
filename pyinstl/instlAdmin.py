@@ -377,7 +377,7 @@ class InstlAdmin(InstlInstanceBase):
 
         accum += " ".join(["aws", "s3", "sync",
                            ".", "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_REV__)",
-                           "--acl", "public-read",
+                           "--acl", "$(S3_ACL_VALUE)",
                            "--exclude", '"*.DS_Store"',
                            "--exclude", '"$(UP_2_S3_STAMP_FILE_NAME)"',
                            "--exclude", '"$(CREATE_LINKS_STAMP_FILE_NAME)"'
@@ -448,7 +448,7 @@ class InstlAdmin(InstlInstanceBase):
             self.batch_accum += " ".join( ["aws", "s3", "cp",
                                 "\"$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
                                "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)\"",
-                               "--acl", "public-read",
+                               "--acl", "$(S3_ACL_VALUE)",
                                "--content-type", 'text/plain'
                                 ] )
             self.batch_accum += self.platform_helper.progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)'")
@@ -456,7 +456,7 @@ class InstlAdmin(InstlInstanceBase):
         self.batch_accum += " ".join( ["aws", "s3", "cp",
                            "\"$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
                            "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
-                           "--acl", "public-read",
+                           "--acl", "$(S3_ACL_VALUE)",
                            "--content-type", 'text/plain'
                             ] )
         self.batch_accum += self.platform_helper.progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)'")
