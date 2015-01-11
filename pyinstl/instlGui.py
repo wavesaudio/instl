@@ -182,6 +182,7 @@ class InstlGui(InstlInstanceBase):
     def read_admin_config_file(self):
         config_path = var_list.resolve_var("ADMIN_GUI_CONFIG_FILE", default="")
         if os.path.isfile(config_path):
+            var_list.get_configVar_obj("__SEARCH_PATHS__").clear_values() # so __include__ file will not be found on old paths
             self.read_yaml_file(config_path)
             self.admin_config_file_dirty = False
         else:
@@ -208,8 +209,10 @@ class InstlGui(InstlInstanceBase):
         var_list.set_var("ADMIN_GUI_LIMIT").append(self.admin_limit_var.get())
 
         self.admin_stage_index_var.set(var_list.resolve("$(STAGING_FOLDER)/instl/index.yaml"))
-        self.admin_svn_repo_var.set(var_list.resolve("$(SVN_REPO_URL)"))
-        self.admin_sync_url_var.set(var_list.resolve("$(SYNC_BASE_URL)"))
+        self.admin_svn_repo_var.set(var_list.resolve("$(SVN_REPO_URL), REPO_REV: $(REPO_REV)"))
+
+        sync_url = var_list.resolve("$(SYNC_BASE_URL)")
+        self.admin_sync_url_var.set(sync_url)
 
         if self.admin_command_name_var.get() in self.commands_that_accept_limit_option:
             self.limit_path_entry_widget.configure(state='normal')

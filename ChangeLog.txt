@@ -21,7 +21,8 @@
         SVN and S3 of files that were not really different.
     * In GUI mode /Admin added indication to SVN repo and S3 bucket.
     * Fixed misleading messages in up-repo-rev
-
+    * For GUI mode: reset SearchPath before loading admin config file, so that __include__'s will not be found in old search paths.
+    * For GUI mode: SVN URL will be displayed with REPO_REV
 
 4/12/2014 0.9.19.2
 
