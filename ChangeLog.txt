@@ -1,4 +1,4 @@
-???? 0.9.19.4
+28/1/2015 0.9.19.4
     user visible changes, client:
     * When writing echo's to log the log file is created in the begin sections and permissions are set to 666 so later launches of instl can append to log.
     * For many files that are created during instl run permissions are set to 666.
@@ -9,6 +9,9 @@
     * Moved resolving symlink files to the target folder.
     * In gui mode send window to front (Mac only).
     * Fixed removing of split wtar files (...wtar.aa, ...).
+    * During create_copy_instructions, read NEW_HAVE_INFO_MAP_PATH and not HAVE_INFO_MAP_PATH.
+        Copy might be called after the sync batch file was created but before it was executed.
+        HAVE_INFO_MAP_PATH is only created when the sync batch file is executed.
 
     programmer visible changes:
     * BatchAccumulator new sections: begin happens after pre & assign and before links

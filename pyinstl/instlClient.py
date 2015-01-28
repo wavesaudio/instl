@@ -302,26 +302,23 @@ class InstlClient(InstlInstanceBase):
     # special handling when running on Mac OS
     def pre_copy_mac_handling(self):
 
-        have_map = svnTree.SVNTree()
-        have_info_path = var_list.resolve("$(NEW_HAVE_INFO_MAP_PATH)")  # in case we're in synccopy command
-        if not os.path.isfile(have_info_path):
-            have_info_path = var_list.resolve("$(HAVE_INFO_MAP_PATH)")  # in case we're in copy command
-        if os.path.isfile(have_info_path):
-            have_map.read_info_map_from_file(have_info_path, a_format="text")
-            num_files_to_set_exec = have_map.num_subs_in_tree(what="file",
-                                                              predicate=lambda in_item: in_item.isExecutable())
-            logging.info("Num files to set exec: %d", num_files_to_set_exec)
-            if num_files_to_set_exec > 0:
-                self.batch_accum += self.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")
-                self.batch_accum += self.platform_helper.set_exec_for_folder(have_info_path)
-                self.platform_helper.num_items_for_progress_report += num_files_to_set_exec
-                self.batch_accum += self.platform_helper.progress("Set exec done")
-                self.batch_accum += self.platform_helper.new_line()
-                self.batch_accum += self.platform_helper.popd()
+        num_files_to_set_exec = self.have_map.num_subs_in_tree(what="file",
+                                                          predicate=lambda in_item: in_item.isExecutable())
+        logging.info("Num files to set exec: %d", num_files_to_set_exec)
+        if num_files_to_set_exec > 0:
+            self.batch_accum += self.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")
+            self.batch_accum += self.platform_helper.set_exec_for_folder(self.have_map.path_to_file)
+            self.platform_helper.num_items_for_progress_report += num_files_to_set_exec
+            self.batch_accum += self.platform_helper.progress("Set exec done")
+            self.batch_accum += self.platform_helper.new_line()
+            self.batch_accum += self.platform_helper.popd()
 
     def create_copy_instructions(self):
         self.have_map = svnTree.SVNTree()
-        have_info_path = var_list.resolve("$(HAVE_INFO_MAP_PATH)")
+        # read NEW_HAVE_INFO_MAP_PATH and not HAVE_INFO_MAP_PATH. Copy might be called after the sync batch file was created
+        # but before it was executed.  HAVE_INFO_MAP_PATH is only created
+        # when the sync batch file is executed.
+        have_info_path = var_list.resolve("$(NEW_HAVE_INFO_MAP_PATH)")
         self.have_map.read_info_map_from_file(have_info_path, a_format="text")
 
         # copy and actions instructions for sources
