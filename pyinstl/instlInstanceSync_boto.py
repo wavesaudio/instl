@@ -10,26 +10,54 @@ from batchAccumulator import BatchAccumulator
 from configVarStack import var_stack as var_list
 
 
-class InstlInstanceSync_url(InstlInstanceSync):
+def is_user_data_false_or_dir_empty(svn_item):
+    retVal = not svn_item.user_data
+    if svn_item.isDir():
+        retVal = len(svn_item.subs()) == 0
+    return retVal
+
+
+class InstlInstanceSync_boto(InstlInstanceSync):
     """  Class to create sync instruction using static links.
     """
 
     def __init__(self, instlObj):
-        super(InstlInstanceSync_url, self).__init__(instlObj)
+        super(InstlInstanceSync_boto, self).__init__(instlObj)
 
     def init_sync_vars(self):
-        super(InstlInstanceSync_url, self).init_sync_vars()
+        super(InstlInstanceSync_boto, self).init_sync_vars()
 
         self.local_sync_dir = var_list.resolve("$(LOCAL_REPO_SYNC_DIR)")
 
     def create_sync_instructions(self, installState):
-        super(InstlInstanceSync_url, self).create_sync_instructions(installState)
-        self.prepare_list_of_sync_items()
+        super(InstlInstanceSync_boto, self).create_sync_instructions(installState)
+        self.prepare_list_of_sync_items()        
         self.create_download_instructions()
         self.instlObj.batch_accum.set_current_section('post-sync')
         self.instlObj.batch_accum += self.instlObj.platform_helper.copy_file_to_file("$(NEW_HAVE_INFO_MAP_PATH)",
                                                                                      "$(HAVE_INFO_MAP_PATH)")
 
+    def filter_out_unrequired_items(self):
+        """ Removes from work_info_map items not required to be installed.
+            First all items are marked False.
+            Items required by each install source are then marked True.
+            Finally items marked False and empty directories are removed.
+        """
+        self.work_info_map.set_user_data_all_recursive(False)
+        for iid in self.installState.full_install_items:
+            with self.instlObj.install_definitions_index[iid] as installi:
+                for source_var in var_list.get_configVar_obj("iid_source_var_list"):
+                    source = var_list.resolve_var_to_list(source_var)
+                    self.mark_required_items_for_source(source)
+        self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
+        self.work_info_map.write_to_file(var_list.resolve("$(REQUIRED_INFO_MAP_PATH)"), in_format="text")
+
+    def read_have_info_map(self):
+        """ Reads the map of files previously synced - if there is one.
+        """
+        have_info_map_path = var_list.resolve("$(HAVE_INFO_MAP_PATH)")
+        if os.path.isfile(have_info_map_path):
+            self.have_map.read_info_map_from_file(have_info_map_path, a_format="text")
 
     class RemoveIfChecksumOK:
         def __init__(self, base_path):
@@ -52,6 +80,32 @@ class InstlInstanceSync_url(InstlInstanceSync):
             elif svn_item.isDir():
                 retVal = len(svn_item.subs()) == 0
             return retVal
+
+    def filter_out_already_synced_items(self):
+        """ Removes from work_info_map items not required to be synced and updates the in-memory have map.
+            First all items are marked True.
+            Items found in have map are then marked False - provided their "have" version is equal to required version.
+            Finally all items marked False and empty directories are removed.
+        """
+        self.work_info_map.set_user_data_all_recursive(True)
+        for need_item in self.work_info_map.walk_items(what="file"):
+            have_item = self.have_map.get_item_at_path(need_item.full_path_parts())
+            if have_item is None:  # not found in have map
+                self.have_map.new_item_at_path(need_item.full_path_parts(),
+                                               need_item.flags(), need_item.last_rev(),
+                                               need_item.checksum(), create_folders=True)
+            else:  # found in have map
+                if have_item.last_rev() == need_item.last_rev():
+                    need_item.user_data = False
+                elif have_item.last_rev() < need_item.last_rev():
+                    have_item.set_flags(need_item.flags())
+                    have_item.set_last_rev(need_item.last_rev())
+                elif have_item.last_rev() > need_item.last_rev():  # weird, but need to get the older version
+                    have_item.set_flags(need_item.flags())
+                    have_item.set_last_rev(need_item.last_rev())
+        self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
+        self.work_info_map.write_to_file(var_list.resolve("$(TO_SYNC_INFO_MAP_PATH)", raise_on_fail=True), in_format="text")
+        self.have_map.write_to_file(var_list.resolve("$(NEW_HAVE_INFO_MAP_PATH)", raise_on_fail=True), in_format="text")
 
     def mark_required_items_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """

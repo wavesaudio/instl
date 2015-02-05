@@ -45,7 +45,7 @@ class InstlInstanceBase(object):
 
         self.install_definitions_index = dict()
         self.batch_accum = BatchAccumulator()
-        self.do_not_write_vars = ("INFO_MAP_SIG", "INDEX_SIG", "PUBLIC_KEY")
+        self.do_not_write_vars = ("INFO_MAP_SIG", "INDEX_SIG", "PUBLIC_KEY", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY")
         self.out_file_realpath = None
 
     def get_version_str(self):
@@ -81,10 +81,7 @@ class InstlInstanceBase(object):
                 var_list.add_const_config_variable("__COMPILATION_TIME__", var_description, "(not compiled)")
 
         # read class specific defaults/*.yaml
-        class_specific_defaults_file_path = os.path.join(var_list.resolve("$(__INSTL_DATA_FOLDER__)"), "defaults",
-                                                         type(self).__name__ + ".yaml")
-        if os.path.isfile(class_specific_defaults_file_path):
-            self.read_yaml_file(class_specific_defaults_file_path)
+        self.read_name_specific_defaults_file(type(self).__name__)
 
         log_file = pyinstl.log_utils.get_log_file_path(var_list.resolve("$(INSTL_EXEC_DISPLAY_NAME)"),
                                                        var_list.resolve("$(INSTL_EXEC_DISPLAY_NAME)"), debug=False)
@@ -94,6 +91,13 @@ class InstlInstanceBase(object):
         var_list.set_var("LOG_FILE_DEBUG", var_description).extend((
                         debug_log_file, logging.getLevelName(pyinstl.log_utils.debug_logging_level),
                         pyinstl.log_utils.debug_logging_started))
+
+    def read_name_specific_defaults_file(self, file_name):
+        """ read class specific file from defaults/class_name.yaml """
+        name_specific_defaults_file_path = os.path.join(var_list.resolve("$(__INSTL_DATA_FOLDER__)"), "defaults",
+                                                         file_name + ".yaml")
+        if os.path.isfile(name_specific_defaults_file_path):
+            self.read_yaml_file(name_specific_defaults_file_path)
 
     def read_user_config(self):
         user_config_path = var_list.resolve("$(__USER_CONFIG_FILE_PATH__)")
@@ -122,6 +126,7 @@ class InstlInstanceBase(object):
             "limit_command_to": ("__LIMIT_COMMAND_TO__", None),
             "shortcut_path": ("__SHORTCUT_PATH__", None),
             "target_path": ("__SHORTCUT_TARGET_PATH__", None),
+            "credentials": ("__CREDENTIALS__", None),
         }
 
         for attrib, var in const_attrib_to_var.iteritems():
@@ -162,6 +167,12 @@ class InstlInstanceBase(object):
 
         if cmd_line_options_obj.no_wtar_artifacts:
             var_list.add_const_config_variable("__NO_WTAR_ARTIFACTS__", "from command line options", "yes")
+
+        # if credentials were given...
+        if "__CREDENTIALS__" in var_list:
+            credentials = var_list.resolve_var("__CREDENTIALS__", default=None)
+            if credentials:
+                self.handle_credentials(credentials)
 
     def is_acceptable_yaml_doc(self, doc_node):
         acceptables = var_list.resolve_to_list("$(ACCEPTABLE_YAML_DOC_TAGS)") + ["define", "define_const", "index", 'require']
@@ -460,3 +471,7 @@ class InstlInstanceBase(object):
         replaced_list = unique_list()
         replaced_list.extend([self.original_name_from_wtar_name(file_name) for file_name in original_list])
         return replaced_list
+
+    def handle_credentials(self, credentials):
+        credentials_split = credentials.split(":")
+        print(credentials_split)

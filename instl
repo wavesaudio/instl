@@ -87,6 +87,7 @@ class CommandLineOptions(object):
         self.target_path = None
         self.shortcut_path = None
         self.no_wtar_artifacts = None
+        self.credentials = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
@@ -181,7 +182,7 @@ def prepare_args_parser():
                            up2S3_parser, fix_props_parser, stage2svn_parser,
                            svn2stage_parser, up_repo_rev_parser, remove_parser,
                             wtar_parser, uninstall_parser)
-
+    need_credentials_option = (copy_parser, sync_parser, synccopy_parser)
     need_config_file_options = (create_links_parser, up_repo_rev_parser, up2S3_parser,
                                 fix_props_parser, stage2svn_parser, svn2stage_parser,
                                 wtar_parser, create_rsa_keys_parser, make_sig_parser,
@@ -218,6 +219,14 @@ def prepare_args_parser():
                                     action='store_true',
                                     dest='run',
                                     help="run the installation instructions script")
+    for subparser in need_credentials_option:
+        credentials_option = subparser.add_argument_group(description='credentials:')
+        credentials_option.add_argument('--credentials',
+                                    required=False,
+                                    nargs=1,
+                                    metavar='credentials',
+                                    dest='credentials',
+                                    help="credentials to file server")
 
     # add --config-file to parsers that need it
     for subparser in need_config_file_options:

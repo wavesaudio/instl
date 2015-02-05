@@ -35,10 +35,7 @@ class InstallInstructionsState(object):
         retVal['install_items_by_target_folder'] = {folder: list(self.install_items_by_target_folder[folder]) for folder
                                                     in self.install_items_by_target_folder}
         retVal['no_copy_items_by_sync_folder'] = list(self.no_copy_items_by_sync_folder)
-        # retVal['variables_assignment_lines'] = list(self.variables_assignment_lines)
-        #retVal['copy_instruction_lines'] = self.instruction_lines['copy']
         retVal['sync_paths'] = list(self.sync_paths)
-        #retVal['sync_instruction_lines'] = self.instruction_lines['sync']
         return retVal
 
     def sort_install_items_by_target_folder(self, instlObj):
@@ -170,7 +167,13 @@ class InstlClient(InstlInstanceBase):
 
     def do_sync(self):
         logging.info("Creating sync instructions")
-        if var_list.resolve("$(REPO_TYPE)") == "URL":
+        if var_list.resolve("$(REPO_TYPE)") == "BOTO":
+            from instlInstanceSync_boto import InstlInstanceSync_boto
+            syncer = InstlInstanceSync_boto(self)
+        elif var_list.resolve("$(REPO_TYPE)") == "S3URL":
+            from instlInstanceSync_s3url import InstlInstanceSync_s3url
+            syncer = InstlInstanceSync_s3url(self)
+        elif var_list.resolve("$(REPO_TYPE)") == "URL":
             from instlInstanceSync_url import InstlInstanceSync_url
             syncer = InstlInstanceSync_url(self)
         elif var_list.resolve("$(REPO_TYPE)") == "SVN":
@@ -181,6 +184,8 @@ class InstlClient(InstlInstanceBase):
             syncer = InstlInstanceSync_p4(self)
         else:
             raise ValueError('REPO_TYPE is not defined in input file')
+
+        self.read_name_specific_defaults_file(type(syncer).__name__)
         syncer.init_sync_vars()
         syncer.create_sync_instructions(self.installState)
         self.batch_accum += self.platform_helper.progress("Done sync")

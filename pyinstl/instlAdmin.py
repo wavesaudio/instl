@@ -144,7 +144,6 @@ class InstlAdmin(InstlInstanceBase):
             my_stdout, my_stderr = proc.communicate()
             if proc.returncode != 0 or my_stderr != "":
                 raise ValueError("Could not read info from svn: "+my_stderr)
-            info_as_io = StringIO.StringIO(my_stdout)
             for line in info_as_io:
                 match = revision_line_re.match(line)
                 if match:

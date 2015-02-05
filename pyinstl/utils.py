@@ -74,6 +74,9 @@ class write_to_list(object):
     def list(self):
         return self.the_list
 
+    def prepare_s3_secure_url(in_file_url):
+        s3_secure_url = in_file_url # just return the url until ukum finds how to format it
+        return s3_secure_url
 
 class open_for_read_file_or_url(object):
     protocol_header_re = re.compile("""
@@ -81,8 +84,9 @@ class open_for_read_file_or_url(object):
                         ://
                         """, re.VERBOSE)
 
-    def __init__(self, file_url, path_searcher=None):
+    def __init__(self, file_url, path_searcher=None, download_method="URL"):
         self.file_url = file_url
+        self.download_method = download_method
         self.fd = None
         match = self.protocol_header_re.match(self.file_url)
         if not match:  # it's a local file
@@ -99,6 +103,9 @@ class open_for_read_file_or_url(object):
                     self.file_url = "file://"+os.path.realpath(self.file_url)
             else:
                 raise IOError("Could not locate local file", file_url)
+        else:
+            if self.download_method in ("S3URL", "BOTO"):
+                self.file_url = prepare_s3_secure_url(self.file_url)
 
     def __enter__(self):
         try:
@@ -519,3 +526,13 @@ def make_open_file_read_write_for_all(fd):
         os.fchmod(fd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
     except:
         os.chmod(fd.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+
+def generate_boto_url(file_url, expire=60*60*24):
+    import boto
+    parseResult = urlparse.urlparse(file_url)
+    AWS_ACCESS_AND_SECRET_KEYs = ("xxx", "yyy")
+    conn = boto.connect_s3(*AWS_ACCESS_AND_SECRET_KEYs)
+    bucket = conn.get_bucket(parseResult.netloc)
+    the_key = bucket.get_key(parseResult.path)
+    the_url = the_key.generate_url(expire)
+    print(the_url)
