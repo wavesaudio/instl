@@ -12,6 +12,7 @@ import rsa
 import base64
 import collections
 import subprocess
+import boto
 
 def Is64Windows():
     return 'PROGRAMFILES(X86)' in os.environ
@@ -74,10 +75,6 @@ class write_to_list(object):
     def list(self):
         return self.the_list
 
-    def prepare_s3_secure_url(in_file_url):
-        s3_secure_url = in_file_url # just return the url until ukum finds how to format it
-        return s3_secure_url
-
 class open_for_read_file_or_url(object):
     protocol_header_re = re.compile("""
                         \w+
@@ -104,8 +101,7 @@ class open_for_read_file_or_url(object):
             else:
                 raise IOError("Could not locate local file", file_url)
         else:
-            if self.download_method in ("S3URL", "BOTO"):
-                self.file_url = prepare_s3_secure_url(self.file_url)
+            self.file_url = ConnectionBase.repo_connection.translate_url(self.file_url)
 
     def __enter__(self):
         try:
@@ -494,7 +490,7 @@ def convert_to_str_unless_None(to_convert):
     else:
         return str(to_convert)
 
-# find sequences in a sorted list. 
+# find sequences in a sorted list.
 # in_sorted_list: a sorted list of things to search sequences in.
 # is_next_func: The function that determines if one thing is the consecutive of another.
 #               The default is to compare as integers.
@@ -527,12 +523,42 @@ def make_open_file_read_write_for_all(fd):
     except:
         os.chmod(fd.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
 
-def generate_boto_url(file_url, expire=60*60*24):
-    import boto
-    parseResult = urlparse.urlparse(file_url)
-    AWS_ACCESS_AND_SECRET_KEYs = ("xxx", "yyy")
-    conn = boto.connect_s3(*AWS_ACCESS_AND_SECRET_KEYs)
-    bucket = conn.get_bucket(parseResult.netloc)
-    the_key = bucket.get_key(parseResult.path)
-    the_url = the_key.generate_url(expire)
-    print(the_url)
+
+
+class ConnectionBase(object):
+    repo_connection = None
+    def __init__(self):
+        pass
+    def open_connection(self, credentials):
+        pass
+    def translate_url(self, in_bare_url):
+        retVal = urllib.quote(in_bare_url, "$()/:")
+        return retVal
+
+class ConnectionS3(ConnectionBase):
+    def __init__(self, in_access_key, in_secret_key):
+        super(ConnectionS3, self).__init__()
+        self.boto_conn = None
+        self.open_connection(in_access_key, in_secret_key)
+        self.default_expiration = 60*60*24 # in seconds
+
+    def open_connection(self, in_access_key, in_secret_key):
+        self.boto_conn = boto.connect_s3(in_access_key, in_secret_key)
+        print("opened connection", self.boto_conn)
+
+    def translate_url(self, in_bare_url):
+        parseResult = urlparse.urlparse(in_bare_url)
+        bucket = self.boto_conn.get_bucket(parseResult.netloc)
+        the_key = bucket.get_key(parseResult.path)
+        retVal = the_key.generate_url(self.default_expiration)
+        return retVal
+
+
+def ConnectionFactory(credentials=None):
+    if credentials is None:
+        ConnectionBase.repo_connection = ConnectionBase()
+    else:
+        cred_split = credentials.split(":")
+        if cred_split[0] == "s3":
+            ConnectionBase.repo_connection = ConnectionS3(cred_split[1], cred_split[2])
+

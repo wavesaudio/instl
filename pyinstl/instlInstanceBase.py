@@ -16,6 +16,7 @@ from pyinstl.searchPaths import SearchPaths
 from batchAccumulator import BatchAccumulator
 from installItem import read_index_from_yaml
 from platformSpecificHelper_Base import PlatformSpecificHelperFactory
+from platformSpecificHelper_Base import ConnectionFactory
 from configVarStack import var_stack as var_list
 from installItem import InstallItem
 
@@ -169,10 +170,11 @@ class InstlInstanceBase(object):
             var_list.add_const_config_variable("__NO_WTAR_ARTIFACTS__", "from command line options", "yes")
 
         # if credentials were given...
+        credentials = None
         if "__CREDENTIALS__" in var_list:
             credentials = var_list.resolve_var("__CREDENTIALS__", default=None)
-            if credentials:
-                self.handle_credentials(credentials)
+
+        ConnectionFactory(credentials)
 
     def is_acceptable_yaml_doc(self, doc_node):
         acceptables = var_list.resolve_to_list("$(ACCEPTABLE_YAML_DOC_TAGS)") + ["define", "define_const", "index", 'require']
@@ -471,7 +473,3 @@ class InstlInstanceBase(object):
         replaced_list = unique_list()
         replaced_list.extend([self.original_name_from_wtar_name(file_name) for file_name in original_list])
         return replaced_list
-
-    def handle_credentials(self, credentials):
-        credentials_split = credentials.split(":")
-        print(credentials_split)

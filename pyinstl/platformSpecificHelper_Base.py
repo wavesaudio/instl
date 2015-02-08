@@ -2,7 +2,6 @@
 from __future__ import print_function
 
 import abc
-import urllib
 from pyinstl.utils import *
 from configVarStack import var_stack as var_list
 
@@ -429,7 +428,8 @@ class DownloadToolBase(object):
         pass
 
     def add_download_url(self, url, path):
-        self.urls_to_download.append( (urllib.quote(url, "$()/:"), path) )
+        translated_url = ConnectionBase.repo_connection.translate_url(url)
+        self.urls_to_download.append( (translated_url, path) )
 
     def get_num_urls_to_download(self):
         return len(self.urls_to_download)
@@ -440,3 +440,4 @@ class DownloadToolBase(object):
     @abc.abstractmethod
     def download_from_config_files(self, parallel_run_config_file_path, config_files):
         pass
+
