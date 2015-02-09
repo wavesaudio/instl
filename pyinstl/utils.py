@@ -12,6 +12,7 @@ import rsa
 import base64
 import collections
 import subprocess
+import urllib
 import boto
 
 def Is64Windows():
@@ -540,16 +541,17 @@ class ConnectionS3(ConnectionBase):
         super(ConnectionS3, self).__init__()
         self.boto_conn = None
         self.open_connection(in_access_key, in_secret_key)
+        self.open_bucket = None
         self.default_expiration = 60*60*24 # in seconds
 
     def open_connection(self, in_access_key, in_secret_key):
         self.boto_conn = boto.connect_s3(in_access_key, in_secret_key)
-        print("opened connection", self.boto_conn)
 
     def translate_url(self, in_bare_url):
         parseResult = urlparse.urlparse(in_bare_url)
-        bucket = self.boto_conn.get_bucket(parseResult.netloc)
-        the_key = bucket.get_key(parseResult.path)
+        if self.open_bucket is None:
+            self.open_bucket = self.boto_conn.get_bucket(parseResult.netloc)
+        the_key = self.open_bucket.get_key(parseResult.path, validate=False)
         retVal = the_key.generate_url(self.default_expiration)
         return retVal
 

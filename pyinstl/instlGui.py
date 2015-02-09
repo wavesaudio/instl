@@ -53,6 +53,8 @@ class InstlGui(InstlInstanceBase):
         self.run_admin_batch_file_var = IntVar()
         self.admin_limit_var = StringVar()
         self.limit_path_entry_widget = None
+        self.client_credentials_var = StringVar()
+        self.client_credentials_on_var = IntVar()
 
     def quit_app(self):
         self.write_history()
@@ -125,6 +127,13 @@ class InstlGui(InstlInstanceBase):
         retVal = [var_list.resolve_var("__INSTL_EXE_PATH__"), var_list.resolve_var("CLIENT_GUI_CMD"),
                         "--in", var_list.resolve_var("CLIENT_GUI_IN_FILE"),
                         "--out", var_list.resolve_var("CLIENT_GUI_OUT_FILE")]
+
+        if self.client_credentials_on_var.get():
+            credentials = self.client_credentials_var.get()
+            if credentials != "":
+                retVal.append("--credentials")
+                retVal.append(credentials)
+
         if self.run_client_batch_file_var.get() == 1:
             retVal.append("--run")
 
@@ -174,6 +183,8 @@ class InstlGui(InstlInstanceBase):
 
         var_list.set_var("CLIENT_GUI_OUT_FILE").append(self.client_output_path_var.get())
         var_list.set_var("CLIENT_GUI_RUN_BATCH").append(bool_int_to_str(self.run_client_batch_file_var.get()))
+        var_list.set_var("CLIENT_GUI_CREDENTIALS").append(self.client_credentials_var.get())
+        var_list.set_var("CLIENT_GUI_CREDENTIALS_ON").append(self.client_credentials_on_var.get())
 
         command_line = " ".join(self.create_client_command_line())
 
@@ -354,11 +365,22 @@ class InstlGui(InstlInstanceBase):
         Button(client_frame, width=2, text="...", command=self.get_client_output_file).grid(row=curr_row, column=3, sticky=W)
         Button(client_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_list.resolve_var("CLIENT_GUI_OUT_FILE"))).grid(row=curr_row, column=4, sticky=W)
 
+        # s3 user credentials
+        curr_row += 1
+        Label(client_frame, text="Credentials:").grid(row=curr_row, column=0, sticky=E)
+        self.client_credentials_var.set(var_list.unresolved_var("CLIENT_GUI_CREDENTIALS"))
+        Entry(client_frame, textvariable=self.client_credentials_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
+        self.client_credentials_var.trace('w', self.update_client_state)
+
+        self.client_credentials_on_var.set(var_list.unresolved_var("CLIENT_GUI_CREDENTIALS_ON"))
+        Checkbutton(client_frame, text="", variable=self.client_credentials_on_var).grid(row=curr_row, column=3, sticky=W)
+        self.client_credentials_on_var.trace('w', self.update_client_state)
+
         # the combined command line text
         curr_row += 1
         Button(client_frame, width=6, text="run:", command=self.run_client).grid(row=curr_row, column=0, sticky=W)
         self.client_command_line_var = StringVar()
-        Label(client_frame, textvariable=self.client_command_line_var, wraplength=400, anchor=W).grid(row=curr_row, column=1, columnspan=2, sticky=W)
+        Label(client_frame, textvariable=self.client_command_line_var, wraplength=400, anchor=W).grid(row=curr_row, column=1, columnspan=4, sticky=W)
 
         client_frame.grid_columnconfigure(0, minsize=80)
         client_frame.grid_columnconfigure(1, minsize=300)
