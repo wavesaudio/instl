@@ -16,7 +16,7 @@ from pyinstl.searchPaths import SearchPaths
 from batchAccumulator import BatchAccumulator
 from installItem import read_index_from_yaml
 from platformSpecificHelper_Base import PlatformSpecificHelperFactory
-from platformSpecificHelper_Base import ConnectionFactory
+from platformSpecificHelper_Base import connection_factory
 from configVarStack import var_stack as var_list
 from installItem import InstallItem
 
@@ -174,7 +174,7 @@ class InstlInstanceBase(object):
         if "__CREDENTIALS__" in var_list:
             credentials = var_list.resolve_var("__CREDENTIALS__", default=None)
 
-        ConnectionFactory(credentials)
+        connection_factory(credentials)
 
     def is_acceptable_yaml_doc(self, doc_node):
         acceptables = var_list.resolve_to_list("$(ACCEPTABLE_YAML_DOC_TAGS)") + ["define", "define_const", "index", 'require']

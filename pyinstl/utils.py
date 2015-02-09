@@ -556,7 +556,7 @@ class ConnectionS3(ConnectionBase):
         return retVal
 
 
-def ConnectionFactory(credentials=None):
+def connection_factory(credentials=None):
     if credentials is None:
         ConnectionBase.repo_connection = ConnectionBase()
     else:
