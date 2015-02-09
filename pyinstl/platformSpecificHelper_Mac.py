@@ -274,6 +274,9 @@ class DownloadTool_mac_curl(DownloadToolBase):
         super(DownloadTool_mac_curl, self).__init__(platform_helper)
 
     def download_url_to_file(self, src_url, trg_file):
+        """ Create command to download a single file.
+            src_url is expected to be already escaped (spaces as %20...)
+        """
         connect_time_out = var_list.resolve("$(CURL_CONNECT_TIMEOUT)", raise_on_fail=True)
         max_time         = var_list.resolve("$(CURL_MAX_TIME)", raise_on_fail=True)
         retries          = var_list.resolve("$(CURL_RETRIES)", raise_on_fail=True)
@@ -295,7 +298,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
         download_command_parts.append(DownloadToolBase.curl_write_out_str)
         download_command_parts.append("-o")
         download_command_parts.append(quoteme_double(trg_file))
-        download_command_parts.append(quoteme_double(urllib.quote(src_url, "$()/:")))
+        download_command_parts.append(quoteme_double(src_url))
         return " ".join(download_command_parts)
 
     def create_config_files(self, curl_config_file_path, num_files):

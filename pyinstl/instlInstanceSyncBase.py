@@ -110,7 +110,7 @@ class InstlInstanceSync(object):
         self.work_info_map.write_to_file(var_list.resolve("$(TO_SYNC_INFO_MAP_PATH)", raise_on_fail=True), in_format="text")
         self.have_map.write_to_file(var_list.resolve("$(NEW_HAVE_INFO_MAP_PATH)", raise_on_fail=True), in_format="text")
 
-    # syncers that download from urls (url, s3url, boto) need to prepare a list of all the individual files that need updating.
+    # syncers that download from urls (url, boto) need to prepare a list of all the individual files that need updating.
     # syncers that use configuration management tools (p4, svn) do not need since the tools takes care of that.
     def prepare_list_of_sync_items(self):
         self.read_remote_info_map()  # reads the full info map from INFO_MAP_FILE_URL and writes it to the sync folder

@@ -52,13 +52,6 @@ class InstlInstanceSync_boto(InstlInstanceSync):
         self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
         self.work_info_map.write_to_file(var_list.resolve("$(REQUIRED_INFO_MAP_PATH)"), in_format="text")
 
-    def read_have_info_map(self):
-        """ Reads the map of files previously synced - if there is one.
-        """
-        have_info_map_path = var_list.resolve("$(HAVE_INFO_MAP_PATH)")
-        if os.path.isfile(have_info_map_path):
-            self.have_map.read_info_map_from_file(have_info_map_path, a_format="text")
-
     class RemoveIfChecksumOK:
         def __init__(self, base_path):
             self.base_path = base_path
@@ -145,15 +138,6 @@ class InstlInstanceSync_boto(InstlInstanceSync):
             wtar_files_count += 1
         retVal = wtar_files_count > 0
         return retVal  # return True is at least one wtar file was found for the source
-
-    def estimate_num_unwtar_actions(self):
-        retVal = 0
-        for file_item in self.work_info_map.walk_items(what="file"):
-            if file_item.name().endswith(".wtar"):
-                retVal += 1
-            elif file_item.name().endswith(".wtar.aa"):
-                retVal += 2
-        return retVal
 
     def create_download_instructions(self):
         self.instlObj.batch_accum.set_current_section('sync')

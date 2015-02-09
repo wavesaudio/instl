@@ -406,6 +406,9 @@ class DownloadTool_win_wget(DownloadToolBase):
         super(DownloadTool_win_wget, self).__init__(platform_helper)
 
     def download_url_to_file(self, src_url, trg_file):
+        """ Create command to download a single file.
+            src_url is expected to be already escaped (spaces as %20...)
+        """
         download_command_parts = list()
         download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
         download_command_parts.append("--quiet")
@@ -418,7 +421,7 @@ class DownloadTool_win_wget(DownloadToolBase):
         download_command_parts.append(quoteme_double(trg_file))
         # urls need to escape spaces as %20, but windows batch files already escape % characters
         # so use urllib.quote to escape spaces and then change %20 to %%20.
-        download_command_parts.append(quoteme_double(urllib.quote(src_url, "$()/:").replace("%", "%%")))
+        download_command_parts.append(quoteme_double(src_url.replace("%", "%%")))
         return (" ".join(download_command_parts), self.platform_helper.exit_if_error())
 
     def create_config_file(self, curl_config_file_path):
@@ -443,6 +446,9 @@ class DownloadTool_win_curl(DownloadToolBase):
         super(DownloadTool_win_curl, self).__init__(platform_helper)
 
     def download_url_to_file(self, src_url, trg_file):
+        """ Create command to download a single file.
+            src_url is expected to be already escaped (spaces as %20...)
+        """
         connect_time_out = var_list.resolve("$(CURL_CONNECT_TIMEOUT)", raise_on_fail=True)
         max_time         = var_list.resolve("$(CURL_MAX_TIME)", raise_on_fail=True)
         retries          = var_list.resolve("$(CURL_RETRIES)", raise_on_fail=True)
@@ -464,7 +470,7 @@ class DownloadTool_win_curl(DownloadToolBase):
         download_command_parts.append(DownloadToolBase.curl_write_out_str)
         download_command_parts.append("-o")
         download_command_parts.append(quoteme_double(trg_file))
-        download_command_parts.append(quoteme_double(urllib.quote(src_url, "$()/:")))
+        download_command_parts.append(quoteme_double(src_url))
         return " ".join(download_command_parts)
 
     def create_config_files(self, curl_config_file_path, num_files):

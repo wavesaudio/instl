@@ -170,9 +170,6 @@ class InstlClient(InstlInstanceBase):
         if var_list.resolve("$(REPO_TYPE)") == "BOTO":
             from instlInstanceSync_boto import InstlInstanceSync_boto
             syncer = InstlInstanceSync_boto(self)
-        elif var_list.resolve("$(REPO_TYPE)") == "S3URL":
-            from instlInstanceSync_s3url import InstlInstanceSync_s3url
-            syncer = InstlInstanceSync_s3url(self)
         elif var_list.resolve("$(REPO_TYPE)") == "URL":
             from instlInstanceSync_url import InstlInstanceSync_url
             syncer = InstlInstanceSync_url(self)

@@ -30,7 +30,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.batch_accum += self.instlObj.platform_helper.copy_file_to_file("$(NEW_HAVE_INFO_MAP_PATH)",
                                                                                      "$(HAVE_INFO_MAP_PATH)")
 
-
     class RemoveIfChecksumOK:
         def __init__(self, base_path):
             self.base_path = base_path
@@ -91,15 +90,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
             wtar_files_count += 1
         retVal = wtar_files_count > 0
         return retVal  # return True is at least one wtar file was found for the source
-
-    def estimate_num_unwtar_actions(self):
-        retVal = 0
-        for file_item in self.work_info_map.walk_items(what="file"):
-            if file_item.name().endswith(".wtar"):
-                retVal += 1
-            elif file_item.name().endswith(".wtar.aa"):
-                retVal += 2
-        return retVal
 
     def create_download_instructions(self):
         self.instlObj.batch_accum.set_current_section('sync')
