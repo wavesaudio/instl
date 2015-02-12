@@ -81,7 +81,7 @@ sys.path.append("..")
 from aYaml import augmentedYaml
 from pyinstl.utils import *
 from pyinstl.configVarList import ConfigVarList
-from configVarStack import var_stack as var_list
+from configVarStack import var_stack
 
 current_os_names = get_current_os_names()
 os_family_name = current_os_names[0]
@@ -253,11 +253,11 @@ class InstallItem(object):
         return self.var_list
 
     def __enter__(self):
-        var_list.push_scope(self.get_var_list())
+        var_stack.push_scope(self.get_var_list())
         return self
 
     def __exit__(self, etype, value, traceback):
-        var_list.pop_scope()
+        var_stack.pop_scope()
 
     def begin_set_for_specific_os(self, for_os):
         self.__set_for_os.append(for_os)

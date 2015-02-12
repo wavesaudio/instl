@@ -4,7 +4,7 @@ import logging
 
 from pyinstl.utils import *
 from instlInstanceSyncBase import InstlInstanceSync
-from configVarStack import var_stack as var_list
+from configVarStack import var_stack
 
 
 class InstlInstanceSync_svn(InstlInstanceSync):
@@ -16,12 +16,12 @@ class InstlInstanceSync_svn(InstlInstanceSync):
     def init_sync_vars(self):
         super(InstlInstanceSync_svn, self).init_sync_vars()
 
-        var_list.set_value_if_var_does_not_exist("REPO_REV", "HEAD", description=var_description)
-        bookkeeping_relative_path = relative_url(var_list.resolve("$(SYNC_BASE_URL)"), var_list.resolve("$(BOOKKEEPING_DIR_URL)"))
-        var_list.set_var("REL_BOOKKIPING_PATH", var_description).append(bookkeeping_relative_path)
+        var_stack.set_value_if_var_does_not_exist("REPO_REV", "HEAD", description=var_description)
+        bookkeeping_relative_path = relative_url(var_stack.resolve("$(SYNC_BASE_URL)"), var_stack.resolve("$(BOOKKEEPING_DIR_URL)"))
+        var_stack.set_var("REL_BOOKKIPING_PATH", var_description).append(bookkeeping_relative_path)
 
-        rel_sources = relative_url(var_list.resolve("$(SYNC_BASE_URL)"), var_list.resolve("$(SYNC_BASE_URL)"))
-        var_list.set_var("REL_SRC_PATH", var_description).append(rel_sources)
+        rel_sources = relative_url(var_stack.resolve("$(SYNC_BASE_URL)"), var_stack.resolve("$(SYNC_BASE_URL)"))
+        var_stack.set_var("REL_SRC_PATH", var_description).append(rel_sources)
 
     def create_sync_instructions(self, installState):
         super(InstlInstanceSync_svn, self).create_sync_instructions(installState)
@@ -34,10 +34,10 @@ class InstlInstanceSync_svn(InstlInstanceSync):
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("instl folder file $(BOOKKEEPING_DIR_URL)?p=$(REPO_REV)")
         for iid  in installState.full_install_items:
             with self.install_definitions_index[iid]:
-                for source_var in var_list.get_configVar_obj("iid_source_var_list"):
-                    source = var_list.resolve_var_to_list(source_var)
+                for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
+                    source = var_stack.resolve_var_to_list(source_var)
                     self.instlObj.batch_accum += self.create_svn_sync_instructions_for_source(source)
-                self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Sync {}".format(var_list.resolve("iid_name")))
+                self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Sync {}".format(var_stack.resolve("iid_name")))
         for iid in installState.orphan_install_items:
             self.instlObj.batch_accum += self.instlObj.platform_helper.echo("Don't know how to sync "+iid)
         self.instlObj.batch_accum.indent_level -= 1

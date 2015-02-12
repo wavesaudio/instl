@@ -139,6 +139,7 @@ def prepare_args_parser():
     synccopy_parser = subparsers.add_parser('synccopy', help='sync files to be installed from server to temp folder and copy files from temp folder to target paths')
     test_import_parser = subparsers.add_parser('test-import', help='test the import of required modules')
     trans_parser = subparsers.add_parser('trans', help='translate svn map files from one format to another')
+    translate_url = subparsers.add_parser('translate_url', help='translate a url to be compatible with current connection')
     unwtar_parser = subparsers.add_parser('unwtar', help='uncompress .wtar files in current folder')
     up_repo_rev_parser = subparsers.add_parser('up-repo-rev', help='upload repository revision file to admin folder')
     up2S3_parser = subparsers.add_parser('up2s3', help='upload installation sources to S3')
@@ -160,7 +161,7 @@ def prepare_args_parser():
              'do_something': (version_parser, help_parser, parallel_run_parser,
                               unwtar_parser, check_checksum_parser, create_folders_parser,
                               set_exec_parser, test_import_parser, remove_empty_folders,
-                              win_shortcut_parser),
+                              win_shortcut_parser, translate_url),
              'gui': (gui_parser,)
             }
     for the_mode, parsers in modes.iteritems():
@@ -171,7 +172,7 @@ def prepare_args_parser():
                           trans_parser, make_sig_parser, check_sig_parser,
                             verify_index_parser, parallel_run_parser, check_checksum_parser,
                             create_folders_parser, set_exec_parser, remove_parser,
-                            remove_empty_folders, uninstall_parser)
+                            remove_empty_folders, uninstall_parser, translate_url)
     need_output_options = (copy_parser, sync_parser, synccopy_parser,
                            trans_parser, create_links_parser, fix_symlinks_parser,
                            up2S3_parser, fix_props_parser, stage2svn_parser,
@@ -182,7 +183,7 @@ def prepare_args_parser():
                            up2S3_parser, fix_props_parser, stage2svn_parser,
                            svn2stage_parser, up_repo_rev_parser, remove_parser,
                             wtar_parser, uninstall_parser)
-    need_credentials_option = (copy_parser, sync_parser, synccopy_parser)
+    need_credentials_option = (copy_parser, sync_parser, synccopy_parser, translate_url)
     need_config_file_options = (create_links_parser, up_repo_rev_parser, up2S3_parser,
                                 fix_props_parser, stage2svn_parser, svn2stage_parser,
                                 wtar_parser, create_rsa_keys_parser, make_sig_parser,
@@ -354,7 +355,7 @@ def read_command_line_options(name_space_obj, arglist=None):
     # todo: restore __COMMAND_LINE_OPTIONS__
     #if arglist is not None:
     #    logging.info("arglist: %s", " ".join(arglist))
-    #var_list.add_const_config_variable('__COMMAND_LINE_OPTIONS__', "read only value", args_str)
+    #var_stack.add_const_config_variable('__COMMAND_LINE_OPTIONS__', "read only value", args_str)
     if not arglist or len(arglist) == 0:
         pass
         # No command line options given, but there maybe a "auto run" file with options

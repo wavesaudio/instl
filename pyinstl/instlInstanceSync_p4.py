@@ -4,7 +4,7 @@ from __future__ import print_function
 from pyinstl.utils import *
 from pyinstl import svnTree
 from instlInstanceSyncBase import InstlInstanceSync
-from configVarStack import var_stack as var_list
+from configVarStack import var_stack
 
 
 class InstlInstanceSync_p4(InstlInstanceSync):
@@ -24,14 +24,14 @@ class InstlInstanceSync_p4(InstlInstanceSync):
     def create_download_instructions(self):
         self.instlObj.batch_accum.set_current_section('sync')
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Starting sync from $(SYNC_BASE_URL)")
-        self.sync_base_url = var_list.resolve("$(SYNC_BASE_URL)")
+        self.sync_base_url = var_stack.resolve("$(SYNC_BASE_URL)")
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
         for iid in self.installState.full_install_items:
             with self.install_definitions_index[iid]:
-                for source_var in var_list.get_configVar_obj("iid_source_var_list"):
-                    source = var_list.resolve_var_to_list(source_var)
+                for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
+                    source = var_stack.resolve_var_to_list(source_var)
                     self.p4_sync_for_source(source)
 
     def p4_sync_for_source(self, source):

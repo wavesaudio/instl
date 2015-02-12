@@ -10,7 +10,7 @@ import random
 import string
 import inspect
 
-from configVarStack import var_stack as var_list
+from configVarStack import var_stack
 from instlInstanceBase import PlatformSpecificHelperFactory
 from utils import *
 
@@ -65,8 +65,8 @@ class TestPlatformSpecificHelper(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        var_list.set_var("__CURRENT_OS__").append(os_family_name)
-        var_list.set_var("__CURRENT_OS_SECOND_NAME__").append(os_second_name)
+        var_stack.set_var("__CURRENT_OS__").append(os_family_name)
+        var_stack.set_var("__CURRENT_OS_SECOND_NAME__").append(os_second_name)
 
     def setUp(self):
         """ .

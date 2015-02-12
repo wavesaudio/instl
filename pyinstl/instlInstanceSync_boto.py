@@ -7,7 +7,7 @@ from pyinstl.utils import *
 from pyinstl import svnTree
 from instlInstanceSyncBase import InstlInstanceSync
 from batchAccumulator import BatchAccumulator
-from configVarStack import var_stack as var_list
+from configVarStack import var_stack
 
 
 def is_user_data_false_or_dir_empty(svn_item):
@@ -27,7 +27,7 @@ class InstlInstanceSync_boto(InstlInstanceSync):
     def init_sync_vars(self):
         super(InstlInstanceSync_boto, self).init_sync_vars()
 
-        self.local_sync_dir = var_list.resolve("$(LOCAL_REPO_SYNC_DIR)")
+        self.local_sync_dir = var_stack.resolve("$(LOCAL_REPO_SYNC_DIR)")
 
     def create_sync_instructions(self, installState):
         super(InstlInstanceSync_boto, self).create_sync_instructions(installState)
@@ -46,11 +46,11 @@ class InstlInstanceSync_boto(InstlInstanceSync):
         self.work_info_map.set_user_data_all_recursive(False)
         for iid in self.installState.full_install_items:
             with self.instlObj.install_definitions_index[iid] as installi:
-                for source_var in var_list.get_configVar_obj("iid_source_var_list"):
-                    source = var_list.resolve_var_to_list(source_var)
+                for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
+                    source = var_stack.resolve_var_to_list(source_var)
                     self.mark_required_items_for_source(source)
         self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
-        self.work_info_map.write_to_file(var_list.resolve("$(REQUIRED_INFO_MAP_PATH)"), in_format="text")
+        self.work_info_map.write_to_file(var_stack.resolve("$(REQUIRED_INFO_MAP_PATH)"), in_format="text")
 
     class RemoveIfChecksumOK:
         def __init__(self, base_path):
@@ -97,8 +97,8 @@ class InstlInstanceSync_boto(InstlInstanceSync):
                     have_item.set_flags(need_item.flags())
                     have_item.set_last_rev(need_item.last_rev())
         self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
-        self.work_info_map.write_to_file(var_list.resolve("$(TO_SYNC_INFO_MAP_PATH)", raise_on_fail=True), in_format="text")
-        self.have_map.write_to_file(var_list.resolve("$(NEW_HAVE_INFO_MAP_PATH)", raise_on_fail=True), in_format="text")
+        self.work_info_map.write_to_file(var_stack.resolve("$(TO_SYNC_INFO_MAP_PATH)", raise_on_fail=True), in_format="text")
+        self.have_map.write_to_file(var_stack.resolve("$(NEW_HAVE_INFO_MAP_PATH)", raise_on_fail=True), in_format="text")
 
     def mark_required_items_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
@@ -107,22 +107,22 @@ class InstlInstanceSync_boto(InstlInstanceSync):
             # if item was not found it might have been wtared. So look for wtar parts and mark them.
             item_is_wtared = self.mark_wtar_items_for_source(source)
             if not item_is_wtared:
-                raise ValueError(source[0], var_list.resolve("does not exist in remote map, IID: $(iid_iid)"))
+                raise ValueError(source[0], var_stack.resolve("does not exist in remote map, IID: $(iid_iid)"))
         else:
             if source[1] == '!file':
                 if not remote_sub_item.isFile():
                     raise ValueError(source[0], "has type", source[1],
-                                     var_list.resolve("but is not a file, IID: $(iid_iid)"))
+                                     var_stack.resolve("but is not a file, IID: $(iid_iid)"))
                 remote_sub_item.set_user_data_non_recursive(True)
             elif source[1] == '!files':
                 if not remote_sub_item.isDir():
                     raise ValueError(source[0], "has type", source[1],
-                                     var_list.resolve("but is not a dir, IID: $(iid_iid)"))
+                                     var_stack.resolve("but is not a dir, IID: $(iid_iid)"))
                 remote_sub_item.set_user_data_files_recursive(True)
             elif source[1] == '!dir' or source[1] == '!dir_cont':  # !dir and !dir_cont are only different when copying
                 if not remote_sub_item.isDir():
                     raise ValueError(source[0], "has type", source[1],
-                                     var_list.resolve("but is not a dir, IID: $(iid_iid)"))
+                                     var_stack.resolve("but is not a dir, IID: $(iid_iid)"))
                 remote_sub_item.set_user_data_all_recursive(True)
 
 
@@ -130,7 +130,7 @@ class InstlInstanceSync_boto(InstlInstanceSync):
         split_source_folder, split_source_leaf = os.path.split(source[0])
         parent_folder_item = self.work_info_map.get_item_at_path(split_source_folder)
         if parent_folder_item is None:
-            raise ValueError(split_source_folder, var_list.resolve("does not exist in remote map, IID: $(iid_iid)"))
+            raise ValueError(split_source_folder, var_stack.resolve("does not exist in remote map, IID: $(iid_iid)"))
 
         wtar_files_count = 0
         for wtar_file in parent_folder_item.walk_items_with_filter(a_filter=svnTree.WtarFilter(split_source_leaf), what="file"):
@@ -145,7 +145,7 @@ class InstlInstanceSync_boto(InstlInstanceSync):
             "Starting sync from $(SYNC_BASE_URL)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir("$(LOCAL_REPO_SYNC_DIR)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")
-        self.sync_base_url = var_list.resolve("$(SYNC_BASE_URL)")
+        self.sync_base_url = var_stack.resolve("$(SYNC_BASE_URL)")
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
@@ -171,7 +171,7 @@ class InstlInstanceSync_boto(InstlInstanceSync):
         for need_item in file_list + dir_list:
             self.create_download_instructions_for_item(need_item)
 
-        var_list.add_const_config_variable("__NUM_FILES_TO_DOWNLOAD__", "create_download_instructions",
+        var_stack.add_const_config_variable("__NUM_FILES_TO_DOWNLOAD__", "create_download_instructions",
                                            self.instlObj.platform_helper.dl_tool.get_num_urls_to_download())
 
         print(self.instlObj.platform_helper.dl_tool.get_num_urls_to_download(), "files to sync")
@@ -179,8 +179,8 @@ class InstlInstanceSync_boto(InstlInstanceSync):
 
         curl_config_folder = self.instlObj.get_default_sync_dir(continue_dir="curl", mkdir=True)
         safe_makedirs(curl_config_folder)
-        curl_config_file_path = var_list.resolve(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"), raise_on_fail=True)
-        num_config_files = int(var_list.resolve("$(PARALLEL_SYNC)"))
+        curl_config_file_path = var_stack.resolve(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"), raise_on_fail=True)
+        num_config_files = int(var_stack.resolve("$(PARALLEL_SYNC)"))
         config_file_list = self.instlObj.platform_helper.dl_tool.create_config_files(curl_config_file_path,
                                                                                      num_config_files)
         logging.info("Num parallel syncs: %d", len(config_file_list))
@@ -188,7 +188,7 @@ class InstlInstanceSync_boto(InstlInstanceSync):
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress(
                 "Downloading with " + str(len(config_file_list)) + " processes in parallel")
-            parallel_run_config_file_path = var_list.resolve(
+            parallel_run_config_file_path = var_stack.resolve(
                 os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME).parallel-run"))
             self.instlObj.batch_accum += self.instlObj.platform_helper.dl_tool.download_from_config_files(
                 parallel_run_config_file_path, config_file_list)

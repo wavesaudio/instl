@@ -12,7 +12,7 @@ import sys
 import os
 import platform
 
-from pyinstl.utils import *
+import utils
 
 current_os = platform.system()
 if current_os == 'Darwin':
@@ -90,7 +90,7 @@ class ConfigVar(object):
         if self.__name.endswith(("_PATH", "_DIR")):
             self.__values.append(os.path.normpath(value))
         else:
-            self.__values.append(convert_to_str_unless_None(value))
+            self.__values.append(utils.convert_to_str_unless_None(value))
 
     def extend(self, values):
         if values:
@@ -100,7 +100,7 @@ class ConfigVar(object):
             normed_values = [os.path.normpath(value) for value in values]
             self.__values.extend(normed_values)
         else:
-            self.__values.extend([convert_to_str_unless_None(value) for value in values])
+            self.__values.extend([utils.convert_to_str_unless_None(value) for value in values])
 
 
 class ConstConfigVar(ConfigVar):

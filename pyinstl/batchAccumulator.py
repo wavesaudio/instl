@@ -3,7 +3,7 @@ from __future__ import print_function
 
 from collections import defaultdict
 
-from configVarStack import var_stack as var_list
+from configVarStack import var_stack
 
 class BatchAccumulator(object):
     """ from batchAccumulator import BatchAccumulator
@@ -47,7 +47,7 @@ class BatchAccumulator(object):
             if section_lines:
                 if section == "assign":
                     section_lines.sort()
-                resolved_sync_instruction_lines = map(var_list.resolve, section_lines)
+                resolved_sync_instruction_lines = map(var_stack.resolve, section_lines)
                 lines.extend(resolved_sync_instruction_lines)
                 lines.append("") # empty string will cause to emit new line
         return lines

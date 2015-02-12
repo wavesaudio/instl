@@ -5,7 +5,7 @@ import urllib
 import datetime
 import stat
 from pyinstl.utils import *
-from configVarStack import var_stack as var_list
+from configVarStack import var_stack
 
 from platformSpecificHelper_Base import PlatformSpecificHelperBase
 from platformSpecificHelper_Base import CopyToolRsync
@@ -155,7 +155,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
     def setup_echo(self):
         retVal = []
         echo_template = ['echo', '"{}"']
-        if var_list.defined('ECHO_LOG_FILE'):
+        if var_stack.defined('ECHO_LOG_FILE'):
             retVal.append(self.touch("$(ECHO_LOG_FILE)"))
             retVal.append(self.chmod("0666", "$(ECHO_LOG_FILE)"))
             echo_template.extend(("|", "tee", "-a", quoteme_double("$(ECHO_LOG_FILE)")))
@@ -277,9 +277,9 @@ class DownloadTool_mac_curl(DownloadToolBase):
         """ Create command to download a single file.
             src_url is expected to be already escaped (spaces as %20...)
         """
-        connect_time_out = var_list.resolve("$(CURL_CONNECT_TIMEOUT)", raise_on_fail=True)
-        max_time         = var_list.resolve("$(CURL_MAX_TIME)", raise_on_fail=True)
-        retries          = var_list.resolve("$(CURL_RETRIES)", raise_on_fail=True)
+        connect_time_out = var_stack.resolve("$(CURL_CONNECT_TIMEOUT)", raise_on_fail=True)
+        max_time         = var_stack.resolve("$(CURL_MAX_TIME)", raise_on_fail=True)
+        retries          = var_stack.resolve("$(CURL_RETRIES)", raise_on_fail=True)
         download_command_parts = list()
         download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
         download_command_parts.append("--insecure")
@@ -305,9 +305,9 @@ class DownloadTool_mac_curl(DownloadToolBase):
         import itertools
         num_urls_to_download = len(self.urls_to_download)
         if num_urls_to_download > 0:
-            connect_time_out = var_list.resolve("$(CURL_CONNECT_TIMEOUT)", raise_on_fail=True)
-            max_time         = var_list.resolve("$(CURL_MAX_TIME)", raise_on_fail=True)
-            retries          = var_list.resolve("$(CURL_RETRIES)", raise_on_fail=True)
+            connect_time_out = var_stack.resolve("$(CURL_CONNECT_TIMEOUT)", raise_on_fail=True)
+            max_time         = var_stack.resolve("$(CURL_MAX_TIME)", raise_on_fail=True)
+            retries          = var_stack.resolve("$(CURL_RETRIES)", raise_on_fail=True)
 
             actual_num_files = max(1, min(num_urls_to_download / 8, num_files))
             list_of_lines_for_files = [list() for i in range(actual_num_files)]
@@ -351,7 +351,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
         with open(parallel_run_config_file_path, "w") as wfd:
             make_open_file_read_write_for_all(wfd)
             for config_file in config_files:
-                wfd.write(var_list.resolve("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+config_file+"\"\n", raise_on_fail=True))
+                wfd.write(var_stack.resolve("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+config_file+"\"\n", raise_on_fail=True))
 
         download_command = " ".join( (self.platform_helper.run_instl(),  "parallel-run", "--in", quoteme_double(parallel_run_config_file_path)) )
         return download_command

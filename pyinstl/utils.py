@@ -12,8 +12,7 @@ import rsa
 import base64
 import collections
 import subprocess
-import urllib
-import boto
+from connectionBase import ConnectionBase
 
 def Is64Windows():
     return 'PROGRAMFILES(X86)' in os.environ
@@ -526,41 +525,4 @@ def make_open_file_read_write_for_all(fd):
 
 
 
-class ConnectionBase(object):
-    repo_connection = None
-    def __init__(self):
-        pass
-    def open_connection(self, credentials):
-        pass
-    def translate_url(self, in_bare_url):
-        retVal = urllib.quote(in_bare_url, "$()/:")
-        return retVal
-
-class ConnectionS3(ConnectionBase):
-    def __init__(self, in_access_key, in_secret_key):
-        super(ConnectionS3, self).__init__()
-        self.boto_conn = None
-        self.open_connection(in_access_key, in_secret_key)
-        self.open_bucket = None
-        self.default_expiration = 60*60*24 # in seconds
-
-    def open_connection(self, in_access_key, in_secret_key):
-        self.boto_conn = boto.connect_s3(in_access_key, in_secret_key)
-
-    def translate_url(self, in_bare_url):
-        parseResult = urlparse.urlparse(in_bare_url)
-        if self.open_bucket is None:
-            self.open_bucket = self.boto_conn.get_bucket(parseResult.netloc)
-        the_key = self.open_bucket.get_key(parseResult.path, validate=False)
-        retVal = the_key.generate_url(self.default_expiration)
-        return retVal
-
-
-def connection_factory(credentials=None):
-    if credentials is None:
-        ConnectionBase.repo_connection = ConnectionBase()
-    else:
-        cred_split = credentials.split(":")
-        if cred_split[0] == "s3":
-            ConnectionBase.repo_connection = ConnectionS3(cred_split[1], cred_split[2])
 

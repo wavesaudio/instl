@@ -9,7 +9,7 @@ from pyinstl.utils import *
 from platformSpecificHelper_Base import PlatformSpecificHelperBase
 from platformSpecificHelper_Base import CopyToolBase
 from platformSpecificHelper_Base import DownloadToolBase
-from configVarStack import var_stack as var_list
+from configVarStack import var_stack
 
 def dos_escape(some_string):
     escaped_string = some_string.replace("&", "^&")
@@ -40,7 +40,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         """ To do: dedicate a variable to copy logging (COPY_LOG_FILE ???)
         """
         retVal = ""
-        #log_file = var_list.resolve("$(LOG_FILE)")
+        #log_file = var_stack.resolve("$(LOG_FILE)")
         #retVal = " /LOG:{log_file}".format(**locals())
         return retVal
 
@@ -121,7 +121,7 @@ class CopyTool_win_xcopy(CopyToolBase):
             if isinstance(ignore, basestring):
                 ignore = (ignore,)
             self.excludes_set.update([ignoree.lstrip("*") for ignoree in ignore])
-            retVal = var_list.resolve("/EXCLUDE:$(XCOPY_EXCLUDE_FILE_NAME)")
+            retVal = var_stack.resolve("/EXCLUDE:$(XCOPY_EXCLUDE_FILE_NAME)")
         return retVal
 
     def begin_copy_folder(self):
@@ -189,7 +189,7 @@ class CopyTool_win_xcopy(CopyToolBase):
 
     def create_excludes_file(self):
         if self.excludes_set:
-            with open(var_list.resolve("$(XCOPY_EXCLUDE_FILE_PATH)", raise_on_fail=True), "w") as wfd:
+            with open(var_stack.resolve("$(XCOPY_EXCLUDE_FILE_PATH)", raise_on_fail=True), "w") as wfd:
                 make_open_file_read_write_for_all(wfd)
                 wfd.write("\n".join(self.excludes_set))
 
@@ -207,7 +207,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         self.var_replacement_pattern = "%\g<var_name>%"
 
     def init_download_tool(self):
-        download_tool_name = var_list.resolve("$(DOWNLOAD_TOOL_PATH)")
+        download_tool_name = var_stack.resolve("$(DOWNLOAD_TOOL_PATH)")
         if download_tool_name.endswith("wget.exe"):
             self.dl_tool = DownloadTool_win_wget(self)
         elif download_tool_name.endswith("curl.exe"):
@@ -324,7 +324,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         elif tool_name == "xcopy":
             self.copy_tool = CopyTool_win_xcopy(self)
         else:
-            raise ValueError(tool_name, "is not a valid copy tool for", var_list.resolve("$(TARGET_OS)"))
+            raise ValueError(tool_name, "is not a valid copy tool for", var_stack.resolve("$(TARGET_OS)"))
 
     def copy_file_to_file(self, src_file, trg_file, hard_link=False):
         norm_src_file = quoteme_double(os.path.normpath(src_file))
@@ -449,9 +449,9 @@ class DownloadTool_win_curl(DownloadToolBase):
         """ Create command to download a single file.
             src_url is expected to be already escaped (spaces as %20...)
         """
-        connect_time_out = var_list.resolve("$(CURL_CONNECT_TIMEOUT)", raise_on_fail=True)
-        max_time         = var_list.resolve("$(CURL_MAX_TIME)", raise_on_fail=True)
-        retries          = var_list.resolve("$(CURL_RETRIES)", raise_on_fail=True)
+        connect_time_out = var_stack.resolve("$(CURL_CONNECT_TIMEOUT)", raise_on_fail=True)
+        max_time         = var_stack.resolve("$(CURL_MAX_TIME)", raise_on_fail=True)
+        retries          = var_stack.resolve("$(CURL_RETRIES)", raise_on_fail=True)
         download_command_parts = list()
         download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
         download_command_parts.append("--insecure")
@@ -477,9 +477,9 @@ class DownloadTool_win_curl(DownloadToolBase):
         import itertools
         num_urls_to_download = len(self.urls_to_download)
         if num_urls_to_download > 0:
-            connect_time_out = var_list.resolve("$(CURL_CONNECT_TIMEOUT)", raise_on_fail=True)
-            max_time         = var_list.resolve("$(CURL_MAX_TIME)", raise_on_fail=True)
-            retries          = var_list.resolve("$(CURL_RETRIES)", raise_on_fail=True)
+            connect_time_out = var_stack.resolve("$(CURL_CONNECT_TIMEOUT)", raise_on_fail=True)
+            max_time         = var_stack.resolve("$(CURL_MAX_TIME)", raise_on_fail=True)
+            retries          = var_stack.resolve("$(CURL_RETRIES)", raise_on_fail=True)
             actual_num_files = max(1, min(num_urls_to_download / 8, num_files))
 
             num_digits = len(str(actual_num_files))
@@ -523,7 +523,7 @@ class DownloadTool_win_curl(DownloadToolBase):
             make_open_file_read_write_for_all(wfd)
             for config_file in config_files:
                 normalized_path = config_file.replace("\\", "/")
-                wfd.write(var_list.resolve("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+normalized_path+"\"\n", raise_on_fail=True))
+                wfd.write(var_stack.resolve("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+normalized_path+"\"\n", raise_on_fail=True))
 
         download_command = " ".join( (self.platform_helper.run_instl(),  "parallel-run", "--in", quoteme_double(parallel_run_config_file_path)) )
         return (download_command, self.platform_helper.exit_if_error())

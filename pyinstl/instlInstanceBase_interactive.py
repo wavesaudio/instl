@@ -8,7 +8,7 @@ import shlex
 from pyinstl.instlException import InstlException
 from pyinstl.utils import *
 from installItem import guid_list, iids_from_guid
-from configVarStack import var_stack as var_list
+from configVarStack import var_stack
 
 import platform
 current_os = platform.system()
@@ -90,7 +90,7 @@ class CMDObj(cmd.Cmd, object):
         self.history_file_path = None
         self.prompt = None
         self.save_dir = None
-        self.this_program_name = var_list.resolve("$(INSTL_EXEC_DISPLAY_NAME)")
+        self.this_program_name = var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)")
 
     def __enter__(self):
         if readline_loaded:
@@ -302,7 +302,7 @@ class CMDObj(cmd.Cmd, object):
         if params:
             params = shlex.split(params)
             identi, values = params[0], params[1:]
-            var_list.set_var(identi, "set interactively").extend(values)
+            var_stack.set_var(identi, "set interactively").extend(values)
             self.do_list(identi)
         return False
 
@@ -315,7 +315,7 @@ class CMDObj(cmd.Cmd, object):
 
     def do_del(self, params):
         for identi in params.split():
-            del var_list[identi]
+            del var_stack[identi]
         return False
 
     def complete_del(self, text, line, begidx, endidx):
@@ -460,8 +460,8 @@ class CMDObj(cmd.Cmd, object):
         out_file = "stdout"
         if params:
             out_file = params
-        var_list.set_var("__MAIN_OUT_FILE__").append(out_file)
-        var_list.set_var("__MAIN_COMMAND__").append("sync")
+        var_stack.set_var("__MAIN_OUT_FILE__").append(out_file)
+        var_stack.set_var("__MAIN_COMMAND__").append("sync")
         self.client_prog_inst.do_command()
         return False
 
@@ -473,8 +473,8 @@ class CMDObj(cmd.Cmd, object):
         out_file = "stdout"
         if params:
             out_file = params
-        var_list.set_var("__MAIN_OUT_FILE__").append(out_file)
-        var_list.set_var("__MAIN_COMMAND__").append("copy")
+        var_stack.set_var("__MAIN_OUT_FILE__").append(out_file)
+        var_stack.set_var("__MAIN_COMMAND__").append("copy")
         self.client_prog_inst.do_command()
         return False
 
@@ -563,7 +563,7 @@ class CMDObj(cmd.Cmd, object):
                         pyinstl.log_utils.teardown_file_logging(debug_log_file_path, pyinstl.log_utils.default_logging_level)
                     except:
                         pass
-                var_list.get_configVar_obj("LOG_FILE_DEBUG")[2] = pyinstl.log_utils.debug_logging_started
+                var_stack.get_configVar_obj("LOG_FILE_DEBUG")[2] = pyinstl.log_utils.debug_logging_started
         self.report_logging_state()
 
     def help_log(self):
@@ -583,7 +583,7 @@ class CMDObj(cmd.Cmd, object):
     # resolve a string containing variables.
     def do_resolve(self, param):
         if param:
-            print(var_list.resolve(param))
+            print(var_stack.resolve(param))
         return False
 
     def help_resolve(self):
@@ -616,7 +616,7 @@ def do_list_imp(self, what = None, stream=sys.stdout):
         if guid_re.match(item_to_do):
             whole_sections_to_write.append({item_to_do: iids_from_guid(self.install_definitions_index, item_to_do)})
         elif item_to_do == "define":
-            whole_sections_to_write.append(augmentedYaml.YamlDumpDocWrap(var_list, '!define', "Definitions", explicit_start=True, sort_mappings=True))
+            whole_sections_to_write.append(augmentedYaml.YamlDumpDocWrap(var_stack, '!define', "Definitions", explicit_start=True, sort_mappings=True))
         elif item_to_do == "index":
             whole_sections_to_write.append(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True))
         elif item_to_do == "guid":
@@ -636,7 +636,7 @@ def create_completion_list_imp(self, for_what="all"):
         if for_what in ("all", "index"):
             retVal.extend(self.install_definitions_index.keys())
         if for_what in ("all", "define"):
-            retVal.extend(var_list.keys())
+            retVal.extend(var_stack.keys())
         if for_what in ("all", "guid"):
             retVal.extend(guid_list(self.install_definitions_index))
     except Exception as ex:

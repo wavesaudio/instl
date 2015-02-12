@@ -4,7 +4,7 @@ import abc
 
 from pyinstl import svnTree
 from pyinstl.utils import *
-from configVarStack import var_stack as var_list
+from configVarStack import var_stack
 
 def is_user_data_false_or_dir_empty(svn_item):
     retVal = not svn_item.user_data
@@ -30,16 +30,16 @@ class InstlInstanceSync(object):
         """ Prepares variables for sync. Will raise ValueError if a mandatory variable
             is not defined.
         """
-        prerequisite_vars = var_list.resolve_var_to_list("__SYNC_PREREQUISITE_VARIABLES__")
+        prerequisite_vars = var_stack.resolve_var_to_list("__SYNC_PREREQUISITE_VARIABLES__")
         self.instlObj.check_prerequisite_var_existence(prerequisite_vars)
 
 
-        if "PUBLIC_KEY" not in var_list:
-            if "PUBLIC_KEY_FILE" in var_list:
-                public_key_file = var_list.resolve("$(PUBLIC_KEY_FILE)")
+        if "PUBLIC_KEY" not in var_stack:
+            if "PUBLIC_KEY_FILE" in var_stack:
+                public_key_file = var_stack.resolve("$(PUBLIC_KEY_FILE)")
                 with open_for_read_file_or_url(public_key_file, self.instlObj.path_searcher) as file_fd:
                     public_key_text = file_fd.read()
-                    var_list.set_var("PUBLIC_KEY", "from " + public_key_file).append(public_key_text)
+                    var_stack.set_var("PUBLIC_KEY", "from " + public_key_file).append(public_key_text)
 
     def create_sync_instructions(self, installState):
         self.instlObj.batch_accum.set_current_section('sync')
@@ -50,14 +50,14 @@ class InstlInstanceSync(object):
             Writes the map to local sync folder for reference and debugging.
         """
         try:
-            safe_makedirs(var_list.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)", raise_on_fail=True))
-            safe_makedirs(var_list.resolve("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)", raise_on_fail=True))
-            download_from_file_or_url(var_list.resolve("$(INFO_MAP_FILE_URL)"),
-                                      var_list.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)", raise_on_fail=True),
+            safe_makedirs(var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)", raise_on_fail=True))
+            safe_makedirs(var_stack.resolve("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)", raise_on_fail=True))
+            download_from_file_or_url(var_stack.resolve("$(INFO_MAP_FILE_URL)"),
+                                      var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)", raise_on_fail=True),
                                       cache=True,
-                                      public_key=var_list.resolve("$(PUBLIC_KEY)"),
-                                      textual_sig=var_list.resolve("$(INFO_MAP_SIG)"))
-            self.work_info_map.read_info_map_from_file(var_list.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)"),
+                                      public_key=var_stack.resolve("$(PUBLIC_KEY)"),
+                                      textual_sig=var_stack.resolve("$(INFO_MAP_SIG)"))
+            self.work_info_map.read_info_map_from_file(var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)"),
                                                        a_format="text")
         except:
             raise
@@ -71,16 +71,16 @@ class InstlInstanceSync(object):
         self.work_info_map.set_user_data_all_recursive(False)
         for iid in self.installState.full_install_items:
             with self.instlObj.install_definitions_index[iid] as installi:
-                for source_var in var_list.get_configVar_obj("iid_source_var_list"):
-                    source = var_list.resolve_var_to_list(source_var)
+                for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
+                    source = var_stack.resolve_var_to_list(source_var)
                     self.mark_required_items_for_source(source)
         self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
-        self.work_info_map.write_to_file(var_list.resolve("$(REQUIRED_INFO_MAP_PATH)"), in_format="text")
+        self.work_info_map.write_to_file(var_stack.resolve("$(REQUIRED_INFO_MAP_PATH)"), in_format="text")
 
     def read_have_info_map(self):
         """ Reads the map of files previously synced - if there is one.
         """
-        have_info_map_path = var_list.resolve("$(HAVE_INFO_MAP_PATH)")
+        have_info_map_path = var_stack.resolve("$(HAVE_INFO_MAP_PATH)")
         if os.path.isfile(have_info_map_path):
             self.have_map.read_info_map_from_file(have_info_map_path, a_format="text")
 
@@ -107,8 +107,8 @@ class InstlInstanceSync(object):
                     have_item.set_flags(need_item.flags())
                     have_item.set_last_rev(need_item.last_rev())
         self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
-        self.work_info_map.write_to_file(var_list.resolve("$(TO_SYNC_INFO_MAP_PATH)", raise_on_fail=True), in_format="text")
-        self.have_map.write_to_file(var_list.resolve("$(NEW_HAVE_INFO_MAP_PATH)", raise_on_fail=True), in_format="text")
+        self.work_info_map.write_to_file(var_stack.resolve("$(TO_SYNC_INFO_MAP_PATH)", raise_on_fail=True), in_format="text")
+        self.have_map.write_to_file(var_stack.resolve("$(NEW_HAVE_INFO_MAP_PATH)", raise_on_fail=True), in_format="text")
 
     # syncers that download from urls (url, boto) need to prepare a list of all the individual files that need updating.
     # syncers that use configuration management tools (p4, svn) do not need since the tools takes care of that.
