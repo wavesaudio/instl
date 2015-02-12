@@ -37,10 +37,11 @@ class ConnectionHTTP(ConnectionBase):
 class ConnectionS3(ConnectionBase):
     def __init__(self, credentials):
         super(ConnectionS3, self).__init__()
-        self.default_expiration = 60*60*24 # in seconds
         self.boto_conn = None
-        self.open_connection(credentials)
         self.open_bucket = None
+        default_expiration_str = var_stack.resolve("$(S3_SECURE_URL_EXPIRATION)", default=str(60*60*24))
+        self.default_expiration =  int(default_expiration_str)# in seconds
+        self.open_connection(credentials)
 
     def open_connection(self, credentials):
         in_access_key, in_secret_key, in_bucket = credentials
