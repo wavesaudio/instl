@@ -144,6 +144,7 @@ class InstlAdmin(InstlInstanceBase):
             my_stdout, my_stderr = proc.communicate()
             if proc.returncode != 0 or my_stderr != "":
                 raise ValueError("Could not read info from svn: "+my_stderr)
+            info_as_io = StringIO.StringIO(my_stdout)
             for line in info_as_io:
                 match = revision_line_re.match(line)
                 if match:
@@ -376,7 +377,6 @@ class InstlAdmin(InstlInstanceBase):
 
         accum += " ".join(["aws", "s3", "sync",
                            ".", "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_REV__)",
-                           "--acl", "$(S3_ACL_VALUE)",
                            "--exclude", '"*.DS_Store"',
                            "--exclude", '"$(UP_2_S3_STAMP_FILE_NAME)"',
                            "--exclude", '"$(CREATE_LINKS_STAMP_FILE_NAME)"'
@@ -447,7 +447,6 @@ class InstlAdmin(InstlInstanceBase):
             self.batch_accum += " ".join( ["aws", "s3", "cp",
                                 "\"$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
                                "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)\"",
-                               "--acl", "$(S3_ACL_VALUE)",
                                "--content-type", 'text/plain'
                                 ] )
             self.batch_accum += self.platform_helper.progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)'")
@@ -455,7 +454,6 @@ class InstlAdmin(InstlInstanceBase):
         self.batch_accum += " ".join( ["aws", "s3", "cp",
                            "\"$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
                            "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
-                           "--acl", "$(S3_ACL_VALUE)",
                            "--content-type", 'text/plain'
                             ] )
         self.batch_accum += self.platform_helper.progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)'")
