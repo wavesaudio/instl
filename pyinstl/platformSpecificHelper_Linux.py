@@ -137,6 +137,9 @@ class DownloadTool_linux_curl(DownloadToolBase):
         super(DownloadTool_linux_curl, self).__init__(platform_helper)
 
     def download_url_to_file(self, src_url, trg_file):
+        """ Create command to download a single file.
+            src_url is expected to be already escaped (spaces as %20...)
+        """
         download_command_parts = list()
         download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
         download_command_parts.append("--insecure")

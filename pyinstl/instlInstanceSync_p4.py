@@ -4,47 +4,34 @@ from __future__ import print_function
 from pyinstl.utils import *
 from pyinstl import svnTree
 from instlInstanceSyncBase import InstlInstanceSync
-from configVarStack import var_stack as var_list
+from configVarStack import var_stack
 
 
 class InstlInstanceSync_p4(InstlInstanceSync):
     """  Class to create sync instruction using static links.
     """
     def __init__(self, instlObj):
-        self.instlObj = instlObj      # instance of the instl application
-        self.installState = None                # object holding batch instructions
-        self.work_info_map = svnTree.SVNTree()  # here most of the work is done: first info map from server is read, later unneeded items
-                                                # are filtered out and then items that are already downloaded are filtered out. So finally
-                                                # the download instructions are created from the remaining items.
-        self.have_map = svnTree.SVNTree()       # info map of what was already downloaded
-        self.files_to_download = 0
+        super(InstlInstanceSync_p4, self).__init__(instlObj)
 
     def init_sync_vars(self):
-        """ Prepares variables for sync. Will raise ValueError if a mandatory variable
-            is not defined.
-        """
-        var_description = "from InstlInstanceBase.init_sync_vars"
-        self.instlObj.check_prerequisite_var_existence(("SYNC_BASE_URL", "DOWNLOAD_TOOL_PATH", "REPO_REV"))
-
-        safe_makedirs(var_list.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)", raise_on_fail=True))
+        super(InstlInstanceSync_p4, self).init_sync_vars()
 
     def create_sync_instructions(self, installState):
-        self.instlObj.batch_accum.set_current_section('sync')
-        self.installState = installState
+        super(InstlInstanceSync_p4, self).create_sync_instructions(installState)
         self.create_download_instructions()
         self.instlObj.batch_accum.set_current_section('post-sync')
 
     def create_download_instructions(self):
         self.instlObj.batch_accum.set_current_section('sync')
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Starting sync from $(SYNC_BASE_URL)")
-        self.sync_base_url = var_list.resolve("$(SYNC_BASE_URL)")
+        self.sync_base_url = var_stack.resolve("$(SYNC_BASE_URL)")
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
-        for iid  in self.installState.full_install_items:
+        for iid in self.installState.full_install_items:
             with self.install_definitions_index[iid]:
-                for source_var in var_list.get_configVar_obj("iid_source_var_list"):
-                    source = var_list.resolve_var_to_list(source_var)
+                for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
+                    source = var_stack.resolve_var_to_list(source_var)
                     self.p4_sync_for_source(source)
 
     def p4_sync_for_source(self, source):

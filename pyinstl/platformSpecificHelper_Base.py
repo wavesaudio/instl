@@ -2,10 +2,9 @@
 from __future__ import print_function
 
 import abc
-import urllib
 from pyinstl.utils import *
-from configVarStack import var_stack as var_list
-
+from configVarStack import var_stack
+from connectionBase import ConnectionBase
 
 class CopyToolBase(object):
     """ Create copy commands. Each function should be overridden to implement the copying
@@ -176,7 +175,7 @@ class PlatformSpecificHelperBase(object):
         self.copy_tool = None
         self.dl_tool = None
         self.num_items_for_progress_report = 0
-        self.progress_staccato_period = int(var_list.resolve("$(PROGRESS_STACCATO_PERIOD)", default="128"))
+        self.progress_staccato_period = int(var_stack.resolve("$(PROGRESS_STACCATO_PERIOD)", default="128"))
         self.progress_staccato_count = 0
 
     def DefaultCopyToolName(self, target_os):
@@ -197,9 +196,9 @@ class PlatformSpecificHelperBase(object):
         pass
 
     def init_copy_tool(self):
-        copy_tool_name = self.DefaultCopyToolName(var_list.resolve("$(__CURRENT_OS__)")) # copy instructions are always produced for the current os
-        if "COPY_TOOL" in var_list:
-            copy_tool_name = var_list.resolve("$(COPY_TOOL)")
+        copy_tool_name = self.DefaultCopyToolName(var_stack.resolve("$(__CURRENT_OS__)")) # copy instructions are always produced for the current os
+        if "COPY_TOOL" in var_stack:
+            copy_tool_name = var_stack.resolve("$(COPY_TOOL)")
         self.use_copy_tool(copy_tool_name)
 
     @abc.abstractmethod
@@ -429,7 +428,8 @@ class DownloadToolBase(object):
         pass
 
     def add_download_url(self, url, path):
-        self.urls_to_download.append( (urllib.quote(url, "$()/:"), path) )
+        translated_url = ConnectionBase.repo_connection.translate_url(url)
+        self.urls_to_download.append( (translated_url, path) )
 
     def get_num_urls_to_download(self):
         return len(self.urls_to_download)
@@ -440,3 +440,4 @@ class DownloadToolBase(object):
     @abc.abstractmethod
     def download_from_config_files(self, parallel_run_config_file_path, config_files):
         pass
+

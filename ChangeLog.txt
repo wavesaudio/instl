@@ -1,3 +1,12 @@
+15/2/2015 0.10.0.0
+    user visible changes, client:
+    * Support for S3 secure downloads.
+    * New command translate_url for testing the creation of secure s3 urls.
+
+    programmer visible changes:
+    * Global variable var_stack is now imported as itself rather as var_list to avoid cross import problems.
+    * ConnectionBase class and derived classes ConnectionHTTP and ConnectionS3 handle secure connection issues.
+
 28/1/2015 0.9.19.4
     user visible changes, client:
     * When writing echo's to log the log file is created in the begin sections and permissions are set to 666 so later launches of instl can append to log.

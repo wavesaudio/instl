@@ -151,6 +151,14 @@ command:
             instl's trans command can translate between the format created by svn info command and the native instl info format. Additional input that can be given is the output of the svn proplist command. trans also has limited filtering options.
             trans command is used in the output of create-links command.
 
+    translate_url:
+        short: Translates to canonical form according to the current connection. (misc command)
+        long:  |
+            Usage: instl translate_url --in url_to_translate [--credentials s3:ACCESS_KEY:SECRET_KEY:BUCKET]
+            instl's translate_url translate a url so it can be passed to a browser or download utility such as curl.
+            If no --credentials is given, the translation will simply replace characters to ascii and spaces to %20.
+            If --credentials is given instl will connect and build a url suitable for use. Currently only Amazon s3 connection is supported.
+
     uninstall:
       short: Remove installed files considering dependencies. (client command)
       long: |

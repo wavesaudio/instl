@@ -12,6 +12,7 @@ import rsa
 import base64
 import collections
 import subprocess
+from connectionBase import ConnectionBase
 
 def Is64Windows():
     return 'PROGRAMFILES(X86)' in os.environ
@@ -74,7 +75,6 @@ class write_to_list(object):
     def list(self):
         return self.the_list
 
-
 class open_for_read_file_or_url(object):
     protocol_header_re = re.compile("""
                         \w+
@@ -99,6 +99,8 @@ class open_for_read_file_or_url(object):
                     self.file_url = "file://"+os.path.realpath(self.file_url)
             else:
                 raise IOError("Could not locate local file", file_url)
+        else:
+            self.file_url = ConnectionBase.repo_connection.translate_url(self.file_url)
 
     def __enter__(self):
         try:
@@ -487,7 +489,7 @@ def convert_to_str_unless_None(to_convert):
     else:
         return str(to_convert)
 
-# find sequences in a sorted list. 
+# find sequences in a sorted list.
 # in_sorted_list: a sorted list of things to search sequences in.
 # is_next_func: The function that determines if one thing is the consecutive of another.
 #               The default is to compare as integers.
