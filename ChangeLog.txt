@@ -1,4 +1,7 @@
 ???? 0.10.0.3
+    user visible changes, client:
+    * Better, more meaningful progress messages.
+
     user visible changes, admin:
     * Admin variable MAX_FILE_SIZE renamed MIN_FILE_SIZE_TO_WTAR.
     * New admin variable: WTAR_BY_FILE_SIZE_EXCLUDE_REGEX. Files names passing this regex will not be wtarred. This was done mainly to disable wtarring of instl itself when updating it.

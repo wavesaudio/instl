@@ -94,7 +94,7 @@ class InstlMisc(InstlInstanceBase):
                             tar.extractall(root)
                         if self.no_artifacts:
                             os.remove(wtar_file_path)
-                        self.dynamic_progress("Unwtar {wtar_file_path}".format(**locals()))
+                        self.dynamic_progress("Expanding {wtar_file_path}".format(**locals()))
                     except tarfile.ReadError as re_er:
                         print("tarfile read error while opening file", os.path.abspath(wtar_file_path))
                         raise
@@ -122,7 +122,7 @@ class InstlMisc(InstlInstanceBase):
             joined_file_done_path = joined_file_path+".done"
             if os.path.isfile(joined_file_done_path):
                 os.remove(joined_file_done_path)
-            self.dynamic_progress("Merge wtar parts {first_file}".format(**locals()))
+            self.dynamic_progress("Expanding {first_file}".format(**locals()))
         return joined_file_path
 
     def do_check_checksum(self):

@@ -331,9 +331,11 @@ class InstlClient(InstlInstanceBase):
                                            key=lambda fold: var_stack.resolve(fold))
 
         # first create all target folders so to avoid dependency order problems such as creating links between folders
-        for folder_name in sorted_target_folder_list:
-            self.batch_accum += self.platform_helper.mkdir_with_owner(folder_name)
-        self.batch_accum += self.platform_helper.progress("Make directories done")
+        if len(sorted_target_folder_list) > 0:
+            self.batch_accum += self.platform_helper.progress("Creating folders...")
+            for folder_name in sorted_target_folder_list:
+                self.batch_accum += self.platform_helper.mkdir_with_owner(folder_name)
+            self.batch_accum += self.platform_helper.progress("Create folders done")
 
         self.accumulate_unique_actions('pre_copy', self.installState.full_install_items)
 
@@ -362,12 +364,14 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum += self.platform_helper.copy_tool.end_copy_folder()
             logging.info("... copy actions: %d", len(self.batch_accum) - batch_accum_len_before)
 
+            self.batch_accum += self.platform_helper.progress("Expanding files...")
             self.batch_accum += self.platform_helper.unwtar_current_folder(no_artifacts=True)
-            self.batch_accum += self.platform_helper.progress("Unwtar files")
+            self.batch_accum += self.platform_helper.progress("Expand files done")
 
             if 'Mac' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
+                self.batch_accum += self.platform_helper.progress("Resolving symlinks...")
                 self.batch_accum += self.platform_helper.resolve_symlink_files()
-                self.batch_accum += self.platform_helper.progress("Resolve .symlink files")
+                self.batch_accum += self.platform_helper.progress("Resolve symlinks done")
 
             # accumulate post_copy_to_folder actions from all items, eliminating duplicates
             self.accumulate_unique_actions('post_copy_to_folder', items_in_folder)

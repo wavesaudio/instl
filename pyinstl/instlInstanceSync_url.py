@@ -151,6 +151,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         num_files_to_check = self.work_info_map.num_subs_in_tree(what="file")
         logging.info("Num files to checksum check: %d", num_files_to_check)
         if num_files_to_check > 0:
+            self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Checking checksum...")
             self.instlObj.batch_accum += self.instlObj.platform_helper.check_checksum_for_folder(
                 "$(TO_SYNC_INFO_MAP_PATH)")
             self.instlObj.platform_helper.num_items_for_progress_report += num_files_to_check
