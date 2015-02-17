@@ -522,8 +522,8 @@ class InstlAdmin(InstlInstanceBase):
     def should_file_be_exec(self, file_path):
         retVal = False
         try:
-            regex_list = var_stack.resolve_to_list("$(EXEC_PROP_REGEX)")
-            for regex in regex_list:
+            wtar_regex_list = var_stack.resolve_to_list("$(EXEC_PROP_REGEX)")
+            for regex in wtar_regex_list:
                 if re.search(regex, file_path):
                     retVal = True
                     raise Exception
@@ -624,16 +624,32 @@ class InstlAdmin(InstlInstanceBase):
         for sub_comparer in comparer.subdirs.values():
             self.stage2svn_for_folder(sub_comparer)
 
-    def should_wtar(self, dir_item, regexes, max_file_size):
+    def prepare_conditions_for_wtar(self):
+        wtar_regex_list = var_stack.resolve_to_list("$(WTAR_REGEX)")
+        self.compiled_wtar_regex_list = [re.compile(regex) for regex in wtar_regex_list]
+
+        self.min_file_size_to_wtar  = int(var_stack.resolve(("$(MIN_FILE_SIZE_TO_WTAR)")))
+
+        if "WTAR_BY_FILE_SIZE_EXCLUDE_REGEX" in var_stack:
+            wtar_by_file_size_exclude_regex = var_stack.resolve("$(WTAR_BY_FILE_SIZE_EXCLUDE_REGEX)")
+            self.compiled_wtar_by_file_size_exclude_regex = re.compile(wtar_by_file_size_exclude_regex)
+        else:
+            self.compiled_wtar_by_file_size_exclude_regex = None
+
+    def should_wtar(self, dir_item):
         retVal = False
         try:
-            for regex in regexes:
+            for regex in self.compiled_wtar_regex_list:
                 if re.search(regex, dir_item):
                     retVal = True
                     raise Exception
             if os.path.isfile(dir_item):
-                if os.path.getsize(dir_item) > max_file_size:
-                    retVal = True
+                if os.path.getsize(dir_item) > self.min_file_size_to_wtar:
+                    if self.compiled_wtar_by_file_size_exclude_regex is not None:
+                        if not re.match(self.compiled_wtar_by_file_size_exclude_regex, dir_item):
+                            retVal = True
+                    else:
+                        retVal = True
         except:
             pass
         return retVal
@@ -659,15 +675,9 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_wtar(self):
         self.batch_accum.set_current_section('admin')
-        regex_list = var_stack.resolve_to_list("$(WTAR_REGEX)")
-
-        compiled_regex_list = list()
-        for regex in regex_list:
-            compiled_regex_list.append(re.compile(regex))
-
+        self.prepare_conditions_for_wtar()
         self.batch_accum += self.platform_helper.split_func()
 
-        max_file_size = int(var_stack.resolve(("$(MAX_FILE_SIZE)")))
         stage_folder = var_stack.resolve("$(STAGING_FOLDER)")
         self.batch_accum += self.platform_helper.unlock(stage_folder, recursive=True)
         self.batch_accum += self.platform_helper.progress("chflags -R nouchg "+stage_folder)
@@ -680,7 +690,7 @@ class InstlAdmin(InstlInstanceBase):
             for dir_item in dir_items:
                 dir_item_full_path = os.path.join(folder_to_check, dir_item)
                 if not os.path.islink(dir_item_full_path):
-                    to_tar = self.should_wtar(dir_item_full_path, compiled_regex_list, max_file_size)
+                    to_tar = self.should_wtar(dir_item_full_path)
                     if to_tar:
                         items_to_tar.append(dir_item)
                     else:

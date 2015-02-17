@@ -8,3 +8,17 @@ REPO_REV_FILE_NAME: $(REPO_NAME)_repo_rev.yaml
 PUBLIC_KEY_FILE: $(REPO_NAME).public_key
 PRIVATE_KEY_FILE: $(REPO_NAME).private_key
 S3_ACL_VALUE: public-read
+
+
+# folders or files who's size is > MIN_FILE_SIZE_TO_WTAR AND and who's
+# name does not matches the regex in WTAR_BY_FILE_SIZE_EXCLUDE_REGEX
+# will be wtarred. If WTAR_BY_FILE_SIZE_EXCLUDE_REGEX is not defined
+# all files bigger than MIN_FILE_SIZE_TO_WTAR will be wtarred.
+# WTAR_BY_FILE_SIZE_EXCLUDE_REGEX: ()
+# max file size 5 * 1024 * 1024
+MIN_FILE_SIZE_TO_WTAR: 5242880 # was MAX_FILE_SIZE
+
+# folders or files who's name passes WTAR_REGEX regex will be wtarred
+# regardless of size
+WTAR_REGEX:
+    - .*
