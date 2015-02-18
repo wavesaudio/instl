@@ -18,7 +18,14 @@ S3_ACL_VALUE: public-read
 # max file size 5 * 1024 * 1024
 MIN_FILE_SIZE_TO_WTAR: 5242880 # was MAX_FILE_SIZE
 
-# folders or files who's name passes WTAR_REGEX regex will be wtarred
-# regardless of size
-WTAR_REGEX:
-    - .*
+# folders who's name matches FOLDER_WTAR_REGEX regex will be wtarred.
+# Here it defaults to non matching regex so you need to override
+# FOLDER_WTAR_REGEX in order to wtar some files.
+FOLDER_WTAR_REGEX:
+    - "a^"
+
+# folders or files who's name matches WTAR_REGEX regex will be wtarred
+# regardless of size. Here it defaults to non matching regex so you need
+# to override FILE_WTAR_REGEX in order to wtar some files.
+FILE_WTAR_REGEX:
+    - "a^"
