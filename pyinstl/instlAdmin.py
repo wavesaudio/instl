@@ -5,7 +5,7 @@ from __future__ import print_function
 import filecmp
 import cStringIO as StringIO
 from collections import defaultdict
-import stat
+import re
 import fnmatch
 
 from instlException import *
@@ -625,8 +625,10 @@ class InstlAdmin(InstlInstanceBase):
             self.stage2svn_for_folder(sub_comparer)
 
     def prepare_conditions_for_wtar(self):
-        wtar_regex_list = var_stack.resolve_to_list("$(WTAR_REGEX)")
-        self.compiled_wtar_regex_list = [re.compile(regex) for regex in wtar_regex_list]
+        folder_wtar_regex_list = var_stack.resolve_to_list("$(FOLDER_WTAR_REGEX)")
+        self.compiled_folder_wtar_regex_list = [re.compile(regex) for regex in folder_wtar_regex_list]
+        file_wtar_regex_list = var_stack.resolve_to_list("$(FILE_WTAR_REGEX)")
+        self.compiled_file_wtar_regex_list = [re.compile(regex) for regex in file_wtar_regex_list]
 
         self.min_file_size_to_wtar  = int(var_stack.resolve(("$(MIN_FILE_SIZE_TO_WTAR)")))
 
@@ -636,14 +638,23 @@ class InstlAdmin(InstlInstanceBase):
         else:
             self.compiled_wtar_by_file_size_exclude_regex = None
 
+        self.already_wtarred_regex = re.compile("wtar(\.\w\w)?$")
+
     def should_wtar(self, dir_item):
         retVal = False
         try:
-            for regex in self.compiled_wtar_regex_list:
-                if re.search(regex, dir_item):
-                    retVal = True
-                    raise Exception
-            if os.path.isfile(dir_item):
+            if self.already_wtarred_regex.match(dir_item):
+                raise Exception
+            if os.path.isdir(dir_item):
+                for regex in self.compiled_folder_wtar_regex_list:
+                    if re.search(regex, dir_item):
+                        retVal = True
+                        raise Exception
+            elif os.path.isfile(dir_item):
+                for regex in self.compiled_file_wtar_regex_list:
+                    if re.search(regex, dir_item):
+                        retVal = True
+                        raise Exception
                 if os.path.getsize(dir_item) > self.min_file_size_to_wtar:
                     if self.compiled_wtar_by_file_size_exclude_regex is not None:
                         if not re.match(self.compiled_wtar_by_file_size_exclude_regex, dir_item):

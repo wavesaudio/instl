@@ -227,9 +227,9 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
 split_file()
 {
     file_size=$(stat -f %z "$1")
-    if [ "$(MAX_FILE_SIZE)" -lt "$file_size" ]
+    if [ "$(MIN_FILE_SIZE_TO_WTAR)" -lt "$file_size" ]
     then
-        let "part_size=($file_size / (($file_size / $(MAX_FILE_SIZE)) + ($file_size % $(MAX_FILE_SIZE) > 0 ? 1 : 0)))+1"
+        let "part_size=($file_size / (($file_size / $(MIN_FILE_SIZE_TO_WTAR)) + ($file_size % $(MIN_FILE_SIZE_TO_WTAR) > 0 ? 1 : 0)))+1"
         split -a 2 -b $part_size "$1" "$1."
         rm -fr "$1"
     fi
