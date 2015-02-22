@@ -128,10 +128,13 @@ class InstlClient(InstlInstanceBase):
         var_stack.set_var("__BATCH_CREATE_TIME__").append(time.strftime("%Y/%m/%d %H:%M:%S"))
         yaml_of_defines = augmentedYaml.YamlDumpDocWrap(var_stack, '!define', "Definitions",
                                                         explicit_start=True, sort_mappings=True)
-        with open(var_stack.resolve("$(INSTL_HISTORY_TEMP_PATH)"), "w") as wfd:
-            make_open_file_read_write_for_all(wfd)
-            augmentedYaml.writeAsYaml(yaml_of_defines, wfd)
-        self.batch_accum += self.platform_helper.append_file_to_file("$(INSTL_HISTORY_TEMP_PATH)",
+        # write the history file, but only if variable LOCAL_REPO_BOOKKEEPING_DIR is defined
+        # and the folder actually exists.
+        if os.path.isdir(var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)", default="")):
+            with open(var_stack.resolve("$(INSTL_HISTORY_TEMP_PATH)"), "w") as wfd:
+                make_open_file_read_write_for_all(wfd)
+                augmentedYaml.writeAsYaml(yaml_of_defines, wfd)
+            self.batch_accum += self.platform_helper.append_file_to_file("$(INSTL_HISTORY_TEMP_PATH)",
                                                                      "$(INSTL_HISTORY_PATH)")
 
     def read_repo_type_defaults(self):
@@ -403,6 +406,9 @@ class InstlClient(InstlInstanceBase):
 
         self.accumulate_unique_actions('post_copy', self.installState.full_install_items)
 
+        self.batch_accum.set_current_section('post-copy')
+        self.batch_accum += self.platform_helper.copy_file_to_file("$(HAVE_INFO_MAP_PATH)", "$(SITE_HAVE_INFO_MAP_PATH)")
+
         self.platform_helper.copy_tool.finalize()
 
         self.create_require_file_instructions()
@@ -513,7 +519,10 @@ class InstlClient(InstlInstanceBase):
 
     def create_remove_instructions(self):
         self.have_map = svnTree.SVNTree()
+
         have_info_path = var_stack.resolve("$(HAVE_INFO_MAP_PATH)")
+        if not os.path.isfile(have_info_path):
+            have_info_path = var_stack.resolve("$(SITE_HAVE_INFO_MAP_PATH)")
         self.have_map.read_info_map_from_file(have_info_path, a_format="text")
 
         self.batch_accum.set_current_section('remove')

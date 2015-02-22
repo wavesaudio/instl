@@ -1,6 +1,10 @@
 ???? 0.10.0.3
     user visible changes, client:
     * Better, more meaningful progress messages.
+    * GUIDs that have upper case characters are converted to lower case.
+    * HAVE_INFO_MAP_PATH file is copied to the SITE_HAVE_INFO_MAP_PATH for possible usage by remove command.
+    * SITE SITE_HAVE_INFO_MAP_PATH is used by remove if HAVE_INFO_MAP_PATH was not found. This was done because when removing installation that was done from offline folder, Central will not pass LOCAL_REPO_SYNC_DIR to instl. HAVE_INFO_MAP_PATH depends on LOCAL_REPO_SYNC_DIR.
+    * New variable HAVE_INFO_MAP_FILE_NAME, used by HAVE_INFO_MAP_PATH, NEW_HAVE_INFO_MAP_PATH, SITE_HAVE_INFO_MAP_PATH.
 
     user visible changes, admin:
     * Admin variable MAX_FILE_SIZE renamed MIN_FILE_SIZE_TO_WTAR.
