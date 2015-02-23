@@ -168,47 +168,32 @@ class InstlClient(InstlInstanceBase):
                     p4_sync_dir = P4GetPathFromDepotPath(var_stack.resolve("$(SYNC_BASE_URL)"))
                     var_stack.set_var("P4_SYNC_DIR", "from SYNC_BASE_URL").append(p4_sync_dir)
 
-    def do_sync(self):
-        logging.info("Creating sync instructions")
-        if var_stack.resolve("$(REPO_TYPE)") == "BOTO":
-            from instlInstanceSync_boto import InstlInstanceSync_boto
-            syncer = InstlInstanceSync_boto(self)
-        elif var_stack.resolve("$(REPO_TYPE)") == "URL":
-            from instlInstanceSync_url import InstlInstanceSync_url
-            syncer = InstlInstanceSync_url(self)
-        elif var_stack.resolve("$(REPO_TYPE)") == "SVN":
-            from instlInstanceSync_svn import InstlInstanceSync_svn
-            syncer = InstlInstanceSync_svn(self)
-        elif var_stack.resolve("$(REPO_TYPE)") == "P4":
-            from instlInstanceSync_p4 import InstlInstanceSync_p4
-            syncer = InstlInstanceSync_p4(self)
-        else:
-            raise ValueError('REPO_TYPE is not defined in input file')
+   # sync command implemented in instlClientSync.py file
+    from instlClientSync import do_sync
 
-        self.read_name_specific_defaults_file(type(syncer).__name__)
-        syncer.init_sync_vars()
-        syncer.create_sync_instructions(self.installState)
-        self.batch_accum += self.platform_helper.progress("Done sync")
+    # copy command implemented in instlClientCopy.py file
+    from instlClientCopy import do_copy
+    from instlClientCopy import init_copy_vars
+    from instlClientCopy import create_copy_instructions
+    from instlClientCopy import create_copy_instructions_for_source
+    from instlClientCopy import pre_copy_mac_handling
 
-    def do_copy(self):
-        logging.info("Creating copy instructions")
-        self.init_copy_vars()
-        self.create_copy_instructions()
+    # remove command implemented in instlClientRemove.py file
+    from instlClientRemove import do_remove
+    from instlClientRemove import init_remove_vars
+    from instlClientRemove import create_remove_instructions
+    from instlClientRemove import create_remove_instructions_for_source
 
-    def do_remove(self):
-        logging.info("Creating remove instructions")
-        self.init_remove_vars()
-        self.create_remove_instructions()
+    # uninstall command implemented in instlClientUninstall.py file
+    from instlClientUninstall import do_uninstall
+    from instlClientUninstall import init_uninstall_vars
+    from instlClientUninstall import create_uninstall_instructions
+    from instlClientUninstall import create_require_file_instructions
 
     def do_synccopy(self):
         self.do_sync()
         self.do_copy()
         self.batch_accum += self.platform_helper.progress("Done synccopy")
-
-    def do_uninstall(self):
-        logging.info("Creating uninstall instructions")
-        self.init_uninstall_vars()
-        self.create_uninstall_instructions()
 
     def repr_for_yaml(self, what=None):
         """ Create representation of self suitable for printing as yaml.
@@ -290,135 +275,6 @@ class InstlClient(InstlInstanceBase):
         if os.path.isfile(require_file_path):
             self.read_yaml_file(require_file_path)
 
-    def init_copy_vars(self):
-        self.action_type_to_progress_message = {'pre_copy': "pre-install step",
-                                                'post_copy': "post-install step",
-                                                'pre_copy_to_folder': "pre-copy step",
-                                                'post_copy_to_folder': "post-copy step"}
-
-    def init_remove_vars(self):
-        self.action_type_to_progress_message = {'pre_remove': "pre-remove step",
-                                                'post_remove': "post-remove step",
-                                                'pre_remove_from_folder': "pre-remove-from-folder step",
-                                                'post_remove_from_folder': "post-remove-from-folder step",
-                                                'pre_remove_item': "pre-delete step",
-                                                'post_remove_item': "post-delete step"}
-
-    # special handling when running on Mac OS
-    def pre_copy_mac_handling(self):
-
-        num_files_to_set_exec = self.have_map.num_subs_in_tree(what="file",
-                                                          predicate=lambda in_item: in_item.isExecutable())
-        logging.info("Num files to set exec: %d", num_files_to_set_exec)
-        if num_files_to_set_exec > 0:
-            self.batch_accum += self.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")
-            self.batch_accum += self.platform_helper.set_exec_for_folder(self.have_map.path_to_file)
-            self.platform_helper.num_items_for_progress_report += num_files_to_set_exec
-            self.batch_accum += self.platform_helper.progress("Set exec done")
-            self.batch_accum += self.platform_helper.new_line()
-            self.batch_accum += self.platform_helper.popd()
-
-    def create_copy_instructions(self):
-        self.have_map = svnTree.SVNTree()
-        # read NEW_HAVE_INFO_MAP_PATH and not HAVE_INFO_MAP_PATH. Copy might be called after the sync batch file was created
-        # but before it was executed.  HAVE_INFO_MAP_PATH is only created
-        # when the sync batch file is executed.
-        have_info_path = var_stack.resolve("$(NEW_HAVE_INFO_MAP_PATH)")
-        self.have_map.read_info_map_from_file(have_info_path, a_format="text")
-
-        # copy and actions instructions for sources
-        self.batch_accum.set_current_section('copy')
-        self.batch_accum += self.platform_helper.progress("Starting copy from $(LOCAL_REPO_SYNC_DIR)")
-
-        sorted_target_folder_list = sorted(self.installState.install_items_by_target_folder,
-                                           key=lambda fold: var_stack.resolve(fold))
-
-        # first create all target folders so to avoid dependency order problems such as creating links between folders
-        if len(sorted_target_folder_list) > 0:
-            self.batch_accum += self.platform_helper.progress("Creating folders...")
-            for folder_name in sorted_target_folder_list:
-                self.batch_accum += self.platform_helper.mkdir_with_owner(folder_name)
-            self.batch_accum += self.platform_helper.progress("Create folders done")
-
-        self.accumulate_unique_actions('pre_copy', self.installState.full_install_items)
-
-        if 'Mac' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
-            self.pre_copy_mac_handling()
-
-        for folder_name in sorted_target_folder_list:
-            items_in_folder = self.installState.install_items_by_target_folder[folder_name]
-            logging.info("folder %s", var_stack.resolve(folder_name))
-            self.batch_accum += self.platform_helper.new_line()
-            self.batch_accum += self.platform_helper.cd(folder_name)
-
-            # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
-            self.accumulate_unique_actions('pre_copy_to_folder', items_in_folder)
-
-            batch_accum_len_before = len(self.batch_accum)
-            self.batch_accum += self.platform_helper.copy_tool.begin_copy_folder()
-            for IID in items_in_folder:
-                with self.install_definitions_index[IID] as installi:
-                    for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
-                        source = var_stack.resolve_var_to_list(source_var)
-                        self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_pre_copy_item")
-                        self.create_copy_instructions_for_source(source)
-                        self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_post_copy_item")
-                        self.batch_accum += self.platform_helper.progress("Copy {installi.name}".format(**locals()))
-            self.batch_accum += self.platform_helper.copy_tool.end_copy_folder()
-            logging.info("... copy actions: %d", len(self.batch_accum) - batch_accum_len_before)
-
-            self.batch_accum += self.platform_helper.progress("Expanding files...")
-            self.batch_accum += self.platform_helper.unwtar_current_folder(no_artifacts=True)
-            self.batch_accum += self.platform_helper.progress("Expand files done")
-
-            if 'Mac' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
-                self.batch_accum += self.platform_helper.progress("Resolving symlinks...")
-                self.batch_accum += self.platform_helper.resolve_symlink_files()
-                self.batch_accum += self.platform_helper.progress("Resolve symlinks done")
-
-            # accumulate post_copy_to_folder actions from all items, eliminating duplicates
-            self.accumulate_unique_actions('post_copy_to_folder', items_in_folder)
-
-            self.batch_accum.indent_level -= 1
-
-        # actions instructions for sources that do not need copying, here folder_name is the sync folder
-        for folder_name, items_in_folder in self.installState.no_copy_items_by_sync_folder.iteritems():
-
-            self.batch_accum += self.platform_helper.new_line()
-            self.batch_accum += self.platform_helper.cd(folder_name)
-            self.batch_accum.indent_level += 1
-
-            # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
-            self.accumulate_unique_actions('pre_copy_to_folder', items_in_folder)
-
-            self.batch_accum += self.platform_helper.unwtar_current_folder()
-
-            for IID in items_in_folder:
-                with self.install_definitions_index[IID]:
-                    self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_pre_copy_item")
-                    self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_post_copy_item")
-
-            # accumulate post_copy_to_folder actions from all items, eliminating duplicates
-            self.accumulate_unique_actions('post_copy_to_folder', items_in_folder)
-
-            self.batch_accum += self.platform_helper.progress("{folder_name}".format(**locals()))
-            self.batch_accum.indent_level -= 1
-
-        self.accumulate_unique_actions('post_copy', self.installState.full_install_items)
-
-        self.batch_accum.set_current_section('post-copy')
-        self.batch_accum += self.platform_helper.copy_file_to_file("$(HAVE_INFO_MAP_PATH)", "$(SITE_HAVE_INFO_MAP_PATH)")
-
-        self.platform_helper.copy_tool.finalize()
-
-        self.create_require_file_instructions()
-
-        # messages about orphan iids
-        for iid in self.installState.orphan_install_items:
-            logging.info("Orphan item: %s", iid)
-            self.batch_accum += self.platform_helper.echo("Don't know how to install " + iid)
-        self.batch_accum += self.platform_helper.progress("Done copy")
-
     def accumulate_unique_actions(self, action_type, iid_list):
         """ accumulate action_type actions from iid_list, eliminating duplicates"""
         unique_actions = unique_list()  # unique_list will eliminate identical actions while keeping the order
@@ -440,55 +296,6 @@ class InstlClient(InstlInstanceBase):
                             self.platform_helper.progress("{installi.name} {action_description}".format(**locals())))
         self.batch_accum += unique_actions
         logging.info("... %s actions: %d", action_type, len(unique_actions))
-
-    def create_copy_instructions_for_source(self, source):
-        """ source is a tuple (source_path, tag), where tag is either !file or !dir """
-
-        source_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + source[0])
-
-        ignore_list = var_stack.resolve_to_list("$(COPY_IGNORE_PATTERNS)")
-
-        if source[1] == '!file':  # get a single file, not recommended
-            source_item = self.have_map.get_item_at_path(source[0])
-            if source_item:
-                self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".",
-                                                                                link_dest=True,
-                                                                                ignore=ignore_list)
-            else:
-                source_folder, source_name = os.path.split(source[0])
-                source_folder_item = self.have_map.get_item_at_path(source_folder)
-                if source_folder_item:
-                    for wtar_item in source_folder_item.walk_items_with_filter(svnTree.WtarFilter(source_name), what="file"):
-                        source_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + wtar_item.full_path())
-                        self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".",
-                                                                                link_dest=True,
-                                                                                ignore=ignore_list)
-
-        elif source[1] == '!dir_cont':  # get all files and folders from a folder
-            self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".",
-                                                                                        link_dest=True,
-                                                                                        ignore=ignore_list,
-                                                                                        preserve_dest_files=True) # preserve files already in destination
-        elif source[1] == '!files':  # get all files from a folder
-            self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".",
-                                                                                     link_dest=True,
-                                                                                     ignore=ignore_list)
-        else:  # !dir
-            source_item = self.have_map.get_item_at_path(source[0])
-            if source_item:
-                self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path, ".",
-                                                                               link_dest=True,
-                                                                               ignore=ignore_list)
-            else:
-                source_folder, source_name = os.path.split(source[0])
-                source_folder_item = self.have_map.get_item_at_path(source_folder)
-                if source_folder_item:
-                    for wtar_item in source_folder_item.walk_items_with_filter(svnTree.WtarFilter(source_name), what="file"):
-                        source_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + wtar_item.full_path())
-                        self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".",
-                                                                                link_dest=True,
-                                                                                ignore=ignore_list)
-        logging.debug("%s; (%s - %s)", source_path, var_stack.resolve(source_path), source[1])
 
     def needs(self, iid, out_list):
         """ return all items that depend on iid """
@@ -516,125 +323,3 @@ class InstlClient(InstlInstanceBase):
         except ImportError:  # no installItemGraph, no worry
             print("Could not load installItemGraph")
             return None
-
-    def create_remove_instructions(self):
-        self.have_map = svnTree.SVNTree()
-
-        have_info_path = var_stack.resolve("$(HAVE_INFO_MAP_PATH)")
-        if not os.path.isfile(have_info_path):
-            have_info_path = var_stack.resolve("$(SITE_HAVE_INFO_MAP_PATH)")
-        self.have_map.read_info_map_from_file(have_info_path, a_format="text")
-
-        self.batch_accum.set_current_section('remove')
-        self.batch_accum += self.platform_helper.progress("Starting remove")
-        sorted_target_folder_list = sorted(self.installState.install_items_by_target_folder,
-                                           key=lambda fold: var_stack.resolve(fold),
-                                           reverse=True)
-        # print(sorted_target_folder_list)
-        self.accumulate_unique_actions('pre_remove', self.installState.full_install_items)
-
-        for folder_name in sorted_target_folder_list:
-            var_stack.set_var("__TARGET_DIR__").append(os.path.normpath(folder_name))
-            items_in_folder = self.installState.install_items_by_target_folder[folder_name]
-            logging.info("folder %s", var_stack.resolve(folder_name))
-            self.batch_accum += self.platform_helper.new_line()
-
-            self.accumulate_unique_actions('pre_remove_from_folder', items_in_folder)
-
-            for IID in items_in_folder:
-                with self.install_definitions_index[IID] as installi:
-                    for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
-                        source = var_stack.resolve_var_to_list(source_var)
-                        self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_pre_remove_item")
-                        self.create_remove_instructions_for_source(folder_name, source)
-                        self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_post_remove_item")
-                        self.batch_accum += self.platform_helper.progress("Remove {installi.name}".format(**locals()))
-
-            self.accumulate_unique_actions('post_remove_from_folder', items_in_folder)
-
-        self.accumulate_unique_actions('post_remove', self.installState.full_install_items)
-
-    # create_remove_instructions_for_source:
-    # Create instructions to remove a specific source from a specific target folder.
-    # There can be 3 possibilities according to the value of the item's remove_item section:
-    # No remove_item was specified - so all item's sources should be deleted.
-    # Null remove_item was specified (remove_item: ~) - so nothing should be done.
-    # Specific remove_item action specified - so specific action should be done.
-
-    def create_remove_instructions_for_source(self, folder, source):
-        """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
-
-        base_, leaf = os.path.split(source[0])
-        to_remove_path = os.path.normpath(os.path.join(folder, leaf))
-
-        remove_actions = var_stack.resolve_var_to_list_if_exists("iid_action_list_remove_item")
-        if len(remove_actions) == 0:
-            if source[1] == '!dir':  # remove whole folder
-                remove_action = self.platform_helper.rmdir(to_remove_path, recursive=True)
-                self.batch_accum += remove_action
-            elif source[1] == '!file':  # remove single file
-                remove_action = self.platform_helper.rmfile(to_remove_path)
-                self.batch_accum += remove_action
-            elif source[1] == '!dir_cont': # remove all source's files and folders from a folder
-                source_folder_info_map_item = self.have_map.get_item_at_path(source[0])
-                file_list, folder_list = source_folder_info_map_item.sorted_sub_items()
-                unwtared_file_name_list = self.replace_wtar_names_with_real_names(file_item.name() for file_item in file_list)
-                for sub_file_name in unwtared_file_name_list:
-                    to_remove_path = os.path.normpath(os.path.join(folder, sub_file_name))
-                    remove_action = self.platform_helper.rm_file_or_dir(to_remove_path)
-                    self.batch_accum += remove_action
-                for sub_folder in folder_list:
-                    to_remove_path = os.path.normpath(os.path.join(folder, sub_folder.name()))
-                    remove_action = self.platform_helper.rmdir(to_remove_path, recursive=True)
-                    self.batch_accum += remove_action
-            elif source[1] == '!files':    # # remove all source's files from a folder
-                source_folder_info_map_item = self.have_map.get_item_at_path(source[0])
-                file_list, folder_list = source_folder_info_map_item.sorted_sub_items()
-                unwtared_file_name_list = self.replace_wtar_names_with_real_names(file_item.name() for file_item in file_list)
-                for sub_file_name in unwtared_file_name_list:
-                    to_remove_path = os.path.normpath(os.path.join(folder, sub_file_name))
-                    remove_action = self.platform_helper.rm_file_or_dir(to_remove_path)
-                    self.batch_accum += remove_action
-        else:
-            remove_actions = filter(None, remove_actions)  # filter out None values
-            self.batch_accum += remove_actions
-
-    def init_uninstall_vars(self):
-        pass
-
-    def create_uninstall_instructions(self):
-        self.init_uninstall_vars()
-        #self.uninstall_definitions_index = dict()
-        full_list_of_iids_to_uninstall = list()
-        from collections import deque
-        iids_to_check = deque()
-        iids_to_check.extend(self.installState.root_install_items)
-        while len(iids_to_check) > 0:
-            curr_iid = iids_to_check.popleft()
-            for item in self.install_definitions_index.itervalues():
-                if len(item.required_by) > 0: # to avoid repeated checks
-                    item.required_by.remove(curr_iid)
-                    if len(item.required_by) == 0:
-                        full_list_of_iids_to_uninstall.append(item.iid)
-                        iids_to_check.append(item.iid)
-
-        print("requested items to uninstall:", self.installState.root_install_items)
-        if len(full_list_of_iids_to_uninstall) > 0:
-            self.installState.full_install_items.extend(full_list_of_iids_to_uninstall)
-            self.installState.sort_install_items_by_target_folder(self)
-            print("actual items to uninstall:", self.installState.full_install_items)
-            self.create_require_file_instructions()
-            self.init_remove_vars()
-            self.create_remove_instructions()
-        else:
-            print("nothing to uninstall")
-
-    def create_require_file_instructions(self):
-        # write the require file as it should look after copy is done
-        new_require_file_path = var_stack.resolve("$(NEW_SITE_REQUIRE_FILE_PATH)", raise_on_fail=True)
-        new_require_file_dir, new_require_file_name = os.path.split(new_require_file_path)
-        safe_makedirs(new_require_file_dir)
-        self.write_require_file(new_require_file_path)
-        # Copy the new require file over the old one, if copy fails the old file remains.
-        self.batch_accum += self.platform_helper.copy_file_to_file("$(NEW_SITE_REQUIRE_FILE_PATH)",
-                                                                        "$(SITE_REQUIRE_FILE_PATH)")

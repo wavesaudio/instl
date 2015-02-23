@@ -11,6 +11,9 @@
     * New admin variable: WTAR_BY_FILE_SIZE_EXCLUDE_REGEX. Files names passing this regex will not be wtarred. This was done mainly to disable wtarring of instl itself when updating it.
     * Variable WTAR_REGEX split in to twp: FOLDER_WTAR_REGEX, FILE_WTAR_REGEX to allow separation between files and folders when choosing what to wtar.
 
+    programmer visible changes:
+    * Separated instlClient to different files by command: insltClientCopy, instlClientRemove, instlClientSync, instlClientUninstall.
+
 15/2/2015 0.10.0.2
     user visible changes, admin:
     * removed --acl when uploading to S3.
