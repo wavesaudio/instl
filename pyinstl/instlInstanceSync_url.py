@@ -120,8 +120,15 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
         self.work_info_map.set_user_data_all_recursive(False)  # items that need checksum will be marked True
+
+        import time
+        before_time = time.time()
         for need_item in file_list + dir_list:
             self.create_download_instructions_for_item(need_item)
+        after_time = time.time()
+        if self.instlObj.platform_helper.dl_tool.get_num_urls_to_download() > 0:
+            elapsed_time = after_time - before_time
+            print("Create urls", "time:", round(elapsed_time, 2), "sec.", self.instlObj.platform_helper.dl_tool.get_num_urls_to_download()/elapsed_time, "urls per sec.")
 
         var_stack.add_const_config_variable("__NUM_FILES_TO_DOWNLOAD__", "create_download_instructions",
                                            self.instlObj.platform_helper.dl_tool.get_num_urls_to_download())

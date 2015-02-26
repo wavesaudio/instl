@@ -5,6 +5,7 @@
     * HAVE_INFO_MAP_PATH file is copied to the SITE_HAVE_INFO_MAP_PATH for possible usage by remove command.
     * SITE SITE_HAVE_INFO_MAP_PATH is used by remove if HAVE_INFO_MAP_PATH was not found. This was done because when removing installation that was done from offline folder, Central will not pass LOCAL_REPO_SYNC_DIR to instl. HAVE_INFO_MAP_PATH depends on LOCAL_REPO_SYNC_DIR.
     * New variable HAVE_INFO_MAP_FILE_NAME, used by HAVE_INFO_MAP_PATH, NEW_HAVE_INFO_MAP_PATH, SITE_HAVE_INFO_MAP_PATH.
+    * Added time measurements to create urls
 
     user visible changes, admin:
     * Admin variable MAX_FILE_SIZE renamed MIN_FILE_SIZE_TO_WTAR.
@@ -13,6 +14,7 @@
 
     programmer visible changes:
     * Separated instlClient to different files by command: insltClientCopy, instlClientRemove, instlClientSync, instlClientUninstall.
+    * renamed translate_url to translate_url_parser in commandline options parsing.
 
 15/2/2015 0.10.0.2
     user visible changes, admin:
