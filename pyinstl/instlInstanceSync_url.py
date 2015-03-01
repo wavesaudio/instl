@@ -93,6 +93,11 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
     def create_download_instructions(self):
         self.instlObj.batch_accum.set_current_section('sync')
+        file_list, dir_list = self.work_info_map.sorted_sub_items()
+
+        if len(file_list) + len(dir_list) == 0:
+            print("0 files to sync")
+            return
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress(
             "Starting sync from $(SYNC_BASE_URL)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir("$(LOCAL_REPO_SYNC_DIR)")
@@ -101,7 +106,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
-        file_list, dir_list = self.work_info_map.sorted_sub_items()
 
         prefix_accum = BatchAccumulator()  # sub-accumulator for prefix instructions
         prefix_accum.set_current_section('sync')
@@ -114,10 +118,11 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         num_dirs_to_create = self.work_info_map.num_subs_in_tree(what="dir")
         logging.info("Num directories to create: %d", num_dirs_to_create)
-        self.instlObj.batch_accum += self.instlObj.platform_helper.create_folders("$(TO_SYNC_INFO_MAP_PATH)")
-        self.instlObj.platform_helper.num_items_for_progress_report += num_dirs_to_create
-        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Create folders")
-        self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
+        if num_dirs_to_create > 0:
+            self.instlObj.batch_accum += self.instlObj.platform_helper.create_folders("$(TO_SYNC_INFO_MAP_PATH)")
+            self.instlObj.platform_helper.num_items_for_progress_report += num_dirs_to_create
+            self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Create folders")
+            self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
         self.work_info_map.set_user_data_all_recursive(False)  # items that need checksum will be marked True
 

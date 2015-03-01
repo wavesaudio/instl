@@ -6,6 +6,8 @@
     * SITE SITE_HAVE_INFO_MAP_PATH is used by remove if HAVE_INFO_MAP_PATH was not found. This was done because when removing installation that was done from offline folder, Central will not pass LOCAL_REPO_SYNC_DIR to instl. HAVE_INFO_MAP_PATH depends on LOCAL_REPO_SYNC_DIR.
     * New variable HAVE_INFO_MAP_FILE_NAME, used by HAVE_INFO_MAP_PATH, NEW_HAVE_INFO_MAP_PATH, SITE_HAVE_INFO_MAP_PATH.
     * Added time measurements to create urls
+    * Sync command: When no files to sync created batch file will have one progress item: "Done Sync".
+    * Sync command: When no dirs to create no prgress items will be created.
 
     user visible changes, admin:
     * Admin variable MAX_FILE_SIZE renamed MIN_FILE_SIZE_TO_WTAR.
