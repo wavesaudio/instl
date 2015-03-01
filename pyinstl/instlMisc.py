@@ -207,5 +207,5 @@ class InstlMisc(InstlInstanceBase):
 
     def do_translate_url(self):
         url_to_translate = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
-            translated_url = ConnectionBase.repo_connection.translate_url(url_to_translate)
-            print(translated_url)
+        translated_url = ConnectionBase.repo_connection.translate_url(url_to_translate)
+        print(translated_url)
