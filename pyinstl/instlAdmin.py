@@ -418,7 +418,9 @@ class InstlAdmin(InstlInstanceBase):
         var_stack.set_var("INFO_MAP_SIG").append(info_map_sigs["SHA-512_rsa_sig"])
         var_stack.set_var("INFO_MAP_CHECKSUM").append(info_map_sigs["sha1_checksum"])
 
-        var_stack.set_var("INDEX_URL").append("$(SYNC_BASE_URL)/$(REPO_REV)/instl/index.yaml")
+
+        var_stack.set_var("INDEX_URL_RELATIVE_PATH").append("$(REPO_REV)/instl/index.yaml")
+        var_stack.set_var("INDEX_URL").append("$(SYNC_BASE_URL)/$(INDEX_URL_RELATIVE_PATH)")
         index_file = var_stack.resolve("$(ROOT_LINKS_FOLDER_REPO)/$(TARGET_REPO_REV)/instl/index.yaml")
         index_file_sigs = self.create_sig_for_file(index_file)
         var_stack.set_var("INDEX_SIG").append(index_file_sigs["SHA-512_rsa_sig"])

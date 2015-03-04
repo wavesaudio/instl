@@ -67,7 +67,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         return retVal
 
     def get_resolve_symlinks_func(self):
-        """ create instructions to turn .readlink files into symlinks.
+        """ create instructions to turn .symlink files into real symlinks.
             Main problem was with files that had space in their name, just
             adding \" was no enough, had to separate each step to a single line
             which solved the spaces problem. Also find returns an empty string
