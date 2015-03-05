@@ -43,8 +43,8 @@ class SVNItem(object):
         s - symlink
     """
 
-    __slots__ = ("__up", "__name", "__flags", "__last_rev", "__subs", "__checksum", "props", "user_data")
-    def __init__(self, in_name, in_flags, in_last_rev, in_checksum=None):
+    __slots__ = ("__up", "__name", "__flags", "__last_rev", "__subs", "__checksum", "__url", "props", "user_data")
+    def __init__(self, in_name, in_flags, in_last_rev, in_checksum=None, in_url=None):
         """ constructor """
 
         self.__up = None
@@ -52,6 +52,7 @@ class SVNItem(object):
         self.__flags = in_flags
         self.__last_rev = in_last_rev
         self.__checksum = in_checksum
+        self.__url = in_url
         self.__subs = None
         if self.isDir():
             self.__subs = dict()
@@ -61,10 +62,11 @@ class SVNItem(object):
     def __str__(self):
         """ __str__ representation - this is what will be written to info_map.txt files"""
         full_path_str = self.full_path()
+        retVal = "{}, {}, {}".format(full_path_str, self.__flags, self.__last_rev)
         if self.__checksum:
-            retVal = "{}, {}, {}, {}".format(full_path_str, self.__flags, self.__last_rev, self.__checksum)
-        else:
-            retVal = "{}, {}, {}".format(full_path_str, self.__flags, self.__last_rev)
+            retVal = "{}, {}".format(retVal, self.__checksum)
+        if self.__url:
+            retVal = "{}, {}".format(retVal, self.__url)
         return retVal
 
     def __copy__(self):
@@ -82,7 +84,7 @@ class SVNItem(object):
 
     def __getstate__(self):
         """ for pickling """
-        return [[self.__up, self.__name, self.__flags, self.__last_rev], self.__subs]
+        return [[self.__up, self.__name, self.__flags, self.__last_rev, __checksum, __url], self.__subs]
 
     def __setstate__(self, state):
         """ for pickling """
@@ -90,20 +92,19 @@ class SVNItem(object):
         self.__name = state[0][1]
         self.__flags = state[0][2]
         self.__last_rev = state[0][3]
+        self.__checksum = state[0][4]
+        self.__url = state[0][5]
         self.__subs = state[1]
 
     def __eq__(self, other):
         """ compare items and it's subs """
-        same_name = self.name() == other.name()
-        same_flags = self.flags() == other.flags()
-        same_last_rev = self.last_rev() == other.last_rev()
-        retVal = same_name and same_flags and same_last_rev
-        same_subs = None
-
-        both_are_files = self.isFile() and other.isFile()
-         # do not bother checking subs if the containing objects are either both files or their members are not the equal
-        if retVal and not both_are_files:
-            retVal = self.subs() == other.subs()
+        retVal = (self.name() == other.name()
+            and self.flags() == other.flags()
+            and self.last_rev() == other.last_rev()
+            and self.__checksum() == other.__checksum()
+            and self.__url() == other.__url()
+            and self.subs() == other.subs()
+            )
 
         return retVal
 
@@ -129,6 +130,10 @@ class SVNItem(object):
     def checksum(self):
         """ return checksum """
         return self.__checksum
+
+    def url(self):
+        """ return url """
+        return self.__url
 
     def set_checksum(self, new_checksum):
         """ update checksum """
