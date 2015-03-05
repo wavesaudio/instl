@@ -35,7 +35,7 @@ class InstlGui(InstlInstanceBase):
         self.master = Tk()
         self.master.createcommand('exit', self.quit_app) # exit from quit menu or Command-Q
         self.master.protocol('WM_DELETE_WINDOW', self.quit_app) # exit from closing the window
-        self.commands_that_accept_limit_option = ("stage2svn", "svn2stage")
+        self.commands_that_accept_limit_option = ("stage2svn", "svn2stage", "wtar")
 
         self.client_command_name_var = StringVar()
         self.client_input_path_var = StringVar()

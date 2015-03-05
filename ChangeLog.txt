@@ -15,6 +15,8 @@
     * Variable WTAR_REGEX split in to twp: FOLDER_WTAR_REGEX, FILE_WTAR_REGEX to allow separation between files and folders when choosing what to wtar.
     * repo rev file has new variable INDEX_URL_RELATIVE_PATH, for the convenience of the secure URL creating code.
     * improved the help for unwtar command
+    * added --limit option to wtar command so it can work on specific folders.
+    * fix-symlinks command will work even if there are broken symlinks. THere might point to inside folders that were wtared.
 
     programmer visible changes:
     * Separated instlClient to different files by command: insltClientCopy, instlClientRemove, instlClientSync, instlClientUninstall.

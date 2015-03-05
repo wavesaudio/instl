@@ -191,7 +191,7 @@ def prepare_args_parser():
                                 fix_symlinks_parser)
     need_progress_options = (check_checksum_parser, unwtar_parser, create_folders_parser,
                             set_exec_parser)
-    need_limit_options = (stage2svn_parser, svn2stage_parser)
+    need_limit_options = (stage2svn_parser, svn2stage_parser, wtar_parser)
 
     # add --in to parsers that need it
     for subparser in need_input_options:

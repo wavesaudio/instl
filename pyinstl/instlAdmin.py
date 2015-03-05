@@ -552,12 +552,13 @@ class InstlAdmin(InstlInstanceBase):
                     if os.path.isdir(target_path) or os.path.isfile(target_path):
                         valid_symlinks.append( (item_path, link_value) )
                     else:
+                        valid_symlinks.append( (item_path, link_value) )
                         broken_symlinks.append((item_path, link_value))
         if len(broken_symlinks) > 0:
-            print("Found broken symlinks, please fix and run fix-symlinks again")
+            print("Found broken symlinks")
             for symlink_file, link_value in broken_symlinks:
                 print(symlink_file, "-?>", link_value)
-        else:
+        if len(valid_symlinks) > 0:
             for symlink_file, link_value in valid_symlinks:
                 symlink_text_path = symlink_file+".symlink"
                 self.batch_accum += " ".join( ("echo", "-n", "'"+link_value+"'", ">", "'"+symlink_text_path+"'") )
@@ -692,15 +693,24 @@ class InstlAdmin(InstlInstanceBase):
         self.batch_accum += self.platform_helper.split_func()
 
         stage_folder = var_stack.resolve("$(STAGING_FOLDER)")
-        self.batch_accum += self.platform_helper.unlock(stage_folder, recursive=True)
-        self.batch_accum += self.platform_helper.progress("chflags -R nouchg "+stage_folder)
-        self.batch_accum += self.platform_helper.new_line()
-        folders_to_check = [stage_folder]
+        if var_stack.defined("__LIMIT_COMMAND_TO__"):
+            limit_list = var_stack.resolve_to_list("$(__LIMIT_COMMAND_TO__)")
+            folders_to_check = [os.path.join(stage_folder, unquoteme(limit)) for limit in limit_list]
+            print("wtar limited to ", "; ".join(var_stack.resolve_to_list("$(__LIMIT_COMMAND_TO__)")))
+        else:
+            print ("wtar for the whole repository")
+            folders_to_check = [stage_folder]
+
+        for a_folder in folders_to_check:
+            self.batch_accum += self.platform_helper.unlock(a_folder, recursive=True)
+            self.batch_accum += self.platform_helper.progress("chflags -R nouchg "+a_folder)
+            self.batch_accum += self.platform_helper.new_line()
+
         while len(folders_to_check) > 0:
             folder_to_check = folders_to_check.pop()
             dir_items = os.listdir(folder_to_check)
             items_to_tar = list()
-            for dir_item in dir_items:
+            for dir_item in sorted(dir_items):
                 dir_item_full_path = os.path.join(folder_to_check, dir_item)
                 if not os.path.islink(dir_item_full_path):
                     to_tar = self.should_wtar(dir_item_full_path)
