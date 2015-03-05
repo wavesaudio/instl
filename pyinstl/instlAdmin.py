@@ -878,6 +878,8 @@ class InstlAdmin(InstlInstanceBase):
         num_dirs = info_map.num_subs_in_tree(what="dir")
         print("info map:", num_files, "files in", num_dirs, "folders")
 
+    def do_read_yaml(self):
+        self.read_yaml_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)"))
 
 def percent_cb(unused_complete, unused_total):
     sys.stdout.write('.')

@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 import stat
+from time import time, localtime, strftime
 import shlex
 from pyinstl.utils import *
 from aYaml import augmentedYaml
@@ -273,7 +274,9 @@ class InstlGui(InstlInstanceBase):
         # instl command selection
         self.admin_command_name_var.set(var_stack.unresolved_var("ADMIN_GUI_CMD"))
         admin_command_list = var_stack.resolve_var_to_list("__ADMIN_GUI_CMD_LIST__")
-        OptionMenu(admin_frame, self.admin_command_name_var, self.admin_command_name_var.get(), *admin_command_list, command=self.update_admin_state).grid(row=curr_row, column=1, sticky=W)
+        commandNameMenu = OptionMenu(admin_frame, self.admin_command_name_var, self.admin_command_name_var.get(), *admin_command_list, command=self.update_admin_state)
+        commandNameMenu.grid(row=curr_row, column=1, sticky=W)
+        ToolTip(commandNameMenu, msg="instl admin command")
 
         self.run_admin_batch_file_var.set(str_to_bool_int(var_stack.unresolved_var("ADMIN_GUI_RUN_BATCH")))
         Checkbutton(admin_frame, text="Run batch file", variable=self.run_admin_batch_file_var, command=self.update_admin_state).grid(row=curr_row, column=2, columnspan=2, sticky=E)
@@ -282,26 +285,48 @@ class InstlGui(InstlInstanceBase):
         curr_row += 1
         Label(admin_frame, text="Config file:").grid(row=curr_row, column=0, sticky=E)
         self.admin_config_path_var.set(var_stack.unresolved_var("ADMIN_GUI_CONFIG_FILE"))
-        Entry(admin_frame, textvariable=self.admin_config_path_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
+        configFilePathEntry = Entry(admin_frame, textvariable=self.admin_config_path_var)
+        configFilePathEntry.grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
+        ToolTip(configFilePathEntry, msg="path instl repository config file")
         self.admin_config_path_var.trace('w', self.update_admin_state)
-        Button(admin_frame, width=2, text="...", command=self.get_admin_config_file).grid(row=curr_row, column=3, sticky=W)
-        Button(admin_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_stack.resolve_var("ADMIN_GUI_CONFIG_FILE"))).grid(row=curr_row, column=4, sticky=W)
+
+        openConfigButt = Button(admin_frame, width=2, text="...", command=self.get_admin_config_file)
+        openConfigButt.grid(row=curr_row, column=3, sticky=W)
+        ToolTip(openConfigButt, msg="open admin config file")
+
+        editConfigButt = Button(admin_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_stack.resolve_var("ADMIN_GUI_CONFIG_FILE")))
+        editConfigButt.grid(row=curr_row, column=4, sticky=W)
+        ToolTip(editConfigButt, msg="edit admin config file")
+
+        checkConfigButt = Button(admin_frame, width=3, text="Chk",  command=lambda: self.check_yaml(var_stack.resolve_var("ADMIN_GUI_CONFIG_FILE")))
+        checkConfigButt.grid(row=curr_row, column=5, sticky=W)
+        ToolTip(checkConfigButt, msg="read admin config file to check it's structure")
 
         # path to stage index file
         curr_row += 1
         Label(admin_frame, text="Stage index:").grid(row=curr_row, column=0, sticky=E)
         Label(admin_frame, text="---", textvariable=self.admin_stage_index_var).grid(row=curr_row, column=1, columnspan=2, sticky=W)
-        Button(admin_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_stack.resolve("$(STAGING_FOLDER)/instl/index.yaml", raise_on_fail=True))).grid(row=curr_row, column=4, sticky=W)
+        editIndexButt = Button(admin_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_stack.resolve("$(STAGING_FOLDER)/instl/index.yaml", raise_on_fail=True)))
+        editIndexButt.grid(row=curr_row, column=4, sticky=W)
+        ToolTip(editIndexButt, msg="edit repository index")
+
+        checkIndexButt = Button(admin_frame, width=3, text="Chk",  command=lambda: self.check_yaml(var_stack.resolve("$(STAGING_FOLDER)/instl/index.yaml")))
+        checkIndexButt.grid(row=curr_row, column=5, sticky=W)
+        ToolTip(checkIndexButt, msg="read repository index to check it's structure")
 
         # path to svn repository
         curr_row += 1
         Label(admin_frame, text="Svn repo:").grid(row=curr_row, column=0, sticky=E)
-        Label(admin_frame, text="---", textvariable=self.admin_svn_repo_var).grid(row=curr_row, column=1, columnspan=2, sticky=W)
+        svnRepoLabel = Label(admin_frame, text="---", textvariable=self.admin_svn_repo_var)
+        svnRepoLabel.grid(row=curr_row, column=1, columnspan=2, sticky=W)
+        ToolTip(svnRepoLabel, msg="URL of the SVN repository with current repo-rev")
 
         # sync URL
         curr_row += 1
         Label(admin_frame, text="Sync URL:").grid(row=curr_row, column=0, sticky=E)
-        Label(admin_frame, text="---", textvariable=self.admin_sync_url_var).grid(row=curr_row, column=1, columnspan=2, sticky=W)
+        syncURLLabel = Label(admin_frame, text="---", textvariable=self.admin_sync_url_var)
+        syncURLLabel.grid(row=curr_row, column=1, columnspan=2, sticky=W)
+        ToolTip(syncURLLabel, msg="Top URL for uploading to the repository")
 
         # path to output file
         curr_row += 1
@@ -355,6 +380,7 @@ class InstlGui(InstlInstanceBase):
         self.client_input_path_var.trace('w', self.update_client_state)
         Button(client_frame, width=2, text="...", command=self.get_client_input_file).grid(row=curr_row, column=3, sticky=W)
         Button(client_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_stack.resolve_var("CLIENT_GUI_IN_FILE"))).grid(row=curr_row, column=4, sticky=W)
+        Button(client_frame, width=3, text="Chk",  command=lambda: self.check_yaml(var_stack.resolve_var("CLIENT_GUI_IN_FILE"))).grid(row=curr_row, column=5, sticky=W)
 
         # path to output file
         curr_row += 1
@@ -428,3 +454,105 @@ class InstlGui(InstlInstanceBase):
         self.master.mainloop()
         self.quit_app()
         #self.master.destroy() # optional; see description below
+
+    def check_yaml(self, path_to_yaml):
+        command_line = [var_stack.resolve_var("__INSTL_EXE_PATH__"), "read-yaml",
+                        "--in", path_to_yaml]
+
+        from subprocess import Popen
+        if getattr(os, "setsid", None):
+            proc = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid) # Unix
+        else:
+            proc = subprocess.Popen(command_line, executable=command_line[0], shell=False) # Windows
+        unused_stdout, unused_stderr = proc.communicate()
+        retcode = proc.returncode
+        if retcode != 0:
+            print(" ".join(command_line) + " returned exit code " + str(retcode))
+        else:
+            print(path_to_yaml, "read OK")
+
+class ToolTip( Toplevel ):
+    """
+    Provides a ToolTip widget for Tkinter.
+    To apply a ToolTip to any Tkinter widget, simply pass the widget to the
+    ToolTip constructor
+    """
+    def __init__( self, wdgt, msg=None, msgFunc=None, delay=0.2, follow=True ):
+        """
+        Initialize the ToolTip
+
+        Arguments:
+          wdgt: The widget this ToolTip is assigned to
+          msg:  A static string message assigned to the ToolTip
+          msgFunc: A function that retrieves a string to use as the ToolTip text
+          delay:   The delay in seconds before the ToolTip appears(may be float)
+          follow:  If True, the ToolTip follows motion, otherwise hides
+        """
+        self.wdgt = wdgt
+        self.parent = self.wdgt.master                                          # The parent of the ToolTip is the parent of the ToolTips widget
+        Toplevel.__init__( self, self.parent, bg='black', padx=1, pady=1 )      # Initalise the Toplevel
+        self.withdraw()                                                         # Hide initially
+        self.overrideredirect( True )                                           # The ToolTip Toplevel should have no frame or title bar
+
+        self.msgVar = StringVar()                                               # The msgVar will contain the text displayed by the ToolTip
+        if msg == None:
+            self.msgVar.set( 'No message provided' )
+        else:
+            self.msgVar.set( msg )
+        self.msgFunc = msgFunc
+        self.delay = delay
+        self.follow = follow
+        self.visible = 0
+        self.lastMotion = 0
+        Message( self, textvariable=self.msgVar, bg='#FFFFDD',
+                 aspect=1000 ).grid()                                           # The test of the ToolTip is displayed in a Message widget
+        self.wdgt.bind( '<Enter>', self.spawn, '+' )                            # Add bindings to the widget.  This will NOT override bindings that the widget already has
+        self.wdgt.bind( '<Leave>', self.hide, '+' )
+        self.wdgt.bind( '<Motion>', self.move, '+' )
+
+    def spawn( self, event=None ):
+        """
+        Spawn the ToolTip.  This simply makes the ToolTip eligible for display.
+        Usually this is caused by entering the widget
+
+        Arguments:
+          event: The event that called this funciton
+        """
+        self.visible = 1
+        self.after( int( self.delay * 1000 ), self.show )                       # The after function takes a time argument in miliseconds
+
+    def show( self ):
+        """
+        Displays the ToolTip if the time delay has been long enough
+        """
+        if self.visible == 1 and time() - self.lastMotion > self.delay:
+            self.visible = 2
+        if self.visible == 2:
+            self.deiconify()
+    def move( self, event ):
+        """
+        Processes motion within the widget.
+
+        Arguments:
+          event: The event that called this function
+        """
+        self.lastMotion = time()
+        if self.follow == False:                                                # If the follow flag is not set, motion within the widget will make the ToolTip dissapear
+            self.withdraw()
+            self.visible = 1
+        self.geometry( '+%i+%i' % ( event.x_root+10, event.y_root+10 ) )        # Offset the ToolTip 10x10 pixes southwest of the pointer
+        try:
+            self.msgVar.set( self.msgFunc() )                                   # Try to call the message function.  Will not change the message if the message function is None or the message function fails
+        except:
+            pass
+        self.after( int( self.delay * 1000 ), self.show )
+
+    def hide( self, event=None ):
+        """
+        Hides the ToolTip.  Usually this is caused by leaving the widget
+
+        Arguments:
+          event: The event that called this function
+        """
+        self.visible = 0
+        self.withdraw()

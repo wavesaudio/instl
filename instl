@@ -130,7 +130,8 @@ def prepare_args_parser():
     help_parser = subparsers.add_parser('help')
     make_sig_parser = subparsers.add_parser('make-sig', help='create sha1 checksum and rsa signature for a file')
     parallel_run_parser = subparsers.add_parser('parallel-run', help="Run processes in parallel")
-    remove_empty_folders = subparsers.add_parser('remove-empty-folders', help="remove folders is they are empty")
+    read_yaml_parser = subparsers.add_parser('read-yaml', help="reads a yaml file to verify it's contents")
+    remove_empty_folders_parser = subparsers.add_parser('remove-empty-folders', help="remove folders is they are empty")
     remove_parser = subparsers.add_parser('remove', help="remove items installed by copy")
     set_exec_parser = subparsers.add_parser('set-exec', help='set executable bit for appropriate files')
     stage2svn_parser = subparsers.add_parser('stage2svn', help='add/remove files in staging to svn sync repository')
@@ -151,16 +152,18 @@ def prepare_args_parser():
 
     command_names = sorted(subparsers.choices.keys())
 
+    # each parser must be member of one and only one 'modes' so the appropriate object
+    # can be created to handle the command.
     modes = {'client': (sync_parser, copy_parser, synccopy_parser,
                         remove_parser, uninstall_parser),
              'admin': (trans_parser, create_links_parser, up2S3_parser,
                         up_repo_rev_parser, fix_props_parser, fix_symlinks_parser,
                         stage2svn_parser, svn2stage_parser, wtar_parser,
                         create_rsa_keys_parser, make_sig_parser, check_sig_parser,
-                        create_repo_rev_file_parser, verify_index_parser),
+                        create_repo_rev_file_parser, verify_index_parser, read_yaml_parser),
              'do_something': (version_parser, help_parser, parallel_run_parser,
                               unwtar_parser, check_checksum_parser, create_folders_parser,
-                              set_exec_parser, test_import_parser, remove_empty_folders,
+                              set_exec_parser, test_import_parser, remove_empty_folders_parser,
                               win_shortcut_parser, translate_url_parser),
              'gui': (gui_parser,)
             }
@@ -172,7 +175,8 @@ def prepare_args_parser():
                           trans_parser, make_sig_parser, check_sig_parser,
                             verify_index_parser, parallel_run_parser, check_checksum_parser,
                             create_folders_parser, set_exec_parser, remove_parser,
-                            remove_empty_folders, uninstall_parser, translate_url_parser)
+                            remove_empty_folders_parser, uninstall_parser, translate_url_parser,
+                            read_yaml_parser)
     need_output_options = (copy_parser, sync_parser, synccopy_parser,
                            trans_parser, create_links_parser, fix_symlinks_parser,
                            up2S3_parser, fix_props_parser, stage2svn_parser,
