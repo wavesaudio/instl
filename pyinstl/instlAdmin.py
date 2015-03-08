@@ -70,9 +70,17 @@ class InstlAdmin(InstlInstanceBase):
 
         if "__FILTER_IN_VERSION__" in var_stack:
             self.filter_in_specific_version(var_stack.resolve("$(__FILTER_IN_VERSION__)"))
+        if "__BASE_URL__" in var_stack:
+            self.add_urls_to_info_map()
         self.write_info_map_file()
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
+
+    def add_urls_to_info_map(self):
+        base_url = var_stack.resolve_var("__BASE_URL__")
+        for file_item in self.svnTree.walk_items(what="file"):
+            file_item.set_url(os.path.join(base_url, str(file_item.last_rev()), file_item.full_path()))
+            print(file_item)
 
     def filter_out_info_map(self, paths_to_filter_out):
         for path in paths_to_filter_out:

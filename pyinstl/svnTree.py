@@ -131,12 +131,12 @@ class SVNTree(svnItem.SVNTopItem):
                         path_parts.append(match.group('path'))
                         if match.group('props'):  # it's a file
                             # print(((new_indent * spaces_per_indent)-1) * " ", "/".join(path_parts), match.group('props'))
-                            self.new_item_at_path(path_parts, match.group('flags'), int(match.group('last_rev')),
+                            self.new_item_at_path(path_parts, match.group('flags'), match.group('last_rev'),
                                                   match.group('checksum'))
                         indent = new_indent
                     else:  # previous element was a folder
                         # print(((new_indent * spaces_per_indent)-1) * " ", "/".join(path_parts), match.group('props'))
-                        self.new_item_at_path(path_parts, match.group('flags'), int(match.group('last_rev')))
+                        self.new_item_at_path(path_parts, match.group('flags'), match.group('last_rev'))
                 else:
                     if indent != -1:  # first lines might be empty
                         ValueError("no match at line " + str(line_num) + ": " + line)

@@ -88,6 +88,7 @@ class CommandLineOptions(object):
         self.shortcut_path = None
         self.no_wtar_artifacts = None
         self.credentials = None
+        self.base_url = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
@@ -289,6 +290,12 @@ def prepare_args_parser():
                                 metavar='base-repo-rev',
                                 dest='base_repo_rev',
                                 help="minimal version, all version below will be changed to base-repo-rev")
+    trans_options.add_argument('--base-url',
+                                required=False,
+                                nargs=1,
+                                metavar='base-url',
+                                dest='base_url',
+                                help="")
 
     check_sig_options = check_sig_parser.add_argument_group(description='check sig arguments:')
     check_sig_options.add_argument('--sha1',

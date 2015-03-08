@@ -197,10 +197,12 @@ class InstlInstanceSync_url(InstlInstanceSync):
             if need_to_download:
                 self.files_to_download += 1
                 # For some files a stamp file (.done) is placed after post-download processing. Remove such file if it exist
-                done_stam__path = os.path.join(*make_one_list(self.local_sync_dir, path_so_far, item.name() + ".done"))
-                safe_remove_file(done_stam__path)
+                done_stam_path = os.path.join(*make_one_list(self.local_sync_dir, path_so_far, item.name() + ".done"))
+                safe_remove_file(done_stam_path)
 
-                source_url = '/'.join(make_one_list(self.sync_base_url, str(item.last_rev()), path_so_far, item.name()))
+                source_url = item.url()
+                if source_url is None:
+                    source_url = '/'.join(make_one_list(self.sync_base_url, str(item.last_rev()), path_so_far, item.name()))
                 self.instlObj.platform_helper.dl_tool.add_download_url(source_url, item.full_path())
         elif item.isDir():
             path_so_far.append(item.name())

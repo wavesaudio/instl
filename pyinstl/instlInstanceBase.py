@@ -128,6 +128,7 @@ class InstlInstanceBase(object):
             "shortcut_path": ("__SHORTCUT_PATH__", None),
             "target_path": ("__SHORTCUT_TARGET_PATH__", None),
             "credentials": ("__CREDENTIALS__", None),
+            "base_url": ("__BASE_URL__", None),
         }
 
         for attrib, var in const_attrib_to_var.iteritems():

@@ -20,6 +20,8 @@ text_line_re = re.compile(r"""
             (?P<last_rev>\d+)
             (,\s+
             (?P<checksum>[\da-f]+))?    # 5985e53ba61348d78a067b944f1e57c67f865162
+            (,\s+
+            (?P<url>(http(s)?|ftp)://.+))?    # http://....
             """, re.X)
 flags_and_last_rev_re = re.compile(r"""
                 ^
@@ -50,7 +52,7 @@ class SVNItem(object):
         self.__up = None
         self.__name = in_name
         self.__flags = in_flags
-        self.__last_rev = in_last_rev
+        self.__last_rev = int(in_last_rev)
         self.__checksum = in_checksum
         self.__url = in_url
         self.__subs = None
@@ -75,7 +77,7 @@ class SVNItem(object):
 
     def __deepcopy__(self, memodict):
         """ implement deepcopy """
-        retVal = SVNItem(self.__name, self.__flags, self.__last_rev)
+        retVal = SVNItem(self.__name, self.__flags, self.__last_rev, __checksum, __url)
         if self.__subs:
             retVal.subs().update({name: copy.deepcopy(item, memodict) for name, item in self.subs().iteritems()})
             for item in retVal.subs().values():
@@ -131,10 +133,6 @@ class SVNItem(object):
         """ return checksum """
         return self.__checksum
 
-    def url(self):
-        """ return url """
-        return self.__url
-
     def set_checksum(self, new_checksum):
         """ update checksum """
         self.__checksum = new_checksum
@@ -152,6 +150,14 @@ class SVNItem(object):
         new_flags = "".join(sorted(set(self.__flags+flags)))
         #print("_add_flags:", self.__flags, "+", flags, "=", new_flags)
         self.__flags = new_flags
+
+    def url(self):
+        """ return url """
+        return self.__url
+
+    def set_url(self, new_url):
+        """ update url """
+        self.__url = new_url
 
     def parent(self):
         return self.__up
@@ -219,31 +225,31 @@ class SVNItem(object):
             retVal = retVal.get_item_at_path(path_parts[1:])
         return retVal
 
-    def new_item_at_path(self, at_path, flags, last_rev, checksum=None, create_folders=False):
-        """ create a new a sub-item at the give at_path.
-            at_path is relative to self of course.
-            at_path can be a list or tuple containing individual path parts
+    def new_item_at_path(self, in_at_path, in_flags, in_last_rev, checksum=None, in_url=None, create_folders=False):
+        """ create a new a sub-item at the give in_at_path.
+            in_at_path is relative to self of course.
+            in_at_path can be a list or tuple containing individual path parts
             or a string with individual path parts separated by "/".
             If create_folders is True, non existing intermediate folders
-            will be created, with the same last_rev. create_folders is False,
+            will be created, with the same in_last_rev. create_folders is False,
             and some part of the path does not exist KeyError will be raised.
             This is the non recursive version of this function.
         """
-        #print("--- add sub to", self.name(), path, flags, last_rev)
-        path_parts = at_path
-        if isinstance(at_path, basestring):
-            path_parts = at_path.split("/")
+        #print("--- add sub to", self.name(), path, in_flags, in_last_rev)
+        path_parts = in_at_path
+        if isinstance(in_at_path, basestring):
+            path_parts = in_at_path.split("/")
         curr_item = self
         for part in path_parts[:-1]:
             sub_dir_item = curr_item.__subs.get(part)
             if sub_dir_item is None:
                 if create_folders:
-                    sub_dir_item = SVNItem(part, "d", last_rev)
+                    sub_dir_item = SVNItem(part, "d", in_last_rev)
                     curr_item.add_sub_item(sub_dir_item)
                 else:
                     raise KeyError(part+" is not in sub items of "+self.full_path())
             curr_item = sub_dir_item
-        retVal = SVNItem(path_parts[-1], flags, last_rev, checksum)
+        retVal = SVNItem(path_parts[-1], in_flags, in_last_rev, checksum, in_url)
         curr_item.add_sub_item(retVal)
         return retVal
 
@@ -288,15 +294,11 @@ class SVNItem(object):
             This is the split version which is 25% faster than the re version below.
         """
         retVal = None
-        parts = the_str.rstrip().split(", ", 3)
+        parts = the_str.rstrip().split(", ", 5)
         if len(parts) > 2:
             if len(parts) == 3:
                 parts.append(None)
-            self.new_item_at_path(parts[0],
-                              parts[1],
-                              int(parts[2]),
-                              parts[3],
-                              create_folders)
+            self.new_item_at_path(*parts, create_folders=create_folders)
         return retVal
 
     def new_item_from_str_re(self, the_str, create_folders=False):
@@ -311,8 +313,9 @@ class SVNItem(object):
         if match:
             self.new_item_at_path(match.group('path'),
                                   match.group('flags'),
-                                  int(match.group('last_rev')),
+                                  match.group('last_rev'),
                                   match.group('checksum'),
+                                  match.group('url'),
                                   create_folders)
         return retVal
 
@@ -469,7 +472,7 @@ class SVNItem(object):
                     match = flags_and_last_rev_re.match(contents.value)
                     if match:
                         self.new_item_at_path(identifier, match.group('flags'),
-                                              int(match.group('last_rev')), match.group('checksum'))
+                                              match.group('last_rev'), match.group('checksum'))
                     else:
                         raise ValueError("Looks like a file, but is not %s %s" % (identifier, str(contents)))
                 elif contents.isMapping():
@@ -478,7 +481,7 @@ class SVNItem(object):
                         match = flags_and_last_rev_re.match(props_node.value)
                         if match:
                             new_sub = self.new_item_at_path(identifier, match.group('flags'),
-                                                            int(match.group('last_rev')))
+                                                            match.group('last_rev'))
                             new_sub.read_yaml_node(contents)
                         else:
                             raise ValueError("Looks like a folder, but is not %s %s" % (identifier, str(contents)))

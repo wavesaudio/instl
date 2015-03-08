@@ -8,7 +8,8 @@
     * Added time measurements to create urls
     * Sync command: When no files to sync created batch file will have one progress item: "Done Sync".
     * Sync command: When no dirs to create no prgress items will be created.
-
+    * Sync using info_map with prepared URLs.
+        if variable FILES_AND_URLS_INFO_MAP_URL is available this file will be read instead of the one in INFO_MAP_FILE_URL.
     user visible changes, admin:
     * Admin variable MAX_FILE_SIZE renamed MIN_FILE_SIZE_TO_WTAR.
     * New admin variable: WTAR_BY_FILE_SIZE_EXCLUDE_REGEX. Files names passing this regex will not be wtarred. This was done mainly to disable wtarring of instl itself when updating it.
@@ -17,10 +18,12 @@
     * improved the help for unwtar command
     * added --limit option to wtar command so it can work on specific folders.
     * fix-symlinks command will work even if there are broken symlinks. THere might point to inside folders that were wtared.
+    * trans command: new parameter --base-url. If supplied will add url to all SVNItems representing a file.
 
     programmer visible changes:
     * Separated instlClient to different files by command: insltClientCopy, instlClientRemove, instlClientSync, instlClientUninstall.
     * renamed translate_url to translate_url_parser in commandline options parsing.
+    * SVNItem new property: __url
 
 15/2/2015 0.10.0.2
     user visible changes, admin:
