@@ -18,6 +18,9 @@
     * New command read-yaml, just reads a yaml file, can be used to check file's syntax and structure. (admin)
     * gui mode: added Hover messages to few widgets.
     * gui mode: added check buttons that invoke read-yaml command on files who's path is in the gui.
+    * Dependencies graph is now created with iids instead of names.
+    * Interactive mode read command: added resolve_index_inheritance so proper dependencies can be shown.
+    * Interactive mode depend command: removed duplicate items from report.
 
     programmer visible changes:
     * Separated instlClient to different files by command: insltClientCopy, instlClientRemove, instlClientSync, instlClientUninstall.

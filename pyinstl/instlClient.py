@@ -298,7 +298,7 @@ class InstlClient(InstlInstanceBase):
         logging.info("... %s actions: %d", action_type, len(unique_actions))
 
     def needs(self, iid, out_list):
-        """ return all items that depend on iid """
+        """ return iids of all items that a specific iid depends on"""
         if iid not in self.install_definitions_index:
             raise KeyError(iid + " is not in index")
         InstallItem.begin_get_for_all_oses()
