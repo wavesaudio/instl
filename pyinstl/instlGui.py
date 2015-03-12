@@ -30,6 +30,15 @@ def str_to_bool_int(the_str):
         raise ValueError("Cannot translate", the_str, "to bool-int")
     return retVal
 
+admin_command_template_variables = {
+    'svn2stage': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
+    'fix-symlinks': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
+    'wtar': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
+    'stage2svn': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
+    'fix-props': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
+    'depend': '__ADMIN_CALL_INSTL_DEPEND_TEMPLATE__'
+    }
+
 class InstlGui(InstlInstanceBase):
     def __init__(self, initial_vars):
         super(InstlGui, self).__init__(initial_vars)
@@ -145,19 +154,21 @@ class InstlGui(InstlInstanceBase):
         return retVal
 
     def create_admin_command_line(self):
-        retVal = [var_stack.resolve_var("__INSTL_EXE_PATH__"), var_stack.resolve_var("ADMIN_GUI_CMD"),
-                        "--config-file", var_stack.resolve_var("ADMIN_GUI_CONFIG_FILE"),
-                        "--out", var_stack.resolve_var("ADMIN_GUI_OUT_FILE")]
+        command_name = var_stack.resolve_var("ADMIN_GUI_CMD")
+        template_variable = admin_command_template_variables[command_name]
+        retVal = var_stack.resolve_var_to_list(template_variable)
 
-        if self.admin_command_name_var.get() in self.commands_that_accept_limit_option:
-            limit_path = self.admin_limit_var.get()
-            if limit_path != "":
-                retVal.append("--limit")
-                limit_paths = shlex.split(limit_path) # there might be space separated paths
-                retVal.extend(limit_paths)
+        # some special handling of command line parameters cannot yet be expressed in the command template
+        if command_name != 'depend':
+            if self.admin_command_name_var.get() in self.commands_that_accept_limit_option:
+                limit_path = self.admin_limit_var.get()
+                if limit_path != "":
+                    retVal.append("--limit")
+                    limit_paths = shlex.split(limit_path) # there might be space separated paths
+                    retVal.extend(limit_paths)
 
-        if self.run_admin_batch_file_var.get() == 1:
-            retVal.append("--run")
+            if self.run_admin_batch_file_var.get() == 1:
+                retVal.append("--run")
 
         if 'Win' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)"):
             if not getattr(sys, 'frozen', False):
@@ -215,12 +226,12 @@ class InstlGui(InstlInstanceBase):
         _, input_file_base_name = os.path.split(var_stack.unresolved_var("ADMIN_GUI_CONFIG_FILE"))
         var_stack.set_var("ADMIN_GUI_CONFIG_FILE_NAME").append(input_file_base_name)
 
-        var_stack.set_var("ADMIN_GUI_OUT_FILE").append(self.admin_output_path_var.get())
+        var_stack.set_var("ADMIN_GUI_OUT_BATCH_FILE").append(self.admin_output_path_var.get())
 
         var_stack.set_var("ADMIN_GUI_RUN_BATCH").append(bool_int_to_str(self.run_admin_batch_file_var.get()))
         var_stack.set_var("ADMIN_GUI_LIMIT").append(self.admin_limit_var.get())
 
-        self.admin_stage_index_var.set(var_stack.resolve("$(STAGING_FOLDER)/instl/index.yaml"))
+        self.admin_stage_index_var.set(var_stack.resolve("$(__STAGING_INDEX_FILE__)"))
         self.admin_svn_repo_var.set(var_stack.resolve("$(SVN_REPO_URL), REPO_REV: $(REPO_REV)"))
 
         sync_url = var_stack.resolve("$(SYNC_BASE_URL)")
@@ -306,11 +317,11 @@ class InstlGui(InstlInstanceBase):
         curr_row += 1
         Label(admin_frame, text="Stage index:").grid(row=curr_row, column=0, sticky=E)
         Label(admin_frame, text="---", textvariable=self.admin_stage_index_var).grid(row=curr_row, column=1, columnspan=2, sticky=W)
-        editIndexButt = Button(admin_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_stack.resolve("$(STAGING_FOLDER)/instl/index.yaml", raise_on_fail=True)))
+        editIndexButt = Button(admin_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_stack.resolve("$(__STAGING_INDEX_FILE__)", raise_on_fail=True)))
         editIndexButt.grid(row=curr_row, column=4, sticky=W)
         ToolTip(editIndexButt, msg="edit repository index")
 
-        checkIndexButt = Button(admin_frame, width=3, text="Chk",  command=lambda: self.check_yaml(var_stack.resolve("$(STAGING_FOLDER)/instl/index.yaml")))
+        checkIndexButt = Button(admin_frame, width=3, text="Chk",  command=lambda: self.check_yaml(var_stack.resolve("$(__STAGING_INDEX_FILE__)")))
         checkIndexButt.grid(row=curr_row, column=5, sticky=W)
         ToolTip(checkIndexButt, msg="read repository index to check it's structure")
 
@@ -331,11 +342,11 @@ class InstlGui(InstlInstanceBase):
         # path to output file
         curr_row += 1
         Label(admin_frame, text="Batch file:").grid(row=curr_row, column=0, sticky=E)
-        self.admin_output_path_var.set(var_stack.unresolved_var("ADMIN_GUI_OUT_FILE"))
+        self.admin_output_path_var.set(var_stack.unresolved_var("ADMIN_GUI_OUT_BATCH_FILE"))
         Entry(admin_frame, textvariable=self.admin_output_path_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
         self.admin_output_path_var.trace('w', self.update_admin_state)
         Button(admin_frame, width=2, text="...", command=self.get_admin_output_file).grid(row=curr_row, column=3, sticky=W)
-        Button(admin_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_stack.resolve_var("ADMIN_GUI_OUT_FILE"))).grid(row=curr_row, column=4, sticky=W)
+        Button(admin_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_stack.resolve_var("ADMIN_GUI_OUT_BATCH_FILE"))).grid(row=curr_row, column=4, sticky=W)
 
         # relative path to limit folder
         curr_row += 1
