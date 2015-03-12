@@ -22,7 +22,7 @@
     * Interactive mode read command: added resolve_index_inheritance so proper dependencies can be shown.
     * Interactive mode depend command: removed duplicate items from report.
     * New admin command: depend. Output the full list of dependencies for an index.
-    * depend command: added --out option
+    * depend command: added --out option, add help topic.
     * added depend command to gui/admin tab.
 
     programmer visible changes:
