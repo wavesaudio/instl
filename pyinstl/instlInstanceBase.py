@@ -473,3 +473,36 @@ class InstlInstanceBase(object):
         replaced_list = unique_list()
         replaced_list.extend([self.original_name_from_wtar_name(file_name) for file_name in original_list])
         return replaced_list
+
+
+    def needs(self, iid, out_list):
+        """ return iids of all items that a specific iid depends on"""
+        if iid not in self.install_definitions_index:
+            raise KeyError(iid + " is not in index")
+        InstallItem.begin_get_for_all_oses()
+        with self.install_definitions_index[iid]:
+            for dep in var_stack.resolve_var_to_list("iid_depend_list"):
+                if dep in self.install_definitions_index:
+                    out_list.append(dep)
+                    self.needs(dep, out_list)
+                else:
+                    out_list.append(dep + "(missing)")
+        InstallItem.reset_get_for_all_oses()
+
+    def needed_by(self, iid):
+        try:
+            from pyinstl import installItemGraph
+
+            InstallItem.begin_get_for_all_oses()
+            graph = installItemGraph.create_dependencies_graph(self.install_definitions_index)
+            needed_by_list = installItemGraph.find_needed_by(graph, iid)
+            InstallItem.reset_get_for_all_oses()
+            return needed_by_list
+        except ImportError:  # no installItemGraph, no worry
+            print("Could not load installItemGraph")
+            return None
+
+    def resolve_index_inheritance(self):
+        for install_def in self.install_definitions_index.values():
+            install_def.resolve_inheritance(self.install_definitions_index)
+

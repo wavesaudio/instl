@@ -21,10 +21,13 @@
     * Dependencies graph is now created with iids instead of names.
     * Interactive mode read command: added resolve_index_inheritance so proper dependencies can be shown.
     * Interactive mode depend command: removed duplicate items from report.
+    * New admin command: depend. Output the full list of dependencies for an index.
 
     programmer visible changes:
     * Separated instlClient to different files by command: insltClientCopy, instlClientRemove, instlClientSync, instlClientUninstall.
-    * renamed translate_url to translate_url_parser in commandline options parsing.
+    * Renamed translate_url to translate_url_parser in commandline options parsing.
+    * Rearranged the command parsing code to be more efficient and easier to add new commands or change existing commands options.
+    * Move few functions to instlInstanceBase to make them available to the new depend command.
 
 15/2/2015 0.10.0.2
     user visible changes, admin:

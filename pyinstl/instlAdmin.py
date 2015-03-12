@@ -7,10 +7,11 @@ import cStringIO as StringIO
 from collections import defaultdict
 import re
 import fnmatch
+from collections import defaultdict
 
 from instlException import *
 from pyinstl.utils import *
-from aYaml.augmentedYaml import writeAsYaml, YamlDumpDocWrap
+from aYaml.augmentedYaml import writeAsYaml, YamlDumpWrap, YamlDumpDocWrap
 
 from instlInstanceBase import InstlInstanceBase
 from pyinstl import svnTree
@@ -880,6 +881,25 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_read_yaml(self):
         self.read_yaml_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)"))
+
+    def do_depend(self):
+        self.read_yaml_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)"))
+        self.resolve_index_inheritance()
+        depend_result = defaultdict(dict)
+        for IID in sorted(self.install_definitions_index):
+            needs_list = unique_list()
+            self.needs(IID, needs_list)
+            if not needs_list:
+                depend_result[IID]['depends'] = None
+            else:
+                depend_result[IID]['depends'] = sorted(needs_list)
+            needed_by_list = self.needed_by(IID)
+            if not needed_by_list:
+                depend_result[IID]['needed_by'] = None
+            else:
+                depend_result[IID]['needed_by'] = sorted(needed_by_list)
+        writeAsYaml(YamlDumpWrap(depend_result, sort_mappings=True), sys.stdout)
+        return False
 
 def percent_cb(unused_complete, unused_total):
     sys.stdout.write('.')
