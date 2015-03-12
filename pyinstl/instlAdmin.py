@@ -254,6 +254,12 @@ class InstlAdmin(InstlInstanceBase):
         accum += " ".join(trans_command_parts)
         accum += self.platform_helper.progress("Create $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map_Win.txt")
 
+        # create depend file
+        create_depend_file_command_parts = [self.platform_helper.run_instl(), "depend", "--in", "instl/index.yaml", "--out", "instl/index-dependencies.yaml"]
+        accum += " ".join(create_depend_file_command_parts)
+        accum += self.platform_helper.progress("Create dependencies file")
+
+        # create repo-rev file
         create_repo_rev_file_command_parts = [self.platform_helper.run_instl(), "create-repo-rev-file", "--config-file", '"$(__CONFIG_FILE_PATH__)"', "--rev", "$(__CURR_REPO_REV__)"]
         accum += " ".join(create_repo_rev_file_command_parts)
         accum += self.platform_helper.progress("Create repo-rev file")
