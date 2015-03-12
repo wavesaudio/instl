@@ -127,7 +127,7 @@ def prepare_args_parser(in_command):
         'translate_url':        {'mode': 'ds', 'options': ('in',  'cred'), 'help':  'translate a url to be compatible with current connection'},
         'unwtar':               {'mode': 'ds', 'options': ('prog',), 'help':  'uncompress .wtar files in current folder'},
         'up-repo-rev':          {'mode': 'an', 'options': ('out', 'run', 'conf',), 'help':  'upload repository revision file to admin folder'},
-        'up2s3':                {'mode': 'an', 'options': ( 'run', 'conf',), 'help':  'upload installation sources to S3'},
+        'up2s3':                {'mode': 'an', 'options': ( 'out', 'run', 'conf',), 'help':  'upload installation sources to S3'},
         'verify-index':         {'mode': 'an', 'options': ('in', ), 'help':  'Verify that index and info map are compatible'},
         'version':              {'mode': 'ds', 'options': (), 'help':  'display instl version'},
         'win-shortcut':         {'mode': 'ds', 'options': (), 'help':  'create a Windows shortcut'},
