@@ -100,7 +100,7 @@ def prepare_args_parser(in_command):
 
     mode_codes = {'ct': 'client', 'an': 'admin', 'ds': 'do_something', 'gi': 'gui'}
     commands_details = {
-        'check-checksum':       {'mode': 'ds', 'options': ('in', 'out', 'prog',), 'help':  'check checksum for a list of files from info_map file'},
+        'check-checksum':       {'mode': 'ds', 'options': ('in', 'prog',), 'help':  'check checksum for a list of files from info_map file'},
         'check-sig':            {'mode': 'an', 'options': ('in', 'conf',), 'help':  'check sha1 checksum and/or rsa signature for a file'},
         'copy':                 {'mode': 'ct', 'options': ('in', 'out', 'run', 'cred'), 'help':  'copy files to target paths'},
         'create-folders':       {'mode': 'ds', 'options': ('in',  'prog',), 'help':  'create folders from info_map file'},

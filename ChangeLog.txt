@@ -1,3 +1,8 @@
+???? 0.10.0.5
+
+    user visible changes, client:
+    * check-checksum command was defined by mistake to require --out command line option. Now removed.
+
 15/3/2015 0.10.0.4
     user visible changes, client:
     * Better, more meaningful progress messages.
