@@ -1,3 +1,9 @@
+???? 0.9.19.6
+
+    programmer visible changes:
+    * Replaced default value path_so_far=list() with path_so_far=None
+    * fixed wrong parameter name on CopyTool_win_xcopy.copy_dir_files_to_dir
+
 28/1/2015 0.9.19.4
     user visible changes, client:
     * When writing echo's to log the log file is created in the begin sections and permissions are set to 666 so later launches of instl can append to log.

@@ -269,7 +269,9 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.popd()
 
-    def create_prefix_instructions_for_item(self, accum, item, path_so_far=list()):
+    def create_prefix_instructions_for_item(self, accum, item, path_so_far=None):
+        if path_so_far is None:
+            path_so_far = list()
         if item.isSymlink():
             print("Found symlink at", item.full_path())
         elif item.isFile():
@@ -284,7 +286,9 @@ class InstlInstanceSync_url(InstlInstanceSync):
             #path_so_far.pop()
 
 
-    def create_download_instructions_for_item(self, item, path_so_far=list()):
+    def create_download_instructions_for_item(self, item, path_so_far=None):
+        if path_so_far is None:
+            path_so_far = list()
         if item.isSymlink():
             print("Found symlink at", item.full_path())
         elif item.isFile():
