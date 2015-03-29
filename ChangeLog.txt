@@ -1,8 +1,63 @@
+
 ???? 0.9.19.6
 
     programmer visible changes:
     * Replaced default value path_so_far=list() with path_so_far=None
     * fixed wrong parameter name on CopyTool_win_xcopy.copy_dir_files_to_dir
+
+    user visible changes, client:
+    * check-checksum command was defined by mistake to require --out command line option. Now removed.
+
+15/3/2015 0.10.0.4
+    user visible changes, client:
+    * Better, more meaningful progress messages.
+    * GUIDs that have upper case characters are converted to lower case.
+    * HAVE_INFO_MAP_PATH file is copied to the SITE_HAVE_INFO_MAP_PATH for possible usage by remove command.
+    * SITE SITE_HAVE_INFO_MAP_PATH is used by remove if HAVE_INFO_MAP_PATH was not found. This was done because when removing installation that was done from offline folder, Central will not pass LOCAL_REPO_SYNC_DIR to instl. HAVE_INFO_MAP_PATH depends on LOCAL_REPO_SYNC_DIR.
+    * New variable HAVE_INFO_MAP_FILE_NAME, used by HAVE_INFO_MAP_PATH, NEW_HAVE_INFO_MAP_PATH, SITE_HAVE_INFO_MAP_PATH.
+    * Added time measurements to create urls
+    * Sync command: When no files to sync created batch file will have one progress item: "Done Sync".
+    * Sync command: When no dirs to create no prgress items will be created.
+
+    user visible changes, admin:
+    * Admin variable MAX_FILE_SIZE renamed MIN_FILE_SIZE_TO_WTAR.
+    * New admin variable: WTAR_BY_FILE_SIZE_EXCLUDE_REGEX. Files names passing this regex will not be wtarred. This was done mainly to disable wtarring of instl itself when updating it.
+    * Variable WTAR_REGEX split in to twp: FOLDER_WTAR_REGEX, FILE_WTAR_REGEX to allow separation between files and folders when choosing what to wtar.
+    * repo rev file has new variable INDEX_URL_RELATIVE_PATH, for the convenience of the secure URL creating code.
+    * improved the help for unwtar command
+    * New command read-yaml, just reads a yaml file, can be used to check file's syntax and structure. (admin)
+    * gui mode: added Hover messages to few widgets.
+    * gui mode: added check buttons that invoke read-yaml command on files who's path is in the gui.
+    * Dependencies graph is now created with iids instead of names.
+    * Interactive mode read command: added resolve_index_inheritance so proper dependencies can be shown.
+    * Interactive mode depend command: removed duplicate items from report.
+    * New admin command: depend. Output the full list of dependencies for an index.
+    * depend command: added --out option, add help topic.
+    * added depend command to gui/admin tab.
+
+    programmer visible changes:
+    * Separated instlClient to different files by command: insltClientCopy, instlClientRemove, instlClientSync, instlClientUninstall.
+    * Renamed translate_url to translate_url_parser in commandline options parsing.
+    * Rearranged the command parsing code to be more efficient and easier to add new commands or change existing commands options.
+    * Move few functions to instlInstanceBase to make them available to the new depend command.
+    * gui mode: build command line from template.
+
+15/2/2015 0.10.0.2
+    user visible changes, admin:
+    * removed --acl when uploading to S3.
+
+    programmer visible changes:
+    * Re-added missing line in upload code
+
+15/2/2015 0.10.0.0
+    user visible changes, client:
+    * Support for S3 secure downloads.
+    * New command translate_url for testing the creation of secure s3 urls.
+
+    programmer visible changes:
+    * Global variable var_stack is now imported as itself rather as var_list to avoid cross import problems.
+    * ConnectionBase class and derived classes ConnectionHTTP and ConnectionS3 handle secure connection issues.
+>>>>>>> 6d6522d2aec55f77670820aeb5ca80f6c282c2b0
 
 28/1/2015 0.9.19.4
     user visible changes, client:

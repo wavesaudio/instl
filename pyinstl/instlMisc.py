@@ -11,7 +11,7 @@ import stat
 from pyinstl.utils import *
 from instlInstanceBase import InstlInstanceBase
 from pyinstl import svnTree
-from configVarStack import var_stack as var_list
+from configVarStack import var_stack
 
 class InstlMisc(InstlInstanceBase):
 
@@ -24,11 +24,11 @@ class InstlMisc(InstlInstanceBase):
             print("curr_progress: {self.curr_progress} != actual_progress: {self.actual_progress}".format(**locals()))
 
     def do_command(self):
-        the_command = var_list.resolve("$(__MAIN_COMMAND__)", raise_on_fail=True)
+        the_command = var_stack.resolve("$(__MAIN_COMMAND__)", raise_on_fail=True)
         fixed_command = the_command.replace('-', '_')
-        self.curr_progress =  int(var_list.resolve("$(__START_DYNAMIC_PROGRESS__)")) + 1
-        self.total_progress = int(var_list.resolve("$(__TOTAL_DYNAMIC_PROGRESS__)"))
-        self.progress_staccato_period = int(var_list.resolve("$(PROGRESS_STACCATO_PERIOD)"))
+        self.curr_progress =  int(var_stack.resolve("$(__START_DYNAMIC_PROGRESS__)")) + 1
+        self.total_progress = int(var_stack.resolve("$(__TOTAL_DYNAMIC_PROGRESS__)"))
+        self.progress_staccato_period = int(var_stack.resolve("$(PROGRESS_STACCATO_PERIOD)"))
         self.progress_staccato_count = 0
         self.actual_progress = 1
         self.progress_staccato_command = False
@@ -52,11 +52,11 @@ class InstlMisc(InstlInstanceBase):
 
     def do_help(self):
         import pyinstl.helpHelper
-        help_folder_path = os.path.join(var_list.resolve("$(__INSTL_DATA_FOLDER__)", raise_on_fail=True), "help")
-        pyinstl.helpHelper.do_help(var_list.resolve("$(__HELP_SUBJECT__)", raise_on_fail=True), help_folder_path, self)
+        help_folder_path = os.path.join(var_stack.resolve("$(__INSTL_DATA_FOLDER__)", raise_on_fail=True), "help")
+        pyinstl.helpHelper.do_help(var_stack.resolve("$(__HELP_SUBJECT__)", raise_on_fail=True), help_folder_path, self)
 
     def do_parallel_run(self):
-        processes_list_file = var_list.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True)
+        processes_list_file = var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True)
         commands = list()
         with open(processes_list_file, "r") as rfd:
             for line in rfd:
@@ -69,7 +69,7 @@ class InstlMisc(InstlInstanceBase):
 
     def do_unwtar(self):
         self.no_artifacts = False
-        if "__NO_WTAR_ARTIFACTS__" in var_list:
+        if "__NO_WTAR_ARTIFACTS__" in var_stack:
             self.no_artifacts = True
         for root, dirs, files in os.walk(".", followlinks=False):
             files_to_unwtar = unique_list() # unique_list so if both .wtar and .wtar.aa exists the list after joining will not have double entries
@@ -94,7 +94,7 @@ class InstlMisc(InstlInstanceBase):
                             tar.extractall(root)
                         if self.no_artifacts:
                             os.remove(wtar_file_path)
-                        self.dynamic_progress("Unwtar {wtar_file_path}".format(**locals()))
+                        self.dynamic_progress("Expanding {wtar_file_path}".format(**locals()))
                     except tarfile.ReadError as re_er:
                         print("tarfile read error while opening file", os.path.abspath(wtar_file_path))
                         raise
@@ -122,13 +122,13 @@ class InstlMisc(InstlInstanceBase):
             joined_file_done_path = joined_file_path+".done"
             if os.path.isfile(joined_file_done_path):
                 os.remove(joined_file_done_path)
-            self.dynamic_progress("Merge wtar parts {first_file}".format(**locals()))
+            self.dynamic_progress("Expanding {first_file}".format(**locals()))
         return joined_file_path
 
     def do_check_checksum(self):
         self.progress_staccato_command = True
         bad_checksum_list = list()
-        self.read_info_map_file(var_list.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
+        self.read_info_map_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
         for file_item in self.svnTree.walk_items(what="file"):
             file_path = file_item.full_path()
             if os.path.isfile(file_path):
@@ -145,7 +145,7 @@ class InstlMisc(InstlInstanceBase):
 
     def do_set_exec(self):
         self.progress_staccato_command = True
-        self.read_info_map_file(var_list.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
+        self.read_info_map_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
         for file_item in self.svnTree.walk_items(what="file"):
             if file_item.isExecutable():
                 file_path = file_item.full_path()
@@ -156,7 +156,7 @@ class InstlMisc(InstlInstanceBase):
 
     def do_create_folders(self):
         self.progress_staccato_command = True
-        self.read_info_map_file(var_list.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
+        self.read_info_map_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
         for dir_item in self.svnTree.walk_items(what="dir"):
             dir_path = dir_item.full_path()
             safe_makedirs(dir_path)
@@ -175,8 +175,8 @@ class InstlMisc(InstlInstanceBase):
             sys.exit(17)
 
     def do_remove_empty_folders(self):
-        folder_to_remove = var_list.resolve("$(__MAIN_INPUT_FILE__)")
-        files_to_ignore = var_list.resolve_to_list("$(REMOVE_EMPTY_FOLDERS_IGNORE_FILES)")
+        folder_to_remove = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
+        files_to_ignore = var_stack.resolve_to_list("$(REMOVE_EMPTY_FOLDERS_IGNORE_FILES)")
         for rootpath, dirnames, filenames in os.walk(folder_to_remove, topdown=False, onerror=None, followlinks=False):
             # when topdown=False os.walk creates dirnames for each rootpath at the beginning and has
             # no knowledge if a directory has already been deleted.
@@ -195,8 +195,8 @@ class InstlMisc(InstlInstanceBase):
                     os.rmdir(rootpath)
 
     def do_win_shortcut(self):
-        shortcut_path = var_list.resolve("$(__SHORTCUT_PATH__)", raise_on_fail=True)
-        target_path   = var_list.resolve("$(__SHORTCUT_TARGET_PATH__)", raise_on_fail=True)
+        shortcut_path = var_stack.resolve("$(__SHORTCUT_PATH__)", raise_on_fail=True)
+        target_path   = var_stack.resolve("$(__SHORTCUT_TARGET_PATH__)", raise_on_fail=True)
         working_directory, target_name = os.path.split(target_path)
         from win32com.client import Dispatch
         shell = Dispatch("WScript.Shell")
@@ -204,3 +204,8 @@ class InstlMisc(InstlInstanceBase):
         shortcut.Targetpath = target_path
         shortcut.WorkingDirectory = working_directory
         shortcut.save()
+
+    def do_translate_url(self):
+        url_to_translate = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
+        translated_url = ConnectionBase.repo_connection.translate_url(url_to_translate)
+        print(translated_url)

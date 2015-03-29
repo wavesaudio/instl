@@ -81,7 +81,7 @@ sys.path.append("..")
 from aYaml import augmentedYaml
 from pyinstl.utils import *
 from pyinstl.configVarList import ConfigVarList
-from configVarStack import var_stack as var_list
+from configVarStack import var_stack
 
 current_os_names = get_current_os_names()
 os_family_name = current_os_names[0]
@@ -207,7 +207,7 @@ class InstallItem(object):
         if 'name' in my_node:
             self.name = my_node['name'].value
         if 'guid' in my_node:
-            self.guid = my_node['guid'].value
+            self.guid = my_node['guid'].value.lower()
         if 'remark' in my_node:
             self.remark = my_node['remark'].value
         if 'install_sources' in my_node:
@@ -253,11 +253,11 @@ class InstallItem(object):
         return self.var_list
 
     def __enter__(self):
-        var_list.push_scope(self.get_var_list())
+        var_stack.push_scope(self.get_var_list())
         return self
 
     def __exit__(self, etype, value, traceback):
-        var_list.pop_scope()
+        var_stack.pop_scope()
 
     def begin_set_for_specific_os(self, for_os):
         self.__set_for_os.append(for_os)
@@ -455,12 +455,15 @@ def guid_list(items_map):
     return retVal
 
 
-def iids_from_guid(items_map, guid):
+def iids_from_guid(items_map, guid_or_iid):
+    """ guid_or_iid might be a guid or normal IID
+        if it's a guid return all IIDs that have this gui
+        if it's not return the IID itself. """
     retVal = list()
-    if guid_re.match(guid): # it's a guid, get iids for all items with that guid
+    if guid_re.match(guid_or_iid.lower()): # it's a guid, get iids for all items with that guid
         for iid, install_def in items_map.iteritems():
-            if install_def.guid == guid:
+            if install_def.guid == guid_or_iid.lower():
                 retVal.append(iid)
     else:
-        retVal.append(guid) # it's a regular iid, not a guid
+        retVal.append(guid_or_iid) # it's a regular iid, not a guid, no need to lower case
     return retVal

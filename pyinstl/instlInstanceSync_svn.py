@@ -4,44 +4,44 @@ import logging
 
 from pyinstl.utils import *
 from instlInstanceSyncBase import InstlInstanceSync
-from configVarStack import var_stack as var_list
+from configVarStack import var_stack
 
 
 class InstlInstanceSync_svn(InstlInstanceSync):
     """  Class to create sync instruction using svn.
     """
     def __init__(self, instlObj):
-        self.ii = instlObj
+        super(InstlInstanceSync_svn, self).__init__(instlObj)
 
     def init_sync_vars(self):
-        var_description = "from InstlInstanceBase.init_sync_vars"
-        self.check_prerequisite_var_existence(("SYNC_BASE_URL", "SVN_CLIENT_PATH"))
+        super(InstlInstanceSync_svn, self).init_sync_vars()
 
-        var_list.set_value_if_var_does_not_exist("REPO_REV", "HEAD", description=var_description)
-        bookkeeping_relative_path = relative_url(var_list.resolve("$(SYNC_BASE_URL)"), var_list.resolve("$(BOOKKEEPING_DIR_URL)"))
-        var_list.set_var("REL_BOOKKIPING_PATH", var_description).append(bookkeeping_relative_path)
+        var_stack.set_value_if_var_does_not_exist("REPO_REV", "HEAD", description=var_description)
+        bookkeeping_relative_path = relative_url(var_stack.resolve("$(SYNC_BASE_URL)"), var_stack.resolve("$(BOOKKEEPING_DIR_URL)"))
+        var_stack.set_var("REL_BOOKKIPING_PATH", var_description).append(bookkeeping_relative_path)
 
-        rel_sources = relative_url(var_list.resolve("$(SYNC_BASE_URL)"), var_list.resolve("$(SYNC_BASE_URL)"))
-        var_list.set_var("REL_SRC_PATH", var_description).append(rel_sources)
+        rel_sources = relative_url(var_stack.resolve("$(SYNC_BASE_URL)"), var_stack.resolve("$(SYNC_BASE_URL)"))
+        var_stack.set_var("REL_SRC_PATH", var_description).append(rel_sources)
 
     def create_sync_instructions(self, installState):
-        self.ii.batch_accum.set_current_section('sync')
-        self.ii.batch_accum += self.ii.platform_helper.progress("Starting sync from $(SYNC_BASE_URL)")
-        self.ii.batch_accum += self.ii.platform_helper.mkdir("$(LOCAL_SYNC_DIR)")
-        self.ii.batch_accum += self.ii.platform_helper.cd("$(LOCAL_SYNC_DIR)")
-        self.ii.batch_accum.indent_level += 1
-        self.ii.batch_accum += " ".join(('"$(SVN_CLIENT_PATH)"', "co", '"$(BOOKKEEPING_DIR_URL)"', '"$(REL_BOOKKIPING_PATH)"', "--revision", "$(REPO_REV)", "--depth", "infinity"))
-        self.ii.batch_accum += self.ii.platform_helper.progress("instl folder file $(BOOKKEEPING_DIR_URL)?p=$(REPO_REV)")
+        super(InstlInstanceSync_svn, self).create_sync_instructions(installState)
+
+        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Starting sync from $(SYNC_BASE_URL)")
+        self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir("$(LOCAL_SYNC_DIR)")
+        self.instlObj.batch_accum += self.instlObj.platform_helper.cd("$(LOCAL_SYNC_DIR)")
+        self.instlObj.batch_accum.indent_level += 1
+        self.instlObj.batch_accum += " ".join(('"$(SVN_CLIENT_PATH)"', "co", '"$(BOOKKEEPING_DIR_URL)"', '"$(REL_BOOKKIPING_PATH)"', "--revision", "$(REPO_REV)", "--depth", "infinity"))
+        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("instl folder file $(BOOKKEEPING_DIR_URL)?p=$(REPO_REV)")
         for iid  in installState.full_install_items:
             with self.install_definitions_index[iid]:
-                for source_var in var_list.get_configVar_obj("iid_source_var_list"):
-                    source = var_list.resolve_var_to_list(source_var)
-                    self.ii.batch_accum += self.create_svn_sync_instructions_for_source(source)
-                self.ii.batch_accum += self.ii.platform_helper.progress("Sync {}".format(var_list.resolve("iid_name")))
+                for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
+                    source = var_stack.resolve_var_to_list(source_var)
+                    self.instlObj.batch_accum += self.create_svn_sync_instructions_for_source(source)
+                self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Sync {}".format(var_stack.resolve("iid_name")))
         for iid in installState.orphan_install_items:
-            self.ii.batch_accum += self.ii.platform_helper.echo("Don't know how to sync "+iid)
-        self.ii.batch_accum.indent_level -= 1
-        self.ii.batch_accum += self.ii.platform_helper.echo("from $(SYNC_BASE_URL)")
+            self.instlObj.batch_accum += self.instlObj.platform_helper.echo("Don't know how to sync "+iid)
+        self.instlObj.batch_accum.indent_level -= 1
+        self.instlObj.batch_accum += self.instlObj.platform_helper.echo("from $(SYNC_BASE_URL)")
 
 
     def create_svn_sync_instructions_for_source(self, source):

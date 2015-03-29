@@ -15,7 +15,7 @@ import sys
 
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 
-from pyinstl.utils import *
+import utils
 from pyinstl import configVarList
 from aYaml.augmentedYaml import YamlDumpWrap
 
@@ -57,7 +57,7 @@ class ConfigVarStack(configVarList.ConfigVarList):
         return False
 
     def keys(self):
-        the_keys = unique_list()
+        the_keys = utils.unique_list()
         for a_var_list in reversed(self._ConfigVarList_objs):
             the_keys.extend(a_var_list.keys())
         return list(the_keys)

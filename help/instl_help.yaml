@@ -62,6 +62,12 @@ command:
             Public key is written to a file named in variable PUBLIC_KEY_FILE which defaults to "$(REPO_NAME).public_key".
             Variables PRIVATE_KEY_FILE, PUBLIC_KEY_FILE, REPO_NAME are read from path_to_config_file.
             Key size is 4096. Keys are produced in PEM format. 
+    depend:
+        short: Create a full dependencies list from index.yaml (admin command)
+        long: |
+            Usage instl depend --in index-file --out depend-file
+            Reads the given index-file and for each IID prints to depend-file all the IID it depends on and all IID needed by it.
+            To print to standard out specify --out stdout
 
     fix-props:
         short: Fix certain properties in svn repository. (admin command)
@@ -151,6 +157,14 @@ command:
             instl's trans command can translate between the format created by svn info command and the native instl info format. Additional input that can be given is the output of the svn proplist command. trans also has limited filtering options.
             trans command is used in the output of create-links command.
 
+    translate_url:
+        short: Translates to canonical form according to the current connection. (misc command)
+        long:  |
+            Usage: instl translate_url --in url_to_translate [--credentials s3:ACCESS_KEY:SECRET_KEY:BUCKET]
+            instl's translate_url translate a url so it can be passed to a browser or download utility such as curl.
+            If no --credentials is given, the translation will simply replace characters to ascii and spaces to %20.
+            If --credentials is given instl will connect and build a url suitable for use. Currently only Amazon s3 connection is supported.
+
     uninstall:
       short: Remove installed files considering dependencies. (client command)
       long: |
@@ -161,9 +175,9 @@ command:
     unwtar:
         short: Combines split wtar files and uncompresses wtar files. (runtime command)
         long: |
-            Usage: instl unwtar
+            Usage: instl unwtar [--no-artifacts]
             Walks the current directory recursively and looks for .wtar files. Files who's extension is in the format '*.wtar.aa' are split files and are combined to a .wtar file. If combination is successful a '.wtar.aa.done' file is created, this will prevent subsequent runs of unwtar from combining the files again.
-            Files who's extension is in the format '*.wtar' are untared to their directory. If untarring is successful a '.wtar.done' file is created, this will prevent subsequent runs of unwtar from untarring the files again.
+            Files who's extension is in the format '*.wtar' are untared to their directory. If untarring is successful a '.wtar.done' file is created, this will prevent subsequent runs of unwtar from untarring the files again, unless the --no-artifacts option is given in which case all wtar files and .done files are removed.
             unwtar command is used in the batch file created by the sync or synccopy commands.
 
     up-repo-rev:

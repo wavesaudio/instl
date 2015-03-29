@@ -2,9 +2,9 @@
 
 __INSTL_VERSION__:
     - 0
-    - 9
-    - 19
-    - 4
+    - 10
+    - 0
+    - 5
 
 __USER_CONFIG_FILE_NAME__: instl_config.yaml
 __USER_CONFIG_FILE_PATH__: $(__USER_HOME_DIR__)/$(__USER_CONFIG_FILE_NAME__)
@@ -34,9 +34,10 @@ BASE_REPO_REV: 1
 LAST_PROGRESS: 0
 
 PROGRESS_STACCATO_PERIOD: 128
-# max file size 5 * 1024 * 1024
-MAX_FILE_SIZE: 5242880
 
+# s3 urls are created with expiration time in seconds
+# 60*60*24 = 86400 = 24 hours
+S3_SECURE_URL_EXPIRATION: 86400
 
 --- !define_Mac
 MKDIR_CMD: mkdir_with_owner

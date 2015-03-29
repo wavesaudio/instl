@@ -87,14 +87,59 @@ class CommandLineOptions(object):
         self.target_path = None
         self.shortcut_path = None
         self.no_wtar_artifacts = None
+        self.credentials = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
 
-def prepare_args_parser():
+
+def prepare_args_parser(in_command):
     """
-    Prepare the parsers for command line arguments
+    Prepare the parse for command line arguments
     """
+
+    mode_codes = {'ct': 'client', 'an': 'admin', 'ds': 'do_something', 'gi': 'gui'}
+    commands_details = {
+        'check-checksum':       {'mode': 'ds', 'options': ('in', 'prog',), 'help':  'check checksum for a list of files from info_map file'},
+        'check-sig':            {'mode': 'an', 'options': ('in', 'conf',), 'help':  'check sha1 checksum and/or rsa signature for a file'},
+        'copy':                 {'mode': 'ct', 'options': ('in', 'out', 'run', 'cred'), 'help':  'copy files to target paths'},
+        'create-folders':       {'mode': 'ds', 'options': ('in',  'prog',), 'help':  'create folders from info_map file'},
+        'create-links':         {'mode': 'an', 'options': ('out', 'run', 'conf',), 'help':  'create links from the base SVN checkout folder for a specific version'},
+        'create-repo-rev-file': {'mode': 'an', 'options': ('conf',), 'help':  'create repo rev file for a specific revision'},
+        'create-rsa-keys':      {'mode': 'an', 'options': ('conf',), 'help':  'create private and public keys'},
+        'depend':               {'mode': 'an', 'options': ('in', 'out',), 'help':  'output a dependencies map for an index file'},
+        'fix-props':            {'mode': 'an', 'options': ('out', 'run','conf'), 'help':  'create svn commands to remove redundant properties such as executable bit from files that should not be marked executable'},
+        'fix-symlinks':         {'mode': 'an', 'options': ('out', 'run','conf',), 'help':  'replace symlinks with .symlinks files'},
+        'gui':                  {'mode': 'gi', 'options': (), 'help':  'graphical user interface'},
+        'help':                 {'mode': 'ds', 'options': (), 'help':  'help'},
+        'make-sig':             {'mode': 'an', 'options': ('in', 'conf',), 'help':  'create sha1 checksum and rsa signature for a file'},
+        'parallel-run':         {'mode': 'ds', 'options': ('in', ), 'help':  'Run processes in parallel'},
+        'read-yaml':            {'mode': 'an', 'options': ('in', ), 'help':  "reads a yaml file to verify it's contents"},
+        'remove-empty-folders': {'mode': 'ds', 'options': ('in', ), 'help':  'remove folders is they are empty'},
+        'remove':               {'mode': 'ct', 'options': ('in', 'out', 'run',), 'help':  'remove items installed by copy'},
+        'set-exec':             {'mode': 'ds', 'options': ('in', 'prog',), 'help':  'set executable bit for appropriate files'},
+        'stage2svn':            {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'add/remove files in staging to svn sync repository'},
+        'svn2stage':            {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'svn sync repository and copy to staging folder'},
+        'sync':                 {'mode': 'ct', 'options': ('in', 'out', 'run', 'cred'), 'help':  'sync files to be installed from server to local disk'},
+        'synccopy':             {'mode': 'ct', 'options': ('in', 'out', 'run', 'cred'), 'help':  'sync files to be installed from server to  local disk and copy files to target paths'},
+        'test-import':          {'mode': 'ds', 'options': (), 'help':  'test the import of required modules'},
+        'trans':                {'mode': 'an', 'options': ('in', 'out',), 'help':  'translate svn map files from one format to another'},
+        'translate_url':        {'mode': 'ds', 'options': ('in',  'cred'), 'help':  'translate a url to be compatible with current connection'},
+        'unwtar':               {'mode': 'ds', 'options': ('prog',), 'help':  'uncompress .wtar files in current folder'},
+        'up-repo-rev':          {'mode': 'an', 'options': ('out', 'run', 'conf',), 'help':  'upload repository revision file to admin folder'},
+        'up2s3':                {'mode': 'an', 'options': ( 'out', 'run', 'conf',), 'help':  'upload installation sources to S3'},
+        'verify-index':         {'mode': 'an', 'options': ('in', ), 'help':  'Verify that index and info map are compatible'},
+        'version':              {'mode': 'ds', 'options': (), 'help':  'display instl version'},
+        'win-shortcut':         {'mode': 'ds', 'options': (), 'help':  'create a Windows shortcut'},
+        'wtar':                 {'mode': 'an', 'options': ('out', 'run', 'conf',), 'help':  'create .wtar files from specified files and folders'},
+        'uninstall':            {'mode': 'ct', 'options': ('in', 'out', 'run',), 'help':  'uninstall previously copied files, considering dependencies'},
+    }
+    command_names = sorted(commands_details.keys())
+
+    # if in_command is None - just return the command names
+    if in_command is None:
+        return None, command_names
+
     def decent_convert_arg_line_to_args(self, arg_line):
         """ parse a file with options so that we do not have to write one sub-option
             per line.  Remove empty lines, comment lines, and end of line comments.
@@ -116,84 +161,14 @@ def prepare_args_parser():
     argparse.ArgumentParser.convert_arg_line_to_args = decent_convert_arg_line_to_args
 
     subparsers = parser.add_subparsers(dest='command', help='sub-command help')
-    check_checksum_parser = subparsers.add_parser('check-checksum', help='check checksum for a list of files from info_map file')
-    check_sig_parser = subparsers.add_parser('check-sig', help='check sha1 checksum and/or rsa signature for a file')
-    copy_parser = subparsers.add_parser('copy', help='copy files from temp folder to target paths')
-    create_folders_parser = subparsers.add_parser('create-folders', help='create folders from info_map file')
-    create_links_parser = subparsers.add_parser('create-links', help='create links from the base SVN checkout folder for a specific version')
-    create_repo_rev_file_parser = subparsers.add_parser('create-repo-rev-file', help='create repo rev file for a specific revision')
-    create_rsa_keys_parser = subparsers.add_parser('create-rsa-keys', help='create private and public keys')
-    fix_props_parser = subparsers.add_parser('fix-props', help='create svn commands to remove redundant properties such as executable bit from files that should not be marked executable')
-    fix_symlinks_parser = subparsers.add_parser('fix-symlinks', help='replace symlinks with .symlinks files')
-    gui_parser = subparsers.add_parser('gui', help="graphical user interface")
-    help_parser = subparsers.add_parser('help')
-    make_sig_parser = subparsers.add_parser('make-sig', help='create sha1 checksum and rsa signature for a file')
-    parallel_run_parser = subparsers.add_parser('parallel-run', help="Run processes in parallel")
-    remove_empty_folders = subparsers.add_parser('remove-empty-folders', help="remove folders is they are empty")
-    remove_parser = subparsers.add_parser('remove', help="remove items installed by copy")
-    set_exec_parser = subparsers.add_parser('set-exec', help='set executable bit for appropriate files')
-    stage2svn_parser = subparsers.add_parser('stage2svn', help='add/remove files in staging to svn sync repository')
-    svn2stage_parser = subparsers.add_parser('svn2stage', help='svn sync repository and copy to staging folder')
-    sync_parser = subparsers.add_parser('sync', help='sync files to be installed from server to temp folder')
-    synccopy_parser = subparsers.add_parser('synccopy', help='sync files to be installed from server to temp folder and copy files from temp folder to target paths')
-    test_import_parser = subparsers.add_parser('test-import', help='test the import of required modules')
-    trans_parser = subparsers.add_parser('trans', help='translate svn map files from one format to another')
-    unwtar_parser = subparsers.add_parser('unwtar', help='uncompress .wtar files in current folder')
-    up_repo_rev_parser = subparsers.add_parser('up-repo-rev', help='upload repository revision file to admin folder')
-    up2S3_parser = subparsers.add_parser('up2s3', help='upload installation sources to S3')
-    verify_index_parser = subparsers.add_parser('verify-index', help='Verify that index and info map are compatible')
-    version_parser = subparsers.add_parser('version', help='display instl version')
-    win_shortcut_parser = subparsers.add_parser('win-shortcut', help='create a windows shortcut')
-    wtar_parser = subparsers.add_parser('wtar', help='create .wtar files from specified files and folders')
-    uninstall_parser = subparsers.add_parser('uninstall', help='uninstall previously copied files, considering dependencies')
 
-    command_names = sorted(subparsers.choices.keys())
+    command_details = commands_details[in_command]
+    command_parser = subparsers.add_parser(in_command, help=command_details['help'])
+    command_parser.set_defaults(mode=mode_codes[command_details['mode']])
 
-    modes = {'client': (sync_parser, copy_parser, synccopy_parser,
-                        remove_parser, uninstall_parser),
-             'admin': (trans_parser, create_links_parser, up2S3_parser,
-                        up_repo_rev_parser, fix_props_parser, fix_symlinks_parser,
-                        stage2svn_parser, svn2stage_parser, wtar_parser,
-                        create_rsa_keys_parser, make_sig_parser, check_sig_parser,
-                        create_repo_rev_file_parser, verify_index_parser),
-             'do_something': (version_parser, help_parser, parallel_run_parser,
-                              unwtar_parser, check_checksum_parser, create_folders_parser,
-                              set_exec_parser, test_import_parser, remove_empty_folders,
-                              win_shortcut_parser),
-             'gui': (gui_parser,)
-            }
-    for the_mode, parsers in modes.iteritems():
-        for some_parser in parsers:
-            some_parser.set_defaults(mode=the_mode)
-
-    need_input_options = (sync_parser, copy_parser, synccopy_parser,
-                          trans_parser, make_sig_parser, check_sig_parser,
-                            verify_index_parser, parallel_run_parser, check_checksum_parser,
-                            create_folders_parser, set_exec_parser, remove_parser,
-                            remove_empty_folders, uninstall_parser)
-    need_output_options = (copy_parser, sync_parser, synccopy_parser,
-                           trans_parser, create_links_parser, fix_symlinks_parser,
-                           up2S3_parser, fix_props_parser, stage2svn_parser,
-                           svn2stage_parser, wtar_parser, up_repo_rev_parser,
-                            remove_parser, uninstall_parser)
-    need_run_option = (copy_parser, sync_parser, synccopy_parser,
-                           create_links_parser, fix_symlinks_parser,
-                           up2S3_parser, fix_props_parser, stage2svn_parser,
-                           svn2stage_parser, up_repo_rev_parser, remove_parser,
-                            wtar_parser, uninstall_parser)
-
-    need_config_file_options = (create_links_parser, up_repo_rev_parser, up2S3_parser,
-                                fix_props_parser, stage2svn_parser, svn2stage_parser,
-                                wtar_parser, create_rsa_keys_parser, make_sig_parser,
-                                check_sig_parser, create_repo_rev_file_parser,
-                                fix_symlinks_parser)
-    need_progress_options = (check_checksum_parser, unwtar_parser, create_folders_parser,
-                            set_exec_parser)
-    need_limit_options = (stage2svn_parser, svn2stage_parser)
-
-    # add --in to parsers that need it
-    for subparser in need_input_options:
-        input_options = subparser.add_argument_group(description='input arguments:')
+    # in, out run cred, conf, prog, limit are common to many commands
+    if 'in' in command_details['options']:
+        input_options = command_parser.add_argument_group(description='input arguments:')
         input_options.add_argument('--in', '-i',
                                     required=True,
                                     nargs=1,
@@ -201,17 +176,17 @@ def prepare_args_parser():
                                     dest='input_file',
                                     help="file to read index and definitions from")
 
-    # add --out && --run to parsers that need it
-    for subparser in need_output_options:
-        output_options = subparser.add_argument_group(description='output arguments:')
+    if 'out' in command_details['options']:
+        output_options = command_parser.add_argument_group(description='output arguments:')
         output_options.add_argument('--out', '-o',
                                     required=True,
                                     nargs=1,
                                     metavar='path-to-output-file',
                                     dest='output_file',
                                     help="out put file")
-    for subparser in need_run_option:
-        run_option = subparser.add_argument_group(description='run arguments:')
+
+    if 'run' in command_details['options']:
+        run_option = command_parser.add_argument_group(description='run arguments:')
         run_option.add_argument('--run', '-r',
                                     required=False,
                                     default=False,
@@ -219,9 +194,17 @@ def prepare_args_parser():
                                     dest='run',
                                     help="run the installation instructions script")
 
-    # add --config-file to parsers that need it
-    for subparser in need_config_file_options:
-        config_file_options = subparser.add_argument_group(description='admin arguments:')
+    if 'cred' in command_details['options']:
+        credentials_option = command_parser.add_argument_group(description='credentials:')
+        credentials_option.add_argument('--credentials',
+                                    required=False,
+                                    nargs=1,
+                                    metavar='credentials',
+                                    dest='credentials',
+                                    help="credentials to file server")
+
+    if 'conf' in command_details['options']:
+        config_file_options = command_parser.add_argument_group(description='admin arguments:')
         config_file_options.add_argument('--config-file', '-s',
                                     required=True,
                                     nargs=1,
@@ -229,9 +212,8 @@ def prepare_args_parser():
                                     dest='config_file',
                                     help="path to config-file")
 
-    # add --start-progress --total-progress to parsers that need it
-    for subparser in need_progress_options:
-        progress_options = subparser.add_argument_group(description='dynamic progress report')
+    if 'prog' in command_details['options']:
+        progress_options = command_parser.add_argument_group(description='dynamic progress report')
         progress_options.add_argument('--start-progress',
                                     required=False,
                                     nargs=1,
@@ -245,8 +227,8 @@ def prepare_args_parser():
                                     dest='total_progress',
                                     help="num total progress items")
 
-    for subparser in need_limit_options:
-        limit_options = subparser.add_argument_group(description='limit command to specific folder')
+    if 'limit' in command_details['options']:
+        limit_options = command_parser.add_argument_group(description='limit command to specific folder')
         limit_options.add_argument('--limit',
                                     required=False,
                                     nargs='+',
@@ -254,48 +236,52 @@ def prepare_args_parser():
                                     dest='limit_command_to',
                                     help="list of command to limit the action to")
 
-    trans_options = trans_parser.add_argument_group(description='translate arguments:')
-    trans_options.add_argument('--props', '-p',
+    # the following option groups each belong only to a single command
+    if 'trans' == in_command:
+        trans_options = command_parser.add_argument_group(description=in_command+' arguments:')
+        trans_options.add_argument('--props', '-p',
                                 required=False,
                                 nargs=1,
                                 metavar='path-to-props-file',
                                 dest='props_file',
                                 help="file to read svn properties from")
-    trans_options.add_argument('--filter-out',
+        trans_options.add_argument('--filter-out',
                                 required=False,
                                 nargs='+',
                                 metavar='paths-to-filter-out',
                                 dest='filter_out',
                                 help="paths to filter out, comma separated")
-    trans_options.add_argument('--filter-in',
+        trans_options.add_argument('--filter-in',
                                 required=False,
                                 nargs=1,
                                 metavar='version-to-filter-in',
                                 dest='filter_in',
                                 help="version to filter in, all other version will be left out")
-    trans_options.add_argument('--base-repo-rev',
+        trans_options.add_argument('--base-repo-rev',
                                 required=False,
                                 nargs=1,
                                 metavar='base-repo-rev',
                                 dest='base_repo_rev',
                                 help="minimal version, all version below will be changed to base-repo-rev")
 
-    check_sig_options = check_sig_parser.add_argument_group(description='check sig arguments:')
-    check_sig_options.add_argument('--sha1',
+    elif 'check-sig' == in_command:
+        check_sig_options = command_parser.add_argument_group(description=in_command+' arguments:')
+        check_sig_options.add_argument('--sha1',
                                 required=False,
                                 nargs=1,
                                 metavar='sh1-checksum',
                                 dest='sh1_checksum',
                                 help="expected sha1 checksum")
-    check_sig_options.add_argument('--rsa',
+        check_sig_options.add_argument('--rsa',
                                 required=False,
                                 nargs=1,
                                 metavar='rsa-sig',
                                 dest='rsa_signature',
                                 help="expected rsa SHA-512 signature")
 
-    create_repo_rev_file_options = create_repo_rev_file_parser.add_argument_group(description='create repo rev file arguments:')
-    create_repo_rev_file_options.add_argument('--rev',
+    elif 'create-repo-rev-file' == in_command:
+        create_repo_rev_file_options = command_parser.add_argument_group(description=in_command+' arguments:')
+        create_repo_rev_file_options.add_argument('--rev',
                                 required=False,
                                 nargs=1,
                                 metavar='revision-to-create-file-for',
@@ -303,60 +289,50 @@ def prepare_args_parser():
                                 help="revision to create file for")
 
 
-    up_repo_rev_options = up_repo_rev_parser.add_argument_group(description='up_repo_rev arguments:')
-    up_repo_rev_options.add_argument('--just-with-number', '-j',
+    elif 'up-repo-rev' == in_command:
+        up_repo_rev_options = command_parser.add_argument_group(description=in_command+' arguments:')
+        up_repo_rev_options.add_argument('--just-with-number', '-j',
                             required=False,
                             nargs=1,
                             metavar='just-with-number',
                             dest='just_with_number',
                             help="up load just the repo-rev file that ends with a specific number, not the general one")
 
-
-    short_cut_options = win_shortcut_parser.add_argument_group(description='win-shortcut arguments:')
-    short_cut_options.add_argument('--shortcut',
+    elif 'win-shortcut' == in_command:
+        short_cut_options = command_parser.add_argument_group(description=in_command+' arguments:')
+        short_cut_options.add_argument('--shortcut',
                             required=True,
                             nargs=1,
                             metavar='shortcut',
                             dest='shortcut_path',
                             help="path to the shortcut itself")
-    short_cut_options.add_argument('--target',
+        short_cut_options.add_argument('--target',
                             required=True,
                             nargs=1,
                             metavar='target',
                             dest='target_path',
                             help="path to the item being shortcut")
 
-    unwtar_options = unwtar_parser.add_argument_group(description='unwtar arguments:')
-    unwtar_options.add_argument('--no-artifacts',
+    elif 'unwtar' == in_command:
+        unwtar_options = command_parser.add_argument_group(description=in_command+' arguments:')
+        unwtar_options.add_argument('--no-artifacts',
                                 required=False,
                                 default=False,
                                 action='store_true',
                                 dest='no_wtar_artifacts',
                                 help="remove all .wtar files and .done files")
 
-    help_options = help_parser.add_argument_group(description='help subject:')
-    help_options.add_argument('subject', nargs='?')
+    elif 'help' == in_command:
+        help_options = command_parser.add_argument_group(description='help subject:')
+        help_options.add_argument('subject', nargs='?')
 
     return parser, command_names
 
 def read_command_line_options(name_space_obj, arglist=None):
     """ parse command line options """
-    #args_str = "No options given"
-    # todo: restore __COMMAND_LINE_OPTIONS__
-    #if arglist is not None:
-    #    logging.info("arglist: %s", " ".join(arglist))
-    #var_list.add_const_config_variable('__COMMAND_LINE_OPTIONS__', "read only value", args_str)
-    if not arglist or len(arglist) == 0:
-        pass
-        # No command line options given, but there maybe a "auto run" file with options
-        #auto_run_file_path = None
-        # todo: restore autorun file reading
-        #auto_run_file_name = "auto_run_instl.yaml"
-        #auto_run_file_path = self.path_searcher.find_file(auto_run_file_name)
-        #if auto_run_file_path:
-        #    arglist = ("@"+auto_run_file_path,)
-        #    logging.info("found auto run file %s", auto_run_file_name)
-    parser, command_names = prepare_args_parser()
+
+    command_name = arglist[0] if arglist else None
+    parser, command_names = prepare_args_parser(command_name)
     if arglist and len(arglist) > 0:
         # Command line options were given or auto run file was found
         parser.parse_args(arglist, namespace=name_space_obj)

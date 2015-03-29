@@ -12,6 +12,7 @@ import rsa
 import base64
 import collections
 import subprocess
+from connectionBase import ConnectionBase
 
 def Is64Windows():
     return 'PROGRAMFILES(X86)' in os.environ
@@ -74,7 +75,6 @@ class write_to_list(object):
     def list(self):
         return self.the_list
 
-
 class open_for_read_file_or_url(object):
     protocol_header_re = re.compile("""
                         \w+
@@ -99,6 +99,8 @@ class open_for_read_file_or_url(object):
                     self.file_url = "file://"+os.path.realpath(self.file_url)
             else:
                 raise IOError("Could not locate local file", file_url)
+        else:
+            self.file_url = ConnectionBase.repo_connection.translate_url(self.file_url)
 
     def __enter__(self):
         try:
@@ -487,7 +489,7 @@ def convert_to_str_unless_None(to_convert):
     else:
         return str(to_convert)
 
-# find sequences in a sorted list. 
+# find sequences in a sorted list.
 # in_sorted_list: a sorted list of things to search sequences in.
 # is_next_func: The function that determines if one thing is the consecutive of another.
 #               The default is to compare as integers.
@@ -519,3 +521,13 @@ def make_open_file_read_write_for_all(fd):
         os.fchmod(fd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
     except:
         os.chmod(fd.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+
+def timing(f):
+    import time
+    def wrap(*args):
+        time1 = time.time()
+        ret = f(*args)
+        time2 = time.time()
+        print ('%s function took %0.3f ms' % (f.func_name, (time2-time1)*1000.0))
+        return ret
+    return wrap
