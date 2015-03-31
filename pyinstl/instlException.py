@@ -9,7 +9,7 @@ class InstlException(Exception):
 
 def InstlFatalException(Exception):
     def __init__(self, *messages):
-        super(instlFatalException, self).__init__()
+        super(InstlFatalException, self).__init__()
         self.message = " ".join([str(mess) for mess in messages])
     def __str__(self):
         return self.message

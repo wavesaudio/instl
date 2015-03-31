@@ -4,7 +4,6 @@ from __future__ import print_function
 
 import filecmp
 import cStringIO as StringIO
-from collections import defaultdict
 import re
 import fnmatch
 from collections import defaultdict

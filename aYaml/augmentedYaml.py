@@ -152,7 +152,7 @@ class YamlDumpWrap(object):
         have comments and tags. Sorting mapping by key is also optional.
     """
     def __init__(self, value=None, tag="", comment="", sort_mappings=False):
-         # sometimes tag's type is unicode, pyYaml is strange...
+        # sometimes tag's type is unicode, pyYaml is strange...
         self.tag = tag.encode('ascii', 'ignore')
         self.comment = comment
         self.value = value

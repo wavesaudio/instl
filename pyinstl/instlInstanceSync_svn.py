@@ -16,6 +16,7 @@ class InstlInstanceSync_svn(InstlInstanceSync):
     def init_sync_vars(self):
         super(InstlInstanceSync_svn, self).init_sync_vars()
 
+        var_description = "InstlInstanceSync_svn.init_sync_vars"
         var_stack.set_value_if_var_does_not_exist("REPO_REV", "HEAD", description=var_description)
         bookkeeping_relative_path = relative_url(var_stack.resolve("$(SYNC_BASE_URL)"), var_stack.resolve("$(BOOKKEEPING_DIR_URL)"))
         var_stack.set_var("REL_BOOKKIPING_PATH", var_description).append(bookkeeping_relative_path)
