@@ -113,7 +113,8 @@ class ConstConfigVar(ConfigVar):
         if sys.version_info < (3, 0):
             super(ConstConfigVar, self).__init__(name, description, *values)
         else:
-            super().__init__(name, description, *values)
+            raise "Python version too advanced, need 2.X not "+str(sys.version_info)
+        #    super().__init__(name, description, *values)
 
     def set_description(self, unused_description):
         raise Exception("Cannot change a const value", self.name())
