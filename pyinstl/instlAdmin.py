@@ -211,13 +211,15 @@ class InstlAdmin(InstlInstanceBase):
 
         # sync revision from SVN to Base folder
         accum += self.platform_helper.echo("Getting revision $(__CURR_REPO_REV__) from $(SVN_REPO_URL)")
-        checkout_command_parts = ['"$(SVN_CLIENT_PATH)"', "co", '"'+"$(SVN_REPO_URL)@$(__CURR_REPO_REV__)"+'"', '"'+"$(ROOT_LINKS_FOLDER_REPO)/Base"+'"', "--depth", "infinity"]
+        checkout_command_parts = ['"$(SVN_CLIENT_PATH)"', "co", '"'+"$(SVN_REPO_URL)@$(__CURR_REPO_REV__)"+'"',
+                                  '"'+"$(ROOT_LINKS_FOLDER_REPO)/Base"+'"', "--depth", "infinity"]
         accum += " ".join(checkout_command_parts)
         accum += self.platform_helper.progress("Create links for revision $(__CURR_REPO_REV__)")
 
         # copy Base folder to revision folder
         accum += self.platform_helper.mkdir("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
-        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir("$(ROOT_LINKS_FOLDER_REPO)/Base", revision_folder_path, link_dest=True, ignore=".svn", preserve_dest_files=False)
+        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir("$(ROOT_LINKS_FOLDER_REPO)/Base", revision_folder_path,
+                                                                         link_dest=True, ignore=".svn", preserve_dest_files=False)
         accum += self.platform_helper.progress("Copy revision $(__CURR_REPO_REV__) to $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
 
         # get info from SVN for all files in revision
@@ -244,27 +246,33 @@ class InstlAdmin(InstlInstanceBase):
         accum += " ".join(trans_command_parts)
 
         # create Mac only info_map
-        trans_command_parts = [self.platform_helper.run_instl(), "trans", "--in", "instl/info_map.txt", "--out ", "instl/info_map_Mac.txt",  "--filter-out", "Win"]
+        trans_command_parts = [self.platform_helper.run_instl(), "trans", "--in", "instl/info_map.txt",
+                               "--out ", "instl/info_map_Mac.txt",  "--filter-out", "Win"]
         accum += " ".join(trans_command_parts)
         accum += self.platform_helper.progress("Create $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map_Mac.txt")
 
         # create Win only info_map
-        trans_command_parts = [self.platform_helper.run_instl(), "trans", "--in", "instl/info_map.txt", "--out ", "instl/info_map_Win.txt",  "--filter-out", "Mac"]
+        trans_command_parts = [self.platform_helper.run_instl(), "trans", "--in", "instl/info_map.txt",
+                               "--out ", "instl/info_map_Win.txt",  "--filter-out", "Mac"]
         accum += " ".join(trans_command_parts)
         accum += self.platform_helper.progress("Create $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map_Win.txt")
 
         # create depend file
-        create_depend_file_command_parts = [self.platform_helper.run_instl(), "depend", "--in", "instl/index.yaml", "--out", "instl/index-dependencies.yaml"]
+        create_depend_file_command_parts = [self.platform_helper.run_instl(), "depend", "--in", "instl/index.yaml",
+                                            "--out", "instl/index-dependencies.yaml"]
         accum += " ".join(create_depend_file_command_parts)
         accum += self.platform_helper.progress("Create dependencies file")
 
         # create repo-rev file
-        create_repo_rev_file_command_parts = [self.platform_helper.run_instl(), "create-repo-rev-file", "--config-file", '"$(__CONFIG_FILE_PATH__)"', "--rev", "$(__CURR_REPO_REV__)"]
+        create_repo_rev_file_command_parts = [self.platform_helper.run_instl(), "create-repo-rev-file",
+                                              "--config-file", '"$(__CONFIG_FILE_PATH__)"', "--rev", "$(__CURR_REPO_REV__)"]
         accum += " ".join(create_repo_rev_file_command_parts)
         accum += self.platform_helper.progress("Create repo-rev file")
 
         # create text versions of info and yaml files, so they can be displayed in browser
-        accum +=  " ".join( ("find", "instl", "-type", "f", "-regextype", "posix-extended", "-regex", "'.*(yaml|info|props)'", "-print0", "|", "xargs", "-0", "-I{}", "cp", "-f", '"{}"', '"{}.txt"') )
+        accum +=  " ".join( ("find", "instl", "-type", "f", "-regextype", "posix-extended",
+                             "-regex", "'.*(yaml|info|props)'", "-print0", "|",
+                             "xargs", "-0", "-I{}", "cp", "-f", '"{}"', '"{}.txt"') )
 
         accum += self.platform_helper.rmfile("$(UP_2_S3_STAMP_FILE_NAME)")
         accum += self.platform_helper.progress("Remove $(UP_2_S3_STAMP_FILE_NAME)")
@@ -273,7 +281,7 @@ class InstlAdmin(InstlInstanceBase):
 
         accum += self.platform_helper.echo("done create-links version $(__CURR_REPO_REV__)")
 
-    class RemoveIfNotSpecificVersion:
+    class RemoveIfNotSpecificVersion(object):
         def __init__(self, version_not_to_remove):
             self.version_not_to_remove = version_not_to_remove
 

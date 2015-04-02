@@ -285,12 +285,14 @@ class InstlGui(InstlInstanceBase):
         # instl command selection
         self.admin_command_name_var.set(var_stack.unresolved_var("ADMIN_GUI_CMD"))
         admin_command_list = var_stack.resolve_var_to_list("__ADMIN_GUI_CMD_LIST__")
-        commandNameMenu = OptionMenu(admin_frame, self.admin_command_name_var, self.admin_command_name_var.get(), *admin_command_list, command=self.update_admin_state)
+        commandNameMenu = OptionMenu(admin_frame, self.admin_command_name_var,
+                                     self.admin_command_name_var.get(), *admin_command_list, command=self.update_admin_state)
         commandNameMenu.grid(row=curr_row, column=1, sticky=W)
         ToolTip(commandNameMenu, msg="instl admin command")
 
         self.run_admin_batch_file_var.set(str_to_bool_int(var_stack.unresolved_var("ADMIN_GUI_RUN_BATCH")))
-        Checkbutton(admin_frame, text="Run batch file", variable=self.run_admin_batch_file_var, command=self.update_admin_state).grid(row=curr_row, column=2, columnspan=2, sticky=E)
+        Checkbutton(admin_frame, text="Run batch file", variable=self.run_admin_batch_file_var,
+                    command=self.update_admin_state).grid(row=curr_row, column=2, columnspan=2, sticky=E)
 
         # path to config file
         curr_row += 1
@@ -305,11 +307,13 @@ class InstlGui(InstlInstanceBase):
         openConfigButt.grid(row=curr_row, column=3, sticky=W)
         ToolTip(openConfigButt, msg="open admin config file")
 
-        editConfigButt = Button(admin_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_stack.resolve_var("ADMIN_GUI_CONFIG_FILE")))
+        editConfigButt = Button(admin_frame, width=4, text="Edit",
+                                command=lambda: self.open_file_for_edit(var_stack.resolve_var("ADMIN_GUI_CONFIG_FILE")))
         editConfigButt.grid(row=curr_row, column=4, sticky=W)
         ToolTip(editConfigButt, msg="edit admin config file")
 
-        checkConfigButt = Button(admin_frame, width=3, text="Chk",  command=lambda: self.check_yaml(var_stack.resolve_var("ADMIN_GUI_CONFIG_FILE")))
+        checkConfigButt = Button(admin_frame, width=3, text="Chk",
+                                 command=lambda: self.check_yaml(var_stack.resolve_var("ADMIN_GUI_CONFIG_FILE")))
         checkConfigButt.grid(row=curr_row, column=5, sticky=W)
         ToolTip(checkConfigButt, msg="read admin config file to check it's structure")
 
@@ -346,7 +350,8 @@ class InstlGui(InstlInstanceBase):
         Entry(admin_frame, textvariable=self.admin_output_path_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
         self.admin_output_path_var.trace('w', self.update_admin_state)
         Button(admin_frame, width=2, text="...", command=self.get_admin_output_file).grid(row=curr_row, column=3, sticky=W)
-        Button(admin_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_stack.resolve_var("ADMIN_GUI_OUT_BATCH_FILE"))).grid(row=curr_row, column=4, sticky=W)
+        Button(admin_frame, width=4, text="Edit",
+                command=lambda: self.open_file_for_edit(var_stack.resolve_var("ADMIN_GUI_OUT_BATCH_FILE"))).grid(row=curr_row, column=4, sticky=W)
 
         # relative path to limit folder
         curr_row += 1
@@ -377,10 +382,12 @@ class InstlGui(InstlInstanceBase):
         # instl command selection
         client_command_list = var_stack.resolve_var_to_list("__CLIENT_GUI_CMD_LIST__")
         self.client_command_name_var.set(var_stack.unresolved_var("CLIENT_GUI_CMD"))
-        OptionMenu(client_frame, self.client_command_name_var, self.client_command_name_var.get(), *client_command_list, command=self.update_client_state).grid(row=curr_row, column=1, sticky=W)
+        OptionMenu(client_frame, self.client_command_name_var,
+                   self.client_command_name_var.get(), *client_command_list, command=self.update_client_state).grid(row=curr_row, column=1, sticky=W)
 
         self.run_client_batch_file_var.set(str_to_bool_int(var_stack.unresolved_var("CLIENT_GUI_RUN_BATCH")))
-        Checkbutton(client_frame, text="Run batch file", variable=self.run_client_batch_file_var, command=self.update_client_state).grid(row=curr_row, column=2, sticky=E)
+        Checkbutton(client_frame, text="Run batch file",
+                    variable=self.run_client_batch_file_var, command=self.update_client_state).grid(row=curr_row, column=2, sticky=E)
 
         # path to input file
         curr_row += 1
@@ -390,8 +397,10 @@ class InstlGui(InstlInstanceBase):
         self.client_input_combobox.grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
         self.client_input_path_var.trace('w', self.update_client_state)
         Button(client_frame, width=2, text="...", command=self.get_client_input_file).grid(row=curr_row, column=3, sticky=W)
-        Button(client_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_stack.resolve_var("CLIENT_GUI_IN_FILE"))).grid(row=curr_row, column=4, sticky=W)
-        Button(client_frame, width=3, text="Chk",  command=lambda: self.check_yaml(var_stack.resolve_var("CLIENT_GUI_IN_FILE"))).grid(row=curr_row, column=5, sticky=W)
+        Button(client_frame, width=4, text="Edit",
+               command=lambda: self.open_file_for_edit(var_stack.resolve_var("CLIENT_GUI_IN_FILE"))).grid(row=curr_row, column=4, sticky=W)
+        Button(client_frame, width=3, text="Chk",
+               command=lambda: self.check_yaml(var_stack.resolve_var("CLIENT_GUI_IN_FILE"))).grid(row=curr_row, column=5, sticky=W)
 
         # path to output file
         curr_row += 1
@@ -400,7 +409,8 @@ class InstlGui(InstlInstanceBase):
         Entry(client_frame, textvariable=self.client_output_path_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
         self.client_output_path_var.trace('w', self.update_client_state)
         Button(client_frame, width=2, text="...", command=self.get_client_output_file).grid(row=curr_row, column=3, sticky=W)
-        Button(client_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_stack.resolve_var("CLIENT_GUI_OUT_FILE"))).grid(row=curr_row, column=4, sticky=W)
+        Button(client_frame, width=4, text="Edit",
+                command=lambda: self.open_file_for_edit(var_stack.resolve_var("CLIENT_GUI_OUT_FILE"))).grid(row=curr_row, column=4, sticky=W)
 
         # s3 user credentials
         curr_row += 1
@@ -516,8 +526,8 @@ class ToolTip( Toplevel ):
         self.visible = 0
         self.lastMotion = 0
         Message( self, textvariable=self.msgVar, bg='#FFFFDD',
-                 aspect=1000 ).grid()                                           # The test of the ToolTip is displayed in a Message widget
-        self.wdgt.bind( '<Enter>', self.spawn, '+' )                            # Add bindings to the widget.  This will NOT override bindings that the widget already has
+                 aspect=1000 ).grid()                                     # The test of the ToolTip is displayed in a Message widget
+        self.wdgt.bind( '<Enter>', self.spawn, '+' )                      # Add bindings to the widget. This will NOT override bindings widget already has
         self.wdgt.bind( '<Leave>', self.hide, '+' )
         self.wdgt.bind( '<Motion>', self.move, '+' )
 
@@ -548,7 +558,7 @@ class ToolTip( Toplevel ):
           event: The event that called this function
         """
         self.lastMotion = time()
-        if self.follow == False:                                                # If the follow flag is not set, motion within the widget will make the ToolTip dissapear
+        if self.follow is False:                                                # If the follow flag is not set, motion within the widget will make the ToolTip dissapear
             self.withdraw()
             self.visible = 1
         self.geometry( '+%i+%i' % ( event.x_root+10, event.y_root+10 ) )        # Offset the ToolTip 10x10 pixes southwest of the pointer
