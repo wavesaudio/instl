@@ -72,7 +72,13 @@ class InstlMisc(InstlInstanceBase):
         if "__NO_WTAR_ARTIFACTS__" in var_stack:
             self.no_artifacts = True
         for root, dirs, files in os.walk(".", followlinks=False):
-            files_to_unwtar = unique_list() # unique_list so if both .wtar and .wtar.aa exists the list after joining will not have double entries
+            # a hack to prevent unwtaring of the sync folder. Copy command might copy something
+            # to the top level of the sync folder.
+            if "bookkeeping" in dirs:
+                dirs[:] = []
+                continue
+            # unique_list so if both .wtar and .wtar.aa exists the list after joining will not have double entries
+            files_to_unwtar = unique_list()
             # find split files and join them
             for afile in files:
                 afile_path = os.path.join(root, afile)

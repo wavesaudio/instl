@@ -7,6 +7,8 @@
 
     user visible changes, client:
     * check-checksum command was defined by mistake to require --out command line option. Now removed.
+    * A hack to prevent unwtaring of the sync folder. Copy command might copy something to the top level of the sync folder.
+        So sync folder is avoided by detecting the bookkeeping folder inside.
 
 15/3/2015 0.10.0.4
     user visible changes, client:
