@@ -149,10 +149,10 @@ def ifTrueOrFalse(test, ifTrue, ifFalse):
 class YamlDumpWrap(object):
     """ Warps a python object or data structure to be written to Yaml.
         Overcomes some of PyYaml limitations, by adding the option to
-        have comments and tags. Sorting mapping be key us also optional.
+        have comments and tags. Sorting mapping by key is also optional.
     """
     def __init__(self, value=None, tag="", comment="", sort_mappings=False):
-         # sometimes tag's type is unicode, pyYaml is strange...
+        # sometimes tag's type is unicode, pyYaml is strange...
         self.tag = tag.encode('ascii', 'ignore')
         self.comment = comment
         self.value = value
@@ -170,7 +170,7 @@ class YamlDumpWrap(object):
     def isScalar(self):
         return isScalar(self.value)
 
-    def writePrefix(self, out_stream, indentor):
+    def writePrefix(self, out_stream,indentor ):
         if isinstance(self.value, (list, tuple, dict)):
             if self.tag or self.comment:
                 indentor.lineSepAndIndent(out_stream)

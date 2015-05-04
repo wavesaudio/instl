@@ -57,7 +57,9 @@ class ConfigVar(object):
     def __str__(self):
         ln = '\n'
         indent = "    "
-        retVal = "{self._ConfigVar__name}:{ln}{indent}values:{self._ConfigVar__values}{ln}{indent}description:{self._ConfigVar__description})".format(**locals())
+        retVal = "{self._ConfigVar__name}:{ln}{indent}"\
+                "values:{self._ConfigVar__values}{ln}{indent}"\
+                "description:{self._ConfigVar__description})".format(**locals())
         return retVal
 
     def __repr__(self):
@@ -111,7 +113,8 @@ class ConstConfigVar(ConfigVar):
         if sys.version_info < (3, 0):
             super(ConstConfigVar, self).__init__(name, description, *values)
         else:
-            super().__init__(name, description, *values)
+            raise "Python version too advanced, need 2.X not "+str(sys.version_info)
+        #    super().__init__(name, description, *values)
 
     def set_description(self, unused_description):
         raise Exception("Cannot change a const value", self.name())

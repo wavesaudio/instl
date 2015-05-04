@@ -4,7 +4,7 @@ __INSTL_VERSION__:
     - 0
     - 10
     - 0
-    - 3
+    - 5
 
 __USER_CONFIG_FILE_NAME__: instl_config.yaml
 __USER_CONFIG_FILE_PATH__: $(__USER_HOME_DIR__)/$(__USER_CONFIG_FILE_NAME__)

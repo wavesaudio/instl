@@ -30,7 +30,8 @@ class ConnectionHTTP(ConnectionBase):
 
     @abc.abstractmethod
     def translate_url(self, in_bare_url):
-        retVal = urllib.quote(in_bare_url, "$()/:")
+        self.quote = urllib.quote(in_bare_url, "$()/:")
+        retVal = self.quote
         return retVal
 
 

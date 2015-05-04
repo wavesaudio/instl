@@ -62,6 +62,12 @@ command:
             Public key is written to a file named in variable PUBLIC_KEY_FILE which defaults to "$(REPO_NAME).public_key".
             Variables PRIVATE_KEY_FILE, PUBLIC_KEY_FILE, REPO_NAME are read from path_to_config_file.
             Key size is 4096. Keys are produced in PEM format. 
+    depend:
+        short: Create a full dependencies list from index.yaml (admin command)
+        long: |
+            Usage instl depend --in index-file --out depend-file
+            Reads the given index-file and for each IID prints to depend-file all the IID it depends on and all IID needed by it.
+            To print to standard out specify --out stdout
 
     fix-props:
         short: Fix certain properties in svn repository. (admin command)

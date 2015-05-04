@@ -240,7 +240,7 @@ class CMDObj(cmd.Cmd, object):
         sys.stdout.write(colored_string)
         return False
 
-    def indentifier_completion_list(self, text, unused_line, unused_begidx, unused_endidx):
+    def identifier_completion_list(self, text, unused_line, unused_begidx, unused_endidx):
         matches = []
         if text:
             completion_list = self.client_prog_inst.create_completion_list()
@@ -251,7 +251,7 @@ class CMDObj(cmd.Cmd, object):
 
     def complete_list(self, text, line, begidx, endidx):
         #print("complete_list, text:", text)
-        matches = self.indentifier_completion_list(text, line, begidx, endidx)
+        matches = self.identifier_completion_list(text, line, begidx, endidx)
         for s in ("define", "index", "guid"):
             if s.lower().startswith(text.lower()):
                 matches.append(s)
@@ -307,7 +307,7 @@ class CMDObj(cmd.Cmd, object):
         return False
 
     def complete_set(self, text, line, begidx, endidx):
-        return self.indentifier_completion_list(text, line, begidx, endidx)
+        return self.identifier_completion_list(text, line, begidx, endidx)
 
     def help_set(self):
         print("set identifier [value, ...]")
@@ -319,7 +319,7 @@ class CMDObj(cmd.Cmd, object):
         return False
 
     def complete_del(self, text, line, begidx, endidx):
-        return self.indentifier_completion_list(text, line, begidx, endidx)
+        return self.identifier_completion_list(text, line, begidx, endidx)
 
     def help_del(self):
         print("del [identifier, ...]")
@@ -333,6 +333,7 @@ class CMDObj(cmd.Cmd, object):
                     self.client_prog_inst.add_default_items()
                 except Exception as ex:
                     print("read", afile, ex)
+            self.client_prog_inst.resolve_index_inheritance()
         else:
             self.help_read()
         return False
@@ -428,7 +429,7 @@ class CMDObj(cmd.Cmd, object):
                 if param not in self.client_prog_inst.install_definitions_index:
                     print(text_with_color(param, 'green'), "not in index")
                     continue
-                depend_list = list()
+                depend_list = unique_list()
                 self.client_prog_inst.needs(param, depend_list)
                 if not depend_list:
                     depend_list = ("no one",)
@@ -450,11 +451,11 @@ class CMDObj(cmd.Cmd, object):
         return False
 
     def complete_depend(self, text, line, begidx, endidx):
-        return self.indentifier_completion_list(text, line, begidx, endidx)
+        return self.identifier_completion_list(text, line, begidx, endidx)
 
     def help_depend(self):
         print("depend [identifier, ...]")
-        print("    dependecies for an item")
+        print("    dependencies for an item")
 
     def do_sync(self, params):
         out_file = "stdout"

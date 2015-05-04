@@ -5,6 +5,7 @@ from collections import OrderedDict
 import yaml
 import logging
 
+import instlException
 from pyinstl.utils import *
 import aYaml
 import svnItem
@@ -92,9 +93,9 @@ class SVNTree(svnItem.SVNTopItem):
             for a_node in yaml.compose_all(rfd):
                 self.read_yaml_node(a_node)
         except yaml.YAMLError as ye:
-            raise InstlException(" ".join(("YAML error while reading file", "'" + file_path + "':\n", str(ye))), ye)
+            raise instlException.InstlException(" ".join(("YAML error while reading file", "'" + rfd.name + "':\n", str(ye))), ye)
         except IOError as ioe:
-            raise InstlException(" ".join(("Failed to read file", "'" + file_path + "'", ":")), ioe)
+            raise instlException.InstlException(" ".join(("Failed to read file", "'" + rfd.name + "'", ":")), ioe)
 
     def pseudo_read_from_yaml(self, rfd):
         """ read from yaml file without the yaml parser - much faster

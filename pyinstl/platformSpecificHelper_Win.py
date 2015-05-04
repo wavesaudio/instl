@@ -167,7 +167,7 @@ class CopyTool_win_xcopy(CopyToolBase):
         retVal.append(self.platform_helper.exit_if_error())
         return retVal
 
-    def copy_dir_files_to_dir(self, src_dir, norm_trg_dir, link_dest=False, ignore=None):
+    def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
         retVal = list()
         norm_src_dir = os.path.normpath(src_dir)
         norm_trg_dir = os.path.normpath(trg_dir)

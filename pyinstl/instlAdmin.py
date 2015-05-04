@@ -4,13 +4,13 @@ from __future__ import print_function
 
 import filecmp
 import cStringIO as StringIO
-from collections import defaultdict
 import re
 import fnmatch
+from collections import defaultdict
 
 from instlException import *
 from pyinstl.utils import *
-from aYaml.augmentedYaml import writeAsYaml, YamlDumpDocWrap
+from aYaml.augmentedYaml import writeAsYaml, YamlDumpWrap, YamlDumpDocWrap
 
 from instlInstanceBase import InstlInstanceBase
 from pyinstl import svnTree
@@ -219,13 +219,15 @@ class InstlAdmin(InstlInstanceBase):
 
         # sync revision from SVN to Base folder
         accum += self.platform_helper.echo("Getting revision $(__CURR_REPO_REV__) from $(SVN_REPO_URL)")
-        checkout_command_parts = ['"$(SVN_CLIENT_PATH)"', "co", '"'+"$(SVN_REPO_URL)@$(__CURR_REPO_REV__)"+'"', '"'+"$(ROOT_LINKS_FOLDER_REPO)/Base"+'"', "--depth", "infinity"]
+        checkout_command_parts = ['"$(SVN_CLIENT_PATH)"', "co", '"'+"$(SVN_REPO_URL)@$(__CURR_REPO_REV__)"+'"',
+                                  '"'+"$(ROOT_LINKS_FOLDER_REPO)/Base"+'"', "--depth", "infinity"]
         accum += " ".join(checkout_command_parts)
         accum += self.platform_helper.progress("Create links for revision $(__CURR_REPO_REV__)")
 
         # copy Base folder to revision folder
         accum += self.platform_helper.mkdir("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
-        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir("$(ROOT_LINKS_FOLDER_REPO)/Base", revision_folder_path, link_dest=True, ignore=".svn", preserve_dest_files=False)
+        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir("$(ROOT_LINKS_FOLDER_REPO)/Base", revision_folder_path,
+                                                                         link_dest=True, ignore=".svn", preserve_dest_files=False)
         accum += self.platform_helper.progress("Copy revision $(__CURR_REPO_REV__) to $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
 
         # get info from SVN for all files in revision
@@ -252,21 +254,33 @@ class InstlAdmin(InstlInstanceBase):
         accum += " ".join(trans_command_parts)
 
         # create Mac only info_map
-        trans_command_parts = [self.platform_helper.run_instl(), "trans", "--in", "instl/info_map.txt", "--out ", "instl/info_map_Mac.txt",  "--filter-out", "Win"]
+        trans_command_parts = [self.platform_helper.run_instl(), "trans", "--in", "instl/info_map.txt",
+                               "--out ", "instl/info_map_Mac.txt",  "--filter-out", "Win"]
         accum += " ".join(trans_command_parts)
         accum += self.platform_helper.progress("Create $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map_Mac.txt")
 
         # create Win only info_map
-        trans_command_parts = [self.platform_helper.run_instl(), "trans", "--in", "instl/info_map.txt", "--out ", "instl/info_map_Win.txt",  "--filter-out", "Mac"]
+        trans_command_parts = [self.platform_helper.run_instl(), "trans", "--in", "instl/info_map.txt",
+                               "--out ", "instl/info_map_Win.txt",  "--filter-out", "Mac"]
         accum += " ".join(trans_command_parts)
         accum += self.platform_helper.progress("Create $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map_Win.txt")
 
-        create_repo_rev_file_command_parts = [self.platform_helper.run_instl(), "create-repo-rev-file", "--config-file", '"$(__CONFIG_FILE_PATH__)"', "--rev", "$(__CURR_REPO_REV__)"]
+        # create depend file
+        create_depend_file_command_parts = [self.platform_helper.run_instl(), "depend", "--in", "instl/index.yaml",
+                                            "--out", "instl/index-dependencies.yaml"]
+        accum += " ".join(create_depend_file_command_parts)
+        accum += self.platform_helper.progress("Create dependencies file")
+
+        # create repo-rev file
+        create_repo_rev_file_command_parts = [self.platform_helper.run_instl(), "create-repo-rev-file",
+                                              "--config-file", '"$(__CONFIG_FILE_PATH__)"', "--rev", "$(__CURR_REPO_REV__)"]
         accum += " ".join(create_repo_rev_file_command_parts)
         accum += self.platform_helper.progress("Create repo-rev file")
 
         # create text versions of info and yaml files, so they can be displayed in browser
-        accum +=  " ".join( ("find", "instl", "-type", "f", "-regextype", "posix-extended", "-regex", "'.*(yaml|info|props)'", "-print0", "|", "xargs", "-0", "-I{}", "cp", "-f", '"{}"', '"{}.txt"') )
+        accum +=  " ".join( ("find", "instl", "-type", "f", "-regextype", "posix-extended",
+                             "-regex", "'.*(yaml|info|props)'", "-print0", "|",
+                             "xargs", "-0", "-I{}", "cp", "-f", '"{}"', '"{}.txt"') )
 
         accum += self.platform_helper.rmfile("$(UP_2_S3_STAMP_FILE_NAME)")
         accum += self.platform_helper.progress("Remove $(UP_2_S3_STAMP_FILE_NAME)")
@@ -275,7 +289,7 @@ class InstlAdmin(InstlInstanceBase):
 
         accum += self.platform_helper.echo("done create-links version $(__CURR_REPO_REV__)")
 
-    class RemoveIfNotSpecificVersion:
+    class RemoveIfNotSpecificVersion(object):
         def __init__(self, version_not_to_remove):
             self.version_not_to_remove = version_not_to_remove
 
@@ -896,6 +910,30 @@ class InstlAdmin(InstlInstanceBase):
         num_dirs = info_map.num_subs_in_tree(what="dir")
         print("info map:", num_files, "files in", num_dirs, "folders")
 
+    def do_read_yaml(self):
+        self.read_yaml_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)"))
+
+    def do_depend(self):
+        self.read_yaml_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)"))
+        self.resolve_index_inheritance()
+        depend_result = defaultdict(dict)
+        for IID in sorted(self.install_definitions_index):
+            needs_list = unique_list()
+            self.needs(IID, needs_list)
+            if not needs_list:
+                depend_result[IID]['depends'] = None
+            else:
+                depend_result[IID]['depends'] = sorted(needs_list)
+            needed_by_list = self.needed_by(IID)
+            if not needed_by_list:
+                depend_result[IID]['needed_by'] = None
+            else:
+                depend_result[IID]['needed_by'] = sorted(needed_by_list)
+
+        out_file_path = var_stack.resolve("$(__MAIN_OUT_FILE__)", raise_on_fail=False)
+        with write_to_file_or_stdout(out_file_path) as out_file:
+            writeAsYaml(YamlDumpWrap(depend_result, sort_mappings=True), out_file)
+        return False
 
 def percent_cb(unused_complete, unused_total):
     sys.stdout.write('.')

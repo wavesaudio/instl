@@ -13,7 +13,7 @@ def create_dependencies_graph(item_map):
     for item in item_map:
         with item_map[item]:
             for dependant in var_stack.resolve_var_to_list("iid_depend_list"):
-                retVal.add_edge(var_stack.resolve_var("iid_name"), dependant)
+                retVal.add_edge(var_stack.resolve_var("iid_iid"), dependant)
     return retVal
 
 def create_inheritItem_graph(item_map):
@@ -21,7 +21,7 @@ def create_inheritItem_graph(item_map):
     for item in item_map:
         with item_map[item]:
             for dependant in var_stack.resolve_var_to_list("iid_inherit"):
-                retVal.add_edge(var_stack.resolve_var("iid_name"), dependant)
+                retVal.add_edge(var_stack.resolve_var("iid_iid"), dependant)
     return retVal
 
 def find_cycles(item_graph):

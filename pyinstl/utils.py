@@ -521,3 +521,13 @@ def make_open_file_read_write_for_all(fd):
         os.fchmod(fd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
     except:
         os.chmod(fd.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+
+def timing(f):
+    import time
+    def wrap(*args):
+        time1 = time.time()
+        ret = f(*args)
+        time2 = time.time()
+        print ('%s function took %0.3f ms' % (f.func_name, (time2-time1)*1000.0))
+        return ret
+    return wrap

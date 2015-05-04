@@ -1,0 +1,9 @@
+pyflakes:
+  # pyflakes has no known documentation and therefor not really useful
+  run: false
+pylint:
+  disable: W0105
+ignore-paths:
+  - build
+  - misc
+  - sphinx
