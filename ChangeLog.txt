@@ -4,7 +4,8 @@
     programmer visible changes:
     * Replaced default value path_so_far=list() with path_so_far=None
     * fixed wrong parameter name on CopyTool_win_xcopy.copy_dir_files_to_dir
-
+    * Moved the curl config folder to be created in the bookkeeping folder so curls files for two version
+        will not step on each other.
     user visible changes, client:
     * check-checksum command was defined by mistake to require --out command line option. Now removed.
     * A hack to prevent unwtaring of the sync folder. Copy command might copy something to the top level of the sync folder.

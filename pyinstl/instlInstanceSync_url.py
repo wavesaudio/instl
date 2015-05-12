@@ -141,7 +141,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         print(self.instlObj.platform_helper.dl_tool.get_num_urls_to_download(), "files to sync")
         logging.info("Num files to sync: %d", self.instlObj.platform_helper.dl_tool.get_num_urls_to_download())
 
-        curl_config_folder = self.instlObj.get_default_sync_dir(continue_dir="curl", mkdir=True)
+        curl_config_folder = var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)/curl",  raise_on_fail=True)
         safe_makedirs(curl_config_folder)
         curl_config_file_path = var_stack.resolve(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"), raise_on_fail=True)
         num_config_files = int(var_stack.resolve("$(PARALLEL_SYNC)"))
