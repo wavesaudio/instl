@@ -933,7 +933,7 @@ class InstlAdmin(InstlInstanceBase):
         out_file_path = var_stack.resolve("$(__MAIN_OUT_FILE__)", raise_on_fail=False)
         with write_to_file_or_stdout(out_file_path) as out_file:
             writeAsYaml(YamlDumpWrap(depend_result, sort_mappings=True), out_file)
-        return False
+        print("dependencies written to", out_file_path)
 
 def percent_cb(unused_complete, unused_total):
     sys.stdout.write('.')

@@ -1,9 +1,4 @@
-Test environment with password:
+Could storage wish list:
+    Be able to avoid creating the urls on server - maybe use some time limited token?
+    Be able to donload whole folders???
 
-On stage computer:
-How to move between repos with little confusion?
-
-On server:
-Scripts will upload for all repos automatically. Keep list of active repos.
-set-repo-rev and upload-repo-rev need additional repo param.
-Do scripts need to consider download permissions when uploading?
