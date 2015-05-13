@@ -427,8 +427,11 @@ class DownloadToolBase(object):
     def download_url_to_file(self, src_url, trg_file):
         pass
 
-    def add_download_url(self, url, path):
-        translated_url = ConnectionBase.repo_connection.translate_url(url)
+    def add_download_url(self, url, path, verbatim=False):
+        if verbatim:
+            translated_url = url
+        else:
+            translated_url = ConnectionBase.repo_connection.translate_url(url)
         self.urls_to_download.append( (translated_url, path) )
 
     def get_num_urls_to_download(self):

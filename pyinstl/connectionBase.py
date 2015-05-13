@@ -30,7 +30,9 @@ class ConnectionHTTP(ConnectionBase):
 
     @abc.abstractmethod
     def translate_url(self, in_bare_url):
-        self.quote = urllib.quote(in_bare_url, "$()/:")
+        parsed = urlparse.urlparse(in_bare_url)
+        quated_results = urlparse.ParseResult(scheme=parsed.scheme, netloc=parsed.netloc, path=urllib.quote(parsed.path, "$()/:%"), params=parsed.params, query=parsed.query, fragment=parsed.fragment)
+        self.quote = urlparse.urlunparse(quated_results)
         retVal = self.quote
         return retVal
 

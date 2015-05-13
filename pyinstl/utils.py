@@ -373,7 +373,7 @@ def get_buffer_checksum(buff):
 
 def check_buffer_checksum(buff, expected_checksum):
     checksum = get_buffer_checksum(buff)
-    retVal = checksum == expected_checksum
+    retVal = checksum.lower() == expected_checksum.lower()
     return retVal
 
 def check_buffer_signature(buff, textual_sig, public_key):

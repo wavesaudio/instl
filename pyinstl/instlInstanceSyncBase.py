@@ -52,15 +52,10 @@ class InstlInstanceSync(object):
         try:
             safe_makedirs(var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)", raise_on_fail=True))
             safe_makedirs(var_stack.resolve("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)", raise_on_fail=True))
-            if "FILES_AND_URLS_INFO_MAP_URL" in var_stack:
-                download_from_file_or_url(var_stack.resolve("$(FILES_AND_URLS_INFO_MAP_URL)"),
-                                      var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)", raise_on_fail=True))
-            else:
-                download_from_file_or_url(var_stack.resolve("$(INFO_MAP_FILE_URL)"),
+            download_from_file_or_url(var_stack.resolve("$(INFO_MAP_FILE_URL)"),
                                       var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)", raise_on_fail=True),
                                       cache=True,
-                                      public_key=var_stack.resolve("$(PUBLIC_KEY)"),
-                                      textual_sig=var_stack.resolve("$(INFO_MAP_SIG)"))
+                                      expected_checksum=var_stack.resolve("$(INFO_MAP_FILE_URL_CHECKSUM)"))
             self.work_info_map.read_info_map_from_file(var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)"),
                                                        a_format="text")
         except:

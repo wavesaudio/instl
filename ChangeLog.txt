@@ -6,6 +6,11 @@
     * fixed wrong parameter name on CopyTool_win_xcopy.copy_dir_files_to_dir
     * Moved the curl config folder to be created in the bookkeeping folder so curls files for two version
         will not step on each other.
+    * Better ConnectionHTTP.translate_url acts only on the path part.
+    * DownloadToolBase.add_download_url in InstlInstanceSync_url.create_download_instructions_for_item: translate_url applied only to URLs created by instl.
+    * Reading of info map file checks only checksum not sig.
+    * Case insensitive checksum checks.
+
     user visible changes, client:
     * check-checksum command was defined by mistake to require --out command line option. Now removed.
     * A hack to prevent unwtaring of the sync folder. Copy command might copy something to the top level of the sync folder.

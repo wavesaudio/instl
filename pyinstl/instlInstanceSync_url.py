@@ -207,7 +207,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 source_url = item.url()
                 if source_url is None:
                     source_url = '/'.join(make_one_list(self.sync_base_url, str(item.last_rev()), path_so_far, item.name()))
-                self.instlObj.platform_helper.dl_tool.add_download_url(source_url, item.full_path())
+                # if source_url is given from info_map no need to translate it, so verbatim will be true.
+                self.instlObj.platform_helper.dl_tool.add_download_url(source_url, item.full_path(), verbatim=source_url==item.url())
         elif item.isDir():
             path_so_far.append(item.name())
             file_list, dir_list = item.sorted_sub_items()
