@@ -15,7 +15,8 @@
     * check-checksum command was defined by mistake to require --out command line option. Now removed.
     * A hack to prevent unwtaring of the sync folder. Copy command might copy something to the top level of the sync folder.
         So sync folder is avoided by detecting the bookkeeping folder inside.
-
+    * If LOCAL_SYNC_DIR is not known it is extracted from SYNC_BASE_URL only if SYNC_BASE_URL exists.
+        Previously if SYNC_BASE_URL was not found an exception was raised. Help to create remove without needing URLs.
     user visible changes, admin:
     * depend command: added a message at the end so we know output was created OK.
 
