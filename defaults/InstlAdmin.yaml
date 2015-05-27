@@ -19,13 +19,33 @@ S3_ACL_VALUE: public-read
 MIN_FILE_SIZE_TO_WTAR: 5242880 # was MAX_FILE_SIZE
 
 # folders who's name matches FOLDER_WTAR_REGEX regex will be wtarred.
-# Here it defaults to non matching regex so you need to override
+# Here it defaults to non matching regex so you need to define
 # FOLDER_WTAR_REGEX in order to wtar some files.
+# regexs are used with the re.search function.
+# regexs are ORed so if any of them matches the folder will be wtarred.
 FOLDER_WTAR_REGEX:
     - "a^"
 
-# folders or files who's name matches WTAR_REGEX regex will be wtarred
+# folders or files who's name matches FILE_WTAR_REGEX regex will be wtarred
 # regardless of size. Here it defaults to non matching regex so you need
-# to override FILE_WTAR_REGEX in order to wtar some files.
+# to define FILE_WTAR_REGEX in order to wtar some files.
+# regexs are used with the re.search function.
+# regexs are ORed so if any of them matches the file will be wtarred.
 FILE_WTAR_REGEX:
     - "a^"
+
+# folders who's name matches FOLDER_EXCLUDE_REGEX regex will not be added
+# to the repository by stage2svn.
+# Here it defaults to avoiding adding folders with ',' in their names.
+# regexs are used with the re.search function.
+# regexs are ORed so if any of them matches the folder will not be added.
+FOLDER_EXCLUDE_REGEX:
+    - ","
+
+# files who's name matches FOLDER_EXCLUDE_REGEX regex will not be added
+# to the repository by stage2svn.
+# Here it defaults to avoiding adding files with ',' in their names.
+# regexs are used with the re.search function.
+# regexs are ORed so if any of them matches the file will not be added.
+FILE_EXCLUDE_REGEX:
+    - ","

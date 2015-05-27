@@ -531,3 +531,14 @@ def timing(f):
         print ('%s function took %0.3f ms' % (f.func_name, (time2-time1)*1000.0))
         return ret
     return wrap
+
+# compile a list of regexs to one regex. regexs are ORed
+# with the | character so if any regex return true when calling
+# re.search or of re.match the whole regex will return true.
+def compile_regex_list_ORed(regex_list, verbose=True):
+    combined_regex = "(" + ")|(".join(regex_list) + ")"
+    if verbose:
+        retVal = re.compile(combined_regex, re.VERBOSE)
+    else:
+        retVal = re.compile(combined_regex)
+    return retVal

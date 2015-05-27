@@ -600,6 +600,12 @@ class InstlAdmin(InstlInstanceBase):
             print ("stage2svn for the whole repository")
         stage_folder = var_stack.resolve("$(STAGING_FOLDER)")
         svn_folder = var_stack.resolve("$(SVN_CHECKOUT_FOLDER)")
+
+        forbidden_folder_regex_list = var_stack.resolve_to_list("$(FOLDER_EXCLUDE_REGEX)")
+        self.compiled_forbidden_folder_regex = compile_regex_list_ORed(forbidden_folder_regex_list)
+        forbidden_file_regex_list = var_stack.resolve_to_list("$(FILE_EXCLUDE_REGEX)")
+        self.compiled_forbidden_file_regex = compile_regex_list_ORed(forbidden_file_regex_list)
+
         self.batch_accum += self.platform_helper.unlock(stage_folder, recursive=True)
         self.batch_accum += self.platform_helper.progress("chflags -R nouchg "+stage_folder)
         self.batch_accum += self.platform_helper.new_line()
@@ -613,6 +619,8 @@ class InstlAdmin(InstlInstanceBase):
         else:
                 stage_folder_svn_folder_pairs.append( (stage_folder , svn_folder) )
         for pair in stage_folder_svn_folder_pairs:
+            if self.compiled_forbidden_folder_regex.search(pair[0]):
+                raise InstlException(pair[0]+" has forbidden characters should not be committed to svn")
             comparer = filecmp.dircmp(pair[0], pair[1], ignore=[".svn", ".DS_Store", "Icon\015"])
             self.stage2svn_for_folder(comparer)
         self.create_variables_assignment()
@@ -621,17 +629,44 @@ class InstlAdmin(InstlInstanceBase):
             self.run_batch_file()
 
     def stage2svn_for_folder(self, comparer):
-        # copy new and changed items:
-        for item in comparer.left_only + comparer.diff_files:
+        # copy new items:
+        for item in comparer.left_only:
             item_path = os.path.join(comparer.left, item)
             if os.path.islink(item_path):
                 raise InstlException(item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
             elif os.path.isfile(item_path):
+                if self.compiled_forbidden_file_regex.search(item_path):
+                    raise InstlException(item_path+" has forbidden characters should not be committed to svn")
                 self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(item_path, comparer.right, link_dest=False, ignore=".svn")
             elif os.path.isdir(item_path):
+                if self.compiled_forbidden_folder_regex.search(item_path):
+                    raise InstlException(item_path+" has forbidden characters should not be committed to svn")
+                # check that all items under a new folder pass the forbidden file/folder rule
+                for root, dirs, files in os.walk(item_path, followlinks=False):
+                    for item in files:
+                        if self.compiled_forbidden_file_regex.search(item):
+                            raise InstlException(os.path.join(root, item)+" has forbidden characters should not be committed to svn")
+                    for item in dirs:
+                        if self.compiled_forbidden_folder_regex.search(item):
+                            raise InstlException(os.path.join(root, item)+" has forbidden characters should not be committed to svn")
+
+
                 self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(item_path, comparer.right, link_dest=False, ignore=".svn")
             else:
                 raise InstlException(item_path+" not a file, dir or symlink, an abomination!")
+            self.batch_accum += self.platform_helper.progress(item_path)
+
+        # copy changed items:
+        for item in comparer.diff_files:
+            item_path = os.path.join(comparer.left, item)
+            if os.path.islink(item_path):
+                raise InstlException(item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
+            elif os.path.isfile(item_path):
+                if self.compiled_forbidden_file_regex.search(item_path):
+                    raise InstlException(item_path+" has forbidden characters should not be committed to svn")
+                self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(item_path, comparer.right, link_dest=False, ignore=".svn")
+            else:
+                raise InstlException(item_path+" not a different file or symlink, an abomination!")
             self.batch_accum += self.platform_helper.progress(item_path)
 
         # tell svn about new items, svn will not accept 'add' for changed items
@@ -651,9 +686,9 @@ class InstlAdmin(InstlInstanceBase):
 
     def prepare_conditions_for_wtar(self):
         folder_wtar_regex_list = var_stack.resolve_to_list("$(FOLDER_WTAR_REGEX)")
-        self.compiled_folder_wtar_regex_list = [re.compile(regex) for regex in folder_wtar_regex_list]
+        self.compiled_folder_wtar_regex = compile_regex_list_ORed(folder_wtar_regex_list)
         file_wtar_regex_list = var_stack.resolve_to_list("$(FILE_WTAR_REGEX)")
-        self.compiled_file_wtar_regex_list = [re.compile(regex) for regex in file_wtar_regex_list]
+        self.compiled_file_wtar_regex = compile_regex_list_ORed(file_wtar_regex_list)
 
         self.min_file_size_to_wtar  = int(var_stack.resolve(("$(MIN_FILE_SIZE_TO_WTAR)")))
 
@@ -671,15 +706,13 @@ class InstlAdmin(InstlInstanceBase):
             if self.already_wtarred_regex.match(dir_item):
                 raise Exception
             if os.path.isdir(dir_item):
-                for regex in self.compiled_folder_wtar_regex_list:
-                    if re.search(regex, dir_item):
-                        retVal = True
-                        raise Exception
+                if self.compiled_folder_wtar_regex.search(regex, dir_item):
+                    retVal = True
+                    raise Exception
             elif os.path.isfile(dir_item):
-                for regex in self.compiled_file_wtar_regex_list:
-                    if re.search(regex, dir_item):
-                        retVal = True
-                        raise Exception
+                if self.compiled_file_wtar_regex.search(regex, dir_item):
+                    retVal = True
+                    raise Exception
                 if os.path.getsize(dir_item) > self.min_file_size_to_wtar:
                     if self.compiled_wtar_by_file_size_exclude_regex is not None:
                         if not re.match(self.compiled_wtar_by_file_size_exclude_regex, dir_item):
