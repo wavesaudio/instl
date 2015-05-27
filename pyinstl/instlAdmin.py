@@ -706,11 +706,11 @@ class InstlAdmin(InstlInstanceBase):
             if self.already_wtarred_regex.match(dir_item):
                 raise Exception
             if os.path.isdir(dir_item):
-                if self.compiled_folder_wtar_regex.search(regex, dir_item):
+                if self.compiled_folder_wtar_regex.search(dir_item):
                     retVal = True
                     raise Exception
             elif os.path.isfile(dir_item):
-                if self.compiled_file_wtar_regex.search(regex, dir_item):
+                if self.compiled_file_wtar_regex.search(dir_item):
                     retVal = True
                     raise Exception
                 if os.path.getsize(dir_item) > self.min_file_size_to_wtar:

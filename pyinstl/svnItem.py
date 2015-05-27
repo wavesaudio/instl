@@ -77,7 +77,7 @@ class SVNItem(object):
 
     def __deepcopy__(self, memodict):
         """ implement deepcopy """
-        retVal = SVNItem(self.__name, self.__flags, self.__last_rev, __checksum, __url)
+        retVal = SVNItem(self.__name, self.__flags, self.__last_rev, self.__checksum, self.__url)
         if self.__subs:
             retVal.subs().update({name: copy.deepcopy(item, memodict) for name, item in self.subs().iteritems()})
             for item in retVal.subs().values():
@@ -86,7 +86,7 @@ class SVNItem(object):
 
     def __getstate__(self):
         """ for pickling """
-        return [[self.__up, self.__name, self.__flags, self.__last_rev, __checksum, __url], self.__subs]
+        return [[self.__up, self.__name, self.__flags, self.__last_rev, self.__checksum, self.__url], self.__subs]
 
     def __setstate__(self, state):
         """ for pickling """

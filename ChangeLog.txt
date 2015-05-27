@@ -12,6 +12,7 @@
     * Case insensitive checksum checks.
     * Checks with multi regexes are combined with new function compile_regex_list_ORed, used in conjuction with followingparams:
         FOLDER_WTAR_REGEX, FILE_WTAR_REGEX, FOLDER_EXCLUDE_REGEX, FILE_EXCLUDE_REGEX.
+    * Fixed some errors discovered by Landscape.io
 
     user visible changes, client:
     * check-checksum command was defined by mistake to require --out command line option. Now removed.
