@@ -99,10 +99,14 @@ def create_copy_instructions(self):
         # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
         self.accumulate_unique_actions('pre_copy_to_folder', items_in_folder)
 
-        self.batch_accum += self.platform_helper.unwtar_current_folder()
 
         for IID in items_in_folder:
             with self.install_definitions_index[IID]:
+                for source_var in var_stack.resolve_var_to_list_if_exists("iid_source_var_list"):
+                    source = var_stack.resolve_var_to_list(source_var)
+                    source_folder, source_name = os.path.split(source[0])
+                    to_untar = os.path.join(folder_name, source_name)
+                    self.batch_accum += self.platform_helper.unwtar_something(to_untar)
                 self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_pre_copy_item")
                 self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_post_copy_item")
 

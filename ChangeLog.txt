@@ -13,6 +13,8 @@
     * Checks with multi regexes are combined with new function compile_regex_list_ORed, used in conjuction with followingparams:
         FOLDER_WTAR_REGEX, FILE_WTAR_REGEX, FOLDER_EXCLUDE_REGEX, FILE_EXCLUDE_REGEX.
     * Fixed some errors discovered by Landscape.io
+    * New function PlatformSpecificHelperBase.unwtar_something for unwtarring a specific item not just the current directory.
+        PlatformSpecificHelperBase.unwtar_current_folder is now implemented by calling PlatformSpecificHelperBase.unwtar_something(".")
 
     user visible changes, client:
     * check-checksum command was defined by mistake to require --out command line option. Now removed.
@@ -20,6 +22,7 @@
         So sync folder is avoided by detecting the bookkeeping folder inside.
     * If LOCAL_SYNC_DIR is not known it is extracted from SYNC_BASE_URL only if SYNC_BASE_URL exists.
         Previously if SYNC_BASE_URL was not found an exception was raised. Help to create remove without needing URLs.
+    * Fixed the unwtar for non-copied object so that only what's needed will be unwtarred, not the whole sync folder.
 
     user visible changes, admin:
     * depend command: added a message at the end so we know output was created OK.
