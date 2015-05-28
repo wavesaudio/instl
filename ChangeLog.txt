@@ -24,6 +24,7 @@
     user visible changes, admin:
     * depend command: added a message at the end so we know output was created OK.
     * stage2svn command: added check to prevent adding files or folder with character ','.
+    * Improved the unwtar command. Added --in option to allow to specify a file or folder that is not the current directory.
 
 15/3/2015 0.10.0.4
     user visible changes, client:

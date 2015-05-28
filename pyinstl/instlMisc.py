@@ -71,41 +71,58 @@ class InstlMisc(InstlInstanceBase):
         self.no_artifacts = False
         if "__NO_WTAR_ARTIFACTS__" in var_stack:
             self.no_artifacts = True
-        for root, dirs, files in os.walk(".", followlinks=False):
-            # a hack to prevent unwtaring of the sync folder. Copy command might copy something
-            # to the top level of the sync folder.
-            if "bookkeeping" in dirs:
-                dirs[:] = []
-                continue
-            # unique_list so if both .wtar and .wtar.aa exists the list after joining will not have double entries
-            files_to_unwtar = unique_list()
-            # find split files and join them
-            for afile in files:
-                afile_path = os.path.join(root, afile)
-                if afile_path.endswith(".wtar.aa"):
-                    joint_file = self.join_split_files(afile_path)
-                    files_to_unwtar.append(joint_file)
 
-            # find unsplit wtar files
-            for afile in files:
-                afile_path = os.path.join(root, afile)
-                if afile_path.endswith(".wtar"):
-                    files_to_unwtar.append(afile_path)
+        what_to_work_on = "."
+        if "__MAIN_INPUT_FILE__" in var_stack:
+            what_to_work_on = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
 
-            for wtar_file_path in files_to_unwtar:
-                done_file = wtar_file_path+".done"
-                if not os.path.isfile(done_file) or os.path.getmtime(done_file) < os.path.getmtime(wtar_file_path):
-                    try:
-                        with tarfile.open(wtar_file_path, "r") as tar:
-                            tar.extractall(root)
-                        if self.no_artifacts:
-                            os.remove(wtar_file_path)
-                        self.dynamic_progress("Expanding {wtar_file_path}".format(**locals()))
-                    except tarfile.ReadError as re_er:
-                        print("tarfile read error while opening file", os.path.abspath(wtar_file_path))
-                        raise
-                    if not self.no_artifacts:
-                        with open(done_file, "a"): os.utime(done_file, None)
+        if os.path.isfile(what_to_work_on):
+            if what_to_work_on.endswith(".wtar.aa"):
+                what_to_work_on = self.join_split_files(what_to_work_on)
+            if what_to_work_on.endswith(".wtar"):
+                self.unwtar_a_file(what_to_work_on)
+        elif os.path.isdir(what_to_work_on):
+            for root, dirs, files in os.walk(what_to_work_on, followlinks=False):
+                # a hack to prevent unwtaring of the sync folder. Copy command might copy something
+                # to the top level of the sync folder.
+                if "bookkeeping" in dirs:
+                    dirs[:] = []
+                    continue
+                # unique_list so if both .wtar and .wtar.aa exists the list after joining will not have double entries
+                files_to_unwtar = unique_list()
+                # find split files and join them
+                for afile in files:
+                    afile_path = os.path.join(root, afile)
+                    if afile_path.endswith(".wtar.aa"):
+                        joint_file = self.join_split_files(afile_path)
+                        files_to_unwtar.append(joint_file)
+
+                # find unsplit wtar files
+                for afile in files:
+                    afile_path = os.path.join(root, afile)
+                    if afile_path.endswith(".wtar"):
+                        files_to_unwtar.append(afile_path)
+
+                for wtar_file_path in files_to_unwtar:
+                    self.unwtar_a_file(wtar_file_path)
+        else:
+            print(what_to_work_on, "is not a file or directory")
+
+    def unwtar_a_file(self, wtar_file_path):
+        done_file = wtar_file_path+".done"
+        if not os.path.isfile(done_file) or os.path.getmtime(done_file) < os.path.getmtime(wtar_file_path):
+            try:
+                wtar_folder_path, _ = os.path.split(wtar_file_path)
+                with tarfile.open(wtar_file_path, "r") as tar:
+                    tar.extractall(wtar_folder_path)
+                if self.no_artifacts:
+                    os.remove(wtar_file_path)
+                self.dynamic_progress("Expanding {wtar_file_path}".format(**locals()))
+            except tarfile.ReadError as re_er:
+                print("tarfile read error while opening file", os.path.abspath(wtar_file_path))
+                raise
+            if not self.no_artifacts:
+                with open(done_file, "a"): os.utime(done_file, None)
 
     def join_split_files(self, first_file):
         base_folder, base_name = os.path.split(first_file)

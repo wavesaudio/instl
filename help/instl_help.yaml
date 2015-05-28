@@ -175,9 +175,11 @@ command:
     unwtar:
         short: Combines split wtar files and uncompresses wtar files. (runtime command)
         long: |
-            Usage: instl unwtar [--no-artifacts]
-            Walks the current directory recursively and looks for .wtar files. Files who's extension is in the format '*.wtar.aa' are split files and are combined to a .wtar file. If combination is successful a '.wtar.aa.done' file is created, this will prevent subsequent runs of unwtar from combining the files again.
-            Files who's extension is in the format '*.wtar' are untared to their directory. If untarring is successful a '.wtar.done' file is created, this will prevent subsequent runs of unwtar from untarring the files again, unless the --no-artifacts option is given in which case all wtar files and .done files are removed.
+            Usage: instl unwtar [--in file-or-folder] [--no-artifacts]
+            Files who's extension is in the format '*.wtar.aa' are split files and are combined to a single .wtar file. If combination is successful a '.wtar.aa.done' file is created, this will prevent subsequent runs of unwtar from combining the files again.
+            Files who's extension is in the format '*.wtar' are untared to their directory. If untarring is successful a '.wtar.done' file is created, this will prevent subsequent runs of unwtar from untarring the files again.
+            If --no-artifacts option is given in all .wtar.??, .wtar and .done files are removed.
+            If --in option is given, unwtar acts on the given file or folder, otherwise it will work on the currect direcotry. Working on direcotries is recursive.
             unwtar command is used in the batch file created by the sync or synccopy commands.
 
     up-repo-rev:

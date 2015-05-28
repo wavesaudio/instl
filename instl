@@ -126,7 +126,7 @@ def prepare_args_parser(in_command):
         'test-import':          {'mode': 'ds', 'options': (), 'help':  'test the import of required modules'},
         'trans':                {'mode': 'an', 'options': ('in', 'out',), 'help':  'translate svn map files from one format to another'},
         'translate_url':        {'mode': 'ds', 'options': ('in',  'cred'), 'help':  'translate a url to be compatible with current connection'},
-        'unwtar':               {'mode': 'ds', 'options': ('prog',), 'help':  'uncompress .wtar files in current folder'},
+        'unwtar':               {'mode': 'ds', 'options': ('in_opt', 'prog',), 'help':  'uncompress .wtar files in current folder'},
         'up-repo-rev':          {'mode': 'an', 'options': ('out', 'run', 'conf',), 'help':  'upload repository revision file to admin folder'},
         'up2s3':                {'mode': 'an', 'options': ( 'out', 'run', 'conf',), 'help':  'upload installation sources to S3'},
         'verify-index':         {'mode': 'an', 'options': ('in', ), 'help':  'Verify that index and info map are compatible'},
@@ -167,16 +167,27 @@ def prepare_args_parser(in_command):
     command_parser = subparsers.add_parser(in_command, help=command_details['help'])
     command_parser.set_defaults(mode=mode_codes[command_details['mode']])
 
-    # in, out run cred, conf, prog, limit are common to many commands
+    # optional --in
+    if 'in_opt' in command_details['options']:
+        input_options = command_parser.add_argument_group(description='input arguments:')
+        input_options.add_argument('--in', '-i',
+                                    required=False,
+                                    nargs=1,
+                                    metavar='path-to-input-file',
+                                    dest='input_file',
+                                    help="file to act upon")
+
+    # required --in
     if 'in' in command_details['options']:
         input_options = command_parser.add_argument_group(description='input arguments:')
         input_options.add_argument('--in', '-i',
                                     required=True,
                                     nargs=1,
-                                    metavar='path-to-input-file',
+                                    metavar='path-to-input-folder',
                                     dest='input_file',
-                                    help="file to read index and definitions from")
+                                    help="file or folder to act upon")
 
+    # required --out
     if 'out' in command_details['options']:
         output_options = command_parser.add_argument_group(description='output arguments:')
         output_options.add_argument('--out', '-o',
