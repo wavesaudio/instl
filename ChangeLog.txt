@@ -1,5 +1,4 @@
-
-???? 0.9.19.6
+31/5/2015 0.10.0.6
 
     programmer visible changes:
     * Replaced default value path_so_far=list() with path_so_far=None
