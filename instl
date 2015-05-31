@@ -129,7 +129,7 @@ def prepare_args_parser(in_command):
         'unwtar':               {'mode': 'ds', 'options': ('in_opt', 'prog',), 'help':  'uncompress .wtar files in current folder'},
         'up-repo-rev':          {'mode': 'an', 'options': ('out', 'run', 'conf',), 'help':  'upload repository revision file to admin folder'},
         'up2s3':                {'mode': 'an', 'options': ( 'out', 'run', 'conf',), 'help':  'upload installation sources to S3'},
-        'verify-index':         {'mode': 'an', 'options': ('in', ), 'help':  'Verify that index and info map are compatible'},
+        'verify-index':         {'mode': 'an', 'options': ('in', 'cred'), 'help':  'Verify that index and info map are compatible'},
         'version':              {'mode': 'ds', 'options': (), 'help':  'display instl version'},
         'win-shortcut':         {'mode': 'ds', 'options': (), 'help':  'create a Windows shortcut'},
         'wtar':                 {'mode': 'an', 'options': ('out', 'run', 'conf',), 'help':  'create .wtar files from specified files and folders'},

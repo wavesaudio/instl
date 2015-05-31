@@ -887,23 +887,33 @@ class InstlAdmin(InstlInstanceBase):
                 else:
                     print("Bad Signature")
 
+    def sources_from_iids(self):
+        # for each iid get full paths to it's sources
+        retVal = defaultdict(unique_list)
+        InstallItem.begin_get_for_all_oses()
+        for iid in sorted(self.install_definitions_index):
+            with self.install_definitions_index[iid]:
+                for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
+                    source_var_obj = var_stack.get_configVar_obj(source_var)
+                    source, type, target_os = source_var_obj
+                    target_oses = list()
+                    if target_os in ("common", "Mac"):
+                        target_oses.append("Mac")
+                    if target_os in ("common", "Win", "Win32", "Win64"):
+                        target_oses.append("Win")
+                    for target_os in target_oses:
+                        var_stack.set_var("SOURCE_PREFIX").append(target_os)
+                        resolved_source = var_stack.resolve(source)
+                        retVal[iid].append( (resolved_source , type))
+        return retVal
+
     def do_verify_index(self):
         self.read_yaml_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)"))
         info_map = svnTree.SVNTree()
         with open_for_read_file_or_url(var_stack.resolve("$(INFO_MAP_FILE_URL)")) as rfd:
             info_map.read_from_text(rfd)
 
-        # for each iid get full paths to it's sources
-        iid_to_sources = defaultdict(list)
-        InstallItem.begin_get_for_all_oses()
-        for iid in sorted(self.install_definitions_index):
-            with self.install_definitions_index[iid]:
-                for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
-                    source = var_stack.resolve_var_to_list(source_var)
-                    if source[2] in ("common", "Mac"):
-                        iid_to_sources[iid].append( ("/".join( ("Mac", source[0])), source[1]))
-                    if source[2] in ("common", "Win", "Win32", "Win64"):
-                        iid_to_sources[iid].append( ("/".join( ("Win", source[0])), source[1]))
+        iid_to_sources = self.sources_from_iids()
 
         for iid in sorted(iid_to_sources):
             with self.install_definitions_index[iid]:
@@ -918,21 +928,30 @@ class InstlAdmin(InstlInstanceBase):
                         iid_problem_messages.append(" ".join( ("depends on non existing", dependee ) ))
                 # check sources
                 for source in iid_to_sources[iid]:
+                    its_a_wtar = False
                     map_item = info_map.get_item_at_path(source[0])
+                    if map_item is None: # maybe it's a wtar
+                        map_item = info_map.get_item_at_path(source[0]+".wtar")
+                        its_a_wtar = True
+                    if map_item is None: # maybe it's a split wtar
+                        map_item = info_map.get_item_at_path(source[0]+".wtar.aa")
+                        its_a_wtar = True
+
                     if map_item is None:
                         iid_problem_messages.append(" ".join( ("source", quoteme_single(source[0]), "does not exist") ))
                     else:
-                        if source[1] in ("!dir", "!dir_cont", "!files"):
-                            if map_item.isFile():
-                                iid_problem_messages.append(" ".join( ("source", quoteme_single(source[0]), "is a file but type is", source[1]) ))
-                            else:
-                                file_list, dir_list = map_item.unsorted_sub_items()
-                                if source[1] == "!files" and len(file_list) == 0:
-                                    iid_problem_messages.append(" ".join( ("source", quoteme_single(source[0]), "has no files but type is", source[1]) ))
-                                if source[1] in ("!dir", "!dir_cont") and len(file_list)+len(dir_list) == 0:
-                                    iid_problem_messages.append(" ".join( ("source", quoteme_single(source[0]), "has no files or dirs but type is", source[1]) ))
-                        if source[1] == "!file"  and not map_item.isFile():
-                            iid_problem_messages.append(" ".join( ("source", quoteme_single(source[0]), "is a dir but type is", source[1]) ))
+                        if not its_a_wtar:
+                            if source[1] in ("!dir", "!dir_cont", "!files"):
+                                if map_item.isFile():
+                                    iid_problem_messages.append(" ".join( ("source", quoteme_single(source[0]), "is a file but type is", source[1]) ))
+                                else:
+                                    file_list, dir_list = map_item.unsorted_sub_items()
+                                    if source[1] == "!files" and len(file_list) == 0:
+                                        iid_problem_messages.append(" ".join( ("source", quoteme_single(source[0]), "has no files but type is", source[1]) ))
+                                    if source[1] in ("!dir", "!dir_cont") and len(file_list)+len(dir_list) == 0:
+                                        iid_problem_messages.append(" ".join( ("source", quoteme_single(source[0]), "has no files or dirs but type is", source[1]) ))
+                            if source[1] == "!file"  and not map_item.isFile():
+                                iid_problem_messages.append(" ".join( ("source", quoteme_single(source[0]), "is a dir but type is", source[1]) ))
                 if iid_problem_messages:
                     print(iid+":")
                     for problem_message in sorted(iid_problem_messages):
