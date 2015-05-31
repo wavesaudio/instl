@@ -34,6 +34,7 @@ admin_command_template_variables = {
     'svn2stage': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
     'fix-symlinks': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
     'wtar': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
+    'verify-repo': '__ADMIN_CALL_INSTL_ONLY_CONFIG_FILE_TEMPLATE__',
     'stage2svn': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
     'fix-props': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
     'depend': '__ADMIN_CALL_INSTL_DEPEND_TEMPLATE__'
@@ -75,6 +76,8 @@ class InstlGui(InstlInstanceBase):
         var_stack.set_var("CLIENT_GUI_CMD").append(client_command_list[0])
         admin_command_list = var_stack.resolve_var_to_list("__ADMIN_GUI_CMD_LIST__")
         var_stack.set_var("ADMIN_GUI_CMD").append(admin_command_list[0])
+        self.commands_with_run_option_list = var_stack.resolve_var_to_list("__COMMANDS_WITH_RUN_OPTION__")
+
 
     def do_command(self):
         self.set_default_variables()
@@ -167,7 +170,7 @@ class InstlGui(InstlInstanceBase):
                     limit_paths = shlex.split(limit_path) # there might be space separated paths
                     retVal.extend(limit_paths)
 
-            if self.run_admin_batch_file_var.get() == 1:
+            if self.run_admin_batch_file_var.get() == 1 and command_name in self.commands_with_run_option_list:
                 retVal.append("--run")
 
         if 'Win' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)"):
@@ -197,6 +200,11 @@ class InstlGui(InstlInstanceBase):
         var_stack.set_var("CLIENT_GUI_RUN_BATCH").append(bool_int_to_str(self.run_client_batch_file_var.get()))
         var_stack.set_var("CLIENT_GUI_CREDENTIALS").append(self.client_credentials_var.get())
         var_stack.set_var("CLIENT_GUI_CREDENTIALS_ON").append(self.client_credentials_on_var.get())
+
+        if self.client_command_name_var.get() in self.commands_with_run_option_list:
+            self.client_run_batch_file_checkbox.configure(state='normal')
+        else:
+            self.client_run_batch_file_checkbox.configure(state='disabled')
 
         command_line = " ".join(self.create_client_command_line())
 
@@ -241,6 +249,11 @@ class InstlGui(InstlInstanceBase):
             self.limit_path_entry_widget.configure(state='normal')
         else:
             self.limit_path_entry_widget.configure(state='disabled')
+
+        if self.admin_command_name_var.get() in self.commands_with_run_option_list:
+            self.admin_run_batch_file_checkbox.configure(state='normal')
+        else:
+            self.admin_run_batch_file_checkbox.configure(state='disabled')
 
         command_line = " ".join(self.create_admin_command_line())
 
@@ -291,8 +304,9 @@ class InstlGui(InstlInstanceBase):
         ToolTip(commandNameMenu, msg="instl admin command")
 
         self.run_admin_batch_file_var.set(str_to_bool_int(var_stack.unresolved_var("ADMIN_GUI_RUN_BATCH")))
-        Checkbutton(admin_frame, text="Run batch file", variable=self.run_admin_batch_file_var,
-                    command=self.update_admin_state).grid(row=curr_row, column=2, columnspan=2, sticky=E)
+        self.admin_run_batch_file_checkbox = Checkbutton(admin_frame, text="Run batch file", variable=self.run_admin_batch_file_var,
+                    command=self.update_admin_state)
+        self.admin_run_batch_file_checkbox.grid(row=curr_row, column=2, columnspan=2, sticky=E)
 
         # path to config file
         curr_row += 1
@@ -386,8 +400,9 @@ class InstlGui(InstlInstanceBase):
                    self.client_command_name_var.get(), *client_command_list, command=self.update_client_state).grid(row=curr_row, column=1, sticky=W)
 
         self.run_client_batch_file_var.set(str_to_bool_int(var_stack.unresolved_var("CLIENT_GUI_RUN_BATCH")))
-        Checkbutton(client_frame, text="Run batch file",
-                    variable=self.run_client_batch_file_var, command=self.update_client_state).grid(row=curr_row, column=2, sticky=E)
+        self.client_run_batch_file_checkbox = Checkbutton(client_frame, text="Run batch file",
+                    variable=self.run_client_batch_file_var, command=self.update_client_state)
+        self.client_run_batch_file_checkbox.grid(row=curr_row, column=2, sticky=E)
 
         # path to input file
         curr_row += 1

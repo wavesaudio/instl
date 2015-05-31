@@ -130,6 +130,7 @@ def prepare_args_parser(in_command):
         'up-repo-rev':          {'mode': 'an', 'options': ('out', 'run', 'conf',), 'help':  'upload repository revision file to admin folder'},
         'up2s3':                {'mode': 'an', 'options': ( 'out', 'run', 'conf',), 'help':  'upload installation sources to S3'},
         'verify-index':         {'mode': 'an', 'options': ('in', 'cred'), 'help':  'Verify that index and info map are compatible'},
+        'verify-repo':          {'mode': 'an', 'options': ('conf'), 'help':  'Verify a local repository against its index'},
         'version':              {'mode': 'ds', 'options': (), 'help':  'display instl version'},
         'win-shortcut':         {'mode': 'ds', 'options': (), 'help':  'create a Windows shortcut'},
         'wtar':                 {'mode': 'an', 'options': ('out', 'run', 'conf',), 'help':  'create .wtar files from specified files and folders'},

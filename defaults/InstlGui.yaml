@@ -12,9 +12,21 @@ __ADMIN_GUI_CMD_LIST__:
   - svn2stage
   - fix-symlinks
   - wtar
+  - verify-repo
   - stage2svn
   - fix-props
   - depend
+
+__COMMANDS_WITH_RUN_OPTION__:
+  - sync
+  - copy
+  - synccopy
+  - remove
+  - svn2stage
+  - fix-symlinks
+  - wtar
+  - stage2svn
+  - fix-props
 
 __ADMIN_CALL_INSTL_STANDARD_TEMPLATE__:
   - $(__INSTL_EXE_PATH__)
@@ -31,6 +43,12 @@ __ADMIN_CALL_INSTL_DEPEND_TEMPLATE__:
   - $(__STAGING_INDEX_FILE__)
   - --out
   - $(ADMIN_GUI_OUT_DEPEND_FILE)
+
+__ADMIN_CALL_INSTL_ONLY_CONFIG_FILE_TEMPLATE__:
+  - $(__INSTL_EXE_PATH__)
+  - $(ADMIN_GUI_CMD)
+  - --config-file
+  - $(ADMIN_GUI_CONFIG_FILE)
 
 __STAGING_INDEX_FILE__: $(STAGING_FOLDER)/instl/index.yaml
 
