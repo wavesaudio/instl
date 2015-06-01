@@ -205,7 +205,15 @@ command:
         long: |
             Usage: instl verify-index --in path-to-input-file
             path-to-input-file is a instl yaml file, verify-index will check it's index parts for missing sources, dependency and inheritance cycles.
-    
+
+    verify-repo:
+        short: Scans the stage folder and the index file and report discrepancies. (admin command)
+        long: |
+            Usage: instl verify-index --config-file config_file
+            Report any sources specified in index.yaml that are missing from the file system using the folder in variable STAGING_FOLDER.
+            Also check and reposrt dependency and inheritance cycles.
+            Used to check repossitory consistancy before running stage2svn.
+
     version:
         short: Prints the instl version.
         long: |
