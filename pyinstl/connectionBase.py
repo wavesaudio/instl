@@ -49,13 +49,13 @@ class ConnectionS3(ConnectionBase):
     def open_connection(self, credentials):
         in_access_key, in_secret_key, in_bucket = credentials
         self.boto_conn = boto.connect_s3(in_access_key, in_secret_key)
-        self.open_bucket = self.boto_conn.get_bucket(in_bucket)
+        self.open_bucket = self.boto_conn.get_bucket(in_bucket, validate=False)
         var_stack.set_var("S3_BUCKET_NAME", "from command line options").append(in_bucket)
 
     def translate_url(self, in_bare_url):
         parseResult = urlparse.urlparse(in_bare_url)
         if self.open_bucket is None:
-            self.open_bucket = self.boto_conn.get_bucket(parseResult.netloc)
+            self.open_bucket = self.boto_conn.get_bucket(parseResult.netloc, validate=False)
         the_key = self.open_bucket.get_key(parseResult.path, validate=False)
         retVal = the_key.generate_url(self.default_expiration)
         return retVal

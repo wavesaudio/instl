@@ -5,6 +5,7 @@ import sys
 import os
 import stat
 import urllib2
+import ssl
 import re
 import urlparse
 import hashlib
@@ -104,7 +105,10 @@ class open_for_read_file_or_url(object):
 
     def __enter__(self):
         try:
-            self.fd = urllib2.urlopen(self.file_url)
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            self.fd = urllib2.urlopen(self.file_url, context=ctx)
         except:
             print ("exception opening", self.file_url)
             raise

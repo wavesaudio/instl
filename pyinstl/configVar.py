@@ -35,6 +35,8 @@ class ConfigVar(object):
         ConfigVar Emulates a list container
     """
     __slots__ = ("__name", "__description", "__values", "resolved_num")
+    # variables with name ending with these endings will have their value passed through os.path.normpath
+    variable_name_endings_to_normpath = ("_PATH", "_DIR", "_DIR_NAME", "_FILE_NAME", "_PATH__", "_DIR__", "_DIR_NAME__", "_FILE_NAME__")
 
     def __init__(self, name, description="", *values):
         self.__name = name
@@ -89,7 +91,7 @@ class ConfigVar(object):
         self.__values = list()
 
     def append(self, value):
-        if self.__name.endswith(("_PATH", "_DIR")):
+        if self.__name.endswith(self.variable_name_endings_to_normpath):
             self.__values.append(os.path.normpath(value))
         else:
             self.__values.append(utils.convert_to_str_unless_None(value))
@@ -98,7 +100,7 @@ class ConfigVar(object):
         if values:
             if not hasattr(values, '__iter__'):
                 raise TypeError(str(values)+" is not a iterable")
-        if self.__name.endswith(("_PATH", "_DIR")):
+        if self.__name.endswith(self.variable_name_endings_to_normpath):
             normed_values = [os.path.normpath(value) for value in values]
             self.__values.extend(normed_values)
         else:

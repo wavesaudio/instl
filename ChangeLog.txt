@@ -4,6 +4,12 @@
     * Added verify-repo to gui mode.
     * Gui mode: the run checkbox is disabled for commands that do not accept --run.
 
+    programmer visible changes:
+    * Extended the number of variable name endings that, when read, call os.path.normpath on the value:  "_PATH", "_DIR", "_DIR_NAME", "_FILE_NAME", "_PATH__", "_DIR__", "_DIR_NAME__", "_FILE_NAME__".
+    * Added  validate=False to some boto function calls to better handle certificate problems.
+    * Added empty certificate to opening a URL in function open_for_read_file_or_url to better handle certificate problems.
+    * When reading the local instl_config file, reading of internal variables is now allowed, to allow for simulating various situations.
+
 31/5/2015 0.10.0.6
 
     programmer visible changes:

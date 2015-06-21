@@ -31,6 +31,9 @@ class InstlInstanceBase(object):
 
     def __init__(self, initial_vars=None):
         # init objects owned by this class
+
+        # allow_reading_of_internal_vars: only when true variables who's name begins and ends with "__" can be read from a file
+        self.allow_reading_of_internal_vars = False
         self.path_searcher = SearchPaths(var_stack.get_configVar_obj("__SEARCH_PATHS__"))
         self.init_default_vars(initial_vars)
         # initialize the search paths helper with the current directory and dir where instl is now
@@ -103,7 +106,10 @@ class InstlInstanceBase(object):
     def read_user_config(self):
         user_config_path = var_stack.resolve("$(__USER_CONFIG_FILE_PATH__)")
         if os.path.isfile(user_config_path):
+            previous_allow_reading_of_internal_vars = self.allow_reading_of_internal_vars
+            self.allow_reading_of_internal_vars = True
             self.read_yaml_file(user_config_path)
+            self.allow_reading_of_internal_vars = previous_allow_reading_of_internal_vars
 
     def check_prerequisite_var_existence(self, prerequisite_vars):
         missing_vars = [var for var in prerequisite_vars if var not in var_stack]
@@ -249,7 +255,7 @@ class InstlInstanceBase(object):
         if a_node.isMapping():
             for identifier, contents in a_node:
                 logging.debug("%s: %s", identifier, str(contents))
-                if not self.internal_identifier_re.match(identifier):  # do not read internal state identifiers
+                if self.allow_reading_of_internal_vars or not self.internal_identifier_re.match(identifier):  # do not read internal state identifiers
                     var_stack.set_var(identifier, str(contents.start_mark)).extend([item.value for item in contents])
                 elif identifier == '__include__':
                     self.read_include_node(contents)
