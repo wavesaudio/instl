@@ -105,10 +105,17 @@ class open_for_read_file_or_url(object):
 
     def __enter__(self):
         try:
-            ctx = ssl.create_default_context()
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-            self.fd = urllib2.urlopen(self.file_url, context=ctx)
+            #for python 2.7.10:
+            #ctx = ssl.create_default_context()
+            #ctx.check_hostname = False
+            #ctx.verify_mode = ssl.CERT_NONE
+            #for python 2.7.9:
+            #ctx = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+            #ctx.check_hostname = False
+            #ctx.verify_mode = ssl.CERT_NONE
+            #ctx.options |= ssl.OP_NO_SSLv3
+            #, context=ctx
+            self.fd = urllib2.urlopen(self.file_url)
         except:
             print ("exception opening", self.file_url)
             raise
