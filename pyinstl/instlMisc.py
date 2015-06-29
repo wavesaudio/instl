@@ -33,9 +33,9 @@ class InstlMisc(InstlInstanceBase):
         self.actual_progress = 1
         self.progress_staccato_command = False
         do_command_func = getattr(self, "do_"+fixed_command)
-        before_time = time.time()
+        before_time = time.clock()
         do_command_func()
-        after_time = time.time()
+        after_time = time.clock()
         if the_command not in ("help", "version"):
             print(the_command, "time:", round(after_time - before_time, 2), "sec.")
 

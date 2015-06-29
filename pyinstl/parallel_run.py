@@ -22,7 +22,6 @@ def run_processes_in_parallel(commands):
 
 def run_parallels(commands):
     global exit_val
-    start_time = time.time()
     for command in commands:
         try:
             if getattr(os, "setsid", None):

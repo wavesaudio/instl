@@ -26,6 +26,8 @@
     * Fixed some errors discovered by Landscape.io
     * New function PlatformSpecificHelperBase.unwtar_something for unwtarring a specific item not just the current directory.
         PlatformSpecificHelperBase.unwtar_current_folder is now implemented by calling PlatformSpecificHelperBase.unwtar_something(".")
+    * Removed some time measuring code where it was not needed. In some places replaced time.time() with time.clock() which is (supposedly)
+        more accurate on Windows.
 
     user visible changes, client:
     * check-checksum command was defined by mistake to require --out command line option. Now removed.

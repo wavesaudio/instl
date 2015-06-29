@@ -348,9 +348,9 @@ class CMDObj(cmd.Cmd, object):
     def do_readinfo(self, params):
         if params:
             for afile in shlex.split(params):
-                time_start = time.time()
+                time_start = time.clock()
                 self.admin_prog_inst.read_info_map_file(afile)
-                time_end = time.time()
+                time_end = time.clock()
                 print("opened file:", "'"+afile+"'")
                 print("    %d items read in %0.3f ms" % (self.admin_prog_inst.svnTree.num_subs_in_tree(), (time_end-time_start)*1000.0))
         else:

@@ -536,10 +536,13 @@ def make_open_file_read_write_for_all(fd):
 def timing(f):
     import time
     def wrap(*args):
-        time1 = time.time()
+        time1 = time.clock()
         ret = f(*args)
-        time2 = time.time()
-        print ('%s function took %0.3f ms' % (f.func_name, (time2-time1)*1000.0))
+        time2 = time.clock()
+        if time1 != time2:
+            print ('%s function took %0.3f ms' % (f.func_name, (time2-time1)*1000.0))
+        else:
+            print ('%s function took apparently no time at all' % (f.func_name))
         return ret
     return wrap
 
