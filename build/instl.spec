@@ -6,6 +6,7 @@ import platform
 import inspect
 import socket
 import datetime
+import boto
 
 # assuming the instl main is one level above this instl.spec file.
 script_folder = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))

@@ -9,6 +9,9 @@
     * Added  validate=False to some boto function calls to better handle certificate problems.
     * Added empty certificate to opening a URL in function open_for_read_file_or_url to better handle certificate problems.
     * When reading the local instl_config file, reading of internal variables is now allowed, to allow for simulating various situations.
+    * Removed some time measuring code where it was not needed. In some places replaced time.time() with time.clock() which is (supposedly)
+        more accurate on Windows.
+    * Added boto to the list of maodules in import-check and in pyinstaller compilation.
 
 31/5/2015 0.10.0.6
 
@@ -26,8 +29,6 @@
     * Fixed some errors discovered by Landscape.io
     * New function PlatformSpecificHelperBase.unwtar_something for unwtarring a specific item not just the current directory.
         PlatformSpecificHelperBase.unwtar_current_folder is now implemented by calling PlatformSpecificHelperBase.unwtar_something(".")
-    * Removed some time measuring code where it was not needed. In some places replaced time.time() with time.clock() which is (supposedly)
-        more accurate on Windows.
 
     user visible changes, client:
     * check-checksum command was defined by mistake to require --out command line option. Now removed.

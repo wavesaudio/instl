@@ -188,7 +188,7 @@ class InstlMisc(InstlInstanceBase):
     def do_test_import(self):
         import importlib
         bad_modules = list()
-        for module in ("yaml", "appdirs", "readline", "colorama", "rsa"):
+        for module in ("yaml", "appdirs", "readline", "colorama", "rsa", "boto"):
             try:
                 importlib.import_module(module)
             except ImportError as im_err:
