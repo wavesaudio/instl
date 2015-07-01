@@ -102,6 +102,7 @@ class open_for_read_file_or_url(object):
                 raise IOError("Could not locate local file", file_url)
         else:
             self.file_url = ConnectionBase.repo_connection.translate_url(self.file_url)
+        #print("open_for_read_file_or_url.__init__ self.file_url =", self.file_url, file=sys.stderr)
 
     def __enter__(self):
         try:
@@ -114,10 +115,11 @@ class open_for_read_file_or_url(object):
             #ctx.check_hostname = False
             #ctx.verify_mode = ssl.CERT_NONE
             #ctx.options |= ssl.OP_NO_SSLv3
-            #, context=ctx
+            #self.fd = urllib2.urlopen(self.file_url, context=ctx)
             self.fd = urllib2.urlopen(self.file_url)
-        except:
-            print ("exception opening", self.file_url)
+            #print("open_for_read_file_or_url.__enter__ opened", self.file_url, file=sys.stderr)
+        except urllib2.URLError as url_err:
+            #print (url_err, self.file_url)
             raise
         if "name" not in dir(self.fd) and "url" in dir(self.fd):
             self.fd.name = self.fd.url # so we can get the url with the same attribute as file object
@@ -130,6 +132,7 @@ def read_from_file_or_url(in_url, public_key=None, textual_sig=None, expected_ch
     contents_buffer = None
     with open_for_read_file_or_url(in_url) as rfd:
         contents_buffer = rfd.read()
+        #print("After reading",in_url, "contents_buffer has", len(contents_buffer), "bytes", file=sys.stderr)
         if contents_buffer:
             # check sig or checksum only if they were given
             if (public_key, textual_sig, expected_checksum) != (None, None, None):
@@ -157,6 +160,12 @@ def download_from_file_or_url(in_url, in_local_path, cache=False, public_key=Non
             with open(in_local_path, "wb") as wfd:
                 make_open_file_read_write_for_all(wfd)
                 wfd.write(contents_buffer)
+        else:
+            print("no content_buffer after reading", in_url, file=sys.stderr)
+    #if os.path.isfile(in_local_path):
+    #    print(in_local_path, "exists and has ", os.path.getsize(in_local_path), "bytes", file=sys.stderr)
+    #else:
+    #    print(in_local_path, "does not exists", file=sys.stderr)
 
 class unique_list(list):
     """
@@ -531,7 +540,10 @@ def make_open_file_read_write_for_all(fd):
     try:
         os.fchmod(fd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
     except:
-        os.chmod(fd.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+        try:
+            os.chmod(fd.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+        except:
+            print("make_open_file_read_write_for_all: failed for ", fd.name)
 
 def timing(f):
     import time
