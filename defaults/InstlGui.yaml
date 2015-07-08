@@ -10,8 +10,9 @@ __CLIENT_GUI_CMD_LIST__:
 
 __ADMIN_GUI_CMD_LIST__:
   - svn2stage
-  - fix-symlinks
+  - fix-perm
   - wtar
+  - fix-symlinks
   - verify-repo
   - stage2svn
   - fix-props
@@ -27,6 +28,15 @@ __COMMANDS_WITH_RUN_OPTION__:
   - wtar
   - stage2svn
   - fix-props
+  - fix-perm
+
+__COMMANDS_WITH_LIMIT_OPTION__:
+  - svn2stage
+  - fix-symlinks
+  - wtar
+  - stage2svn
+  - fix-props
+  - fix-perm
 
 __ADMIN_CALL_INSTL_STANDARD_TEMPLATE__:
   - $(__INSTL_EXE_PATH__)

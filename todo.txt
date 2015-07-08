@@ -2,3 +2,12 @@ Could storage wish list:
     Be able to avoid creating the urls on server - maybe use some time limited token?
     Be able to donload whole folders???
 
+handle UTF in parameters passed to instl
+handle UTF for paths in !define and !index files
+
+checkout cxfreeze instead of pyinstaller
+
+better handling and reporting of unknown command names, missing files, missing parameters, etc...
+
+convert all commands that use --limit to work with prepare_limit_list
+remove .DS_Store before wtar

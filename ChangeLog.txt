@@ -3,6 +3,7 @@
     * New command verify-repo checks local files against index.
     * Added verify-repo to gui mode.
     * Gui mode: the run checkbox is disabled for commands that do not accept --run.
+    * New command fix-perm will attempt to fix permissions on stage folder before wtar and stage2svn.
 
     programmer visible changes:
     * Extended the number of variable name endings that, when read, call os.path.normpath on the value:  "_PATH", "_DIR", "_DIR_NAME", "_FILE_NAME", "_PATH__", "_DIR__", "_DIR_NAME__", "_FILE_NAME__".
@@ -12,6 +13,9 @@
     * Removed some time measuring code where it was not needed. In some places replaced time.time() with time.clock() which is (supposedly)
         more accurate on Windows.
     * Added boto to the list of maodules in import-check and in pyinstaller compilation.
+
+    user visible changes, client:
+    * New interactive command which prints the path to currently running instl
 
 31/5/2015 0.10.0.6
 

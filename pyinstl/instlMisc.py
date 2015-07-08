@@ -83,7 +83,7 @@ class InstlMisc(InstlInstanceBase):
                 self.unwtar_a_file(what_to_work_on)
         elif os.path.isdir(what_to_work_on):
             for root, dirs, files in os.walk(what_to_work_on, followlinks=False):
-                # a hack to prevent unwtaring of the sync folder. Copy command might copy something
+                # a hack to prevent unwtarring of the sync folder. Copy command might copy something
                 # to the top level of the sync folder.
                 if "bookkeeping" in dirs:
                     dirs[:] = []

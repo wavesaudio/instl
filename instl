@@ -109,6 +109,7 @@ def prepare_args_parser(in_command):
         'create-repo-rev-file': {'mode': 'an', 'options': ('conf',), 'help':  'create repo rev file for a specific revision'},
         'create-rsa-keys':      {'mode': 'an', 'options': ('conf',), 'help':  'create private and public keys'},
         'depend':               {'mode': 'an', 'options': ('in', 'out',), 'help':  'output a dependencies map for an index file'},
+        'fix-perm':             {'mode': 'an', 'options': ('out', 'run','conf', 'limit'), 'help':  'Fix Mac OS permissions'},
         'fix-props':            {'mode': 'an', 'options': ('out', 'run','conf'), 'help':  'create svn commands to remove redundant properties such as executable bit from files that should not be marked executable'},
         'fix-symlinks':         {'mode': 'an', 'options': ('out', 'run','conf',), 'help':  'replace symlinks with .symlinks files'},
         'gui':                  {'mode': 'gi', 'options': (), 'help':  'graphical user interface'},
@@ -136,6 +137,7 @@ def prepare_args_parser(in_command):
         'wtar':                 {'mode': 'an', 'options': ('out', 'run', 'conf',), 'help':  'create .wtar files from specified files and folders'},
         'uninstall':            {'mode': 'ct', 'options': ('in', 'out', 'run',), 'help':  'uninstall previously copied files, considering dependencies'},
     }
+
     command_names = sorted(commands_details.keys())
 
     # if in_command is None - just return the command names
@@ -352,7 +354,7 @@ def read_command_line_options(name_space_obj, arglist=None):
 
     command_name = arglist[0] if arglist else None
     parser, command_names = prepare_args_parser(command_name)
-    if arglist and len(arglist) > 0:
+    if parser:
         # Command line options were given or auto run file was found
         parser.parse_args(arglist, namespace=name_space_obj)
     else:

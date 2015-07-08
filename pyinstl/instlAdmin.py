@@ -543,22 +543,6 @@ class InstlAdmin(InstlInstanceBase):
         retVal = (file_mode & exec_mode) != 0
         return retVal
 
-    def should_file_be_exec(self, file_path):
-        retVal = False
-        try:
-            wtar_regex_list = var_stack.resolve_to_list("$(EXEC_PROP_REGEX)")
-            for regex in wtar_regex_list:
-                if re.search(regex, file_path):
-                    retVal = True
-                    raise Exception
-        except:
-            pass
-        return retVal
-
-    def should_be_exec(self, item):
-        retVal = item.isFile() and self.should_file_be_exec(item.full_path())
-        return retVal
-
     # to do: prevent create-links and up2s3 if there are files marked as symlinks
     def do_fix_symlinks(self):
         self.batch_accum.set_current_section('admin')
@@ -723,25 +707,6 @@ class InstlAdmin(InstlInstanceBase):
             pass
         return retVal
 
-    def prepare_permissions_for_wtar(self, item_path):
-        if os.path.isfile(item_path):
-            file_is_exec = self.is_file_exec(item_path)
-            if self.should_file_be_exec(item_path) and not file_is_exec:
-                self.batch_accum += self.platform_helper.chmod("a+x", item_path)
-                self.batch_accum += self.platform_helper.progress("chmod a+x "+item_path)
-            elif not self.should_file_be_exec(item_path) and file_is_exec:
-                self.batch_accum += self.platform_helper.chmod("a-x", item_path)
-                self.batch_accum += self.platform_helper.progress("chmod a-x "+item_path)
-            self.batch_accum += self.platform_helper.chmod("a+rw", item_path)
-            self.batch_accum += self.platform_helper.progress("chmod a+rw "+item_path)
-        elif os.path.isdir(item_path):
-            self.batch_accum += self.platform_helper.chmod("a+rwx", item_path)
-            self.batch_accum += self.platform_helper.progress("chmod a+rwx "+item_path)
-            dir_items = os.listdir(item_path)
-            for dir_item in dir_items:
-                dir_item_full_path = os.path.join(item_path, dir_item)
-                self.prepare_permissions_for_wtar(dir_item_full_path)
-
     def do_wtar(self):
         self.batch_accum.set_current_section('admin')
         self.prepare_conditions_for_wtar()
@@ -787,7 +752,6 @@ class InstlAdmin(InstlInstanceBase):
                         for delete_file in dir_items:
                             if fnmatch.fnmatch(delete_file, item_to_tar+'.wtar*'):
                                 self.batch_accum += self.platform_helper.rmfile(delete_file)
-                        self.prepare_permissions_for_wtar(item_to_tar_full_path)
                         self.batch_accum += self.platform_helper.tar(item_to_tar)
                         self.batch_accum += self.platform_helper.split(item_to_tar+".wtar")
                     if os.path.isdir(item_to_tar_full_path):
@@ -800,7 +764,6 @@ class InstlAdmin(InstlInstanceBase):
         self.write_batch_file()
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
-
 
     def do_svn2stage(self):
         self.batch_accum.set_current_section('admin')
@@ -1042,3 +1005,73 @@ class InstlAdmin(InstlInstanceBase):
         num_files = info_map.num_subs_in_tree(what="file")
         num_dirs = info_map.num_subs_in_tree(what="dir")
         print("info map:", num_files, "files in", num_dirs, "folders")
+
+
+    def should_file_be_exec(self, file_path):
+        retVal = self.compiled_should_be_exec_regex.search(file_path)
+        return retVal is not None
+
+    def should_be_exec(self, item):
+        retVal = item.isFile() and self.should_file_be_exec(item.full_path())
+        return retVal
+
+    def prepare_limit_list(self, top_folder):
+        """ Some command can operate on a subset of folders inside the main folder.
+            If __LIMIT_COMMAND_TO__ is defined join top_folder to each item in __LIMIT_COMMAND_TO__.
+            otherwise return top_folder.
+        """
+        retVal = list()
+        if var_stack.defined("__LIMIT_COMMAND_TO__"):
+            limit_list = var_stack.resolve_to_list("$(__LIMIT_COMMAND_TO__)")
+            for limit in limit_list:
+                limit = unquoteme(limit)
+                retVal.append(os.path.join(top_folder, limit))
+        else:
+            retVal.append(top_folder)
+        return retVal
+
+    def do_fix_perm(self):
+        self.batch_accum.set_current_section('admin')
+        self.read_yaml_file(var_stack.resolve("$(__CONFIG_FILE__)"))
+        should_be_exec_regex_list = var_stack.resolve_to_list("$(EXEC_PROP_REGEX)")
+        self.compiled_should_be_exec_regex = compile_regex_list_ORed(should_be_exec_regex_list)
+
+        files_that_should_not_be_exec = list()
+        files_that_must_be_exec = list()
+
+        folders_to_check = self.prepare_limit_list(var_stack.resolve("$(STAGING_FOLDER)"))
+        for folder_to_check in folders_to_check:
+            for root, dirs, files in os.walk(folder_to_check, followlinks=False):
+                for a_file in files:
+                    item_path = os.path.join(root, a_file)
+                    file_is_exec = self.is_file_exec(item_path)
+                    file_should_be_exec = self.should_file_be_exec(item_path)
+                    if file_is_exec != file_should_be_exec:
+                        if file_should_be_exec:
+                            self.batch_accum += self.platform_helper.chmod("a+x", item_path)
+                            self.batch_accum += self.platform_helper.progress("chmod a+x "+item_path)
+                            files_that_must_be_exec.append(item_path)
+                        else:
+                            self.batch_accum += self.platform_helper.chmod("a-x", item_path)
+                            self.batch_accum += self.platform_helper.progress("chmod a-x "+item_path)
+                            files_that_should_not_be_exec.append(item_path)
+
+        self.batch_accum += self.platform_helper.chmod("-R a+rw,+X", folder_to_check)
+        self.batch_accum += self.platform_helper.progress("chmod -R a+rw,+X "+folder_to_check)
+
+        if len(files_that_should_not_be_exec) > 0:
+            print("Exec bit will be removed from the {} following files".format(len(files_that_should_not_be_exec)))
+            for a_file in files_that_should_not_be_exec:
+                print("   ", a_file)
+            print()
+
+        if len(files_that_must_be_exec) > 0:
+            print("Exec bit will be added to the {} following files".format(len(files_that_must_be_exec)))
+            for a_file in files_that_must_be_exec:
+                print("   ", a_file)
+            print()
+
+        self.create_variables_assignment()
+        self.write_batch_file()
+        if "__RUN_BATCH__" in var_stack:
+            self.run_batch_file()

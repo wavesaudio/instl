@@ -37,7 +37,8 @@ admin_command_template_variables = {
     'verify-repo': '__ADMIN_CALL_INSTL_ONLY_CONFIG_FILE_TEMPLATE__',
     'stage2svn': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
     'fix-props': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
-    'depend': '__ADMIN_CALL_INSTL_DEPEND_TEMPLATE__'
+    'depend': '__ADMIN_CALL_INSTL_DEPEND_TEMPLATE__',
+    'fix-perm': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__'
     }
 
 class InstlGui(InstlInstanceBase):
@@ -46,7 +47,7 @@ class InstlGui(InstlInstanceBase):
         self.master = Tk()
         self.master.createcommand('exit', self.quit_app) # exit from quit menu or Command-Q
         self.master.protocol('WM_DELETE_WINDOW', self.quit_app) # exit from closing the window
-        self.commands_that_accept_limit_option = ("stage2svn", "svn2stage", "wtar")
+        self.commands_that_accept_limit_option = var_stack.resolve_to_list("$(__COMMANDS_WITH_LIMIT_OPTION__)")
 
         self.client_command_name_var = StringVar()
         self.client_input_path_var = StringVar()

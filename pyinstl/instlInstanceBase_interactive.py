@@ -590,6 +590,12 @@ class CMDObj(cmd.Cmd, object):
     def help_resolve(self):
         print("")
 
+    def do_which(self, param):
+        print(var_stack.resolve("$(__INSTL_EXE_PATH__)"))
+
+    def help_which(self):
+        print("print full path to currently running instl")
+
 def compact_history():
     if hasattr(readline, "replace_history_item"):
         unique_history = unique_list()
