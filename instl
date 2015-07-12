@@ -134,7 +134,7 @@ def prepare_args_parser(in_command):
         'verify-repo':          {'mode': 'an', 'options': ('conf'), 'help':  'Verify a local repository against its index'},
         'version':              {'mode': 'ds', 'options': (), 'help':  'display instl version'},
         'win-shortcut':         {'mode': 'ds', 'options': (), 'help':  'create a Windows shortcut'},
-        'wtar':                 {'mode': 'an', 'options': ('out', 'run', 'conf',), 'help':  'create .wtar files from specified files and folders'},
+        'wtar':                 {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'create .wtar files from specified files and folders'},
         'uninstall':            {'mode': 'ct', 'options': ('in', 'out', 'run',), 'help':  'uninstall previously copied files, considering dependencies'},
     }
 

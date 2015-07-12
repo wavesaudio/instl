@@ -69,6 +69,14 @@ command:
             Reads the given index-file and for each IID prints to depend-file all the IID it depends on and all IID needed by it.
             To print to standard out specify --out stdout
 
+    fix-perm:
+        short: Fix unix style permissions (admin command)
+        long: |
+            Usage: instl fix-perm --config-file path_to_config_file --out path-to-output-file [--limit sub-folder, [sub-folder]] [--run]
+            Fixes unix style permisions in the stage folder (variable STAGING_FOLDER) (or in subset thereof if --limit option is suplied). First, files that match the regex in variable EXEC_PROP_REGEX are made executbles (chmod a+x), all other files are made non-executbale (chmod a-x). Second, all file and folders are made read/write and the executable bit (if any) is extended for all files and folders, by running the command 'chmod a+rw,+X'. This command should be used before the wtar command so that files and folders being wtarred will have the correct permisions.
+            fix-perm will output a list of files who's executable bit is about to change. Be sure to go over the list and check that the proposed changes are acceptable before running the batch file.
+            Keep in mind that fix-perm command does not actually do anything, unless the --run flag is given. You will need to run the produced batch file in order to actually fix the permissions.
+
     fix-props:
         short: Fix certain properties in svn repository. (admin command)
         long: |

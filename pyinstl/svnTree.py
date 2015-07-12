@@ -280,7 +280,7 @@ class SVNTree(svnItem.SVNTopItem):
         prefix_len = len(in_folder)+1
         for root, dirs, files in os.walk(in_folder, followlinks=False):
             for a_file in files:
-                if a_file != ".DS_Store": # temp hack, list of ignored fiels should be moved to a variable
+                if a_file != ".DS_Store": # temp hack, list of ignored files should be moved to a variable
                     relative_path = os.path.join(root, a_file)[prefix_len:]
                     self.new_item_at_path(relative_path, "f", 0, checksum="0", create_folders=True)
 

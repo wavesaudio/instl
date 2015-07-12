@@ -713,17 +713,17 @@ class InstlAdmin(InstlInstanceBase):
         self.batch_accum += self.platform_helper.split_func()
 
         stage_folder = var_stack.resolve("$(STAGING_FOLDER)")
-        if var_stack.defined("__LIMIT_COMMAND_TO__"):
-            limit_list = var_stack.resolve_to_list("$(__LIMIT_COMMAND_TO__)")
-            folders_to_check = [os.path.join(stage_folder, unquoteme(limit)) for limit in limit_list]
-            print("wtar limited to ", "; ".join(var_stack.resolve_to_list("$(__LIMIT_COMMAND_TO__)")))
-        else:
+        folders_to_check = self.prepare_limit_list(stage_folder)
+        if tuple(folders_to_check) == (stage_folder,):
             print ("wtar for the whole repository")
-            folders_to_check = [stage_folder]
+        else:
+            print("wtar limited to ", "; ".join(folders_to_check))
 
         for a_folder in folders_to_check:
             self.batch_accum += self.platform_helper.unlock(a_folder, recursive=True)
             self.batch_accum += self.platform_helper.progress("chflags -R nouchg "+a_folder)
+            self.batch_accum += """find "{}" -name ".DS_Store" -delete""".format(a_folder)
+            self.batch_accum += self.platform_helper.progress("delete ignored files")
             self.batch_accum += self.platform_helper.new_line()
 
         while len(folders_to_check) > 0:
