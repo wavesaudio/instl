@@ -16,6 +16,7 @@
     * Removed some time measuring code where it was not needed. In some places replaced time.time() with time.clock() which is (supposedly)
         more accurate on Windows.
     * Added boto to the list of maodules in import-check and in pyinstaller compilation.
+    * In function InstlAdmin.should_wtar, regex self.already_wtarred_regex was change to search instead of match.
 
     user visible changes, client:
     * New interactive command which prints the path to currently running instl

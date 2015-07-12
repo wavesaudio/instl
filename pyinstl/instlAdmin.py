@@ -687,7 +687,7 @@ class InstlAdmin(InstlInstanceBase):
     def should_wtar(self, dir_item):
         retVal = False
         try:
-            if self.already_wtarred_regex.match(dir_item):
+            if self.already_wtarred_regex.search(dir_item):
                 raise Exception
             if os.path.isdir(dir_item):
                 if self.compiled_folder_wtar_regex.search(dir_item):
