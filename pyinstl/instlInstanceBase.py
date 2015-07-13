@@ -185,6 +185,11 @@ class InstlInstanceBase(object):
 
     def is_acceptable_yaml_doc(self, doc_node):
         acceptables = var_stack.resolve_to_list("$(ACCEPTABLE_YAML_DOC_TAGS)") + ["define", "define_const", "index", 'require']
+        if "__INSTL_COMPILED__" in var_stack:
+            if var_stack.resolve("$(__INSTL_COMPILED__)") == "True":
+                acceptables.append("define_Compiled")
+            else:
+                acceptables.append("define_Uncompiled")
         acceptables = ["!" + acceptibul for acceptibul in acceptables]
         retVal = doc_node.tag in acceptables
         return retVal
