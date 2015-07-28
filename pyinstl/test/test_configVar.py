@@ -21,56 +21,56 @@ class TestConfigVar(unittest.TestCase):
     def test_construction_with_name_only(self):
         """ Construct ConfigVar without values, without description. """
         cv1 = self.constructor("test_construction_with_name_only")
-        self.assertEqual(cv1.name(), "test_construction_with_name_only")
-        self.assertEqual(cv1.description(), "")
+        self.assertEqual(cv1.name, "test_construction_with_name_only")
+        self.assertEqual(cv1.description, "")
         self.assertEqual(len(cv1), 0)
 
     def test_construction_with_name_and_description(self):
         """ Construct ConfigVar without values, with description. """
         cv2 = self.constructor("test_construction_with_name_and_description", "some text")
-        self.assertEqual(cv2.name(), "test_construction_with_name_and_description")
-        self.assertEqual(cv2.description(), "some text")
+        self.assertEqual(cv2.name, "test_construction_with_name_and_description")
+        self.assertEqual(cv2.description, "some text")
         self.assertEqual(len(cv2), 0)
 
     def test_set_description_from_empty(self):
         """ Change description after construction with empty description. """
         cv3 = self.constructor("test_set_description_from_empty")
-        self.assertEqual(cv3.name(), "test_set_description_from_empty")
-        self.assertEqual(cv3.description(), "")
-        cv3.set_description("New description 3")
-        self.assertEqual(cv3.description(), "New description 3")
+        self.assertEqual(cv3.name, "test_set_description_from_empty")
+        self.assertEqual(cv3.description, "")
+        cv3.set_description = "New description 3"
+        self.assertEqual(cv3.description, "New description 3")
         self.assertEqual(len(cv3), 0)
 
     def test_set_description_from_initial(self):
         """ Change description after construction with initial description. """
         cv4 = self.constructor("test_set_description_from_initial", "some initial description")
-        self.assertEqual(cv4.name(), "test_set_description_from_initial")
-        self.assertEqual(cv4.description(), "some initial description")
-        cv4.set_description("New description 4")
-        self.assertEqual(cv4.description(), "New description 4")
+        self.assertEqual(cv4.name, "test_set_description_from_initial")
+        self.assertEqual(cv4.description, "some initial description")
+        cv4.set_description = "New description 4"
+        self.assertEqual(cv4.description, "New description 4")
         self.assertEqual(len(cv4), 0)
 
     def test_construction_with_single_value(self):
         """ Construct ConfigVar with single value, with description. """
         cv5 = self.constructor("test_construction_with_single_value", "some initial description", "mambo jumbo")
-        self.assertEqual(cv5.name(), "test_construction_with_single_value")
-        self.assertEqual(cv5.description(), "some initial description")
+        self.assertEqual(cv5.name, "test_construction_with_single_value")
+        self.assertEqual(cv5.description, "some initial description")
         self.assertEqual(len(cv5), 1)
         self.assertEqual(cv5[0], "mambo jumbo")
 
     def test_construction_with_multiple_values(self):
         """ Construct ConfigVar with multiple values, with description. """
         cv5 = self.constructor("test_construction_with_multiple_values", "some initial description", "methodist", "alchemist", "pessimist")
-        self.assertEqual(cv5.name(), "test_construction_with_multiple_values")
-        self.assertEqual(cv5.description(), "some initial description")
+        self.assertEqual(cv5.name, "test_construction_with_multiple_values")
+        self.assertEqual(cv5.description, "some initial description")
         self.assertEqual(len(cv5), 3)
         self.assertEqual(tuple(cv5), ("methodist", "alchemist", "pessimist"))
 
     def test_construction_with_list_of_values(self):
         """ Construct ConfigVar with a list of multiple values, with description. """
         cv6 = self.constructor("test_construction_with_list_of_values", "some initial description", *["methodist", "alchemist", "pessimist"])
-        self.assertEqual(cv6.name(), "test_construction_with_list_of_values")
-        self.assertEqual(cv6.description(), "some initial description")
+        self.assertEqual(cv6.name, "test_construction_with_list_of_values")
+        self.assertEqual(cv6.description, "some initial description")
         self.assertEqual(len(cv6), 3)
         self.assertEqual(tuple(cv6), ("methodist", "alchemist", "pessimist"))
 
@@ -78,8 +78,8 @@ class TestConfigVar(unittest.TestCase):
         """ Construct ConfigVar with multiple values that are not string, with description.
             Non string values should be converted to strings on assignment. """
         cv7 = self.constructor("test_construction_with_non_string_values", "some initial description", 1, 2.0, ("smutsmik", "beatnik"))
-        self.assertEqual(cv7.name(), "test_construction_with_non_string_values")
-        self.assertEqual(cv7.description(), "some initial description")
+        self.assertEqual(cv7.name, "test_construction_with_non_string_values")
+        self.assertEqual(cv7.description, "some initial description")
         self.assertEqual(len(cv7), 3)
         self.assertEqual(cv7[0], "1")
         self.assertNotEqual(cv7[0], 1)
@@ -100,7 +100,7 @@ class TestConfigVar(unittest.TestCase):
     def test_extend_values(self):
         """ Call extend """
         cv9 = self.constructor("sababa9")
-        self.assertEqual(cv9.name(), "sababa9")
+        self.assertEqual(cv9.name, "sababa9")
         cv9.extend(("one","two"))
         self.assertEqual(len(cv9), 2)
         self.assertEqual(tuple(cv9), ("one", "two"))

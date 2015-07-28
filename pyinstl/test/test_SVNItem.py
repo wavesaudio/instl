@@ -23,7 +23,7 @@ def timing(f):
 def remove_sub_if_small_last_rev(svn_item):
     retVal = None
     if svn_item.isFile():
-        retVal = svn_item.last_rev() < 9
+        retVal = svn_item.last_rev < 9
     elif svn_item.isDir():
         retVal = len(svn_item.subs()) == 0
     return retVal
@@ -424,7 +424,7 @@ class TestSVNItem(unittest.TestCase):
         """ Construct SVNItem with some flags flag """
         svni1 = SVNItem("TestFlags", "fx", 36)
         self.assertEqual(svni1.name(), "TestFlags")
-        self.assertEqual(svni1.last_rev(), 36)
+        self.assertEqual(svni1.last_rev, 36)
         self.assertTrue(svni1.isFile(), msg="SVNItem.isFile() should return True for file")
         self.assertFalse(svni1.isDir(), msg="SVNItem.isDir() should return False for directory")
         self.assertTrue(svni1.isExecutable(), msg="SVNItem.isExecutable() should return True for non-executable")
@@ -454,7 +454,7 @@ class TestSVNItem(unittest.TestCase):
         """ Construct SVNItem with file flag """
         svni1 = SVNItem("TestFile", "f", 17)
         self.assertEqual(svni1.name(), "TestFile")
-        self.assertEqual(svni1.last_rev(), 17)
+        self.assertEqual(svni1.last_rev, 17)
         self.assertEqual(str(svni1), "TestFile, f, 17")
         self.assertTrue(svni1.isFile(), msg="SVNItem.isFile() should return True for file")
         self.assertFalse(svni1.isDir(), msg="SVNItem.isDir() should return False for directory")

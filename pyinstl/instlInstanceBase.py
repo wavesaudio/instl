@@ -212,7 +212,7 @@ class InstlInstanceBase(object):
                             "Unknown document tag '%s' while reading file %s; Tag should be one of: !define, !index'",
                             a_node.tag, file_path)
         if not self.check_version_compatibility():
-            raise ValueError(var_stack.resolve("Minimal instl version $(INSTL_MINIMAL_VERSION) > current version $(__INSTL_VERSION__); ")+var_stack.get_configVar_obj("INSTL_MINIMAL_VERSION").description())
+            raise ValueError(var_stack.resolve("Minimal instl version $(INSTL_MINIMAL_VERSION) > current version $(__INSTL_VERSION__); ")+var_stack.get_configVar_obj("INSTL_MINIMAL_VERSION").description)
         var_stack.get_configVar_obj("__READ_YAML_FILES__").append(file_path)
 
     def read_require(self, a_node):

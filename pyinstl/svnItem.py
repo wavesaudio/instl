@@ -81,7 +81,7 @@ class SVNItem(object):
         if self.__subs:
             retVal.subs().update({name: copy.deepcopy(item, memodict) for name, item in self.subs().iteritems()})
             for item in retVal.subs().values():
-                item.set_parent(self)
+                item.set_parent = self
         return retVal
 
     def __getstate__(self):
@@ -101,9 +101,9 @@ class SVNItem(object):
     def __eq__(self, other):
         """ compare items and it's subs """
         retVal = (self.name() == other.name()
-            and self.flags() == other.flags()
-            and self.last_rev() == other.last_rev()
-            and self.__checksum() == other.__checksum()
+            and self.flags == other.flags
+            and self.last_rev == other.last_rev
+            and self.checksum == other.checksum
             and self.__url() == other.__url()
             and self.subs() == other.subs()
             )
@@ -117,52 +117,57 @@ class SVNItem(object):
         retVal = not (self == other)
         return retVal
 
+    @property
     def name(self):
         """ return the name """
         return self.__name
 
+    @property
     def last_rev(self):
         """ return last_rev """
         return self.__last_rev
 
-    def set_last_rev(self, new_last_rev):
+    @last_rev.setter
+    def last_rev(self, new_last_rev):
         """ update last_rev """
         self.__last_rev = new_last_rev
 
+    @property
     def checksum(self):
         """ return checksum """
         return self.__checksum
 
+    @checksum.setter
     def set_checksum(self, new_checksum):
         """ update checksum """
         self.__checksum = new_checksum
 
+    @property
     def flags(self):
         """ return flags """
         return self.__flags
 
-    def set_flags(self, new_flags):
+    @flags.setter
+    def flags(self, new_flags):
         """ update last_rev """
-        self.__flags = new_flags
+        self.__flags = "".join(sorted(set(new_flags)))
 
-    def add_flags(self, flags):
-        """ add new flags to last_rev, retaining the previous ones """
-        new_flags = "".join(sorted(set(self.__flags+flags)))
-        #print("_add_flags:", self.__flags, "+", flags, "=", new_flags)
-        self.__flags = new_flags
-
+    @property
     def url(self):
         """ return url """
         return self.__url
 
-    def set_url(self, new_url):
+    @url.setter
+    def url(self, new_url):
         """ update url """
         self.__url = new_url
 
+    @property
     def parent(self):
         return self.__up
 
-    def set_parent(self, in_parent):
+    @parent.setter
+    def parent(self, in_parent):
         self.__up = in_parent
 
     def full_path_parts(self):
@@ -271,7 +276,7 @@ class SVNItem(object):
             for i in xrange(0, len(path_parts)):
                 folder = self.get_item_at_path(path_parts[0:i])
                 if folder is None:
-                    self.new_item_at_path(path_parts[0:i], "d", in_item.last_rev())
+                    self.new_item_at_path(path_parts[0:i], "d", in_item.last_rev)
         folder = self.get_item_at_path(path_parts[0:len(path_parts)])
         folder.add_sub_item(in_item)
 
@@ -323,9 +328,9 @@ class SVNItem(object):
         #if not self.isDir():
         #    raise ValueError(self.name()+" is not a directory")
         #if in_item.name() in self.__subs:
-        #    if self.__subs[in_item.name()].flags() != in_item.flags():
-        #        raise KeyError(in_item.name()+" replacing "+self.__subs[in_item.name()].flags()+" with "+in_item.flags())
-        in_item.set_parent(self)
+        #    if self.__subs[in_item.name()].flags != in_item.flags:
+        #        raise KeyError(in_item.name()+" replacing "+self.__subs[in_item.name()].flags+" with "+in_item.flags)
+        in_item.set_parent = self
         self.__subs[in_item.name()] = in_item
 
     def sorted_sub_items(self):
@@ -455,10 +460,10 @@ class SVNItem(object):
     def repr_for_yaml(self):
         """         writeAsYaml(svni1, out_stream=sys.stdout, indentor=None, sort=True)         """
         retVal = OrderedDict()
-        retVal["_p_"] = " ".join( (self.flags(), str(self.last_rev())) )
+        retVal["_p_"] = " ".join( (self.flags, str(self.last_rev)) )
         file_list, dir_list = self.sorted_sub_items()
         for a_file_item in file_list:
-            retVal[a_file_item.name()] = " ".join( (a_file_item.flags(), str(a_file_item.last_rev()), a_file_item.checksum()) )
+            retVal[a_file_item.name()] = " ".join( (a_file_item.flags, str(a_file_item.last_rev), a_file_item.checksum))
         for a_dir_item in dir_list:
             retVal[a_dir_item.name()] = a_dir_item.repr_for_yaml()
         return retVal
@@ -506,16 +511,16 @@ class SVNTopItem(SVNItem):
 
     def __deepcopy__(self, memodict):
         retVal = SVNTopItem(self.name())
-        retVal.set_last_rev(self.last_rev())
-        retVal.set_flags(self.flags())
+        retVal.last_rev = self.last_rev
+        retVal.flags = self.flags
 
         retVal.subs().update({name: copy.deepcopy(item, memodict) for name, item in self.subs().iteritems()})
         for item in retVal.subs().values():
-            item.set_parent(retVal)
+            item.parent = retVal
         return retVal
 
     def __str__(self):
-        retVal = "{}, {}, {}".format(self.name(), self.flags(), self.last_rev())
+        retVal = "{}, {}, {}".format(self.name(), self.flags, self.last_rev)
         return retVal
 
     def min_max_rev(self):
@@ -527,7 +532,7 @@ class SVNTopItem(SVNItem):
         if len(self.subs()) > 0:
             min_revision = 4000000000
             for item in self.walk_items():
-                min_revision = min(min_revision, item.last_rev())
-                max_revision = max(max_revision, item.last_rev())
+                min_revision = min(min_revision, item.last_rev)
+                max_revision = max(max_revision, item.last_rev)
         return min_revision, max_revision
 

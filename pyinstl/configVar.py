@@ -10,21 +10,8 @@ from __future__ import print_function
 
 import sys
 import os
-import platform
 
 import utils
-
-current_os = platform.system()
-if current_os == 'Darwin':
-    def dereference_var(in_var):
-        return "".join(("${", in_var, "}"))
-elif current_os == 'Windows':
-    def dereference_var(in_var):
-        return "".join(("%", in_var, "%"))
-elif current_os == 'Linux':
-    def dereference_var(in_var):
-        return "".join(("${", in_var, "}"))
-
 
 class ConfigVar(object):
     """ Keep a single, named, config variable and it's values.
@@ -44,15 +31,18 @@ class ConfigVar(object):
         self.__values = map(str, values)
         self.resolved_num = 0
 
+    @property
     def name(self):
         """ return the name of this variable """
         return self.__name
 
+    @property
     def description(self):
         """ return the description of this variable """
         return self.__description
 
-    def set_description(self, description):
+    @description.setter
+    def description(self, description):
         """ Assign new description """
         self.__description = str(description)
 
@@ -118,20 +108,21 @@ class ConstConfigVar(ConfigVar):
             raise "Python version too advanced, need 2.X not "+str(sys.version_info)
         #    super().__init__(name, description, *values)
 
-    def set_description(self, unused_description):
-        raise Exception("Cannot change a const value", self.name())
+    @ConfigVar.description.setter
+    def description(self, unused_description):
+        raise Exception("Cannot change a const value", self.name)
 
     def __setitem__(self, unused_key, unused_value):
-        raise Exception("Cannot change a const value", self.name())
+        raise Exception("Cannot change a const value", self.name)
 
     def __delitem__(self, unused_key):
-        raise Exception("Cannot change a const value", self.name())
+        raise Exception("Cannot change a const value", self.name)
 
     def append(self, unused_value):
-        raise Exception("Cannot change a const value", self.name())
+        raise Exception("Cannot change a const value", self.name)
 
     def extend(self, unused_value):
-        raise Exception("Cannot change a const value", self.name())
+        raise Exception("Cannot change a const value", self.name)
 
 if __name__ == "__main__":
     pass

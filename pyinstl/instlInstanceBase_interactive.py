@@ -290,8 +290,8 @@ class CMDObj(cmd.Cmd, object):
         min_revision = 4000000000
         max_revision = 0
         for item in self.admin_prog_inst.svnTree.walk_items():
-            min_revision = min(min_revision, item.last_rev())
-            max_revision = max(max_revision, item.last_rev())
+            min_revision = min(min_revision, item.last_rev)
+            max_revision = max(max_revision, item.last_rev)
         print("Num files:", num_files)
         print("Num dirs:", num_dirs)
         print("Total items:", num_total)

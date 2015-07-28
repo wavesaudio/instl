@@ -177,7 +177,7 @@ class SVNTree(svnItem.SVNTopItem):
                         if item is not None:
                             prop_name = match.group('prop_name')
                             if prop_name in prop_name_to_char:
-                                item.add_flags(prop_name_to_char[match.group('prop_name')])
+                                item.flags += prop_name_to_char[match.group('prop_name')]
                             else:
                                 if not item.props:
                                     item.props = list()

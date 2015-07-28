@@ -66,7 +66,7 @@ class InstlAdmin(InstlInstanceBase):
         base_rev = int(var_stack.resolve("$(BASE_REPO_REV)"))
         if base_rev > 0:
             for item in self.svnTree.walk_items():
-                item.set_last_rev(max(item.last_rev(), base_rev))
+                item.last_rev = max(item.last_rev, base_rev)
 
         if "__FILTER_IN_VERSION__" in var_stack:
             self.filter_in_specific_version(var_stack.resolve("$(__FILTER_IN_VERSION__)"))
@@ -79,7 +79,7 @@ class InstlAdmin(InstlInstanceBase):
     def add_urls_to_info_map(self):
         base_url = var_stack.resolve_var("__BASE_URL__")
         for file_item in self.svnTree.walk_items(what="file"):
-            file_item.set_url(os.path.join(base_url, str(file_item.last_rev()), file_item.full_path()))
+            file_item.url = os.path.join(base_url, str(file_item.last_rev), file_item.full_path())
             print(file_item)
 
     def filter_out_info_map(self, paths_to_filter_out):
@@ -296,7 +296,7 @@ class InstlAdmin(InstlInstanceBase):
         def __call__(self, svn_item):
             retVal = None
             if svn_item.isFile():
-                retVal = svn_item.last_rev() != self.version_not_to_remove
+                retVal = svn_item.last_rev != self.version_not_to_remove
             elif svn_item.isDir():
                 retVal = len(svn_item.subs()) == 0
             return retVal
@@ -380,15 +380,15 @@ class InstlAdmin(InstlInstanceBase):
             curr_item = dir_queue.popleft()
             files, dirs = curr_item.unsorted_sub_items()
             for file_item in files:
-                if file_item.last_rev() > repo_rev:
+                if file_item.last_rev > repo_rev:
                     raise ValueError(str(file_item)+" last_rev > repo_rev "+str(repo_rev))
-                elif file_item.last_rev() < repo_rev:
+                elif file_item.last_rev < repo_rev:
                     accum += self.platform_helper.rmfile(file_item.full_path())
                     accum += self.platform_helper.progress("rmfile "+file_item.full_path())
             for dir_item in dirs:
-                if dir_item.last_rev() > repo_rev:
+                if dir_item.last_rev > repo_rev:
                     raise ValueError(str(dir_item)+" last_rev > repo_rev "+str(repo_rev))
-                elif dir_item.last_rev() < repo_rev:  # whole folder should be removed
+                elif dir_item.last_rev < repo_rev:  # whole folder should be removed
                     accum += self.platform_helper.rmdir(dir_item.full_path(), recursive=True)
                     accum += self.platform_helper.progress("rmdir "+dir_item.full_path())
                 else:
