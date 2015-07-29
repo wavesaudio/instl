@@ -43,7 +43,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 # Actually a full download is not needed but there is not other way to force
                 # post sync processing. Also folder might exist even if unwtar was not completed.
                 # So Todo: find way to force unwtar without marking the item for download.
-                if not need_to_download and svn_item.name().endswith(".wtar"):
+                if not need_to_download and svn_item.name.endswith(".wtar"):
                     unwtared_folder, _ = os.path.splitext(file_path)
                     if not os.path.isdir(unwtared_folder):
                         need_to_download = True
@@ -175,7 +175,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             pass
         elif item.isDir():
             pass
-            # path_so_far.append(item.name())
+            # path_so_far.append(item.name)
             #file_list, dir_list = item.sorted_sub_items()
             # do something
             #for sub_item in file_list + dir_list:
@@ -195,16 +195,16 @@ class InstlInstanceSync_url(InstlInstanceSync):
             if need_to_download:
                 self.files_to_download += 1
                 # For some files a stamp file (.done) is placed after post-download processing. Remove such file if it exist
-                done_stam_path = os.path.join(*make_one_list(self.local_sync_dir, path_so_far, item.name() + ".done"))
+                done_stam_path = os.path.join(*make_one_list(self.local_sync_dir, path_so_far, item.name + ".done"))
                 safe_remove_file(done_stam_path)
 
                 source_url = item.url
                 if source_url is None:
-                    source_url = '/'.join(make_one_list(self.sync_base_url, str(item.last_rev), path_so_far, item.name()))
+                    source_url = '/'.join(make_one_list(self.sync_base_url, str(item.last_rev), path_so_far, item.name))
                 # if source_url is given from info_map no need to translate it, so verbatim will be true.
                 self.instlObj.platform_helper.dl_tool.add_download_url(source_url, item.full_path(), verbatim=source_url==item.url)
         elif item.isDir():
-            path_so_far.append(item.name())
+            path_so_far.append(item.name)
             file_list, dir_list = item.sorted_sub_items()
             for sub_item in file_list + dir_list:
                 self.create_download_instructions_for_item(sub_item, path_so_far)

@@ -258,12 +258,12 @@ class TestSVNItem(unittest.TestCase):
         sub1 = svni1.get_item_at_path("Dir1")
         files, dirs = sub1.sorted_sub_items()
         # test item keys
-        self.assertEqual([a_file.name() for a_file in files], sorted(["File1.1", "File1.2", "File1.3"]))
+        self.assertEqual([a_file.name for a_file in files], sorted(["File1.1", "File1.2", "File1.3"]))
 
         sub3 = svni1.get_item_at_path("Dir3")
         files, dirs = sub3.sorted_sub_items()
-        self.assertEqual([a_file.name() for a_file in files], sorted(["File3.1", "File3.2"]))
-        self.assertEqual([a_dir.name() for a_dir in dirs], sorted(["Dir3.1", "Dir3.2"]))
+        self.assertEqual([a_file.name for a_file in files], sorted(["File3.1", "File3.2"]))
+        self.assertEqual([a_dir.name for a_dir in dirs], sorted(["Dir3.1", "Dir3.2"]))
 
     def test_deepcopy(self):
         svni1 = SVNTopItem()
@@ -423,7 +423,7 @@ class TestSVNItem(unittest.TestCase):
     def test_other_flags_construction(self):
         """ Construct SVNItem with some flags flag """
         svni1 = SVNItem("TestFlags", "fx", 36)
-        self.assertEqual(svni1.name(), "TestFlags")
+        self.assertEqual(svni1.name, "TestFlags")
         self.assertEqual(svni1.last_rev, 36)
         self.assertTrue(svni1.isFile(), msg="SVNItem.isFile() should return True for file")
         self.assertFalse(svni1.isDir(), msg="SVNItem.isDir() should return False for directory")
@@ -432,7 +432,7 @@ class TestSVNItem(unittest.TestCase):
         self.assertRaises(ValueError, svni1.subs)
         self.assertRaises(ValueError, svni1.get_item_at_path, "kuku")
         svni2 = SVNItem("TestFlags", "ds", 36)
-        self.assertEqual(svni2.name(), "TestFlags")
+        self.assertEqual(svni2.name, "TestFlags")
         self.assertFalse(svni2.isFile(), msg="SVNItem.isFile() should return False for directory")
         self.assertTrue(svni2.isDir(), msg="SVNItem.isDir() should return True for directory")
         self.assertFalse(svni2.isExecutable(), msg="SVNItem.isExecutable() should return False for non-executable")
@@ -453,7 +453,7 @@ class TestSVNItem(unittest.TestCase):
     def test_file_construction(self):
         """ Construct SVNItem with file flag """
         svni1 = SVNItem("TestFile", "f", 17)
-        self.assertEqual(svni1.name(), "TestFile")
+        self.assertEqual(svni1.name, "TestFile")
         self.assertEqual(svni1.last_rev, 17)
         self.assertEqual(str(svni1), "TestFile, f, 17")
         self.assertTrue(svni1.isFile(), msg="SVNItem.isFile() should return True for file")

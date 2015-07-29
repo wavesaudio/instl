@@ -81,7 +81,7 @@ class SVNItem(object):
         if self.__subs:
             retVal.subs().update({name: copy.deepcopy(item, memodict) for name, item in self.subs().iteritems()})
             for item in retVal.subs().values():
-                item.set_parent = self
+                item.parent = self
         return retVal
 
     def __getstate__(self):
@@ -100,7 +100,7 @@ class SVNItem(object):
 
     def __eq__(self, other):
         """ compare items and it's subs """
-        retVal = (self.name() == other.name()
+        retVal = (self.name == other.name
             and self.flags == other.flags
             and self.last_rev == other.last_rev
             and self.checksum == other.checksum
@@ -194,7 +194,7 @@ class SVNItem(object):
 
     def subs(self):
         if not self.isDir():
-            raise ValueError(self.name()+" is not a directory, has no sub items")
+            raise ValueError(self.name+" is not a directory, has no sub items")
         return self.__subs
 
     def clear_subs(self):
@@ -219,7 +219,7 @@ class SVNItem(object):
             or a string with individual path parts separated by "/".
         """
         if not self.isDir():
-            raise ValueError(self.name()+" is not a directory, has no sub items")
+            raise ValueError(self.name+" is not a directory, has no sub items")
         else:
             assert isinstance(self.__subs, dict), "self.__subs is not a dictionary"
         path_parts = at_path
@@ -240,7 +240,7 @@ class SVNItem(object):
             and some part of the path does not exist KeyError will be raised.
             This is the non recursive version of this function.
         """
-        #print("--- add sub to", self.name(), path, in_flags, in_last_rev)
+        #print("--- add sub to", self.name, path, in_flags, in_last_rev)
         path_parts = in_at_path
         if isinstance(in_at_path, basestring):
             path_parts = in_at_path.split("/")
@@ -267,7 +267,7 @@ class SVNItem(object):
             will be created, with the same last_rev. create_folders is False,
             and some part of the path does not exist KeyError will be raised.
         """
-        #print("--- add sub to", self.name(), path, flags, last_rev)
+        #print("--- add sub to", self.name, path, flags, last_rev)
         path_parts = at_path
         if isinstance(at_path, basestring):
             path_parts = at_path.split("/")
@@ -326,12 +326,12 @@ class SVNItem(object):
 
     def add_sub_item(self, in_item):
         #if not self.isDir():
-        #    raise ValueError(self.name()+" is not a directory")
-        #if in_item.name() in self.__subs:
-        #    if self.__subs[in_item.name()].flags != in_item.flags:
-        #        raise KeyError(in_item.name()+" replacing "+self.__subs[in_item.name()].flags+" with "+in_item.flags)
-        in_item.set_parent = self
-        self.__subs[in_item.name()] = in_item
+        #    raise ValueError(self.name+" is not a directory")
+        #if in_item.name in self.__subs:
+        #    if self.__subs[in_item.name].flags != in_item.flags:
+        #        raise KeyError(in_item.name+" replacing "+self.__subs[in_item.name].flags+" with "+in_item.flags)
+        in_item.parent = self
+        self.__subs[in_item.name] = in_item
 
     def sorted_sub_items(self):
         if not self.isDir():
@@ -425,11 +425,11 @@ class SVNItem(object):
         for the_sub in dir_list:
             the_sub.recursive_remove_depth_first(should_remove_func)
             if should_remove_func(the_sub):
-                del (self.__subs[the_sub.name()])
+                del (self.__subs[the_sub.name])
 
         for the_sub in file_list:
             if should_remove_func(the_sub):
-                del (self.__subs[the_sub.name()])
+                del (self.__subs[the_sub.name])
 
     def set_user_data_non_recursive(self, value):
         self.user_data = value
@@ -463,9 +463,9 @@ class SVNItem(object):
         retVal["_p_"] = " ".join( (self.flags, str(self.last_rev)) )
         file_list, dir_list = self.sorted_sub_items()
         for a_file_item in file_list:
-            retVal[a_file_item.name()] = " ".join( (a_file_item.flags, str(a_file_item.last_rev), a_file_item.checksum))
+            retVal[a_file_item.name] = " ".join( (a_file_item.flags, str(a_file_item.last_rev), a_file_item.checksum))
         for a_dir_item in dir_list:
-            retVal[a_dir_item.name()] = a_dir_item.repr_for_yaml()
+            retVal[a_dir_item.name] = a_dir_item.repr_for_yaml()
         return retVal
 
     def read_yaml_node(self, a_node):
@@ -510,7 +510,7 @@ class SVNTopItem(SVNItem):
         return retVal
 
     def __deepcopy__(self, memodict):
-        retVal = SVNTopItem(self.name())
+        retVal = SVNTopItem(self.name)
         retVal.last_rev = self.last_rev
         retVal.flags = self.flags
 
@@ -520,7 +520,7 @@ class SVNTopItem(SVNItem):
         return retVal
 
     def __str__(self):
-        retVal = "{}, {}, {}".format(self.name(), self.flags, self.last_rev)
+        retVal = "{}, {}, {}".format(self.name, self.flags, self.last_rev)
         return retVal
 
     def min_max_rev(self):
