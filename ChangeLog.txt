@@ -21,7 +21,7 @@
     user visible changes, client:
     * New interactive command which prints the path to currently running instl
     * During copy, on Mac OS, rsync will set permissions according to variable RSYNC_PERM_OPTIONS.  Default value is --perms --chmod=a+rw,+X.
-
+    * Var assignments and remarks for DOS batch files will escape the '&' character.
 
 
 

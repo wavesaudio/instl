@@ -308,14 +308,15 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return ()
 
     def var_assign(self, identifier, value, comment=None):
-        return "SET "+identifier+'='+value
+        var_assignment = "SET "+identifier+'='+dos_escape(value)
+        return var_assignment
 
     def echo(self, message):
         echo_command = " ".join(('echo', dos_escape(message)))
         return echo_command
 
     def remark(self, remark):
-        remark_command = " ".join(('REM', remark))
+        remark_command = " ".join(('REM', dos_escape(remark)))
         return remark_command
 
     def use_copy_tool(self, tool_name):
