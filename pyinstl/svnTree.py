@@ -177,7 +177,7 @@ class SVNTree(svnItem.SVNTopItem):
                         if item is not None:
                             prop_name = match.group('prop_name')
                             if prop_name in prop_name_to_char:
-                                item.add_flags(prop_name_to_char[match.group('prop_name')])
+                                item.flags += prop_name_to_char[match.group('prop_name')]
                             else:
                                 if not item.props:
                                     item.props = list()
@@ -224,7 +224,7 @@ class SVNTree(svnItem.SVNTopItem):
         for sub_name in sorted(self.subs().keys()):
             the_sub = self.subs()[sub_name]
             if the_sub.isDir():
-                retVal[the_sub.name()] = the_sub.repr_for_yaml()
+                retVal[the_sub.name] = the_sub.repr_for_yaml()
             else:
                 ValueError("SVNTree does not support files in the top most directory")
         return retVal
@@ -292,7 +292,7 @@ class WtarFilter(object):
         # NOT compiled with re.VERBOSE since the file name may contain spaces
         self.wtar_file_re = re.compile(base_name + r"""\.wtar(\...)?$""")
     def __call__(self, file_item):
-        match = self.wtar_file_re.match(file_item.name())
+        match = self.wtar_file_re.match(file_item.name)
         retVal = match is not None
         return retVal
 

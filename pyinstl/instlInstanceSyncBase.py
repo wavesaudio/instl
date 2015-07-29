@@ -94,20 +94,20 @@ class InstlInstanceSync(object):
             have_item = self.have_map.get_item_at_path(need_item.full_path_parts())
             if have_item is None:  # not found in have map
                 self.have_map.new_item_at_path(need_item.full_path_parts(),
-                                               need_item.flags(),
-                                               need_item.last_rev(),
-                                               need_item.checksum(),
+                                               need_item.flags,
+                                               need_item.last_rev,
+                                               need_item.checksum,
                                                # no need to copy the url to the have_map
                                                create_folders=True)
             else:  # found in have map
-                if have_item.last_rev() == need_item.last_rev():
+                if have_item.last_rev == need_item.last_rev:
                     need_item.user_data = False
-                elif have_item.last_rev() < need_item.last_rev():
-                    have_item.set_flags(need_item.flags())
-                    have_item.set_last_rev(need_item.last_rev())
-                elif have_item.last_rev() > need_item.last_rev():  # weird, but need to get the older version
-                    have_item.set_flags(need_item.flags())
-                    have_item.set_last_rev(need_item.last_rev())
+                elif have_item.last_rev < need_item.last_rev:
+                    have_item.flags = need_item.flags
+                    have_item.last_rev = need_item.last_rev
+                elif have_item.last_rev > need_item.last_rev:  # weird, but need to get the older version
+                    have_item.flags = need_item.flags
+                    have_item.last_rev = need_item.last_rev
         self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
         self.work_info_map.write_to_file(var_stack.resolve("$(TO_SYNC_INFO_MAP_PATH)", raise_on_fail=True), in_format="text")
         self.have_map.write_to_file(var_stack.resolve("$(NEW_HAVE_INFO_MAP_PATH)", raise_on_fail=True), in_format="text")

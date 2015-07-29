@@ -80,7 +80,7 @@ class ConfigVarStack(configVarList.ConfigVarList):
             new_var = self._ConfigVarList_objs[-1].get_configVar_obj(var_name)
             new_var.append(var_value)
             if description is not None:
-                new_var.set_description(description)
+                new_var.description = description
 
     def add_const_config_variable(self, var_name, description="", *values):
         """ add a const single value object """
@@ -89,7 +89,7 @@ class ConfigVarStack(configVarList.ConfigVarList):
             var_obj = self[var_name]
             if list(var_obj) != values_as_strs:
                 raise Exception("Const variable {} ({}) already defined: new values: {}"\
-                                ", previous values: {}".format(var_name, self.get_configVar_obj(var_name).description(),
+                                ", previous values: {}".format(var_name, self.get_configVar_obj(var_name).description,
                                                                str(values), str(list(self.get_configVar_obj(var_name)))))
         except KeyError:
             # noinspection PyUnboundLocalVariable
@@ -110,7 +110,7 @@ class ConfigVarStack(configVarList.ConfigVarList):
         for var_name in vars_list:
             if var_name in self:
                 if include_comments:
-                    theComment = self[var_name].description()
+                    theComment = self[var_name].description
                 if resolve:
                     var_value = self.resolve_var(var_name)
                 else:

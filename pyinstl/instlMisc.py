@@ -155,10 +155,10 @@ class InstlMisc(InstlInstanceBase):
         for file_item in self.svnTree.walk_items(what="file"):
             file_path = file_item.full_path()
             if os.path.isfile(file_path):
-                checkOK = check_file_checksum(file_path, file_item.checksum())
+                checkOK = check_file_checksum(file_path, file_item.checksum)
                 if not checkOK:
                     sigs = create_file_signatures(file_path)
-                    bad_checksum_list.append( " ".join(("Bad checksum:", file_path, "expected", file_item.checksum(), "found", sigs["sha1_checksum"])) )
+                    bad_checksum_list.append( " ".join(("Bad checksum:", file_path, "expected", file_item.checksum, "found", sigs["sha1_checksum"])) )
             else:
                 bad_checksum_list.append( " ".join((file_path, "does not exist")) )
             self.dynamic_progress("Check checksum {file_path}".format(**locals()))

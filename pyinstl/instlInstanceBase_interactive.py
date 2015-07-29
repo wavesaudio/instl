@@ -290,8 +290,8 @@ class CMDObj(cmd.Cmd, object):
         min_revision = 4000000000
         max_revision = 0
         for item in self.admin_prog_inst.svnTree.walk_items():
-            min_revision = min(min_revision, item.last_rev())
-            max_revision = max(max_revision, item.last_rev())
+            min_revision = min(min_revision, item.last_rev)
+            max_revision = max(max_revision, item.last_rev)
         print("Num files:", num_files)
         print("Num dirs:", num_dirs)
         print("Total items:", num_total)
@@ -392,14 +392,14 @@ class CMDObj(cmd.Cmd, object):
             item = self.admin_prog_inst.svnTree.get_item_at_path(text.rstrip("/"))
             if item and item.isDir():
                 file_list, dir_list = item.sorted_sub_items()
-                retVal.extend([a_file.name() for a_file in file_list])
-                retVal.extend([a_dir.name()+"/" for a_dir in dir_list])
+                retVal.extend([a_file.name for a_file in file_list])
+                retVal.extend([a_dir.name+"/" for a_dir in dir_list])
         else:
             item = self.admin_prog_inst.svnTree.get_item_at_path(text)
             if item and item.isDir():
                 file_list, dir_list = item.sorted_sub_items()
-                retVal.extend(["/"+a_file.name() for a_file in file_list])
-                retVal.extend(["/"+a_dir.name()+"/" for a_dir in dir_list])
+                retVal.extend(["/"+a_file.name for a_file in file_list])
+                retVal.extend(["/"+a_dir.name+"/" for a_dir in dir_list])
             else:
                 path_parts = text.split("/")
                 if len(path_parts) == 1:
@@ -408,8 +408,8 @@ class CMDObj(cmd.Cmd, object):
                     item = self.admin_prog_inst.svnTree.get_item_at_path(path_parts[:-1])
                 if item:
                     file_list, dir_list = item.sorted_sub_items()
-                    retVal.extend([a_file.name()     for a_file in file_list if a_file.name().startswith(path_parts[-1])])
-                    retVal.extend([ a_dir.name()+"/" for a_dir  in dir_list  if a_dir.name().startswith(path_parts[-1])])
+                    retVal.extend([a_file.name     for a_file in file_list if a_file.name.startswith(path_parts[-1])])
+                    retVal.extend([ a_dir.name+"/" for a_dir  in dir_list  if a_dir.name.startswith(path_parts[-1])])
         return retVal
 
     def help_listinfo(self):

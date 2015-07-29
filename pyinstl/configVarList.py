@@ -93,7 +93,7 @@ class ConfigVarList(object):
 
     def description(self, var_name):
         """ Get description for variable """
-        return self[var_name].description()
+        return self[var_name].description
 
     def get_configVar_obj(self, var_name):
         retVal = self._ConfigVar_objs.setdefault(var_name, configVar.ConfigVar(var_name))
@@ -103,7 +103,7 @@ class ConfigVarList(object):
         retVal = self.get_configVar_obj(var_name)
         retVal.clear_values()
         if description is not None:
-            retVal.set_description(description)
+            retVal.description = description
         return retVal
 
     def set_value_if_var_does_not_exist(self, var_name, var_value, description=None):
@@ -115,23 +115,23 @@ class ConfigVarList(object):
             new_var = self.get_configVar_obj(var_name)
             new_var.append(var_value)
             if description is not None:
-                new_var.set_description(description)
+                new_var.description = description
 
     def add_const_config_variable(self, name, description="", *values):
         """ add a const single value object """
         if name in self._ConfigVar_objs:
             if list(self._ConfigVar_objs[name]) != list(map(str, values)):
                 raise Exception("Const variable {} ({}) already defined: new values: {}"\
-                            ", previous values: {}".format(name, self._ConfigVar_objs[name].description(),
+                            ", previous values: {}".format(name, self._ConfigVar_objs[name].description,
                                                            str(values), str(list(self._ConfigVar_objs[name]))))
         else:
             addedValue = configVar.ConstConfigVar(name, description, *values)
-            self._ConfigVar_objs[addedValue.name()] = addedValue
+            self._ConfigVar_objs[addedValue.name] = addedValue
             logging.debug("... %s: %s", name, ", ".join(map(str, values)))
 
     def duplicate_variable(self, source_name, target_name):
         source_obj = self[source_name]
-        self.set_var(target_name, source_obj.description()).extend(source_obj)
+        self.set_var(target_name, source_obj.description).extend(source_obj)
 
     def read_environment(self):
         """ Get values from environment """
@@ -155,7 +155,7 @@ class ConfigVarList(object):
         for var_name in vars_list:
             if var_name in self:
                 if include_comments:
-                    theComment = self[var_name].description()
+                    theComment = self[var_name].description
                 var_value = self.resolve_var(var_name)
                 if len(var_value) == 1:
                     var_value = var_value[0]
