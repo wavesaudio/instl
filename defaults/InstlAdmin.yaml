@@ -41,6 +41,7 @@ FILE_WTAR_REGEX:
 # regexs are ORed so if any of them matches the folder will not be added.
 FOLDER_EXCLUDE_REGEX:
     - ","
+    - '\.svn'
 
 # files who's name matches FOLDER_EXCLUDE_REGEX regex will not be added
 # to the repository by stage2svn.
@@ -49,3 +50,4 @@ FOLDER_EXCLUDE_REGEX:
 # regexs are ORed so if any of them matches the file will not be added.
 FILE_EXCLUDE_REGEX:
     - ","
+    - '\.DS_Store'

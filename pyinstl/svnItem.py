@@ -18,8 +18,10 @@ text_line_re = re.compile(r"""
             (?P<flags>[dfsx]+)
             ,\s+
             (?P<last_rev>\d+)
+            ,\s+
+            (?P<checksum>[\da-f]+)    # 5985e53ba61348d78a067b944f1e57c67f865162
             (,\s+
-            (?P<checksum>[\da-f]+))?    # 5985e53ba61348d78a067b944f1e57c67f865162
+            (?P<size>-?[\d]+))?       # 356985
             (,\s+
             (?P<url>(http(s)?|ftp)://.+))?    # http://....
             """, re.X)
@@ -34,6 +36,7 @@ flags_and_last_rev_re = re.compile(r"""
                 $
                 """, re.X)
 
+
 class SVNItem(object):
     """ represents a single svn item, either file or directory with the item's
         flags and last changed revision. Only the item's name is kept not
@@ -45,8 +48,9 @@ class SVNItem(object):
         s - symlink
     """
 
-    __slots__ = ("__up", "__name", "__flags", "__last_rev", "__subs", "__checksum", "__url", "props", "user_data")
-    def __init__(self, in_name, in_flags, in_last_rev, in_checksum=None, in_url=None):
+    __slots__ = ("__up", "__name", "__flags", "__last_rev", "__subs", "__checksum", "__url", "__size", "props", "user_data")
+
+    def __init__(self, in_name, in_flags, in_last_rev, in_checksum=None, in_url=None, in_size=-1):
         """ constructor """
 
         self.__up = None
@@ -58,6 +62,7 @@ class SVNItem(object):
         self.__subs = None
         if self.isDir():
             self.__subs = dict()
+        self.__size = in_size
         self.props = None # extra props besides svn:executable, svn:special
         self.user_data = None
 
@@ -69,6 +74,8 @@ class SVNItem(object):
             retVal = "{}, {}".format(retVal, self.__checksum)
         if self.__url:
             retVal = "{}, {}".format(retVal, self.__url)
+        if self.__size != -1:
+            retVal = "{}, {}".format(retVal, self.__size)
         return retVal
 
     def __copy__(self):
@@ -77,7 +84,7 @@ class SVNItem(object):
 
     def __deepcopy__(self, memodict):
         """ implement deepcopy """
-        retVal = SVNItem(self.__name, self.__flags, self.__last_rev, self.__checksum, self.__url)
+        retVal = SVNItem(self.__name, self.__flags, self.__last_rev, self.__checksum, self.__url, self.__size)
         if self.__subs:
             retVal.subs().update({name: copy.deepcopy(item, memodict) for name, item in self.subs().iteritems()})
             for item in retVal.subs().values():
@@ -86,7 +93,7 @@ class SVNItem(object):
 
     def __getstate__(self):
         """ for pickling """
-        return [[self.__up, self.__name, self.__flags, self.__last_rev, self.__checksum, self.__url], self.__subs]
+        return [[self.__up, self.__name, self.__flags, self.__last_rev, self.__checksum, self.__url, self.__size], self.__subs]
 
     def __setstate__(self, state):
         """ for pickling """
@@ -96,6 +103,8 @@ class SVNItem(object):
         self.__last_rev = state[0][3]
         self.__checksum = state[0][4]
         self.__url = state[0][5]
+        if len(state[0]) > 6:
+            self.__size = state[0][6]
         self.__subs = state[1]
 
     def __eq__(self, other):
@@ -105,6 +114,7 @@ class SVNItem(object):
             and self.last_rev == other.last_rev
             and self.checksum == other.checksum
             and self.__url() == other.__url()
+            and self.__size() == other.__size()
             and self.subs() == other.subs()
             )
 
@@ -170,6 +180,28 @@ class SVNItem(object):
     def parent(self, in_parent):
         self.__up = in_parent
 
+    @property
+    def size(self):
+        """ for a file: return file size
+            for a dir: calculate sub items size recursively
+        """
+        retVal = 0
+        if self.isFile():
+            if self.__size == -1:
+                raise ValueError(self.full_path()+" has no size assigned")
+            retVal = self.__size
+        else:
+            for item in self.__subs.itervalues():
+                retVal += item.size
+        return retVal
+
+    @size.setter
+    def size(self, new_size):
+        """ update new_size """
+        if self.isDir():
+            raise ValueError(self.name+" is a directory, cannot set it's size")
+        self.__size = new_size
+
     def full_path_parts(self):
         retVal = list()
         curr_item = self
@@ -230,7 +262,7 @@ class SVNItem(object):
             retVal = retVal.get_item_at_path(path_parts[1:])
         return retVal
 
-    def new_item_at_path(self, in_at_path, in_flags, in_last_rev, checksum=None, in_url=None, create_folders=False):
+    def new_item_at_path(self, in_at_path, in_flags, in_last_rev, checksum=None, in_url=None, in_size=-1, create_folders=False):
         """ create a new a sub-item at the give in_at_path.
             in_at_path is relative to self of course.
             in_at_path can be a list or tuple containing individual path parts
@@ -254,7 +286,7 @@ class SVNItem(object):
                 else:
                     raise KeyError(part+" is not in sub items of "+self.full_path())
             curr_item = sub_dir_item
-        retVal = SVNItem(path_parts[-1], in_flags, in_last_rev, checksum, in_url)
+        retVal = SVNItem(path_parts[-1], in_flags, in_last_rev, checksum, in_url, in_size)
         curr_item.add_sub_item(retVal)
         return retVal
 
@@ -294,7 +326,7 @@ class SVNItem(object):
     def new_item_from_str(self, the_str, create_folders=False):
         """ create a new a sub-item from string description.
             If create_folders is True, non existing intermediate folders
-            will be created, with the same last_rev. create_folders is False,
+            will be created, with the same last_rev. If create_folders is False,
             and some part of the path does not exist KeyError will be raised.
             This is the split version which is 25% faster than the re version below.
         """
@@ -321,6 +353,7 @@ class SVNItem(object):
                                   match.group('last_rev'),
                                   match.group('checksum'),
                                   match.group('url'),
+                                  match.group('size'),
                                   create_folders)
         return retVal
 

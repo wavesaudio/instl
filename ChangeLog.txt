@@ -7,6 +7,9 @@
     * Added help for fix-perm command.
     * wtar command now accepts the --limit option.
     * wtar command removes .DS_Store files before doing the actual wtarring.
+    * FOLDER_EXCLUDE_REGEX now filters out folder called .svn.
+    * FILE_EXCLUDE_REGEX now filters out folders called .DS_Store.
+    * New command file-size scans a folder and outputs a list of all files and their sizes.
 
     programmer visible changes:
     * Extended the number of variable name endings that, when read, call os.path.normpath on the value:  "_PATH", "_DIR", "_DIR_NAME", "_FILE_NAME", "_PATH__", "_DIR__", "_DIR_NAME__", "_FILE_NAME__".
@@ -17,6 +20,8 @@
         more accurate on Windows.
     * Added boto to the list of maodules in import-check and in pyinstaller compilation.
     * In function InstlAdmin.should_wtar, regex self.already_wtarred_regex was change to search instead of match.
+    * New function InstlAdmin.compile_exclude_regexes to consolidate the reading of FOLDER_EXCLUDE_REGEX & FILE_EXCLUDE_REGEX in one place.
+    * New propery SVNItem.size, implemented with member __size.
 
     user visible changes, client:
     * New interactive command which prints the path to currently running instl

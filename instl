@@ -109,6 +109,7 @@ def prepare_args_parser(in_command):
         'create-repo-rev-file': {'mode': 'an', 'options': ('conf',), 'help':  'create repo rev file for a specific revision'},
         'create-rsa-keys':      {'mode': 'an', 'options': ('conf',), 'help':  'create private and public keys'},
         'depend':               {'mode': 'an', 'options': ('in', 'out',), 'help':  'output a dependencies map for an index file'},
+        'file-size':            {'mode': 'an', 'options': ('in', 'out'), 'help':  'Create a list of files and their sizes'},
         'fix-perm':             {'mode': 'an', 'options': ('out', 'run','conf', 'limit'), 'help':  'Fix Mac OS permissions'},
         'fix-props':            {'mode': 'an', 'options': ('out', 'run','conf'), 'help':  'create svn commands to remove redundant properties such as executable bit from files that should not be marked executable'},
         'fix-symlinks':         {'mode': 'an', 'options': ('out', 'run','conf',), 'help':  'replace symlinks with .symlinks files'},

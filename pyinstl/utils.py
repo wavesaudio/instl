@@ -568,3 +568,24 @@ def compile_regex_list_ORed(regex_list, verbose=True):
     else:
         retVal = re.compile(combined_regex)
     return retVal
+
+
+def excluded_walk(root_to_walk, file_exclude_regex=None, dir_exclude_regex=None, followlinks=False):
+    """ excluded_walk behaves like os.walk but will exclude files or dirs who's name pass the given regexs
+    :param root_to_walk: the root folder to walk, this folder will *not* be tested against dir_exclude_regex
+    :param file_exclude_regex: a regex to test files. Any file that matches this regex will not be returned
+    :param dir_exclude_regex: a regex to test folders. Any folder that matches this regex will not be returned
+    :param followlinks: passed directly to os.walk
+    :yield: a tuple of (root, dirs, files) - just like os.walk
+    """
+
+    if file_exclude_regex is None: # if file_exclude_regex is None all files should be included
+        file_exclude_regex = re.compile("a^")
+
+    if dir_exclude_regex is None:  # if file_exclude_regex is None all files should be included
+        dir_exclude_regex = re.compile("a^")
+
+    for root, dirs, files in os.walk(root_to_walk, followlinks=followlinks):
+        dirs[:] =  [a_dir  for a_dir  in dirs  if not dir_exclude_regex.search(a_dir)]
+        files[:] = [a_file for a_file in files if not file_exclude_regex.search(a_file)]
+        yield root, dirs, files
