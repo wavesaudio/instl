@@ -89,6 +89,7 @@ class CommandLineOptions(object):
         self.no_wtar_artifacts = None
         self.credentials = None
         self.base_url = None
+        self.file_sizes_file = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
@@ -109,7 +110,7 @@ def prepare_args_parser(in_command):
         'create-repo-rev-file': {'mode': 'an', 'options': ('conf',), 'help':  'create repo rev file for a specific revision'},
         'create-rsa-keys':      {'mode': 'an', 'options': ('conf',), 'help':  'create private and public keys'},
         'depend':               {'mode': 'an', 'options': ('in', 'out',), 'help':  'output a dependencies map for an index file'},
-        'file-size':            {'mode': 'an', 'options': ('in', 'out'), 'help':  'Create a list of files and their sizes'},
+        'file-sizes':            {'mode': 'an', 'options': ('in', 'out'), 'help':  'Create a list of files and their sizes'},
         'fix-perm':             {'mode': 'an', 'options': ('out', 'run','conf', 'limit'), 'help':  'Fix Mac OS permissions'},
         'fix-props':            {'mode': 'an', 'options': ('out', 'run','conf'), 'help':  'create svn commands to remove redundant properties such as executable bit from files that should not be marked executable'},
         'fix-symlinks':         {'mode': 'an', 'options': ('out', 'run','conf',), 'help':  'replace symlinks with .symlinks files'},
@@ -284,6 +285,12 @@ def prepare_args_parser(in_command):
                                     nargs=1,
                                     metavar='base-url',
                                     dest='base_url',
+                                    help="")
+        trans_options.add_argument('--file-sizes',
+                                    required=False,
+                                    nargs=1,
+                                    metavar='file-sizes-file',
+                                    dest='file_sizes_file',
                                     help="")
 
     elif 'check-sig' == in_command:

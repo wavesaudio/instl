@@ -135,6 +135,7 @@ class InstlInstanceBase(object):
             "target_path": ("__SHORTCUT_TARGET_PATH__", None),
             "credentials": ("__CREDENTIALS__", None),
             "base_url": ("__BASE_URL__", None),
+            "file_sizes_file": ("__FILE_SIZES_FILE__", None)
         }
 
         for attrib, var in const_attrib_to_var.iteritems():
@@ -456,8 +457,8 @@ class InstlInstanceBase(object):
             except ImportError:  # no installItemGraph, no worry
                 print("Could not load installItemGraph")
 
-    def read_info_map_file(self, in_file_path):
-        self.svnTree.read_info_map_from_file(in_file_path)
+    def read_info_map_file(self, in_file_path, a_format="guess"):
+        self.svnTree.read_info_map_from_file(in_file_path, a_format)
 
     def write_info_map_file(self):
         self.svnTree.write_to_file(var_stack.resolve("$(__MAIN_OUT_FILE__)", raise_on_fail=True))
@@ -485,7 +486,6 @@ class InstlInstanceBase(object):
         replaced_list = unique_list()
         replaced_list.extend([self.original_name_from_wtar_name(file_name) for file_name in original_list])
         return replaced_list
-
 
     def needs(self, iid, out_list):
         """ return iids of all items that a specific iid depends on"""

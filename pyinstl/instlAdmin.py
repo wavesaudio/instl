@@ -61,6 +61,8 @@ class InstlAdmin(InstlInstanceBase):
         self.read_info_map_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)"))
         if "__PROPS_FILE__" in var_stack:
             self.read_info_map_file(var_stack.resolve("$(__PROPS_FILE__)"))
+        if "__FILE_SIZES_FILE__" in var_stack:
+            self.read_info_map_file(var_stack.resolve("$(__FILE_SIZES_FILE__)"), a_format="file-sizes")
         self.filter_out_info_map(var_stack.resolve_to_list("$(__FILTER_OUT_PATHS__)"))
 
         base_rev = int(var_stack.resolve("$(BASE_REPO_REV)"))
@@ -73,8 +75,10 @@ class InstlAdmin(InstlInstanceBase):
         if "__BASE_URL__" in var_stack:
             self.add_urls_to_info_map()
         self.write_info_map_file()
-        if "__RUN_BATCH__" in var_stack:
-            self.run_batch_file()
+
+        #for item in self.svnTree.walk_items(what="dir"):
+        #    print(item.full_path(), item.size)
+
 
     def add_urls_to_info_map(self):
         base_url = var_stack.resolve_var("__BASE_URL__")
@@ -242,6 +246,12 @@ class InstlAdmin(InstlInstanceBase):
         props_command_parts = ['"$(SVN_CLIENT_PATH)"', "proplist", "--depth infinity", ">", "../$(__CURR_REPO_REV__)/instl/info_map.props"]
         accum += " ".join(props_command_parts)
         accum += self.platform_helper.progress("Get props from svn to ../$(__CURR_REPO_REV__)/instl/info_map.props")
+
+        # get sizes of all files
+        file_sizes_command_parts = [self.platform_helper.run_instl(), "file-sizes",
+                                    "--in", "$(ROOT_LINKS_FOLDER_REPO)/Base",
+                                    "--out", "instl/info_map.file-sizes"]
+        accum += " ".join(file_sizes_command_parts)
 
         accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
         # translate SVN info and properties to info_map text format
@@ -468,11 +478,11 @@ class InstlAdmin(InstlInstanceBase):
             var_stack.set_var("REPO_REV").append("$(__JUST_WITH_NUMBER__)")
 
         if just_with_number == 0:
-            self.batch_accum += " ".join( ["aws", "s3", "cp",
+            self.batch_accum += " ".join(["aws", "s3", "cp",
                                 "\"$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
                                "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)\"",
                                "--content-type", 'text/plain'
-                                ] )
+                                ])
             self.batch_accum += self.platform_helper.progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)'")
 
         self.batch_accum += " ".join( ["aws", "s3", "cp",
@@ -520,15 +530,15 @@ class InstlAdmin(InstlInstanceBase):
             shouldBeExec = self.should_be_exec(item)
             if item.props:
                 for extra_prop in item.props:
-                    #print("remove prop", extra_prop, "from", item.full_path())
+                    # print("remove prop", extra_prop, "from", item.full_path())
                     self.batch_accum += " ".join( (var_stack.resolve("$(SVN_CLIENT_PATH)"), "propdel", "svn:"+extra_prop, '"'+item.full_path()+'"') )
                     self.batch_accum += self.platform_helper.progress(" ".join(("remove prop", extra_prop, "from", item.full_path())) )
             if item.isExecutable() and not shouldBeExec:
-                #print("remove prop", "executable", "from", item.full_path())
+                # print("remove prop", "executable", "from", item.full_path())
                 self.batch_accum += " ".join( (var_stack.resolve("$(SVN_CLIENT_PATH)"), "propdel", 'svn:executable', '"'+item.full_path()+'"') )
                 self.batch_accum += self.platform_helper.progress(" ".join(("remove prop", "executable", "from", item.full_path())) )
             elif not item.isExecutable() and shouldBeExec:
-                #print("add prop", "executable", "to", item.full_path())
+                # print("add prop", "executable", "to", item.full_path())
                 self.batch_accum += " ".join( (var_stack.resolve("$(SVN_CLIENT_PATH)"), "propset", 'svn:executable', 'yes', '"'+item.full_path()+'"') )
                 self.batch_accum += self.platform_helper.progress(" ".join(("add prop", "executable", "from", item.full_path())) )
         self.create_variables_assignment()
@@ -1079,7 +1089,7 @@ class InstlAdmin(InstlInstanceBase):
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
 
-    def do_file_size(self):
+    def do_file_sizes(self):
         self.compile_exclude_regexes()
         out_file_path = var_stack.resolve("$(__MAIN_OUT_FILE__)", raise_on_fail=False)
         with write_to_file_or_stdout(out_file_path) as out_file:

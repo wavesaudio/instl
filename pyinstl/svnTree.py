@@ -24,7 +24,7 @@ map_info_extension_to_format = {"txt": "text", "text": "text",
                                 "yml": "yaml", "yaml": "yaml",
                                 "pick": "pickle", "pickl": "pickle", "pickle": "pickle",
                                 "props": "props", "prop": "props",
-                                "file-size": "file-size"
+                                "file-sizes": "file-sizes"
 }
 
 
@@ -44,7 +44,7 @@ class SVNTree(svnItem.SVNTopItem):
                                     "text": self.read_from_text,
                                     "yaml": self.pseudo_read_from_yaml,
                                     "props": self.read_props,
-                                    "file-size": self.read_file_sizes
+                                    "file-sizes": self.read_file_sizes
                                     }
 
         self.write_func_by_format = {"text": self.write_as_text,
@@ -71,7 +71,7 @@ class SVNTree(svnItem.SVNTopItem):
         if a_format in self.read_func_by_format.keys():
             with open_for_read_file_or_url(self.path_to_file) as rfd:
                 logging.info("%s, a_format: %s", self.path_to_file, a_format)
-                if a_format not in ("props", "file-size"):
+                if a_format not in ("props", "file-sizes"):
                     self.clear_subs()
                 self.read_func_by_format[a_format](rfd)
         else:
@@ -287,16 +287,26 @@ class SVNTree(svnItem.SVNTopItem):
                     relative_path = os.path.join(root, a_file)[prefix_len:]
                     self.new_item_at_path(relative_path, "f", 0, checksum="0", create_folders=True)
 
-    def read_file_sizes(self):
-        pass
-    
-# WtarFilter is passed to SVNItem.walk_items_with_filter as the filter parameter
-# to match files that end with .wtar, .wtar.aa,...
+    def read_file_sizes(self, rfd):
+        for line in rfd:
+            match = comment_line_re.match(line)
+            if not match:
+                parts = line.rstrip().split(", ", 2)
+                item = self.get_item_at_path(parts[0])
+                if item:
+                    item.size = int(parts[1])
+                else:
+                    print(parts[0], "was not found")
+
 class WtarFilter(object):
+    """ WtarFilter is passed to SVNItem.walk_items_with_filter as the filter parameter
+        to match files that end with .wtar, .wtar.aa,...
+    """
     def __init__(self, base_name):
         # Regex fo find files who's name starts with the source's name and have .wtar or wtar.aa... extension
         # NOT compiled with re.VERBOSE since the file name may contain spaces
         self.wtar_file_re = re.compile(base_name + r"""\.wtar(\...)?$""")
+
     def __call__(self, file_item):
         match = self.wtar_file_re.match(file_item.name)
         retVal = match is not None

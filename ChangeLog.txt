@@ -9,7 +9,8 @@
     * wtar command removes .DS_Store files before doing the actual wtarring.
     * FOLDER_EXCLUDE_REGEX now filters out folder called .svn.
     * FILE_EXCLUDE_REGEX now filters out folders called .DS_Store.
-    * New command file-size scans a folder and outputs a list of all files and their sizes.
+    * New command file-sizes scans a folder and outputs a list of all files and their sizes.
+    * Added file-sizes option to the trans command so the sizes of files will be added to the final info_map.txt.
 
     programmer visible changes:
     * Extended the number of variable name endings that, when read, call os.path.normpath on the value:  "_PATH", "_DIR", "_DIR_NAME", "_FILE_NAME", "_PATH__", "_DIR__", "_DIR_NAME__", "_FILE_NAME__".
