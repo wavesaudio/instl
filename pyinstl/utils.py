@@ -586,6 +586,6 @@ def excluded_walk(root_to_walk, file_exclude_regex=None, dir_exclude_regex=None,
         dir_exclude_regex = re.compile("a^")
 
     for root, dirs, files in os.walk(root_to_walk, followlinks=followlinks):
-        dirs[:] =  [a_dir  for a_dir  in dirs  if not dir_exclude_regex.search(a_dir)]
-        files[:] = [a_file for a_file in files if not file_exclude_regex.search(a_file)]
+        dirs[:] =  sorted([a_dir  for a_dir  in dirs  if not dir_exclude_regex.search(a_dir)])
+        files[:] = sorted([a_file for a_file in files if not file_exclude_regex.search(a_file)])
         yield root, dirs, files

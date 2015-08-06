@@ -250,18 +250,20 @@ class InstlAdmin(InstlInstanceBase):
         # get sizes of all files
         file_sizes_command_parts = [self.platform_helper.run_instl(), "file-sizes",
                                     "--in", "$(ROOT_LINKS_FOLDER_REPO)/Base",
-                                    "--out", "instl/info_map.file-sizes"]
+                                    "--out", "../$(__CURR_REPO_REV__)/instl/info_map.file-sizes"]
         accum += " ".join(file_sizes_command_parts)
+        accum += self.platform_helper.progress("Get file-sizes from disk to ../$(__CURR_REPO_REV__)/instl/info_map.file-sizes")
 
         accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
         # translate SVN info and properties to info_map text format
-        accum += self.platform_helper.progress("Create $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map.txt")
         trans_command_parts = [self.platform_helper.run_instl(), "trans",
                                "--in", "instl/info_map.info",
                                "--props ", "instl/info_map.props",
                                "--base-repo-rev", "$(BASE_REPO_REV)",
+                               "--file-sizes", "instl/info_map.file-sizes",
                                "--out ", "instl/info_map.txt"]
         accum += " ".join(trans_command_parts)
+        accum += self.platform_helper.progress("Create $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map.txt")
 
         # create Mac only info_map
         trans_command_parts = [self.platform_helper.run_instl(), "trans", "--in", "instl/info_map.txt",
