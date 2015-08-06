@@ -97,8 +97,8 @@ class InstlInstanceSync(object):
                                                need_item.flags,
                                                need_item.last_rev,
                                                need_item.checksum,
+                                               need_item.safe_size,
                                                None, # no need to copy the url to the have_map
-                                               need_item.size,
                                                create_folders=True)
             else:  # found in have map
                 if have_item.last_rev == need_item.last_rev:

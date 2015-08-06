@@ -62,7 +62,7 @@ class SVNItem(object):
         self.__subs = None
         if self.isDir():
             self.__subs = dict()
-        self.__size = in_size
+        self.__size = int(in_size)
         self.props = None # extra props besides svn:executable, svn:special
         self.user_data = None
 
@@ -200,7 +200,16 @@ class SVNItem(object):
         """ update new_size """
         if self.isDir():
             raise ValueError(self.name+" is a directory, cannot set it's size")
-        self.__size = new_size
+        self.__size = int(new_size)
+
+    @property
+    def safe_size(self):
+        """calculate sub items size recursively return -1 if size is not available for any sub-item
+        """
+        try:
+            return self.size
+        except ValueError:
+            return -1
 
     def full_path_parts(self):
         retVal = list()
@@ -262,7 +271,7 @@ class SVNItem(object):
             retVal = retVal.get_item_at_path(path_parts[1:])
         return retVal
 
-    def new_item_at_path(self, in_at_path, in_flags, in_last_rev, checksum=None, in_url=None, in_size=-1, create_folders=False):
+    def new_item_at_path(self, in_at_path, in_flags, in_last_rev, checksum=None, in_size=-1, in_url=None, create_folders=False):
         """ create a new a sub-item at the give in_at_path.
             in_at_path is relative to self of course.
             in_at_path can be a list or tuple containing individual path parts

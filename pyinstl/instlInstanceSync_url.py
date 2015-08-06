@@ -97,6 +97,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         if len(file_list) + len(dir_list) == 0:
             print("0 files to sync")
+            print("0 bytes to sync")
             return
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress(
             "Starting sync from $(SYNC_BASE_URL)")
@@ -105,7 +106,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.sync_base_url = var_stack.resolve("$(SYNC_BASE_URL)")
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
-
 
         prefix_accum = BatchAccumulator()  # sub-accumulator for prefix instructions
         prefix_accum.set_current_section('sync')
@@ -133,6 +133,11 @@ class InstlInstanceSync_url(InstlInstanceSync):
                                            self.instlObj.platform_helper.dl_tool.get_num_urls_to_download())
 
         print(self.instlObj.platform_helper.dl_tool.get_num_urls_to_download(), "files to sync")
+        bytes_to_sync = str(self.work_info_map.safe_size) # backward compatibility for info_maps that do not have sizes
+        if "-1" == bytes_to_sync:
+            bytes_to_sync = "Unknown number of"
+        print(bytes_to_sync, "bytes to sync")
+
         logging.info("Num files to sync: %d", self.instlObj.platform_helper.dl_tool.get_num_urls_to_download())
 
         curl_config_folder = var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)/curl",  raise_on_fail=True)
