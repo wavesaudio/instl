@@ -61,6 +61,8 @@ class InstlAdmin(InstlInstanceBase):
         self.read_info_map_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)"))
         if "__PROPS_FILE__" in var_stack:
             self.read_info_map_file(var_stack.resolve("$(__PROPS_FILE__)"))
+        if "__FILE_SIZES_FILE__" in var_stack:
+            self.read_info_map_file(var_stack.resolve("$(__FILE_SIZES_FILE__)"), a_format="file-sizes")
         self.filter_out_info_map(var_stack.resolve_to_list("$(__FILTER_OUT_PATHS__)"))
 
         base_rev = int(var_stack.resolve("$(BASE_REPO_REV)"))
@@ -73,8 +75,10 @@ class InstlAdmin(InstlInstanceBase):
         if "__BASE_URL__" in var_stack:
             self.add_urls_to_info_map()
         self.write_info_map_file()
-        if "__RUN_BATCH__" in var_stack:
-            self.run_batch_file()
+
+        #for item in self.svnTree.walk_items(what="dir"):
+        #    print(item.full_path(), item.size)
+
 
     def add_urls_to_info_map(self):
         base_url = var_stack.resolve_var("__BASE_URL__")
@@ -243,15 +247,23 @@ class InstlAdmin(InstlInstanceBase):
         accum += " ".join(props_command_parts)
         accum += self.platform_helper.progress("Get props from svn to ../$(__CURR_REPO_REV__)/instl/info_map.props")
 
+        # get sizes of all files
+        file_sizes_command_parts = [self.platform_helper.run_instl(), "file-sizes",
+                                    "--in", "$(ROOT_LINKS_FOLDER_REPO)/Base",
+                                    "--out", "../$(__CURR_REPO_REV__)/instl/info_map.file-sizes"]
+        accum += " ".join(file_sizes_command_parts)
+        accum += self.platform_helper.progress("Get file-sizes from disk to ../$(__CURR_REPO_REV__)/instl/info_map.file-sizes")
+
         accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
         # translate SVN info and properties to info_map text format
-        accum += self.platform_helper.progress("Create $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map.txt")
         trans_command_parts = [self.platform_helper.run_instl(), "trans",
                                "--in", "instl/info_map.info",
                                "--props ", "instl/info_map.props",
                                "--base-repo-rev", "$(BASE_REPO_REV)",
+                               "--file-sizes", "instl/info_map.file-sizes",
                                "--out ", "instl/info_map.txt"]
         accum += " ".join(trans_command_parts)
+        accum += self.platform_helper.progress("Create $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map.txt")
 
         # create Mac only info_map
         trans_command_parts = [self.platform_helper.run_instl(), "trans", "--in", "instl/info_map.txt",
@@ -468,11 +480,11 @@ class InstlAdmin(InstlInstanceBase):
             var_stack.set_var("REPO_REV").append("$(__JUST_WITH_NUMBER__)")
 
         if just_with_number == 0:
-            self.batch_accum += " ".join( ["aws", "s3", "cp",
+            self.batch_accum += " ".join(["aws", "s3", "cp",
                                 "\"$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
                                "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)\"",
                                "--content-type", 'text/plain'
-                                ] )
+                                ])
             self.batch_accum += self.platform_helper.progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)'")
 
         self.batch_accum += " ".join( ["aws", "s3", "cp",
@@ -520,15 +532,15 @@ class InstlAdmin(InstlInstanceBase):
             shouldBeExec = self.should_be_exec(item)
             if item.props:
                 for extra_prop in item.props:
-                    #print("remove prop", extra_prop, "from", item.full_path())
+                    # print("remove prop", extra_prop, "from", item.full_path())
                     self.batch_accum += " ".join( (var_stack.resolve("$(SVN_CLIENT_PATH)"), "propdel", "svn:"+extra_prop, '"'+item.full_path()+'"') )
                     self.batch_accum += self.platform_helper.progress(" ".join(("remove prop", extra_prop, "from", item.full_path())) )
             if item.isExecutable() and not shouldBeExec:
-                #print("remove prop", "executable", "from", item.full_path())
+                # print("remove prop", "executable", "from", item.full_path())
                 self.batch_accum += " ".join( (var_stack.resolve("$(SVN_CLIENT_PATH)"), "propdel", 'svn:executable', '"'+item.full_path()+'"') )
                 self.batch_accum += self.platform_helper.progress(" ".join(("remove prop", "executable", "from", item.full_path())) )
             elif not item.isExecutable() and shouldBeExec:
-                #print("add prop", "executable", "to", item.full_path())
+                # print("add prop", "executable", "to", item.full_path())
                 self.batch_accum += " ".join( (var_stack.resolve("$(SVN_CLIENT_PATH)"), "propset", 'svn:executable', 'yes', '"'+item.full_path()+'"') )
                 self.batch_accum += self.platform_helper.progress(" ".join(("add prop", "executable", "from", item.full_path())) )
         self.create_variables_assignment()
@@ -576,6 +588,12 @@ class InstlAdmin(InstlInstanceBase):
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
 
+    def compile_exclude_regexes(self):
+        forbidden_folder_regex_list = var_stack.resolve_to_list("$(FOLDER_EXCLUDE_REGEX)")
+        self.compiled_forbidden_folder_regex = compile_regex_list_ORed(forbidden_folder_regex_list)
+        forbidden_file_regex_list = var_stack.resolve_to_list("$(FILE_EXCLUDE_REGEX)")
+        self.compiled_forbidden_file_regex = compile_regex_list_ORed(forbidden_file_regex_list)
+
     def do_stage2svn(self):
         self.batch_accum.set_current_section('admin')
         if var_stack.defined("__LIMIT_COMMAND_TO__"):
@@ -585,10 +603,7 @@ class InstlAdmin(InstlInstanceBase):
         stage_folder = var_stack.resolve("$(STAGING_FOLDER)")
         svn_folder = var_stack.resolve("$(SVN_CHECKOUT_FOLDER)")
 
-        forbidden_folder_regex_list = var_stack.resolve_to_list("$(FOLDER_EXCLUDE_REGEX)")
-        self.compiled_forbidden_folder_regex = compile_regex_list_ORed(forbidden_folder_regex_list)
-        forbidden_file_regex_list = var_stack.resolve_to_list("$(FILE_EXCLUDE_REGEX)")
-        self.compiled_forbidden_file_regex = compile_regex_list_ORed(forbidden_file_regex_list)
+        self.compile_exclude_regexs()
 
         self.batch_accum += self.platform_helper.unlock(stage_folder, recursive=True)
         self.batch_accum += self.platform_helper.progress("chflags -R nouchg "+stage_folder)
@@ -1075,3 +1090,22 @@ class InstlAdmin(InstlInstanceBase):
         self.write_batch_file()
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
+
+    def do_file_sizes(self):
+        self.compile_exclude_regexes()
+        out_file_path = var_stack.resolve("$(__MAIN_OUT_FILE__)", raise_on_fail=False)
+        with write_to_file_or_stdout(out_file_path) as out_file:
+            what_to_scan = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
+            if os.path.isfile(what_to_scan):
+                file_size = os.path.getsize(what_to_scan)
+                print(what_to_scan+",", file_size, file=out_file)
+            else:
+                folder_to_scan_name_len = len(what_to_scan)+1 # +1 for the last '\'
+                if not self.compiled_forbidden_folder_regex.search(what_to_scan):
+                    for root, dirs, files in excluded_walk(what_to_scan, file_exclude_regex=self.compiled_forbidden_file_regex, dir_exclude_regex=self.compiled_forbidden_folder_regex, followlinks=False):
+                        for a_file in files:
+                            full_path = os.path.join(root, a_file)
+                            file_size = os.path.getsize(full_path)
+                            partial_path = full_path[folder_to_scan_name_len:]
+                            print(partial_path+",", file_size, file=out_file)
+
