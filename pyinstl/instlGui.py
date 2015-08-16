@@ -6,7 +6,7 @@ import stat
 from time import time, localtime, strftime
 import shlex
 from pyinstl.utils import *
-from aYaml import augmentedYaml
+from aYaml import writeAsYaml, YamlDumpWrap, YamlDumpDocWrap
 
 from instlInstanceBase import InstlInstanceBase
 from configVarStack import var_stack
@@ -97,10 +97,10 @@ class InstlGui(InstlInstanceBase):
         var_stack.set_var("SELECTED_TAB").append(selected_tab)
 
         the_list_yaml_ready= var_stack.repr_for_yaml(which_vars=var_stack.resolve_var_to_list("__GUI_CONFIG_FILE_VARS__"), include_comments=False, resolve=False, ignore_unknown_vars=True)
-        the_doc_yaml_ready = augmentedYaml.YamlDumpDocWrap(the_list_yaml_ready, '!define', "Definitions", explicit_start=True, sort_mappings=True)
+        the_doc_yaml_ready = YamlDumpDocWrap(the_list_yaml_ready, '!define', "Definitions", explicit_start=True, sort_mappings=True)
         with open(var_stack.resolve_var("INSTL_GUI_CONFIG_FILE_NAME"), "w") as wfd:
             make_open_file_read_write_for_all(wfd)
-            augmentedYaml.writeAsYaml(the_doc_yaml_ready, wfd)
+            writeAsYaml(the_doc_yaml_ready, wfd)
 
     def get_client_input_file(self):
         import tkFileDialog

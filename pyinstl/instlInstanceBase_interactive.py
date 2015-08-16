@@ -46,7 +46,7 @@ except ImportError:
     print("failed to import colorama, color text functionality not supported")
 
 import instlInstanceBase
-from aYaml import augmentedYaml
+from aYaml import writeAsYaml, YamlDumpWrap, YamlDumpDocWrap
 
 if colorama_loaded:
     colors = {'reset': colorama.Fore.RESET, 'green': colorama.Fore.GREEN, 'blue': colorama.Fore.BLUE, 'yellow': colorama.Fore.YELLOW, 'red': colorama.Fore.RED}
@@ -276,7 +276,7 @@ class CMDObj(cmd.Cmd, object):
             for param in params:
                 if param in self.client_prog_inst.install_definitions_index:
                     self.client_prog_inst.install_definitions_index[param].resolve_inheritance(self.client_prog_inst.install_definitions_index)
-                    augmentedYaml.writeAsYaml({param: self.client_prog_inst.install_definitions_index[param].repr_for_yaml()})
+                    writeAsYaml({param: self.client_prog_inst.install_definitions_index[param].repr_for_yaml()})
                 else:
                     params_not_in_index.append(param)
             if params_not_in_index:
@@ -611,7 +611,7 @@ def compact_history():
 
 def do_list_imp(self, what = None, stream=sys.stdout):
     if what is None:
-        augmentedYaml.writeAsYaml(self, stream)
+        writeAsYaml(self, stream)
     list_to_do = list()
     if isinstance(what, str):
         list_to_do.append(what)
@@ -623,18 +623,18 @@ def do_list_imp(self, what = None, stream=sys.stdout):
         if guid_re.match(item_to_do):
             whole_sections_to_write.append({item_to_do: iids_from_guid(self.install_definitions_index, item_to_do)})
         elif item_to_do == "define":
-            whole_sections_to_write.append(augmentedYaml.YamlDumpDocWrap(var_stack, '!define', "Definitions", explicit_start=True, sort_mappings=True))
+            whole_sections_to_write.append(YamlDumpDocWrap(var_stack, '!define', "Definitions", explicit_start=True, sort_mappings=True))
         elif item_to_do == "index":
-            whole_sections_to_write.append(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True))
+            whole_sections_to_write.append(YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True))
         elif item_to_do == "guid":
             guid_dict = dict()
             for lic in guid_list(self.install_definitions_index):
                 guid_dict[lic] = iids_from_guid(self.install_definitions_index, lic)
-            whole_sections_to_write.append(augmentedYaml.YamlDumpDocWrap(guid_dict, '!guid', "guid to IID", explicit_start=True, sort_mappings=True))
+            whole_sections_to_write.append(YamlDumpDocWrap(guid_dict, '!guid', "guid to IID", explicit_start=True, sort_mappings=True))
         else:
             individual_items_to_write.append(item_to_do)
 
-    augmentedYaml.writeAsYaml(whole_sections_to_write+self.repr_for_yaml(individual_items_to_write), stream)
+    writeAsYaml(whole_sections_to_write+self.repr_for_yaml(individual_items_to_write), stream)
 
 
 def create_completion_list_imp(self, for_what="all"):

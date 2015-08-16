@@ -10,7 +10,7 @@ import appdirs
 
 import pyinstl.log_utils
 from configVarList import value_ref_re
-from aYaml import augmentedYaml
+import aYaml
 from pyinstl.utils import *
 from pyinstl.searchPaths import SearchPaths
 from batchAccumulator import BatchAccumulator
@@ -237,9 +237,9 @@ class InstlInstanceBase(object):
                 require_dict[IID] = sorted(self.install_definitions_index[IID].required_by)
         with open(file_path, "w") as wfd:
             make_open_file_read_write_for_all(wfd)
-            require_dict = augmentedYaml.YamlDumpDocWrap(require_dict, '!require', "requirements",
+            require_dict = aYaml.YamlDumpDocWrap(require_dict, '!require', "requirements",
                                                         explicit_start=True, sort_mappings=True)
-            augmentedYaml.writeAsYaml(require_dict, wfd)
+            aYaml.writeAsYaml(require_dict, wfd)
 
     internal_identifier_re = re.compile("""
                                         __                  # dunder here
@@ -427,7 +427,7 @@ class InstlInstanceBase(object):
 
         state_file = var_stack.resolve("$(__MAIN_STATE_FILE__)", raise_on_fail=True)
         with write_to_file_or_stdout(state_file) as fd:
-            augmentedYaml.writeAsYaml(self, fd)
+            aYaml.writeAsYaml(self, fd)
 
     def read_index(self, a_node):
         self.install_definitions_index.update(read_index_from_yaml(a_node))

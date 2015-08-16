@@ -78,7 +78,7 @@ from collections import OrderedDict, defaultdict
 import sys
 
 sys.path.append("..")
-from aYaml import augmentedYaml
+from aYaml import YamlDumpWrap
 from pyinstl.utils import *
 from pyinstl.configVarList import ConfigVarList
 from configVarStack import var_stack
@@ -378,7 +378,7 @@ class InstallItem(object):
                 source_list = list()
                 for source in self.__items[for_which_os]['install_sources']:
                     if source[1] != '!dir':
-                        source_list.append(augmentedYaml.YamlDumpWrap(value=source[0], tag=source[1]))
+                        source_list.append(YamlDumpWrap(value=source[0], tag=source[1]))
                     else:
                         source_list.append(source[0])
                 retVal['install_sources'] = source_list

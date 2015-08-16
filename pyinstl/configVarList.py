@@ -18,7 +18,7 @@ import logging
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 
 from pyinstl import configVar
-from aYaml.augmentedYaml import YamlDumpWrap
+from aYaml import YamlDumpWrap
 
 
 value_ref_re = re.compile("""(

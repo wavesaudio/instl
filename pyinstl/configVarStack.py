@@ -17,7 +17,7 @@ sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 
 import utils
 from pyinstl import configVarList
-from aYaml.augmentedYaml import YamlDumpWrap
+from aYaml import YamlDumpWrap
 
 class ConfigVarStack(configVarList.ConfigVarList):
     """ Keeps a list of named build config values.

@@ -8,7 +8,7 @@ import logging
 
 from pyinstl.utils import *
 from installItem import InstallItem, guid_list, iids_from_guid
-from aYaml import augmentedYaml
+from aYaml import writeAsYaml, YamlDumpWrap, YamlDumpDocWrap
 
 from instlInstanceBase import InstlInstanceBase
 from configVarStack import var_stack
@@ -126,14 +126,14 @@ class InstlClient(InstlInstanceBase):
 
     def create_instl_history_file(self):
         var_stack.set_var("__BATCH_CREATE_TIME__").append(time.strftime("%Y/%m/%d %H:%M:%S"))
-        yaml_of_defines = augmentedYaml.YamlDumpDocWrap(var_stack, '!define', "Definitions",
+        yaml_of_defines = YamlDumpDocWrap(var_stack, '!define', "Definitions",
                                                         explicit_start=True, sort_mappings=True)
         # write the history file, but only if variable LOCAL_REPO_BOOKKEEPING_DIR is defined
         # and the folder actually exists.
         if os.path.isdir(var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)", default="")):
             with open(var_stack.resolve("$(INSTL_HISTORY_TEMP_PATH)"), "w") as wfd:
                 make_open_file_read_write_for_all(wfd)
-                augmentedYaml.writeAsYaml(yaml_of_defines, wfd)
+                writeAsYaml(yaml_of_defines, wfd)
             self.batch_accum += self.platform_helper.append_file_to_file("$(INSTL_HISTORY_TEMP_PATH)",
                                                                      "$(INSTL_HISTORY_PATH)")
 
@@ -205,9 +205,9 @@ class InstlClient(InstlInstanceBase):
         """
         retVal = list()
         if what is None:  # None is all
-            retVal.append(augmentedYaml.YamlDumpDocWrap(var_stack, '!define', "Definitions",
+            retVal.append(YamlDumpDocWrap(var_stack, '!define', "Definitions",
                                                         explicit_start=True, sort_mappings=True))
-            retVal.append(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index,
+            retVal.append(YamlDumpDocWrap(self.install_definitions_index,
                                                         '!index', "Installation index",
                                                         explicit_start=True, sort_mappings=True))
         else:
@@ -220,18 +220,18 @@ class InstlClient(InstlInstanceBase):
                 elif identifier in self.install_definitions_index:
                     indexes.append({identifier: self.install_definitions_index[identifier].repr_for_yaml()})
                 else:
-                    unknowns.append(augmentedYaml.YamlDumpWrap(value="UNKNOWN VARIABLE",
+                    unknowns.append(YamlDumpWrap(value="UNKNOWN VARIABLE",
                                                                comment=identifier + " is not in variable list"))
             if defines:
-                retVal.append(augmentedYaml.YamlDumpDocWrap(defines, '!define', "Definitions",
+                retVal.append(YamlDumpDocWrap(defines, '!define', "Definitions",
                                                             explicit_start=True, sort_mappings=True))
             if indexes:
                 retVal.append(
-                    augmentedYaml.YamlDumpDocWrap(indexes, '!index', "Installation index",
+                    YamlDumpDocWrap(indexes, '!index', "Installation index",
                                                 explicit_start=True, sort_mappings=True))
             if unknowns:
                 retVal.append(
-                    augmentedYaml.YamlDumpDocWrap(unknowns, '!unknowns', "Installation index",
+                    YamlDumpDocWrap(unknowns, '!unknowns', "Installation index",
                                                   explicit_start=True, sort_mappings=True))
 
         return retVal

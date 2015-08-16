@@ -216,7 +216,7 @@ class SVNTree(svnItem.SVNTopItem):
             wfd.write(str(item) + "\n")
 
     def write_as_yaml(self, wfd, comments=True):
-        aYaml.augmentedYaml.writeAsYaml(self, out_stream=wfd, indentor=None, sort=True)
+        aYaml.writeAsYaml(self, out_stream=wfd, indentor=None, sort=True)
 
     def repr_for_yaml(self):
         """         writeAsYaml(svni1, out_stream=sys.stdout, indentor=None, sort=True)         """

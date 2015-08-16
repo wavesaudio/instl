@@ -10,7 +10,7 @@ from collections import defaultdict
 
 from instlException import *
 from pyinstl.utils import *
-from aYaml.augmentedYaml import writeAsYaml, YamlDumpWrap, YamlDumpDocWrap
+from aYaml import writeAsYaml, YamlDumpWrap, YamlDumpDocWrap
 
 from instlInstanceBase import InstlInstanceBase
 from pyinstl import svnTree

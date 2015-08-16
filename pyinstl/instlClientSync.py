@@ -8,7 +8,6 @@ import logging
 
 from pyinstl.utils import *
 from installItem import InstallItem, guid_list, iids_from_guid
-from aYaml import augmentedYaml
 
 from instlInstanceBase import InstlInstanceBase
 from configVarStack import var_stack
@@ -16,16 +15,17 @@ import svnTree
 
 def do_sync(self):
     logging.info("Creating sync instructions")
-    if var_stack.resolve("$(REPO_TYPE)") == "BOTO":
-        from instlInstanceSync_boto import InstlInstanceSync_boto
-        syncer = InstlInstanceSync_boto(self)
-    elif var_stack.resolve("$(REPO_TYPE)") == "URL":
+    repo_type = var_stack.resolve("$(REPO_TYPE)")
+    if repo_type == "URL":
         from instlInstanceSync_url import InstlInstanceSync_url
         syncer = InstlInstanceSync_url(self)
-    elif var_stack.resolve("$(REPO_TYPE)") == "SVN":
+    elif repo_type == "BOTO":
+        from instlInstanceSync_boto import InstlInstanceSync_boto
+        syncer = InstlInstanceSync_boto(self)
+    elif repo_type == "SVN":
         from instlInstanceSync_svn import InstlInstanceSync_svn
         syncer = InstlInstanceSync_svn(self)
-    elif var_stack.resolve("$(REPO_TYPE)") == "P4":
+    elif repo_type == "P4":
         from instlInstanceSync_p4 import InstlInstanceSync_p4
         syncer = InstlInstanceSync_p4(self)
     else:
