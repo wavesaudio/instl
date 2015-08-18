@@ -5,15 +5,17 @@ import sys
 import os
 import stat
 import urllib2
-import ssl
 import re
 import urlparse
 import hashlib
-import rsa
 import base64
 import collections
 import subprocess
-from connectionBase import ConnectionBase
+
+import rsa
+
+import connectionBase
+
 
 def Is64Windows():
     return 'PROGRAMFILES(X86)' in os.environ
@@ -101,7 +103,7 @@ class open_for_read_file_or_url(object):
             else:
                 raise IOError("Could not locate local file", file_url)
         else:
-            self.file_url = ConnectionBase.repo_connection.translate_url(self.file_url)
+            self.file_url = connectionBase.connection_factory().translate_url(self.file_url)
         #print("open_for_read_file_or_url.__init__ self.file_url =", self.file_url, file=sys.stderr)
 
     def __enter__(self):

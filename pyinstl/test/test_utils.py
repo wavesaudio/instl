@@ -5,8 +5,11 @@ import sys
 import os
 import unittest
 
+from utils import utils
+
+
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
-import utils
+
 
 class TestUtils(unittest.TestCase):
 

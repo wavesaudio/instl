@@ -15,10 +15,10 @@ import sys
 import re
 import logging
 
-sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
+#sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 
-from pyinstl import configVar
-from aYaml import YamlDumpWrap
+import aYaml
+import configVar
 
 
 value_ref_re = re.compile("""(
@@ -159,9 +159,9 @@ class ConfigVarList(object):
                 var_value = self.resolve_var(var_name)
                 if len(var_value) == 1:
                     var_value = var_value[0]
-                retVal[var_name] = YamlDumpWrap(var_value, comment=theComment)
+                retVal[var_name] = aYaml.YamlDumpWrap(var_value, comment=theComment)
             elif not ignore_unknown_vars:
-                retVal[var_name] = YamlDumpWrap(value="UNKNOWN VARIABLE", comment=var_name+" is not in variable list")
+                retVal[var_name] = aYaml.YamlDumpWrap(value="UNKNOWN VARIABLE", comment=var_name+" is not in variable list")
         return retVal
 
     def is_resolved(self, in_str):

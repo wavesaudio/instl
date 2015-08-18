@@ -3,7 +3,7 @@ from __future__ import print_function
 
 from collections import defaultdict
 
-from configVarStack import var_stack
+from configVar import var_stack
 
 class BatchAccumulator(object):
     """ from batchAccumulator import BatchAccumulator

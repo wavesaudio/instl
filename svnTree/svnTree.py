@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 from __future__ import print_function
 
+import re
 from collections import OrderedDict
-import yaml
 import logging
 
-import instlException
-from pyinstl.utils import *
-import aYaml
-import svnItem
+import yaml
 
-import re
+import svnItem
+import utils
+import aYaml
+
 
 comment_line_re = re.compile(r"""
             ^
@@ -66,7 +66,7 @@ class SVNTree(svnItem.SVNTopItem):
             a_format = map_info_extension_to_format[extension[1:]]
         self.comments.append("Original file " + self.path_to_file)
         if a_format in self.read_func_by_format.keys():
-            with open_for_read_file_or_url(self.path_to_file) as rfd:
+            with utils.open_for_read_file_or_url(self.path_to_file) as rfd:
                 logging.info("%s, a_format: %s", self.path_to_file, a_format)
                 if a_format != "props":
                     self.clear_subs()
@@ -93,9 +93,9 @@ class SVNTree(svnItem.SVNTopItem):
             for a_node in yaml.compose_all(rfd):
                 self.read_yaml_node(a_node)
         except yaml.YAMLError as ye:
-            raise instlException.InstlException(" ".join(("YAML error while reading file", "'" + rfd.name + "':\n", str(ye))), ye)
+            raise utils.InstlException(" ".join(("YAML error while reading file", "'" + rfd.name + "':\n", str(ye))), ye)
         except IOError as ioe:
-            raise instlException.InstlException(" ".join(("Failed to read file", "'" + rfd.name + "'", ":")), ioe)
+            raise utils.InstlException(" ".join(("Failed to read file", "'" + rfd.name + "'", ":")), ioe)
 
     def pseudo_read_from_yaml(self, rfd):
         """ read from yaml file without the yaml parser - much faster
@@ -200,7 +200,7 @@ class SVNTree(svnItem.SVNTopItem):
             _, extension = os.path.splitext(self.path_to_file)
             in_format = map_info_extension_to_format[extension[1:]]
         if in_format in self.write_func_by_format.keys():
-            with write_to_file_or_stdout(self.path_to_file) as wfd:
+            with utils.write_to_file_or_stdout(self.path_to_file) as wfd:
                 logging.info("%s, format: %s", self.path_to_file, in_format)
                 self.write_func_by_format[in_format](wfd, comments)
         else:

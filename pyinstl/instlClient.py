@@ -1,18 +1,16 @@
 #!/usr/bin/env python2.7
 
 from __future__ import print_function
-import stat
+import os
 import time
 from collections import OrderedDict, defaultdict
 import logging
 
-from pyinstl.utils import *
+import utils
 from installItem import InstallItem, guid_list, iids_from_guid
-from aYaml import writeAsYaml, YamlDumpWrap, YamlDumpDocWrap
-
+import aYaml
 from instlInstanceBase import InstlInstanceBase
-from configVarStack import var_stack
-import svnTree
+from configVar import var_stack
 
 
 # noinspection PyPep8Naming
@@ -20,12 +18,12 @@ class InstallInstructionsState(object):
     """ holds state for specific creating of install instructions """
 
     def __init__(self):
-        self.root_install_items = unique_list()
-        self.full_install_items = unique_list()
-        self.orphan_install_items = unique_list()
-        self.install_items_by_target_folder = defaultdict(unique_list)
-        self.no_copy_items_by_sync_folder = defaultdict(unique_list)
-        self.sync_paths = unique_list()
+        self.root_install_items = utils.unique_list()
+        self.full_install_items = utils.unique_list()
+        self.orphan_install_items = utils.unique_list()
+        self.install_items_by_target_folder = defaultdict(utils.unique_list)
+        self.no_copy_items_by_sync_folder = defaultdict(utils.unique_list)
+        self.sync_paths = utils.unique_list()
 
     def repr_for_yaml(self):
         retVal = OrderedDict()
@@ -65,7 +63,7 @@ class InstallInstructionsState(object):
             logging.error("Main install items list is empty")
         # root_install_items might have guid in it, translate them to iids
 
-        root_install_iids_translated = unique_list()
+        root_install_iids_translated = utils.unique_list()
         for IID in self.root_install_items:
             # if IID is a guid iids_from_guid will translate to iid's, or return the IID otherwise
             iids_from_the_guid = iids_from_guid(instlObj.install_definitions_index, IID)
@@ -126,14 +124,14 @@ class InstlClient(InstlInstanceBase):
 
     def create_instl_history_file(self):
         var_stack.set_var("__BATCH_CREATE_TIME__").append(time.strftime("%Y/%m/%d %H:%M:%S"))
-        yaml_of_defines = YamlDumpDocWrap(var_stack, '!define', "Definitions",
+        yaml_of_defines = aYaml.YamlDumpDocWrap(var_stack, '!define', "Definitions",
                                                         explicit_start=True, sort_mappings=True)
         # write the history file, but only if variable LOCAL_REPO_BOOKKEEPING_DIR is defined
         # and the folder actually exists.
         if os.path.isdir(var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)", default="")):
             with open(var_stack.resolve("$(INSTL_HISTORY_TEMP_PATH)"), "w") as wfd:
-                make_open_file_read_write_for_all(wfd)
-                writeAsYaml(yaml_of_defines, wfd)
+                utils.make_open_file_read_write_for_all(wfd)
+                aYaml.writeAsYaml(yaml_of_defines, wfd)
             self.batch_accum += self.platform_helper.append_file_to_file("$(INSTL_HISTORY_TEMP_PATH)",
                                                                      "$(INSTL_HISTORY_PATH)")
 
@@ -148,7 +146,7 @@ class InstlClient(InstlInstanceBase):
             if "SYNC_BASE_URL" in var_stack:
                 #raise ValueError("'SYNC_BASE_URL' was not defined")
                 resolved_sync_base_url = var_stack.resolve("$(SYNC_BASE_URL)")
-                url_main_item = main_url_item(resolved_sync_base_url)
+                url_main_item = utils.main_url_item(resolved_sync_base_url)
                 var_stack.set_var("SYNC_BASE_URL_MAIN_ITEM", description="from init_default_client_vars").append(url_main_item)
                 default_sync_dir = self.get_default_sync_dir(continue_dir=url_main_item, mkdir=True)
                 var_stack.set_var("LOCAL_SYNC_DIR", description="from init_default_client_vars").append(default_sync_dir)
@@ -205,9 +203,9 @@ class InstlClient(InstlInstanceBase):
         """
         retVal = list()
         if what is None:  # None is all
-            retVal.append(YamlDumpDocWrap(var_stack, '!define', "Definitions",
+            retVal.append(aYaml.YamlDumpDocWrap(var_stack, '!define', "Definitions",
                                                         explicit_start=True, sort_mappings=True))
-            retVal.append(YamlDumpDocWrap(self.install_definitions_index,
+            retVal.append(aYaml.YamlDumpDocWrap(self.install_definitions_index,
                                                         '!index', "Installation index",
                                                         explicit_start=True, sort_mappings=True))
         else:
@@ -220,18 +218,18 @@ class InstlClient(InstlInstanceBase):
                 elif identifier in self.install_definitions_index:
                     indexes.append({identifier: self.install_definitions_index[identifier].repr_for_yaml()})
                 else:
-                    unknowns.append(YamlDumpWrap(value="UNKNOWN VARIABLE",
+                    unknowns.append(aYaml.YamlDumpWrap(value="UNKNOWN VARIABLE",
                                                                comment=identifier + " is not in variable list"))
             if defines:
-                retVal.append(YamlDumpDocWrap(defines, '!define', "Definitions",
+                retVal.append(aYaml.YamlDumpDocWrap(defines, '!define', "Definitions",
                                                             explicit_start=True, sort_mappings=True))
             if indexes:
                 retVal.append(
-                    YamlDumpDocWrap(indexes, '!index', "Installation index",
+                    aYaml.YamlDumpDocWrap(indexes, '!index', "Installation index",
                                                 explicit_start=True, sort_mappings=True))
             if unknowns:
                 retVal.append(
-                    YamlDumpDocWrap(unknowns, '!unknowns', "Installation index",
+                    aYaml.YamlDumpDocWrap(unknowns, '!unknowns', "Installation index",
                                                   explicit_start=True, sort_mappings=True))
 
         return retVal
@@ -274,7 +272,7 @@ class InstlClient(InstlInstanceBase):
 
     def accumulate_unique_actions(self, action_type, iid_list):
         """ accumulate action_type actions from iid_list, eliminating duplicates"""
-        unique_actions = unique_list()  # unique_list will eliminate identical actions while keeping the order
+        unique_actions = utils.unique_list()  # unique_list will eliminate identical actions while keeping the order
         for IID in iid_list:
             with self.install_definitions_index[IID] as installi:
                 action_var_name = "iid_action_list_" + action_type

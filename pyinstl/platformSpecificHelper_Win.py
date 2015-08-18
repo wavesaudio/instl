@@ -1,15 +1,14 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
-import urllib
-import stat
 import datetime
-from pyinstl.utils import *
 
+import utils
 from platformSpecificHelper_Base import PlatformSpecificHelperBase
 from platformSpecificHelper_Base import CopyToolBase
 from platformSpecificHelper_Base import DownloadToolBase
-from configVarStack import var_stack
+from configVar import var_stack
+
 
 def dos_escape(some_string):
     escaped_string = some_string.replace("&", "^&")

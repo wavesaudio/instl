@@ -1,24 +1,29 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
-
+import os
+import sys
+import re
 import abc
 import logging
-import yaml
 
+import yaml
 import appdirs
 
-import pyinstl.log_utils
-from configVarList import value_ref_re
 import aYaml
-from pyinstl.utils import *
-from pyinstl.searchPaths import SearchPaths
+import utils
 from batchAccumulator import BatchAccumulator
 from installItem import read_index_from_yaml
 from platformSpecificHelper_Base import PlatformSpecificHelperFactory
-from connectionBase import connection_factory
-from configVarStack import var_stack
+
+from configVar import value_ref_re
+from configVar import var_stack
 from installItem import InstallItem
+
+
+
+
+
 
 # noinspection PyPep8Naming
 class InstlInstanceBase(object):
@@ -34,7 +39,7 @@ class InstlInstanceBase(object):
 
         # allow_reading_of_internal_vars: only when true variables who's name begins and ends with "__" can be read from a file
         self.allow_reading_of_internal_vars = False
-        self.path_searcher = SearchPaths(var_stack.get_configVar_obj("__SEARCH_PATHS__"))
+        self.path_searcher = utils.SearchPaths(var_stack.get_configVar_obj("__SEARCH_PATHS__"))
         self.init_default_vars(initial_vars)
         # initialize the search paths helper with the current directory and dir where instl is now
         self.path_searcher.add_search_path(os.getcwd())
@@ -87,14 +92,14 @@ class InstlInstanceBase(object):
         # read class specific defaults/*.yaml
         self.read_name_specific_defaults_file(type(self).__name__)
 
-        log_file = pyinstl.log_utils.get_log_file_path(var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)"),
+        log_file = utils.log_utils.get_log_file_path(var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)"),
                                                        var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)"), debug=False)
         var_stack.set_var("LOG_FILE", var_description).append(log_file)
-        debug_log_file = pyinstl.log_utils.get_log_file_path(var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)"),
+        debug_log_file = utils.log_utils.get_log_file_path(var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)"),
                                                              var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)"), debug=True)
         var_stack.set_var("LOG_FILE_DEBUG", var_description).extend((
-                        debug_log_file, logging.getLevelName(pyinstl.log_utils.debug_logging_level),
-                        pyinstl.log_utils.debug_logging_started))
+                        debug_log_file, logging.getLevelName(utils.log_utils.debug_logging_level),
+                        utils.log_utils.debug_logging_started))
 
     def read_name_specific_defaults_file(self, file_name):
         """ read class specific file from defaults/class_name.yaml """
@@ -181,7 +186,7 @@ class InstlInstanceBase(object):
         if "__CREDENTIALS__" in var_stack:
             credentials = var_stack.resolve_var("__CREDENTIALS__", default=None)
 
-        connection_factory(credentials)
+        utils.connection_factory(credentials)
 
     def is_acceptable_yaml_doc(self, doc_node):
         acceptables = var_stack.resolve_to_list("$(ACCEPTABLE_YAML_DOC_TAGS)") + ["define", "define_const", "index", 'require']
@@ -196,7 +201,7 @@ class InstlInstanceBase(object):
 
     def read_yaml_file(self, file_path):
         logging.info("%s", file_path)
-        with open_for_read_file_or_url(file_path, self.path_searcher) as file_fd:
+        with utils.open_for_read_file_or_url(file_path, self.path_searcher) as file_fd:
             for a_node in yaml.compose_all(file_fd):
                 if self.is_acceptable_yaml_doc(a_node):
                     if a_node.tag.startswith('!define_const'):
@@ -282,7 +287,7 @@ class InstlInstanceBase(object):
         if "PUBLIC_KEY" not in var_stack:
             if "PUBLIC_KEY_FILE" in var_stack:
                 public_key_file = var_stack.resolve("$(PUBLIC_KEY_FILE)")
-                with open_for_read_file_or_url(public_key_file, self.path_searcher) as file_fd:
+                with utils.open_for_read_file_or_url(public_key_file, self.path_searcher) as file_fd:
                     public_key_text = file_fd.read()
                     var_stack.set_var("PUBLIC_KEY", "from " + public_key_file).append(public_key_text)
             else:
@@ -326,7 +331,7 @@ class InstlInstanceBase(object):
                     del file_content
 
                 if expected_checksum is not None:
-                    download_from_file_or_url(resolved_file_url, cached_file_path, cache=True,
+                    utils.download_from_file_or_url(resolved_file_url, cached_file_path, cache=True,
                                               public_key=public_key_text,
                                               textual_sig=expected_signature,
                                               expected_checksum=expected_checksum)
@@ -367,7 +372,7 @@ class InstlInstanceBase(object):
         # print("1------------------", user_cache_dir, "-", from_url, "-", retVal)
         if mkdir and retVal:
             retVal = var_stack.resolve(retVal, raise_on_fail=True)
-            safe_makedirs(retVal)
+            utils.safe_makedirs(retVal)
         return retVal
 
     def relative_sync_folder_for_source(self, source):
@@ -390,7 +395,7 @@ class InstlInstanceBase(object):
         lines_after_var_replacement = '\n'.join(
             [value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines])
 
-        from utils import write_to_file_or_stdout
+        from utils.utils import write_to_file_or_stdout
 
         out_file = var_stack.resolve("$(__MAIN_OUT_FILE__)", raise_on_fail=True)
         with write_to_file_or_stdout(out_file) as fd:
@@ -423,7 +428,7 @@ class InstlInstanceBase(object):
             raise SystemExit(self.out_file_realpath + " returned exit code " + str(retcode))
 
     def write_program_state(self):
-        from utils import write_to_file_or_stdout
+        from utils.utils import write_to_file_or_stdout
 
         state_file = var_stack.resolve("$(__MAIN_STATE_FILE__)", raise_on_fail=True)
         with write_to_file_or_stdout(state_file) as fd:
@@ -482,7 +487,7 @@ class InstlInstanceBase(object):
     # E.g. ['a', 'b.wtar', 'c.wtar.aa', 'c.wtar.ab'] => ['a', 'b', 'c']
     # We must work on the whole list since several wtar file names might merge to a single original file name.
     def replace_wtar_names_with_real_names(self, original_list):
-        replaced_list = unique_list()
+        replaced_list = utils.unique_list()
         replaced_list.extend([self.original_name_from_wtar_name(file_name) for file_name in original_list])
         return replaced_list
 

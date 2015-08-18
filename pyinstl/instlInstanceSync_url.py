@@ -1,13 +1,14 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
+import os
 import logging
 
-from pyinstl.utils import *
-from pyinstl import svnTree
+from svnTree import svnTree
+import utils
 from instlInstanceSyncBase import InstlInstanceSync
 from batchAccumulator import BatchAccumulator
-from configVarStack import var_stack
+from configVar import var_stack
 
 
 class InstlInstanceSync_url(InstlInstanceSync):

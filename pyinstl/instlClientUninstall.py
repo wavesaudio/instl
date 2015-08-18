@@ -1,17 +1,11 @@
 #!/usr/bin/env python2.7
 
 from __future__ import print_function
-import stat
-import time
-from collections import OrderedDict, defaultdict
 import logging
 
-from pyinstl.utils import *
-from installItem import InstallItem, guid_list, iids_from_guid
+import utils
+from configVar import var_stack
 
-from instlInstanceBase import InstlInstanceBase
-from configVarStack import var_stack
-import svnTree
 
 def do_uninstall(self):
     logging.info("Creating uninstall instructions")

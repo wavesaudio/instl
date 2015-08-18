@@ -1,14 +1,12 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
-import sys
-import os
 import unittest
 import filecmp
 
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..", "..")))
-from svnTree import *
+from svnTree.svnTree import *
 
 def timing(f):
     def wrap(*args):

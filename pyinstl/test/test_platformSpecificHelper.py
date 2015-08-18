@@ -1,18 +1,17 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
-import sys
 import unittest
 import filecmp
-import os
 import shutil
 import random
 import string
 import inspect
 
-from configVarStack import var_stack
+from configVar import var_stack
 from instlInstanceBase import PlatformSpecificHelperFactory
-from utils import *
+import utils
+
 
 current_os_names = get_current_os_names()
 os_family_name = current_os_names[0]

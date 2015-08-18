@@ -13,11 +13,11 @@ from __future__ import print_function
 import os
 import sys
 
-sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
+#sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 
 import utils
-from pyinstl import configVarList
-from aYaml import YamlDumpWrap
+import aYaml
+import configVarList
 
 class ConfigVarStack(configVarList.ConfigVarList):
     """ Keeps a list of named build config values.
@@ -117,9 +117,9 @@ class ConfigVarStack(configVarList.ConfigVarList):
                     var_value = self.unresolved_var_to_list(var_name)
                 if len(var_value) == 1:
                     var_value = var_value[0]
-                retVal[var_name] = YamlDumpWrap(var_value, comment=theComment)
+                retVal[var_name] = aYaml.YamlDumpWrap(var_value, comment=theComment)
             elif not ignore_unknown_vars:
-                retVal[var_name] = YamlDumpWrap(value="UNKNOWN VARIABLE", comment=var_name+" is not in variable list")
+                retVal[var_name] = aYaml.YamlDumpWrap(value="UNKNOWN VARIABLE", comment=var_name+" is not in variable list")
         return retVal
 
     def push_scope(self, scope=None):

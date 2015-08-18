@@ -73,17 +73,14 @@ from __future__ import print_function
                 - action when leaving folder
 """
 
+
 from collections import OrderedDict, defaultdict
+import aYaml
+import utils
+import configVar
+from configVar import var_stack
 
-import sys
-
-sys.path.append("..")
-from aYaml import YamlDumpWrap
-from pyinstl.utils import *
-from pyinstl.configVarList import ConfigVarList
-from configVarStack import var_stack
-
-current_os_names = get_current_os_names()
+current_os_names = utils.get_current_os_names()
 os_family_name = current_os_names[0]
 
 
@@ -120,7 +117,7 @@ class InstallItem(object):
 
     @staticmethod
     def create_items_section():
-        retVal = defaultdict(unique_list)
+        retVal = defaultdict(utils.unique_list)
         return retVal
 
     @staticmethod
@@ -181,11 +178,11 @@ class InstallItem(object):
         self.guid = None
         self.remark = ""
         self.description = ""
-        self.inherit = unique_list()
+        self.inherit = utils.unique_list()
         self.__set_for_os = [InstallItem.os_names[0]] # reading for all platforms ('common') or for which specific platforms ('Mac', 'Win')?
         self.__items = defaultdict(InstallItem.create_items_section)
         self.var_list = None
-        self.required_by = unique_list()
+        self.required_by = utils.unique_list()
 
     def read_from_yaml_by_idd(self, IID, all_items_node):
         my_node = all_items_node[IID]
@@ -229,7 +226,7 @@ class InstallItem(object):
 
     def get_var_list(self):
         if self.var_list is None:
-            self.var_list = ConfigVarList()
+            self.var_list = configVar.ConfigVarList()
             self.var_list.set_var("iid_iid").append(self.iid)
             if self.name:
                 self.var_list.set_var("iid_name").append(self.name)
@@ -291,7 +288,7 @@ class InstallItem(object):
         return retVal
 
     def __get_item_list_for_default_oses_by_category(self, item_category):
-        retVal = unique_list()
+        retVal = utils.unique_list()
         for os_name in InstallItem._get_for_os:
             retVal.extend(self.__get_item_list_by_os_and_category(os_name, item_category))
         return retVal
@@ -378,7 +375,7 @@ class InstallItem(object):
                 source_list = list()
                 for source in self.__items[for_which_os]['install_sources']:
                     if source[1] != '!dir':
-                        source_list.append(YamlDumpWrap(value=source[0], tag=source[1]))
+                        source_list.append(aYaml.YamlDumpWrap(value=source[0], tag=source[1]))
                     else:
                         source_list.append(source[0])
                 retVal['install_sources'] = source_list
@@ -450,7 +447,7 @@ class InstallItem(object):
 
 
 def guid_list(items_map):
-    retVal = unique_list()
+    retVal = utils.unique_list()
     retVal.extend(filter(bool, [install_def.guid for install_def in items_map.values()]))
     return retVal
 
@@ -460,7 +457,7 @@ def iids_from_guid(items_map, guid_or_iid):
         if it's a guid return all IIDs that have this gui
         if it's not return the IID itself. """
     retVal = list()
-    if guid_re.match(guid_or_iid.lower()): # it's a guid, get iids for all items with that guid
+    if utils.guid_re.match(guid_or_iid.lower()): # it's a guid, get iids for all items with that guid
         for iid, install_def in items_map.iteritems():
             if install_def.guid == guid_or_iid.lower():
                 retVal.append(iid)

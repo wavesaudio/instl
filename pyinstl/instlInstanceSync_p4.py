@@ -1,10 +1,8 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
-from pyinstl.utils import *
-from pyinstl import svnTree
 from instlInstanceSyncBase import InstlInstanceSync
-from configVarStack import var_stack
+from configVar import var_stack
 
 
 class InstlInstanceSync_p4(InstlInstanceSync):

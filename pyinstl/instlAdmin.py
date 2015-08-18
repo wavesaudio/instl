@@ -4,19 +4,19 @@ from __future__ import print_function
 
 import filecmp
 import cStringIO as StringIO
-import re
 import fnmatch
 from collections import defaultdict
 
-from instlException import *
-from pyinstl.utils import *
-from aYaml import writeAsYaml, YamlDumpWrap, YamlDumpDocWrap
-
+import svnTree
+import utils
 from instlInstanceBase import InstlInstanceBase
-from pyinstl import svnTree
 from installItem import InstallItem
 from batchAccumulator import BatchAccumulator
-from configVarStack import var_stack
+from configVar import var_stack
+
+
+
+
 
 # noinspection PyPep8,PyPep8,PyPep8
 class InstlAdmin(InstlInstanceBase):
@@ -452,12 +452,12 @@ class InstlAdmin(InstlInstanceBase):
             if var not in var_stack:
                 raise ValueError(var+" is missing cannot write repo rev file")
 
-        repo_rev_yaml = YamlDumpDocWrap(var_stack.repr_for_yaml(repo_rev_vars, include_comments=False),
+        repo_rev_yaml = aYaml.YamlDumpDocWrap(var_stack.repr_for_yaml(repo_rev_vars, include_comments=False),
                                                     '!define', "", explicit_start=True, sort_mappings=True)
         safe_makedirs(var_stack.resolve("$(ROOT_LINKS_FOLDER)/admin"))
         local_file = var_stack.resolve("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
         with open(local_file, "w") as wfd:
-            writeAsYaml(repo_rev_yaml, out_stream=wfd, indentor=None, sort=True)
+            aYaml.writeAsYaml(repo_rev_yaml, out_stream=wfd, indentor=None, sort=True)
             print("created", local_file)
 
     def do_up_repo_rev(self):
@@ -604,7 +604,7 @@ class InstlAdmin(InstlInstanceBase):
                 stage_folder_svn_folder_pairs.append( (stage_folder , svn_folder) )
         for pair in stage_folder_svn_folder_pairs:
             if self.compiled_forbidden_folder_regex.search(pair[0]):
-                raise InstlException(pair[0]+" has forbidden characters should not be committed to svn")
+                raise utils.InstlException(pair[0]+" has forbidden characters should not be committed to svn")
             comparer = filecmp.dircmp(pair[0], pair[1], ignore=[".svn", ".DS_Store", "Icon\015"])
             self.stage2svn_for_folder(comparer)
         self.create_variables_assignment()
@@ -617,40 +617,40 @@ class InstlAdmin(InstlInstanceBase):
         for item in comparer.left_only:
             item_path = os.path.join(comparer.left, item)
             if os.path.islink(item_path):
-                raise InstlException(item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
+                raise utils.InstlException(item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
             elif os.path.isfile(item_path):
                 if self.compiled_forbidden_file_regex.search(item_path):
-                    raise InstlException(item_path+" has forbidden characters should not be committed to svn")
+                    raise utils.InstlException(item_path+" has forbidden characters should not be committed to svn")
                 self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(item_path, comparer.right, link_dest=False, ignore=".svn")
             elif os.path.isdir(item_path):
                 if self.compiled_forbidden_folder_regex.search(item_path):
-                    raise InstlException(item_path+" has forbidden characters should not be committed to svn")
+                    raise utils.InstlException(item_path+" has forbidden characters should not be committed to svn")
                 # check that all items under a new folder pass the forbidden file/folder rule
                 for root, dirs, files in os.walk(item_path, followlinks=False):
                     for item in files:
                         if self.compiled_forbidden_file_regex.search(item):
-                            raise InstlException(os.path.join(root, item)+" has forbidden characters should not be committed to svn")
+                            raise utils.InstlException(os.path.join(root, item)+" has forbidden characters should not be committed to svn")
                     for item in dirs:
                         if self.compiled_forbidden_folder_regex.search(item):
-                            raise InstlException(os.path.join(root, item)+" has forbidden characters should not be committed to svn")
+                            raise utils.InstlException(os.path.join(root, item)+" has forbidden characters should not be committed to svn")
 
 
                 self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(item_path, comparer.right, link_dest=False, ignore=".svn")
             else:
-                raise InstlException(item_path+" not a file, dir or symlink, an abomination!")
+                raise utils.InstlException(item_path+" not a file, dir or symlink, an abomination!")
             self.batch_accum += self.platform_helper.progress(item_path)
 
         # copy changed items:
         for item in comparer.diff_files:
             item_path = os.path.join(comparer.left, item)
             if os.path.islink(item_path):
-                raise InstlException(item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
+                raise utils.InstlException(item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
             elif os.path.isfile(item_path):
                 if self.compiled_forbidden_file_regex.search(item_path):
-                    raise InstlException(item_path+" has forbidden characters should not be committed to svn")
+                    raise utils.InstlException(item_path+" has forbidden characters should not be committed to svn")
                 self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(item_path, comparer.right, link_dest=False, ignore=".svn")
             else:
-                raise InstlException(item_path+" not a different file or symlink, an abomination!")
+                raise utils.InstlException(item_path+" not a different file or symlink, an abomination!")
             self.batch_accum += self.platform_helper.progress(item_path)
 
         # tell svn about new items, svn will not accept 'add' for changed items
@@ -852,7 +852,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def sources_from_iids(self):
         # for each iid get full paths to it's sources
-        retVal = defaultdict(unique_list)
+        retVal = defaultdict(utils.unique_list)
         InstallItem.begin_get_for_all_oses()
         for iid in sorted(self.install_definitions_index):
             with self.install_definitions_index[iid]:
@@ -873,7 +873,7 @@ class InstlAdmin(InstlInstanceBase):
     def do_verify_index(self):
         self.read_yaml_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)"))
         info_map = svnTree.SVNTree()
-        with open_for_read_file_or_url(var_stack.resolve("$(INFO_MAP_FILE_URL)")) as rfd:
+        with utils.open_for_read_file_or_url(var_stack.resolve("$(INFO_MAP_FILE_URL)")) as rfd:
             info_map.read_from_text(rfd)
 
         iid_to_sources = self.sources_from_iids()
@@ -933,7 +933,7 @@ class InstlAdmin(InstlInstanceBase):
         self.resolve_index_inheritance()
         depend_result = defaultdict(dict)
         for IID in sorted(self.install_definitions_index):
-            needs_list = unique_list()
+            needs_list = utils.unique_list()
             self.needs(IID, needs_list)
             if not needs_list:
                 depend_result[IID]['depends'] = None
@@ -947,7 +947,7 @@ class InstlAdmin(InstlInstanceBase):
 
         out_file_path = var_stack.resolve("$(__MAIN_OUT_FILE__)", raise_on_fail=False)
         with write_to_file_or_stdout(out_file_path) as out_file:
-            writeAsYaml(YamlDumpWrap(depend_result, sort_mappings=True), out_file)
+            aYaml.writeAsYaml(aYaml.YamlDumpWrap(depend_result, sort_mappings=True), out_file)
         print("dependencies written to", out_file_path)
 
     def do_verify_repo(self):

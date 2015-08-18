@@ -1,10 +1,13 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
+import os
 import abc
-from pyinstl.utils import *
-from configVarStack import var_stack
-from connectionBase import ConnectionBase
+
+import utils
+from configVar import var_stack
+from utils.connectionBase import ConnectionBase
+
 
 class CopyToolBase(object):
     """ Create copy commands. Each function should be overridden to implement the copying

@@ -1,15 +1,15 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
-import urllib
 import datetime
-import stat
-from pyinstl.utils import *
-from configVarStack import var_stack
 
+import utils
+from utils import quoteme_single, quoteme_double
+from configVar import var_stack
 from platformSpecificHelper_Base import PlatformSpecificHelperBase
 from platformSpecificHelper_Base import CopyToolRsync
 from platformSpecificHelper_Base import DownloadToolBase
+
 
 class CopyToolMacRsync(CopyToolRsync):
     def __init__(self, platform_helper):

@@ -6,12 +6,12 @@ import shlex
 import tarfile
 import fnmatch
 import time
-import stat
 
-from pyinstl.utils import *
+from svnTree import svnTree
+import utils
 from instlInstanceBase import InstlInstanceBase
-from pyinstl import svnTree
-from configVarStack import var_stack
+from configVar import var_stack
+
 
 class InstlMisc(InstlInstanceBase):
 
@@ -64,8 +64,7 @@ class InstlMisc(InstlInstanceBase):
                 if line and line[0] != "#":
                     args = shlex.split(line)
                     commands.append(args)
-        from parallel_run import run_processes_in_parallel
-        run_processes_in_parallel(commands)
+        utils.run_processes_in_parallel(commands)
 
     def do_unwtar(self):
         self.no_artifacts = False
@@ -89,7 +88,7 @@ class InstlMisc(InstlInstanceBase):
                     dirs[:] = []
                     continue
                 # unique_list so if both .wtar and .wtar.aa exists the list after joining will not have double entries
-                files_to_unwtar = unique_list()
+                files_to_unwtar = utils.unique_list()
                 # find split files and join them
                 for afile in files:
                     afile_path = os.path.join(root, afile)

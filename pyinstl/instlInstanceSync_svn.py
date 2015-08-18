@@ -2,9 +2,9 @@
 from __future__ import print_function
 import logging
 
-from pyinstl.utils import *
+import utils
 from instlInstanceSyncBase import InstlInstanceSync
-from configVarStack import var_stack
+from configVar import var_stack
 
 
 class InstlInstanceSync_svn(InstlInstanceSync):

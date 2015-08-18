@@ -5,8 +5,11 @@ import sys
 import os
 import unittest
 
+from configVar import configVarList
+
+
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
-import configVarList
+
 
 class TestConfigVarList(unittest.TestCase):
 

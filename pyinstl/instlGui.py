@@ -2,17 +2,16 @@
 
 from __future__ import print_function
 
-import stat
-from time import time, localtime, strftime
+from time import time
 import shlex
-from pyinstl.utils import *
-from aYaml import writeAsYaml, YamlDumpWrap, YamlDumpDocWrap
-
-from instlInstanceBase import InstlInstanceBase
-from configVarStack import var_stack
-
 from Tkinter import *
 from ttk import *
+
+import utils
+import aYaml
+from instlInstanceBase import InstlInstanceBase
+from configVar import var_stack
+
 
 def bool_int_to_str(in_bool_int):
     if in_bool_int == 0:
@@ -97,10 +96,10 @@ class InstlGui(InstlInstanceBase):
         var_stack.set_var("SELECTED_TAB").append(selected_tab)
 
         the_list_yaml_ready= var_stack.repr_for_yaml(which_vars=var_stack.resolve_var_to_list("__GUI_CONFIG_FILE_VARS__"), include_comments=False, resolve=False, ignore_unknown_vars=True)
-        the_doc_yaml_ready = YamlDumpDocWrap(the_list_yaml_ready, '!define', "Definitions", explicit_start=True, sort_mappings=True)
+        the_doc_yaml_ready = aYaml.YamlDumpDocWrap(the_list_yaml_ready, '!define', "Definitions", explicit_start=True, sort_mappings=True)
         with open(var_stack.resolve_var("INSTL_GUI_CONFIG_FILE_NAME"), "w") as wfd:
             make_open_file_read_write_for_all(wfd)
-            writeAsYaml(the_doc_yaml_ready, wfd)
+            aYaml.writeAsYaml(the_doc_yaml_ready, wfd)
 
     def get_client_input_file(self):
         import tkFileDialog
@@ -264,7 +263,6 @@ class InstlGui(InstlInstanceBase):
         self.update_client_state()
         command_line = self.create_client_command_line()
 
-        from subprocess import Popen
         if getattr(os, "setsid", None):
             proc = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid) # Unix
         else:
@@ -278,7 +276,6 @@ class InstlGui(InstlInstanceBase):
         self.update_admin_state()
         command_line = self.create_admin_command_line()
 
-        from subprocess import Popen
         if getattr(os, "setsid", None):
             proc = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid) # Unix
         else:
@@ -496,7 +493,6 @@ class InstlGui(InstlInstanceBase):
         command_line = [var_stack.resolve_var("__INSTL_EXE_PATH__"), "read-yaml",
                         "--in", path_to_yaml]
 
-        from subprocess import Popen
         if getattr(os, "setsid", None):
             proc = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid) # Unix
         else:

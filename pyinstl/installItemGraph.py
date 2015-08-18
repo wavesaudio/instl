@@ -1,7 +1,7 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
-from pyinstl.utils import *
-from configVarStack import var_stack
+import utils
+from configVar import var_stack
 
 try:
     import networkx as nx

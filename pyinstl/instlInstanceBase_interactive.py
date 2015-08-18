@@ -1,16 +1,20 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
+import sys
+import os
 import time
-import appdirs
 import logging
 import shlex
-from pyinstl.instlException import InstlException
-from pyinstl.utils import *
-from installItem import guid_list, iids_from_guid
-from configVarStack import var_stack
-
 import platform
+
+import appdirs
+
+import utils
+from installItem import guid_list, iids_from_guid
+from configVar import var_stack
+
+
 current_os = platform.system()
 if current_os == 'Darwin':
     current_os = 'Mac'
@@ -36,8 +40,6 @@ except ImportError:
     except ImportError:
         print("failed to import pyreadline, readline functionality not supported")
 
-from pyinstl.utils import unique_list
-
 colorama_loaded = False
 try:
     import colorama
@@ -46,7 +48,7 @@ except ImportError:
     print("failed to import colorama, color text functionality not supported")
 
 import instlInstanceBase
-from aYaml import writeAsYaml, YamlDumpWrap, YamlDumpDocWrap
+import aYaml
 
 if colorama_loaded:
     colors = {'reset': colorama.Fore.RESET, 'green': colorama.Fore.GREEN, 'blue': colorama.Fore.BLUE, 'yellow': colorama.Fore.YELLOW, 'red': colorama.Fore.RED}
@@ -139,9 +141,9 @@ class CMDObj(cmd.Cmd, object):
         retVal = False
         try:
             retVal = super (CMDObj, self).onecmd(line)
-        except InstlException as ie:
+        except utils.InstlException as ie:
             print("instl exception",ie.message)
-            from pyinstl.log_utils import debug_logging_started
+            from utils.log_utils import debug_logging_started
             if debug_logging_started:
                 import traceback
                 traceback.print_exception(type(ie.original_exception), ie.original_exception,  sys.exc_info()[2])
@@ -221,7 +223,7 @@ class CMDObj(cmd.Cmd, object):
         return retVal
 
     def do_list(self, params):
-        from utils import write_to_list
+        from utils.utils import write_to_list
         out_list = write_to_list()
         if params:
             identifier_list = list()
@@ -276,7 +278,7 @@ class CMDObj(cmd.Cmd, object):
             for param in params:
                 if param in self.client_prog_inst.install_definitions_index:
                     self.client_prog_inst.install_definitions_index[param].resolve_inheritance(self.client_prog_inst.install_definitions_index)
-                    writeAsYaml({param: self.client_prog_inst.install_definitions_index[param].repr_for_yaml()})
+                    aYaml.writeAsYaml({param: self.client_prog_inst.install_definitions_index[param].repr_for_yaml()})
                 else:
                     params_not_in_index.append(param)
             if params_not_in_index:
@@ -429,7 +431,7 @@ class CMDObj(cmd.Cmd, object):
                 if param not in self.client_prog_inst.install_definitions_index:
                     print(text_with_color(param, 'green'), "not in index")
                     continue
-                depend_list = unique_list()
+                depend_list = utils.unique_list()
                 self.client_prog_inst.needs(param, depend_list)
                 if not depend_list:
                     depend_list = ("no one",)
@@ -536,35 +538,35 @@ class CMDObj(cmd.Cmd, object):
                 do_help(param)
 
     def report_logging_state(self):
-        import pyinstl.log_utils
+        import utils.log_utils
         top_logger = logging.getLogger()
         print("logging level:", logging.getLevelName(top_logger.getEffectiveLevel()))
-        log_file_path = pyinstl.log_utils.get_log_file_path(self.this_program_name, self.this_program_name, debug=False)
+        log_file_path = utils.log_utils.get_log_file_path(self.this_program_name, self.this_program_name, debug=False)
         print("logging INFO level to",  log_file_path)
-        debug_log_file_path = pyinstl.log_utils.get_log_file_path(self.this_program_name, self.this_program_name, debug=True)
+        debug_log_file_path = utils.log_utils.get_log_file_path(self.this_program_name, self.this_program_name, debug=True)
         if os.path.isfile(debug_log_file_path):
             print("logging DEBUG level to",  debug_log_file_path)
         else:
             print("Not logging DEBUG level to",  debug_log_file_path)
 
     def do_log(self, params):
-        import pyinstl.log_utils
+        import utils.log_utils
         top_logger = logging.getLogger()
         if params:
             params = shlex.split(params)
             if params[0].lower() == "debug":
-                debug_log_file_path = pyinstl.log_utils.get_log_file_path(self.this_program_name, self.this_program_name, debug=True)
+                debug_log_file_path = utils.log_utils.get_log_file_path(self.this_program_name, self.this_program_name, debug=True)
                 if len(params) == 1 or params[1].lower() in ("on", "true", "yes"):
-                    if top_logger.getEffectiveLevel() > pyinstl.log_utils.debug_logging_level or not os.path.isfile(debug_log_file_path):
-                        pyinstl.log_utils.setup_file_logging(debug_log_file_path, pyinstl.log_utils.debug_logging_level)
-                        pyinstl.log_utils.debug_logging_started = True
+                    if top_logger.getEffectiveLevel() > utils.log_utils.debug_logging_level or not os.path.isfile(debug_log_file_path):
+                        utils.log_utils.setup_file_logging(debug_log_file_path, utils.log_utils.debug_logging_level)
+                        utils.log_utils.debug_logging_started = True
                 elif params[1].lower() in ("off", "false", "no"):
-                    top_logger.setLevel(pyinstl.log_utils.default_logging_level)
+                    top_logger.setLevel(utils.log_utils.default_logging_level)
                     try:
-                        pyinstl.log_utils.teardown_file_logging(debug_log_file_path, pyinstl.log_utils.default_logging_level)
+                        utils.log_utils.teardown_file_logging(debug_log_file_path, utils.log_utils.default_logging_level)
                     except:
                         pass
-                var_stack.get_configVar_obj("LOG_FILE_DEBUG")[2] = pyinstl.log_utils.debug_logging_started
+                var_stack.get_configVar_obj("LOG_FILE_DEBUG")[2] = utils.log_utils.debug_logging_started
         self.report_logging_state()
 
     def help_log(self):
@@ -598,7 +600,7 @@ class CMDObj(cmd.Cmd, object):
 
 def compact_history():
     if hasattr(readline, "replace_history_item"):
-        unique_history = unique_list()
+        unique_history = utils.unique_list()
         for index in reversed(range(1, readline.get_current_history_length())):
             hist_item = readline.get_history_item(index)
             if hist_item: # some history items are None (usually at index 0)
@@ -611,7 +613,7 @@ def compact_history():
 
 def do_list_imp(self, what = None, stream=sys.stdout):
     if what is None:
-        writeAsYaml(self, stream)
+        aYaml.writeAsYaml(self, stream)
     list_to_do = list()
     if isinstance(what, str):
         list_to_do.append(what)
@@ -620,21 +622,21 @@ def do_list_imp(self, what = None, stream=sys.stdout):
     whole_sections_to_write = list()
     individual_items_to_write = list()
     for item_to_do in list_to_do:
-        if guid_re.match(item_to_do):
+        if utils.guid_re.match(item_to_do):
             whole_sections_to_write.append({item_to_do: iids_from_guid(self.install_definitions_index, item_to_do)})
         elif item_to_do == "define":
-            whole_sections_to_write.append(YamlDumpDocWrap(var_stack, '!define', "Definitions", explicit_start=True, sort_mappings=True))
+            whole_sections_to_write.append(aYaml.YamlDumpDocWrap(var_stack, '!define', "Definitions", explicit_start=True, sort_mappings=True))
         elif item_to_do == "index":
-            whole_sections_to_write.append(YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True))
+            whole_sections_to_write.append(aYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True))
         elif item_to_do == "guid":
             guid_dict = dict()
             for lic in guid_list(self.install_definitions_index):
                 guid_dict[lic] = iids_from_guid(self.install_definitions_index, lic)
-            whole_sections_to_write.append(YamlDumpDocWrap(guid_dict, '!guid', "guid to IID", explicit_start=True, sort_mappings=True))
+            whole_sections_to_write.append(aYaml.YamlDumpDocWrap(guid_dict, '!guid', "guid to IID", explicit_start=True, sort_mappings=True))
         else:
             individual_items_to_write.append(item_to_do)
 
-    writeAsYaml(whole_sections_to_write+self.repr_for_yaml(individual_items_to_write), stream)
+    aYaml.writeAsYaml(whole_sections_to_write+self.repr_for_yaml(individual_items_to_write), stream)
 
 
 def create_completion_list_imp(self, for_what="all"):

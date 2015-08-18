@@ -2,10 +2,12 @@
 from __future__ import print_function
 
 import fnmatch
-import yaml
-from pyinstl.utils import *
 
-from configVarStack import var_stack
+import yaml
+
+import utils
+from configVar import var_stack
+
 
 class HelpItem(object):
     def __init__(self, topic, name):
@@ -32,7 +34,7 @@ class HelpHelper(object):
         self.instlObj = instlObj
 
     def read_help_file(self, help_file_path):
-        with open_for_read_file_or_url(help_file_path, None) as file_fd:
+        with utils.open_for_read_file_or_url(help_file_path, None) as file_fd:
             for a_node in yaml.compose_all(file_fd):
                 if a_node.isMapping():
                     for topic_name, topic_items_node  in a_node:
