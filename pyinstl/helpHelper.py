@@ -1,6 +1,7 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
+import os
 import fnmatch
 
 import yaml
@@ -61,7 +62,7 @@ class HelpHelper(object):
             for name, short_text in short_list:
                 width_list[0] = max(width_list[0], len(name))
                 width_list[1] = max(width_list[1], len(short_text))
-            format_list = gen_col_format(width_list)
+            format_list = utils.gen_col_format(width_list)
             retVal = "\n".join(format_list[2].format(name, short) for name, short in short_list)
         return retVal
 
@@ -99,7 +100,7 @@ class HelpHelper(object):
                 else:
                     defaults_list.append( (var, raw_value) )
 
-        col_format = gen_col_format(max_widths(defaults_list))
+        col_format = utils.gen_col_format(max_widths(defaults_list))
         for res_line in defaults_list:
             print(col_format[len(res_line)].format(*res_line))
 
