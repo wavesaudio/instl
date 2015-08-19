@@ -4,7 +4,7 @@ from __future__ import print_function
 import os
 import logging
 
-from svnTree import svnTree
+import svnTree
 import utils
 from instlInstanceSyncBase import InstlInstanceSync
 from batchAccumulator import BatchAccumulator

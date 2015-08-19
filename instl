@@ -12,13 +12,11 @@ import logging
 import appdirs
 
 
-
-
 # umask to 0 so that all files created under sudo, can be re-written under regular user.
 os.umask(0)
 
 # setup logging, must be done before other imports
-from utils.log_utils import setup_logging
+from utils import setup_logging
 setup_logging("instl", "instl")
 import utils
 
@@ -392,26 +390,26 @@ def main():
 
     logging.info("Command %s", options.command)
     if options.mode == "client":
-        from pyinstl.instlClient import InstlClient
+        from pyinstl import InstlClient
         instance = InstlClient(initial_vars)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "admin":
-        from pyinstl.instlAdmin import InstlAdmin
+        from pyinstl import InstlAdmin
         instance = InstlAdmin(initial_vars)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "interactive":
-        from pyinstl.instlClient import InstlClient
+        from pyinstl import InstlClient
         client = InstlClient(initial_vars)
         client.init_from_cmd_line_options(options)
-        from pyinstl.instlAdmin import InstlAdmin
-        from pyinstl.instlInstanceBase_interactive import go_interactive
+        from pyinstl import InstlAdmin
+        from pyinstl import go_interactive
         admin = InstlAdmin(initial_vars)
         admin.init_from_cmd_line_options(options)
         go_interactive(client, admin)
     elif options.mode == "do_something":
-        from pyinstl.instlMisc import InstlMisc
+        from pyinstl import InstlMisc
         instance = InstlMisc(initial_vars)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
@@ -419,7 +417,7 @@ def main():
         if getattr(sys, 'frozen', False):
             print("gui command not available in compiled instl")
         else:
-            from pyinstl.instlGui import InstlGui
+            from pyinstl import InstlGui
             instance = InstlGui(initial_vars)
             instance.init_from_cmd_line_options(options)
             instance.do_command()

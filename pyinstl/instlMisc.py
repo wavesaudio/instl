@@ -7,7 +7,7 @@ import tarfile
 import fnmatch
 import time
 
-from svnTree import svnTree
+import svnTree
 import utils
 from instlInstanceBase import InstlInstanceBase
 from configVar import var_stack

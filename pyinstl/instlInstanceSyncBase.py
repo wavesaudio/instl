@@ -4,7 +4,7 @@ from __future__ import print_function
 import os
 import abc
 
-from svnTree import svnTree
+import svnTree
 import utils
 from configVar import var_stack
 

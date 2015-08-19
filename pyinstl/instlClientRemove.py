@@ -3,7 +3,7 @@
 from __future__ import print_function
 import logging
 
-from svnTree import svnTree
+import svnTree
 import utils
 from configVar import var_stack
 

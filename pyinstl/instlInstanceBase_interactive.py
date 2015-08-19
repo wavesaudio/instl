@@ -219,7 +219,7 @@ class CMDObj(cmd.Cmd, object):
         """ Add color codes to index identifiers and variables in text.
         """
         coloring_dict = self.prepare_coloring_dict()
-        retVal = replace_all_from_dict(text, *[], **coloring_dict)
+        retVal = utils.replace_all_from_dict(text, *[], **coloring_dict)
         return retVal
 
     def do_list(self, params):

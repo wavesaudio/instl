@@ -2,16 +2,16 @@
 
 from __future__ import print_function
 
+import os
+import subprocess
 from time import time
 import shlex
 from Tkinter import *
 from ttk import *
 
-import utils
 import aYaml
 from instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
-
 
 def bool_int_to_str(in_bool_int):
     if in_bool_int == 0:
