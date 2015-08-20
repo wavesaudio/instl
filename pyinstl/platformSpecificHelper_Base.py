@@ -80,6 +80,7 @@ class CopyToolBase(object):
     def remove_dir(self, dir_to_remove):
         pass
 
+
 class CopyToolRsync(CopyToolBase):
     def __init__(self, platform_helper):
         super(CopyToolRsync, self).__init__(platform_helper)
@@ -98,7 +99,7 @@ class CopyToolRsync(CopyToolBase):
         if ignore:
             if isinstance(ignore, basestring):
                 ignore = (ignore,)
-            retVal = " ".join(["--exclude="+quoteme_single(ignoree) for ignoree in ignore])
+            retVal = " ".join(["--exclude=" + utils.quoteme_single(ignoree) for ignoree in ignore])
         return retVal
 
     def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
@@ -176,8 +177,8 @@ class CopyToolRsync(CopyToolBase):
         remove_command = "rm -f -v -r \"{dir_to_remove}\"".format(**locals())
         return remove_command
 
-class PlatformSpecificHelperBase(object):
 
+class PlatformSpecificHelperBase(object):
     def __init__(self, instlObj):
         self.instlObj = instlObj
         self.copy_tool = None
@@ -266,10 +267,10 @@ class PlatformSpecificHelperBase(object):
         pass
 
     def new_line(self):
-        return "" # empty string because write_batch_file adds \n to each line
+        return ""  # empty string because write_batch_file adds \n to each line
 
-    def progress(self, msg, num_items = 0):
-        self.num_items_for_progress_report += num_items+1
+    def progress(self, msg, num_items=0):
+        self.num_items_for_progress_report += num_items + 1
         prog_msg = "Progress: {} of $(TOTAL_ITEMS_FOR_PROGRESS_REPORT); ".format(str(self.num_items_for_progress_report)) + msg
         return self.echo(prog_msg)
 
@@ -314,11 +315,11 @@ class PlatformSpecificHelperBase(object):
         pass
 
     def svn_add_item(self, item_path):
-        svn_command = " ".join( ("$(SVN_CLIENT_PATH)", "add", '"'+item_path+'"') )
+        svn_command = " ".join(("$(SVN_CLIENT_PATH)", "add", '"' + item_path + '"'))
         return svn_command
 
     def svn_remove_item(self, item_path):
-        svn_command = " ".join( ("$(SVN_CLIENT_PATH)", "rm", "--force", '"'+item_path+'"') )
+        svn_command = " ".join(("$(SVN_CLIENT_PATH)", "rm", "--force", '"' + item_path + '"'))
         return svn_command
 
     @abc.abstractmethod
@@ -326,30 +327,30 @@ class PlatformSpecificHelperBase(object):
         pass
 
     def check_checksum_for_folder(self, info_map_file):
-        check_checksum_for_folder_command = " ".join( (self.run_instl(),
-                                                    "check-checksum",
-                                                    "--in", quoteme_double(info_map_file),
-                                                    "--start-progress", str(self.num_items_for_progress_report),
-                                                    "--total-progress", "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)",
-                                                    ) )
+        check_checksum_for_folder_command = " ".join((self.run_instl(),
+                                                      "check-checksum",
+                                                      "--in", utils.quoteme_double(info_map_file),
+                                                      "--start-progress", str(self.num_items_for_progress_report),
+                                                      "--total-progress", "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)",
+        ))
         return check_checksum_for_folder_command
 
     def create_folders(self, info_map_file):
-        create_folders_command = " ".join( (self.run_instl(),
-                                                    "create-folders",
-                                                    "--in", quoteme_double(info_map_file),
-                                                    "--start-progress", str(self.num_items_for_progress_report),
-                                                    "--total-progress", "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)",
-                                                    ) )
+        create_folders_command = " ".join((self.run_instl(),
+                                           "create-folders",
+                                           "--in", utils.quoteme_double(info_map_file),
+                                           "--start-progress", str(self.num_items_for_progress_report),
+                                           "--total-progress", "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)",
+        ))
         return create_folders_command
 
     def set_exec_for_folder(self, info_map_file):
-        set_exec_for_folder_command = " ".join( (self.run_instl(),
-                                                    "set-exec",
-                                                    "--in", quoteme_double(info_map_file),
-                                                    "--start-progress", str(self.num_items_for_progress_report),
-                                                    "--total-progress", "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)",
-                                                    ) )
+        set_exec_for_folder_command = " ".join((self.run_instl(),
+                                                "set-exec",
+                                                "--in", utils.quoteme_double(info_map_file),
+                                                "--start-progress", str(self.num_items_for_progress_report),
+                                                "--total-progress", "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)",
+        ))
         return set_exec_for_folder_command
 
     @abc.abstractmethod
@@ -362,14 +363,14 @@ class PlatformSpecificHelperBase(object):
 
     def unwtar_something(self, what_to_unwtar, no_artifacts=False):
         unwtar_command_parts = [self.instlObj.platform_helper.run_instl(),
-                                                    "unwtar",
-                                                    "--in", quoteme_double(what_to_unwtar),
-                                                    "--start-progress", str(self.num_items_for_progress_report),
-                                                    "--total-progress", "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)",
-                                                    ]
+                                "unwtar",
+                                "--in", utils.quoteme_double(what_to_unwtar),
+                                "--start-progress", str(self.num_items_for_progress_report),
+                                "--total-progress", "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)",
+        ]
         if no_artifacts:
             unwtar_command_parts.append("--no-artifacts")
-        unwtar_command = " ".join( unwtar_command_parts )
+        unwtar_command = " ".join(unwtar_command_parts)
         return unwtar_command
 
     def unwtar_current_folder(self, no_artifacts=False):
@@ -406,19 +407,24 @@ class PlatformSpecificHelperBase(object):
     def append_file_to_file(self, source_file, target_file):
         pass
 
+
 def PlatformSpecificHelperFactory(in_os, instlObj):
     if in_os == "Mac":
         import platformSpecificHelper_Mac
+
         retVal = platformSpecificHelper_Mac.PlatformSpecificHelperMac(instlObj)
     elif in_os == "Win":
         import platformSpecificHelper_Win
+
         retVal = platformSpecificHelper_Win.PlatformSpecificHelperWin(instlObj)
     elif in_os == "Linux":
         import platformSpecificHelper_Linux
+
         retVal = platformSpecificHelper_Linux.PlatformSpecificHelperLinux(instlObj)
     else:
         raise ValueError(in_os, "has no PlatformSpecificHelper")
     return retVal
+
 
 class DownloadToolBase(object):
     """ Create download commands. Each function should be overridden to implement the download
@@ -445,7 +451,7 @@ class DownloadToolBase(object):
             translated_url = url
         else:
             translated_url = ConnectionBase.repo_connection.translate_url(url)
-        self.urls_to_download.append( (translated_url, path) )
+        self.urls_to_download.append((translated_url, path))
 
     def get_num_urls_to_download(self):
         return len(self.urls_to_download)

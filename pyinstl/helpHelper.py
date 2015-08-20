@@ -29,6 +29,7 @@ class HelpItem(object):
     def long_text(self):
         return self.texts.get("long", "")
 
+
 class HelpHelper(object):
     def __init__(self, instlObj):
         self.help_items = dict()
@@ -38,8 +39,8 @@ class HelpHelper(object):
         with utils.open_for_read_file_or_url(help_file_path, None) as file_fd:
             for a_node in yaml.compose_all(file_fd):
                 if a_node.isMapping():
-                    for topic_name, topic_items_node  in a_node:
-                        for item_name, item_value_node  in topic_items_node:
+                    for topic_name, topic_items_node in a_node:
+                        for item_name, item_value_node in topic_items_node:
                             newItem = HelpItem(topic_name, item_name)
                             newItem.read_from_yaml(item_value_node)
                             self.help_items[item_name] = newItem
@@ -51,11 +52,11 @@ class HelpHelper(object):
         return topics
 
     def topic_summery(self, topic):
-        retVal = "no such topic: "+topic
+        retVal = "no such topic: " + topic
         short_list = list()
         for item in self.help_items.values():
             if item.topic == topic:
-                short_list.append( (item.name+":", item.short_text()) )
+                short_list.append((item.name + ":", item.short_text()))
         short_list.sort()
         if len(short_list) > 0:
             width_list = [0, 0]
@@ -67,26 +68,28 @@ class HelpHelper(object):
         return retVal
 
     def item_help(self, item_name):
-        retVal = "no such item: "+item_name
+        retVal = "no such item: " + item_name
         item = self.help_items.get(item_name)
         if item:
             import textwrap
+
             long_formated = "\n\n".join([textwrap.fill(line, 90,
-                                          replace_whitespace=False,
-                                          initial_indent='    ',
-                                          subsequent_indent='    ')for line in item.long_text().splitlines()])
+                                                       replace_whitespace=False,
+                                                       initial_indent='    ',
+                                                       subsequent_indent='    ') for line in
+                                         item.long_text().splitlines()])
             retVal = "\n".join((
-                            item.name+": "+item.short_text(),
-                            "",
-                            long_formated,
-                            ""
-                            ))
+                item.name + ": " + item.short_text(),
+                "",
+                long_formated,
+                ""
+            ))
         return retVal
 
     def defaults_help(self):
         defaults_folder_path = os.path.join(var_stack.resolve("$(__INSTL_DATA_FOLDER__)"), "defaults")
         for yaml_file in os.listdir(defaults_folder_path):
-            if fnmatch.fnmatch(yaml_file, '*.yaml') and yaml_file != "P4.yaml": # hack to not read the P4 defaults
+            if fnmatch.fnmatch(yaml_file, '*.yaml') and yaml_file != "P4.yaml":  # hack to not read the P4 defaults
                 self.instlObj.read_yaml_file(os.path.join(defaults_folder_path, yaml_file))
         defaults_list = [("Variable name", "Raw value", "Resolved value"),
                          ("_____________", "_________", "______________")]
@@ -96,13 +99,14 @@ class HelpHelper(object):
                 raw_value = " ".join([value for value in cv])
                 resolved_value = var_stack.resolve_var(var)
                 if raw_value != resolved_value:
-                    defaults_list.append( (var, raw_value, resolved_value) )
+                    defaults_list.append((var, raw_value, resolved_value))
                 else:
-                    defaults_list.append( (var, raw_value) )
+                    defaults_list.append((var, raw_value))
 
-        col_format = utils.gen_col_format(max_widths(defaults_list))
+        col_format = utils.gen_col_format(utils.max_widths(defaults_list))
         for res_line in defaults_list:
             print(col_format[len(res_line)].format(*res_line))
+
 
 def do_help(subject, help_folder_path, instlObj):
     hh = HelpHelper(instlObj)
@@ -112,7 +116,7 @@ def do_help(subject, help_folder_path, instlObj):
 
     if not subject:
         for topic in hh.topics():
-            print("instl", "help", "<"+topic+">")
+            print("instl", "help", "<" + topic + ">")
         print("instl", "help", "<defaults>")
     elif subject in hh.topics():
         print(hh.topic_summery(subject))

@@ -8,11 +8,13 @@ import svnTree
 import utils
 from configVar import var_stack
 
+
 def is_user_data_false_or_dir_empty(svn_item):
     retVal = not svn_item.user_data
     if svn_item.isDir():
         retVal = len(svn_item.subs()) == 0
     return retVal
+
 
 class InstlInstanceSync(object):
     """  Base class for sync object .
@@ -34,7 +36,6 @@ class InstlInstanceSync(object):
         """
         prerequisite_vars = var_stack.resolve_var_to_list("__SYNC_PREREQUISITE_VARIABLES__")
         self.instlObj.check_prerequisite_var_existence(prerequisite_vars)
-
 
         if "PUBLIC_KEY" not in var_stack:
             if "PUBLIC_KEY_FILE" in var_stack:

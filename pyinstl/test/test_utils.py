@@ -12,14 +12,14 @@ sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 
 
 class TestUtils(unittest.TestCase):
-
     def setUp(self):
-       pass
+        pass
+
     def tearDown(self):
         pass
 
     def test_construction_with_name_only(self):
-        #utils.download_from_file_or_url("http://lachouffe/links/V9_test/abc.html", "test_construction_with_name_only.txt")
+        # utils.download_from_file_or_url("http://lachouffe/links/V9_test/abc.html", "test_construction_with_name_only.txt")
         pass
 
     def test_ContinuationIter(self):

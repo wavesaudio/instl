@@ -12,36 +12,40 @@ sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 
 
 class TestConfigVarList(unittest.TestCase):
-
     def setUp(self):
         self.cvl = configVarList.ConfigVarList()
+
     def tearDown(self):
         del self.cvl
 
     def test_a_resolve_array(self):
-        self.cvl.set_var("A").extend( ("a", "b", "c") )
+        self.cvl.set_var("A").extend(("a", "b", "c"))
         resolved_str = self.cvl.resolve("$(A[0]), $(A[1]), $(A[2]), $(A[3])", list_sep="&")
         self.assertEqual(resolved_str, "a, b, c, $(A[3])")
         resolved_str = self.cvl.resolve("$(A[0]), $(A[1]), $(A[2]), $(A[3])", default="lady gaga", list_sep="&")
         self.assertEqual(resolved_str, "a, b, c, lady gaga")
 
-        self.cvl.set_var("zero").append( "0" )
-        self.cvl.set_var("one").append( "1" )
-        self.cvl.set_var("two").append( "2" )
-        self.cvl.set_var("three").append( "3" )
+        self.cvl.set_var("zero").append("0")
+        self.cvl.set_var("one").append("1")
+        self.cvl.set_var("two").append("2")
+        self.cvl.set_var("three").append("3")
         resolved_str = self.cvl.resolve("$(A[$(zero)]), $(A[$(one)]), $(A[$(two)]), $(A[$(three)])", list_sep="&")
         self.assertEqual(resolved_str, "a, b, c, $(A[3])")
-        resolved_str = self.cvl.resolve("$(A[$(zero)]), $(A[$(one)]), $(A[$(two)]), $(A[$(three)])", default="lady godiva", list_sep="&")
+        resolved_str = self.cvl.resolve("$(A[$(zero)]), $(A[$(one)]), $(A[$(two)]), $(A[$(three)])",
+                                        default="lady godiva", list_sep="&")
         self.assertEqual(resolved_str, "a, b, c, lady godiva")
 
-        self.cvl.set_var("numbers").extend( ("0", "1",  "2", "3") )
-        resolved_str = self.cvl.resolve("$(A[$(numbers[0])]), $(A[$(numbers[1])]), $(A[$(numbers[2])]), $(A[$(numbers[3])])", list_sep="&")
+        self.cvl.set_var("numbers").extend(("0", "1", "2", "3"))
+        resolved_str = self.cvl.resolve(
+            "$(A[$(numbers[0])]), $(A[$(numbers[1])]), $(A[$(numbers[2])]), $(A[$(numbers[3])])", list_sep="&")
         self.assertEqual(resolved_str, "a, b, c, $(A[3])")
-        resolved_str = self.cvl.resolve("$(A[$(numbers[0])]), $(A[$(numbers[1])]), $(A[$(numbers[2])]), $(A[$(numbers[3])])", default="lady madonna", list_sep="&")
+        resolved_str = self.cvl.resolve(
+            "$(A[$(numbers[0])]), $(A[$(numbers[1])]), $(A[$(numbers[2])]), $(A[$(numbers[3])])",
+            default="lady madonna", list_sep="&")
         self.assertEqual(resolved_str, "a, b, c, lady madonna")
 
     def test_resolve_to_list(self):
-        self.cvl.set_var("A").extend( ("a", "b", "c") )
+        self.cvl.set_var("A").extend(("a", "b", "c"))
         resolved_str = self.cvl.resolve("$(A)", list_sep="&")
         self.assertEqual(resolved_str, "a&b&c")
 
@@ -51,19 +55,19 @@ class TestConfigVarList(unittest.TestCase):
         resolved_list = self.cvl.resolve_to_list("_$(A)_", list_sep="&")
         self.assertEqual(resolved_list, ["_a&b&c_"])
 
-        self.cvl.set_var("B").extend( ("$(A)", "nunchaku", "$(A)") )
+        self.cvl.set_var("B").extend(("$(A)", "nunchaku", "$(A)"))
         resolved_list = self.cvl.resolve_to_list("$(B)", list_sep="&")
         self.assertEqual(resolved_list, ["a", "b", "c", "nunchaku", "a", "b", "c"])
 
-        self.cvl.set_var("C").extend( ("$(A)", "nunchaku", "-$(A)") )
+        self.cvl.set_var("C").extend(("$(A)", "nunchaku", "-$(A)"))
         resolved_list = self.cvl.resolve_to_list("$(C)", list_sep="&")
         self.assertEqual(resolved_list, ["a", "b", "c", "nunchaku", "-a&b&c"])
 
     def test_resolve(self):
-        self.cvl.set_var("A").extend( ("a", "a", "a") )
+        self.cvl.set_var("A").extend(("a", "a", "a"))
         self.cvl.set_var("B").append("$(Bee)")
         self.cvl.set_var("Bee").append("bbb")
-        self.cvl.set_var("C").extend( ("$(B)",))
+        self.cvl.set_var("C").extend(("$(B)",))
         self.cvl.set_var("LastName").append("$(LastName_for_$(FirstName))")
         self.cvl.set_var("LastName_for_Shai").append("Shasag")
         self.cvl.set_var("LastName_for_Chilik").append("Maymoni")
@@ -215,7 +219,7 @@ class TestConfigVarList(unittest.TestCase):
 
     def test_resolve_string_with_separator_2(self):
         """ resolve values from variables with multi value with non-default separator """
-        self.cvl.get_configVar_obj("name").extend(("kid","creole"))
+        self.cvl.get_configVar_obj("name").extend(("kid", "creole"))
         self.cvl.get_configVar_obj("beer").extend(("Anheuser", "Busch"))
         resolved = self.cvl.resolve("$(name) drinks $(beer)", list_sep="-")
         self.assertEqual(resolved, "kid-creole drinks Anheuser-Busch")

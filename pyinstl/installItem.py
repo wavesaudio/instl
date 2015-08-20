@@ -73,7 +73,6 @@ from __future__ import print_function
                 - action when leaving folder
 """
 
-
 from collections import OrderedDict, defaultdict
 import aYaml
 import utils
@@ -303,12 +302,12 @@ class InstallItem(object):
     def add_source(self, new_source, file_type='!dir'):
         if file_type not in InstallItem.file_types:
             file_type = '!dir'
-        if new_source.startswith("/"): # absolute path
+        if new_source.startswith("/"):  # absolute path
             new_source = new_source[1:]
-        elif new_source.startswith("$("): # explicitly relative to some variable
+        elif new_source.startswith("$("):  # explicitly relative to some variable
             pass
-        else: # implicitly relative to $(SOURCE_PREFIX)
-            new_source = "$(SOURCE_PREFIX)/"+new_source
+        else:  # implicitly relative to $(SOURCE_PREFIX)
+            new_source = "$(SOURCE_PREFIX)/" + new_source
         self.__add_item_to_default_os_by_category('install_sources', (new_source, file_type, self.__set_for_os[-1]))
 
     def _source_list(self):
@@ -363,8 +362,8 @@ class InstallItem(object):
                             items_map[dependee].get_recursive_depends(items_map, out_set, orphan_set)
                 except KeyError:
                     orphan_set.append(depend)
-        #else:
-        #    print("get_recursive_depends: already added", self.iid)
+                    # else:
+                    #    print("get_recursive_depends: already added", self.iid)
 
 
     def repr_for_yaml_items(self, for_which_os):
@@ -457,10 +456,10 @@ def iids_from_guid(items_map, guid_or_iid):
         if it's a guid return all IIDs that have this gui
         if it's not return the IID itself. """
     retVal = list()
-    if utils.guid_re.match(guid_or_iid.lower()): # it's a guid, get iids for all items with that guid
+    if utils.guid_re.match(guid_or_iid.lower()):  # it's a guid, get iids for all items with that guid
         for iid, install_def in items_map.iteritems():
             if install_def.guid == guid_or_iid.lower():
                 retVal.append(iid)
     else:
-        retVal.append(guid_or_iid) # it's a regular iid, not a guid, no need to lower case
+        retVal.append(guid_or_iid)  # it's a regular iid, not a guid, no need to lower case
     return retVal

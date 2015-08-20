@@ -5,7 +5,6 @@ from instlInstanceSyncBase import InstlInstanceSync
 from configVar import var_stack
 
 
-
 class InstlInstanceSync_boto(InstlInstanceSync):
     """  Class to create sync instruction using static links.
     """

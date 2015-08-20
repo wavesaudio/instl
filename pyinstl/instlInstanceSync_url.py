@@ -38,8 +38,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
         def __call__(self, svn_item):
             retVal = None
             if svn_item.isFile():
-                file_path = os.path.join(*make_one_list(self.base_path, svn_item.full_path_parts()))
-                need_to_download = need_to_download_file(file_path, svn_item.checksum)
+                file_path = os.path.join(*utils.make_one_list(self.base_path, svn_item.full_path_parts()))
+                need_to_download = utils.need_to_download_file(file_path, svn_item.checksum)
                 # a hack to force download of wtars if they were not unwtared correctly.
                 # Actually a full download is not needed but there is not other way to force
                 # post sync processing. Also folder might exist even if unwtar was not completed.
@@ -107,7 +107,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
-
         prefix_accum = BatchAccumulator()  # sub-accumulator for prefix instructions
         prefix_accum.set_current_section('sync')
         for need_item in file_list + dir_list:
@@ -131,13 +130,13 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.create_download_instructions_for_item(need_item)
 
         var_stack.add_const_config_variable("__NUM_FILES_TO_DOWNLOAD__", "create_download_instructions",
-                                           self.instlObj.platform_helper.dl_tool.get_num_urls_to_download())
+                                            self.instlObj.platform_helper.dl_tool.get_num_urls_to_download())
 
         print(self.instlObj.platform_helper.dl_tool.get_num_urls_to_download(), "files to sync")
         logging.info("Num files to sync: %d", self.instlObj.platform_helper.dl_tool.get_num_urls_to_download())
 
-        curl_config_folder = var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)/curl",  raise_on_fail=True)
-        safe_makedirs(curl_config_folder)
+        curl_config_folder = var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)/curl", raise_on_fail=True)
+        utils.safe_makedirs(curl_config_folder)
         curl_config_file_path = var_stack.resolve(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"), raise_on_fail=True)
         num_config_files = int(var_stack.resolve("$(PARALLEL_SYNC)"))
         config_file_list = self.instlObj.platform_helper.dl_tool.create_config_files(curl_config_file_path,
@@ -177,7 +176,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         elif item.isDir():
             pass
             # path_so_far.append(item.name)
-            #file_list, dir_list = item.sorted_sub_items()
+            # file_list, dir_list = item.sorted_sub_items()
             # do something
             #for sub_item in file_list + dir_list:
             #    self.create_prefix_instructions_for_item(accum, sub_item, path_so_far)
@@ -190,18 +189,18 @@ class InstlInstanceSync_url(InstlInstanceSync):
         if item.isSymlink():
             print("Found symlink at", item.full_path())
         elif item.isFile():
-            file_path = os.path.join(*make_one_list(self.local_sync_dir, item.full_path_parts()))
-            need_to_download = need_to_download_file(file_path, item.checksum)
+            file_path = os.path.join(*utils.make_one_list(self.local_sync_dir, item.full_path_parts()))
+            need_to_download = utils.need_to_download_file(file_path, item.checksum)
             item.set_user_data_non_recursive(need_to_download)
             if need_to_download:
                 self.files_to_download += 1
                 # For some files a stamp file (.done) is placed after post-download processing. Remove such file if it exist
-                done_stam_path = os.path.join(*make_one_list(self.local_sync_dir, path_so_far, item.name + ".done"))
-                safe_remove_file(done_stam_path)
+                done_stam_path = os.path.join(*utils.make_one_list(self.local_sync_dir, path_so_far, item.name + ".done"))
+                utils.safe_remove_file(done_stam_path)
 
                 source_url = item.url
                 if source_url is None:
-                    source_url = '/'.join(make_one_list(self.sync_base_url, str(item.last_rev), path_so_far, item.name))
+                    source_url = '/'.join(utils.make_one_list(self.sync_base_url, str(item.last_rev), path_so_far, item.name))
                 # if source_url is given from info_map no need to translate it, so verbatim will be true.
                 self.instlObj.platform_helper.dl_tool.add_download_url(source_url, item.full_path(), verbatim=source_url==item.url)
         elif item.isDir():

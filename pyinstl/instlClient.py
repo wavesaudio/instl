@@ -125,7 +125,7 @@ class InstlClient(InstlInstanceBase):
     def create_instl_history_file(self):
         var_stack.set_var("__BATCH_CREATE_TIME__").append(time.strftime("%Y/%m/%d %H:%M:%S"))
         yaml_of_defines = aYaml.YamlDumpDocWrap(var_stack, '!define', "Definitions",
-                                                        explicit_start=True, sort_mappings=True)
+                                                explicit_start=True, sort_mappings=True)
         # write the history file, but only if variable LOCAL_REPO_BOOKKEEPING_DIR is defined
         # and the folder actually exists.
         if os.path.isdir(var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)", default="")):
@@ -133,7 +133,7 @@ class InstlClient(InstlInstanceBase):
                 utils.make_open_file_read_write_for_all(wfd)
                 aYaml.writeAsYaml(yaml_of_defines, wfd)
             self.batch_accum += self.platform_helper.append_file_to_file("$(INSTL_HISTORY_TEMP_PATH)",
-                                                                     "$(INSTL_HISTORY_PATH)")
+                                                                         "$(INSTL_HISTORY_PATH)")
 
     def read_repo_type_defaults(self):
         repo_type_defaults_file_path = os.path.join(var_stack.resolve("$(__INSTL_DATA_FOLDER__)"), "defaults",
@@ -144,7 +144,7 @@ class InstlClient(InstlInstanceBase):
     def init_default_client_vars(self):
         if "LOCAL_SYNC_DIR" not in var_stack:
             if "SYNC_BASE_URL" in var_stack:
-                #raise ValueError("'SYNC_BASE_URL' was not defined")
+                # raise ValueError("'SYNC_BASE_URL' was not defined")
                 resolved_sync_base_url = var_stack.resolve("$(SYNC_BASE_URL)")
                 url_main_item = utils.main_url_item(resolved_sync_base_url)
                 var_stack.set_var("SYNC_BASE_URL_MAIN_ITEM", description="from init_default_client_vars").append(url_main_item)
@@ -164,10 +164,11 @@ class InstlClient(InstlInstanceBase):
         if var_stack.resolve("$(REPO_TYPE)") == "P4":
             if "P4_SYNC_DIR" not in var_stack:
                 if "SYNC_BASE_URL" in var_stack:
-                    p4_sync_dir = P4GetPathFromDepotPath(var_stack.resolve("$(SYNC_BASE_URL)"))
+                    p4_sync_dir = utils.P4GetPathFromDepotPath(var_stack.resolve("$(SYNC_BASE_URL)"))
                     var_stack.set_var("P4_SYNC_DIR", "from SYNC_BASE_URL").append(p4_sync_dir)
 
    # sync command implemented in instlClientSync.py file
+
     from instlClientSync import do_sync
 
     # copy command implemented in instlClientCopy.py file
@@ -204,10 +205,10 @@ class InstlClient(InstlInstanceBase):
         retVal = list()
         if what is None:  # None is all
             retVal.append(aYaml.YamlDumpDocWrap(var_stack, '!define', "Definitions",
-                                                        explicit_start=True, sort_mappings=True))
+                                                explicit_start=True, sort_mappings=True))
             retVal.append(aYaml.YamlDumpDocWrap(self.install_definitions_index,
-                                                        '!index', "Installation index",
-                                                        explicit_start=True, sort_mappings=True))
+                                                '!index', "Installation index",
+                                                explicit_start=True, sort_mappings=True))
         else:
             defines = list()
             indexes = list()
@@ -219,18 +220,18 @@ class InstlClient(InstlInstanceBase):
                     indexes.append({identifier: self.install_definitions_index[identifier].repr_for_yaml()})
                 else:
                     unknowns.append(aYaml.YamlDumpWrap(value="UNKNOWN VARIABLE",
-                                                               comment=identifier + " is not in variable list"))
+                                                       comment=identifier + " is not in variable list"))
             if defines:
                 retVal.append(aYaml.YamlDumpDocWrap(defines, '!define', "Definitions",
-                                                            explicit_start=True, sort_mappings=True))
+                                                    explicit_start=True, sort_mappings=True))
             if indexes:
                 retVal.append(
                     aYaml.YamlDumpDocWrap(indexes, '!index', "Installation index",
-                                                explicit_start=True, sort_mappings=True))
+                                          explicit_start=True, sort_mappings=True))
             if unknowns:
                 retVal.append(
                     aYaml.YamlDumpDocWrap(unknowns, '!unknowns', "Installation index",
-                                                  explicit_start=True, sort_mappings=True))
+                                          explicit_start=True, sort_mappings=True))
 
         return retVal
 

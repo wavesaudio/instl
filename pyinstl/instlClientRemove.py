@@ -13,6 +13,7 @@ def do_remove(self):
     self.init_remove_vars()
     self.create_remove_instructions()
 
+
 def init_remove_vars(self):
     self.action_type_to_progress_message = {'pre_remove': "pre-remove step",
                                             'post_remove': "post-remove step",
@@ -20,6 +21,7 @@ def init_remove_vars(self):
                                             'post_remove_from_folder': "post-remove-from-folder step",
                                             'pre_remove_item': "pre-delete step",
                                             'post_remove_item': "post-delete step"}
+
 
 def create_remove_instructions(self):
     self.have_map = svnTree.SVNTree()
@@ -58,6 +60,7 @@ def create_remove_instructions(self):
 
     self.accumulate_unique_actions('post_remove', self.installState.full_install_items)
 
+
 # create_remove_instructions_for_source:
 # Create instructions to remove a specific source from a specific target folder.
 # There can be 3 possibilities according to the value of the item's remove_item section:
@@ -79,7 +82,7 @@ def create_remove_instructions_for_source(self, folder, source):
         elif source[1] == '!file':  # remove single file
             remove_action = self.platform_helper.rmfile(to_remove_path)
             self.batch_accum += remove_action
-        elif source[1] == '!dir_cont': # remove all source's files and folders from a folder
+        elif source[1] == '!dir_cont':  # remove all source's files and folders from a folder
             source_folder_info_map_item = self.have_map.get_item_at_path(source[0])
             file_list, folder_list = source_folder_info_map_item.sorted_sub_items()
             unwtared_file_name_list = self.replace_wtar_names_with_real_names(file_item.name for file_item in file_list)
@@ -91,7 +94,7 @@ def create_remove_instructions_for_source(self, folder, source):
                 to_remove_path = os.path.normpath(os.path.join(folder, sub_folder.name))
                 remove_action = self.platform_helper.rmdir(to_remove_path, recursive=True)
                 self.batch_accum += remove_action
-        elif source[1] == '!files':    # # remove all source's files from a folder
+        elif source[1] == '!files':  # # remove all source's files from a folder
             source_folder_info_map_item = self.have_map.get_item_at_path(source[0])
             file_list, folder_list = source_folder_info_map_item.sorted_sub_items()
             unwtared_file_name_list = self.replace_wtar_names_with_real_names(file_item.name for file_item in file_list)

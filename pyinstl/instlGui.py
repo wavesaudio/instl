@@ -9,9 +9,11 @@ import shlex
 from Tkinter import *
 from ttk import *
 
+import utils
 import aYaml
 from instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
+
 
 def bool_int_to_str(in_bool_int):
     if in_bool_int == 0:
@@ -19,6 +21,7 @@ def bool_int_to_str(in_bool_int):
     else:
         retVal = "yes"
     return retVal
+
 
 def str_to_bool_int(the_str):
     if the_str.lower() in ("yes", "true", "y", 't'):
@@ -29,6 +32,7 @@ def str_to_bool_int(the_str):
         raise ValueError("Cannot translate", the_str, "to bool-int")
     return retVal
 
+
 admin_command_template_variables = {
     'svn2stage': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
     'fix-symlinks': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
@@ -38,14 +42,15 @@ admin_command_template_variables = {
     'fix-props': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
     'depend': '__ADMIN_CALL_INSTL_DEPEND_TEMPLATE__',
     'fix-perm': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__'
-    }
+}
+
 
 class InstlGui(InstlInstanceBase):
     def __init__(self, initial_vars):
         super(InstlGui, self).__init__(initial_vars)
         self.master = Tk()
-        self.master.createcommand('exit', self.quit_app) # exit from quit menu or Command-Q
-        self.master.protocol('WM_DELETE_WINDOW', self.quit_app) # exit from closing the window
+        self.master.createcommand('exit', self.quit_app)  # exit from quit menu or Command-Q
+        self.master.protocol('WM_DELETE_WINDOW', self.quit_app)  # exit from closing the window
         self.commands_that_accept_limit_option = var_stack.resolve_to_list("$(__COMMANDS_WITH_LIMIT_OPTION__)")
 
         self.client_command_name_var = StringVar()
@@ -98,11 +103,12 @@ class InstlGui(InstlInstanceBase):
         the_list_yaml_ready= var_stack.repr_for_yaml(which_vars=var_stack.resolve_var_to_list("__GUI_CONFIG_FILE_VARS__"), include_comments=False, resolve=False, ignore_unknown_vars=True)
         the_doc_yaml_ready = aYaml.YamlDumpDocWrap(the_list_yaml_ready, '!define', "Definitions", explicit_start=True, sort_mappings=True)
         with open(var_stack.resolve_var("INSTL_GUI_CONFIG_FILE_NAME"), "w") as wfd:
-            make_open_file_read_write_for_all(wfd)
+            utils.make_open_file_read_write_for_all(wfd)
             aYaml.writeAsYaml(the_doc_yaml_ready, wfd)
 
     def get_client_input_file(self):
         import tkFileDialog
+
         retVal = tkFileDialog.askopenfilename()
         if retVal:
             self.client_input_path_var.set(retVal)
@@ -110,6 +116,7 @@ class InstlGui(InstlInstanceBase):
 
     def get_client_output_file(self):
         import tkFileDialog
+
         retVal = tkFileDialog.asksaveasfilename()
         if retVal:
             self.client_output_path_var.set(retVal)
@@ -117,6 +124,7 @@ class InstlGui(InstlInstanceBase):
 
     def get_admin_config_file(self):
         import tkFileDialog
+
         retVal = tkFileDialog.askopenfilename()
         if retVal:
             self.admin_config_path_var.set(retVal)
@@ -124,6 +132,7 @@ class InstlGui(InstlInstanceBase):
 
     def get_admin_output_file(self):
         import tkFileDialog
+
         retVal = tkFileDialog.asksaveasfilename()
         if retVal:
             self.admin_output_path_var.set(retVal)
@@ -138,8 +147,8 @@ class InstlGui(InstlInstanceBase):
 
     def create_client_command_line(self):
         retVal = [var_stack.resolve_var("__INSTL_EXE_PATH__"), var_stack.resolve_var("CLIENT_GUI_CMD"),
-                        "--in", var_stack.resolve_var("CLIENT_GUI_IN_FILE"),
-                        "--out", var_stack.resolve_var("CLIENT_GUI_OUT_FILE")]
+                  "--in", var_stack.resolve_var("CLIENT_GUI_IN_FILE"),
+                  "--out", var_stack.resolve_var("CLIENT_GUI_OUT_FILE")]
 
         if self.client_credentials_on_var.get():
             credentials = self.client_credentials_var.get()
@@ -167,7 +176,7 @@ class InstlGui(InstlInstanceBase):
                 limit_path = self.admin_limit_var.get()
                 if limit_path != "":
                     retVal.append("--limit")
-                    limit_paths = shlex.split(limit_path) # there might be space separated paths
+                    limit_paths = shlex.split(limit_path)  # there might be space separated paths
                     retVal.extend(limit_paths)
 
             if self.run_admin_batch_file_var.get() == 1 and command_name in self.commands_with_run_option_list:
@@ -186,7 +195,7 @@ class InstlGui(InstlInstanceBase):
             new_input_file_dir, new_input_file_name = os.path.split(new_input_file)
             items_in_dir = os.listdir(new_input_file_dir)
             dir_items = [os.path.join(new_input_file_dir, item) for item in items_in_dir if os.path.isfile(os.path.join(new_input_file_dir, item))]
-            self.client_input_combobox.configure(values = dir_items)
+            self.client_input_combobox.configure(values=dir_items)
         var_stack.set_var("CLIENT_GUI_IN_FILE").append(self.client_input_path_var.get())
 
     def update_client_state(self, *args):
@@ -229,7 +238,7 @@ class InstlGui(InstlInstanceBase):
             self.admin_config_file_dirty = True
         var_stack.set_var("ADMIN_GUI_CONFIG_FILE").append(new_config_path)
         if self.admin_config_file_dirty:
-             self.read_admin_config_file()
+            self.read_admin_config_file()
 
         _, input_file_base_name = os.path.split(var_stack.unresolved_var("ADMIN_GUI_CONFIG_FILE"))
         var_stack.set_var("ADMIN_GUI_CONFIG_FILE_NAME").append(input_file_base_name)
@@ -264,9 +273,9 @@ class InstlGui(InstlInstanceBase):
         command_line = self.create_client_command_line()
 
         if getattr(os, "setsid", None):
-            proc = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid) # Unix
+            proc = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid)  # Unix
         else:
-            proc = subprocess.Popen(command_line, executable=command_line[0], shell=False) # Windows
+            proc = subprocess.Popen(command_line, executable=command_line[0], shell=False)  # Windows
         unused_stdout, unused_stderr = proc.communicate()
         retcode = proc.returncode
         if retcode != 0:
@@ -277,9 +286,9 @@ class InstlGui(InstlInstanceBase):
         command_line = self.create_admin_command_line()
 
         if getattr(os, "setsid", None):
-            proc = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid) # Unix
+            proc = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid)  # Unix
         else:
-            proc = subprocess.Popen(command_line, executable=command_line[0], shell=False) # Windows
+            proc = subprocess.Popen(command_line, executable=command_line[0], shell=False)  # Windows
         unused_stdout, unused_stderr = proc.communicate()
         retcode = proc.returncode
         if retcode != 0:
@@ -297,7 +306,8 @@ class InstlGui(InstlInstanceBase):
         self.admin_command_name_var.set(var_stack.unresolved_var("ADMIN_GUI_CMD"))
         admin_command_list = var_stack.resolve_var_to_list("__ADMIN_GUI_CMD_LIST__")
         commandNameMenu = OptionMenu(admin_frame, self.admin_command_name_var,
-                                     self.admin_command_name_var.get(), *admin_command_list, command=self.update_admin_state)
+                                     self.admin_command_name_var.get(), *admin_command_list,
+                                     command=self.update_admin_state)
         commandNameMenu.grid(row=curr_row, column=1, sticky=W)
         ToolTip(commandNameMenu, msg="instl admin command")
 
@@ -311,7 +321,7 @@ class InstlGui(InstlInstanceBase):
         Label(admin_frame, text="Config file:").grid(row=curr_row, column=0, sticky=E)
         self.admin_config_path_var.set(var_stack.unresolved_var("ADMIN_GUI_CONFIG_FILE"))
         configFilePathEntry = Entry(admin_frame, textvariable=self.admin_config_path_var)
-        configFilePathEntry.grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
+        configFilePathEntry.grid(row=curr_row, column=1, columnspan=2, sticky=W + E)
         ToolTip(configFilePathEntry, msg="path instl repository config file")
         self.admin_config_path_var.trace('w', self.update_admin_state)
 
@@ -370,7 +380,7 @@ class InstlGui(InstlInstanceBase):
         Label(admin_frame, text="Limit to:").grid(row=curr_row, column=0, sticky=E)
         self.admin_limit_var.set(var_stack.unresolved_var("ADMIN_GUI_LIMIT"))
         self.limit_path_entry_widget = Entry(admin_frame, textvariable=self.admin_limit_var)
-        self.limit_path_entry_widget.grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
+        self.limit_path_entry_widget.grid(row=curr_row, column=1, columnspan=2, sticky=W + E)
         self.admin_limit_var.trace('w', self.update_admin_state)
 
         # the combined command line text
@@ -385,7 +395,6 @@ class InstlGui(InstlInstanceBase):
 
         client_frame = Frame(master)
         client_frame.grid(row=0, column=0)
-
 
         curr_row = 0
         command_label = Label(client_frame, text="Command:")
@@ -407,7 +416,7 @@ class InstlGui(InstlInstanceBase):
         Label(client_frame, text="Input file:").grid(row=curr_row, column=0)
         self.client_input_path_var.set(var_stack.unresolved_var("CLIENT_GUI_IN_FILE"))
         self.client_input_combobox = Combobox(client_frame, textvariable=self.client_input_path_var)
-        self.client_input_combobox.grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
+        self.client_input_combobox.grid(row=curr_row, column=1, columnspan=2, sticky=W + E)
         self.client_input_path_var.trace('w', self.update_client_state)
         Button(client_frame, width=2, text="...", command=self.get_client_input_file).grid(row=curr_row, column=3, sticky=W)
         Button(client_frame, width=4, text="Edit",
@@ -487,16 +496,16 @@ class InstlGui(InstlInstanceBase):
 
         self.master.mainloop()
         self.quit_app()
-        #self.master.destroy() # optional; see description below
+        # self.master.destroy() # optional; see description below
 
     def check_yaml(self, path_to_yaml):
         command_line = [var_stack.resolve_var("__INSTL_EXE_PATH__"), "read-yaml",
                         "--in", path_to_yaml]
 
         if getattr(os, "setsid", None):
-            proc = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid) # Unix
+            proc = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid)  # Unix
         else:
-            proc = subprocess.Popen(command_line, executable=command_line[0], shell=False) # Windows
+            proc = subprocess.Popen(command_line, executable=command_line[0], shell=False)  # Windows
         unused_stdout, unused_stderr = proc.communicate()
         retcode = proc.returncode
         if retcode != 0:
@@ -504,13 +513,15 @@ class InstlGui(InstlInstanceBase):
         else:
             print(path_to_yaml, "read OK")
 
-class ToolTip( Toplevel ):
+
+class ToolTip(Toplevel):
     """
     Provides a ToolTip widget for Tkinter.
     To apply a ToolTip to any Tkinter widget, simply pass the widget to the
     ToolTip constructor
     """
-    def __init__( self, wdgt, msg=None, msgFunc=None, delay=0.2, follow=True ):
+
+    def __init__(self, wdgt, msg=None, msgFunc=None, delay=0.2, follow=True):
         """
         Initialize the ToolTip
 
@@ -522,28 +533,28 @@ class ToolTip( Toplevel ):
           follow:  If True, the ToolTip follows motion, otherwise hides
         """
         self.wdgt = wdgt
-        self.parent = self.wdgt.master                                          # The parent of the ToolTip is the parent of the ToolTips widget
-        Toplevel.__init__( self, self.parent, bg='black', padx=1, pady=1 )      # Initalise the Toplevel
-        self.withdraw()                                                         # Hide initially
-        self.overrideredirect( True )                                           # The ToolTip Toplevel should have no frame or title bar
+        self.parent = self.wdgt.master  # The parent of the ToolTip is the parent of the ToolTips widget
+        Toplevel.__init__(self, self.parent, bg='black', padx=1, pady=1)  # Initalise the Toplevel
+        self.withdraw()  # Hide initially
+        self.overrideredirect(True)  # The ToolTip Toplevel should have no frame or title bar
 
-        self.msgVar = StringVar()                                               # The msgVar will contain the text displayed by the ToolTip
+        self.msgVar = StringVar()  # The msgVar will contain the text displayed by the ToolTip
         if msg == None:
-            self.msgVar.set( 'No message provided' )
+            self.msgVar.set('No message provided')
         else:
-            self.msgVar.set( msg )
+            self.msgVar.set(msg)
         self.msgFunc = msgFunc
         self.delay = delay
         self.follow = follow
         self.visible = 0
         self.lastMotion = 0
-        Message( self, textvariable=self.msgVar, bg='#FFFFDD',
-                 aspect=1000 ).grid()                                     # The test of the ToolTip is displayed in a Message widget
+        Message(self, textvariable=self.msgVar, bg='#FFFFDD',
+                aspect=1000).grid()  # The test of the ToolTip is displayed in a Message widget
         self.wdgt.bind( '<Enter>', self.spawn, '+' )                      # Add bindings to the widget. This will NOT override bindings widget already has
-        self.wdgt.bind( '<Leave>', self.hide, '+' )
-        self.wdgt.bind( '<Motion>', self.move, '+' )
+        self.wdgt.bind('<Leave>', self.hide, '+')
+        self.wdgt.bind('<Motion>', self.move, '+')
 
-    def spawn( self, event=None ):
+    def spawn(self, event=None):
         """
         Spawn the ToolTip.  This simply makes the ToolTip eligible for display.
         Usually this is caused by entering the widget
@@ -552,9 +563,9 @@ class ToolTip( Toplevel ):
           event: The event that called this funciton
         """
         self.visible = 1
-        self.after( int( self.delay * 1000 ), self.show )                       # The after function takes a time argument in miliseconds
+        self.after(int(self.delay * 1000), self.show)  # The after function takes a time argument in miliseconds
 
-    def show( self ):
+    def show(self):
         """
         Displays the ToolTip if the time delay has been long enough
         """
@@ -562,7 +573,8 @@ class ToolTip( Toplevel ):
             self.visible = 2
         if self.visible == 2:
             self.deiconify()
-    def move( self, event ):
+
+    def move(self, event):
         """
         Processes motion within the widget.
 
@@ -570,7 +582,7 @@ class ToolTip( Toplevel ):
           event: The event that called this function
         """
         self.lastMotion = time()
-        if self.follow is False:                                                # If the follow flag is not set, motion within the widget will make the ToolTip dissapear
+        if self.follow is False:  # If the follow flag is not set, motion within the widget will make the ToolTip dissapear
             self.withdraw()
             self.visible = 1
         self.geometry( '+%i+%i' % ( event.x_root+10, event.y_root+10 ) )        # Offset the ToolTip 10x10 pixes southwest of the pointer
@@ -578,9 +590,9 @@ class ToolTip( Toplevel ):
             self.msgVar.set( self.msgFunc() )                                   # Try to call the message function.  Will not change the message if the message function is None or the message function fails
         except:
             pass
-        self.after( int( self.delay * 1000 ), self.show )
+        self.after(int(self.delay * 1000), self.show)
 
-    def hide( self, event=None ):
+    def hide(self, event=None):
         """
         Hides the ToolTip.  Usually this is caused by leaving the widget
 
