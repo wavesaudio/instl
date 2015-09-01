@@ -138,6 +138,11 @@ class InstlInstanceSync_url(InstlInstanceSync):
             bytes_to_sync = "Unknown number of"
         print(bytes_to_sync, "bytes to sync")
 
+        if "-1" != bytes_to_sync:
+            free_bytes = get_disk_free_space(var_stack.resolve("$(LOCAL_REPO_SYNC_DIR)"))
+            if bytes_to_sync > free_bytes:
+                print("not enough disk space for sync:", bytes_to_sync - free_bytes, "bytes missing")
+
         logging.info("Num files to sync: %d", self.instlObj.platform_helper.dl_tool.get_num_urls_to_download())
 
         curl_config_folder = var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)/curl",  raise_on_fail=True)

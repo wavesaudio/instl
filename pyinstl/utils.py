@@ -589,3 +589,13 @@ def excluded_walk(root_to_walk, file_exclude_regex=None, dir_exclude_regex=None,
         dirs[:] =  sorted([a_dir  for a_dir  in dirs  if not dir_exclude_regex.search(a_dir)])
         files[:] = sorted([a_file for a_file in files if not file_exclude_regex.search(a_file)])
         yield root, dirs, files
+
+def get_disk_free_space(in_path):
+    retVal = 0
+    if 'Win' in get_current_os_names():
+        secsPerClus, bytesPerSec, nFreeClus, totClus = win32file.GetDiskFreeSpace(in_path)
+        retVal = secsPerClus * bytesPerSec * nFreeClus
+    elif 'Mac' in get_current_os_names():
+        st = os.statvfs(in_path)
+        retVal = st.f_bavail * st.f_frsize
+    return retVal
