@@ -1,4 +1,5 @@
 ???? 0.10.0.7
+
     user visible changes, admin:
     * New command verify-repo checks local files against index.
     * Added verify-repo to gui mode.
@@ -24,12 +25,14 @@
     * New function InstlAdmin.compile_exclude_regexes to consolidate the reading of FOLDER_EXCLUDE_REGEX & FILE_EXCLUDE_REGEX in one place.
     * New propery SVNItem.size, implemented with member __size.
     * New function SVNItem.safe_size will return the recursive size of an item or -1 if not available.
+    * New function utils.get_disk_free_space
 
     user visible changes, client:
     * New interactive command which prints the path to currently running instl
     * During copy, on Mac OS, rsync will set permissions according to variable RSYNC_PERM_OPTIONS.  Default value is --perms --chmod=a+rw,+X.
     * Var assignments and remarks for DOS batch files will escape the '&' character.
     * Sync command will report the number of bytes to be downloaded.
+    * Added message if sync folder is not big enough
 
 
 31/5/2015 0.10.0.6
