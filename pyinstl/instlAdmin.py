@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import filecmp
 import cStringIO as StringIO
+import re
 import fnmatch
 from collections import defaultdict
 
@@ -20,6 +21,7 @@ from configVar import var_stack
 
 # noinspection PyPep8,PyPep8,PyPep8
 class InstlAdmin(InstlInstanceBase):
+
     def __init__(self, initial_vars):
         super(InstlAdmin, self).__init__(initial_vars)
         self.svnTree = svnTree.SVNTree()
@@ -485,21 +487,13 @@ class InstlAdmin(InstlInstanceBase):
                                "--content-type", 'text/plain'
                                 ])
             self.batch_accum += self.platform_helper.progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)'")
-            self.batch_accum += " ".join(["aws", "s3", "cp",
-                                          "\"$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
-                                          "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)\"",
-                                          "--content-type", 'text/plain'
-            ])
-            self.batch_accum += self.platform_helper.progress(
-                "Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)'")
 
-        self.batch_accum += " ".join(["aws", "s3", "cp",
-                                      "\"$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
-                                      "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
-                                      "--content-type", 'text/plain'
-        ])
-        self.batch_accum += self.platform_helper.progress(
-            "Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)'")
+        self.batch_accum += " ".join( ["aws", "s3", "cp",
+                           "\"$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
+                           "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
+                           "--content-type", 'text/plain'
+                            ] )
+        self.batch_accum += self.platform_helper.progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)'")
 
         self.create_variables_assignment()
         self.write_batch_file()
