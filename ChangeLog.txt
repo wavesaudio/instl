@@ -7,6 +7,10 @@
     * Added help for fix-perm command.
     * wtar command now accepts the --limit option.
     * wtar command removes .DS_Store files before doing the actual wtarring.
+    * FOLDER_EXCLUDE_REGEX now filters out folder called .svn.
+    * FILE_EXCLUDE_REGEX now filters out folders called .DS_Store.
+    * New command file-sizes scans a folder and outputs a list of all files and their sizes.
+    * Added file-sizes option to the trans command so the sizes of files will be added to the final info_map.txt.
 
     programmer visible changes:
     * Extended the number of variable name endings that, when read, call os.path.normpath on the value:  "_PATH", "_DIR", "_DIR_NAME", "_FILE_NAME", "_PATH__", "_DIR__", "_DIR_NAME__", "_FILE_NAME__".
@@ -17,12 +21,15 @@
         more accurate on Windows.
     * Added boto to the list of maodules in import-check and in pyinstaller compilation.
     * In function InstlAdmin.should_wtar, regex self.already_wtarred_regex was change to search instead of match.
+    * New function InstlAdmin.compile_exclude_regexes to consolidate the reading of FOLDER_EXCLUDE_REGEX & FILE_EXCLUDE_REGEX in one place.
+    * New propery SVNItem.size, implemented with member __size.
+    * New function SVNItem.safe_size will return the recursive size of an item or -1 if not available.
 
     user visible changes, client:
     * New interactive command which prints the path to currently running instl
     * During copy, on Mac OS, rsync will set permissions according to variable RSYNC_PERM_OPTIONS.  Default value is --perms --chmod=a+rw,+X.
     * Var assignments and remarks for DOS batch files will escape the '&' character.
-
+    * Sync command will report the number of bytes to be downloaded.
 
 
 31/5/2015 0.10.0.6
