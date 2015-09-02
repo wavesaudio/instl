@@ -2,6 +2,7 @@
 
 from __future__ import print_function
 
+import os
 import filecmp
 import cStringIO as StringIO
 import re
@@ -69,7 +70,7 @@ class InstlAdmin(InstlInstanceBase):
         base_rev = int(var_stack.resolve("$(BASE_REPO_REV)"))
         if base_rev > 0:
             for item in self.svnTree.walk_items():
-                item.last_rev = max(item.last_rev, base_rev)
+                item.revision = max(item.revision, base_rev)
 
         if "__FILTER_IN_VERSION__" in var_stack:
             self.filter_in_specific_version(var_stack.resolve("$(__FILTER_IN_VERSION__)"))
@@ -84,7 +85,7 @@ class InstlAdmin(InstlInstanceBase):
     def add_urls_to_info_map(self):
         base_url = var_stack.resolve_var("__BASE_URL__")
         for file_item in self.svnTree.walk_items(what="file"):
-            file_item.url = os.path.join(base_url, str(file_item.last_rev), file_item.full_path())
+            file_item.url = os.path.join(base_url, str(file_item.revision), file_item.full_path())
             print(file_item)
 
     def filter_out_info_map(self, paths_to_filter_out):
@@ -146,7 +147,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def get_last_repo_rev(self):
         retVal = 0
-        revision_line_re = re.compile("^Revision:\s+(?P<last_rev>\d+)$")
+        revision_line_re = re.compile("^Revision:\s+(?P<revision>\d+)$")
         repo_url = var_stack.resolve("$(SVN_REPO_URL)")
         if os.path.isdir(repo_url):
             svn_info_command = [var_stack.resolve("$(SVN_CLIENT_PATH)"), "info", "."]
@@ -161,7 +162,7 @@ class InstlAdmin(InstlInstanceBase):
             for line in info_as_io:
                 match = revision_line_re.match(line)
                 if match:
-                    retVal = int(match.group("last_rev"))
+                    retVal = int(match.group("revision"))
                     break
         if retVal <= 0:
             raise ValueError("Could not find last repo rev for " + repo_url)
@@ -309,9 +310,9 @@ class InstlAdmin(InstlInstanceBase):
         def __call__(self, svn_item):
             retVal = None
             if svn_item.isFile():
-                retVal = svn_item.last_rev != self.version_not_to_remove
+                retVal = svn_item.revision != self.version_not_to_remove
             elif svn_item.isDir():
-                retVal = len(svn_item.subs()) == 0
+                retVal = len(svn_item.subs) == 0
             return retVal
 
     def do_up2s3(self):
@@ -384,7 +385,7 @@ class InstlAdmin(InstlInstanceBase):
         # Since aws sync command uploads the whole folder, we delete from disk all files
         # and folders that should not be uploaded.
         # To save delete instructions for every file we rely on the fact that each folder
-        # has last_rev which is the maximum last_rev of it's sub-items.
+        # has revision which is the maximum revision of it's sub-items.
         self.svnTree.remove_item_at_path('instl')  # never remove the instl folder
         from collections import deque
 
@@ -394,15 +395,15 @@ class InstlAdmin(InstlInstanceBase):
             curr_item = dir_queue.popleft()
             files, dirs = curr_item.unsorted_sub_items()
             for file_item in files:
-                if file_item.last_rev > repo_rev:
-                    raise ValueError(str(file_item) + " last_rev > repo_rev " + str(repo_rev))
-                elif file_item.last_rev < repo_rev:
+                if file_item.revision > repo_rev:
+                    raise ValueError(str(file_item) + " revision > repo_rev " + str(repo_rev))
+                elif file_item.revision < repo_rev:
                     accum += self.platform_helper.rmfile(file_item.full_path())
                     accum += self.platform_helper.progress("rmfile " + file_item.full_path())
             for dir_item in dirs:
-                if dir_item.last_rev > repo_rev:
-                    raise ValueError(str(dir_item) + " last_rev > repo_rev " + str(repo_rev))
-                elif dir_item.last_rev < repo_rev:  # whole folder should be removed
+                if dir_item.revision > repo_rev:
+                    raise ValueError(str(dir_item) + " revision > repo_rev " + str(repo_rev))
+                elif dir_item.revision < repo_rev:  # whole folder should be removed
                     accum += self.platform_helper.rmdir(dir_item.full_path(), recursive=True)
                     accum += self.platform_helper.progress("rmdir " + dir_item.full_path())
                 else:

@@ -12,7 +12,7 @@ from configVar import var_stack
 def is_user_data_false_or_dir_empty(svn_item):
     retVal = not svn_item.user_data
     if svn_item.isDir():
-        retVal = len(svn_item.subs()) == 0
+        retVal = len(svn_item.subs) == 0
     return retVal
 
 
@@ -97,21 +97,20 @@ class InstlInstanceSync(object):
             have_item = self.have_map.get_item_at_path(need_item.full_path_parts())
             if have_item is None:  # not found in have map
                 self.have_map.new_item_at_path(need_item.full_path_parts(),
-                                               need_item.flags,
-                                               need_item.last_rev,
-                                               need_item.checksum,
-                                               None, # no need to copy the url to the have_map
-                                               need_item.safe_size,
-                                               create_folders=True)
+                                                {'flags': need_item.flags,
+                                                'revision': need_item.revision,
+                                                'checksum': need_item.checksum,
+                                                'size': need_item.safe_size}, # no need to copy the url to the have_map
+                                                create_folders=True)
             else:  # found in have map
-                if have_item.last_rev == need_item.last_rev:
+                if have_item.revision == need_item.revision:
                     need_item.user_data = False
-                elif have_item.last_rev < need_item.last_rev:
+                elif have_item.revision < need_item.revision:
                     have_item.flags = need_item.flags
-                    have_item.last_rev = need_item.last_rev
-                elif have_item.last_rev > need_item.last_rev:  # weird, but need to get the older version
+                    have_item.revision = need_item.revision
+                elif have_item.revision > need_item.revision:  # weird, but need to get the older version
                     have_item.flags = need_item.flags
-                    have_item.last_rev = need_item.last_rev
+                    have_item.revision = need_item.revision
         self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
         self.work_info_map.write_to_file(var_stack.resolve("$(TO_SYNC_INFO_MAP_PATH)", raise_on_fail=True), in_format="text")
         self.have_map.write_to_file(var_stack.resolve("$(NEW_HAVE_INFO_MAP_PATH)", raise_on_fail=True), in_format="text")

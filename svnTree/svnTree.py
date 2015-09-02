@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from __future__ import print_function
 
+import os
 import re
 from collections import OrderedDict
 import logging
@@ -80,8 +81,8 @@ class SVNTree(svnItem.SVNTopItem):
 
     def read_from_svn_info(self, rfd):
         """ reads new items from svn info items prepared by iter_svn_info """
-        for item in self.iter_svn_info(rfd):
-            self.new_item_at_path(*item)
+        for item_dict in self.iter_svn_info(rfd):
+            self.new_item_at_path(item_dict['path'], item_dict)
 
     def read_from_text(self, rfd):
         for line in rfd:
@@ -89,7 +90,7 @@ class SVNTree(svnItem.SVNTopItem):
             if match:
                 self.comments.append(match.group("the_comment"))
             else:
-                self.new_item_from_str(line)
+                self.new_item_from_str_re(line)
 
     def read_from_yaml(self, rfd):
         try:
@@ -112,7 +113,7 @@ class SVNTree(svnItem.SVNTopItem):
                     (?P<props>
                     (?P<flags>[dfsx]+)
                     \s
-                    (?P<last_rev>\d+)
+                    (?P<revision>\d+)
                     (\s
                     (?P<checksum>[\da-f]+))?
                     )?
@@ -135,12 +136,11 @@ class SVNTree(svnItem.SVNTopItem):
                         path_parts.append(match.group('path'))
                         if match.group('props'):  # it's a file
                             # print(((new_indent * spaces_per_indent)-1) * " ", "/".join(path_parts), match.group('props'))
-                            self.new_item_at_path(path_parts, match.group('flags'), match.group('last_rev'),
-                                                  match.group('checksum'))
+                            self.new_item_at_path(path_parts, {'flags': match.group('flags'), 'revision': match.group('revision')})
                         indent = new_indent
                     else:  # previous element was a folder
                         # print(((new_indent * spaces_per_indent)-1) * " ", "/".join(path_parts), match.group('props'))
-                        self.new_item_at_path(path_parts, match.group('flags'), match.group('last_rev'))
+                        self.new_item_at_path(path_parts, {'flags': match.group('flags'), 'revision': match.group('revision')})
                 else:
                     if indent != -1:  # first lines might be empty
                         ValueError("no match at line " + str(line_num) + ": " + line)
@@ -224,8 +224,8 @@ class SVNTree(svnItem.SVNTopItem):
     def repr_for_yaml(self):
         """         writeAsYaml(svni1, out_stream=sys.stdout, indentor=None, sort=True)         """
         retVal = OrderedDict()
-        for sub_name in sorted(self.subs().keys()):
-            the_sub = self.subs()[sub_name]
+        for sub_name in sorted(self.subs.keys()):
+            the_sub = self.subs[sub_name]
             if the_sub.isDir():
                 retVal[the_sub.name] = the_sub.repr_for_yaml()
             else:
@@ -256,6 +256,21 @@ class SVNTree(svnItem.SVNTopItem):
                 checksum = a_record.get("Checksum", None)
                 return a_record["Path"], short_node_kind[a_record["Node Kind"]], int(revision), checksum
 
+            def create_info_dict_from_record(a_record):
+                """ On rare occasions there is no 'Last Changed Rev' field, just 'Revision'.
+                    So we use 'Revision' as 'Last Changed Rev'.
+                """
+                retVal = dict()
+                retVal['path']  =  a_record["Path"]
+                retVal['flags'] = short_node_kind[a_record["Node Kind"]]
+                if "Last Changed Rev" in a_record:
+                    retVal['revision'] = a_record["Last Changed Rev"]
+                elif "Revision" in a_record:
+                    retVal['revision'] = a_record["Revision"]
+                retVal['checksum'] = a_record.get("Checksum", None)
+
+                return retVal
+
             short_node_kind = {"file": "f", "directory": "d"}
             record = dict()
             line_num = 0
@@ -270,10 +285,10 @@ class SVNTree(svnItem.SVNTopItem):
                         record[the_match.group('key')] = the_match.group('rest_of_line')
                 else:
                     if record and record["Path"] != ".":  # in case there were several empty lines between blocks
-                        yield create_info_line_from_record(record)
+                        yield create_info_dict_from_record(record)
                     record.clear()
             if record and record["Path"] != ".":  # in case there was no extra line at the end of file
-                yield create_info_line_from_record(record)
+                yield create_info_dict_from_record(record)
         except KeyError as unused_ke:
             print(unused_ke)
             print("Error:", "line:", line_num, "record:", record)
@@ -285,7 +300,7 @@ class SVNTree(svnItem.SVNTopItem):
             for a_file in files:
                 if a_file != ".DS_Store": # temp hack, list of ignored files should be moved to a variable
                     relative_path = os.path.join(root, a_file)[prefix_len:]
-                    self.new_item_at_path(relative_path, "f", 0, checksum="0", create_folders=True)
+                    self.new_item_at_path(relative_path, {'flags':"f", 'revision': 0, 'checksum': "0"}, create_folders=True)
 
     def read_file_sizes(self, rfd):
         for line in rfd:

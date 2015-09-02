@@ -50,7 +50,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
                         need_to_download = True
                 retVal = not need_to_download
             elif svn_item.isDir():
-                retVal = len(svn_item.subs()) == 0
+                retVal = len(svn_item.subs) == 0
             return retVal
 
     def mark_required_items_for_source(self, source):
@@ -212,7 +212,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
                 source_url = item.url
                 if source_url is None:
-                    source_url = '/'.join(utils.make_one_list(self.sync_base_url, str(item.last_rev), path_so_far, item.name))
+                    source_url = '/'.join(utils.make_one_list(self.sync_base_url, str(item.revision), path_so_far, item.name))
                 # if source_url is given from info_map no need to translate it, so verbatim will be true.
                 self.instlObj.platform_helper.dl_tool.add_download_url(source_url, item.full_path(), verbatim=source_url==item.url)
         elif item.isDir():
