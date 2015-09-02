@@ -3,7 +3,8 @@ from __future__ import print_function
 
 from collections import defaultdict
 
-from configVarStack import var_stack
+from configVar import var_stack
+
 
 class BatchAccumulator(object):
     """ from batchAccumulator import BatchAccumulator
@@ -21,7 +22,7 @@ class BatchAccumulator(object):
         if section in BatchAccumulator.section_order:
             self.current_section = section
         else:
-            raise ValueError(section+" is not a known section name")
+            raise ValueError(section + " is not a known section name")
 
     def add(self, instructions):
         if isinstance(instructions, basestring):
@@ -49,7 +50,7 @@ class BatchAccumulator(object):
                     section_lines.sort()
                 resolved_sync_instruction_lines = map(var_stack.resolve, section_lines)
                 lines.extend(resolved_sync_instruction_lines)
-                lines.append("") # empty string will cause to emit new line
+                lines.append("")  # empty string will cause to emit new line
         return lines
 
     def merge_with(self, another_accum):

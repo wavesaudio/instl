@@ -1,16 +1,20 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
+import sys
+import os
 import time
-import appdirs
 import logging
 import shlex
-from pyinstl.instlException import InstlException
-from pyinstl.utils import *
-from installItem import guid_list, iids_from_guid
-from configVarStack import var_stack
-
 import platform
+
+import appdirs
+
+import utils
+from installItem import guid_list, iids_from_guid
+from configVar import var_stack
+
+
 current_os = platform.system()
 if current_os == 'Darwin':
     current_os = 'Mac'
@@ -28,40 +32,46 @@ except:
 readline_loaded = False
 try:
     import readline
+
     readline_loaded = True
 except ImportError:
     try:
         import pyreadline as readline
+
         readline_loaded = True
     except ImportError:
         print("failed to import pyreadline, readline functionality not supported")
 
-from pyinstl.utils import unique_list
-
 colorama_loaded = False
 try:
     import colorama
+
     colorama_loaded = True
 except ImportError:
     print("failed to import colorama, color text functionality not supported")
 
 import instlInstanceBase
-from aYaml import augmentedYaml
+import aYaml
 
 if colorama_loaded:
     colors = {'reset': colorama.Fore.RESET, 'green': colorama.Fore.GREEN, 'blue': colorama.Fore.BLUE, 'yellow': colorama.Fore.YELLOW, 'red': colorama.Fore.RED}
 
+
 def text_with_color(text, color):
     retVal = text
     if colorama_loaded and color in colors:
-        retVal = colors[color]+text+colors['reset']
+        retVal = colors[color] + text + colors['reset']
     return retVal
+
 
 def insensitive_glob(pattern):
     import glob
+
     def either(c):
-        return '[%s%s]'%(c.lower(),c.upper()) if c.isalpha() else c
-    return glob.glob(''.join(map(either,pattern)))
+        return '[%s%s]' % (c.lower(), c.upper()) if c.isalpha() else c
+
+    return glob.glob(''.join(map(either, pattern)))
+
 
 def go_interactive(client, admin):
     try:
@@ -71,15 +81,18 @@ def go_interactive(client, admin):
             icmd.cmdloop()
     except Exception as es:
         import traceback
+
         tb = traceback.format_exc()
         print("go_interactive", es, tb)
+
 
 def restart_program():
     """Restarts the current program.
         Note: this function does not return. Any cleanup action (like
         saving data) must be done before calling this function."""
     python = sys.executable
-    os.execl(python, python, * sys.argv)
+    os.execl(python, python, *sys.argv)
+
 
 class CMDObj(cmd.Cmd, object):
     def __init__(self, client, admin):
@@ -95,9 +108,9 @@ class CMDObj(cmd.Cmd, object):
     def __enter__(self):
         if readline_loaded:
             if readline.__doc__ and 'libedit' in readline.__doc__:
-                readline.parse_and_bind ("bind '\t' rl_complete") # Enable tab completions on MacOS
+                readline.parse_and_bind("bind '\t' rl_complete")  # Enable tab completions on MacOS
             else:
-                readline.parse_and_bind("tab: complete")        # and on other OSs
+                readline.parse_and_bind("tab: complete")  # and on other OSs
             readline.parse_and_bind("set completion-ignore-case on")
             readline.parse_and_bind("set show-all-if-ambiguous on")
             readline.parse_and_bind("set completion-map-case on")
@@ -106,19 +119,19 @@ class CMDObj(cmd.Cmd, object):
             history_file_dir = appdirs.user_data_dir(self.this_program_name, self.this_program_name)
             try:
                 os.makedirs(history_file_dir)
-            except: # os.makedirs raises is the directory already exists
+            except:  # os.makedirs raises is the directory already exists
                 pass
-            self.history_file_path = os.path.join(history_file_dir, "."+self.this_program_name+"_console_history")
+            self.history_file_path = os.path.join(history_file_dir, "." + self.this_program_name + "_console_history")
             try:
                 readline.read_history_file(self.history_file_path)
-            except: # Corrupt or non existent history file might raise an exception
+            except:  # Corrupt or non existent history file might raise an exception
                 try:
                     os.remove(self.history_file_path)
                 except:
-                    pass # if removing the file also fail - just ignore it
+                    pass  # if removing the file also fail - just ignore it
         if colorama_loaded:
             colorama.init()
-        self.prompt = self.this_program_name+": "
+        self.prompt = self.this_program_name + ": "
         self.save_dir = os.getcwd()
         return self
 
@@ -138,16 +151,19 @@ class CMDObj(cmd.Cmd, object):
     def onecmd(self, line):
         retVal = False
         try:
-            retVal = super (CMDObj, self).onecmd(line)
-        except InstlException as ie:
-            print("instl exception",ie.message)
-            from pyinstl.log_utils import debug_logging_started
+            retVal = super(CMDObj, self).onecmd(line)
+        except utils.InstlException as ie:
+            print("instl exception", ie.message)
+            from utils.log_utils import debug_logging_started
+
             if debug_logging_started:
                 import traceback
-                traceback.print_exception(type(ie.original_exception), ie.original_exception,  sys.exc_info()[2])
+
+                traceback.print_exception(type(ie.original_exception), ie.original_exception, sys.exc_info()[2])
         except Exception as unused_ex:
             print("unhandled exception")
             import traceback
+
             traceback.print_exc()
         return retVal
 
@@ -155,7 +171,7 @@ class CMDObj(cmd.Cmd, object):
         matches = []
         if text:
             try:
-                matches.extend(insensitive_glob(text+'*'))
+                matches.extend(insensitive_glob(text + '*'))
             except Exception as es:
                 logging.info(es)
         return matches
@@ -164,7 +180,7 @@ class CMDObj(cmd.Cmd, object):
         matches = []
         if text:
             try:
-                matches.extend([adir for adir in insensitive_glob(text+'*') if os.path.isdir(adir)])
+                matches.extend([adir for adir in insensitive_glob(text + '*') if os.path.isdir(adir)])
             except Exception as es:
                 logging.info(es)
         return matches
@@ -202,27 +218,26 @@ class CMDObj(cmd.Cmd, object):
         index = self.client_prog_inst.create_completion_list("index")
         guids = self.client_prog_inst.create_completion_list("guid")
 
-        retVal.update({"$("+identi+")": text_with_color("$("+identi+")", "blue")    for identi in defs})
-        retVal.update({identi+":":      text_with_color(identi, "green")+":"        for identi in defs})
-        retVal.update({"- "+identi:     "- "+text_with_color(identi, "yellow")      for identi in defs})
+        retVal.update({"$(" + identi + ")": text_with_color("$(" + identi + ")", "blue") for identi in defs})
+        retVal.update({identi + ":": text_with_color(identi, "green") + ":" for identi in defs})
+        retVal.update({"- " + identi: "- " + text_with_color(identi, "yellow") for identi in defs})
 
-        retVal.update({dex+":":         text_with_color(dex, "green")+":"           for dex in index})
-        retVal.update({"- "+dex:        "- "+text_with_color(dex, "yellow")         for dex in index})
+        retVal.update({dex + ":": text_with_color(dex, "green") + ":" for dex in index})
+        retVal.update({"- " + dex: "- " + text_with_color(dex, "yellow") for dex in index})
 
-        retVal.update({lic+":":         text_with_color(lic, "green")+":"           for lic in guids})
-        retVal.update({"- "+lic:        "- "+text_with_color(lic, "yellow")         for lic in guids})
+        retVal.update({lic + ":": text_with_color(lic, "green") + ":" for lic in guids})
+        retVal.update({"- " + lic: "- " + text_with_color(lic, "yellow") for lic in guids})
         return retVal
 
     def color_vars(self, text):
         """ Add color codes to index identifiers and variables in text.
         """
         coloring_dict = self.prepare_coloring_dict()
-        retVal = replace_all_from_dict(text, *[], **coloring_dict)
+        retVal = utils.replace_all_from_dict(text, *[], **coloring_dict)
         return retVal
 
     def do_list(self, params):
-        from utils import write_to_list
-        out_list = write_to_list()
+        out_list = utils.write_to_list()
         if params:
             identifier_list = list()
             for param in params.split():
@@ -235,7 +250,7 @@ class CMDObj(cmd.Cmd, object):
                 self.client_prog_inst.do_list(identifier_list, out_list)
         else:
             self.client_prog_inst.do_list(None, out_list)
-        joined_list = "".join(out_list.list()).encode('ascii','ignore') # just in case some unicode got in...
+        joined_list = "".join(out_list.list()).encode('ascii', 'ignore')  # just in case some unicode got in...
         colored_string = self.color_vars(joined_list)
         sys.stdout.write(colored_string)
         return False
@@ -246,11 +261,11 @@ class CMDObj(cmd.Cmd, object):
             completion_list = self.client_prog_inst.create_completion_list()
             if completion_list:
                 matches.extend([s for s in completion_list
-                         if s and s.lower().startswith(text.lower())])
+                                if s and s.lower().startswith(text.lower())])
         return matches
 
     def complete_list(self, text, line, begidx, endidx):
-        #print("complete_list, text:", text)
+        # print("complete_list, text:", text)
         matches = self.identifier_completion_list(text, line, begidx, endidx)
         for s in ("define", "index", "guid"):
             if s.lower().startswith(text.lower()):
@@ -258,16 +273,16 @@ class CMDObj(cmd.Cmd, object):
         return matches
 
     def help_list(self):
-        print( "list identifier" )
-        print( "    lists identifier" )
-        print( "list define" )
-        print( "    lists all definitions" )
-        print( "list index" )
-        print( "    lists all index entries" )
-        print( "list guid" )
-        print( "    lists all guid entries" )
-        print( "list" )
-        print( "    lists all definitions, index & guid entries" )
+        print("list identifier")
+        print("    lists identifier")
+        print("list define")
+        print("    lists all definitions")
+        print("list index")
+        print("    lists all index entries")
+        print("list guid")
+        print("    lists all guid entries")
+        print("list")
+        print("    lists all definitions, index & guid entries")
 
     def do_listindex(self, params):
         if params:
@@ -276,7 +291,7 @@ class CMDObj(cmd.Cmd, object):
             for param in params:
                 if param in self.client_prog_inst.install_definitions_index:
                     self.client_prog_inst.install_definitions_index[param].resolve_inheritance(self.client_prog_inst.install_definitions_index)
-                    augmentedYaml.writeAsYaml({param: self.client_prog_inst.install_definitions_index[param].repr_for_yaml()})
+                    aYaml.writeAsYaml({param: self.client_prog_inst.install_definitions_index[param].repr_for_yaml()})
                 else:
                     params_not_in_index.append(param)
             if params_not_in_index:
@@ -351,7 +366,7 @@ class CMDObj(cmd.Cmd, object):
                 time_start = time.clock()
                 self.admin_prog_inst.read_info_map_file(afile)
                 time_end = time.clock()
-                print("opened file:", "'"+afile+"'")
+                print("opened file:", "'" + afile + "'")
                 print("    %d items read in %0.3f ms" % (self.admin_prog_inst.svnTree.num_subs_in_tree(), (time_end-time_start)*1000.0))
         else:
             self.help_read()
@@ -393,13 +408,13 @@ class CMDObj(cmd.Cmd, object):
             if item and item.isDir():
                 file_list, dir_list = item.sorted_sub_items()
                 retVal.extend([a_file.name for a_file in file_list])
-                retVal.extend([a_dir.name+"/" for a_dir in dir_list])
+                retVal.extend([a_dir.name + "/" for a_dir in dir_list])
         else:
             item = self.admin_prog_inst.svnTree.get_item_at_path(text)
             if item and item.isDir():
                 file_list, dir_list = item.sorted_sub_items()
-                retVal.extend(["/"+a_file.name for a_file in file_list])
-                retVal.extend(["/"+a_dir.name+"/" for a_dir in dir_list])
+                retVal.extend(["/" + a_file.name for a_file in file_list])
+                retVal.extend(["/" + a_dir.name + "/" for a_dir in dir_list])
             else:
                 path_parts = text.split("/")
                 if len(path_parts) == 1:
@@ -408,8 +423,8 @@ class CMDObj(cmd.Cmd, object):
                     item = self.admin_prog_inst.svnTree.get_item_at_path(path_parts[:-1])
                 if item:
                     file_list, dir_list = item.sorted_sub_items()
-                    retVal.extend([a_file.name     for a_file in file_list if a_file.name.startswith(path_parts[-1])])
-                    retVal.extend([ a_dir.name+"/" for a_dir  in dir_list  if a_dir.name.startswith(path_parts[-1])])
+                    retVal.extend([a_file.name for a_file in file_list if a_file.name.startswith(path_parts[-1])])
+                    retVal.extend([a_dir.name + "/" for a_dir in dir_list if a_dir.name.startswith(path_parts[-1])])
         return retVal
 
     def help_listinfo(self):
@@ -429,7 +444,7 @@ class CMDObj(cmd.Cmd, object):
                 if param not in self.client_prog_inst.install_definitions_index:
                     print(text_with_color(param, 'green'), "not in index")
                     continue
-                depend_list = unique_list()
+                depend_list = utils.unique_list()
                 self.client_prog_inst.needs(param, depend_list)
                 if not depend_list:
                     depend_list = ("no one",)
@@ -439,7 +454,7 @@ class CMDObj(cmd.Cmd, object):
                         depend_text_list.append(text_with_color(depend, 'red'))
                     else:
                         depend_text_list.append(text_with_color(depend, 'yellow'))
-                print (text_with_color(param, 'green'), "needs:\n    ", ", ".join(depend_text_list))
+                print(text_with_color(param, 'green'), "needs:\n    ", ", ".join(depend_text_list))
                 needed_by_list = self.client_prog_inst.needed_by(param)
                 if needed_by_list is None:
                     print("could not get needed by list for", text_with_color(param, 'green'))
@@ -447,7 +462,7 @@ class CMDObj(cmd.Cmd, object):
                     if not needed_by_list:
                         needed_by_list = ("no one",)
                     needed_by_list = [text_with_color(needed_by, 'yellow') for needed_by in needed_by_list]
-                    print (text_with_color(param, 'green'), "needed by:\n    ", ", ".join(needed_by_list))
+                    print(text_with_color(param, 'green'), "needed by:\n    ", ", ".join(needed_by_list))
         return False
 
     def complete_depend(self, text, line, begidx, endidx):
@@ -492,7 +507,7 @@ class CMDObj(cmd.Cmd, object):
 
     def do_restart(self, unused_params):
         self.restart = True
-        return True # stops cmdloop
+        return True  # stops cmdloop
 
     def help_restart(self):
         print("restart:", "reloads", self.this_program_name)
@@ -529,6 +544,7 @@ class CMDObj(cmd.Cmd, object):
     def do_hh(self, params):
         params = [param for param in shlex.split(params)]
         from pyinstl.helpHelper import do_help
+
         if not params:
             do_help(None)
         else:
@@ -536,35 +552,37 @@ class CMDObj(cmd.Cmd, object):
                 do_help(param)
 
     def report_logging_state(self):
-        import pyinstl.log_utils
+        import utils.log_utils
+
         top_logger = logging.getLogger()
         print("logging level:", logging.getLevelName(top_logger.getEffectiveLevel()))
-        log_file_path = pyinstl.log_utils.get_log_file_path(self.this_program_name, self.this_program_name, debug=False)
-        print("logging INFO level to",  log_file_path)
-        debug_log_file_path = pyinstl.log_utils.get_log_file_path(self.this_program_name, self.this_program_name, debug=True)
+        log_file_path = utils.log_utils.get_log_file_path(self.this_program_name, self.this_program_name, debug=False)
+        print("logging INFO level to", log_file_path)
+        debug_log_file_path = utils.log_utils.get_log_file_path(self.this_program_name, self.this_program_name, debug=True)
         if os.path.isfile(debug_log_file_path):
-            print("logging DEBUG level to",  debug_log_file_path)
+            print("logging DEBUG level to", debug_log_file_path)
         else:
-            print("Not logging DEBUG level to",  debug_log_file_path)
+            print("Not logging DEBUG level to", debug_log_file_path)
 
     def do_log(self, params):
-        import pyinstl.log_utils
+        import utils.log_utils
+
         top_logger = logging.getLogger()
         if params:
             params = shlex.split(params)
             if params[0].lower() == "debug":
-                debug_log_file_path = pyinstl.log_utils.get_log_file_path(self.this_program_name, self.this_program_name, debug=True)
+                debug_log_file_path = utils.log_utils.get_log_file_path(self.this_program_name, self.this_program_name, debug=True)
                 if len(params) == 1 or params[1].lower() in ("on", "true", "yes"):
-                    if top_logger.getEffectiveLevel() > pyinstl.log_utils.debug_logging_level or not os.path.isfile(debug_log_file_path):
-                        pyinstl.log_utils.setup_file_logging(debug_log_file_path, pyinstl.log_utils.debug_logging_level)
-                        pyinstl.log_utils.debug_logging_started = True
+                    if top_logger.getEffectiveLevel() > utils.log_utils.debug_logging_level or not os.path.isfile(debug_log_file_path):
+                        utils.log_utils.setup_file_logging(debug_log_file_path, utils.log_utils.debug_logging_level)
+                        utils.log_utils.debug_logging_started = True
                 elif params[1].lower() in ("off", "false", "no"):
-                    top_logger.setLevel(pyinstl.log_utils.default_logging_level)
+                    top_logger.setLevel(utils.log_utils.default_logging_level)
                     try:
-                        pyinstl.log_utils.teardown_file_logging(debug_log_file_path, pyinstl.log_utils.default_logging_level)
+                        utils.log_utils.teardown_file_logging(debug_log_file_path, utils.log_utils.default_logging_level)
                     except:
                         pass
-                var_stack.get_configVar_obj("LOG_FILE_DEBUG")[2] = pyinstl.log_utils.debug_logging_started
+                var_stack.get_configVar_obj("LOG_FILE_DEBUG")[2] = utils.log_utils.debug_logging_started
         self.report_logging_state()
 
     def help_log(self):
@@ -596,22 +614,24 @@ class CMDObj(cmd.Cmd, object):
     def help_which(self):
         print("print full path to currently running instl")
 
+
 def compact_history():
     if hasattr(readline, "replace_history_item"):
-        unique_history = unique_list()
+        unique_history = utils.unique_list()
         for index in reversed(range(1, readline.get_current_history_length())):
             hist_item = readline.get_history_item(index)
-            if hist_item: # some history items are None (usually at index 0)
+            if hist_item:  # some history items are None (usually at index 0)
                 unique_history.append(readline.get_history_item(index))
         unique_history.reverse()
         for index in range(len(unique_history)):
-            readline.replace_history_item(index+1, unique_history[index])
-        for index in reversed(range(len(unique_history)+1, readline.get_current_history_length())):
+            readline.replace_history_item(index + 1, unique_history[index])
+        for index in reversed(range(len(unique_history) + 1, readline.get_current_history_length())):
             readline.remove_history_item(index)
 
-def do_list_imp(self, what = None, stream=sys.stdout):
+
+def do_list_imp(self, what=None, stream=sys.stdout):
     if what is None:
-        augmentedYaml.writeAsYaml(self, stream)
+        aYaml.writeAsYaml(self, stream)
     list_to_do = list()
     if isinstance(what, str):
         list_to_do.append(what)
@@ -620,21 +640,21 @@ def do_list_imp(self, what = None, stream=sys.stdout):
     whole_sections_to_write = list()
     individual_items_to_write = list()
     for item_to_do in list_to_do:
-        if guid_re.match(item_to_do):
+        if utils.guid_re.match(item_to_do):
             whole_sections_to_write.append({item_to_do: iids_from_guid(self.install_definitions_index, item_to_do)})
         elif item_to_do == "define":
-            whole_sections_to_write.append(augmentedYaml.YamlDumpDocWrap(var_stack, '!define', "Definitions", explicit_start=True, sort_mappings=True))
+            whole_sections_to_write.append(aYaml.YamlDumpDocWrap(var_stack, '!define', "Definitions", explicit_start=True, sort_mappings=True))
         elif item_to_do == "index":
-            whole_sections_to_write.append(augmentedYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True))
+            whole_sections_to_write.append(aYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True))
         elif item_to_do == "guid":
             guid_dict = dict()
             for lic in guid_list(self.install_definitions_index):
                 guid_dict[lic] = iids_from_guid(self.install_definitions_index, lic)
-            whole_sections_to_write.append(augmentedYaml.YamlDumpDocWrap(guid_dict, '!guid', "guid to IID", explicit_start=True, sort_mappings=True))
+            whole_sections_to_write.append(aYaml.YamlDumpDocWrap(guid_dict, '!guid', "guid to IID", explicit_start=True, sort_mappings=True))
         else:
             individual_items_to_write.append(item_to_do)
 
-    augmentedYaml.writeAsYaml(whole_sections_to_write+self.repr_for_yaml(individual_items_to_write), stream)
+    aYaml.writeAsYaml(whole_sections_to_write + self.repr_for_yaml(individual_items_to_write), stream)
 
 
 def create_completion_list_imp(self, for_what="all"):
@@ -647,5 +667,5 @@ def create_completion_list_imp(self, for_what="all"):
         if for_what in ("all", "guid"):
             retVal.extend(guid_list(self.install_definitions_index))
     except Exception as ex:
-        print("create_completion_list:",   ex)
+        print("create_completion_list:", ex)
     return retVal

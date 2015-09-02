@@ -1,16 +1,20 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
+
+import os
 import abc
 
-from pyinstl import svnTree
-from pyinstl.utils import *
-from configVarStack import var_stack
+import svnTree
+import utils
+from configVar import var_stack
+
 
 def is_user_data_false_or_dir_empty(svn_item):
     retVal = not svn_item.user_data
     if svn_item.isDir():
         retVal = len(svn_item.subs()) == 0
     return retVal
+
 
 class InstlInstanceSync(object):
     """  Base class for sync object .
@@ -33,11 +37,10 @@ class InstlInstanceSync(object):
         prerequisite_vars = var_stack.resolve_var_to_list("__SYNC_PREREQUISITE_VARIABLES__")
         self.instlObj.check_prerequisite_var_existence(prerequisite_vars)
 
-
         if "PUBLIC_KEY" not in var_stack:
             if "PUBLIC_KEY_FILE" in var_stack:
                 public_key_file = var_stack.resolve("$(PUBLIC_KEY_FILE)")
-                with open_for_read_file_or_url(public_key_file, self.instlObj.path_searcher) as file_fd:
+                with utils.open_for_read_file_or_url(public_key_file, self.instlObj.path_searcher) as file_fd:
                     public_key_text = file_fd.read()
                     var_stack.set_var("PUBLIC_KEY", "from " + public_key_file).append(public_key_text)
 
@@ -50,9 +53,9 @@ class InstlInstanceSync(object):
             Writes the map to local sync folder for reference and debugging.
         """
         try:
-            safe_makedirs(var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)", raise_on_fail=True))
-            safe_makedirs(var_stack.resolve("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)", raise_on_fail=True))
-            download_from_file_or_url(var_stack.resolve("$(INFO_MAP_FILE_URL)"),
+            utils.safe_makedirs(var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)", raise_on_fail=True))
+            utils.safe_makedirs(var_stack.resolve("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)", raise_on_fail=True))
+            utils.download_from_file_or_url(var_stack.resolve("$(INFO_MAP_FILE_URL)"),
                                       var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)", raise_on_fail=True),
                                       cache=True,
                                       expected_checksum=var_stack.resolve("$(INFO_MAP_FILE_URL_CHECKSUM)"))

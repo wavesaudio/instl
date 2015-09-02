@@ -2,15 +2,17 @@
 from __future__ import print_function
 
 import datetime
-from pyinstl.utils import *
 
+import utils
 from platformSpecificHelper_Base import PlatformSpecificHelperBase
 from platformSpecificHelper_Base import CopyToolRsync
 from platformSpecificHelper_Base import DownloadToolBase
 
+
 class CopyToolLinuxRsync(CopyToolRsync):
     def __init__(self, platform_helper):
         super(CopyToolLinuxRsync, self).__init__(platform_helper)
+
 
 class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
     def __init__(self, instlObj):
@@ -23,7 +25,7 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         self.dl_tool = DownloadTool_linux_curl(self)
 
     def get_install_instructions_prefix(self):
-        retVal =  (
+        retVal = (
             "#!/usr/bin/env bash",
             self.remark(self.instlObj.get_version_str()),
             self.remark(datetime.datetime.today().isoformat()),
@@ -35,51 +37,51 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         return self.restore_dir("TOP_SAVE_DIR"), "exit 0"
 
     def mkdir(self, directory):
-        mk_command = " ".join( ("mkdir", "-p", quoteme_double(directory) ) )
+        mk_command = " ".join(("mkdir", "-p", utils.quoteme_double(directory) ))
         return mk_command
 
     def cd(self, directory):
-        cd_command = " ".join( ("cd", quoteme_double(directory) ) )
+        cd_command = " ".join(("cd", utils.quoteme_double(directory) ))
         return cd_command
 
     def pushd(self, directory):
-        pushd_command = " ".join( ("pushd", quoteme_double(directory), ">", "/dev/null") )
+        pushd_command = " ".join(("pushd", utils.quoteme_double(directory), ">", "/dev/null"))
         return pushd_command
 
     def popd(self):
-        pop_command = " ".join( ("popd", ">", "/dev/null") )
+        pop_command = " ".join(("popd", ">", "/dev/null"))
         return pop_command
 
     def save_dir(self, var_name):
-        save_dir_command = var_name+"=`pwd`"
+        save_dir_command = var_name + "=`pwd`"
         return save_dir_command
 
     def restore_dir(self, var_name):
-        restore_dir_command = self.cd("$("+var_name+")")
+        restore_dir_command = self.cd("$(" + var_name + ")")
         return restore_dir_command
 
     def rmdir(self, directory, recursive=False):
         if recursive:
-            rmdir_command = " ".join( ("rm", "-fr", quoteme_double(directory) ) )
+            rmdir_command = " ".join(("rm", "-fr", utils.quoteme_double(directory) ))
         else:
-            rmdir_command = " ".join( ("rmdir", quoteme_double(directory) ) )
+            rmdir_command = " ".join(("rmdir", utils.quoteme_double(directory) ))
         return rmdir_command
 
     def rmfile(self, a_file):
-        rmfile_command = " ".join( ("rm", "-f", quoteme_double(a_file) ) )
+        rmfile_command = " ".join(("rm", "-f", utils.quoteme_double(a_file) ))
         return rmfile_command
 
     def get_svn_folder_cleanup_instructions(self):
         return 'find . -maxdepth 1 -mindepth 1 -type d -print0 | xargs -0 "$(SVN_CLIENT_PATH)" cleanup --non-interactive'
 
     def var_assign(self, identifier, value, comment=None):
-        retVal = identifier+'="'+value+'"'
+        retVal = identifier + '="' + value + '"'
         if comment is not None:
-            retVal += ' '+self.remark(str(comment))
+            retVal += ' ' + self.remark(str(comment))
         return retVal
 
     def echo(self, message):
-        echo_command = " ".join(('echo', quoteme_double(message)))
+        echo_command = " ".join(('echo', utils.quoteme_double(message)))
         return echo_command
 
     def remark(self, remark):
@@ -112,7 +114,7 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         return ("wait",)
 
     def chmod(self, new_mode, filepath):
-        chmod_command = " ".join( ("chmod", new_mode, quoteme_double(filepath)) )
+        chmod_command = " ".join(("chmod", new_mode, utils.quoteme_double(filepath)))
         return chmod_command
 
     def make_executable(self, filepath):
@@ -125,12 +127,13 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         return ""
 
     def touch(self, filepath):
-        touch_command = " ".join( ("touch", quoteme_double(filepath) ) )
+        touch_command = " ".join(("touch", utils.quoteme_double(filepath) ))
         return touch_command
 
     def append_file_to_file(self, source_file, target_file):
-        append_command = " ".join( ("cat", quoteme_double(source_file), ">>", quoteme_double(target_file)) )
+        append_command = " ".join(("cat", utils.quoteme_double(source_file), ">>", utils.quoteme_double(target_file)))
         return append_command
+
 
 class DownloadTool_linux_curl(DownloadToolBase):
     def __init__(self, platform_helper):
@@ -150,11 +153,11 @@ class DownloadTool_linux_curl(DownloadToolBase):
         download_command_parts.append("3")
         download_command_parts.append("--max-time")
         download_command_parts.append("60")
-        #download_command_parts.append(" --write-out")
-        #download_command_parts.append(quoteme_double("%{http_code}"))
+        # download_command_parts.append(" --write-out")
+        #download_command_parts.append(utils.quoteme_double("%{http_code}"))
         download_command_parts.append("-o")
-        download_command_parts.append(quoteme_double(trg_file))
-        download_command_parts.append(quoteme_double(src_url))
+        download_command_parts.append(utils.quoteme_double(trg_file))
+        download_command_parts.append(utils.quoteme_double(src_url))
         return " ".join(download_command_parts)
 
     def download_from_config_files(self, parallel_run_config_file_path, config_files):

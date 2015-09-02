@@ -32,7 +32,8 @@ import yaml
 from collections import OrderedDict
 
 if __name__ == "__main__":
-    sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
+    pass
+    #sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 
 yaml.Node.isNone = lambda self: self.tag.endswith(":null")
 
@@ -377,9 +378,9 @@ def nodeToYamlDumpWrap(a_node):
 
 if __name__ == "__main__":
     try:
-        import pyinstl.utils
+        import utils
         for afile in sys.argv[1:]:
-            with pyinstl.utils.open_for_read_file_or_url(afile) as fd:
+            with utils.open_for_read_file_or_url(afile) as fd:
                 for a_node in yaml.compose_all(fd):
                     a_node_as_tdw = nodeToYamlDumpWrap(a_node)
                     docWrap = YamlDumpDocWrap(a_node_as_tdw)

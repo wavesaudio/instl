@@ -1,24 +1,29 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
-
+import os
+import sys
+import re
 import abc
 import logging
-import yaml
 
+import yaml
 import appdirs
 
-import pyinstl.log_utils
-from configVarList import value_ref_re
-from aYaml import augmentedYaml
-from pyinstl.utils import *
-from pyinstl.searchPaths import SearchPaths
+import aYaml
+import utils
 from batchAccumulator import BatchAccumulator
 from installItem import read_index_from_yaml
 from platformSpecificHelper_Base import PlatformSpecificHelperFactory
-from connectionBase import connection_factory
-from configVarStack import var_stack
+
+from configVar import value_ref_re
+from configVar import var_stack
 from installItem import InstallItem
+
+
+
+
+
 
 # noinspection PyPep8Naming
 class InstlInstanceBase(object):
@@ -34,7 +39,7 @@ class InstlInstanceBase(object):
 
         # allow_reading_of_internal_vars: only when true variables who's name begins and ends with "__" can be read from a file
         self.allow_reading_of_internal_vars = False
-        self.path_searcher = SearchPaths(var_stack.get_configVar_obj("__SEARCH_PATHS__"))
+        self.path_searcher = utils.SearchPaths(var_stack.get_configVar_obj("__SEARCH_PATHS__"))
         self.init_default_vars(initial_vars)
         # initialize the search paths helper with the current directory and dir where instl is now
         self.path_searcher.add_search_path(os.getcwd())
@@ -87,19 +92,19 @@ class InstlInstanceBase(object):
         # read class specific defaults/*.yaml
         self.read_name_specific_defaults_file(type(self).__name__)
 
-        log_file = pyinstl.log_utils.get_log_file_path(var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)"),
-                                                       var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)"), debug=False)
+        log_file = utils.log_utils.get_log_file_path(var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)"),
+                                                     var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)"), debug=False)
         var_stack.set_var("LOG_FILE", var_description).append(log_file)
-        debug_log_file = pyinstl.log_utils.get_log_file_path(var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)"),
-                                                             var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)"), debug=True)
+        debug_log_file = utils.log_utils.get_log_file_path(var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)"),
+                                                           var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)"), debug=True)
         var_stack.set_var("LOG_FILE_DEBUG", var_description).extend((
-                        debug_log_file, logging.getLevelName(pyinstl.log_utils.debug_logging_level),
-                        pyinstl.log_utils.debug_logging_started))
+            debug_log_file, logging.getLevelName(utils.log_utils.debug_logging_level),
+            utils.log_utils.debug_logging_started))
 
     def read_name_specific_defaults_file(self, file_name):
         """ read class specific file from defaults/class_name.yaml """
         name_specific_defaults_file_path = os.path.join(var_stack.resolve("$(__INSTL_DATA_FOLDER__)"), "defaults",
-                                                         file_name + ".yaml")
+                                                        file_name + ".yaml")
         if os.path.isfile(name_specific_defaults_file_path):
             self.read_yaml_file(name_specific_defaults_file_path)
 
@@ -161,16 +166,16 @@ class InstlInstanceBase(object):
 
         if hasattr(cmd_line_options_obj, "subject") and cmd_line_options_obj.subject is not None:
             var_stack.add_const_config_variable("__HELP_SUBJECT__", "from command line options",
-                                               cmd_line_options_obj.subject)
+                                                cmd_line_options_obj.subject)
         else:
             var_stack.add_const_config_variable("__HELP_SUBJECT__", "from command line options", "")
 
         if cmd_line_options_obj.state_file:
             var_stack.add_const_config_variable("__MAIN_STATE_FILE__", "from command line options",
-                                               cmd_line_options_obj.state_file)
+                                                cmd_line_options_obj.state_file)
         if cmd_line_options_obj.filter_out:
             var_stack.add_const_config_variable("__FILTER_OUT_PATHS__", "from command line options",
-                                               *cmd_line_options_obj.filter_out)
+                                                *cmd_line_options_obj.filter_out)
         if cmd_line_options_obj.run:
             var_stack.add_const_config_variable("__RUN_BATCH__", "from command line options", "yes")
 
@@ -182,7 +187,7 @@ class InstlInstanceBase(object):
         if "__CREDENTIALS__" in var_stack:
             credentials = var_stack.resolve_var("__CREDENTIALS__", default=None)
 
-        connection_factory(credentials)
+        utils.connection_factory(credentials)
 
     def is_acceptable_yaml_doc(self, doc_node):
         acceptables = var_stack.resolve_to_list("$(ACCEPTABLE_YAML_DOC_TAGS)") + ["define", "define_const", "index", 'require']
@@ -197,7 +202,7 @@ class InstlInstanceBase(object):
 
     def read_yaml_file(self, file_path):
         logging.info("%s", file_path)
-        with open_for_read_file_or_url(file_path, self.path_searcher) as file_fd:
+        with utils.open_for_read_file_or_url(file_path, self.path_searcher) as file_fd:
             for a_node in yaml.compose_all(file_fd):
                 if self.is_acceptable_yaml_doc(a_node):
                     if a_node.tag.startswith('!define_const'):
@@ -217,7 +222,7 @@ class InstlInstanceBase(object):
         var_stack.get_configVar_obj("__READ_YAML_FILES__").append(file_path)
 
     def read_require(self, a_node):
-        #dependencies_file_path = var_stack.resolve("$(SITE_REQUIRE_FILE_PATH)")
+        # dependencies_file_path = var_stack.resolve("$(SITE_REQUIRE_FILE_PATH)")
         if a_node.isMapping():
             for identifier, contents in a_node:
                 logging.debug("%s: %s", identifier, str(contents))
@@ -237,10 +242,10 @@ class InstlInstanceBase(object):
             if len(self.install_definitions_index[IID].required_by) > 0:
                 require_dict[IID] = sorted(self.install_definitions_index[IID].required_by)
         with open(file_path, "w") as wfd:
-            make_open_file_read_write_for_all(wfd)
-            require_dict = augmentedYaml.YamlDumpDocWrap(require_dict, '!require', "requirements",
-                                                        explicit_start=True, sort_mappings=True)
-            augmentedYaml.writeAsYaml(require_dict, wfd)
+            utils.make_open_file_read_write_for_all(wfd)
+            require_dict = aYaml.YamlDumpDocWrap(require_dict, '!require', "requirements",
+                                                 explicit_start=True, sort_mappings=True)
+            aYaml.writeAsYaml(require_dict, wfd)
 
     internal_identifier_re = re.compile("""
                                         __                  # dunder here
@@ -277,13 +282,13 @@ class InstlInstanceBase(object):
                     raise ValueError("!define_const doc cannot except __include__")
                 logging.debug("%s: %s", identifier, str(contents))
                 var_stack.add_const_config_variable(identifier, "from !define_const section",
-                                                   *[item.value for item in contents])
+                                                    *[item.value for item in contents])
 
     def provision_public_key_text(self):
         if "PUBLIC_KEY" not in var_stack:
             if "PUBLIC_KEY_FILE" in var_stack:
                 public_key_file = var_stack.resolve("$(PUBLIC_KEY_FILE)")
-                with open_for_read_file_or_url(public_key_file, self.path_searcher) as file_fd:
+                with utils.open_for_read_file_or_url(public_key_file, self.path_searcher) as file_fd:
                     public_key_text = file_fd.read()
                     var_stack.set_var("PUBLIC_KEY", "from " + public_key_file).append(public_key_text)
             else:
@@ -315,22 +320,22 @@ class InstlInstanceBase(object):
                     public_key_text = self.provision_public_key_text()
 
                 if expected_checksum is None:
-                    file_content = read_from_file_or_url(resolved_file_url,
+                    file_content = utils.read_from_file_or_url(resolved_file_url,
                                                          public_key=public_key_text,
                                                          textual_sig=expected_signature,
                                                          expected_checksum=expected_checksum)
-                    expected_checksum = get_buffer_checksum(file_content)
+                    expected_checksum = utils.get_buffer_checksum(file_content)
                     cached_file_path = os.path.join(cached_files_dir, expected_checksum)
                     with open(cached_file_path, "wb") as wfd:
-                        make_open_file_read_write_for_all(wfd)
+                        utils.make_open_file_read_write_for_all(wfd)
                         wfd.write(file_content)
                     del file_content
 
                 if expected_checksum is not None:
-                    download_from_file_or_url(resolved_file_url, cached_file_path, cache=True,
-                                              public_key=public_key_text,
-                                              textual_sig=expected_signature,
-                                              expected_checksum=expected_checksum)
+                    utils.download_from_file_or_url(resolved_file_url, cached_file_path, cache=True,
+                                                    public_key=public_key_text,
+                                                    textual_sig=expected_signature,
+                                                    expected_checksum=expected_checksum)
 
                 self.read_yaml_file(cached_file_path)
                 if "copy" in i_node:
@@ -340,7 +345,7 @@ class InstlInstanceBase(object):
                         self.batch_accum += self.platform_helper.mkdir(destination_folder)
                         self.batch_accum += self.platform_helper.copy_tool.copy_file_to_file(cached_file_path,
                                                                                              var_stack.resolve(
-                                                                                                copy_destination.value),
+                                                                                                 copy_destination.value),
                                                                                              link_dest=True)
 
     def create_variables_assignment(self):
@@ -363,12 +368,12 @@ class InstlInstanceBase(object):
             retVal = appdirs.user_cache_dir(user_cache_dir_param)
         if continue_dir:
             # from_url = from_url.lstrip("/\\")
-            #from_url = from_url.rstrip("/\\")
+            # from_url = from_url.rstrip("/\\")
             retVal = os.path.join(retVal, continue_dir)
         # print("1------------------", user_cache_dir, "-", from_url, "-", retVal)
         if mkdir and retVal:
             retVal = var_stack.resolve(retVal, raise_on_fail=True)
-            safe_makedirs(retVal)
+            utils.safe_makedirs(retVal)
         return retVal
 
     def relative_sync_folder_for_source(self, source):
@@ -391,10 +396,8 @@ class InstlInstanceBase(object):
         lines_after_var_replacement = '\n'.join(
             [value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines])
 
-        from utils import write_to_file_or_stdout
-
         out_file = var_stack.resolve("$(__MAIN_OUT_FILE__)", raise_on_fail=True)
-        with write_to_file_or_stdout(out_file) as fd:
+        with utils.write_to_file_or_stdout(out_file) as fd:
             fd.write(lines_after_var_replacement)
             fd.write('\n')
 
@@ -424,11 +427,9 @@ class InstlInstanceBase(object):
             raise SystemExit(self.out_file_realpath + " returned exit code " + str(retcode))
 
     def write_program_state(self):
-        from utils import write_to_file_or_stdout
-
         state_file = var_stack.resolve("$(__MAIN_STATE_FILE__)", raise_on_fail=True)
-        with write_to_file_or_stdout(state_file) as fd:
-            augmentedYaml.writeAsYaml(self, fd)
+        with utils.write_to_file_or_stdout(state_file) as fd:
+            aYaml.writeAsYaml(self, fd)
 
     def read_index(self, a_node):
         self.install_definitions_index.update(read_index_from_yaml(a_node))
@@ -466,7 +467,7 @@ class InstlInstanceBase(object):
     def check_version_compatibility(self):
         retVal = True
         if "INSTL_MINIMAL_VERSION" in var_stack:
-            inst_ver =     map(int, var_stack.resolve_to_list("$(__INSTL_VERSION__)"))
+            inst_ver = map(int, var_stack.resolve_to_list("$(__INSTL_VERSION__)"))
             required_ver = map(int, var_stack.resolve_to_list("$(INSTL_MINIMAL_VERSION)"))
             retVal = inst_ver >= required_ver
         return retVal
@@ -483,7 +484,7 @@ class InstlInstanceBase(object):
     # E.g. ['a', 'b.wtar', 'c.wtar.aa', 'c.wtar.ab'] => ['a', 'b', 'c']
     # We must work on the whole list since several wtar file names might merge to a single original file name.
     def replace_wtar_names_with_real_names(self, original_list):
-        replaced_list = unique_list()
+        replaced_list = utils.unique_list()
         replaced_list.extend([self.original_name_from_wtar_name(file_name) for file_name in original_list])
         return replaced_list
 

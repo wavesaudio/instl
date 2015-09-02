@@ -1,24 +1,24 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
-import urllib
-import stat
 import datetime
-from pyinstl.utils import *
 
+import utils
 from platformSpecificHelper_Base import PlatformSpecificHelperBase
 from platformSpecificHelper_Base import CopyToolBase
 from platformSpecificHelper_Base import DownloadToolBase
-from configVarStack import var_stack
+from configVar import var_stack
+
 
 def dos_escape(some_string):
     escaped_string = some_string.replace("&", "^&")
     return escaped_string
 
+
 class CopyTool_win_robocopy(CopyToolBase):
     def __init__(self, platform_helper):
         super(CopyTool_win_robocopy, self).__init__(platform_helper)
-        self.robocopy_error_threshold = 4 # see ss64.com/nt/robocopy-exit.html
+        self.robocopy_error_threshold = 4  # see ss64.com/nt/robocopy-exit.html
 
     def finalize(self):
         pass
@@ -32,7 +32,7 @@ class CopyTool_win_robocopy(CopyToolBase):
     def create_ignore_spec(self, ignore):
         retVal = ""
         if not isinstance(ignore, basestring):
-            ignore = " ".join(map(quoteme_double, ignore))
+            ignore = " ".join(map(utils.quoteme_double, ignore))
         retVal = "/XF {ignore} /XD {ignore}".format(**locals())
         return retVal
 
@@ -40,14 +40,14 @@ class CopyTool_win_robocopy(CopyToolBase):
         """ To do: dedicate a variable to copy logging (COPY_LOG_FILE ???)
         """
         retVal = ""
-        #log_file = var_stack.resolve("$(LOG_FILE)")
+        # log_file = var_stack.resolve("$(LOG_FILE)")
         #retVal = " /LOG:{log_file}".format(**locals())
         return retVal
 
     def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
         retVal = list()
         _, dir_to_copy = os.path.split(src_dir)
-        trg_dir = "/".join( (trg_dir, dir_to_copy) )
+        trg_dir = "/".join((trg_dir, dir_to_copy))
         ignore_spec = self.create_ignore_spec(ignore)
         log_file_spec = self.create_log_spec()
         norm_src_dir = os.path.normpath(src_dir)
@@ -107,6 +107,7 @@ class CopyTool_win_robocopy(CopyToolBase):
     def remove_dir(self, dir_to_remove):
         print("removing", dir_to_remove)
 
+
 class CopyTool_win_xcopy(CopyToolBase):
     def __init__(self, platform_helper):
         super(CopyTool_win_xcopy, self).__init__(platform_helper)
@@ -140,14 +141,14 @@ class CopyTool_win_xcopy(CopyToolBase):
         norm_src_dir = os.path.normpath(src_dir)
         norm_trg_dir = os.path.normpath(trg_dir)
         _, dir_to_copy = os.path.split(norm_src_dir)
-        norm_trg_dir = "/".join( (norm_trg_dir, dir_to_copy) )
+        norm_trg_dir = "/".join((norm_trg_dir, dir_to_copy))
         retVal.append(self.platform_helper.mkdir(norm_trg_dir))
         retVal.extend(self.copy_dir_contents_to_dir(norm_src_dir, norm_trg_dir, ignore=ignore))
         return retVal
 
     def copy_file_to_dir(self, src_file, trg_dir, link_dest=False, ignore=None):
         retVal = list()
-        #src_dir, src_file = os.path.split(src_file)
+        # src_dir, src_file = os.path.split(src_file)
         norm_src_file = os.path.normpath(src_file)
         norm_trg_dir = os.path.normpath(trg_dir)
         copy_command = "xcopy  /R /Y \"{norm_src_file}\" \"{norm_trg_dir}\"".format(**locals())
@@ -190,7 +191,7 @@ class CopyTool_win_xcopy(CopyToolBase):
     def create_excludes_file(self):
         if self.excludes_set:
             with open(var_stack.resolve("$(XCOPY_EXCLUDE_FILE_PATH)", raise_on_fail=True), "w") as wfd:
-                make_open_file_read_write_for_all(wfd)
+                utils.make_open_file_read_write_for_all(wfd)
                 wfd.write("\n".join(self.excludes_set))
 
     def remove_file(self, file_to_remove):
@@ -200,6 +201,7 @@ class CopyTool_win_xcopy(CopyToolBase):
     def remove_dir(self, dir_to_remove):
         remove_command = "removing \"{dir_to_remove}\"".format(**locals())
         return remove_command
+
 
 class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def __init__(self, instlObj):
@@ -221,23 +223,23 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
             self.remark(datetime.datetime.today().isoformat()),
             self.start_time_measure(),
             self.save_dir("TOP_SAVE_DIR"),
-            )
+        )
         return retVal
 
     def get_install_instructions_postfix(self):
         retVal = (
-                self.restore_dir("TOP_SAVE_DIR"),
-                self.end_time_measure(),
-                "exit /b 0",
-                "",
-                ":EXIT_ON_ERROR",
-                self.restore_dir("TOP_SAVE_DIR"),
-                "set CATCH_EXIT_VALUE=%ERRORLEVEL%",
-                "if %CATCH_EXIT_VALUE% == 0 (set CATCH_EXIT_VALUE=1)",
-                self.end_time_measure(),
-                'echo Exit on error %CATCH_EXIT_VALUE% 1>&2',
-                "exit /b %CATCH_EXIT_VALUE%"
-                )
+            self.restore_dir("TOP_SAVE_DIR"),
+            self.end_time_measure(),
+            "exit /b 0",
+            "",
+            ":EXIT_ON_ERROR",
+            self.restore_dir("TOP_SAVE_DIR"),
+            "set CATCH_EXIT_VALUE=%ERRORLEVEL%",
+            "if %CATCH_EXIT_VALUE% == 0 (set CATCH_EXIT_VALUE=1)",
+            self.end_time_measure(),
+            'echo Exit on error %CATCH_EXIT_VALUE% 1>&2',
+            "exit /b %CATCH_EXIT_VALUE%"
+        )
         return retVal
 
     def start_time_measure(self):
@@ -254,7 +256,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
             'set /a Time_Measure_End=%end_h%*3600 + %end_m%*60 + %end_s%',
             'set /a Time_Measure_Diff=%Time_Measure_End% - %Time_Measure_Start%',
             'echo %__MAIN_COMMAND__% Time: %Time_Measure_Diff% seconds'
-)
+        )
         return time_end_commands
 
     def exit_if_error(self, error_threshold=1):
@@ -262,53 +264,53 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return " ".join(retVal)
 
     def mkdir(self, directory):
-        norm_directory = quoteme_double(os.path.normpath(directory))
-        mk_command = " ".join( ("if not exist", norm_directory, "mkdir", norm_directory))
+        norm_directory = utils.quoteme_double(os.path.normpath(directory))
+        mk_command = " ".join(("if not exist", norm_directory, "mkdir", norm_directory))
         return mk_command
 
     def cd(self, directory):
-        norm_directory = quoteme_double(os.path.normpath(directory))
-        cd_command = " ".join( ("cd", '/d', norm_directory) )
+        norm_directory = utils.quoteme_double(os.path.normpath(directory))
+        cd_command = " ".join(("cd", '/d', norm_directory))
         return cd_command
 
     def pushd(self, directory):
-        norm_directory = quoteme_double(os.path.normpath(directory))
-        pushd_command = " ".join( ("pushd", norm_directory ) )
+        norm_directory = utils.quoteme_double(os.path.normpath(directory))
+        pushd_command = " ".join(("pushd", norm_directory ))
         return pushd_command
 
     def popd(self):
         return "popd"
 
     def save_dir(self, var_name):
-        save_dir_command = "SET "+ var_name +"=%CD%"
+        save_dir_command = "SET " + var_name + "=%CD%"
         return save_dir_command
 
     def restore_dir(self, var_name):
-        restore_dir_command = self.cd("$("+var_name+")")
+        restore_dir_command = self.cd("$(" + var_name + ")")
         return restore_dir_command
 
     def rmdir(self, directory, recursive=False):
         recurse_switch = '/S /Q' if recursive else ''
-        norm_directory = quoteme_double(os.path.normpath(directory))
-        rmdir_command = " ".join( ("rmdir", recurse_switch, norm_directory ) )
+        norm_directory = utils.quoteme_double(os.path.normpath(directory))
+        rmdir_command = " ".join(("rmdir", recurse_switch, norm_directory ))
         return rmdir_command
 
     def rmfile(self, file_to_del):
-        norm_file = quoteme_double(os.path.normpath(file_to_del))
-        rmfile_command = " ".join( ("del", "/F", "/Q", norm_file ) )
+        norm_file = utils.quoteme_double(os.path.normpath(file_to_del))
+        rmfile_command = " ".join(("del", "/F", "/Q", norm_file ))
         return rmfile_command
 
     def rm_file_or_dir(self, file_or_dir):
-        norm_path = quoteme_double(os.path.normpath(file_or_dir))
-        rmdir_command  = " ".join( ("rmdir", '/S', '/Q', norm_path, '>nul', '2>&1'))
-        rmfile_command = " ".join( ("del",   '/F', '/Q', norm_path, '>nul', '2>&1'))
+        norm_path = utils.quoteme_double(os.path.normpath(file_or_dir))
+        rmdir_command = " ".join(("rmdir", '/S', '/Q', norm_path, '>nul', '2>&1'))
+        rmfile_command = " ".join(("del", '/F', '/Q', norm_path, '>nul', '2>&1'))
         return (rmdir_command, rmfile_command)
 
     def get_svn_folder_cleanup_instructions(self):
         return ()
 
     def var_assign(self, identifier, value, comment=None):
-        var_assignment = "SET "+identifier+'='+dos_escape(value)
+        var_assignment = "SET " + identifier + '=' + dos_escape(value)
         return var_assignment
 
     def echo(self, message):
@@ -328,9 +330,9 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
             raise ValueError(tool_name, "is not a valid copy tool for", var_stack.resolve("$(TARGET_OS)"))
 
     def copy_file_to_file(self, src_file, trg_file, hard_link=False):
-        norm_src_file = quoteme_double(os.path.normpath(src_file))
-        norm_trg_file = quoteme_double(os.path.normpath(trg_file))
-        copy_command = " ".join( ("copy", norm_src_file,  norm_trg_file) )
+        norm_src_file = utils.quoteme_double(os.path.normpath(src_file))
+        norm_trg_file = utils.quoteme_double(os.path.normpath(trg_file))
+        copy_command = " ".join(("copy", norm_src_file, norm_trg_file))
         return copy_command
 
     def check_checksum_for_file(self, filepath, checksum):
@@ -343,7 +345,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
             self.echo("""@echo Expected: {checksum}, Got: %CHECKSUM_CHECK%""".format(**locals())),
             """GOTO EXIT_ON_ERROR""",
             ")"
-            )
+        )
 
         return check_commands
 
@@ -355,16 +357,16 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         raise NotImplementedError
 
     def unwtar_file(self, wtar_file):
-        tar_file = wtar_file+".tar"
+        tar_file = wtar_file + ".tar"
         unzip_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "x", "-y", "-bd",
-                               quoteme_double(wtar_file), "-so", ">", quoteme_double(tar_file),
-                                "2>NUL")
+                               utils.quoteme_double(wtar_file), "-so", ">", utils.quoteme_double(tar_file),
+                               "2>NUL")
         untar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "x", "-y", "-bd",
-                               quoteme_double(tar_file), "2>NUL")
+                               utils.quoteme_double(tar_file), "2>NUL")
         rm_tar_command = self.rmfile(tar_file)
         done_stamp_file = wtar_file + ".done"
-        untar_commands = " ".join( unzip_command_parts ), self.exit_if_error(),\
-                         " ".join( untar_command_parts), self.exit_if_error(), \
+        untar_commands = " ".join(unzip_command_parts), self.exit_if_error(), \
+                         " ".join(untar_command_parts), self.exit_if_error(), \
                          rm_tar_command, self.touch(done_stamp_file)
         return untar_commands
 
@@ -384,14 +386,14 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         raise NotImplementedError
 
     def touch(self, filepath):
-        touch_command = " ".join( ("type", "NUL", ">", quoteme_double(filepath)) )
+        touch_command = " ".join(("type", "NUL", ">", utils.quoteme_double(filepath)))
         return touch_command
 
     def run_instl(self):
         command_prefix = ""
         if not getattr(sys, 'frozen', False):
             command_prefix = "python "
-        instl_command = command_prefix+'\"$(__INSTL_EXE_PATH__)\"'
+        instl_command = command_prefix + '\"$(__INSTL_EXE_PATH__)\"'
         return instl_command
 
     def create_folders(self, info_map_file):
@@ -399,8 +401,9 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return create_folders_command, self.exit_if_error()
 
     def append_file_to_file(self, source_file, target_file):
-        append_command = " ".join( ("type", quoteme_double(source_file), ">>", quoteme_double(target_file)) )
+        append_command = " ".join(("type", utils.quoteme_double(source_file), ">>", utils.quoteme_double(target_file)))
         return append_command
+
 
 class DownloadTool_win_wget(DownloadToolBase):
     def __init__(self, platform_helper):
@@ -419,15 +422,15 @@ class DownloadTool_win_wget(DownloadToolBase):
         download_command_parts.append("--read-timeout")
         download_command_parts.append("900")
         download_command_parts.append("-O")
-        download_command_parts.append(quoteme_double(trg_file))
+        download_command_parts.append(utils.quoteme_double(trg_file))
         # urls need to escape spaces as %20, but windows batch files already escape % characters
         # so use urllib.quote to escape spaces and then change %20 to %%20.
-        download_command_parts.append(quoteme_double(src_url.replace("%", "%%")))
+        download_command_parts.append(utils.quoteme_double(src_url.replace("%", "%%")))
         return (" ".join(download_command_parts), self.platform_helper.exit_if_error())
 
     def create_config_file(self, curl_config_file_path):
         with open(curl_config_file_path, "w") as wfd:
-            make_open_file_read_write_for_all(wfd)
+            utils.make_open_file_read_write_for_all(wfd)
             wfd.write("dirstruct = on\n")
             wfd.write("timeout = 60\n")
             wfd.write("\n")
@@ -451,8 +454,8 @@ class DownloadTool_win_curl(DownloadToolBase):
             src_url is expected to be already escaped (spaces as %20...)
         """
         connect_time_out = var_stack.resolve("$(CURL_CONNECT_TIMEOUT)", raise_on_fail=True)
-        max_time         = var_stack.resolve("$(CURL_MAX_TIME)", raise_on_fail=True)
-        retries          = var_stack.resolve("$(CURL_RETRIES)", raise_on_fail=True)
+        max_time = var_stack.resolve("$(CURL_MAX_TIME)", raise_on_fail=True)
+        retries = var_stack.resolve("$(CURL_RETRIES)", raise_on_fail=True)
         download_command_parts = list()
         download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
         download_command_parts.append("--insecure")
@@ -470,17 +473,18 @@ class DownloadTool_win_curl(DownloadToolBase):
         download_command_parts.append("write-out")
         download_command_parts.append(DownloadToolBase.curl_write_out_str)
         download_command_parts.append("-o")
-        download_command_parts.append(quoteme_double(trg_file))
-        download_command_parts.append(quoteme_double(src_url))
+        download_command_parts.append(utils.quoteme_double(trg_file))
+        download_command_parts.append(utils.quoteme_double(src_url))
         return " ".join(download_command_parts)
 
     def create_config_files(self, curl_config_file_path, num_files):
         import itertools
+
         num_urls_to_download = len(self.urls_to_download)
         if num_urls_to_download > 0:
             connect_time_out = var_stack.resolve("$(CURL_CONNECT_TIMEOUT)", raise_on_fail=True)
-            max_time         = var_stack.resolve("$(CURL_MAX_TIME)", raise_on_fail=True)
-            retries          = var_stack.resolve("$(CURL_RETRIES)", raise_on_fail=True)
+            max_time = var_stack.resolve("$(CURL_MAX_TIME)", raise_on_fail=True)
+            retries = var_stack.resolve("$(CURL_RETRIES)", raise_on_fail=True)
             actual_num_files = max(1, min(num_urls_to_download / 8, num_files))
 
             num_digits = len(str(actual_num_files))
@@ -488,7 +492,7 @@ class DownloadTool_win_curl(DownloadToolBase):
             wfd_list = list()
             for file_name in file_name_list:
                 wfd = open(file_name, "w")
-                make_open_file_read_write_for_all(wfd)
+                utils.make_open_file_read_write_for_all(wfd)
                 wfd_list.append(wfd)
 
             for wfd in wfd_list:
@@ -521,10 +525,10 @@ class DownloadTool_win_curl(DownloadToolBase):
 
     def download_from_config_files(self, parallel_run_config_file_path, config_files):
         with open(parallel_run_config_file_path, "w") as wfd:
-            make_open_file_read_write_for_all(wfd)
+            utils.make_open_file_read_write_for_all(wfd)
             for config_file in config_files:
                 normalized_path = config_file.replace("\\", "/")
                 wfd.write(var_stack.resolve("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+normalized_path+"\"\n", raise_on_fail=True))
 
-        download_command = " ".join( (self.platform_helper.run_instl(),  "parallel-run", "--in", quoteme_double(parallel_run_config_file_path)) )
+        download_command = " ".join( (self.platform_helper.run_instl(),  "parallel-run", "--in", utils.quoteme_double(parallel_run_config_file_path)) )
         return (download_command, self.platform_helper.exit_if_error())

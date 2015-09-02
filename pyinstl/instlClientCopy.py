@@ -1,18 +1,11 @@
 #!/usr/bin/env python2.7
 
 from __future__ import print_function
-import stat
-import time
-from collections import OrderedDict, defaultdict
 import logging
 
-from pyinstl.utils import *
-from installItem import InstallItem, guid_list, iids_from_guid
-from aYaml import augmentedYaml
-
-from instlInstanceBase import InstlInstanceBase
-from configVarStack import var_stack
 import svnTree
+import utils
+from configVar import var_stack
 
 
 def do_copy(self):
@@ -20,11 +13,13 @@ def do_copy(self):
     self.init_copy_vars()
     self.create_copy_instructions()
 
+
 def init_copy_vars(self):
     self.action_type_to_progress_message = {'pre_copy': "pre-install step",
                                             'post_copy': "post-install step",
                                             'pre_copy_to_folder': "pre-copy step",
                                             'post_copy_to_folder': "post-copy step"}
+
 
 def create_copy_instructions(self):
     self.have_map = svnTree.SVNTree()
@@ -99,7 +94,6 @@ def create_copy_instructions(self):
         # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
         self.accumulate_unique_actions('pre_copy_to_folder', items_in_folder)
 
-
         for IID in items_in_folder:
             with self.install_definitions_index[IID]:
                 for source_var in var_stack.resolve_var_to_list_if_exists("iid_source_var_list"):
@@ -143,8 +137,8 @@ def create_copy_instructions_for_source(self, source):
         source_item = self.have_map.get_item_at_path(source[0])
         if source_item:
             self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".",
-                                                                            link_dest=True,
-                                                                            ignore=ignore_list)
+                                                                                link_dest=True,
+                                                                                ignore=ignore_list)
         else:
             source_folder, source_name = os.path.split(source[0])
             source_folder_item = self.have_map.get_item_at_path(source_folder)
@@ -152,14 +146,14 @@ def create_copy_instructions_for_source(self, source):
                 for wtar_item in source_folder_item.walk_items_with_filter(svnTree.WtarFilter(source_name), what="file"):
                     source_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + wtar_item.full_path())
                     self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".",
-                                                                            link_dest=True,
-                                                                            ignore=ignore_list)
+                                                                                        link_dest=True,
+                                                                                        ignore=ignore_list)
 
     elif source[1] == '!dir_cont':  # get all files and folders from a folder
         self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".",
                                                                                     link_dest=True,
                                                                                     ignore=ignore_list,
-                                                                                    preserve_dest_files=True) # preserve files already in destination
+                                                                                    preserve_dest_files=True)  # preserve files already in destination
     elif source[1] == '!files':  # get all files from a folder
         self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".",
                                                                                  link_dest=True,
@@ -168,8 +162,8 @@ def create_copy_instructions_for_source(self, source):
         source_item = self.have_map.get_item_at_path(source[0])
         if source_item:
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path, ".",
-                                                                           link_dest=True,
-                                                                           ignore=ignore_list)
+                                                                               link_dest=True,
+                                                                               ignore=ignore_list)
         else:
             source_folder, source_name = os.path.split(source[0])
             source_folder_item = self.have_map.get_item_at_path(source_folder)
@@ -177,16 +171,15 @@ def create_copy_instructions_for_source(self, source):
                 for wtar_item in source_folder_item.walk_items_with_filter(svnTree.WtarFilter(source_name), what="file"):
                     source_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + wtar_item.full_path())
                     self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".",
-                                                                            link_dest=True,
-                                                                            ignore=ignore_list)
+                                                                                        link_dest=True,
+                                                                                        ignore=ignore_list)
     logging.debug("%s; (%s - %s)", source_path, var_stack.resolve(source_path), source[1])
 
 
 # special handling when running on Mac OS
 def pre_copy_mac_handling(self):
-
     num_files_to_set_exec = self.have_map.num_subs_in_tree(what="file",
-                                                      predicate=lambda in_item: in_item.isExecutable())
+                                                           predicate=lambda in_item: in_item.isExecutable())
     logging.info("Num files to set exec: %d", num_files_to_set_exec)
     if num_files_to_set_exec > 0:
         self.batch_accum += self.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")
