@@ -60,7 +60,7 @@ class SVNItem(object):
         self.__up = None
         self.__name = item_details['name']
         self.__flags = item_details['flags']
-        self.__revision = item_details['revision']
+        self.__revision = int(item_details['revision'])
 
         self.__checksum = item_details.get('checksum')
         self.__url = item_details.get('url')
@@ -139,7 +139,7 @@ class SVNItem(object):
     @revision.setter
     def revision(self, new_revision):
         """ update revision """
-        self.__revision = new_revision
+        self.__revision = int(new_revision)
 
     @property
     def checksum(self):
@@ -367,11 +367,11 @@ class SVNItem(object):
         if match:
             item_details = {'flags': match.group('flags'),
                             'revision': match.group('revision')}
-            if 'checksum' in match.groups():
+            if match.group('checksum') is not None:
                 item_details['checksum'] = match.group('checksum')
-            if 'url' in match.groups():
+            if match.group('url') is not None:
                 item_details['url'] = match.group('url')
-            if 'size' in match.groups():
+            if match.group('size') is not None:
                 item_details['size'] = match.group('size')
             self.new_item_at_path(match.group('path'),
                                    item_details,
