@@ -22,7 +22,7 @@
         more accurate on Windows.
     * Added boto to the list of maodules in import-check and in pyinstaller compilation.
     * In function InstlAdmin.should_wtar, regex self.already_wtarred_regex was change to search instead of match.
-    * New function InstlAdmin.compile_exclude_regexes to consolidate the reading of FOLDER_EXCLUDE_REGEX & FILE_EXCLUDE_REGEX in one place.
+    * New function InstlAdmin.compile_exclude_regexi to consolidate the reading of FOLDER_EXCLUDE_REGEX & FILE_EXCLUDE_REGEX in one place.
     * New propery SVNItem.size, implemented with member __size.
     * New function SVNItem.safe_size will return the recursive size of an item or -1 if not available.
     * New function utils.get_disk_free_space

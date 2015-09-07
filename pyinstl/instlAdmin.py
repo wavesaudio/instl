@@ -588,7 +588,7 @@ class InstlAdmin(InstlInstanceBase):
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
 
-    def compile_exclude_regexes(self):
+    def compile_exclude_regexi(self):
         forbidden_folder_regex_list = var_stack.resolve_to_list("$(FOLDER_EXCLUDE_REGEX)")
         self.compiled_forbidden_folder_regex = compile_regex_list_ORed(forbidden_folder_regex_list)
         forbidden_file_regex_list = var_stack.resolve_to_list("$(FILE_EXCLUDE_REGEX)")
@@ -603,7 +603,7 @@ class InstlAdmin(InstlInstanceBase):
         stage_folder = var_stack.resolve("$(STAGING_FOLDER)")
         svn_folder = var_stack.resolve("$(SVN_CHECKOUT_FOLDER)")
 
-        self.compile_exclude_regexs()
+        self.compile_exclude_regexi()
 
         self.batch_accum += self.platform_helper.unlock(stage_folder, recursive=True)
         self.batch_accum += self.platform_helper.progress("chflags -R nouchg "+stage_folder)
@@ -1092,7 +1092,7 @@ class InstlAdmin(InstlInstanceBase):
             self.run_batch_file()
 
     def do_file_sizes(self):
-        self.compile_exclude_regexes()
+        self.compile_exclude_regexi()
         out_file_path = var_stack.resolve("$(__MAIN_OUT_FILE__)", raise_on_fail=False)
         with write_to_file_or_stdout(out_file_path) as out_file:
             what_to_scan = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
