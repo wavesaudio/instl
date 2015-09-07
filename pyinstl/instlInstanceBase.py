@@ -301,7 +301,7 @@ class InstlInstanceBase(object):
         elif i_node.isMapping():
             if "url" in i_node:
                 resolved_file_url = var_stack.resolve(i_node["url"].value)
-                cached_files_dir = self.get_default_sync_dir(continue_dir="cache", mkdir=True)
+                cached_files_dir = self.get_default_sync_dir(continue_dir="cache", make_dir=True)
                 cached_file_path = None
                 expected_checksum = None
                 if "checksum" in i_node:
@@ -350,23 +350,31 @@ class InstlInstanceBase(object):
                 self.batch_accum += self.platform_helper.var_assign(identifier, var_stack.resolve_var(identifier),
                                                                     None)  # var_stack[identifier].resolved_num
 
-    def get_default_sync_dir(self, continue_dir=None, mkdir=True):
-        retVal = None
-        os_family_name = var_stack.resolve("$(__CURRENT_OS__)")
-        if os_family_name == "Mac":
-            user_cache_dir_param = "$(COMPANY_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
-            retVal = appdirs.user_cache_dir(user_cache_dir_param)
-        elif os_family_name == "Win":
-            retVal = appdirs.user_cache_dir("$(INSTL_EXEC_DISPLAY_NAME)", "$(COMPANY_NAME)")
-        elif os_family_name == "Linux":
-            user_cache_dir_param = "$(COMPANY_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
-            retVal = appdirs.user_cache_dir(user_cache_dir_param)
+    def calc_user_cache_dir_var(self, make_dir=True):
+        if "USER_CACHE_DIR" not in var_stack:
+            os_family_name = var_stack.resolve("$(__CURRENT_OS__)")
+            if os_family_name == "Mac":
+                user_cache_dir_param = "$(COMPANY_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
+                user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
+            elif os_family_name == "Win":
+                user_cache_dir = appdirs.user_cache_dir("$(INSTL_EXEC_DISPLAY_NAME)", "$(COMPANY_NAME)")
+            elif os_family_name == "Linux":
+                user_cache_dir_param = "$(COMPANY_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
+                user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
+            var_description = "from InstlInstanceBase.get_user_cache_dir"
+            var_stack.set_var("USER_CACHE_DIR", var_description).append(user_cache_dir)
+        if make_dir:
+            user_cache_dir_resolved = var_stack.resolve("$(USER_CACHE_DIR)", raise_on_fail=True)
+            safe_makedirs(user_cache_dir_resolved)
+
+    def get_default_sync_dir(self, continue_dir=None, make_dir=True):
+        self.calc_user_cache_dir_var()
         if continue_dir:
-            # from_url = from_url.lstrip("/\\")
-            #from_url = from_url.rstrip("/\\")
-            retVal = os.path.join(retVal, continue_dir)
+            retVal = os.path.join("$(USER_CACHE_DIR)", continue_dir)
+        else:
+            retVal = "$(USER_CACHE_DIR)"
         # print("1------------------", user_cache_dir, "-", from_url, "-", retVal)
-        if mkdir and retVal:
+        if make_dir and retVal:
             retVal = var_stack.resolve(retVal, raise_on_fail=True)
             safe_makedirs(retVal)
         return retVal

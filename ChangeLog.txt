@@ -26,6 +26,7 @@
     * New propery SVNItem.size, implemented with member __size.
     * New function SVNItem.safe_size will return the recursive size of an item or -1 if not available.
     * New function utils.get_disk_free_space
+    * New function InstlInstanceBase.calc_user_cache_dir_var calculates new variable USER_CACHE_DIR. This variable is not the base for LOCAL_SYNC_DIR (if LOCAL_SYNC_DIR is not explicitly supplied).
 
     user visible changes, client:
     * New interactive command which prints the path to currently running instl
@@ -33,6 +34,7 @@
     * Var assignments and remarks for DOS batch files will escape the '&' character.
     * Sync command will report the number of bytes to be downloaded.
     * Added message if sync folder is not big enough
+    * When preparing offline installers avoid writing anything outside the designated LOCAL_SYNC_DIR.
 
 
 31/5/2015 0.10.0.6
