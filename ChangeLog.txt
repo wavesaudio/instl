@@ -1,4 +1,4 @@
-???? 0.10.0.7
+9/9/2015 0.11.0.0
 
     user visible changes, admin:
     * New command verify-repo checks local files against index.
@@ -29,13 +29,13 @@
     * New function InstlInstanceBase.calc_user_cache_dir_var calculates new variable USER_CACHE_DIR. This variable is not the base for LOCAL_SYNC_DIR (if LOCAL_SYNC_DIR is not explicitly supplied).
 
     user visible changes, client:
-    * New interactive command which prints the path to currently running instl
+    * New interactive command 'which': prints the path to currently running instl
     * During copy, on Mac OS, rsync will set permissions according to variable RSYNC_PERM_OPTIONS.  Default value is --perms --chmod=a+rw,+X.
     * Var assignments and remarks for DOS batch files will escape the '&' character.
     * Sync command will report the number of bytes to be downloaded.
     * Added message if sync folder is not big enough
     * When preparing offline installers avoid writing anything outside the designated LOCAL_SYNC_DIR.
-
+    * Disabled error when trying to remove non existant paths
 
 31/5/2015 0.10.0.6
 
