@@ -88,28 +88,30 @@ def create_remove_instructions_for_source(self, folder, source):
             self.batch_accum += remove_action
         elif source[1] == '!dir_cont': # remove all source's files and folders from a folder
             source_folder_info_map_item = self.have_map.get_item_at_path(source[0])
-            if source_folder_info_map_item is None:
-                raise ValueError('Item not found in map: ' + source[0])
-            file_list, folder_list = source_folder_info_map_item.sorted_sub_items()
-            unwtared_file_name_list = self.replace_wtar_names_with_real_names(file_item.name for file_item in file_list)
-            for sub_file_name in unwtared_file_name_list:
-                to_remove_path = os.path.normpath(os.path.join(folder, sub_file_name))
-                remove_action = self.platform_helper.rm_file_or_dir(to_remove_path)
-                self.batch_accum += remove_action
-            for sub_folder in folder_list:
-                to_remove_path = os.path.normpath(os.path.join(folder, sub_folder.name))
-                remove_action = self.platform_helper.rmdir(to_remove_path, recursive=True)
-                self.batch_accum += remove_action
+            # avoid removing items that were not installed,
+            # could happen because install dependencies are not always the same as remove dependencies.
+            if source_folder_info_map_item is not None:
+                file_list, folder_list = source_folder_info_map_item.sorted_sub_items()
+                unwtared_file_name_list = self.replace_wtar_names_with_real_names(file_item.name for file_item in file_list)
+                for sub_file_name in unwtared_file_name_list:
+                    to_remove_path = os.path.normpath(os.path.join(folder, sub_file_name))
+                    remove_action = self.platform_helper.rm_file_or_dir(to_remove_path)
+                    self.batch_accum += remove_action
+                for sub_folder in folder_list:
+                    to_remove_path = os.path.normpath(os.path.join(folder, sub_folder.name))
+                    remove_action = self.platform_helper.rmdir(to_remove_path, recursive=True)
+                    self.batch_accum += remove_action
         elif source[1] == '!files':    # # remove all source's files from a folder
             source_folder_info_map_item = self.have_map.get_item_at_path(source[0])
-            if source_folder_info_map_item is None:
-                raise ValueError('Item not found in map: '+ source[0])
-            file_list, folder_list = source_folder_info_map_item.sorted_sub_items()
-            unwtared_file_name_list = self.replace_wtar_names_with_real_names(file_item.name for file_item in file_list)
-            for sub_file_name in unwtared_file_name_list:
-                to_remove_path = os.path.normpath(os.path.join(folder, sub_file_name))
-                remove_action = self.platform_helper.rm_file_or_dir(to_remove_path)
-                self.batch_accum += remove_action
+            # avoid removing items that were not installed,
+            # could happen because install dependencies are not always the same as remove dependencies.
+            if source_folder_info_map_item is not None:
+                file_list, folder_list = source_folder_info_map_item.sorted_sub_items()
+                unwtared_file_name_list = self.replace_wtar_names_with_real_names(file_item.name for file_item in file_list)
+                for sub_file_name in unwtared_file_name_list:
+                    to_remove_path = os.path.normpath(os.path.join(folder, sub_file_name))
+                    remove_action = self.platform_helper.rm_file_or_dir(to_remove_path)
+                    self.batch_accum += remove_action
     else:
         remove_actions = filter(None, remove_actions)  # filter out None values
         self.batch_accum += remove_actions

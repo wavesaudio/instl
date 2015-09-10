@@ -1,3 +1,8 @@
+9/9/2015 0.11.0.1
+
+    user visible changes, client:
+    * Fixed error when trying to remove items that were not installed. could happen because install dependencies are not always the same as remove dependencies
+
 9/9/2015 0.11.0.0
 
     user visible changes, admin:
