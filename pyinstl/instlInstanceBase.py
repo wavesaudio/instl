@@ -20,6 +20,7 @@ from connectionBase import connection_factory
 from configVarStack import var_stack
 from installItem import InstallItem
 
+
 # noinspection PyPep8Naming
 class InstlInstanceBase(object):
     """ Main object of instl. Keeps the state of variables and install index
@@ -32,7 +33,8 @@ class InstlInstanceBase(object):
     def __init__(self, initial_vars=None):
         # init objects owned by this class
 
-        # allow_reading_of_internal_vars: only when true variables who's name begins and ends with "__" can be read from a file
+        # only when allow_reading_of_internal_vars is true, variables who's name begins and ends with "__"
+        # can be read from file
         self.allow_reading_of_internal_vars = False
         self.path_searcher = SearchPaths(var_stack.get_configVar_obj("__SEARCH_PATHS__"))
         self.init_default_vars(initial_vars)

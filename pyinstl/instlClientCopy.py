@@ -20,11 +20,13 @@ def do_copy(self):
     self.init_copy_vars()
     self.create_copy_instructions()
 
+
 def init_copy_vars(self):
     self.action_type_to_progress_message = {'pre_copy': "pre-install step",
                                             'post_copy': "post-install step",
                                             'pre_copy_to_folder': "pre-copy step",
                                             'post_copy_to_folder': "post-copy step"}
+
 
 def create_copy_instructions(self):
     self.have_map = svnTree.SVNTree()
@@ -119,9 +121,11 @@ def create_copy_instructions(self):
     self.accumulate_unique_actions('post_copy', self.installState.full_install_items)
 
     self.batch_accum.set_current_section('post-copy')
-    # Copy the have_info file to the "site" (somewhere in /Library/Application support or c:\ProgramDat) location for reference.
-    # But when preparing offline installers the site location is the same as the sync location - so copy should be avoided.
+    # Copy have_info file to "site" (e.g. /Library/Application support/... or c:\ProgramData\...)
+    # for reference. But when preparing offline installers the site location is the same as the sync location
+    # so copy should be avoided.
     if var_stack.resolve("$(HAVE_INFO_MAP_PATH)") != var_stack.resolve("$(SITE_HAVE_INFO_MAP_PATH)"):
+        self.batch_accum += self.platform_helper.mkdir_with_owner("$(SITE_REPO_BOOKKEEPING_DIR)")
         self.batch_accum += self.platform_helper.copy_file_to_file("$(HAVE_INFO_MAP_PATH)", "$(SITE_HAVE_INFO_MAP_PATH)")
 
     self.platform_helper.copy_tool.finalize()
