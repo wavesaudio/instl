@@ -125,9 +125,10 @@ class InstlMisc(InstlInstanceBase):
                 with open(done_file, "a"): os.utime(done_file, None)
 
     def join_split_files(self, first_file):
-        base_folder, base_name = os.path.split(first_file)
-        joined_file_path = first_file[:-3] # without the final '.aa'
-        done_file = first_file+".done"
+        norm_first_file = os.path.normpath(first_file) # remove trialing . is any
+        base_folder, base_name = os.path.split(norm_first_file)
+        joined_file_path = norm_first_file[:-3] # without the final '.aa'
+        done_file = norm_first_file+".done"
         if not os.path.isfile(done_file) or os.path.getmtime(done_file) < os.path.getmtime(first_file):
             filter_pattern = base_name[:-2]+"??" # with ?? instead of aa
             matching_files = sorted(fnmatch.filter(os.listdir(base_folder), filter_pattern))

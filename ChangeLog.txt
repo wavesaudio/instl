@@ -1,3 +1,8 @@
+19/9/2015 0.11.0.2
+
+    user visible changes, client:
+    * Minor changes to handle relative paths for certine _DIR variables
+
 9/9/2015 0.11.0.1
 
     user visible changes, client:
