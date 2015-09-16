@@ -192,8 +192,8 @@ def pre_copy_mac_handling(self):
                                                       predicate=lambda in_item: in_item.isExecutable())
     logging.info("Num files to set exec: %d", num_files_to_set_exec)
     if num_files_to_set_exec > 0:
-        self.batch_accum += self.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")
         self.batch_accum += self.platform_helper.set_exec_for_folder(self.have_map.path_to_file)
+        self.batch_accum += self.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")
         self.platform_helper.num_items_for_progress_report += num_files_to_set_exec
         self.batch_accum += self.platform_helper.progress("Set exec done")
         self.batch_accum += self.platform_helper.new_line()
