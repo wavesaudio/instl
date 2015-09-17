@@ -1,7 +1,14 @@
-19/9/2015 0.11.0.2
+17/9/2015 0.11.0.3
+
+    user visible changes, client:
+    * fix to join_split_files when workong on local dir
+
+16/9/2015 0.11.0.2
 
     user visible changes, client:
     * Minor changes to handle relative paths for certine _DIR variables
+    * mkdir SITE_REPO_BOOKKEEPING_DIR before copying the have_info_map file.
+    * New const variable: __CURR_WORKING_DIR__, the working directory when instl was launched.
 
 9/9/2015 0.11.0.1
 
