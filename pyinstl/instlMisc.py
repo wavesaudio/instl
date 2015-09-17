@@ -127,6 +127,8 @@ class InstlMisc(InstlInstanceBase):
     def join_split_files(self, first_file):
         norm_first_file = os.path.normpath(first_file) # remove trialing . is any
         base_folder, base_name = os.path.split(norm_first_file)
+        if not base_folder:
+            base_folder = "."
         joined_file_path = norm_first_file[:-3] # without the final '.aa'
         done_file = norm_first_file+".done"
         if not os.path.isfile(done_file) or os.path.getmtime(done_file) < os.path.getmtime(first_file):
