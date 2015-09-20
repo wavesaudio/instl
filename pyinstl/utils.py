@@ -128,7 +128,12 @@ class open_for_read_file_or_url(object):
     def __exit__(self, unused_type, unused_value, unused_traceback):
         self.fd.close()
 
+
 def read_from_file_or_url(in_url, public_key=None, textual_sig=None, expected_checksum=None):
+    """ Read a file from local disk or url. Check signature or checksum if given.
+        If test against either sig or checksum fails - raise IOError.
+        Return: file contents.
+    """
     contents_buffer = None
     with open_for_read_file_or_url(in_url) as rfd:
         contents_buffer = rfd.read()
@@ -142,6 +147,11 @@ def read_from_file_or_url(in_url, public_key=None, textual_sig=None, expected_ch
     return contents_buffer
 
 def download_from_file_or_url(in_url, in_local_path, cache=False, public_key=None, textual_sig=None, expected_checksum=None):
+    """ Copy a file or download it from a URL to in_local_path.
+        If cache flag is True, the file will only be copied/downloaded if it does not already exist.
+        If cache flag is True and signature or checksum is given they will be checked. If such check fails, copy/download
+        will be done.
+    """
     fileExists = False
     if cache and os.path.isfile(in_local_path):
         # cache=True means: if local file already exists, there is no need to download.

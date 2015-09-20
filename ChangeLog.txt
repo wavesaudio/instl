@@ -1,3 +1,12 @@
+20/9/2015 0.11.0.4
+
+    user visible changes, client:
+    * When reading __include__ statements, if a file does not have a checksum specification it will not be cached.
+
+    programmer visible changes:
+    * New function InstlInstanceBase.read_yaml_from_stream will read yaml from StringIO rather than directly from buffer.
+    * Better remarks for read_from_file_or_url & download_from_file_or_url.
+
 17/9/2015 0.11.0.3
 
     user visible changes, client:

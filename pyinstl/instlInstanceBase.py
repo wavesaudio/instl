@@ -5,7 +5,7 @@ from __future__ import print_function
 import abc
 import logging
 import yaml
-
+import StringIO
 import appdirs
 
 import pyinstl.log_utils
@@ -197,25 +197,29 @@ class InstlInstanceBase(object):
         retVal = doc_node.tag in acceptables
         return retVal
 
+    def read_yaml_from_stream(self, the_stream):
+        for a_node in yaml.compose_all(the_stream):
+            if self.is_acceptable_yaml_doc(a_node):
+                if a_node.tag.startswith('!define_const'):
+                    self.read_const_defines(a_node)
+                elif a_node.tag.startswith('!define'):
+                    self.read_defines(a_node)
+                elif a_node.tag.startswith('!index'):
+                    self.read_index(a_node)
+                elif a_node.tag.startswith('!require'):
+                    self.read_require(a_node)
+                else:
+                    logging.error(
+                        "Unknown document tag '%s' while reading file %s; Tag should be one of: !define, !index'",
+                        a_node.tag, file_path)
+        if not self.check_version_compatibility():
+            raise ValueError(var_stack.resolve("Minimal instl version $(INSTL_MINIMAL_VERSION) > current version $(__INSTL_VERSION__); ")+var_stack.get_configVar_obj("INSTL_MINIMAL_VERSION").description)
+
     def read_yaml_file(self, file_path):
         logging.info("%s", file_path)
         with open_for_read_file_or_url(file_path, self.path_searcher) as file_fd:
-            for a_node in yaml.compose_all(file_fd):
-                if self.is_acceptable_yaml_doc(a_node):
-                    if a_node.tag.startswith('!define_const'):
-                        self.read_const_defines(a_node)
-                    elif a_node.tag.startswith('!define'):
-                        self.read_defines(a_node)
-                    elif a_node.tag.startswith('!index'):
-                        self.read_index(a_node)
-                    elif a_node.tag.startswith('!require'):
-                        self.read_require(a_node)
-                    else:
-                        logging.error(
-                            "Unknown document tag '%s' while reading file %s; Tag should be one of: !define, !index'",
-                            a_node.tag, file_path)
-        if not self.check_version_compatibility():
-            raise ValueError(var_stack.resolve("Minimal instl version $(INSTL_MINIMAL_VERSION) > current version $(__INSTL_VERSION__); ")+var_stack.get_configVar_obj("INSTL_MINIMAL_VERSION").description)
+            buffer = StringIO.StringIO(file_fd.read())
+            self.read_yaml_from_stream(buffer)
         var_stack.get_configVar_obj("__READ_YAML_FILES__").append(file_path)
 
     def read_require(self, a_node):
@@ -317,24 +321,14 @@ class InstlInstanceBase(object):
                     public_key_text = self.provision_public_key_text()
 
                 if expected_checksum is None:
-                    file_content = read_from_file_or_url(resolved_file_url,
-                                                         public_key=public_key_text,
-                                                         textual_sig=expected_signature,
-                                                         expected_checksum=expected_checksum)
-                    expected_checksum = get_buffer_checksum(file_content)
-                    cached_file_path = os.path.join(cached_files_dir, expected_checksum)
-                    with open(cached_file_path, "wb") as wfd:
-                        make_open_file_read_write_for_all(wfd)
-                        wfd.write(file_content)
-                    del file_content
-
-                if expected_checksum is not None:
+                    self.read_yaml_file(resolved_file_url)
+                else:
                     download_from_file_or_url(resolved_file_url, cached_file_path, cache=True,
                                               public_key=public_key_text,
                                               textual_sig=expected_signature,
                                               expected_checksum=expected_checksum)
+                    self.read_yaml_file(cached_file_path)
 
-                self.read_yaml_file(cached_file_path)
                 if "copy" in i_node:
                     self.batch_accum.set_current_section('post')
                     for copy_destination in i_node["copy"]:
