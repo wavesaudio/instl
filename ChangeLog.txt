@@ -1,3 +1,11 @@
+21/9/2015 0.11.0.5
+
+    user visible changes, client:
+    * Better default definition of LOCAL_SYNC_DIR based on USER_CACHE_DIR.
+
+    programmer visible changes:
+    * Solved an issue with __include__ tha does copy without checksum
+
 20/9/2015 0.11.0.4
 
     user visible changes, client:

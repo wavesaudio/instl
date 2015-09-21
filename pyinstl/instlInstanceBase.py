@@ -322,6 +322,7 @@ class InstlInstanceBase(object):
 
                 if expected_checksum is None:
                     self.read_yaml_file(resolved_file_url)
+                    cached_file_path = resolved_file_url
                 else:
                     download_from_file_or_url(resolved_file_url, cached_file_path, cache=True,
                                               public_key=public_key_text,
