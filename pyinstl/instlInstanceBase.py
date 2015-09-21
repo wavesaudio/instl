@@ -8,6 +8,7 @@ import abc
 import logging
 
 import yaml
+import StringIO
 import appdirs
 
 import aYaml
@@ -19,6 +20,7 @@ from platformSpecificHelper_Base import PlatformSpecificHelperFactory
 from configVar import value_ref_re
 from configVar import var_stack
 from installItem import InstallItem
+
 
 
 
@@ -37,7 +39,8 @@ class InstlInstanceBase(object):
     def __init__(self, initial_vars=None):
         # init objects owned by this class
 
-        # allow_reading_of_internal_vars: only when true variables who's name begins and ends with "__" can be read from a file
+        # only when allow_reading_of_internal_vars is true, variables who's name begins and ends with "__"
+        # can be read from file
         self.allow_reading_of_internal_vars = False
         self.path_searcher = utils.SearchPaths(var_stack.get_configVar_obj("__SEARCH_PATHS__"))
         self.init_default_vars(initial_vars)
@@ -54,7 +57,7 @@ class InstlInstanceBase(object):
 
         self.install_definitions_index = dict()
         self.batch_accum = BatchAccumulator()
-        self.do_not_write_vars = ("INFO_MAP_SIG", "INDEX_SIG", "PUBLIC_KEY", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY")
+        self.do_not_write_vars = ("INFO_MAP_SIG", "INDEX_SIG", "PUBLIC_KEY", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "__CREDENTIALS__")
         self.out_file_realpath = None
 
     def get_version_str(self):
@@ -200,25 +203,29 @@ class InstlInstanceBase(object):
         retVal = doc_node.tag in acceptables
         return retVal
 
-    def read_yaml_file(self, file_path):
-        logging.info("%s", file_path)
-        with utils.open_for_read_file_or_url(file_path, self.path_searcher) as file_fd:
-            for a_node in yaml.compose_all(file_fd):
-                if self.is_acceptable_yaml_doc(a_node):
-                    if a_node.tag.startswith('!define_const'):
-                        self.read_const_defines(a_node)
-                    elif a_node.tag.startswith('!define'):
-                        self.read_defines(a_node)
-                    elif a_node.tag.startswith('!index'):
-                        self.read_index(a_node)
-                    elif a_node.tag.startswith('!require'):
-                        self.read_require(a_node)
-                    else:
-                        logging.error(
-                            "Unknown document tag '%s' while reading file %s; Tag should be one of: !define, !index'",
-                            a_node.tag, file_path)
+    def read_yaml_from_stream(self, the_stream):
+        for a_node in yaml.compose_all(the_stream):
+            if self.is_acceptable_yaml_doc(a_node):
+                if a_node.tag.startswith('!define_const'):
+                    self.read_const_defines(a_node)
+                elif a_node.tag.startswith('!define'):
+                    self.read_defines(a_node)
+                elif a_node.tag.startswith('!index'):
+                    self.read_index(a_node)
+                elif a_node.tag.startswith('!require'):
+                    self.read_require(a_node)
+                else:
+                    logging.error(
+                        "Unknown document tag '%s' while reading file %s; Tag should be one of: !define, !index'",
+                        a_node.tag, file_path)
         if not self.check_version_compatibility():
             raise ValueError(var_stack.resolve("Minimal instl version $(INSTL_MINIMAL_VERSION) > current version $(__INSTL_VERSION__); ")+var_stack.get_configVar_obj("INSTL_MINIMAL_VERSION").description)
+
+    def read_yaml_file(self, file_path):
+        logging.info("%s", file_path)
+        with open_for_read_file_or_url(file_path, self.path_searcher) as file_fd:
+            buffer = StringIO.StringIO(file_fd.read())
+            self.read_yaml_from_stream(buffer)
         var_stack.get_configVar_obj("__READ_YAML_FILES__").append(file_path)
 
     def read_require(self, a_node):
@@ -306,7 +313,7 @@ class InstlInstanceBase(object):
         elif i_node.isMapping():
             if "url" in i_node:
                 resolved_file_url = var_stack.resolve(i_node["url"].value)
-                cached_files_dir = self.get_default_sync_dir(continue_dir="cache", mkdir=True)
+                cached_files_dir = self.get_default_sync_dir(continue_dir="cache", make_dir=True)
                 cached_file_path = None
                 expected_checksum = None
                 if "checksum" in i_node:
@@ -320,24 +327,15 @@ class InstlInstanceBase(object):
                     public_key_text = self.provision_public_key_text()
 
                 if expected_checksum is None:
-                    file_content = utils.read_from_file_or_url(resolved_file_url,
-                                                         public_key=public_key_text,
-                                                         textual_sig=expected_signature,
-                                                         expected_checksum=expected_checksum)
-                    expected_checksum = utils.get_buffer_checksum(file_content)
-                    cached_file_path = os.path.join(cached_files_dir, expected_checksum)
-                    with open(cached_file_path, "wb") as wfd:
-                        utils.make_open_file_read_write_for_all(wfd)
-                        wfd.write(file_content)
-                    del file_content
+                    self.read_yaml_file(resolved_file_url)
+                    cached_file_path = resolved_file_url
+                else:
+                    download_from_file_or_url(resolved_file_url, cached_file_path, cache=True,
+                                              public_key=public_key_text,
+                                              textual_sig=expected_signature,
+                                              expected_checksum=expected_checksum)
+                    self.read_yaml_file(cached_file_path)
 
-                if expected_checksum is not None:
-                    utils.download_from_file_or_url(resolved_file_url, cached_file_path, cache=True,
-                                                    public_key=public_key_text,
-                                                    textual_sig=expected_signature,
-                                                    expected_checksum=expected_checksum)
-
-                self.read_yaml_file(cached_file_path)
                 if "copy" in i_node:
                     self.batch_accum.set_current_section('post')
                     for copy_destination in i_node["copy"]:
@@ -355,23 +353,31 @@ class InstlInstanceBase(object):
                 self.batch_accum += self.platform_helper.var_assign(identifier, var_stack.resolve_var(identifier),
                                                                     None)  # var_stack[identifier].resolved_num
 
-    def get_default_sync_dir(self, continue_dir=None, mkdir=True):
-        retVal = None
-        os_family_name = var_stack.resolve("$(__CURRENT_OS__)")
-        if os_family_name == "Mac":
-            user_cache_dir_param = "$(COMPANY_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
-            retVal = appdirs.user_cache_dir(user_cache_dir_param)
-        elif os_family_name == "Win":
-            retVal = appdirs.user_cache_dir("$(INSTL_EXEC_DISPLAY_NAME)", "$(COMPANY_NAME)")
-        elif os_family_name == "Linux":
-            user_cache_dir_param = "$(COMPANY_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
-            retVal = appdirs.user_cache_dir(user_cache_dir_param)
+    def calc_user_cache_dir_var(self, make_dir=True):
+        if "USER_CACHE_DIR" not in var_stack:
+            os_family_name = var_stack.resolve("$(__CURRENT_OS__)")
+            if os_family_name == "Mac":
+                user_cache_dir_param = "$(COMPANY_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
+                user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
+            elif os_family_name == "Win":
+                user_cache_dir = appdirs.user_cache_dir("$(INSTL_EXEC_DISPLAY_NAME)", "$(COMPANY_NAME)")
+            elif os_family_name == "Linux":
+                user_cache_dir_param = "$(COMPANY_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
+                user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
+            var_description = "from InstlInstanceBase.get_user_cache_dir"
+            var_stack.set_var("USER_CACHE_DIR", var_description).append(user_cache_dir)
+        if make_dir:
+            user_cache_dir_resolved = var_stack.resolve("$(USER_CACHE_DIR)", raise_on_fail=True)
+            safe_makedirs(user_cache_dir_resolved)
+
+    def get_default_sync_dir(self, continue_dir=None, make_dir=True):
+        self.calc_user_cache_dir_var()
         if continue_dir:
-            # from_url = from_url.lstrip("/\\")
-            # from_url = from_url.rstrip("/\\")
-            retVal = os.path.join(retVal, continue_dir)
+            retVal = os.path.join("$(USER_CACHE_DIR)", continue_dir)
+        else:
+            retVal = "$(USER_CACHE_DIR)"
         # print("1------------------", user_cache_dir, "-", from_url, "-", retVal)
-        if mkdir and retVal:
+        if make_dir and retVal:
             retVal = var_stack.resolve(retVal, raise_on_fail=True)
             utils.safe_makedirs(retVal)
         return retVal
@@ -395,6 +401,8 @@ class InstlInstanceBase(object):
         lines = self.batch_accum.finalize_list_of_lines()
         lines_after_var_replacement = '\n'.join(
             [value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines])
+
+        from utils import write_to_file_or_stdout
 
         out_file = var_stack.resolve("$(__MAIN_OUT_FILE__)", raise_on_fail=True)
         with utils.write_to_file_or_stdout(out_file) as fd:
@@ -427,6 +435,8 @@ class InstlInstanceBase(object):
             raise SystemExit(self.out_file_realpath + " returned exit code " + str(retcode))
 
     def write_program_state(self):
+        from utils import write_to_file_or_stdout
+
         state_file = var_stack.resolve("$(__MAIN_STATE_FILE__)", raise_on_fail=True)
         with utils.write_to_file_or_stdout(state_file) as fd:
             aYaml.writeAsYaml(self, fd)

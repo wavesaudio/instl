@@ -1,4 +1,38 @@
-???? 0.10.0.7
+21/9/2015 0.11.0.5
+
+    user visible changes, client:
+    * Better default definition of LOCAL_SYNC_DIR based on USER_CACHE_DIR.
+
+    programmer visible changes:
+    * Solved an issue with __include__ tha does copy without checksum
+
+20/9/2015 0.11.0.4
+
+    user visible changes, client:
+    * When reading __include__ statements, if a file does not have a checksum specification it will not be cached.
+
+    programmer visible changes:
+    * New function InstlInstanceBase.read_yaml_from_stream will read yaml from StringIO rather than directly from buffer.
+    * Better remarks for read_from_file_or_url & download_from_file_or_url.
+
+17/9/2015 0.11.0.3
+
+    user visible changes, client:
+    * fix to join_split_files when workong on local dir
+
+16/9/2015 0.11.0.2
+
+    user visible changes, client:
+    * Minor changes to handle relative paths for certine _DIR variables
+    * mkdir SITE_REPO_BOOKKEEPING_DIR before copying the have_info_map file.
+    * New const variable: __CURR_WORKING_DIR__, the working directory when instl was launched.
+
+9/9/2015 0.11.0.1
+
+    user visible changes, client:
+    * Fixed error when trying to remove items that were not installed. could happen because install dependencies are not always the same as remove dependencies
+
+9/9/2015 0.11.0.0
 
     user visible changes, admin:
     * New command verify-repo checks local files against index.
@@ -22,18 +56,20 @@
         more accurate on Windows.
     * Added boto to the list of maodules in import-check and in pyinstaller compilation.
     * In function InstlAdmin.should_wtar, regex self.already_wtarred_regex was change to search instead of match.
-    * New function InstlAdmin.compile_exclude_regexes to consolidate the reading of FOLDER_EXCLUDE_REGEX & FILE_EXCLUDE_REGEX in one place.
+    * New function InstlAdmin.compile_exclude_regexi to consolidate the reading of FOLDER_EXCLUDE_REGEX & FILE_EXCLUDE_REGEX in one place.
     * New propery SVNItem.size, implemented with member __size.
     * New function SVNItem.safe_size will return the recursive size of an item or -1 if not available.
     * New function utils.get_disk_free_space
+    * New function InstlInstanceBase.calc_user_cache_dir_var calculates new variable USER_CACHE_DIR. This variable is not the base for LOCAL_SYNC_DIR (if LOCAL_SYNC_DIR is not explicitly supplied).
 
     user visible changes, client:
-    * New interactive command which prints the path to currently running instl
+    * New interactive command 'which': prints the path to currently running instl
     * During copy, on Mac OS, rsync will set permissions according to variable RSYNC_PERM_OPTIONS.  Default value is --perms --chmod=a+rw,+X.
     * Var assignments and remarks for DOS batch files will escape the '&' character.
     * Sync command will report the number of bytes to be downloaded.
     * Added message if sync folder is not big enough
-
+    * When preparing offline installers avoid writing anything outside the designated LOCAL_SYNC_DIR.
+    * Disabled error when trying to remove non existant paths
 
 31/5/2015 0.10.0.6
 

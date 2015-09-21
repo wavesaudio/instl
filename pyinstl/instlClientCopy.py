@@ -115,7 +115,12 @@ def create_copy_instructions(self):
     self.accumulate_unique_actions('post_copy', self.installState.full_install_items)
 
     self.batch_accum.set_current_section('post-copy')
-    self.batch_accum += self.platform_helper.copy_file_to_file("$(HAVE_INFO_MAP_PATH)", "$(SITE_HAVE_INFO_MAP_PATH)")
+    # Copy have_info file to "site" (e.g. /Library/Application support/... or c:\ProgramData\...)
+    # for reference. But when preparing offline installers the site location is the same as the sync location
+    # so copy should be avoided.
+    if var_stack.resolve("$(HAVE_INFO_MAP_PATH)") != var_stack.resolve("$(SITE_HAVE_INFO_MAP_PATH)"):
+        self.batch_accum += self.platform_helper.mkdir_with_owner("$(SITE_REPO_BOOKKEEPING_DIR)")
+        self.batch_accum += self.platform_helper.copy_file_to_file("$(HAVE_INFO_MAP_PATH)", "$(SITE_HAVE_INFO_MAP_PATH)")
 
     self.platform_helper.copy_tool.finalize()
 
@@ -184,8 +189,8 @@ def pre_copy_mac_handling(self):
                                                            predicate=lambda in_item: in_item.isExecutable())
     logging.info("Num files to set exec: %d", num_files_to_set_exec)
     if num_files_to_set_exec > 0:
-        self.batch_accum += self.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")
         self.batch_accum += self.platform_helper.set_exec_for_folder(self.have_map.path_to_file)
+        self.batch_accum += self.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")
         self.platform_helper.num_items_for_progress_report += num_files_to_set_exec
         self.batch_accum += self.platform_helper.progress("Set exec done")
         self.batch_accum += self.platform_helper.new_line()
