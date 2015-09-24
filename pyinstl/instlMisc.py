@@ -13,6 +13,7 @@ import svnTree
 import utils
 from instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
+import connectionBase
 
 
 class InstlMisc(InstlInstanceBase):
@@ -236,5 +237,5 @@ class InstlMisc(InstlInstanceBase):
 
     def do_translate_url(self):
         url_to_translate = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
-        translated_url = ConnectionBase.repo_connection.translate_url(url_to_translate)
+        translated_url = connectionBase.ConnectionBase.repo_connection.translate_url(url_to_translate)
         print(translated_url)

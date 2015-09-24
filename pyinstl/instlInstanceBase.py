@@ -20,7 +20,7 @@ from platformSpecificHelper_Base import PlatformSpecificHelperFactory
 from configVar import value_ref_re
 from configVar import var_stack
 from installItem import InstallItem
-
+import connectionBase
 
 
 
@@ -190,7 +190,7 @@ class InstlInstanceBase(object):
         if "__CREDENTIALS__" in var_stack:
             credentials = var_stack.resolve_var("__CREDENTIALS__", default=None)
 
-        utils.connection_factory(credentials)
+        connectionBase.connection_factory(credentials)
 
     def is_acceptable_yaml_doc(self, doc_node):
         acceptables = var_stack.resolve_to_list("$(ACCEPTABLE_YAML_DOC_TAGS)") + ["define", "define_const", "index", 'require']
@@ -223,7 +223,7 @@ class InstlInstanceBase(object):
 
     def read_yaml_file(self, file_path):
         logging.info("%s", file_path)
-        with open_for_read_file_or_url(file_path, self.path_searcher) as file_fd:
+        with utils.open_for_read_file_or_url(file_path, connectionBase.connection_factory().translate_url, self.path_searcher) as file_fd:
             buffer = StringIO.StringIO(file_fd.read())
             self.read_yaml_from_stream(buffer)
         var_stack.get_configVar_obj("__READ_YAML_FILES__").append(file_path)
@@ -295,7 +295,7 @@ class InstlInstanceBase(object):
         if "PUBLIC_KEY" not in var_stack:
             if "PUBLIC_KEY_FILE" in var_stack:
                 public_key_file = var_stack.resolve("$(PUBLIC_KEY_FILE)")
-                with utils.open_for_read_file_or_url(public_key_file, self.path_searcher) as file_fd:
+                with utils.open_for_read_file_or_url(public_key_file, connectionBase.connection_factory().translate_url, self.path_searcher) as file_fd:
                     public_key_text = file_fd.read()
                     var_stack.set_var("PUBLIC_KEY", "from " + public_key_file).append(public_key_text)
             else:
@@ -330,7 +330,8 @@ class InstlInstanceBase(object):
                     self.read_yaml_file(resolved_file_url)
                     cached_file_path = resolved_file_url
                 else:
-                    download_from_file_or_url(resolved_file_url, cached_file_path, cache=True,
+                    utils.download_from_file_or_url(resolved_file_url, connectionBase.connection_factory().translate_url,
+                                              cached_file_path, cache=True,
                                               public_key=public_key_text,
                                               textual_sig=expected_signature,
                                               expected_checksum=expected_checksum)

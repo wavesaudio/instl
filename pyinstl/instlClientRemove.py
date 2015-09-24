@@ -5,14 +5,12 @@ from __future__ import print_function
 import os
 import logging
 
-from pyinstl.utils import *
-from installItem import InstallItem, guid_list, iids_from_guid
-from aYaml import augmentedYaml
+#from installItem import InstallItem, guid_list, iids_from_guid
+#from aYaml import augmentedYaml
 
-from instlInstanceBase import InstlInstanceBase
-from configVarStack import var_stack
+#from instlInstanceBase import InstlInstanceBase
 import svnTree
-import utils
+#import utils
 from configVar import var_stack
 
 

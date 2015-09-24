@@ -6,7 +6,7 @@ import abc
 
 import utils
 from configVar import var_stack
-from utils.connectionBase import ConnectionBase
+import connectionBase
 
 
 class CopyToolBase(object):
@@ -450,7 +450,7 @@ class DownloadToolBase(object):
         if verbatim:
             translated_url = url
         else:
-            translated_url = ConnectionBase.repo_connection.translate_url(url)
+            translated_url = connectionBase.ConnectionBase.repo_connection.translate_url(url)
         self.urls_to_download.append((translated_url, path))
 
     def get_num_urls_to_download(self):

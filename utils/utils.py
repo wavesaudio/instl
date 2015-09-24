@@ -14,9 +14,6 @@ import subprocess
 
 import rsa
 
-import connectionBase
-
-
 def Is64Windows():
     return 'PROGRAMFILES(X86)' in os.environ
 
@@ -84,27 +81,28 @@ class open_for_read_file_or_url(object):
                         ://
                         """, re.VERBOSE)
 
-    def __init__(self, file_url, path_searcher=None):
-        self.file_url = file_url
+    def __init__(self, in_file_or_url, translate_url_callback=None, path_searcher=None):
+        self.file_or_url = in_file_or_url
         self.fd = None
-        match = self.protocol_header_re.match(self.file_url)
+        match = self.protocol_header_re.match(self.file_or_url)
         if not match:  # it's a local file
             if path_searcher is not None:
-                self.file_url = path_searcher.find_file(self.file_url)
-            if self.file_url:
+                self.file_or_url = path_searcher.find_file(self.file_or_url)
+            if self.file_or_url:
                 if 'Win' in get_current_os_names():
-                    abs_path = os.path.abspath(self.file_url)
+                    abs_path = os.path.abspath(self.file_or_url)
                     if abs_path.startswith(r"\\"):
-                        self.file_url = "file:"+abs_path
+                        self.file_or_url = "file:"+abs_path
                     else:
-                        self.file_url = "file:///"+abs_path
+                        self.file_or_url = "file:///"+abs_path
                 else:
-                    self.file_url = "file://"+os.path.realpath(self.file_url)
+                    self.file_or_url = "file://"+os.path.realpath(self.file_or_url)
             else:
-                raise IOError("Could not locate local file", file_url)
+                raise IOError("Could not locate local file", self.file_or_url)
         else:
-            self.file_url = connectionBase.connection_factory().translate_url(self.file_url)
-        #print("open_for_read_file_or_url.__init__ self.file_url =", self.file_url, file=sys.stderr)
+            if translate_url_callback is not None:
+                self.file_or_url = translate_url_callback(self.file_or_url)
+        #print("open_for_read_file_or_url.__init__ self.file_or_url =", self.file_or_url, file=sys.stderr)
 
     def __enter__(self):
         try:
@@ -117,11 +115,11 @@ class open_for_read_file_or_url(object):
             #ctx.check_hostname = False
             #ctx.verify_mode = ssl.CERT_NONE
             #ctx.options |= ssl.OP_NO_SSLv3
-            #self.fd = urllib2.urlopen(self.file_url, context=ctx)
-            self.fd = urllib2.urlopen(self.file_url)
-            #print("open_for_read_file_or_url.__enter__ opened", self.file_url, file=sys.stderr)
+            #self.fd = urllib2.urlopen(self.file_or_url, context=ctx)
+            self.fd = urllib2.urlopen(self.file_or_url)
+            #print("open_for_read_file_or_url.__enter__ opened", self.file_or_url, file=sys.stderr)
         except urllib2.URLError as url_err:
-            #print (url_err, self.file_url)
+            #print (url_err, self.file_or_url)
             raise
         if "name" not in dir(self.fd) and "url" in dir(self.fd):
             self.fd.name = self.fd.url # so we can get the url with the same attribute as file object
@@ -131,13 +129,13 @@ class open_for_read_file_or_url(object):
         self.fd.close()
 
 
-def read_from_file_or_url(in_url, public_key=None, textual_sig=None, expected_checksum=None):
+def read_from_file_or_url(in_url, translate_url_callback=None, public_key=None, textual_sig=None, expected_checksum=None):
     """ Read a file from local disk or url. Check signature or checksum if given.
         If test against either sig or checksum fails - raise IOError.
         Return: file contents.
     """
     contents_buffer = None
-    with open_for_read_file_or_url(in_url) as rfd:
+    with open_for_read_file_or_url(in_url, translate_url_callback) as rfd:
         contents_buffer = rfd.read()
         #print("After reading",in_url, "contents_buffer has", len(contents_buffer), "bytes", file=sys.stderr)
         if contents_buffer:
@@ -148,7 +146,8 @@ def read_from_file_or_url(in_url, public_key=None, textual_sig=None, expected_ch
                     raise IOError("Checksum or Signature mismatch", in_url)
     return contents_buffer
 
-def download_from_file_or_url(in_url, in_local_path, cache=False, public_key=None, textual_sig=None, expected_checksum=None):
+
+def download_from_file_or_url(in_url, in_local_path, translate_url_callback=None, cache=False, public_key=None, textual_sig=None, expected_checksum=None):
     """ Copy a file or download it from a URL to in_local_path.
         If cache flag is True, the file will only be copied/downloaded if it does not already exist.
         If cache flag is True and signature or checksum is given they will be checked. If such check fails, copy/download
@@ -167,7 +166,7 @@ def download_from_file_or_url(in_url, in_local_path, cache=False, public_key=Non
         fileExists = fileOK
 
     if not fileExists:
-        contents_buffer = read_from_file_or_url(in_url, public_key, textual_sig, expected_checksum)
+        contents_buffer = read_from_file_or_url(in_url, translate_url_callback, public_key, textual_sig, expected_checksum)
         if contents_buffer:
             with open(in_local_path, "wb") as wfd:
                 make_open_file_read_write_for_all(wfd)
