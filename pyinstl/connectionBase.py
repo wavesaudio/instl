@@ -72,3 +72,7 @@ def connection_factory(credentials=None):
             if cred_split[0].lower() == "s3":
                 ConnectionBase.repo_connection = ConnectionS3(cred_split[1:])
     return ConnectionBase.repo_connection
+
+def translate_url(in_bare_url):
+    translated_url = connection_factory().translate_url(in_bare_url)
+    return translated_url

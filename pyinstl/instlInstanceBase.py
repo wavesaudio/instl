@@ -49,7 +49,6 @@ class InstlInstanceBase(object):
         self.path_searcher.add_search_path(os.path.dirname(os.path.realpath(sys.argv[0])))
         self.path_searcher.add_search_path(var_stack.resolve("$(__INSTL_DATA_FOLDER__)"))
 
-        self.read_user_config()
 
         self.platform_helper = PlatformSpecificHelperFactory(var_stack.resolve("$(__CURRENT_OS__)"), self)
         # init initial copy tool, tool might be later overridden after reading variable COPY_TOOL from yaml.
@@ -94,6 +93,7 @@ class InstlInstanceBase(object):
 
         # read class specific defaults/*.yaml
         self.read_name_specific_defaults_file(type(self).__name__)
+        self.read_user_config()
 
         log_file = utils.log_utils.get_log_file_path(var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)"),
                                                      var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)"), debug=False)
@@ -223,7 +223,7 @@ class InstlInstanceBase(object):
 
     def read_yaml_file(self, file_path):
         logging.info("%s", file_path)
-        with utils.open_for_read_file_or_url(file_path, connectionBase.connection_factory().translate_url, self.path_searcher) as file_fd:
+        with utils.open_for_read_file_or_url(file_path, connectionBase.translate_url, self.path_searcher) as file_fd:
             buffer = StringIO.StringIO(file_fd.read())
             self.read_yaml_from_stream(buffer)
         var_stack.get_configVar_obj("__READ_YAML_FILES__").append(file_path)
@@ -295,7 +295,7 @@ class InstlInstanceBase(object):
         if "PUBLIC_KEY" not in var_stack:
             if "PUBLIC_KEY_FILE" in var_stack:
                 public_key_file = var_stack.resolve("$(PUBLIC_KEY_FILE)")
-                with utils.open_for_read_file_or_url(public_key_file, connectionBase.connection_factory().translate_url, self.path_searcher) as file_fd:
+                with utils.open_for_read_file_or_url(public_key_file, connectionBase.translate_url, self.path_searcher) as file_fd:
                     public_key_text = file_fd.read()
                     var_stack.set_var("PUBLIC_KEY", "from " + public_key_file).append(public_key_text)
             else:
@@ -330,8 +330,8 @@ class InstlInstanceBase(object):
                     self.read_yaml_file(resolved_file_url)
                     cached_file_path = resolved_file_url
                 else:
-                    utils.download_from_file_or_url(resolved_file_url, connectionBase.connection_factory().translate_url,
-                                              cached_file_path, cache=True,
+                    utils.download_from_file_or_url(resolved_file_url,cached_file_path,
+                                              connectionBase.translate_url, cache=True,
                                               public_key=public_key_text,
                                               textual_sig=expected_signature,
                                               expected_checksum=expected_checksum)
@@ -369,7 +369,7 @@ class InstlInstanceBase(object):
             var_stack.set_var("USER_CACHE_DIR", var_description).append(user_cache_dir)
         if make_dir:
             user_cache_dir_resolved = var_stack.resolve("$(USER_CACHE_DIR)", raise_on_fail=True)
-            safe_makedirs(user_cache_dir_resolved)
+            utils.safe_makedirs(user_cache_dir_resolved)
 
     def get_default_sync_dir(self, continue_dir=None, make_dir=True):
         self.calc_user_cache_dir_var()

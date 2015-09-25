@@ -311,7 +311,7 @@ class SVNItem(object):
             sub_dir_item = curr_item.__subs.get(part)
             if sub_dir_item is None:
                 if create_folders:
-                    sub_dir_item = SVNItem({'name': part, 'flags': "d", 'revision': in_revision})
+                    sub_dir_item = SVNItem({'name': part, 'flags': "d", 'revision': item_details['revision']})
                     curr_item.add_sub_item(sub_dir_item)
                 else:
                     raise KeyError(part+" is not in sub items of "+self.full_path())

@@ -6,6 +6,7 @@ import abc
 
 import svnTree
 import utils
+import connectionBase
 from configVar import var_stack
 
 
@@ -40,7 +41,7 @@ class InstlInstanceSync(object):
         if "PUBLIC_KEY" not in var_stack:
             if "PUBLIC_KEY_FILE" in var_stack:
                 public_key_file = var_stack.resolve("$(PUBLIC_KEY_FILE)")
-                with utils.open_for_read_file_or_url(public_key_file, connectionBase.connection_factory().translate_url, self.instlObj.path_searcher) as file_fd:
+                with utils.open_for_read_file_or_url(public_key_file, connectionBase.translate_url, self.instlObj.path_searcher) as file_fd:
                     public_key_text = file_fd.read()
                     var_stack.set_var("PUBLIC_KEY", "from " + public_key_file).append(public_key_text)
 
@@ -55,8 +56,11 @@ class InstlInstanceSync(object):
         try:
             utils.safe_makedirs(var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)", raise_on_fail=True))
             utils.safe_makedirs(var_stack.resolve("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)", raise_on_fail=True))
-            utils.download_from_file_or_url(var_stack.resolve("$(INFO_MAP_FILE_URL)"), connectionBase.connection_factory().translate_url
-                                      var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)", raise_on_fail=True),
+            info_map_file_url = var_stack.resolve("$(INFO_MAP_FILE_URL)")
+            local_copy_of_info_map = var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)")
+            utils.download_from_file_or_url(info_map_file_url,
+                                      local_copy_of_info_map,
+                                      connectionBase.translate_url,
                                       cache=True,
                                       expected_checksum=var_stack.resolve("$(INFO_MAP_FILE_URL_CHECKSUM)"))
             self.work_info_map.read_info_map_from_file(var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)"),

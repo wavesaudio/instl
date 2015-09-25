@@ -890,7 +890,7 @@ class InstlAdmin(InstlInstanceBase):
     def do_verify_index(self):
         self.read_yaml_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)"))
         info_map = svnTree.SVNTree()
-        with utils.open_for_read_file_or_url(var_stack.resolve("$(INFO_MAP_FILE_URL)"), connectionBase.connection_factory().translate_url) as rfd:
+        with utils.open_for_read_file_or_url(var_stack.resolve("$(INFO_MAP_FILE_URL)"), connectionBase.translate_url) as rfd:
             info_map.read_from_text(rfd)
 
         iid_to_sources = self.sources_from_iids()
