@@ -11,6 +11,7 @@ from collections import defaultdict
 
 import svnTree
 import utils
+import aYaml
 from instlInstanceBase import InstlInstanceBase
 from installItem import InstallItem
 from batchAccumulator import BatchAccumulator
