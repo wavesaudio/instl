@@ -21,7 +21,11 @@ def init_copy_vars(self):
                                             'post_copy': "post-install step",
                                             'pre_copy_to_folder': "pre-copy step",
                                             'post_copy_to_folder': "post-copy step"}
-
+    self.bytes_to_copy = 0
+    self.wtar_ratio = 1.3 # ratio between wtar file and it's uncompressed contents
+    if "WTAR_RATIO" in var_stack:
+        self.wtar_ratio = float(var_stack.resolve("$(WTAR_RATIO)"))
+    self.is_wtar_item = svnTree.WtarFilter() # will return true for any wtar file
 
 def create_copy_instructions(self):
     self.have_map = svnTree.SVNTree()
@@ -112,6 +116,8 @@ def create_copy_instructions(self):
         self.batch_accum += self.platform_helper.progress("{folder_name}".format(**locals()))
         self.batch_accum.indent_level -= 1
 
+    print(self.bytes_to_copy, "bytes to copy")
+
     self.accumulate_unique_actions('post_copy', self.installState.full_install_items)
 
     self.batch_accum.set_current_section('post-copy')
@@ -136,17 +142,27 @@ def create_copy_instructions(self):
 def create_copy_instructions_for_source(self, source):
     """ source is a tuple (source_path, tag), where tag is either !file or !dir """
 
+    def calc_size_of_file_item(old_total, a_file_item):
+        """ for use with builtin function reduce to calculate the unwtarred size of a file """
+        if self.is_wtar_item(a_file_item):
+            item_size = int(float(a_file_item.safe_size) * self.wtar_ratio)
+        else:
+            item_size = a_file_item.safe_size
+        return old_total + item_size
+
+    source_item = self.have_map.get_item_at_path(source[0])
     source_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + source[0])
 
     ignore_list = var_stack.resolve_to_list("$(COPY_IGNORE_PATTERNS)")
 
-    if source[1] == '!file':  # get a single file, not recommended
-        source_item = self.have_map.get_item_at_path(source[0])
+    if source[1] == '!file':  # get a single file
         if source_item:
             self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".",
                                                                                 link_dest=True,
                                                                                 ignore=ignore_list)
-        else:
+            self.bytes_to_copy += source_item.safe_size
+
+        else: # not in map, might be wtarred
             source_folder, source_name = os.path.split(source[0])
             source_folder_item = self.have_map.get_item_at_path(source_folder)
             if source_folder_item:
@@ -155,22 +171,29 @@ def create_copy_instructions_for_source(self, source):
                     self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".",
                                                                                         link_dest=True,
                                                                                         ignore=ignore_list)
+                    self.bytes_to_copy += int(float(wtar_item.safe_size) * self.wtar_ratio)
 
     elif source[1] == '!dir_cont':  # get all files and folders from a folder
         self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".",
                                                                                     link_dest=True,
                                                                                     ignore=ignore_list,
                                                                                     preserve_dest_files=True)  # preserve files already in destination
+
+        self.bytes_to_copy += reduce(calc_size_of_file_item, source_item.walk_items(what="file"), 0)
+
     elif source[1] == '!files':  # get all files from a folder
         self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".",
                                                                                  link_dest=True,
                                                                                  ignore=ignore_list)
+        file_list, dir_list = source_item.sorted_sub_items()
+        self.bytes_to_copy += reduce(calc_size_of_file_item, file_list, 0)
+
     else:  # !dir
-        source_item = self.have_map.get_item_at_path(source[0])
         if source_item:
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path, ".",
                                                                                link_dest=True,
                                                                                ignore=ignore_list)
+            self.bytes_to_copy += reduce(calc_size_of_file_item, source_item.walk_items(what="file"), 0)
         else:
             source_folder, source_name = os.path.split(source[0])
             source_folder_item = self.have_map.get_item_at_path(source_folder)
@@ -180,6 +203,7 @@ def create_copy_instructions_for_source(self, source):
                     self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".",
                                                                                         link_dest=True,
                                                                                         ignore=ignore_list)
+                    self.bytes_to_copy += int(float(wtar_item.safe_size) * self.wtar_ratio)
     logging.debug("%s; (%s - %s)", source_path, var_stack.resolve(source_path), source[1])
 
 

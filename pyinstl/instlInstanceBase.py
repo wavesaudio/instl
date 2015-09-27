@@ -22,11 +22,6 @@ from configVar import var_stack
 from installItem import InstallItem
 import connectionBase
 
-
-
-
-
-
 # noinspection PyPep8Naming
 class InstlInstanceBase(object):
     """ Main object of instl. Keeps the state of variables and install index

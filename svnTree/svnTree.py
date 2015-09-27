@@ -317,7 +317,7 @@ class WtarFilter(object):
     """ WtarFilter is passed to SVNItem.walk_items_with_filter as the filter parameter
         to match files that end with .wtar, .wtar.aa,...
     """
-    def __init__(self, base_name):
+    def __init__(self, base_name=r""".+"""):
         # Regex fo find files who's name starts with the source's name and have .wtar or wtar.aa... extension
         # NOT compiled with re.VERBOSE since the file name may contain spaces
         self.wtar_file_re = re.compile(base_name + r"""\.wtar(\...)?$""")
