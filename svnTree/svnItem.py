@@ -363,7 +363,7 @@ class SVNItem(object):
             This is the regular expression version.
         """
         retVal = None
-        match = text_line_re.match(the_str)
+        match = text_line_re.match(the_str.strip())
         if match:
             item_details = {'flags': match.group('flags'),
                             'revision': match.group('revision')}
