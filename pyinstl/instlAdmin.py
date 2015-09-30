@@ -7,6 +7,7 @@ import filecmp
 import cStringIO as StringIO
 import re
 import fnmatch
+import subprocess
 from collections import defaultdict
 
 import svnTree
