@@ -267,7 +267,7 @@ class InstlAdmin(InstlInstanceBase):
                                "--in", "instl/info_map.info",
                                "--props ", "instl/info_map.props",
                                "--base-repo-rev", "$(BASE_REPO_REV)",
-                               #"--file-sizes", "instl/info_map.file-sizes",
+                               "--file-sizes", "instl/info_map.file-sizes",
                                "--out ", "instl/info_map.txt"]
         accum += " ".join(trans_command_parts)
         accum += self.platform_helper.progress("Create $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map.txt")
@@ -609,9 +609,9 @@ class InstlAdmin(InstlInstanceBase):
 
     def compile_exclude_regexi(self):
         forbidden_folder_regex_list = var_stack.resolve_to_list("$(FOLDER_EXCLUDE_REGEX)")
-        self.compiled_forbidden_folder_regex = compile_regex_list_ORed(forbidden_folder_regex_list)
+        self.compiled_forbidden_folder_regex = utils.compile_regex_list_ORed(forbidden_folder_regex_list)
         forbidden_file_regex_list = var_stack.resolve_to_list("$(FILE_EXCLUDE_REGEX)")
-        self.compiled_forbidden_file_regex = compile_regex_list_ORed(forbidden_file_regex_list)
+        self.compiled_forbidden_file_regex = utils.compile_regex_list_ORed(forbidden_file_regex_list)
 
     def do_stage2svn(self):
         self.batch_accum.set_current_section('admin')
@@ -1113,7 +1113,7 @@ class InstlAdmin(InstlInstanceBase):
     def do_file_sizes(self):
         self.compile_exclude_regexi()
         out_file_path = var_stack.resolve("$(__MAIN_OUT_FILE__)", raise_on_fail=False)
-        with write_to_file_or_stdout(out_file_path) as out_file:
+        with utils.write_to_file_or_stdout(out_file_path) as out_file:
             what_to_scan = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
             if os.path.isfile(what_to_scan):
                 file_size = os.path.getsize(what_to_scan)
@@ -1121,7 +1121,7 @@ class InstlAdmin(InstlInstanceBase):
             else:
                 folder_to_scan_name_len = len(what_to_scan)+1 # +1 for the last '\'
                 if not self.compiled_forbidden_folder_regex.search(what_to_scan):
-                    for root, dirs, files in excluded_walk(what_to_scan, file_exclude_regex=self.compiled_forbidden_file_regex, dir_exclude_regex=self.compiled_forbidden_folder_regex, followlinks=False):
+                    for root, dirs, files in utils.excluded_walk(what_to_scan, file_exclude_regex=self.compiled_forbidden_file_regex, dir_exclude_regex=self.compiled_forbidden_folder_regex, followlinks=False):
                         for a_file in files:
                             full_path = os.path.join(root, a_file)
                             file_size = os.path.getsize(full_path)
