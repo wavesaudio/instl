@@ -176,8 +176,14 @@ class InstlAdmin(InstlInstanceBase):
         self.batch_accum.set_current_section('links')
 
         info_as_io = None
-        # call svn info and to find out the last repo revision
+        # call svn info to find out the last repo revision
         last_repo_rev = self.get_last_repo_rev()
+        base_repo_rev = int(var_stack.resolve("$(BASE_REPO_REV)"))
+        curr_repo_rev = int(var_stack.resolve("$(REPO_REV)"))
+        if base_repo_rev > curr_repo_rev:
+            raise ValueError("base_repo_rev "+str(base_repo_rev)+" > curr_repo_rev "+str(curr_repo_rev))
+        if curr_repo_rev > last_repo_rev:
+            raise ValueError("base_repo_rev "+str(base_repo_rev)+" > last_repo_rev "+str(last_repo_rev))
 
         self.batch_accum += self.platform_helper.mkdir("$(ROOT_LINKS_FOLDER_REPO)/Base")
 
@@ -187,10 +193,7 @@ class InstlAdmin(InstlInstanceBase):
 
         no_need_link_nums = list()
         yes_need_link_nums = list()
-        base_rev = int(var_stack.resolve("$(BASE_REPO_REV)"))
-        if base_rev > last_repo_rev:
-            raise ValueError("base_rev " + str(base_rev) + " > last_repo_rev " + str(last_repo_rev))
-        for revision in range(base_rev, last_repo_rev + 1):
+        for revision in range(base_repo_rev, curr_repo_rev+1):
             if self.needToCreatelinksForRevision(revision):
                 yes_need_link_nums.append(str(revision))
                 save_dir_var = "REV_" + str(revision) + "_SAVE_DIR"
@@ -212,7 +215,7 @@ class InstlAdmin(InstlInstanceBase):
             msg = " ".join(("Need to create links for revisions:", yes_need_links_str))
             print(msg)
         else:
-            msg = " ".join(("Links already created for all revisions:", str(base_rev), "...", str(last_repo_rev)))
+            msg = " ".join( ("Links already created for all revisions:", str(base_repo_rev), "...", str(curr_repo_rev)) )
             print(msg)
 
         self.create_variables_assignment()
@@ -319,15 +322,23 @@ class InstlAdmin(InstlInstanceBase):
     def do_up2s3(self):
         # call svn info and to find out the last repo revision
         base_repo_rev = int(var_stack.resolve("$(BASE_REPO_REV)"))
+        curr_repo_rev = int(var_stack.resolve("$(REPO_REV)"))
         last_repo_rev = self.get_last_repo_rev()
-        revision_list = range(base_repo_rev, last_repo_rev + 1)
+        if base_repo_rev > curr_repo_rev:
+            raise ValueError("base_repo_rev "+str(base_repo_rev)+" > curr_repo_rev "+str(curr_repo_rev))
+        if curr_repo_rev > last_repo_rev:
+            raise ValueError("base_repo_rev "+str(base_repo_rev)+" > last_repo_rev "+str(last_repo_rev))
+
+        revision_list = range(base_repo_rev, curr_repo_rev+1)
         dirs_to_upload = list()
         no_need_upload_nums = list()
         yes_need_upload_nums = list()
+        error_need_upload_num = list()
         for dir_as_int in revision_list:
             dir_name = str(dir_as_int)
             if not os.path.isdir(var_stack.resolve("$(ROOT_LINKS_FOLDER_REPO)/" + dir_name)):
                 print("revision dir", dir_name, "is missing, run create-links to create this folder")
+                error_need_upload_num.append(dir_name)
             else:
                 create_links_done_stamp_file = var_stack.resolve("$(ROOT_LINKS_FOLDER_REPO)/"+dir_name+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
                 if not os.path.isfile(create_links_done_stamp_file):
@@ -339,8 +350,12 @@ class InstlAdmin(InstlInstanceBase):
                     else:
                         yes_need_upload_nums.append(dir_name)
                         dirs_to_upload.append(dir_name)
-
-        if yes_need_upload_nums:
+        if error_need_upload_num:
+            error_need_upload__str = find_sequences(error_need_upload_num)
+            msg = " ".join( ("Revisions cannot be uploaded to S3:", error_need_upload__str) )
+            print(msg)
+            dirs_to_upload = []
+        elif yes_need_upload_nums:
             if no_need_upload_nums:
                 no_need_upload__str = utils.find_sequences(no_need_upload_nums)
                 msg = " ".join(("Revisions already uploaded to S3:", no_need_upload__str))
@@ -349,7 +364,7 @@ class InstlAdmin(InstlInstanceBase):
             msg = " ".join(("Revisions will be uploaded to S3:", yes_need_upload_str))
             print(msg)
         else:
-            msg = " ".join(("All revisions already uploaded to S3:", str(base_repo_rev), "...", str(last_repo_rev)))
+            msg = " ".join( ("All revisions already uploaded to S3:", str(base_repo_rev), "...", str(curr_repo_rev)) )
             print(msg)
 
         self.batch_accum.set_current_section('upload')
