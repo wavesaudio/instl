@@ -8,13 +8,14 @@ import unittest
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 import configVar
 
-class TestConfigVar(unittest.TestCase):
 
+class TestConfigVar(unittest.TestCase):
     def setUp(self):
         """ Create ConfigVar objects indirectly so it's possible for
             TestConstConfigVar to override TestConfigVar.
         """
         self.constructor = configVar.ConfigVar
+
     def tearDown(self):
         pass
 
@@ -60,7 +61,8 @@ class TestConfigVar(unittest.TestCase):
 
     def test_construction_with_multiple_values(self):
         """ Construct ConfigVar with multiple values, with description. """
-        cv5 = self.constructor("test_construction_with_multiple_values", "some initial description", "methodist", "alchemist", "pessimist")
+        cv5 = self.constructor("test_construction_with_multiple_values", "some initial description", "methodist",
+                               "alchemist", "pessimist")
         self.assertEqual(cv5.name, "test_construction_with_multiple_values")
         self.assertEqual(cv5.description, "some initial description")
         self.assertEqual(len(cv5), 3)
@@ -68,7 +70,8 @@ class TestConfigVar(unittest.TestCase):
 
     def test_construction_with_list_of_values(self):
         """ Construct ConfigVar with a list of multiple values, with description. """
-        cv6 = self.constructor("test_construction_with_list_of_values", "some initial description", *["methodist", "alchemist", "pessimist"])
+        cv6 = self.constructor("test_construction_with_list_of_values", "some initial description",
+                               *["methodist", "alchemist", "pessimist"])
         self.assertEqual(cv6.name, "test_construction_with_list_of_values")
         self.assertEqual(cv6.description, "some initial description")
         self.assertEqual(len(cv6), 3)
@@ -77,7 +80,8 @@ class TestConfigVar(unittest.TestCase):
     def test_construction_with_non_string_values(self):
         """ Construct ConfigVar with multiple values that are not string, with description.
             Non string values should be converted to strings on assignment. """
-        cv7 = self.constructor("test_construction_with_non_string_values", "some initial description", 1, 2.0, ("smutsmik", "beatnik"))
+        cv7 = self.constructor("test_construction_with_non_string_values", "some initial description", 1, 2.0,
+                               ("smutsmik", "beatnik"))
         self.assertEqual(cv7.name, "test_construction_with_non_string_values")
         self.assertEqual(cv7.description, "some initial description")
         self.assertEqual(len(cv7), 3)
@@ -101,17 +105,17 @@ class TestConfigVar(unittest.TestCase):
         """ Call extend """
         cv9 = self.constructor("sababa9")
         self.assertEqual(cv9.name, "sababa9")
-        cv9.extend(("one","two"))
+        cv9.extend(("one", "two"))
         self.assertEqual(len(cv9), 2)
         self.assertEqual(tuple(cv9), ("one", "two"))
-        cv9.extend(("three","four"))
+        cv9.extend(("three", "four"))
         self.assertEqual(len(cv9), 4)
         self.assertEqual(tuple(cv9), ("one", "two", "three", "four"))
 
     def test_clear_values(self):
         """ Call clear_values """
         cv10 = self.constructor("test_clear_values")
-        cv10.extend(("one","two"))
+        cv10.extend(("one", "two"))
         self.assertEqual(len(cv10), 2)
         self.assertEqual(tuple(cv10), ("one", "two"))
         cv10.clear_values()
@@ -120,7 +124,7 @@ class TestConfigVar(unittest.TestCase):
     def test___setitem__(self):
         """ Call __setitem__ """
         cv11 = self.constructor("test___setitem__")
-        cv11.extend(("one","two"))
+        cv11.extend(("one", "two"))
         self.assertEqual(len(cv11), 2)
         self.assertEqual(tuple(cv11), ("one", "two"))
         cv11[1] = "mel-u-michel"
@@ -133,7 +137,7 @@ class TestConfigVar(unittest.TestCase):
     def test___delitem__(self):
         """ Call __delitem__ """
         cv12 = self.constructor("test___delitem__")
-        cv12.extend(("one","two", "three"))
+        cv12.extend(("one", "two", "three"))
         self.assertEqual(len(cv12), 3)
         self.assertEqual(tuple(cv12), ("one", "two", "three"))
         del cv12[1]
@@ -146,16 +150,17 @@ class TestConfigVar(unittest.TestCase):
     def test___iter__(self):
         """ Call __iter__ """
         cv13 = self.constructor("test___iter__")
-        cv13.extend(("one","two", "three"))
+        cv13.extend(("one", "two", "three"))
         self.assertEqual(len(cv13), 3)
-        self.assertEqual(list(("one","two", "three")), [item for item in cv13.__iter__()])
+        self.assertEqual(list(("one", "two", "three")), [item for item in cv13.__iter__()])
 
     def test_reverse(self):
         """ Call reverse """
         cv14 = self.constructor("test_reverse")
-        cv14.extend(("one","two", "three"))
+        cv14.extend(("one", "two", "three"))
         self.assertEqual(len(cv14), 3)
-        self.assertEqual(tuple(reversed(cv14)), ("three","two", "one"))
+        self.assertEqual(tuple(reversed(cv14)), ("three", "two", "one"))
+
 
 class TestConstConfigVar(TestConfigVar):
     """ inherit tests from TestConfigVar, override those that should raise exceptions,
@@ -202,12 +207,12 @@ class TestConstConfigVar(TestConfigVar):
 
     def test___iter__(self):
         """ Call __iter__ """
-        cv13 = self.constructor("test___iter__", "", *("one","two", "three"))
+        cv13 = self.constructor("test___iter__", "", *("one", "two", "three"))
         self.assertEqual(len(cv13), 3)
-        self.assertEqual(list(("one","two", "three")), [item for item in cv13.__iter__()])
+        self.assertEqual(list(("one", "two", "three")), [item for item in cv13.__iter__()])
 
     def test_reverse(self):
         """ Call reverse """
-        cv14 = self.constructor("test_reverse", "", *("one","two", "three"))
+        cv14 = self.constructor("test_reverse", "", *("one", "two", "three"))
         self.assertEqual(len(cv14), 3)
-        self.assertEqual(tuple(reversed(cv14)), ("three","two", "one"))
+        self.assertEqual(tuple(reversed(cv14)), ("three", "two", "one"))

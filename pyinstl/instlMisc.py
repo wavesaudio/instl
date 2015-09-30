@@ -2,19 +2,21 @@
 
 from __future__ import print_function
 
+import os
+import sys
 import shlex
 import tarfile
 import fnmatch
 import time
-import stat
 
-from pyinstl.utils import *
+import svnTree
+import utils
 from instlInstanceBase import InstlInstanceBase
-from pyinstl import svnTree
-from configVarStack import var_stack
+from configVar import var_stack
+import connectionBase
+
 
 class InstlMisc(InstlInstanceBase):
-
     def __init__(self, initial_vars):
         super(InstlMisc, self).__init__(initial_vars)
         self.svnTree = svnTree.SVNTree()
@@ -26,13 +28,13 @@ class InstlMisc(InstlInstanceBase):
     def do_command(self):
         the_command = var_stack.resolve("$(__MAIN_COMMAND__)", raise_on_fail=True)
         fixed_command = the_command.replace('-', '_')
-        self.curr_progress =  int(var_stack.resolve("$(__START_DYNAMIC_PROGRESS__)")) + 1
+        self.curr_progress = int(var_stack.resolve("$(__START_DYNAMIC_PROGRESS__)")) + 1
         self.total_progress = int(var_stack.resolve("$(__TOTAL_DYNAMIC_PROGRESS__)"))
         self.progress_staccato_period = int(var_stack.resolve("$(PROGRESS_STACCATO_PERIOD)"))
         self.progress_staccato_count = 0
         self.actual_progress = 1
         self.progress_staccato_command = False
-        do_command_func = getattr(self, "do_"+fixed_command)
+        do_command_func = getattr(self, "do_" + fixed_command)
         before_time = time.clock()
         do_command_func()
         after_time = time.clock()
@@ -52,6 +54,7 @@ class InstlMisc(InstlInstanceBase):
 
     def do_help(self):
         import pyinstl.helpHelper
+
         help_folder_path = os.path.join(var_stack.resolve("$(__INSTL_DATA_FOLDER__)", raise_on_fail=True), "help")
         pyinstl.helpHelper.do_help(var_stack.resolve("$(__HELP_SUBJECT__)", raise_on_fail=True), help_folder_path, self)
 
@@ -64,8 +67,7 @@ class InstlMisc(InstlInstanceBase):
                 if line and line[0] != "#":
                     args = shlex.split(line)
                     commands.append(args)
-        from parallel_run import run_processes_in_parallel
-        run_processes_in_parallel(commands)
+        utils.run_processes_in_parallel(commands)
 
     def do_unwtar(self):
         self.no_artifacts = False
@@ -89,7 +91,7 @@ class InstlMisc(InstlInstanceBase):
                     dirs[:] = []
                     continue
                 # unique_list so if both .wtar and .wtar.aa exists the list after joining will not have double entries
-                files_to_unwtar = unique_list()
+                files_to_unwtar = utils.unique_list()
                 # find split files and join them
                 for afile in files:
                     afile_path = os.path.join(root, afile)
@@ -109,7 +111,7 @@ class InstlMisc(InstlInstanceBase):
             print(what_to_work_on, "is not a file or directory")
 
     def unwtar_a_file(self, wtar_file_path):
-        done_file = wtar_file_path+".done"
+        done_file = wtar_file_path + ".done"
         if not os.path.isfile(done_file) or os.path.getmtime(done_file) < os.path.getmtime(wtar_file_path):
             try:
                 wtar_folder_path, _ = os.path.split(wtar_file_path)
@@ -132,7 +134,7 @@ class InstlMisc(InstlInstanceBase):
         joined_file_path = norm_first_file[:-3] # without the final '.aa'
         done_file = norm_first_file+".done"
         if not os.path.isfile(done_file) or os.path.getmtime(done_file) < os.path.getmtime(first_file):
-            filter_pattern = base_name[:-2]+"??" # with ?? instead of aa
+            filter_pattern = base_name[:-2] + "??"  # with ?? instead of aa
             matching_files = sorted(fnmatch.filter(os.listdir(base_folder), filter_pattern))
             with open(joined_file_path, "wb") as wfd:
                 for afile in matching_files:
@@ -145,7 +147,7 @@ class InstlMisc(InstlInstanceBase):
             if not self.no_artifacts:
                 with open(done_file, "a"): os.utime(done_file, None)
             # now remove the done file for the newly created .wtar file
-            joined_file_done_path = joined_file_path+".done"
+            joined_file_done_path = joined_file_path + ".done"
             if os.path.isfile(joined_file_done_path):
                 os.remove(joined_file_done_path)
             self.dynamic_progress("Expanding {first_file}".format(**locals()))
@@ -158,16 +160,16 @@ class InstlMisc(InstlInstanceBase):
         for file_item in self.svnTree.walk_items(what="file"):
             file_path = file_item.full_path()
             if os.path.isfile(file_path):
-                checkOK = check_file_checksum(file_path, file_item.checksum)
+                checkOK = utils.check_file_checksum(file_path, file_item.checksum)
                 if not checkOK:
-                    sigs = create_file_signatures(file_path)
+                    sigs = utils.create_file_signatures(file_path)
                     bad_checksum_list.append( " ".join(("Bad checksum:", file_path, "expected", file_item.checksum, "found", sigs["sha1_checksum"])) )
             else:
-                bad_checksum_list.append( " ".join((file_path, "does not exist")) )
+                bad_checksum_list.append(" ".join((file_path, "does not exist")))
             self.dynamic_progress("Check checksum {file_path}".format(**locals()))
         if bad_checksum_list:
             print("\n".join(bad_checksum_list))
-            raise ValueError("Bad checksum for "+str(len(bad_checksum_list))+" files")
+            raise ValueError("Bad checksum for " + str(len(bad_checksum_list)) + " files")
 
     def do_set_exec(self):
         self.progress_staccato_command = True
@@ -185,11 +187,12 @@ class InstlMisc(InstlInstanceBase):
         self.read_info_map_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
         for dir_item in self.svnTree.walk_items(what="dir"):
             dir_path = dir_item.full_path()
-            safe_makedirs(dir_path)
+            utils.safe_makedirs(dir_path)
             self.dynamic_progress("Create folder {dir_path}".format(**locals()))
 
     def do_test_import(self):
         import importlib
+
         bad_modules = list()
         for module in ("yaml", "appdirs", "readline", "colorama", "rsa", "boto"):
             try:
@@ -222,9 +225,10 @@ class InstlMisc(InstlInstanceBase):
 
     def do_win_shortcut(self):
         shortcut_path = var_stack.resolve("$(__SHORTCUT_PATH__)", raise_on_fail=True)
-        target_path   = var_stack.resolve("$(__SHORTCUT_TARGET_PATH__)", raise_on_fail=True)
+        target_path = var_stack.resolve("$(__SHORTCUT_TARGET_PATH__)", raise_on_fail=True)
         working_directory, target_name = os.path.split(target_path)
         from win32com.client import Dispatch
+
         shell = Dispatch("WScript.Shell")
         shortcut = shell.CreateShortCut(shortcut_path)
         shortcut.Targetpath = target_path
@@ -233,5 +237,5 @@ class InstlMisc(InstlInstanceBase):
 
     def do_translate_url(self):
         url_to_translate = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
-        translated_url = ConnectionBase.repo_connection.translate_url(url_to_translate)
+        translated_url = connectionBase.ConnectionBase.repo_connection.translate_url(url_to_translate)
         print(translated_url)

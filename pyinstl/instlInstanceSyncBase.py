@@ -1,16 +1,21 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
+
+import os
 import abc
 
-from pyinstl import svnTree
-from pyinstl.utils import *
-from configVarStack import var_stack
+import svnTree
+import utils
+import connectionBase
+from configVar import var_stack
+
 
 def is_user_data_false_or_dir_empty(svn_item):
     retVal = not svn_item.user_data
     if svn_item.isDir():
-        retVal = len(svn_item.subs()) == 0
+        retVal = len(svn_item.subs) == 0
     return retVal
+
 
 class InstlInstanceSync(object):
     """  Base class for sync object .
@@ -33,11 +38,10 @@ class InstlInstanceSync(object):
         prerequisite_vars = var_stack.resolve_var_to_list("__SYNC_PREREQUISITE_VARIABLES__")
         self.instlObj.check_prerequisite_var_existence(prerequisite_vars)
 
-
         if "PUBLIC_KEY" not in var_stack:
             if "PUBLIC_KEY_FILE" in var_stack:
                 public_key_file = var_stack.resolve("$(PUBLIC_KEY_FILE)")
-                with open_for_read_file_or_url(public_key_file, self.instlObj.path_searcher) as file_fd:
+                with utils.open_for_read_file_or_url(public_key_file, connectionBase.translate_url, self.instlObj.path_searcher) as file_fd:
                     public_key_text = file_fd.read()
                     var_stack.set_var("PUBLIC_KEY", "from " + public_key_file).append(public_key_text)
 
@@ -50,10 +54,13 @@ class InstlInstanceSync(object):
             Writes the map to local sync folder for reference and debugging.
         """
         try:
-            safe_makedirs(var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)", raise_on_fail=True))
-            safe_makedirs(var_stack.resolve("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)", raise_on_fail=True))
-            download_from_file_or_url(var_stack.resolve("$(INFO_MAP_FILE_URL)"),
-                                      var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)", raise_on_fail=True),
+            utils.safe_makedirs(var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)", raise_on_fail=True))
+            utils.safe_makedirs(var_stack.resolve("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)", raise_on_fail=True))
+            info_map_file_url = var_stack.resolve("$(INFO_MAP_FILE_URL)")
+            local_copy_of_info_map = var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)")
+            utils.download_from_file_or_url(info_map_file_url,
+                                      local_copy_of_info_map,
+                                      connectionBase.translate_url,
                                       cache=True,
                                       expected_checksum=var_stack.resolve("$(INFO_MAP_FILE_URL_CHECKSUM)"))
             self.work_info_map.read_info_map_from_file(var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)"),
@@ -94,21 +101,20 @@ class InstlInstanceSync(object):
             have_item = self.have_map.get_item_at_path(need_item.full_path_parts())
             if have_item is None:  # not found in have map
                 self.have_map.new_item_at_path(need_item.full_path_parts(),
-                                               need_item.flags,
-                                               need_item.last_rev,
-                                               need_item.checksum,
-                                               None, # no need to copy the url to the have_map
-                                               need_item.safe_size,
-                                               create_folders=True)
+                                                {'flags': need_item.flags,
+                                                'revision': need_item.revision,
+                                                'checksum': need_item.checksum,
+                                                'size': need_item.safe_size}, # no need to copy the url to the have_map
+                                                create_folders=True)
             else:  # found in have map
-                if have_item.last_rev == need_item.last_rev:
+                if have_item.revision == need_item.revision:
                     need_item.user_data = False
-                elif have_item.last_rev < need_item.last_rev:
+                elif have_item.revision < need_item.revision:
                     have_item.flags = need_item.flags
-                    have_item.last_rev = need_item.last_rev
-                elif have_item.last_rev > need_item.last_rev:  # weird, but need to get the older version
+                    have_item.revision = need_item.revision
+                elif have_item.revision > need_item.revision:  # weird, but need to get the older version
                     have_item.flags = need_item.flags
-                    have_item.last_rev = need_item.last_rev
+                    have_item.revision = need_item.revision
         self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
         self.work_info_map.write_to_file(var_stack.resolve("$(TO_SYNC_INFO_MAP_PATH)", raise_on_fail=True), in_format="text")
         self.have_map.write_to_file(var_stack.resolve("$(NEW_HAVE_INFO_MAP_PATH)", raise_on_fail=True), in_format="text")

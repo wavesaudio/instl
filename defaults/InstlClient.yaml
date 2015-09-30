@@ -44,3 +44,5 @@ COPY_IGNORE_PATTERNS:
     - "*.done"
 
 RSYNC_PERM_OPTIONS: --perms --chmod=a+rw,+X
+
+WTAR_RATIO: 1.3

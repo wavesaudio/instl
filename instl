@@ -4,24 +4,24 @@
 
 from __future__ import print_function
 
-import sys
 import os
+import sys
 import argparse
 import logging
+
 import appdirs
+
 
 # umask to 0 so that all files created under sudo, can be re-written under regular user.
 os.umask(0)
 
 # setup logging, must be done before other imports
-from pyinstl.log_utils import setup_logging
+from utils import setup_logging
 setup_logging("instl", "instl")
-from pyinstl.utils import *
-
-from pyinstl.instlException import InstlException
+import utils
 
 
-current_os_names = get_current_os_names()
+current_os_names = utils.get_current_os_names()
 os_family_name = current_os_names[0]
 os_second_name = current_os_names[0]
 if len(current_os_names) > 1:

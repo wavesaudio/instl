@@ -1,24 +1,24 @@
 #!/usr/bin/env python2.7
 
 from __future__ import print_function
-import stat
-import time
-from collections import OrderedDict, defaultdict
+
+import os
 import logging
 
-from pyinstl.utils import *
-from installItem import InstallItem, guid_list, iids_from_guid
-from aYaml import augmentedYaml
+#from installItem import InstallItem, guid_list, iids_from_guid
+#from aYaml import augmentedYaml
 
-from instlInstanceBase import InstlInstanceBase
-from configVarStack import var_stack
+#from instlInstanceBase import InstlInstanceBase
 import svnTree
+#import utils
+from configVar import var_stack
 
 
 def do_remove(self):
     logging.info("Creating remove instructions")
     self.init_remove_vars()
     self.create_remove_instructions()
+
 
 def init_remove_vars(self):
     self.action_type_to_progress_message = {'pre_remove': "pre-remove step",
@@ -27,6 +27,7 @@ def init_remove_vars(self):
                                             'post_remove_from_folder': "post-remove-from-folder step",
                                             'pre_remove_item': "pre-delete step",
                                             'post_remove_item': "post-delete step"}
+
 
 def create_remove_instructions(self):
     self.have_map = svnTree.SVNTree()
@@ -65,6 +66,7 @@ def create_remove_instructions(self):
 
     self.accumulate_unique_actions('post_remove', self.installState.full_install_items)
 
+
 # create_remove_instructions_for_source:
 # Create instructions to remove a specific source from a specific target folder.
 # There can be 3 possibilities according to the value of the item's remove_item section:
@@ -86,7 +88,7 @@ def create_remove_instructions_for_source(self, folder, source):
         elif source[1] == '!file':  # remove single file
             remove_action = self.platform_helper.rmfile(to_remove_path)
             self.batch_accum += remove_action
-        elif source[1] == '!dir_cont': # remove all source's files and folders from a folder
+        elif source[1] == '!dir_cont':  # remove all source's files and folders from a folder
             source_folder_info_map_item = self.have_map.get_item_at_path(source[0])
             # avoid removing items that were not installed,
             # could happen because install dependencies are not always the same as remove dependencies.

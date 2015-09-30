@@ -8,11 +8,8 @@ from __future__ import print_function
             Reduce file system access (isfile, isdir,...)
 """
 
-#import os
-import appdirs
+import os
 import logging
-
-from pyinstl.utils import *
 
 # noinspection PyPep8Naming
 class SearchPaths(object):

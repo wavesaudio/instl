@@ -1,16 +1,17 @@
 #!/usr/bin/env python
 from __future__ import print_function
 
+import os
+import re
 from collections import OrderedDict
-import yaml
 import logging
 
-import instlException
-from pyinstl.utils import *
-import aYaml
-import svnItem
+import yaml
 
-import re
+import svnItem
+import utils
+import aYaml
+
 
 comment_line_re = re.compile(r"""
             ^
@@ -69,7 +70,7 @@ class SVNTree(svnItem.SVNTopItem):
             a_format = map_info_extension_to_format[extension[1:]]
         self.comments.append("Original file " + self.path_to_file)
         if a_format in self.read_func_by_format.keys():
-            with open_for_read_file_or_url(self.path_to_file) as rfd:
+            with utils.open_for_read_file_or_url(self.path_to_file) as rfd:
                 logging.info("%s, a_format: %s", self.path_to_file, a_format)
                 if a_format not in ("props", "file-sizes"):
                     self.clear_subs()
@@ -80,8 +81,8 @@ class SVNTree(svnItem.SVNTopItem):
 
     def read_from_svn_info(self, rfd):
         """ reads new items from svn info items prepared by iter_svn_info """
-        for item in self.iter_svn_info(rfd):
-            self.new_item_at_path(*item)
+        for item_dict in self.iter_svn_info(rfd):
+            self.new_item_at_path(item_dict['path'], item_dict)
 
     def read_from_text(self, rfd):
         for line in rfd:
@@ -89,16 +90,16 @@ class SVNTree(svnItem.SVNTopItem):
             if match:
                 self.comments.append(match.group("the_comment"))
             else:
-                self.new_item_from_str(line)
+                self.new_item_from_str_re(line)
 
     def read_from_yaml(self, rfd):
         try:
             for a_node in yaml.compose_all(rfd):
                 self.read_yaml_node(a_node)
         except yaml.YAMLError as ye:
-            raise instlException.InstlException(" ".join(("YAML error while reading file", "'" + rfd.name + "':\n", str(ye))), ye)
+            raise utils.InstlException(" ".join(("YAML error while reading file", "'" + rfd.name + "':\n", str(ye))), ye)
         except IOError as ioe:
-            raise instlException.InstlException(" ".join(("Failed to read file", "'" + rfd.name + "'", ":")), ioe)
+            raise utils.InstlException(" ".join(("Failed to read file", "'" + rfd.name + "'", ":")), ioe)
 
     def pseudo_read_from_yaml(self, rfd):
         """ read from yaml file without the yaml parser - much faster
@@ -112,7 +113,7 @@ class SVNTree(svnItem.SVNTopItem):
                     (?P<props>
                     (?P<flags>[dfsx]+)
                     \s
-                    (?P<last_rev>\d+)
+                    (?P<revision>\d+)
                     (\s
                     (?P<checksum>[\da-f]+))?
                     )?
@@ -135,12 +136,11 @@ class SVNTree(svnItem.SVNTopItem):
                         path_parts.append(match.group('path'))
                         if match.group('props'):  # it's a file
                             # print(((new_indent * spaces_per_indent)-1) * " ", "/".join(path_parts), match.group('props'))
-                            self.new_item_at_path(path_parts, match.group('flags'), match.group('last_rev'),
-                                                  match.group('checksum'))
+                            self.new_item_at_path(path_parts, {'flags': match.group('flags'), 'revision': match.group('revision')})
                         indent = new_indent
                     else:  # previous element was a folder
                         # print(((new_indent * spaces_per_indent)-1) * " ", "/".join(path_parts), match.group('props'))
-                        self.new_item_at_path(path_parts, match.group('flags'), match.group('last_rev'))
+                        self.new_item_at_path(path_parts, {'flags': match.group('flags'), 'revision': match.group('revision')})
                 else:
                     if indent != -1:  # first lines might be empty
                         ValueError("no match at line " + str(line_num) + ": " + line)
@@ -203,7 +203,7 @@ class SVNTree(svnItem.SVNTopItem):
             _, extension = os.path.splitext(self.path_to_file)
             in_format = map_info_extension_to_format[extension[1:]]
         if in_format in self.write_func_by_format.keys():
-            with write_to_file_or_stdout(self.path_to_file) as wfd:
+            with utils.write_to_file_or_stdout(self.path_to_file) as wfd:
                 logging.info("%s, format: %s", self.path_to_file, in_format)
                 self.write_func_by_format[in_format](wfd, comments)
         else:
@@ -219,13 +219,13 @@ class SVNTree(svnItem.SVNTopItem):
             wfd.write(str(item) + "\n")
 
     def write_as_yaml(self, wfd, comments=True):
-        aYaml.augmentedYaml.writeAsYaml(self, out_stream=wfd, indentor=None, sort=True)
+        aYaml.writeAsYaml(self, out_stream=wfd, indentor=None, sort=True)
 
     def repr_for_yaml(self):
         """         writeAsYaml(svni1, out_stream=sys.stdout, indentor=None, sort=True)         """
         retVal = OrderedDict()
-        for sub_name in sorted(self.subs().keys()):
-            the_sub = self.subs()[sub_name]
+        for sub_name in sorted(self.subs.keys()):
+            the_sub = self.subs[sub_name]
             if the_sub.isDir():
                 retVal[the_sub.name] = the_sub.repr_for_yaml()
             else:
@@ -256,6 +256,21 @@ class SVNTree(svnItem.SVNTopItem):
                 checksum = a_record.get("Checksum", None)
                 return a_record["Path"], short_node_kind[a_record["Node Kind"]], int(revision), checksum
 
+            def create_info_dict_from_record(a_record):
+                """ On rare occasions there is no 'Last Changed Rev' field, just 'Revision'.
+                    So we use 'Revision' as 'Last Changed Rev'.
+                """
+                retVal = dict()
+                retVal['path']  =  a_record["Path"]
+                retVal['flags'] = short_node_kind[a_record["Node Kind"]]
+                if "Last Changed Rev" in a_record:
+                    retVal['revision'] = a_record["Last Changed Rev"]
+                elif "Revision" in a_record:
+                    retVal['revision'] = a_record["Revision"]
+                retVal['checksum'] = a_record.get("Checksum", None)
+
+                return retVal
+
             short_node_kind = {"file": "f", "directory": "d"}
             record = dict()
             line_num = 0
@@ -270,10 +285,10 @@ class SVNTree(svnItem.SVNTopItem):
                         record[the_match.group('key')] = the_match.group('rest_of_line')
                 else:
                     if record and record["Path"] != ".":  # in case there were several empty lines between blocks
-                        yield create_info_line_from_record(record)
+                        yield create_info_dict_from_record(record)
                     record.clear()
             if record and record["Path"] != ".":  # in case there was no extra line at the end of file
-                yield create_info_line_from_record(record)
+                yield create_info_dict_from_record(record)
         except KeyError as unused_ke:
             print(unused_ke)
             print("Error:", "line:", line_num, "record:", record)
@@ -285,7 +300,7 @@ class SVNTree(svnItem.SVNTopItem):
             for a_file in files:
                 if a_file != ".DS_Store": # temp hack, list of ignored files should be moved to a variable
                     relative_path = os.path.join(root, a_file)[prefix_len:]
-                    self.new_item_at_path(relative_path, "f", 0, checksum="0", create_folders=True)
+                    self.new_item_at_path(relative_path, {'flags':"f", 'revision': 0, 'checksum': "0"}, create_folders=True)
 
     def read_file_sizes(self, rfd):
         for line in rfd:
@@ -302,7 +317,7 @@ class WtarFilter(object):
     """ WtarFilter is passed to SVNItem.walk_items_with_filter as the filter parameter
         to match files that end with .wtar, .wtar.aa,...
     """
-    def __init__(self, base_name):
+    def __init__(self, base_name=r""".+"""):
         # Regex fo find files who's name starts with the source's name and have .wtar or wtar.aa... extension
         # NOT compiled with re.VERBOSE since the file name may contain spaces
         self.wtar_file_re = re.compile(base_name + r"""\.wtar(\...)?$""")

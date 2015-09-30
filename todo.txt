@@ -1,3 +1,7 @@
+- unwtar stay out of sync folder not just bookkeeping
+- resolvesymlink stay out of sync folder not just bookkeeping
+- why is WavesLib with 2 wtars?
+
 Could storage wish list:
     Be able to avoid creating the urls on server - maybe use some time limited token?
     Be able to donload whole folders???

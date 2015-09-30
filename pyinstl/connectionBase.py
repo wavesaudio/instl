@@ -4,9 +4,11 @@ from __future__ import print_function
 import abc
 import urllib
 import urlparse
+
 import boto
 
-from configVarStack import var_stack
+from configVar import var_stack
+
 
 class ConnectionBase(object):
     repo_connection = None # global singleton, holding current connection
@@ -62,9 +64,15 @@ class ConnectionS3(ConnectionBase):
 
 
 def connection_factory(credentials=None):
-    if credentials is None:
-        ConnectionBase.repo_connection = ConnectionHTTP()
-    else:
-        cred_split = credentials.split(":")
-        if cred_split[0].lower() == "s3":
-            ConnectionBase.repo_connection = ConnectionS3(cred_split[1:])
+    if ConnectionBase.repo_connection is None:
+        if credentials is None:
+            ConnectionBase.repo_connection = ConnectionHTTP()
+        else:
+            cred_split = credentials.split(":")
+            if cred_split[0].lower() == "s3":
+                ConnectionBase.repo_connection = ConnectionS3(cred_split[1:])
+    return ConnectionBase.repo_connection
+
+def translate_url(in_bare_url):
+    translated_url = connection_factory().translate_url(in_bare_url)
+    return translated_url
