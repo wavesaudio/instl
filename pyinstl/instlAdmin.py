@@ -9,6 +9,7 @@ import re
 import fnmatch
 import subprocess
 from collections import defaultdict
+import stat
 
 import svnTree
 import utils
