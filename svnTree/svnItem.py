@@ -64,7 +64,7 @@ class SVNItem(object):
 
         self.__checksum = item_details.get('checksum')
         self.__url = item_details.get('url')
-        self.__size = item_details.get('size', -1)
+        self.__size = int(item_details.get('size', -1))
 
         self.__subs = None
         if self.isDir():
