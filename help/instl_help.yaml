@@ -173,6 +173,13 @@ command:
             If no --credentials is given, the translation will simply replace characters to ascii and spaces to %20.
             If --credentials is given instl will connect and build a url suitable for use. Currently only Amazon s3 connection is supported.
 
+    test-import:
+        short: Test that python imports inside instl are successful.. (misc command)
+        long:   |
+            Usage: instl test-import
+            Helps making sure instl will function OK by trying out various import statements that instl uses. Especially useful after compiling instl in making sure the compiled binrary can find all the necessary imports.
+            If all imports are OK, no message is written to stdout (except command timing statistics) and exit code is 0. In case of error a list of missing modules is printed and non-zero exit code is returned.
+
     uninstall:
       short: Remove installed files considering dependencies. (client command)
       long: |

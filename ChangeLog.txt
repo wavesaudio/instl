@@ -1,3 +1,12 @@
+1/10/2015 0.12.0.0
+
+    user visible changes, client:
+    * Added help for test-import command.
+    * Added new packages (utils, svnTree, configVar) to test-import.
+
+    programmer visible changes:
+    * Integrated support for checking file sizes from file-sizes branch.
+
 21/9/2015 0.11.0.5
 
     user visible changes, client:
