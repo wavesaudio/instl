@@ -79,10 +79,10 @@ class SVNItem(object):
         retVal = "{}, {}, {}".format(full_path_str, self.__flags, self.__revision)
         if self.__checksum:
             retVal = "{}, {}".format(retVal, self.__checksum)
-        if self.__url:
-            retVal = "{}, {}".format(retVal, self.__url)
         if self.__size != -1:
             retVal = "{}, {}".format(retVal, self.__size)
+        if self.__url:
+            retVal = "{}, {}".format(retVal, self.__url)
         return retVal
 
     def __copy__(self):

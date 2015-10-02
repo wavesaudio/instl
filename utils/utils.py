@@ -119,7 +119,7 @@ class open_for_read_file_or_url(object):
             self.fd = urllib2.urlopen(self.file_or_url)
             #print("open_for_read_file_or_url.__enter__ opened", self.file_or_url, file=sys.stderr)
         except urllib2.URLError as url_err:
-            #print (url_err, self.file_or_url)
+            print (url_err, self.file_or_url)
             raise
         if "name" not in dir(self.fd) and "url" in dir(self.fd):
             self.fd.name = self.fd.url # so we can get the url with the same attribute as file object
