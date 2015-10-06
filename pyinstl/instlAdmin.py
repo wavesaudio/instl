@@ -195,7 +195,10 @@ class InstlAdmin(InstlInstanceBase):
 
         no_need_link_nums = list()
         yes_need_link_nums = list()
-        for revision in range(base_repo_rev, curr_repo_rev+1):
+        max_repo_rev_to_work_on = curr_repo_rev
+        if "__ALL_REVISIONS__" in var_stack:
+            max_repo_rev_to_work_on = last_repo_rev
+        for revision in range(base_repo_rev, max_repo_rev_to_work_on+1):
             if self.needToCreatelinksForRevision(revision):
                 yes_need_link_nums.append(str(revision))
                 save_dir_var = "REV_" + str(revision) + "_SAVE_DIR"
@@ -217,7 +220,7 @@ class InstlAdmin(InstlInstanceBase):
             msg = " ".join(("Need to create links for revisions:", yes_need_links_str))
             print(msg)
         else:
-            msg = " ".join( ("Links already created for all revisions:", str(base_repo_rev), "...", str(curr_repo_rev)) )
+            msg = " ".join( ("Links already created for all revisions:", str(base_repo_rev), "...", str(max_repo_rev_to_work_on)) )
             print(msg)
 
         self.create_variables_assignment()
@@ -331,7 +334,10 @@ class InstlAdmin(InstlInstanceBase):
         if curr_repo_rev > last_repo_rev:
             raise ValueError("base_repo_rev "+str(base_repo_rev)+" > last_repo_rev "+str(last_repo_rev))
 
-        revision_list = range(base_repo_rev, curr_repo_rev+1)
+        max_repo_rev_to_work_on = curr_repo_rev
+        if "__ALL_REVISIONS__" in var_stack:
+            max_repo_rev_to_work_on = last_repo_rev
+        revision_list = range(base_repo_rev, max_repo_rev_to_work_on+1)
         dirs_to_upload = list()
         no_need_upload_nums = list()
         yes_need_upload_nums = list()
@@ -366,7 +372,7 @@ class InstlAdmin(InstlInstanceBase):
             msg = " ".join(("Revisions will be uploaded to S3:", yes_need_upload_str))
             print(msg)
         else:
-            msg = " ".join( ("All revisions already uploaded to S3:", str(base_repo_rev), "...", str(curr_repo_rev)) )
+            msg = " ".join( ("All revisions already uploaded to S3:", str(base_repo_rev), "...", str(max_repo_rev_to_work_on)) )
             print(msg)
 
         self.batch_accum.set_current_section('upload')
