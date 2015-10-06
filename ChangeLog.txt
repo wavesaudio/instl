@@ -1,8 +1,7 @@
-???? 0.12.0.3
+6/10/2015 1.0.0.0
 
-    user visible changes, client:
-    * open_for_read_file_or_url: print error name and url when faailing
-    * Fixed SVNItem.__str__ to write size first url second
+    user visible changes, admin:
+    * New option --all-revisions to commands create-links and up2s3
 
 1/10/2015 0.12.0.2
 

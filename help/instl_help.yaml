@@ -41,10 +41,11 @@ command:
     create-links:
         short: Maintains a folder of revision specific folders ready to be uploaded by the up2s3 command. (admin command)
         long: |
-            Usage: instl create-links --config-file config_file --out create-links.sh [--run]
+            Usage: instl create-links --config-file config_file --out create-links.sh [--all-revisions] [--run]
             For each revision of the svn repository, starting with the base revision, create-links will checkout the revision from svn to a Base folder, and copy the files to a folder named after the revision. Copying is done using hard links and hence the name of the command. In addition create-links will create info_map files describing the contents of the specific revision. A revision folder created successfully will contain a stamp file, that will cause the folder to be skipped the next time create-links is called.
             All information about the svn repository url, the location of the top level links folder, the base revision etc, is taken from the config file.
             relevant variables: REPO_NAME, SVN_REPO_URL, ROOT_LINKS_FOLDER_REPO, BASE_REPO_REV
+            if --all-revisions option is given create-links will work on all revisions in the svn reporsitory starting with BASE_REPO_REV. Otherwise only revisions upto REPO_REV will be considered.
             Keep in mind that create-links command does not actually do anything, unless the --run flag is given. You will need to run the produced batch file in order to actually create the links.
 
     create-repo-rev-file:
@@ -209,10 +210,11 @@ command:
     up2s3:
         short: Upload revision specific folders created with the create-links command. (admin command)
         long: |
-            Usage: instl up2s3 --config-file config_file --out up2s3.sh [--run]
+            Usage: instl up2s3 --config-file config_file --out up2s3.sh  [--all-revisions] [--run]
             For each revision folder created with the create-links command, up2s3 will remove the files not belonging to the specific revision and upload the remaining files to s3. A revision folder uploaded successfully will contain a stamp file, that will cause the folder to be skipped the next time up2s3 is called.
             All information about the the location of the top level links folder, the s3 url and s3 passwords, is taken from the config file.
             relevant variables: REPO_NAME, ROOT_LINKS_FOLDER_REPO, BASE_REPO_REV, S3_BUCKET_NAME
+            if --all-revisions option is given up2s3 will work on all revisions in the svn reporsitory starting with BASE_REPO_REV. Otherwise only revisions upto REPO_REV will be considered.
             Keep in mind that up2s3 command does not actually do anything, unless the --run flag is given. You will need to run the produced batch file in order to actually create upload the links.
 
     verify-index:

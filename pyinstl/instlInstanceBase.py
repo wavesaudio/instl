@@ -180,6 +180,9 @@ class InstlInstanceBase(object):
         if cmd_line_options_obj.no_wtar_artifacts:
             var_stack.add_const_config_variable("__NO_WTAR_ARTIFACTS__", "from command line options", "yes")
 
+        if cmd_line_options_obj.all_revisions:
+            var_stack.add_const_config_variable("__ALL_REVISIONS__", "from command line options", "yes")
+
         # if credentials were given...
         credentials = None
         if "__CREDENTIALS__" in var_stack:

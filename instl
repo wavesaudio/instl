@@ -90,6 +90,7 @@ class CommandLineOptions(object):
         self.credentials = None
         self.base_url = None
         self.file_sizes_file = None
+        self.all_revisions = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
@@ -350,6 +351,14 @@ def prepare_args_parser(in_command):
                                 action='store_true',
                                 dest='no_wtar_artifacts',
                                 help="remove all .wtar files and .done files")
+    elif in_command in ('create-links', 'up2s3'):
+        all_revisions_options = command_parser.add_argument_group(description=in_command+' arguments:')
+        all_revisions_options.add_argument('--all-revisions',
+                                required=False,
+                                default=False,
+                                action='store_true',
+                                dest='all_revisions',
+                                help="work on all revisions even if above repo-rev")
 
     elif 'help' == in_command:
         help_options = command_parser.add_argument_group(description='help subject:')
