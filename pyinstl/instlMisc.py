@@ -20,6 +20,8 @@ class InstlMisc(InstlInstanceBase):
     def __init__(self, initial_vars):
         super(InstlMisc, self).__init__(initial_vars)
         self.svnTree = svnTree.SVNTree()
+        self.curr_progress = 0
+        self.actual_progress = 0
 
     def __del__(self):
         if self.curr_progress != self.actual_progress:
