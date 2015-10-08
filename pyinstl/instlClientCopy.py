@@ -26,6 +26,7 @@ def init_copy_vars(self):
     if "WTAR_RATIO" in var_stack:
         self.wtar_ratio = float(var_stack.resolve("$(WTAR_RATIO)"))
     self.is_wtar_item = svnTree.WtarFilter() # will return true for any wtar file
+    self.calc_user_cache_dir_var() # this will set USER_CACHE_DIR if it was not explicitly defined
 
 def create_copy_instructions(self):
     self.have_map = svnTree.SVNTree()

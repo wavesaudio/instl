@@ -44,6 +44,7 @@ class InstlInstanceSync(object):
                 with utils.open_for_read_file_or_url(public_key_file, connectionBase.translate_url, self.instlObj.path_searcher) as file_fd:
                     public_key_text = file_fd.read()
                     var_stack.set_var("PUBLIC_KEY", "from " + public_key_file).append(public_key_text)
+        self.instlObj.calc_user_cache_dir_var() # this will set USER_CACHE_DIR if it was not explicitly defined
 
     def create_sync_instructions(self, installState):
         self.instlObj.batch_accum.set_current_section('sync')

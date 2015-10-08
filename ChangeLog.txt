@@ -1,3 +1,8 @@
+8/10/2015 1.0.0.1
+
+    programmer visible changes:
+    * Added initialization of USER_CACHE_DIR to init_copy_vars and init_sync_vars
+
 6/10/2015 1.0.0.0
 
     user visible changes, admin:
