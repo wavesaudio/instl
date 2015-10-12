@@ -1082,6 +1082,8 @@ class InstlAdmin(InstlInstanceBase):
 
         folders_to_check = self.prepare_limit_list(var_stack.resolve("$(STAGING_FOLDER)"))
         for folder_to_check in folders_to_check:
+            self.batch_accum += self.platform_helper.unlock(folder_to_check, recursive=True)
+            self.batch_accum += self.platform_helper.progress("chflags -R nouchg " + folder_to_check)
             for root, dirs, files in os.walk(folder_to_check, followlinks=False):
                 for a_file in files:
                     item_path = os.path.join(root, a_file)

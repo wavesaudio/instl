@@ -1,3 +1,8 @@
+12/10/2015 1.0.0.2
+
+    user visible changes, admin:
+    * Added Mac unlocking (chflags -R nouchg) to fix-perm command, after imports from Windows machine brought locked files.
+
 8/10/2015 1.0.0.1
 
     programmer visible changes:
