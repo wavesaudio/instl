@@ -40,6 +40,8 @@ def create_copy_instructions(self):
     self.batch_accum.set_current_section('copy')
     self.batch_accum += self.platform_helper.progress("Starting copy from $(LOCAL_REPO_SYNC_DIR)")
 
+    self.accumulate_unique_actions('pre_copy', self.installState.full_install_items)
+
     sorted_target_folder_list = sorted(self.installState.install_items_by_target_folder,
                                        key=lambda fold: var_stack.resolve(fold))
 
@@ -49,8 +51,6 @@ def create_copy_instructions(self):
         for folder_name in sorted_target_folder_list:
             self.batch_accum += self.platform_helper.mkdir_with_owner(folder_name)
         self.batch_accum += self.platform_helper.progress("Create folders done")
-
-    self.accumulate_unique_actions('pre_copy', self.installState.full_install_items)
 
     if 'Mac' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
         self.pre_copy_mac_handling()
