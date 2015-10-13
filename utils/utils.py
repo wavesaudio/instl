@@ -83,6 +83,7 @@ class open_for_read_file_or_url(object):
 
     def __init__(self, in_file_or_url, translate_url_callback=None, path_searcher=None):
         self.file_or_url = in_file_or_url
+        self.cookie = None
         self.fd = None
         match = self.protocol_header_re.match(self.file_or_url)
         if not match:  # it's a local file
@@ -101,8 +102,8 @@ class open_for_read_file_or_url(object):
                 raise IOError("Could not locate local file", self.file_or_url)
         else:
             if translate_url_callback is not None:
-                self.file_or_url = translate_url_callback(self.file_or_url)
-        #print("open_for_read_file_or_url.__init__ self.file_or_url =", self.file_or_url, file=sys.stderr)
+                self.file_or_url, self.cookie = translate_url_callback(self.file_or_url)
+                print("open_for_read_file_or_url.__init__ self.file_or_url =", self.file_or_url, file=sys.stderr)
 
     def __enter__(self):
         try:
@@ -116,7 +117,12 @@ class open_for_read_file_or_url(object):
             #ctx.verify_mode = ssl.CERT_NONE
             #ctx.options |= ssl.OP_NO_SSLv3
             #self.fd = urllib2.urlopen(self.file_or_url, context=ctx)
-            self.fd = urllib2.urlopen(self.file_or_url)
+            #print("netloc:", netloc, "; url:", self.file_or_url)
+            opener = urllib2.build_opener()
+            if self.cookie:
+                print("found a cookie for", self.file_or_url)
+                opener.addheaders.append(('Cookie', 'cookiename='+self.cookie))
+            self.fd = opener.open(self.file_or_url)   #         self.fd = urllib2.urlopen(self.file_or_url)
             #print("open_for_read_file_or_url.__enter__ opened", self.file_or_url, file=sys.stderr)
         except urllib2.URLError as url_err:
             print (url_err, self.file_or_url)

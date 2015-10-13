@@ -13,7 +13,20 @@ from configVar import var_stack
 class ConnectionBase(object):
     repo_connection = None # global singleton, holding current connection
     def __init__(self):
-        pass
+        self.cookies = dict()
+        self.read_cookies()
+
+    def read_cookies(self):
+        cookie_list = var_stack.resolve_var_to_list_if_exists("COOKIE_JAR")
+        if cookie_list:
+            for cookie_line in cookie_list:
+                cred_split = cookie_line.split(":", 2)
+                if len(cred_split) == 2:
+                    self.cookies[cred_split[0]] = cred_split[1]
+
+    def cookie_for_url(self, in_netloc):
+        cookie = self.cookies.get(in_netloc)
+        return cookie
 
     @abc.abstractmethod
     def open_connection(self, credentials):
@@ -39,7 +52,7 @@ class ConnectionHTTP(ConnectionBase):
         return retVal
 
 
-class ConnectionS3(ConnectionBase):
+class ConnectionS3(ConnectionHTTP):
     def __init__(self, credentials):
         super(ConnectionS3, self).__init__()
         self.boto_conn = None
@@ -56,10 +69,11 @@ class ConnectionS3(ConnectionBase):
 
     def translate_url(self, in_bare_url):
         parseResult = urlparse.urlparse(in_bare_url)
-        if self.open_bucket is None:
-            self.open_bucket = self.boto_conn.get_bucket(parseResult.netloc, validate=False)
-        the_key = self.open_bucket.get_key(parseResult.path, validate=False)
-        retVal = the_key.generate_url(self.default_expiration)
+        if parseResult.netloc.startswith(self.open_bucket.name):
+            the_key = self.open_bucket.get_key(parseResult.path, validate=False)
+            retVal = the_key.generate_url(self.default_expiration)
+        else:
+            retVal = super(ConnectionS3, self).translate_url(in_bare_url)
         return retVal
 
 
@@ -75,4 +89,6 @@ def connection_factory(credentials=None):
 
 def translate_url(in_bare_url):
     translated_url = connection_factory().translate_url(in_bare_url)
-    return translated_url
+    parsed = urlparse.urlparse(translated_url)
+    cookie = connection_factory().cookie_for_url(parsed.netloc)
+    return translated_url, cookie
