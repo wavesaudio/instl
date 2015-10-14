@@ -103,7 +103,7 @@ class open_for_read_file_or_url(object):
         else:
             if translate_url_callback is not None:
                 self.file_or_url, self.cookie = translate_url_callback(self.file_or_url)
-                print("open_for_read_file_or_url.__init__ self.file_or_url =", self.file_or_url, file=sys.stderr)
+                # print("open_for_read_file_or_url.__init__ self.file_or_url =", self.file_or_url, file=sys.stderr)
 
     def __enter__(self):
         try:
@@ -120,10 +120,10 @@ class open_for_read_file_or_url(object):
             #print("netloc:", netloc, "; url:", self.file_or_url)
             opener = urllib2.build_opener()
             if self.cookie:
-                print("found a cookie for", self.file_or_url)
+                # print("found a cookie for", self.file_or_url)
                 opener.addheaders.append(('Cookie', 'cookiename='+self.cookie))
             self.fd = opener.open(self.file_or_url)   #         self.fd = urllib2.urlopen(self.file_or_url)
-            #print("open_for_read_file_or_url.__enter__ opened", self.file_or_url, file=sys.stderr)
+            #print("open_for_read_file_or_url.__enter__ opened", self.file_or_url, self.cookie)
         except urllib2.URLError as url_err:
             print (url_err, self.file_or_url)
             raise
