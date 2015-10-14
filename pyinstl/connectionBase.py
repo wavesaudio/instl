@@ -13,20 +13,18 @@ from configVar import var_stack
 class ConnectionBase(object):
     repo_connection = None # global singleton, holding current connection
     def __init__(self):
-        self.cookies = dict()
-        self.read_cookies()
+        pass
 
-    def read_cookies(self):
+    def get_cookie(self, net_loc):
+        retVal = None
         cookie_list = var_stack.resolve_var_to_list_if_exists("COOKIE_JAR")
         if cookie_list:
             for cookie_line in cookie_list:
                 cred_split = cookie_line.split(":", 2)
-                if len(cred_split) == 2:
-                    self.cookies[cred_split[0]] = cred_split[1]
-
-    def cookie_for_url(self, in_netloc):
-        cookie = self.cookies.get(in_netloc)
-        return cookie
+                if len(cred_split) == 2 and net_loc == cred_split[0]:
+                    retVal = cred_split[1]
+                    break
+        return retVal
 
     @abc.abstractmethod
     def open_connection(self, credentials):
@@ -90,5 +88,5 @@ def connection_factory(credentials=None):
 def translate_url(in_bare_url):
     translated_url = connection_factory().translate_url(in_bare_url)
     parsed = urlparse.urlparse(translated_url)
-    cookie = connection_factory().cookie_for_url(parsed.netloc)
+    cookie = connection_factory().get_cookie(parsed.netloc)
     return translated_url, cookie
