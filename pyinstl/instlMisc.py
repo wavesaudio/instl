@@ -129,31 +129,35 @@ class InstlMisc(InstlInstanceBase):
                 with open(done_file, "a"): os.utime(done_file, None)
 
     def join_split_files(self, first_file):
-        norm_first_file = os.path.normpath(first_file) # remove trialing . is any
-        base_folder, base_name = os.path.split(norm_first_file)
-        if not base_folder:
-            base_folder = "."
-        joined_file_path = norm_first_file[:-3] # without the final '.aa'
-        done_file = norm_first_file+".done"
-        if not os.path.isfile(done_file) or os.path.getmtime(done_file) < os.path.getmtime(first_file):
-            filter_pattern = base_name[:-2] + "??"  # with ?? instead of aa
-            matching_files = sorted(fnmatch.filter(os.listdir(base_folder), filter_pattern))
-            with open(joined_file_path, "wb") as wfd:
-                for afile in matching_files:
-                    with open(os.path.join(base_folder, afile), "rb") as rfd:
-                        wfd.write(rfd.read())
-            if self.no_artifacts:
-                for afile in matching_files:
-                    os.remove(os.path.join(base_folder, afile))
-            # create done file for the .wtar.aa file
-            if not self.no_artifacts:
-                with open(done_file, "a"): os.utime(done_file, None)
-            # now remove the done file for the newly created .wtar file
-            joined_file_done_path = joined_file_path + ".done"
-            if os.path.isfile(joined_file_done_path):
-                os.remove(joined_file_done_path)
-            self.dynamic_progress("Expanding {first_file}".format(**locals()))
-        return joined_file_path
+        try:
+            norm_first_file = os.path.normpath(first_file) # remove trialing . is any
+            base_folder, base_name = os.path.split(norm_first_file)
+            if not base_folder:
+                base_folder = "."
+            joined_file_path = norm_first_file[:-3] # without the final '.aa'
+            done_file = norm_first_file+".done"
+            if not os.path.isfile(done_file) or os.path.getmtime(done_file) < os.path.getmtime(first_file):
+                filter_pattern = base_name[:-2] + "??"  # with ?? instead of aa
+                matching_files = sorted(fnmatch.filter(os.listdir(base_folder), filter_pattern))
+                with open(joined_file_path, "wb") as wfd:
+                    for afile in matching_files:
+                        with open(os.path.join(base_folder, afile), "rb") as rfd:
+                            wfd.write(rfd.read())
+                if self.no_artifacts:
+                    for afile in matching_files:
+                        os.remove(os.path.join(base_folder, afile))
+                # create done file for the .wtar.aa file
+                if not self.no_artifacts:
+                    with open(done_file, "a"): os.utime(done_file, None)
+                # now remove the done file for the newly created .wtar file
+                joined_file_done_path = joined_file_path + ".done"
+                if os.path.isfile(joined_file_done_path):
+                    os.remove(joined_file_done_path)
+                self.dynamic_progress("Expanding {first_file}".format(**locals()))
+            return joined_file_path
+        except:
+            print("exception while join_split_files", first_file)
+            raise
 
     def do_check_checksum(self):
         self.progress_staccato_command = True
