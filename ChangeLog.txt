@@ -1,3 +1,9 @@
+14/10/2015 1.0.0.4
+
+ user visible changes, client:
+ * Support for cookies per domain with variable COOKIE_JAR
+ * Better error for exception from join_split_files
+
 12/10/2015 1.0.0.3
 
     user visible changes, client:
