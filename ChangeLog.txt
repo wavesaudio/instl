@@ -1,3 +1,8 @@
+18/10/2015 1.0.0.5
+
+    user visible changes, client:
+    * Finding cookie for url by domain is now case insensitive
+
 14/10/2015 1.0.0.4
 
  user visible changes, client:

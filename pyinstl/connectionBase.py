@@ -19,11 +19,14 @@ class ConnectionBase(object):
         retVal = None
         cookie_list = var_stack.resolve_var_to_list_if_exists("COOKIE_JAR")
         if cookie_list:
+            #print("cookie list:", cookie_list)
             for cookie_line in cookie_list:
                 cred_split = cookie_line.split(":", 2)
-                if len(cred_split) == 2 and net_loc == cred_split[0]:
+                if len(cred_split) == 2 and net_loc.lower() == cred_split[0].lower():
                     retVal = cred_split[1]
                     break
+        #else:
+        #    print("No cookie list")
         return retVal
 
     @abc.abstractmethod
