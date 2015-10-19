@@ -43,7 +43,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         """
         retVal = ""
         # log_file = var_stack.resolve("$(LOG_FILE)")
-        #retVal = " /LOG:{log_file}".format(**locals())
+        # retVal = " /LOG:{log_file}".format(**locals())
         return retVal
 
     def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
@@ -268,16 +268,18 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def mkdir(self, directory):
         norm_directory = utils.quoteme_double(os.path.normpath(directory))
         mk_command = " ".join(("if not exist", norm_directory, "mkdir", norm_directory))
-        return mk_command
+        check_mk_command = " ".join(("if not exist", norm_directory, "echo failed to create ", norm_directory))
+        return mk_command, check_mk_command
 
     def cd(self, directory):
         norm_directory = utils.quoteme_double(os.path.normpath(directory))
         cd_command = " ".join(("cd", '/d', norm_directory))
-        return cd_command
+        check_cd_command = " ".join(("if /I not", norm_directory, "%CD%", "echo failed to cd to", norm_directory))
+        return cd_command, check_cd_command
 
     def pushd(self, directory):
         norm_directory = utils.quoteme_double(os.path.normpath(directory))
-        pushd_command = " ".join(("pushd", norm_directory ))
+        pushd_command = " ".join(("pushd", norm_directory))
         return pushd_command
 
     def popd(self):
@@ -294,19 +296,19 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def rmdir(self, directory, recursive=False):
         recurse_switch = '/S /Q' if recursive else ''
         norm_directory = utils.quoteme_double(os.path.normpath(directory))
-        rmdir_command = " ".join(("rmdir", recurse_switch, norm_directory ))
+        rmdir_command = " ".join(("rmdir", recurse_switch, norm_directory))
         return rmdir_command
 
     def rmfile(self, file_to_del):
         norm_file = utils.quoteme_double(os.path.normpath(file_to_del))
-        rmfile_command = " ".join(("del", "/F", "/Q", norm_file ))
+        rmfile_command = " ".join(("del", "/F", "/Q", norm_file))
         return rmfile_command
 
     def rm_file_or_dir(self, file_or_dir):
         norm_path = utils.quoteme_double(os.path.normpath(file_or_dir))
         rmdir_command = " ".join(("rmdir", '/S', '/Q', norm_path, '>nul', '2>&1'))
         rmfile_command = " ".join(("del", '/F', '/Q', norm_path, '>nul', '2>&1'))
-        return (rmdir_command, rmfile_command)
+        return rmdir_command, rmfile_command
 
     def get_svn_folder_cleanup_instructions(self):
         return ()
@@ -428,7 +430,7 @@ class DownloadTool_win_wget(DownloadToolBase):
         # urls need to escape spaces as %20, but windows batch files already escape % characters
         # so use urllib.quote to escape spaces and then change %20 to %%20.
         download_command_parts.append(utils.quoteme_double(src_url.replace("%", "%%")))
-        return (" ".join(download_command_parts), self.platform_helper.exit_if_error())
+        return " ".join(download_command_parts), self.platform_helper.exit_if_error()
 
     def create_config_file(self, curl_config_file_path):
         with open(curl_config_file_path, "w") as wfd:
@@ -490,7 +492,7 @@ class DownloadTool_win_curl(DownloadToolBase):
             actual_num_files = max(1, min(num_urls_to_download / 8, num_files))
 
             num_digits = len(str(actual_num_files))
-            file_name_list = ["-".join( (curl_config_file_path, str(file_i).zfill(num_digits))  ) for file_i in xrange(actual_num_files)]
+            file_name_list = ["-".join((curl_config_file_path, str(file_i).zfill(num_digits))) for file_i in xrange(actual_num_files)]
             wfd_list = list()
             for file_name in file_name_list:
                 wfd = open(file_name, "w")
@@ -532,5 +534,5 @@ class DownloadTool_win_curl(DownloadToolBase):
                 normalized_path = config_file.replace("\\", "/")
                 wfd.write(var_stack.resolve("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+normalized_path+"\"\n", raise_on_fail=True))
 
-        download_command = " ".join( (self.platform_helper.run_instl(),  "parallel-run", "--in", utils.quoteme_double(parallel_run_config_file_path)) )
-        return (download_command, self.platform_helper.exit_if_error())
+        download_command = " ".join((self.platform_helper.run_instl(),  "parallel-run", "--in", utils.quoteme_double(parallel_run_config_file_path)))
+        return download_command, self.platform_helper.exit_if_error()

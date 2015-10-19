@@ -1,4 +1,8 @@
 ???? 1.0.0.6
+
+    user visible changes, client:
+    * Added check after mkdir and cd on Windows
+
     programmer visible changes:
     * Fixed missing import in instlAdmin.py
 
