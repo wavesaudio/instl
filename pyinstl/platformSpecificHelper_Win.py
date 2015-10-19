@@ -268,13 +268,13 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def mkdir(self, directory):
         norm_directory = utils.quoteme_double(os.path.normpath(directory))
         mk_command = " ".join(("if not exist", norm_directory, "mkdir", norm_directory))
-        check_mk_command = " ".join(("if not exist", norm_directory, "echo failed to create ", norm_directory))
+        check_mk_command = " ".join(("if not exist", norm_directory, "echo Error: failed to create ", norm_directory))
         return mk_command, check_mk_command
 
     def cd(self, directory):
         norm_directory = utils.quoteme_double(os.path.normpath(directory))
         cd_command = " ".join(("cd", '/d', norm_directory))
-        check_cd_command = " ".join(("if /I not", norm_directory, "%CD%", "echo failed to cd to", norm_directory))
+        check_cd_command = " ".join(("if /I not", norm_directory, "==", utils.quoteme_double("%CD%"), "echo Error: failed to cd to", norm_directory))
         return cd_command, check_cd_command
 
     def pushd(self, directory):
