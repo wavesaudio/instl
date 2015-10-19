@@ -109,7 +109,13 @@ class InstlInstanceSync(object):
                                                 create_folders=True)
             else:  # found in have map
                 if have_item.revision == need_item.revision:
-                    need_item.user_data = False
+                    # This item should not be downloaded because we have the same revision on disk and on server.
+                    # Unless the local file does not match the expected checksum - maybe it was corrupted, or missing?
+                    file_path = os.path.join(*utils.make_one_list(self.local_sync_dir, have_item.full_path_parts()))
+                    need_to_download = utils.need_to_download_file(file_path, need_item.checksum)
+                    if need_to_download:
+                        print("Downloading due to bad checksum or missing file", file_path)
+                    need_item.user_data = need_to_download
                 elif have_item.revision < need_item.revision:
                     have_item.flags = need_item.flags
                     have_item.revision = need_item.revision

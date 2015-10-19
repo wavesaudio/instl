@@ -196,8 +196,12 @@ class InstlInstanceSync_url(InstlInstanceSync):
         if item.isSymlink():
             print("Found symlink at", item.full_path())
         elif item.isFile():
+            # This item is marked to be downloaded. Unless the local file exist and match the expected checksum
+            # Maybe item was downloaded at a previous unfinished sync ?
             file_path = os.path.join(*utils.make_one_list(self.local_sync_dir, item.full_path_parts()))
             need_to_download = utils.need_to_download_file(file_path, item.checksum)
+            if not need_to_download:
+                print("Not downloading file since it's present and has good checksum", file_path)
             item.set_user_data_non_recursive(need_to_download)
             if need_to_download:
                 self.files_to_download += 1
