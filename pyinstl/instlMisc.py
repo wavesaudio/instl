@@ -116,6 +116,7 @@ class InstlMisc(InstlInstanceBase):
         done_file = wtar_file_path + ".done"
         if not os.path.isfile(done_file) or os.path.getmtime(done_file) < os.path.getmtime(wtar_file_path):
             try:
+                print("unwtarring", wtar_file_path)
                 wtar_folder_path, _ = os.path.split(wtar_file_path)
                 with tarfile.open(wtar_file_path, "r") as tar:
                     tar.extractall(wtar_folder_path)
@@ -135,6 +136,7 @@ class InstlMisc(InstlInstanceBase):
             if not base_folder:
                 base_folder = "."
             joined_file_path = norm_first_file[:-3] # without the final '.aa'
+            print("joining wtar files", joined_file_path+".??")
             done_file = norm_first_file+".done"
             if not os.path.isfile(done_file) or os.path.getmtime(done_file) < os.path.getmtime(first_file):
                 filter_pattern = base_name[:-2] + "??"  # with ?? instead of aa

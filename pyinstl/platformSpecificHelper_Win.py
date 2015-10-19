@@ -265,6 +265,10 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         retVal = ("IF", "ERRORLEVEL", str(error_threshold), "(", "echo", 'Error %ERRORLEVEL% at step ' + str(self.num_items_for_progress_report+1), "1>&2", "&", "GOTO", "EXIT_ON_ERROR", ")")
         return " ".join(retVal)
 
+    def exit_if_any_error(self):
+        retVal = ("IF", "%ERRORLEVEL%", "NEQ", "0", "(", "echo", 'Error %ERRORLEVEL% at step ' + str(self.num_items_for_progress_report+1), "1>&2", "&", "GOTO", "EXIT_ON_ERROR", ")")
+        return " ".join(retVal)
+
     def mkdir(self, directory):
         norm_directory = utils.quoteme_double(os.path.normpath(directory))
         mk_command = " ".join(("if not exist", norm_directory, "mkdir", norm_directory))

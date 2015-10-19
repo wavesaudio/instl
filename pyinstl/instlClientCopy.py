@@ -79,6 +79,7 @@ def create_copy_instructions(self):
 
         self.batch_accum += self.platform_helper.progress("Expanding files...")
         self.batch_accum += self.platform_helper.unwtar_current_folder(no_artifacts=True)
+        self.batch_accum += self.platform_helper.exit_if_any_error()
         self.batch_accum += self.platform_helper.progress("Expand files done")
 
         if 'Mac' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):

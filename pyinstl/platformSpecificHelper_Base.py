@@ -407,6 +407,9 @@ class PlatformSpecificHelperBase(object):
     def append_file_to_file(self, source_file, target_file):
         pass
 
+    # overridden only on windows, unix shell scripts have set -e to auto exit if any subprocess returns exit code != 0
+    def exit_if_any_error(self):
+        return ()
 
 def PlatformSpecificHelperFactory(in_os, instlObj):
     if in_os == "Mac":
