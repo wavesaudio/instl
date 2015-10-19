@@ -1,3 +1,7 @@
+???? 1.0.0.6
+    programmer visible changes:
+    * Fixed missing import in instlAdmin.py
+
 18/10/2015 1.0.0.5
 
     user visible changes, client:

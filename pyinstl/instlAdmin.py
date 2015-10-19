@@ -18,9 +18,7 @@ from instlInstanceBase import InstlInstanceBase
 from installItem import InstallItem
 from batchAccumulator import BatchAccumulator
 from configVar import var_stack
-
-
-
+import connectionBase
 
 
 # noinspection PyPep8,PyPep8,PyPep8
