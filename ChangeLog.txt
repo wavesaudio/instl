@@ -1,3 +1,9 @@
+20/10/2015 1.0.0.7
+    user visible changes, client:
+    * Fixed const variables ending with ("_PATH", "_DIR", "_DIR_NAME", "_FILE_NAME", "_PATH__", "_DIR__", "_DIR_NAME__", "_FILE_NAME__")
+        were not normalized (Win)
+
+
 19/10/2015 1.0.0.6
 
     user visible changes, client:

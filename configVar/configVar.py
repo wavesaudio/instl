@@ -28,8 +28,11 @@ class ConfigVar(object):
     def __init__(self, name, description="", *values):
         self.__name = name
         self.__description = description
-        self.__values = map(str, values)
         self.resolved_num = 0
+        normed_values = map(str, values)
+        if self.__name.endswith(self.variable_name_endings_to_normpath):
+            normed_values = [os.path.normpath(value) for value in normed_values]
+        self.__values = map(str, normed_values)
 
     @property
     def name(self):
@@ -82,7 +85,8 @@ class ConfigVar(object):
 
     def append(self, value):
         if self.__name.endswith(self.variable_name_endings_to_normpath):
-            self.__values.append(os.path.normpath(value))
+            normed_value = os.path.normpath(value)
+            self.__values.append(normed_value)
         else:
             self.__values.append(utils.convert_to_str_unless_None(value))
 
