@@ -46,6 +46,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         retVal = (
             "exit_func() {",
             "CATCH_EXIT_VALUE=$?",
+            "if [ ${CATCH_EXIT_VALUE} -ne 0 ]; then ps -ax ; fi",
             self.restore_dir("TOP_SAVE_DIR"),
             self.end_time_measure(),
             self.echo("exit code ${CATCH_EXIT_VALUE}"),

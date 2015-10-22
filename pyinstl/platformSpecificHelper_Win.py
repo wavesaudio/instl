@@ -235,9 +235,10 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
             "exit /b 0",
             "",
             ":EXIT_ON_ERROR",
-            self.restore_dir("TOP_SAVE_DIR"),
             "set CATCH_EXIT_VALUE=%ERRORLEVEL%",
             "if %CATCH_EXIT_VALUE% == 0 (set CATCH_EXIT_VALUE=1)",
+            "TASKLIST",
+            self.restore_dir("TOP_SAVE_DIR"),
             self.end_time_measure(),
             'echo Exit on error %CATCH_EXIT_VALUE% 1>&2',
             "exit /b %CATCH_EXIT_VALUE%"

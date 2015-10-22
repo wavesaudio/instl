@@ -1,3 +1,11 @@
+???? 1.0.0.8
+
+    user visible changes, client:
+    * Print all running processes when batch file exits on non zero
+
+    programmer visible changes:
+    * normpath for the following variables to avoid bad slashes on windows"__SITE_DATA_DIR__, __SITE_CONFIG_DIR__, __USER_DATA_DIR__, __USER_CONFIG_DIR__, __USER_HOME_DIR__
+
 20/10/2015 1.0.0.7
     user visible changes, client:
     * Fixed const variables ending with ("_PATH", "_DIR", "_DIR_NAME", "_FILE_NAME", "_PATH__", "_DIR__", "_DIR_NAME__", "_FILE_NAME__")
