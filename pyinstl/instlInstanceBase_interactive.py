@@ -7,6 +7,7 @@ import time
 import logging
 import shlex
 import platform
+import re
 
 import appdirs
 
@@ -236,6 +237,45 @@ class CMDObj(cmd.Cmd, object):
         retVal = utils.replace_all_from_dict(text, *[], **coloring_dict)
         return retVal
 
+    def do_apropos(self, params):
+        defs = self.client_prog_inst.create_completion_list("define")
+        index = self.client_prog_inst.create_completion_list("index")
+        guids = self.client_prog_inst.create_completion_list("guid")
+        defs_results = utils.unique_list()
+        index_results = utils.unique_list()
+        guids_results = utils.unique_list()
+        search_for = params.split()
+        work_list = ((defs, defs_results), (index, index_results), (guids, guids_results))
+        for param in search_for:
+            for id_list, results in work_list:
+                for identifier in id_list:
+                    found_it = re.search(param, identifier, flags=re.IGNORECASE)
+                    if found_it:
+                        results.append (identifier)
+        print ("variables:")
+        if defs_results:
+            for var in defs_results:
+                print ("   ", var)
+        else:
+            print ("    no matching variables were found")
+        print ("index items:")
+        if index_results:
+            for iid in index_results:
+                guid_of_iid = self.client_prog_inst.install_definitions_index[iid].guid
+                if guid_of_iid:
+                    print ("   ", iid, "(guid:", guid_of_iid, ")")
+                else:
+                    print ("   ", iid, "(no guid)")
+        else:
+            print ("    no matching iids were found")
+        print ("guids:")
+        if guids_results:
+            for guid in guids_results:
+                iids_of_guids = [iid for iid in self.client_prog_inst.install_definitions_index if self.client_prog_inst.install_definitions_index[iid].guid == guid]
+                print ("   ", guid, iids_of_guids)
+        else:
+            print ("    no matching guids were found")
+
     def do_list(self, params):
         out_list = utils.write_to_list()
         if params:
@@ -438,18 +478,45 @@ class CMDObj(cmd.Cmd, object):
     def help_cycles(self):
         print("cycles:", "check index dependencies for cycles")
 
+    def do_common(self, params):
+        iids = shlex.split(params)
+        missing_iids = utils.unique_list() # [iid in iids if iid not in ]
+        for iid in iids:
+            if iid not in self.client_prog_inst.install_definitions_index:
+                missing_iids.append(iid)
+        if missing_iids:
+            print("Could not find in index:", ", ".join(missing_iids))
+        else:
+            all_needs = list()
+            all_needed_by = list()
+            for iid in iids:
+                needs_list = utils.unique_list()
+                self.client_prog_inst.needs(iid, needs_list)
+                all_needs.append(needs_list)
+                all_needed_by.append(self.client_prog_inst.needed_by(iid))
+            needs_result = set(all_needs[0]).intersection(*all_needs)
+            needed_by_result = set(all_needed_by[0]).intersection(*all_needed_by)
+            if "__ALL_ITEMS_IID__" in needed_by_result:
+                needed_by_result.remove("__ALL_ITEMS_IID__")
+            if not needs_result:
+                needs_result.add("no one")
+            print("common needs:\n   ", ", ".join(needs_result))
+            if not needed_by_result:
+                needed_by_result.add("no one")
+            print("common needed by:\n   ", ", ".join(needed_by_result))
+
     def do_depend(self, params):
         if params:
             for param in shlex.split(params):
                 if param not in self.client_prog_inst.install_definitions_index:
                     print(text_with_color(param, 'green'), "not in index")
                     continue
-                depend_list = utils.unique_list()
-                self.client_prog_inst.needs(param, depend_list)
-                if not depend_list:
-                    depend_list = ("no one",)
+                needs_list = utils.unique_list()
+                self.client_prog_inst.needs(param, needs_list)
+                if not needs_list:
+                    needs_list = ("no one",)
                 depend_text_list = list()
-                for depend in depend_list:
+                for depend in needs_list:
                     if depend.endswith("(missing)"):
                         depend_text_list.append(text_with_color(depend, 'red'))
                     else:

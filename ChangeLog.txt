@@ -1,3 +1,9 @@
+23/10/2015 1.0.0.9
+
+    user visible changes, admin:
+    * New interactive command: 'apropos' searches for index items, guids and params.
+    * New interactive command: 'common' lists all common needs/needed-by index items for a given list of items.
+
 22/10/2015 1.0.0.8
 
     user visible changes, client:
