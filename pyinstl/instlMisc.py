@@ -94,18 +94,19 @@ class InstlMisc(InstlInstanceBase):
                     continue
                 # unique_list so if both .wtar and .wtar.aa exists the list after joining will not have double entries
                 files_to_unwtar = utils.unique_list()
-                # find split files and join them
-                for afile in files:
-                    afile_path = os.path.join(root, afile)
-                    if afile_path.endswith(".wtar.aa"):
-                        joint_file = self.join_split_files(afile_path)
+                # find split files and join them, this must be done before looking for the joint .wtar files
+                # so if previously the join failed and left a non-complete .wtar file, this .wtar will be overwritten
+                for a_file in files:
+                    a_file_path = os.path.join(root, a_file)
+                    if a_file_path.endswith(".wtar.aa"):
+                        joint_file = self.join_split_files(a_file_path)
                         files_to_unwtar.append(joint_file)
 
                 # find unsplit wtar files
-                for afile in files:
-                    afile_path = os.path.join(root, afile)
-                    if afile_path.endswith(".wtar"):
-                        files_to_unwtar.append(afile_path)
+                for a_file in files:
+                    a_file_path = os.path.join(root, a_file)
+                    if a_file_path.endswith(".wtar"):
+                        files_to_unwtar.append(a_file_path)
 
                 for wtar_file_path in files_to_unwtar:
                     self.unwtar_a_file(wtar_file_path)
@@ -113,53 +114,46 @@ class InstlMisc(InstlInstanceBase):
             print(what_to_work_on, "is not a file or directory")
 
     def unwtar_a_file(self, wtar_file_path):
-        done_file = wtar_file_path + ".done"
-        if not os.path.isfile(done_file) or os.path.getmtime(done_file) < os.path.getmtime(wtar_file_path):
-            try:
-                print("unwtarring", wtar_file_path)
-                wtar_folder_path, _ = os.path.split(wtar_file_path)
-                with tarfile.open(wtar_file_path, "r") as tar:
-                    tar.extractall(wtar_folder_path)
-                if self.no_artifacts:
-                    os.remove(wtar_file_path)
-                self.dynamic_progress("Expanding {wtar_file_path}".format(**locals()))
-            except tarfile.ReadError as re_er:
-                print("tarfile read error while opening file", os.path.abspath(wtar_file_path))
-                raise
-            if not self.no_artifacts:
-                with open(done_file, "a"): os.utime(done_file, None)
+        try:
+            print("unwtarring", wtar_file_path)
+            wtar_folder_path, _ = os.path.split(wtar_file_path)
+            with tarfile.open(wtar_file_path, "r") as tar:
+                tar.extractall(wtar_folder_path)
+            if self.no_artifacts:
+                os.remove(wtar_file_path)
+            self.dynamic_progress("Expanding {wtar_file_path}".format(**locals()))
+        except tarfile.ReadError as re_er:
+            print("tarfile read error while opening file", os.path.abspath(wtar_file_path))
+            raise
 
     def join_split_files(self, first_file):
+        joined_file_path = None
         try:
-            norm_first_file = os.path.normpath(first_file) # remove trialing . is any
+            norm_first_file = os.path.normpath(first_file) # remove trialing . if any
             base_folder, base_name = os.path.split(norm_first_file)
             if not base_folder:
                 base_folder = "."
             joined_file_path = norm_first_file[:-3] # without the final '.aa'
             print("joining wtar files", joined_file_path+".??")
-            done_file = norm_first_file+".done"
-            if not os.path.isfile(done_file) or os.path.getmtime(done_file) < os.path.getmtime(first_file):
-                filter_pattern = base_name[:-2] + "??"  # with ?? instead of aa
-                matching_files = sorted(fnmatch.filter(os.listdir(base_folder), filter_pattern))
-                with open(joined_file_path, "wb") as wfd:
-                    for afile in matching_files:
-                        with open(os.path.join(base_folder, afile), "rb") as rfd:
-                            wfd.write(rfd.read())
-                if self.no_artifacts:
-                    for afile in matching_files:
-                        os.remove(os.path.join(base_folder, afile))
-                # create done file for the .wtar.aa file
-                if not self.no_artifacts:
-                    with open(done_file, "a"): os.utime(done_file, None)
-                # now remove the done file for the newly created .wtar file
-                joined_file_done_path = joined_file_path + ".done"
-                if os.path.isfile(joined_file_done_path):
-                    os.remove(joined_file_done_path)
-                self.dynamic_progress("Expanding {first_file}".format(**locals()))
+            filter_pattern = base_name[:-2] + "??"  # with ?? instead of aa
+            matching_files = sorted(fnmatch.filter(os.listdir(base_folder), filter_pattern))
+            with open(joined_file_path, "wb") as wfd:
+                for a_file in matching_files:
+                    with open(os.path.join(base_folder, a_file), "rb") as rfd:
+                        wfd.write(rfd.read())
+            if self.no_artifacts:
+                for a_file in matching_files:
+                    os.remove(os.path.join(base_folder, a_file))
+                    self.dynamic_progress("removing {a_file}".format(**locals()))
+            self.dynamic_progress("joined {joined_file_path}".format(**locals()))
             return joined_file_path
-        except:
+        except BaseException as es:
+            try: # try to remove the tar file
+                os.remove(joined_file_path)
+            except: # but no worry if file does not exist
+                pass
             print("exception while join_split_files", first_file)
-            raise
+            raise es
 
     def do_check_checksum(self):
         self.progress_staccato_command = True

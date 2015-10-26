@@ -536,8 +536,9 @@ class CMDObj(cmd.Cmd, object):
         return self.identifier_completion_list(text, line, begidx, endidx)
 
     def help_depend(self):
-        print("depend [identifier, ...]")
-        print("    dependencies for an item")
+        print("Usage: depend [identifier, ...]")
+        print("    list dependencies for an item: all other items that needs or are needed-by the item")
+        print("Example: depend ABC__IID")
 
     def do_sync(self, params):
         out_file = "stdout"

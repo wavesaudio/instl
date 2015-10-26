@@ -1,3 +1,9 @@
+26/10/2015 1.0.1.0
+
+    user visible changes, client:
+    * Improved unwtar, no more done files, more robust algorithm, better catching and reporting of errors
+    * Interactive mode: better help for depend
+
 23/10/2015 1.0.0.9
 
     user visible changes, admin:
