@@ -176,13 +176,18 @@ def create_copy_instructions_for_source(self, source):
             source_folder, source_name = os.path.split(source[0])
             source_folder_item = self.have_map.get_item_at_path(source_folder)
             if source_folder_item:
+                first_wtar_item = None
                 for wtar_item in source_folder_item.walk_items_with_filter(svnTree.WtarFilter(source_name), what="file"):
+                    if wtar_item.name.endswith(".wtar") or wtar_item.name.endswith(".wtar.aa"):
+                        first_wtar_item = wtar_item
                     source_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + wtar_item.full_path())
                     self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".",
                                                                                         link_dest=True,
                                                                                         ignore=ignore_list)
                     self.bytes_to_copy += int(float(wtar_item.safe_size) * self.wtar_ratio)
-                    num_wtar_files_in_source += 1
+                    #num_wtar_files_in_source += 1
+                if first_wtar_item:
+                    self.batch_accum += self.platform_helper.unwtar_something(first_wtar_item.name, no_artifacts=False)
 
     elif source[1] == '!dir_cont':  # get all files and folders from a folder
         self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".",
@@ -208,17 +213,26 @@ def create_copy_instructions_for_source(self, source):
                                                                                ignore=ignore_list)
             self.bytes_to_copy += reduce(calc_size_of_file_item, source_item.walk_items(what="file"), 0)
             num_wtar_files_in_source = len(list(source_item.walk_items_with_filter(svnTree.WtarFilter(), what="file")))
+            if num_wtar_files_in_source > 0:
+                self.batch_accum += self.platform_helper.unwtar_something(source_item.name, no_artifacts=False)
+            num_wtar_files_in_source = 0
+
         else:
             source_folder, source_name = os.path.split(source[0])
             source_folder_item = self.have_map.get_item_at_path(source_folder)
             if source_folder_item:
+                first_wtar_item = None
                 for wtar_item in source_folder_item.walk_items_with_filter(svnTree.WtarFilter(source_name), what="file"):
+                    if wtar_item.name.endswith(".wtar") or wtar_item.name.endswith(".wtar.aa"):
+                        first_wtar_item = wtar_item
                     source_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + wtar_item.full_path())
                     self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".",
                                                                                         link_dest=True,
                                                                                         ignore=ignore_list)
                     self.bytes_to_copy += int(float(wtar_item.safe_size) * self.wtar_ratio)
-                    num_wtar_files_in_source += 1
+                    #num_wtar_files_in_source += 1
+                    if first_wtar_item:
+                        self.batch_accum += self.platform_helper.unwtar_something(first_wtar_item.name, no_artifacts=False)
     logging.debug("%s; (%s - %s)", source_path, var_stack.resolve(source_path), source[1])
     return num_wtar_files_in_source
 
