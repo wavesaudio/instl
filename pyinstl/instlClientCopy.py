@@ -56,6 +56,8 @@ def create_copy_instructions(self):
         self.pre_copy_mac_handling()
 
     for folder_name in sorted_target_folder_list:
+        num_items_copied_to_folder = 0
+        num_wtars_copied_to_folder = 0
         items_in_folder = self.installState.install_items_by_target_folder[folder_name]
         logging.info("folder %s", var_stack.resolve(folder_name))
         self.batch_accum += self.platform_helper.new_line()
@@ -69,23 +71,26 @@ def create_copy_instructions(self):
         for IID in items_in_folder:
             with self.install_definitions_index[IID] as installi:
                 for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
+                    num_items_copied_to_folder += 1
                     source = var_stack.resolve_var_to_list(source_var)
                     self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_pre_copy_item")
-                    self.create_copy_instructions_for_source(source)
+                    num_wtars_copied_to_folder += self.create_copy_instructions_for_source(source)
                     self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_post_copy_item")
                     self.batch_accum += self.platform_helper.progress("Copy {installi.name}".format(**locals()))
         self.batch_accum += self.platform_helper.copy_tool.end_copy_folder()
         logging.info("... copy actions: %d", len(self.batch_accum) - batch_accum_len_before)
 
-        self.batch_accum += self.platform_helper.progress("Expanding files...")
-        self.batch_accum += self.platform_helper.unwtar_current_folder(no_artifacts=True)
-        self.batch_accum += self.platform_helper.exit_if_any_error()
-        self.batch_accum += self.platform_helper.progress("Expand files done")
-
-        if 'Mac' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
-            self.batch_accum += self.platform_helper.progress("Resolving symlinks...")
-            self.batch_accum += self.platform_helper.resolve_symlink_files()
-            self.batch_accum += self.platform_helper.progress("Resolve symlinks done")
+        # only if items were actually copied there's need to unwtar and (Mac only) resolve symlinks
+        if num_items_copied_to_folder > 0:
+            if num_wtars_copied_to_folder > 0:
+                self.batch_accum += self.platform_helper.progress("Expanding files...")
+                self.batch_accum += self.platform_helper.unwtar_current_folder(no_artifacts=True)
+                self.batch_accum += self.platform_helper.exit_if_any_error()
+                self.batch_accum += self.platform_helper.progress("Expand files done")
+            if 'Mac' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
+                self.batch_accum += self.platform_helper.progress("Resolving symlinks...")
+                self.batch_accum += self.platform_helper.resolve_symlink_files()
+                self.batch_accum += self.platform_helper.progress("Resolve symlinks done")
 
         # accumulate post_copy_to_folder actions from all items, eliminating duplicates
         self.accumulate_unique_actions('post_copy_to_folder', items_in_folder)
@@ -142,7 +147,9 @@ def create_copy_instructions(self):
 
 
 def create_copy_instructions_for_source(self, source):
-    """ source is a tuple (source_path, tag), where tag is either !file or !dir """
+    """ source is a tuple (source_path, tag), where tag is either !file or !dir
+        returns the number of wtar files in the source.
+    """
 
     def calc_size_of_file_item(old_total, a_file_item):
         """ for use with builtin function reduce to calculate the unwtarred size of a file """
@@ -152,6 +159,7 @@ def create_copy_instructions_for_source(self, source):
             item_size = a_file_item.safe_size
         return old_total + item_size
 
+    num_wtar_files_in_source = 0
     source_item = self.have_map.get_item_at_path(source[0])
     source_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + source[0])
 
@@ -174,6 +182,7 @@ def create_copy_instructions_for_source(self, source):
                                                                                         link_dest=True,
                                                                                         ignore=ignore_list)
                     self.bytes_to_copy += int(float(wtar_item.safe_size) * self.wtar_ratio)
+                    num_wtar_files_in_source += 1
 
     elif source[1] == '!dir_cont':  # get all files and folders from a folder
         self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".",
@@ -182,6 +191,7 @@ def create_copy_instructions_for_source(self, source):
                                                                                     preserve_dest_files=True)  # preserve files already in destination
 
         self.bytes_to_copy += reduce(calc_size_of_file_item, source_item.walk_items(what="file"), 0)
+        num_wtar_files_in_source = len(list(source_item.walk_items_with_filter(svnTree.WtarFilter(), what="file")))
 
     elif source[1] == '!files':  # get all files from a folder
         self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".",
@@ -189,6 +199,7 @@ def create_copy_instructions_for_source(self, source):
                                                                                  ignore=ignore_list)
         file_list, dir_list = source_item.sorted_sub_items()
         self.bytes_to_copy += reduce(calc_size_of_file_item, file_list, 0)
+        num_wtar_files_in_source = reduce(file_list, svnTree.WtarFilter(), 0)
 
     else:  # !dir
         if source_item:
@@ -196,6 +207,7 @@ def create_copy_instructions_for_source(self, source):
                                                                                link_dest=True,
                                                                                ignore=ignore_list)
             self.bytes_to_copy += reduce(calc_size_of_file_item, source_item.walk_items(what="file"), 0)
+            num_wtar_files_in_source = len(list(source_item.walk_items_with_filter(svnTree.WtarFilter(), what="file")))
         else:
             source_folder, source_name = os.path.split(source[0])
             source_folder_item = self.have_map.get_item_at_path(source_folder)
@@ -206,7 +218,9 @@ def create_copy_instructions_for_source(self, source):
                                                                                         link_dest=True,
                                                                                         ignore=ignore_list)
                     self.bytes_to_copy += int(float(wtar_item.safe_size) * self.wtar_ratio)
+                    num_wtar_files_in_source += 1
     logging.debug("%s; (%s - %s)", source_path, var_stack.resolve(source_path), source[1])
+    return num_wtar_files_in_source
 
 
 # special handling when running on Mac OS
