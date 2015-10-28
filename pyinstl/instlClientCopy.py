@@ -181,8 +181,8 @@ def create_copy_instructions_for_source(self, source, name_for_progress_message)
                     self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".",
                                                                                         link_dest=True,
                                                                                         ignore=ignore_list)
+                    self.bytes_to_copy += int(float(wtar_item.safe_size) * self.wtar_ratio)
                 self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
-                self.bytes_to_copy += int(float(wtar_item.safe_size) * self.wtar_ratio)
                 if first_wtar_item:
                     self.batch_accum += self.platform_helper.unwtar_something(first_wtar_item.name, no_artifacts=False)
                     self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
@@ -242,7 +242,7 @@ def create_copy_instructions_for_source(self, source, name_for_progress_message)
             if source_folder_item:
                 first_wtar_item = None
                 for wtar_item in source_folder_item.walk_items_with_filter(svnTree.WtarFilter(source_name), what="file"):
-                    if wtar_item.name.endswith(".wtar") or wtar_item.name.endswith(".wtar.aa"):
+                    if is_first_wtar_file(wtar_item.name):
                         first_wtar_item = wtar_item
                     source_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + wtar_item.full_path())
                     self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".",
