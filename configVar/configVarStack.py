@@ -18,6 +18,7 @@ import sys
 import utils
 import aYaml
 import configVarList
+import configVar
 
 class ConfigVarStack(configVarList.ConfigVarList):
     """ Keeps a list of named build config values.
@@ -87,6 +88,8 @@ class ConfigVarStack(configVarList.ConfigVarList):
         try:
             values_as_strs = map(str, values)
             var_obj = self[var_name]
+            if var_name.endswith(configVar.ConfigVar.variable_name_endings_to_normpath):
+                values_as_strs = [os.path.normpath(value) for value in values_as_strs]
             if list(var_obj) != values_as_strs:
                 raise Exception("Const variable {} ({}) already defined: new values: {}"\
                                 ", previous values: {}".format(var_name, self.get_configVar_obj(var_name).description,

@@ -3,6 +3,9 @@
     user visible changes, client:
     * unwtarring is done specifically to each .wtar file. No more unwtarring whole folders.
 
+    programmer visible changes:
+    * ConfigVarStack.add_const_config_variable: added normalization of paths for windows.
+
 26/10/2015 1.0.1.0
 
     user visible changes, client:
