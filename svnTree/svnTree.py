@@ -314,7 +314,7 @@ class SVNTree(svnItem.SVNTopItem):
                     print(parts[0], "was not found")
 
 class WtarFilter(object):
-    """ WtarFilter is passed to SVNItem.walk_items_with_filter as the filter parameter
+    """ WtarFilter is passed to SVNItem.walk_file_items_with_filter as the filter parameter
         to match files that end with .wtar, .wtar.aa,...
     """
     def __init__(self, base_name=r""".+"""):

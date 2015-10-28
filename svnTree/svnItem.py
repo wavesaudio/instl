@@ -431,28 +431,22 @@ class SVNItem(object):
             for yielded_from in the_sub.walk_items(what):
                 yield yielded_from
 
-    def walk_items_with_filter(self, a_filter, what="all"):
+    def walk_file_items_with_filter(self, a_filter):
         """  Walk the item list and yield items.
             for each folder the files will be listed alphabetically, than each sub folder
             with it's sub items.
         """
         file_list, dir_list = self.sorted_sub_items()
-        yield_files = what in ("f", "file", "a", "all")
-        yield_dirs = what in ("d", "dir", "a", "all")
 
-        if yield_files:
-            for the_sub in file_list:
-                if a_filter(the_sub):
-                    yield the_sub
-                else:
-                    continue
+        for the_sub in file_list:
+            if a_filter(the_sub):
+                yield the_sub
+            else:
+                continue
 
         for the_sub in dir_list:
-            if a_filter(the_sub):
-                if yield_dirs:
-                    yield the_sub
-                for yielded_from in the_sub.walk_items(what):
-                    yield yielded_from
+            for yielded_from in the_sub.walk_file_items_with_filter(a_filter):
+                yield yielded_from
 
     def walk_items_depth_first(self, what="all"):
         """  Walk the item list and yield items.

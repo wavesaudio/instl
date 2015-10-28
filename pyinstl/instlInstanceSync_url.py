@@ -86,7 +86,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             raise ValueError(split_source_folder, var_stack.resolve("does not exist in remote map, IID: $(iid_iid)"))
 
         wtar_files_count = 0
-        for wtar_file in parent_folder_item.walk_items_with_filter(a_filter=svnTree.WtarFilter(split_source_leaf), what="file"):
+        for wtar_file in parent_folder_item.walk_file_items_with_filter(a_filter=svnTree.WtarFilter(split_source_leaf)):
             wtar_file.set_user_data_non_recursive(True)
             wtar_files_count += 1
         retVal = wtar_files_count > 0

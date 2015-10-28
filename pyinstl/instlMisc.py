@@ -142,7 +142,7 @@ class InstlMisc(InstlInstanceBase):
             if self.no_artifacts:
                 for a_file in matching_files:
                     os.remove(os.path.join(base_folder, a_file))
-                    self.dynamic_progress("removing {a_file}".format(**locals()))
+                    #self.dynamic_progress("removing {a_file}".format(**locals()))
             # self.dynamic_progress("joined {joined_file_path}".format(**locals()))
             return joined_file_path
         except BaseException as es:

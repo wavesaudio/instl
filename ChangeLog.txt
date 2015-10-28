@@ -5,6 +5,8 @@
 
     programmer visible changes:
     * ConfigVarStack.add_const_config_variable: added normalization of paths for windows.
+    * SVNItem.walk_items_with_filter renamed SVNItem.walk_file_items_with_filter - now it only yields file items.
+        It was not clear if the dirs were supposed to be filtered when looking for files and dirs.
 
 26/10/2015 1.0.1.0
 

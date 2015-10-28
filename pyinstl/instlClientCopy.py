@@ -173,7 +173,7 @@ def create_copy_instructions_for_source(self, source, name_for_progress_message)
             source_folder_item = self.have_map.get_item_at_path(source_folder)
             if source_folder_item:
                 first_wtar_item = None
-                for wtar_item in source_folder_item.walk_items_with_filter(svnTree.WtarFilter(source_name), what="file"):
+                for wtar_item in source_folder_item.walk_file_items_with_filter(svnTree.WtarFilter(source_name)):
                     if is_first_wtar_file(wtar_item.name):
                         first_wtar_item = wtar_item
                     source_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + wtar_item.full_path())
@@ -201,7 +201,7 @@ def create_copy_instructions_for_source(self, source, name_for_progress_message)
                 self.batch_accum += self.platform_helper.unwtar_something(file_item.name, no_artifacts=True)
                 num_items_to_unwtar += 1
         for dir_item in dir_list:
-            num_wtar_files_in_dir_item = len(list(dir_item.walk_items_with_filter(svnTree.WtarFilter(), what="file")))
+            num_wtar_files_in_dir_item = len(list(dir_item.walk_file_items_with_filter(svnTree.WtarFilter())))
             if num_wtar_files_in_dir_item > 0:
                 self.batch_accum += self.platform_helper.unwtar_something(dir_item.name, no_artifacts=True)
                 num_items_to_unwtar += 1
@@ -231,7 +231,7 @@ def create_copy_instructions_for_source(self, source, name_for_progress_message)
                                                                                ignore=ignore_list)
             self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
             self.bytes_to_copy += reduce(calc_size_of_file_item, source_item.walk_items(what="file"), 0)
-            num_wtar_files_in_source = len(list(source_item.walk_items_with_filter(svnTree.WtarFilter(), what="file")))
+            num_wtar_files_in_source = len(list(source_item.walk_file_items_with_filter(svnTree.WtarFilter())))
             if num_wtar_files_in_source > 0:
                 self.batch_accum += self.platform_helper.unwtar_something(source_item.name, no_artifacts=True)
                 self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
@@ -240,7 +240,7 @@ def create_copy_instructions_for_source(self, source, name_for_progress_message)
             source_folder_item = self.have_map.get_item_at_path(source_folder)
             if source_folder_item:
                 first_wtar_item = None
-                for wtar_item in source_folder_item.walk_items_with_filter(svnTree.WtarFilter(source_name), what="file"):
+                for wtar_item in source_folder_item.walk_file_items_with_filter(svnTree.WtarFilter(source_name)):
                     if is_first_wtar_file(wtar_item.name):
                         first_wtar_item = wtar_item
                     source_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + wtar_item.full_path())
