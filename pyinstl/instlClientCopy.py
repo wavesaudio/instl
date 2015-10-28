@@ -203,7 +203,7 @@ def create_copy_instructions_for_source(self, source, name_for_progress_message)
         for dir_item in dir_list:
             num_wtar_files_in_dir_item = len(list(dir_item.walk_items_with_filter(svnTree.WtarFilter(), what="file")))
             if num_wtar_files_in_dir_item > 0:
-                self.batch_accum += self.platform_helper.unwtar_something(source_item.name, no_artifacts=True)
+                self.batch_accum += self.platform_helper.unwtar_something(dir_item.name, no_artifacts=True)
                 num_items_to_unwtar += 1
         if num_items_to_unwtar > 0:
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
