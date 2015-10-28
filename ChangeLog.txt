@@ -1,3 +1,8 @@
+28/10/2015 1.0.1.1
+
+    user visible changes, client:
+    * unwtarring is done specifically to each .wtar file. No more unwtarring whole folders.
+
 26/10/2015 1.0.1.0
 
     user visible changes, client:

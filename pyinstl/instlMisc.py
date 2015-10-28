@@ -115,13 +115,12 @@ class InstlMisc(InstlInstanceBase):
 
     def unwtar_a_file(self, wtar_file_path):
         try:
-            print("unwtarring", wtar_file_path)
             wtar_folder_path, _ = os.path.split(wtar_file_path)
             with tarfile.open(wtar_file_path, "r") as tar:
                 tar.extractall(wtar_folder_path)
             if self.no_artifacts:
                 os.remove(wtar_file_path)
-            self.dynamic_progress("Expanding {wtar_file_path}".format(**locals()))
+            # self.dynamic_progress("Expanding {wtar_file_path}".format(**locals()))
         except tarfile.ReadError as re_er:
             print("tarfile read error while opening file", os.path.abspath(wtar_file_path))
             raise
@@ -134,7 +133,6 @@ class InstlMisc(InstlInstanceBase):
             if not base_folder:
                 base_folder = "."
             joined_file_path = norm_first_file[:-3] # without the final '.aa'
-            print("joining wtar files", joined_file_path+".??")
             filter_pattern = base_name[:-2] + "??"  # with ?? instead of aa
             matching_files = sorted(fnmatch.filter(os.listdir(base_folder), filter_pattern))
             with open(joined_file_path, "wb") as wfd:
@@ -145,7 +143,7 @@ class InstlMisc(InstlInstanceBase):
                 for a_file in matching_files:
                     os.remove(os.path.join(base_folder, a_file))
                     self.dynamic_progress("removing {a_file}".format(**locals()))
-            self.dynamic_progress("joined {joined_file_path}".format(**locals()))
+            # self.dynamic_progress("joined {joined_file_path}".format(**locals()))
             return joined_file_path
         except BaseException as es:
             try: # try to remove the tar file
