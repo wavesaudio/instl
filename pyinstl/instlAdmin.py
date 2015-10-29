@@ -1135,3 +1135,36 @@ class InstlAdmin(InstlInstanceBase):
                             partial_path = full_path[folder_to_scan_name_len:]
                             print(partial_path+",", file_size, file=out_file)
 
+    def do_create_infomap(self):
+        self.batch_accum.set_current_section('admin')
+        last_repo_rev = self.get_last_repo_rev()
+        self.batch_accum += self.platform_helper.cd("$(WORKING_SVN_CHECKOUT_FOLDER)")
+        info_command_parts = ['"$(SVN_CLIENT_PATH)"', "info", "--depth infinity", ">", "$(WORKING_SVN_CHECKOUT_FOLDER)/../info_map.info"]
+        self.batch_accum += " ".join(info_command_parts)
+        self.batch_accum += self.platform_helper.progress("Get info from svn to $(WORKING_SVN_CHECKOUT_FOLDER)/../info_map.info")
+
+        # get properties from SVN for all files in revision
+        props_command_parts = ['"$(SVN_CLIENT_PATH)"', "proplist", "--depth infinity", ">", "$(WORKING_SVN_CHECKOUT_FOLDER)/../info_map.props"]
+        self.batch_accum += " ".join(props_command_parts)
+        self.batch_accum += self.platform_helper.progress("Get props from svn to $(WORKING_SVN_CHECKOUT_FOLDER)/../info_map.props")
+
+        # get sizes of all files
+        file_sizes_command_parts = [self.platform_helper.run_instl(), "file-sizes",
+                                    "--in", "$(WORKING_SVN_CHECKOUT_FOLDER)",
+                                    "--out", "$(WORKING_SVN_CHECKOUT_FOLDER)/../info_map.file-sizes"]
+        self.batch_accum += " ".join(file_sizes_command_parts)
+        self.batch_accum += self.platform_helper.progress("Get file-sizes from disk to $(WORKING_SVN_CHECKOUT_FOLDER)/../info_map.file-sizes")
+
+        self.batch_accum += self.platform_helper.cd("..")
+        trans_command_parts = [self.platform_helper.run_instl(), "trans",
+                                   "--in", "info_map.info",
+                                   "--props ", "info_map.props",
+                                   "--file-sizes", "info_map.file-sizes",
+                                   "--out ", "info_map.txt"]
+        self.batch_accum += " ".join(trans_command_parts)
+        self.batch_accum += self.platform_helper.progress("Create $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map.txt")
+
+        self.create_variables_assignment()
+        self.write_batch_file()
+        if "__RUN_BATCH__" in var_stack:
+            self.run_batch_file()

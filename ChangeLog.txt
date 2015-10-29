@@ -1,3 +1,8 @@
+???? 1.0.1.2
+
+    user visible changes, admin:
+    * New command create-infomap, to create info_map.txt from local repository.
+
 28/10/2015 1.0.1.1
 
     user visible changes, client:
