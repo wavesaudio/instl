@@ -83,58 +83,38 @@ class open_for_read_file_or_url(object):
                         """, re.VERBOSE)
 
     def __init__(self, in_file_or_url, translate_url_callback=None, path_searcher=None):
-        self.file_or_url = in_file_or_url
+        self.local_file_path = None
+        self.url = None
         self.cookie = None
         self.fd = None
-        match = self.protocol_header_re.match(self.file_or_url)
+        match = self.protocol_header_re.match(in_file_or_url)
         if not match:  # it's a local file
+            self.local_file_path = in_file_or_url
             if path_searcher is not None:
-                self.file_or_url = path_searcher.find_file(self.file_or_url)
-            if self.file_or_url:
+                self.local_file_path = path_searcher.find_file(self.local_file_path)
+            if self.local_file_path:
                 if 'Win' in get_current_os_names():
-                    abs_path = os.path.abspath(self.file_or_url)
-                    if abs_path.startswith(r"\\"):
-                        self.file_or_url = "file:"+abs_path
-                    else:
-                        self.file_or_url = "file:///"+abs_path
+                    self.local_file_path = os.path.abspath(self.local_file_path)
                 else:
-                    self.file_or_url = "file://"+os.path.realpath(self.file_or_url)
+                    self.local_file_path = os.path.realpath(self.local_file_path)
             else:
-                raise IOError("Could not locate local file", self.file_or_url)
+                raise IOError("Could not locate local file", self.local_file_path)
         else:
+            self.url = in_file_or_url
             if translate_url_callback is not None:
-                self.file_or_url, self.cookie = translate_url_callback(self.file_or_url)
-                #if self.cookie:
-                #    a = "__init__: cookie: "+self.cookie+"; URL: "+self.file_or_url
-                #else:
-                #    a = "__init__: NO cookie"+"; URL: "+self.file_or_url
-                #print(a)
+                self.url, self.cookie = translate_url_callback(self.url)
 
     def __enter__(self):
         try:
-            #for python 2.7.10:
-            #ctx = ssl.create_default_context()
-            #ctx.check_hostname = False
-            #ctx.verify_mode = ssl.CERT_NONE
-            #for python 2.7.9:
-            #ctx = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
-            #ctx.check_hostname = False
-            #ctx.verify_mode = ssl.CERT_NONE
-            #ctx.options |= ssl.OP_NO_SSLv3
-            #self.fd = urllib2.urlopen(self.file_or_url, context=ctx)
-            #print("netloc:", netloc, "; url:", self.file_or_url)
-            opener = urllib2.build_opener()
-            if self.cookie:
-                opener.addheaders.append(('Cookie', self.cookie))
-                #print("__enter__: there's a cookie for", self.file_or_url)
-                #print("__enter__: Cookie", self.cookie)
-            #else:
-            #     print("__enter__: there's no cookie for", self.file_or_url)
-
-            self.fd = opener.open(self.file_or_url)   #         self.fd = urllib2.urlopen(self.file_or_url)
-            #print("open_for_read_file_or_url.__enter__ opened", self.file_or_url, self.cookie)
+            if self.url:
+                opener = urllib2.build_opener()
+                if self.cookie:
+                    opener.addheaders.append(('Cookie', self.cookie))
+                self.fd = opener.open(self.url)
+            elif self.local_file_path:
+                self.fd = open(self.local_file_path, "r")
         except urllib2.URLError as url_err:
-            print (url_err, self.file_or_url)
+            print (url_err, self.url)
             raise
         if "name" not in dir(self.fd) and "url" in dir(self.fd):
             self.fd.name = self.fd.url # so we can get the url with the same attribute as file object
