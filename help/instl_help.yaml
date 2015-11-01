@@ -38,6 +38,18 @@ command:
             If --start-progress and --total-progress options are given, check-checksum will output progress messages starting with the number given in --start-progress with a total given in total-progress. Progress message for action N would be:
             Progress start-progress-number+N of total-progress;
 
+    create-infomap:
+        short: Creates infomap file from local svn repository. (admin command)
+        long: |
+            Usage: instl create-infomap --config-file config_file --out create-infomap.sh [--run]
+            "Looks for svn repository in variable $(WORKING_SVN_CHECKOUT_FOLDER) and creates a full info_map.txt file on level above this folder.
+            The info_map.txt file has for each dir or file in the repository a line in the format:
+            file-path, f|d[x], repo-rev, sha1 cehcsum, file size
+            for example:
+                Common/Data/IR1Impulses/Basic/Hall1_mcg.wir, f, 27, 85f7fd7757aa458998886ea07e083424bfdb050c, 680044
+            and for directories:
+                Common/Data/IR1Impulses/Basic, d, 27"
+
     create-links:
         short: Maintains a folder of revision specific folders ready to be uploaded by the up2s3 command. (admin command)
         long: |

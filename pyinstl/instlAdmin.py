@@ -1138,31 +1138,34 @@ class InstlAdmin(InstlInstanceBase):
     def do_create_infomap(self):
         self.batch_accum.set_current_section('admin')
         last_repo_rev = self.get_last_repo_rev()
+        var_stack.set_var("__TEMP_WORKING_FOLDER__").append("$(WORKING_SVN_CHECKOUT_FOLDER)/../temp")
+        print(var_stack.resolve("$(__TEMP_WORKING_FOLDER__)"))
+        self.batch_accum += self.platform_helper.mkdir("$(__TEMP_WORKING_FOLDER__)")
+
         self.batch_accum += self.platform_helper.cd("$(WORKING_SVN_CHECKOUT_FOLDER)")
-        info_command_parts = ['"$(SVN_CLIENT_PATH)"', "info", "--depth infinity", ">", "$(WORKING_SVN_CHECKOUT_FOLDER)/../info_map.info"]
+        info_command_parts = ['"$(SVN_CLIENT_PATH)"', "info", "--depth infinity", ">", "$(__TEMP_WORKING_FOLDER__)/info_map.info"]
         self.batch_accum += " ".join(info_command_parts)
-        self.batch_accum += self.platform_helper.progress("Get info from svn to $(WORKING_SVN_CHECKOUT_FOLDER)/../info_map.info")
+        self.batch_accum += self.platform_helper.progress("Get info from svn to $(__TEMP_WORKING_FOLDER__)/info_map.info")
 
         # get properties from SVN for all files in revision
-        props_command_parts = ['"$(SVN_CLIENT_PATH)"', "proplist", "--depth infinity", ">", "$(WORKING_SVN_CHECKOUT_FOLDER)/../info_map.props"]
+        props_command_parts = ['"$(SVN_CLIENT_PATH)"', "proplist", "--depth infinity", ">", "$(__TEMP_WORKING_FOLDER__)/info_map.props"]
         self.batch_accum += " ".join(props_command_parts)
-        self.batch_accum += self.platform_helper.progress("Get props from svn to $(WORKING_SVN_CHECKOUT_FOLDER)/../info_map.props")
+        self.batch_accum += self.platform_helper.progress("Get props from svn to $(__TEMP_WORKING_FOLDER__)/info_map.props")
 
         # get sizes of all files
         file_sizes_command_parts = [self.platform_helper.run_instl(), "file-sizes",
                                     "--in", "$(WORKING_SVN_CHECKOUT_FOLDER)",
-                                    "--out", "$(WORKING_SVN_CHECKOUT_FOLDER)/../info_map.file-sizes"]
+                                    "--out", "$(__TEMP_WORKING_FOLDER__)/info_map.file-sizes"]
         self.batch_accum += " ".join(file_sizes_command_parts)
-        self.batch_accum += self.platform_helper.progress("Get file-sizes from disk to $(WORKING_SVN_CHECKOUT_FOLDER)/../info_map.file-sizes")
+        self.batch_accum += self.platform_helper.progress("Get file-sizes from disk to $(__TEMP_WORKING_FOLDER__)/info_map.file-sizes")
 
-        self.batch_accum += self.platform_helper.cd("..")
         trans_command_parts = [self.platform_helper.run_instl(), "trans",
-                                   "--in", "info_map.info",
-                                   "--props ", "info_map.props",
-                                   "--file-sizes", "info_map.file-sizes",
-                                   "--out ", "info_map.txt"]
+                                   "--in", "$(__TEMP_WORKING_FOLDER__)/info_map.info",
+                                   "--props ", "$(__TEMP_WORKING_FOLDER__)/info_map.props",
+                                   "--file-sizes", "$(__TEMP_WORKING_FOLDER__)/info_map.file-sizes",
+                                   "--out ", "../info_map.txt"]
         self.batch_accum += " ".join(trans_command_parts)
-        self.batch_accum += self.platform_helper.progress("Create $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map.txt")
+        self.batch_accum += self.platform_helper.progress("Create $(WORKING_SVN_CHECKOUT_FOLDER)/info_map.txt")
 
         self.create_variables_assignment()
         self.write_batch_file()

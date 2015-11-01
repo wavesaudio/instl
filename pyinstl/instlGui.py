@@ -43,7 +43,7 @@ admin_command_template_variables = {
     'fix-props': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
     'depend': '__ADMIN_CALL_INSTL_DEPEND_TEMPLATE__',
     'fix-perm': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
-    'create_infomap': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__'
+    'create-infomap': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__'
 }
 
 
