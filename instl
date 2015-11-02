@@ -102,7 +102,7 @@ def prepare_args_parser(in_command):
     Prepare the parser for command line arguments
     """
 
-    mode_codes = {'ct': 'client', 'an': 'admin', 'ds': 'do_something', 'gi': 'gui'}
+    mode_codes = {'ct': 'client', 'an': 'admin', 'ds': 'do_something', 'gi': 'gui', 'di': 'doit'}
     commands_details = {
         'check-checksum':       {'mode': 'ds', 'options': ('in', 'prog',), 'help':  'check checksum for a list of files from info_map file'},
         'check-sig':            {'mode': 'an', 'options': ('in', 'conf',), 'help':  'check sha1 checksum and/or rsa signature for a file'},
@@ -113,6 +113,7 @@ def prepare_args_parser(in_command):
         'create-repo-rev-file': {'mode': 'an', 'options': ('conf',), 'help':  'create repo rev file for a specific revision'},
         'create-rsa-keys':      {'mode': 'an', 'options': ('conf',), 'help':  'create private and public keys'},
         'depend':               {'mode': 'an', 'options': ('in', 'out',), 'help':  'output a dependencies map for an index file'},
+        'doit':                 {'mode': 'di', 'options': ('in', 'out', 'run'), 'help':  'Do something'},
         'file-sizes':           {'mode': 'an', 'options': ('in', 'out'), 'help':  'Create a list of files and their sizes'},
         'fix-perm':             {'mode': 'an', 'options': ('out', 'run','conf', 'limit'), 'help':  'Fix Mac OS permissions'},
         'fix-props':            {'mode': 'an', 'options': ('out', 'run','conf'), 'help':  'create svn commands to remove redundant properties such as executable bit from files that should not be marked executable'},
@@ -377,6 +378,7 @@ def prepare_args_parser(in_command):
 
     return parser, command_names
 
+
 def read_command_line_options(name_space_obj, arglist=None):
     """ parse command line options """
 
@@ -389,6 +391,7 @@ def read_command_line_options(name_space_obj, arglist=None):
         # No command line options were given
         name_space_obj.mode = "interactive"
     return command_names
+
 
 def main():
     """ Main instl entry point. Reads command line options and decides if to go into interactive or client mode.
@@ -421,6 +424,11 @@ def main():
     if options.mode == "client":
         from pyinstl.instlClient import InstlClient
         instance = InstlClient(initial_vars)
+        instance.init_from_cmd_line_options(options)
+        instance.do_command()
+    if options.mode == "doit":
+        from pyinstl.instlDoIt import InstlDoIt
+        instance = InstlDoIt(initial_vars)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "admin":

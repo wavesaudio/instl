@@ -108,7 +108,7 @@ class InstallItem(object):
                     'post_copy_item', 'post_copy_to_folder', 'post_copy',
                     'pre_remove', 'pre_remove_from_folder', 'pre_remove_item',
                     'remove_item', 'post_remove_item', 'post_remove_from_folder',
-                    'post_remove')
+                    'post_remove', 'pre_doit', 'doit', 'post_doit')
     file_types = ('!dir_cont', '!files', '!file', '!dir')
     resolve_inheritance_stack = list()
     _get_for_os = [
