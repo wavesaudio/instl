@@ -37,21 +37,6 @@ class DoItInstructionsState(object):
         retVal['sync_paths'] = list(self.sync_paths)
         return retVal
 
-    def sort_doit_items_by_target_folder(self, instlObj):
-        for IID in self.full_doit_items:
-            with instlObj.install_definitions_index[IID] as installi:
-                folder_list_for_idd = [folder for folder in var_stack["iid_folder_list"]]
-                if folder_list_for_idd:
-                    for folder in folder_list_for_idd:
-                        norm_folder = os.path.normpath(folder)
-                        self.doit_items_by_target_folder[norm_folder].append(IID)
-                else:  # items that need no copy
-                    for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
-                        source = var_stack.resolve_var_to_list(source_var)
-                        relative_sync_folder = instlObj.relative_sync_folder_for_source(source)
-                        sync_folder = os.path.join("$(LOCAL_REPO_SYNC_DIR)", relative_sync_folder)
-                        self.no_copy_items_by_sync_folder[sync_folder].append(IID)
-
     def calculate_full_doit_items_set(self, instlObj):
         """ calculate the set of iids to install by starting with the root set and adding all dependencies.
             Initial list of iids should already be in self.root_doit_items.
@@ -65,32 +50,15 @@ class DoItInstructionsState(object):
         # root_doit_items might have guid in it, translate them to iids
 
         root_install_iids_translated = utils.unique_list()
-        for IID in self.root_doit_items:
+        for root_IID in self.root_doit_items:
             # if IID is a guid iids_from_guid will translate to iid's, or return the IID otherwise
-            iids_from_the_guid = iids_from_guid(instlObj.install_definitions_index, IID)
-            if len(iids_from_the_guid) > 0:
-                root_install_iids_translated.extend(iids_from_the_guid)
-                logging.debug("GUID %s, translated to %d iids: %s", IID, len(iids_from_the_guid),
-                              ", ".join(iids_from_the_guid))
-            else:
-                self.orphan_doit_items.append(IID)
-                logging.warning("%s is a guid but could not be translated to iids", IID)
-
-        logging.info(" ".join(("Main install items translated:", ", ".join(root_install_iids_translated))))
-
-        for IID in root_install_iids_translated:
-            try:
-                # all items in the root list are marked as required by them selves
-                instlObj.install_definitions_index[IID].required_by.append(IID)
-                instlObj.install_definitions_index[IID].get_recursive_depends(instlObj.install_definitions_index,
-                                                                              self.full_doit_items,
-                                                                              self.orphan_doit_items)
-            except KeyError:
-                self.orphan_doit_items.append(IID)
-                logging.warning("%s not found in index", IID)
-        logging.info(" ".join(("Full install items:", ", ".join(self.full_doit_items))))
-        self.sort_doit_items_by_target_folder(instlObj)
-
+            iids_from_the_root_iid = iids_from_guid(instlObj.install_definitions_index, root_IID)
+            for IID in iids_from_the_root_iid:
+                if IID in instlObj.install_definitions_index:
+                    root_install_iids_translated.append(IID)
+                else:
+                    self.orphan_doit_items.append(IID)
+        self.full_doit_items = root_install_iids_translated
 
 class InstlDoIt(InstlInstanceBase):
     def __init__(self, initial_vars):
@@ -138,50 +106,33 @@ class InstlDoIt(InstlInstanceBase):
                 second_name = target_os_names[1]
             var_stack.set_var("TARGET_OS_SECOND_NAME").append(second_name)
 
-   # sync command implemented in instlClientSync.py file
-
     def do_doit(self):
+        for action_type in ("pre_doit", "doit", "post_doit"):
+            # mark all items as undone
+            for IID in self.install_definitions_index:
+                self.install_definitions_index[IID].user_data = False
+            self.doit_for_items(self.installState.full_doit_items, action_type)
+
+        if self.installState.orphan_doit_items:
+            print("Don't know to do with these items:", ", ".join(self.installState.orphan_doit_items))
+
         self.batch_accum += self.platform_helper.progress("Done doing it")
 
-    def repr_for_yaml(self, what=None):
-        """ Create representation of self suitable for printing as yaml.
-            parameter 'what' is a list of identifiers to represent. If 'what'
-            is None (the default) create representation of everything.
-            InstlInstanceBase object is represented as two yaml documents:
-            one for define (tagged !define), one for the index (tagged !index).
-        """
-        retVal = list()
-        if what is None:  # None is all
-            retVal.append(aYaml.YamlDumpDocWrap(var_stack, '!define', "Definitions",
-                                                explicit_start=True, sort_mappings=True))
-            retVal.append(aYaml.YamlDumpDocWrap(self.install_definitions_index,
-                                                '!index', "Installation index",
-                                                explicit_start=True, sort_mappings=True))
-        else:
-            defines = list()
-            indexes = list()
-            unknowns = list()
-            for identifier in what:
-                if identifier in var_stack:
-                    defines.append(var_stack.repr_for_yaml(identifier))
-                elif identifier in self.install_definitions_index:
-                    indexes.append({identifier: self.install_definitions_index[identifier].repr_for_yaml()})
-                else:
-                    unknowns.append(aYaml.YamlDumpWrap(value="UNKNOWN VARIABLE",
-                                                       comment=identifier + " is not in variable list"))
-            if defines:
-                retVal.append(aYaml.YamlDumpDocWrap(defines, '!define', "Definitions",
-                                                    explicit_start=True, sort_mappings=True))
-            if indexes:
-                retVal.append(
-                    aYaml.YamlDumpDocWrap(indexes, '!index', "Installation index",
-                                          explicit_start=True, sort_mappings=True))
-            if unknowns:
-                retVal.append(
-                    aYaml.YamlDumpDocWrap(unknowns, '!unknowns', "Installation index",
-                                          explicit_start=True, sort_mappings=True))
+    def doit_for_items(self, item_list, action):
+         for IID in item_list:
+            if IID in self.install_definitions_index:
+                if not self.install_definitions_index[IID].user_data:
+                    depends = self.install_definitions_index[IID].get_depends()
+                    self.doit_for_items(depends, action)
+                    self.doit_for_item(IID, action)
+            else:
+                self.installState.orphan_doit_items.append(IID)
 
-        return retVal
+    def doit_for_item(self, IID, action):
+        print(action, "for", IID)
+        with self.install_definitions_index[IID] as doit_item:
+            self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_"+action)
+            doit_item.user_data = True
 
     def add_default_items(self):
         all_items_item = InstallItem()
