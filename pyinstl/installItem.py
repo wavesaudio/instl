@@ -100,7 +100,7 @@ class InstallItem(object):
     __slots__ = ('iid', 'name', 'guid',
                  'remark', "description", 'inherit',
                  '__set_for_os', '__items', '__resolved_inherit',
-                 'var_list', 'required_by')
+                 'var_list', 'required_by', '__user_data')
     os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
     allowed_item_keys = ('name', 'guid','install_sources', 'install_folders', 'inherit', 'depends', 'actions', 'remark')
     allowed_top_level_keys = os_names[1:] + allowed_item_keys
@@ -182,6 +182,7 @@ class InstallItem(object):
         self.__items = defaultdict(InstallItem.create_items_section)
         self.var_list = None
         self.required_by = utils.unique_list()
+        self.__user_data = None
 
     def read_from_yaml_by_idd(self, IID, all_items_node):
         my_node = all_items_node[IID]
@@ -348,6 +349,9 @@ class InstallItem(object):
             retVal.extend(self.__get_item_list_for_default_oses_by_category(action_type))
         return retVal
 
+    def get_depends(self):
+        return self._depend_list()
+
     def get_recursive_depends(self, items_map, out_set, orphan_set):
         if self.iid not in out_set:
             out_set.append(self.iid)
@@ -434,15 +438,15 @@ class InstallItem(object):
             self.resolve_inheritance_stack.pop()
 
 
-"""
-            if 'inherit' in my_node:
-                for inheritIDD in inherite_node:
-                    try:
-                        self.read_from_yaml_by_idd(inheritIDD.value, all_items_node)
-                    except KeyError as ke:
-                        missingIDDMessage = "While reading "+IID+", Inheritance IID '"+ke.message+" " +inherite_node.start_mark
-                        raise KeyError(missingIDDMessage)
-"""
+    @property
+    def user_data(self):
+        """ return user_data """
+        return self.__user_data
+
+    @user_data.setter
+    def user_data(self, new_user_data):
+        """ update user_data """
+        self.__user_data = new_user_data
 
 
 def guid_list(items_map):
