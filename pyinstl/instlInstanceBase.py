@@ -221,10 +221,14 @@ class InstlInstanceBase(object):
 
     def read_yaml_file(self, file_path):
         logging.info("%s", file_path)
-        with utils.open_for_read_file_or_url(file_path, connectionBase.translate_url, self.path_searcher) as file_fd:
-            buffer = StringIO.StringIO(file_fd.read())
-            self.read_yaml_from_stream(buffer)
-        var_stack.get_configVar_obj("__READ_YAML_FILES__").append(file_path)
+        try:
+            with utils.open_for_read_file_or_url(file_path, connectionBase.translate_url, self.path_searcher) as file_fd:
+                buffer = StringIO.StringIO(file_fd.read())
+                self.read_yaml_from_stream(buffer)
+            var_stack.get_configVar_obj("__READ_YAML_FILES__").append(file_path)
+        except:
+            print("Exception reading file:", file_path)
+            raise
 
     def read_require(self, a_node):
         # dependencies_file_path = var_stack.resolve("$(SITE_REQUIRE_FILE_PATH)")

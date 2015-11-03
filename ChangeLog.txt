@@ -5,6 +5,9 @@
     * create-links command re-implemened new create-infomap command.
     * Indexes for Mac or Windows only are no longer created by create-links, they were never used.
 
+    programmer visible changes:
+    * try/except and better error report around reading yamls and info_map files
+
 28/10/2015 1.0.1.1
 
     user visible changes, client:
