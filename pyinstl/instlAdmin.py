@@ -191,6 +191,7 @@ class InstlAdmin(InstlInstanceBase):
         accum.set_current_section('links')
         self.create_links_for_revision(accum)
 
+        self.batch_accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)")
         no_need_link_nums = list()
         yes_need_link_nums = list()
         max_repo_rev_to_work_on = curr_repo_rev
@@ -245,9 +246,9 @@ class InstlAdmin(InstlInstanceBase):
         accum += self.platform_helper.progress("Copy revision $(__CURR_REPO_REV__) to "+revision_folder_path)
 
         # get info from SVN for all files in revision
-        accum += self.platform_helper.mkdir(revision_instl_folder_path)
         self.create_info_map(base_folder_path, revision_instl_folder_path, accum)
 
+        accum += self.platform_helper.pushd(revision_folder_path)
         # create depend file
         create_depend_file_command_parts = [self.platform_helper.run_instl(), "depend", "--in", "instl/index.yaml",
                                             "--out", "instl/index-dependencies.yaml"]
@@ -270,6 +271,7 @@ class InstlAdmin(InstlInstanceBase):
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(CREATE_LINKS_STAMP_FILE_NAME)"])
         accum += self.platform_helper.progress("Create $(CREATE_LINKS_STAMP_FILE_NAME)")
 
+        accum += self.platform_helper.popd()
         accum += self.platform_helper.echo("done create-links version $(__CURR_REPO_REV__)")
 
     class RemoveIfNotSpecificVersion(object):
