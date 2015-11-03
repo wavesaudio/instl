@@ -1,7 +1,9 @@
-???? 1.0.1.2
+3/11/2015 1.0.1.2
 
     user visible changes, admin:
-    * New command create-infomap, to create info_map.txt from local repository.
+    * New command create-infomap, to create info_map.txt from a repository.
+    * create-links command re-implemened new create-infomap command.
+    * Indexes for Mac or Windows only are no longer created by create-links, they were never used.
 
 28/10/2015 1.0.1.1
 
