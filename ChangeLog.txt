@@ -1,3 +1,8 @@
+????
+
+    user visible changes, admin:
+    * add "--base-repo-rev" trans command that was missing in previous commits/
+
 3/11/2015 1.0.1.2
 
     user visible changes, admin:

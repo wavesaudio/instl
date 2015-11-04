@@ -1129,6 +1129,7 @@ class InstlAdmin(InstlInstanceBase):
                                    "--in", info_map_info_path,
                                    "--props ", info_map_props_path,
                                    "--file-sizes", info_map_file_sizes_path,
+                                   "--base-repo-rev", "$(BASE_REPO_REV)",
                                    "--out ", info_map_file_results_path]
         accum += " ".join(trans_command_parts)
         accum += self.platform_helper.progress("Created"+info_map_file_results_path)
