@@ -107,6 +107,7 @@ def prepare_args_parser(in_command):
         'check-sig':            {'mode': 'an', 'options': ('in', 'conf',), 'help':  'check sha1 checksum and/or rsa signature for a file'},
         'copy':                 {'mode': 'ct', 'options': ('in', 'out', 'run', 'cred'), 'help':  'copy files to target paths'},
         'create-folders':       {'mode': 'ds', 'options': ('in',  'prog',), 'help':  'create folders from info_map file'},
+        'create-infomap':       {'mode': 'an', 'options': ('conf', 'out', 'run'), 'help': 'create infomap file for repository'},
         'create-links':         {'mode': 'an', 'options': ('out', 'run', 'conf',), 'help':  'create links from the base SVN checkout folder for a specific version'},
         'create-repo-rev-file': {'mode': 'an', 'options': ('conf',), 'help':  'create repo rev file for a specific revision'},
         'create-rsa-keys':      {'mode': 'an', 'options': ('conf',), 'help':  'create private and public keys'},

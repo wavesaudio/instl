@@ -191,6 +191,7 @@ class InstlAdmin(InstlInstanceBase):
         accum.set_current_section('links')
         self.create_links_for_revision(accum)
 
+        self.batch_accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)")
         no_need_link_nums = list()
         yes_need_link_nums = list()
         max_repo_rev_to_work_on = curr_repo_rev
@@ -227,65 +228,27 @@ class InstlAdmin(InstlInstanceBase):
             self.run_batch_file()
 
     def create_links_for_revision(self, accum):
+        base_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/Base"
         revision_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)"
         revision_instl_folder_path = revision_folder_path + "/instl"
 
-        # sync revision from SVN to Base folder
+        # sync revision __CURR_REPO_REV__ from SVN to Base folder
         accum += self.platform_helper.echo("Getting revision $(__CURR_REPO_REV__) from $(SVN_REPO_URL)")
         checkout_command_parts = ['"$(SVN_CLIENT_PATH)"', "co", '"' + "$(SVN_REPO_URL)@$(__CURR_REPO_REV__)" + '"',
-                                  '"' + "$(ROOT_LINKS_FOLDER_REPO)/Base" + '"', "--depth", "infinity"]
+                                  '"' + base_folder_path + '"', "--depth", "infinity"]
         accum += " ".join(checkout_command_parts)
         accum += self.platform_helper.progress("Create links for revision $(__CURR_REPO_REV__)")
 
         # copy Base folder to revision folder
-        accum += self.platform_helper.mkdir("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
-        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir("$(ROOT_LINKS_FOLDER_REPO)/Base", revision_folder_path,
+        accum += self.platform_helper.mkdir(revision_folder_path)
+        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(base_folder_path, revision_folder_path,
                                                                          link_dest=True, ignore=".svn", preserve_dest_files=False)
-        accum += self.platform_helper.progress("Copy revision $(__CURR_REPO_REV__) to $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
+        accum += self.platform_helper.progress("Copy revision $(__CURR_REPO_REV__) to "+revision_folder_path)
 
         # get info from SVN for all files in revision
-        accum += self.platform_helper.mkdir(revision_instl_folder_path)
-        accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)/Base")
-        accum += self.platform_helper.echo("Getting info from svn to ../$(__CURR_REPO_REV__)/instl/info_map.info")
-        info_command_parts = ['"$(SVN_CLIENT_PATH)"', "info", "--depth infinity", ">", "../$(__CURR_REPO_REV__)/instl/info_map.info"]
-        accum += " ".join(info_command_parts)
-        accum += self.platform_helper.progress("Get info from svn to ../$(__CURR_REPO_REV__)/instl/info_map.info")
+        self.create_info_map(base_folder_path, revision_instl_folder_path, accum)
 
-        # get properties from SVN for all files in revision
-        props_command_parts = ['"$(SVN_CLIENT_PATH)"', "proplist", "--depth infinity", ">", "../$(__CURR_REPO_REV__)/instl/info_map.props"]
-        accum += " ".join(props_command_parts)
-        accum += self.platform_helper.progress("Get props from svn to ../$(__CURR_REPO_REV__)/instl/info_map.props")
-
-        # get sizes of all files
-        file_sizes_command_parts = [self.platform_helper.run_instl(), "file-sizes",
-                                    "--in", "$(ROOT_LINKS_FOLDER_REPO)/Base",
-                                    "--out", "../$(__CURR_REPO_REV__)/instl/info_map.file-sizes"]
-        accum += " ".join(file_sizes_command_parts)
-        accum += self.platform_helper.progress("Get file-sizes from disk to ../$(__CURR_REPO_REV__)/instl/info_map.file-sizes")
-
-        accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
-        # translate SVN info and properties to info_map text format
-        trans_command_parts = [self.platform_helper.run_instl(), "trans",
-                               "--in", "instl/info_map.info",
-                               "--props ", "instl/info_map.props",
-                               "--base-repo-rev", "$(BASE_REPO_REV)",
-                               "--file-sizes", "instl/info_map.file-sizes",
-                               "--out ", "instl/info_map.txt"]
-        accum += " ".join(trans_command_parts)
-        accum += self.platform_helper.progress("Create $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map.txt")
-
-        # create Mac only info_map
-        trans_command_parts = [self.platform_helper.run_instl(), "trans", "--in", "instl/info_map.txt",
-                               "--out ", "instl/info_map_Mac.txt", "--filter-out", "Win"]
-        accum += " ".join(trans_command_parts)
-        accum += self.platform_helper.progress("Create $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map_Mac.txt")
-
-        # create Win only info_map
-        trans_command_parts = [self.platform_helper.run_instl(), "trans", "--in", "instl/info_map.txt",
-                               "--out ", "instl/info_map_Win.txt", "--filter-out", "Mac"]
-        accum += " ".join(trans_command_parts)
-        accum += self.platform_helper.progress("Create $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/instl/info_map_Win.txt")
-
+        accum += self.platform_helper.pushd(revision_folder_path)
         # create depend file
         create_depend_file_command_parts = [self.platform_helper.run_instl(), "depend", "--in", "instl/index.yaml",
                                             "--out", "instl/index-dependencies.yaml"]
@@ -308,6 +271,7 @@ class InstlAdmin(InstlInstanceBase):
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(CREATE_LINKS_STAMP_FILE_NAME)"])
         accum += self.platform_helper.progress("Create $(CREATE_LINKS_STAMP_FILE_NAME)")
 
+        accum += self.platform_helper.popd()
         accum += self.platform_helper.echo("done create-links version $(__CURR_REPO_REV__)")
 
     class RemoveIfNotSpecificVersion(object):
@@ -1135,3 +1099,53 @@ class InstlAdmin(InstlInstanceBase):
                             partial_path = full_path[folder_to_scan_name_len:]
                             print(partial_path+",", file_size, file=out_file)
 
+    def create_info_map(self, svn_folder, results_folder, accum):
+
+        accum += self.platform_helper.mkdir(results_folder)
+        info_map_info_path = os.path.join(results_folder, "info_map.info")
+        info_map_props_path = os.path.join(results_folder, "info_map.props")
+        info_map_file_sizes_path = os.path.join(results_folder, "info_map.file-sizes")
+        info_map_file_results_path = os.path.join(results_folder, "info_map.txt")
+
+        accum += self.platform_helper.pushd(svn_folder)
+
+        info_command_parts = ['"$(SVN_CLIENT_PATH)"', "info", "--depth infinity", ">", info_map_info_path]
+        accum += " ".join(info_command_parts)
+        accum += self.platform_helper.progress("Get info from svn to" +os.path.join(results_folder, "info_map.info" ))
+
+        # get properties from SVN for all files in revision
+        props_command_parts = ['"$(SVN_CLIENT_PATH)"', "proplist", "--depth infinity", ">", info_map_props_path]
+        accum += " ".join(props_command_parts)
+        accum += self.platform_helper.progress("Get props from svn to"+os.path.join(results_folder, "info_map.props"))
+
+        # get sizes of all files
+        file_sizes_command_parts = [self.platform_helper.run_instl(), "file-sizes",
+                                    "--in", svn_folder,
+                                    "--out", info_map_file_sizes_path]
+        accum += " ".join(file_sizes_command_parts)
+        accum += self.platform_helper.progress("Get file-sizes from disk to"+os.path.join(results_folder, "info_map.file-sizes"))
+
+        trans_command_parts = [self.platform_helper.run_instl(), "trans",
+                                   "--in", info_map_info_path,
+                                   "--props ", info_map_props_path,
+                                   "--file-sizes", info_map_file_sizes_path,
+                                   "--base-repo-rev", "$(BASE_REPO_REV)",
+                                   "--out ", info_map_file_results_path]
+        accum += " ".join(trans_command_parts)
+        accum += self.platform_helper.progress("Created"+info_map_file_results_path)
+
+        accum += self.platform_helper.popd()
+
+    def do_create_infomap(self):
+        svn_folder = "$(WORKING_SVN_CHECKOUT_FOLDER)"
+        results_folder = "$(INFO_MAP_OUTPUT_FOLDER)"
+        accum = BatchAccumulator()  # sub-accumulator
+
+        accum.set_current_section('admin')
+        self.create_info_map(svn_folder, results_folder, accum)
+        self.batch_accum.merge_with(accum)
+
+        self.create_variables_assignment()
+        self.write_batch_file()
+        if "__RUN_BATCH__" in var_stack:
+            self.run_batch_file()

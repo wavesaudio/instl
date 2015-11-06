@@ -352,6 +352,14 @@ class InstallItem(object):
     def get_depends(self):
         return self._depend_list()
 
+    def calc_required(self, items_map, is_top_item):
+        for depend in self._depend_list():
+            if len(items_map[depend].required_by) == 0: # so calc_required will be called only once for each iid
+                items_map[depend].calc_required(items_map, is_top_item=False)
+            items_map[depend].required_by.append(self.iid)
+            if is_top_item:
+                self.required_by.append(self.iid) # top level items are marked as required by themselves
+
     def get_recursive_depends(self, items_map, out_set, orphan_set):
         if self.iid not in out_set:
             out_set.append(self.iid)
@@ -361,7 +369,7 @@ class InstallItem(object):
                     # if IID is a guid iids_from_guid will translate to iid's, or return the IID otherwise
                     dependees = iids_from_guid(items_map, depend)
                     for dependee in dependees:
-                        items_map[dependee].required_by.append(self.iid)
+                        #items_map[dependee].required_by.append(self.iid)
                         if dependee not in out_set:  # avoid cycles, save time
                             items_map[dependee].get_recursive_depends(items_map, out_set, orphan_set)
                 except KeyError:

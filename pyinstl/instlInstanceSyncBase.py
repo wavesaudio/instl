@@ -67,6 +67,7 @@ class InstlInstanceSync(object):
             self.work_info_map.read_info_map_from_file(var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)"),
                                                        a_format="text")
         except:
+            print("Exception reading info_map:", info_map_file_url)
             raise
 
     def filter_out_unrequired_items(self):

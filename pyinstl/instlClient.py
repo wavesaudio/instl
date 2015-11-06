@@ -2,94 +2,19 @@
 
 from __future__ import print_function
 
+import logging
 import os
 import time
-from collections import OrderedDict, defaultdict
-import logging
 
-import utils
-from installItem import InstallItem, guid_list, iids_from_guid
 import aYaml
-from instlInstanceBase import InstlInstanceBase
+import utils
 from configVar import var_stack
+from installItem import InstallItem, guid_list
+from instlInstanceBase import InstlInstanceBase
 
 
 # noinspection PyPep8Naming
-class InstallInstructionsState(object):
-    """ holds state for specific creating of install instructions """
-
-    def __init__(self):
-        self.root_install_items = utils.unique_list()
-        self.full_install_items = utils.unique_list()
-        self.orphan_install_items = utils.unique_list()
-        self.install_items_by_target_folder = defaultdict(utils.unique_list)
-        self.no_copy_items_by_sync_folder = defaultdict(utils.unique_list)
-        self.sync_paths = utils.unique_list()
-
-    def repr_for_yaml(self):
-        retVal = OrderedDict()
-        retVal['root_install_items'] = list(self.root_install_items)
-        retVal['full_install_items'] = list(self.full_install_items)
-        retVal['orphan_install_items'] = list(self.orphan_install_items)
-        retVal['install_items_by_target_folder'] = {folder: list(self.install_items_by_target_folder[folder]) for folder
-                                                    in self.install_items_by_target_folder}
-        retVal['no_copy_items_by_sync_folder'] = list(self.no_copy_items_by_sync_folder)
-        retVal['sync_paths'] = list(self.sync_paths)
-        return retVal
-
-    def sort_install_items_by_target_folder(self, instlObj):
-        for IID in self.full_install_items:
-            with instlObj.install_definitions_index[IID] as installi:
-                folder_list_for_idd = [folder for folder in var_stack["iid_folder_list"]]
-                if folder_list_for_idd:
-                    for folder in folder_list_for_idd:
-                        norm_folder = os.path.normpath(folder)
-                        self.install_items_by_target_folder[norm_folder].append(IID)
-                else:  # items that need no copy
-                    for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
-                        source = var_stack.resolve_var_to_list(source_var)
-                        relative_sync_folder = instlObj.relative_sync_folder_for_source(source)
-                        sync_folder = os.path.join("$(LOCAL_REPO_SYNC_DIR)", relative_sync_folder)
-                        self.no_copy_items_by_sync_folder[sync_folder].append(IID)
-
-    def calculate_full_install_items_set(self, instlObj):
-        """ calculate the set of iids to install by starting with the root set and adding all dependencies.
-            Initial list of iids should already be in self.root_install_items.
-            If an install items was not found for a iid, the iid is added to the orphan set.
-        """
-
-        if len(self.root_install_items) > 0:
-            logging.info(" ".join(("Main install items:", ", ".join(self.root_install_items))))
-        else:
-            logging.error("Main install items list is empty")
-        # root_install_items might have guid in it, translate them to iids
-
-        root_install_iids_translated = utils.unique_list()
-        for IID in self.root_install_items:
-            # if IID is a guid iids_from_guid will translate to iid's, or return the IID otherwise
-            iids_from_the_guid = iids_from_guid(instlObj.install_definitions_index, IID)
-            if len(iids_from_the_guid) > 0:
-                root_install_iids_translated.extend(iids_from_the_guid)
-                logging.debug("GUID %s, translated to %d iids: %s", IID, len(iids_from_the_guid),
-                              ", ".join(iids_from_the_guid))
-            else:
-                self.orphan_install_items.append(IID)
-                logging.warning("%s is a guid but could not be translated to iids", IID)
-
-        logging.info(" ".join(("Main install items translated:", ", ".join(root_install_iids_translated))))
-
-        for IID in root_install_iids_translated:
-            try:
-                # all items in the root list are marked as required by them selves
-                instlObj.install_definitions_index[IID].required_by.append(IID)
-                instlObj.install_definitions_index[IID].get_recursive_depends(instlObj.install_definitions_index,
-                                                                              self.full_install_items,
-                                                                              self.orphan_install_items)
-            except KeyError:
-                self.orphan_install_items.append(IID)
-                logging.warning("%s not found in index", IID)
-        logging.info(" ".join(("Full install items:", ", ".join(self.full_install_items))))
-        self.sort_install_items_by_target_folder(instlObj)
+from pyinstl.installItemLists import InstallItemLists
 
 
 class InstlClient(InstlInstanceBase):
@@ -100,7 +25,7 @@ class InstlClient(InstlInstanceBase):
         the_command = var_stack.resolve("$(__MAIN_COMMAND__)")
         fixed_command_name = the_command.replace('-', '_')
         # print("client_commands", fixed_command_name)
-        self.installState = InstallInstructionsState()
+        self.installItemsList = InstallItemLists()
         main_input_file_path = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
         self.read_yaml_file(main_input_file_path)
         self.init_default_client_vars()
@@ -166,7 +91,7 @@ class InstlClient(InstlInstanceBase):
                     p4_sync_dir = utils.P4GetPathFromDepotPath(var_stack.resolve("$(SYNC_BASE_URL)"))
                     var_stack.set_var("P4_SYNC_DIR", "from SYNC_BASE_URL").append(p4_sync_dir)
 
-   # sync command implemented in instlClientSync.py file
+    # sync command implemented in instlClientSync.py file
 
     from instlClientSync import do_sync
 
@@ -257,13 +182,12 @@ class InstlClient(InstlInstanceBase):
             raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
         for os_name in var_stack.resolve_to_list("$(TARGET_OS_NAMES)"):
             InstallItem.begin_get_for_specific_os(os_name)
-        self.installState.root_install_items.extend(var_stack.resolve_to_list("$(MAIN_INSTALL_TARGETS)"))
-        self.installState.root_install_items = filter(bool, self.installState.root_install_items)
+        self.installItemsList.original_install_items.extend(filter(bool, var_stack.resolve_to_list("$(MAIN_INSTALL_TARGETS)")))
         if var_stack.resolve("$(__MAIN_COMMAND__)") != "uninstall":
-            self.installState.calculate_full_install_items_set(self)
-        self.read_previous_requirements()
-        var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(self.installState.full_install_items)
-        var_stack.set_var("__ORPHAN_INSTALL_TARGETS__").extend(self.installState.orphan_install_items)
+            self.installItemsList.calculate_full_install_items_set(self)
+        # self.read_previous_requirements()
+        var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(self.installItemsList.full_install_items)
+        var_stack.set_var("__ORPHAN_INSTALL_TARGETS__").extend(self.installItemsList.orphan_install_items)
 
     def read_previous_requirements(self):
         require_file_path = var_stack.resolve("$(SITE_REQUIRE_FILE_PATH)")
@@ -291,3 +215,26 @@ class InstlClient(InstlInstanceBase):
                             self.platform_helper.progress("{installi.name} {action_description}".format(**locals())))
         self.batch_accum += unique_actions
         logging.info("... %s actions: %d", action_type, len(unique_actions))
+
+    def read_require(self, a_node):
+        # dependencies_file_path = var_stack.resolve("$(SITE_REQUIRE_FILE_PATH)")
+        if a_node.isMapping():
+            for identifier, contents in a_node:
+                logging.debug("%s: %s", identifier, str(contents))
+                if identifier in self.install_definitions_index:
+                    self.install_definitions_index[identifier].required_by.extend([required_iid.value for required_iid in contents])
+                else:
+                    # require file might contain IIDs form previous installations that are no longer in the index
+                    item_not_in_index = InstallItem()
+                    item_not_in_index.iid = identifier
+                    item_not_in_index.required_by.extend([required_iid.value for required_iid in contents])
+                    self.install_definitions_index[identifier] = item_not_in_index
+
+
+    def write_require_file(self, file_path):
+        require_dict = self.installItemsList.get_require_dict(self)
+        with open(file_path, "w") as wfd:
+            utils.make_open_file_read_write_for_all(wfd)
+            require_dict = aYaml.YamlDumpDocWrap(require_dict, '!require', "requirements",
+                                                 explicit_start=True, sort_mappings=True)
+            aYaml.writeAsYaml(require_dict, wfd)

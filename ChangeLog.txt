@@ -1,3 +1,24 @@
+???? 1.0.1.?
+
+programmer visible changes:
+* Continued refactoring of require functionality
+
+
+4/11/2015 1.0.1.3
+
+    user visible changes, admin:
+    * add "--base-repo-rev" trans command that was missing in previous commits.
+
+3/11/2015 1.0.1.2
+
+    user visible changes, admin:
+    * New command create-infomap, to create info_map.txt from a repository.
+    * create-links command re-implemened new create-infomap command.
+    * Indexes for Mac or Windows only are no longer created by create-links, they were never used.
+
+    programmer visible changes:
+    * try/except and better error report around reading yamls and info_map files
+
 28/10/2015 1.0.1.1
 
     user visible changes, client:
@@ -781,7 +802,7 @@
     * Fixed ConfigVar.__str__ so values appear before description.
     * Removed redundant imports from helpHelper.py.
     * Refactored InstlClient to work with standard do_ ... functions for commands.
-    * InstlClient.installState is now a member.
+    * InstlClient.installItemsList is now a member.
     * InstlClient.init_copy_vars moved from instlInstanceBase.
     * Many default variables read from files instead of being hard coded.
     * Added default files for all instl (main.yaml) and for specific classes (instlAdmin, InstlClient).
