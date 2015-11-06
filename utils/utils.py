@@ -113,7 +113,7 @@ class open_for_read_file_or_url(object):
                     opener.addheaders.append(('Cookie', self.cookie))
                 self.fd = opener.open(self.url)
             elif self.local_file_path:
-                self.fd = open(self.local_file_path, "r")
+                self.fd = open(self.local_file_path, "r", encoding="utf-8")
         except urllib.error.URLError as url_err:
             print (url_err, self.url)
             raise
