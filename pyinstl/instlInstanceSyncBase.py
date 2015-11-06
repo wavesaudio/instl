@@ -1,12 +1,12 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 import os
 import abc
 
 import svnTree
 import utils
-import connectionBase
+from . import connectionBase
 from configVar import var_stack
 
 
@@ -17,10 +17,9 @@ def is_user_data_false_or_dir_empty(svn_item):
     return retVal
 
 
-class InstlInstanceSync(object):
+class InstlInstanceSync(object, metaclass=abc.ABCMeta):
     """  Base class for sync object .
     """
-    __metaclass__ = abc.ABCMeta
 
 
     def __init__(self, instlObj):

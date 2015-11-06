@@ -1,6 +1,6 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3
 
-from __future__ import print_function
+
 
 import os
 import logging
@@ -115,5 +115,5 @@ def create_remove_instructions_for_source(self, folder, source):
                     remove_action = self.platform_helper.rm_file_or_dir(to_remove_path)
                     self.batch_accum += remove_action
     else:
-        remove_actions = filter(None, remove_actions)  # filter out None values
+        remove_actions = [_f for _f in remove_actions if _f]  # filter out None values
         self.batch_accum += remove_actions

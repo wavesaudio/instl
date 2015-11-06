@@ -1,9 +1,9 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 import abc
-import urllib
-import urlparse
+import urllib.request, urllib.parse, urllib.error
+import urllib.parse
 
 import boto
 
@@ -46,9 +46,9 @@ class ConnectionHTTP(ConnectionBase):
 
     @abc.abstractmethod
     def translate_url(self, in_bare_url):
-        parsed = urlparse.urlparse(in_bare_url)
-        quated_results = urlparse.ParseResult(scheme=parsed.scheme, netloc=parsed.netloc, path=urllib.quote(parsed.path, "$()/:%"), params=parsed.params, query=parsed.query, fragment=parsed.fragment)
-        self.quote = urlparse.urlunparse(quated_results)
+        parsed = urllib.parse.urlparse(in_bare_url)
+        quated_results = urllib.parse.ParseResult(scheme=parsed.scheme, netloc=parsed.netloc, path=urllib.parse.quote(parsed.path, "$()/:%"), params=parsed.params, query=parsed.query, fragment=parsed.fragment)
+        self.quote = urllib.parse.urlunparse(quated_results)
         retVal = self.quote
         return retVal
 
@@ -69,7 +69,7 @@ class ConnectionS3(ConnectionHTTP):
         var_stack.set_var("S3_BUCKET_NAME", "from command line options").append(in_bucket)
 
     def translate_url(self, in_bare_url):
-        parseResult = urlparse.urlparse(in_bare_url)
+        parseResult = urllib.parse.urlparse(in_bare_url)
         if parseResult.netloc.startswith(self.open_bucket.name):
             the_key = self.open_bucket.get_key(parseResult.path, validate=False)
             retVal = the_key.generate_url(self.default_expiration)
@@ -90,6 +90,6 @@ def connection_factory(credentials=None):
 
 def translate_url(in_bare_url):
     translated_url = connection_factory().translate_url(in_bare_url)
-    parsed = urlparse.urlparse(translated_url)
+    parsed = urllib.parse.urlparse(translated_url)
     cookie = connection_factory().get_cookie(parsed.netloc)
     return translated_url, cookie

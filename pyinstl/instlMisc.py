@@ -1,6 +1,6 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3
 
-from __future__ import print_function
+
 
 import os
 import sys
@@ -11,9 +11,9 @@ import time
 
 import svnTree
 import utils
-from instlInstanceBase import InstlInstanceBase
+from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
-import connectionBase
+from . import connectionBase
 
 
 class InstlMisc(InstlInstanceBase):

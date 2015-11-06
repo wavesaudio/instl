@@ -1,5 +1,5 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 import os
 import sys
@@ -16,7 +16,7 @@ def timing(f):
         time1 = time.time()
         ret = f(*args)
         time2 = time.time()
-        print('%s function took %0.3f ms' % (f.func_name, (time2 - time1) * 1000.0))
+        print('%s function took %0.3f ms' % (f.__name__, (time2 - time1) * 1000.0))
         return ret
 
     return wrap
@@ -383,22 +383,22 @@ class TestSVNItem(unittest.TestCase):
         self.assertRaises(KeyError, svni1.new_item_at_path, "SubDir1/SubFile1", {'flags': "f", 'revision': 19})
 
         svni1.new_item_at_path("SubFile1", {'flags': "f", 'revision': 19})
-        self.assertEqual(svni1.subs.keys(), ["SubFile1"])
+        self.assertEqual(list(svni1.subs.keys()), ["SubFile1"])
         # should throw when adding and path has non leaf file
         self.assertRaises(TypeError, svni1.new_item_at_path, "SubFile1/SubFile2", {'flags': "f", 'revision': 19})
 
     def test_add_sub_positive(self):
         svni1 = SVNTopItem()
         svni1.new_item_at_path("SubDir1", {'flags': "d", 'revision': 19})
-        self.assertEqual(svni1.subs.keys(), ["SubDir1"])
+        self.assertEqual(list(svni1.subs.keys()), ["SubDir1"])
         self.assertIsInstance(svni1.get_item_at_path("SubDir1"), SVNItem,
                               msg="svn1.get_item_at_path should return SVNItem object")
 
         svni1.new_item_at_path("SubDir1/SubDir2", {'flags': "d", 'revision': 219})
-        self.assertEqual(svni1.subs.keys(), ["SubDir1"])
+        self.assertEqual(list(svni1.subs.keys()), ["SubDir1"])
         sub1 = svni1.get_item_at_path("SubDir1")
         self.assertIsInstance(sub1, SVNItem, msg="svn1.get_item_at_path should return SVNItem object")
-        self.assertEqual(sub1.subs.keys(), ["SubDir2"])
+        self.assertEqual(list(sub1.subs.keys()), ["SubDir2"])
         sub2 = sub1.get_item_at_path("SubDir2")
         self.assertIsInstance(sub2, SVNItem, msg="svn1.get_item_at_path should return SVNItem object")
 
@@ -414,7 +414,7 @@ class TestSVNItem(unittest.TestCase):
         svni1 = SVNTopItem()
         svni2 = SVNItem({'name':  "SubFile", 'flags': "f", 'revision': 1258})
         svni1.add_sub_item(svni2)
-        self.assertEqual(svni1.subs.keys(), ["SubFile"])
+        self.assertEqual(list(svni1.subs.keys()), ["SubFile"])
         self.assertIsNone(svni1.get_item_at_path("kuku"),
                           msg="svn1.get_item_at_path should return None for none existing item")
         self.assertIs(svni1.get_item_at_path("SubFile"), svni2,

@@ -1,6 +1,6 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3
 
-from __future__ import print_function
+
 
 import os
 import time
@@ -8,9 +8,9 @@ from collections import OrderedDict, defaultdict
 import logging
 
 import utils
-from installItem import InstallItem, guid_list, iids_from_guid
+from .installItem import InstallItem, guid_list, iids_from_guid
 import aYaml
-from instlInstanceBase import InstlInstanceBase
+from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
 
 
@@ -168,26 +168,26 @@ class InstlClient(InstlInstanceBase):
 
    # sync command implemented in instlClientSync.py file
 
-    from instlClientSync import do_sync
+    from .instlClientSync import do_sync
 
     # copy command implemented in instlClientCopy.py file
-    from instlClientCopy import do_copy
-    from instlClientCopy import init_copy_vars
-    from instlClientCopy import create_copy_instructions
-    from instlClientCopy import create_copy_instructions_for_source
-    from instlClientCopy import pre_copy_mac_handling
+    from .instlClientCopy import do_copy
+    from .instlClientCopy import init_copy_vars
+    from .instlClientCopy import create_copy_instructions
+    from .instlClientCopy import create_copy_instructions_for_source
+    from .instlClientCopy import pre_copy_mac_handling
 
     # remove command implemented in instlClientRemove.py file
-    from instlClientRemove import do_remove
-    from instlClientRemove import init_remove_vars
-    from instlClientRemove import create_remove_instructions
-    from instlClientRemove import create_remove_instructions_for_source
+    from .instlClientRemove import do_remove
+    from .instlClientRemove import init_remove_vars
+    from .instlClientRemove import create_remove_instructions
+    from .instlClientRemove import create_remove_instructions_for_source
 
     # uninstall command implemented in instlClientUninstall.py file
-    from instlClientUninstall import do_uninstall
-    from instlClientUninstall import init_uninstall_vars
-    from instlClientUninstall import create_uninstall_instructions
-    from instlClientUninstall import create_require_file_instructions
+    from .instlClientUninstall import do_uninstall
+    from .instlClientUninstall import init_uninstall_vars
+    from .instlClientUninstall import create_uninstall_instructions
+    from .instlClientUninstall import create_require_file_instructions
 
     def do_synccopy(self):
         self.do_sync()
@@ -258,7 +258,7 @@ class InstlClient(InstlInstanceBase):
         for os_name in var_stack.resolve_to_list("$(TARGET_OS_NAMES)"):
             InstallItem.begin_get_for_specific_os(os_name)
         self.installState.root_install_items.extend(var_stack.resolve_to_list("$(MAIN_INSTALL_TARGETS)"))
-        self.installState.root_install_items = filter(bool, self.installState.root_install_items)
+        self.installState.root_install_items = list(filter(bool, self.installState.root_install_items))
         if var_stack.resolve("$(__MAIN_COMMAND__)") != "uninstall":
             self.installState.calculate_full_install_items_set(self)
         self.read_previous_requirements()

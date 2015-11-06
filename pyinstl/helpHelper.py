@@ -1,5 +1,5 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 import os
 import fnmatch
@@ -47,14 +47,14 @@ class HelpHelper(object):
 
     def topics(self):
         topics = set()
-        for item in self.help_items.values():
+        for item in list(self.help_items.values()):
             topics.add(item.topic)
         return topics
 
     def topic_summery(self, topic):
         retVal = "no such topic: " + topic
         short_list = list()
-        for item in self.help_items.values():
+        for item in list(self.help_items.values()):
             if item.topic == topic:
                 short_list.append((item.name + ":", item.short_text()))
         short_list.sort()

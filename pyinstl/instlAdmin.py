@@ -1,10 +1,10 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3
 
-from __future__ import print_function
+
 
 import os
 import filecmp
-import cStringIO as StringIO
+import io as StringIO
 import re
 import fnmatch
 import subprocess
@@ -14,11 +14,11 @@ import stat
 import svnTree
 import utils
 import aYaml
-from instlInstanceBase import InstlInstanceBase
-from installItem import InstallItem
-from batchAccumulator import BatchAccumulator
+from .instlInstanceBase import InstlInstanceBase
+from .installItem import InstallItem
+from .batchAccumulator import BatchAccumulator
 from configVar import var_stack
-import connectionBase
+from . import connectionBase
 
 
 # noinspection PyPep8,PyPep8,PyPep8
@@ -299,7 +299,7 @@ class InstlAdmin(InstlInstanceBase):
         max_repo_rev_to_work_on = curr_repo_rev
         if "__ALL_REVISIONS__" in var_stack:
             max_repo_rev_to_work_on = last_repo_rev
-        revision_list = range(base_repo_rev, max_repo_rev_to_work_on+1)
+        revision_list = list(range(base_repo_rev, max_repo_rev_to_work_on+1))
         dirs_to_upload = list()
         no_need_upload_nums = list()
         yes_need_upload_nums = list()
@@ -668,7 +668,7 @@ class InstlAdmin(InstlInstanceBase):
             self.batch_accum += self.platform_helper.progress(os.path.join(comparer.right, item))
 
         # recurse to sub folders
-        for sub_comparer in comparer.subdirs.values():
+        for sub_comparer in list(comparer.subdirs.values()):
             self.stage2svn_for_folder(sub_comparer)
 
     def prepare_conditions_for_wtar(self):

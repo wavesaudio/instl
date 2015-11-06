@@ -1,5 +1,5 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 """
     Copyright (c) 2012, Shai Shasag
@@ -18,7 +18,7 @@ import logging
 #sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 
 import aYaml
-import configVar
+from . import configVar
 
 
 value_ref_re = re.compile("""(
@@ -79,7 +79,7 @@ class ConfigVarList(object):
         return retVal
 
     def __str__(self):
-        var_names = [''.join((name, ": ", self.resolve_var(name))) for name in self.keys()]
+        var_names = [''.join((name, ": ", self.resolve_var(name))) for name in list(self.keys())]
         return '\n'.join(var_names)
 
     def __iter__(self):
@@ -89,7 +89,7 @@ class ConfigVarList(object):
         return var_name in self._ConfigVar_objs
 
     def keys(self):
-        return self._ConfigVar_objs.keys()
+        return list(self._ConfigVar_objs.keys())
 
     def description(self, var_name):
         """ Get description for variable """
@@ -144,8 +144,8 @@ class ConfigVarList(object):
         retVal = dict()
         vars_list = list()
         if not which_vars:
-            vars_list.extend(self.keys())
-        elif isinstance(which_vars, basestring):
+            vars_list.extend(list(self.keys()))
+        elif isinstance(which_vars, str):
             vars_list.append(which_vars)
         else:
             vars_list = which_vars

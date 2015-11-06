@@ -1,6 +1,6 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3
 
-from __future__ import print_function
+
 
 import os
 import logging
@@ -8,6 +8,7 @@ import logging
 import svnTree
 import utils
 from configVar import var_stack
+from functools import reduce
 
 
 def do_copy(self):
@@ -91,7 +92,7 @@ def create_copy_instructions(self):
         self.batch_accum.indent_level -= 1
 
     # actions instructions for sources that do not need copying, here folder_name is the sync folder
-    for folder_name, items_in_folder in self.installState.no_copy_items_by_sync_folder.iteritems():
+    for folder_name, items_in_folder in self.installState.no_copy_items_by_sync_folder.items():
 
         self.batch_accum += self.platform_helper.new_line()
         self.batch_accum += self.platform_helper.cd(folder_name)

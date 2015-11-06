@@ -1,14 +1,14 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 import os
 import datetime
 
 import utils
 from configVar import var_stack
-from platformSpecificHelper_Base import PlatformSpecificHelperBase
-from platformSpecificHelper_Base import CopyToolRsync
-from platformSpecificHelper_Base import DownloadToolBase
+from .platformSpecificHelper_Base import PlatformSpecificHelperBase
+from .platformSpecificHelper_Base import CopyToolRsync
+from .platformSpecificHelper_Base import DownloadToolBase
 
 
 class CopyToolMacRsync(CopyToolRsync):
@@ -318,12 +318,12 @@ class DownloadTool_mac_curl(DownloadToolBase):
             list_for_file_cycler = itertools.cycle(list_of_lines_for_files)
             url_num = 0
             for url, path in self.urls_to_download:
-                line_list = list_for_file_cycler.next()
+                line_list = next(list_for_file_cycler)
                 line_list.append('''url = "{url}"\noutput = "{path}"\n\n'''.format(**locals()))
                 url_num += 1
 
             num_digits = len(str(actual_num_files))
-            file_name_list = ["-".join( (curl_config_file_path, str(file_i).zfill(num_digits)) ) for file_i in xrange(actual_num_files)]
+            file_name_list = ["-".join( (curl_config_file_path, str(file_i).zfill(num_digits)) ) for file_i in range(actual_num_files)]
 
             lise_of_lines_iter = iter(list_of_lines_for_files)
             for file_name in file_name_list:
@@ -342,7 +342,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
                     wfd.write("write-out = \"Progress: ... of ...; " + os.path.basename(wfd.name) + ": " + DownloadToolBase.curl_write_out_str + "\"\n")
                     wfd.write("\n")
                     wfd.write("\n")
-                    list_of_lines = lise_of_lines_iter.next()
+                    list_of_lines = next(lise_of_lines_iter)
                     for line in list_of_lines:
                         wfd.write(line)
 

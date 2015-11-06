@@ -1,5 +1,5 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 import sys
 import os
@@ -12,7 +12,7 @@ import re
 import appdirs
 
 import utils
-from installItem import guid_list, iids_from_guid
+from .installItem import guid_list, iids_from_guid
 from configVar import var_stack
 
 
@@ -51,7 +51,7 @@ try:
 except ImportError:
     print("failed to import colorama, color text functionality not supported")
 
-import instlInstanceBase
+from . import instlInstanceBase
 import aYaml
 
 if colorama_loaded:
@@ -686,14 +686,14 @@ class CMDObj(cmd.Cmd, object):
 def compact_history():
     if hasattr(readline, "replace_history_item"):
         unique_history = utils.unique_list()
-        for index in reversed(range(1, readline.get_current_history_length())):
+        for index in reversed(list(range(1, readline.get_current_history_length()))):
             hist_item = readline.get_history_item(index)
             if hist_item:  # some history items are None (usually at index 0)
                 unique_history.append(readline.get_history_item(index))
         unique_history.reverse()
         for index in range(len(unique_history)):
             readline.replace_history_item(index + 1, unique_history[index])
-        for index in reversed(range(len(unique_history) + 1, readline.get_current_history_length())):
+        for index in reversed(list(range(len(unique_history) + 1, readline.get_current_history_length()))):
             readline.remove_history_item(index)
 
 
@@ -729,9 +729,9 @@ def create_completion_list_imp(self, for_what="all"):
     retVal = list()
     try:
         if for_what in ("all", "index"):
-            retVal.extend(self.install_definitions_index.keys())
+            retVal.extend(list(self.install_definitions_index.keys()))
         if for_what in ("all", "define"):
-            retVal.extend(var_stack.keys())
+            retVal.extend(list(var_stack.keys()))
         if for_what in ("all", "guid"):
             retVal.extend(guid_list(self.install_definitions_index))
     except Exception as ex:

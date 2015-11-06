@@ -1,9 +1,9 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 import logging
 
 import utils
-from instlInstanceSyncBase import InstlInstanceSync
+from .instlInstanceSyncBase import InstlInstanceSync
 from configVar import var_stack
 
 

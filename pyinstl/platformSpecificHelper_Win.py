@@ -1,14 +1,14 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 import os
 import sys
 import datetime
 
 import utils
-from platformSpecificHelper_Base import PlatformSpecificHelperBase
-from platformSpecificHelper_Base import CopyToolBase
-from platformSpecificHelper_Base import DownloadToolBase
+from .platformSpecificHelper_Base import PlatformSpecificHelperBase
+from .platformSpecificHelper_Base import CopyToolBase
+from .platformSpecificHelper_Base import DownloadToolBase
 from configVar import var_stack
 
 
@@ -33,7 +33,7 @@ class CopyTool_win_robocopy(CopyToolBase):
 
     def create_ignore_spec(self, ignore):
         retVal = ""
-        if not isinstance(ignore, basestring):
+        if not isinstance(ignore, str):
             ignore = " ".join(map(utils.quoteme_double, ignore))
         retVal = "/XF {ignore} /XD {ignore}".format(**locals())
         return retVal
@@ -121,7 +121,7 @@ class CopyTool_win_xcopy(CopyToolBase):
     def create_ignore_spec(self, ignore):
         retVal = ""
         if ignore:
-            if isinstance(ignore, basestring):
+            if isinstance(ignore, str):
                 ignore = (ignore,)
             self.excludes_set.update([ignoree.lstrip("*") for ignoree in ignore])
             retVal = var_stack.resolve("/EXCLUDE:$(XCOPY_EXCLUDE_FILE_NAME)")
@@ -497,7 +497,7 @@ class DownloadTool_win_curl(DownloadToolBase):
             actual_num_files = max(1, min(num_urls_to_download / 8, num_files))
 
             num_digits = len(str(actual_num_files))
-            file_name_list = ["-".join((curl_config_file_path, str(file_i).zfill(num_digits))) for file_i in xrange(actual_num_files)]
+            file_name_list = ["-".join((curl_config_file_path, str(file_i).zfill(num_digits))) for file_i in range(actual_num_files)]
             wfd_list = list()
             for file_name in file_name_list:
                 wfd = open(file_name, "w")
@@ -522,7 +522,7 @@ class DownloadTool_win_curl(DownloadToolBase):
             wfd_cycler = itertools.cycle(wfd_list)
             url_num = 0
             for url, path in self.urls_to_download:
-                wfd = wfd_cycler.next()
+                wfd = next(wfd_cycler)
                 wfd.write('''url = "{url}"\noutput = "{path}"\n\n'''.format(**locals()))
                 url_num += 1
 

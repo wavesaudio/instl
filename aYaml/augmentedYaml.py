@@ -1,5 +1,5 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 """
     Copyright (c) 2012, Shai Shasag
@@ -320,7 +320,7 @@ def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False):
         if sort and not isinstance(pyObj, OrderedDict):
             theKeys = sorted(pyObj.keys())
         else:
-            theKeys = pyObj.keys()
+            theKeys = list(pyObj.keys())
         for item in theKeys:
             nl_before_key = (parent_item != 'l')
             if nl_before_key:
