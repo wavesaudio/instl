@@ -129,7 +129,6 @@ class InstlDoIt(InstlInstanceBase):
                 self.installState.orphan_doit_items.append(IID)
 
     def doit_for_item(self, IID, action):
-        print(action, "for", IID)
         with self.install_definitions_index[IID] as doit_item:
             self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_"+action)
             doit_item.user_data = True
