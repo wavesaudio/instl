@@ -91,6 +91,7 @@ class CommandLineOptions(object):
         self.base_url = None
         self.file_sizes_file = None
         self.all_revisions = None
+        self.define = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
@@ -198,7 +199,7 @@ def prepare_args_parser(in_command):
     if 'out' in command_details['options']:
         output_options = command_parser.add_argument_group(description='output arguments:')
         output_options.add_argument('--out', '-o',
-                                    required=True,
+                                    required=False,
                                     nargs=1,
                                     metavar='path-to-output-file',
                                     dest='output_file',
@@ -364,6 +365,15 @@ def prepare_args_parser(in_command):
     elif 'help' == in_command:
         help_options = command_parser.add_argument_group(description='help subject:')
         help_options.add_argument('subject', nargs='?')
+
+    define_options = command_parser.add_argument_group(description='define:')
+    define_options.add_argument('--define',
+                            required=False,
+                            default=False,
+                            nargs=1,
+                            metavar='define',
+                            dest='define',
+                            help="define variable(s) format: X=y,A=b")
 
     return parser, command_names
 

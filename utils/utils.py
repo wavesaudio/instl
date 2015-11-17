@@ -248,6 +248,13 @@ class unique_list(list):
         """ Overriding count is not required - just more efficient """
         return self.__attendance.count(item)
 
+    def sort(self, cmp=None, key=None, reverse=False):
+        """ Sometimes sort is needed after all ... """
+        super(unique_list, self).sort(cmp, key, reverse)
+
+    def empty(self):
+        return len(self.__attendance) == 0
+
 class set_with_order(unique_list):
     """ Just another name for unique_list """
     def __init__(self, initial_list=()):

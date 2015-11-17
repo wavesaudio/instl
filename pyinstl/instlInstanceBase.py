@@ -44,7 +44,6 @@ class InstlInstanceBase(object):
         self.path_searcher.add_search_path(os.path.dirname(os.path.realpath(sys.argv[0])))
         self.path_searcher.add_search_path(var_stack.resolve("$(__INSTL_DATA_FOLDER__)"))
 
-
         self.platform_helper = PlatformSpecificHelperFactory(var_stack.resolve("$(__CURRENT_OS__)"), self)
         # init initial copy tool, tool might be later overridden after reading variable COPY_TOOL from yaml.
         self.platform_helper.init_copy_tool()
@@ -183,12 +182,15 @@ class InstlInstanceBase(object):
         if cmd_line_options_obj.all_revisions:
             var_stack.add_const_config_variable("__ALL_REVISIONS__", "from command line options", "yes")
 
-        # if credentials were given...
-        credentials = None
-        if "__CREDENTIALS__" in var_stack:
-            credentials = var_stack.resolve_var("__CREDENTIALS__", default=None)
+        if cmd_line_options_obj.define:
+            individual_definitions = cmd_line_options_obj.define[0].split(",")
+            for definition in individual_definitions:
+                name, value = definition.split("=")
+                var_stack.set_var(name, "from command line define option").append(value)
 
-        connectionBase.connection_factory(credentials)
+        if "__MAIN_OUT_FILE__" not in var_stack and "__MAIN_INPUT_FILE__" in var_stack:
+            var_stack.add_const_config_variable("__MAIN_OUT_FILE__", "from command line options",
+                                                "$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)")
 
     def is_acceptable_yaml_doc(self, doc_node):
         acceptables = var_stack.resolve_to_list("$(ACCEPTABLE_YAML_DOC_TAGS)") + ["define", "define_const", "index", 'require']

@@ -78,14 +78,15 @@ class ConnectionS3(ConnectionHTTP):
         return retVal
 
 
-def connection_factory(credentials=None):
+def connection_factory():
     if ConnectionBase.repo_connection is None:
-        if credentials is None:
-            ConnectionBase.repo_connection = ConnectionHTTP()
-        else:
+        if "__CREDENTIALS__" in var_stack:
+            credentials = var_stack.resolve_var("__CREDENTIALS__", default=None)
             cred_split = credentials.split(":")
             if cred_split[0].lower() == "s3":
                 ConnectionBase.repo_connection = ConnectionS3(cred_split[1:])
+        else:
+            ConnectionBase.repo_connection = ConnectionHTTP()
     return ConnectionBase.repo_connection
 
 def translate_url(in_bare_url):
