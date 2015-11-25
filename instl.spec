@@ -17,7 +17,10 @@ a = Analysis(['instl'],
              hiddenimports=[],
              hookspath=None,
              runtime_hooks=None,
-             excludes=None,
+             excludes=['PyQt4', 'matplotlib',
+                        "PIL", "numpy", "wx", "tornado", "networkx",
+                         "pygraphviz", "unittest", "nose",
+                         "Tkinter", "scipy", "setuptools", "distutils"],
              win_no_prefer_redirects=None,
              win_private_assemblies=None,
              cipher=block_cipher)
@@ -35,7 +38,7 @@ with open(compile_info_path, "w") as wfd:
 __COMPILATION_TIME__: {}
 __SOCKET_HOSTNAME__: {}
 __PLATFORM_NODE__: {}
-__COMPILED_BY__: PyInstaller-3.0
+__PYTHON_COMPILER__: PyInstaller-3.0
 """.format(str(datetime.datetime.now()), socket.gethostname(), platform.node()))
 a.datas += [("defaults/compile-info.yaml", compile_info_path, "DATA")]
 
