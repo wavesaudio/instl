@@ -20,11 +20,14 @@ a = Analysis(['instl'],
              excludes=['PyQt4', 'matplotlib',
                         "PIL", "numpy", "wx", "tornado", "networkx",
                          "pygraphviz", "unittest", "nose",
-                         "Tkinter", "scipy", "setuptools", "distutils"],
+                         "Tkinter", "scipy", "setuptools", "distutils", "boto"],
              win_no_prefer_redirects=None,
              win_private_assemblies=None,
              cipher=block_cipher)
 
+#for i, pure in enumerate(a.pure):
+#    print(i, pure)
+             
 instl_defaults_path = os.path.join("defaults")
 for defaults_file in os.listdir(instl_defaults_path):
     if fnmatch.fnmatch(defaults_file, '*.yaml'):
@@ -59,5 +62,5 @@ exe = EXE(pyz,
           name='instl',
           debug=False,
           strip=None,
-          upx=True,
+          upx=False, # does not work even if True
           console=True )
