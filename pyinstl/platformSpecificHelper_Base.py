@@ -450,7 +450,7 @@ class DownloadToolBase(object, metaclass=abc.ABCMeta):
         if verbatim:
             translated_url = url
         else:
-            translated_url = connectionBase.ConnectionBase.repo_connection.translate_url(url)
+            translated_url = connectionBase.connection_factory().translate_url(url)
         self.urls_to_download.append((translated_url, path))
 
     def get_num_urls_to_download(self):

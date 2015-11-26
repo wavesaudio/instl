@@ -1,3 +1,18 @@
+17/11/2015 1.0.1.4
+
+    user visible changes client:
+    * --out option is now optional and defaults to "$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)"
+        if not explicitly supplied
+    * Number of curl configuration files is calculated to reach the max possible even if
+        number of files to download is smaller than the max config files allowed
+
+    user visible changes, client & admin:
+    * new command line option -define, allows to add variable definitions from the command line.
+    * __CREDENTIALS__ is now resolved in connection_factory to allow it to include references to other variables
+
+    programmer visible changes:
+    * new functions unique_list.sort, unique_list.empty
+
 4/11/2015 1.0.1.3
 
     user visible changes, admin:

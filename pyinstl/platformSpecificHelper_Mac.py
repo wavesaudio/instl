@@ -313,7 +313,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
             max_time = var_stack.resolve("$(CURL_MAX_TIME)", raise_on_fail=True)
             retries = var_stack.resolve("$(CURL_RETRIES)", raise_on_fail=True)
 
-            actual_num_files = max(1, min(num_urls_to_download / 8, num_files))
+            actual_num_files = max(0, min(num_urls_to_download, num_files))
             list_of_lines_for_files = [list() for i in range(actual_num_files)]
             list_for_file_cycler = itertools.cycle(list_of_lines_for_files)
             url_num = 0

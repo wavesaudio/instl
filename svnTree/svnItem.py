@@ -142,6 +142,14 @@ class SVNItem(object):
         self.__revision = int(new_revision)
 
     @property
+    def highest_revision(self):
+        """ get the highest revision for this items or sub items """
+        retVal = self.__revision
+        if self.isDir():
+            retVal = reduce (max (an_item.__revision for an_item in self.walk_items()), retVal)
+        return retVal
+
+    @property
     def checksum(self):
         """ return checksum """
         return self.__checksum
