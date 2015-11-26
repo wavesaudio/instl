@@ -1,7 +1,13 @@
-????
+???? 1.0.1.?
 
     user visible changes client:
     * new doit command for fast and easy actions that do not require sync/copy
+
+26/11/2015 1.0.1.5
+
+    user visible changes client:
+    * Added sorting to some lists that use to create the install instaructions.
+        This will make the produced batch files more consitant from run to run and enable comparing before/after changes
 
 17/11/2015 1.0.1.4
 
