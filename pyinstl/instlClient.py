@@ -262,8 +262,8 @@ class InstlClient(InstlInstanceBase):
         if var_stack.resolve("$(__MAIN_COMMAND__)") != "uninstall":
             self.installState.calculate_full_install_items_set(self)
         self.read_previous_requirements()
-        var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(self.installState.full_install_items)
-        var_stack.set_var("__ORPHAN_INSTALL_TARGETS__").extend(self.installState.orphan_install_items)
+        var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(self.installState.full_install_items))
+        var_stack.set_var("__ORPHAN_INSTALL_TARGETS__").extend(sorted(self.installState.orphan_install_items))
 
     def read_previous_requirements(self):
         require_file_path = var_stack.resolve("$(SITE_REQUIRE_FILE_PATH)")
@@ -273,7 +273,7 @@ class InstlClient(InstlInstanceBase):
     def accumulate_unique_actions(self, action_type, iid_list):
         """ accumulate action_type actions from iid_list, eliminating duplicates"""
         unique_actions = utils.unique_list()  # unique_list will eliminate identical actions while keeping the order
-        for IID in iid_list:
+        for IID in sorted(iid_list):
             with self.install_definitions_index[IID] as installi:
                 action_var_name = "iid_action_list_" + action_type
                 item_actions = var_stack.resolve_var_to_list_if_exists(action_var_name)
