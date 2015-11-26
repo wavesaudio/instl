@@ -1,3 +1,8 @@
+????
+
+    user visible changes client:
+    * new doit command for fast and easy actions that do not require sync/copy
+
 17/11/2015 1.0.1.4
 
     user visible changes client:
@@ -811,7 +816,7 @@
     * Fixed ConfigVar.__str__ so values appear before description.
     * Removed redundant imports from helpHelper.py.
     * Refactored InstlClient to work with standard do_ ... functions for commands.
-    * InstlClient.installState is now a member.
+    * InstlClient.installItemsList is now a member.
     * InstlClient.init_copy_vars moved from instlInstanceBase.
     * Many default variables read from files instead of being hard coded.
     * Added default files for all instl (main.yaml) and for specific classes (instlAdmin, InstlClient).

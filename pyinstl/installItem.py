@@ -369,7 +369,7 @@ class InstallItem(object):
                     # if IID is a guid iids_from_guid will translate to iid's, or return the IID otherwise
                     dependees = iids_from_guid(items_map, depend)
                     for dependee in dependees:
-                        items_map[dependee].required_by.append(self.iid)
+                        #items_map[dependee].required_by.append(self.iid)
                         if dependee not in out_set:  # avoid cycles, save time
                             items_map[dependee].get_recursive_depends(items_map, out_set, orphan_set)
                 except KeyError:
