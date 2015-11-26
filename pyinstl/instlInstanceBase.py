@@ -232,6 +232,32 @@ class InstlInstanceBase(object):
             print("Exception reading file:", file_path)
             raise
 
+    def read_require(self, a_node):
+        # dependencies_file_path = var_stack.resolve("$(SITE_REQUIRE_FILE_PATH)")
+        if a_node.isMapping():
+            for identifier, contents in a_node:
+                logging.debug("%s: %s", identifier, str(contents))
+                if identifier in self.install_definitions_index:
+                    self.install_definitions_index[identifier].required_by.extend([required_iid.value for required_iid in contents])
+                else:
+                    # require file might contain IIDs form previous installations that are no longer in the index
+                    item_not_in_index = InstallItem()
+                    item_not_in_index.iid = identifier
+                    item_not_in_index.required_by.extend([required_iid.value for required_iid in contents])
+                    self.install_definitions_index[identifier] = item_not_in_index
+
+
+    def write_require_file(self, file_path):
+        require_dict = dict()
+        for IID in sorted(self.install_definitions_index.iterkeys()):
+            if len(self.install_definitions_index[IID].required_by) > 0:
+                require_dict[IID] = sorted(self.install_definitions_index[IID].required_by)
+        with open(file_path, "w") as wfd:
+            utils.make_open_file_read_write_for_all(wfd)
+            require_dict = aYaml.YamlDumpDocWrap(require_dict, '!require', "requirements",
+                                                 explicit_start=True, sort_mappings=True)
+            aYaml.writeAsYaml(require_dict, wfd)
+
     internal_identifier_re = re.compile("""
                                         __                  # dunder here
                                         (?P<internal_identifier>\w*)

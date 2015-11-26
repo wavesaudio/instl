@@ -517,10 +517,10 @@
 28/5/2014 0.9.11   Shai Shasag <shai@waves.com>
     user visible changes, client:
     * Fixed a problem where index.yaml would not be copied to bookkeeping when syncing to DOK.
-    
+
     programmer visible changes:
     * Copy tools got a new method copy_file_to_file.
-    
+
 27/5/2014 0.9.10   Shai Shasag <shai@waves.com>
 
     user visible changes, client:
@@ -652,7 +652,7 @@
     * Removed variable __CHECKOUT_FOLDER__, it is totaly replaced by $(ROOT_LINKS_FOLDER_REPO)/Base.
     * Moved pyinstaller build scripts to inside the instl repository
     * PUBLIC_KEY is read from  PUBLIC_KEY_FILE and PUBLIC_KEY_FILE is searched with search paths in read_include_node and in init_sync_vars.
-    
+
 13/3/2014 0.8.10  Shai Shasag <shai@waves.com>
 
     user visible changes, client:
@@ -811,7 +811,7 @@
     * Fixed ConfigVar.__str__ so values appear before description.
     * Removed redundant imports from helpHelper.py.
     * Refactored InstlClient to work with standard do_ ... functions for commands.
-    * InstlClient.installItemsList is now a member.
+    * InstlClient.installState is now a member.
     * InstlClient.init_copy_vars moved from instlInstanceBase.
     * Many default variables read from files instead of being hard coded.
     * Added default files for all instl (main.yaml) and for specific classes (instlAdmin, InstlClient).
@@ -859,7 +859,7 @@
     * InstallItem.add_source also adds the type for the source (!file, !dir, et...)
 
 10/2/2014 0.8.2  Shai Shasag <shai@waves.com>
-    
+
     user visible changes, client:
     * Fixed wrong relative path created for create-links command.
     * Added time measurements to batch file produces for windows.
