@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-
-
 import os
 import logging
 
@@ -58,7 +56,7 @@ def create_copy_instructions(self):
 
     for folder_name in sorted_target_folder_list:
         num_items_copied_to_folder = 0
-        items_in_folder = self.installState.install_items_by_target_folder[folder_name]
+        items_in_folder = sorted(self.installState.install_items_by_target_folder[folder_name])
         logging.info("folder %s", var_stack.resolve(folder_name))
         self.batch_accum += self.platform_helper.new_line()
         self.batch_accum += self.platform_helper.cd(folder_name)
@@ -70,7 +68,7 @@ def create_copy_instructions(self):
         self.batch_accum += self.platform_helper.copy_tool.begin_copy_folder()
         for IID in items_in_folder:
             with self.install_definitions_index[IID] as installi:
-                for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
+                for source_var in sorted(var_stack.get_configVar_obj("iid_source_var_list")):
                     num_items_copied_to_folder += 1
                     source = var_stack.resolve_var_to_list(source_var)
                     self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_pre_copy_item")
@@ -92,8 +90,8 @@ def create_copy_instructions(self):
         self.batch_accum.indent_level -= 1
 
     # actions instructions for sources that do not need copying, here folder_name is the sync folder
-    for folder_name, items_in_folder in self.installState.no_copy_items_by_sync_folder.items():
-
+    for folder_name in sorted(self.installState.no_copy_items_by_sync_folder.keys()):
+        items_in_folder = self.installState.no_copy_items_by_sync_folder[folder_name]
         self.batch_accum += self.platform_helper.new_line()
         self.batch_accum += self.platform_helper.cd(folder_name)
         self.batch_accum.indent_level += 1
@@ -101,9 +99,9 @@ def create_copy_instructions(self):
         # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
         self.accumulate_unique_actions('pre_copy_to_folder', items_in_folder)
 
-        for IID in items_in_folder:
+        for IID in sorted(items_in_folder):
             with self.install_definitions_index[IID]:
-                for source_var in var_stack.resolve_var_to_list_if_exists("iid_source_var_list"):
+                for source_var in sorted(var_stack.resolve_var_to_list_if_exists("iid_source_var_list")):
                     source = var_stack.resolve_var_to_list(source_var)
                     source_folder, source_name = os.path.split(source[0])
                     to_untar = os.path.join(folder_name, source_name)
@@ -134,7 +132,7 @@ def create_copy_instructions(self):
     self.create_require_file_instructions()
 
     # messages about orphan iids
-    for iid in self.installState.orphan_install_items:
+    for iid in sorted(self.installState.orphan_install_items):
         logging.info("Orphan item: %s", iid)
         self.batch_accum += self.platform_helper.echo("Don't know how to install " + iid)
     self.batch_accum += self.platform_helper.progress("Done copy")

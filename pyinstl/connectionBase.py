@@ -2,7 +2,7 @@
 
 
 import abc
-import urllib.request, urllib.parse, urllib.error
+import urllib.request, urllib.error
 import urllib.parse
 
 have_boto = True
@@ -51,9 +51,9 @@ class ConnectionHTTP(ConnectionBase):
 
     @abc.abstractmethod
     def translate_url(self, in_bare_url):
-        parsed = urlparse.urlparse(in_bare_url)
-        quoted_results = urlparse.ParseResult(scheme=parsed.scheme, netloc=parsed.netloc, path=urllib.quote(parsed.path, "$()/:%"), params=parsed.params, query=parsed.query, fragment=parsed.fragment)
-        retVal = urlparse.urlunparse(quoted_results)
+        parsed = urllib.parse.urlparse(in_bare_url)
+        quoted_results = urllib.parse.ParseResult(scheme=parsed.scheme, netloc=parsed.netloc, path=urllib.parse.quote(parsed.path, "$()/:%"), params=parsed.params, query=parsed.query, fragment=parsed.fragment)
+        retVal = urllib.parse.urlunparse(quoted_results)
         return retVal
 
 if have_boto:
@@ -73,7 +73,7 @@ if have_boto:
             var_stack.set_var("S3_BUCKET_NAME", "from command line options").append(in_bucket)
 
         def translate_url(self, in_bare_url):
-            parseResult = urlparse.urlparse(in_bare_url)
+            parseResult = urllib.parse.urlparse(in_bare_url)
             if parseResult.netloc.startswith(self.open_bucket.name):
                 the_key = self.open_bucket.get_key(parseResult.path, validate=False)
                 retVal = the_key.generate_url(self.default_expiration)
@@ -92,6 +92,7 @@ def connection_factory():
         else:
             ConnectionBase.repo_connection = ConnectionHTTP()
     return ConnectionBase.repo_connection
+
 
 def translate_url(in_bare_url):
     translated_url = connection_factory().translate_url(in_bare_url)
