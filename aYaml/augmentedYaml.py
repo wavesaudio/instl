@@ -153,7 +153,7 @@ class YamlDumpWrap(object):
         have comments and tags. Sorting mapping by key is also optional.
     """
     def __init__(self, value=None, tag="", comment="", sort_mappings=False):
-        self.tag = 'ignore'
+        self.tag = ""  # 'ignore'
         self.comment = comment
         self.value = value
         self.sort_mappings = sort_mappings

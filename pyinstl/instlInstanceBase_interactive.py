@@ -290,7 +290,7 @@ class CMDObj(cmd.Cmd, object):
                 self.client_prog_inst.do_list(identifier_list, out_list)
         else:
             self.client_prog_inst.do_list(None, out_list)
-        joined_list = "".join(out_list.list()).encode('ascii', 'ignore')  # just in case some unicode got in...
+        joined_list = "".join(out_list.list())
         colored_string = self.color_vars(joined_list)
         sys.stdout.write(colored_string)
         return False
