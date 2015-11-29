@@ -256,10 +256,12 @@ class unique_list(list):
     def empty(self):
         return len(self.__attendance) == 0
 
+
 class set_with_order(unique_list):
     """ Just another name for unique_list """
     def __init__(self, initial_list=()):
         super(set_with_order, self).__init__(initial_list)
+
 
 def print_var(var_name):
     calling_frame = sys._getframe().f_back
@@ -273,10 +275,11 @@ def last_url_item(url):
     _, retVal = os.path.split(url_path)
     return retVal
 
+
 def main_url_item(url):
     try:
         parseResult = urllib.parse.urlparse(url)
-        #print("+++++++", url, "+", parseResult)
+        # print("+++++++", url, "+", parseResult)
         retVal = parseResult.netloc
         if not retVal:
             retVal = parseResult.path
@@ -319,6 +322,7 @@ class ChangeDirIfExists(object):
         if self.newPath:
             os.chdir(self.savedPath)
 
+
 def safe_makedirs(path_to_dir):
     """ solves a problem with python 2.7 where os.makedirs raises if the dir already exist  """
     try:
@@ -327,6 +331,7 @@ def safe_makedirs(path_to_dir):
         pass
     return path_to_dir
 
+
 def safe_remove_file(path_to_file):
     """ solves a problem with python 2.7 where os.remove raises if the file does not exist  """
     try:
@@ -334,6 +339,7 @@ def safe_remove_file(path_to_file):
     except:  # os.remove raises is the file does not exists
         pass
     return path_to_file
+
 
 def max_widths(list_of_lists):
     """ inputs is a list of lists. output is a list of maximum str length for each
@@ -359,6 +365,7 @@ def gen_col_format(width_list):
         retVal.append(format_str)
     return retVal
 
+
 def ContinuationIter(the_iter, continuation_value=None):
     """ ContinuationIter yield all the values of the_iter and then continue yielding continuation_value
     """
@@ -366,6 +373,7 @@ def ContinuationIter(the_iter, continuation_value=None):
         yield val
     while True:
         yield continuation_value
+
 
 def ParallelContinuationIter(*iterables):
     """ Like zip ParallelContinuationIter will yield a list of items from the
@@ -380,6 +388,7 @@ def ParallelContinuationIter(*iterables):
     continue_iterables = list(map(ContinuationIter, iterables))
     for i in range(max_size):
         yield list(map(next, continue_iterables))
+
 
 def create_file_signatures(file_path, private_key_text=None):
     """ create rsa signature and sha1 checksum for a file.
@@ -399,16 +408,19 @@ def create_file_signatures(file_path, private_key_text=None):
             retVal["SHA-512_rsa_sig"] = text_sig
     return retVal
 
+
 def get_buffer_checksum(buff):
     sha1ner = hashlib.sha1()
     sha1ner.update(buff)
     retVal = sha1ner.hexdigest()
     return retVal
 
+
 def check_buffer_checksum(buff, expected_checksum):
     checksum = get_buffer_checksum(buff)
     retVal = checksum.lower() == expected_checksum.lower()
     return retVal
+
 
 def check_buffer_signature(buff, textual_sig, public_key):
     try:
@@ -419,6 +431,7 @@ def check_buffer_signature(buff, textual_sig, public_key):
     except:
         return False
 
+
 def check_buffer_signature_or_checksum(buff, public_key=None, textual_sig=None, expected_checksum=None):
     retVal = False
     if public_key and textual_sig:
@@ -427,17 +440,20 @@ def check_buffer_signature_or_checksum(buff, public_key=None, textual_sig=None, 
         retVal = check_buffer_checksum(buff, expected_checksum)
     return retVal
 
+
 def check_file_signature_or_checksum(file_path, public_key=None, textual_sig=None, expected_checksum=None):
     retVal = False
     with open(file_path, "rb") as rfd:
         retVal = check_buffer_signature_or_checksum(rfd.read(), public_key, textual_sig, expected_checksum)
     return retVal
 
+
 def check_file_checksum(file_path, expected_checksum):
     retVal = False
     with open(file_path, "rb") as rfd:
         retVal = check_buffer_checksum(rfd.read(), expected_checksum)
     return retVal
+
 
 def check_file_signature(file_path, textual_sig, public_key):
     retVal = False
@@ -452,13 +468,16 @@ def need_to_download_file(file_path, file_checksum):
         retVal = not check_file_checksum(file_path, file_checksum)
     return retVal
 
+
 def quoteme_single(to_quote):
     return "".join( ("'", to_quote, "'") )
 
+
 def quoteme_double(to_quote):
-    return "".join( ('"', to_quote, '"') )
+    return "".join(('"', to_quote, '"'))
 
 detect_quotations = re.compile("(?P<prefix>[\"'])(?P<the_unquoted_text>.+)(?P=prefix)")
+
 
 def unquoteme(to_unquote):
     retVal = to_unquote
@@ -476,7 +495,7 @@ guid_re = re.compile("""
 
 
 def make_one_list(*things):
-    """ flaten things to one single list.
+    """ flatten things to one single list.
     """
     retVal = list()
     for thing in things:
@@ -516,6 +535,7 @@ def replace_all_from_dict(in_text, *in_replace_only_these, **in_replacement_dic)
     for look_for in sorted(in_replace_only_these, key=lambda s: -len(s)):
         retVal = retVal.replace(look_for, in_replacement_dic[look_for])
     return retVal
+
 
 def convert_to_str_unless_None(to_convert):
     if to_convert is None:
@@ -604,6 +624,7 @@ def excluded_walk(root_to_walk, file_exclude_regex=None, dir_exclude_regex=None,
         files[:] = sorted([a_file for a_file in files if not file_exclude_regex.search(a_file)])
         yield root, dirs, files
 
+
 def get_disk_free_space(in_path):
     retVal = 0
     if 'Win' in get_current_os_names():
@@ -614,8 +635,7 @@ def get_disk_free_space(in_path):
         retVal = st.f_bavail * st.f_frsize
     return retVal
 
-    #cache_dir_to_clean = var_stack.resolve(self.get_default_sync_dir(continue_dir="cache", make_dir=False))
-    #utils.clean_old_files(cache_dir_to_clean, 30)
+
 def clean_old_files(dir_to_clean, older_than_days):
     """ clean a directory from file older than the given param
         block all exceptions since this operation is "nice to have" """
@@ -626,7 +646,7 @@ def clean_old_files(dir_to_clean, older_than_days):
                 a_file_path = os.path.join(root, a_file)
                 file_time = os.path.getmtime(a_file_path)
                 if file_time < threshold_time:
-                    #print ("will remove", a_file_path)
+                    # print ("will remove", a_file_path)
                     os.remove(a_file_path)
     except:
         pass
