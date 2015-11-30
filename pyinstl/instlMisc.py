@@ -194,7 +194,7 @@ class InstlMisc(InstlInstanceBase):
         import importlib
 
         bad_modules = list()
-        for module in ("yaml", "appdirs", "readline", "colorama", "rsa", "boto", "configVar", "utils", "svnTree", "aYaml"):
+        for module in ("yaml", "appdirs", "readline", "colorama", "configVar", "utils", "svnTree", "aYaml"):
             try:
                 importlib.import_module(module)
             except ImportError as im_err:
