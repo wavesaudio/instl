@@ -1,4 +1,4 @@
-???? 1.0.1.?
+31/11/2015 1.1.0.0
 
     user visible changes client:
     * new doit command for fast and easy actions that do not require sync/copy
