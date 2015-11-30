@@ -12,7 +12,6 @@ import logging
 import appdirs
 from utils import InstlException
 
-
 # umask to 0 so that all files created under sudo, can be re-written under regular user.
 os.umask(0)
 
