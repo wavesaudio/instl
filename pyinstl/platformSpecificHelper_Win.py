@@ -494,7 +494,7 @@ class DownloadTool_win_curl(DownloadToolBase):
             connect_time_out = var_stack.resolve("$(CURL_CONNECT_TIMEOUT)", raise_on_fail=True)
             max_time = var_stack.resolve("$(CURL_MAX_TIME)", raise_on_fail=True)
             retries = var_stack.resolve("$(CURL_RETRIES)", raise_on_fail=True)
-            actual_num_files = max(1, min(num_urls_to_download / 8, num_files))
+            actual_num_files = max(0, min(num_urls_to_download, num_files))
 
             num_digits = len(str(actual_num_files))
             file_name_list = ["-".join((curl_config_file_path, str(file_i).zfill(num_digits))) for file_i in range(actual_num_files)]

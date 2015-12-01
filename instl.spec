@@ -17,15 +17,15 @@ a = Analysis(['instl'],
              hiddenimports=[],
              hookspath=None,
              runtime_hooks=None,
-             excludes=['PyQt4', 'matplotlib',
-                        "PIL", "numpy", "wx", "tornado", "networkx",
-                         "pygraphviz", "unittest", "nose",
-                         "Tkinter", "scipy", "setuptools", "distutils", "boto"],
+             excludes=['PyQt4', 'matplotlib', "PIL", "numpy", "wx", "tornado", "networkx",
+                         "pygraphviz", "unittest", "nose", "tkinter", "scipy", "setuptools",
+                         "distutils", "boto", "colorama"],
              win_no_prefer_redirects=None,
              win_private_assemblies=None,
              cipher=block_cipher)
 
-#for i, pure in enumerate(a.pure):
+#pure_sorted = sorted(a.pure)
+#for i, pure in enumerate(pure_sorted):
 #    print(i, pure)
              
 instl_defaults_path = os.path.join("defaults")
