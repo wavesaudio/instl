@@ -56,7 +56,7 @@ class write_to_file_or_stdout(object):
 
     def __enter__(self):
         if self.file_path != "stdout":
-            self.fd = open(self.file_path, "w")
+            self.fd = open(self.file_path, "w", encoding='utf-8')
         return self.fd
 
     def __exit__(self, unused_type, unused_value, unused_traceback):

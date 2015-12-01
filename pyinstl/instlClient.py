@@ -5,7 +5,6 @@
 import os
 import time
 from collections import OrderedDict, defaultdict
-import logging
 
 import utils
 from .installItem import InstallItem, guid_list, iids_from_guid
@@ -58,10 +57,6 @@ class InstallInstructionsState(object):
             If an install items was not found for a iid, the iid is added to the orphan set.
         """
 
-        if len(self.root_install_items) > 0:
-            logging.info(" ".join(("Main install items:", ", ".join(self.root_install_items))))
-        else:
-            logging.error("Main install items list is empty")
         # root_install_items might have guid in it, translate them to iids
 
         root_install_iids_translated = utils.unique_list()
@@ -70,13 +65,8 @@ class InstallInstructionsState(object):
             iids_from_the_guid = iids_from_guid(instlObj.install_definitions_index, IID)
             if len(iids_from_the_guid) > 0:
                 root_install_iids_translated.extend(iids_from_the_guid)
-                logging.debug("GUID %s, translated to %d iids: %s", IID, len(iids_from_the_guid),
-                              ", ".join(iids_from_the_guid))
             else:
                 self.orphan_install_items.append(IID)
-                logging.warning("%s is a guid but could not be translated to iids", IID)
-
-        logging.info(" ".join(("Main install items translated:", ", ".join(root_install_iids_translated))))
 
         for IID in root_install_iids_translated:
             try:
@@ -87,8 +77,7 @@ class InstallInstructionsState(object):
                                                                               self.orphan_install_items)
             except KeyError:
                 self.orphan_install_items.append(IID)
-                logging.warning("%s not found in index", IID)
-        logging.info(" ".join(("Full install items:", ", ".join(self.full_install_items))))
+
         self.sort_install_items_by_target_folder(instlObj)
 
 
@@ -131,7 +120,7 @@ class InstlClient(InstlInstanceBase):
         # write the history file, but only if variable LOCAL_REPO_BOOKKEEPING_DIR is defined
         # and the folder actually exists.
         if os.path.isdir(var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)", default="")):
-            with open(var_stack.resolve("$(INSTL_HISTORY_TEMP_PATH)"), "w") as wfd:
+            with open(var_stack.resolve("$(INSTL_HISTORY_TEMP_PATH)"), "w", encoding='utf-8') as wfd:
                 utils.make_open_file_read_write_for_all(wfd)
                 aYaml.writeAsYaml(yaml_of_defines, wfd)
             self.batch_accum += self.platform_helper.append_file_to_file("$(INSTL_HISTORY_TEMP_PATH)",
@@ -290,4 +279,3 @@ class InstlClient(InstlInstanceBase):
                         unique_actions.append(
                             self.platform_helper.progress("{installi.name} {action_description}".format(**locals())))
         self.batch_accum += unique_actions
-        logging.info("... %s actions: %d", action_type, len(unique_actions))

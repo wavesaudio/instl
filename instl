@@ -7,7 +7,6 @@ from __future__ import print_function
 import os
 import sys
 import argparse
-import logging
 
 import appdirs
 from utils import InstlException
@@ -15,9 +14,6 @@ from utils import InstlException
 # umask to 0 so that all files created under sudo, can be re-written under regular user.
 os.umask(0)
 
-# setup logging, must be done before other imports
-from utils import setup_logging
-setup_logging("instl", "instl")
 import utils
 
 
@@ -418,7 +414,6 @@ def main():
                     {"__USRER_ID__": str(os.getuid()),
                      "__GROUP_ID__": str(os.getgid())})
 
-    logging.info("Command %s", options.command)
     if options.mode == "client":
         from pyinstl.instlClient import InstlClient
         instance = InstlClient(initial_vars)
@@ -458,7 +453,6 @@ def main():
             instance.do_command()
     else:
         raise InstlException("incomprehensible command line options:\n", options)
-    logging.info("Done %s", options.command)
 
 if __name__ == "__main__":
     main()

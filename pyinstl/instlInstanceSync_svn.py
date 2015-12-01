@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-import logging
-
 import utils
 from .instlInstanceSyncBase import InstlInstanceSync
 from configVar import var_stack
@@ -61,6 +59,5 @@ class InstlInstanceSync_svn(InstlInstanceSync):
             command_parts.extend(( "--depth", "infinity"))
         retVal.append(" ".join(command_parts))
 
-        logging.info("... %s; (%s)", source[0], source[1])
         return retVal
 

@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
 
 
-import logging
-
 from configVar import var_stack
 
 
 def do_sync(self):
-    logging.info("Creating sync instructions")
     repo_type = var_stack.resolve("$(REPO_TYPE)")
     if repo_type == "URL":
         from .instlInstanceSync_url import InstlInstanceSync_url

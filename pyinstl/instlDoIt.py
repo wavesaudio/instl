@@ -5,7 +5,6 @@ from __future__ import print_function
 import os
 import time
 from collections import OrderedDict, defaultdict
-import logging
 
 import utils
 from installItem import InstallItem, guid_list, iids_from_guid
@@ -42,12 +41,6 @@ class DoItInstructionsState(object):
             Initial list of iids should already be in self.root_doit_items.
             If an install items was not found for a iid, the iid is added to the orphan set.
         """
-
-        if len(self.root_doit_items) > 0:
-            logging.info(" ".join(("Main install items:", ", ".join(self.root_doit_items))))
-        else:
-            logging.error("Main install items list is empty")
-        # root_doit_items might have guid in it, translate them to iids
 
         root_install_iids_translated = utils.unique_list()
         for root_IID in self.root_doit_items:
@@ -188,4 +181,3 @@ class InstlDoIt(InstlInstanceBase):
                         unique_actions.append(
                             self.platform_helper.progress("{installi.name} {action_description}".format(**locals())))
         self.batch_accum += unique_actions
-        logging.info("... %s actions: %d", action_type, len(unique_actions))

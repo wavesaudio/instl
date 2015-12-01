@@ -4,7 +4,6 @@
 import os
 import re
 from collections import OrderedDict
-import logging
 
 import yaml
 
@@ -71,13 +70,11 @@ class SVNTree(svnItem.SVNTopItem):
         self.comments.append("Original file " + self.path_to_file)
         if a_format in list(self.read_func_by_format.keys()):
             with utils.open_for_read_file_or_url(self.path_to_file) as rfd:
-                logging.info("%s, a_format: %s", self.path_to_file, a_format)
                 if a_format not in ("props", "file-sizes"):
                     self.clear_subs()
                 self.read_func_by_format[a_format](rfd)
         else:
-            logging.info("%s is not a known map_info a_format. Cannot read %s", a_format, in_file)
-            ValueError("Unknown read a_format " + a_format)
+            raise ValueError("Unknown read a_format " + a_format)
 
     def read_from_svn_info(self, rfd):
         """ reads new items from svn info items prepared by iter_svn_info """
@@ -204,11 +201,9 @@ class SVNTree(svnItem.SVNTopItem):
             in_format = map_info_extension_to_format[extension[1:]]
         if in_format in list(self.write_func_by_format.keys()):
             with utils.write_to_file_or_stdout(self.path_to_file) as wfd:
-                logging.info("%s, format: %s", self.path_to_file, in_format)
                 self.write_func_by_format[in_format](wfd, comments)
         else:
-            logging.info("%s is not a known map_info format. Cannot write %s", in_format, in_file)
-            ValueError("Unknown write in_format " + in_format)
+            raise ValueError("Unknown write in_format " + in_format)
 
     def write_as_text(self, wfd, comments=True):
         if comments and len(self.comments) > 0:

@@ -1,6 +1,5 @@
 from __future__ import print_function
 
-import logging
 import os
 from collections import defaultdict, OrderedDict
 
@@ -100,10 +99,6 @@ class InstallItemLists(object):
             If an install items was not found for a iid, the iid is added to the orphan set.
         """
 
-        if len(self.original_install_items) > 0:
-            logging.info(" ".join(("Main install items:", ", ".join(self.root_install_items))))
-        else:
-            logging.error("Main install items list is empty")
         # root_install_items might have guid in it, translate them to iids
 
         root_install_iids_translated = utils.unique_list()
@@ -112,13 +107,8 @@ class InstallItemLists(object):
             iids_from_the_guid = iids_from_guid(instlObj.install_definitions_index, IID)
             if len(iids_from_the_guid) > 0:
                 self.__root_install_items.extend(iids_from_the_guid)
-                logging.debug("GUID %s, translated to %d iids: %s", IID, len(iids_from_the_guid),
-                              ", ".join(iids_from_the_guid))
             else:
                 self.__orphan_install_items.append(IID)
-                logging.warning("%s is a guid but could not be translated to iids", IID)
-
-        logging.info(" ".join(("Main install items translated:", ", ".join(root_install_iids_translated))))
 
         for IID in self.top_level_install_items:
             try:
@@ -129,8 +119,7 @@ class InstallItemLists(object):
                                                                               self.__orphan_install_items)
             except KeyError:
                 self.__orphan_install_items.append(IID)
-                logging.warning("%s not found in index", IID)
-        logging.info(" ".join(("Full install items:", ", ".join(self.full_install_items))))
+
         self.sort_install_items_by_target_folder(instlObj)
 
     def get_require_dict(self, instlObj):

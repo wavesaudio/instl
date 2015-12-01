@@ -104,7 +104,7 @@ class InstlGui(InstlInstanceBase):
 
         the_list_yaml_ready= var_stack.repr_for_yaml(which_vars=var_stack.resolve_var_to_list("__GUI_CONFIG_FILE_VARS__"), include_comments=False, resolve=False, ignore_unknown_vars=True)
         the_doc_yaml_ready = aYaml.YamlDumpDocWrap(the_list_yaml_ready, '!define', "Definitions", explicit_start=True, sort_mappings=True)
-        with open(var_stack.resolve_var("INSTL_GUI_CONFIG_FILE_NAME"), "w") as wfd:
+        with open(var_stack.resolve_var("INSTL_GUI_CONFIG_FILE_NAME"), "w", encoding='utf-8') as wfd:
             utils.make_open_file_read_write_for_all(wfd)
             aYaml.writeAsYaml(the_doc_yaml_ready, wfd)
 

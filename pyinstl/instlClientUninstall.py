@@ -3,14 +3,12 @@
 
 
 import os
-import logging
 
 import utils
 from configVar import var_stack
 
 
 def do_uninstall(self):
-    logging.info("Creating uninstall instructions")
     self.init_uninstall_vars()
     self.create_uninstall_instructions()
 

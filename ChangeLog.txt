@@ -828,7 +828,7 @@
     * Fixed ConfigVar.__str__ so values appear before description.
     * Removed redundant imports from helpHelper.py.
     * Refactored InstlClient to work with standard do_ ... functions for commands.
-    * InstlClient.installItemsList is now a member.
+    * InstlClient.installState is now a member.
     * InstlClient.init_copy_vars moved from instlInstanceBase.
     * Many default variables read from files instead of being hard coded.
     * Added default files for all instl (main.yaml) and for specific classes (instlAdmin, InstlClient).

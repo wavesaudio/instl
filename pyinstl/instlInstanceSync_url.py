@@ -2,7 +2,6 @@
 
 
 import os
-import logging
 
 import svnTree
 import utils
@@ -118,7 +117,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
         num_dirs_to_create = self.work_info_map.num_subs_in_tree(what="dir")
-        logging.info("Num directories to create: %d", num_dirs_to_create)
         if num_dirs_to_create > 0:
             self.instlObj.batch_accum += self.instlObj.platform_helper.create_folders("$(TO_SYNC_INFO_MAP_PATH)")
             self.instlObj.platform_helper.num_items_for_progress_report += num_dirs_to_create
@@ -140,15 +138,12 @@ class InstlInstanceSync_url(InstlInstanceSync):
         else:
             print(bytes_to_sync, "bytes to sync")
 
-        logging.info("Num files to sync: %d", self.instlObj.platform_helper.dl_tool.get_num_urls_to_download())
-
         curl_config_folder = var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)/curl", raise_on_fail=True)
         utils.safe_makedirs(curl_config_folder)
         curl_config_file_path = var_stack.resolve(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"), raise_on_fail=True)
         num_config_files = int(var_stack.resolve("$(PARALLEL_SYNC)"))
         config_file_list = self.instlObj.platform_helper.dl_tool.create_config_files(curl_config_file_path,
                                                                                      num_config_files)
-        logging.info("Num parallel syncs: %d", len(config_file_list))
         if len(config_file_list) > 0:
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress(
@@ -162,7 +157,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
         num_files_to_check = self.work_info_map.num_subs_in_tree(what="file")
-        logging.info("Num files to checksum check: %d", num_files_to_check)
         if num_files_to_check > 0:
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Checking checksum...")
             self.instlObj.batch_accum += self.instlObj.platform_helper.check_checksum_for_folder(

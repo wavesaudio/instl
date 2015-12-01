@@ -220,6 +220,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def get_install_instructions_prefix(self):
         retVal = (
             "@echo off",
+            "chcp 65001",
             "setlocal enableextensions enabledelayedexpansion",
             self.remark(self.instlObj.get_version_str()),
             self.remark(datetime.datetime.today().isoformat()),
@@ -438,7 +439,7 @@ class DownloadTool_win_wget(DownloadToolBase):
         return " ".join(download_command_parts), self.platform_helper.exit_if_error()
 
     def create_config_file(self, curl_config_file_path):
-        with open(curl_config_file_path, "w") as wfd:
+        with open(curl_config_file_path, "w", encoding='utf-8') as wfd:
             utils.make_open_file_read_write_for_all(wfd)
             wfd.write("dirstruct = on\n")
             wfd.write("timeout = 60\n")
@@ -494,13 +495,13 @@ class DownloadTool_win_curl(DownloadToolBase):
             connect_time_out = var_stack.resolve("$(CURL_CONNECT_TIMEOUT)", raise_on_fail=True)
             max_time = var_stack.resolve("$(CURL_MAX_TIME)", raise_on_fail=True)
             retries = var_stack.resolve("$(CURL_RETRIES)", raise_on_fail=True)
-            actual_num_files = max(0, min(num_urls_to_download, num_files))
+            actual_num_files = int(max(0, min(num_urls_to_download, num_files)))
 
             num_digits = len(str(actual_num_files))
             file_name_list = ["-".join((curl_config_file_path, str(file_i).zfill(num_digits))) for file_i in range(actual_num_files)]
             wfd_list = list()
             for file_name in file_name_list:
-                wfd = open(file_name, "w")
+                wfd = open(file_name, "w", encoding='utf-8')
                 utils.make_open_file_read_write_for_all(wfd)
                 wfd_list.append(wfd)
 
@@ -533,7 +534,7 @@ class DownloadTool_win_curl(DownloadToolBase):
             return ()
 
     def download_from_config_files(self, parallel_run_config_file_path, config_files):
-        with open(parallel_run_config_file_path, "w") as wfd:
+        with open(parallel_run_config_file_path, "w", encoding='utf-8') as wfd:
             utils.make_open_file_read_write_for_all(wfd)
             for config_file in config_files:
                 normalized_path = config_file.replace("\\", "/")

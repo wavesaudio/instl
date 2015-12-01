@@ -44,7 +44,7 @@ def setup_logging(in_appname, in_appauthor):
     # setup INFO level logger
     log_file_path = get_log_file_path(in_appname, in_appauthor, debug=False)
     rotatingHandler = logging.handlers.RotatingFileHandler(
-        log_file_path, maxBytes=200000, backupCount=5)
+        log_file_path, maxBytes=200000, backupCount=5, encoding='utf-8')
     rotatingHandler.set_name("instl_log_handler")
     formatter = logging.Formatter(
         '%(asctime)s, %(levelname)s, %(funcName)s: %(message)s')

@@ -13,7 +13,6 @@
 import os
 import sys
 import re
-import logging
 
 #sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 
@@ -127,7 +126,6 @@ class ConfigVarList(object):
         else:
             addedValue = configVar.ConstConfigVar(name, description, *values)
             self._ConfigVar_objs[addedValue.name] = addedValue
-            logging.debug("... %s: %s", name, ", ".join(map(str, values)))
 
     def duplicate_variable(self, source_name, target_name):
         source_obj = self[source_name]

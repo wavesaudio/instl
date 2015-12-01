@@ -5,7 +5,6 @@ import os
 import sys
 import re
 import abc
-import logging
 
 import yaml
 import io
@@ -88,15 +87,6 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
         self.read_name_specific_defaults_file(type(self).__name__)
         self.read_user_config()
 
-        log_file = utils.log_utils.get_log_file_path(var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)"),
-                                                     var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)"), debug=False)
-        var_stack.set_var("LOG_FILE", var_description).append(log_file)
-        debug_log_file = utils.log_utils.get_log_file_path(var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)"),
-                                                           var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)"), debug=True)
-        var_stack.set_var("LOG_FILE_DEBUG", var_description).extend((
-            debug_log_file, logging.getLevelName(utils.log_utils.debug_logging_level),
-            utils.log_utils.debug_logging_started))
-
     def read_name_specific_defaults_file(self, file_name):
         """ read class specific file from defaults/class_name.yaml """
         name_specific_defaults_file_path = os.path.join(var_stack.resolve("$(__INSTL_DATA_FOLDER__)"), "defaults",
@@ -116,7 +106,6 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
         missing_vars = [var for var in prerequisite_vars if var not in var_stack]
         if len(missing_vars) > 0:
             msg = "Prerequisite variables were not defined: " + ", ".join(missing_vars)
-            logging.info("msg")
             raise ValueError(msg)
 
     def init_from_cmd_line_options(self, cmd_line_options_obj):
@@ -213,15 +202,10 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
                     self.read_index(a_node)
                 elif a_node.tag.startswith('!require'):
                     self.read_require(a_node)
-                else:
-                    logging.error(
-                        "Unknown document tag '%s' while reading file %s; Tag should be one of: !define, !index'",
-                        a_node.tag, file_path)
         if not self.check_version_compatibility():
             raise ValueError(var_stack.resolve("Minimal instl version $(INSTL_MINIMAL_VERSION) > current version $(__INSTL_VERSION__); ")+var_stack.get_configVar_obj("INSTL_MINIMAL_VERSION").description)
 
     def read_yaml_file(self, file_path):
-        logging.info("%s", file_path)
         try:
             with utils.open_for_read_file_or_url(file_path, connectionBase.translate_url, self.path_searcher) as file_fd:
                 buffer = file_fd.read()
@@ -238,7 +222,6 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
         # dependencies_file_path = var_stack.resolve("$(SITE_REQUIRE_FILE_PATH)")
         if a_node.isMapping():
             for identifier, contents in a_node:
-                logging.debug("%s: %s", identifier, str(contents))
                 if identifier in self.install_definitions_index:
                     self.install_definitions_index[identifier].required_by.extend([required_iid.value for required_iid in contents])
                 else:
@@ -254,7 +237,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
         for IID in sorted(self.install_definitions_index.keys()):
             if len(self.install_definitions_index[IID].required_by) > 0:
                 require_dict[IID] = sorted(self.install_definitions_index[IID].required_by)
-        with open(file_path, "w") as wfd:
+        with open(file_path, "w", encoding='utf-8') as wfd:
             utils.make_open_file_read_write_for_all(wfd)
             require_dict = aYaml.YamlDumpDocWrap(require_dict, '!require', "requirements",
                                                  explicit_start=True, sort_mappings=True)
@@ -278,7 +261,6 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
         # if document is empty we get a scalar node
         if a_node.isMapping():
             for identifier, contents in a_node:
-                logging.debug("%s: %s", identifier, str(contents))
                 if self.allow_reading_of_internal_vars or not self.internal_identifier_re.match(identifier):  # do not read internal state identifiers
                     var_stack.set_var(identifier, str(contents.start_mark)).extend([item.value for item in contents])
                 elif identifier == '__include__':
@@ -293,7 +275,6 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
             for identifier, contents in a_node:
                 if identifier == "__include__":
                     raise ValueError("!define_const doc cannot except __include__")
-                logging.debug("%s: %s", identifier, str(contents))
                 var_stack.add_const_config_variable(identifier, "from !define_const section",
                                                     *[item.value for item in contents])
 
@@ -429,10 +410,8 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
         msg = " ".join(
             (self.out_file_realpath, str(self.platform_helper.num_items_for_progress_report), "progress items"))
         print(msg)
-        logging.info(msg)
 
     def run_batch_file(self):
-        logging.info("running batch file %s", self.out_file_realpath)
         from subprocess import Popen
 
         p = Popen([self.out_file_realpath], executable=self.out_file_realpath, shell=False)
