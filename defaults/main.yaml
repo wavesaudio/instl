@@ -14,7 +14,7 @@ __USER_CONFIG_FILE_PATH__: $(__USER_HOME_DIR__)/$(__USER_CONFIG_FILE_NAME__)
 ACCEPTABLE_YAML_DOC_TAGS:
     - define_$(__CURRENT_OS__)
 
-INSTL_EXEC_DISPLAY_NAME: instl 
+INSTL_EXEC_DISPLAY_NAME: instl
 
 # instl version command will display: $(INSTL_EXEC_DISPLAY_NAME) version $(__INSTL_VERSION__)
 
