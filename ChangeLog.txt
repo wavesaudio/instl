@@ -1,3 +1,9 @@
+???? 1.2.?.?
+
+    programmer visible changes:
+    * removed readline and colorama from test_import - they are needed only for interactive mode and should not create an error on compilation.
+
+
 17/11/2015 1.0.1.4
 
     user visible changes client:
