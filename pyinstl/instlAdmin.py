@@ -27,6 +27,7 @@ class InstlAdmin(InstlInstanceBase):
     def __init__(self, initial_vars):
         super(InstlAdmin, self).__init__(initial_vars)
         self.svnTree = svnTree.SVNTree()
+        self.svnTable = svnTree.SVNTable()
 
     def set_default_variables(self):
         if "__CONFIG_FILE__" in var_stack:
@@ -72,6 +73,7 @@ class InstlAdmin(InstlInstanceBase):
         if base_rev > 0:
             for item in self.svnTree.walk_items():
                 item.revision = max(item.revision, base_rev)
+            self.svnTable.set_base_revision(base_rev)
 
         if "__FILTER_IN_VERSION__" in var_stack:
             self.filter_in_specific_version(var_stack.resolve("$(__FILTER_IN_VERSION__)"))
