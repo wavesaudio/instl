@@ -1,7 +1,6 @@
 import os
 import re
 
-from sqlalchemy import update
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from .svnRow import SVNRow, alchemy_base
@@ -59,20 +58,12 @@ class SVNTable(object):
                 self.read_func_by_format[a_format](rfd)
         else:
             raise ValueError("Unknown read a_format " + a_format)
+        #self.session.commit()
 
     def read_from_svn_info(self, rfd):
         """ reads new items from svn info items prepared by iter_svn_info """
-        for item_dict in self.iter_svn_info(rfd):
-            path_parts = item_dict['path'].split("/")
-            svnRow = SVNRow(path = item_dict['path'],
-                            name=path_parts[-1],
-                            parent="/".join(path_parts[:-1])+"/",
-                            flags=item_dict['flags'],
-                            isFile = 'f' in item_dict['flags'],
-                            isDir = 'd' in item_dict['flags'],
-                            revision_remote=item_dict['revision'],
-                            checksum=item_dict['checksum'])
-            self.session.add(svnRow)
+        insert_dicts = [item_dict for item_dict in self.iter_svn_info(rfd)]
+        self.session.bulk_insert_mappings(SVNRow, insert_dicts)
 
     def read_from_text(self, rfd):
         for line in rfd:
@@ -81,49 +72,6 @@ class SVNTable(object):
                 self.comments.append(match.group("the_comment"))
             else:
                 self.new_item_from_str_re(line)
-
-    def read_props(self, rfd):
-        props_line_re = re.compile("""
-                    ^
-                    (
-                    Properties\son\s
-                    '
-                    (?P<path>[^:]+)
-                    ':
-                    )
-                    |
-                    (
-                    \s+
-                    svn:
-                    (?P<prop_name>[\w\-_]+)
-                    )
-                    $
-                    """, re.X)
-        line_num = 0
-        try:
-            prop_name_to_char = {'executable': 'x', 'special': 's'}
-            item = None
-            for line in rfd:
-                line_num += 1
-                match = props_line_re.match(line)
-                if match:
-                    if match.group('path'):
-                        # get_item_at_path might return None for invalid paths, mainly '.'
-                        item = self.get_item_at_path(match.group('path'))
-                    elif match.group('prop_name'):
-                        if item is not None:
-                            prop_name = match.group('prop_name')
-                            if prop_name in prop_name_to_char:
-                                item.flags += prop_name_to_char[match.group('prop_name')]
-                            else:
-                                if not item.props:
-                                    item.props = list()
-                                item.props.append(prop_name)
-                else:
-                    ValueError("no match at file: " + rfd.name + ", line: " + str(line_num) + ": " + line)
-        except Exception as ex:
-            print("Line:", line_num, ex)
-            raise
 
     def valid_write_formats(self):
         return list(self.write_func_by_format.keys())
@@ -169,17 +117,19 @@ class SVNTable(object):
                     So we use 'Revision' as 'Last Changed Rev'.
                 """
                 retVal = dict()
-                retVal['path']  =  a_record["Path"]
-                retVal['flags'] = short_node_kind[a_record["Node Kind"]]
+                retVal['path'] = a_record["Path"]
+                path_parts = retVal['path'].split("/")
+                retVal['name'] = path_parts[-1]
+                retVal['parent'] = "/".join(path_parts[:-1])+"/"
+                retVal['fileFlag'] = a_record["Node Kind"] == "file"
                 if "Last Changed Rev" in a_record:
-                    retVal['revision'] = a_record["Last Changed Rev"]
+                    retVal['revision_remote'] = int(a_record["Last Changed Rev"])
                 elif "Revision" in a_record:
-                    retVal['revision'] = a_record["Revision"]
+                    retVal['revision'] = int(a_record["Revision"])
                 retVal['checksum'] = a_record.get("Checksum", None)
 
                 return retVal
 
-            short_node_kind = {"file": "f", "directory": "d"}
             record = dict()
             line_num = 0
             for line in long_info_fd:
@@ -210,19 +160,58 @@ class SVNTable(object):
                     relative_path = os.path.join(root, a_file)[prefix_len:]
                     self.new_item_at_path(relative_path, {'flags':"f", 'revision': 0, 'checksum': "0"}, create_folders=True)
 
-    def read_file_sizes(self, rfd):
-        for line in rfd:
-            match = comment_line_re.match(line)
-            if not match:
-                parts = line.rstrip().split(", ", 2)
-                item = self.get_item_at_path(parts[0])
-                if item:
-                    item.size = int(parts[1])
-                else:
-                    print(parts[0], "was not found")
-
     def clear_all(self):
         self.session.query(SVNRow).delete()
 
     def set_base_revision(self, base_revision):
-        self.session.query(SVNRow).filter(SVNRow.revision_remote < base_revision).update({"revision_remote": base_revision})
+        self.session.query(SVNRow).filter(SVNRow.revision_remote < base_revision).\
+                                    update({"revision_remote": base_revision})
+
+    def read_file_sizes(self, rfd):
+        update_dicts = list()
+        for line in rfd:
+            match = comment_line_re.match(line)
+            if not match:
+                parts = line.rstrip().split(", ", 2)
+                update_dicts.append({"path": parts[0], "size": int(parts[1])})
+        self.session.bulk_update_mappings(SVNRow, update_dicts)
+
+    def read_props(self, rfd):
+        props_line_re = re.compile("""
+                    ^
+                    (
+                    Properties\son\s
+                    '
+                    (?P<path>[^:]+)
+                    ':
+                    )
+                    |
+                    (
+                    \s+
+                    svn:
+                    (?P<prop_name>[\w\-_]+)
+                    )
+                    $
+                    """, re.X)
+        line_num = 0
+        update_dicts = list()
+        try:
+            prop_name_to_col_name = {'executable': 'execFlag', 'special': 'symlinkFlag'}
+            path = None
+            for line in rfd:
+                line_num += 1
+                match = props_line_re.match(line)
+                if match:
+                    if match.group('path'):
+                        path = match.group('path')
+                    elif match.group('prop_name'):
+                        if path is not None:
+                            prop_name = match.group('prop_name')
+                            if prop_name in prop_name_to_col_name:
+                                update_dicts.append({"path": path, prop_name_to_col_name[prop_name]: True})
+                else:
+                    ValueError("no match at file: " + rfd.name + ", line: " + str(line_num) + ": " + line)
+        except Exception as ex:
+            print("Line:", line_num, ex)
+            raise
+        self.session.bulk_update_mappings(SVNRow, update_dicts)

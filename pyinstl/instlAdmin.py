@@ -71,8 +71,6 @@ class InstlAdmin(InstlInstanceBase):
 
         base_rev = int(var_stack.resolve("$(BASE_REPO_REV)"))
         if base_rev > 0:
-            for item in self.svnTree.walk_items():
-                item.revision = max(item.revision, base_rev)
             self.svnTable.set_base_revision(base_rev)
 
         if "__FILTER_IN_VERSION__" in var_stack:
@@ -80,9 +78,6 @@ class InstlAdmin(InstlInstanceBase):
         if "__BASE_URL__" in var_stack:
             self.add_urls_to_info_map()
         self.write_info_map_file()
-
-        #for item in self.svnTree.walk_items(what="dir"):
-        #    print(item.full_path(), item.size)
 
 
     def add_urls_to_info_map(self):

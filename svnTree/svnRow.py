@@ -6,13 +6,12 @@ alchemy_base = declarative_base()
 
 class SVNRow(alchemy_base):
     __tablename__ = 'svnitem'
-    id = Column(Integer, primary_key=True)
-    path = Column(String)
+    path = Column(String, primary_key=True)
     name = Column(String)
     parent = Column(String, index=True)
-    flags = Column(String(4))
-    isDir = Column(BOOLEAN)
-    isFile = Column(BOOLEAN)
+    fileFlag = Column(BOOLEAN, default=False)
+    execFlag = Column(BOOLEAN, default=False)
+    symlinkFlag = Column(BOOLEAN, default=False)
     revision_remote = Column(Integer)
     revision_local = Column(Integer)
     checksum = Column(String)
@@ -22,7 +21,7 @@ class SVNRow(alchemy_base):
 
     def __str__(self):
         """ __str__ representation - this is what will be written to info_map.txt files"""
-        retVal = "{}, {}, {}".format(self.full_path(), self.flags, self.revision_remote)
+        retVal = "{}, {}, {}".format(self.full_path(), self.flag_str(), self.revision_remote)
         if self.checksum:
             retVal = "{}, {}".format(retVal, self.checksum)
         if self.size != -1:
@@ -31,11 +30,25 @@ class SVNRow(alchemy_base):
             retVal = "{}, {}".format(retVal, self.url)
         return retVal
 
+    def flag_str(self):
+        retVal = 'f' if self.fileFlag else 'd'
+        if self.symlinkFlag:
+            retVal += 's'
+        if self.execFlag:
+            retVal += 'x'
+        return retVal
+
     def full_path(self):
         return self.path
 
+    def isDir(self):
+        return not self.fileFlag
+
+    def isFile(self):
+        return self.fileFlag
+
     def isExecutable(self):
-        return 'x' in self.flags
+        return self.execFlag
 
     def isSymlink(self):
-        return 's' in self.flags
+        return self.symlinkFlag
