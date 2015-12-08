@@ -570,6 +570,7 @@ def find_sequences(in_sorted_list, is_next_func=lambda a,b: int(a)+1==int(b), re
     else:
         return sequences
 
+
 def make_open_file_read_write_for_all(fd):
     try:
         os.fchmod(fd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
@@ -579,11 +580,13 @@ def make_open_file_read_write_for_all(fd):
         except:
             print("make_open_file_read_write_for_all: failed for ", fd.name)
 
+
 def timing(f):
     import time
-    def wrap(*args):
+
+    def wrap(*args, **kwargs):
         time1 = time.clock()
-        ret = f(*args)
+        ret = f(*args, **kwargs)
         time2 = time.clock()
         if time1 != time2:
             print ('%s function took %0.3f ms' % (f.__name__, (time2-time1)*1000.0))

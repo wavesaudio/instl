@@ -3,9 +3,13 @@ import re
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+from sqlalchemy import update
+
 from .svnRow import SVNRow, alchemy_base
 
 import utils
+from configVar import var_stack
 
 comment_line_re = re.compile(r"""
             ^
@@ -13,6 +17,32 @@ comment_line_re = re.compile(r"""
             (?P<the_comment>.*)
             $
             """, re.X)
+text_line_re = re.compile(r"""
+            ^
+            (?P<path>.+)
+            ,\s+
+            (?P<flags>[dfsx]+)
+            ,\s+
+            (?P<revision>\d+)
+            (,\s+
+            (?P<checksum>[\da-f]+))?    # 5985e53ba61348d78a067b944f1e57c67f865162
+            (,\s+
+            (?P<size>[\d]+))?       # 356985
+            (,\s+
+            (?P<url>(http(s)?|ftp)://.+))?    # http://....
+            """, re.X)
+flags_and_revision_re = re.compile(r"""
+                ^
+                \s*
+                (?P<flags>[fdxs]+)
+                \s*
+                (?P<revision>\d+)
+                (\s*
+                (?P<checksum>[\da-f]+))? # 5985e53ba61348d78a067b944f1e57c67f865162
+                $
+                """, re.X)
+wtar_file_re = re.compile(r""".+\.wtar(\...)?$""")
+wtar_first_file_re = re.compile(r""".+\.wtar(\.aa)?$""")
 
 map_info_extension_to_format = {"txt": "text", "text": "text",
                                 "inf": "info", "info": "info",
@@ -40,6 +70,7 @@ class SVNTable(object):
         """ returns a list of file formats that can be read by SVNTree """
         return list(self.read_func_by_format.keys())
 
+    @utils.timing
     def read_info_map_from_file(self, in_file, a_format="guess"):
         """ Reads from file. All previous sub items are cleared
             before reading, unless the a_format is 'props' in which case
@@ -58,7 +89,6 @@ class SVNTable(object):
                 self.read_func_by_format[a_format](rfd)
         else:
             raise ValueError("Unknown read a_format " + a_format)
-        #self.session.commit()
 
     def read_from_svn_info(self, rfd):
         """ reads new items from svn info items prepared by iter_svn_info """
@@ -66,16 +96,62 @@ class SVNTable(object):
         self.session.bulk_insert_mappings(SVNRow, insert_dicts)
 
     def read_from_text(self, rfd):
+        insert_dicts = list()
         for line in rfd:
-            match = comment_line_re.match(line)
-            if match:
-                self.comments.append(match.group("the_comment"))
+            line = line.strip()
+            item_dict = SVNTable.item_dict_from_str_re(line)
+            if item_dict:
+                insert_dicts.append(item_dict)
             else:
-                self.new_item_from_str_re(line)
+                match = comment_line_re.match(line)
+                if match:
+                    self.comments.append(match.group("the_comment"))
+        self.session.bulk_insert_mappings(SVNRow, insert_dicts)
+
+    @staticmethod
+    def get_wtar_file_status(file_name):
+        is_wtar_file = wtar_file_re.match(file_name) is not None
+        if is_wtar_file:
+            is_wtar_first_file = wtar_first_file_re.match(file_name) is not None
+        return is_wtar_file, is_wtar_first_file
+
+    @staticmethod
+    def item_dict_from_str_re(the_str):
+        """ create a new a sub-item from string description.
+            If create_folders is True, non existing intermediate folders
+            will be created, with the same revision. create_folders is False,
+            and some part of the path does not exist KeyError will be raised.
+            This is the regular expression version.
+        """
+        item_details = None
+        match = text_line_re.match(the_str)
+        if match:
+            item_details = {'path': match.group('path'),
+                            'revision_remote': match.group('revision')}
+            path_parts = match.group('path').split("/")
+            item_details['name'] = path_parts[-1]
+            item_details['parent'] = "/".join(path_parts[:-1])+"/"
+            flags = match.group('flags')
+            if 'f' in flags:
+                item_details['fileFlag'] = True
+            if 's' in flags:
+                item_details['symlinkFlag'] = True
+            if 'x' in flags:
+                item_details['execFlag'] = True
+            if item_details['fileFlag']:
+                item_details['wtar_file'], item_details['wtar_first_file'] = SVNTable.get_wtar_file_status(item_details['name'])
+            if match.group('checksum') is not None:
+                item_details['checksum'] = match.group('checksum')
+            if match.group('url') is not None:
+                item_details['url'] = match.group('url')
+            if match.group('size') is not None:
+                item_details['size'] = match.group('size')
+        return item_details
 
     def valid_write_formats(self):
         return list(self.write_func_by_format.keys())
 
+    @utils.timing
     def write_to_file(self, in_file, in_format="guess", comments=True):
         """ pass in_file="stdout" to output to stdout.
             in_format is either text, yaml, pickle
@@ -122,6 +198,8 @@ class SVNTable(object):
                 retVal['name'] = path_parts[-1]
                 retVal['parent'] = "/".join(path_parts[:-1])+"/"
                 retVal['fileFlag'] = a_record["Node Kind"] == "file"
+                if retVal['fileFlag']:
+                    retVal['wtar_file'], retVal['wtar_first_file'] = SVNTable.get_wtar_file_status(retVal['name'])
                 if "Last Changed Rev" in a_record:
                     retVal['revision_remote'] = int(a_record["Last Changed Rev"])
                 elif "Revision" in a_record:
@@ -215,3 +293,39 @@ class SVNTable(object):
             print("Line:", line_num, ex)
             raise
         self.session.bulk_update_mappings(SVNRow, update_dicts)
+
+    def mark_need_download_for_source(self, source):
+        """
+        :param source: a tuple (source_folder, tag), where tag is either !file or !dir
+        :return: None
+        """
+        if source[1] == '!file':
+            try:
+                file_source = self.session.query(SVNRow).filter(SVNRow.path == source[0]).one()
+                if not file_source.isFile():
+                    raise ValueError(source[0], "has type", source[1],
+                                    var_stack.resolve("but is not a file, IID: $(iid_iid)"))
+                file_source.need_download = True
+            except MultipleResultsFound:
+                raise ValueError(source[0], "has type", source[1],
+                                 var_stack.resolve("but multiple item were found, IID: $(iid_iid)"))
+            except NoResultFound: # file not found, maybe a wtar?
+                source_folder, source_leaf = os.path.split(source[0])
+                up_st = update(SVNRow).\
+                            where(SVNRow.wtar_file == True).\
+                            where(SVNRow.parent == source_folder+"/").\
+                            where(SVNRow.name.like(source_leaf+'.wtar%')).\
+                            values(need_dowload = True)
+                self.session.execute(up_st)
+        elif source[1] == '!files':
+            up_st = update(SVNRow).\
+                        where(SVNRow.parent == source[0]+"/").\
+                        where(SVNRow.fileFlag == True).\
+                        values(need_dowload = True)
+            self.session.execute(up_st)
+        elif source[1] == '!dir' or source[1] == '!dir_cont':  # !dir and !dir_cont are only different when copying
+            up_st = update(SVNRow).\
+                        where(SVNRow.parent.like(source[0]+"/%").\
+                        where(SVNRow.fileFlag == True).\
+                        values(need_dowload = True)
+            self.session.execute(up_st)

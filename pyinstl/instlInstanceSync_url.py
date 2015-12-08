@@ -53,12 +53,15 @@ class InstlInstanceSync_url(InstlInstanceSync):
             return retVal
 
     def mark_required_items_for_source(self, source):
-        """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
+        """
+            :param source: a tuple (source_folder, tag), where tag is either !file or !dir
+            :return: None
+        """
         remote_sub_item = self.work_info_map.get_item_at_path(source[0])
         if remote_sub_item is None:
-            # if item was not found it might have been wtared. So look for wtar parts and mark them.
-            item_is_wtared = self.mark_wtar_items_for_source(source)
-            if not item_is_wtared:
+            # if item was not found it might have been wtarred. So look for wtar parts and mark them.
+            item_is_wtarred = self.mark_wtar_items_for_source(source)
+            if not item_is_wtarred:
                 raise ValueError(source[0], var_stack.resolve("does not exist in remote map, IID: $(iid_iid)"))
         else:
             if source[1] == '!file':
@@ -76,7 +79,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
                     raise ValueError(source[0], "has type", source[1],
                                      var_stack.resolve("but is not a dir, IID: $(iid_iid)"))
                 remote_sub_item.set_user_data_all_recursive(True)
-
 
     def mark_wtar_items_for_source(self, source):
         split_source_folder, split_source_leaf = os.path.split(source[0])

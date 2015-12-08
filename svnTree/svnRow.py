@@ -12,12 +12,14 @@ class SVNRow(alchemy_base):
     fileFlag = Column(BOOLEAN, default=False)
     execFlag = Column(BOOLEAN, default=False)
     symlinkFlag = Column(BOOLEAN, default=False)
+    wtar_file = Column(BOOLEAN, default=False) # any .wtar or .wtar.?? file
+    wtar_first_file = Column(BOOLEAN, default=False) # .wtar or wtar.aa file
     revision_remote = Column(Integer)
     revision_local = Column(Integer)
     checksum = Column(String)
     size = Column(Integer, default=-1)
     url = Column(String)
-    props = Column(String)
+    need_download = Column(BOOLEAN, default=False)
 
     def __str__(self):
         """ __str__ representation - this is what will be written to info_map.txt files"""

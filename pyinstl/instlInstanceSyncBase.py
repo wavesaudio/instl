@@ -27,6 +27,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         self.installState = None  # object holding batch instructions
         self.work_info_map = svnTree.SVNTree()
         self.have_map = svnTree.SVNTree()  # info map of what was already downloaded
+        self.info_map_table = svnTree.SVNTable()
         self.local_sync_dir = None  # will be resolved from $(LOCAL_REPO_SYNC_DIR)
         self.files_to_download = 0
 
@@ -63,8 +64,12 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
                                       connectionBase.translate_url,
                                       cache=True,
                                       expected_checksum=var_stack.resolve("$(INFO_MAP_FILE_URL_CHECKSUM)"))
-            self.work_info_map.read_info_map_from_file(var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)"),
-                                                       a_format="text")
+
+            self.work_info_map.read_info_map_from_file(var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)"), a_format="text")
+            self.work_info_map.write_to_file("/Users/shai/Desktop/work_info_map.txt")
+
+            self.info_map_table.read_info_map_from_file(var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)"), a_format="text")
+            self.info_map_table.write_to_file("/Users/shai/Desktop/info_map_table.txt")
         except:
             print("Exception reading info_map:", info_map_file_url)
             raise
@@ -81,6 +86,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
                 for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
                     source = var_stack.resolve_var_to_list(source_var)
                     self.mark_required_items_for_source(source)
+                    self.mark_required_rows_for_source(source)
         self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
         self.work_info_map.write_to_file(var_stack.resolve("$(REQUIRED_INFO_MAP_PATH)"), in_format="text")
 

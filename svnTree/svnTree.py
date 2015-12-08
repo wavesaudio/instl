@@ -57,6 +57,7 @@ class SVNTree(svnItem.SVNTopItem):
         """ returns a list of file formats that can be read by SVNTree """
         return list(self.read_func_by_format.keys())
 
+    @utils.timing
     def read_info_map_from_file(self, in_file, a_format="guess"):
         """ Reads from file. All previous sub items are cleared
             before reading, unless the a_format is 'props' in which case
@@ -191,6 +192,7 @@ class SVNTree(svnItem.SVNTopItem):
     def valid_write_formats(self):
         return list(self.write_func_by_format.keys())
 
+    @utils.timing
     def write_to_file(self, in_file, in_format="guess", comments=True):
         """ pass in_file="stdout" to output to stdout.
             in_format is either text, yaml, pickle
