@@ -8,11 +8,10 @@ import argparse
 
 import appdirs
 from utils import InstlException
+import utils
 
 # umask to 0 so that all files created under sudo, can be re-written under regular user.
 os.umask(0)
-
-import utils
 
 
 current_os_names = utils.get_current_os_names()
@@ -20,6 +19,7 @@ os_family_name = current_os_names[0]
 os_second_name = current_os_names[0]
 if len(current_os_names) > 1:
     os_second_name = current_os_names[1]
+
 
 def get_path_to_instl_app():
     """
@@ -32,6 +32,7 @@ def get_path_to_instl_app():
         application_path = os.path.realpath(__file__)
     return application_path
 
+
 def get_instl_launch_command():
     """
     @return: returns the path to this
@@ -41,10 +42,11 @@ def get_instl_launch_command():
         launch_command = quoteme_double(os.path.realpath(sys.executable))
     elif __file__:
         if os_family_name == "Win":
-            launch_command =  quoteme_double(sys.executable) + " " + quoteme_double(os.path.realpath(__file__))
+            launch_command = quoteme_double(sys.executable) + " " + quoteme_double(os.path.realpath(__file__))
         else:
             launch_command = quoteme_double(os.path.realpath(__file__))
     return launch_command
+
 
 def get_data_folder():
     data_folder = None
@@ -53,6 +55,7 @@ def get_data_folder():
     elif __file__:
         data_folder = os.path.dirname(os.path.realpath(__file__))
     return data_folder
+
 
 class CommandLineOptions(object):
     """ namespace object to give to parse_args

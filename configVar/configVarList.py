@@ -14,8 +14,6 @@ import os
 import sys
 import re
 
-#sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
-
 import aYaml
 from . import configVar
 

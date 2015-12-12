@@ -28,6 +28,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         self.work_info_map = svnTree.SVNTree()
         self.have_map = svnTree.SVNTree()  # info map of what was already downloaded
         self.info_map_table = svnTree.SVNTable()
+        self.have_info_map_table = svnTree.SVNTable()
         self.local_sync_dir = None  # will be resolved from $(LOCAL_REPO_SYNC_DIR)
         self.files_to_download = 0
 
@@ -46,6 +47,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
                     var_stack.set_var("PUBLIC_KEY", "from " + public_key_file).append(public_key_text)
         self.instlObj.calc_user_cache_dir_var() # this will set USER_CACHE_DIR if it was not explicitly defined
 
+    # Overridden by InstlInstanceSync_url, or parallel sync classes
     def create_sync_instructions(self, installState):
         self.instlObj.batch_accum.set_current_section('sync')
         self.installState = installState
@@ -86,9 +88,10 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
                 for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
                     source = var_stack.resolve_var_to_list(source_var)
                     self.mark_required_items_for_source(source)
-                    self.mark_required_rows_for_source(source)
+                    self.info_map_table.mark_required_for_source(source)
         self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
         self.work_info_map.write_to_file(var_stack.resolve("$(REQUIRED_INFO_MAP_PATH)"), in_format="text")
+        self.info_map_table.write_to_file(var_stack.resolve("$(REQUIRED_INFO_MAP_PATH).table.txt"), in_format="text")
 
     def read_have_info_map(self):
         """ Reads the map of files previously synced - if there is one.
@@ -98,6 +101,10 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
             self.have_map.read_info_map_from_file(have_info_map_path, a_format="text")
 
     def filter_out_already_synced_items(self):
+        self.filter_out_already_synced_items_old()
+        self.info_map_table.mark_need_download(self.local_sync_dir)
+
+    def filter_out_already_synced_items_old(self):
         """ Removes from work_info_map items not required to be synced and updates the in-memory have map.
             First all items are marked True.
             Items found in have map are then marked False - provided their "have" version is equal to required version.
@@ -137,5 +144,5 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
     def prepare_list_of_sync_items(self):
         self.read_remote_info_map()  # reads the full info map from INFO_MAP_FILE_URL and writes it to the sync folder
         self.filter_out_unrequired_items()  # removes items not required to be installed
-        self.read_have_info_map()  # reads the info map of items already synced
+        self.read_have_info_map()  # ToDo: not needed any more. reads the info map of items already synced
         self.filter_out_already_synced_items()  # removes items that are already on the user's disk

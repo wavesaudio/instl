@@ -21,6 +21,15 @@ from configVar import var_stack
 from .installItem import InstallItem
 from . import connectionBase
 
+# The plan:
+# when online copy & sync and offline sync, get info_map.txt url in INFO_MAP_FILE_URL*
+# into LOCAL_REPO_REV_BOOKKEEPING_DIR/remote_info_map.txt. When sync is done
+# when when sync is done it will write $(LOCAL_REPO_BOOKKEEPING_DIR)/have_info_map.txt.
+# Offline copy will look for $(LOCAL_REPO_BOOKKEEPING_DIR)/have_info_map.txt
+# All copy will end with writing $(LOCAL_REPO_BOOKKEEPING_DIR)/installed_info_map.txt
+# * which usually takes from INFO_MAP_FILE_URL_SECURE
+
+
 # noinspection PyPep8Naming
 class InstlInstanceBase(object, metaclass=abc.ABCMeta):
     """ Main object of instl. Keeps the state of variables and install index

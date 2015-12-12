@@ -18,7 +18,8 @@ class SVNRow(alchemy_base):
     revision_local = Column(Integer)
     checksum = Column(String)
     size = Column(Integer, default=-1)
-    url = Column(String)
+    url = Column(String, default=None)
+    required = Column(BOOLEAN, default=False)
     need_download = Column(BOOLEAN, default=False)
 
     def __str__(self):
@@ -31,6 +32,16 @@ class SVNRow(alchemy_base):
         if self.url:
             retVal = "{}, {}".format(retVal, self.url)
         return retVal
+
+    def __repr__(self):
+        return ("<{self.path},f:{self.fileFlag}"
+                ",x:{self.execFlag},s:{self.symlinkFlag}"
+                ",w:{self.wtar_file},fw:{self.wtar_first_file}"
+                ",rev-remote:{self.revision_remote},rev-local:{self.revision_local}"
+                ",checksum:{self.checksum},size:{self.size}"
+                ",url:{self.checksum},size:{self.size}"
+                ",required:{self.required},need_download:{self.need_download}>"
+                ).format(**locals())
 
     def flag_str(self):
         retVal = 'f' if self.fileFlag else 'd'

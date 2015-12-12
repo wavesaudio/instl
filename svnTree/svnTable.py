@@ -49,6 +49,7 @@ map_info_extension_to_format = {"txt": "text", "text": "text",
                                 "props": "props", "prop": "props",
                                 "file-sizes": "file-sizes"}
 
+
 class SVNTable(object):
     def __init__(self):
         self.engine = create_engine('sqlite:///:memory:', echo=False)
@@ -61,10 +62,16 @@ class SVNTable(object):
                                     "file-sizes": self.read_file_sizes
                                     }
 
-        self.write_func_by_format = {"text": self.write_as_text,
-        }
+        self.write_func_by_format = {"text": self.write_as_text,}
         self.path_to_file = None
         self.comments = list()
+
+    def __repr__(self):
+        return "\n".join([item.__repr__() for item in self.session.query(SVNRow).all()])
+
+    def repr_to_file(self, file_path):
+        with open(file_path, "w") as wfd:
+            wfd.write(self.__repr__())
 
     def valid_read_formats(self):
         """ returns a list of file formats that can be read by SVNTree """
@@ -108,11 +115,32 @@ class SVNTable(object):
                     self.comments.append(match.group("the_comment"))
         self.session.bulk_insert_mappings(SVNRow, insert_dicts)
 
+    def update_from_text(self, rfd, revision_is_local=True):
+        """
+        Update the db from a text file
+        :param rfd:
+        :param revision_is_local: if true revision_local will be updated otherwise revision_remote
+        :return: nada
+        """
+        update_dicts = list()
+        for line in rfd:
+            line = line.strip()
+            item_dict = SVNTable.item_dict_from_str_re(line)
+            if item_dict:
+                if revision_is_local:
+                    item_dict['revision_local'] = item_dict['revision_remote']
+                    del item_dict['revision_remote']
+                update_dicts.append(item_dict)
+            else:
+                match = comment_line_re.match(line)
+                if match:
+                    self.comments.append(match.group("the_comment"))
+        self.session.bulk_update_mappings(SVNRow, update_dicts)
+
     @staticmethod
     def get_wtar_file_status(file_name):
         is_wtar_file = wtar_file_re.match(file_name) is not None
-        if is_wtar_file:
-            is_wtar_first_file = wtar_first_file_re.match(file_name) is not None
+        is_wtar_first_file = is_wtar_file and wtar_first_file_re.match(file_name) is not None
         return is_wtar_file, is_wtar_first_file
 
     @staticmethod
@@ -134,12 +162,11 @@ class SVNTable(object):
             flags = match.group('flags')
             if 'f' in flags:
                 item_details['fileFlag'] = True
+                item_details['wtar_file'], item_details['wtar_first_file'] = SVNTable.get_wtar_file_status(item_details['name'])
             if 's' in flags:
                 item_details['symlinkFlag'] = True
             if 'x' in flags:
                 item_details['execFlag'] = True
-            if item_details['fileFlag']:
-                item_details['wtar_file'], item_details['wtar_first_file'] = SVNTable.get_wtar_file_status(item_details['name'])
             if match.group('checksum') is not None:
                 item_details['checksum'] = match.group('checksum')
             if match.group('url') is not None:
@@ -152,7 +179,7 @@ class SVNTable(object):
         return list(self.write_func_by_format.keys())
 
     @utils.timing
-    def write_to_file(self, in_file, in_format="guess", comments=True):
+    def write_to_file(self, in_file, in_format="guess", comments=True, filter=None):
         """ pass in_file="stdout" to output to stdout.
             in_format is either text, yaml, pickle
         """
@@ -162,16 +189,24 @@ class SVNTable(object):
             in_format = map_info_extension_to_format[extension[1:]]
         if in_format in list(self.write_func_by_format.keys()):
             with utils.write_to_file_or_stdout(self.path_to_file) as wfd:
-                self.write_func_by_format[in_format](wfd, comments)
+                self.write_func_by_format[in_format](wfd, comments, filter)
         else:
             raise ValueError("Unknown write in_format " + in_format)
 
-    def write_as_text(self, wfd, comments=True):
+    def write_as_text(self, wfd, comments=True, filter_name=None):
         if comments and len(self.comments) > 0:
             for comment in self.comments:
                 wfd.write("# " + comment + "\n")
             wfd.write("\n")
-        for item in self.session.query(SVNRow).order_by(SVNRow.path):
+
+        the_query = self.session.query(SVNRow)
+        if filter:
+            if filter == "required":
+                the_query = the_query.filter(SVNRow.required==True)
+            elif filter == "to_download":
+                the_query = the_query.filter(SVNRow.to_download==True)
+        the_query = the_query.order_by(SVNRow.path)
+        for item in the_query:
             wfd.write(str(item) + "\n")
 
     def iter_svn_info(self, long_info_fd):
@@ -294,38 +329,51 @@ class SVNTable(object):
             raise
         self.session.bulk_update_mappings(SVNRow, update_dicts)
 
-    def mark_need_download_for_source(self, source):
+    def mark_required_for_source(self, source):
         """
         :param source: a tuple (source_folder, tag), where tag is either !file or !dir
         :return: None
         """
+        update_statement = None
         if source[1] == '!file':
             try:
                 file_source = self.session.query(SVNRow).filter(SVNRow.path == source[0]).one()
                 if not file_source.isFile():
                     raise ValueError(source[0], "has type", source[1],
                                     var_stack.resolve("but is not a file, IID: $(iid_iid)"))
-                file_source.need_download = True
+                file_source.required = True
             except MultipleResultsFound:
                 raise ValueError(source[0], "has type", source[1],
                                  var_stack.resolve("but multiple item were found, IID: $(iid_iid)"))
             except NoResultFound: # file not found, maybe a wtar?
                 source_folder, source_leaf = os.path.split(source[0])
-                up_st = update(SVNRow).\
+                update_statement = update(SVNRow).\
                             where(SVNRow.wtar_file == True).\
                             where(SVNRow.parent == source_folder+"/").\
                             where(SVNRow.name.like(source_leaf+'.wtar%')).\
-                            values(need_dowload = True)
-                self.session.execute(up_st)
+                            values(required=True)
         elif source[1] == '!files':
-            up_st = update(SVNRow).\
+            update_statement = update(SVNRow).\
                         where(SVNRow.parent == source[0]+"/").\
                         where(SVNRow.fileFlag == True).\
-                        values(need_dowload = True)
-            self.session.execute(up_st)
+                        values(required=True)
         elif source[1] == '!dir' or source[1] == '!dir_cont':  # !dir and !dir_cont are only different when copying
-            up_st = update(SVNRow).\
-                        where(SVNRow.parent.like(source[0]+"/%").\
+            update_statement = update(SVNRow).\
+                        where(SVNRow.parent.like(source[0]+"/%")).\
                         where(SVNRow.fileFlag == True).\
-                        values(need_dowload = True)
-            self.session.execute(up_st)
+                        values(required=True)
+        if update_statement is not None:
+            self.session.execute(update_statement)
+
+    def mark_need_download(self, local_sync_dir):
+        for item in self.session.query(SVNRow).filter(SVNRow.required == True).all():
+            local_path = os.path.join(local_sync_dir, item.path)
+            if utils.need_to_download_file(local_sync_dir, item.checksum):
+                item.need_download = True
+
+    def get_to_download_list(self):
+        file_list = [file_item for file_item in self.session.query(SVNRow).filter(SVNRow.need_download == True).all()]
+        return file_list
+
+    def write_to_download_list_to_file(self):
+            self.work_info_map.write_to_file(var_stack.resolve("$(TO_SYNC_INFO_MAP_PATH)", raise_on_fail=True), in_format="text")

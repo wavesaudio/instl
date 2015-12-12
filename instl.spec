@@ -27,7 +27,7 @@ a = Analysis(['instl'],
 #pure_sorted = sorted(a.pure)
 #for i, pure in enumerate(pure_sorted):
 #    print(i, pure)
-             
+
 instl_defaults_path = os.path.join("defaults")
 for defaults_file in os.listdir(instl_defaults_path):
     if fnmatch.fnmatch(defaults_file, '*.yaml'):
@@ -54,6 +54,7 @@ for help_file in os.listdir(instl_help_path):
 
 pyz = PYZ(a.pure, a.zipped_data,
              cipher=block_cipher)
+
 exe = EXE(pyz,
           a.scripts,
           a.binaries,
