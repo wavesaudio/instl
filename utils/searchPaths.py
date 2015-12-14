@@ -1,5 +1,5 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 """
     Manage list of include search paths, and help find files
@@ -9,7 +9,6 @@ from __future__ import print_function
 """
 
 import os
-import logging
 
 # noinspection PyPep8Naming
 class SearchPaths(object):
@@ -33,9 +32,6 @@ class SearchPaths(object):
         if a_path not in self.search_paths_var:
             if os.path.isdir(a_path):
                 self.search_paths_var.append(a_path)
-                logging.debug("adding %s",  a_path)
-            else:
-                logging.debug("Not adding %s, directory not found",  a_path)
 
     def add_search_paths(self, some_paths):
         """ Add a folder to the list of search paths
@@ -66,20 +62,16 @@ class SearchPaths(object):
         input path if file was not found, instead of None.
         """
         retVal = None
-        logging.debug("find %s", in_file)
         if os.path.isfile(in_file):
             real_file = os.path.realpath(in_file)
-            logging.debug("...... is an existing file path returning %s", real_file)
             real_folder = os.path.dirname(real_file)
             self.add_search_path(real_folder)
             retVal = real_file
         else:
             for try_path in self.search_paths_var:
-                logging.debug("looking in %s", try_path)
                 real_file = os.path.join(try_path, in_file)
                 if os.path.isfile(real_file):
                     real_file = os.path.realpath(real_file)
-                    logging.debug("found returning %s", real_file)
                     # in_file might be a relative path so must add the file's
                     # real folder so it's in the list.
                     real_folder = os.path.dirname(real_file)
@@ -87,9 +79,7 @@ class SearchPaths(object):
                     retVal = real_file
                     break
         if retVal is None:
-            logging.debug("%s was not found ", in_file)
             if return_original_if_not_found:
-                logging.debug("Returning original file - %s", in_file)
                 retVal = in_file
         return retVal
 

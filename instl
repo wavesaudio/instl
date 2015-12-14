@@ -1,24 +1,17 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3
 
 """ main executable for instl """
-
-from __future__ import print_function
 
 import os
 import sys
 import argparse
-import logging
 
 import appdirs
 from utils import InstlException
+import utils
 
 # umask to 0 so that all files created under sudo, can be re-written under regular user.
 os.umask(0)
-
-# setup logging, must be done before other imports
-from utils import setup_logging
-setup_logging("instl", "instl")
-import utils
 
 
 current_os_names = utils.get_current_os_names()
@@ -26,6 +19,7 @@ os_family_name = current_os_names[0]
 os_second_name = current_os_names[0]
 if len(current_os_names) > 1:
     os_second_name = current_os_names[1]
+
 
 def get_path_to_instl_app():
     """
@@ -38,6 +32,7 @@ def get_path_to_instl_app():
         application_path = os.path.realpath(__file__)
     return application_path
 
+
 def get_instl_launch_command():
     """
     @return: returns the path to this
@@ -47,10 +42,11 @@ def get_instl_launch_command():
         launch_command = quoteme_double(os.path.realpath(sys.executable))
     elif __file__:
         if os_family_name == "Win":
-            launch_command =  quoteme_double(sys.executable) + " " + quoteme_double(os.path.realpath(__file__))
+            launch_command = quoteme_double(sys.executable) + " " + quoteme_double(os.path.realpath(__file__))
         else:
             launch_command = quoteme_double(os.path.realpath(__file__))
     return launch_command
+
 
 def get_data_folder():
     data_folder = None
@@ -59,6 +55,7 @@ def get_data_folder():
     elif __file__:
         data_folder = os.path.dirname(os.path.realpath(__file__))
     return data_folder
+
 
 class CommandLineOptions(object):
     """ namespace object to give to parse_args
@@ -378,6 +375,7 @@ def prepare_args_parser(in_command):
 
     return parser, command_names
 
+
 def read_command_line_options(name_space_obj, arglist=None):
     """ parse command line options """
 
@@ -390,6 +388,7 @@ def read_command_line_options(name_space_obj, arglist=None):
         # No command line options were given
         name_space_obj.mode = "interactive"
     return command_names
+
 
 def main():
     """ Main instl entry point. Reads command line options and decides if to go into interactive or client mode.
@@ -418,7 +417,6 @@ def main():
                     {"__USRER_ID__": str(os.getuid()),
                      "__GROUP_ID__": str(os.getgid())})
 
-    logging.info("Command %s", options.command)
     if options.mode == "client":
         from pyinstl.instlClient import InstlClient
         instance = InstlClient(initial_vars)
@@ -458,7 +456,6 @@ def main():
             instance.do_command()
     else:
         raise InstlException("incomprehensible command line options:\n", options)
-    logging.info("Done %s", options.command)
 
 if __name__ == "__main__":
     main()

@@ -1,5 +1,5 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 import sys
 import os
@@ -92,7 +92,7 @@ class TestConfigVarList(unittest.TestCase):
             self.cvl["no man's land"]
         self.assertEqual(self.cvl.resolve("no man's land"), "no man's land")
         self.assertEqual(self.cvl.resolve("$(no man's land)"), "$(no man's land)")
-        self.assertEqual(self.cvl.keys(), [])
+        self.assertEqual(list(self.cvl.keys()), [])
 
     def test_set_variable_new(self):
         """ Set one variable. """
@@ -105,7 +105,7 @@ class TestConfigVarList(unittest.TestCase):
         self.cvl.get_configVar_obj("banana").extend(("get", "down", "tonight"))
         self.assertEqual(self.cvl.resolve_to_list("$(banana)"), ["get", "down", "tonight"])
         self.assertEqual(self.cvl.resolve("$(banana)"), "get down tonight")
-        self.assertEqual(self.cvl.keys(), ["banana"])
+        self.assertEqual(list(self.cvl.keys()), ["banana"])
 
     def test_set_variable_reset(self):
         """ Set one variable, reset it. """
@@ -120,7 +120,7 @@ class TestConfigVarList(unittest.TestCase):
         self.cvl.get_configVar_obj("banana").extend(("set", "up", "tomorrow"))
         self.assertEqual(self.cvl.resolve_to_list("$(banana)"), ["set", "up", "tomorrow"])
         self.assertEqual(self.cvl.resolve("$(banana)"), "set up tomorrow")
-        self.assertEqual(self.cvl.keys(), ["banana"])
+        self.assertEqual(list(self.cvl.keys()), ["banana"])
 
     def test_get_configVar_obj(self):
         """ Set one variable, by getting it. """
@@ -133,7 +133,7 @@ class TestConfigVarList(unittest.TestCase):
         resolved_list = [self.cvl.resolve(val) for val in self.cvl["banana"]]
         self.assertSequenceEqual(resolved_list, ("get", "down", "tonight"))
         self.assertEqual(self.cvl.resolve("$(banana)"), "get down tonight")
-        self.assertEqual(self.cvl.keys(), ["banana"])
+        self.assertEqual(list(self.cvl.keys()), ["banana"])
 
     def test_del(self):
         """ Set one variable, and delete it. """

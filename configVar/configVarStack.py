@@ -1,5 +1,5 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 """
     Copyright (c) 2012, Shai Shasag
@@ -17,8 +17,8 @@ import sys
 
 import utils
 import aYaml
-import configVarList
-import configVar
+from . import configVarList
+from . import configVar
 
 class ConfigVarStack(configVarList.ConfigVarList):
     """ Keeps a list of named build config values.
@@ -46,10 +46,10 @@ class ConfigVarStack(configVarList.ConfigVarList):
     #        del self._ConfigVarList_objs[key]
 
     def __iter__(self):
-        return iter(self.keys())
+        return iter(list(self.keys()))
 
     def __reversed__(self):
-        return reversed(self.keys())
+        return reversed(list(self.keys()))
 
     def __contains__(self, var_name):
         for level_var_list in self._ConfigVarList_objs:
@@ -60,7 +60,7 @@ class ConfigVarStack(configVarList.ConfigVarList):
     def keys(self):
         the_keys = utils.unique_list()
         for a_var_list in reversed(self._ConfigVarList_objs):
-            the_keys.extend(a_var_list.keys())
+            the_keys.extend(list(a_var_list.keys()))
         return list(the_keys)
 
     def get_configVar_obj(self, var_name):
@@ -86,7 +86,7 @@ class ConfigVarStack(configVarList.ConfigVarList):
     def add_const_config_variable(self, var_name, description="", *values):
         """ add a const single value object """
         try:
-            values_as_strs = map(str, values)
+            values_as_strs = list(map(str, values))
             var_obj = self[var_name]
             if var_name.endswith(configVar.ConfigVar.variable_name_endings_to_normpath):
                 values_as_strs = [os.path.normpath(value) for value in values_as_strs]
@@ -102,8 +102,8 @@ class ConfigVarStack(configVarList.ConfigVarList):
         retVal = dict()
         vars_list = list()
         if not which_vars:
-            vars_list.extend(self.keys())
-        elif isinstance(which_vars, basestring):
+            vars_list.extend(list(self.keys()))
+        elif isinstance(which_vars, str):
             vars_list.append(which_vars)
         else:
             vars_list = which_vars

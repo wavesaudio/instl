@@ -1,6 +1,6 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3
 
-from __future__ import print_function
+
 
 """
     Copyright (c) 2012, Shai Shasag
@@ -29,10 +29,10 @@ class ConfigVar(object):
         self.__name = name
         self.__description = description
         self.resolved_num = 0
-        normed_values = map(str, values)
+        normed_values = list(map(str, values))
         if self.__name.endswith(self.variable_name_endings_to_normpath):
             normed_values = [os.path.normpath(value) for value in normed_values]
-        self.__values = map(str, normed_values)
+        self.__values = list(map(str, normed_values))
 
     @property
     def name(self):
@@ -106,11 +106,7 @@ class ConstConfigVar(ConfigVar):
     __slots__ = ()
 
     def __init__(self, name, description="", *values):
-        if sys.version_info < (3, 0):
-            super(ConstConfigVar, self).__init__(name, description, *values)
-        else:
-            raise "Python version too advanced, need 2.X not "+str(sys.version_info)
-        #    super().__init__(name, description, *values)
+        super().__init__(name, description, *values)
 
     @ConfigVar.description.setter
     def description(self, unused_description):

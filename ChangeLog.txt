@@ -1,3 +1,8 @@
+???? 1.2.?.?
+
+    programmer visible changes:
+    * removed readline and colorama from test_import - they are needed only for interactive mode and should not create an error on compilation.
+
 31/11/2015 1.1.0.0
 
     user visible changes client:
@@ -16,6 +21,7 @@
         if not explicitly supplied
     * Number of curl configuration files is calculated to reach the max possible even if
         number of files to download is smaller than the max config files allowed
+    * removed rsa and boto from the modules tested in test-imports
 
     user visible changes, client & admin:
     * new command line option -define, allows to add variable definitions from the command line.
@@ -822,7 +828,7 @@
     * Fixed ConfigVar.__str__ so values appear before description.
     * Removed redundant imports from helpHelper.py.
     * Refactored InstlClient to work with standard do_ ... functions for commands.
-    * InstlClient.installItemsList is now a member.
+    * InstlClient.installState is now a member.
     * InstlClient.init_copy_vars moved from instlInstanceBase.
     * Many default variables read from files instead of being hard coded.
     * Added default files for all instl (main.yaml) and for specific classes (instlAdmin, InstlClient).

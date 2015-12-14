@@ -1,6 +1,6 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3
 
-from __future__ import print_function
+
 
 import os
 import sys
@@ -11,9 +11,9 @@ import time
 
 import svnTree
 import utils
-from instlInstanceBase import InstlInstanceBase
+from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
-import connectionBase
+from . import connectionBase
 
 
 class InstlMisc(InstlInstanceBase):
@@ -63,7 +63,7 @@ class InstlMisc(InstlInstanceBase):
     def do_parallel_run(self):
         processes_list_file = var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True)
         commands = list()
-        with open(processes_list_file, "r") as rfd:
+        with open(processes_list_file, "r", encoding='utf-8') as rfd:
             for line in rfd:
                 line = line.strip()
                 if line and line[0] != "#":
@@ -194,7 +194,7 @@ class InstlMisc(InstlInstanceBase):
         import importlib
 
         bad_modules = list()
-        for module in ("yaml", "appdirs", "readline", "colorama", "rsa", "boto", "configVar", "utils", "svnTree", "aYaml"):
+        for module in ("yaml", "appdirs", "configVar", "utils", "svnTree", "aYaml"):
             try:
                 importlib.import_module(module)
             except ImportError as im_err:

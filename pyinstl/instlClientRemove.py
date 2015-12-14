@@ -1,21 +1,14 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3
 
-from __future__ import print_function
+
 
 import os
-import logging
 
-#from installItem import InstallItem, guid_list, iids_from_guid
-#from aYaml import augmentedYaml
-
-#from instlInstanceBase import InstlInstanceBase
 import svnTree
-#import utils
 from configVar import var_stack
 
 
 def do_remove(self):
-    logging.info("Creating remove instructions")
     self.init_remove_vars()
     self.create_remove_instructions()
 
@@ -48,7 +41,6 @@ def create_remove_instructions(self):
     for folder_name in sorted_target_folder_list:
         var_stack.set_var("__TARGET_DIR__").append(os.path.normpath(folder_name))
         items_in_folder = self.installState.install_items_by_target_folder[folder_name]
-        logging.info("folder %s", var_stack.resolve(folder_name))
         self.batch_accum += self.platform_helper.new_line()
 
         self.accumulate_unique_actions('pre_remove_from_folder', items_in_folder)
@@ -115,5 +107,5 @@ def create_remove_instructions_for_source(self, folder, source):
                     remove_action = self.platform_helper.rm_file_or_dir(to_remove_path)
                     self.batch_accum += remove_action
     else:
-        remove_actions = filter(None, remove_actions)  # filter out None values
+        remove_actions = [_f for _f in remove_actions if _f]  # filter out None values
         self.batch_accum += remove_actions

@@ -1,17 +1,14 @@
-#!/usr/bin/env python2.7
-
-from __future__ import print_function
+#!/usr/bin/env python3
 
 import os
-import logging
 
 import svnTree
 import utils
 from configVar import var_stack
+from functools import reduce
 
 
 def do_copy(self):
-    logging.info("Creating copy instructions")
     self.init_copy_vars()
     self.create_copy_instructions()
 
@@ -58,7 +55,6 @@ def create_copy_instructions(self):
     for folder_name in sorted_target_folder_list:
         num_items_copied_to_folder = 0
         items_in_folder = sorted(self.installState.install_items_by_target_folder[folder_name])
-        logging.info("folder %s", var_stack.resolve(folder_name))
         self.batch_accum += self.platform_helper.new_line()
         self.batch_accum += self.platform_helper.cd(folder_name)
 
@@ -76,7 +72,6 @@ def create_copy_instructions(self):
                     self.create_copy_instructions_for_source(source, installi.name)
                     self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_post_copy_item")
         self.batch_accum += self.platform_helper.copy_tool.end_copy_folder()
-        logging.info("... copy actions: %d", len(self.batch_accum) - batch_accum_len_before)
 
         # only if items were actually copied there's need to (Mac only) resolve symlinks
         if num_items_copied_to_folder > 0:
@@ -134,7 +129,6 @@ def create_copy_instructions(self):
 
     # messages about orphan iids
     for iid in sorted(self.installState.orphan_install_items):
-        logging.info("Orphan item: %s", iid)
         self.batch_accum += self.platform_helper.echo("Don't know how to install " + iid)
     self.batch_accum += self.platform_helper.progress("Done copy")
 
@@ -252,14 +246,12 @@ def create_copy_instructions_for_source(self, source, name_for_progress_message)
                 if first_wtar_item:
                     self.batch_accum += self.platform_helper.unwtar_something(first_wtar_item.name, no_artifacts=True)
                     self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
-    logging.debug("%s; (%s - %s)", source_path, var_stack.resolve(source_path), source[1])
 
 
 # special handling when running on Mac OS
 def pre_copy_mac_handling(self):
     num_files_to_set_exec = self.have_map.num_subs_in_tree(what="file",
                                                            predicate=lambda in_item: in_item.isExecutable())
-    logging.info("Num files to set exec: %d", num_files_to_set_exec)
     if num_files_to_set_exec > 0:
         self.batch_accum += self.platform_helper.set_exec_for_folder(self.have_map.path_to_file)
         self.batch_accum += self.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")

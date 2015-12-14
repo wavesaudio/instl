@@ -4,7 +4,7 @@
     SVNItem represent a single file or folder.
     SVNTopItem is holding SVNItems without itself being part of the tree.
 """
-from __future__ import print_function
+
 
 import re
 import copy
@@ -98,8 +98,8 @@ class SVNItem(object):
                           'url': self.__url,
                           'size': self.__size})
         if self.__subs:
-            retVal.subs.update({name: copy.deepcopy(item, memodict) for name, item in self.subs.iteritems()})
-            for item in retVal.subs.values():
+            retVal.subs.update({name: copy.deepcopy(item, memodict) for name, item in self.subs.items()})
+            for item in list(retVal.subs.values()):
                 item.parent = self
         return retVal
 
@@ -198,7 +198,7 @@ class SVNItem(object):
                 raise ValueError(self.full_path()+" has no size assigned")
             retVal = self.__size
         else:
-            for item in self.__subs.itervalues():
+            for item in self.__subs.values():
                 retVal += item.size
         return retVal
 
@@ -287,7 +287,7 @@ class SVNItem(object):
         else:
             assert isinstance(self.__subs, dict), "self.__subs is not a dictionary"
         path_parts = at_path
-        if isinstance(at_path, basestring):
+        if isinstance(at_path, str):
             path_parts = at_path.split("/")
         retVal = self.__subs.get(path_parts[0]) # will return None if not found
         if retVal is not None and len(path_parts) > 1:
@@ -312,7 +312,7 @@ class SVNItem(object):
         """
         #print("--- add sub to", self.name, path, in_flags, in_revision)
         path_parts = in_at_path
-        if isinstance(in_at_path, basestring):
+        if isinstance(in_at_path, str):
             path_parts = in_at_path.split("/")
         curr_item = self
         for part in path_parts[:-1]:
@@ -341,11 +341,11 @@ class SVNItem(object):
         """
         #print("--- add sub to", self.name, path, flags, revision)
         path_parts = at_path
-        if isinstance(at_path, basestring):
+        if isinstance(at_path, str):
             path_parts = at_path.split("/")
 
         if create_folders:
-            for i in xrange(0, len(path_parts)):
+            for i in range(0, len(path_parts)):
                 folder = self.get_item_at_path(path_parts[0:i])
                 if folder is None:
                     self.new_item_at_path(path_parts[0:i], {'flags': "d", 'revision': in_item.revision})
@@ -354,7 +354,7 @@ class SVNItem(object):
 
     def remove_item_at_path(self, at_path):
         path_parts = at_path
-        if isinstance(at_path, basestring):
+        if isinstance(at_path, str):
             path_parts = at_path.split("/")
 
         if path_parts[0] in self.__subs:
@@ -413,7 +413,7 @@ class SVNItem(object):
             raise TypeError("Files should not walk themselves, owning dir should do it for them")
         file_list = list()
         dir_list = list()
-        for item in self.__subs.itervalues():
+        for item in self.__subs.values():
             if item.isFile():
                 file_list.append(item)
             else:
@@ -573,8 +573,8 @@ class SVNTopItem(SVNItem):
         retVal.revision = self.revision
         retVal.flags = self.flags
 
-        retVal.subs.update({name: copy.deepcopy(item, memodict) for name, item in self.subs.iteritems()})
-        for item in retVal.subs.values():
+        retVal.subs.update({name: copy.deepcopy(item, memodict) for name, item in self.subs.items()})
+        for item in list(retVal.subs.values()):
             item.parent = retVal
         return retVal
 

@@ -1,16 +1,14 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3
 
-from __future__ import print_function
+
 
 import os
-import logging
 
 import utils
 from configVar import var_stack
 
 
 def do_uninstall(self):
-    logging.info("Creating uninstall instructions")
     self.init_uninstall_vars()
     self.create_uninstall_instructions()
 
@@ -29,7 +27,7 @@ def create_uninstall_instructions(self):
     iids_to_check.extend(self.installState.root_install_items)
     while len(iids_to_check) > 0:
         curr_iid = iids_to_check.popleft()
-        for item in self.install_definitions_index.itervalues():
+        for item in self.install_definitions_index.values():
             if len(item.required_by) > 0:  # to avoid repeated checks
                 item.required_by.remove(curr_iid)
                 if len(item.required_by) == 0:

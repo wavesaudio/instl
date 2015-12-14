@@ -16,6 +16,9 @@ better handling and reporting of unknown command names, missing files, missing p
 convert all commands that use --limit to work with prepare_limit_list
 remove .DS_Store before wtar
 
+Put order in syncer classes: boto, p4, svn, url
+    - decide which are not useful and remove them
+    - unite the syncer classes and the instlInstance
 
 readthedocs
 markdown

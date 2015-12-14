@@ -1,10 +1,9 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 import sys
 import os
 import time
-import logging
 import shlex
 import platform
 import re
@@ -12,7 +11,7 @@ import re
 import appdirs
 
 import utils
-from installItem import guid_list, iids_from_guid
+from .installItem import guid_list, iids_from_guid
 from configVar import var_stack
 
 
@@ -51,7 +50,7 @@ try:
 except ImportError:
     print("failed to import colorama, color text functionality not supported")
 
-import instlInstanceBase
+from . import instlInstanceBase
 import aYaml
 
 if colorama_loaded:
@@ -155,12 +154,7 @@ class CMDObj(cmd.Cmd, object):
             retVal = super(CMDObj, self).onecmd(line)
         except utils.InstlException as ie:
             print("instl exception", ie.message)
-            from utils.log_utils import debug_logging_started
-
-            if debug_logging_started:
-                import traceback
-
-                traceback.print_exception(type(ie.original_exception), ie.original_exception, sys.exc_info()[2])
+            traceback.print_exception(type(ie.original_exception), ie.original_exception, sys.exc_info()[2])
         except Exception as unused_ex:
             print("unhandled exception")
             import traceback
@@ -174,7 +168,7 @@ class CMDObj(cmd.Cmd, object):
             try:
                 matches.extend(insensitive_glob(text + '*'))
             except Exception as es:
-                logging.info(es)
+                pass
         return matches
 
     def dir_completion(self, text, unused_line, unused_begidx, unused_endidx):
@@ -183,7 +177,7 @@ class CMDObj(cmd.Cmd, object):
             try:
                 matches.extend([adir for adir in insensitive_glob(text + '*') if os.path.isdir(adir)])
             except Exception as es:
-                logging.info(es)
+                pass
         return matches
 
     def do_shell(self, s):
@@ -290,7 +284,7 @@ class CMDObj(cmd.Cmd, object):
                 self.client_prog_inst.do_list(identifier_list, out_list)
         else:
             self.client_prog_inst.do_list(None, out_list)
-        joined_list = "".join(out_list.list()).encode('ascii', 'ignore')  # just in case some unicode got in...
+        joined_list = "".join(out_list.list())
         colored_string = self.color_vars(joined_list)
         sys.stdout.write(colored_string)
         return False
@@ -619,45 +613,6 @@ class CMDObj(cmd.Cmd, object):
             for param in params:
                 do_help(param)
 
-    def report_logging_state(self):
-        import utils.log_utils
-
-        top_logger = logging.getLogger()
-        print("logging level:", logging.getLevelName(top_logger.getEffectiveLevel()))
-        log_file_path = utils.log_utils.get_log_file_path(self.this_program_name, self.this_program_name, debug=False)
-        print("logging INFO level to", log_file_path)
-        debug_log_file_path = utils.log_utils.get_log_file_path(self.this_program_name, self.this_program_name, debug=True)
-        if os.path.isfile(debug_log_file_path):
-            print("logging DEBUG level to", debug_log_file_path)
-        else:
-            print("Not logging DEBUG level to", debug_log_file_path)
-
-    def do_log(self, params):
-        import utils.log_utils
-
-        top_logger = logging.getLogger()
-        if params:
-            params = shlex.split(params)
-            if params[0].lower() == "debug":
-                debug_log_file_path = utils.log_utils.get_log_file_path(self.this_program_name, self.this_program_name, debug=True)
-                if len(params) == 1 or params[1].lower() in ("on", "true", "yes"):
-                    if top_logger.getEffectiveLevel() > utils.log_utils.debug_logging_level or not os.path.isfile(debug_log_file_path):
-                        utils.log_utils.setup_file_logging(debug_log_file_path, utils.log_utils.debug_logging_level)
-                        utils.log_utils.debug_logging_started = True
-                elif params[1].lower() in ("off", "false", "no"):
-                    top_logger.setLevel(utils.log_utils.default_logging_level)
-                    try:
-                        utils.log_utils.teardown_file_logging(debug_log_file_path, utils.log_utils.default_logging_level)
-                    except:
-                        pass
-                var_stack.get_configVar_obj("LOG_FILE_DEBUG")[2] = utils.log_utils.debug_logging_started
-        self.report_logging_state()
-
-    def help_log(self):
-        print("log: displays log status")
-        print("log debug [on | true | yes]: starts debug level logging")
-        print("log debug off | false | no: stops debug level logging")
-
     # evaluate python expressions
     def do_python(self, param):
         if param:
@@ -686,14 +641,14 @@ class CMDObj(cmd.Cmd, object):
 def compact_history():
     if hasattr(readline, "replace_history_item"):
         unique_history = utils.unique_list()
-        for index in reversed(range(1, readline.get_current_history_length())):
+        for index in reversed(list(range(1, readline.get_current_history_length()))):
             hist_item = readline.get_history_item(index)
             if hist_item:  # some history items are None (usually at index 0)
                 unique_history.append(readline.get_history_item(index))
         unique_history.reverse()
         for index in range(len(unique_history)):
             readline.replace_history_item(index + 1, unique_history[index])
-        for index in reversed(range(len(unique_history) + 1, readline.get_current_history_length())):
+        for index in reversed(list(range(len(unique_history) + 1, readline.get_current_history_length()))):
             readline.remove_history_item(index)
 
 
@@ -729,9 +684,9 @@ def create_completion_list_imp(self, for_what="all"):
     retVal = list()
     try:
         if for_what in ("all", "index"):
-            retVal.extend(self.install_definitions_index.keys())
+            retVal.extend(list(self.install_definitions_index.keys()))
         if for_what in ("all", "define"):
-            retVal.extend(var_stack.keys())
+            retVal.extend(list(var_stack.keys()))
         if for_what in ("all", "guid"):
             retVal.extend(guid_list(self.install_definitions_index))
     except Exception as ex:
