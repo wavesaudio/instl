@@ -179,7 +179,7 @@ class SVNTable(object):
         return list(self.write_func_by_format.keys())
 
     @utils.timing
-    def write_to_file(self, in_file, in_format="guess", comments=True, filter=None):
+    def write_to_file(self, in_file, in_format="guess", comments=True, filter_name=None):
         """ pass in_file="stdout" to output to stdout.
             in_format is either text, yaml, pickle
         """
@@ -189,7 +189,7 @@ class SVNTable(object):
             in_format = map_info_extension_to_format[extension[1:]]
         if in_format in list(self.write_func_by_format.keys()):
             with utils.write_to_file_or_stdout(self.path_to_file) as wfd:
-                self.write_func_by_format[in_format](wfd, comments, filter)
+                self.write_func_by_format[in_format](wfd, comments, filter_name)
         else:
             raise ValueError("Unknown write in_format " + in_format)
 
@@ -199,14 +199,17 @@ class SVNTable(object):
                 wfd.write("# " + comment + "\n")
             wfd.write("\n")
 
-        the_query = self.session.query(SVNRow)
-        if filter:
-            if filter == "required":
-                the_query = the_query.filter(SVNRow.required==True)
-            elif filter == "to_download":
-                the_query = the_query.filter(SVNRow.to_download==True)
-        the_query = the_query.order_by(SVNRow.path)
-        for item in the_query:
+        if filter_name:
+            if filter_name == "required":
+                the_query = self.session.query(SVNRow).filter(SVNRow.required==True).order_by(SVNRow.path)
+            elif filter_name == "to_download":
+                the_query = self.session.query(SVNRow).filter(SVNRow.to_download==True).order_by(SVNRow.path)
+            else:
+                the_query = self.session.query(SVNRow)
+        else:
+            the_query = self.session.query(SVNRow)
+
+        for item in the_query.all():
             wfd.write(str(item) + "\n")
 
     def iter_svn_info(self, long_info_fd):
@@ -347,23 +350,36 @@ class SVNTable(object):
                                  var_stack.resolve("but multiple item were found, IID: $(iid_iid)"))
             except NoResultFound: # file not found, maybe a wtar?
                 source_folder, source_leaf = os.path.split(source[0])
+                query_statement = self.session.query(SVNRow)\
+                        .filter(SVNRow.parent == source_folder+"/")\
+                        .filter(SVNRow.name.like(source_leaf+'.wtar%'))\
+                        .filter(SVNRow.fileFlag == True).all()
+                print(source[1], source[0], [item.path for item in query_statement])
                 update_statement = update(SVNRow).\
                             where(SVNRow.wtar_file == True).\
                             where(SVNRow.parent == source_folder+"/").\
                             where(SVNRow.name.like(source_leaf+'.wtar%')).\
                             values(required=True)
         elif source[1] == '!files':
+            query_statement = self.session.query(SVNRow)\
+                        .filter(SVNRow.parent == source[0]+"/")\
+                        .filter(SVNRow.fileFlag == True).all()
+            print(source[1], source[0], [item.path for item in query_statement])
             update_statement = update(SVNRow).\
                         where(SVNRow.parent == source[0]+"/").\
                         where(SVNRow.fileFlag == True).\
                         values(required=True)
         elif source[1] == '!dir' or source[1] == '!dir_cont':  # !dir and !dir_cont are only different when copying
+            query_statement = self.session.query(SVNRow).\
+                        filter(SVNRow.parent.like(source[0]+"/%")).\
+                        filter(SVNRow.fileFlag == True).all()
+            print(source[1], source[0], [item.path for item in query_statement])
             update_statement = update(SVNRow).\
                         where(SVNRow.parent.like(source[0]+"/%")).\
                         where(SVNRow.fileFlag == True).\
                         values(required=True)
         if update_statement is not None:
-            self.session.execute(update_statement)
+            res=self.session.execute(update_statement)
 
     def mark_need_download(self, local_sync_dir):
         for item in self.session.query(SVNRow).filter(SVNRow.required == True).all():

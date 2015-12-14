@@ -92,7 +92,7 @@ class InstlInstanceSync(object):
                     self.info_map_table.mark_required_for_source(source)
         self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
         self.work_info_map.write_to_file(var_stack.resolve("$(REQUIRED_INFO_MAP_PATH)"), in_format="text")
-        self.info_map_table.write_to_file(var_stack.resolve("$(REQUIRED_INFO_MAP_PATH).table.txt"), in_format="text")
+        self.info_map_table.write_to_file(var_stack.resolve("$(REQUIRED_INFO_MAP_PATH).table.txt"),  filter_name="required", in_format="text")
 
     def read_have_info_map(self):
         """ Reads the map of files previously synced - if there is one.
