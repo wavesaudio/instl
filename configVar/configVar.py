@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python2.7
 
-
+from __future__ import print_function
 
 """
     Copyright (c) 2012, Shai Shasag
@@ -106,7 +106,11 @@ class ConstConfigVar(ConfigVar):
     __slots__ = ()
 
     def __init__(self, name, description="", *values):
-        super().__init__(name, description, *values)
+        if sys.version_info < (3, 0):
+            super(ConstConfigVar, self).__init__(name, description, *values)
+        else:
+            raise "Python version too advanced, need 2.X not "+str(sys.version_info)
+        #    super().__init__(name, description, *values)
 
     @ConfigVar.description.setter
     def description(self, unused_description):

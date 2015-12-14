@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
-
+#!/usr/bin/env python2.7
+from __future__ import print_function
 
 """
     class InstallItem hold information about how to install one or more install_sources.
@@ -85,7 +85,7 @@ os_family_name = current_os_names[0]
 
 def read_index_from_yaml(all_items_node):
     retVal = dict()
-    for IID in all_items_node.keys():
+    for IID in all_items_node.iterkeys():
         if IID in retVal:
             pass  # print(IID, "already in all_items_node")
         else:
@@ -193,7 +193,7 @@ class InstallItem(object):
         self.description = str(my_node.start_mark)
 
     def read_from_yaml(self, my_node):
-        element_names = set([akey for akey in my_node.keys()])
+        element_names = set([akey for akey in my_node.iterkeys()])
         if not element_names.issubset(self.allowed_top_level_keys):
             raise KeyError("illegal keys {}; IID: {}, {}".format(list(element_names.difference(self.allowed_top_level_keys)), self.iid, self.description))
 
@@ -469,7 +469,7 @@ def iids_from_guid(items_map, guid_or_iid):
         if it's not return the IID itself. """
     retVal = list()
     if utils.guid_re.match(guid_or_iid.lower()):  # it's a guid, get iids for all items with that guid
-        for iid, install_def in items_map.items():
+        for iid, install_def in items_map.iteritems():
             if install_def.guid == guid_or_iid.lower():
                 retVal.append(iid)
     else:

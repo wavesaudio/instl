@@ -1,18 +1,18 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python2.7
 
-
+from __future__ import print_function
 
 import sys
 import os
 import subprocess
 from time import time
 import shlex
-from tkinter import *
-from tkinter.ttk import *
+from Tkinter import *
+from ttk import *
 
 import utils
 import aYaml
-from .instlInstanceBase import InstlInstanceBase
+from instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
 
 
@@ -104,38 +104,38 @@ class InstlGui(InstlInstanceBase):
 
         the_list_yaml_ready= var_stack.repr_for_yaml(which_vars=var_stack.resolve_var_to_list("__GUI_CONFIG_FILE_VARS__"), include_comments=False, resolve=False, ignore_unknown_vars=True)
         the_doc_yaml_ready = aYaml.YamlDumpDocWrap(the_list_yaml_ready, '!define', "Definitions", explicit_start=True, sort_mappings=True)
-        with open(var_stack.resolve_var("INSTL_GUI_CONFIG_FILE_NAME"), "w", encoding='utf-8') as wfd:
+        with open(var_stack.resolve_var("INSTL_GUI_CONFIG_FILE_NAME"), "w") as wfd:
             utils.make_open_file_read_write_for_all(wfd)
             aYaml.writeAsYaml(the_doc_yaml_ready, wfd)
 
     def get_client_input_file(self):
-        import tkinter.filedialog
+        import tkFileDialog
 
-        retVal = tkinter.filedialog.askopenfilename()
+        retVal = tkFileDialog.askopenfilename()
         if retVal:
             self.client_input_path_var.set(retVal)
             self.update_client_state()
 
     def get_client_output_file(self):
-        import tkinter.filedialog
+        import tkFileDialog
 
-        retVal = tkinter.filedialog.asksaveasfilename()
+        retVal = tkFileDialog.asksaveasfilename()
         if retVal:
             self.client_output_path_var.set(retVal)
             self.update_client_state()
 
     def get_admin_config_file(self):
-        import tkinter.filedialog
+        import tkFileDialog
 
-        retVal = tkinter.filedialog.askopenfilename()
+        retVal = tkFileDialog.askopenfilename()
         if retVal:
             self.admin_config_path_var.set(retVal)
             self.update_admin_state()
 
     def get_admin_output_file(self):
-        import tkinter.filedialog
+        import tkFileDialog
 
-        retVal = tkinter.filedialog.asksaveasfilename()
+        retVal = tkFileDialog.asksaveasfilename()
         if retVal:
             self.admin_output_path_var.set(retVal)
             self.update_admin_state()

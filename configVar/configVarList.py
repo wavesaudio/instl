@@ -15,7 +15,7 @@ import sys
 import re
 
 import aYaml
-from . import configVar
+import configVar
 
 
 value_ref_re = re.compile("""(
@@ -141,7 +141,7 @@ class ConfigVarList(object):
         vars_list = list()
         if not which_vars:
             vars_list.extend(list(self.keys()))
-        elif isinstance(which_vars, str):
+        elif isinstance(which_vars, basestring):
             vars_list.append(which_vars)
         else:
             vars_list = which_vars

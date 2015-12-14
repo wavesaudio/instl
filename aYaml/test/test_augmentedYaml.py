@@ -1,10 +1,10 @@
-#!/usr/bin/env python3
-
+#!/usr/bin/env python2.7
+from __future__ import print_function
 
 import sys
 import os
 import unittest
-import io as StringIO
+import cStringIO as StringIO
 
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 import yaml
@@ -31,7 +31,7 @@ a
             num_scalars = 0
             for something in a_node: # iterate over a scalar as if it was a sequence
                 self.assertIsInstance(something, yaml.nodes.ScalarNode)
-                self.assertIsInstance(something.value, str)
+                self.assertIsInstance(something.value, basestring)
                 num_scalars += 1
                 self.assertEqual(something.value, "a")
             self.assertEqual(num_scalars, 1)
@@ -53,7 +53,7 @@ a
             scalars = list()
             for something in a_node:
                 self.assertIsInstance(something, yaml.nodes.ScalarNode)
-                self.assertIsInstance(something.value, str)
+                self.assertIsInstance(something.value, basestring)
                 num_scalars += 1
                 scalars.append(something.value)
             self.assertEqual(scalars, ["a", "b", "c"])
@@ -89,7 +89,7 @@ a
                 scalars = list()
                 for something in a_seq:
                     self.assertIsInstance(something, yaml.nodes.ScalarNode)
-                    self.assertIsInstance(something.value, str)
+                    self.assertIsInstance(something.value, basestring)
                     scalars.append(something.value)
                 list_of_scalars.append(scalars)
             self.assertEqual(list_of_scalars, [["a", "aa", "aaa"], ["b", "bb", "bbb"], ["c", "cc", "ccc"]])
@@ -121,7 +121,7 @@ C:
             # iterate with key/value pair
             list_of_scalars1 = list()
             for name, a_seq in a_node:
-                self.assertIsInstance(name, str)
+                self.assertIsInstance(name, basestring)
                 self.assertIsInstance(a_seq, yaml.nodes.Node)
                 num_map_items += 1
                 for something in a_seq:
@@ -130,7 +130,7 @@ C:
 
             # iterate with iterkeys
             list_of_scalars2 = list()
-            for name in a_node.keys():
+            for name in a_node.iterkeys():
                 for something in a_node[name]:
                     list_of_scalars2.append(something.value)
             self.assertEqual(sorted(list_of_scalars1), sorted(list_of_scalars2))

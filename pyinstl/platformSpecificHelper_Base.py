@@ -1,20 +1,21 @@
-#!/usr/bin/env python3
-
+#!/usr/bin/env python2.7
+from __future__ import print_function
 
 import os
 import abc
 
 import utils
 from configVar import var_stack
-from . import connectionBase
+import connectionBase
 
 
-class CopyToolBase(object, metaclass=abc.ABCMeta):
+class CopyToolBase(object):
     """ Create copy commands. Each function should be overridden to implement the copying
         on specific platform using a specific copying tool. All functions return
         a list of commands, even if there is only one. This will allow to return
         multiple commands if needed.
     """
+    __metaclass__ = abc.ABCMeta
 
     def __init__(self, platform_helper):
         self.platform_helper = platform_helper
@@ -96,7 +97,7 @@ class CopyToolRsync(CopyToolBase):
     def create_ignore_spec(self, ignore):
         retVal = ""
         if ignore:
-            if isinstance(ignore, str):
+            if isinstance(ignore, basestring):
                 ignore = (ignore,)
             retVal = " ".join(["--exclude=" + utils.quoteme_single(ignoree) for ignoree in ignore])
         return retVal
@@ -412,15 +413,15 @@ class PlatformSpecificHelperBase(object):
 
 def PlatformSpecificHelperFactory(in_os, instlObj):
     if in_os == "Mac":
-        from . import platformSpecificHelper_Mac
+        import platformSpecificHelper_Mac
 
         retVal = platformSpecificHelper_Mac.PlatformSpecificHelperMac(instlObj)
     elif in_os == "Win":
-        from . import platformSpecificHelper_Win
+        import platformSpecificHelper_Win
 
         retVal = platformSpecificHelper_Win.PlatformSpecificHelperWin(instlObj)
     elif in_os == "Linux":
-        from . import platformSpecificHelper_Linux
+        import platformSpecificHelper_Linux
 
         retVal = platformSpecificHelper_Linux.PlatformSpecificHelperLinux(instlObj)
     else:
@@ -428,7 +429,7 @@ def PlatformSpecificHelperFactory(in_os, instlObj):
     return retVal
 
 
-class DownloadToolBase(object, metaclass=abc.ABCMeta):
+class DownloadToolBase(object):
     """ Create download commands. Each function should be overridden to implement the download
         on specific platform using a specific copying tool. All functions return
         a list of commands, even if there is only one. This will allow to return
@@ -437,6 +438,8 @@ class DownloadToolBase(object, metaclass=abc.ABCMeta):
     curl_write_out_str = r'%{url_effective}, %{size_download} bytes, %{time_total} sec., %{speed_download} bps.\n'
     # for debugging:
     curl_extra_write_out_str = r'    num_connects:%{num_connects}, time_namelookup: %{time_namelookup}, time_connect: %{time_connect}, time_pretransfer: %{time_pretransfer}, time_redirect: %{time_redirect}, time_starttransfer: %{time_starttransfer}\n\n'
+
+    __metaclass__ = abc.ABCMeta
 
     def __init__(self, platform_helper):
         self.platform_helper = platform_helper

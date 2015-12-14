@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
-
+#!/usr/bin/env python2.7
+from __future__ import print_function
 
 import os
 import sys
@@ -7,19 +7,19 @@ import re
 import abc
 
 import yaml
-import io
+import StringIO
 import appdirs
 
 import aYaml
 import utils
-from .batchAccumulator import BatchAccumulator
-from .installItem import read_index_from_yaml
-from .platformSpecificHelper_Base import PlatformSpecificHelperFactory
+from batchAccumulator import BatchAccumulator
+from installItem import read_index_from_yaml
+from platformSpecificHelper_Base import PlatformSpecificHelperFactory
 
 from configVar import value_ref_re
 from configVar import var_stack
-from .installItem import InstallItem
-from . import connectionBase
+from installItem import InstallItem
+import connectionBase
 
 # The plan:
 # when online copy & sync and offline sync, get info_map.txt url in INFO_MAP_FILE_URL*
@@ -31,12 +31,13 @@ from . import connectionBase
 
 
 # noinspection PyPep8Naming
-class InstlInstanceBase(object, metaclass=abc.ABCMeta):
+class InstlInstanceBase(object):
     """ Main object of instl. Keeps the state of variables and install index
         and knows how to create a batch file for installation. InstlInstanceBase
         must be inherited by platform specific implementations, such as InstlInstance_mac
         or InstlInstance_win.
     """
+    __metaclass__ = abc.ABCMeta
 
     def __init__(self, initial_vars=None):
         # init objects owned by this class
@@ -69,8 +70,8 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
     def init_default_vars(self, initial_vars):
         if initial_vars:
             var_description = "from initial_vars"
-            for var, value in initial_vars.items():
-                if isinstance(value, str):
+            for var, value in initial_vars.iteritems():
+                if isinstance(value, basestring):
                     var_stack.add_const_config_variable(var, var_description, value)
                 else:
                     var_stack.add_const_config_variable(var, var_description, *value)
@@ -137,7 +138,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
             "file_sizes_file": ("__FILE_SIZES_FILE__", None)
         }
 
-        for attrib, var in const_attrib_to_var.items():
+        for attrib, var in const_attrib_to_var.iteritems():
             attrib_value = getattr(cmd_line_options_obj, attrib)
             if attrib_value:
                 var_stack.add_const_config_variable(var[0], "from command line options", *attrib_value)
@@ -150,7 +151,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
             "base_repo_rev": "BASE_REPO_REV",
         }
 
-        for attrib, var in non_const_attrib_to_var.items():
+        for attrib, var in non_const_attrib_to_var.iteritems():
             attrib_value = getattr(cmd_line_options_obj, attrib)
             if attrib_value:
                 var_stack.set_var(var, "from command line options").append(attrib_value[0])
@@ -217,10 +218,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
     def read_yaml_file(self, file_path):
         try:
             with utils.open_for_read_file_or_url(file_path, connectionBase.translate_url, self.path_searcher) as file_fd:
-                buffer = file_fd.read()
-                if type(buffer) is bytes:
-                    buffer = buffer.decode("utf-8")
-                buffer = io.StringIO(buffer)
+                buffer = StringIO.StringIO(file_fd.read())
                 self.read_yaml_from_stream(buffer)
             var_stack.get_configVar_obj("__READ_YAML_FILES__").append(file_path)
         except:
@@ -243,10 +241,10 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
 
     def write_require_file(self, file_path):
         require_dict = dict()
-        for IID in sorted(self.install_definitions_index.keys()):
+        for IID in sorted(self.install_definitions_index.iterkeys()):
             if len(self.install_definitions_index[IID].required_by) > 0:
                 require_dict[IID] = sorted(self.install_definitions_index[IID].required_by)
-        with open(file_path, "w", encoding='utf-8') as wfd:
+        with open(file_path, "w") as wfd:
             utils.make_open_file_read_write_for_all(wfd)
             require_dict = aYaml.YamlDumpDocWrap(require_dict, '!require', "requirements",
                                                  explicit_start=True, sort_mappings=True)
@@ -411,7 +409,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
             # chmod to 0777 so that file created under sudo, can be re-written under regular user.
             # However regular user cannot chmod for file created under sudo, hence the try/except
             try:
-                os.chmod(self.out_file_realpath, 0o777)
+                os.chmod(self.out_file_realpath, 0777)
             except:
                 pass
         else:

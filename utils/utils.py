@@ -1,12 +1,12 @@
-#!/usr/bin/env python3
-
+#!/usr/bin/env python2.7
+from __future__ import print_function
 
 import sys
 import os
 import stat
-import urllib.request, urllib.error, urllib.parse
+import urllib2
 import re
-import urllib.parse
+import urlparse
 import hashlib
 import base64
 import collections
@@ -56,7 +56,7 @@ class write_to_file_or_stdout(object):
 
     def __enter__(self):
         if self.file_path != "stdout":
-            self.fd = open(self.file_path, "w", encoding='utf-8')
+            self.fd = open(self.file_path, "w")
         return self.fd
 
     def __exit__(self, unused_type, unused_value, unused_traceback):
@@ -108,13 +108,13 @@ class open_for_read_file_or_url(object):
     def __enter__(self):
         try:
             if self.url:
-                opener = urllib.request.build_opener()
+                opener = urllib2.build_opener()
                 if self.cookie:
                     opener.addheaders.append(('Cookie', self.cookie))
                 self.fd = opener.open(self.url)
             elif self.local_file_path:
-                self.fd = open(self.local_file_path, "r", encoding="utf-8")
-        except urllib.error.URLError as url_err:
+                self.fd = open(self.local_file_path, "r")
+        except urllib2.URLError as url_err:
             print (url_err, self.url)
             raise
         if "name" not in dir(self.fd) and "url" in dir(self.fd):
@@ -271,15 +271,15 @@ def print_var(var_name):
 
 def last_url_item(url):
     url = url.strip("/")
-    url_path = urllib.parse.urlparse(url).path
+    url_path = urlparse.urlparse(url).path
     _, retVal = os.path.split(url_path)
     return retVal
 
 
 def main_url_item(url):
     try:
-        parseResult = urllib.parse.urlparse(url)
-        # print("+++++++", url, "+", parseResult)
+        parseResult = urlparse.urlparse(url)
+        #print("+++++++", url, "+", parseResult)
         retVal = parseResult.netloc
         if not retVal:
             retVal = parseResult.path
@@ -289,8 +289,8 @@ def main_url_item(url):
 
 
 def relative_url(base, target):
-    base_path = urllib.parse.urlparse(base.strip("/")).path
-    target_path = urllib.parse.urlparse(target.strip("/")).path
+    base_path = urlparse.urlparse(base.strip("/")).path
+    target_path = urlparse.urlparse(target.strip("/")).path
     retVal = None
     if target_path.startswith(base_path):
         retVal = target_path.replace(base_path, '', 1)
@@ -499,7 +499,7 @@ def make_one_list(*things):
     """
     retVal = list()
     for thing in things:
-        if isinstance(thing, collections.Iterable) and not isinstance(thing, str):
+        if isinstance(thing, collections.Iterable) and not isinstance(thing, basestring):
             retVal.extend(thing)
         else:
             retVal.append(thing)
@@ -589,9 +589,9 @@ def timing(f):
         ret = f(*args, **kwargs)
         time2 = time.clock()
         if time1 != time2:
-            print ('%s function took %0.3f ms' % (f.__name__, (time2-time1)*1000.0))
+            print ('%s function took %0.3f ms' % (f.func_name, (time2-time1)*1000.0))
         else:
-            print ('%s function took apparently no time at all' % (f.__name__))
+            print ('%s function took apparently no time at all' % (f.func_name))
         return ret
     return wrap
 

@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
-
+#!/usr/bin/env python2.7
+from __future__ import print_function
 
 from collections import defaultdict
 
@@ -25,7 +25,7 @@ class BatchAccumulator(object):
             raise ValueError(section + " is not a known section name")
 
     def add(self, instructions):
-        if isinstance(instructions, str):
+        if isinstance(instructions, basestring):
             self.instruction_lines[self.current_section].append(" " * 4 * self.indent_level + instructions)
         else:
             for instruction in instructions:
@@ -37,7 +37,7 @@ class BatchAccumulator(object):
 
     def __len__(self):
         retVal = len(self.variables_assignment_lines)
-        for section, section_lines in self.instruction_lines.items():
+        for section, section_lines in self.instruction_lines.iteritems():
             retVal += len(section_lines)
         return retVal
 

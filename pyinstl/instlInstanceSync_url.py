@@ -1,12 +1,12 @@
-#!/usr/bin/env python3
-
+#!/usr/bin/env python2.7
+from __future__ import print_function
 
 import os
 
 import svnTree
 import utils
-from .instlInstanceSyncBase import InstlInstanceSync
-from .batchAccumulator import BatchAccumulator
+from instlInstanceSyncBase import InstlInstanceSync
+from batchAccumulator import BatchAccumulator
 from configVar import var_stack
 
 

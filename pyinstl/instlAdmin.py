@@ -1,10 +1,10 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python2.7
 
-
+from __future__ import print_function
 
 import os
 import filecmp
-import io as StringIO
+import cStringIO as StringIO
 import re
 import fnmatch
 import subprocess
@@ -14,11 +14,11 @@ import stat
 import svnTree
 import utils
 import aYaml
-from .instlInstanceBase import InstlInstanceBase
-from .installItem import InstallItem
-from .batchAccumulator import BatchAccumulator
+from instlInstanceBase import InstlInstanceBase
+from installItem import InstallItem
+from batchAccumulator import BatchAccumulator
 from configVar import var_stack
-from . import connectionBase
+import connectionBase
 
 
 # noinspection PyPep8,PyPep8,PyPep8

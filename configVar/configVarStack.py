@@ -17,8 +17,8 @@ import sys
 
 import utils
 import aYaml
-from . import configVarList
-from . import configVar
+import configVarList
+import configVar
 
 class ConfigVarStack(configVarList.ConfigVarList):
     """ Keeps a list of named build config values.
@@ -103,7 +103,7 @@ class ConfigVarStack(configVarList.ConfigVarList):
         vars_list = list()
         if not which_vars:
             vars_list.extend(list(self.keys()))
-        elif isinstance(which_vars, str):
+        elif isinstance(which_vars, basestring):
             vars_list.append(which_vars)
         else:
             vars_list = which_vars

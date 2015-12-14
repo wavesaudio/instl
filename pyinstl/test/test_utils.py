@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
-
+#!/usr/bin/env python2.7
+from __future__ import print_function
 
 import sys
 import os
@@ -31,7 +31,7 @@ class TestUtils(unittest.TestCase):
             num_iterations -= 1
             if not num_iterations:
                 break
-        self.assertEqual(the_target_list, [1, 2, 3, 0, 0, 0])
+        self.assertEquals(the_target_list, [1, 2, 3, 0, 0, 0])
 
     def test_ParallelContinuationIter(self):
         list_1 = [1, 2, 3, 4, 5]
@@ -40,7 +40,7 @@ class TestUtils(unittest.TestCase):
         result_list = []
         for i in utils.ParallelContinuationIter(list_1, list_a, list_None):
             result_list.extend(i)
-        self.assertEqual(result_list, [1, 'a', None, 2, 'b', None, 3, 'c', None, 4, None, None, 5, None, None])
+        self.assertEquals(result_list, [1, 'a', None, 2, 'b', None, 3, 'c', None, 4, None, None, 5, None, None])
 
     """
     def test_gen_col_format(self):

@@ -1,14 +1,14 @@
-#!/usr/bin/env python3
-
+#!/usr/bin/env python2.7
+from __future__ import print_function
 
 import os
 import datetime
 
 import utils
 from configVar import var_stack
-from .platformSpecificHelper_Base import PlatformSpecificHelperBase
-from .platformSpecificHelper_Base import CopyToolRsync
-from .platformSpecificHelper_Base import DownloadToolBase
+from platformSpecificHelper_Base import PlatformSpecificHelperBase
+from platformSpecificHelper_Base import CopyToolRsync
+from platformSpecificHelper_Base import DownloadToolBase
 
 
 class CopyToolMacRsync(CopyToolRsync):
@@ -318,16 +318,16 @@ class DownloadTool_mac_curl(DownloadToolBase):
             list_for_file_cycler = itertools.cycle(list_of_lines_for_files)
             url_num = 0
             for url, path in self.urls_to_download:
-                line_list = next(list_for_file_cycler)
+                line_list = list_for_file_cycler.next()
                 line_list.append('''url = "{url}"\noutput = "{path}"\n\n'''.format(**locals()))
                 url_num += 1
 
             num_digits = len(str(actual_num_files))
-            file_name_list = ["-".join( (curl_config_file_path, str(file_i).zfill(num_digits)) ) for file_i in range(actual_num_files)]
+            file_name_list = ["-".join( (curl_config_file_path, str(file_i).zfill(num_digits)) ) for file_i in xrange(actual_num_files)]
 
             lise_of_lines_iter = iter(list_of_lines_for_files)
             for file_name in file_name_list:
-                with open(file_name, "w", encoding='utf-8') as wfd:
+                with open(file_name, "w") as wfd:
                     utils.make_open_file_read_write_for_all(wfd)
                     wfd.write("insecure\n")
                     wfd.write("raw\n")
@@ -342,7 +342,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
                     wfd.write("write-out = \"Progress: ... of ...; " + os.path.basename(wfd.name) + ": " + DownloadToolBase.curl_write_out_str + "\"\n")
                     wfd.write("\n")
                     wfd.write("\n")
-                    list_of_lines = next(lise_of_lines_iter)
+                    list_of_lines = lise_of_lines_iter.next()
                     for line in list_of_lines:
                         wfd.write(line)
 
@@ -352,7 +352,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
 
     def download_from_config_files(self, parallel_run_config_file_path, config_files):
 
-        with open(parallel_run_config_file_path, "w", encoding='utf-8') as wfd:
+        with open(parallel_run_config_file_path, "w") as wfd:
             utils.make_open_file_read_write_for_all(wfd)
             for config_file in config_files:
                 wfd.write(var_stack.resolve("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+config_file+"\"\n", raise_on_fail=True))

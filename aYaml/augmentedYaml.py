@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
-
+#!/usr/bin/env python2.7
+from __future__ import print_function
 
 """
     Copyright (c) 2012, Shai Shasag
@@ -95,7 +95,7 @@ def iter_sequence(self):
 
 yaml.ScalarNode.__iter__ = iter_scalar
 yaml.MappingNode.__iter__ = iter_mapping
-yaml.MappingNode.keys = iter_mapping_keys
+yaml.MappingNode.iterkeys = iter_mapping_keys
 yaml.SequenceNode.__iter__ = iter_sequence
 
 
@@ -153,7 +153,8 @@ class YamlDumpWrap(object):
         have comments and tags. Sorting mapping by key is also optional.
     """
     def __init__(self, value=None, tag="", comment="", sort_mappings=False):
-        self.tag = ""  # 'ignore'
+        # sometimes tag's type is unicode, pyYaml is strange...
+        self.tag = tag.encode('ascii', 'ignore')
         self.comment = comment
         self.value = value
         self.sort_mappings = sort_mappings

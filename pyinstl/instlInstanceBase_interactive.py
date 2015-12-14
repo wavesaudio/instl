@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
-
+#!/usr/bin/env python2.7
+from __future__ import print_function
 
 import sys
 import os
@@ -11,7 +11,7 @@ import re
 import appdirs
 
 import utils
-from .installItem import guid_list, iids_from_guid
+from installItem import guid_list, iids_from_guid
 from configVar import var_stack
 
 
@@ -50,7 +50,7 @@ try:
 except ImportError:
     print("failed to import colorama, color text functionality not supported")
 
-from . import instlInstanceBase
+import instlInstanceBase
 import aYaml
 
 if colorama_loaded:
@@ -284,7 +284,7 @@ class CMDObj(cmd.Cmd, object):
                 self.client_prog_inst.do_list(identifier_list, out_list)
         else:
             self.client_prog_inst.do_list(None, out_list)
-        joined_list = "".join(out_list.list())
+        joined_list = "".join(out_list.list()).encode('ascii', 'ignore')  # just in case some unicode got in...
         colored_string = self.color_vars(joined_list)
         sys.stdout.write(colored_string)
         return False
