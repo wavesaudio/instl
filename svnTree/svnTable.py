@@ -201,9 +201,9 @@ class SVNTable(object):
 
         if filter_name:
             if filter_name == "required":
-                the_query = self.session.query(SVNRow).filter(SVNRow.required==True).order_by(SVNRow.path)
+                the_query = self.session.query(SVNRow).filter(SVNRow.required==True)
             elif filter_name == "to_download":
-                the_query = self.session.query(SVNRow).filter(SVNRow.to_download==True).order_by(SVNRow.path)
+                the_query = self.session.query(SVNRow).filter(SVNRow.to_download==True)
             else:
                 the_query = self.session.query(SVNRow)
         else:
@@ -354,7 +354,7 @@ class SVNTable(object):
                         .filter(SVNRow.parent == source_folder+"/")\
                         .filter(SVNRow.name.like(source_leaf+'.wtar%'))\
                         .filter(SVNRow.fileFlag == True).all()
-                print(source[1], source[0], [item.path for item in query_statement])
+                #print(source[1], source[0], [item.path for item in query_statement])
                 update_statement = update(SVNRow).\
                             where(SVNRow.wtar_file == True).\
                             where(SVNRow.parent == source_folder+"/").\
@@ -364,7 +364,7 @@ class SVNTable(object):
             query_statement = self.session.query(SVNRow)\
                         .filter(SVNRow.parent == source[0]+"/")\
                         .filter(SVNRow.fileFlag == True).all()
-            print(source[1], source[0], [item.path for item in query_statement])
+            #print(source[1], source[0], [item.path for item in query_statement])
             update_statement = update(SVNRow).\
                         where(SVNRow.parent == source[0]+"/").\
                         where(SVNRow.fileFlag == True).\
@@ -373,7 +373,7 @@ class SVNTable(object):
             query_statement = self.session.query(SVNRow).\
                         filter(SVNRow.parent.like(source[0]+"/%")).\
                         filter(SVNRow.fileFlag == True).all()
-            print(source[1], source[0], [item.path for item in query_statement])
+            #print(source[1], source[0], [item.path for item in query_statement])
             update_statement = update(SVNRow).\
                         where(SVNRow.parent.like(source[0]+"/%")).\
                         where(SVNRow.fileFlag == True).\
@@ -382,9 +382,9 @@ class SVNTable(object):
             res=self.session.execute(update_statement)
 
     def mark_need_download(self, local_sync_dir):
-        for item in self.session.query(SVNRow).filter(SVNRow.required == True).all():
+        for item in self.session.query(SVNRow).filter(SVNRow.required == True).filter(SVNRow.fileFlag == True).all():
             local_path = os.path.join(local_sync_dir, item.path)
-            if utils.need_to_download_file(local_sync_dir, item.checksum):
+            if utils.need_to_download_file(local_path, item.checksum):
                 item.need_download = True
 
     def get_to_download_list(self):

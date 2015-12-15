@@ -77,7 +77,7 @@ class InstlInstanceSync(object):
             print("Exception reading info_map:", info_map_file_url)
             raise
 
-    def filter_out_unrequired_items(self):
+    def mark_required_items(self):
         """ Removes from work_info_map items not required to be installed.
             First all items are marked False.
             Items required by each install source are then marked True.
@@ -88,11 +88,8 @@ class InstlInstanceSync(object):
             with self.instlObj.install_definitions_index[iid] as installi:
                 for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
                     source = var_stack.resolve_var_to_list(source_var)
-                    self.mark_required_items_for_source(source)
                     self.info_map_table.mark_required_for_source(source)
-        self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
-        self.work_info_map.write_to_file(var_stack.resolve("$(REQUIRED_INFO_MAP_PATH)"), in_format="text")
-        self.info_map_table.write_to_file(var_stack.resolve("$(REQUIRED_INFO_MAP_PATH).table.txt"),  filter_name="required", in_format="text")
+        self.info_map_table.write_to_file(var_stack.resolve("$(REQUIRED_INFO_MAP_PATH)"),  filter_name="required", in_format="text")
 
     def read_have_info_map(self):
         """ Reads the map of files previously synced - if there is one.
@@ -101,49 +98,12 @@ class InstlInstanceSync(object):
         if os.path.isfile(have_info_map_path):
             self.have_map.read_info_map_from_file(have_info_map_path, a_format="text")
 
-    def filter_out_already_synced_items(self):
-        self.filter_out_already_synced_items_old()
+    def mark_download_items(self):
         self.info_map_table.mark_need_download(self.local_sync_dir)
-
-    def filter_out_already_synced_items_old(self):
-        """ Removes from work_info_map items not required to be synced and updates the in-memory have map.
-            First all items are marked True.
-            Items found in have map are then marked False - provided their "have" version is equal to required version.
-            Finally all items marked False and empty directories are removed.
-        """
-        self.work_info_map.set_user_data_all_recursive(True)
-        for need_item in self.work_info_map.walk_items(what="file"):
-            have_item = self.have_map.get_item_at_path(need_item.full_path_parts())
-            if have_item is None:  # not found in have map
-                self.have_map.new_item_at_path(need_item.full_path_parts(),
-                                                {'flags': need_item.flags,
-                                                'revision': need_item.revision,
-                                                'checksum': need_item.checksum,
-                                                'size': need_item.safe_size}, # no need to copy the url to the have_map
-                                                create_folders=True)
-            else:  # found in have map
-                if have_item.revision == need_item.revision:
-                    # This item should not be downloaded because we have the same revision on disk and on server.
-                    # Unless the local file does not match the expected checksum - maybe it was corrupted, or missing?
-                    file_path = os.path.join(*utils.make_one_list(self.local_sync_dir, have_item.full_path_parts()))
-                    need_to_download = utils.need_to_download_file(file_path, need_item.checksum)
-                    if need_to_download:
-                        print("Downloading due to bad checksum or missing file", file_path)
-                    need_item.user_data = need_to_download
-                elif have_item.revision < need_item.revision:
-                    have_item.flags = need_item.flags
-                    have_item.revision = need_item.revision
-                elif have_item.revision > need_item.revision:  # weird, but need to get the older version
-                    have_item.flags = need_item.flags
-                    have_item.revision = need_item.revision
-        self.work_info_map.recursive_remove_depth_first(is_user_data_false_or_dir_empty)
-        self.work_info_map.write_to_file(var_stack.resolve("$(TO_SYNC_INFO_MAP_PATH)", raise_on_fail=True), in_format="text")
-        self.have_map.write_to_file(var_stack.resolve("$(NEW_HAVE_INFO_MAP_PATH)", raise_on_fail=True), in_format="text")
 
     # syncers that download from urls (url, boto) need to prepare a list of all the individual files that need updating.
     # syncers that use configuration management tools (p4, svn) do not need since the tools takes care of that.
     def prepare_list_of_sync_items(self):
         self.read_remote_info_map()  # reads the full info map from INFO_MAP_FILE_URL and writes it to the sync folder
-        self.filter_out_unrequired_items()  # removes items not required to be installed
-        self.read_have_info_map()  # ToDo: not needed any more. reads the info map of items already synced
-        self.filter_out_already_synced_items()  # removes items that are already on the user's disk
+        self.mark_required_items()  # removes items not required to be installed
+        self.mark_download_items()  # removes items that are already on the user's disk
