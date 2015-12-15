@@ -219,6 +219,18 @@ class Table(object):
                 .values(required=True)
         self.session.execute(update_statement)
 
+    @utils.timing
+    def mark_required_completion(self):
+        file_items = self.session.query(Row).filter(Row.required==True, Row.fileFlag==True).all()
+        ancestors = list()
+        for file_item in file_items:
+            ancestors.extend(file_item.get_ancestry()[:-1])
+        ancestors = set(ancestors)
+        update_statement = update(Row)\
+                .where(Row.path.in_(ancestors))\
+                .values(required=True)
+        self.session.execute(update_statement)
+
     def get_required(self):
         the_query = self.session.query(Row).filter(Row.required==True)
         return the_query.all()
@@ -276,7 +288,8 @@ if __name__ == "__main__":
     for source in sources:
         t.mark_required_for_source(source)
     print("------------ 2")
-    items = t.get_required()
+    t.mark_required_completion()
     print("------------ 3")
+    items = t.get_required()
     t.print_items(items)
     print(len(items), "required items")
