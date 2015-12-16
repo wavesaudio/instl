@@ -5,6 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from sqlalchemy import update
+from sqlalchemy import or_
 
 from .svnRow import SVNRow, alchemy_base
 
@@ -77,7 +78,6 @@ class SVNTable(object):
         """ returns a list of file formats that can be read by SVNTree """
         return list(self.read_func_by_format.keys())
 
-    @utils.timing
     def read_info_map_from_file(self, in_file, a_format="guess"):
         """ Reads from file. All previous sub items are cleared
             before reading, unless the a_format is 'props' in which case
@@ -102,18 +102,27 @@ class SVNTable(object):
         insert_dicts = [item_dict for item_dict in self.iter_svn_info(rfd)]
         self.session.bulk_insert_mappings(SVNRow, insert_dicts)
 
-    def read_from_text(self, rfd):
-        insert_dicts = list()
-        for line in rfd:
+    def read_from_text_to_dict(self, in_rfd):
+        retVal = list()
+        for line in in_rfd:
             line = line.strip()
             item_dict = SVNTable.item_dict_from_str_re(line)
             if item_dict:
-                insert_dicts.append(item_dict)
+                retVal.append(item_dict)
             else:
                 match = comment_line_re.match(line)
                 if match:
                     self.comments.append(match.group("the_comment"))
-        self.session.bulk_insert_mappings(SVNRow, insert_dicts)
+        return retVal
+
+
+    def insert_dicts_to_db(self, insert_dicts):
+        #self.session.bulk_insert_mappings(SVNRow, insert_dicts)
+        self.engine.execute(SVNRow.__table__.insert(), insert_dicts)
+
+    def read_from_text(self, rfd):
+        insert_dicts = self.read_from_text_to_dict(rfd)
+        self.insert_dicts_to_db(insert_dicts)
 
     def update_from_text(self, rfd, revision_is_local=True):
         """
@@ -143,6 +152,7 @@ class SVNTable(object):
         is_wtar_first_file = is_wtar_file and wtar_first_file_re.match(file_name) is not None
         return is_wtar_file, is_wtar_first_file
 
+
     @staticmethod
     def item_dict_from_str_re(the_str):
         """ create a new a sub-item from string description.
@@ -154,25 +164,17 @@ class SVNTable(object):
         item_details = None
         match = text_line_re.match(the_str)
         if match:
-            item_details = {'path': match.group('path'),
-                            'revision_remote': match.group('revision')}
-            path_parts = match.group('path').split("/")
-            item_details['name'] = path_parts[-1]
-            item_details['parent'] = "/".join(path_parts[:-1])+"/"
-            flags = match.group('flags')
-            if 'f' in flags:
-                item_details['fileFlag'] = True
-                item_details['wtar_file'], item_details['wtar_first_file'] = SVNTable.get_wtar_file_status(item_details['name'])
-            if 's' in flags:
-                item_details['symlinkFlag'] = True
-            if 'x' in flags:
-                item_details['execFlag'] = True
-            if match.group('checksum') is not None:
-                item_details['checksum'] = match.group('checksum')
-            if match.group('url') is not None:
-                item_details['url'] = match.group('url')
-            if match.group('size') is not None:
-                item_details['size'] = match.group('size')
+            item_details = dict()
+            item_details['path'] = match.group('path')
+            item_details['level'] = len(item_details['path'].split("/"))
+            item_details['revision_remote'] = match.group('revision')
+            item_details['flags'] = match.group('flags')
+            item_details['fileFlag'] = 'f' in item_details['flags']
+            #item_details['wtar_file'], item_details['wtar_first_file'] = Table.get_wtar_file_status(item_details['path'])
+            #item_details['execFlag'] = 'x' in item_details['flags']
+            item_details['checksum'] = match.group('checksum')
+            item_details['url'] = match.group('url')
+            item_details['size'] = int(match.group('size')) if match.group('size')  else -1
         return item_details
 
     def valid_write_formats(self):
@@ -232,16 +234,16 @@ class SVNTable(object):
                 """
                 retVal = dict()
                 retVal['path'] = a_record["Path"]
-                path_parts = retVal['path'].split("/")
-                retVal['name'] = path_parts[-1]
-                retVal['parent'] = "/".join(path_parts[:-1])+"/"
+                retVal['level'] = len(retVal['path'].split("/"))
                 retVal['fileFlag'] = a_record["Node Kind"] == "file"
-                if retVal['fileFlag']:
-                    retVal['wtar_file'], retVal['wtar_first_file'] = SVNTable.get_wtar_file_status(retVal['name'])
+                retVal['flags'] = match.group('flags')
+                retVal['fileFlag'] = 'f' in retVal['flags']
                 if "Last Changed Rev" in a_record:
                     retVal['revision_remote'] = int(a_record["Last Changed Rev"])
                 elif "Revision" in a_record:
-                    retVal['revision'] = int(a_record["Revision"])
+                    retVal['revision_remote'] = int(a_record["Revision"])
+                else:
+                    retVal['revision_remote'] = -1
                 retVal['checksum'] = a_record.get("Checksum", None)
 
                 return retVal
@@ -332,54 +334,88 @@ class SVNTable(object):
             raise
         self.session.bulk_update_mappings(SVNRow, update_dicts)
 
+    def get_items(self, in_parent="", in_level=700, get_files=True, get_dirs=True):
+        get_dirs = not get_dirs
+        if not in_parent:
+            the_query = self.session.query(SVNRow).filter(or_(SVNRow.fileFlag==get_files, SVNRow.fileFlag==get_dirs))
+        else:
+            parent_item = self.session.query(SVNRow).filter(SVNRow.path==in_parent).one()
+            the_query = self.session.query(SVNRow).filter(or_(SVNRow.fileFlag==get_files, SVNRow.fileFlag==get_dirs))\
+                                                .filter(SVNRow.path.like(parent_item.path+"/%"))\
+                                                .filter(SVNRow.level > parent_item.level, SVNRow.level < parent_item.level+in_level+1)
+
+        return the_query.all()
+
+    def get_ancestry(self, in_path):
+        item = self.session.query(SVNRow).filter(SVNRow.path==in_path).one()
+        ancestry = item.get_ancestry()
+        the_query = self.session.query(SVNRow).filter(SVNRow.path.in_(ancestry))
+
+        return the_query.all()
+
+    def mark_required_for_item(self, item):
+        ancestry = item.get_ancestry()
+        update_statement = update(SVNRow)\
+                .where(SVNRow.path.in_(ancestry))\
+                .values(required=True)
+        self.session.execute(update_statement)
+
+    @utils.timing
+    def mark_required_for_file(self, item_path):
+        update_statement = update(SVNRow)\
+                .where(SVNRow.fileFlag == True)\
+                .where(or_(SVNRow.path == item_path, SVNRow.path.like(item_path+".wtar%")))\
+                .values(required=True)
+        self.session.execute(update_statement)
+
+    @utils.timing
+    def mark_required_for_files(self, parent_path):
+        parent_item = self.session.query(SVNRow).filter(SVNRow.path == parent_path, SVNRow.fileFlag==False).first()
+        update_statement = update(SVNRow)\
+                .where(SVNRow.level == parent_item.level+1)\
+                .where(SVNRow.fileFlag == True)\
+                .where(SVNRow.path.like(parent_item.path+"/%"))\
+                .values(required=True)
+        self.session.execute(update_statement)
+
+    @utils.timing
+    def mark_required_for_dir(self, dir_path):
+        dir_item = self.session.query(SVNRow).filter(SVNRow.path == dir_path, SVNRow.fileFlag==False).first()
+        update_statement = update(SVNRow)\
+                .where(SVNRow.level > dir_item.level)\
+                .where(SVNRow.path.like(dir_item.path+"/%"))\
+                .values(required=True)
+        self.session.execute(update_statement)
+
+    @utils.timing
+    def mark_required_completion(self):
+        file_items = self.session.query(SVNRow).filter(SVNRow.required==True, SVNRow.fileFlag==True).all()
+        ancestors = list()
+        for file_item in file_items:
+            ancestors.extend(file_item.get_ancestry()[:-1])
+        ancestors = set(ancestors)
+        if len(ancestors) == 0:
+            print("no ancestors for")
+        update_statement = update(SVNRow)\
+                .where(SVNRow.path.in_(ancestors))\
+                .values(required=True)
+        self.session.execute(update_statement)
+
+    def get_required(self):
+        the_query = self.session.query(SVNRow).filter(SVNRow.required==True)
+        return the_query.all()
+
     def mark_required_for_source(self, source):
         """
         :param source: a tuple (source_folder, tag), where tag is either !file or !dir
         :return: None
         """
-        update_statement = None
         if source[1] == '!file':
-            try:
-                file_source = self.session.query(SVNRow).filter(SVNRow.path == source[0]).one()
-                if not file_source.isFile():
-                    raise ValueError(source[0], "has type", source[1],
-                                    var_stack.resolve("but is not a file, IID: $(iid_iid)"))
-                file_source.required = True
-            except MultipleResultsFound:
-                raise ValueError(source[0], "has type", source[1],
-                                 var_stack.resolve("but multiple item were found, IID: $(iid_iid)"))
-            except NoResultFound: # file not found, maybe a wtar?
-                source_folder, source_leaf = os.path.split(source[0])
-                query_statement = self.session.query(SVNRow)\
-                        .filter(SVNRow.parent == source_folder+"/")\
-                        .filter(SVNRow.name.like(source_leaf+'.wtar%'))\
-                        .filter(SVNRow.fileFlag == True).all()
-                #print(source[1], source[0], [item.path for item in query_statement])
-                update_statement = update(SVNRow).\
-                            where(SVNRow.wtar_file == True).\
-                            where(SVNRow.parent == source_folder+"/").\
-                            where(SVNRow.name.like(source_leaf+'.wtar%')).\
-                            values(required=True)
+            self.mark_required_for_file(source[0])
         elif source[1] == '!files':
-            query_statement = self.session.query(SVNRow)\
-                        .filter(SVNRow.parent == source[0]+"/")\
-                        .filter(SVNRow.fileFlag == True).all()
-            #print(source[1], source[0], [item.path for item in query_statement])
-            update_statement = update(SVNRow).\
-                        where(SVNRow.parent == source[0]+"/").\
-                        where(SVNRow.fileFlag == True).\
-                        values(required=True)
+            self.mark_required_for_files(source[0])
         elif source[1] == '!dir' or source[1] == '!dir_cont':  # !dir and !dir_cont are only different when copying
-            query_statement = self.session.query(SVNRow).\
-                        filter(SVNRow.parent.like(source[0]+"/%")).\
-                        filter(SVNRow.fileFlag == True).all()
-            #print(source[1], source[0], [item.path for item in query_statement])
-            update_statement = update(SVNRow).\
-                        where(SVNRow.parent.like(source[0]+"/%")).\
-                        where(SVNRow.fileFlag == True).\
-                        values(required=True)
-        if update_statement is not None:
-            res=self.session.execute(update_statement)
+            self.mark_required_for_dir(source[0])
 
     def mark_need_download(self, local_sync_dir):
         for item in self.session.query(SVNRow).filter(SVNRow.required == True).filter(SVNRow.fileFlag == True).all():

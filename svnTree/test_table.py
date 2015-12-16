@@ -53,32 +53,42 @@ wtar_first_file_re = re.compile(r""".+\.wtar(\.aa)?$""")
 
 class Row(alchemy_base):
     __tablename__ = 'svnitem'
+    level = Column(Integer)
     path = Column(String, primary_key=True)
-    name = Column(String)
-    #parent = Column(String, index=True)
-    fileFlag = Column(BOOLEAN, default=False)
+    flags = Column(String)
+    revision_remote = Column(Integer)
+    fileFlag = Column(BOOLEAN)
+
     execFlag = Column(BOOLEAN, default=False)
-    symlinkFlag = Column(BOOLEAN, default=False)
     wtar_file = Column(BOOLEAN, default=False) # any .wtar or .wtar.?? file
     wtar_first_file = Column(BOOLEAN, default=False) # .wtar or wtar.aa file
-    revision_remote = Column(Integer)
-    revision_local = Column(Integer)
-    checksum = Column(String)
+    revision_local = Column(Integer, default=0)
+    checksum = Column(String, default=None)
     size = Column(Integer, default=-1)
     url = Column(String, default=None)
     required = Column(BOOLEAN, default=False)
     need_download = Column(BOOLEAN, default=False)
-    level = Column(Integer, default=0)
 
     def __repr__(self):
-        return ("<{self.level}, {self.path},f:{self.fileFlag}"
-                ",x:{self.execFlag},s:{self.symlinkFlag}"
-                ",w:{self.wtar_file},fw:{self.wtar_first_file}"
-                ",rev-remote:{self.revision_remote},rev-local:{self.revision_local}"
-                ",checksum:{self.checksum},size:{self.size}"
-                ",url:{self.checksum},size:{self.size}"
-                ",required:{self.required},need_download:{self.need_download}>"
+        return ("<{self.level}, {self.path}, '{self.flags}', rev-remote:{self.revision_remote}, f:{self.fileFlag}"
+                ", x:{self.execFlag}"
+                ", w:{self.wtar_file}, fw:{self.wtar_first_file}"
+                ", rev-local:{self.revision_local}"
+                ", checksum:{self.checksum}, size:{self.size}"
+                ", url:{self.checksum}, size:{self.size}"
+                ", required:{self.required}, need_download:{self.need_download}>"
                 ).format(**locals())
+
+    def __str__(self):
+        """ __str__ representation - this is what will be written to info_map.txt files"""
+        retVal = "{}, {}, {}".format(self.path, self.flags, self.revision_remote)
+        if self.checksum:
+            retVal = "{}, {}".format(retVal, self.checksum)
+        if self.size != -1:
+            retVal = "{}, {}".format(retVal, self.size)
+        if self.url:
+            retVal = "{}, {}".format(retVal, self.url)
+        return retVal
 
     def get_ancestry(self):
         ancestry = list()
@@ -107,27 +117,45 @@ class Table(object):
         item_details = None
         match = text_line_re.match(the_str)
         if match:
-            item_details = {'path': match.group('path'),
-                            'revision_remote': match.group('revision')}
-            path_parts = match.group('path').split("/")
-            item_details['level'] = len(path_parts)
-            item_details['name'] = path_parts[-1]
-            #item_details['parent'] = "/".join(path_parts[:-1])+"/"
-            flags = match.group('flags')
-            if 'f' in flags:
-                item_details['fileFlag'] = True
-                item_details['wtar_file'], item_details['wtar_first_file'] = Table.get_wtar_file_status(item_details['name'])
-            if 's' in flags:
-                item_details['symlinkFlag'] = True
-            if 'x' in flags:
-                item_details['execFlag'] = True
-            if match.group('checksum') is not None:
-                item_details['checksum'] = match.group('checksum')
-            if match.group('url') is not None:
-                item_details['url'] = match.group('url')
-            if match.group('size') is not None:
-                item_details['size'] = match.group('size')
+            item_details = dict()
+            item_details['path'] = match.group('path')
+            item_details['level'] = len(item_details['path'].split("/"))
+            item_details['revision_remote'] = match.group('revision')
+            item_details['flags'] = match.group('flags')
+            item_details['fileFlag'] = 'f' in item_details['flags']
+            item_details['wtar_file'], item_details['wtar_first_file'] = Table.get_wtar_file_status(item_details['path'])
+            item_details['execFlag'] = 'x' in item_details['flags']
+            item_details['checksum'] = match.group('checksum')
+            item_details['url'] = match.group('url')
+            item_details['size'] = int(match.group('size')) if match.group('size')  else -1
         return item_details
+
+    @utils.timing
+    def read_from_text(self, in_path):
+        self.path_to_file = in_path
+        with open(in_path, "r") as rfd:
+            insert_dicts = self.read_from_text_to_dict(rfd)
+            self.insert_dicts_to_db(insert_dicts)
+
+    @utils.timing
+    def read_from_text_to_dict(self, in_rfd):
+        retVal = list()
+        for line in in_rfd:
+            line = line.strip()
+            item_dict = Table.item_dict_from_str_re(line)
+            if item_dict:
+                retVal.append(item_dict)
+            else:
+                match = comment_line_re.match(line)
+                if match:
+                    self.comments.append(match.group("the_comment"))
+        return retVal
+
+
+    @utils.timing
+    def insert_dicts_to_db(self, insert_dicts):
+        #self.session.bulk_insert_mappings(Row, insert_dicts)
+        self.engine.execute(Row.__table__.insert(), insert_dicts)
 
     @staticmethod
     def get_wtar_file_status(file_name):
@@ -145,28 +173,12 @@ class Table(object):
                 wfd.write(str(item) + "\n")
 
     @utils.timing
-    def read_from_text(self, in_path):
-        self.path_to_file = in_path
-        with open(in_path, "r") as rfd:
-            insert_dicts = list()
-            for line in rfd:
-                line = line.strip()
-                item_dict = Table.item_dict_from_str_re(line)
-                if item_dict:
-                    insert_dicts.append(item_dict)
-                else:
-                    match = comment_line_re.match(line)
-                    if match:
-                        self.comments.append(match.group("the_comment"))
-            self.session.bulk_insert_mappings(Row, insert_dicts)
-
-    @utils.timing
-    def get_items(self, in_parent="", in_level=700, get_files=True, get_dirs=False):
+    def get_items(self, in_parent="", in_level=700, get_files=True, get_dirs=True):
+        get_dirs = not get_dirs
         if not in_parent:
-            the_query = self.session.query(Row).filter(Row.fileFlag==True)
+            the_query = self.session.query(Row).filter(or_(Row.fileFlag==get_files, Row.fileFlag==get_dirs))
         else:
             parent_item = self.session.query(Row).filter(Row.path==in_parent).one()
-            get_dirs = not get_dirs
             the_query = self.session.query(Row).filter(or_(Row.fileFlag==get_files, Row.fileFlag==get_dirs))\
                                                 .filter(Row.path.like(parent_item.path+"/%"))\
                                                 .filter(Row.level > parent_item.level, Row.level < parent_item.level+in_level+1)
@@ -190,18 +202,15 @@ class Table(object):
 
     @utils.timing
     def mark_required_for_file(self, item_path):
-        file_items = self.session.query(Row).filter(or_(Row.path.like(item_path), Row.path.like(item_path+".wtar%"))).all()
-        paths_to_mark = [file_item.path for file_item in file_items]
-        paths_to_mark.extend(file_items[0].get_ancestry()) # all share the same ancestry
         update_statement = update(Row)\
-                .where(Row.path.in_(paths_to_mark))\
+                .where(Row.fileFlag == True)\
+                .where(or_(Row.path == item_path, Row.path.like(item_path+".wtar%")))\
                 .values(required=True)
         self.session.execute(update_statement)
 
     @utils.timing
     def mark_required_for_files(self, parent_path):
-        parent_item = self.session.query(Row).filter(Row.path == parent_path, Row.fileFlag==False).one()
-        self.mark_required_for_item(parent_item)
+        parent_item = self.session.query(Row).filter(Row.path == parent_path, Row.fileFlag==False).first()
         update_statement = update(Row)\
                 .where(Row.level == parent_item.level+1)\
                 .where(Row.fileFlag == True)\
@@ -211,8 +220,7 @@ class Table(object):
 
     @utils.timing
     def mark_required_for_dir(self, dir_path):
-        dir_item = self.session.query(Row).filter(Row.path == dir_path, Row.fileFlag==False).one()
-        self.mark_required_for_item(dir_item)
+        dir_item = self.session.query(Row).filter(Row.path == dir_path, Row.fileFlag==False).first()
         update_statement = update(Row)\
                 .where(Row.level > dir_item.level)\
                 .where(Row.path.like(dir_item.path+"/%"))\
@@ -226,6 +234,8 @@ class Table(object):
         for file_item in file_items:
             ancestors.extend(file_item.get_ancestry()[:-1])
         ancestors = set(ancestors)
+        if len(ancestors) == 0:
+            print("no ancestors for")
         update_statement = update(Row)\
                 .where(Row.path.in_(ancestors))\
                 .values(required=True)
@@ -251,7 +261,7 @@ class Table(object):
     @staticmethod
     def print_items(item_list):
         for item in item_list:
-            print(item)
+            print(item.__repr__())
 
 sources = (('Mac/Plugins/Enigma.bundle', '!dir', 'common'),
     ('Mac/Shells/WaveShell-VST 9.6.vst', '!dir', 'Mac'),
@@ -277,8 +287,9 @@ if __name__ == "__main__":
     t = Table()
     t.read_from_text("/Users/shai/Library/Caches/Waves Audio/instl/instl/V9/bookkeeping/58/remote_info_map.txt")
     #t.write_as_text("/Users/shai/Library/Caches/Waves Audio/instl/instl/V9/bookkeeping/58/remote_info_map.txt.out")
-    #items = t.get_items(in_parent="Mac/Apps/WavesQtLibs_4.7.3/Frameworks/QtDBus.framework", in_level=6, get_dirs=True)
+    #items = t.get_items()
     #t.print_items(items)
+
     #items = t.get_ancestry("Common/Data/IR1Impulses/Basic/Studio1_xcg.wir")
     #t.print_items(items)
     print("------------ 1")
@@ -287,9 +298,11 @@ if __name__ == "__main__":
     #t.mark_required_for_source(('Common/Data/WavesGTR', '!dir_cont', 'common'))
     for source in sources:
         t.mark_required_for_source(source)
-    print("------------ 2")
     t.mark_required_completion()
-    print("------------ 3")
+    print("------------ 2")
     items = t.get_required()
     t.print_items(items)
+    print("------------ 3")
+    #items = t.get_required()
+    #t.print_items(items)
     print(len(items), "required items")
