@@ -26,10 +26,7 @@ class InstlInstanceSync(object):
     def __init__(self, instlObj):
         self.instlObj = instlObj  # instance of the instl application
         self.installState = None  # object holding batch instructions
-        self.work_info_map = svnTree.SVNTree()
-        self.have_map = svnTree.SVNTree()  # info map of what was already downloaded
         self.info_map_table = svnTree.SVNTable()
-        self.have_info_map_table = svnTree.SVNTable()
         self.local_sync_dir = None  # will be resolved from $(LOCAL_REPO_SYNC_DIR)
         self.files_to_download = 0
 
@@ -68,11 +65,7 @@ class InstlInstanceSync(object):
                                       cache=True,
                                       expected_checksum=var_stack.resolve("$(INFO_MAP_FILE_URL_CHECKSUM)"))
 
-            self.work_info_map.read_info_map_from_file(var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)"), a_format="text")
-            self.work_info_map.write_to_file("/Users/shai/Desktop/work_info_map.txt")
-
             self.info_map_table.read_info_map_from_file(var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)"), a_format="text")
-            self.info_map_table.write_to_file("/Users/shai/Desktop/info_map_table.txt")
         except:
             print("Exception reading info_map:", info_map_file_url)
             raise
@@ -89,13 +82,6 @@ class InstlInstanceSync(object):
                     self.info_map_table.mark_required_for_source(source)
         self.info_map_table.mark_required_completion()
         self.info_map_table.write_to_file(var_stack.resolve("$(REQUIRED_INFO_MAP_PATH)"),  filter_query=self.info_map_table.required_all_query, in_format="text")
-
-    def read_have_info_map(self):
-        """ Reads the map of files previously synced - if there is one.
-        """
-        have_info_map_path = var_stack.resolve("$(HAVE_INFO_MAP_PATH)")
-        if os.path.isfile(have_info_map_path):
-            self.have_map.read_info_map_from_file(have_info_map_path, a_format="text")
 
     def mark_download_items(self):
         """" Mark those files that need to be downloaded.

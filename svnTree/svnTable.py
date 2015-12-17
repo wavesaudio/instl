@@ -79,7 +79,7 @@ class SVNTable(object):
         self.required_all_query = None
         self.need_download_files_query = None
         self.need_download_all_query = None
-        self.bake_queries()
+        self.bake_baked_queries()
 
     def bake_baked_queries(self):
         """ prepare baked queries for later use
