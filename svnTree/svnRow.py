@@ -1,3 +1,6 @@
+#!/usr/bin/env python2.7
+from __future__ import print_function
+
 
 from sqlalchemy import Column, Integer, String, BOOLEAN
 from sqlalchemy.ext.declarative import declarative_base
@@ -6,8 +9,8 @@ alchemy_base = declarative_base()
 
 class SVNRow(alchemy_base):
     __tablename__ = 'svnitem'
-    level = Column(Integer)
     path = Column(String, primary_key=True)
+    level = Column(Integer)
     flags = Column(String)
     revision_remote = Column(Integer, default=0)
     fileFlag = Column(BOOLEAN, default=False)
@@ -26,7 +29,7 @@ class SVNRow(alchemy_base):
         return ("<{self.level}, {self.path}, '{self.flags}'"
                 ", rev-remote:{self.revision_remote}, f:{self.fileFlag}"
                 ", checksum:{self.checksum}, size:{self.size}"
-                ", url:{self.checksum}, size:{self.size}"
+                ", url:{self.checksum}"
                 ", required:{self.required}, need_download:{self.need_download}>"
                 ).format(**locals())
 

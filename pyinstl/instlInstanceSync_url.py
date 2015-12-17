@@ -52,50 +52,9 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 retVal = len(svn_item.subs) == 0
             return retVal
 
-    def mark_required_items_for_source(self, source):
-        """
-            :param source: a tuple (source_folder, tag), where tag is either !file or !dir
-            :return: None
-        """
-        remote_sub_item = self.work_info_map.get_item_at_path(source[0])
-        if remote_sub_item is None:
-            # if item was not found it might have been wtarred. So look for wtar parts and mark them.
-            item_is_wtarred = self.mark_wtar_items_for_source(source)
-            if not item_is_wtarred:
-                raise ValueError(source[0], var_stack.resolve("does not exist in remote map, IID: $(iid_iid)"))
-        else:
-            if source[1] == '!file':
-                if not remote_sub_item.isFile():
-                    raise ValueError(source[0], "has type", source[1],
-                                     var_stack.resolve("but is not a file, IID: $(iid_iid)"))
-                remote_sub_item.set_user_data_non_recursive(True)
-            elif source[1] == '!files':
-                if not remote_sub_item.isDir():
-                    raise ValueError(source[0], "has type", source[1],
-                                     var_stack.resolve("but is not a dir, IID: $(iid_iid)"))
-                remote_sub_item.set_user_data_files_recursive(True)
-            elif source[1] == '!dir' or source[1] == '!dir_cont':  # !dir and !dir_cont are only different when copying
-                if not remote_sub_item.isDir():
-                    raise ValueError(source[0], "has type", source[1],
-                                     var_stack.resolve("but is not a dir, IID: $(iid_iid)"))
-                remote_sub_item.set_user_data_all_recursive(True)
-
-    def mark_wtar_items_for_source(self, source):
-        split_source_folder, split_source_leaf = os.path.split(source[0])
-        parent_folder_item = self.work_info_map.get_item_at_path(split_source_folder)
-        if parent_folder_item is None:
-            raise ValueError(split_source_folder, var_stack.resolve("does not exist in remote map, IID: $(iid_iid)"))
-
-        wtar_files_count = 0
-        for wtar_file in parent_folder_item.walk_file_items_with_filter(a_filter=svnTree.WtarFilter(split_source_leaf)):
-            wtar_file.set_user_data_non_recursive(True)
-            wtar_files_count += 1
-        retVal = wtar_files_count > 0
-        return retVal  # return True is at least one wtar file was found for the source
-
     def create_download_instructions(self):
         self.instlObj.batch_accum.set_current_section('sync')
-        file_list = self.info_map_table.get_to_download_list()
+        file_list, bytes_to_sync = self.info_map_table.get_to_download_list_and_size()
         if len(file_list) == 0:
             print("0 files to sync")
             print("0 bytes to sync")
@@ -114,13 +73,11 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Create folders")
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
-        bytes_to_sync = 0
         for file_item in file_list:
             source_url = file_item.url
             if source_url is None:
                 source_url = '/'.join(utils.make_one_list(self.sync_base_url, str(file_item.revision_remote), file_item.path))
             self.instlObj.platform_helper.dl_tool.add_download_url(source_url, file_item.path, verbatim=source_url==file_item.url)
-            bytes_to_sync += file_item.size
         var_stack.add_const_config_variable("__NUM_FILES_TO_DOWNLOAD_OLD__", "create_download_instructions",
                                             self.instlObj.platform_helper.dl_tool.get_num_urls_to_download())
 

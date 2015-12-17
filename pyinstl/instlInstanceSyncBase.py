@@ -78,18 +78,17 @@ class InstlInstanceSync(object):
             raise
 
     def mark_required_items(self):
-        """ Removes from work_info_map items not required to be installed.
-            First all items are marked False.
-            Items required by each install source are then marked True.
-            Finally items marked False and empty directories are removed.
+        """ Mark all files that are needed for installation.
+            Folders containing these these files are also marked.
+            All required items are written to required_info_map.txt for reference.
         """
-        self.work_info_map.set_user_data_all_recursive(False)
         for iid in self.installState.full_install_items:
             with self.instlObj.install_definitions_index[iid] as installi:
                 for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
                     source = var_stack.resolve_var_to_list(source_var)
                     self.info_map_table.mark_required_for_source(source)
-        self.info_map_table.write_to_file(var_stack.resolve("$(REQUIRED_INFO_MAP_PATH)"),  filter_name="required", in_format="text")
+        self.info_map_table.mark_required_completion()
+        self.info_map_table.write_to_file(var_stack.resolve("$(REQUIRED_INFO_MAP_PATH)"),  filter_query=self.info_map_table.required_all_query, in_format="text")
 
     def read_have_info_map(self):
         """ Reads the map of files previously synced - if there is one.
@@ -99,7 +98,12 @@ class InstlInstanceSync(object):
             self.have_map.read_info_map_from_file(have_info_map_path, a_format="text")
 
     def mark_download_items(self):
+        """" Mark those files that need to be downloaded.
+             All files marked 'required' are marked as needed download unless.
+             the files that exists and have correct checksum.
+        """
         self.info_map_table.mark_need_download(self.local_sync_dir)
+        self.info_map_table.write_to_file(var_stack.resolve("$(TO_SYNC_INFO_MAP_PATH)"), filter_query=self.info_map_table.need_download_all_query)
 
     # syncers that download from urls (url, boto) need to prepare a list of all the individual files that need updating.
     # syncers that use configuration management tools (p4, svn) do not need since the tools takes care of that.
