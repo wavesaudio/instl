@@ -399,8 +399,6 @@ class InstlInstanceBase(object):
         lines_after_var_replacement = '\n'.join(
             [value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines])
 
-        from utils import write_to_file_or_stdout
-
         out_file = var_stack.resolve("$(__MAIN_OUT_FILE__)", raise_on_fail=True)
         with utils.write_to_file_or_stdout(out_file) as fd:
             fd.write(lines_after_var_replacement)
@@ -430,7 +428,6 @@ class InstlInstanceBase(object):
             raise SystemExit(self.out_file_realpath + " returned exit code " + str(retcode))
 
     def write_program_state(self):
-        from utils import write_to_file_or_stdout
 
         state_file = var_stack.resolve("$(__MAIN_STATE_FILE__)", raise_on_fail=True)
         with utils.write_to_file_or_stdout(state_file) as fd:
