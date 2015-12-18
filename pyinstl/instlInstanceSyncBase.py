@@ -4,7 +4,6 @@ from __future__ import print_function
 import os
 import abc
 
-import svnTree
 import utils
 import connectionBase
 from configVar import var_stack
@@ -26,7 +25,6 @@ class InstlInstanceSync(object):
     def __init__(self, instlObj):
         self.instlObj = instlObj  # instance of the instl application
         self.installState = None  # object holding batch instructions
-        self.info_map_table = svnTree.SVNTable()
         self.local_sync_dir = None  # will be resolved from $(LOCAL_REPO_SYNC_DIR)
         self.files_to_download = 0
 

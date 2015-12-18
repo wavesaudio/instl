@@ -416,9 +416,14 @@ def get_buffer_checksum(buff):
     return retVal
 
 
+def compare_checksums(_1st_checksum, _2nd_checksum):
+    retVal = _1st_checksum.lower() == _2nd_checksum.lower()
+    return retVal
+
+
 def check_buffer_checksum(buff, expected_checksum):
     checksum = get_buffer_checksum(buff)
-    retVal = checksum.lower() == expected_checksum.lower()
+    retVal = compare_checksums(checksum, expected_checksum)
     return retVal
 
 
@@ -452,6 +457,12 @@ def check_file_checksum(file_path, expected_checksum):
     retVal = False
     with open(file_path, "rb") as rfd:
         retVal = check_buffer_checksum(rfd.read(), expected_checksum)
+    return retVal
+
+
+def get_file_checksum(file_path):
+    with open(file_path, "rb") as rfd:
+        retVal = get_buffer_checksum(rfd.read())
     return retVal
 
 

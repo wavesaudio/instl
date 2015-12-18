@@ -72,42 +72,49 @@ class SVNTable(object):
         self.path_to_file = None
         self.comments = list()
         
-        # baked queries, initialized in bake_baked_queries()
-        self.all_query = None
-        self.dir_item_query = None
-        self.required_files_query = None
-        self.required_all_query = None
-        self.need_download_files_query = None
-        self.need_download_all_query = None
-        self.bake_baked_queries()
+        self.baked_queries_map =  self.bake_baked_queries()
 
     def bake_baked_queries(self):
         """ prepare baked queries for later use
         """
         bakery = baked.bakery()
+        retVal = dict()
 
-        # all_query: return all items
-        self.all_query = bakery(lambda session: session.query(SVNRow))
+        # all: return all items
+        retVal["all"] = bakery(lambda session: session.query(SVNRow))
 
-        # dir_item_query: return specific dir item
-        self.dir_item_query = bakery(lambda session: session.query(SVNRow))
-        self.dir_item_query += lambda q: q.filter(SVNRow.path == bindparam('dir_name'), SVNRow.fileFlag==False)
+        # all-files: return all files
+        retVal["all-files"] = bakery(lambda session: session.query(SVNRow))
+        retVal["all-files"] += lambda q: q.filter(SVNRow.fileFlag==True)
 
-        # required_files_query: return all required files
-        self.required_files_query = bakery(lambda session: session.query(SVNRow))
-        self.required_files_query += lambda q: q.filter(SVNRow.required==True, SVNRow.fileFlag==True)
+        # all-dirs: return all directories
+        retVal["all-dirs"] = bakery(lambda session: session.query(SVNRow))
+        retVal["all-dirs"] += lambda q: q.filter(SVNRow.fileFlag==False)
 
-        # required_files_query: return all required files and dirs
-        self.required_all_query = bakery(lambda session: session.query(SVNRow))
-        self.required_all_query += lambda q: q.filter(SVNRow.required==True)
+        # dir-item: return specific item which should be a dir
+        retVal["dir-item"] = bakery(lambda session: session.query(SVNRow))
+        retVal["dir-item"] += lambda q: q.filter(SVNRow.path == bindparam('dir_name'), SVNRow.fileFlag==False)
 
-        # required_files_query: return all need_download files
-        self.need_download_files_query = bakery(lambda session: session.query(SVNRow))
-        self.need_download_files_query += lambda q: q.filter(SVNRow.need_download==True, SVNRow.fileFlag==True)
+        # required-files: return all required files
+        retVal["required-files"] = bakery(lambda session: session.query(SVNRow))
+        retVal["required-files"] += lambda q: q.filter(SVNRow.required==True, SVNRow.fileFlag==True)
 
-        # required_files_query: return all need_download files and dirs
-        self.need_download_all_query = bakery(lambda session: session.query(SVNRow))
-        self.need_download_all_query += lambda q: q.filter(SVNRow.need_download==True)
+        # exec-file: return all executable files
+        retVal["exec-files"] = bakery(lambda session: session.query(SVNRow))
+        retVal["exec-files"] += lambda q: q.filter(SVNRow.fileFlag==True, SVNRow.flags.contains('x'))
+
+        # all-required: return all required files and dirs
+        retVal["all-required"] = bakery(lambda session: session.query(SVNRow))
+        retVal["all-required"] += lambda q: q.filter(SVNRow.required==True)
+
+        # need-download-files: return all files that need to be downloaded
+        retVal["need-download-files"] = bakery(lambda session: session.query(SVNRow))
+        retVal["need-download-files"] += lambda q: q.filter(SVNRow.need_download==True, SVNRow.fileFlag==True)
+
+        # need-download-files: return all files & dirs that need to be downloaded
+        retVal["need-download-all"] = bakery(lambda session: session.query(SVNRow))
+        retVal["need-download-all"] += lambda q: q.filter(SVNRow.need_download==True)
+        return retVal
 
     def __repr__(self):
         return "\n".join([item.__repr__() for item in self.all_query(self.session).all()])
@@ -120,7 +127,7 @@ class SVNTable(object):
         """ returns a list of file formats that can be read by SVNTree """
         return list(self.read_func_by_format.keys())
 
-    def read_info_map_from_file(self, in_file, a_format="guess"):
+    def read_from_file(self, in_file, a_format="guess"):
         """ Reads from file. All previous sub items are cleared
             before reading, unless the a_format is 'props' in which case
             the properties are added to existing sub items.
@@ -141,8 +148,12 @@ class SVNTable(object):
 
     @utils.timing
     def read_from_svn_info(self, rfd):
-        """ reads new items from svn info items prepared by iter_svn_info """
-        insert_dicts = [item_dict for item_dict in self.iter_svn_info(rfd)]
+        """ reads new items from svn info items prepared by iter_svn_info
+            items are inserted in lexicographic directory order, so '/'
+            sorts before other characters: key=lambda x: x['path'].split('/')
+        """
+
+        insert_dicts = sorted([item_dict for item_dict in self.iter_svn_info(rfd)], key=lambda x: x['path'].split('/'))
         self.session.bulk_insert_mappings(SVNRow, insert_dicts)
 
     @utils.timing
@@ -198,7 +209,6 @@ class SVNTable(object):
         is_wtar_first_file = is_wtar_file and wtar_first_file_re.match(file_name) is not None
         return is_wtar_file, is_wtar_first_file
 
-
     @staticmethod
     def item_dict_from_str(the_str):
         """ create a new a sub-item from string description.
@@ -226,30 +236,28 @@ class SVNTable(object):
     def valid_write_formats(self):
         return list(self.write_func_by_format.keys())
 
-    @utils.timing
-    def write_to_file(self, in_file, in_format="guess", comments=True, filter_query=None):
+    def write_to_file(self, in_file, in_format="guess", comments=True, filter_name="all"):
         """ pass in_file="stdout" to output to stdout.
             in_format is either text, yaml, pickle
         """
+
+        filter_query = self.baked_queries_map[filter_name]
         self.path_to_file = in_file
         if in_format == "guess":
             _, extension = os.path.splitext(self.path_to_file)
             in_format = map_info_extension_to_format[extension[1:]]
         if in_format in list(self.write_func_by_format.keys()):
             with utils.write_to_file_or_stdout(self.path_to_file) as wfd:
-                self.write_func_by_format[in_format](wfd, comments, filter_query)
+                self.write_func_by_format[in_format](wfd, filter_query, comments)
         else:
             raise ValueError("Unknown write in_format " + in_format)
 
-    def write_as_text(self, wfd, comments=True, filter_query=None):
+    @utils.timing
+    def write_as_text(self, wfd, filter_query, comments=True):
         if comments and len(self.comments) > 0:
             for comment in self.comments:
                 wfd.write("# " + comment + "\n")
             wfd.write("\n")
-
-        if filter_query is None:
-            filter_query = self.all_query
-
         for item in filter_query(self.session).all():
             wfd.write(str(item) + "\n")
 
@@ -274,9 +282,12 @@ class SVNTable(object):
                 retVal = dict()
                 retVal['path'] = a_record["Path"]
                 retVal['level'] = len(retVal['path'].split("/"))
-                retVal['fileFlag'] = a_record["Node Kind"] == "file"
-                retVal['flags'] = match.group('flags')
-                retVal['fileFlag'] = 'f' in retVal['flags']
+                if a_record["Node Kind"] == "file":
+                    retVal['flags'] = "f"
+                    retVal['fileFlag'] = True
+                elif a_record["Node Kind"] == "directory":
+                    retVal['flags'] = "d"
+                    retVal['fileFlag'] = False
                 if "Last Changed Rev" in a_record:
                     retVal['revision_remote'] = int(a_record["Last Changed Rev"])
                 elif "Revision" in a_record:
@@ -317,6 +328,9 @@ class SVNTable(object):
                     relative_path = os.path.join(root, a_file)[prefix_len:]
                     self.new_item_at_path(relative_path, {'flags':"f", 'revision': 0, 'checksum': "0"}, create_folders=True)
 
+    def num_items(self):
+        return self.session.query(SVNRow).count()
+
     def clear_all(self):
         self.session.query(SVNRow).delete()
 
@@ -326,13 +340,18 @@ class SVNTable(object):
 
     def read_file_sizes(self, rfd):
         update_dicts = list()
+        line_num = 0
         for line in rfd:
+            line_num += 1
             match = comment_line_re.match(line)
             if not match:
                 parts = line.rstrip().split(", ", 2)
+                if len(parts) != 2:
+                    print(line, line_num)
                 update_dicts.append({"path": parts[0], "size": int(parts[1])})
         self.session.bulk_update_mappings(SVNRow, update_dicts)
 
+    @utils.timing
     def read_props(self, rfd):
         props_line_re = re.compile("""
                     ^
@@ -351,9 +370,8 @@ class SVNTable(object):
                     $
                     """, re.X)
         line_num = 0
-        update_dicts = list()
         try:
-            prop_name_to_col_name = {'executable': 'execFlag', 'special': 'symlinkFlag'}
+            prop_name_to_flag = {'executable': 'x', 'special': 's'}
             path = None
             for line in rfd:
                 line_num += 1
@@ -364,26 +382,19 @@ class SVNTable(object):
                     elif match.group('prop_name'):
                         if path is not None:
                             prop_name = match.group('prop_name')
-                            if prop_name in prop_name_to_col_name:
-                                update_dicts.append({"path": path, prop_name_to_col_name[prop_name]: True})
+                            if prop_name in prop_name_to_flag:
+                                update_statement = update(SVNRow)\
+                                    .where(SVNRow.path == path)\
+                                    .values(flags = SVNRow.flags + prop_name_to_flag[prop_name])
+                                self.session.execute(update_statement)
                 else:
                     ValueError("no match at file: " + rfd.name + ", line: " + str(line_num) + ": " + line)
         except Exception as ex:
             print("Line:", line_num, ex)
             raise
-        self.session.bulk_update_mappings(SVNRow, update_dicts)
 
-    def get_items(self, in_parent="", in_level=700, get_files=True, get_dirs=True):
-        get_dirs = not get_dirs
-        if not in_parent:
-            the_query = self.session.query(SVNRow).filter(or_(SVNRow.fileFlag==get_files, SVNRow.fileFlag==get_dirs))
-        else:
-            parent_item = self.session.query(SVNRow).filter(SVNRow.path==in_parent).one()
-            the_query = self.session.query(SVNRow).filter(or_(SVNRow.fileFlag==get_files, SVNRow.fileFlag==get_dirs))\
-                                                .filter(SVNRow.path.like(parent_item.path+"/%"))\
-                                                .filter(SVNRow.level > parent_item.level, SVNRow.level < parent_item.level+in_level+1)
-
-        return the_query.all()
+    def get_items(self, filter_name="all"):
+        return self.baked_queries_map[filter_name](self.session).all()
 
     @utils.timing
     def mark_required_for_file(self, file_path):
@@ -452,10 +463,6 @@ class SVNTable(object):
                 .where(SVNRow.path.in_(ancestors))\
                 .values(required=True)
         self.session.execute(update_statement)
-
-    def get_required(self):
-        the_query = self.session.query(SVNRow).filter(SVNRow.required==True)
-        return the_query.all()
 
     @utils.timing
     def mark_need_download(self, local_sync_dir):

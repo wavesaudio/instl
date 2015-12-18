@@ -398,10 +398,10 @@ class CMDObj(cmd.Cmd, object):
         if params:
             for afile in shlex.split(params):
                 time_start = time.clock()
-                self.admin_prog_inst.read_info_map_file(afile)
+                self.admin_prog_inst.info_map_table.read_from_file(afile)
                 time_end = time.clock()
                 print("opened file:", "'" + afile + "'")
-                print("    %d items read in %0.3f ms" % (self.admin_prog_inst.svnTree.num_subs_in_tree(), (time_end-time_start)*1000.0))
+                print("    %d items read in %0.3f ms" % (self.admin_prog_inst.info_map_table.num_items(), (time_end-time_start)*1000.0))
         else:
             self.help_read()
         return False

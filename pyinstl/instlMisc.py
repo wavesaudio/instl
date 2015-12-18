@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 import os
+import stat
 import sys
 import shlex
 import tarfile
@@ -19,9 +20,9 @@ import connectionBase
 class InstlMisc(InstlInstanceBase):
     def __init__(self, initial_vars):
         super(InstlMisc, self).__init__(initial_vars)
-        self.svnTree = svnTree.SVNTree()
         self.curr_progress = 0
         self.actual_progress = 0
+        self.progress_staccato_command = False
 
     def __del__(self):
         if self.curr_progress != self.actual_progress:
@@ -35,7 +36,6 @@ class InstlMisc(InstlInstanceBase):
         self.progress_staccato_period = int(var_stack.resolve("$(PROGRESS_STACCATO_PERIOD)"))
         self.progress_staccato_count = 0
         self.actual_progress = 1
-        self.progress_staccato_command = False
         do_command_func = getattr(self, "do_" + fixed_command)
         before_time = time.clock()
         do_command_func()
@@ -156,39 +156,35 @@ class InstlMisc(InstlInstanceBase):
     def do_check_checksum(self):
         self.progress_staccato_command = True
         bad_checksum_list = list()
-        self.read_info_map_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
-        for file_item in self.svnTree.walk_items(what="file"):
-            file_path = file_item.full_path()
-            if os.path.isfile(file_path):
-                checkOK = utils.check_file_checksum(file_path, file_item.checksum)
-                if not checkOK:
-                    sigs = utils.create_file_signatures(file_path)
-                    bad_checksum_list.append( " ".join(("Bad checksum:", file_path, "expected", file_item.checksum, "found", sigs["sha1_checksum"])) )
+        self.info_map_table.read_from_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
+        for file_item in self.info_map_table.get_items("all-files"):
+            if os.path.isfile(file_item.path):
+                file_checksum = utils.get_file_checksum(file_item.path)
+                if not utils.compare_checksums(file_checksum, file_item.checksum):
+                    sigs = utils.create_file_signatures(file_item.path)
+                    bad_checksum_list.append( " ".join(("Bad checksum:", file_item.path, "expected", file_item.checksum, "found", sigs["sha1_checksum"])) )
             else:
-                bad_checksum_list.append(" ".join((file_path, "does not exist")))
-            self.dynamic_progress("Check checksum {file_path}".format(**locals()))
+                bad_checksum_list.append(" ".join((file_item.path, "does not exist")))
+            self.dynamic_progress("Check checksum {file_item.path}".format(**locals()))
         if bad_checksum_list:
             print("\n".join(bad_checksum_list))
             raise ValueError("Bad checksum for " + str(len(bad_checksum_list)) + " files")
 
     def do_set_exec(self):
         self.progress_staccato_command = True
-        self.read_info_map_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
-        for file_item in self.svnTree.walk_items(what="file"):
-            if file_item.isExecutable():
-                file_path = file_item.full_path()
-                if os.path.isfile(file_path):
-                    file_stat = os.stat(file_path)
-                    os.chmod(file_path, file_stat.st_mode | stat.S_IEXEC)
-                self.dynamic_progress("Set exec {file_path}".format(**locals()))
+        self.info_map_table.read_from_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
+        for file_item in self.info_map_table.get_items("exec-files"):
+            if os.path.isfile(file_item.path):
+                file_stat = os.stat(file_item.path)
+                os.chmod(file_item.path, file_stat.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+            self.dynamic_progress("Set exec {file_item.path}".format(**locals()))
 
     def do_create_folders(self):
         self.progress_staccato_command = True
-        self.read_info_map_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
-        for dir_item in self.svnTree.walk_items(what="dir"):
-            dir_path = dir_item.full_path()
-            utils.safe_makedirs(dir_path)
-            self.dynamic_progress("Create folder {dir_path}".format(**locals()))
+        self.info_map_table.read_from_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
+        for dir_item in self.info_map_table.get_items("all-dirs"):
+            utils.safe_makedirs(dir_item.path)
+            self.dynamic_progress("Create folder {dir_item.path}".format(**locals()))
 
     def do_test_import(self):
         import importlib

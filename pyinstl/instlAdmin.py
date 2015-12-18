@@ -27,7 +27,6 @@ class InstlAdmin(InstlInstanceBase):
     def __init__(self, initial_vars):
         super(InstlAdmin, self).__init__(initial_vars)
         self.svnTree = svnTree.SVNTree()
-        self.svnTable = svnTree.SVNTable()
 
     def set_default_variables(self):
         if "__CONFIG_FILE__" in var_stack:
@@ -62,28 +61,28 @@ class InstlAdmin(InstlInstanceBase):
         do_command_func()
 
     def do_trans(self):
-        self.read_info_map_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)"))
+        self.info_map_table.read_from_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)"), a_format="info")
         if "__PROPS_FILE__" in var_stack:
-            self.read_info_map_file(var_stack.resolve("$(__PROPS_FILE__)"))
+            self.info_map_table.read_from_file(var_stack.resolve("$(__PROPS_FILE__)"), a_format="props")
         if "__FILE_SIZES_FILE__" in var_stack:
-            self.read_info_map_file(var_stack.resolve("$(__FILE_SIZES_FILE__)"), a_format="file-sizes")
+            self.info_map_table.read_from_file(var_stack.resolve("$(__FILE_SIZES_FILE__)"), a_format="file-sizes")
         self.filter_out_info_map(var_stack.resolve_to_list("$(__FILTER_OUT_PATHS__)"))
 
         base_rev = int(var_stack.resolve("$(BASE_REPO_REV)"))
         if base_rev > 0:
-            self.svnTable.set_base_revision(base_rev)
+            self.info_map_table.set_base_revision(base_rev)
 
         if "__FILTER_IN_VERSION__" in var_stack:
             self.filter_in_specific_version(var_stack.resolve("$(__FILTER_IN_VERSION__)"))
         if "__BASE_URL__" in var_stack:
             self.add_urls_to_info_map()
-        self.write_info_map_file()
+        self.info_map_table.write_to_file(var_stack.resolve("$(__MAIN_OUT_FILE__)"))
 
 
     def add_urls_to_info_map(self):
         base_url = var_stack.resolve_var("__BASE_URL__")
-        for file_item in self.svnTree.walk_items(what="file"):
-            file_item.url = os.path.join(base_url, str(file_item.revision), file_item.full_path())
+        for file_item in self.info_map_table.get_items("all-files"):
+            file_item.url = os.path.join(base_url, str(file_item.revision), file_item.path)
             print(file_item)
 
     def filter_out_info_map(self, paths_to_filter_out):

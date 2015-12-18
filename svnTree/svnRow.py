@@ -44,7 +44,6 @@ class SVNRow(alchemy_base):
             retVal = "{}, {}".format(retVal, self.url)
         return retVal
 
-
     def get_ancestry(self):
         ancestry = list()
         split_path = self.path.split("/")
@@ -52,26 +51,14 @@ class SVNRow(alchemy_base):
             ancestry.append("/".join(split_path[:i]))
         return ancestry
 
-    if False:
-        def flag_str(self):
-            retVal = 'f' if self.fileFlag else 'd'
-            if self.symlinkFlag:
-                retVal += 's'
-            if self.execFlag:
-                retVal += 'x'
-            return retVal
+    def isDir(self):
+        return not self.fileFlag
 
-        def full_path(self):
-            return self.path
+    def isFile(self):
+        return self.fileFlag
 
-        def isDir(self):
-            return not self.fileFlag
-    
-        def isFile(self):
-            return self.fileFlag
+    def isExecutable(self):
+        return 'x' in self.flags
 
-        def isExecutable(self):
-            return self.execFlag
-
-        def isSymlink(self):
-            return self.symlinkFlag
+    def isSymlink(self):
+        return 's' in self.flags

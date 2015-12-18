@@ -15,6 +15,7 @@ import utils
 from batchAccumulator import BatchAccumulator
 from installItem import read_index_from_yaml
 from platformSpecificHelper_Base import PlatformSpecificHelperFactory
+import svnTree
 
 from configVar import value_ref_re
 from configVar import var_stack
@@ -44,6 +45,7 @@ class InstlInstanceBase(object):
 
         # only when allow_reading_of_internal_vars is true, variables who's name begins and ends with "__"
         # can be read from file
+        self.info_map_table = svnTree.SVNTable()
         self.allow_reading_of_internal_vars = False
         self.path_searcher = utils.SearchPaths(var_stack.get_configVar_obj("__SEARCH_PATHS__"))
         self.init_default_vars(initial_vars)
