@@ -4,6 +4,7 @@ from __future__ import print_function
 import os
 import sys
 import datetime
+import subprocess
 
 import utils
 from platformSpecificHelper_Base import PlatformSpecificHelperBase
@@ -21,6 +22,9 @@ class CopyTool_win_robocopy(CopyToolBase):
     def __init__(self, platform_helper):
         super(CopyTool_win_robocopy, self).__init__(platform_helper)
         self.robocopy_error_threshold = 4  # see ss64.com/nt/robocopy-exit.html
+        robocopy_path = self.platform_helper.find_cmd_tool("robocopy.exe", "ROBOCOPY_PATH")
+        if robocopy_path is None:
+            raise IOError("could not find {} in path".format("robocopy.exe"))
 
     def finalize(self):
         pass
@@ -35,7 +39,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         retVal = ""
         if not isinstance(ignore, basestring):
             ignore = " ".join(map(utils.quoteme_double, ignore))
-        retVal = "/XF {ignore} /XD {ignore}".format(**locals())
+        retVal = """/XF {ignore} /XD {ignore}""".format(**locals())
         return retVal
 
     def create_log_spec(self):
@@ -54,7 +58,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         log_file_spec = self.create_log_spec()
         norm_src_dir = os.path.normpath(src_dir)
         norm_trg_dir = os.path.normpath(trg_dir)
-        copy_command = "robocopy \"{norm_src_dir}\" \"{norm_trg_dir}\" {ignore_spec} /E /R:3 /W:3 /PURGE {log_file_spec}".format(**locals())
+        copy_command = """"$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" {ignore_spec} /E /R:3 /W:3 /PURGE {log_file_spec}""".format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
         return retVal
@@ -64,7 +68,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         norm_src_dir, norm_src_file = os.path.split(os.path.normpath(src_file))
         norm_trg_dir = os.path.normpath(trg_dir)
         log_file_spec = self.create_log_spec()
-        copy_command = "robocopy \"{norm_src_dir}\" \"{norm_trg_dir}\" \"{norm_src_file}\" /R:3 /W:3 {log_file_spec}".format(**locals())
+        copy_command = """"$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" "{norm_src_file}" /R:3 /W:3 {log_file_spec}""".format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
         return retVal
@@ -78,7 +82,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         log_file_spec = self.create_log_spec()
         norm_src_dir = os.path.normpath(src_dir)
         norm_trg_dir = os.path.normpath(trg_dir)
-        copy_command = "robocopy \"{norm_src_dir}\" \"{norm_trg_dir}\" /E {delete_spec} {ignore_spec} /R:3 /W:3 {log_file_spec}".format(**locals())
+        copy_command = """"$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" /E {delete_spec} {ignore_spec} /R:3 /W:3 {log_file_spec}""".format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
         return retVal
@@ -89,7 +93,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         log_file_spec = self.create_log_spec()
         norm_src_dir = os.path.normpath(src_dir)
         norm_trg_dir = os.path.normpath(trg_dir)
-        copy_command = "robocopy \"{norm_src_dir}\" \"{norm_trg_dir}\" /LEV:1 {ignore_spec} /R:3 /W:3 {log_file_spec}".format(**locals())
+        copy_command = """"$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" /LEV:1 {ignore_spec} /R:3 /W:3 {log_file_spec}""".format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
         return retVal
@@ -98,7 +102,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         retVal = list()
         norm_src_file = os.path.normpath(src_file)
         norm_trg_file = os.path.normpath(trg_file)
-        copy_command = "copy \"{norm_src_file}\" \"{norm_trg_file}\"".format(**locals())
+        copy_command = """copy "{norm_src_file}" "{norm_trg_file}" """.format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error())
         return retVal
@@ -114,6 +118,9 @@ class CopyTool_win_xcopy(CopyToolBase):
     def __init__(self, platform_helper):
         super(CopyTool_win_xcopy, self).__init__(platform_helper)
         self.excludes_set = set()
+        xcopy_path = self.platform_helper.find_cmd_tool("xcopy.exe", "XCOPY_PATH")
+        if xcopy_path is None:
+            raise IOError("could not find {} in path".format("xcopy.exe"))
 
     def finalize(self):
         self.create_excludes_file()
@@ -153,7 +160,7 @@ class CopyTool_win_xcopy(CopyToolBase):
         # src_dir, src_file = os.path.split(src_file)
         norm_src_file = os.path.normpath(src_file)
         norm_trg_dir = os.path.normpath(trg_dir)
-        copy_command = "xcopy  /R /Y \"{norm_src_file}\" \"{norm_trg_dir}\"".format(**locals())
+        copy_command = """"$(XCOPY_PATH)"  /R /Y "{norm_src_file}" "{norm_trg_dir}" """.format(**locals())
         copy_command.replace("\\", "/")
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error())
@@ -165,7 +172,7 @@ class CopyTool_win_xcopy(CopyToolBase):
         norm_trg_dir = os.path.normpath(trg_dir)
         ignore_spec = self.create_ignore_spec(ignore)
         # preserve_dest_files is ignored - xcopy has no support for removing target file that are not in source
-        copy_command = "xcopy /E /R /Y /I {ignore_spec} \"{norm_src_dir}\" \"{norm_trg_dir}\"".format(**locals())
+        copy_command = """"$(XCOPY_PATH)" /E /R /Y /I {ignore_spec} "{norm_src_dir}" "{norm_trg_dir}" """.format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error())
         return retVal
@@ -175,7 +182,7 @@ class CopyTool_win_xcopy(CopyToolBase):
         norm_src_dir = os.path.normpath(src_dir)
         norm_trg_dir = os.path.normpath(trg_dir)
         ignore_spec = self.create_ignore_spec(ignore)
-        copy_command = "xcopy  /R /Y {ignore_spec} \"{norm_src_dir}\" \"{trg_dir}\"".format(**locals())
+        copy_command = """"$(XCOPY_PATH)"  /R /Y {ignore_spec} "{norm_src_dir}" "{trg_dir}" """.format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error())
         return retVal
@@ -185,7 +192,7 @@ class CopyTool_win_xcopy(CopyToolBase):
         norm_src_file = os.path.normpath(src_file)
         norm_trg_file = os.path.normpath(trg_file)
         ignore_spec = self.create_ignore_spec(ignore)
-        copy_command = "xcopy  /R /Y {ignore_spec} \"{norm_src_file}\" \"{norm_trg_file}\"".format(**locals())
+        copy_command = """"$(XCOPY_PATH)"  /R /Y {ignore_spec} "{norm_src_file}" "{norm_trg_file}" """.format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error())
         return retVal
@@ -197,11 +204,11 @@ class CopyTool_win_xcopy(CopyToolBase):
                 wfd.write("\n".join(self.excludes_set))
 
     def remove_file(self, file_to_remove):
-        remove_command = "removing \"{file_to_remove}\"".format(**locals())
+        remove_command = """removing "{file_to_remove}" """.format(**locals())
         return remove_command
 
     def remove_dir(self, dir_to_remove):
-        remove_command = "removing \"{dir_to_remove}\"".format(**locals())
+        remove_command = """removing "{dir_to_remove}" """.format(**locals())
         return remove_command
 
 
@@ -210,12 +217,59 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         super(PlatformSpecificHelperWin, self).__init__(instlObj)
         self.var_replacement_pattern = "%\g<var_name>%"
 
-    def init_download_tool(self):
+    def find_cmd_tool(self, tool_name, variable_name):
+        """ locate the path to a cmd.exe tool on windows, if found put the full path in variable
+        :param tool_name: e.g. robocopy.exe
+        :param variable_name: variable to save the path in
+        :return: the path to the tool
+        """
+        tool_path = None
+        # first try the variable, could be that the tool was already found
+        if variable_name in var_stack:
+            original_tool_path = var_stack.resolve_var(variable_name)
+            if os.path.isfile(original_tool_path):
+                tool_path = original_tool_path
+
+        if tool_path is None:
+            # next try to ask the system using the where command
+            try:
+                where_tool_path = subprocess.check_output("where " + tool_name).strip()
+                if os.path.isfile(where_tool_path):
+                    tool_path = where_tool_path
+                    var_stack.set_var(variable_name, "find_cmd_tool "+tool_name).append(tool_path)
+            except:
+                pass # never mind, we'll try on our own
+
+        if tool_path is None:
+            # try to find the tool in the PATH variable
+            win_paths = os.environ["PATH"].split(";")
+            # also add some known location in case user's PATH variable was altered
+            if "SystemRoot" in os.environ:
+                know_locations = (os.path.join(os.environ["SystemRoot"], "System32"),
+                                  os.path.join(os.environ["SystemRoot"], "SysWOW64"))
+                win_paths.extend(know_locations)
+            for win_path in win_paths:
+                tool_path = os.path.join(win_path, tool_name)
+                if os.path.isfile(tool_path):
+                    var_stack.set_var(variable_name, "find_cmd_tool "+tool_name).append(tool_path)
+                    break
+            else: # break was not called, tool was not found
+                tool_path = None
+                var_stack.set_var(variable_name, "find_cmd_tool "+tool_name).append(tool_name+" was not found")
+        return tool_path
+
+    def init_platform_tools(self):
         download_tool_name = var_stack.resolve("$(DOWNLOAD_TOOL_PATH)")
         if download_tool_name.endswith("wget.exe"):
             self.dl_tool = DownloadTool_win_wget(self)
         elif download_tool_name.endswith("curl.exe"):
             self.dl_tool = DownloadTool_win_curl(self)
+        for find_list_var in ("CMD_TOOLS_TO_FIND", "CMD_TOOLS_TO_FIND_INTERNAL"):
+            if find_list_var in var_stack:
+                tool_var_pairs = var_stack.resolve_var_to_list(find_list_var)
+                for tool_var_pair in tool_var_pairs:
+                    tool_var_pair = tool_var_pair.split()
+                    self.find_cmd_tool(*tool_var_pair)
 
     def get_install_instructions_prefix(self):
         retVal = (
@@ -344,8 +398,8 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         copy_command = " ".join(("copy", norm_src_file, norm_trg_file))
         return copy_command
 
-    def check_checksum_for_file(self, filepath, checksum):
-        norm_file = os.path.normpath(filepath)
+    def check_checksum_for_file(self, file_path, checksum):
+        norm_file = os.path.normpath(file_path)
         check_commands = (
             """for /f "delims=\" %%i in ('$(CHECKSUM_TOOL_PATH) -s \"{norm_file}\"') do (@set sha1deep_ret=%%i)""".format(**locals()),
             """@set CHECKSUM_CHECK=\"%sha1deep_ret:~0,40%\"""",
@@ -382,10 +436,10 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def wait_for_child_processes(self):
         return ("echo wait_for_child_processes not implemented yet for windows",)
 
-    def chmod(self, new_mode, filepath):
+    def chmod(self, new_mode, file_path):
         raise NotImplementedError
 
-    def make_executable(self, filepath):
+    def make_executable(self, file_path):
         raise NotImplementedError
 
     def unlock(self, filepath, recursive=False):
@@ -394,7 +448,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         """
         raise NotImplementedError
 
-    def touch(self, filepath):
+    def touch(self, file_path):
         touch_command = " ".join(("type", "NUL", ">", utils.quoteme_double(filepath)))
         return touch_command
 

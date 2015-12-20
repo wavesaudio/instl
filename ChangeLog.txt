@@ -1,3 +1,9 @@
+20/12/2015 1.1.0.1
+
+    user visible changes client:
+    * Windows: Some cmd tools are located if they are not in one of the PATH folders.
+        The list of such tools is in "CMD_TOOLS_TO_FIND" & "CMD_TOOLS_TO_FIND_INTERNAL" variabless.
+
 31/11/2015 1.1.0.0
 
     user visible changes client:

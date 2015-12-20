@@ -107,7 +107,7 @@ class InstlClient(InstlInstanceBase):
         self.resolve_defined_paths()
         self.batch_accum.set_current_section('begin')
         self.batch_accum += self.platform_helper.setup_echo()
-        self.platform_helper.init_download_tool()
+        self.platform_helper.init_platform_tools()
         # after reading variable COPY_TOOL from yaml, we might need to re-init the copy tool.
         self.platform_helper.init_copy_tool()
         self.resolve_index_inheritance()

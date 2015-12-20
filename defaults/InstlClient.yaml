@@ -46,3 +46,9 @@ COPY_IGNORE_PATTERNS:
 RSYNC_PERM_OPTIONS: --perms --chmod=a+rw,+X
 
 WTAR_RATIO: 1.3
+
+--- !define_Win
+# space separeted pairs of tool name/var name.
+# instl will try to locate these by using where command or in PATH variables
+CMD_TOOLS_TO_FIND_INTERNAL:
+  - xcopy.exe XCOPY_PATH

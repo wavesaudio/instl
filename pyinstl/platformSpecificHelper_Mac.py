@@ -22,7 +22,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         self.var_replacement_pattern = "${\g<var_name>}"
         self.echo_template = 'echo "{}"'
 
-    def init_download_tool(self):
+    def init_platform_tools(self):
         self.dl_tool = DownloadTool_mac_curl(self)
 
     def get_install_instructions_prefix(self):

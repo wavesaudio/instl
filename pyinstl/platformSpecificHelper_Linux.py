@@ -21,7 +21,7 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         self.dl_tool = DownloadTool_linux_curl(self)
 
 
-    def init_download_tool(self):
+    def init_platform_tools(self):
         self.dl_tool = DownloadTool_linux_curl(self)
 
     def get_install_instructions_prefix(self):
