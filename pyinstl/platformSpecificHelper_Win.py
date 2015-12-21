@@ -22,7 +22,7 @@ class CopyTool_win_robocopy(CopyToolBase):
     def __init__(self, platform_helper):
         super(CopyTool_win_robocopy, self).__init__(platform_helper)
         self.robocopy_error_threshold = 4  # see ss64.com/nt/robocopy-exit.html
-        robocopy_path = self.platform_helper.find_cmd_tool("robocopy.exe", "ROBOCOPY_PATH")
+        robocopy_path = self.platform_helper.find_cmd_tool("ROBOCOPY_PATH")
         if robocopy_path is None:
             raise IOError("could not find {} in path".format("robocopy.exe"))
 
@@ -118,7 +118,7 @@ class CopyTool_win_xcopy(CopyToolBase):
     def __init__(self, platform_helper):
         super(CopyTool_win_xcopy, self).__init__(platform_helper)
         self.excludes_set = set()
-        xcopy_path = self.platform_helper.find_cmd_tool("xcopy.exe", "XCOPY_PATH")
+        xcopy_path = self.platform_helper.find_cmd_tool("XCOPY_PATH")
         if xcopy_path is None:
             raise IOError("could not find {} in path".format("xcopy.exe"))
 
@@ -217,45 +217,44 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         super(PlatformSpecificHelperWin, self).__init__(instlObj)
         self.var_replacement_pattern = "%\g<var_name>%"
 
-    def find_cmd_tool(self, tool_name, variable_name):
+    def find_cmd_tool(self, tool_to_find_var_name):
         """ locate the path to a cmd.exe tool on windows, if found put the full path in variable
         :param tool_name: e.g. robocopy.exe
         :param variable_name: variable to save the path in
         :return: the path to the tool
         """
         tool_path = None
-        # first try the variable, could be that the tool was already found
-        if variable_name in var_stack:
-            original_tool_path = var_stack.resolve_var(variable_name)
-            if os.path.isfile(original_tool_path):
-                tool_path = original_tool_path
+        if tool_to_find_var_name in var_stack:
+            original_tool_value = var_stack.resolve_var(tool_to_find_var_name)
+            # first try the variable, could be that the tool was already found
+            if os.path.isfile(original_tool_value):
+                tool_path = original_tool_value
 
-        if tool_path is None:
-            # next try to ask the system using the where command
-            try:
-                where_tool_path = subprocess.check_output("where " + tool_name).strip()
-                if os.path.isfile(where_tool_path):
-                    tool_path = where_tool_path
-                    var_stack.set_var(variable_name, "find_cmd_tool "+tool_name).append(tool_path)
-            except:
-                pass # never mind, we'll try on our own
+            if tool_path is None:
+                # next try to ask the system using the where command
+                try:
+                    where_tool_path = subprocess.check_output("where " + original_tool_value).strip()
+                    if os.path.isfile(where_tool_path):
+                        tool_path = where_tool_path
+                        var_stack.set_var(tool_to_find_var_name, "find_cmd_tool").append(tool_path)
+                except:
+                    pass # never mind, we'll try on our own
 
-        if tool_path is None:
-            # try to find the tool in the PATH variable
-            win_paths = os.environ["PATH"].split(";")
-            # also add some known location in case user's PATH variable was altered
-            if "SystemRoot" in os.environ:
-                know_locations = (os.path.join(os.environ["SystemRoot"], "System32"),
-                                  os.path.join(os.environ["SystemRoot"], "SysWOW64"))
-                win_paths.extend(know_locations)
-            for win_path in win_paths:
-                tool_path = os.path.join(win_path, tool_name)
-                if os.path.isfile(tool_path):
-                    var_stack.set_var(variable_name, "find_cmd_tool "+tool_name).append(tool_path)
-                    break
-            else: # break was not called, tool was not found
-                tool_path = None
-                var_stack.set_var(variable_name, "find_cmd_tool "+tool_name).append(tool_name+" was not found")
+            if tool_path is None:
+                # try to find the tool in the PATH variable
+                win_paths = os.environ["PATH"].split(";")
+                # also add some known location in case user's PATH variable was altered
+                if "SystemRoot" in os.environ:
+                    know_locations = (os.path.join(os.environ["SystemRoot"], "System32"),
+                                      os.path.join(os.environ["SystemRoot"], "SysWOW64"))
+                    win_paths.extend(know_locations)
+                for win_path in win_paths:
+                    tool_path = os.path.join(win_path, original_tool_value)
+                    if os.path.isfile(tool_path):
+                        var_stack.set_var(tool_to_find_var_name, "find_cmd_tool ").append(tool_path)
+                        break
+                else: # break was not called, tool was not found
+                    tool_path = None
         return tool_path
 
     def init_platform_tools(self):
@@ -264,12 +263,9 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
             self.dl_tool = DownloadTool_win_wget(self)
         elif download_tool_name.endswith("curl.exe"):
             self.dl_tool = DownloadTool_win_curl(self)
-        for find_list_var in ("CMD_TOOLS_TO_FIND", "CMD_TOOLS_TO_FIND_INTERNAL"):
-            if find_list_var in var_stack:
-                tool_var_pairs = var_stack.resolve_var_to_list(find_list_var)
-                for tool_var_pair in tool_var_pairs:
-                    tool_var_pair = tool_var_pair.split()
-                    self.find_cmd_tool(*tool_var_pair)
+        for find_tool_var in var_stack.resolve_var_to_list_if_exists("CMD_TOOLS_TO_FIND") +\
+                             var_stack.resolve_var_to_list_if_exists("CMD_TOOLS_TO_FIND_INTERNAL"):
+            self.find_cmd_tool(find_tool_var)
 
     def get_install_instructions_prefix(self):
         retVal = (
