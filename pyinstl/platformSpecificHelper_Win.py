@@ -263,8 +263,9 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
             self.dl_tool = DownloadTool_win_wget(self)
         elif download_tool_name.endswith("curl.exe"):
             self.dl_tool = DownloadTool_win_curl(self)
-        for find_tool_var in var_stack.resolve_var_to_list_if_exists("CMD_TOOLS_TO_FIND") +\
-                             var_stack.resolve_var_to_list_if_exists("CMD_TOOLS_TO_FIND_INTERNAL"):
+        for find_tool_var in \
+                var_stack.resolve_var_to_list_if_exists("CMD_TOOLS_TO_FIND") +\
+                var_stack.resolve_var_to_list_if_exists("CMD_TOOLS_TO_FIND_INTERNAL"):
             self.find_cmd_tool(find_tool_var)
 
     def get_install_instructions_prefix(self):
@@ -287,7 +288,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
             ":EXIT_ON_ERROR",
             "set CATCH_EXIT_VALUE=%ERRORLEVEL%",
             "if %CATCH_EXIT_VALUE% == 0 (set CATCH_EXIT_VALUE=1)",
-            "TASKLIST",
+            "$(TASKLIST_PATH)",
             self.restore_dir("TOP_SAVE_DIR"),
             self.end_time_measure(),
             'echo Exit on error %CATCH_EXIT_VALUE% 1>&2',
@@ -445,14 +446,14 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         raise NotImplementedError
 
     def touch(self, file_path):
-        touch_command = " ".join(("type", "NUL", ">", utils.quoteme_double(filepath)))
+        touch_command = " ".join(("type", "NUL", ">", utils.quoteme_double(file_path)))
         return touch_command
 
     def run_instl(self):
         command_prefix = ""
         if not getattr(sys, 'frozen', False):
             command_prefix = "python "
-        instl_command = command_prefix + '\"$(__INSTL_EXE_PATH__)\"'
+        instl_command = command_prefix + '"$(__INSTL_EXE_PATH__)"'
         return instl_command
 
     def create_folders(self, info_map_file):

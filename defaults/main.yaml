@@ -46,3 +46,10 @@ BATCH_EXT: sh
 --- !define_Win
 MKDIR_CMD: mkdir
 BATCH_EXT: bat
+
+XCOPY_PATH: xcopy.exe
+ROBOCOPY_PATH: robocopy.exe
+TASKLIST_PATH: tasklist.exe
+CMD_TOOLS_TO_FIND_INTERNAL:
+  - XCOPY_PATH
+  - TASKLIST_PATH
