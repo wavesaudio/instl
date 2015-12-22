@@ -71,7 +71,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def create_download_instructions(self):
         self.instlObj.batch_accum.set_current_section('sync')
 
-        file_list, bytes_to_sync = self.info_map_table.get_to_download_list_and_size()
+        file_list, bytes_to_sync = self.instlObj.info_map_table.get_to_download_list_and_size()
         var_stack.add_const_config_variable("__NUM_FILES_TO_DOWNLOAD__", "create_download_instructions", len(file_list))
         var_stack.add_const_config_variable("__NUM_BYTES_TO_DOWNLOAD__", "create_download_instructions", bytes_to_sync)
 

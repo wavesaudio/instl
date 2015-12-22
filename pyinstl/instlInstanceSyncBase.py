@@ -63,7 +63,7 @@ class InstlInstanceSync(object):
                                       cache=True,
                                       expected_checksum=var_stack.resolve("$(INFO_MAP_FILE_URL_CHECKSUM)"))
 
-            self.info_map_table.read_info_map_from_file(var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)"), a_format="text")
+            self.instlObj.info_map_table.read_from_file(var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)"), a_format="text")
         except:
             print("Exception reading info_map:", info_map_file_url)
             raise
@@ -77,17 +77,17 @@ class InstlInstanceSync(object):
             with self.instlObj.install_definitions_index[iid] as installi:
                 for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
                     source = var_stack.resolve_var_to_list(source_var)
-                    self.info_map_table.mark_required_for_source(source)
-        self.info_map_table.mark_required_completion()
-        self.info_map_table.write_to_file(var_stack.resolve("$(REQUIRED_INFO_MAP_PATH)"),  filter_query=self.info_map_table.required_all_query, in_format="text")
+                    self.instlObj.info_map_table.mark_required_for_source(source)
+        self.instlObj.info_map_table.mark_required_completion()
+        self.instlObj.info_map_table.write_to_file(var_stack.resolve("$(REQUIRED_INFO_MAP_PATH)"),  filter_name="all-required", in_format="text")
 
     def mark_download_items(self):
         """" Mark those files that need to be downloaded.
              All files marked 'required' are marked as needed download unless.
              the files that exists and have correct checksum.
         """
-        self.info_map_table.mark_need_download(self.local_sync_dir)
-        self.info_map_table.write_to_file(var_stack.resolve("$(TO_SYNC_INFO_MAP_PATH)"), filter_query=self.info_map_table.need_download_all_query)
+        self.instlObj.info_map_table.mark_need_download(self.local_sync_dir)
+        self.instlObj.info_map_table.write_to_file(var_stack.resolve("$(TO_SYNC_INFO_MAP_PATH)"), filter_name="need-download-all")
 
     # syncers that download from urls (url, boto) need to prepare a list of all the individual files that need updating.
     # syncers that use configuration management tools (p4, svn) do not need since the tools takes care of that.

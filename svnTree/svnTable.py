@@ -425,7 +425,7 @@ class SVNTable(object):
             marking is recursive.
         """
         try:
-            dir_item = self.dir_item_query(self.session).params(dir_name=dir_path).one()
+            dir_item = self.baked_queries_map["dir-item"](self.session).params(dir_name=dir_path).one()
             update_statement = update(SVNRow)\
                     .where(SVNRow.level > dir_item.level)\
                     .where(SVNRow.path.like(dir_item.path+"/%"))\
@@ -452,7 +452,7 @@ class SVNTable(object):
         """ after some files were marked as required,
             mark their parent dirs are required as well
         """
-        required_file_items = self.required_files_query(self.session).all()
+        required_file_items = self.baked_queries_map["required-files"](self.session).all()
         ancestors = list()
         for file_item in required_file_items:
             ancestors.extend(file_item.get_ancestry()[:-1])
@@ -467,7 +467,7 @@ class SVNTable(object):
     @utils.timing
     def mark_need_download(self, local_sync_dir):
         ancestors = list()
-        required_file_items = self.required_files_query(self.session).all()
+        required_file_items = self.baked_queries_map["required-files"](self.session).all()
         for file_item in required_file_items:
             local_path = os.path.join(local_sync_dir, file_item.path)
             if utils.need_to_download_file(local_path, file_item.checksum):
@@ -485,6 +485,6 @@ class SVNTable(object):
         """
         :return: a tuple: (a list of fies marked for download, their total size)
         """
-        file_list = self.need_download_files_query(self.session).all()
+        file_list = self.baked_queries_map["need-download-files"](self.session).all()
         total_size = reduce(lambda total, item: total + item.size, file_list, 0)
         return file_list, total_size
