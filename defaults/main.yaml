@@ -4,7 +4,7 @@ __INSTL_VERSION__:
     - 1
     - 1
     - 0
-    - 0
+    - 1
 
 __USER_CONFIG_FILE_NAME__: instl_config.yaml
 __USER_CONFIG_FILE_PATH__: $(__USER_HOME_DIR__)/$(__USER_CONFIG_FILE_NAME__)
@@ -46,3 +46,10 @@ BATCH_EXT: sh
 --- !define_Win
 MKDIR_CMD: mkdir
 BATCH_EXT: bat
+
+XCOPY_PATH: xcopy.exe
+ROBOCOPY_PATH: robocopy.exe
+TASKLIST_PATH: tasklist.exe
+CMD_TOOLS_TO_FIND_INTERNAL:
+  - XCOPY_PATH
+  - TASKLIST_PATH

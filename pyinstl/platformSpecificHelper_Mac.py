@@ -22,7 +22,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         self.var_replacement_pattern = "${\g<var_name>}"
         self.echo_template = 'echo "{}"'
 
-    def init_download_tool(self):
+    def init_platform_tools(self):
         self.dl_tool = DownloadTool_mac_curl(self)
 
     def get_install_instructions_prefix(self):
@@ -108,10 +108,12 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         return mk_command
 
     def cd(self, directory):
+        # todo: add "ls -ldFihO ." after each cd
         cd_command = " ".join(("cd", utils.quoteme_double(directory) ))
         return cd_command
 
     def pushd(self, directory):
+        # todo: add "ls -ldFihO ." after each pushd
         pushd_command = " ".join(("pushd", utils.quoteme_double(directory), ">", "/dev/null"))
         return pushd_command
 
@@ -195,16 +197,16 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         resolve_command = " ".join(("resolve_symlinks", utils.quoteme_double(in_dir) ))
         return resolve_command
 
-    def check_checksum_for_file(self, filepath, checksum):
+    def check_checksum_for_file(self, file_path, checksum):
         check_command_parts = (  "CHECKSUM_CHECK=`$(CHECKSUM_TOOL_PATH) sha1",
-                                 utils.quoteme_double(filepath),
+                                 utils.quoteme_double(file_path),
                                  "` ;",
                                  "if [ ${CHECKSUM_CHECK: -40} !=",
                                  utils.quoteme_double(checksum),
                                  "];",
                                  "then",
                                  "echo bad checksum",
-                                 utils.quoteme_double("${PWD}/" + filepath),
+                                 utils.quoteme_double("${PWD}/" + file_path),
                                  "1>&2",
                                  ";",
                                  "exit 1",
@@ -219,9 +221,9 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         wtar_command = " ".join(wtar_command_parts)
         return wtar_command
 
-    def unwtar_file(self, filepath):
-        unwtar_command = " ".join(("$(WTAR_OPENER_TOOL_PATH)", "-x", "-f", utils.quoteme_double(filepath)))
-        done_stamp_file = filepath + ".done"
+    def unwtar_file(self, file_path):
+        unwtar_command = " ".join(("$(WTAR_OPENER_TOOL_PATH)", "-x", "-f", utils.quoteme_double(file_path)))
+        done_stamp_file = file_path + ".done"
         return unwtar_command, self.touch(done_stamp_file)
 
     def split_func(self):
@@ -246,25 +248,25 @@ split_file()
     def wait_for_child_processes(self):
         return ("wait",)
 
-    def chmod(self, new_mode, filepath):
-        chmod_command = " ".join(("chmod", str(new_mode), utils.quoteme_double(filepath)))
+    def chmod(self, new_mode, file_path):
+        chmod_command = " ".join(("chmod", str(new_mode), utils.quoteme_double(file_path)))
         return chmod_command
 
-    def make_executable(self, filepath):
-        return self.chmod("a+x", filepath)
+    def make_executable(self, file_path):
+        return self.chmod("a+x", file_path)
 
-    def unlock(self, filepath, recursive=False):
+    def unlock(self, file_path, recursive=False):
         """ Remove the system's read-only flag, this is different from permissions.
             For changing permissions use chmod.
         """
         recurse_flag = ""
         if recursive:
             recurse_flag = "-R"
-        nouchg_command = " ".join(("chflags", recurse_flag, "nouchg", utils.quoteme_double(filepath)))
+        nouchg_command = " ".join(("chflags", recurse_flag, "nouchg", utils.quoteme_double(file_path)))
         return nouchg_command
 
-    def touch(self, filepath):
-        touch_command = " ".join(("touch", utils.quoteme_double(filepath)))
+    def touch(self, file_path):
+        touch_command = " ".join(("touch", utils.quoteme_double(file_path)))
         return touch_command
 
     def append_file_to_file(self, source_file, target_file):

@@ -5,13 +5,13 @@ import abc
 import urllib
 import urlparse
 
+from configVar import var_stack
+
 have_boto = True
 try:
     import boto
 except:
     have_boto = False
-
-from configVar import var_stack
 
 
 class ConnectionBase(object):
