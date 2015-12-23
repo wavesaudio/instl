@@ -64,6 +64,7 @@ class InstlInstanceSync(object):
                                       expected_checksum=var_stack.resolve("$(INFO_MAP_FILE_URL_CHECKSUM)"))
 
             self.instlObj.info_map_table.read_from_file(var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)"), a_format="text")
+
         except:
             print("Exception reading info_map:", info_map_file_url)
             raise

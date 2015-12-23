@@ -12,6 +12,7 @@ import base64
 import collections
 import subprocess
 import time
+import shutil
 
 import rsa
 from functools import reduce
@@ -664,3 +665,35 @@ def clean_old_files(dir_to_clean, older_than_days):
                     os.remove(a_file_path)
     except:
         pass
+
+
+def smart_copy_file(source_path, destination_path):
+    s = source_path
+    s_dir, s_name = os.path.split(source_path)
+    d_file_exists = False
+    if os.path.isdir(destination_path):
+        d = os.path.join(destination_path, s_name)
+        d_file_exists = os.path.isfile(d)
+    elif os.path.isfile(destination_path):
+        d = destination_path
+        d_file_exists = True
+    else: # assume destination is a non-existing file
+        d = destination_path
+        d_dir, d_name = os.path.split(destination_path)
+        safe_makedirs(d_dir) # will do nothing if already exists
+
+    try:
+        getattr(os, "link") # will raise on windows, os.link is not always available (Win)
+        if d_file_exists:
+            if os.stat(s).st_ino != os.stat(d).st_ino:
+                safe_remove_file(d)
+                os.link(s, d)  # will raise if different drives
+            else:
+                pass # same inode no need to copy
+        else:
+            os.link(s, d)
+    except Exception as link_ex:
+        try:
+            shutil.copy2(s, d)
+        except Exception as shutil_ex:
+            pass
