@@ -26,15 +26,15 @@ def init_copy_vars(self):
         self.wtar_ratio = float(var_stack.resolve("$(WTAR_RATIO)"))
     self.is_wtar_item = svnTree.WtarFilter() # will return true for any wtar file
     self.calc_user_cache_dir_var() # this will set USER_CACHE_DIR if it was not explicitly defined
+    self.ignore_list = var_stack.resolve_to_list("$(COPY_IGNORE_PATTERNS)")
 
 
 def create_copy_instructions(self):
-    self.have_map = svnTree.SVNTree()
-    # read NEW_HAVE_INFO_MAP_PATH and not HAVE_INFO_MAP_PATH. Copy might be called after the sync batch file was created
-    # but before it was executed.  HAVE_INFO_MAP_PATH is only created
-    # when the sync batch file is executed.
-    have_info_path = var_stack.resolve("$(NEW_HAVE_INFO_MAP_PATH)")
-    self.have_map.read_info_map_from_file(have_info_path, a_format="text")
+    # read HAVE_INFO_MAP_FOR_COPY which is be default HAVE_INFO_MAP_PATH.
+    # Copy might be called after the sync batch file was created
+    # but before it was executed in which case HAVE_INFO_MAP_FOR_COPY will be defined to NEW_HAVE_INFO_MAP_PATH.
+    have_info_path = var_stack.resolve("$(HAVE_INFO_MAP_FOR_COPY)")
+    self.info_map_table.read_from_file(have_info_path, a_format="text")
 
     # copy and actions instructions for sources
     self.batch_accum.set_current_section('copy')
@@ -136,125 +136,106 @@ def create_copy_instructions(self):
     self.batch_accum += self.platform_helper.progress("Done copy")
 
 
+def calc_size_of_file_item(self, a_file_item):
+    """ for use with builtin function reduce to calculate the unwtarred size of a file """
+    if a_file_item.is_wtar_file():
+        item_size = int(float(a_file_item.size) * self.wtar_ratio)
+    else:
+        item_size = a_file_item.size
+    return item_size
+
+
+def create_copy_instructions_for_file(self, source_path, name_for_progress_message):
+    source_items = self.info_map_table.get_required_for_file(source_path)
+    first_wtar_item = None
+    for source_item in source_items:
+        source_item_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + source_item.path)
+        self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_item_path, ".",
+                                                                            link_dest=True,
+                                                                            ignore=self.ignore_list)
+        self.bytes_to_copy += self.calc_size_of_file_item(source_item)
+        if source_item.is_first_wtar_file():
+            first_wtar_item = source_item
+    self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
+    if first_wtar_item:
+        self.batch_accum += self.platform_helper.unwtar_something(first_wtar_item.name(), no_artifacts=True)
+        self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
+
+
+def create_copy_instructions_for_dir_cont(self, source_path, name_for_progress_message):
+    self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".",
+                                                                                link_dest=True,
+                                                                                ignore=self.ignore_list,
+                                                                                preserve_dest_files=True)  # preserve files already in destination
+    self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
+
+    source_items = self.info_map_table.get_files_in_dir(source_path)
+    num_items_to_unwtar = 0
+    for source_item in source_items:
+        self.bytes_to_copy += self.calc_size_of_file_item(source_item)
+        if source_item.is_wtar_file():
+            num_items_to_unwtar += 1
+    if num_items_to_unwtar > 0:
+        self.batch_accum += self.platform_helper.unwtar_something(".", no_artifacts=True)
+        self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
+
+
+def create_copy_instructions_for_files(self, source_path, name_for_progress_message):
+    self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".",
+                                                                             link_dest=True,
+                                                                             ignore=self.ignore_list)
+    self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
+
+    source_items = self.info_map_table.get_files_in_dir(source_path, levels_deep=1)
+    num_items_to_unwtar = 0
+    for source_item in source_items:
+        self.bytes_to_copy += self.calc_size_of_file_item(source_item)
+        if source_item.is_first_wtar_file():
+            self.batch_accum += self.platform_helper.unwtar_something(source_item.name(), no_artifacts=True)
+            self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
+
+
+def create_copy_instructions_for_dir(self, source_path, name_for_progress_message):
+    dir_item = self.info_map_table.get_dir_item(source_path)
+    if dir_item is not None:
+        self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path, ".",
+                                                                           link_dest=True,
+                                                                           ignore=self.ignore_list)
+        self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
+        source_items = self.info_map_table.get_files_in_dir(source_path)
+        num_items_to_unwtar = 0
+        for source_item in source_items:
+            self.bytes_to_copy += self.calc_size_of_file_item(source_item)
+            if source_item.is_wtar_file():
+                num_items_to_unwtar += 1
+        if num_items_to_unwtar > 0:
+            self.batch_accum += self.platform_helper.unwtar_something(".", no_artifacts=True)
+            self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
+    else:
+        # it might be a dir that was wtarred
+        self.create_copy_instructions_for_file(source_path, name_for_progress_message)
+
+
 def create_copy_instructions_for_source(self, source, name_for_progress_message):
     """ source is a tuple (source_path, tag), where tag is either !file or !dir
     """
 
-    # return True if name is a wtar file (.w) or the first file of a split wtar (.wtar.aa)
-    def is_first_wtar_file(name):
-        retVal = name.endswith(".wtar") or name.endswith(".wtar.aa")
-        return retVal
-
-    def calc_size_of_file_item(old_total, a_file_item):
-        """ for use with builtin function reduce to calculate the unwtarred size of a file """
-        if self.is_wtar_item(a_file_item):
-            item_size = int(float(a_file_item.safe_size) * self.wtar_ratio)
-        else:
-            item_size = a_file_item.safe_size
-        return old_total + item_size
-
-    source_item = self.have_map.get_item_at_path(source[0])
-    source_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + source[0])
-
-    ignore_list = var_stack.resolve_to_list("$(COPY_IGNORE_PATTERNS)")
-
     if source[1] == '!file':  # get a single file
-        if source_item:
-            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".",
-                                                                                link_dest=True,
-                                                                                ignore=ignore_list)
-            self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
-            self.bytes_to_copy += source_item.safe_size
-        else: # not in map, might be wtarred
-            source_folder, source_name = os.path.split(source[0])
-            source_folder_item = self.have_map.get_item_at_path(source_folder)
-            if source_folder_item:
-                first_wtar_item = None
-                for wtar_item in source_folder_item.walk_file_items_with_filter(svnTree.WtarFilter(source_name)):
-                    if is_first_wtar_file(wtar_item.name):
-                        first_wtar_item = wtar_item
-                    source_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + wtar_item.full_path())
-                    self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".",
-                                                                                        link_dest=True,
-                                                                                        ignore=ignore_list)
-                    self.bytes_to_copy += int(float(wtar_item.safe_size) * self.wtar_ratio)
-                self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
-                if first_wtar_item:
-                    self.batch_accum += self.platform_helper.unwtar_something(first_wtar_item.name, no_artifacts=True)
-                    self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
-
+        self.create_copy_instructions_for_file(source[0], name_for_progress_message)
     elif source[1] == '!dir_cont':  # get all files and folders from a folder
-        self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".",
-                                                                                    link_dest=True,
-                                                                                    ignore=ignore_list,
-                                                                                    preserve_dest_files=True)  # preserve files already in destination
-        self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
-
-        self.bytes_to_copy += reduce(calc_size_of_file_item, source_item.walk_items(what="file"), 0)
-        file_list, dir_list = source_item.sorted_sub_items()
-        num_items_to_unwtar = 0
-        for file_item in file_list:
-            if is_first_wtar_file(file_item.name):
-                self.batch_accum += self.platform_helper.unwtar_something(file_item.name, no_artifacts=True)
-                num_items_to_unwtar += 1
-        for dir_item in dir_list:
-            num_wtar_files_in_dir_item = len(list(dir_item.walk_file_items_with_filter(svnTree.WtarFilter())))
-            if num_wtar_files_in_dir_item > 0:
-                self.batch_accum += self.platform_helper.unwtar_something(dir_item.name, no_artifacts=True)
-                num_items_to_unwtar += 1
-        if num_items_to_unwtar > 0:
-            self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
-
+        self.create_copy_instructions_for_dir_cont(source[0], name_for_progress_message)
     elif source[1] == '!files':  # get all files from a folder
-        self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".",
-                                                                                 link_dest=True,
-                                                                                 ignore=ignore_list)
-        self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
-        file_list, dir_list = source_item.sorted_sub_items()
-        self.bytes_to_copy += reduce(calc_size_of_file_item, file_list, 0)
-        file_list, dir_list = source_item.sorted_sub_items()
-        num_items_to_unwtar = 0
-        for file_item in file_list:
-            if is_first_wtar_file(file_item.name):
-                self.batch_accum += self.platform_helper.unwtar_something(file_item.name, no_artifacts=True)
-                num_items_to_unwtar += 1
-        if num_items_to_unwtar > 0:
-            self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
-
-    else:  # !dir
-        if source_item:
-            self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path, ".",
-                                                                               link_dest=True,
-                                                                               ignore=ignore_list)
-            self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
-            self.bytes_to_copy += reduce(calc_size_of_file_item, source_item.walk_items(what="file"), 0)
-            num_wtar_files_in_source = len(list(source_item.walk_file_items_with_filter(svnTree.WtarFilter())))
-            if num_wtar_files_in_source > 0:
-                self.batch_accum += self.platform_helper.unwtar_something(source_item.name, no_artifacts=True)
-                self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
-        else:
-            source_folder, source_name = os.path.split(source[0])
-            source_folder_item = self.have_map.get_item_at_path(source_folder)
-            if source_folder_item:
-                first_wtar_item = None
-                for wtar_item in source_folder_item.walk_file_items_with_filter(svnTree.WtarFilter(source_name)):
-                    if is_first_wtar_file(wtar_item.name):
-                        first_wtar_item = wtar_item
-                    source_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + wtar_item.full_path())
-                    self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_path, ".",
-                                                                                        link_dest=True,
-                                                                                        ignore=ignore_list)
-                    self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
-                    self.bytes_to_copy += int(float(wtar_item.safe_size) * self.wtar_ratio)
-                if first_wtar_item:
-                    self.batch_accum += self.platform_helper.unwtar_something(first_wtar_item.name, no_artifacts=True)
-                    self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
+        self.create_copy_instructions_for_files(source[0], name_for_progress_message)
+    elif source[1] == '!dir':  # !dir
+        self.create_copy_instructions_for_dir(source[0], name_for_progress_message)
+    else:
+        raise ValueError("unknown source type "+source[1]+" for "+source[0])
 
 
 # special handling when running on Mac OS
 def pre_copy_mac_handling(self):
-    num_files_to_set_exec = self.have_map.num_subs_in_tree(what="file",
-                                                           predicate=lambda in_item: in_item.isExecutable())
+    required_and_exec = self.info_map_table.get_required_exec()
+    num_files_to_set_exec = len(required_and_exec)
     if num_files_to_set_exec > 0:
         self.batch_accum += self.platform_helper.set_exec_for_folder(self.have_map.path_to_file)
         self.batch_accum += self.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")

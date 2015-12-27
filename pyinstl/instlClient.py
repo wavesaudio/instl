@@ -155,15 +155,20 @@ class InstlClient(InstlInstanceBase):
                     p4_sync_dir = utils.P4GetPathFromDepotPath(var_stack.resolve("$(SYNC_BASE_URL)"))
                     var_stack.set_var("P4_SYNC_DIR", "from SYNC_BASE_URL").append(p4_sync_dir)
 
-   # sync command implemented in instlClientSync.py file
+    # sync command implemented in instlClientSync.py file
 
     from instlClientSync import do_sync
 
     # copy command implemented in instlClientCopy.py file
     from instlClientCopy import do_copy
     from instlClientCopy import init_copy_vars
-    from instlClientCopy import create_copy_instructions
+    from instlClientCopy import calc_size_of_file_item
+    from instlClientCopy import create_copy_instructions_for_file
+    from instlClientCopy import create_copy_instructions_for_dir_cont
+    from instlClientCopy import create_copy_instructions_for_files
+    from instlClientCopy import create_copy_instructions_for_dir
     from instlClientCopy import create_copy_instructions_for_source
+    from instlClientCopy import create_copy_instructions
     from instlClientCopy import pre_copy_mac_handling
 
     # remove command implemented in instlClientRemove.py file

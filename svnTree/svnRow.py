@@ -1,11 +1,13 @@
 #!/usr/bin/env python2.7
 from __future__ import print_function
 
+import re
 
 from sqlalchemy import Column, Integer, String, BOOLEAN
 from sqlalchemy.ext.declarative import declarative_base
 alchemy_base = declarative_base()
 
+wtar_file_re = re.compile(r"""^.+\.wtar(\...)?$""")
 
 class SVNRow(alchemy_base):
     __tablename__ = 'svnitem'
@@ -44,6 +46,10 @@ class SVNRow(alchemy_base):
             retVal = "{}, {}".format(retVal, self.url)
         return retVal
 
+    def name(self):
+        retVal = self.path.split("/")[-1]
+        return retVal
+
     def get_ancestry(self):
         ancestry = list()
         split_path = self.path.split("/")
@@ -62,3 +68,12 @@ class SVNRow(alchemy_base):
 
     def isSymlink(self):
         return 's' in self.flags
+
+    def is_wtar_file(self):
+        match = wtar_file_re.match(self.path)
+        retVal = match is not None
+        return retVal
+
+    def is_first_wtar_file(self):
+        retVal = self.path.endswith((".wtar", ".wtar.aa"))
+        return retVal

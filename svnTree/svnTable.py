@@ -103,6 +103,10 @@ class SVNTable(object):
         retVal["exec-files"] = bakery(lambda session: session.query(SVNRow))
         retVal["exec-files"] += lambda q: q.filter(SVNRow.fileFlag==True, SVNRow.flags.contains('x'))
 
+        # required-exec-files: return all required files that are executables
+        retVal["required-exec-files"] = bakery(lambda session: session.query(SVNRow))
+        retVal["required-exec-files"] += lambda q: q.filter(SVNRow.required==True, SVNRow.fileFlag==True, SVNRow.flags.contains('x'))
+
         # all-required: return all required files and dirs
         retVal["all-required"] = bakery(lambda session: session.query(SVNRow))
         retVal["all-required"] += lambda q: q.filter(SVNRow.required==True)
@@ -114,6 +118,17 @@ class SVNTable(object):
         # need-download-files: return all files & dirs that need to be downloaded
         retVal["need-download-all"] = bakery(lambda session: session.query(SVNRow))
         retVal["need-download-all"] += lambda q: q.filter(SVNRow.need_download==True)
+
+        retVal["required-items-for-file"] = bakery(lambda session: session.query(SVNRow))
+        retVal["required-items-for-file"] += lambda q: q.filter(SVNRow.fileFlag==True)
+        retVal["required-items-for-file"] += lambda q: q.filter(or_(SVNRow.path == bindparam('file_path'), SVNRow.path.like(bindparam('file_path') + ".wtar%")))
+
+        retVal["dir-files-recursive"] = bakery(lambda session: session.query(SVNRow))
+        retVal["dir-files-recursive"] += lambda q: q.filter(SVNRow.fileFlag==True)
+        retVal["dir-files-recursive"] += lambda q: q.filter(SVNRow.path.like(bindparam('dir_path')+"/%"))
+        retVal["dir-files-recursive"] += lambda q: q.filter(SVNRow.level > bindparam('dir_level'))
+        retVal["dir-files-recursive"] += lambda q: q.filter(SVNRow.level <= bindparam('dir_level')+bindparam('levels_deep'))
+
         return retVal
 
     def __repr__(self):
@@ -396,6 +411,26 @@ class SVNTable(object):
     def get_items(self, filter_name="all"):
         return self.baked_queries_map[filter_name](self.session).all()
 
+    def get_dir_item(self, dir_path):
+        try:
+            dir_item = self.baked_queries_map["dir-item"](self.session).params(dir_name=dir_path).one()
+        except NoResultFound:
+            dir_item = None
+        return dir_item
+
+    def get_required_exec(self):
+        """ :return: all required fies that are also exec
+        """
+        retVal = self.baked_queries_map["required-exec-files"](self.session).all()
+        return retVal
+
+    @utils.timing
+    def get_required_for_file(self, file_path):
+        """ get the item for a required file as or if file was wtarred
+            get the wtar files.
+        """
+        return self.baked_queries_map["required-items-for-file"](self.session).params(file_path=file_path).all()
+
     @utils.timing
     def mark_required_for_file(self, file_path):
         """ mark a file as required or if file was wtarred
@@ -413,11 +448,22 @@ class SVNTable(object):
         """
         parent_item = self.dir_item_query(self.session).one()
         update_statement = update(SVNRow)\
-                .where(SVNRow.level == parent_item.level+1)\
-                .where(SVNRow.fileFlag == True)\
-                .where(SVNRow.path.like(parent_item.path+"/%"))\
-                .values(required=True)
+            .where(SVNRow.level == parent_item.level+1)\
+            .where(SVNRow.fileFlag == True)\
+            .where(SVNRow.path.like(parent_item.path+"/%"))\
+            .values(required=True)
         self.session.execute(update_statement)
+
+    @utils.timing
+    def get_files_in_dir(self, dir_path, levels_deep=1024):
+        """ get all files in dir_path.
+            level_deep: how much to dig in. level_deep=1 will only get immediate files
+        """
+        dir_item = self.baked_queries_map["dir-item"](self.session).params(dir_name=dir_path).one()
+        dir_items = self.baked_queries_map["dir-files-recursive"](self.session)\
+            .params(dir_path=dir_path, dir_level=dir_item.level, levels_deep=levels_deep)\
+            .all()
+        return dir_items
 
     @utils.timing
     def mark_required_for_dir(self, dir_path):
