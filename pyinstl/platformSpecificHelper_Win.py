@@ -264,8 +264,8 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         elif download_tool_name.endswith("curl.exe"):
             self.dl_tool = DownloadTool_win_curl(self)
         for find_tool_var in \
-                var_stack.resolve_var_to_list_if_exists("CMD_TOOLS_TO_FIND") +\
-                var_stack.resolve_var_to_list_if_exists("CMD_TOOLS_TO_FIND_INTERNAL"):
+                list(var_stack.resolve_var_to_list_if_exists("CMD_TOOLS_TO_FIND")) +\
+                list(var_stack.resolve_var_to_list_if_exists("CMD_TOOLS_TO_FIND_INTERNAL")):
             self.find_cmd_tool(find_tool_var)
 
     def get_install_instructions_prefix(self):

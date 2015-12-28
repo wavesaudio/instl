@@ -446,7 +446,7 @@ class SVNTable(object):
     def mark_required_for_files(self, parent_path):
         """ mark all files in parent_path as required.
         """
-        parent_item = self.dir_item_query(self.session).one()
+        parent_item = self.baked_queries_map["dir-item"](self.session).params(dir_name=parent_path).one()
         update_statement = update(SVNRow)\
             .where(SVNRow.level == parent_item.level+1)\
             .where(SVNRow.fileFlag == True)\

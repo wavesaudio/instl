@@ -4,6 +4,10 @@
 
 from __future__ import print_function
 
+# this might overcome some codepage problems on Windows
+#import codecs
+#codecs.register(lambda name: codecs.lookup('utf-8') if name == 'cp65001' else None)
+
 import os
 import sys
 import argparse

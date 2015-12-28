@@ -163,7 +163,8 @@ def create_copy_instructions_for_file(self, source_path, name_for_progress_messa
 
 
 def create_copy_instructions_for_dir_cont(self, source_path, name_for_progress_message):
-    self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path, ".",
+    source_path_abs = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + source_path)
+    self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path_abs, ".",
                                                                                 link_dest=True,
                                                                                 ignore=self.ignore_list,
                                                                                 preserve_dest_files=True)  # preserve files already in destination
@@ -181,7 +182,8 @@ def create_copy_instructions_for_dir_cont(self, source_path, name_for_progress_m
 
 
 def create_copy_instructions_for_files(self, source_path, name_for_progress_message):
-    self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path, ".",
+    source_path_abs = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + source_path)
+    self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path_abs, ".",
                                                                              link_dest=True,
                                                                              ignore=self.ignore_list)
     self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
@@ -198,7 +200,8 @@ def create_copy_instructions_for_files(self, source_path, name_for_progress_mess
 def create_copy_instructions_for_dir(self, source_path, name_for_progress_message):
     dir_item = self.info_map_table.get_dir_item(source_path)
     if dir_item is not None:
-        self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path, ".",
+        source_path_abs = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + source_path)
+        self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path_abs, ".",
                                                                            link_dest=True,
                                                                            ignore=self.ignore_list)
         self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))

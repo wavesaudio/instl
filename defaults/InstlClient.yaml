@@ -43,9 +43,8 @@ SOURCE_PREFIX: $(TARGET_OS)
 
 
 COPY_IGNORE_PATTERNS:
-    - ".svn"
     - "*.done"
 
-RSYNC_PERM_OPTIONS: --perms --chmod=a+rw,+X
+RSYNC_PERM_OPTIONS: a+rw,+X
 
 WTAR_RATIO: 1.3
