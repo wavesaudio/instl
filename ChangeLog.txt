@@ -1,3 +1,10 @@
+28/12/2015 1.1.0.2
+
+    user visible changes client:
+    * Mac: Separated changing of permission from rsync, because it prevented rsync
+        from created hardlinks.
+    * Removed ".svn" from COPY_IGNORE_PATTERNS, it's no longer relevant.
+
 20/12/2015 1.1.0.1
 
     user visible changes client:

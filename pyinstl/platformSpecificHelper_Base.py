@@ -106,14 +106,18 @@ class CopyToolRsync(CopyToolBase):
         if src_dir.endswith("/"):
             src_dir.rstrip("/")
         ignore_spec = self.create_ignore_spec(ignore)
-        permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)", default="")
         if link_dest:
             the_link_dest = os.path.join(src_dir, "..")
-            sync_command = "rsync {permissions_spec} -l -r -E --delete {ignore_spec} --link-dest=\"{the_link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+            sync_command = """rsync -l -r -E --delete {ignore_spec} --link-dest="{the_link_dest}" "{src_dir}" "{trg_dir}" """.format(**locals())
         else:
-            sync_command = "rsync {permissions_spec} -l -r -E --delete {ignore_spec} \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+            sync_command = """rsync -l -r -E --delete {ignore_spec} "{src_dir}" "{trg_dir}" """.format(**locals())
 
-        return sync_command
+        permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)", default="")
+        if permissions_spec:
+            src_dir_dir, src_dir_name = os.path.split(src_dir)
+            target = os.path.join(trg_dir, src_dir_name)
+            chmod_command ="""chmod -f -R {permissions_spec} "{target}" """.format(**locals())
+        return sync_command, chmod_command
 
     def copy_file_to_dir(self, src_file, trg_dir, link_dest=False, ignore=None):
         assert not src_file.endswith("/")
@@ -122,59 +126,73 @@ class CopyToolRsync(CopyToolBase):
         if link_dest:
             the_link_dest, src_file_name = os.path.split(src_file)
             relative_link_dest = os.path.relpath(the_link_dest, trg_dir)
-            sync_command = "rsync {permissions_spec} -l -r -E {ignore_spec} --link-dest=\"{relative_link_dest}\" \"{src_file}\" \"{trg_dir}\"".format(**locals())
+            sync_command = """rsync -l -r -E {ignore_spec} --link-dest="{relative_link_dest}" "{src_file}" "{trg_dir}" """.format(**locals())
         else:
-            sync_command = "rsync {permissions_spec} -l -r -E {ignore_spec} \"{src_file}\" \"{trg_dir}\"".format(**locals())
-        return sync_command
+            sync_command = """rsync -l -r -E {ignore_spec} "{src_file}" "{trg_dir}" """.format(**locals())
+
+        permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)", default="")
+        if permissions_spec:
+            src_file_dir, src_file_name = os.path.split(src_file)
+            target = os.path.join(trg_dir, src_file_name)
+            chmod_command ="""chmod -f {permissions_spec} "{target}" """.format(**locals())
+        return sync_command, chmod_command
 
     def copy_file_to_file(self, src_file, trg_file, link_dest=False, ignore=None):
         assert not src_file.endswith("/")
         ignore_spec = self.create_ignore_spec(ignore)
-        permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)", default="")
         if link_dest:
             src_folder_name, src_file_name = os.path.split(src_file)
             trg_folder_name, trg_file_name = os.path.split(trg_file)
             relative_link_dest = os.path.relpath(src_folder_name, trg_folder_name)
-            sync_command = "rsync {permissions_spec} -l -r -E {ignore_spec} --link-dest=\"{relative_link_dest}\" \"{src_file}\" \"{trg_file}\"".format(**locals())
+            sync_command = """rsync -l -r -E {ignore_spec} --link-dest="{relative_link_dest}" "{src_file}" "{trg_file}" """.format(**locals())
         else:
-            sync_command = "rsync {permissions_spec} -l -r -E {ignore_spec} \"{src_file}\" \"{trg_file}\"".format(**locals())
-        return sync_command
+            sync_command = """rsync -l -r -E {ignore_spec} "{src_file}" "{trg_file}" """.format(**locals())
+
+        permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)", default="")
+        if permissions_spec:
+            chmod_command ="""chmod -f {permissions_spec} "{trg_file}" """.format(**locals())
+        return sync_command, chmod_command
 
     def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None, preserve_dest_files=True):
         if not src_dir.endswith("/"):
             src_dir += "/"
         ignore_spec = self.create_ignore_spec(ignore)
-        permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)", default="")
         delete_spec = ""
         if not preserve_dest_files:
             delete_spec = "--delete"
         if link_dest:
             relative_link_dest = os.path.relpath(src_dir, trg_dir)
-            sync_command = "rsync {permissions_spec} -l -r -E {delete_spec} {ignore_spec} --link-dest=\"{relative_link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+            sync_command = """rsync -l -r -E {delete_spec} {ignore_spec} --link-dest="{relative_link_dest}" "{src_dir}" "{trg_dir}" """.format(**locals())
         else:
-            sync_command = "rsync {permissions_spec} -l -r -E {delete_spec} {ignore_spec} \"{src_dir}\" \"{trg_dir}\"".format(**locals())
-        return sync_command
+            sync_command = """rsync -l -r -E {delete_spec} {ignore_spec} "{src_dir}" "{trg_dir}" """.format(**locals())
+
+        permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)", default="")
+        if permissions_spec:
+            chmod_command = """chmod -f -R {permissions_spec} "{trg_dir}" """.format(**locals())
+        return sync_command, chmod_command
 
     def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
         if not src_dir.endswith("/"):
             src_dir += "/"
         # in order for * to correctly expand, it must be outside the quotes, e.g. to copy all files in folder a: A=a ; "${A}"/* and not "${A}/*"
         ignore_spec = self.create_ignore_spec(ignore)
-        permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)")
         if link_dest:
             relative_link_dest = os.path.relpath(src_dir, trg_dir)
-            sync_command = "rsync {permissions_spec} -l -E -d --exclude='*/' {ignore_spec} --link-dest=\"{relative_link_dest}\" \"{src_dir}\" \"{trg_dir}\"".format(**locals())
+            sync_command = """rsync -l -E -d --exclude='*/' {ignore_spec} --link-dest="{relative_link_dest}" "{src_dir}" "{trg_dir}" """.format(**locals())
         else:
-            sync_command = "rsync {permissions_spec} -l -E -d --exclude='*/' {ignore_spec} \"{src_dir}\"/* \"{trg_dir}\"".format(**locals())
+            sync_command = """rsync -l -E -d --exclude='*/' {ignore_spec} "{src_dir}"/* "{trg_dir}" """.format(**locals())
 
-        return sync_command
+        permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)")
+        if permissions_spec:
+            chmod_command = """find "{trg_dir}" -maxdepth 1 -mindepth 1 -type f -print0 | xargs -0 chmod -f {permissions_spec}""".format(**locals())
+        return sync_command, chmod_command
 
     def remove_file(self, file_to_remove):
-        remove_command = "rm -f -v \"{file_to_remove}\"".format(**locals())
+        remove_command = """rm -f -v "{file_to_remove}" """.format(**locals())
         return remove_command
 
     def remove_dir(self, dir_to_remove):
-        remove_command = "rm -f -v -r \"{dir_to_remove}\"".format(**locals())
+        remove_command = """rm -f -v -r "{dir_to_remove}" """.format(**locals())
         return remove_command
 
 
@@ -397,11 +415,11 @@ class PlatformSpecificHelperBase(object):
         pass
 
     @abc.abstractmethod
-    def touch(self, filepath):
+    def touch(self, file_path):
         pass
 
     def run_instl(self):
-        return '\"$(__INSTL_EXE_PATH__)\"'
+        return '"$(__INSTL_EXE_PATH__)"'
 
     @abc.abstractmethod
     def append_file_to_file(self, source_file, target_file):
@@ -410,6 +428,7 @@ class PlatformSpecificHelperBase(object):
     # overridden only on windows, unix shell scripts have set -e to auto exit if any subprocess returns exit code != 0
     def exit_if_any_error(self):
         return ()
+
 
 def PlatformSpecificHelperFactory(in_os, instlObj):
     if in_os == "Mac":

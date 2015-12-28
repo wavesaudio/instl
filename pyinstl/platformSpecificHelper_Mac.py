@@ -182,9 +182,9 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
 
     def copy_file_to_file(self, src_file, trg_file, hard_link=False):
         if hard_link:
-            copy_command = "ln -f \"{src_file}\" \"{trg_file}\"".format(**locals())
+            copy_command = """ln -f "{src_file}" "{trg_file}" """.format(**locals())
         else:
-            copy_command = "cp -f \"{src_file}\" \"{trg_file}\"".format(**locals())
+            copy_command = """cp -f "{src_file}" "{trg_file}" """.format(**locals())
         return copy_command
 
     def resolve_symlink_files(self, in_dir="."):
