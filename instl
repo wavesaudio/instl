@@ -408,7 +408,7 @@ def main():
                     }
     if os_family_name != "Win":
         initial_vars.update(
-                    {"__USRER_ID__": str(os.getuid()),
+                    {"__USER_ID__": str(os.getuid()),
                      "__GROUP_ID__": str(os.getgid())})
 
     if options.mode == "client":
@@ -422,6 +422,8 @@ def main():
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "admin":
+        if os_family_name not in ("Linux", "Mac"):
+               raise EnvironmentError("instl admin commands can only run under Mac or Linux")
         from pyinstl.instlAdmin import InstlAdmin
         instance = InstlAdmin(initial_vars)
         instance.init_from_cmd_line_options(options)

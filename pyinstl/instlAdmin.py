@@ -246,9 +246,16 @@ class InstlAdmin(InstlInstanceBase):
         accum += self.platform_helper.progress("Create repo-rev file")
 
         # create text versions of info and yaml files, so they can be displayed in browser
-        accum += " ".join(("find", "instl", "-type", "f", "-regextype", "posix-extended",
-                           "-regex", "'.*(yaml|info|props)'", "-print0", "|",
-                           "xargs", "-0", "-I{}", "cp", "-f", '"{}"', '"{}.txt"'))
+        if var_stack.resolve("$(__CURRENT_OS__)") == "Linux":
+            accum += " ".join(("find", "instl", "-type", "f", "-regextype", "posix-extended",
+                               "-regex", "'.*(yaml|info|props)'", "-print0", "|",
+                               "xargs", "-0", "-I{}", "cp", "-f", '"{}"', '"{}.txt"'))
+        elif var_stack.resolve("$(__CURRENT_OS__)") == "Mac":
+            accum += " ".join(("find", "-E", "instl", "-type", "f",
+                               "-regex", "'.*(yaml|info|props)'", "-print0", "|",
+                               "xargs", "-0", "-I{}", "cp", "-f", '"{}"', '"{}.txt"'))
+        else:
+            raise EnvironmentError("instl admin commands can only run under Mac or Linux")
 
         accum += self.platform_helper.rmfile("$(UP_2_S3_STAMP_FILE_NAME)")
         accum += self.platform_helper.progress("Remove $(UP_2_S3_STAMP_FILE_NAME)")

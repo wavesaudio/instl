@@ -17,11 +17,14 @@ import shutil
 import rsa
 from functools import reduce
 
+
 def Is64Windows():
     return 'PROGRAMFILES(X86)' in os.environ
 
+
 def Is32Windows():
     return not Is64Windows()
+
 
 def GetProgramFiles32():
     if Is64Windows():
@@ -29,11 +32,13 @@ def GetProgramFiles32():
     else:
         return os.environ['PROGRAMFILES']
 
+
 def GetProgramFiles64():
     if Is64Windows():
         return os.environ['PROGRAMW6432']
     else:
         return None
+
 
 def get_current_os_names():
     retVal = None
@@ -49,6 +54,7 @@ def get_current_os_names():
     elif current_os == 'Linux':
         retVal = ('Linux',)
     return retVal
+
 
 class write_to_file_or_stdout(object):
     def __init__(self, file_path):
@@ -77,6 +83,7 @@ class write_to_list(object):
 
     def list(self):
         return self.the_list
+
 
 class open_for_read_file_or_url(object):
     protocol_header_re = re.compile("""

@@ -3,6 +3,14 @@
     programmer visible changes:
     * removed readline and colorama from test_import - they are needed only for interactive mode and should not create an error on compilation.
 
+    user visible changes client:
+    * Weird variable name __USRER_ID__ renamed __USER_ID__
+    * Mac: add -m a+rwx to all mkdir commands, mkdir_with_owner is now 'mkdir -p -m a+rwx "$1"' & 'chown $(__USER_ID__): "$1"'
+
+    user visible changes, admin:
+    * Check that admin commands run only under Mac or Linux
+    * Adjusted InstlAdmin.create_links_for_revision to work on Mac
+
 28/12/2015 1.1.0.2
 
     user visible changes client:
