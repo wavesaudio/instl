@@ -66,32 +66,20 @@ class InstlAdmin(InstlInstanceBase):
             self.info_map_table.read_from_file(var_stack.resolve("$(__PROPS_FILE__)"), a_format="props")
         if "__FILE_SIZES_FILE__" in var_stack:
             self.info_map_table.read_from_file(var_stack.resolve("$(__FILE_SIZES_FILE__)"), a_format="file-sizes")
-        self.filter_out_info_map(var_stack.resolve_to_list("$(__FILTER_OUT_PATHS__)"))
 
         base_rev = int(var_stack.resolve("$(BASE_REPO_REV)"))
         if base_rev > 0:
             self.info_map_table.set_base_revision(base_rev)
 
-        if "__FILTER_IN_VERSION__" in var_stack:
-            self.filter_in_specific_version(var_stack.resolve("$(__FILTER_IN_VERSION__)"))
         if "__BASE_URL__" in var_stack:
             self.add_urls_to_info_map()
         self.info_map_table.write_to_file(var_stack.resolve("$(__MAIN_OUT_FILE__)"))
-
 
     def add_urls_to_info_map(self):
         base_url = var_stack.resolve_var("__BASE_URL__")
         for file_item in self.info_map_table.get_items("all-files"):
             file_item.url = os.path.join(base_url, str(file_item.revision), file_item.path)
             print(file_item)
-
-    def filter_out_info_map(self, paths_to_filter_out):
-        for path in paths_to_filter_out:
-            self.svnTree.remove_item_at_path(path)
-
-    def filter_in_specific_version(self, ver):
-        remove_predicate = InstlAdmin.RemoveIfNotSpecificVersion(int(ver))
-        self.svnTree.recursive_remove_depth_first(remove_predicate)
 
     def get_revision_range(self):
         revision_range_re = re.compile("""
@@ -355,8 +343,7 @@ class InstlAdmin(InstlInstanceBase):
         map_file_path = 'instl/info_map.txt'
         info_map_path = var_stack.resolve("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/" + map_file_path)
         repo_rev = int(var_stack.resolve("$(__CURR_REPO_REV__)"))
-        self.svnTree.clear_subs()
-        self.read_info_map_file(info_map_path)
+        self.info_map_table.read_from_file(info_map_path)
 
         accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
 
@@ -368,7 +355,9 @@ class InstlAdmin(InstlInstanceBase):
         # and folders that should not be uploaded.
         # To save delete instructions for every file we rely on the fact that each folder
         # has revision which is the maximum revision of it's sub-items.
-        self.svnTree.remove_item_at_path('instl')  # never remove the instl folder
+        self.info_map_table.mark_required_for_dir('instl') # never remove the instl folder
+        self.info_map_table.mark_required_for_revision(repo_rev)
+
         from collections import deque
 
         dir_queue = deque()
@@ -912,7 +901,7 @@ class InstlAdmin(InstlInstanceBase):
                                         iid_problem_messages.append(" ".join( ("source", utils.quoteme_single(source[0]), "has no files but type is", source[1]) ))
                                     if source[1] in ("!dir", "!dir_cont") and len(file_list)+len(dir_list) == 0:
                                         iid_problem_messages.append(" ".join( ("source", utils.quoteme_single(source[0]), "has no files or dirs but type is", source[1]) ))
-                            if source[1] == "!file"  and not map_item.isFile():
+                            if source[1] == "!file" and not map_item.isFile():
                                 iid_problem_messages.append(" ".join( ("source", utils.quoteme_single(source[0]), "is a dir but type is", source[1]) ))
                 if iid_problem_messages:
                     print(iid + ":")

@@ -174,7 +174,7 @@ command:
     trans:
         short: Translates between the various format of svn info files. (admin command)
         long:  |
-            Usage: instl trans --in svn_info_file [--props svn_props_file] [--filter-out path_to_filter_out [, path_to_filter_out] ] [--filter-in version_to_filter_in]
+            Usage: instl trans --in svn_info_file [--props svn_props_file] [--filter-in version_to_filter_in]
             instl's trans command can translate between the format created by svn info command and the native instl info format. Additional input that can be given is the output of the svn proplist command. trans also has limited filtering options.
             trans command is used in the output of create-links command.
 

@@ -187,7 +187,7 @@ class SVNTable(object):
 
     @utils.timing
     def insert_dicts_to_db(self, insert_dicts):
-        #self.session.bulk_insert_mappings(SVNRow, insert_dicts)
+        # self.session.bulk_insert_mappings(SVNRow, insert_dicts)
         self.engine.execute(SVNRow.__table__.insert(), insert_dicts)
 
     @utils.timing
@@ -534,3 +534,14 @@ class SVNTable(object):
         file_list = self.baked_queries_map["need-download-files"](self.session).all()
         total_size = reduce(lambda total, item: total + item.size, file_list, 0)
         return file_list, total_size
+
+    @utils.timing
+    def mark_required_for_revision(self, required_revision):
+        """ mark all files and dirs as required if they are of specific revision
+        """
+        update_statement = update(SVNRow)\
+            .where(SVNRow.fileFlag == True)\
+            .where(SVNRow.revision_remote == required_revision)\
+            .values(required=True)
+        self.session.execute(update_statement)
+        self.mark_required_completion()

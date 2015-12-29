@@ -148,7 +148,6 @@ class InstlInstanceBase(object):
                 var_stack.add_const_config_variable(var[0], "from default", var[1])
 
         non_const_attrib_to_var = {
-            "filter_in": "__FILTER_IN_VERSION__",
             "target_repo_rev": "TARGET_REPO_REV",
             "base_repo_rev": "BASE_REPO_REV",
         }
@@ -170,9 +169,7 @@ class InstlInstanceBase(object):
         if cmd_line_options_obj.state_file:
             var_stack.add_const_config_variable("__MAIN_STATE_FILE__", "from command line options",
                                                 cmd_line_options_obj.state_file)
-        if cmd_line_options_obj.filter_out:
-            var_stack.add_const_config_variable("__FILTER_OUT_PATHS__", "from command line options",
-                                                *cmd_line_options_obj.filter_out)
+
         if cmd_line_options_obj.run:
             var_stack.add_const_config_variable("__RUN_BATCH__", "from command line options", "yes")
 

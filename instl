@@ -74,7 +74,6 @@ class CommandLineOptions(object):
         self.run = False
         self.state_file = None
         self.props_file = None
-        self.filter_out = None
         self.filter_in = None
         self.target_repo_rev = None
         self.base_repo_rev = None
@@ -269,18 +268,7 @@ def prepare_args_parser(in_command):
                                 metavar='path-to-props-file',
                                 dest='props_file',
                                 help="file to read svn properties from")
-        trans_options.add_argument('--filter-out',
-                                required=False,
-                                nargs='+',
-                                metavar='paths-to-filter-out',
-                                dest='filter_out',
-                                help="paths to filter out, comma separated")
-        trans_options.add_argument('--filter-in',
-                                required=False,
-                                nargs=1,
-                                metavar='version-to-filter-in',
-                                dest='filter_in',
-                                help="version to filter in, all other version will be left out")
+
         trans_options.add_argument('--base-repo-rev',
                                 required=False,
                                 nargs=1,
