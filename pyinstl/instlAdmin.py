@@ -329,9 +329,6 @@ class InstlAdmin(InstlInstanceBase):
             print(msg)
 
         self.batch_accum.set_current_section('upload')
-        map_file_path = 'instl/info_map.txt'
-        info_map_path = var_stack.resolve("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/" + map_file_path)
-        self.info_map_table.read_from_file(info_map_path)
         for dir_name in dirs_to_upload:
             accum = BatchAccumulator()  # sub-accumulator serves as a template for each version
             accum.set_current_section('upload')
@@ -350,7 +347,11 @@ class InstlAdmin(InstlInstanceBase):
             self.run_batch_file()
 
     def do_upload_to_s3_aws_for_revision(self, accum):
+        map_file_path = 'instl/info_map.txt'
+        info_map_path = var_stack.resolve("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/" + map_file_path)
         repo_rev = int(var_stack.resolve("$(__CURR_REPO_REV__)"))
+        self.info_map_table.clear_all()
+        self.info_map_table.read_from_file(info_map_path)
 
         accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
 
@@ -362,33 +363,18 @@ class InstlAdmin(InstlInstanceBase):
         # and folders that should not be uploaded.
         # To save delete instructions for every file we rely on the fact that each folder
         # has revision which is the maximum revision of it's sub-items.
-        self.info_map_table.clear_required()
         self.info_map_table.mark_required_for_dir('instl') # never remove the instl folder
         self.info_map_table.mark_required_for_revision(repo_rev)
 
-        print("-----------------", os.getcwd())
-        self.info_map_table.write_to_file(var_stack.resolve("$(UP_2_S3_STAMP_FILE_NAME).not-required"), in_format="text", filter_name="all-not-required")
-        from collections import deque
+        unrequired_dirs = self.info_map_table.get_unrequired_dirs()
+        for unrequired_dir in unrequired_dirs:
+            accum += self.platform_helper.rmdir(unrequired_dir, recursive=True)
+            accum += self.platform_helper.progress("rmdir " + unrequired_dir)
 
-        dir_queue = deque()
-        dir_queue.append(self.svnTree)
-        while len(dir_queue) > 0:
-            curr_item = dir_queue.popleft()
-            files, dirs = curr_item.unsorted_sub_items()
-            for file_item in files:
-                if file_item.revision > repo_rev:
-                    raise ValueError(str(file_item) + " revision > repo_rev " + str(repo_rev))
-                elif file_item.revision < repo_rev:
-                    accum += self.platform_helper.rmfile(file_item.full_path())
-                    accum += self.platform_helper.progress("rmfile " + file_item.full_path())
-            for dir_item in dirs:
-                if dir_item.revision > repo_rev:
-                    raise ValueError(str(dir_item) + " revision > repo_rev " + str(repo_rev))
-                elif dir_item.revision < repo_rev:  # whole folder should be removed
-                    accum += self.platform_helper.rmdir(dir_item.full_path(), recursive=True)
-                    accum += self.platform_helper.progress("rmdir " + dir_item.full_path())
-                else:
-                    dir_queue.append(dir_item)  # need to check inside the folder
+        unrequired_files = self.info_map_table.get_unrequired_files_where_parent_required()
+        for unrequired_file in unrequired_files:
+            accum += self.platform_helper.rmfile(unrequired_file)
+            accum += self.platform_helper.progress("rmfile " + unrequired_file)
 
         # remove broken links, aws cannot handle them
         accum += " ".join( ("find", ".", "-type", "l", "!", "-exec", "test", "-e", "{}", "\;", "-exec", "rm", "-f", "{}", "\;") )

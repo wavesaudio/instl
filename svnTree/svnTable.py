@@ -99,6 +99,18 @@ class SVNTable(object):
         retVal["required-files"] = bakery(lambda session: session.query(SVNRow))
         retVal["required-files"] += lambda q: q.filter(SVNRow.required==True, SVNRow.fileFlag==True)
 
+        # required-files: return all required dirs
+        retVal["required-dirs"] = bakery(lambda session: session.query(SVNRow))
+        retVal["required-dirs"] += lambda q: q.filter(SVNRow.required==True, SVNRow.fileFlag==False)
+
+        # unrequired-files: return all unrequired files
+        retVal["unrequired-files"] = bakery(lambda session: session.query(SVNRow))
+        retVal["unrequired-files"] += lambda q: q.filter(SVNRow.required==False, SVNRow.fileFlag==True)
+
+        # unrequired-files: return all unrequired dirs
+        retVal["unrequired-dirs"] = bakery(lambda session: session.query(SVNRow))
+        retVal["unrequired-dirs"] += lambda q: q.filter(SVNRow.required==False, SVNRow.fileFlag==False)
+
         # exec-file: return all executable files
         retVal["exec-files"] = bakery(lambda session: session.query(SVNRow))
         retVal["exec-files"] += lambda q: q.filter(SVNRow.fileFlag==True, SVNRow.flags.contains('x'))
@@ -112,8 +124,8 @@ class SVNTable(object):
         retVal["all-required"] += lambda q: q.filter(SVNRow.required==True)
 
         # all-not-required: return all required files and dirs
-        retVal["all-not-required"] = bakery(lambda session: session.query(SVNRow))
-        retVal["all-not-required"] += lambda q: q.filter(SVNRow.required==False)
+        retVal["unrequired-all"] = bakery(lambda session: session.query(SVNRow))
+        retVal["unrequired-all"] += lambda q: q.filter(SVNRow.required==False)
 
         # need-download-files: return all files that need to be downloaded
         retVal["need-download-files"] = bakery(lambda session: session.query(SVNRow))
@@ -241,6 +253,7 @@ class SVNTable(object):
         if match:
             item_details = dict()
             item_details['path'] = match.group('path')
+            item_details['parent'] = "/".join(item_details['path'].split("/")[:-1])
             item_details['level'] = len(item_details['path'].split("/"))
             item_details['revision_remote'] = int(match.group('revision'))
             item_details['flags'] = match.group('flags')
@@ -300,6 +313,7 @@ class SVNTable(object):
                 """
                 retVal = dict()
                 retVal['path'] = a_record["Path"]
+                retVal['parent'] = "/".join(retVal['path'].split("/")[:-1])
                 retVal['level'] = len(retVal['path'].split("/"))
                 if a_record["Node Kind"] == "file":
                     retVal['flags'] = "f"
@@ -555,3 +569,36 @@ class SVNTable(object):
         update_statement = update(SVNRow)\
             .values(required=False)
         self.session.execute(update_statement)
+
+    @utils.timing
+    def get_unrequired_dirs(self):
+        """ get the item for a required file as or if file was wtarred
+            get the wtar files.
+        """
+        unrequired_dirs = [un_dir.path for un_dir in self.baked_queries_map["unrequired-dirs"](self.session).all()]
+        return unrequired_dirs
+
+    @utils.timing
+    def get_unrequired_files(self):
+        """ get the item for a required file as or if file was wtarred
+            get the wtar files.
+        """
+        return self.baked_queries_map["unrequired-files"](self.session).all()
+
+    @utils.timing
+    def get_unrequired_files_where_parent_required(self):
+        """ all unrequired files that have a parent that is unrequired dir will be marked required.
+            This is a dirty trick to leave as unrequired only files that have siblings that are required.
+            used in InstlAdmin.do_upload_to_s3_aws_for_revision
+        """
+
+        the_query = self.session.query(SVNRow.path)\
+            .filter(SVNRow.fileFlag == True,
+                    SVNRow.required == False,
+                    SVNRow.parent.in_(\
+                        self.session.query(SVNRow.path)\
+                            .filter(SVNRow.required==True, SVNRow.fileFlag==False)))
+        print(the_query)
+        unrequired_files = the_query.all()
+
+        return [unrequired_file[0] for unrequired_file in unrequired_files]

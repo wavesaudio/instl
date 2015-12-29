@@ -9,26 +9,23 @@ alchemy_base = declarative_base()
 
 wtar_file_re = re.compile(r"""^.+\.wtar(\...)?$""")
 
+
 class SVNRow(alchemy_base):
     __tablename__ = 'svnitem'
     path = Column(String, primary_key=True)
+    parent = Column(String)  # todo: this should be in another table
     level = Column(Integer)
     flags = Column(String)
     revision_remote = Column(Integer, default=0)
     fileFlag = Column(BOOLEAN, default=False)
-    checksum = Column(String, default=None)
+    checksum = Column(String(40), default=None)
     size = Column(Integer, default=-1)
     url = Column(String, default=None)
     required = Column(BOOLEAN, default=False)
     need_download = Column(BOOLEAN, default=False)
 
-    #execFlag = Column(BOOLEAN, default=False)
-    #wtar_file = Column(BOOLEAN, default=False) # any .wtar or .wtar.?? file
-    #wtar_first_file = Column(BOOLEAN, default=False) # .wtar or wtar.aa file
-    #revision_local = Column(Integer, default=0)
-
     def __repr__(self):
-        return ("<{self.level}, {self.path}, '{self.flags}'"
+        return ("<{self.level}, {self.path},, {self.parent}, '{self.flags}'"
                 ", rev-remote:{self.revision_remote}, f:{self.fileFlag}"
                 ", checksum:{self.checksum}, size:{self.size}"
                 ", url:{self.checksum}"
