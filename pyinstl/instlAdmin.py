@@ -275,7 +275,7 @@ class InstlAdmin(InstlInstanceBase):
 
         accum += self.platform_helper.rmfile("$(UP_2_S3_STAMP_FILE_NAME)")
         accum += self.platform_helper.progress("Remove $(UP_2_S3_STAMP_FILE_NAME)")
-        accum += " ".join(["find", ".", ">", "$(CREATE_LINKS_STAMP_FILE_NAME)"])
+        accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(CREATE_LINKS_STAMP_FILE_NAME)"])
         accum += self.platform_helper.progress("Create $(CREATE_LINKS_STAMP_FILE_NAME)")
 
         accum += self.platform_helper.popd()
@@ -420,7 +420,7 @@ class InstlAdmin(InstlInstanceBase):
         accum += " ".join(up_repo_rev_file_command_parts)
         accum += self.platform_helper.progress("up-repo-rev file - just with number")
 
-        accum += " ".join(["find", ".", ">", "$(UP_2_S3_STAMP_FILE_NAME)"])
+        accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(UP_2_S3_STAMP_FILE_NAME)"])
         accum += self.platform_helper.progress("Uploaded $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
         accum += self.platform_helper.echo("done up2s3 revision $(__CURR_REPO_REV__)")
 
