@@ -10,7 +10,6 @@
     user visible changes, admin:
     * Check that admin commands run only under Mac or Linux
     * Adjusted InstlAdmin.create_links_for_revision to work on Mac
-    * create-links.done and up2s3.done file now contain mamifest of the repo-rev folder contents
 
 28/12/2015 1.1.0.2
 
