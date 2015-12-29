@@ -111,6 +111,10 @@ class SVNTable(object):
         retVal["all-required"] = bakery(lambda session: session.query(SVNRow))
         retVal["all-required"] += lambda q: q.filter(SVNRow.required==True)
 
+        # all-not-required: return all required files and dirs
+        retVal["all-not-required"] = bakery(lambda session: session.query(SVNRow))
+        retVal["all-not-required"] += lambda q: q.filter(SVNRow.required==False)
+
         # need-download-files: return all files that need to be downloaded
         retVal["need-download-files"] = bakery(lambda session: session.query(SVNRow))
         retVal["need-download-files"] += lambda q: q.filter(SVNRow.need_download==True, SVNRow.fileFlag==True)
@@ -545,3 +549,9 @@ class SVNTable(object):
             .values(required=True)
         self.session.execute(update_statement)
         self.mark_required_completion()
+
+    @utils.timing
+    def clear_required(self):
+        update_statement = update(SVNRow)\
+            .values(required=False)
+        self.session.execute(update_statement)

@@ -329,6 +329,9 @@ class InstlAdmin(InstlInstanceBase):
             print(msg)
 
         self.batch_accum.set_current_section('upload')
+        map_file_path = 'instl/info_map.txt'
+        info_map_path = var_stack.resolve("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/" + map_file_path)
+        self.info_map_table.read_from_file(info_map_path)
         for dir_name in dirs_to_upload:
             accum = BatchAccumulator()  # sub-accumulator serves as a template for each version
             accum.set_current_section('upload')
@@ -347,10 +350,7 @@ class InstlAdmin(InstlInstanceBase):
             self.run_batch_file()
 
     def do_upload_to_s3_aws_for_revision(self, accum):
-        map_file_path = 'instl/info_map.txt'
-        info_map_path = var_stack.resolve("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/" + map_file_path)
         repo_rev = int(var_stack.resolve("$(__CURR_REPO_REV__)"))
-        self.info_map_table.read_from_file(info_map_path)
 
         accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
 
@@ -362,9 +362,12 @@ class InstlAdmin(InstlInstanceBase):
         # and folders that should not be uploaded.
         # To save delete instructions for every file we rely on the fact that each folder
         # has revision which is the maximum revision of it's sub-items.
+        self.info_map_table.clear_required()
         self.info_map_table.mark_required_for_dir('instl') # never remove the instl folder
         self.info_map_table.mark_required_for_revision(repo_rev)
 
+        print("-----------------", os.getcwd())
+        self.info_map_table.write_to_file(var_stack.resolve("$(UP_2_S3_STAMP_FILE_NAME).not-required"), in_format="text", filter_name="all-not-required")
         from collections import deque
 
         dir_queue = deque()
@@ -390,14 +393,14 @@ class InstlAdmin(InstlInstanceBase):
         # remove broken links, aws cannot handle them
         accum += " ".join( ("find", ".", "-type", "l", "!", "-exec", "test", "-e", "{}", "\;", "-exec", "rm", "-f", "{}", "\;") )
 
-        accum += " ".join(["aws", "s3", "sync",
+        accum += " ".join(["echo", "aws", "s3", "sync",
                            ".", "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_REV__)",
                            "--exclude", '"*.DS_Store"',
                            "--exclude", '"$(UP_2_S3_STAMP_FILE_NAME)"',
                            "--exclude", '"$(CREATE_LINKS_STAMP_FILE_NAME)"'
         ])
 
-        up_repo_rev_file_command_parts = [self.platform_helper.run_instl(), "up-repo-rev",
+        up_repo_rev_file_command_parts = ["echo", self.platform_helper.run_instl(), "up-repo-rev",
                                           "--config-file", '"$(__CONFIG_FILE_PATH__)"',
                                           "--out", "up_repo_rev.$(__CURR_REPO_REV__)",
                                           "--just-with-number", "$(__CURR_REPO_REV__)",
