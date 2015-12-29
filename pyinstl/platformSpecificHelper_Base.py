@@ -113,6 +113,7 @@ class CopyToolRsync(CopyToolBase):
             sync_command = """rsync -l -r -E --delete {ignore_spec} "{src_dir}" "{trg_dir}" """.format(**locals())
 
         permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)", default="")
+        chmod_command = ""
         if permissions_spec:
             src_dir_dir, src_dir_name = os.path.split(src_dir)
             target = os.path.join(trg_dir, src_dir_name)
@@ -131,6 +132,7 @@ class CopyToolRsync(CopyToolBase):
             sync_command = """rsync -l -r -E {ignore_spec} "{src_file}" "{trg_dir}" """.format(**locals())
 
         permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)", default="")
+        chmod_command = ""
         if permissions_spec:
             src_file_dir, src_file_name = os.path.split(src_file)
             target = os.path.join(trg_dir, src_file_name)
@@ -149,6 +151,7 @@ class CopyToolRsync(CopyToolBase):
             sync_command = """rsync -l -r -E {ignore_spec} "{src_file}" "{trg_file}" """.format(**locals())
 
         permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)", default="")
+        chmod_command = ""
         if permissions_spec:
             chmod_command ="""chmod -f {permissions_spec} "{trg_file}" """.format(**locals())
         return sync_command, chmod_command
@@ -167,6 +170,7 @@ class CopyToolRsync(CopyToolBase):
             sync_command = """rsync -l -r -E {delete_spec} {ignore_spec} "{src_dir}" "{trg_dir}" """.format(**locals())
 
         permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)", default="")
+        chmod_command = ""
         if permissions_spec:
             chmod_command = """chmod -f -R {permissions_spec} "{trg_dir}" """.format(**locals())
         return sync_command, chmod_command
@@ -183,6 +187,7 @@ class CopyToolRsync(CopyToolBase):
             sync_command = """rsync -l -E -d --exclude='*/' {ignore_spec} "{src_dir}"/* "{trg_dir}" """.format(**locals())
 
         permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)")
+        chmod_command = ""
         if permissions_spec:
             chmod_command = """find "{trg_dir}" -maxdepth 1 -mindepth 1 -type f -print0 | xargs -0 chmod -f {permissions_spec}""".format(**locals())
         return sync_command, chmod_command

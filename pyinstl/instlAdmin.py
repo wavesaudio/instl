@@ -321,7 +321,7 @@ class InstlAdmin(InstlInstanceBase):
                         yes_need_upload_nums.append(dir_name)
                         dirs_to_upload.append(dir_name)
         if error_need_upload_num:
-            error_need_upload__str = find_sequences(error_need_upload_num)
+            error_need_upload__str = utils.find_sequences(error_need_upload_num)
             msg = " ".join( ("Revisions cannot be uploaded to S3:", error_need_upload__str) )
             print(msg)
             dirs_to_upload = []
