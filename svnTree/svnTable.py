@@ -588,8 +588,8 @@ class SVNTable(object):
 
     @utils.timing
     def get_unrequired_paths_where_parent_required(self, what="files"):
-        """ all unrequired files that have a parent that is unrequired dir will be marked required.
-            This is a dirty trick to leave as unrequired only files that have siblings that are required.
+        """ Get all unrequired items that have a parent that is required.
+            This is a  trick to leave as on disk only folders that have siblings that are required.
             used in InstlAdmin.do_upload_to_s3_aws_for_revision
         """
         get_files = what == "files"
@@ -599,7 +599,7 @@ class SVNTable(object):
                     SVNRow.parent.in_(\
                         self.session.query(SVNRow.path)\
                             .filter(SVNRow.required==True, SVNRow.fileFlag==False)))
-        print(the_query)
+
         unrequired_files = the_query.all()
 
         return [unrequired_file[0] for unrequired_file in unrequired_files]

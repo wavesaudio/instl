@@ -361,8 +361,8 @@ class InstlAdmin(InstlInstanceBase):
         # Files a folders that do not belong to __CURR_REPO_REV__ should not be uploaded.
         # Since aws sync command uploads the whole folder, we delete from disk all files
         # and folders that should not be uploaded.
-        # To save delete instructions for every file we rely on the fact that each folder
-        # has revision which is the maximum revision of it's sub-items.
+        # To save delete instructions for every file, we first delete those folders where
+        # all files are not __CURR_REPO_REV__. Then the remaining files  are removed
         self.info_map_table.mark_required_for_dir('instl') # never remove the instl folder
         self.info_map_table.mark_required_for_revision(repo_rev)
 
