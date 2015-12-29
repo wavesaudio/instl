@@ -366,6 +366,7 @@ class SVNTable(object):
 
     def clear_all(self):
         self.session.query(SVNRow).delete()
+        self.comments = list()
 
     def set_base_revision(self, base_revision):
         self.session.query(SVNRow).filter(SVNRow.revision_remote < base_revision).\
@@ -586,14 +587,14 @@ class SVNTable(object):
         return self.baked_queries_map["unrequired-files"](self.session).all()
 
     @utils.timing
-    def get_unrequired_files_where_parent_required(self):
+    def get_unrequired_paths_where_parent_required(self, what="files"):
         """ all unrequired files that have a parent that is unrequired dir will be marked required.
             This is a dirty trick to leave as unrequired only files that have siblings that are required.
             used in InstlAdmin.do_upload_to_s3_aws_for_revision
         """
-
+        get_files = what == "files"
         the_query = self.session.query(SVNRow.path)\
-            .filter(SVNRow.fileFlag == True,
+            .filter(SVNRow.fileFlag == get_files,
                     SVNRow.required == False,
                     SVNRow.parent.in_(\
                         self.session.query(SVNRow.path)\

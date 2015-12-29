@@ -366,12 +366,12 @@ class InstlAdmin(InstlInstanceBase):
         self.info_map_table.mark_required_for_dir('instl') # never remove the instl folder
         self.info_map_table.mark_required_for_revision(repo_rev)
 
-        unrequired_dirs = self.info_map_table.get_unrequired_dirs()
+        unrequired_dirs = self.info_map_table.get_unrequired_paths_where_parent_required(what="dirs")
         for unrequired_dir in unrequired_dirs:
             accum += self.platform_helper.rmdir(unrequired_dir, recursive=True)
             accum += self.platform_helper.progress("rmdir " + unrequired_dir)
 
-        unrequired_files = self.info_map_table.get_unrequired_files_where_parent_required()
+        unrequired_files = self.info_map_table.get_unrequired_paths_where_parent_required(what="files")
         for unrequired_file in unrequired_files:
             accum += self.platform_helper.rmfile(unrequired_file)
             accum += self.platform_helper.progress("rmfile " + unrequired_file)
