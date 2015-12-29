@@ -61,11 +61,9 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
     def get_install_instructions_mkdir_with_owner_func(self):
         retVal = (
             'mkdir_with_owner() {',
-            'if [ ! -e "$1" ]; then',
-            'mkdir -p "$1"',
-            'chown $(__USRER_ID__): "$1"',
-            'chmod a+rwx "$1"',
-            'fi }')
+            'mkdir -p -m a+rwx "$1"',
+            'chown $(__USER_ID__): "$1"',
+            '}')
         return retVal
 
     def get_resolve_symlinks_func(self):
@@ -100,7 +98,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         return time_end_commands
 
     def mkdir(self, directory):
-        mk_command = " ".join(("mkdir", "-p", utils.quoteme_double(directory) ))
+        mk_command = " ".join(("mkdir", "-p", "-m a+rwx", utils.quoteme_double(directory) ))
         return mk_command
 
     def mkdir_with_owner(self, directory):

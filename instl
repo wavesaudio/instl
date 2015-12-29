@@ -31,6 +31,7 @@ os_second_name = current_os_names[0]
 if len(current_os_names) > 1:
     os_second_name = current_os_names[1]
 
+
 def get_path_to_instl_app():
     """
     @return: returns the path to this
@@ -41,6 +42,7 @@ def get_path_to_instl_app():
     elif __file__:
         application_path = os.path.realpath(__file__)
     return application_path
+
 
 def get_instl_launch_command():
     """
@@ -56,6 +58,7 @@ def get_instl_launch_command():
             launch_command = quoteme_double(os.path.realpath(__file__))
     return launch_command
 
+
 def get_data_folder():
     data_folder = None
     if getattr(sys, 'frozen', False):
@@ -63,6 +66,7 @@ def get_data_folder():
     elif __file__:
         data_folder = os.path.dirname(os.path.realpath(__file__))
     return data_folder
+
 
 class CommandLineOptions(object):
     """ namespace object to give to parse_args
@@ -419,7 +423,7 @@ def main():
                     }
     if os_family_name != "Win":
         initial_vars.update(
-                    {"__USRER_ID__": str(os.getuid()),
+                    {"__USER_ID__": str(os.getuid()),
                      "__GROUP_ID__": str(os.getgid())})
 
     logging.info("Command %s", options.command)
@@ -434,6 +438,8 @@ def main():
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "admin":
+        if os_family_name not in ("Linux", "Mac"):
+               raise EnvironmentError("instl admin commands can only run under Mac or Linux")
         from pyinstl.instlAdmin import InstlAdmin
         instance = InstlAdmin(initial_vars)
         instance.init_from_cmd_line_options(options)
