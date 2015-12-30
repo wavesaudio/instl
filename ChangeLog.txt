@@ -3,7 +3,10 @@
     user visible changes client:
     * Weird variable name __USRER_ID__ renamed __USER_ID__
     * Mac: add -m a+rwx to all mkdir commands, mkdir_with_owner is now 'mkdir -p -m a+rwx "$1"' & 'chown $(__USER_ID__): "$1"'
-
+    * Win: robocopy /R:9 /W1 instead of /R:3 /W:3
+    * Win: added GOTO EXIT_ON_ERROR if cd or mkdir failed
+    * Added progress steps after cd and mkdir operations
+    
     user visible changes, admin:
     * Check that admin commands run only under Mac or Linux
     * Adjusted InstlAdmin.create_links_for_revision to work on Mac
