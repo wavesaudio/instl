@@ -373,10 +373,10 @@ def gen_col_format(width_list, align_list=None, sep=' '):
     format_list = list()
     if align_list:
         for width_enum in enumerate(width_list):
-            format_list.append("{{:{align}{width}}}".format(width=width_enum[1]+1, align=align_list[width_enum[0]]))
+            format_list.append("{{:{align}{width}}}".format(width=width_enum[1], align=align_list[width_enum[0]]))
     else:
         for width_enum in enumerate(width_list):
-            format_list.append("{{:{align}{width}}}".format(width=width_enum[1]+1, align='<'))
+            format_list.append("{{:{align}{width}}}".format(width=width_enum[1], align='<'))
     for i in range(1, len(format_list)+1):
         retVal.append(sep.join(format_list[0:i]))
     return retVal
