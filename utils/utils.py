@@ -14,8 +14,6 @@ import subprocess
 import time
 import numbers
 import stat
-import grp
-import pwd
 
 import rsa
 
@@ -674,7 +672,6 @@ def clean_old_files(dir_to_clean, older_than_days):
                 a_file_path = os.path.join(root, a_file)
                 file_time = os.path.getmtime(a_file_path)
                 if file_time < threshold_time:
-                    #print ("will remove", a_file_path)
                     os.remove(a_file_path)
     except:
         pass
@@ -694,6 +691,8 @@ def unix_permissions_to_str(the_mod):
 
 
 def unix_item_ls(the_path):
+    import grp
+    import pwd
     the_parts = list()
     the_stats = os.lstat(the_path)
     the_parts.append(the_stats[stat.ST_INO])  # inode number
@@ -735,3 +734,56 @@ def unix_folder_ls(the_path):
     col_formats = gen_col_format(width_list, align_list)
     formatted_lines_lines = [col_formats[len(ls_line)].format(*ls_line) for ls_line in lines]
     return "\n".join(formatted_lines_lines)
+
+
+def win_item_ls(the_path):
+    import win32security
+    the_parts = list()
+    the_stats = os.lstat(the_path)
+    the_parts.append(time.strftime("%Y/%m/%d %H:%M:%S", time.gmtime((the_stats[stat.ST_MTIME]))))  # modification time
+    if stat.S_ISDIR(the_stats.st_mode):
+        the_parts.append("<DIR>")
+    else:
+        the_parts.append("")
+    the_parts.append(the_stats[stat.ST_SIZE])  # size in bytes
+
+    sd = win32security.GetFileSecurity (the_path, win32security.OWNER_SECURITY_INFORMATION)
+    owner_sid = sd.GetSecurityDescriptorOwner()
+    name, domain, __type = win32security.LookupAccountSid (None, owner_sid)
+    the_parts.append(domain+"\\"+name)  # user
+
+    sd = win32security.GetFileSecurity (the_path, win32security.GROUP_SECURITY_INFORMATION)
+    owner_sid = sd.GetSecurityDescriptorGroup()
+    name, domain, __type = win32security.LookupAccountSid (None, owner_sid)
+    the_parts.append(domain+"\\"+name)  # group
+
+    if not (stat.S_ISLNK(the_stats.st_mode) or stat.S_ISDIR(the_stats.st_mode)):
+        the_parts.append(get_file_checksum(the_path))
+    else:
+        the_parts.append("")
+    path_to_print = the_path
+    the_parts.append(path_to_print)
+    return the_parts
+
+
+def win_folder_ls(the_path):
+    lines = list()
+    for root_path, dirs, files in os.walk(the_path, followlinks=False):
+        dirs = sorted(dirs, key=lambda s: s.lower())
+        lines.append(win_item_ls(root_path))
+        files_to_list = sorted(files + [slink for slink in dirs if os.path.islink(os.path.join(root_path, slink))], key=lambda s: s.lower())
+        for file_to_list in files_to_list:
+            full_path = os.path.join(root_path, file_to_list)
+            lines.append(win_item_ls(full_path))
+    width_list, align_list = max_widths(lines)
+    col_formats = gen_col_format(width_list, align_list)
+    formatted_lines_lines = [col_formats[len(ls_line)].format(*ls_line) for ls_line in lines]
+    return "\n".join(formatted_lines_lines)
+
+
+def folder_listing(the_path):
+    os_names = get_current_os_names()
+    if "Mac" in os_names:
+        return unix_folder_ls(the_path)
+    elif "Win" in os_names:
+        return win_folder_ls(the_path)

@@ -36,7 +36,7 @@ def write_copy_debug_info(self):
             log_folder, log_file = os.path.split(log_file_path)
             with open(os.path.join(log_folder, "sync-folder-manifest.txt"), "w") as wfd:
                 repo_sync_dir = var_stack.resolve("$(LOCAL_REPO_SYNC_DIR)")
-                wfd.write(utils.unix_folder_ls(repo_sync_dir))
+                wfd.write(utils.folder_listing(repo_sync_dir))
     except:
         pass # if it did not work - forget it
 
