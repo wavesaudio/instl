@@ -12,6 +12,10 @@ import base64
 import collections
 import subprocess
 import time
+import numbers
+import stat
+import grp
+import pwd
 
 import rsa
 
@@ -180,6 +184,7 @@ def download_from_file_or_url(in_url, in_local_path, translate_url_callback=None
     #else:
     #    print(in_local_path, "does not exists", file=sys.stderr)
 
+
 class unique_list(list):
     """
     unique_list implements a list where all items are unique.
@@ -325,6 +330,7 @@ class ChangeDirIfExists(object):
         if self.newPath:
             os.chdir(self.savedPath)
 
+
 def safe_makedirs(path_to_dir):
     """ solves a problem with python 2.7 where os.makedirs raises if the dir already exist  """
     try:
@@ -332,6 +338,7 @@ def safe_makedirs(path_to_dir):
     except:  # os.makedirs raises is the directory already exists
         pass
     return path_to_dir
+
 
 def safe_remove_file(path_to_file):
     """ solves a problem with python 2.7 where os.remove raises if the file does not exist  """
@@ -341,29 +348,41 @@ def safe_remove_file(path_to_file):
         pass
     return path_to_file
 
+
 def max_widths(list_of_lists):
     """ inputs is a list of lists. output is a list of maximum str length for each
         position. E.g (('a', 'ccc'), ('bb', a', 'fff')) will return: (2, 3, 3)
     """
-    loggest_list_len = reduce(max, [len(alist) for alist in list_of_lists])
-    retVal = [0] * loggest_list_len  # pre allocate the max list length
-    for alist in list_of_lists:
-        for item in enumerate(alist):
-            retVal[item[0]] = max(retVal[item[0]], len(str(item[1])))
-    return retVal
+    longest_list_len = reduce(max, [len(a_list) for a_list in list_of_lists])
+    width_list = [0] * longest_list_len  # pre allocate the max list length
+    align_list = ['<'] * longest_list_len  # default is align to left
+    for a_list in list_of_lists:
+        for item in enumerate(a_list):
+            width_list[item[0]] = max(width_list[item[0]], len(str(item[1])))
+            if isinstance(item[1], numbers.Number):
+                align_list[item[0]] = '>'
+    return width_list, align_list
 
 
-def gen_col_format(width_list):
+def gen_col_format(width_list, align_list=None, sep=' '):
     """ generate a list of format string where each position is aligned to the adjacent
         position in the width_list.
+        If align_list is supplied we can align numbers to the right and texts to the left
     """
     retVal = list()
     format_str = ""
     retVal.append(format_str)
-    for width in width_list:
-        format_str += "{{:<{width}}}".format(width=width+1)
-        retVal.append(format_str)
+    format_list = list()
+    if align_list:
+        for width_enum in enumerate(width_list):
+            format_list.append("{{:{align}{width}}}".format(width=width_enum[1]+1, align=align_list[width_enum[0]]))
+    else:
+        for width_enum in enumerate(width_list):
+            format_list.append("{{:{align}{width}}}".format(width=width_enum[1]+1, align='<'))
+    for i in range(1, len(format_list)+1):
+        retVal.append(sep.join(format_list[0:i]))
     return retVal
+
 
 def ContinuationIter(the_iter, continuation_value=None):
     """ ContinuationIter yield all the values of the_iter and then continue yielding continuation_value
@@ -405,16 +424,26 @@ def create_file_signatures(file_path, private_key_text=None):
             retVal["SHA-512_rsa_sig"] = text_sig
     return retVal
 
+
+def get_file_checksum(file_path):
+    with open(file_path, "rb") as rfd:
+        file_contents = rfd.read()
+        retVal = get_buffer_checksum(file_contents)
+    return retVal
+
+
 def get_buffer_checksum(buff):
     sha1ner = hashlib.sha1()
     sha1ner.update(buff)
     retVal = sha1ner.hexdigest()
     return retVal
 
+
 def check_buffer_checksum(buff, expected_checksum):
     checksum = get_buffer_checksum(buff)
     retVal = checksum.lower() == expected_checksum.lower()
     return retVal
+
 
 def check_buffer_signature(buff, textual_sig, public_key):
     try:
@@ -425,6 +454,7 @@ def check_buffer_signature(buff, textual_sig, public_key):
     except:
         return False
 
+
 def check_buffer_signature_or_checksum(buff, public_key=None, textual_sig=None, expected_checksum=None):
     retVal = False
     if public_key and textual_sig:
@@ -433,17 +463,20 @@ def check_buffer_signature_or_checksum(buff, public_key=None, textual_sig=None, 
         retVal = check_buffer_checksum(buff, expected_checksum)
     return retVal
 
+
 def check_file_signature_or_checksum(file_path, public_key=None, textual_sig=None, expected_checksum=None):
     retVal = False
     with open(file_path, "rb") as rfd:
         retVal = check_buffer_signature_or_checksum(rfd.read(), public_key, textual_sig, expected_checksum)
     return retVal
 
+
 def check_file_checksum(file_path, expected_checksum):
     retVal = False
     with open(file_path, "rb") as rfd:
         retVal = check_buffer_checksum(rfd.read(), expected_checksum)
     return retVal
+
 
 def check_file_signature(file_path, textual_sig, public_key):
     retVal = False
@@ -458,13 +491,16 @@ def need_to_download_file(file_path, file_checksum):
         retVal = not check_file_checksum(file_path, file_checksum)
     return retVal
 
+
 def quoteme_single(to_quote):
     return "".join( ("'", to_quote, "'") )
+
 
 def quoteme_double(to_quote):
     return "".join( ('"', to_quote, '"') )
 
 detect_quotations = re.compile("(?P<prefix>[\"'])(?P<the_unquoted_text>.+)(?P=prefix)")
+
 
 def unquoteme(to_unquote):
     retVal = to_unquote
@@ -523,11 +559,13 @@ def replace_all_from_dict(in_text, *in_replace_only_these, **in_replacement_dic)
         retVal = retVal.replace(look_for, in_replacement_dic[look_for])
     return retVal
 
+
 def convert_to_str_unless_None(to_convert):
     if to_convert is None:
         return None
     else:
         return str(to_convert)
+
 
 # find sequences in a sorted list.
 # in_sorted_list: a sorted list of things to search sequences in.
@@ -556,6 +594,7 @@ def find_sequences(in_sorted_list, is_next_func=lambda a,b: int(a)+1==int(b), re
     else:
         return sequences
 
+
 def make_open_file_read_write_for_all(fd):
     try:
         os.fchmod(fd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
@@ -577,6 +616,7 @@ def timing(f):
             print ('%s function took apparently no time at all' % (f.func_name))
         return ret
     return wrap
+
 
 # compile a list of regexs to one regex. regexs are ORed
 # with the | character so if any regex return true when calling
@@ -610,6 +650,7 @@ def excluded_walk(root_to_walk, file_exclude_regex=None, dir_exclude_regex=None,
         files[:] = sorted([a_file for a_file in files if not file_exclude_regex.search(a_file)])
         yield root, dirs, files
 
+
 def get_disk_free_space(in_path):
     retVal = 0
     if 'Win' in get_current_os_names():
@@ -620,8 +661,9 @@ def get_disk_free_space(in_path):
         retVal = st.f_bavail * st.f_frsize
     return retVal
 
-    #cache_dir_to_clean = var_stack.resolve(self.get_default_sync_dir(continue_dir="cache", make_dir=False))
-    #utils.clean_old_files(cache_dir_to_clean, 30)
+
+# cache_dir_to_clean = var_stack.resolve(self.get_default_sync_dir(continue_dir="cache", make_dir=False))
+# utils.clean_old_files(cache_dir_to_clean, 30)
 def clean_old_files(dir_to_clean, older_than_days):
     """ clean a directory from file older than the given param
         block all exceptions since this operation is "nice to have" """
@@ -636,3 +678,60 @@ def clean_old_files(dir_to_clean, older_than_days):
                     os.remove(a_file_path)
     except:
         pass
+
+
+oct_digit_to_perm_chars = {'7':'rwx', '6' :'rw-', '5' : 'r-x', '4':'r--', '3':'-wx', '2':'-w-', '1':'--x', '0': '---'}
+def unix_permissions_to_str(the_mod):
+    # python3: use stat.filemode for the permissions string
+    prefix = '-'
+    if stat.S_ISDIR(the_mod):
+        prefix = 'd'
+    elif stat.S_ISLNK(the_mod):
+        prefix = 'l'
+    oct_perm = oct(the_mod)[-3:]
+    retVal = ''.join([prefix,] + [oct_digit_to_perm_chars[p] for p in oct_perm])
+    return retVal
+
+
+def unix_item_ls(the_path):
+    the_parts = list()
+    the_stats = os.lstat(the_path)
+    the_parts.append(the_stats[stat.ST_INO])  # inode number
+    the_parts.append(unix_permissions_to_str(the_stats.st_mode)) # permissions
+    the_parts.append(the_stats[stat.ST_NLINK])  # num links
+    the_parts.append(pwd.getpwuid(the_stats[stat.ST_UID])[0])  # user
+    the_parts.append(grp.getgrgid(the_stats[stat.ST_GID])[0])  # group
+    the_parts.append(the_stats[stat.ST_SIZE])  # size in bytes
+    the_parts.append(time.strftime("%Y/%m/%d-%H:%M:%S", time.gmtime((the_stats[stat.ST_MTIME]))))  # modification time
+    if not (stat.S_ISLNK(the_stats.st_mode) or stat.S_ISDIR(the_stats.st_mode)):
+        the_parts.append(get_file_checksum(the_path))
+    else:
+        the_parts.append("")
+    path_to_print = the_path
+    if stat.S_ISLNK(the_stats.st_mode):
+        path_to_print += '@'
+    elif stat.S_ISDIR(the_stats.st_mode):
+        path_to_print += '/'
+    elif the_stats.st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH):
+        path_to_print += '*'
+    elif stat.S_ISSOCK(the_stats.st_mode):
+        path_to_print += '='
+    elif stat.S_ISFIFO(the_stats.st_mode):
+        path_to_print += '|'
+    the_parts.append(path_to_print)
+    return the_parts
+
+
+def unix_folder_ls(the_path):
+    lines = list()
+    for root_path, dirs, files in os.walk(the_path, followlinks=False):
+        dirs = sorted(dirs, key=lambda s: s.lower())
+        lines.append(unix_item_ls(root_path))
+        files_to_list = sorted(files + [slink for slink in dirs if os.path.islink(os.path.join(root_path, slink))], key=lambda s: s.lower())
+        for file_to_list in files_to_list:
+            full_path = os.path.join(root_path, file_to_list)
+            lines.append(unix_item_ls(full_path))
+    width_list, align_list = max_widths(lines)
+    col_formats = gen_col_format(width_list, align_list)
+    formatted_lines_lines = [col_formats[len(ls_line)].format(*ls_line) for ls_line in lines]
+    return "\n".join(formatted_lines_lines)

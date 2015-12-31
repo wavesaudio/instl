@@ -386,6 +386,7 @@ def prepare_args_parser(in_command):
 
     return parser, command_names
 
+
 def read_command_line_options(name_space_obj, arglist=None):
     """ parse command line options """
 
@@ -398,6 +399,7 @@ def read_command_line_options(name_space_obj, arglist=None):
         # No command line options were given
         name_space_obj.mode = "interactive"
     return command_names
+
 
 def main():
     """ Main instl entry point. Reads command line options and decides if to go into interactive or client mode.

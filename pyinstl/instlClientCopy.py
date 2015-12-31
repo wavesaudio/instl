@@ -28,7 +28,21 @@ def init_copy_vars(self):
     self.is_wtar_item = svnTree.WtarFilter() # will return true for any wtar file
     self.calc_user_cache_dir_var() # this will set USER_CACHE_DIR if it was not explicitly defined
 
+
+def write_copy_debug_info(self):
+    try:
+        if var_stack.defined('ECHO_LOG_FILE'):
+            log_file_path = var_stack.resolve("$(ECHO_LOG_FILE)")
+            log_folder, log_file = os.path.split(log_file_path)
+            with open(os.path.join(log_folder, "sync-folder-manifest.txt"), "w") as wfd:
+                repo_sync_dir = var_stack.resolve("$(LOCAL_REPO_SYNC_DIR)")
+                wfd.write(utils.unix_folder_ls(repo_sync_dir))
+    except:
+        pass # if it did not work - forget it
+
+
 def create_copy_instructions(self):
+    self.write_copy_debug_info()
     self.have_map = svnTree.SVNTree()
     # read NEW_HAVE_INFO_MAP_PATH and not HAVE_INFO_MAP_PATH. Copy might be called after the sync batch file was created
     # but before it was executed.  HAVE_INFO_MAP_PATH is only created
@@ -109,8 +123,8 @@ def create_copy_instructions(self):
                 for source_var in sorted(var_stack.resolve_var_to_list_if_exists("iid_source_var_list")):
                     source = var_stack.resolve_var_to_list(source_var)
                     source_folder, source_name = os.path.split(source[0])
-                    to_untar = os.path.join(folder_name, source_name)
-                    self.batch_accum += self.platform_helper.unwtar_something(to_untar, no_artifacts=True)
+                    to_unwtar = os.path.join(folder_name, source_name)
+                    self.batch_accum += self.platform_helper.unwtar_something(to_unwtar, no_artifacts=True)
                 self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_pre_copy_item")
                 self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_post_copy_item")
 

@@ -1,6 +1,7 @@
 ????
 
     user visible changes client:
+    * sync-folder-manifest.txt is created if ECHO_LOG_FILE is supplied and in the same folder.
     * Weird variable name __USRER_ID__ renamed __USER_ID__
     * Mac: add -m a+rwx to all mkdir commands, mkdir_with_owner is now 'mkdir -p -m a+rwx "$1"' & 'chown $(__USER_ID__): "$1"'
     * Win: robocopy /R:9 /W1 instead of /R:3 /W:3

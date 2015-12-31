@@ -173,6 +173,7 @@ class InstlClient(InstlInstanceBase):
     # copy command implemented in instlClientCopy.py file
     from instlClientCopy import do_copy
     from instlClientCopy import init_copy_vars
+    from instlClientCopy import write_copy_debug_info
     from instlClientCopy import create_copy_instructions
     from instlClientCopy import create_copy_instructions_for_source
     from instlClientCopy import pre_copy_mac_handling
