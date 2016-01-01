@@ -937,9 +937,8 @@ class InstlAdmin(InstlInstanceBase):
     def do_verify_repo(self):
         self.read_yaml_file(var_stack.resolve("$(STAGING_FOLDER)/instl/index.yaml"))
 
-        info_map = svnTree.SVNTree()
         the_folder = var_stack.resolve_var("STAGING_FOLDER")
-        info_map.initialize_from_folder(the_folder)
+        self.info_map_table.initialize_from_folder(the_folder)
 
         iid_to_sources = self.sources_from_iids()
 
@@ -956,40 +955,29 @@ class InstlAdmin(InstlInstanceBase):
                         iid_problem_messages.append(" ".join(("depends on non existing", dependee )))
                 # check sources
                 for source in iid_to_sources[iid]:
-                    its_a_wtar = False
-                    map_item = info_map.get_item_at_path(source[0])
-                    if map_item is None:  # maybe it's a wtar
-                        map_item = info_map.get_item_at_path(source[0] + ".wtar")
-                        its_a_wtar = True
-                    if map_item is None:  # maybe it's a split wtar
-                        map_item = info_map.get_item_at_path(source[0] + ".wtar.aa")
-                        its_a_wtar = True
-
-                    if map_item is None:
-                        iid_problem_messages.append(" ".join(("source", utils.quoteme_single(source[0]), "does not exist")))
-                    else:
-                        if not its_a_wtar:
-                            if source[1] in ("!dir", "!dir_cont", "!files"):
-                                if map_item.isFile():
-                                    iid_problem_messages.append(" ".join( ("source", utils.quoteme_single(source[0]), "is a file but type is", source[1]) ))
-                                else:
-                                    file_list, dir_list = map_item.unsorted_sub_items()
-                                    if source[1] == "!files" and len(file_list) == 0:
-                                        iid_problem_messages.append(" ".join( ("source", utils.quoteme_single(source[0]), "has no files but type is", source[1]) ))
-                                    if source[1] in ("!dir", "!dir_cont") and len(file_list)+len(dir_list) == 0:
-                                        iid_problem_messages.append(" ".join( ("source", utils.quoteme_single(source[0]), "has no files or dirs but type is", source[1]) ))
-                            if source[1] == "!file"  and not map_item.isFile():
-                                iid_problem_messages.append(" ".join( ("source", utils.quoteme_single(source[0]), "is a dir but type is", source[1]) ))
+                    num_file_for_source = self.info_map_table.mark_required_for_source(source)
+                    if num_file_for_source == 0:
+                        iid_problem_messages.append(" ".join(("source", utils.quoteme_single(str(source)),"required by", iid, "does not have files")))
                 if iid_problem_messages:
                     print(iid+":")
                     for problem_message in sorted(iid_problem_messages):
                         print("   ", problem_message)
+        self.info_map_table.mark_required_completion()
         self.find_cycles()
         print("index:", len(self.install_definitions_index), "iids")
-        num_files = info_map.num_subs_in_tree(what="file")
-        num_dirs = info_map.num_subs_in_tree(what="dir")
+        num_files = len(self.info_map_table.get_items(filter_name="all-files"))
+        num_dirs = len(self.info_map_table.get_items(filter_name="all-dirs"))
+        num_required_files = len(self.info_map_table.get_items(filter_name="required-files"))
+        num_required_dirs = len(self.info_map_table.get_items(filter_name="required-dirs"))
         print("info map:", num_files, "files in", num_dirs, "folders")
+        print("info map:", num_required_files, "required files, ", num_required_dirs, "required folders")
 
+        unrequired_files = self.info_map_table.get_items(filter_name="unrequired-files")
+        print("unrequired files:")
+        [print("    ", f.path) for f in unrequired_files]
+        unrequired_dirs = self.info_map_table.get_items(filter_name="unrequired-dirs")
+        print("unrequired dirs:")
+        [print("    ", d.path) for d in unrequired_dirs]
 
     def should_file_be_exec(self, file_path):
         retVal = self.compiled_should_be_exec_regex.search(file_path)

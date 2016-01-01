@@ -3,7 +3,6 @@ from __future__ import print_function
 
 import sys
 import os
-import stat
 import urllib2
 import re
 import urlparse

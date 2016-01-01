@@ -201,7 +201,6 @@ class SVNTable(object):
                     self.comments.append(match.group("the_comment"))
         return retVal
 
-    @utils.timing
     def insert_dicts_to_db(self, insert_dicts):
         # self.session.bulk_insert_mappings(SVNRow, insert_dicts)
         self.engine.execute(SVNRow.__table__.insert(), insert_dicts)
@@ -353,13 +352,40 @@ class SVNTable(object):
             print("Error:", "line:", line_num, "record:", record)
             raise
 
+    def item_dict_from_disc_item(self, in_base_folder, full_path):
+        prefix_len = len(in_base_folder)+1
+        relative_path = full_path[prefix_len:]
+        item_details = dict()
+        item_details['path'] = relative_path
+        split_path = item_details['path'].split("/")
+        item_details['parent'] = "/".join(split_path[:-1])
+        item_details['level'] = len(split_path)
+        item_details['revision_remote'] = 0
+        if os.path.islink(full_path): # check for link first: os.path.isdir returns True for a link to dir
+            flags = "fs"
+        elif os.path.isfile(full_path):
+            if os.access(full_path, os.X_OK):
+                flags = "fx"
+            else:
+                flags = "f"
+        else:
+            flags = "d"
+        item_details['flags'] = flags
+        item_details['fileFlag'] = 'f' in item_details['flags']
+        item_details['checksum'] = None
+        item_details['url'] = None
+        item_details['size'] = None
+        item_details['required'] = False
+        item_details['need_download'] = False
+        return item_details
+
     def initialize_from_folder(self, in_folder):
-        prefix_len = len(in_folder)+1
+        insert_dicts = list()
         for root, dirs, files in os.walk(in_folder, followlinks=False):
-            for a_file in files:
-                if a_file != ".DS_Store": # temp hack, list of ignored files should be moved to a variable
-                    relative_path = os.path.join(root, a_file)[prefix_len:]
-                    self.new_item_at_path(relative_path, {'flags':"f", 'revision': 0, 'checksum': "0"}, create_folders=True)
+            for item in sorted(files + dirs):
+                if item != ".DS_Store": # temp hack, list of ignored files should be moved to a variable
+                    insert_dicts.append(self.item_dict_from_disc_item(in_folder, os.path.join(root, item)))
+        self.insert_dicts_to_db(insert_dicts)
 
     def num_items(self):
         return self.session.query(SVNRow).count()
@@ -443,14 +469,12 @@ class SVNTable(object):
         retVal = self.baked_queries_map["required-exec-files"](self.session).all()
         return retVal
 
-    @utils.timing
     def get_required_for_file(self, file_path):
         """ get the item for a required file as or if file was wtarred
             get the wtar files.
         """
         return self.baked_queries_map["required-items-for-file"](self.session).params(file_path=file_path).all()
 
-    @utils.timing
     def mark_required_for_file(self, file_path):
         """ mark a file as required or if file was wtarred
             mark the wtar files are required.
@@ -459,9 +483,9 @@ class SVNTable(object):
                 .where(SVNRow.fileFlag == True)\
                 .where(or_(SVNRow.path == file_path, SVNRow.path.like(file_path + ".wtar%")))\
                 .values(required=True)
-        self.session.execute(update_statement)
+        results = self.session.execute(update_statement)
+        return results.rowcount
 
-    @utils.timing
     def mark_required_for_files(self, parent_path):
         """ mark all files in parent_path as required.
         """
@@ -471,9 +495,9 @@ class SVNTable(object):
             .where(SVNRow.fileFlag == True)\
             .where(SVNRow.path.like(parent_item.path+"/%"))\
             .values(required=True)
-        self.session.execute(update_statement)
+        results = self.session.execute(update_statement)
+        return results.rowcount
 
-    @utils.timing
     def get_files_in_dir(self, dir_path, levels_deep=1024):
         """ get all files in dir_path.
             level_deep: how much to dig in. level_deep=1 will only get immediate files
@@ -484,7 +508,6 @@ class SVNTable(object):
             .all()
         return dir_items
 
-    @utils.timing
     def mark_required_for_dir(self, dir_path):
         """ mark all files & dirs in dir_path as required.
             marking is recursive.
@@ -492,25 +515,30 @@ class SVNTable(object):
         try:
             dir_item = self.baked_queries_map["dir-item"](self.session).params(dir_name=dir_path).one()
             update_statement = update(SVNRow)\
+                    .where(SVNRow.fileFlag == True)\
                     .where(SVNRow.level > dir_item.level)\
                     .where(SVNRow.path.like(dir_item.path+"/%"))\
                     .values(required=True)
-            self.session.execute(update_statement)
+            results = self.session.execute(update_statement)
+            retVal = results.rowcount
         except NoResultFound:
             # it might be a dir that was wtarred
-            self.mark_required_for_file(dir_path)
+            retVal = self.mark_required_for_file(dir_path)
+        return retVal
 
     def mark_required_for_source(self, source):
         """ mark all files & dirs for specific source as required.
             :param source: a tuple (source_folder, tag), where tag is either !file or !dir
             :return: None
         """
+        num_required_files = 0
         if source[1] == '!dir' or source[1] == '!dir_cont':  # !dir and !dir_cont are only different when copying
-            self.mark_required_for_dir(source[0])
+            num_required_files = self.mark_required_for_dir(source[0])
         elif source[1] == '!file':
-            self.mark_required_for_file(source[0])
+            num_required_files = self.mark_required_for_file(source[0])
         elif source[1] == '!files':
-            self.mark_required_for_files(source[0])
+            num_required_files = self.mark_required_for_files(source[0])
+        return num_required_files
 
     @utils.timing
     def mark_required_completion(self):
