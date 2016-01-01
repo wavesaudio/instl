@@ -32,6 +32,9 @@ class InstlAdmin(InstlInstanceBase):
         if "__CONFIG_FILE__" in var_stack:
             config_file_resolved = self.path_searcher.find_file(var_stack.resolve("$(__CONFIG_FILE__)"), return_original_if_not_found=True)
             var_stack.set_var("__CONFIG_FILE_PATH__").append(config_file_resolved)
+            if "__MAIN_OUT_FILE__" not in var_stack:
+                var_stack.add_const_config_variable("__MAIN_OUT_FILE__", "from command line options",
+                                                    "$(__CONFIG_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)")
             self.read_yaml_file(config_file_resolved)
             self.resolve_defined_paths()
         if "PUBLIC_KEY" not in var_stack:
@@ -483,8 +486,7 @@ class InstlAdmin(InstlInstanceBase):
         # write svn info to file for debugging and reference. But go one folder up so not to be in the svn repo.
         with open("../svn-info-for-fix-props.txt", "w") as wfd:
             wfd.write(my_stdout)
-        with open("../svn-info-for-fix-props.txt", "r") as rfd:
-            self.svnTree.read_from_svn_info(rfd)
+        self.info_map_table.read_from_file("../svn-info-for-fix-props.txt", a_format="info")
 
         # read svn props
         svn_props_command = [var_stack.resolve("$(SVN_CLIENT_PATH)"), "proplist", "--depth", "infinity"]
@@ -492,26 +494,27 @@ class InstlAdmin(InstlInstanceBase):
         my_stdout, my_stderr = proc.communicate()
         with open("../svn-proplist-for-fix-props.txt", "w") as wfd:
             wfd.write(my_stdout)
-        with open("../svn-proplist-for-fix-props.txt", "r") as rfd:
-            self.svnTree.read_props(rfd)
+        self.info_map_table.read_from_file(var_stack.resolve("../svn-proplist-for-fix-props.txt"), a_format="props")
 
         self.batch_accum += self.platform_helper.cd(repo_folder)
 
-        for item in self.svnTree.walk_items():
+        should_be_exec_regex_list = var_stack.resolve_to_list("$(EXEC_PROP_REGEX)")
+        self.compiled_should_be_exec_regex = utils.compile_regex_list_ORed(should_be_exec_regex_list)
+
+        for item in self.info_map_table.get_items(filter_name="all"):
             shouldBeExec = self.should_be_exec(item)
-            if item.props:
-                for extra_prop in item.props:
-                    # print("remove prop", extra_prop, "from", item.full_path())
-                    self.batch_accum += " ".join( (var_stack.resolve("$(SVN_CLIENT_PATH)"), "propdel", "svn:"+extra_prop, '"'+item.full_path()+'"') )
-                    self.batch_accum += self.platform_helper.progress(" ".join(("remove prop", extra_prop, "from", item.full_path())) )
+            for extra_prop in item.extra_props_list():
+                # print("remove prop", extra_prop, "from", item.path)
+                self.batch_accum += " ".join( (var_stack.resolve("$(SVN_CLIENT_PATH)"), "propdel", "svn:"+extra_prop, '"'+item.path+'"') )
+                self.batch_accum += self.platform_helper.progress(" ".join(("remove prop", extra_prop, "from", item.path)) )
             if item.isExecutable() and not shouldBeExec:
-                # print("remove prop", "executable", "from", item.full_path())
-                self.batch_accum += " ".join( (var_stack.resolve("$(SVN_CLIENT_PATH)"), "propdel", 'svn:executable', '"'+item.full_path()+'"') )
-                self.batch_accum += self.platform_helper.progress(" ".join(("remove prop", "executable", "from", item.full_path())) )
+                # print("remove prop", "executable", "from", item.path)
+                self.batch_accum += " ".join( (var_stack.resolve("$(SVN_CLIENT_PATH)"), "propdel", 'svn:executable', '"'+item.path+'"') )
+                self.batch_accum += self.platform_helper.progress(" ".join(("remove prop", "executable", "from", item.path)) )
             elif not item.isExecutable() and shouldBeExec:
-                # print("add prop", "executable", "to", item.full_path())
-                self.batch_accum += " ".join( (var_stack.resolve("$(SVN_CLIENT_PATH)"), "propset", 'svn:executable', 'yes', '"'+item.full_path()+'"') )
-                self.batch_accum += self.platform_helper.progress(" ".join(("add prop", "executable", "from", item.full_path())) )
+                # print("add prop", "executable", "to", item.path)
+                self.batch_accum += " ".join( (var_stack.resolve("$(SVN_CLIENT_PATH)"), "propset", 'svn:executable', 'yes', '"'+item.path+'"') )
+                self.batch_accum += self.platform_helper.progress(" ".join(("add prop", "executable", "from", item.path)) )
         self.create_variables_assignment()
         os.chdir(save_dir)
         self.write_batch_file()
@@ -984,7 +987,7 @@ class InstlAdmin(InstlInstanceBase):
         return retVal is not None
 
     def should_be_exec(self, item):
-        retVal = item.isFile() and self.should_file_be_exec(item.full_path())
+        retVal = item.isFile() and self.should_file_be_exec(item.path)
         return retVal
 
     def prepare_limit_list(self, top_folder):

@@ -23,13 +23,15 @@ class SVNRow(alchemy_base):
     url = Column(String, default=None)
     required = Column(BOOLEAN, default=False)
     need_download = Column(BOOLEAN, default=False)
+    extra_props = Column(String,default="")
 
     def __repr__(self):
-        return ("<{self.level}, {self.path},, {self.parent}, '{self.flags}'"
+        return ("<{self.level}, {self.path}, '{self.flags}'"
                 ", rev-remote:{self.revision_remote}, f:{self.fileFlag}"
                 ", checksum:{self.checksum}, size:{self.size}"
-                ", url:{self.checksum}"
+                ", url:{self.url}"
                 ", required:{self.required}, need_download:{self.need_download}>"
+                ", extra_props:{self.extra_props}, parent:{self.parent}"
                 ).format(**locals())
 
     def __str__(self):
@@ -73,4 +75,9 @@ class SVNRow(alchemy_base):
 
     def is_first_wtar_file(self):
         retVal = self.path.endswith((".wtar", ".wtar.aa"))
+        return retVal
+
+    def extra_props_list(self):
+        retVal = self.extra_props.split(";")
+        retVal = [prop for prop in retVal if prop]  # split will return [""] for empty list
         return retVal

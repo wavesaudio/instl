@@ -201,7 +201,7 @@ class ConfigVarList(object):
                 resolved_str = resolved_str.replace(match.group('varref_pattern'), replacement)
             #print("    ", resolved_str)
         if raise_on_fail and not self.is_resolved(resolved_str):
-            raise ValueError("Cannot full resolve "+str_to_resolve+ ": "+resolved_str)
+            raise ValueError("Cannot fully resolve "+str_to_resolve+ ": "+resolved_str)
         return resolved_str
 
     def resolve_to_list(self, str_to_resolve, list_sep=" ", default=None):

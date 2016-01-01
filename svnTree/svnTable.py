@@ -262,6 +262,7 @@ class SVNTable(object):
             item_details['size'] = int(match.group('size')) if match.group('size')  else -1
             item_details['required'] = False
             item_details['need_download'] = False
+            item_details['extra_props'] = ""
         return item_details
 
     def valid_write_formats(self):
@@ -327,6 +328,7 @@ class SVNTable(object):
                 else:
                     retVal['revision_remote'] = -1
                 retVal['checksum'] = a_record.get("Checksum", None)
+                retVal['extra_props'] = ""
 
                 return retVal
 
@@ -377,6 +379,7 @@ class SVNTable(object):
         item_details['size'] = None
         item_details['required'] = False
         item_details['need_download'] = False
+        item_details['extra_props'] = ""
         return item_details
 
     def initialize_from_folder(self, in_folder):
@@ -411,7 +414,6 @@ class SVNTable(object):
                 update_dicts.append({"path": parts[0], "size": int(parts[1])})
         self.session.bulk_update_mappings(SVNRow, update_dicts)
 
-    @utils.timing
     def read_props(self, rfd):
         props_line_re = re.compile("""
                     ^
@@ -446,7 +448,11 @@ class SVNTable(object):
                                 update_statement = update(SVNRow)\
                                     .where(SVNRow.path == path)\
                                     .values(flags = SVNRow.flags + prop_name_to_flag[prop_name])
-                                self.session.execute(update_statement)
+                            else:
+                                update_statement = update(SVNRow)\
+                                    .where(SVNRow.path == path)\
+                                    .values(extra_props = SVNRow.extra_props + (prop_name+";"))
+                            self.session.execute(update_statement)
                 else:
                     ValueError("no match at file: " + rfd.name + ", line: " + str(line_num) + ": " + line)
         except Exception as ex:
