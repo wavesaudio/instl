@@ -58,7 +58,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         log_file_spec = self.create_log_spec()
         norm_src_dir = os.path.normpath(src_dir)
         norm_trg_dir = os.path.normpath(trg_dir)
-        copy_command = """"$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" {ignore_spec} /E /R:3 /W:3 /PURGE {log_file_spec}""".format(**locals())
+        copy_command = """"$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" {ignore_spec} /E /R:9 /W:1 /PURGE {log_file_spec}""".format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
         return retVal
@@ -68,7 +68,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         norm_src_dir, norm_src_file = os.path.split(os.path.normpath(src_file))
         norm_trg_dir = os.path.normpath(trg_dir)
         log_file_spec = self.create_log_spec()
-        copy_command = """"$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" "{norm_src_file}" /R:3 /W:3 {log_file_spec}""".format(**locals())
+        copy_command = """"$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" "{norm_src_file}" /R:9 /W:1 {log_file_spec}""".format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
         return retVal
@@ -82,7 +82,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         log_file_spec = self.create_log_spec()
         norm_src_dir = os.path.normpath(src_dir)
         norm_trg_dir = os.path.normpath(trg_dir)
-        copy_command = """"$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" /E {delete_spec} {ignore_spec} /R:3 /W:3 {log_file_spec}""".format(**locals())
+        copy_command = """"$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" /E {delete_spec} {ignore_spec} /R:9 /W:1 {log_file_spec}""".format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
         return retVal
@@ -93,7 +93,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         log_file_spec = self.create_log_spec()
         norm_src_dir = os.path.normpath(src_dir)
         norm_trg_dir = os.path.normpath(trg_dir)
-        copy_command = """"$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" /LEV:1 {ignore_spec} /R:3 /W:3 {log_file_spec}""".format(**locals())
+        copy_command = """"$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" /LEV:1 {ignore_spec} /R:9 /W:1 {log_file_spec}""".format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
         return retVal
@@ -325,13 +325,19 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def mkdir(self, directory):
         norm_directory = utils.quoteme_double(os.path.normpath(directory))
         mk_command = " ".join(("if not exist", norm_directory, "mkdir", norm_directory))
-        check_mk_command = " ".join(("if not exist", norm_directory, "echo Error: failed to create ", norm_directory))
+        check_mk_command = " ".join(("if not exist", norm_directory, "(", "echo Error: failed to create ", norm_directory, "1>&2",
+                                    "&", "GOTO", "EXIT_ON_ERROR", ")"))
         return mk_command, check_mk_command
 
     def cd(self, directory):
         norm_directory = utils.quoteme_double(os.path.normpath(directory))
+        is_exists_command = " ".join(("if not exist", norm_directory,
+                                    "(", "echo directory does not exists", norm_directory, "1>&2",
+                                    "&", "GOTO", "EXIT_ON_ERROR", ")"))
         cd_command = " ".join(("cd", '/d', norm_directory))
-        check_cd_command = " ".join(("if /I not", norm_directory, "==", utils.quoteme_double("%CD%"), "echo Error: failed to cd to", norm_directory))
+        check_cd_command = " ".join(("if /I not", norm_directory, "==", utils.quoteme_double("%CD%"),
+                                    "(", "echo Error: failed to cd to", norm_directory, "1>&2",
+                                    "&", "GOTO", "EXIT_ON_ERROR", ")"))
         return cd_command, check_cd_command
 
     def pushd(self, directory):

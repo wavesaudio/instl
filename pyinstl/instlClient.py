@@ -167,6 +167,7 @@ class InstlClient(InstlInstanceBase):
     from instlClientCopy import create_copy_instructions_for_dir_cont
     from instlClientCopy import create_copy_instructions_for_files
     from instlClientCopy import create_copy_instructions_for_dir
+    from instlClientCopy import write_copy_debug_info
     from instlClientCopy import create_copy_instructions_for_source
     from instlClientCopy import create_copy_instructions
     from instlClientCopy import pre_copy_mac_handling

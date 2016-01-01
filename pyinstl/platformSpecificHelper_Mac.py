@@ -106,12 +106,10 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         return mk_command
 
     def cd(self, directory):
-        # todo: add "ls -ldFihO ." after each cd
         cd_command = " ".join(("cd", utils.quoteme_double(directory) ))
         return cd_command
 
     def pushd(self, directory):
-        # todo: add "ls -ldFihO ." after each pushd
         pushd_command = " ".join(("pushd", utils.quoteme_double(directory), ">", "/dev/null"))
         return pushd_command
 
@@ -355,7 +353,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
         with open(parallel_run_config_file_path, "w") as wfd:
             utils.make_open_file_read_write_for_all(wfd)
             for config_file in config_files:
-                wfd.write(var_stack.resolve("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+config_file+"\"\n", raise_on_fail=True))
+                wfd.write(var_stack.resolve('"$(DOWNLOAD_TOOL_PATH)" --config "{config_file}"\n'.format(**locals()), raise_on_fail=True))
 
         download_command = " ".join( (self.platform_helper.run_instl(),  "parallel-run", "--in", utils.quoteme_double(parallel_run_config_file_path)) )
         return download_command

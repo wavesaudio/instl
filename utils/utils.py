@@ -13,6 +13,8 @@ import collections
 import subprocess
 import time
 import shutil
+import numbers
+import stat
 
 import rsa
 from functools import reduce
@@ -181,6 +183,7 @@ def download_from_file_or_url(in_url, in_local_path, translate_url_callback=None
     #    print(in_local_path, "exists and has ", os.path.getsize(in_local_path), "bytes", file=sys.stderr)
     #else:
     #    print(in_local_path, "does not exists", file=sys.stderr)
+
 
 class unique_list(list):
     """
@@ -353,24 +356,34 @@ def max_widths(list_of_lists):
     """ inputs is a list of lists. output is a list of maximum str length for each
         position. E.g (('a', 'ccc'), ('bb', a', 'fff')) will return: (2, 3, 3)
     """
-    loggest_list_len = reduce(max, [len(alist) for alist in list_of_lists])
-    retVal = [0] * loggest_list_len  # pre allocate the max list length
-    for alist in list_of_lists:
-        for item in enumerate(alist):
-            retVal[item[0]] = max(retVal[item[0]], len(str(item[1])))
-    return retVal
+    longest_list_len = reduce(max, [len(a_list) for a_list in list_of_lists])
+    width_list = [0] * longest_list_len  # pre allocate the max list length
+    align_list = ['<'] * longest_list_len  # default is align to left
+    for a_list in list_of_lists:
+        for item in enumerate(a_list):
+            width_list[item[0]] = max(width_list[item[0]], len(str(item[1])))
+            if isinstance(item[1], numbers.Number):
+                align_list[item[0]] = '>'
+    return width_list, align_list
 
 
-def gen_col_format(width_list):
+def gen_col_format(width_list, align_list=None, sep=' '):
     """ generate a list of format string where each position is aligned to the adjacent
         position in the width_list.
+        If align_list is supplied we can align numbers to the right and texts to the left
     """
     retVal = list()
     format_str = ""
     retVal.append(format_str)
-    for width in width_list:
-        format_str += "{{:<{width}}}".format(width=width+1)
-        retVal.append(format_str)
+    format_list = list()
+    if align_list:
+        for width_enum in enumerate(width_list):
+            format_list.append("{{:{align}{width}}}".format(width=width_enum[1], align=align_list[width_enum[0]]))
+    else:
+        for width_enum in enumerate(width_list):
+            format_list.append("{{:{align}{width}}}".format(width=width_enum[1], align='<'))
+    for i in range(1, len(format_list)+1):
+        retVal.append(sep.join(format_list[0:i]))
     return retVal
 
 
@@ -455,14 +468,12 @@ def check_buffer_signature_or_checksum(buff, public_key=None, textual_sig=None, 
 
 
 def check_file_signature_or_checksum(file_path, public_key=None, textual_sig=None, expected_checksum=None):
-    retVal = False
     with open(file_path, "rb") as rfd:
         retVal = check_buffer_signature_or_checksum(rfd.read(), public_key, textual_sig, expected_checksum)
     return retVal
 
 
 def check_file_checksum(file_path, expected_checksum):
-    retVal = False
     with open(file_path, "rb") as rfd:
         retVal = check_buffer_checksum(rfd.read(), expected_checksum)
     return retVal
@@ -475,7 +486,6 @@ def get_file_checksum(file_path):
 
 
 def check_file_signature(file_path, textual_sig, public_key):
-    retVal = False
     with open(file_path, "rb") as rfd:
         retVal = check_buffer_signature(rfd.read(), textual_sig, public_key)
     return retVal
@@ -562,6 +572,7 @@ def convert_to_str_unless_None(to_convert):
     else:
         return str(to_convert)
 
+
 # find sequences in a sorted list.
 # in_sorted_list: a sorted list of things to search sequences in.
 # is_next_func: The function that determines if one thing is the consecutive of another.
@@ -614,6 +625,7 @@ def timing(f):
         return ret
     return wrap
 
+
 # compile a list of regexs to one regex. regexs are ORed
 # with the | character so if any regex return true when calling
 # re.search or of re.match the whole regex will return true.
@@ -658,6 +670,8 @@ def get_disk_free_space(in_path):
     return retVal
 
 
+# cache_dir_to_clean = var_stack.resolve(self.get_default_sync_dir(continue_dir="cache", make_dir=False))
+# utils.clean_old_files(cache_dir_to_clean, 30)
 def clean_old_files(dir_to_clean, older_than_days):
     """ clean a directory from file older than the given param
         block all exceptions since this operation is "nice to have" """
@@ -668,7 +682,6 @@ def clean_old_files(dir_to_clean, older_than_days):
                 a_file_path = os.path.join(root, a_file)
                 file_time = os.path.getmtime(a_file_path)
                 if file_time < threshold_time:
-                    # print ("will remove", a_file_path)
                     os.remove(a_file_path)
     except:
         pass
@@ -704,3 +717,115 @@ def smart_copy_file(source_path, destination_path):
             shutil.copy2(s, d)
         except Exception as shutil_ex:
             pass
+
+
+oct_digit_to_perm_chars = {'7':'rwx', '6' :'rw-', '5' : 'r-x', '4':'r--', '3':'-wx', '2':'-w-', '1':'--x', '0': '---'}
+def unix_permissions_to_str(the_mod):
+    # python3: use stat.filemode for the permissions string
+    prefix = '-'
+    if stat.S_ISDIR(the_mod):
+        prefix = 'd'
+    elif stat.S_ISLNK(the_mod):
+        prefix = 'l'
+    oct_perm = oct(the_mod)[-3:]
+    retVal = ''.join([prefix,] + [oct_digit_to_perm_chars[p] for p in oct_perm])
+    return retVal
+
+
+def unix_item_ls(the_path):
+    import grp
+    import pwd
+    the_parts = list()
+    the_stats = os.lstat(the_path)
+    the_parts.append(the_stats[stat.ST_INO])  # inode number
+    the_parts.append(unix_permissions_to_str(the_stats.st_mode)) # permissions
+    the_parts.append(the_stats[stat.ST_NLINK])  # num links
+    the_parts.append(pwd.getpwuid(the_stats[stat.ST_UID])[0])  # user
+    the_parts.append(grp.getgrgid(the_stats[stat.ST_GID])[0])  # group
+    the_parts.append(the_stats[stat.ST_SIZE])  # size in bytes
+    the_parts.append(time.strftime("%Y/%m/%d-%H:%M:%S", time.gmtime((the_stats[stat.ST_MTIME]))))  # modification time
+    if not (stat.S_ISLNK(the_stats.st_mode) or stat.S_ISDIR(the_stats.st_mode)):
+        the_parts.append(get_file_checksum(the_path))
+    else:
+        the_parts.append("")
+    path_to_print = the_path
+    if stat.S_ISLNK(the_stats.st_mode):
+        path_to_print += '@'
+    elif stat.S_ISDIR(the_stats.st_mode):
+        path_to_print += '/'
+    elif the_stats.st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH):
+        path_to_print += '*'
+    elif stat.S_ISSOCK(the_stats.st_mode):
+        path_to_print += '='
+    elif stat.S_ISFIFO(the_stats.st_mode):
+        path_to_print += '|'
+    the_parts.append(path_to_print)
+    return the_parts
+
+
+def unix_folder_ls(the_path):
+    lines = list()
+    for root_path, dirs, files in os.walk(the_path, followlinks=False):
+        dirs = sorted(dirs, key=lambda s: s.lower())
+        lines.append(unix_item_ls(root_path))
+        files_to_list = sorted(files + [slink for slink in dirs if os.path.islink(os.path.join(root_path, slink))], key=lambda s: s.lower())
+        for file_to_list in files_to_list:
+            full_path = os.path.join(root_path, file_to_list)
+            lines.append(unix_item_ls(full_path))
+    width_list, align_list = max_widths(lines)
+    col_formats = gen_col_format(width_list, align_list)
+    formatted_lines_lines = [col_formats[len(ls_line)].format(*ls_line) for ls_line in lines]
+    return "\n".join(formatted_lines_lines)
+
+
+def win_item_ls(the_path):
+    import win32security
+    the_parts = list()
+    the_stats = os.lstat(the_path)
+    the_parts.append(time.strftime("%Y/%m/%d %H:%M:%S", time.gmtime((the_stats[stat.ST_MTIME]))))  # modification time
+    if stat.S_ISDIR(the_stats.st_mode):
+        the_parts.append("<DIR>")
+    else:
+        the_parts.append("")
+    the_parts.append(the_stats[stat.ST_SIZE])  # size in bytes
+
+    sd = win32security.GetFileSecurity (the_path, win32security.OWNER_SECURITY_INFORMATION)
+    owner_sid = sd.GetSecurityDescriptorOwner()
+    name, domain, __type = win32security.LookupAccountSid (None, owner_sid)
+    the_parts.append(domain+"\\"+name)  # user
+
+    sd = win32security.GetFileSecurity (the_path, win32security.GROUP_SECURITY_INFORMATION)
+    owner_sid = sd.GetSecurityDescriptorGroup()
+    name, domain, __type = win32security.LookupAccountSid (None, owner_sid)
+    the_parts.append(domain+"\\"+name)  # group
+
+    if not (stat.S_ISLNK(the_stats.st_mode) or stat.S_ISDIR(the_stats.st_mode)):
+        the_parts.append(get_file_checksum(the_path))
+    else:
+        the_parts.append("")
+    path_to_print = the_path
+    the_parts.append(path_to_print)
+    return the_parts
+
+
+def win_folder_ls(the_path):
+    lines = list()
+    for root_path, dirs, files in os.walk(the_path, followlinks=False):
+        dirs = sorted(dirs, key=lambda s: s.lower())
+        lines.append(win_item_ls(root_path))
+        files_to_list = sorted(files + [slink for slink in dirs if os.path.islink(os.path.join(root_path, slink))], key=lambda s: s.lower())
+        for file_to_list in files_to_list:
+            full_path = os.path.join(root_path, file_to_list)
+            lines.append(win_item_ls(full_path))
+    width_list, align_list = max_widths(lines)
+    col_formats = gen_col_format(width_list, align_list)
+    formatted_lines_lines = [col_formats[len(ls_line)].format(*ls_line) for ls_line in lines]
+    return "\n".join(formatted_lines_lines)
+
+
+def folder_listing(the_path):
+    os_names = get_current_os_names()
+    if "Mac" in os_names:
+        return unix_folder_ls(the_path)
+    elif "Win" in os_names:
+        return win_folder_ls(the_path)

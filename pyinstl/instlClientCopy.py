@@ -29,7 +29,21 @@ def init_copy_vars(self):
     self.ignore_list = var_stack.resolve_to_list("$(COPY_IGNORE_PATTERNS)")
 
 
+
+def write_copy_debug_info(self):
+    try:
+        if var_stack.defined('ECHO_LOG_FILE'):
+            log_file_path = var_stack.resolve("$(ECHO_LOG_FILE)")
+            log_folder, log_file = os.path.split(log_file_path)
+            with open(os.path.join(log_folder, "sync-folder-manifest.txt"), "w") as wfd:
+                repo_sync_dir = var_stack.resolve("$(LOCAL_REPO_SYNC_DIR)")
+                wfd.write(utils.folder_listing(repo_sync_dir))
+    except:
+        pass # if it did not work - forget it
+
+
 def create_copy_instructions(self):
+    self.write_copy_debug_info()
     # read HAVE_INFO_MAP_FOR_COPY which is be default HAVE_INFO_MAP_PATH.
     # Copy might be called after the sync batch file was created
     # but before it was executed in which case HAVE_INFO_MAP_FOR_COPY will be defined to NEW_HAVE_INFO_MAP_PATH.
@@ -50,6 +64,7 @@ def create_copy_instructions(self):
         self.batch_accum += self.platform_helper.progress("Creating folders...")
         for folder_name in sorted_target_folder_list:
             self.batch_accum += self.platform_helper.mkdir_with_owner(folder_name)
+            self.batch_accum += self.platform_helper.progress("Created folder "+folder_name)
         self.batch_accum += self.platform_helper.progress("Create folders done")
 
     if 'Mac' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
@@ -60,6 +75,7 @@ def create_copy_instructions(self):
         items_in_folder = sorted(self.installState.install_items_by_target_folder[folder_name])
         self.batch_accum += self.platform_helper.new_line()
         self.batch_accum += self.platform_helper.cd(folder_name)
+        self.batch_accum += self.platform_helper.progress("Copying to "+folder_name+"...")
 
         # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
         self.accumulate_unique_actions('pre_copy_to_folder', items_in_folder)
@@ -85,6 +101,7 @@ def create_copy_instructions(self):
 
         # accumulate post_copy_to_folder actions from all items, eliminating duplicates
         self.accumulate_unique_actions('post_copy_to_folder', items_in_folder)
+        self.batch_accum += self.platform_helper.progress("Copying to "+folder_name+" done")
 
         self.batch_accum.indent_level -= 1
 
@@ -93,6 +110,7 @@ def create_copy_instructions(self):
         items_in_folder = self.installState.no_copy_items_by_sync_folder[folder_name]
         self.batch_accum += self.platform_helper.new_line()
         self.batch_accum += self.platform_helper.cd(folder_name)
+        self.batch_accum += self.platform_helper.progress("Actions in "+folder_name+" ...")
         self.batch_accum.indent_level += 1
 
         # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
@@ -103,8 +121,8 @@ def create_copy_instructions(self):
                 for source_var in sorted(var_stack.resolve_var_to_list_if_exists("iid_source_var_list")):
                     source = var_stack.resolve_var_to_list(source_var)
                     source_folder, source_name = os.path.split(source[0])
-                    to_untar = os.path.join(folder_name, source_name)
-                    self.batch_accum += self.platform_helper.unwtar_something(to_untar, no_artifacts=True)
+                    to_unwtar = os.path.join(folder_name, source_name)
+                    self.batch_accum += self.platform_helper.unwtar_something(to_unwtar, no_artifacts=True)
                 self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_pre_copy_item")
                 self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_post_copy_item")
 
@@ -112,6 +130,7 @@ def create_copy_instructions(self):
         self.accumulate_unique_actions('post_copy_to_folder', items_in_folder)
 
         self.batch_accum += self.platform_helper.progress("{folder_name}".format(**locals()))
+        self.batch_accum += self.platform_helper.progress("Actions in "+folder_name+" done")
         self.batch_accum.indent_level -= 1
 
     print(self.bytes_to_copy, "bytes to copy")
@@ -124,7 +143,9 @@ def create_copy_instructions(self):
     # so copy should be avoided.
     if var_stack.resolve("$(HAVE_INFO_MAP_PATH)") != var_stack.resolve("$(SITE_HAVE_INFO_MAP_PATH)"):
         self.batch_accum += self.platform_helper.mkdir_with_owner("$(SITE_REPO_BOOKKEEPING_DIR)")
+        self.batch_accum += self.platform_helper.progress("Created folder $(SITE_REPO_BOOKKEEPING_DIR)")
         self.batch_accum += self.platform_helper.copy_file_to_file("$(HAVE_INFO_MAP_PATH)", "$(SITE_HAVE_INFO_MAP_PATH)")
+        self.batch_accum += self.platform_helper.progress("Copied $(HAVE_INFO_MAP_PATH) to $(SITE_HAVE_INFO_MAP_PATH)")
 
     self.platform_helper.copy_tool.finalize()
 
