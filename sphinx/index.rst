@@ -36,6 +36,7 @@ Contents:
     fileformat
     example
     standard_variables
+    variables-order.rst
     svn configuration
     online installs
     offline installs
