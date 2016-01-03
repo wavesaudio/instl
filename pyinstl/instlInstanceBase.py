@@ -182,6 +182,15 @@ class InstlInstanceBase(object):
         if cmd_line_options_obj.all_revisions:
             var_stack.add_const_config_variable("__ALL_REVISIONS__", "from command line options", "yes")
 
+        if cmd_line_options_obj.dock_item_path:
+            var_stack.add_const_config_variable("__DOCK_ITEM_PATH__", "from command line options", *cmd_line_options_obj.dock_item_path)
+        if cmd_line_options_obj.dock_item_label:
+            var_stack.add_const_config_variable("__DOCK_ITEM_LABEL__", "from command line options", *cmd_line_options_obj.dock_item_label)
+        if cmd_line_options_obj.remove_from_dock:
+            var_stack.add_const_config_variable("__REMOVE_FROM_DOCK__", "from command line options", "yes")
+        if cmd_line_options_obj.restart_the_dock:
+            var_stack.add_const_config_variable("__RESTART_THE_DOCK__", "from command line options", "yes")
+
         if cmd_line_options_obj.define:
             individual_definitions = cmd_line_options_obj.define[0].split(",")
             for definition in individual_definitions:

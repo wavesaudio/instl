@@ -1,4 +1,4 @@
-????
+3/1/2016 1.1.1.0
 
     user visible changes client:
     * sync-folder-manifest.txt is created if ECHO_LOG_FILE is supplied and in the same folder.
@@ -7,10 +7,14 @@
     * Win: robocopy /R:9 /W1 instead of /R:3 /W:3
     * Win: added GOTO EXIT_ON_ERROR if cd or mkdir failed
     * Added progress steps after cd and mkdir operations
-    
+    * Mac: New command: mac-dock to add, remove items to the dock and to restart the dock.
+
     user visible changes, admin:
     * Check that admin commands run only under Mac or Linux
     * Adjusted InstlAdmin.create_links_for_revision to work on Mac
+
+    programmer visible changes:
+    * Added dockutils from https://github.com/kcrawford/dockutil
 
 28/12/2015 1.1.0.2
 
