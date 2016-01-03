@@ -235,3 +235,34 @@ class InstlMisc(InstlInstanceBase):
         url_to_translate = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
         translated_url = connectionBase.connection_factory().translate_url(url_to_translate)
         print(translated_url)
+
+    def do_mac_dock(self):
+        path_to_item = var_stack.resolve("$(__DOCK_ITEM_PATH__)", default="")
+        label_for_item = var_stack.resolve("$(__DOCK_ITEM_LABEL__)", default="")
+        restart_the_doc = var_stack.resolve("$(__RESTART_THE_DOCK__)", default="")
+        remove = "__REMOVE_FROM_DOCK__" in var_stack
+
+        dock_util_command = list()
+        if remove:
+            dock_util_command.append("--remove")
+            if label_for_item:
+                dock_util_command.append(label_for_item)
+            if not restart_the_doc:
+                dock_util_command.append("--no-restart")
+        else:
+            if not path_to_item:
+                if restart_the_doc:
+                    dock_util_command.append("--restart")
+                else:
+                    print("mac-dock confusing options, both --path and --restart were not suppied")
+            else:
+                dock_util_command.append("--add")
+                dock_util_command.append(path_to_item)
+                if label_for_item:
+                    dock_util_command.append("--label")
+                    dock_util_command.append(label_for_item)
+                    dock_util_command.append("--replacing")
+                    dock_util_command.append(label_for_item)
+        if not restart_the_doc:
+            dock_util_command.append("--no-restart")
+        utils.dock_util(dock_util_command)

@@ -94,6 +94,10 @@ class CommandLineOptions(object):
         self.file_sizes_file = None
         self.all_revisions = None
         self.define = None
+        self.dock_item_path = None
+        self.dock_item_label = None
+        self.remove_from_dock = None
+        self.restart_the_dock = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
@@ -122,6 +126,7 @@ def prepare_args_parser(in_command):
         'fix-symlinks':         {'mode': 'an', 'options': ('out', 'run','conf',), 'help':  'replace symlinks with .symlinks files'},
         'gui':                  {'mode': 'gi', 'options': (), 'help':  'graphical user interface'},
         'help':                 {'mode': 'ds', 'options': (), 'help':  'help'},
+        'mac-dock':             {'mode': 'ds', 'options': (), 'help': "add or remove to Mac OS's Dock"},
         'make-sig':             {'mode': 'an', 'options': ('in', 'conf',), 'help':  'create sha1 checksum and rsa signature for a file'},
         'parallel-run':         {'mode': 'ds', 'options': ('in', ), 'help':  'Run processes in parallel'},
         'read-yaml':            {'mode': 'an', 'options': ('in', ), 'help':  "reads a yaml file to verify it's contents"},
@@ -336,6 +341,33 @@ def prepare_args_parser(in_command):
                             metavar='target',
                             dest='target_path',
                             help="path to the item being shortcut")
+
+    elif 'mac-dock' == in_command:
+        mac_dock_options = command_parser.add_argument_group(description=in_command+' arguments:')
+        mac_dock_options.add_argument('--path',
+                                required=False,
+                                nargs=1,
+                                metavar='dock-item-path',
+                                dest='dock_item_path',
+                                help="path to dock item")
+        mac_dock_options.add_argument('--label',
+                                required=False,
+                                nargs=1,
+                                metavar='dock-item-label',
+                                dest='dock_item_label',
+                                help="label for dock item")
+        mac_dock_options.add_argument('--remove',
+                                required=False,
+                                default=False,
+                                action='store_true',
+                                dest='remove_from_dock',
+                                help="remove from dock")
+        mac_dock_options.add_argument('--restart',
+                                required=False,
+                                default=False,
+                                action='store_true',
+                                dest='restart_the_dock',
+                                help="restart the dock")
 
     elif 'unwtar' == in_command:
         unwtar_options = command_parser.add_argument_group(description=in_command+' arguments:')
