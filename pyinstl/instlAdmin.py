@@ -26,7 +26,6 @@ class InstlAdmin(InstlInstanceBase):
 
     def __init__(self, initial_vars):
         super(InstlAdmin, self).__init__(initial_vars)
-        self.svnTree = svnTree.SVNTree()
 
     def set_default_variables(self):
         if "__CONFIG_FILE__" in var_stack:
@@ -859,58 +858,9 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_verify_index(self):
         self.read_yaml_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)"))
-        info_map = svnTree.SVNTree()
-        with utils.open_for_read_file_or_url(var_stack.resolve("$(INFO_MAP_FILE_URL)"), connectionBase.translate_url) as rfd:
-            info_map.read_from_text(rfd)
+        self.info_map_table.read_from_file(var_stack.resolve("$(INFO_MAP_FILE_URL)"))
 
-        iid_to_sources = self.sources_from_iids()
-
-        for iid in sorted(iid_to_sources):
-            with self.install_definitions_index[iid]:
-                iid_problem_messages = list()
-                # check inherits
-                for inheritee in var_stack.resolve_var_to_list("iid_inherit"):
-                    if inheritee not in self.install_definitions_index:
-                        iid_problem_messages.append(" ".join(("inherits from non existing", inheritee )))
-                # check depends
-                for dependee in var_stack.resolve_var_to_list("iid_depend_list"):
-                    if dependee not in self.install_definitions_index:
-                        iid_problem_messages.append(" ".join(("depends on non existing", dependee )))
-                # check sources
-                for source in iid_to_sources[iid]:
-                    its_a_wtar = False
-                    map_item = info_map.get_item_at_path(source[0])
-                    if map_item is None:  # maybe it's a wtar
-                        map_item = info_map.get_item_at_path(source[0] + ".wtar")
-                        its_a_wtar = True
-                    if map_item is None:  # maybe it's a split wtar
-                        map_item = info_map.get_item_at_path(source[0] + ".wtar.aa")
-                        its_a_wtar = True
-
-                    if map_item is None:
-                        iid_problem_messages.append(" ".join(("source", utils.quoteme_single(source[0]), "does not exist")))
-                    else:
-                        if not its_a_wtar:
-                            if source[1] in ("!dir", "!dir_cont", "!files"):
-                                if map_item.isFile():
-                                    iid_problem_messages.append(" ".join( ("source", utils.quoteme_single(source[0]), "is a file but type is", source[1]) ))
-                                else:
-                                    file_list, dir_list = map_item.unsorted_sub_items()
-                                    if source[1] == "!files" and len(file_list) == 0:
-                                        iid_problem_messages.append(" ".join( ("source", utils.quoteme_single(source[0]), "has no files but type is", source[1]) ))
-                                    if source[1] in ("!dir", "!dir_cont") and len(file_list)+len(dir_list) == 0:
-                                        iid_problem_messages.append(" ".join( ("source", utils.quoteme_single(source[0]), "has no files or dirs but type is", source[1]) ))
-                            if source[1] == "!file" and not map_item.isFile():
-                                iid_problem_messages.append(" ".join( ("source", utils.quoteme_single(source[0]), "is a dir but type is", source[1]) ))
-                if iid_problem_messages:
-                    print(iid + ":")
-                    for problem_message in sorted(iid_problem_messages):
-                        print("   ", problem_message)
-        self.find_cycles()
-        print("index:", len(self.install_definitions_index), "iids")
-        num_files = info_map.num_subs_in_tree(what="file")
-        num_dirs = info_map.num_subs_in_tree(what="dir")
-        print("info map:", num_files, "files in", num_dirs, "folders")
+        self.verify_index_to_repo()
 
     def do_read_yaml(self):
         self.read_yaml_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)"))
@@ -938,13 +888,20 @@ class InstlAdmin(InstlInstanceBase):
         print("dependencies written to", out_file_path)
 
     def do_verify_repo(self):
+        self.read_yaml_file(var_stack.resolve("$(__CONFIG_FILE__)"))
         self.read_yaml_file(var_stack.resolve("$(STAGING_FOLDER)/instl/index.yaml"))
 
         the_folder = var_stack.resolve_var("STAGING_FOLDER")
         self.info_map_table.initialize_from_folder(the_folder)
 
-        iid_to_sources = self.sources_from_iids()
+        self.verify_index_to_repo()
 
+    def verify_index_to_repo(self):
+        """ helper function for verify-repo and verify-index commands
+            Assuming the index and info-map have already been read
+            check the expect files from the index appear in the info-map
+        """
+        iid_to_sources = self.sources_from_iids()
         for iid in sorted(iid_to_sources):
             with self.install_definitions_index[iid]:
                 iid_problem_messages = list()
