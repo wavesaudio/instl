@@ -6,7 +6,7 @@ from __future__ import print_function
     All rights reserved.
     Licensed under BSD 3 clause license, see LICENSE file for details.
 
-    argumentedYaml adds some functionality to PyYaml:
+    augmentedYaml adds some functionality to PyYaml:
         Methods isScalar(), isSequence(), isMapping()
     for easier identification of
         ScalarNode SequenceNode, MappingNode.
