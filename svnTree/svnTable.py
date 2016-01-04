@@ -71,7 +71,7 @@ class SVNTable(object):
         self.write_func_by_format = {"text": self.write_as_text,}
         self.path_to_file = None
         self.comments = list()
-        
+
         self.baked_queries_map =  self.bake_baked_queries()
 
     def bake_baked_queries(self):
@@ -630,9 +630,10 @@ class SVNTable(object):
         the_query = self.session.query(SVNRow.path)\
             .filter(SVNRow.fileFlag == get_files,
                     SVNRow.required == False,
-                    SVNRow.parent.in_(\
+                    or_(SVNRow.parent.in_(\
                         self.session.query(SVNRow.path)\
-                            .filter(SVNRow.required==True, SVNRow.fileFlag==False)))
+                            .filter(SVNRow.required==True, SVNRow.fileFlag==False)),\
+                            SVNRow.parent == ""))
 
         unrequired_files = the_query.all()
 

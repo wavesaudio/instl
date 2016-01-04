@@ -337,7 +337,7 @@ class InstlAdmin(InstlInstanceBase):
             save_dir_var = "REV_" + dir_name + "_SAVE_DIR"
             self.batch_accum += self.platform_helper.save_dir(save_dir_var)
             var_stack.set_var("__CURR_REPO_REV__").append(dir_name)
-            self.do_upload_to_s3_aws_for_revision(accum)
+            self.upload_to_s3_aws_for_revision(accum)
             revision_lines = accum.finalize_list_of_lines()  # will resolve with current  __CURR_REPO_REV__
             self.batch_accum += revision_lines
             self.batch_accum += self.platform_helper.restore_dir(save_dir_var)
@@ -348,7 +348,7 @@ class InstlAdmin(InstlInstanceBase):
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
 
-    def do_upload_to_s3_aws_for_revision(self, accum):
+    def upload_to_s3_aws_for_revision(self, accum):
         map_file_path = 'instl/info_map.txt'
         info_map_path = var_stack.resolve("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/" + map_file_path)
         repo_rev = int(var_stack.resolve("$(__CURR_REPO_REV__)"))
@@ -381,14 +381,14 @@ class InstlAdmin(InstlInstanceBase):
         # remove broken links, aws cannot handle them
         accum += " ".join( ("find", ".", "-type", "l", "!", "-exec", "test", "-e", "{}", "\;", "-exec", "rm", "-f", "{}", "\;") )
 
-        accum += " ".join(["echo", "aws", "s3", "sync",
+        accum += " ".join(["aws", "s3", "sync",
                            ".", "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_REV__)",
                            "--exclude", '"*.DS_Store"',
                            "--exclude", '"$(UP_2_S3_STAMP_FILE_NAME)"',
                            "--exclude", '"$(CREATE_LINKS_STAMP_FILE_NAME)"'
         ])
 
-        up_repo_rev_file_command_parts = ["echo", self.platform_helper.run_instl(), "up-repo-rev",
+        up_repo_rev_file_command_parts = [self.platform_helper.run_instl(), "up-repo-rev",
                                           "--config-file", '"$(__CONFIG_FILE_PATH__)"',
                                           "--out", "up_repo_rev.$(__CURR_REPO_REV__)",
                                           "--just-with-number", "$(__CURR_REPO_REV__)",
