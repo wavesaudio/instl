@@ -97,3 +97,4 @@ class InstlInstanceSync(object):
         self.read_remote_info_map()  # reads the full info map from INFO_MAP_FILE_URL and writes it to the sync folder
         self.mark_required_items()  # removes items not required to be installed
         self.mark_download_items()  # removes items that are already on the user's disk
+        self.instlObj.info_map_table.mark_need_remove(self.local_sync_dir)

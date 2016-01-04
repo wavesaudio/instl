@@ -92,8 +92,16 @@ class SVNTable(object):
         retVal["all-dirs"] += lambda q: q.filter(SVNRow.fileFlag==False)
 
         # dir-item: return specific item which should be a dir
+        retVal["any-item"] = bakery(lambda session: session.query(SVNRow))
+        retVal["any-item"] += lambda q: q.filter(SVNRow.path == bindparam('item_name'))
+
+        # dir-item: return specific item which should be a dir
         retVal["dir-item"] = bakery(lambda session: session.query(SVNRow))
         retVal["dir-item"] += lambda q: q.filter(SVNRow.path == bindparam('dir_name'), SVNRow.fileFlag==False)
+
+        # dir-item: return specific item which should be a file
+        retVal["file-item"] = bakery(lambda session: session.query(SVNRow))
+        retVal["file-item"] += lambda q: q.filter(SVNRow.path == bindparam('file_name'), SVNRow.fileFlag==True)
 
         # required-files: return all required files
         retVal["required-files"] = bakery(lambda session: session.query(SVNRow))
@@ -354,7 +362,7 @@ class SVNTable(object):
             print("Error:", "line:", line_num, "record:", record)
             raise
 
-    def item_dict_from_disc_item(self, in_base_folder, full_path):
+    def item_dict_from_disk_item(self, in_base_folder, full_path):
         prefix_len = len(in_base_folder)+1
         relative_path = full_path[prefix_len:]
         item_details = dict()
@@ -387,7 +395,7 @@ class SVNTable(object):
         for root, dirs, files in os.walk(in_folder, followlinks=False):
             for item in sorted(files + dirs):
                 if item != ".DS_Store": # temp hack, list of ignored files should be moved to a variable
-                    insert_dicts.append(self.item_dict_from_disc_item(in_folder, os.path.join(root, item)))
+                    insert_dicts.append(self.item_dict_from_disk_item(in_folder, os.path.join(root, item)))
         self.insert_dicts_to_db(insert_dicts)
 
     def num_items(self):
@@ -638,3 +646,22 @@ class SVNTable(object):
         unrequired_files = the_query.all()
 
         return [unrequired_file[0] for unrequired_file in unrequired_files]
+
+    @utils.timing
+    def mark_need_remove(self, local_sync_dir):
+        prefix_len = len(local_sync_dir)+1
+        files_checked = 0
+        for root, dirs, files in os.walk(local_sync_dir, followlinks=False):
+            try: dirs.remove("bookkeeping")
+            except: pass # todo: use FOLDER_EXCLUDE_REGEX
+            try: files.remove(".DS_Store")
+            except: pass  # todo: use FILE_EXCLUDE_REGEX
+            for disk_item in files:
+                files_checked += 1
+                item_full_path = os.path.join(root, disk_item)
+                item_partial_path = item_full_path[prefix_len:]
+                try:
+                    db_item = self.baked_queries_map["file-item"](self.session).params(file_name=item_partial_path).one()
+                except:
+                    print("remove!", item_partial_path)
+        print("files_checked", files_checked)
