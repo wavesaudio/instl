@@ -35,7 +35,7 @@ for defaults_file in os.listdir(instl_defaults_path):
         a.datas += [("defaults/"+defaults_file, os.path.join(instl_defaults_path, defaults_file), "DATA")]
 
 compile_info_path = os.path.join("build", "compile-info.yaml")
-with open(compile_info_path, "w", encoding='utf-8') as wfd:
+with open(compile_info_path, "w") as wfd:
     wfd.write(
 """
 --- !define_const
