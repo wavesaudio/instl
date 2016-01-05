@@ -235,7 +235,7 @@ def dock_util(args):
 
     if explicit_restart:
         restart_the_dock()
-        exit(0)
+        sys.exit(0)
 
     # get the list of plists to process
     # if allhomes option was set, get a list of home directories in the homedirectory location
