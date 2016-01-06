@@ -78,9 +78,9 @@ class SearchPaths(object):
                     self.add_search_path(real_folder)
                     retVal = real_file
                     break
-        if retVal is None:
-            if return_original_if_not_found:
-                retVal = in_file
+            else:  # nobreak, retVal is None:
+                if return_original_if_not_found:
+                    retVal = in_file
         return retVal
 
 

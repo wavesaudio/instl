@@ -488,7 +488,7 @@ class InstlInstanceBase(object):
         original_name = self.wtar_file_re.match(wtar_name).group('base_name')
         return original_name
 
-    # Given a list of file/folder names, replace those which a rewtared with the original file name.
+    # Given a list of file/folder names, replace those which are wtarred with the original file name.
     # E.g. ['a', 'b.wtar', 'c.wtar.aa', 'c.wtar.ab'] => ['a', 'b', 'c']
     # We must work on the whole list since several wtar file names might merge to a single original file name.
     def replace_wtar_names_with_real_names(self, original_list):
