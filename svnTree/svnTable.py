@@ -153,6 +153,11 @@ class SVNTable(object):
         retVal["dir-files-recursive"] += lambda q: q.filter(SVNRow.level > bindparam('dir_level'))
         retVal["dir-files-recursive"] += lambda q: q.filter(SVNRow.level <= bindparam('dir_level')+bindparam('levels_deep'))
 
+        retVal["dir-items-recursive"] = bakery(lambda session: session.query(SVNRow))
+        retVal["dir-items-recursive"] += lambda q: q.filter(SVNRow.path.like(bindparam('dir_path')+"/%"))
+        retVal["dir-items-recursive"] += lambda q: q.filter(SVNRow.level > bindparam('dir_level'))
+        retVal["dir-items-recursive"] += lambda q: q.filter(SVNRow.level <= bindparam('dir_level')+bindparam('levels_deep'))
+
         return retVal
 
     def __repr__(self):
@@ -516,11 +521,29 @@ class SVNTable(object):
         """ get all files in dir_path.
             level_deep: how much to dig in. level_deep=1 will only get immediate files
         """
-        dir_item = self.baked_queries_map["dir-item"](self.session).params(dir_name=dir_path).one()
-        dir_items = self.baked_queries_map["dir-files-recursive"](self.session)\
-            .params(dir_path=dir_path, dir_level=dir_item.level, levels_deep=levels_deep)\
-            .all()
-        return dir_items
+        try:
+            dir_item = self.baked_queries_map["dir-item"](self.session).params(dir_name=dir_path).one()
+            dir_items = self.baked_queries_map["dir-files-recursive"](self.session)\
+                .params(dir_path=dir_path, dir_level=dir_item.level, levels_deep=levels_deep)\
+                .all()
+            return dir_items
+        except NoResultFound:
+            print(dir_path, "was not found")
+            raise
+
+    def get_items_in_dir(self, dir_path, levels_deep=1024):
+        """ get all files in dir_path.
+            level_deep: how much to dig in. level_deep=1 will only get immediate files
+        """
+        try:
+            dir_item = self.baked_queries_map["dir-item"](self.session).params(dir_name=dir_path).one()
+            dir_items = self.baked_queries_map["dir-items-recursive"](self.session)\
+                .params(dir_path=dir_path, dir_level=dir_item.level, levels_deep=levels_deep)\
+                .all()
+            return dir_items
+        except NoResultFound:
+            print(dir_path, "was not found")
+            raise
 
     def mark_required_for_dir(self, dir_path):
         """ mark all files & dirs in dir_path as required.
@@ -545,13 +568,14 @@ class SVNTable(object):
             :param source: a tuple (source_folder, tag), where tag is either !file or !dir
             :return: None
         """
+        source_path, source_type, _ = source
         num_required_files = 0
-        if source[1] == '!dir' or source[1] == '!dir_cont':  # !dir and !dir_cont are only different when copying
-            num_required_files = self.mark_required_for_dir(source[0])
-        elif source[1] == '!file':
-            num_required_files = self.mark_required_for_file(source[0])
-        elif source[1] == '!files':
-            num_required_files = self.mark_required_for_files(source[0])
+        if source_type in ('!dir', '!dir_cont'):  # !dir and !dir_cont are only different when copying
+            num_required_files = self.mark_required_for_dir(source_path)
+        elif source_type == '!file':
+            num_required_files = self.mark_required_for_file(source_path)
+        elif source_type == '!files':
+            num_required_files = self.mark_required_for_files(source_path)
         return num_required_files
 
     @utils.timing
