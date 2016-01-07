@@ -93,15 +93,15 @@ class SVNTable(object):
 
         # dir-item: return specific item which should be a dir
         retVal["any-item"] = bakery(lambda session: session.query(SVNRow))
-        retVal["any-item"] += lambda q: q.filter(SVNRow.path == bindparam('item_name'))
+        retVal["any-item"] += lambda q: q.filter(SVNRow.path == bindparam('item_path'))
 
         # dir-item: return specific item which should be a dir
         retVal["dir-item"] = bakery(lambda session: session.query(SVNRow))
-        retVal["dir-item"] += lambda q: q.filter(SVNRow.path == bindparam('dir_name'), SVNRow.fileFlag==False)
+        retVal["dir-item"] += lambda q: q.filter(SVNRow.path == bindparam('item_path'), SVNRow.fileFlag==False)
 
         # dir-item: return specific item which should be a file
         retVal["file-item"] = bakery(lambda session: session.query(SVNRow))
-        retVal["file-item"] += lambda q: q.filter(SVNRow.path == bindparam('file_name'), SVNRow.fileFlag==True)
+        retVal["file-item"] += lambda q: q.filter(SVNRow.path == bindparam('item_path'), SVNRow.fileFlag==True)
 
         # required-files: return all required files
         retVal["required-files"] = bakery(lambda session: session.query(SVNRow))
@@ -406,6 +406,12 @@ class SVNTable(object):
     def num_items(self):
         return self.session.query(SVNRow).count()
 
+    def num_files(self):
+        return self.session.query(SVNRow).filter(SVNRow.fileFlag == True).count()
+
+    def num_dirs(self):
+        return self.session.query(SVNRow).filter(SVNRow.fileFlag == False).count()
+
     def clear_all(self):
         self.session.query(SVNRow).delete()
         self.comments = list()
@@ -473,11 +479,16 @@ class SVNTable(object):
             raise
 
     def get_items(self, filter_name="all"):
+        """
+        get_items applies a filter and return all items
+        :param filter_name: one of predefined baked queries, e.g.: "all-files", "all-dirs", "all-items"
+        :return: all items returned by applying the filter called filter_name
+        """
         return self.baked_queries_map[filter_name](self.session).all()
 
     def get_dir_item(self, dir_path):
         try:
-            dir_item = self.baked_queries_map["dir-item"](self.session).params(dir_name=dir_path).one()
+            dir_item = self.baked_queries_map["dir-item"](self.session).params(item_path=dir_path).one()
         except NoResultFound:
             dir_item = None
         return dir_item
@@ -508,7 +519,7 @@ class SVNTable(object):
     def mark_required_for_files(self, parent_path):
         """ mark all files in parent_path as required.
         """
-        parent_item = self.baked_queries_map["dir-item"](self.session).params(dir_name=parent_path).one()
+        parent_item = self.baked_queries_map["dir-item"](self.session).params(item_path=parent_path).one()
         update_statement = update(SVNRow)\
             .where(SVNRow.level == parent_item.level+1)\
             .where(SVNRow.fileFlag == True)\
@@ -522,7 +533,7 @@ class SVNTable(object):
             level_deep: how much to dig in. level_deep=1 will only get immediate files
         """
         try:
-            dir_item = self.baked_queries_map["dir-item"](self.session).params(dir_name=dir_path).one()
+            dir_item = self.baked_queries_map["dir-item"](self.session).params(item_path=dir_path).one()
             dir_items = self.baked_queries_map["dir-files-recursive"](self.session)\
                 .params(dir_path=dir_path, dir_level=dir_item.level, levels_deep=levels_deep)\
                 .all()
@@ -536,7 +547,7 @@ class SVNTable(object):
             level_deep: how much to dig in. level_deep=1 will only get immediate files
         """
         try:
-            dir_item = self.baked_queries_map["dir-item"](self.session).params(dir_name=dir_path).one()
+            dir_item = self.baked_queries_map["dir-item"](self.session).params(item_path=dir_path).one()
             dir_items = self.baked_queries_map["dir-items-recursive"](self.session)\
                 .params(dir_path=dir_path, dir_level=dir_item.level, levels_deep=levels_deep)\
                 .all()
@@ -550,7 +561,7 @@ class SVNTable(object):
             marking is recursive.
         """
         try:
-            dir_item = self.baked_queries_map["dir-item"](self.session).params(dir_name=dir_path).one()
+            dir_item = self.baked_queries_map["dir-item"](self.session).params(item_path=dir_path).one()
             update_statement = update(SVNRow)\
                     .where(SVNRow.fileFlag == True)\
                     .where(SVNRow.level > dir_item.level)\
@@ -685,7 +696,7 @@ class SVNTable(object):
                 item_full_path = os.path.join(root, disk_item)
                 item_partial_path = item_full_path[prefix_len:]
                 try:
-                    db_item = self.baked_queries_map["file-item"](self.session).params(file_name=item_partial_path).one()
+                    db_item = self.baked_queries_map["file-item"](self.session).params(item_path=item_partial_path).one()
                 except:
                     print("remove!", item_partial_path)
         print("files_checked", files_checked)
