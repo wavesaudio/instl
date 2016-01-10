@@ -3,6 +3,7 @@ from __future__ import print_function
 
 import os
 import re
+from contextlib import contextmanager
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -11,6 +12,7 @@ from sqlalchemy import or_
 from sqlalchemy.ext import baked
 from sqlalchemy import bindparam
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy import func
 
 from svnRow import SVNRow, alchemy_base
 
@@ -71,8 +73,18 @@ class SVNTable(object):
         self.write_func_by_format = {"text": self.write_as_text,}
         self.path_to_file = None
         self.comments = list()
+        self.legal_item_filters = ("all-items", "all-files", "all-dirs",
+                                   "required-items", "required-files", "required-dirs",
+                                   "unrequired-items", "unrequired-files", "unrequired-dirs",)
+        self.item_filter = "all"
+        self.baked_queries_map = self.bake_baked_queries()
 
-        self.baked_queries_map =  self.bake_baked_queries()
+    def use_item_filter(self, *new_item_filter):
+        combined_filter = "-".join(new_item_filter)
+        if combined_filter not in self.legal_item_filters:
+            raise ValueError(new_item_filter, "illegal item filter")
+        self.item_filter = combined_filter
+        return self
 
     def bake_baked_queries(self):
         """ prepare baked queries for later use
@@ -81,7 +93,7 @@ class SVNTable(object):
         retVal = dict()
 
         # all: return all items
-        retVal["all"] = bakery(lambda session: session.query(SVNRow))
+        retVal["all-items"] = bakery(lambda session: session.query(SVNRow))
 
         # all-files: return all files
         retVal["all-files"] = bakery(lambda session: session.query(SVNRow))
@@ -103,6 +115,10 @@ class SVNTable(object):
         retVal["file-item"] = bakery(lambda session: session.query(SVNRow))
         retVal["file-item"] += lambda q: q.filter(SVNRow.path == bindparam('item_path'), SVNRow.fileFlag==True)
 
+        # required-items: return all required files and dirs
+        retVal["required-items"] = bakery(lambda session: session.query(SVNRow))
+        retVal["required-items"] += lambda q: q.filter(SVNRow.required==True)
+
         # required-files: return all required files
         retVal["required-files"] = bakery(lambda session: session.query(SVNRow))
         retVal["required-files"] += lambda q: q.filter(SVNRow.required==True, SVNRow.fileFlag==True)
@@ -110,6 +126,10 @@ class SVNTable(object):
         # required-files: return all required dirs
         retVal["required-dirs"] = bakery(lambda session: session.query(SVNRow))
         retVal["required-dirs"] += lambda q: q.filter(SVNRow.required==True, SVNRow.fileFlag==False)
+
+        # unrequired-items: return all unrequired files and dirs
+        retVal["unrequired-items"] = bakery(lambda session: session.query(SVNRow))
+        retVal["unrequired-items"] += lambda q: q.filter(SVNRow.required==False)
 
         # unrequired-files: return all unrequired files
         retVal["unrequired-files"] = bakery(lambda session: session.query(SVNRow))
@@ -128,8 +148,8 @@ class SVNTable(object):
         retVal["required-exec-files"] += lambda q: q.filter(SVNRow.required==True, SVNRow.fileFlag==True, SVNRow.flags.contains('x'))
 
         # all-required: return all required files and dirs
-        retVal["all-required"] = bakery(lambda session: session.query(SVNRow))
-        retVal["all-required"] += lambda q: q.filter(SVNRow.required==True)
+        retVal["required-all"] = bakery(lambda session: session.query(SVNRow))
+        retVal["required-all"] += lambda q: q.filter(SVNRow.required==True)
 
         # all-not-required: return all required files and dirs
         retVal["unrequired-all"] = bakery(lambda session: session.query(SVNRow))
@@ -404,13 +424,26 @@ class SVNTable(object):
         self.insert_dicts_to_db(insert_dicts)
 
     def num_items(self):
-        return self.session.query(SVNRow).count()
-
-    def num_files(self):
-        return self.session.query(SVNRow).filter(SVNRow.fileFlag == True).count()
-
-    def num_dirs(self):
-        return self.session.query(SVNRow).filter(SVNRow.fileFlag == False).count()
+        retVal = 0
+        if self.item_filter == "all-items":
+            retVal = self.session.query(SVNRow.path).count()
+        elif self.item_filter == "all-files":
+            retVal = self.session.query(SVNRow.path).filter(SVNRow.fileFlag == True).count()
+        elif self.item_filter == "all-dirs":
+            retVal = self.session.query(SVNRow.path).filter(SVNRow.fileFlag == False).count()
+        if self.item_filter == "required-items":
+            retVal = self.session.query(SVNRow.path).filter(SVNRow.required == True).count()
+        elif self.item_filter == "required-files":
+            retVal = self.session.query(SVNRow.path).filter(SVNRow.fileFlag == True, SVNRow.required == True).count()
+        elif self.item_filter == "required-dirs":
+            retVal = self.session.query(SVNRow.path).filter(SVNRow.fileFlag == False, SVNRow.required == True).count()
+        if self.item_filter == "unrequired-item":
+            retVal = self.session.query(SVNRow.path).filter(SVNRow.required == False).count()
+        elif self.item_filter == "unrequired-files":
+            retVal = self.session.query(SVNRow.path).filter(SVNRow.fileFlag == True, SVNRow.required == False).count()
+        elif self.item_filter == "unrequired-dirs":
+            retVal = self.session.query(SVNRow.path).filter(SVNRow.fileFlag == False, SVNRow.required == False).count()
+        return retVal
 
     def clear_all(self):
         self.session.query(SVNRow).delete()
@@ -478,13 +511,21 @@ class SVNTable(object):
             print("Line:", line_num, ex)
             raise
 
-    def get_items(self, filter_name="all"):
+    def get_items(self):
         """
         get_items applies a filter and return all items
         :param filter_name: one of predefined baked queries, e.g.: "all-files", "all-dirs", "all-items"
         :return: all items returned by applying the filter called filter_name
         """
-        return self.baked_queries_map[filter_name](self.session).all()
+        return self.baked_queries_map[self.item_filter](self.session).all()
+
+    def get_item_at_path(self, item_path):
+        retVal = None
+        try:
+            retVal = self.baked_queries_map["any-item"](self.session).params(item_path=item_path).one()
+        except NoResultFound:
+            pass
+        return retVal
 
     def get_dir_item(self, dir_path):
         try:
@@ -579,7 +620,7 @@ class SVNTable(object):
             :param source: a tuple (source_folder, tag), where tag is either !file or !dir
             :return: None
         """
-        source_path, source_type, _ = source
+        source_path, source_type = source
         num_required_files = 0
         if source_type in ('!dir', '!dir_cont'):  # !dir and !dir_cont are only different when copying
             num_required_files = self.mark_required_for_dir(source_path)
@@ -700,3 +741,9 @@ class SVNTable(object):
                 except:
                     print("remove!", item_partial_path)
         print("files_checked", files_checked)
+
+    @utils.timing
+    def min_max_revision(self):
+        max_revision = self.session.query(SVNRow, func.max(SVNRow.revision_remote)).scalar()
+        min_revision = self.session.query(SVNRow, func.min(SVNRow.revision_remote)).scalar()
+        return min_revision.revision_remote, max_revision.revision_remote

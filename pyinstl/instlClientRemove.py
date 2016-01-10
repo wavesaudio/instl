@@ -89,7 +89,9 @@ def create_remove_instructions_for_source(self, folder, source):
                 remove_action = self.platform_helper.rm_file_or_dir(remove_full_path)
                 self.batch_accum += remove_action
         elif source_type == '!files':    # # remove all source's files from a folder
-            remove_items = self.info_map_table.get_files_in_dir(dir_path=source_path, levels_deep=1)
+!!!!!!!
+            with self.info_map_table.item_filter(""):
+                remove_items = self.info_map_table.get_files_in_dir(dir_path=source_path, levels_deep=1)
             remove_paths = self.original_names_from_wtars_names(item.path for item in remove_items)
             for remove_path in remove_paths:
                 base_, leaf = os.path.split(remove_path)
