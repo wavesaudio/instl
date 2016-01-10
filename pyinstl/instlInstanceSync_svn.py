@@ -48,14 +48,15 @@ class InstlInstanceSync_svn(InstlInstanceSync):
 
     def create_svn_sync_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
+        source_path, source_type = source
         retVal = list()
-        source_url = '/'.join(("$(SYNC_BASE_URL)", source[0]))
-        target_path = '/'.join(("$(REL_SRC_PATH)", source[0]))
-        if source[1] == '!file':
+        source_url = '/'.join(("$(SYNC_BASE_URL)", source_path))
+        target_path = '/'.join(("$(REL_SRC_PATH)", source_path))
+        if source_type == '!file':
             source_url = '/'.join(source_url.split("/")[0:-1])  # skip the file name sync the whole folder
             target_path = '/'.join(target_path.split("/")[0:-1])  # skip the file name sync the whole folder
         command_parts = ['"$(SVN_CLIENT_PATH)"', "co", '"'+source_url+'"', '"'+target_path+'"', "--revision", "$(REPO_REV)"]
-        if source[1] in ('!file', '!files'):
+        if source_type in ('!file', '!files'):
             command_parts.extend(( "--depth", "files"))
         else:
             command_parts.extend(( "--depth", "infinity"))

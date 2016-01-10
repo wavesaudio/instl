@@ -925,17 +925,17 @@ class InstlAdmin(InstlInstanceBase):
         self.info_map_table.mark_required_completion()
         self.find_cycles()
         print("index:", len(self.install_definitions_index), "iids")
-        num_files = len(self.info_map_table.get_items(filter_name="all-files"))
-        num_dirs = len(self.info_map_table.get_items(filter_name="all-dirs"))
-        num_required_files = len(self.info_map_table.get_items(filter_name="required-files"))
-        num_required_dirs = len(self.info_map_table.get_items(filter_name="required-dirs"))
+        num_files = self.info_map_table.use_item_filter("all", "files").num_items()
+        num_dirs = self.info_map_table.use_item_filter("all", "dirs").num_items()
+        num_required_files = self.info_map_table.use_item_filter("required", "files").num_items()
+        num_required_dirs = self.info_map_table.use_item_filter("required", "dirs").num_items()
         print("info map:", num_files, "files in", num_dirs, "folders")
         print("info map:", num_required_files, "required files, ", num_required_dirs, "required folders")
 
-        unrequired_files = self.info_map_table.get_items(filter_name="unrequired-files")
+        unrequired_files = self.info_map_table.use_item_filter("unrequired", "files").get_items()
         print("unrequired files:")
         [print("    ", f.path) for f in unrequired_files]
-        unrequired_dirs = self.info_map_table.get_items(filter_name="unrequired-dirs")
+        unrequired_dirs = self.info_map_table.use_item_filter("unrequired", "dirs").get_items()
         print("unrequired dirs:")
         [print("    ", d.path) for d in unrequired_dirs]
 

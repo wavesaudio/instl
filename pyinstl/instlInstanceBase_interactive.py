@@ -333,14 +333,11 @@ class CMDObj(cmd.Cmd, object):
 
 
     def do_statistics(self, unused_params):
-        num_files = self.admin_prog_inst.svnTree.num_subs_in_tree(what="file")
-        num_dirs = self.admin_prog_inst.svnTree.num_subs_in_tree(what="dir")
-        num_total = self.admin_prog_inst.svnTree.num_subs_in_tree(what="all")
-        min_revision = 4000000000
-        max_revision = 0
-        for item in self.admin_prog_inst.svnTree.walk_items():
-            min_revision = min(min_revision, item.revision)
-            max_revision = max(max_revision, item.revision)
+        num_files = self.admin_prog_inst.info_map_table.use_item_filter("all", "files").num_items()
+        num_dirs =  self.admin_prog_inst.info_map_table.use_item_filter("all", "dirs").num_items()
+        num_total = self.admin_prog_inst.info_map_table.use_item_filter("all", "items").num_items()
+        min_revision, max_revision = self.admin_prog_inst.info_map_table.min_max_revision()
+
         print("Num files:", num_files)
         print("Num dirs:", num_dirs)
         print("Total items:", num_total)
@@ -396,11 +393,11 @@ class CMDObj(cmd.Cmd, object):
 
     def do_readinfo(self, params):
         if params:
-            for afile in shlex.split(params):
+            for a_file in shlex.split(params):
                 time_start = time.clock()
-                self.admin_prog_inst.info_map_table.read_from_file(afile)
+                self.admin_prog_inst.info_map_table.read_from_file(a_file)
                 time_end = time.clock()
-                print("opened file:", "'" + afile + "'")
+                print("opened file:", "'" + a_file + "'")
                 print("    %d items read in %0.3f ms" % (self.admin_prog_inst.info_map_table.num_items(), (time_end-time_start)*1000.0))
         else:
             self.help_read()
@@ -411,24 +408,23 @@ class CMDObj(cmd.Cmd, object):
 
     def help_readinfo(self):
         print("read path_to_file")
-        print("    reads an svn info file")
+        print("    reads an info_map file")
 
     def do_listinfo(self, params):
         items_to_list = list()
         if params:
             for param in shlex.split(params):
-                item = self.admin_prog_inst.svnTree.get_item_at_path(param.rstrip("/"))
+                item = self.admin_prog_inst.info_map_table.get_item_at_path(param.rstrip("/"))
                 if item:
                     items_to_list.append(item)
+                    if item.isDir():
+                        items_to_list.extend(self.admin_prog_inst.info_map_table.get_items_in_dir(dir_path=item.path))
                 else:
                     print("No item named:", param)
         else:
-            items_to_list = [self.admin_prog_inst.svnTree]
+            items_to_list = self.admin_prog_inst.info_map_table.use_item_filter("all-items").get_items()
         for item in items_to_list:
             print(str(item))
-            if item.isDir():
-                for sub_item in item.walk_items():
-                    print(str(sub_item))
         return False
 
     def complete_listinfo(self, text, line, unused_begidx, unused_endidx):
@@ -438,7 +434,7 @@ class CMDObj(cmd.Cmd, object):
             text = match.group("the_text")
         retVal = list()
         if text.endswith("/"):
-            item = self.admin_prog_inst.svnTree.get_item_at_path(text.rstrip("/"))
+            item = self.admin_prog_inst.admin_prog_inst.get_item_at_path(text.rstrip("/"))
             if item and item.isDir():
                 file_list, dir_list = item.sorted_sub_items()
                 retVal.extend([a_file.name for a_file in file_list])

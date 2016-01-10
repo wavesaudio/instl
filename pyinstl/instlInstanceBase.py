@@ -386,12 +386,13 @@ class InstlInstanceBase(object):
         return retVal
 
     def relative_sync_folder_for_source(self, source):
-        if source[1] in ('!dir', '!file'):
-            retVal = "/".join(source[0].split("/")[0:-1])
-        elif source[1] in ('!dir_cont', '!files'):
-            retVal = source[0]
+        source_path, source_type, _ = source
+        if source_type in ('!dir', '!file'):
+            retVal = "/".join(source_path.split("/")[0:-1])
+        elif source_type in ('!dir_cont', '!files'):
+            retVal = source_path
         else:
-            raise ValueError("unknown tag for source " + source[0] + ": " + source[1])
+            raise ValueError("unknown tag for source " + source_path + ": " + source_type)
         return retVal
 
     def write_batch_file(self):
@@ -491,7 +492,7 @@ class InstlInstanceBase(object):
     # Given a list of file/folder names, replace those which are wtarred with the original file name.
     # E.g. ['a', 'b.wtar', 'c.wtar.aa', 'c.wtar.ab'] => ['a', 'b', 'c']
     # We must work on the whole list since several wtar file names might merge to a single original file name.
-    def replace_wtar_names_with_real_names(self, original_list):
+    def original_names_from_wtars_names(self, original_list):
         replaced_list = utils.unique_list()
         replaced_list.extend([self.original_name_from_wtar_name(file_name) for file_name in original_list])
         return replaced_list
