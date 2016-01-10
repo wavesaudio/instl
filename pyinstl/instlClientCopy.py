@@ -4,10 +4,8 @@ from __future__ import print_function
 
 import os
 
-import svnTree
 import utils
 from configVar import var_stack
-from functools import reduce
 
 
 def do_copy(self):
@@ -24,7 +22,6 @@ def init_copy_vars(self):
     self.wtar_ratio = 1.3 # ratio between wtar file and it's uncompressed contents
     if "WTAR_RATIO" in var_stack:
         self.wtar_ratio = float(var_stack.resolve("$(WTAR_RATIO)"))
-    self.is_wtar_item = svnTree.WtarFilter() # will return true for any wtar file
     self.calc_user_cache_dir_var() # this will set USER_CACHE_DIR if it was not explicitly defined
     self.ignore_list = var_stack.resolve_to_list("$(COPY_IGNORE_PATTERNS)")
 
@@ -219,7 +216,7 @@ def create_copy_instructions_for_files(self, source_path, name_for_progress_mess
 
 
 def create_copy_instructions_for_dir(self, source_path, name_for_progress_message):
-    dir_item = self.info_map_table.get_dir_item(source_path)
+    dir_item = self.info_map_table.get_item(source_path, what="dir")
     if dir_item is not None:
         source_path_abs = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + source_path)
         self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path_abs, ".",

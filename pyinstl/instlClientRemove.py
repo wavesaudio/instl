@@ -4,7 +4,6 @@ from __future__ import print_function
 
 import os
 
-import svnTree
 from configVar import var_stack
 
 
@@ -68,7 +67,7 @@ def create_remove_instructions(self):
 def create_remove_instructions_for_source(self, folder, source):
     """ source is a tuple (source_folder, tag), where tag is either !file, !files, !dir_cont or !dir """
 
-    source_path, source_type, _ = source
+    source_path, source_type = source[0], source[1]
     base_, leaf = os.path.split(source_path)
     to_remove_path = os.path.normpath(os.path.join(folder, leaf))
 
@@ -89,9 +88,7 @@ def create_remove_instructions_for_source(self, folder, source):
                 remove_action = self.platform_helper.rm_file_or_dir(remove_full_path)
                 self.batch_accum += remove_action
         elif source_type == '!files':    # # remove all source's files from a folder
-!!!!!!!
-            with self.info_map_table.item_filter(""):
-                remove_items = self.info_map_table.get_files_in_dir(dir_path=source_path, levels_deep=1)
+            remove_items = self.info_map_table.get_files_in_dir(dir_path=source_path, levels_deep=1)
             remove_paths = self.original_names_from_wtars_names(item.path for item in remove_items)
             for remove_path in remove_paths:
                 base_, leaf = os.path.split(remove_path)

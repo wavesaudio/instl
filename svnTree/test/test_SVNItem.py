@@ -261,12 +261,12 @@ class TestSVNItem(unittest.TestCase):
         svni1 = SVNTopItem()
         for item in item_list1:
             svni1.new_item_from_str_re(item)
-        sub1 = svni1.get_item_at_path("Dir1")
+        sub1 = svni1.get_item("Dir1")
         files, dirs = sub1.sorted_sub_items()
         # test item keys
         self.assertEqual([a_file.name for a_file in files], sorted(["File1.1", "File1.2", "File1.3"]))
 
-        sub3 = svni1.get_item_at_path("Dir3")
+        sub3 = svni1.get_item("Dir3")
         files, dirs = sub3.sorted_sub_items()
         self.assertEqual([a_file.name for a_file in files], sorted(["File3.1", "File3.2"]))
         self.assertEqual([a_dir.name for a_dir in dirs], sorted(["Dir3.1", "Dir3.2"]))
@@ -391,23 +391,23 @@ class TestSVNItem(unittest.TestCase):
         svni1 = SVNTopItem()
         svni1.new_item_at_path("SubDir1", {'flags': "d", 'revision': 19})
         self.assertEqual(list(svni1.subs.keys()), ["SubDir1"])
-        self.assertIsInstance(svni1.get_item_at_path("SubDir1"), SVNItem,
-                              msg="svn1.get_item_at_path should return SVNItem object")
+        self.assertIsInstance(svni1.get_item("SubDir1"), SVNItem,
+                              msg="svn1.get_item should return SVNItem object")
 
         svni1.new_item_at_path("SubDir1/SubDir2", {'flags': "d", 'revision': 219})
         self.assertEqual(list(svni1.subs.keys()), ["SubDir1"])
-        sub1 = svni1.get_item_at_path("SubDir1")
-        self.assertIsInstance(sub1, SVNItem, msg="svn1.get_item_at_path should return SVNItem object")
+        sub1 = svni1.get_item("SubDir1")
+        self.assertIsInstance(sub1, SVNItem, msg="svn1.get_item should return SVNItem object")
         self.assertEqual(list(sub1.subs.keys()), ["SubDir2"])
-        sub2 = sub1.get_item_at_path("SubDir2")
-        self.assertIsInstance(sub2, SVNItem, msg="svn1.get_item_at_path should return SVNItem object")
+        sub2 = sub1.get_item("SubDir2")
+        self.assertIsInstance(sub2, SVNItem, msg="svn1.get_item should return SVNItem object")
 
         svni1.new_item_at_path("SubDirA", {'flags': "d", 'revision': 2195})
         self.assertEqual(sorted(svni1.subs.keys()), ["SubDir1", "SubDirA"])
-        sub1 = svni1.get_item_at_path("SubDir1")
-        self.assertIsInstance(sub1, SVNItem, msg="svn1.get_item_at_path should return SVNItem object")
-        sub2 = svni1.get_item_at_path("SubDirA")
-        self.assertIsInstance(sub2, SVNItem, msg="svn1.get_item_at_path should return SVNItem object")
+        sub1 = svni1.get_item("SubDir1")
+        self.assertIsInstance(sub1, SVNItem, msg="svn1.get_item should return SVNItem object")
+        sub2 = svni1.get_item("SubDirA")
+        self.assertIsInstance(sub2, SVNItem, msg="svn1.get_item should return SVNItem object")
 
     def test_add_sub_item_positive(self):
         """ Check the internal function add_sub_item where is should succeed """
@@ -415,16 +415,16 @@ class TestSVNItem(unittest.TestCase):
         svni2 = SVNItem({'name':  "SubFile", 'flags': "f", 'revision': 1258})
         svni1.add_sub_item(svni2)
         self.assertEqual(list(svni1.subs.keys()), ["SubFile"])
-        self.assertIsNone(svni1.get_item_at_path("kuku"),
-                          msg="svn1.get_item_at_path should return None for none existing item")
-        self.assertIs(svni1.get_item_at_path("SubFile"), svni2,
-                      msg="svn1.get_item_at_path should return the same object given")
+        self.assertIsNone(svni1.get_item("kuku"),
+                          msg="svn1.get_item should return None for none existing item")
+        self.assertIs(svni1.get_item("SubFile"), svni2,
+                      msg="svn1.get_item should return the same object given")
         svni1.new_item_at_path("SubDir", {'flags': "d", 'revision': 1258})
         self.assertEqual(sorted(svni1.subs.keys()), ["SubDir", "SubFile"])
-        self.assertIsNone(svni1.get_item_at_path("kuku"),
-                          msg="svn1.get_item_at_path should return None for none existing item")
-        self.assertIsInstance(svni1.get_item_at_path("SubDir"), SVNItem,
-                              msg="svn1.get_item_at_path should return SVNItem object")
+        self.assertIsNone(svni1.get_item("kuku"),
+                          msg="svn1.get_item should return None for none existing item")
+        self.assertIsInstance(svni1.get_item("SubDir"), SVNItem,
+                              msg="svn1.get_item should return SVNItem object")
 
     def test_add_sub_item_negative(self):
         """ Check the internal function add_sub_item where is should fail """
@@ -433,7 +433,7 @@ class TestSVNItem(unittest.TestCase):
         self.assertRaises(TypeError, svni1.add_sub_item, svni2)
         with self.assertRaises(ValueError):
             the_subs = svni1.subs
-        self.assertRaises(ValueError, svni1.get_item_at_path, "SubFile")
+        self.assertRaises(ValueError, svni1.get_item, "SubFile")
 
     def test_other_flags_construction(self):
         """ Construct SVNItem with some flags flag """
@@ -446,7 +446,7 @@ class TestSVNItem(unittest.TestCase):
         self.assertFalse(svni1.isSymlink(), msg="SVNItem.isSymlink() should return False for non-symlink")
         with self.assertRaises(ValueError):
             the_subs = svni1.subs
-        self.assertRaises(ValueError, svni1.get_item_at_path, "kuku")
+        self.assertRaises(ValueError, svni1.get_item, "kuku")
         svni2 = SVNItem({'name':  "TestFlags", 'flags': "ds", 'revision': 36})
         self.assertEqual(svni2.name, "TestFlags")
         self.assertFalse(svni2.isFile(), msg="SVNItem.isFile() should return False for directory")
@@ -454,8 +454,8 @@ class TestSVNItem(unittest.TestCase):
         self.assertFalse(svni2.isExecutable(), msg="SVNItem.isExecutable() should return False for non-executable")
         self.assertTrue(svni2.isSymlink(), msg="SVNItem.isSymlink() should return True for non-symlink")
         self.assertEqual(svni2.subs, {})
-        self.assertIsNone(svni2.get_item_at_path("kuku"),
-                          "svn1.get_item_at_path should return None for none existing item")
+        self.assertIsNone(svni2.get_item("kuku"),
+                          "svn1.get_item should return None for none existing item")
 
     def test_dir_construction(self):
         """ Construct SVNItem with directory flag """
@@ -465,8 +465,8 @@ class TestSVNItem(unittest.TestCase):
         self.assertFalse(svni1.isExecutable(), msg="SVNItem.isExecutable() should return False for non-executable")
         self.assertFalse(svni1.isSymlink(), msg="SVNItem.isSymlink() should return False for non-symlink")
         self.assertEqual(svni1.subs, {})
-        self.assertIsNone(svni1.get_item_at_path("kuku"),
-                          msg="svn1.get_item_at_path should return None for none existing item")
+        self.assertIsNone(svni1.get_item("kuku"),
+                          msg="svn1.get_item should return None for none existing item")
 
     def test_file_construction(self):
         """ Construct SVNItem with file flag """
@@ -479,4 +479,4 @@ class TestSVNItem(unittest.TestCase):
         self.assertFalse(svni1.isExecutable(), msg="SVNItem.isExecutable() should return False for non-executable")
         with self.assertRaises(ValueError):
             the_subs = svni1.subs
-        self.assertRaises(ValueError, svni1.get_item_at_path, "kuku")
+        self.assertRaises(ValueError, svni1.get_item, "kuku")

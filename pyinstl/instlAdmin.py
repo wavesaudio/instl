@@ -11,7 +11,6 @@ import subprocess
 from collections import defaultdict
 import stat
 
-import svnTree
 import utils
 import aYaml
 from instlInstanceBase import InstlInstanceBase
@@ -79,7 +78,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def add_urls_to_info_map(self):
         base_url = var_stack.resolve_var("__BASE_URL__")
-        for file_item in self.info_map_table.get_items("all-files"):
+        for file_item in self.info_map_table.get_items(what="file"):
             file_item.url = os.path.join(base_url, str(file_item.revision), file_item.path)
             print(file_item)
 
@@ -368,12 +367,12 @@ class InstlAdmin(InstlInstanceBase):
         self.info_map_table.mark_required_for_dir('instl') # never remove the instl folder
         self.info_map_table.mark_required_for_revision(repo_rev)
 
-        unrequired_dirs = self.info_map_table.get_unrequired_paths_where_parent_required(what="dirs")
+        unrequired_dirs = self.info_map_table.get_unrequired_paths_where_parent_required(what="dir")
         for unrequired_dir in unrequired_dirs:
             accum += self.platform_helper.rmdir(unrequired_dir, recursive=True)
             accum += self.platform_helper.progress("rmdir " + unrequired_dir)
 
-        unrequired_files = self.info_map_table.get_unrequired_paths_where_parent_required(what="files")
+        unrequired_files = self.info_map_table.get_unrequired_paths_where_parent_required(what="file")
         for unrequired_file in unrequired_files:
             accum += self.platform_helper.rmfile(unrequired_file)
             accum += self.platform_helper.progress("rmfile " + unrequired_file)
@@ -500,7 +499,7 @@ class InstlAdmin(InstlInstanceBase):
         should_be_exec_regex_list = var_stack.resolve_to_list("$(EXEC_PROP_REGEX)")
         self.compiled_should_be_exec_regex = utils.compile_regex_list_ORed(should_be_exec_regex_list)
 
-        for item in self.info_map_table.get_items(filter_name="all"):
+        for item in self.info_map_table.get_items(what="any"):
             shouldBeExec = self.should_be_exec(item)
             for extra_prop in item.extra_props_list():
                 # print("remove prop", extra_prop, "from", item.path)
@@ -925,17 +924,17 @@ class InstlAdmin(InstlInstanceBase):
         self.info_map_table.mark_required_completion()
         self.find_cycles()
         print("index:", len(self.install_definitions_index), "iids")
-        num_files = self.info_map_table.use_item_filter("all", "files").num_items()
-        num_dirs = self.info_map_table.use_item_filter("all", "dirs").num_items()
-        num_required_files = self.info_map_table.use_item_filter("required", "files").num_items()
-        num_required_dirs = self.info_map_table.use_item_filter("required", "dirs").num_items()
+        num_files = self.info_map_table.num_items("all-files")
+        num_dirs = self.info_map_table.num_items("all-dirs")
+        num_required_files = self.info_map_table.num_items("required-files")
+        num_required_dirs = self.info_map_table.num_items("required-dirs")
         print("info map:", num_files, "files in", num_dirs, "folders")
         print("info map:", num_required_files, "required files, ", num_required_dirs, "required folders")
 
-        unrequired_files = self.info_map_table.use_item_filter("unrequired", "files").get_items()
+        unrequired_files = self.info_map_table.get_required_items(what="file", get_unrequired=True)
         print("unrequired files:")
         [print("    ", f.path) for f in unrequired_files]
-        unrequired_dirs = self.info_map_table.use_item_filter("unrequired", "dirs").get_items()
+        unrequired_files = self.info_map_table.get_required_items(what="dir",  get_unrequired=True)
         print("unrequired dirs:")
         [print("    ", d.path) for d in unrequired_dirs]
 

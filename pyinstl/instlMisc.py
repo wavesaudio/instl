@@ -157,7 +157,7 @@ class InstlMisc(InstlInstanceBase):
         self.progress_staccato_command = True
         bad_checksum_list = list()
         self.info_map_table.read_from_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
-        for file_item in self.info_map_table.get_items("all-files"):
+        for file_item in self.info_map_table.get_items(what="any"):
             if os.path.isfile(file_item.path):
                 file_checksum = utils.get_file_checksum(file_item.path)
                 if not utils.compare_checksums(file_checksum, file_item.checksum):
@@ -173,7 +173,7 @@ class InstlMisc(InstlInstanceBase):
     def do_set_exec(self):
         self.progress_staccato_command = True
         self.info_map_table.read_from_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
-        for file_item in self.info_map_table.get_items("exec-files"):
+        for file_item in self.info_map_table.get_exec_items(what="file"):
             if os.path.isfile(file_item.path):
                 file_stat = os.stat(file_item.path)
                 os.chmod(file_item.path, file_stat.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
@@ -182,7 +182,7 @@ class InstlMisc(InstlInstanceBase):
     def do_create_folders(self):
         self.progress_staccato_command = True
         self.info_map_table.read_from_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
-        for dir_item in self.info_map_table.get_items("all-dirs"):
+        for dir_item in self.info_map_table.get_items(what="dir"):
             utils.safe_makedirs(dir_item.path)
             self.dynamic_progress("Create folder {dir_item.path}".format(**locals()))
 

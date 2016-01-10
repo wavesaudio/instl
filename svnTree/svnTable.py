@@ -73,115 +73,20 @@ class SVNTable(object):
         self.write_func_by_format = {"text": self.write_as_text,}
         self.path_to_file = None
         self.comments = list()
-        self.legal_item_filters = ("all-items", "all-files", "all-dirs",
-                                   "required-items", "required-files", "required-dirs",
-                                   "unrequired-items", "unrequired-files", "unrequired-dirs",)
-        self.item_filter = "all"
         self.baked_queries_map = self.bake_baked_queries()
-
-    def use_item_filter(self, *new_item_filter):
-        combined_filter = "-".join(new_item_filter)
-        if combined_filter not in self.legal_item_filters:
-            raise ValueError(new_item_filter, "illegal item filter")
-        self.item_filter = combined_filter
-        return self
+        self.bakery = baked.bakery()
 
     def bake_baked_queries(self):
         """ prepare baked queries for later use
         """
-        bakery = baked.bakery()
         retVal = dict()
 
-        # all: return all items
-        retVal["all-items"] = bakery(lambda session: session.query(SVNRow))
-
-        # all-files: return all files
-        retVal["all-files"] = bakery(lambda session: session.query(SVNRow))
-        retVal["all-files"] += lambda q: q.filter(SVNRow.fileFlag==True)
-
-        # all-dirs: return all directories
-        retVal["all-dirs"] = bakery(lambda session: session.query(SVNRow))
-        retVal["all-dirs"] += lambda q: q.filter(SVNRow.fileFlag==False)
-
-        # dir-item: return specific item which should be a dir
-        retVal["any-item"] = bakery(lambda session: session.query(SVNRow))
-        retVal["any-item"] += lambda q: q.filter(SVNRow.path == bindparam('item_path'))
-
-        # dir-item: return specific item which should be a dir
-        retVal["dir-item"] = bakery(lambda session: session.query(SVNRow))
-        retVal["dir-item"] += lambda q: q.filter(SVNRow.path == bindparam('item_path'), SVNRow.fileFlag==False)
-
-        # dir-item: return specific item which should be a file
-        retVal["file-item"] = bakery(lambda session: session.query(SVNRow))
-        retVal["file-item"] += lambda q: q.filter(SVNRow.path == bindparam('item_path'), SVNRow.fileFlag==True)
-
-        # required-items: return all required files and dirs
-        retVal["required-items"] = bakery(lambda session: session.query(SVNRow))
-        retVal["required-items"] += lambda q: q.filter(SVNRow.required==True)
-
-        # required-files: return all required files
-        retVal["required-files"] = bakery(lambda session: session.query(SVNRow))
-        retVal["required-files"] += lambda q: q.filter(SVNRow.required==True, SVNRow.fileFlag==True)
-
-        # required-files: return all required dirs
-        retVal["required-dirs"] = bakery(lambda session: session.query(SVNRow))
-        retVal["required-dirs"] += lambda q: q.filter(SVNRow.required==True, SVNRow.fileFlag==False)
-
-        # unrequired-items: return all unrequired files and dirs
-        retVal["unrequired-items"] = bakery(lambda session: session.query(SVNRow))
-        retVal["unrequired-items"] += lambda q: q.filter(SVNRow.required==False)
-
-        # unrequired-files: return all unrequired files
-        retVal["unrequired-files"] = bakery(lambda session: session.query(SVNRow))
-        retVal["unrequired-files"] += lambda q: q.filter(SVNRow.required==False, SVNRow.fileFlag==True)
-
-        # unrequired-files: return all unrequired dirs
-        retVal["unrequired-dirs"] = bakery(lambda session: session.query(SVNRow))
-        retVal["unrequired-dirs"] += lambda q: q.filter(SVNRow.required==False, SVNRow.fileFlag==False)
-
-        # exec-file: return all executable files
-        retVal["exec-files"] = bakery(lambda session: session.query(SVNRow))
-        retVal["exec-files"] += lambda q: q.filter(SVNRow.fileFlag==True, SVNRow.flags.contains('x'))
-
-        # required-exec-files: return all required files that are executables
-        retVal["required-exec-files"] = bakery(lambda session: session.query(SVNRow))
-        retVal["required-exec-files"] += lambda q: q.filter(SVNRow.required==True, SVNRow.fileFlag==True, SVNRow.flags.contains('x'))
-
-        # all-required: return all required files and dirs
-        retVal["required-all"] = bakery(lambda session: session.query(SVNRow))
-        retVal["required-all"] += lambda q: q.filter(SVNRow.required==True)
-
-        # all-not-required: return all required files and dirs
-        retVal["unrequired-all"] = bakery(lambda session: session.query(SVNRow))
-        retVal["unrequired-all"] += lambda q: q.filter(SVNRow.required==False)
-
-        # need-download-files: return all files that need to be downloaded
-        retVal["need-download-files"] = bakery(lambda session: session.query(SVNRow))
-        retVal["need-download-files"] += lambda q: q.filter(SVNRow.need_download==True, SVNRow.fileFlag==True)
-
-        # need-download-files: return all files & dirs that need to be downloaded
-        retVal["need-download-all"] = bakery(lambda session: session.query(SVNRow))
-        retVal["need-download-all"] += lambda q: q.filter(SVNRow.need_download==True)
-
-        retVal["required-items-for-file"] = bakery(lambda session: session.query(SVNRow))
-        retVal["required-items-for-file"] += lambda q: q.filter(SVNRow.fileFlag==True)
-        retVal["required-items-for-file"] += lambda q: q.filter(or_(SVNRow.path == bindparam('file_path'), SVNRow.path.like(bindparam('file_path') + ".wtar%")))
-
-        retVal["dir-files-recursive"] = bakery(lambda session: session.query(SVNRow))
-        retVal["dir-files-recursive"] += lambda q: q.filter(SVNRow.fileFlag==True)
-        retVal["dir-files-recursive"] += lambda q: q.filter(SVNRow.path.like(bindparam('dir_path')+"/%"))
-        retVal["dir-files-recursive"] += lambda q: q.filter(SVNRow.level > bindparam('dir_level'))
-        retVal["dir-files-recursive"] += lambda q: q.filter(SVNRow.level <= bindparam('dir_level')+bindparam('levels_deep'))
-
-        retVal["dir-items-recursive"] = bakery(lambda session: session.query(SVNRow))
-        retVal["dir-items-recursive"] += lambda q: q.filter(SVNRow.path.like(bindparam('dir_path')+"/%"))
-        retVal["dir-items-recursive"] += lambda q: q.filter(SVNRow.level > bindparam('dir_level'))
-        retVal["dir-items-recursive"] += lambda q: q.filter(SVNRow.level <= bindparam('dir_level')+bindparam('levels_deep'))
+        # all queries are now baked just-in-time
 
         return retVal
 
     def __repr__(self):
-        return "\n".join([item.__repr__() for item in self.all_query(self.session).all()])
+        return "\n".join([item.__repr__() for item in self.get_items()])
 
     def repr_to_file(self, file_path):
         with open(file_path, "w") as wfd:
@@ -220,7 +125,6 @@ class SVNTable(object):
         insert_dicts = sorted([item_dict for item_dict in self.iter_svn_info(rfd)], key=lambda x: x['path'].split('/'))
         self.session.bulk_insert_mappings(SVNRow, insert_dicts)
 
-    @utils.timing
     def read_from_text_to_dict(self, in_rfd):
         retVal = list()
         for line in in_rfd:
@@ -238,12 +142,10 @@ class SVNTable(object):
         # self.session.bulk_insert_mappings(SVNRow, insert_dicts)
         self.engine.execute(SVNRow.__table__.insert(), insert_dicts)
 
-    @utils.timing
     def read_from_text(self, rfd):
         insert_dicts = self.read_from_text_to_dict(rfd)
         self.insert_dicts_to_db(insert_dicts)
 
-    @utils.timing
     def update_from_text(self, rfd, revision_is_local=True):
         """
         Update the db from a text file
@@ -290,6 +192,7 @@ class SVNTable(object):
             item_details['revision_remote'] = int(match.group('revision'))
             item_details['flags'] = match.group('flags')
             item_details['fileFlag'] = 'f' in item_details['flags']
+            item_details['dirFlag'] = 'd' in item_details['flags']
             item_details['checksum'] = match.group('checksum')
             item_details['url'] = match.group('url')
             item_details['size'] = int(match.group('size')) if match.group('size')  else -1
@@ -301,29 +204,29 @@ class SVNTable(object):
     def valid_write_formats(self):
         return list(self.write_func_by_format.keys())
 
-    def write_to_file(self, in_file, in_format="guess", comments=True, filter_name="all"):
+    def write_to_file(self, in_file, in_format="guess", comments=True, items_list=None):
         """ pass in_file="stdout" to output to stdout.
             in_format is either text, yaml, pickle
         """
 
-        filter_query = self.baked_queries_map[filter_name]
+        if items_list is None:
+            items_list = self.get_items()
         self.path_to_file = in_file
         if in_format == "guess":
             _, extension = os.path.splitext(self.path_to_file)
             in_format = map_info_extension_to_format[extension[1:]]
         if in_format in list(self.write_func_by_format.keys()):
             with utils.write_to_file_or_stdout(self.path_to_file) as wfd:
-                self.write_func_by_format[in_format](wfd, filter_query, comments)
+                self.write_func_by_format[in_format](wfd, items_list, comments)
         else:
             raise ValueError("Unknown write in_format " + in_format)
 
-    @utils.timing
-    def write_as_text(self, wfd, filter_query, comments=True):
+    def write_as_text(self, wfd, items_list, comments=True):
         if comments and len(self.comments) > 0:
             for comment in self.comments:
                 wfd.write("# " + comment + "\n")
             wfd.write("\n")
-        for item in filter_query(self.session).all():
+        for item in items_list:
             wfd.write(str(item) + "\n")
 
     def iter_svn_info(self, long_info_fd):
@@ -351,9 +254,11 @@ class SVNTable(object):
                 if a_record["Node Kind"] == "file":
                     retVal['flags'] = "f"
                     retVal['fileFlag'] = True
+                    retVal['dirFlag'] = False
                 elif a_record["Node Kind"] == "directory":
                     retVal['flags'] = "d"
                     retVal['fileFlag'] = False
+                    retVal['dirFlag'] = True
                 if "Last Changed Rev" in a_record:
                     retVal['revision_remote'] = int(a_record["Last Changed Rev"])
                 elif "Revision" in a_record:
@@ -407,6 +312,7 @@ class SVNTable(object):
             flags = "d"
         item_details['flags'] = flags
         item_details['fileFlag'] = 'f' in item_details['flags']
+        item_details['dirFlag'] = 'd' in item_details['flags']
         item_details['checksum'] = None
         item_details['url'] = None
         item_details['size'] = None
@@ -423,25 +329,25 @@ class SVNTable(object):
                     insert_dicts.append(self.item_dict_from_disk_item(in_folder, os.path.join(root, item)))
         self.insert_dicts_to_db(insert_dicts)
 
-    def num_items(self):
+    def num_items(self, item_filter="all-items"):
         retVal = 0
-        if self.item_filter == "all-items":
+        if item_filter == "all-items":
             retVal = self.session.query(SVNRow.path).count()
-        elif self.item_filter == "all-files":
+        elif item_filter == "all-files":
             retVal = self.session.query(SVNRow.path).filter(SVNRow.fileFlag == True).count()
-        elif self.item_filter == "all-dirs":
+        elif item_filter == "all-dirs":
             retVal = self.session.query(SVNRow.path).filter(SVNRow.fileFlag == False).count()
-        if self.item_filter == "required-items":
+        if item_filter == "required-items":
             retVal = self.session.query(SVNRow.path).filter(SVNRow.required == True).count()
-        elif self.item_filter == "required-files":
+        elif item_filter == "required-files":
             retVal = self.session.query(SVNRow.path).filter(SVNRow.fileFlag == True, SVNRow.required == True).count()
-        elif self.item_filter == "required-dirs":
+        elif item_filter == "required-dirs":
             retVal = self.session.query(SVNRow.path).filter(SVNRow.fileFlag == False, SVNRow.required == True).count()
-        if self.item_filter == "unrequired-item":
+        if item_filter == "unrequired-item":
             retVal = self.session.query(SVNRow.path).filter(SVNRow.required == False).count()
-        elif self.item_filter == "unrequired-files":
+        elif item_filter == "unrequired-files":
             retVal = self.session.query(SVNRow.path).filter(SVNRow.fileFlag == True, SVNRow.required == False).count()
-        elif self.item_filter == "unrequired-dirs":
+        elif item_filter == "unrequired-dirs":
             retVal = self.session.query(SVNRow.path).filter(SVNRow.fileFlag == False, SVNRow.required == False).count()
         return retVal
 
@@ -511,40 +417,147 @@ class SVNTable(object):
             print("Line:", line_num, ex)
             raise
 
-    def get_items(self):
+    def get_item(self, item_path, what="any"):
+        """ Get specific item or return None if not found
+        :param item_path: path to the item
+        :param what: either "any" (will return file or dir), "file", "dir
+        :return: item found or None
+        """
+        if what not in ("any", "file", "dir"):
+            raise ValueError(what+" not a valid filter for get_item")
+
+        # get_one_item query: return specific item which could be a dir or a file, used by get_item()
+        if "get_one_item" not in self.baked_queries_map:
+            self.baked_queries_map["get_one_item"] = self.bakery(lambda session: session.query(SVNRow))
+            self.baked_queries_map["get_one_item"] += lambda q: q.filter(SVNRow.path == bindparam('item_path'))
+            self.baked_queries_map["get_one_item"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.dirFlag == bindparam('dir')))
+
+        retVal = None
+        try:
+            want_file = what in ("any", "file")
+            want_dir = what in ("any", "dir")
+            retVal = self.baked_queries_map["get_one_item"](self.session).params(item_path=item_path, file=want_file, dir=want_dir).one()
+        except NoResultFound:
+            pass
+        return retVal
+
+    def get_items(self, what="any", levels_deep=1024):
         """
         get_items applies a filter and return all items
         :param filter_name: one of predefined baked queries, e.g.: "all-files", "all-dirs", "all-items"
         :return: all items returned by applying the filter called filter_name
         """
-        return self.baked_queries_map[self.item_filter](self.session).all()
+        if what not in ("any", "file", "dir"):
+            raise ValueError(what+" not a valid filter for get_item")
 
-    def get_item_at_path(self, item_path):
-        retVal = None
-        try:
-            retVal = self.baked_queries_map["any-item"](self.session).params(item_path=item_path).one()
-        except NoResultFound:
-            pass
+        # get_all_items: return all items either files dirs or both, used by get_items()
+        if "get_all_items" not in self.baked_queries_map:
+            self.baked_queries_map["get_all_items"] = self.bakery(lambda session: session.query(SVNRow))
+            self.baked_queries_map["get_all_items"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.dirFlag == bindparam('dir')))
+            self.baked_queries_map["get_all_items"] += lambda q: q.filter(SVNRow.level <= bindparam('levels_deep'))
+
+        want_file = what in ("any", "file")
+        want_dir = what in ("any", "dir")
+        retVal = self.baked_queries_map["get_all_items"](self.session).params(file=want_file, dir=want_dir, levels_deep=levels_deep).all()
         return retVal
 
-    def get_dir_item(self, dir_path):
-        try:
-            dir_item = self.baked_queries_map["dir-item"](self.session).params(item_path=dir_path).one()
-        except NoResultFound:
-            dir_item = None
-        return dir_item
+    def get_required_items(self, what="any", get_unrequired=False):
+        """
+        get_items applies a filter and return all items
+        :param filter_name: one of predefined baked queries, e.g.: "all-files", "all-dirs", "all-items"
+        :return: all items returned by applying the filter called filter_name
+        """
+        if what not in ("any", "file", "dir"):
+            raise ValueError(what+" not a valid filter for get_item")
 
-    def get_required_exec(self):
+        # get_required_items: return all required (or unrequired) items either files dirs or both, used by get_required_items()
+        if "get_required_items" not in self.baked_queries_map:
+            self.baked_queries_map["get_required_items"] = self.bakery(lambda session: session.query(SVNRow))
+            self.baked_queries_map["get_required_items"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.dirFlag == bindparam('dir')))
+            self.baked_queries_map["get_required_items"] += lambda q: q.filter(or_(SVNRow.required == bindparam('required')))
+
+        want_file = what in ("any", "file")
+        want_dir = what in ("any", "dir")
+        retVal = self.baked_queries_map["get_required_items"](self.session).params(required=not get_unrequired, file=want_file, dir=want_dir).all()
+        return retVal
+
+    def get_exec_items(self, what="any"):
+        """
+        get_items applies a filter and return all items
+        :param filter_name: one of predefined baked queries, e.g.: "all-files", "all-dirs", "all-items"
+        :return: all items returned by applying the filter called filter_name
+        """
+        if what not in ("any", "file", "dir"):
+            raise ValueError(what+" not a valid filter for get_item")
+
+        # get_exec_items: return all exec items either files dirs or both, used by get_exec_items()
+        if "get_exec_items" not in self.baked_queries_map:
+            self.baked_queries_map["get_exec_items"] = self.bakery(lambda session: session.query(SVNRow))
+            self.baked_queries_map["get_exec_items"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.dirFlag == bindparam('dir')))
+            self.baked_queries_map["get_exec_items"] += lambda q: q.filter(SVNRow.flags.contains('x'))
+
+        want_file = what in ("any", "file")
+        want_dir = what in ("any", "dir")
+        retVal = self.baked_queries_map["get_exec_items"](self.session).params(file=want_file, dir=want_dir).all()
+        return retVal
+
+    def get_required_exec_items(self, what="any"):
         """ :return: all required fies that are also exec
         """
-        retVal = self.baked_queries_map["required-exec-files"](self.session).all()
+        if what not in ("any", "file", "dir"):
+            raise ValueError(what+" not a valid filter for get_item")
+
+
+        # required-exec-files: return all required files that are executables, used by get_required_exec_items()
+        if "get_required_exec_items" not in self.baked_queries_map:
+            self.baked_queries_map["get_required_exec_items"] = self.bakery(lambda session: session.query(SVNRow))
+            self.baked_queries_map["get_required_exec_items"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.dirFlag == bindparam('dir')))
+            self.baked_queries_map["get_required_exec_items"] += lambda q: q.filter(SVNRow.required == True, SVNRow.flags.contains('x'))
+
+        want_file = what in ("any", "file")
+        want_dir = what in ("any", "dir")
+        retVal = self.baked_queries_map["get_required_exec_items"](self.session).params(file=want_file, dir=want_dir).all()
         return retVal
+
+    def get_download_items(self, what="any"):
+        """
+        get_items applies a filter and return all items
+        :param filter_name: one of predefined baked queries, e.g.: "all-files", "all-dirs", "all-items"
+        :return: all items returned by applying the filter called filter_name
+        """
+        if what not in ("any", "file", "dir"):
+            raise ValueError(what+" not a valid filter for get_item")
+
+        # get_exec_items: return all exec items either files dirs or both, used by get_exec_items()
+        if "get_download_items" not in self.baked_queries_map:
+            self.baked_queries_map["get_download_items"] = self.bakery(lambda session: session.query(SVNRow))
+            self.baked_queries_map["get_download_items"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.dirFlag == bindparam('dir')))
+            self.baked_queries_map["get_download_items"] += lambda q: q.filter(SVNRow.need_download == True)
+
+        want_file = what in ("any", "file")
+        want_dir = what in ("any", "dir")
+        retVal = self.baked_queries_map["get_download_items"](self.session).params(file=want_file, dir=want_dir).all()
+        return retVal
+
+    def get_to_download_files_and_size(self):
+        """
+        :return: a tuple: (a list of fies marked for download, their total size)
+        """
+        file_list = self.get_download_items(what="file")
+        total_size = reduce(lambda total, item: total + item.size, file_list, 0)
+        return file_list, total_size
 
     def get_required_for_file(self, file_path):
         """ get the item for a required file as or if file was wtarred
             get the wtar files.
         """
-        return self.baked_queries_map["required-items-for-file"](self.session).params(file_path=file_path).all()
+
+        if "required_items_for_file" not in self.baked_queries_map:
+            self.baked_queries_map["required_items_for_file"] = self.bakery(lambda session: session.query(SVNRow))
+            self.baked_queries_map["required_items_for_file"] += lambda q: q.filter(SVNRow.fileFlag==True)
+            self.baked_queries_map["required_items_for_file"] += lambda q: q.filter(or_(SVNRow.path == bindparam('file_path'), SVNRow.path.like(bindparam('file_path') + ".wtar%")))
+
+        return self.baked_queries_map["required_items_for_file"](self.session).params(file_path=file_path).all()
 
     def mark_required_for_file(self, file_path):
         """ mark a file as required or if file was wtarred
@@ -560,7 +573,7 @@ class SVNTable(object):
     def mark_required_for_files(self, parent_path):
         """ mark all files in parent_path as required.
         """
-        parent_item = self.baked_queries_map["dir-item"](self.session).params(item_path=parent_path).one()
+        parent_item = self.get_item(item_path=parent_path, what="dir")
         update_statement = update(SVNRow)\
             .where(SVNRow.level == parent_item.level+1)\
             .where(SVNRow.fileFlag == True)\
@@ -569,40 +582,38 @@ class SVNTable(object):
         results = self.session.execute(update_statement)
         return results.rowcount
 
-    def get_files_in_dir(self, dir_path, levels_deep=1024):
+    def get_items_in_dir(self, dir_path="", what="any", levels_deep=1024):
         """ get all files in dir_path.
             level_deep: how much to dig in. level_deep=1 will only get immediate files
+            :return: list of items in dir or empty list (if there aren't any) or None
+            if dir_path is not a dir
         """
         try:
-            dir_item = self.baked_queries_map["dir-item"](self.session).params(item_path=dir_path).one()
-            dir_items = self.baked_queries_map["dir-files-recursive"](self.session)\
-                .params(dir_path=dir_path, dir_level=dir_item.level, levels_deep=levels_deep)\
-                .all()
-            return dir_items
-        except NoResultFound:
-            print(dir_path, "was not found")
-            raise
+            if dir_path == "":
+                dir_items = self.get_items(what=what, levels_deep=levels_deep)
+            else:
+                dir_item = self.get_item(item_path=dir_path, what="dir")
 
-    def get_items_in_dir(self, dir_path, levels_deep=1024):
-        """ get all files in dir_path.
-            level_deep: how much to dig in. level_deep=1 will only get immediate files
-        """
-        try:
-            dir_item = self.baked_queries_map["dir-item"](self.session).params(item_path=dir_path).one()
-            dir_items = self.baked_queries_map["dir-items-recursive"](self.session)\
-                .params(dir_path=dir_path, dir_level=dir_item.level, levels_deep=levels_deep)\
-                .all()
+                if "dir_items_recursive" not in self.baked_queries_map:
+                    self.baked_queries_map["dir_items_recursive"] = self.bakery(lambda session: session.query(SVNRow))
+                    self.baked_queries_map["dir_items_recursive"] += lambda q: q.filter(SVNRow.path.like(bindparam('dir_path')+"/%"))
+                    self.baked_queries_map["dir_items_recursive"] += lambda q: q.filter(SVNRow.level > bindparam('dir_level'))
+                    self.baked_queries_map["dir_items_recursive"] += lambda q: q.filter(SVNRow.level <= bindparam('dir_level')+bindparam('levels_deep'))
+
+                dir_items = self.baked_queries_map["dir_items_recursive"](self.session)\
+                    .params(dir_path=dir_path, dir_level=dir_item.level, levels_deep=levels_deep)\
+                    .all()
             return dir_items
         except NoResultFound:
             print(dir_path, "was not found")
-            raise
+        return None
 
     def mark_required_for_dir(self, dir_path):
         """ mark all files & dirs in dir_path as required.
             marking is recursive.
         """
         try:
-            dir_item = self.baked_queries_map["dir-item"](self.session).params(item_path=dir_path).one()
+            dir_item = self.get_item(item_path=dir_path, what="dir")
             update_statement = update(SVNRow)\
                     .where(SVNRow.fileFlag == True)\
                     .where(SVNRow.level > dir_item.level)\
@@ -620,7 +631,7 @@ class SVNTable(object):
             :param source: a tuple (source_folder, tag), where tag is either !file or !dir
             :return: None
         """
-        source_path, source_type = source
+        source_path, source_type = source[0], source[1]
         num_required_files = 0
         if source_type in ('!dir', '!dir_cont'):  # !dir and !dir_cont are only different when copying
             num_required_files = self.mark_required_for_dir(source_path)
@@ -630,12 +641,11 @@ class SVNTable(object):
             num_required_files = self.mark_required_for_files(source_path)
         return num_required_files
 
-    @utils.timing
     def mark_required_completion(self):
         """ after some files were marked as required,
             mark their parent dirs are required as well
         """
-        required_file_items = self.baked_queries_map["required-files"](self.session).all()
+        required_file_items = self.get_required_items(what="file")
         ancestors = list()
         for file_item in required_file_items:
             ancestors.extend(file_item.get_ancestry()[:-1])
@@ -647,10 +657,9 @@ class SVNTable(object):
                 .values(required=True)
         self.session.execute(update_statement)
 
-    @utils.timing
     def mark_need_download(self, local_sync_dir):
         ancestors = list()
-        required_file_items = self.baked_queries_map["required-files"](self.session).all()
+        required_file_items = self.get_required_items(what="file")
         for file_item in required_file_items:
             local_path = os.path.join(local_sync_dir, file_item.path)
             if utils.need_to_download_file(local_path, file_item.checksum):
@@ -663,16 +672,6 @@ class SVNTable(object):
                     .values(need_download=True)
             self.session.execute(update_statement)
 
-    @utils.timing
-    def get_to_download_list_and_size(self):
-        """
-        :return: a tuple: (a list of fies marked for download, their total size)
-        """
-        file_list = self.baked_queries_map["need-download-files"](self.session).all()
-        total_size = reduce(lambda total, item: total + item.size, file_list, 0)
-        return file_list, total_size
-
-    @utils.timing
     def mark_required_for_revision(self, required_revision):
         """ mark all files and dirs as required if they are of specific revision
         """
@@ -683,67 +682,36 @@ class SVNTable(object):
         self.session.execute(update_statement)
         self.mark_required_completion()
 
-    @utils.timing
     def clear_required(self):
         update_statement = update(SVNRow)\
             .values(required=False)
         self.session.execute(update_statement)
 
-    @utils.timing
-    def get_unrequired_dirs(self):
-        """ get the item for a required file as or if file was wtarred
-            get the wtar files.
-        """
-        unrequired_dirs = [un_dir.path for un_dir in self.baked_queries_map["unrequired-dirs"](self.session).all()]
-        return unrequired_dirs
-
-    @utils.timing
-    def get_unrequired_files(self):
-        """ get the item for a required file as or if file was wtarred
-            get the wtar files.
-        """
-        return self.baked_queries_map["unrequired-files"](self.session).all()
-
-    @utils.timing
     def get_unrequired_paths_where_parent_required(self, what="files"):
         """ Get all unrequired items that have a parent that is required.
             This is a  trick to leave as on disk only folders that have siblings that are required.
             used in InstlAdmin.do_upload_to_s3_aws_for_revision
         """
+        if what not in ("any", "file", "dir"):
+            raise ValueError(what+" not a valid filter for get_item")
+
+        want_file = what in ("any", "file")
+        want_dir = what in ("any", "dir")
         get_files = what == "files"
         the_query = self.session.query(SVNRow.path)\
-            .filter(SVNRow.fileFlag == get_files,
+            .filter(SVNRow.fileFlag == want_file,
+                    SVNRow.dirFlag == want_dir,
                     SVNRow.required == False,
                     or_(SVNRow.parent.in_(\
                         self.session.query(SVNRow.path)\
-                            .filter(SVNRow.required==True, SVNRow.fileFlag==False)),\
+                            .filter(SVNRow.required==True, SVNRow.dirFlag==True)),\
                             SVNRow.parent == ""))
 
         unrequired_files = the_query.all()
 
         return [unrequired_file[0] for unrequired_file in unrequired_files]
 
-    @utils.timing
-    def mark_need_remove(self, local_sync_dir):
-        prefix_len = len(local_sync_dir)+1
-        files_checked = 0
-        for root, dirs, files in os.walk(local_sync_dir, followlinks=False):
-            try: dirs.remove("bookkeeping")
-            except: pass # todo: use FOLDER_EXCLUDE_REGEX
-            try: files.remove(".DS_Store")
-            except: pass  # todo: use FILE_EXCLUDE_REGEX
-            for disk_item in files:
-                files_checked += 1
-                item_full_path = os.path.join(root, disk_item)
-                item_partial_path = item_full_path[prefix_len:]
-                try:
-                    db_item = self.baked_queries_map["file-item"](self.session).params(item_path=item_partial_path).one()
-                except:
-                    print("remove!", item_partial_path)
-        print("files_checked", files_checked)
-
-    @utils.timing
     def min_max_revision(self):
-        max_revision = self.session.query(SVNRow, func.max(SVNRow.revision_remote)).scalar()
         min_revision = self.session.query(SVNRow, func.min(SVNRow.revision_remote)).scalar()
+        max_revision = self.session.query(SVNRow, func.max(SVNRow.revision_remote)).scalar()
         return min_revision.revision_remote, max_revision.revision_remote
