@@ -193,13 +193,13 @@ class InstallItem(object):
         self.description = str(my_node.start_mark)
 
     def read_from_yaml(self, my_node):
-        element_names = set([akey for akey in my_node.iterkeys()])
+        element_names = set([a_key for a_key in my_node.iterkeys()])
         if not element_names.issubset(self.allowed_top_level_keys):
             raise KeyError("illegal keys {}; IID: {}, {}".format(list(element_names.difference(self.allowed_top_level_keys)), self.iid, self.description))
 
         if 'inherit' in my_node:
-            inherite_node = my_node['inherit']
-            for inheritoree in inherite_node:
+            inherit_node = my_node['inherit']
+            for inheritoree in inherit_node:
                 self.add_inherit(inheritoree.value)
         if 'name' in my_node:
             self.name = my_node['name'].value
