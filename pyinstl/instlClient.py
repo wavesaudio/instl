@@ -7,7 +7,7 @@ import time
 from collections import OrderedDict, defaultdict
 
 import utils
-from installItem import InstallItem, guid_list, iids_from_guid
+from installItem import InstallItem, guid_list, iids_from_guids
 import aYaml
 from instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
@@ -62,7 +62,7 @@ class InstallInstructionsState(object):
         root_install_iids_translated = utils.unique_list()
         for IID in self.root_install_items:
             # if IID is a guid iids_from_guid will translate to iid's, or return the IID otherwise
-            iids_from_the_guid = iids_from_guid(instlObj.install_definitions_index, IID)
+            iids_from_the_guid = iids_from_guids(instlObj.install_definitions_index, (IID,))
             if len(iids_from_the_guid) > 0:
                 root_install_iids_translated.extend(iids_from_the_guid)
             else:
