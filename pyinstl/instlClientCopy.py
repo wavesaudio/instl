@@ -188,7 +188,7 @@ def create_copy_instructions_for_dir_cont(self, source_path, name_for_progress_m
                                                                                 preserve_dest_files=True)  # preserve files already in destination
     self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
 
-    source_items = self.info_map_table.get_files_in_dir(source_path)
+    source_items = self.info_map_table.get_items_in_dir(source_path)
     num_items_to_unwtar = 0
     for source_item in source_items:
         self.bytes_to_copy += self.calc_size_of_file_item(source_item)
@@ -223,7 +223,7 @@ def create_copy_instructions_for_dir(self, source_path, name_for_progress_messag
                                                                            link_dest=True,
                                                                            ignore=self.ignore_list)
         self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
-        source_items = self.info_map_table.get_files_in_dir(source_path)
+        source_items = self.info_map_table.get_items_in_dir(source_path, what="file")
         num_items_to_unwtar = 0
         for source_item in source_items:
             self.bytes_to_copy += self.calc_size_of_file_item(source_item)
@@ -255,7 +255,7 @@ def create_copy_instructions_for_source(self, source, name_for_progress_message)
 
 # special handling when running on Mac OS
 def pre_copy_mac_handling(self):
-    required_and_exec = self.info_map_table.get_required_exec()
+    required_and_exec = self.info_map_table.get_required_exec_items(what="file")
     num_files_to_set_exec = len(required_and_exec)
     if num_files_to_set_exec > 0:
         self.batch_accum += self.platform_helper.set_exec_for_folder(self.have_map.path_to_file)

@@ -22,11 +22,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.local_sync_dir = var_stack.resolve("$(LOCAL_REPO_SYNC_DIR)")
 
     def create_sync_folders(self):
-        self.instlObj.batch_accum += self.instlObj.platform_helper.progress( "Starting sync from $(SYNC_BASE_URL)")
-        self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir("$(LOCAL_REPO_SYNC_DIR)")
-        self.instlObj.batch_accum += self.instlObj.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")
-        self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
-
         self.instlObj.batch_accum += self.instlObj.platform_helper.create_folders("$(TO_SYNC_INFO_MAP_PATH)")
         # todo: fix create_folders call, from which info_map it will read?
         # self.instlObj.platform_helper.num_items_for_progress_report += num_dirs_to_create
@@ -85,6 +80,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 file_item = self.instlObj.info_map_table.get_item(item_path=item_partial_path, what="file")
                 if file_item is None:  # file was not found in info_map
                     self.instlObj.batch_accum += self.instlObj.platform_helper.rmfile(item_full_path)
+                    self.instlObj.batch_accum += self.instlObj.platform_helper.progress("removed redundant file "+item_full_path)
 
     def create_download_instructions(self):
         """ remove files in sync folder that do not appear in the info map table
@@ -109,13 +105,19 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.create_curl_download_instructions()
         self.create_check_checksum_instructions(file_list)
 
-        self.instlObj.batch_accum += self.instlObj.platform_helper.popd()
-
     def create_sync_instructions(self, installState):
         super(InstlInstanceSync_url, self).create_sync_instructions(installState)
         self.prepare_list_of_sync_items()
+
+        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Starting sync from $(SYNC_BASE_URL)")
+        self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir("$(LOCAL_REPO_SYNC_DIR)")
+        self.instlObj.batch_accum += self.instlObj.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")
+        self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
+
         self.create_remove_unwanted_files_in_sync_folder_instructions()
         self.create_download_instructions()
         self.instlObj.batch_accum.set_current_section('post-sync')
         self.instlObj.batch_accum += self.instlObj.platform_helper.copy_file_to_file("$(NEW_HAVE_INFO_MAP_PATH)",
                                                                                      "$(HAVE_INFO_MAP_PATH)")
+
+        self.instlObj.batch_accum += self.instlObj.platform_helper.popd()
