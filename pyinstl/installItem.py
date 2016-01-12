@@ -6,8 +6,8 @@ from __future__ import print_function
     information include:
         iid - must be unique amongst all InstallItems.
         name - description for log and errors messages has no bering on the installation.
-        guid - a standard 36 character guid. Can be used as additional identification.
-        Several iids can share the same guid.
+        guids - a standard 36 character guid. Can be used as additional identification
+        Several iids can share the same guid, same iid can have several guids.
         remark - remarks for human consumption has no bering on the installation.
         description - auto generated, usually the file and line from which the item was read.
         inherit - iids of other InstallItems to inherit from.
@@ -87,7 +87,7 @@ def read_index_from_yaml(all_items_node):
     retVal = dict()
     for IID in all_items_node.iterkeys():
         if IID in retVal:
-            pass  # print(IID, "already in all_items_node")
+            print(IID, "found more than once in index")
         else:
             # print(IID, "not in all_items_node")
             item = InstallItem()
@@ -97,7 +97,7 @@ def read_index_from_yaml(all_items_node):
 
 
 class InstallItem(object):
-    __slots__ = ('iid', 'name', 'guid',
+    __slots__ = ('iid', 'name', '__guids',
                  'remark', "description", 'inherit',
                  '__set_for_os', '__items', '__resolved_inherit',
                  'var_list', 'required_by', '__user_data')
@@ -169,12 +169,13 @@ class InstallItem(object):
     def merge_all_item_sections(self, otherInstallItem):
         for os_ in InstallItem.os_names:
             InstallItem.merge_item_sections(self.__items[os_], otherInstallItem.__items[os_])
+        self.__guids.extend(otherInstallItem.guids)
 
     def __init__(self):
         self.__resolved_inherit = False
         self.iid = None
         self.name = ""
-        self.guid = None
+        self.__guids = utils.unique_list()
         self.remark = ""
         self.description = ""
         self.inherit = utils.unique_list()
@@ -193,18 +194,19 @@ class InstallItem(object):
         self.description = str(my_node.start_mark)
 
     def read_from_yaml(self, my_node):
-        element_names = set([akey for akey in my_node.iterkeys()])
+        element_names = set([a_key for a_key in my_node.iterkeys()])
         if not element_names.issubset(self.allowed_top_level_keys):
             raise KeyError("illegal keys {}; IID: {}, {}".format(list(element_names.difference(self.allowed_top_level_keys)), self.iid, self.description))
 
         if 'inherit' in my_node:
-            inherite_node = my_node['inherit']
-            for inheritoree in inherite_node:
+            inherit_node = my_node['inherit']
+            for inheritoree in inherit_node:
                 self.add_inherit(inheritoree.value)
         if 'name' in my_node:
             self.name = my_node['name'].value
         if 'guid' in my_node:
-            self.guid = my_node['guid'].value.lower()
+            for source in my_node['guid']:
+                self.__guids.append(source.value.lower())
         if 'remark' in my_node:
             self.remark = my_node['remark'].value
         if 'install_sources' in my_node:
@@ -230,8 +232,8 @@ class InstallItem(object):
             self.var_list.set_var("iid_iid").append(self.iid)
             if self.name:
                 self.var_list.set_var("iid_name").append(self.name)
-            if self.guid:
-                self.var_list.set_var("iid_guid").append(self.guid)
+            for a_guid in self.__guids:
+                self.var_list.get_configVar_obj("iid_guid").append(a_guid)
             if self.remark:
                 self.var_list.set_var("iid_remark").append(self.remark)
             self.var_list.set_var("iid_inherit").extend(self._inherit_list())
@@ -321,6 +323,8 @@ class InstallItem(object):
         return self.__get_item_list_for_default_oses_by_category('install_folders')
 
     def add_depend(self, new_depend):
+        if not new_depend:
+            raise ValueError("new_depend cannot be null")
         self.__add_item_to_default_os_by_category('depends', new_depend)
 
     def _depend_list(self):
@@ -367,7 +371,7 @@ class InstallItem(object):
             for depend in self._depend_list():
                 try:
                     # if IID is a guid iids_from_guid will translate to iid's, or return the IID otherwise
-                    dependees = iids_from_guid(items_map, depend)
+                    dependees = iids_from_guids(items_map, (depend,))
                     for dependee in dependees:
                         items_map[dependee].required_by.append(self.iid)
                         if dependee not in out_set:  # avoid cycles, save time
@@ -403,8 +407,8 @@ class InstallItem(object):
     def repr_for_yaml(self):
         retVal = OrderedDict()
         retVal['name'] = self.name
-        if self.guid:
-            retVal['guid'] = self.guid
+        if self.__guids:
+            retVal['guid'] = self.__guids
         if self.remark:
             retVal['remark'] = self.remark
         if self.inherit:
@@ -424,7 +428,7 @@ class InstallItem(object):
         """ merge the contents of another InstallItem """
         # self.iid = iid is not merged
         # self.name = name is not merged
-        # self.guid = guid is not merged
+        # self.__guids = guid is not merged
         # name of the other item is added to the remark
         if not self.remark:
             self.remark = self.name
@@ -445,6 +449,9 @@ class InstallItem(object):
                 self.merge_all_item_sections(ancestor_item)
             self.resolve_inheritance_stack.pop()
 
+    @property
+    def guids(self):
+        return self.__guids
 
     @property
     def user_data(self):
@@ -459,19 +466,21 @@ class InstallItem(object):
 
 def guid_list(items_map):
     retVal = utils.unique_list()
-    retVal.extend(list(filter(bool, [install_def.guid for install_def in list(items_map.values())])))
+    for install_def in items_map.values():
+        retVal.extend(filter(bool, install_def.guids))
     return retVal
 
 
-def iids_from_guid(items_map, guid_or_iid):
+def iids_from_guids(items_map, guids_or_iids):
     """ guid_or_iid might be a guid or normal IID
         if it's a guid return all IIDs that have this gui
         if it's not return the IID itself. """
     retVal = list()
-    if utils.guid_re.match(guid_or_iid.lower()):  # it's a guid, get iids for all items with that guid
-        for iid, install_def in items_map.iteritems():
-            if install_def.guid == guid_or_iid.lower():
-                retVal.append(iid)
-    else:
-        retVal.append(guid_or_iid)  # it's a regular iid, not a guid, no need to lower case
+    for guid_or_iid in guids_or_iids:
+        if utils.guid_re.match(guid_or_iid.lower()):  # it's a guid, get iids for all items with that guid
+            for iid, install_def in items_map.iteritems():
+                    if guid_or_iid.lower() in install_def.guids:
+                        retVal.append(iid)
+        else:
+            retVal.append(guid_or_iid)  # it's a regular iid, not a guid, no need to lower case
     return retVal

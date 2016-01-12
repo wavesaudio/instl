@@ -48,7 +48,7 @@ class InstlInstanceSync_svn(InstlInstanceSync):
 
     def create_svn_sync_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
-        source_path, source_type = source
+        source_path, source_type = source[0], source[1]
         retVal = list()
         source_url = '/'.join(("$(SYNC_BASE_URL)", source_path))
         target_path = '/'.join(("$(REL_SRC_PATH)", source_path))

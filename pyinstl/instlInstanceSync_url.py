@@ -3,7 +3,6 @@ from __future__ import print_function
 
 import os
 
-import svnTree
 import utils
 from instlInstanceSyncBase import InstlInstanceSync
 from batchAccumulator import BatchAccumulator
@@ -23,11 +22,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.local_sync_dir = var_stack.resolve("$(LOCAL_REPO_SYNC_DIR)")
 
     def create_sync_folders(self):
-        self.instlObj.batch_accum += self.instlObj.platform_helper.progress( "Starting sync from $(SYNC_BASE_URL)")
-        self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir("$(LOCAL_REPO_SYNC_DIR)")
-        self.instlObj.batch_accum += self.instlObj.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")
-        self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
-
         self.instlObj.batch_accum += self.instlObj.platform_helper.create_folders("$(TO_SYNC_INFO_MAP_PATH)")
         # todo: fix create_folders call, from which info_map it will read?
         # self.instlObj.platform_helper.num_items_for_progress_report += num_dirs_to_create
@@ -68,10 +62,32 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Check checksum done")
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
+    @utils.timing
+    def create_remove_unwanted_files_in_sync_folder_instructions(self):
+        """ Remove files in the sync folder that are not in info_map
+        """
+        prefix_len = len(self.local_sync_dir)+1
+        files_checked = 0
+        for root, dirs, files in os.walk(self.local_sync_dir, followlinks=False):
+            try: dirs.remove("bookkeeping")
+            except: pass # todo: use FOLDER_EXCLUDE_REGEX
+            try: files.remove(".DS_Store")
+            except: pass  # todo: use FILE_EXCLUDE_REGEX
+            for disk_item in files:
+                files_checked += 1
+                item_full_path = os.path.join(root, disk_item)
+                item_partial_path = item_full_path[prefix_len:]
+                file_item = self.instlObj.info_map_table.get_item(item_path=item_partial_path, what="file")
+                if file_item is None:  # file was not found in info_map
+                    self.instlObj.batch_accum += self.instlObj.platform_helper.rmfile(item_full_path)
+                    self.instlObj.batch_accum += self.instlObj.platform_helper.progress("removed redundant file "+item_full_path)
+
     def create_download_instructions(self):
+        """ remove files in sync folder that do not appear in the info map table
+        """
         self.instlObj.batch_accum.set_current_section('sync')
 
-        file_list, bytes_to_sync = self.instlObj.info_map_table.get_to_download_list_and_size()
+        file_list, bytes_to_sync = self.instlObj.info_map_table.get_to_download_files_and_size()
         var_stack.add_const_config_variable("__NUM_FILES_TO_DOWNLOAD__", "create_download_instructions", len(file_list))
         var_stack.add_const_config_variable("__NUM_BYTES_TO_DOWNLOAD__", "create_download_instructions", bytes_to_sync)
 
@@ -89,12 +105,19 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.create_curl_download_instructions()
         self.create_check_checksum_instructions(file_list)
 
-        self.instlObj.batch_accum += self.instlObj.platform_helper.popd()
-
     def create_sync_instructions(self, installState):
         super(InstlInstanceSync_url, self).create_sync_instructions(installState)
         self.prepare_list_of_sync_items()
+
+        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Starting sync from $(SYNC_BASE_URL)")
+        self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir("$(LOCAL_REPO_SYNC_DIR)")
+        self.instlObj.batch_accum += self.instlObj.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")
+        self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
+
+        self.create_remove_unwanted_files_in_sync_folder_instructions()
         self.create_download_instructions()
         self.instlObj.batch_accum.set_current_section('post-sync')
         self.instlObj.batch_accum += self.instlObj.platform_helper.copy_file_to_file("$(NEW_HAVE_INFO_MAP_PATH)",
                                                                                      "$(HAVE_INFO_MAP_PATH)")
+
+        self.instlObj.batch_accum += self.instlObj.platform_helper.popd()

@@ -18,6 +18,7 @@ class SVNRow(alchemy_base):
     flags = Column(String)
     revision_remote = Column(Integer, default=0)
     fileFlag = Column(BOOLEAN, default=False)
+    dirFlag = Column(BOOLEAN, default=False)
     checksum = Column(String(40), default=None)
     size = Column(Integer, default=-1)
     url = Column(String, default=None)
@@ -27,11 +28,11 @@ class SVNRow(alchemy_base):
 
     def __repr__(self):
         return ("<{self.level}, {self.path}, '{self.flags}'"
-                ", rev-remote:{self.revision_remote}, f:{self.fileFlag}"
+                ", rev-remote:{self.revision_remote}, f:{self.fileFlag}, d:{self.dirFlag}"
                 ", checksum:{self.checksum}, size:{self.size}"
                 ", url:{self.url}"
-                ", required:{self.required}, need_download:{self.need_download}>"
-                ", extra_props:{self.extra_props}, parent:{self.parent}"
+                ", required:{self.required}, need_download:{self.need_download}"
+                ", extra_props:{self.extra_props}, parent:{self.parent}>"
                 ).format(**locals())
 
     def __str__(self):
@@ -57,7 +58,7 @@ class SVNRow(alchemy_base):
         return ancestry
 
     def isDir(self):
-        return not self.fileFlag
+        return self.dirFlag
 
     def isFile(self):
         return self.fileFlag

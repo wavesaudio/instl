@@ -386,7 +386,7 @@ class InstlInstanceBase(object):
         return retVal
 
     def relative_sync_folder_for_source(self, source):
-        source_path, source_type, _ = source
+        source_path, source_type = source[0], source[1]
         if source_type in ('!dir', '!file'):
             retVal = "/".join(source_path.split("/")[0:-1])
         elif source_type in ('!dir_cont', '!files'):

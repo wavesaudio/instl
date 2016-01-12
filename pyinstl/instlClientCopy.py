@@ -4,10 +4,8 @@ from __future__ import print_function
 
 import os
 
-import svnTree
 import utils
 from configVar import var_stack
-from functools import reduce
 
 
 def do_copy(self):
@@ -24,10 +22,8 @@ def init_copy_vars(self):
     self.wtar_ratio = 1.3 # ratio between wtar file and it's uncompressed contents
     if "WTAR_RATIO" in var_stack:
         self.wtar_ratio = float(var_stack.resolve("$(WTAR_RATIO)"))
-    self.is_wtar_item = svnTree.WtarFilter() # will return true for any wtar file
     self.calc_user_cache_dir_var() # this will set USER_CACHE_DIR if it was not explicitly defined
     self.ignore_list = var_stack.resolve_to_list("$(COPY_IGNORE_PATTERNS)")
-
 
 
 def write_copy_debug_info(self):
@@ -44,11 +40,13 @@ def write_copy_debug_info(self):
 
 def create_copy_instructions(self):
     self.write_copy_debug_info()
-    # read HAVE_INFO_MAP_FOR_COPY which is be default HAVE_INFO_MAP_PATH.
+    # If we got here while in synccopy command, there is no need to read the info map again.
+    # If we got here while in copy command, read HAVE_INFO_MAP_FOR_COPY which is be default HAVE_INFO_MAP_PATH.
     # Copy might be called after the sync batch file was created
     # but before it was executed in which case HAVE_INFO_MAP_FOR_COPY will be defined to NEW_HAVE_INFO_MAP_PATH.
-    have_info_path = var_stack.resolve("$(HAVE_INFO_MAP_FOR_COPY)")
-    self.info_map_table.read_from_file(have_info_path, a_format="text")
+    if len(self.info_map_table.files_read_list) == 0:
+        have_info_path = var_stack.resolve("$(HAVE_INFO_MAP_FOR_COPY)")
+        self.info_map_table.read_from_file(have_info_path, a_format="text")
 
     # copy and actions instructions for sources
     self.batch_accum.set_current_section('copy')
@@ -191,7 +189,7 @@ def create_copy_instructions_for_dir_cont(self, source_path, name_for_progress_m
                                                                                 preserve_dest_files=True)  # preserve files already in destination
     self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
 
-    source_items = self.info_map_table.get_files_in_dir(source_path)
+    source_items = self.info_map_table.get_items_in_dir(source_path)
     num_items_to_unwtar = 0
     for source_item in source_items:
         self.bytes_to_copy += self.calc_size_of_file_item(source_item)
@@ -219,14 +217,14 @@ def create_copy_instructions_for_files(self, source_path, name_for_progress_mess
 
 
 def create_copy_instructions_for_dir(self, source_path, name_for_progress_message):
-    dir_item = self.info_map_table.get_dir_item(source_path)
+    dir_item = self.info_map_table.get_item(source_path, what="dir")
     if dir_item is not None:
         source_path_abs = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + source_path)
         self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path_abs, ".",
                                                                            link_dest=True,
                                                                            ignore=self.ignore_list)
         self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
-        source_items = self.info_map_table.get_files_in_dir(source_path)
+        source_items = self.info_map_table.get_items_in_dir(source_path, what="file")
         num_items_to_unwtar = 0
         for source_item in source_items:
             self.bytes_to_copy += self.calc_size_of_file_item(source_item)
@@ -258,11 +256,12 @@ def create_copy_instructions_for_source(self, source, name_for_progress_message)
 
 # special handling when running on Mac OS
 def pre_copy_mac_handling(self):
-    required_and_exec = self.info_map_table.get_required_exec()
+    required_and_exec = self.info_map_table.get_required_exec_items(what="file")
     num_files_to_set_exec = len(required_and_exec)
     if num_files_to_set_exec > 0:
-        self.batch_accum += self.platform_helper.set_exec_for_folder(self.have_map.path_to_file)
         self.batch_accum += self.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")
+        have_info_path = var_stack.resolve("$(REQUIRED_INFO_MAP_PATH)")
+        self.batch_accum += self.platform_helper.set_exec_for_folder(have_info_path)
         self.platform_helper.num_items_for_progress_report += num_files_to_set_exec
         self.batch_accum += self.platform_helper.progress("Set exec done")
         self.batch_accum += self.platform_helper.new_line()

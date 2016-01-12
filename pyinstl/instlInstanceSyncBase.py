@@ -21,7 +21,6 @@ class InstlInstanceSync(object):
     """
     __metaclass__ = abc.ABCMeta
 
-
     def __init__(self, instlObj):
         self.instlObj = instlObj  # instance of the instl application
         self.installState = None  # object holding batch instructions
@@ -81,7 +80,9 @@ class InstlInstanceSync(object):
                     source = var_stack.resolve_var_to_list(source_var)
                     self.instlObj.info_map_table.mark_required_for_source(source)
         self.instlObj.info_map_table.mark_required_completion()
-        self.instlObj.info_map_table.write_to_file(var_stack.resolve("$(REQUIRED_INFO_MAP_PATH)"),  filter_name="all-required", in_format="text")
+        required_file_path = var_stack.resolve("$(REQUIRED_INFO_MAP_PATH)")
+        required_items_list = self.instlObj.info_map_table.get_required_items()
+        self.instlObj.info_map_table.write_to_file(in_file=required_file_path, items_list=required_items_list)
 
     def mark_download_items(self):
         """" Mark those files that need to be downloaded.
@@ -89,7 +90,9 @@ class InstlInstanceSync(object):
              the files that exists and have correct checksum.
         """
         self.instlObj.info_map_table.mark_need_download(self.local_sync_dir)
-        self.instlObj.info_map_table.write_to_file(var_stack.resolve("$(TO_SYNC_INFO_MAP_PATH)"), filter_name="need-download-all")
+        need_download_file_path = var_stack.resolve("$(TO_SYNC_INFO_MAP_PATH)")
+        need_download_items_list = self.instlObj.info_map_table.get_download_items()
+        self.instlObj.info_map_table.write_to_file(in_file=need_download_file_path, items_list=need_download_items_list)
 
     # syncers that download from urls (url, boto) need to prepare a list of all the individual files that need updating.
     # syncers that use configuration management tools (p4, svn) do not need since the tools takes care of that.
@@ -97,4 +100,3 @@ class InstlInstanceSync(object):
         self.read_remote_info_map()  # reads the full info map from INFO_MAP_FILE_URL and writes it to the sync folder
         self.mark_required_items()  # removes items not required to be installed
         self.mark_download_items()  # removes items that are already on the user's disk
-        self.instlObj.info_map_table.mark_need_remove(self.local_sync_dir)
