@@ -87,7 +87,7 @@ def read_index_from_yaml(all_items_node):
     retVal = dict()
     for IID in all_items_node.iterkeys():
         if IID in retVal:
-            pass  # print(IID, "already in all_items_node")
+            print(IID, "found more than once in index")
         else:
             # print(IID, "not in all_items_node")
             item = InstallItem()
