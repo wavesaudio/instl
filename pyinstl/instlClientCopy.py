@@ -26,7 +26,6 @@ def init_copy_vars(self):
     self.ignore_list = var_stack.resolve_to_list("$(COPY_IGNORE_PATTERNS)")
 
 
-
 def write_copy_debug_info(self):
     try:
         if var_stack.defined('ECHO_LOG_FILE'):
@@ -41,11 +40,13 @@ def write_copy_debug_info(self):
 
 def create_copy_instructions(self):
     self.write_copy_debug_info()
-    # read HAVE_INFO_MAP_FOR_COPY which is be default HAVE_INFO_MAP_PATH.
+    # If we got here while in synccopy command, there is no need to read the info map again.
+    # If we got here while in copy command, read HAVE_INFO_MAP_FOR_COPY which is be default HAVE_INFO_MAP_PATH.
     # Copy might be called after the sync batch file was created
     # but before it was executed in which case HAVE_INFO_MAP_FOR_COPY will be defined to NEW_HAVE_INFO_MAP_PATH.
-    have_info_path = var_stack.resolve("$(HAVE_INFO_MAP_FOR_COPY)")
-    self.info_map_table.read_from_file(have_info_path, a_format="text")
+    if len(self.info_map_table.files_read_list) == 0:
+        have_info_path = var_stack.resolve("$(HAVE_INFO_MAP_FOR_COPY)")
+        self.info_map_table.read_from_file(have_info_path, a_format="text")
 
     # copy and actions instructions for sources
     self.batch_accum.set_current_section('copy')
@@ -258,8 +259,9 @@ def pre_copy_mac_handling(self):
     required_and_exec = self.info_map_table.get_required_exec_items(what="file")
     num_files_to_set_exec = len(required_and_exec)
     if num_files_to_set_exec > 0:
-        self.batch_accum += self.platform_helper.set_exec_for_folder(self.have_map.path_to_file)
         self.batch_accum += self.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")
+        have_info_path = var_stack.resolve("$(REQUIRED_INFO_MAP_PATH)")
+        self.batch_accum += self.platform_helper.set_exec_for_folder(have_info_path)
         self.platform_helper.num_items_for_progress_report += num_files_to_set_exec
         self.batch_accum += self.platform_helper.progress("Set exec done")
         self.batch_accum += self.platform_helper.new_line()

@@ -31,8 +31,8 @@ class SVNRow(alchemy_base):
                 ", rev-remote:{self.revision_remote}, f:{self.fileFlag}, d:{self.dirFlag}"
                 ", checksum:{self.checksum}, size:{self.size}"
                 ", url:{self.url}"
-                ", required:{self.required}, need_download:{self.need_download}>"
-                ", extra_props:{self.extra_props}, parent:{self.parent}"
+                ", required:{self.required}, need_download:{self.need_download}"
+                ", extra_props:{self.extra_props}, parent:{self.parent}>"
                 ).format(**locals())
 
     def __str__(self):

@@ -71,7 +71,8 @@ class SVNTable(object):
                                     }
 
         self.write_func_by_format = {"text": self.write_as_text,}
-        self.path_to_file = None
+        self.files_read_list = list()
+        self.files_written_list = list()
         self.comments = list()
         self.baked_queries_map = self.bake_baked_queries()
         self.bakery = baked.bakery()
@@ -102,16 +103,16 @@ class SVNTable(object):
             the properties are added to existing sub items.
             raises ValueError is a_format is not supported.
         """
-        self.path_to_file = in_file
         if a_format == "guess":
-            _, extension = os.path.splitext(self.path_to_file)
+            _, extension = os.path.splitext(in_file)
             a_format = map_info_extension_to_format[extension[1:]]
-        self.comments.append("Original file " + self.path_to_file)
+        self.comments.append("Original file " + in_file)
         if a_format in list(self.read_func_by_format.keys()):
-            with utils.open_for_read_file_or_url(self.path_to_file) as rfd:
+            with utils.open_for_read_file_or_url(in_file) as rfd:
                 if a_format not in ("props", "file-sizes"):
                     self.clear_all()
                 self.read_func_by_format[a_format](rfd)
+                self.files_read_list.append(in_file)
         else:
             raise ValueError("Unknown read a_format " + a_format)
 
@@ -211,13 +212,13 @@ class SVNTable(object):
 
         if items_list is None:
             items_list = self.get_items()
-        self.path_to_file = in_file
         if in_format == "guess":
-            _, extension = os.path.splitext(self.path_to_file)
+            _, extension = os.path.splitext(in_file)
             in_format = map_info_extension_to_format[extension[1:]]
         if in_format in list(self.write_func_by_format.keys()):
-            with utils.write_to_file_or_stdout(self.path_to_file) as wfd:
+            with utils.write_to_file_or_stdout(in_file) as wfd:
                 self.write_func_by_format[in_format](wfd, items_list, comments)
+                self.files_written_list.append(in_file)
         else:
             raise ValueError("Unknown write in_format " + in_format)
 
