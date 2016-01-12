@@ -370,7 +370,7 @@ class InstallItem(object):
             # print("get_recursive_depends: added", self.iid)
             for depend in self._depend_list():
                 try:
-                    # if IID is a guid iids_from_guid will translate to iid's, or return the IID otherwise
+                    # if IID is a guid, iids_from_guids will translate to iid's, or return the IID otherwise
                     dependees = iids_from_guids(items_map, (depend,))
                     for dependee in dependees:
                         items_map[dependee].required_by.append(self.iid)

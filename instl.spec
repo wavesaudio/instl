@@ -34,6 +34,8 @@ for defaults_file in os.listdir(instl_defaults_path):
     if fnmatch.fnmatch(defaults_file, '*.yaml'):
         a.datas += [("defaults/"+defaults_file, os.path.join(instl_defaults_path, defaults_file), "DATA")]
 
+PyInstallerVersion = HOMEPATH.split("/")[-1]
+
 compile_info_path = os.path.join("build", "compile-info.yaml")
 with open(compile_info_path, "w") as wfd:
     wfd.write(
@@ -42,8 +44,8 @@ with open(compile_info_path, "w") as wfd:
 __COMPILATION_TIME__: {}
 __SOCKET_HOSTNAME__: {}
 __PLATFORM_NODE__: {}
-__PYTHON_COMPILER__: PyInstaller-3.0
-""".format(str(datetime.datetime.now()), socket.gethostname(), platform.node()))
+__PYTHON_COMPILER__: {}
+""".format(str(datetime.datetime.now()), socket.gethostname(), platform.node(), PyInstallerVersion))
 a.datas += [("defaults/compile-info.yaml", compile_info_path, "DATA")]
 
 instl_help_path = os.path.join("help")
