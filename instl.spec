@@ -6,6 +6,7 @@ import fnmatch
 import platform
 import socket
 import datetime
+import re
 
 block_cipher = None
 
@@ -34,7 +35,7 @@ for defaults_file in os.listdir(instl_defaults_path):
     if fnmatch.fnmatch(defaults_file, '*.yaml'):
         a.datas += [("defaults/"+defaults_file, os.path.join(instl_defaults_path, defaults_file), "DATA")]
 
-PyInstallerVersion = HOMEPATH.split("/")[-1]
+PyInstallerVersion =  re.split(r'[~\\/]+', HOMEPATH)[-1]
 
 compile_info_path = os.path.join("build", "compile-info.yaml")
 with open(compile_info_path, "w") as wfd:
