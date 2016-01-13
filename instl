@@ -167,7 +167,7 @@ def prepare_args_parser(in_command):
             for arg in line_no_whitespace.split():
                 if not arg:
                     continue
-                elif  arg[0] == '#':
+                elif arg[0] == '#':
                     break
                 yield arg
 

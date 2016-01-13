@@ -131,10 +131,10 @@ class ConfigVarList(object):
 
     def read_environment(self):
         """ Get values from environment """
-        for env in os.environ:
-            if env == "":  # not sure why I get an empty string
+        for env_key, env_value in os.os.environ.iteritems():
+            if env_key == "":  # not sure why, sometimes I get an empty string as env variable name
                 continue
-            self.set_var(env, "from environment").append(os.environ[env])
+            self.set_var(env_key, "from environment").append(env_value)
 
     def repr_for_yaml(self, which_vars=None, include_comments=True, ignore_unknown_vars=False):
         retVal = dict()
