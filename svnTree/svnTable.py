@@ -13,6 +13,7 @@ from sqlalchemy.ext import baked
 from sqlalchemy import bindparam
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import func
+from sqlalchemy import event
 
 from svnRow import SVNRow, alchemy_base
 
@@ -196,7 +197,7 @@ class SVNTable(object):
             item_details['dirFlag'] = 'd' in item_details['flags']
             item_details['checksum'] = match.group('checksum')
             item_details['url'] = match.group('url')
-            item_details['size'] = int(match.group('size')) if match.group('size')  else -1
+            item_details['size'] = int(match.group('size')) if match.group('size')  else 0
             item_details['required'] = False
             item_details['need_download'] = False
             item_details['extra_props'] = ""
@@ -316,7 +317,7 @@ class SVNTable(object):
         item_details['dirFlag'] = 'd' in item_details['flags']
         item_details['checksum'] = None
         item_details['url'] = None
-        item_details['size'] = None
+        item_details['size'] = 0
         item_details['required'] = False
         item_details['need_download'] = False
         item_details['extra_props'] = ""

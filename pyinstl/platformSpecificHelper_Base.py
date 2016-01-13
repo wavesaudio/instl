@@ -112,13 +112,7 @@ class CopyToolRsync(CopyToolBase):
         else:
             sync_command = """rsync -l -r -E --delete {ignore_spec} "{src_dir}" "{trg_dir}" """.format(**locals())
 
-        permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)", default="")
-        chmod_command = ""
-        if permissions_spec:
-            src_dir_dir, src_dir_name = os.path.split(src_dir)
-            target = os.path.join(trg_dir, src_dir_name)
-            chmod_command ="""chmod -f -R {permissions_spec} "{target}" """.format(**locals())
-        return sync_command, chmod_command
+        return sync_command
 
     def copy_file_to_dir(self, src_file, trg_dir, link_dest=False, ignore=None):
         assert not src_file.endswith("/")
@@ -131,13 +125,7 @@ class CopyToolRsync(CopyToolBase):
         else:
             sync_command = """rsync -l -r -E {ignore_spec} "{src_file}" "{trg_dir}" """.format(**locals())
 
-        permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)", default="")
-        chmod_command = ""
-        if permissions_spec:
-            src_file_dir, src_file_name = os.path.split(src_file)
-            target = os.path.join(trg_dir, src_file_name)
-            chmod_command ="""chmod -f {permissions_spec} "{target}" """.format(**locals())
-        return sync_command, chmod_command
+        return sync_command
 
     def copy_file_to_file(self, src_file, trg_file, link_dest=False, ignore=None):
         assert not src_file.endswith("/")
@@ -150,11 +138,7 @@ class CopyToolRsync(CopyToolBase):
         else:
             sync_command = """rsync -l -r -E {ignore_spec} "{src_file}" "{trg_file}" """.format(**locals())
 
-        permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)", default="")
-        chmod_command = ""
-        if permissions_spec:
-            chmod_command ="""chmod -f {permissions_spec} "{trg_file}" """.format(**locals())
-        return sync_command, chmod_command
+        return sync_command
 
     def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None, preserve_dest_files=True):
         if not src_dir.endswith("/"):
@@ -169,11 +153,7 @@ class CopyToolRsync(CopyToolBase):
         else:
             sync_command = """rsync -l -r -E {delete_spec} {ignore_spec} "{src_dir}" "{trg_dir}" """.format(**locals())
 
-        permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)", default="")
-        chmod_command = ""
-        if permissions_spec:
-            chmod_command = """chmod -f -R {permissions_spec} "{trg_dir}" """.format(**locals())
-        return sync_command, chmod_command
+        return sync_command
 
     def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
         if not src_dir.endswith("/"):
@@ -186,11 +166,7 @@ class CopyToolRsync(CopyToolBase):
         else:
             sync_command = """rsync -l -E -d --exclude='*/' {ignore_spec} "{src_dir}"/* "{trg_dir}" """.format(**locals())
 
-        permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)")
-        chmod_command = ""
-        if permissions_spec:
-            chmod_command = """find "{trg_dir}" -maxdepth 1 -mindepth 1 -type f -print0 | xargs -0 chmod -f {permissions_spec}""".format(**locals())
-        return sync_command, chmod_command
+        return sync_command
 
     def remove_file(self, file_to_remove):
         remove_command = """rm -f -v "{file_to_remove}" """.format(**locals())

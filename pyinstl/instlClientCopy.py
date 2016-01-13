@@ -53,6 +53,7 @@ def create_copy_instructions(self):
     self.batch_accum += self.platform_helper.progress("Starting copy from $(LOCAL_REPO_SYNC_DIR)")
 
     self.accumulate_unique_actions('pre_copy', self.installState.full_install_items)
+    self.batch_accum += self.platform_helper.new_line()
 
     sorted_target_folder_list = sorted(self.installState.install_items_by_target_folder,
                                        key=lambda fold: var_stack.resolve(fold))
@@ -165,20 +166,26 @@ def calc_size_of_file_item(self, a_file_item):
 
 
 def create_copy_instructions_for_file(self, source_path, name_for_progress_message):
-    source_items = self.info_map_table.get_required_for_file(source_path)
+    source_files = self.info_map_table.get_required_for_file(source_path)
     first_wtar_item = None
-    for source_item in source_items:
-        source_item_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + source_item.path)
+    for source_file in source_files:
+        source_item_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + source_file.path)
         self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_item_path, ".",
                                                                             link_dest=True,
                                                                             ignore=self.ignore_list)
-        self.bytes_to_copy += self.calc_size_of_file_item(source_item)
-        if source_item.is_first_wtar_file():
-            first_wtar_item = source_item
-    self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
+        self.batch_accum += self.platform_helper.echo("copy {source_item_path}".format(**locals()))
+
+        if 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
+            self.batch_accum += self.platform_helper.chmod(source_file.chmod_spec(), source_file.name())
+            self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_file.chmod_spec(), source_file.name()))
+
+        self.bytes_to_copy += self.calc_size_of_file_item(source_file)
+        if source_file.is_first_wtar_file():
+            first_wtar_item = source_file
     if first_wtar_item:
         self.batch_accum += self.platform_helper.unwtar_something(first_wtar_item.name(), no_artifacts=True)
         self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
+    self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
 
 
 def create_copy_instructions_for_dir_cont(self, source_path, name_for_progress_message):
@@ -187,17 +194,23 @@ def create_copy_instructions_for_dir_cont(self, source_path, name_for_progress_m
                                                                                 link_dest=True,
                                                                                 ignore=self.ignore_list,
                                                                                 preserve_dest_files=True)  # preserve files already in destination
-    self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
 
-    source_items = self.info_map_table.get_items_in_dir(source_path)
-    num_items_to_unwtar = 0
+    self.batch_accum += self.platform_helper.echo("copy {source_path_abs}".format(**locals()))
+    source_items = self.info_map_table.get_items_in_dir(dir_path=source_path, what="any")
+
+    if 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
+        for source_item in source_items:
+            source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path)
+            self.batch_accum += self.platform_helper.chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)
+            self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_item.chmod_spec(), source_path_relative_to_current_dir))
+
+    items_to_unwtar = list()
     for source_item in source_items:
         self.bytes_to_copy += self.calc_size_of_file_item(source_item)
-        if source_item.is_wtar_file():
-            num_items_to_unwtar += 1
-    if num_items_to_unwtar > 0:
-        self.batch_accum += self.platform_helper.unwtar_something(".", no_artifacts=True)
-        self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
+        if source_item.is_first_wtar_file():
+            self.batch_accum += self.platform_helper.unwtar_something(source_item.path_starting_from_dir(source_path), no_artifacts=True)
+            self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
+    self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
 
 
 def create_copy_instructions_for_files(self, source_path, name_for_progress_message):
@@ -205,15 +218,22 @@ def create_copy_instructions_for_files(self, source_path, name_for_progress_mess
     self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path_abs, ".",
                                                                              link_dest=True,
                                                                              ignore=self.ignore_list)
-    self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
+    self.batch_accum += self.platform_helper.echo("copy {source_path_abs}".format(**locals()))
 
-    source_items = self.info_map_table.get_files_in_dir(source_path, levels_deep=1)
+    source_files = self.info_map_table.get_items_in_dir(dir_path=source_path, what="file", levels_deep=1)
+
+    if 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
+        for source_file in source_files:
+            self.batch_accum += self.platform_helper.chmod(source_file.chmod_spec(), source_file.name())
+            self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_file.chmod_spec(), source_file.name()))
+
     num_items_to_unwtar = 0
-    for source_item in source_items:
-        self.bytes_to_copy += self.calc_size_of_file_item(source_item)
-        if source_item.is_first_wtar_file():
-            self.batch_accum += self.platform_helper.unwtar_something(source_item.name(), no_artifacts=True)
+    for source_file in source_files:
+        self.bytes_to_copy += self.calc_size_of_file_item(source_file)
+        if source_file.is_first_wtar_file():
+            self.batch_accum += self.platform_helper.unwtar_something(source_file.name(), no_artifacts=True)
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
+    self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
 
 
 def create_copy_instructions_for_dir(self, source_path, name_for_progress_message):
@@ -223,16 +243,22 @@ def create_copy_instructions_for_dir(self, source_path, name_for_progress_messag
         self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path_abs, ".",
                                                                            link_dest=True,
                                                                            ignore=self.ignore_list)
-        self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
-        source_items = self.info_map_table.get_items_in_dir(source_path, what="file")
-        num_items_to_unwtar = 0
+        source_items = self.info_map_table.get_items_in_dir(dir_path=source_path, what="any")
+
+        source_path_dir, source_path_name = os.path.split(source_path)
+        if 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
+            for source_item in source_items:
+                source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path_dir)
+                self.batch_accum += self.platform_helper.chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)
+                self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_item.chmod_spec(), source_path_relative_to_current_dir))
+
+        items_to_unwtar = list()
         for source_item in source_items:
             self.bytes_to_copy += self.calc_size_of_file_item(source_item)
-            if source_item.is_wtar_file():
-                num_items_to_unwtar += 1
-        if num_items_to_unwtar > 0:
-            self.batch_accum += self.platform_helper.unwtar_something(".", no_artifacts=True)
-            self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
+            if source_item.is_first_wtar_file():
+                self.batch_accum += self.platform_helper.unwtar_something(source_item.path_starting_from_dir(source_path_dir), no_artifacts=True)
+                self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
+        self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
     else:
         # it might be a dir that was wtarred
         self.create_copy_instructions_for_file(source_path, name_for_progress_message)
@@ -252,6 +278,7 @@ def create_copy_instructions_for_source(self, source, name_for_progress_message)
         self.create_copy_instructions_for_dir(source[0], name_for_progress_message)
     else:
         raise ValueError("unknown source type "+source[1]+" for "+source[0])
+    self.batch_accum += self.platform_helper.remark("---")
 
 
 # special handling when running on Mac OS

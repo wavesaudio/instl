@@ -5,6 +5,7 @@ import re
 
 from sqlalchemy import Column, Integer, String, BOOLEAN
 from sqlalchemy.ext.declarative import declarative_base
+
 alchemy_base = declarative_base()
 
 wtar_file_re = re.compile(r"""^.+\.wtar(\...)?$""")
@@ -82,3 +83,22 @@ class SVNRow(alchemy_base):
         retVal = self.extra_props.split(";")
         retVal = [prop for prop in retVal if prop]  # split will return [""] for empty list
         return retVal
+
+    def chmod_spec(self):
+        retVal = "a+rw"
+        if self.isExecutable() or self.isDir():
+            retVal += "x"
+        return retVal
+
+    def path_starting_from_dir(self, starting_dir):
+        retVal = None
+        if starting_dir == "":
+            retVal = self.path
+        else:
+            if not starting_dir.endswith("/"):
+                starting_dir += "/"
+            if self.path.startswith(starting_dir):
+                retVal = self.path[len(starting_dir):]
+        return retVal
+
+
