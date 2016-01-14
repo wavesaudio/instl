@@ -246,7 +246,6 @@ class InstlInstanceBase(object):
                     item_not_in_index.required_by.extend([required_iid.value for required_iid in contents])
                     self.install_definitions_index[identifier] = item_not_in_index
 
-
     def write_require_file(self, file_path):
         require_dict = dict()
         for IID in sorted(self.install_definitions_index.iterkeys()):
@@ -314,8 +313,8 @@ class InstlInstanceBase(object):
                 self.read_include_node(sub_i_node)
         elif i_node.isMapping():
             if "url" in i_node:
-                resolved_file_url = var_stack.resolve(i_node["url"].value)
                 cached_files_dir = self.get_default_sync_dir(continue_dir="cache", make_dir=True)
+                resolved_file_url = var_stack.resolve(i_node["url"].value)
                 cached_file_path = None
                 expected_checksum = None
                 if "checksum" in i_node:
@@ -342,12 +341,17 @@ class InstlInstanceBase(object):
                 if "copy" in i_node:
                     self.batch_accum.set_current_section('post')
                     for copy_destination in i_node["copy"]:
-                        destination_folder, destination_file_name = os.path.split(copy_destination.value)
-                        self.batch_accum += self.platform_helper.mkdir(destination_folder)
-                        self.batch_accum += self.platform_helper.copy_tool.copy_file_to_file(cached_file_path,
-                                                                                             var_stack.resolve(
-                                                                                                 copy_destination.value),
-                                                                                             link_dest=True)
+                        need_to_copy = True
+                        destination_file_resolved_path = var_stack.resolve(copy_destination.value)
+                        if os.path.isfile(destination_file_resolved_path):
+                            checksums_match = utils.check_file_checksum(file_path=destination_file_resolved_path, expected_checksum=expected_checksum)
+                            need_to_copy = not checksums_match
+                        if need_to_copy:
+                            destination_folder, destination_file_name = os.path.split(copy_destination.value)
+                            self.batch_accum += self.platform_helper.mkdir(destination_folder)
+                            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_file(cached_file_path,
+                                                                                                 var_stack.resolve(copy_destination.value),
+                                                                                                 link_dest=True)
 
     def create_variables_assignment(self):
         self.batch_accum.set_current_section("assign")

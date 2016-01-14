@@ -524,7 +524,7 @@ class SVNTable(object):
     def get_download_items(self, what="any"):
         """
         get_items applies a filter and return all items
-        :param filter_name: one of predefined baked queries, e.g.: "all-files", "all-dirs", "all-items"
+        :param: filter_name: one of predefined baked queries, e.g.: "all-files", "all-dirs", "all-items"
         :return: all items returned by applying the filter called filter_name
         """
         if what not in ("any", "file", "dir"):
@@ -601,9 +601,13 @@ class SVNTable(object):
                     self.baked_queries_map["dir_items_recursive"] += lambda q: q.filter(SVNRow.path.like(bindparam('dir_path')+"/%"))
                     self.baked_queries_map["dir_items_recursive"] += lambda q: q.filter(SVNRow.level > bindparam('dir_level'))
                     self.baked_queries_map["dir_items_recursive"] += lambda q: q.filter(SVNRow.level <= bindparam('dir_level')+bindparam('levels_deep'))
+                    self.baked_queries_map["dir_items_recursive"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.dirFlag == bindparam('dir')))
 
+                want_file = what in ("any", "file")
+                want_dir = what in ("any", "dir")
                 dir_items = self.baked_queries_map["dir_items_recursive"](self.session)\
-                    .params(dir_path=dir_path, dir_level=dir_item.level, levels_deep=levels_deep)\
+                    .params(dir_path=dir_path, dir_level=dir_item.level, levels_deep=levels_deep,\
+                            file=want_file, dir=want_dir)\
                     .all()
             return dir_items
         except NoResultFound:
