@@ -473,12 +473,6 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
             except ImportError:  # no installItemGraph, no worry
                 print("Could not load installItemGraph")
 
-    def read_info_map_file(self, in_file_path, a_format="guess"):
-        self.svnTable.read_info_map_from_file(in_file_path, a_format)
-
-    def write_info_map_file(self):
-        self.svnTable.write_to_file(var_stack.resolve("$(__MAIN_OUT_FILE__)", raise_on_fail=True))
-
     def check_version_compatibility(self):
         retVal = True
         if "INSTL_MINIMAL_VERSION" in var_stack:

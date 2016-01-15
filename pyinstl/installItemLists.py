@@ -41,10 +41,8 @@ class InstallItemLists(object):
 
     @property
     def top_level_install_items(self):
-        for iid in self.__root_install_items:
-            yield iid
-        for iid in self.__update_install_items:
-            yield iid
+        yield from self.__root_install_items
+        yield from self.__update_install_items
 
     @property
     def full_install_items(self):

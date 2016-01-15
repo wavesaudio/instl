@@ -17,6 +17,8 @@ import stat
 
 import rsa
 from functools import reduce
+from itertools import repeat
+
 
 
 def Is64Windows():
@@ -389,10 +391,8 @@ def gen_col_format(width_list, align_list=None, sep=' '):
 def ContinuationIter(the_iter, continuation_value=None):
     """ ContinuationIter yield all the values of the_iter and then continue yielding continuation_value
     """
-    for val in the_iter:
-        yield val
-    while True:
-        yield continuation_value
+    yield from the_iter
+    yield from repeat(continuation_value)
 
 
 def ParallelContinuationIter(*iterables):

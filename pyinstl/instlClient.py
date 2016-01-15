@@ -84,6 +84,7 @@ class InstallInstructionsState(object):
 class InstlClient(InstlInstanceBase):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
+        self.installState = None
 
     def do_command(self):
         the_command = var_stack.resolve("$(__MAIN_COMMAND__)")

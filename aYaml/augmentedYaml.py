@@ -82,8 +82,7 @@ def iter_mapping_keys(self):
         the key as a string. The assumption
         is that mapping key is a scalar
     """
-    for map_tuple in self.value:
-        yield str(map_tuple[0].value)
+    yield from map(lambda map_tuple: str(map_tuple[0].value), self.value)
 
 
 def iter_sequence(self):
