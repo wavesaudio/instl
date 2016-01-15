@@ -1,15 +1,15 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-from __future__ import print_function
+
 
 import os
 import time
 from collections import OrderedDict, defaultdict
 
 import utils
-from installItem import InstallItem, guid_list, iids_from_guids
+from .installItem import InstallItem, guid_list, iids_from_guids
 import aYaml
-from instlInstanceBase import InstlInstanceBase
+from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
 
 
@@ -150,7 +150,7 @@ class InstlDoIt(InstlInstanceBase):
         for os_name in var_stack.resolve_to_list("$(TARGET_OS_NAMES)"):
             InstallItem.begin_get_for_specific_os(os_name)
         self.installState.root_doit_items.extend(var_stack.resolve_to_list("$(MAIN_DOIT_ITEMS)"))
-        self.installState.root_doit_items = filter(bool, self.installState.root_doit_items)
+        self.installState.root_doit_items = list(filter(bool, self.installState.root_doit_items))
         self.installState.calculate_full_doit_items_set(self)
         self.read_previous_requirements()
         var_stack.set_var("__FULL_LIST_OF_DOIT_TARGETS__").extend(self.installState.full_doit_items)

@@ -1,12 +1,12 @@
-#!/usr/bin/env python
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 import datetime
 
 import utils
-from platformSpecificHelper_Base import PlatformSpecificHelperBase
-from platformSpecificHelper_Base import CopyToolRsync
-from platformSpecificHelper_Base import DownloadToolBase
+from .platformSpecificHelper_Base import PlatformSpecificHelperBase
+from .platformSpecificHelper_Base import CopyToolRsync
+from .platformSpecificHelper_Base import DownloadToolBase
 
 
 class CopyToolLinuxRsync(CopyToolRsync):

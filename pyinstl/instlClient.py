@@ -1,15 +1,15 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-from __future__ import print_function
+
 
 import os
 import time
 from collections import OrderedDict, defaultdict
 
 import utils
-from installItem import InstallItem, guid_list, iids_from_guids
+from .installItem import InstallItem, guid_list, iids_from_guids
 import aYaml
-from instlInstanceBase import InstlInstanceBase
+from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
 
 
@@ -157,32 +157,32 @@ class InstlClient(InstlInstanceBase):
 
     # sync command implemented in instlClientSync.py file
 
-    from instlClientSync import do_sync
+    from .instlClientSync import do_sync
 
     # copy command implemented in instlClientCopy.py file
-    from instlClientCopy import do_copy
-    from instlClientCopy import init_copy_vars
-    from instlClientCopy import calc_size_of_file_item
-    from instlClientCopy import create_copy_instructions_for_file
-    from instlClientCopy import create_copy_instructions_for_dir_cont
-    from instlClientCopy import create_copy_instructions_for_files
-    from instlClientCopy import create_copy_instructions_for_dir
-    from instlClientCopy import write_copy_debug_info
-    from instlClientCopy import create_copy_instructions_for_source
-    from instlClientCopy import create_copy_instructions
-    from instlClientCopy import pre_copy_mac_handling
+    from .instlClientCopy import do_copy
+    from .instlClientCopy import init_copy_vars
+    from .instlClientCopy import calc_size_of_file_item
+    from .instlClientCopy import create_copy_instructions_for_file
+    from .instlClientCopy import create_copy_instructions_for_dir_cont
+    from .instlClientCopy import create_copy_instructions_for_files
+    from .instlClientCopy import create_copy_instructions_for_dir
+    from .instlClientCopy import write_copy_debug_info
+    from .instlClientCopy import create_copy_instructions_for_source
+    from .instlClientCopy import create_copy_instructions
+    from .instlClientCopy import pre_copy_mac_handling
 
     # remove command implemented in instlClientRemove.py file
-    from instlClientRemove import do_remove
-    from instlClientRemove import init_remove_vars
-    from instlClientRemove import create_remove_instructions
-    from instlClientRemove import create_remove_instructions_for_source
+    from .instlClientRemove import do_remove
+    from .instlClientRemove import init_remove_vars
+    from .instlClientRemove import create_remove_instructions
+    from .instlClientRemove import create_remove_instructions_for_source
 
     # uninstall command implemented in instlClientUninstall.py file
-    from instlClientUninstall import do_uninstall
-    from instlClientUninstall import init_uninstall_vars
-    from instlClientUninstall import create_uninstall_instructions
-    from instlClientUninstall import create_require_file_instructions
+    from .instlClientUninstall import do_uninstall
+    from .instlClientUninstall import init_uninstall_vars
+    from .instlClientUninstall import create_uninstall_instructions
+    from .instlClientUninstall import create_require_file_instructions
 
     def do_synccopy(self):
         self.do_sync()

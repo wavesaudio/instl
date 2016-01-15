@@ -1,18 +1,18 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-from __future__ import print_function
+
 
 import sys
 import os
 import subprocess
 from time import time
 import shlex
-from Tkinter import *
-from ttk import *
+from tkinter import *
+from tkinter.ttk import *
 
 import utils
 import aYaml
-from instlInstanceBase import InstlInstanceBase
+from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
 
 
@@ -109,33 +109,33 @@ class InstlGui(InstlInstanceBase):
             aYaml.writeAsYaml(the_doc_yaml_ready, wfd)
 
     def get_client_input_file(self):
-        import tkFileDialog
+        import tkinter.filedialog
 
-        retVal = tkFileDialog.askopenfilename()
+        retVal = tkinter.filedialog.askopenfilename()
         if retVal:
             self.client_input_path_var.set(retVal)
             self.update_client_state()
 
     def get_client_output_file(self):
-        import tkFileDialog
+        import tkinter.filedialog
 
-        retVal = tkFileDialog.asksaveasfilename()
+        retVal = tkinter.filedialog.asksaveasfilename()
         if retVal:
             self.client_output_path_var.set(retVal)
             self.update_client_state()
 
     def get_admin_config_file(self):
-        import tkFileDialog
+        import tkinter.filedialog
 
-        retVal = tkFileDialog.askopenfilename()
+        retVal = tkinter.filedialog.askopenfilename()
         if retVal:
             self.admin_config_path_var.set(retVal)
             self.update_admin_state()
 
     def get_admin_output_file(self):
-        import tkFileDialog
+        import tkinter.filedialog
 
-        retVal = tkFileDialog.asksaveasfilename()
+        retVal = tkinter.filedialog.asksaveasfilename()
         if retVal:
             self.admin_output_path_var.set(retVal)
             self.update_admin_state()

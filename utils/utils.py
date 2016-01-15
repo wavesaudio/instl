@@ -1,11 +1,11 @@
-#!/usr/bin/env python
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 import sys
 import os
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import re
-import urlparse
+import urllib.parse
 import hashlib
 import base64
 import collections
@@ -117,13 +117,13 @@ class open_for_read_file_or_url(object):
     def __enter__(self):
         try:
             if self.url:
-                opener = urllib2.build_opener()
+                opener = urllib.request.build_opener()
                 if self.cookie:
                     opener.addheaders.append(('Cookie', self.cookie))
                 self.fd = opener.open(self.url)
             elif self.local_file_path:
                 self.fd = open(self.local_file_path, "r")
-        except urllib2.URLError as url_err:
+        except urllib.error.URLError as url_err:
             print (url_err, self.url)
             raise
         if "name" not in dir(self.fd) and "url" in dir(self.fd):
@@ -281,14 +281,14 @@ def print_var(var_name):
 
 def last_url_item(url):
     url = url.strip("/")
-    url_path = urlparse.urlparse(url).path
+    url_path = urllib.parse.urlparse(url).path
     _, retVal = os.path.split(url_path)
     return retVal
 
 
 def main_url_item(url):
     try:
-        parseResult = urlparse.urlparse(url)
+        parseResult = urllib.parse.urlparse(url)
         #print("+++++++", url, "+", parseResult)
         retVal = parseResult.netloc
         if not retVal:
@@ -299,8 +299,8 @@ def main_url_item(url):
 
 
 def relative_url(base, target):
-    base_path = urlparse.urlparse(base.strip("/")).path
-    target_path = urlparse.urlparse(target.strip("/")).path
+    base_path = urllib.parse.urlparse(base.strip("/")).path
+    target_path = urllib.parse.urlparse(target.strip("/")).path
     retVal = None
     if target_path.startswith(base_path):
         retVal = target_path.replace(base_path, '', 1)
@@ -527,7 +527,7 @@ def make_one_list(*things):
     """
     retVal = list()
     for thing in things:
-        if isinstance(thing, collections.Iterable) and not isinstance(thing, basestring):
+        if isinstance(thing, collections.Iterable) and not isinstance(thing, str):
             retVal.extend(thing)
         else:
             retVal.append(thing)
@@ -618,9 +618,9 @@ def timing(f):
         ret = f(*args, **kwargs)
         time2 = time.clock()
         if time1 != time2:
-            print ('%s function took %0.3f ms' % (f.func_name, (time2-time1)*1000.0))
+            print ('%s function took %0.3f ms' % (f.__name__, (time2-time1)*1000.0))
         else:
-            print ('%s function took apparently no time at all' % (f.func_name))
+            print ('%s function took apparently no time at all' % (f.__name__))
         return ret
     return wrap
 

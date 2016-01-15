@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 """
     class InstallItem hold information about how to install one or more install_sources.
@@ -85,7 +85,7 @@ os_family_name = current_os_names[0]
 
 def read_index_from_yaml(all_items_node):
     retVal = dict()
-    for IID in all_items_node.iterkeys():
+    for IID in all_items_node.keys():
         if IID in retVal:
             print(IID, "found more than once in index")
         else:
@@ -194,7 +194,7 @@ class InstallItem(object):
         self.description = str(my_node.start_mark)
 
     def read_from_yaml(self, my_node):
-        element_names = set([a_key for a_key in my_node.iterkeys()])
+        element_names = set([a_key for a_key in my_node.keys()])
         if not element_names.issubset(self.allowed_top_level_keys):
             raise KeyError("illegal keys {}; IID: {}, {}".format(list(element_names.difference(self.allowed_top_level_keys)), self.iid, self.description))
 
@@ -466,8 +466,8 @@ class InstallItem(object):
 
 def guid_list(items_map):
     retVal = utils.unique_list()
-    for install_def in items_map.values():
-        retVal.extend(filter(bool, install_def.guids))
+    for install_def in list(items_map.values()):
+        retVal.extend(list(filter(bool, install_def.guids)))
     return retVal
 
 
@@ -478,7 +478,7 @@ def iids_from_guids(items_map, guids_or_iids):
     retVal = list()
     for guid_or_iid in guids_or_iids:
         if utils.guid_re.match(guid_or_iid.lower()):  # it's a guid, get iids for all items with that guid
-            for iid, install_def in items_map.iteritems():
+            for iid, install_def in items_map.items():
                     if guid_or_iid.lower() in install_def.guids:
                         retVal.append(iid)
         else:

@@ -15,7 +15,7 @@ import sys
 import re
 
 import aYaml
-import configVar
+from . import configVar
 
 
 value_ref_re = re.compile("""(
@@ -131,7 +131,7 @@ class ConfigVarList(object):
 
     def read_environment(self):
         """ Get values from environment """
-        for env_key, env_value in os.os.environ.iteritems():
+        for env_key, env_value in os.os.environ.items():
             if env_key == "":  # not sure why, sometimes I get an empty string as env variable name
                 continue
             self.set_var(env_key, "from environment").append(env_value)
@@ -141,7 +141,7 @@ class ConfigVarList(object):
         vars_list = list()
         if not which_vars:
             vars_list.extend(list(self.keys()))
-        elif isinstance(which_vars, basestring):
+        elif isinstance(which_vars, str):
             vars_list.append(which_vars)
         else:
             vars_list = which_vars

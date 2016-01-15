@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 """
     Copyright (c) 2012, Shai Shasag
@@ -153,8 +153,7 @@ class YamlDumpWrap(object):
         have comments and tags. Sorting mapping by key is also optional.
     """
     def __init__(self, value=None, tag="", comment="", sort_mappings=False):
-        # sometimes tag's type is unicode, pyYaml is strange...
-        self.tag = tag.encode('ascii', 'ignore')
+        self.tag = tag
         self.comment = comment
         self.value = value
         self.sort_mappings = sort_mappings

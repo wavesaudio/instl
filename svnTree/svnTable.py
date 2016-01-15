@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 import os
 import re
@@ -15,10 +15,11 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import func
 from sqlalchemy import event
 
-from svnRow import SVNRow, alchemy_base
+from .svnRow import SVNRow, alchemy_base
 
 import utils
 from configVar import var_stack
+from functools import reduce
 
 comment_line_re = re.compile(r"""
             ^

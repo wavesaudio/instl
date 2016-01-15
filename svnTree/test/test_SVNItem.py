@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 import os
 import sys
@@ -16,7 +16,7 @@ def timing(f):
         time1 = time.time()
         ret = f(*args)
         time2 = time.time()
-        print('%s function took %0.3f ms' % (f.func_name, (time2 - time1) * 1000.0))
+        print('%s function took %0.3f ms' % (f.__name__, (time2 - time1) * 1000.0))
         return ret
 
     return wrap

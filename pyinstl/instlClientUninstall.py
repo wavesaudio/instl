@@ -1,6 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-from __future__ import print_function
+
 
 import os
 
@@ -27,7 +27,7 @@ def create_uninstall_instructions(self):
     iids_to_check.extend(self.installState.root_install_items)
     while len(iids_to_check) > 0:
         curr_iid = iids_to_check.popleft()
-        for item in self.install_definitions_index.itervalues():
+        for item in self.install_definitions_index.values():
             if len(item.required_by) > 0:  # to avoid repeated checks
                 item.required_by.remove(curr_iid)
                 if len(item.required_by) == 0:

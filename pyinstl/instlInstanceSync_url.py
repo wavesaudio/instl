@@ -1,11 +1,11 @@
-#!/usr/bin/env python
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 import os
 
 import utils
-from instlInstanceSyncBase import InstlInstanceSync
-from batchAccumulator import BatchAccumulator
+from .instlInstanceSyncBase import InstlInstanceSync
+from .batchAccumulator import BatchAccumulator
 from configVar import var_stack
 
 

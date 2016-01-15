@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 import os
 import re
@@ -14,8 +14,8 @@ from sqlalchemy.ext.declarative import declarative_base
 
 import utils
 
-from svnRow import SVNRow
-from svnTable import SVNTable
+from .svnRow import SVNRow
+from .svnTable import SVNTable
 
 alchemy_base = declarative_base()
 
