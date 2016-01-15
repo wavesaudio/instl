@@ -94,8 +94,8 @@ def iter_sequence(self):
         yield item
 
 yaml.ScalarNode.__iter__ = iter_scalar
-yaml.MappingNode.__iter__ = iter_mapping
-yaml.MappingNode.iterkeys = iter_mapping_keys
+yaml.MappingNode.items = iter_mapping
+yaml.MappingNode.__iter__ = iter_mapping_keys
 yaml.SequenceNode.__iter__ = iter_sequence
 
 
@@ -192,7 +192,7 @@ class YamlDumpDocWrap(YamlDumpWrap):
         self, value=None, tag="", comment="",
             explicit_start=True, explicit_end=False,
             sort_mappings=False):
-        super(YamlDumpDocWrap, self).__init__(tag=tag, comment=comment,
+        super().__init__(tag=tag, comment=comment,
                                               value=value,
                                               sort_mappings=sort_mappings)
         self.explicit_start = explicit_start

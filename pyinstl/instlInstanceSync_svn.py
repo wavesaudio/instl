@@ -12,10 +12,10 @@ class InstlInstanceSync_svn(InstlInstanceSync):
     """
 
     def __init__(self, instlObj):
-        super(InstlInstanceSync_svn, self).__init__(instlObj)
+        super().__init__(instlObj)
 
     def init_sync_vars(self):
-        super(InstlInstanceSync_svn, self).init_sync_vars()
+        super().init_sync_vars()
 
         var_description = "InstlInstanceSync_svn.init_sync_vars"
         var_stack.set_value_if_var_does_not_exist("REPO_REV", "HEAD", description=var_description)
@@ -26,7 +26,7 @@ class InstlInstanceSync_svn(InstlInstanceSync):
         var_stack.set_var("REL_SRC_PATH", var_description).append(rel_sources)
 
     def create_sync_instructions(self, installState):
-        super(InstlInstanceSync_svn, self).create_sync_instructions(installState)
+        super().create_sync_instructions(installState)
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Starting sync from $(SYNC_BASE_URL)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir("$(LOCAL_SYNC_DIR)")

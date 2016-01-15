@@ -151,7 +151,7 @@ class CMDObj(cmd.Cmd, object):
     def onecmd(self, line):
         retVal = False
         try:
-            retVal = super(CMDObj, self).onecmd(line)
+            retVal = super().onecmd(line)
         except utils.InstlException as ie:
             print("instl exception", ie.message)
             traceback.print_exception(type(ie.original_exception), ie.original_exception, sys.exc_info()[2])

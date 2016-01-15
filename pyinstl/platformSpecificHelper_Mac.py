@@ -13,12 +13,12 @@ from .platformSpecificHelper_Base import DownloadToolBase
 
 class CopyToolMacRsync(CopyToolRsync):
     def __init__(self, platform_helper):
-        super(CopyToolMacRsync, self).__init__(platform_helper)
+        super().__init__(platform_helper)
 
 
 class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
     def __init__(self, instlObj):
-        super(PlatformSpecificHelperMac, self).__init__(instlObj)
+        super().__init__(instlObj)
         self.var_replacement_pattern = "${\g<var_name>}"
         self.echo_template = 'echo "{}"'
 
@@ -272,7 +272,7 @@ split_file()
 
 class DownloadTool_mac_curl(DownloadToolBase):
     def __init__(self, platform_helper):
-        super(DownloadTool_mac_curl, self).__init__(platform_helper)
+        super().__init__(platform_helper)
 
     def download_url_to_file(self, src_url, trg_file):
         """ Create command to download a single file.

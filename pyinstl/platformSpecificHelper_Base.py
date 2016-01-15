@@ -82,7 +82,7 @@ class CopyToolBase(object, metaclass=abc.ABCMeta):
 
 class CopyToolRsync(CopyToolBase):
     def __init__(self, platform_helper):
-        super(CopyToolRsync, self).__init__(platform_helper)
+        super().__init__(platform_helper)
 
     def finalize(self):
         pass

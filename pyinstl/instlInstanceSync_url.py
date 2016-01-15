@@ -14,11 +14,11 @@ class InstlInstanceSync_url(InstlInstanceSync):
     """
 
     def __init__(self, instlObj):
-        super(InstlInstanceSync_url, self).__init__(instlObj)
+        super().__init__(instlObj)
         self.sync_base_url = None
 
     def init_sync_vars(self):
-        super(InstlInstanceSync_url, self).init_sync_vars()
+        super().init_sync_vars()
         self.local_sync_dir = var_stack.resolve("$(LOCAL_REPO_SYNC_DIR)")
 
     def create_sync_folders(self):
@@ -106,7 +106,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.create_check_checksum_instructions(file_list)
 
     def create_sync_instructions(self, installState):
-        super(InstlInstanceSync_url, self).create_sync_instructions(installState)
+        super().create_sync_instructions(installState)
         self.prepare_list_of_sync_items()
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Starting sync from $(SYNC_BASE_URL)")

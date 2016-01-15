@@ -24,7 +24,7 @@ from . import connectionBase
 class InstlAdmin(InstlInstanceBase):
 
     def __init__(self, initial_vars):
-        super(InstlAdmin, self).__init__(initial_vars)
+        super().__init__(initial_vars)
 
     def set_default_variables(self):
         if "__CONFIG_FILE__" in var_stack:

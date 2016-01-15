@@ -11,12 +11,12 @@ from .platformSpecificHelper_Base import DownloadToolBase
 
 class CopyToolLinuxRsync(CopyToolRsync):
     def __init__(self, platform_helper):
-        super(CopyToolLinuxRsync, self).__init__(platform_helper)
+        super().__init__(platform_helper)
 
 
 class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
     def __init__(self, instlObj):
-        super(PlatformSpecificHelperLinux, self).__init__(instlObj)
+        super().__init__(instlObj)
         self.var_replacement_pattern = "${\g<var_name>}"
         self.dl_tool = DownloadTool_linux_curl(self)
 
@@ -137,7 +137,7 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
 
 class DownloadTool_linux_curl(DownloadToolBase):
     def __init__(self, platform_helper):
-        super(DownloadTool_linux_curl, self).__init__(platform_helper)
+        super().__init__(platform_helper)
 
     def download_url_to_file(self, src_url, trg_file):
         """ Create command to download a single file.

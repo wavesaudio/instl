@@ -173,37 +173,37 @@ class TestConstConfigVar(TestConfigVar):
     def test_set_description_from_empty(self):
         """ Change description after construction with empty description. """
         with self.assertRaises(Exception):
-            super(TestConstConfigVar, self).test_set_description_from_empty()
+            super().test_set_description_from_empty()
 
     def test_set_description_from_initial(self):
         """ Change description after construction with initial description. """
         with self.assertRaises(Exception):
-            super(TestConstConfigVar, self).test_set_description_from_initial()
+            super().test_set_description_from_initial()
 
     def test___setitem__(self):
         """ Call __setitem__ """
         with self.assertRaises(Exception):
-            super(TestConstConfigVar, self).test___setitem__()
+            super().test___setitem__()
 
     def test___delitem__(self):
         """ Call __delitem__ """
         with self.assertRaises(Exception):
-            super(TestConstConfigVar, self).test___delitem__()
+            super().test___delitem__()
 
     def test_append_values(self):
         """ Call append """
         with self.assertRaises(Exception):
-            super(TestConstConfigVar, self).test_append_values()
+            super().test_append_values()
 
     def test_extend_values(self):
         """ Call extend """
         with self.assertRaises(Exception):
-            super(TestConstConfigVar, self).test_extend_values()
+            super().test_extend_values()
 
     def test_clear_values(self):
         """ Call clear_values """
         with self.assertRaises(Exception):
-            super(TestConstConfigVar, self).test_clear_values()
+            super().test_clear_values()
 
     def test___iter__(self):
         """ Call __iter__ """

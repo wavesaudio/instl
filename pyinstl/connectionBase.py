@@ -44,7 +44,7 @@ class ConnectionBase(object):
 
 class ConnectionHTTP(ConnectionBase):
     def __init__(self):
-        super(ConnectionHTTP, self).__init__()
+        super().__init__()
 
     def open_connection(self, credentials):
         pass
@@ -59,7 +59,7 @@ class ConnectionHTTP(ConnectionBase):
 if have_boto:
     class ConnectionS3(ConnectionHTTP):
         def __init__(self, credentials):
-            super(ConnectionS3, self).__init__()
+            super().__init__()
             self.boto_conn = None
             self.open_bucket = None
             default_expiration_str = var_stack.resolve("$(S3_SECURE_URL_EXPIRATION)", default=str(60*60*24))
@@ -78,7 +78,7 @@ if have_boto:
                 the_key = self.open_bucket.get_key(parseResult.path, validate=False)
                 retVal = the_key.generate_url(self.default_expiration)
             else:
-                retVal = super(ConnectionS3, self).translate_url(in_bare_url)
+                retVal = super().translate_url(in_bare_url)
             return retVal
 
 

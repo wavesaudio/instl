@@ -25,7 +25,7 @@ class ConfigVarStack(configVarList.ConfigVarList):
         Help values resolve $() style references. """
 
     def __init__(self):
-        super(ConfigVarStack, self).__init__()
+        super().__init__()
         self._ConfigVarList_objs = list()
         self.push_scope()
 

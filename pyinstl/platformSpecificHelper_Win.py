@@ -20,7 +20,7 @@ def dos_escape(some_string):
 
 class CopyTool_win_robocopy(CopyToolBase):
     def __init__(self, platform_helper):
-        super(CopyTool_win_robocopy, self).__init__(platform_helper)
+        super().__init__(platform_helper)
         self.robocopy_error_threshold = 4  # see ss64.com/nt/robocopy-exit.html
         robocopy_path = self.platform_helper.find_cmd_tool("ROBOCOPY_PATH")
         if robocopy_path is None:
@@ -116,7 +116,7 @@ class CopyTool_win_robocopy(CopyToolBase):
 
 class CopyTool_win_xcopy(CopyToolBase):
     def __init__(self, platform_helper):
-        super(CopyTool_win_xcopy, self).__init__(platform_helper)
+        super().__init__(platform_helper)
         self.excludes_set = set()
         xcopy_path = self.platform_helper.find_cmd_tool("XCOPY_PATH")
         if xcopy_path is None:
@@ -214,7 +214,7 @@ class CopyTool_win_xcopy(CopyToolBase):
 
 class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def __init__(self, instlObj):
-        super(PlatformSpecificHelperWin, self).__init__(instlObj)
+        super().__init__(instlObj)
         self.var_replacement_pattern = "%\g<var_name>%"
 
     def find_cmd_tool(self, tool_to_find_var_name):
@@ -417,7 +417,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return check_commands
 
     def check_checksum_for_folder(self, info_map_file):
-        check_checksum_for_folder_command = super(PlatformSpecificHelperWin, self).check_checksum_for_folder(info_map_file)
+        check_checksum_for_folder_command = super().check_checksum_for_folder(info_map_file)
         return check_checksum_for_folder_command, self.exit_if_error()
 
     def tar(self, to_tar_name):
@@ -464,7 +464,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return instl_command
 
     def create_folders(self, info_map_file):
-        create_folders_command = super(PlatformSpecificHelperWin, self).create_folders(info_map_file)
+        create_folders_command = super().create_folders(info_map_file)
         return create_folders_command, self.exit_if_error()
 
     def append_file_to_file(self, source_file, target_file):
@@ -474,7 +474,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
 
 class DownloadTool_win_wget(DownloadToolBase):
     def __init__(self, platform_helper):
-        super(DownloadTool_win_wget, self).__init__(platform_helper)
+        super().__init__(platform_helper)
 
     def download_url_to_file(self, src_url, trg_file):
         """ Create command to download a single file.
@@ -514,7 +514,7 @@ class DownloadTool_win_wget(DownloadToolBase):
 
 class DownloadTool_win_curl(DownloadToolBase):
     def __init__(self, platform_helper):
-        super(DownloadTool_win_curl, self).__init__(platform_helper)
+        super().__init__(platform_helper)
 
     def download_url_to_file(self, src_url, trg_file):
         """ Create command to download a single file.

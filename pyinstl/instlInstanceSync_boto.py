@@ -10,8 +10,8 @@ class InstlInstanceSync_boto(InstlInstanceSync):
     """
 
     def __init__(self, instlObj):
-        super(InstlInstanceSync_boto, self).__init__(instlObj)
+        super().__init__(instlObj)
 
     def init_sync_vars(self):
-        super(InstlInstanceSync_boto, self).init_sync_vars()
+        super().init_sync_vars()
         self.local_sync_dir = var_stack.resolve("$(LOCAL_REPO_SYNC_DIR)")

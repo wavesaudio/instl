@@ -10,13 +10,13 @@ class InstlInstanceSync_p4(InstlInstanceSync):
     """
 
     def __init__(self, instlObj):
-        super(InstlInstanceSync_p4, self).__init__(instlObj)
+        super().__init__(instlObj)
 
     def init_sync_vars(self):
-        super(InstlInstanceSync_p4, self).init_sync_vars()
+        super().init_sync_vars()
 
     def create_sync_instructions(self, installState):
-        super(InstlInstanceSync_p4, self).create_sync_instructions(installState)
+        super().create_sync_instructions(installState)
         self.create_download_instructions()
         self.instlObj.batch_accum.set_current_section('post-sync')
 

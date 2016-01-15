@@ -49,7 +49,7 @@ admin_command_template_variables = {
 
 class InstlGui(InstlInstanceBase):
     def __init__(self, initial_vars):
-        super(InstlGui, self).__init__(initial_vars)
+        super().__init__(initial_vars)
         self.master = Tk()
         self.master.createcommand('exit', self.quit_app)  # exit from quit menu or Command-Q
         self.master.protocol('WM_DELETE_WINDOW', self.quit_app)  # exit from closing the window

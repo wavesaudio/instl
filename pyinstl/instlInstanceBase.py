@@ -238,7 +238,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
     def read_require(self, a_node):
         # dependencies_file_path = var_stack.resolve("$(SITE_REQUIRE_FILE_PATH)")
         if a_node.isMapping():
-            for identifier, contents in a_node:
+            for identifier, contents in a_node.items():
                 if identifier in self.install_definitions_index:
                     self.install_definitions_index[identifier].required_by.extend([required_iid.value for required_iid in contents])
                 else:
@@ -276,7 +276,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
     def read_defines(self, a_node):
         # if document is empty we get a scalar node
         if a_node.isMapping():
-            for identifier, contents in a_node:
+            for identifier, contents in a_node.items():
                 if self.allow_reading_of_internal_vars or not self.internal_identifier_re.match(identifier):  # do not read internal state identifiers
                     var_stack.set_var(identifier, str(contents.start_mark)).extend([item.value for item in contents])
                 elif identifier == '__include__':
@@ -288,7 +288,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
             __include__ is not allowed.
         """
         if a_node.isMapping():
-            for identifier, contents in a_node:
+            for identifier, contents in a_node.items():
                 if identifier == "__include__":
                     raise ValueError("!define_const doc cannot except __include__")
                 var_stack.add_const_config_variable(identifier, "from !define_const section",

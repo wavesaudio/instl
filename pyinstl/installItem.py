@@ -85,7 +85,7 @@ os_family_name = current_os_names[0]
 
 def read_index_from_yaml(all_items_node):
     retVal = dict()
-    for IID in all_items_node.keys():
+    for IID in all_items_node:
         if IID in retVal:
             print(IID, "found more than once in index")
         else:
@@ -194,7 +194,7 @@ class InstallItem(object):
         self.description = str(my_node.start_mark)
 
     def read_from_yaml(self, my_node):
-        element_names = set([a_key for a_key in my_node.keys()])
+        element_names = set([a_key for a_key in my_node])
         if not element_names.issubset(self.allowed_top_level_keys):
             raise KeyError("illegal keys {}; IID: {}, {}".format(list(element_names.difference(self.allowed_top_level_keys)), self.iid, self.description))
 
@@ -336,7 +336,7 @@ class InstallItem(object):
         self.__add_item_to_default_os_by_category(action_type, new_action)
 
     def read_actions(self, action_nodes):
-        for action_type, new_actions in action_nodes:
+        for action_type, new_actions in action_nodes.items():
             for action in new_actions:
                 self.add_action(action_type, action.value)
 

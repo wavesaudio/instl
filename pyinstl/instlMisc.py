@@ -19,7 +19,7 @@ from . import connectionBase
 
 class InstlMisc(InstlInstanceBase):
     def __init__(self, initial_vars):
-        super(InstlMisc, self).__init__(initial_vars)
+        super().__init__(initial_vars)
         self.curr_progress = 0
         self.actual_progress = 0
         self.progress_staccato_command = False

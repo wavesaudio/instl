@@ -197,7 +197,7 @@ class unique_list(list):
     __slots__ = ('__attendance',)
 
     def __init__(self, initial_list=()):
-        super(unique_list, self).__init__()
+        super().__init__()
         self.__attendance = set()
         self.extend(initial_list)
 
@@ -206,16 +206,16 @@ class unique_list(list):
         if prev_item != item:
             if item in self.__attendance:
                 prev_index_for_item = self.index(item)
-                super(unique_list, self).__setitem__(index, item)
+                super().__setitem__(index, item)
                 del self[prev_index_for_item]
                 self.__attendance.add(item)
             else:
-                super(unique_list, self).__setitem__(index, item)
+                super().__setitem__(index, item)
                 self.__attendance.remove(prev_item)
                 self.__attendance.add(item)
 
     def __delitem__(self, index):
-        super(unique_list, self).__delitem__(index)
+        super().__delitem__(index)
         self.__attendance.remove(self[index])
 
     def __contains__(self, item):
@@ -224,36 +224,36 @@ class unique_list(list):
 
     def append(self, item):
         if item not in self.__attendance:
-            super(unique_list, self).append(item)
+            super().append(item)
             self.__attendance.add(item)
 
     def extend(self, items=()):
         for item in items:
             if item not in self.__attendance:
-                super(unique_list, self).append(item)
+                super().append(item)
                 self.__attendance.add(item)
 
     def insert(self, index, item):
         if item in self.__attendance:
             prev_index_for_item = self.index(item)
             if index != prev_index_for_item:
-                super(unique_list, self).insert(index, item)
+                super().insert(index, item)
                 if prev_index_for_item < index:
-                    super(unique_list, self).__delitem__(prev_index_for_item)
+                    super().__delitem__(prev_index_for_item)
                 else:
-                    super(unique_list, self).__delitem__(prev_index_for_item+1)
+                    super().__delitem__(prev_index_for_item+1)
         else:
-            super(unique_list, self).insert(index, item)
+            super().insert(index, item)
             self.__attendance.add(item)
 
     def remove(self, item):
         if item in self.__attendance:
-            super(unique_list, self).remove(item)
+            super().remove(item)
             self.__attendance.remove(item)
 
     def pop(self, index=-1):
         self.__attendance.remove(self[index])
-        return super(unique_list, self).pop(index)
+        return super().pop(index)
 
     def count(self, item):
         """ Overriding count is not required - just more efficient """
@@ -261,7 +261,7 @@ class unique_list(list):
 
     def sort(self, cmp=None, key=None, reverse=False):
         """ Sometimes sort is needed after all ... """
-        super(unique_list, self).sort(cmp, key, reverse)
+        super().sort(cmp, key, reverse)
 
     def empty(self):
         return len(self.__attendance) == 0
@@ -270,7 +270,7 @@ class unique_list(list):
 class set_with_order(unique_list):
     """ Just another name for unique_list """
     def __init__(self, initial_list=()):
-        super(set_with_order, self).__init__(initial_list)
+        super().__init__(initial_list)
 
 
 def print_var(var_name):
