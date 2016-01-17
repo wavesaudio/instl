@@ -280,10 +280,11 @@ def InstlClientFactory(initial_vars, command):
     elif command == "synccopy":
         from .instlClientSync import InstlClientSync
         from .instlClientCopy import InstlClientCopy
-        # types.new_class(name, bases=(), kwds=None, exec_body=None)
+
         class InstlClientSyncCopy(InstlClientSync, InstlClientCopy):
-            def __init__(self, initial_vars=None):
-                super().__init__(initial_vars)
+            def __init__(self, sc_initial_vars=None):
+                super().__init__(sc_initial_vars)
+
             def do_synccopy(self):
                 self.do_sync()
                 self.do_copy()

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 
-
 import os
 import stat
 import sys
@@ -10,7 +9,6 @@ import tarfile
 import fnmatch
 import time
 
-import svnTree
 import utils
 from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
@@ -20,9 +18,13 @@ from . import connectionBase
 class InstlMisc(InstlInstanceBase):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
+        self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         self.curr_progress = 0
         self.actual_progress = 0
+        self.total_progress = 0
         self.progress_staccato_command = False
+        self.progress_staccato_period = 1
+        self.progress_staccato_count = 0
 
     def __del__(self):
         if self.curr_progress != self.actual_progress:
@@ -32,10 +34,10 @@ class InstlMisc(InstlInstanceBase):
         the_command = var_stack.resolve("$(__MAIN_COMMAND__)", raise_on_fail=True)
         fixed_command = the_command.replace('-', '_')
         self.curr_progress = int(var_stack.resolve("$(__START_DYNAMIC_PROGRESS__)")) + 1
+        self.actual_progress = 1
         self.total_progress = int(var_stack.resolve("$(__TOTAL_DYNAMIC_PROGRESS__)"))
         self.progress_staccato_period = int(var_stack.resolve("$(PROGRESS_STACCATO_PERIOD)"))
         self.progress_staccato_count = 0
-        self.actual_progress = 1
         do_command_func = getattr(self, "do_" + fixed_command)
         before_time = time.clock()
         do_command_func()

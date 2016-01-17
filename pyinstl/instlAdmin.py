@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 
-
 import os
 import filecmp
 import io as StringIO
@@ -17,7 +16,6 @@ from .instlInstanceBase import InstlInstanceBase
 from .installItem import InstallItem
 from .batchAccumulator import BatchAccumulator
 from configVar import var_stack
-from . import connectionBase
 
 
 # noinspection PyPep8,PyPep8,PyPep8
@@ -25,6 +23,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
+        self.read_name_specific_defaults_file(super().__thisclass__.__name__)
 
     def set_default_variables(self):
         if "__CONFIG_FILE__" in var_stack:

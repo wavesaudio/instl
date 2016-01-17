@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
 
-import logging
-
 from configVar import var_stack
 from .instlClient import InstlClient
 

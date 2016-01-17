@@ -446,7 +446,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def make_executable(self, file_path):
         raise NotImplementedError
 
-    def unlock(self, filepath, recursive=False):
+    def unlock(self, file_path, recursive=False):
         """ Remove the system's read-only flag, this is different from permissions.
             Not relevant for Linux.
         """

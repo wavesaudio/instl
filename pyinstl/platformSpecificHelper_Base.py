@@ -356,7 +356,7 @@ class PlatformSpecificHelperBase(object):
         pass
 
     @abc.abstractmethod
-    def unwtar_file(self, filepath):
+    def unwtar_file(self, file_path):
         pass
 
     def unwtar_something(self, what_to_unwtar, no_artifacts=False):
@@ -380,15 +380,15 @@ class PlatformSpecificHelperBase(object):
         pass
 
     @abc.abstractmethod
-    def chmod(self, new_mode, filepath):
+    def chmod(self, new_mode, file_path):
         pass
 
     @abc.abstractmethod
-    def make_executable(self, filepath):
+    def make_executable(self, file_path):
         pass
 
     @abc.abstractmethod
-    def unlock(self, filepath, recursive=False):
+    def unlock(self, file_path, recursive=False):
         """ Remove the system's read-only flag, this is different from permissions.
             For changing permissions use chmod.
         """

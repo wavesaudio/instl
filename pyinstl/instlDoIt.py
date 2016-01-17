@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 
 
-
 import os
-import time
 from collections import OrderedDict, defaultdict
 
 import utils
 from .installItem import InstallItem, guid_list, iids_from_guids
-import aYaml
 from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
 
@@ -53,9 +50,11 @@ class DoItInstructionsState(object):
                     self.orphan_doit_items.append(IID)
         self.full_doit_items = root_install_iids_translated
 
+
 class InstlDoIt(InstlInstanceBase):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
+        self.read_name_specific_defaults_file(super().__thisclass__.__name__)
 
     def do_command(self):
         the_command = var_stack.resolve("$(__MAIN_COMMAND__)")

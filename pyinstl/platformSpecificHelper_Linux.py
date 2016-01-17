@@ -107,27 +107,27 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
     def tar(self, to_tar_name):
         raise NotImplementedError
 
-    def unwtar_file(self, filepath):
+    def unwtar_file(self, file_path):
         raise NotImplementedError
 
     def wait_for_child_processes(self):
         return ("wait",)
 
-    def chmod(self, new_mode, filepath):
-        chmod_command = " ".join(("chmod", new_mode, utils.quoteme_double(filepath)))
+    def chmod(self, new_mode, file_path):
+        chmod_command = " ".join(("chmod", new_mode, utils.quoteme_double(file_path)))
         return chmod_command
 
-    def make_executable(self, filepath):
-        return self.chmod("a+x", filepath)
+    def make_executable(self, file_path):
+        return self.chmod("a+x", file_path)
 
-    def unlock(self, filepath, recursive=False):
+    def unlock(self, file_path, recursive=False):
         """ Remove the system's read-only flag, this is different from permissions.
             Not relevant for Linux.
         """
         return ""
 
-    def touch(self, filepath):
-        touch_command = " ".join(("touch", utils.quoteme_double(filepath) ))
+    def touch(self, file_path):
+        touch_command = " ".join(("touch", utils.quoteme_double(file_path) ))
         return touch_command
 
     def append_file_to_file(self, source_file, target_file):

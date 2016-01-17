@@ -15,7 +15,7 @@ import utils
 from .batchAccumulator import BatchAccumulator
 from .installItem import read_index_from_yaml
 from .platformSpecificHelper_Base import PlatformSpecificHelperFactory
-import svnTree
+from svnTree import SVNTable
 
 from configVar import value_ref_re
 from configVar import var_stack
@@ -40,7 +40,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
     """
 
     def __init__(self, initial_vars=None):
-        self.info_map_table = svnTree.SVNTable()
+        self.info_map_table = SVNTable()
 
         # only when allow_reading_of_internal_vars is true, variables who's name begins and ends with "__"
         # can be read from file
