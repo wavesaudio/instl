@@ -442,8 +442,8 @@ def main():
                      "__GROUP_ID__": str(os.getgid())})
 
     if options.mode == "client":
-        from pyinstl.instlClient import InstlClient
-        instance = InstlClient(initial_vars)
+        from pyinstl.instlClient import InstlClientFactory
+        instance = InstlClientFactory(initial_vars, options.command)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "doit":
@@ -482,6 +482,7 @@ def main():
             instance.do_command()
     else:
         raise InstlException("incomprehensible command line options:\n", options)
+    #print('\n'.join(sorted(sys.modules)))
 
 if __name__ == "__main__":
     main()

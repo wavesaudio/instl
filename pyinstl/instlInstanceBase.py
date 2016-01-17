@@ -40,14 +40,14 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
     """
 
     def __init__(self, initial_vars=None):
-        # init objects owned by this class
+        self.info_map_table = svnTree.SVNTable()
 
         # only when allow_reading_of_internal_vars is true, variables who's name begins and ends with "__"
         # can be read from file
-        self.info_map_table = svnTree.SVNTable()
         self.allow_reading_of_internal_vars = False
         self.path_searcher = utils.SearchPaths(var_stack.get_configVar_obj("__SEARCH_PATHS__"))
         self.init_default_vars(initial_vars)
+        self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         # initialize the search paths helper with the current directory and dir where instl is now
         self.path_searcher.add_search_path(os.getcwd())
         self.path_searcher.add_search_path(os.path.dirname(os.path.realpath(sys.argv[0])))
@@ -94,8 +94,6 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
             else:
                 var_stack.add_const_config_variable("__COMPILATION_TIME__", var_description, "(not compiled)")
 
-        # read class specific defaults/*.yaml
-        self.read_name_specific_defaults_file(type(self).__name__)
         self.read_user_config()
 
     def read_name_specific_defaults_file(self, file_name):
@@ -103,7 +101,11 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
         name_specific_defaults_file_path = os.path.join(var_stack.resolve("$(__INSTL_DATA_FOLDER__)"), "defaults",
                                                         file_name + ".yaml")
         if os.path.isfile(name_specific_defaults_file_path):
+            print("reading", name_specific_defaults_file_path)
             self.read_yaml_file(name_specific_defaults_file_path)
+        else:
+            print("not reading", name_specific_defaults_file_path)
+
 
     def read_user_config(self):
         user_config_path = var_stack.resolve("$(__USER_CONFIG_FILE_PATH__)")

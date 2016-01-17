@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-
-
 import os
 import time
 from collections import OrderedDict, defaultdict
@@ -84,6 +82,7 @@ class InstallInstructionsState(object):
 class InstlClient(InstlInstanceBase):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
+        self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         self.installState = None
 
     def do_command(self):
@@ -155,40 +154,6 @@ class InstlClient(InstlInstanceBase):
                 if "SYNC_BASE_URL" in var_stack:
                     p4_sync_dir = utils.P4GetPathFromDepotPath(var_stack.resolve("$(SYNC_BASE_URL)"))
                     var_stack.set_var("P4_SYNC_DIR", "from SYNC_BASE_URL").append(p4_sync_dir)
-
-    # sync command implemented in instlClientSync.py file
-
-    from .instlClientSync import do_sync
-
-    # copy command implemented in instlClientCopy.py file
-    from .instlClientCopy import do_copy
-    from .instlClientCopy import init_copy_vars
-    from .instlClientCopy import calc_size_of_file_item
-    from .instlClientCopy import create_copy_instructions_for_file
-    from .instlClientCopy import create_copy_instructions_for_dir_cont
-    from .instlClientCopy import create_copy_instructions_for_files
-    from .instlClientCopy import create_copy_instructions_for_dir
-    from .instlClientCopy import write_copy_debug_info
-    from .instlClientCopy import create_copy_instructions_for_source
-    from .instlClientCopy import create_copy_instructions
-    from .instlClientCopy import pre_copy_mac_handling
-
-    # remove command implemented in instlClientRemove.py file
-    from .instlClientRemove import do_remove
-    from .instlClientRemove import init_remove_vars
-    from .instlClientRemove import create_remove_instructions
-    from .instlClientRemove import create_remove_instructions_for_source
-
-    # uninstall command implemented in instlClientUninstall.py file
-    from .instlClientUninstall import do_uninstall
-    from .instlClientUninstall import init_uninstall_vars
-    from .instlClientUninstall import create_uninstall_instructions
-    from .instlClientUninstall import create_require_file_instructions
-
-    def do_synccopy(self):
-        self.do_sync()
-        self.do_copy()
-        self.batch_accum += self.platform_helper.progress("Done synccopy")
 
     def repr_for_yaml(self, what=None):
         """ Create representation of self suitable for printing as yaml.
@@ -286,3 +251,42 @@ class InstlClient(InstlInstanceBase):
                         unique_actions.append(
                             self.platform_helper.progress("{installi.name} {action_description}".format(**locals())))
         self.batch_accum += unique_actions
+
+    def create_require_file_instructions(self):
+        # write the require file as it should look after copy is done
+        new_require_file_path = var_stack.resolve("$(NEW_SITE_REQUIRE_FILE_PATH)", raise_on_fail=True)
+        new_require_file_dir, new_require_file_name = os.path.split(new_require_file_path)
+        utils.safe_makedirs(new_require_file_dir)
+        self.write_require_file(new_require_file_path)
+        # Copy the new require file over the old one, if copy fails the old file remains.
+        self.batch_accum += self.platform_helper.copy_file_to_file("$(NEW_SITE_REQUIRE_FILE_PATH)",
+                                                                   "$(SITE_REQUIRE_FILE_PATH)")
+
+
+def InstlClientFactory(initial_vars, command):
+    retVal = None
+    if command == "sync":
+        from .instlClientSync import InstlClientSync
+        retVal = InstlClientSync(initial_vars)
+    elif command == "copy":
+        from .instlClientCopy import InstlClientCopy
+        retVal = InstlClientCopy(initial_vars)
+    elif command == "remove":
+        from .instlClientRemove import InstlClientRemove
+        retVal = InstlClientRemove(initial_vars)
+    elif command == "uninstall":
+        from .instlClientUninstall import InstlClientUninstall
+        retVal = InstlClientUninstall(initial_vars)
+    elif command == "synccopy":
+        from .instlClientSync import InstlClientSync
+        from .instlClientCopy import InstlClientCopy
+        # types.new_class(name, bases=(), kwds=None, exec_body=None)
+        class InstlClientSyncCopy(InstlClientSync, InstlClientCopy):
+            def __init__(self, initial_vars=None):
+                super().__init__(initial_vars)
+            def do_synccopy(self):
+                self.do_sync()
+                self.do_copy()
+                self.batch_accum += self.platform_helper.progress("Done synccopy")
+        retVal = InstlClientSyncCopy(initial_vars)
+    return retVal

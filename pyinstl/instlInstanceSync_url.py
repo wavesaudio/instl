@@ -62,7 +62,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Check checksum done")
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
-    @utils.timing
     def create_remove_unwanted_files_in_sync_folder_instructions(self):
         """ Remove files in the sync folder that are not in info_map
         """

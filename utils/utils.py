@@ -5,7 +5,6 @@ import sys
 import os
 import urllib.request, urllib.error, urllib.parse
 import re
-import urllib.parse
 import hashlib
 import base64
 import collections
