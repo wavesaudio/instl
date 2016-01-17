@@ -101,11 +101,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
         name_specific_defaults_file_path = os.path.join(var_stack.resolve("$(__INSTL_DATA_FOLDER__)"), "defaults",
                                                         file_name + ".yaml")
         if os.path.isfile(name_specific_defaults_file_path):
-            print("reading", name_specific_defaults_file_path)
             self.read_yaml_file(name_specific_defaults_file_path)
-        else:
-            print("not reading", name_specific_defaults_file_path)
-
 
     def read_user_config(self):
         user_config_path = var_stack.resolve("$(__USER_CONFIG_FILE_PATH__)")
