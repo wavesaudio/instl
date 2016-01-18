@@ -3,7 +3,7 @@
 
 import os
 import filecmp
-import io as StringIO
+import io
 import re
 import fnmatch
 import subprocess
@@ -141,9 +141,10 @@ class InstlAdmin(InstlInstanceBase):
         with utils.ChangeDirIfExists(repo_url):
             proc = subprocess.Popen(svn_info_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             my_stdout, my_stderr = proc.communicate()
-            if proc.returncode != 0 or my_stderr != "":
-                raise ValueError("Could not read info from svn: " + my_stderr)
-            info_as_io = StringIO.StringIO(my_stdout)
+            my_stdout, my_stderr = my_stdout.decode("utf-8"), my_stderr.decode("utf-8")
+            if proc.returncode != 0 or str(my_stderr) != "":
+                raise ValueError("Could not read info from svn: ", str(my_stderr), proc.returncode)
+            info_as_io = io.StringIO(my_stdout)
             for line in info_as_io:
                 match = revision_line_re.match(line)
                 if match:
