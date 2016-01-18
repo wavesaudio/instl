@@ -7,9 +7,9 @@ import platform
 import socket
 import datetime
 import re
+from subprocess import check_output
 
 block_cipher = None
-
 
 a = Analysis(['instl'],
              pathex=['instl'],
@@ -35,6 +35,9 @@ for defaults_file in os.listdir(instl_defaults_path):
     if fnmatch.fnmatch(defaults_file, '*.yaml'):
         a.datas += [("defaults/"+defaults_file, os.path.join(instl_defaults_path, defaults_file), "DATA")]
 
+
+git_branch = check_output(["git", "rev-parse", "--symbolic-full-name", "--abbrev-ref", "HEAD"]).decode('utf-8')
+
 PyInstallerVersion =  re.split(r'[~\\/]+', HOMEPATH)[-1]
 
 compile_info_path = os.path.join("build", "compile-info.yaml")
@@ -46,7 +49,8 @@ __COMPILATION_TIME__: {}
 __SOCKET_HOSTNAME__: {}
 __PLATFORM_NODE__: {}
 __PYTHON_COMPILER__: {}
-""".format(str(datetime.datetime.now()), socket.gethostname(), platform.node(), PyInstallerVersion))
+__GITHUB_BRANCH__: {}
+""".format(str(datetime.datetime.now()), socket.gethostname(), platform.node(), PyInstallerVersion, git_branch))
 a.datas += [("defaults/compile-info.yaml", compile_info_path, "DATA")]
 
 instl_help_path = os.path.join("help")
