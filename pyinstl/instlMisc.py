@@ -268,3 +268,13 @@ class InstlMisc(InstlInstanceBase):
         if not restart_the_doc:
             dock_util_command.append("--no-restart")
         utils.dock_util(dock_util_command)
+
+    def do_ls(self):
+        folder_to_list = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
+        if "__MAIN_OUT_FILE__" in var_stack:
+            out_file = var_stack.resolve("$(__MAIN_OUT_FILE__)")
+        else:
+            out_file = "stdout"
+        the_listing = utils.folder_listing(folder_to_list)
+        with utils.write_to_file_or_stdout(out_file) as wfd:
+            wfd.write(the_listing)
