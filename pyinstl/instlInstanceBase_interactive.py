@@ -35,12 +35,17 @@ try:
 
     readline_loaded = True
 except ImportError:
-    try:
-        import pyreadline as readline
+    if current_os == 'Win':
+        try:
+            import pyreadline as readline
 
-        readline_loaded = True
-    except ImportError:
-        print("failed to import pyreadline, readline functionality not supported")
+            readline_loaded = True
+        except ImportError:
+            print("failed to import pyreadline, readline functionality not supported")
+        except BaseException as ex:
+            print(type(ex), ex, "failed to import pyreadline, readline functionality not supported")
+    else:
+        print("failed to import readline, readline functionality not supported")
 
 colorama_loaded = False
 try:
