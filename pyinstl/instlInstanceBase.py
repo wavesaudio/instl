@@ -452,7 +452,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
             print("index empty - nothing to check")
         else:
             try:
-                from .pyinstl import installItemGraph
+                from . import installItemGraph
 
                 depend_graph = installItemGraph.create_dependencies_graph(self.install_definitions_index)
                 depend_cycles = installItemGraph.find_cycles(depend_graph)
@@ -511,7 +511,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
 
     def needed_by(self, iid):
         try:
-            from .pyinstl import installItemGraph
+            from . import installItemGraph
 
             InstallItem.begin_get_for_all_oses()
             graph = installItemGraph.create_dependencies_graph(self.install_definitions_index)
