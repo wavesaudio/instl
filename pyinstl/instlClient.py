@@ -21,7 +21,6 @@ class InstallInstructionsState(object):
         self.orphan_install_items = utils.unique_list()
         self.install_items_by_target_folder = defaultdict(utils.unique_list)
         self.no_copy_items_by_sync_folder = defaultdict(utils.unique_list)
-        self.sync_paths = utils.unique_list()
 
     def repr_for_yaml(self):
         retVal = OrderedDict()
@@ -31,7 +30,6 @@ class InstallInstructionsState(object):
         retVal['install_items_by_target_folder'] = {folder: list(self.install_items_by_target_folder[folder]) for folder
                                                     in self.install_items_by_target_folder}
         retVal['no_copy_items_by_sync_folder'] = list(self.no_copy_items_by_sync_folder)
-        retVal['sync_paths'] = list(self.sync_paths)
         return retVal
 
     def sort_install_items_by_target_folder(self, instlObj):
@@ -65,6 +63,7 @@ class InstallInstructionsState(object):
                 root_install_iids_translated.extend(iids_from_the_guid)
             else:
                 self.orphan_install_items.append(IID)
+        root_install_iids_translated.sort()  # for repeatability during debug
 
         for IID in root_install_iids_translated:
             try:
@@ -76,6 +75,8 @@ class InstallInstructionsState(object):
             except KeyError:
                 self.orphan_install_items.append(IID)
 
+        self.full_install_items.sort()        # for repeatability
+        self.orphan_install_items.sort()      # for repeatability
         self.sort_install_items_by_target_folder(instlObj)
 
 
