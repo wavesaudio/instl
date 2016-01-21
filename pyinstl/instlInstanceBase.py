@@ -229,8 +229,8 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
                 buffer = io.StringIO(buffer)
                 self.read_yaml_from_stream(buffer)
             var_stack.get_configVar_obj("__READ_YAML_FILES__").append(file_path)
-        except:
-            print("Exception reading file:", file_path)
+        except Exception as ex:
+            print("Exception reading file:", file_path, ex)
             raise
 
     def read_require(self, a_node):
