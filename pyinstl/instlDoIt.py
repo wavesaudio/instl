@@ -124,18 +124,14 @@ class InstlDoIt(InstlInstanceBase):
             doit_item.user_data = True
 
     def add_default_items(self):
-        all_items_item = InstallItem()
-        all_items_item.iid = "__ALL_ITEMS_IID__"
+        all_items_item = InstallItem("__ALL_ITEMS_IID__")
         all_items_item.name = "All IIDs"
-        for item_name in self.install_definitions_index:
-            all_items_item.add_depend(item_name)
+        all_items_item.add_depends(*self.install_definitions_index.keys())
         self.install_definitions_index["__ALL_ITEMS_IID__"] = all_items_item
 
-        all_guids_item = InstallItem()
-        all_guids_item.iid = "__ALL_GUIDS_IID__"
+        all_guids_item = InstallItem("__ALL_GUIDS_IID__")
         all_guids_item.name = "All GUIDs"
-        for guid in guid_list(self.install_definitions_index):
-            all_guids_item.add_depend(guid)
+        all_guids_item.add_depends(*guid_list(self.install_definitions_index))
         self.install_definitions_index["__ALL_GUIDS_IID__"] = all_guids_item
 
     def calculate_default_doit_item_set(self):
