@@ -24,6 +24,14 @@ class InstlClientUninstall(InstlClient):
 
     def create_uninstall_instructions(self):
         self.init_uninstall_vars()
+        print("original list", self.installState.root_install_items)
+        print("translated list", self.installState.root_install_iids_translated)
+        unrequired_items, unmentioned_items = self.require_man.calc_to_remove_items(self.installState.root_install_iids_translated)
+        print("unrequired", unrequired_items)
+        print("unmentioned", unmentioned_items)
+
+    def old_create_uninstall_instructions(self):
+        self.init_uninstall_vars()
         # self.uninstall_definitions_index = dict()
         full_list_of_iids_to_uninstall = list()
         from collections import deque

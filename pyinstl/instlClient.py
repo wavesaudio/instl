@@ -17,6 +17,7 @@ class InstallInstructionsState(object):
 
     def __init__(self):
         self.root_install_items = utils.unique_list()
+        self.root_install_iids_translated = utils.unique_list()
         self.full_install_items = utils.unique_list()
         self.orphan_install_items = utils.unique_list()
         self.install_items_by_target_folder = defaultdict(utils.unique_list)
@@ -47,25 +48,27 @@ class InstallInstructionsState(object):
                         sync_folder = os.path.join("$(LOCAL_REPO_SYNC_DIR)", relative_sync_folder)
                         self.no_copy_items_by_sync_folder[sync_folder].append(IID)
 
+    def translate_root_install_items_set(self, instlObj):
+        # root_install_items might have guid in it, translate them to iids
+
+        for IID in self.root_install_items:
+            # if IID is a guid, iids_from_guids will translate to iid's, or return the IID otherwise
+            iids_from_the_guid = iids_from_guids(instlObj.install_definitions_index, (IID,))
+            if len(iids_from_the_guid) > 0:
+                self.root_install_iids_translated.extend(iids_from_the_guid)
+            else:
+                self.orphan_install_items.append(IID)
+        self.root_install_iids_translated.sort()  # for repeatability during debug
+
     def calculate_full_install_items_set(self, instlObj):
         """ calculate the set of iids to install by starting with the root set and adding all dependencies.
             Initial list of iids should already be in self.root_install_items.
             If an install items was not found for a iid, the iid is added to the orphan set.
         """
 
-        # root_install_items might have guid in it, translate them to iids
+        self.translate_root_install_items_set(instlObj)
 
-        root_install_iids_translated = utils.unique_list()
-        for IID in self.root_install_items:
-            # if IID is a guid, iids_from_guids will translate to iid's, or return the IID otherwise
-            iids_from_the_guid = iids_from_guids(instlObj.install_definitions_index, (IID,))
-            if len(iids_from_the_guid) > 0:
-                root_install_iids_translated.extend(iids_from_the_guid)
-            else:
-                self.orphan_install_items.append(IID)
-        root_install_iids_translated.sort()  # for repeatability during debug
-
-        for IID in root_install_iids_translated:
+        for IID in self.root_install_iids_translated:
             try:
                 # all items in the root list are marked as required by them selves
                 instlObj.install_definitions_index[IID].add_required_by(IID)
@@ -219,6 +222,8 @@ class InstlClient(InstlInstanceBase):
         self.installState.root_install_items = list(filter(bool, self.installState.root_install_items))
         if var_stack.resolve("$(__MAIN_COMMAND__)") != "uninstall":
             self.installState.calculate_full_install_items_set(self)
+        else:
+            self.installState.translate_root_install_items_set(self)
         self.read_previous_requirements()
         var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(self.installState.full_install_items))
         var_stack.set_var("__ORPHAN_INSTALL_TARGETS__").extend(sorted(self.installState.orphan_install_items))
