@@ -20,7 +20,6 @@ class DoItInstructionsState(object):
         self.orphan_doit_items = utils.unique_list()
         self.doit_items_by_target_folder = defaultdict(utils.unique_list)
         self.no_copy_items_by_sync_folder = defaultdict(utils.unique_list)
-        self.sync_paths = utils.unique_list()
 
     def repr_for_yaml(self):
         retVal = OrderedDict()
@@ -30,7 +29,6 @@ class DoItInstructionsState(object):
         retVal['doit_items_by_target_folder'] = {folder: list(self.doit_items_by_target_folder[folder]) for folder
                                                     in self.doit_items_by_target_folder}
         retVal['no_copy_items_by_sync_folder'] = list(self.no_copy_items_by_sync_folder)
-        retVal['sync_paths'] = list(self.sync_paths)
         return retVal
 
     def calculate_full_doit_items_set(self, instlObj):
