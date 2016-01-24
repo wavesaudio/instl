@@ -260,9 +260,9 @@ class unique_list(list):
         """ Overriding count is not required - just more efficient """
         return self.__attendance.count(item)
 
-    def sort(self, cmp=None, key=None, reverse=False):
+    def sort(self, key=None, reverse=False):
         """ Sometimes sort is needed after all ... """
-        super().sort(cmp, key, reverse)
+        super().sort(key=key, reverse=reverse)
 
     def empty(self):
         return len(self.__attendance) == 0

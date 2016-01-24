@@ -21,7 +21,6 @@ class InstallInstructionsState(object):
         self.orphan_install_items = utils.unique_list()
         self.install_items_by_target_folder = defaultdict(utils.unique_list)
         self.no_copy_items_by_sync_folder = defaultdict(utils.unique_list)
-        self.sync_paths = utils.unique_list()
 
     def repr_for_yaml(self):
         retVal = OrderedDict()
@@ -31,12 +30,11 @@ class InstallInstructionsState(object):
         retVal['install_items_by_target_folder'] = {folder: list(self.install_items_by_target_folder[folder]) for folder
                                                     in self.install_items_by_target_folder}
         retVal['no_copy_items_by_sync_folder'] = list(self.no_copy_items_by_sync_folder)
-        retVal['sync_paths'] = list(self.sync_paths)
         return retVal
 
     def sort_install_items_by_target_folder(self, instlObj):
         for IID in self.full_install_items:
-            with instlObj.install_definitions_index[IID] as installi:
+            with instlObj.install_definitions_index[IID].push_var_stack_scope():
                 folder_list_for_idd = [folder for folder in var_stack["iid_folder_list"]]
                 if folder_list_for_idd:
                     for folder in folder_list_for_idd:
@@ -70,13 +68,15 @@ class InstallInstructionsState(object):
         for IID in root_install_iids_translated:
             try:
                 # all items in the root list are marked as required by them selves
-                instlObj.install_definitions_index[IID].required_by.append(IID)
+                instlObj.install_definitions_index[IID].add_required_by(IID)
                 instlObj.install_definitions_index[IID].get_recursive_depends(instlObj.install_definitions_index,
                                                                               self.full_install_items,
                                                                               self.orphan_install_items)
             except KeyError:
                 self.orphan_install_items.append(IID)
 
+        self.full_install_items.sort()        # for repeatability
+        self.orphan_install_items.sort()      # for repeatability
         self.sort_install_items_by_target_folder(instlObj)
 
 
@@ -197,18 +197,14 @@ class InstlClient(InstlInstanceBase):
         return retVal
 
     def add_default_items(self):
-        all_items_item = InstallItem()
-        all_items_item.iid = "__ALL_ITEMS_IID__"
+        all_items_item = InstallItem("__ALL_ITEMS_IID__")
         all_items_item.name = "All IIDs"
-        for item_name in self.install_definitions_index:
-            all_items_item.add_depend(item_name)
+        all_items_item.add_depends(*self.install_definitions_index.keys())
         self.install_definitions_index["__ALL_ITEMS_IID__"] = all_items_item
 
-        all_guids_item = InstallItem()
-        all_guids_item.iid = "__ALL_GUIDS_IID__"
+        all_guids_item = InstallItem("__ALL_GUIDS_IID__")
         all_guids_item.name = "All GUIDs"
-        for guid in guid_list(self.install_definitions_index):
-            all_guids_item.add_depend(guid)
+        all_guids_item.add_depends(*guid_list(self.install_definitions_index))
         self.install_definitions_index["__ALL_GUIDS_IID__"] = all_guids_item
 
     def calculate_default_install_item_set(self):
@@ -236,7 +232,7 @@ class InstlClient(InstlInstanceBase):
         """ accumulate action_type actions from iid_list, eliminating duplicates"""
         unique_actions = utils.unique_list()  # unique_list will eliminate identical actions while keeping the order
         for IID in sorted(iid_list):
-            with self.install_definitions_index[IID] as installi:
+            with self.install_definitions_index[IID].push_var_stack_scope() as installi:
                 action_var_name = "iid_action_list_" + action_type
                 item_actions = var_stack.resolve_var_to_list_if_exists(action_var_name)
                 num_unique_actions = 0

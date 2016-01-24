@@ -5,11 +5,12 @@
     class InstallItem hold information about how to install one or more install_sources.
     information include:
         iid - must be unique amongst all InstallItems.
-        name - description for log and errors messages has no bering on the installation.
+        name - will appear in progress messages and logs.
         guids - a standard 36 character guid. Can be used as additional identification
         Several iids can share the same guid, same iid can have several guids.
         remark - remarks for human consumption has no bering on the installation.
         description - auto generated, usually the file and line from which the item was read.
+                        can be used for debugging, log and errors messages has no bering on the installation.
         inherit - iids of other InstallItems to inherit from.
         These fields appear once for each InstallItem.
     Further fields can be be found in a common section or in a section for specific OS:
@@ -74,6 +75,8 @@
 """
 
 from collections import OrderedDict, defaultdict
+from contextlib import contextmanager
+
 import aYaml
 import utils
 import configVar
@@ -90,17 +93,16 @@ def read_index_from_yaml(all_items_node):
             print(IID, "found more than once in index")
         else:
             # print(IID, "not in all_items_node")
-            item = InstallItem()
-            item.read_from_yaml_by_idd(IID, all_items_node)
+            item = InstallItem(IID)
+            item.read_from_yaml_by_idd(all_items_node)
             retVal[IID] = item
     return retVal
 
-
 class InstallItem(object):
-    __slots__ = ('iid', 'name', '__guids',
-                 'remark', "description", 'inherit',
-                 '__set_for_os', '__items', '__resolved_inherit',
-                 'var_list', 'required_by', '__user_data')
+    __slots__ = ('__iid', '__name', '__guids',
+                 '__remark', "__description", '__inherit_from',
+                 '__install_for_os_stack', '__items', '__resolved_inherit',
+                 '__var_list', '__required_by', '__user_data')
     os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
     allowed_item_keys = ('name', 'guid','install_sources', 'install_folders', 'inherit', 'depends', 'actions', 'remark')
     allowed_top_level_keys = os_names[1:] + allowed_item_keys
@@ -171,117 +173,116 @@ class InstallItem(object):
             InstallItem.merge_item_sections(self.__items[os_], otherInstallItem.__items[os_])
         self.__guids.extend(otherInstallItem.guids)
 
-    def __init__(self):
+    def __init__(self, iid):
         self.__resolved_inherit = False
-        self.iid = None
-        self.name = ""
+        self.__iid = iid
+        self.__name = ""
         self.__guids = utils.unique_list()
-        self.remark = ""
-        self.description = ""
-        self.inherit = utils.unique_list()
-        self.__set_for_os = [InstallItem.os_names[0]] # reading for all platforms ('common') or for which specific platforms ('Mac', 'Win')?
+        self.__remark = ""
+        self.__description = ""
+        self.__inherit_from = utils.unique_list()
+        self.__install_for_os_stack = [InstallItem.os_names[0]] # reading for all platforms ('common') or for which specific platforms ('Mac', 'Win')?
         self.__items = defaultdict(InstallItem.create_items_section)
-        self.var_list = None
-        self.required_by = utils.unique_list()
+        self.__var_list = None
+        self.__required_by = utils.unique_list()
         self.__user_data = None
 
-    def read_from_yaml_by_idd(self, IID, all_items_node):
-        my_node = all_items_node[IID]
-        self.iid = IID
-        self.description = str(my_node.start_mark)
+    def read_from_yaml_by_idd(self, all_items_node):
+        my_node = all_items_node[self.__iid]
+        save_iid = self.__iid
+        # set description here, even though it might be overwritten,
+        # so if there's an error during read_from_yaml exact location could be printed
+        self.__description = str(my_node.start_mark)
         self.read_from_yaml(my_node)
-        self.iid = IID  # restore the IID & description that might have been overwritten by inheritance
-        self.description = str(my_node.start_mark)
+        self.__iid = save_iid  # restore the IID & description that might have been overwritten by inheritance
+        self.__description = str(my_node.start_mark)
 
     def read_from_yaml(self, my_node):
         element_names = set([a_key for a_key in my_node])
         if not element_names.issubset(self.allowed_top_level_keys):
-            raise KeyError("illegal keys {}; IID: {}, {}".format(list(element_names.difference(self.allowed_top_level_keys)), self.iid, self.description))
+            print("Warning: illegal keys {}; IID: {}, {}".format(list(element_names.difference(self.allowed_top_level_keys)), self.__iid, self.__description))
 
         if 'inherit' in my_node:
-            inherit_node = my_node['inherit']
-            for inheritoree in inherit_node:
-                self.add_inherit(inheritoree.value)
+            self.__inherit_from.extend(inheritoree.value for inheritoree in my_node['inherit'])
         if 'name' in my_node:
-            self.name = my_node['name'].value
+            self.__name = my_node['name'].value
         if 'guid' in my_node:
-            for source in my_node['guid']:
-                self.__guids.append(source.value.lower())
+            self.__guids.extend(source.value.lower() for source in my_node['guid'])
         if 'remark' in my_node:
-            self.remark = my_node['remark'].value
+            self.__remark = my_node['remark'].value
         if 'install_sources' in my_node:
-            for source in my_node['install_sources']:
-                self.add_source(source.value, source.tag)
+            self.add_sources(*[(source.value, source.tag) for source in my_node['install_sources']])
         if 'install_folders' in my_node:
-            for folder in my_node['install_folders']:
-                self.add_folder(folder.value)
+            self.add_folders(*[folder.value for folder in my_node['install_folders']])
         if 'depends' in my_node:
-            for source in my_node['depends']:
-                self.add_depend(source.value)
+            self.add_depends(*[source.value for source in my_node['depends']])
         if 'actions' in my_node:
             self.read_actions(my_node['actions'])
         for os_ in InstallItem.os_names[1:]:
             if os_ in my_node:
-                self.begin_set_for_specific_os(os_)
-                self.read_from_yaml(my_node[os_])
-                self.end_set_for_specific_os()
+                with self.set_for_specific_os(os_):
+                    self.read_from_yaml(my_node[os_])
 
     def get_var_list(self):
-        if self.var_list is None:
-            self.var_list = configVar.ConfigVarList()
-            self.var_list.set_var("iid_iid").append(self.iid)
-            if self.name:
-                self.var_list.set_var("iid_name").append(self.name)
+        """
+        :return: ConfigVarList object with variables for properties of this object
+                self.__var_list is a member so it will be cached for multiple accesses
+                (which happens, many times!)
+        """
+        if self.__var_list is None:
+            self.__var_list = configVar.ConfigVarList()
+            self.__var_list.set_var("iid_iid").append(self.__iid)
+            if self.__name:
+                self.__var_list.set_var("iid_name").append(self.__name)
             for a_guid in self.__guids:
-                self.var_list.get_configVar_obj("iid_guid").append(a_guid)
-            if self.remark:
-                self.var_list.set_var("iid_remark").append(self.remark)
-            self.var_list.set_var("iid_inherit").extend(self._inherit_list())
-            self.var_list.set_var("iid_folder_list").extend(self._folder_list())
-            self.var_list.set_var("iid_depend_list").extend(self._depend_list())
+                self.__var_list.get_configVar_obj("iid_guid").append(a_guid)
+            if self.__remark:
+                self.__var_list.set_var("iid_remark").append(self.__remark)
+            self.__var_list.set_var("iid_inherit").extend(self.__inherit_from)
+            self.__var_list.set_var("iid_folder_list").extend(self._folder_list())
+            self.__var_list.set_var("iid_depend_list").extend(self._depend_list())
             for action_type in self.action_types:
                 action_list_for_type = self._action_list(action_type)
                 if len(action_list_for_type) > 0:
-                    self.var_list.set_var("iid_action_list_" + action_type).extend(action_list_for_type)
-            source_vars_obj = self.var_list.set_var("iid_source_var_list")
+                    self.__var_list.set_var("iid_action_list_" + action_type).extend(action_list_for_type)
+            source_vars_obj = self.__var_list.set_var("iid_source_var_list")
             source_list = self._source_list()
             for i, source in enumerate(source_list):
                 source_var = "iid_source_" + str(i)
                 source_vars_obj.append(source_var)
-                self.var_list.set_var(source_var).extend(source)
-        return self.var_list
+                self.__var_list.set_var(source_var).extend(source)
+        return self.__var_list
 
-    def __enter__(self):
+    @contextmanager
+    def push_var_stack_scope(self):
         var_stack.push_scope(self.get_var_list())
-        return self
-
-    def __exit__(self, etype, value, traceback):
+        yield self
         var_stack.pop_scope()
 
-    def begin_set_for_specific_os(self, for_os):
-        self.__set_for_os.append(for_os)
+    @contextmanager
+    def set_for_specific_os(self, for_os):
+        self.__install_for_os_stack.append(for_os)
+        yield self
+        self.__install_for_os_stack.pop()
 
-    def end_set_for_specific_os(self):
-        self.__set_for_os.pop()
-
-    def __add_item_by_os_and_category(self, item_os, item_category, item_value):
+    def __add_items_by_os_and_category(self, item_os, item_category, *item_values):
         """ Add an item to one of the oses and category e.g.:
             __add_item_by_os_and_category("Win", "install_sources", "x.dll")
             __add_item_by_os_and_category("common", "install_sources", "AudioTrack.bundle")
         """
-        self.__items[item_os][item_category].append(item_value)
+        self.__items[item_os][item_category].extend(item_values)
 
-    def __add_item_to_default_os_by_category(self, item_category, item_value):
+    def __add_items_to_default_os_by_category(self, item_category, *item_values):
         """ Add an item to currently default os and category, e.g.:
              begin_set_for_specific_os("Win")
-             __add_item_to_default_os_by_category("install_sources", "x.dll")
+             __add_items_to_default_os_by_category("install_sources", "x.dll")
              self.end_set_for_specific_os()
-             __add_item_to_default_os_by_category("install_sources", "AudioTrack.bundle")
+             __add_items_to_default_os_by_category("install_sources", "AudioTrack.bundle")
 
-             The default os is the one at the top of the __set_for_os stack. __set_for_os
+             The default os is the one at the top of the __install_for_os_stack stack. __install_for_os_stack
              starts with "common" as the first o.
          """
-        self.__add_item_by_os_and_category(self.__set_for_os[-1], item_category, item_value)
+        self.__add_items_by_os_and_category(self.current_os, item_category, *item_values)
 
     def __get_item_list_by_os_and_category(self, item_os, item_category):
         retVal = list()
@@ -295,50 +296,46 @@ class InstallItem(object):
             retVal.extend(self.__get_item_list_by_os_and_category(os_name, item_category))
         return retVal
 
-    def add_inherit(self, inherit_idd):
-        self.inherit.append(inherit_idd)
+    def add_sources(self, *new_sources):
+        adjusted_sources = list()
+        for new_source in new_sources:
+            if new_source[1] in InstallItem.file_types:
+                source_type = new_source[1]
+            else:
+                source_type = '!dir'
+            if new_source[0].startswith("/"):  # absolute path
+                adjusted_source = new_source[0][1:], source_type, self.current_os
+            elif new_source[0].startswith("$("):  # explicitly relative to some variable
+                adjusted_source = new_source[0], source_type, self.current_os
+            else:  # implicitly relative to $(SOURCE_PREFIX)
+                adjusted_source = "$(SOURCE_PREFIX)/" + new_source[0], source_type, self.current_os
+            adjusted_sources.append(adjusted_source)
 
-    def _inherit_list(self):
-        retVal = self.inherit
-        return retVal
-
-    def add_source(self, new_source, file_type='!dir'):
-        if file_type not in InstallItem.file_types:
-            file_type = '!dir'
-        if new_source.startswith("/"):  # absolute path
-            new_source = new_source[1:]
-        elif new_source.startswith("$("):  # explicitly relative to some variable
-            pass
-        else:  # implicitly relative to $(SOURCE_PREFIX)
-            new_source = "$(SOURCE_PREFIX)/" + new_source
-        self.__add_item_to_default_os_by_category('install_sources', (new_source, file_type, self.__set_for_os[-1]))
+        self.__add_items_to_default_os_by_category('install_sources', *adjusted_sources)
 
     def _source_list(self):
         return self.__get_item_list_for_default_oses_by_category('install_sources')
 
-    def add_folder(self, new_folder):
-        self.__add_item_to_default_os_by_category('install_folders', new_folder)
+    def add_folders(self, *new_folders):
+        self.__add_items_to_default_os_by_category('install_folders', *new_folders)
 
     def _folder_list(self):
         return self.__get_item_list_for_default_oses_by_category('install_folders')
 
-    def add_depend(self, new_depend):
-        if not new_depend:
+    def add_depends(self, *new_depends):
+        if not new_depends:
             raise ValueError("new_depend cannot be null")
-        self.__add_item_to_default_os_by_category('depends', new_depend)
+        self.__add_items_to_default_os_by_category('depends', *new_depends)
 
     def _depend_list(self):
         return self.__get_item_list_for_default_oses_by_category('depends')
 
-    def add_action(self, action_type, new_action):
-        if action_type not in InstallItem.action_types:
-            raise KeyError("actions type must be one of: " + str(InstallItem.action_types) + " not " + action_type)
-        self.__add_item_to_default_os_by_category(action_type, new_action)
+    def add_actions(self, action_type, *new_actions):
+        self.__add_items_to_default_os_by_category(action_type, *new_actions)
 
     def read_actions(self, action_nodes):
         for action_type, new_actions in action_nodes.items():
-            for action in new_actions:
-                self.add_action(action_type, action.value)
+            self.add_actions(action_type, *[action.value for action in new_actions])
 
     def _action_list(self, action_type):
         if action_type not in InstallItem.action_types:
@@ -358,29 +355,28 @@ class InstallItem(object):
 
     def calc_required(self, items_map, is_top_item):
         for depend in self._depend_list():
-            if len(items_map[depend].required_by) == 0: # so calc_required will be called only once for each iid
+            if len(items_map[depend].__required_by) == 0: # so calc_required will be called only once for each iid
                 items_map[depend].calc_required(items_map, is_top_item=False)
-            items_map[depend].required_by.append(self.iid)
+            items_map[depend].add_required_by(self.__iid)
             if is_top_item:
-                self.required_by.append(self.iid) # top level items are marked as required by themselves
+                self.__required_by.append(self.__iid) # top level items are marked as required by themselves
 
     def get_recursive_depends(self, items_map, out_set, orphan_set):
-        if self.iid not in out_set:
-            out_set.append(self.iid)
-            # print("get_recursive_depends: added", self.iid)
+        if self.__iid not in out_set:
+            out_set.append(self.__iid)
+            # print("get_recursive_depends: added", self.__iid)
             for depend in self._depend_list():
                 try:
                     # if IID is a guid, iids_from_guids will translate to iid's, or return the IID otherwise
                     dependees = iids_from_guids(items_map, (depend,))
                     for dependee in dependees:
-                        items_map[dependee].required_by.append(self.iid)
+                        items_map[dependee].add_required_by(self.__iid)
                         if dependee not in out_set:  # avoid cycles, save time
                             items_map[dependee].get_recursive_depends(items_map, out_set, orphan_set)
                 except KeyError:
                     orphan_set.append(depend)
                     # else:
-                    #    print("get_recursive_depends: already added", self.iid)
-
+                    #    print("get_recursive_depends: already added", self.__iid)
 
     def repr_for_yaml_items(self, for_which_os):
         retVal = None
@@ -406,13 +402,13 @@ class InstallItem(object):
 
     def repr_for_yaml(self):
         retVal = OrderedDict()
-        retVal['name'] = self.name
+        retVal['name'] = self.__name
         if self.__guids:
             retVal['guid'] = self.__guids
-        if self.remark:
-            retVal['remark'] = self.remark
-        if self.inherit:
-            retVal['inherit'] = self._inherit_list()
+        if self.__remark:
+            retVal['remark'] = self.__remark
+        if self.__inherit_from:
+            retVal['inherit'] = self.__inherit_from
 
         common_items = self.repr_for_yaml_items(InstallItem.os_names[0])
         if common_items:
@@ -426,24 +422,24 @@ class InstallItem(object):
 
     def merge_from_another_InstallItem(self, otherInstallItem):
         """ merge the contents of another InstallItem """
-        # self.iid = iid is not merged
+        # self.__iid = iid is not merged
         # self.name = name is not merged
         # self.__guids = guid is not merged
         # name of the other item is added to the remark
-        if not self.remark:
-            self.remark = self.name
-        self.remark += ", " + otherInstallItem.name
-        self.inherit.update(otherInstallItem.inherit)
+        if not self.__remark:
+            self.__remark = self.__name
+        self.__remark += ", " + otherInstallItem.name
+        self.__inherit_from.update(otherInstallItem.__inherit_from)
         self.merge_all_item_sections(otherInstallItem)
 
     def resolve_inheritance(self, InstallItemsDict):
         if not self.__resolved_inherit:
-            if self.iid in self.resolve_inheritance_stack:
-                raise Exception("circular resolve_inheritance of " + self.iid)
-            self.resolve_inheritance_stack.append(self.iid)
-            for ancestor in self._inherit_list():
+            if self.__iid in self.resolve_inheritance_stack:
+                raise Exception("circular resolve_inheritance of " + self.__iid)
+            self.resolve_inheritance_stack.append(self.__iid)
+            for ancestor in self.__inherit_from:
                 if ancestor not in InstallItemsDict:
-                    raise KeyError(self.iid + " inherites from " + ancestor + " which is not in InstallItemsDict")
+                    raise KeyError(self.__iid + " inherits from " + ancestor + " which is not in InstallItemsDict")
                 ancestor_item = InstallItemsDict[ancestor]
                 ancestor_item.resolve_inheritance(InstallItemsDict)
                 self.merge_all_item_sections(ancestor_item)
@@ -462,6 +458,34 @@ class InstallItem(object):
     def user_data(self, new_user_data):
         """ update user_data """
         self.__user_data = new_user_data
+
+    @property
+    def current_os(self):
+        return self.__install_for_os_stack[-1]
+
+    @property
+    def name(self):
+        return self.__name
+
+    @name.setter
+    def name(self, new_name):
+        """ update name """
+        self.__name = new_name
+
+    @property
+    def remark(self):
+        return self.__remark
+
+    @property
+    def iid(self):
+        return self.__iid
+
+    @property
+    def required_by(self):
+        return self.__required_by
+
+    def add_required_by(self, *another_required_by):
+        self.__required_by.extend(another_required_by)
 
 
 def guid_list(items_map):

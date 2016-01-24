@@ -599,8 +599,8 @@ class SVNTable(object):
         if dir_path == "":
             dir_items = self.get_items(what=what, levels_deep=levels_deep)
         else:
-            dir_item = self.get_item(item_path=dir_path, what="dir")
-            if dir_item is not None:
+            root_dir_item = self.get_item(item_path=dir_path, what="dir")
+            if root_dir_item is not None:
                 if "dir_items_recursive" not in self.baked_queries_map:
                     self.baked_queries_map["dir_items_recursive"] = self.bakery(lambda session: session.query(SVNRow))
                     self.baked_queries_map["dir_items_recursive"] += lambda q: q.filter(SVNRow.path.like(bindparam('dir_path')+"/%"))
@@ -611,12 +611,12 @@ class SVNTable(object):
                 want_file = what in ("any", "file")
                 want_dir = what in ("any", "dir")
                 dir_items = self.baked_queries_map["dir_items_recursive"](self.session)\
-                    .params(dir_path=dir_path, dir_level=dir_item.level, levels_deep=levels_deep,\
+                    .params(dir_path=dir_path, dir_level=root_dir_item.level, levels_deep=levels_deep,\
                             file=want_file, dir=want_dir)\
                     .all()
             else:
                 print(dir_path, "was not found")
-        return dir_item
+        return dir_items
 
     def mark_required_for_dir(self, dir_path):
         """ mark all files & dirs in dir_path as required.

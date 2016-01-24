@@ -111,7 +111,7 @@ class InstallItemLists(object):
         for IID in self.top_level_install_items:
             try:
                 # all items in the root list are marked as required by themselves
-                # instlObj.install_definitions_index[IID].required_by.append(IID)
+                # instlObj.install_definitions_index[IID].__required_by.append(IID)
                 instlObj.install_definitions_index[IID].get_recursive_depends(instlObj.install_definitions_index,
                                                                               self.__full_install_items,
                                                                               self.__orphan_install_items)

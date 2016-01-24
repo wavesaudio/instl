@@ -85,7 +85,7 @@ class InstlClientCopy(InstlClient):
             batch_accum_len_before = len(self.batch_accum)
             self.batch_accum += self.platform_helper.copy_tool.begin_copy_folder()
             for IID in items_in_folder:
-                with self.install_definitions_index[IID] as installi:
+                with self.install_definitions_index[IID].push_var_stack_scope() as installi:
                     for source_var in sorted(var_stack.get_configVar_obj("iid_source_var_list")):
                         num_items_copied_to_folder += 1
                         source = var_stack.resolve_var_to_list(source_var)
@@ -119,7 +119,7 @@ class InstlClientCopy(InstlClient):
             self.accumulate_unique_actions('pre_copy_to_folder', items_in_folder)
 
             for IID in sorted(items_in_folder):
-                with self.install_definitions_index[IID]:
+                with self.install_definitions_index[IID].push_var_stack_scope():
                     for source_var in sorted(var_stack.resolve_var_to_list_if_exists("iid_source_var_list")):
                         source = var_stack.resolve_var_to_list(source_var)
                         source_folder, source_name = os.path.split(source[0])

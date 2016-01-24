@@ -44,10 +44,10 @@ class TestInstallItem(unittest.TestCase):
     def test_get_set_by_common_os(self):
         self.ii1.add_inherit("AN_INHERITE_1")
         self.ii1.add_inherit("AN_INHERITE_2")
-        self.ii1.add_folder("A_FOLDER_1")
-        self.ii1.add_folder("A_FOLDER_2")
-        self.ii1.add_depend("A_DEPEND_1")
-        self.ii1.add_depend("A_DEPEND_2")
+        self.ii1.add_folders("A_FOLDER_1")
+        self.ii1.add_folders("A_FOLDER_2")
+        self.ii1.add_depends("A_DEPEND_1")
+        self.ii1.add_depends("A_DEPEND_2")
         for action_type in InstallItem.action_types:
             self.ii1.add_action(action_type, "AN_ACTION_OF_TYPE_" + action_type)
 
@@ -60,18 +60,17 @@ class TestInstallItem(unittest.TestCase):
 
     def test_get_set_by_other_os(self):
         self.ii1.add_inherit("AN_INHERITE_1")
-        self.ii1.add_folder("A_FOLDER_1")
-        self.ii1.add_depend("A_DEPEND_1")
+        self.ii1.add_folders("A_FOLDER_1")
+        self.ii1.add_depends("A_DEPEND_1")
         for action_type in InstallItem.action_types:
             self.ii1.add_action(action_type, "AN_ACTION_1_OF_TYPE_" + action_type)
 
-        self.ii1.begin_set_for_specific_os("Win")
-        self.ii1.add_inherit("AN_INHERITE_2")
-        self.ii1.add_folder("A_FOLDER_2")
-        self.ii1.add_depend("A_DEPEND_2")
-        for action_type in InstallItem.action_types:
-            self.ii1.add_action(action_type, "AN_ACTION_2_OF_TYPE_" + action_type)
-        self.ii1.end_set_for_specific_os()
+        with self.ii1.set_for_specific_os("Win"):
+            self.ii1.add_inherit("AN_INHERITE_2")
+            self.ii1.add_folders("A_FOLDER_2")
+            self.ii1.add_depends("A_DEPEND_2")
+            for action_type in InstallItem.action_types:
+                self.ii1.add_action(action_type, "AN_ACTION_2_OF_TYPE_" + action_type)
 
         # check get is correct for "common & Win"
         self.assertEqual(self.ii1._inherit_list(),

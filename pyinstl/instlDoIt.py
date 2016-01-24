@@ -20,7 +20,6 @@ class DoItInstructionsState(object):
         self.orphan_doit_items = utils.unique_list()
         self.doit_items_by_target_folder = defaultdict(utils.unique_list)
         self.no_copy_items_by_sync_folder = defaultdict(utils.unique_list)
-        self.sync_paths = utils.unique_list()
 
     def repr_for_yaml(self):
         retVal = OrderedDict()
@@ -30,7 +29,6 @@ class DoItInstructionsState(object):
         retVal['doit_items_by_target_folder'] = {folder: list(self.doit_items_by_target_folder[folder]) for folder
                                                     in self.doit_items_by_target_folder}
         retVal['no_copy_items_by_sync_folder'] = list(self.no_copy_items_by_sync_folder)
-        retVal['sync_paths'] = list(self.sync_paths)
         return retVal
 
     def calculate_full_doit_items_set(self, instlObj):
@@ -126,18 +124,14 @@ class InstlDoIt(InstlInstanceBase):
             doit_item.user_data = True
 
     def add_default_items(self):
-        all_items_item = InstallItem()
-        all_items_item.iid = "__ALL_ITEMS_IID__"
+        all_items_item = InstallItem("__ALL_ITEMS_IID__")
         all_items_item.name = "All IIDs"
-        for item_name in self.install_definitions_index:
-            all_items_item.add_depend(item_name)
+        all_items_item.add_depends(*self.install_definitions_index.keys())
         self.install_definitions_index["__ALL_ITEMS_IID__"] = all_items_item
 
-        all_guids_item = InstallItem()
-        all_guids_item.iid = "__ALL_GUIDS_IID__"
+        all_guids_item = InstallItem("__ALL_GUIDS_IID__")
         all_guids_item.name = "All GUIDs"
-        for guid in guid_list(self.install_definitions_index):
-            all_guids_item.add_depend(guid)
+        all_guids_item.add_depends(*guid_list(self.install_definitions_index))
         self.install_definitions_index["__ALL_GUIDS_IID__"] = all_guids_item
 
     def calculate_default_doit_item_set(self):

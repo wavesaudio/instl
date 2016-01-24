@@ -227,6 +227,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
                 if type(buffer) is bytes:
                     buffer = buffer.decode("utf-8")
                 buffer = io.StringIO(buffer)
+                buffer.name = file_path
                 self.read_yaml_from_stream(buffer)
             var_stack.get_configVar_obj("__READ_YAML_FILES__").append(file_path)
         except Exception as ex:
@@ -238,12 +239,11 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
         if a_node.isMapping():
             for identifier, contents in a_node.items():
                 if identifier in self.install_definitions_index:
-                    self.install_definitions_index[identifier].required_by.extend([required_iid.value for required_iid in contents])
+                    self.install_definitions_index[identifier].add_required_by(*[required_iid.value for required_iid in contents])
                 else:
                     # require file might contain IIDs form previous installations that are no longer in the index
-                    item_not_in_index = InstallItem()
-                    item_not_in_index.iid = identifier
-                    item_not_in_index.required_by.extend([required_iid.value for required_iid in contents])
+                    item_not_in_index = InstallItem(identifier)
+                    item_not_in_index.add_required_by(*[required_iid.value for required_iid in contents])
                     self.install_definitions_index[identifier] = item_not_in_index
 
     def write_require_file(self, file_path):
