@@ -65,6 +65,7 @@ class InstallInstructionsState(object):
                 root_install_iids_translated.extend(iids_from_the_guid)
             else:
                 self.orphan_install_items.append(IID)
+        # root_install_iids_translated.sort()
 
         for IID in root_install_iids_translated:
             try:
