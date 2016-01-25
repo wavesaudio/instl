@@ -9,6 +9,7 @@ import abc
 import yaml
 import io
 import appdirs
+from collections import defaultdict
 
 import aYaml
 import utils
@@ -22,13 +23,24 @@ from configVar import var_stack
 from .installItem import InstallItem
 from . import connectionBase
 
-# The plan:
-# when online copy & sync and offline sync, get info_map.txt url in INFO_MAP_FILE_URL*
-# into LOCAL_REPO_REV_BOOKKEEPING_DIR/remote_info_map.txt. When sync is done
-# when when sync is done it will write $(LOCAL_REPO_BOOKKEEPING_DIR)/have_info_map.txt.
-# Offline copy will look for $(LOCAL_REPO_BOOKKEEPING_DIR)/have_info_map.txt
-# All copy will end with writing $(LOCAL_REPO_BOOKKEEPING_DIR)/installed_info_map.txt
-# * which usually takes from INFO_MAP_FILE_URL_SECURE
+
+class RequireMan(object):
+    def __init__(self):
+        self.require_map = defaultdict(set)
+
+    def read_require(self, a_node):
+        if a_node.isMapping():
+            for identifier, contents in a_node.items():
+                self.require_map[identifier].update(contents)
+
+    def calc_to_remove_items(self, initial_items):
+        initial_items_set = set(initial_items)
+        for iid, required_by in self.require_map.items():
+            required_by -= initial_items_set
+
+        unrequired_items  = [iid for iid, required_by in self.require_map.items() if len(required_by) == 0]
+        unmentioned_items = list(initial_items_set - set(self.require_map.keys()))
+        return unrequired_items, unmentioned_items
 
 
 # noinspection PyPep8Naming
@@ -61,6 +73,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
         self.batch_accum = BatchAccumulator()
         self.do_not_write_vars = ("INFO_MAP_SIG", "INDEX_SIG", "PUBLIC_KEY", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "__CREDENTIALS__")
         self.out_file_realpath = None
+        self.require_man = RequireMan()
 
     def get_version_str(self):
         retVal = var_stack.resolve(
@@ -237,6 +250,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
     def read_require(self, a_node):
         # dependencies_file_path = var_stack.resolve("$(SITE_REQUIRE_FILE_PATH)")
         if a_node.isMapping():
+            self.require_man.read_require(a_node)
             for identifier, contents in a_node.items():
                 if identifier in self.install_definitions_index:
                     self.install_definitions_index[identifier].add_required_by(*[required_iid.value for required_iid in contents])

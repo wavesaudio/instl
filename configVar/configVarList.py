@@ -204,6 +204,10 @@ class ConfigVarList(object):
             raise ValueError("Cannot fully resolve "+str_to_resolve+ ": "+resolved_str)
         return resolved_str
 
+    # just an experiment
+    def __matmul__(self, str_to_resolve):
+        return self.resolve(str_to_resolve)
+
     def resolve_to_list(self, str_to_resolve, list_sep=" ", default=None):
         """ Resolve a string, possibly with $() style references.
             If the string is a single reference to a variable, a list of resolved values is returned.

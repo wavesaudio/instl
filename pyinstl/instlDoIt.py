@@ -145,14 +145,8 @@ class InstlDoIt(InstlInstanceBase):
         self.installState.root_doit_items.extend(var_stack.resolve_to_list("$(MAIN_DOIT_ITEMS)"))
         self.installState.root_doit_items = list(filter(bool, self.installState.root_doit_items))
         self.installState.calculate_full_doit_items_set(self)
-        self.read_previous_requirements()
         var_stack.set_var("__FULL_LIST_OF_DOIT_TARGETS__").extend(self.installState.full_doit_items)
         var_stack.set_var("__ORPHAN_DOIT_TARGETS__").extend(self.installState.orphan_doit_items)
-
-    def read_previous_requirements(self):
-        require_file_path = var_stack.resolve("$(SITE_REQUIRE_FILE_PATH)")
-        if os.path.isfile(require_file_path):
-            self.read_yaml_file(require_file_path)
 
     def accumulate_unique_actions(self, action_type, iid_list):
         """ accumulate action_type actions from iid_list, eliminating duplicates"""
