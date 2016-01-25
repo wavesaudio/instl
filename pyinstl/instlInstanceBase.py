@@ -500,7 +500,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
         if iid not in self.install_definitions_index:
             raise KeyError(iid + " is not in index")
         InstallItem.begin_get_for_all_oses()
-        with self.install_definitions_index[iid]:
+        with self.install_definitions_index[iid].push_var_stack_scope():
             for dep in var_stack.resolve_var_to_list("iid_depend_list"):
                 if dep in self.install_definitions_index:
                     out_list.append(dep)
