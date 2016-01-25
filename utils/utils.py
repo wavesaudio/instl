@@ -762,18 +762,15 @@ def unix_item_ls(the_path):
 
 
 def unix_folder_ls(the_path):
-    lines = list()
+    listing_lines = list()
     for root_path, dirs, files in os.walk(the_path, followlinks=False):
         dirs = sorted(dirs, key=lambda s: s.lower())
-        lines.append(unix_item_ls(root_path))
+        listing_lines.append(unix_item_ls(root_path))
         files_to_list = sorted(files + [slink for slink in dirs if os.path.islink(os.path.join(root_path, slink))], key=lambda s: s.lower())
         for file_to_list in files_to_list:
             full_path = os.path.join(root_path, file_to_list)
-            lines.append(unix_item_ls(full_path))
-    width_list, align_list = max_widths(lines)
-    col_formats = gen_col_format(width_list, align_list)
-    formatted_lines_lines = [col_formats[len(ls_line)].format(*ls_line) for ls_line in lines]
-    return "\n".join(formatted_lines_lines)
+            listing_lines.append(unix_item_ls(full_path))
+    return listing_lines
 
 
 def win_item_ls(the_path):
@@ -807,23 +804,27 @@ def win_item_ls(the_path):
 
 
 def win_folder_ls(the_path):
-    lines = list()
+    listing_lines = list()
     for root_path, dirs, files in os.walk(the_path, followlinks=False):
         dirs = sorted(dirs, key=lambda s: s.lower())
-        lines.append(win_item_ls(root_path))
+        listing_lines.append(win_item_ls(root_path))
         files_to_list = sorted(files + [slink for slink in dirs if os.path.islink(os.path.join(root_path, slink))], key=lambda s: s.lower())
         for file_to_list in files_to_list:
             full_path = os.path.join(root_path, file_to_list)
-            lines.append(win_item_ls(full_path))
-    width_list, align_list = max_widths(lines)
-    col_formats = gen_col_format(width_list, align_list)
-    formatted_lines_lines = [col_formats[len(ls_line)].format(*ls_line) for ls_line in lines]
-    return "\n".join(formatted_lines_lines)
+            listing_lines.append(win_item_ls(full_path))
+    return listing_lines
 
 
-def folder_listing(the_path):
+def folder_listing(folders_to_list):
     os_names = get_current_os_names()
+    listing_lines = list()
     if "Mac" in os_names:
-        return unix_folder_ls(the_path)
+        for folder_path in folders_to_list:
+            listing_lines.extend(unix_folder_ls(folder_path))
     elif "Win" in os_names:
-        return win_folder_ls(the_path)
+        for folder_path in folders_to_list:
+            listing_lines.extend(win_folder_ls(folder_path))
+    width_list, align_list = max_widths(listing_lines)
+    col_formats = gen_col_format(width_list, align_list)
+    formatted_lines_lines = [col_formats[len(ls_line)].format(*ls_line) for ls_line in listing_lines]
+    return "\n".join(formatted_lines_lines)

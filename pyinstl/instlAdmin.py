@@ -840,7 +840,7 @@ class InstlAdmin(InstlInstanceBase):
         retVal = defaultdict(utils.unique_list)
         InstallItem.begin_get_for_all_oses()
         for iid in sorted(self.install_definitions_index):
-            with self.install_definitions_index[iid]:
+            with self.install_definitions_index[iid].push_var_stack_scope():
                 for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
                     source_var_obj = var_stack.get_configVar_obj(source_var)
                     source, type, target_os = source_var_obj
@@ -902,7 +902,7 @@ class InstlAdmin(InstlInstanceBase):
         """
         iid_to_sources = self.sources_from_iids()
         for iid in sorted(iid_to_sources):
-            with self.install_definitions_index[iid]:
+            with self.install_definitions_index[iid].push_var_stack_scope():
                 iid_problem_messages = list()
                 # check inherits
                 for inheritee in var_stack.resolve_var_to_list("iid_inherit"):
@@ -934,7 +934,7 @@ class InstlAdmin(InstlInstanceBase):
         unrequired_files = self.info_map_table.get_required_items(what="file", get_unrequired=True)
         print("unrequired files:")
         [print("    ", f.path) for f in unrequired_files]
-        unrequired_files = self.info_map_table.get_required_items(what="dir",  get_unrequired=True)
+        unrequired_dirs = self.info_map_table.get_required_items(what="dir",  get_unrequired=True)
         print("unrequired dirs:")
         [print("    ", d.path) for d in unrequired_dirs]
 

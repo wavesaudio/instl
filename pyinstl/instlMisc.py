@@ -270,11 +270,21 @@ class InstlMisc(InstlInstanceBase):
         utils.dock_util(dock_util_command)
 
     def do_ls(self):
-        folder_to_list = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
         if "__MAIN_OUT_FILE__" in var_stack:
             out_file = var_stack.resolve("$(__MAIN_OUT_FILE__)")
         else:
             out_file = "stdout"
-        the_listing = utils.folder_listing(folder_to_list)
+
+        main_folder_to_list = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
+        folders_to_list = []
+        if var_stack.defined("__LIMIT_COMMAND_TO__"):
+            limit_list = var_stack.resolve_to_list("$(__LIMIT_COMMAND_TO__)")
+            for limit in limit_list:
+                limit = utils.unquoteme(limit)
+                folders_to_list.append(os.path.join(main_folder_to_list, limit))
+        else:
+            folders_to_list.append(main_folder_to_list)
+
+        the_listing = utils.folder_listing(folders_to_list)
         with utils.write_to_file_or_stdout(out_file) as wfd:
             wfd.write(the_listing)
