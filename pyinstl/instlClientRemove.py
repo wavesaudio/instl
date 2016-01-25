@@ -48,7 +48,7 @@ class InstlClientRemove(InstlClient):
             self.accumulate_unique_actions('pre_remove_from_folder', items_in_folder)
 
             for IID in items_in_folder:
-                with self.install_definitions_index[IID] as installi:
+                with self.install_definitions_index[IID].push_var_stack_scope() as installi:
                     for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
                         source = var_stack.resolve_var_to_list(source_var)
                         self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_pre_remove_item")

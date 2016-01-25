@@ -119,7 +119,7 @@ class InstlDoIt(InstlInstanceBase):
                 self.installState.orphan_doit_items.append(IID)
 
     def doit_for_item(self, IID, action):
-        with self.install_definitions_index[IID] as doit_item:
+        with self.install_definitions_index[IID].push_var_stack_scope() as doit_item:
             self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_"+action)
             doit_item.user_data = True
 
@@ -158,7 +158,7 @@ class InstlDoIt(InstlInstanceBase):
         """ accumulate action_type actions from iid_list, eliminating duplicates"""
         unique_actions = utils.unique_list()  # unique_list will eliminate identical actions while keeping the order
         for IID in iid_list:
-            with self.install_definitions_index[IID] as installi:
+            with self.install_definitions_index[IID].push_var_stack_scope() as installi:
                 action_var_name = "iid_action_list_" + action_type
                 item_actions = var_stack.resolve_var_to_list_if_exists(action_var_name)
                 num_unique_actions = 0
