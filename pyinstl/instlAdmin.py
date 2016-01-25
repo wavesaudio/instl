@@ -989,8 +989,8 @@ class InstlAdmin(InstlInstanceBase):
                             self.batch_accum += self.platform_helper.progress("chmod a-x " + item_path)
                             files_that_should_not_be_exec.append(item_path)
 
-        self.batch_accum += self.platform_helper.chmod("-R a+rw,+X", folder_to_check)
-        self.batch_accum += self.platform_helper.progress("chmod -R a+rw,+X " + folder_to_check)
+            self.batch_accum += self.platform_helper.chmod("-R a+rw,+X", folder_to_check)
+            self.batch_accum += self.platform_helper.progress("chmod -R a+rw,+X " + folder_to_check)
 
         if len(files_that_should_not_be_exec) > 0:
             print("Exec bit will be removed from the {} following files".format(len(files_that_should_not_be_exec)))
