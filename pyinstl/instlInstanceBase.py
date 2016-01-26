@@ -9,7 +9,7 @@ import abc
 import yaml
 import io
 import appdirs
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 
 import aYaml
 import utils
@@ -22,25 +22,6 @@ from configVar import value_ref_re
 from configVar import var_stack
 from .installItem import InstallItem
 from . import connectionBase
-
-
-class RequireMan(object):
-    def __init__(self):
-        self.require_map = defaultdict(set)
-
-    def read_require(self, a_node):
-        if a_node.isMapping():
-            for identifier, contents in a_node.items():
-                self.require_map[identifier].update(contents)
-
-    def calc_to_remove_items(self, initial_items):
-        initial_items_set = set(initial_items)
-        for iid, required_by in self.require_map.items():
-            required_by -= initial_items_set
-
-        unrequired_items  = [iid for iid, required_by in self.require_map.items() if len(required_by) == 0]
-        unmentioned_items = list(initial_items_set - set(self.require_map.keys()))
-        return unrequired_items, unmentioned_items
 
 
 # noinspection PyPep8Naming
@@ -73,7 +54,6 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
         self.batch_accum = BatchAccumulator()
         self.do_not_write_vars = ("INFO_MAP_SIG", "INDEX_SIG", "PUBLIC_KEY", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "__CREDENTIALS__")
         self.out_file_realpath = None
-        self.require_man = RequireMan()
 
     def get_version_str(self):
         retVal = var_stack.resolve(

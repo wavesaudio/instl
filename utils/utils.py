@@ -267,6 +267,10 @@ class unique_list(list):
     def empty(self):
         return len(self.__attendance) == 0
 
+    def clear(self):
+        super().clear()
+        self.__attendance.clear()
+
 
 class set_with_order(unique_list):
     """ Just another name for unique_list """

@@ -49,9 +49,9 @@ class InstlClientUninstall(InstlClient):
 
         print("requested items to uninstall:", self.installState.root_install_items)
         if len(full_list_of_iids_to_uninstall) > 0:
-            self.installState.full_install_items.extend(full_list_of_iids_to_uninstall)
-            self.installState.sort_install_items_by_target_folder(self)
-            print("actual items to uninstall:", self.installState.full_install_items)
+            self.installState.all_items.extend(full_list_of_iids_to_uninstall)
+            self.installState.__sort_all_items_by_target_folder(self)
+            print("actual items to uninstall:", self.installState.all_items)
             self.create_require_file_instructions()
             self.init_remove_vars()
             self.create_remove_instructions()

@@ -34,15 +34,15 @@ class InstlClientRemove(InstlClient):
 
         self.batch_accum.set_current_section('remove')
         self.batch_accum += self.platform_helper.progress("Starting remove")
-        sorted_target_folder_list = sorted(self.installState.install_items_by_target_folder,
+        sorted_target_folder_list = sorted(self.installState.all_items_by_target_folder,
                                            key=lambda fold: var_stack.resolve(fold),
                                            reverse=True)
         # print(sorted_target_folder_list)
-        self.accumulate_unique_actions('pre_remove', self.installState.full_install_items)
+        self.accumulate_unique_actions('pre_remove', self.installState.all_items)
 
         for folder_name in sorted_target_folder_list:
             var_stack.set_var("__TARGET_DIR__").append(os.path.normpath(folder_name))
-            items_in_folder = self.installState.install_items_by_target_folder[folder_name]
+            items_in_folder = self.installState.all_items_by_target_folder[folder_name]
             self.batch_accum += self.platform_helper.new_line()
 
             self.accumulate_unique_actions('pre_remove_from_folder', items_in_folder)
@@ -58,7 +58,7 @@ class InstlClientRemove(InstlClient):
 
             self.accumulate_unique_actions('post_remove_from_folder', items_in_folder)
 
-        self.accumulate_unique_actions('post_remove', self.installState.full_install_items)
+        self.accumulate_unique_actions('post_remove', self.installState.all_items)
 
     # create_remove_instructions_for_source:
     # Create instructions to remove a specific source from a specific target folder.

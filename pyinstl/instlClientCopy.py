@@ -55,10 +55,10 @@ class InstlClientCopy(InstlClient):
         self.batch_accum.set_current_section('copy')
         self.batch_accum += self.platform_helper.progress("Starting copy from $(LOCAL_REPO_SYNC_DIR)")
 
-        self.accumulate_unique_actions('pre_copy', self.installState.full_install_items)
+        self.accumulate_unique_actions('pre_copy', self.installState.all_items)
         self.batch_accum += self.platform_helper.new_line()
 
-        sorted_target_folder_list = sorted(self.installState.install_items_by_target_folder,
+        sorted_target_folder_list = sorted(self.installState.all_items_by_target_folder,
                                            key=lambda fold: var_stack.resolve(fold))
 
         # first create all target folders so to avoid dependency order problems such as creating links between folders
@@ -74,7 +74,7 @@ class InstlClientCopy(InstlClient):
 
         for folder_name in sorted_target_folder_list:
             num_items_copied_to_folder = 0
-            items_in_folder = sorted(self.installState.install_items_by_target_folder[folder_name])
+            items_in_folder = sorted(self.installState.all_items_by_target_folder[folder_name])
             self.batch_accum += self.platform_helper.new_line()
             self.batch_accum += self.platform_helper.cd(folder_name)
             self.batch_accum += self.platform_helper.progress("Copying to "+folder_name+"...")
@@ -137,7 +137,7 @@ class InstlClientCopy(InstlClient):
 
         print(self.bytes_to_copy, "bytes to copy")
 
-        self.accumulate_unique_actions('post_copy', self.installState.full_install_items)
+        self.accumulate_unique_actions('post_copy', self.installState.all_items)
 
         self.batch_accum.set_current_section('post-copy')
         # Copy have_info file to "site" (e.g. /Library/Application support/... or c:\ProgramData\...)
@@ -154,7 +154,7 @@ class InstlClientCopy(InstlClient):
         self.create_require_file_instructions()
 
         # messages about orphan iids
-        for iid in sorted(self.installState.orphan_install_items):
+        for iid in sorted(self.installState.orphan_items):
             self.batch_accum += self.platform_helper.echo("Don't know how to install " + iid)
         self.batch_accum += self.platform_helper.progress("Done copy")
 

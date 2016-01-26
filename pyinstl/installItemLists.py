@@ -70,7 +70,7 @@ class InstallItemLists(object):
         retVal['root_install_items'] = list(self.root_install_items)
         retVal['update_install_items'] = list(self.update_install_items)
         retVal['full_install_items'] = list(self.full_install_items)
-        retVal['orphan_install_items'] = list(self.orphan_install_items)
+        retVal['orphan_install_items'] = list(self.orphan_items)
         retVal['install_items_by_target_folder'] = {folder: list(self.install_items_by_target_folder[folder]) for folder
                                                     in self.install_items_by_target_folder}
         retVal['no_copy_items_by_sync_folder'] = list(self.no_copy_items_by_sync_folder)
