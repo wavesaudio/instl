@@ -368,7 +368,7 @@ class InstallItem(object):
             for depend in self._depend_list():
                 try:
                     # if IID is a guid, iids_from_guids will translate to iid's, or return the IID otherwise
-                    dependees = iids_from_guids(items_map, (depend,))
+                    dependees = iids_from_guids(items_map, depend)
                     for dependee in dependees:
                         items_map[dependee].add_required_by(self.__iid)
                         if dependee not in out_set:  # avoid cycles, save time
@@ -495,7 +495,7 @@ def guid_list(items_map):
     return retVal
 
 
-def iids_from_guids(items_map, guids_or_iids):
+def iids_from_guids(items_map, *guids_or_iids):
     """ guid_or_iid might be a guid or normal IID
         if it's a guid return all IIDs that have this gui
         if it's not return the IID itself. """

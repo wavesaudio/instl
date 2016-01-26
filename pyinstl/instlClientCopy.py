@@ -44,12 +44,19 @@ class InstlClientCopy(InstlClient):
     def create_copy_instructions(self):
         self.write_copy_debug_info()
         # If we got here while in synccopy command, there is no need to read the info map again.
-        # If we got here while in copy command, read HAVE_INFO_MAP_FOR_COPY which is be default HAVE_INFO_MAP_PATH.
+        # If we got here while in copy command, read HAVE_INFO_MAP_FOR_COPY which defaults to HAVE_INFO_MAP_PATH.
         # Copy might be called after the sync batch file was created
         # but before it was executed in which case HAVE_INFO_MAP_FOR_COPY will be defined to NEW_HAVE_INFO_MAP_PATH.
         if len(self.info_map_table.files_read_list) == 0:
             have_info_path = var_stack.resolve("$(HAVE_INFO_MAP_FOR_COPY)")
             self.info_map_table.read_from_file(have_info_path, a_format="text")
+
+        require_path = var_stack.resolve("$(SITE_REQUIRE_FILE_PATH)")
+        if os.path.isfile(require_path):
+            try:
+                self.read_yaml_file(require_path, req_reader=self.installState.req_man)
+            except Exception as ex:
+                print("failed to read", require_path, ex)
 
         # copy and actions instructions for sources
         self.batch_accum.set_current_section('copy')

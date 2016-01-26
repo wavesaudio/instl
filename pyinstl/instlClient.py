@@ -9,6 +9,7 @@ import aYaml
 from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
 
+
 class RequireMan(object):
     def __init__(self):
         self.require_map = defaultdict(set)
@@ -17,44 +18,34 @@ class RequireMan(object):
         for y in ys:
             self.require_map[y].add(x)
 
-    def read_require(self, a_node):
+    def read_require_node(self, a_node):
         if a_node.isMapping():
             for identifier, contents in a_node.items():
-                self.require_map[identifier].update(contents)
+                self.require_map[identifier].update([required_iid.value for required_iid in contents])
 
-    def calc_to_remove_items(self, initial_items):
-        initial_items_set = set(initial_items)
-        for iid, required_by in self.require_map.items():
-            required_by -= initial_items_set
+    def calc_items_to_remove(self, initial_items):
+        to_remove_items = set(initial_items)
+        new_to_remove_items = set()
+        keys_to_check = set(self.require_map.keys())
+        while len(to_remove_items) > 0:
+            new_to_remove_items.clear()
+            for iid in keys_to_check:
+                self.require_map[iid] -= to_remove_items
+                if len(self.require_map[iid]) == 0:
+                    new_to_remove_items.add(iid)
+            keys_to_check -= new_to_remove_items  # so not to recheck empty items
+            to_remove_items = new_to_remove_items - to_remove_items
 
-        unrequired_items  = [iid for iid, required_by in self.require_map.items() if len(required_by) == 0]
-        unmentioned_items = list(initial_items_set - set(self.require_map.keys()))
+        unrequired_items  = [iid for iid, required_by in sorted(self.require_map.items()) if len(required_by) == 0]
+        unmentioned_items = list(set(initial_items) - set(self.require_map.keys()))
         return unrequired_items, unmentioned_items
 
     def repr_for_yaml(self):
         retVal = OrderedDict()
         for i in sorted(self.require_map.keys()):
-            retVal[i] = sorted(list(self.require_map[i]))
+            if len(self.require_map[i]) > 0:
+                retVal[i] = sorted(list(self.require_map[i]))
         return retVal
-
-    def calc_require_for_root_items(self, root_items, items_index):
-
-        # the root install items depends on themselves
-        for IID in self.root_install_iids_translated:
-            self.req_man.add_x_depends_on_ys(IID, IID)
-
-        r_list = deque(self.root_install_iids_translated)
-        while len(r_list) > 0:
-            IID = r_list.popleft()
-            the_depends = instlObj.install_definitions_index[IID].get_depends()
-            self.req_man.add_x_depends_on_ys(IID, *the_depends)
-            r_list.extend(the_depends)
-
-        with open("/Users/shai/Desktop/require.out.yaml", "w") as wfd:
-            utils.make_open_file_read_write_for_all(wfd)
-            require_dict = aYaml.YamlDumpDocWrap(req_man.repr_for_yaml(), '!require', "requirements",
-                                                 explicit_start=True, sort_mappings=True)
-            aYaml.writeAsYaml(require_dict, wfd)
 
 
 # noinspection PyPep8Naming
@@ -71,22 +62,13 @@ class InstallInstructionsState(object):
         self.__no_copy_items_by_sync_folder = None
         self.req_man = RequireMan()
 
-    def repr_for_yaml(self):
-        retVal = OrderedDict()
-        retVal['root_install_items'] = list(self.__root_items)
-        retVal['full_install_items'] = list(self.__all_items)
-        retVal['orphan_install_items'] = list(self.__orphan_items)
-        retVal['install_items_by_target_folder'] = {folder: list(item) for folder, item in self.all_items_by_target_folder.items()}
-        retVal['no_copy_items_by_sync_folder'] = list(self.__no_copy_items_by_sync_folder)
-        return retVal
-
     @property
     def root_items(self):
         return self.__root_items
 
     @root_items.setter
     def root_items(self, root_items):
-        root_items = list(filter(bool, root_items))
+        root_items = list(filter(bool, root_items))  # avoid empty strings
         self.__root_items = utils.unique_list(sorted(root_items))
         self.__translate_root_items()
 
@@ -110,6 +92,15 @@ class InstallInstructionsState(object):
     def no_copy_items_by_sync_folder(self):
         return self.__no_copy_items_by_sync_folder
 
+    def repr_for_yaml(self):
+        retVal = OrderedDict()
+        retVal['root_install_items'] = list(self.__root_items)
+        retVal['full_install_items'] = list(self.__all_items)
+        retVal['orphan_install_items'] = list(self.__orphan_items)
+        retVal['install_items_by_target_folder'] = {folder: list(item) for folder, item in self.all_items_by_target_folder.items()}
+        retVal['no_copy_items_by_sync_folder'] = list(self.__no_copy_items_by_sync_folder)
+        return retVal
+
     def __sort_all_items_by_target_folder(self):
         self.__all_items_by_target_folder = defaultdict(utils.unique_list)
         self.__no_copy_items_by_sync_folder = defaultdict(utils.unique_list)
@@ -129,11 +120,11 @@ class InstallInstructionsState(object):
 
     def __translate_root_items(self):
         # root_install_items might have guid in it, translate them to iids
-        self.__orphan_items = utils.unique_list()
         self.__root_items_translated = utils.unique_list()
+        self.__orphan_items = utils.unique_list()
         for IID in self.__root_items:
             # if IID is a guid, iids_from_guids will translate to iid's, or return the IID otherwise
-            iids_from_the_guid = iids_from_guids(self.__instlObj.install_definitions_index, (IID,))
+            iids_from_the_guid = iids_from_guids(self.__instlObj.install_definitions_index, IID)
             if len(iids_from_the_guid) > 0:
                 self.__root_items_translated.extend(iids_from_the_guid)
             else:
@@ -155,9 +146,37 @@ class InstallInstructionsState(object):
             except KeyError:
                 self.__orphan_items.append(IID)
 
+        self.calc_require_for_root_items()
         self.__all_items.sort()        # for repeatability
-        self.__orphan_items.sort()      # for repeatability
+        self.__orphan_items.sort()     # for repeatability
         self.__sort_all_items_by_target_folder()
+
+    def calc_require_for_root_items(self):
+
+        # the root install items were required by themselves
+        for IID in self.__root_items_translated:
+            self.req_man.add_x_depends_on_ys(IID, IID)
+
+        r_list = deque(self.__root_items_translated)
+        while len(r_list) > 0:
+            next_round = set()
+            for IID in r_list:
+                the_depends = self.__instlObj.install_definitions_index[IID].get_depends()
+                self.req_man.add_x_depends_on_ys(IID, *the_depends)
+                next_round.update(the_depends)
+            r_list = list(next_round)
+
+        with open("/Users/shai/Desktop/require.out.yaml", "w") as wfd:
+            utils.make_open_file_read_write_for_all(wfd)
+            require_dict = aYaml.YamlDumpDocWrap(self.req_man.repr_for_yaml(), '!require', "requirements",
+                                                 explicit_start=True, sort_mappings=True)
+            aYaml.writeAsYaml(require_dict, wfd)
+
+    def calc_items_to_remove(self):
+        unrequired_items, unmentioned_items = self.req_man.calc_items_to_remove(self.__root_items_translated)
+        print("unrequired_items:",  unrequired_items)
+        print("unmentioned_items:", unmentioned_items)
+        return unrequired_items, unmentioned_items
 
 
 class InstlClient(InstlInstanceBase):
@@ -297,15 +316,14 @@ class InstlClient(InstlInstanceBase):
             InstallItem.begin_get_for_specific_os(os_name)
         self.installState.root_items = var_stack.resolve_to_list("$(MAIN_INSTALL_TARGETS)")
         self.installState.calculate_all_items()
-        self.read_previous_requirements()
+        #self.read_previous_requirements()
         var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(self.installState.all_items))
         var_stack.set_var("__ORPHAN_INSTALL_TARGETS__").extend(sorted(self.installState.orphan_items))
 
     def read_previous_requirements(self):
-        pass
-        #require_file_path = var_stack.resolve("$(SITE_REQUIRE_FILE_PATH)")
-        #if os.path.isfile(require_file_path):
-        #    self.read_yaml_file(require_file_path)
+        require_file_path = var_stack.resolve("$(SITE_REQUIRE_FILE_PATH)")
+        if os.path.isfile(require_file_path):
+            self.read_yaml_file(require_file_path)
 
     def accumulate_unique_actions(self, action_type, iid_list):
         """ accumulate action_type actions from iid_list, eliminating duplicates"""
@@ -333,7 +351,7 @@ class InstlClient(InstlInstanceBase):
         new_require_file_path = var_stack.resolve("$(NEW_SITE_REQUIRE_FILE_PATH)", raise_on_fail=True)
         new_require_file_dir, new_require_file_name = os.path.split(new_require_file_path)
         utils.safe_makedirs(new_require_file_dir)
-        self.write_require_file(new_require_file_path)
+        self.write_require_file(new_require_file_path, self.installState.req_man.repr_for_yaml())
         # Copy the new require file over the old one, if copy fails the old file remains.
         self.batch_accum += self.platform_helper.copy_file_to_file("$(NEW_SITE_REQUIRE_FILE_PATH)",
                                                                    "$(SITE_REQUIRE_FILE_PATH)")

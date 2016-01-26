@@ -102,7 +102,7 @@ class InstallItemLists(object):
         root_install_iids_translated = utils.unique_list()
         for IID in self.original_install_items:
             # if IID is a guid iids_from_guid will translate to iid's, or return the IID otherwise
-            iids_from_the_guid = iids_from_guids(instlObj.install_definitions_index, (IID,))
+            iids_from_the_guid = iids_from_guids(instlObj.install_definitions_index, IID)
             if len(iids_from_the_guid) > 0:
                 self.__root_install_items.extend(iids_from_the_guid)
             else:
