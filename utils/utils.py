@@ -828,3 +828,12 @@ def folder_listing(folders_to_list):
     col_formats = gen_col_format(width_list, align_list)
     formatted_lines_lines = [col_formats[len(ls_line)].format(*ls_line) for ls_line in listing_lines]
     return "\n".join(formatted_lines_lines)
+
+
+def unicodify(in_something):
+    try:
+        retVal = in_something.decode('utf-8')
+    except:
+        retVal = str(in_something)
+
+    return retVal

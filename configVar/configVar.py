@@ -26,13 +26,13 @@ class ConfigVar(object):
     variable_name_endings_to_normpath = ("_PATH", "_DIR", "_DIR_NAME", "_FILE_NAME", "_PATH__", "_DIR__", "_DIR_NAME__", "_FILE_NAME__")
 
     def __init__(self, name, description="", *values):
-        self.__name = name
-        self.__description = description
+        self.__name = utils.unicodify(name)
+        self.__description = utils.unicodify(description)
         self.resolved_num = 0
-        normed_values = list(map(str, values))
+        normed_values = list(map(utils.unicodify, values))
         if self.__name.endswith(self.variable_name_endings_to_normpath):
             normed_values = [os.path.normpath(value) for value in normed_values]
-        self.__values = list(map(str, normed_values))
+        self.__values = list(map(utils.unicodify, normed_values))
 
     @property
     def name(self):
