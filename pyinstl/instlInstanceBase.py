@@ -217,8 +217,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
         try:
             with utils.open_for_read_file_or_url(file_path, connectionBase.translate_url, self.path_searcher) as file_fd:
                 buffer = file_fd.read()
-                if type(buffer) is bytes:
-                    buffer = buffer.decode("utf-8")
+                buffer = utils.unicodify(buffer)
                 buffer = io.StringIO(buffer)
                 buffer.name = file_path
                 self.read_yaml_from_stream(buffer, *args, **kwargs)
