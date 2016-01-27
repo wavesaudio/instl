@@ -666,7 +666,7 @@ def do_list_imp(self, what=None, stream=sys.stdout):
     individual_items_to_write = list()
     for item_to_do in list_to_do:
         if utils.guid_re.match(item_to_do):
-            whole_sections_to_write.append({item_to_do: iids_from_guids(self.install_definitions_index, item_to_do)})
+            whole_sections_to_write.append({item_to_do: sorted(iids_from_guids(self.install_definitions_index, item_to_do))})
         elif item_to_do == "define":
             whole_sections_to_write.append(aYaml.YamlDumpDocWrap(var_stack, '!define', "Definitions", explicit_start=True, sort_mappings=True))
         elif item_to_do == "index":
@@ -674,7 +674,7 @@ def do_list_imp(self, what=None, stream=sys.stdout):
         elif item_to_do == "guid":
             guid_dict = dict()
             for lic in guid_list(self.install_definitions_index):
-                guid_dict[lic] = iids_from_guids(self.install_definitions_index, lic)
+                guid_dict[lic] = sorted(iids_from_guids(self.install_definitions_index, lic))
             whole_sections_to_write.append(aYaml.YamlDumpDocWrap(guid_dict, '!guid', "guid to IID", explicit_start=True, sort_mappings=True))
         else:
             individual_items_to_write.append(item_to_do)

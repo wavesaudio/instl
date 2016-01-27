@@ -24,9 +24,13 @@ class RequireMan(object):
                 self.require_map[identifier].update([required_iid.value for required_iid in contents])
 
     def calc_items_to_remove(self, initial_items):
-        to_remove_items = set(initial_items)
+        require_map_keys_set = set(self.require_map.keys())
+        initial_items_set = set(initial_items)
+        unmentioned_items = sorted(list(initial_items_set - require_map_keys_set))
+
+        to_remove_items = initial_items_set & require_map_keys_set  # no need to check items unmentioned in the require map
         new_to_remove_items = set()
-        keys_to_check = set(self.require_map.keys())
+        keys_to_check = require_map_keys_set
         while len(to_remove_items) > 0:
             new_to_remove_items.clear()
             for iid in keys_to_check:
@@ -36,8 +40,7 @@ class RequireMan(object):
             keys_to_check -= new_to_remove_items  # so not to recheck empty items
             to_remove_items = new_to_remove_items - to_remove_items
 
-        unrequired_items  = [iid for iid, required_by in sorted(self.require_map.items()) if len(required_by) == 0]
-        unmentioned_items = list(set(initial_items) - set(self.require_map.keys()))
+        unrequired_items  = sorted([iid for iid, required_by in sorted(self.require_map.items()) if len(required_by) == 0])
         return unrequired_items, unmentioned_items
 
     def repr_for_yaml(self):
@@ -176,7 +179,9 @@ class InstallInstructionsState(object):
         unrequired_items, unmentioned_items = self.req_man.calc_items_to_remove(self.__root_items_translated)
         print("unrequired_items:",  unrequired_items)
         print("unmentioned_items:", unmentioned_items)
-        return unrequired_items, unmentioned_items
+        self.__all_items = sorted(unrequired_items + unmentioned_items)
+        self.__orphan_items = unmentioned_items
+        self.__sort_all_items_by_target_folder()
 
 
 class InstlClient(InstlInstanceBase):
