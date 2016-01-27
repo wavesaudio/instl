@@ -7,6 +7,7 @@ import os
 import utils
 from configVar import var_stack
 
+from .installItem import InstallItem, guid_list, iids_from_guids
 from .instlClient import InstlClient
 
 
@@ -22,13 +23,24 @@ class InstlClientUninstall(InstlClient):
     def init_uninstall_vars(self):
         pass
 
+    def calculate_install_items(self):
+        if "MAIN_INSTALL_TARGETS" not in var_stack:
+            raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
+        for os_name in var_stack.resolve_to_list("$(TARGET_OS_NAMES)"):
+            InstallItem.begin_get_for_specific_os(os_name)
+        require_path = var_stack.resolve("$(SITE_REQUIRE_FILE_PATH)")
+        if os.path.isfile(require_path):
+            try:
+                self.read_yaml_file(require_path, req_reader=self.installState.req_man)
+            except Exception as ex:
+                print("failed to read", require_path, ex)
+        self.installState.root_items = var_stack.resolve_to_list("$(MAIN_INSTALL_TARGETS)")
+        unrequired_items, unmentioned_items = self.installState.calc_items_to_remove()
+        var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(self.installState.all_items))
+        var_stack.set_var("__ORPHAN_INSTALL_TARGETS__").extend(sorted(self.installState.orphan_items))
+
     def create_uninstall_instructions(self):
-        self.init_uninstall_vars()
-        print("original list", self.installState.root_install_items)
-        print("translated list", self.installState.root_install_iids_translated)
-        unrequired_items, unmentioned_items = self.require_man.calc_to_remove_items(self.installState.root_install_iids_translated)
-        print("unrequired", unrequired_items)
-        print("unmentioned", unmentioned_items)
+        pass
 
     def old_create_uninstall_instructions(self):
         self.init_uninstall_vars()

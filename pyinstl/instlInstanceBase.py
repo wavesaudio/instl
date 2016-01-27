@@ -199,21 +199,21 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
         retVal = doc_node.tag in acceptables
         return retVal
 
-    def read_yaml_from_stream(self, the_stream):
+    def read_yaml_from_stream(self, the_stream, *args, **kwargs):
         for a_node in yaml.compose_all(the_stream):
             if self.is_acceptable_yaml_doc(a_node):
                 if a_node.tag.startswith('!define_const'):
-                    self.read_const_defines(a_node)
+                    self.read_const_defines(a_node, *args, **kwargs)
                 elif a_node.tag.startswith('!define'):
-                    self.read_defines(a_node)
+                    self.read_defines(a_node, *args, **kwargs)
                 elif a_node.tag.startswith('!index'):
-                    self.read_index(a_node)
+                    self.read_index(a_node, *args, **kwargs)
                 elif a_node.tag.startswith('!require'):
-                    self.read_require(a_node)
+                    self.read_require(a_node, *args, **kwargs)
         if not self.check_version_compatibility():
             raise ValueError(var_stack.resolve("Minimal instl version $(INSTL_MINIMAL_VERSION) > current version $(__INSTL_VERSION__); ")+var_stack.get_configVar_obj("INSTL_MINIMAL_VERSION").description)
 
-    def read_yaml_file(self, file_path):
+    def read_yaml_file(self, file_path, *args, **kwargs):
         try:
             with utils.open_for_read_file_or_url(file_path, connectionBase.translate_url, self.path_searcher) as file_fd:
                 buffer = file_fd.read()
@@ -221,30 +221,18 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
                     buffer = buffer.decode("utf-8")
                 buffer = io.StringIO(buffer)
                 buffer.name = file_path
-                self.read_yaml_from_stream(buffer)
+                self.read_yaml_from_stream(buffer, *args, **kwargs)
             var_stack.get_configVar_obj("__READ_YAML_FILES__").append(file_path)
         except Exception as ex:
             print("Exception reading file:", file_path, ex)
             raise
 
-    def read_require(self, a_node):
-        # dependencies_file_path = var_stack.resolve("$(SITE_REQUIRE_FILE_PATH)")
-        if a_node.isMapping():
-            self.require_man.read_require(a_node)
-            for identifier, contents in a_node.items():
-                if identifier in self.install_definitions_index:
-                    self.install_definitions_index[identifier].add_required_by(*[required_iid.value for required_iid in contents])
-                else:
-                    # require file might contain IIDs form previous installations that are no longer in the index
-                    item_not_in_index = InstallItem(identifier)
-                    item_not_in_index.add_required_by(*[required_iid.value for required_iid in contents])
-                    self.install_definitions_index[identifier] = item_not_in_index
+    def read_require(self, a_node, *args, **kwargs):
+        req_reader = kwargs.get("req_reader")
+        if req_reader is not None:
+            req_reader.read_require_node(a_node)
 
-    def write_require_file(self, file_path):
-        require_dict = dict()
-        for IID in sorted(self.install_definitions_index.keys()):
-            if len(self.install_definitions_index[IID].required_by) > 0:
-                require_dict[IID] = sorted(self.install_definitions_index[IID].required_by)
+    def write_require_file(self, file_path, require_dict):
         with open(file_path, "w") as wfd:
             utils.make_open_file_read_write_for_all(wfd)
             require_dict = aYaml.YamlDumpDocWrap(require_dict, '!require', "requirements",
@@ -265,7 +253,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
                                                              return_original_if_not_found=True)
                 var_stack.set_var(path_var_to_resolve, "resolve_defined_paths").append(resolved_path)
 
-    def read_defines(self, a_node):
+    def read_defines(self, a_node, *args, **kwargs):
         # if document is empty we get a scalar node
         if a_node.isMapping():
             for identifier, contents in a_node.items():
@@ -274,7 +262,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
                 elif identifier == '__include__':
                     self.read_include_node(contents)
 
-    def read_const_defines(self, a_node):
+    def read_const_defines(self, a_node, *args, **kwargs):
         """ Read a !define_const sub-doc. All variables will be made const.
             Reading of internal state identifiers is allowed.
             __include__ is not allowed.
@@ -438,7 +426,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
         with utils.write_to_file_or_stdout(state_file) as fd:
             aYaml.writeAsYaml(self, fd)
 
-    def read_index(self, a_node):
+    def read_index(self, a_node, *args, **kwargs):
         self.install_definitions_index.update(read_index_from_yaml(a_node))
 
     def find_cycles(self):

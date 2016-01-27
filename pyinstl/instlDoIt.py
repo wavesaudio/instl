@@ -40,7 +40,7 @@ class DoItInstructionsState(object):
         root_install_iids_translated = utils.unique_list()
         for root_IID in self.root_doit_items:
             # if IID is a guid iids_from_guid will translate to iid's, or return the IID otherwise
-            iids_from_the_root_iid = iids_from_guids(instlObj.install_definitions_index, (root_IID,))
+            iids_from_the_root_iid = iids_from_guids(instlObj.install_definitions_index, root_IID)
             for IID in iids_from_the_root_iid:
                 if IID in instlObj.install_definitions_index:
                     root_install_iids_translated.append(IID)
