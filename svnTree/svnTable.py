@@ -118,7 +118,6 @@ class SVNTable(object):
         else:
             raise ValueError("Unknown read a_format " + a_format)
 
-    @utils.timing
     def read_from_svn_info(self, rfd):
         """ reads new items from svn info items prepared by iter_svn_info
             items are inserted in lexicographic directory order, so '/'
