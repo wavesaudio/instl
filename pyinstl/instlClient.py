@@ -142,7 +142,6 @@ class InstallInstructionsState(object):
         for IID in self.__root_items_translated:
             try:
                 # all items in the root list are marked as required by them selves
-                self.__instlObj.install_definitions_index[IID].add_required_by(IID)
                 self.__instlObj.install_definitions_index[IID].get_recursive_depends(self.__instlObj.install_definitions_index,
                                                                                      self.__all_items,
                                                                                      self.__orphan_items)

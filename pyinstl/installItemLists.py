@@ -119,12 +119,3 @@ class InstallItemLists(object):
                 self.__orphan_install_items.append(IID)
 
         self.sort_install_items_by_target_folder(instlObj)
-
-    def get_require_dict(self, instlObj):
-        for IID in self.top_level_install_items:
-            instlObj.install_definitions_index[IID].calc_required(instlObj.install_definitions_index, is_top_item=True)
-        require_dict = dict()
-        for IID, install_item in instlObj.install_definitions_index.items():
-            if len(install_item.required_by) > 0:
-                require_dict[IID] = install_item.required_by
-        return require_dict

@@ -102,7 +102,7 @@ class InstallItem(object):
     __slots__ = ('__iid', '__name', '__guids',
                  '__remark', "__description", '__inherit_from',
                  '__install_for_os_stack', '__items', '__resolved_inherit',
-                 '__var_list', '__required_by', '__user_data')
+                 '__var_list', '__user_data')
     os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
     allowed_item_keys = ('name', 'guid','install_sources', 'install_folders', 'inherit', 'depends', 'actions', 'remark')
     allowed_top_level_keys = os_names[1:] + allowed_item_keys
@@ -184,7 +184,6 @@ class InstallItem(object):
         self.__install_for_os_stack = [InstallItem.os_names[0]] # reading for all platforms ('common') or for which specific platforms ('Mac', 'Win')?
         self.__items = defaultdict(InstallItem.create_items_section)
         self.__var_list = None
-        self.__required_by = utils.unique_list()
         self.__user_data = None
 
     def read_from_yaml_by_idd(self, all_items_node):
@@ -351,14 +350,6 @@ class InstallItem(object):
     def get_depends(self):
         return self._depend_list()
 
-    def calc_required(self, items_map, is_top_item):
-        for depend in self._depend_list():
-            if len(items_map[depend].__required_by) == 0: # so calc_required will be called only once for each iid
-                items_map[depend].calc_required(items_map, is_top_item=False)
-            items_map[depend].add_required_by(self.__iid)
-            if is_top_item:
-                self.__required_by.append(self.__iid) # top level items are marked as required by themselves
-
     def get_recursive_depends(self, items_map, out_set, orphan_set):
         if self.__iid not in out_set:
             out_set.append(self.__iid)
@@ -368,7 +359,6 @@ class InstallItem(object):
                     # if IID is a guid, iids_from_guids will translate to iid's, or return the IID otherwise
                     dependees = iids_from_guids(items_map, depend)
                     for dependee in dependees:
-                        items_map[dependee].add_required_by(self.__iid)
                         if dependee not in out_set:  # avoid cycles, save time
                             items_map[dependee].get_recursive_depends(items_map, out_set, orphan_set)
                 except KeyError:
@@ -477,13 +467,6 @@ class InstallItem(object):
     @property
     def iid(self):
         return self.__iid
-
-    @property
-    def required_by(self):
-        return self.__required_by
-
-    def add_required_by(self, *another_required_by):
-        self.__required_by.extend(another_required_by)
 
 
 def guid_list(items_map):
