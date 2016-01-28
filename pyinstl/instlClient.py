@@ -164,21 +164,14 @@ class InstallInstructionsState(object):
         while len(r_list) > 0:
             next_round = set()
             for IID in r_list:
-                the_depends = self.__instlObj.install_definitions_index[IID].get_depends()
+                the_depends = iids_from_guids(self.__instlObj.install_definitions_index,
+                                              *self.__instlObj.install_definitions_index[IID].get_depends())
                 self.req_man.add_x_depends_on_ys(IID, *the_depends)
                 next_round.update(the_depends)
             r_list = list(next_round)
 
-        with open("/Users/shai/Desktop/require.out.yaml", "w") as wfd:
-            utils.make_open_file_read_write_for_all(wfd)
-            require_dict = aYaml.YamlDumpDocWrap(self.req_man.repr_for_yaml(), '!require', "requirements",
-                                                 explicit_start=True, sort_mappings=True)
-            aYaml.writeAsYaml(require_dict, wfd)
-
     def calc_items_to_remove(self):
         unrequired_items, unmentioned_items = self.req_man.calc_items_to_remove(self.__root_items_translated)
-        print("unrequired_items:",  unrequired_items)
-        print("unmentioned_items:", unmentioned_items)
         self.__all_items = sorted(unrequired_items + unmentioned_items)
         self.__orphan_items = unmentioned_items
         self.__sort_all_items_by_target_folder()

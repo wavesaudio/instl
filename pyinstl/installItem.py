@@ -323,8 +323,6 @@ class InstallItem(object):
         return self.__get_item_list_for_default_oses_by_category('install_folders')
 
     def add_depends(self, *new_depends):
-        if not new_depends:
-            raise ValueError("new_depend cannot be null")
         self.__add_items_to_default_os_by_category('depends', *new_depends)
 
     def _depend_list(self):
