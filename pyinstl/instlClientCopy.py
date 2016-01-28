@@ -36,7 +36,7 @@ class InstlClientCopy(InstlClient):
                 log_file_path = var_stack.resolve("$(ECHO_LOG_FILE)")
                 log_folder, log_file = os.path.split(log_file_path)
                 with open(os.path.join(log_folder, "sync-folder-manifest.txt"), "w") as wfd:
-                    repo_sync_dir = var_stack.resolve("$(LOCAL_REPO_SYNC_DIR)")
+                    repo_sync_dir = var_stack.resolve("$(COPY_SOURCES_ROOT_DIR)")
                     wfd.write(utils.folder_listing(repo_sync_dir))
         except:
             pass # if it did not work - forget it
@@ -60,7 +60,7 @@ class InstlClientCopy(InstlClient):
 
         # copy and actions instructions for sources
         self.batch_accum.set_current_section('copy')
-        self.batch_accum += self.platform_helper.progress("Starting copy from $(LOCAL_REPO_SYNC_DIR)")
+        self.batch_accum += self.platform_helper.progress("Starting copy from $(COPY_SOURCES_ROOT_DIR)")
 
         self.accumulate_unique_actions('pre_copy', self.installState.all_items)
         self.batch_accum += self.platform_helper.new_line()
@@ -177,7 +177,7 @@ class InstlClientCopy(InstlClient):
         source_files = self.info_map_table.get_required_for_file(source_path)
         first_wtar_item = None
         for source_file in source_files:
-            source_item_path = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + source_file.path)
+            source_item_path = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_file.path)
             self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_item_path, ".",
                                                                                 link_dest=True,
                                                                                 ignore=self.ignore_list)
@@ -196,7 +196,7 @@ class InstlClientCopy(InstlClient):
         self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
 
     def create_copy_instructions_for_dir_cont(self, source_path, name_for_progress_message):
-        source_path_abs = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + source_path)
+        source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
         self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path_abs, ".",
                                                                                     link_dest=True,
                                                                                     ignore=self.ignore_list,
@@ -220,7 +220,7 @@ class InstlClientCopy(InstlClient):
         self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
 
     def create_copy_instructions_for_files(self, source_path, name_for_progress_message):
-        source_path_abs = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + source_path)
+        source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
         self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path_abs, ".",
                                                                                  link_dest=True,
                                                                                  ignore=self.ignore_list)
@@ -244,7 +244,7 @@ class InstlClientCopy(InstlClient):
     def create_copy_instructions_for_dir(self, source_path, name_for_progress_message):
         dir_item = self.info_map_table.get_item(source_path, what="dir")
         if dir_item is not None:
-            source_path_abs = os.path.normpath("$(LOCAL_REPO_SYNC_DIR)/" + source_path)
+            source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path_abs, ".",
                                                                                link_dest=True,
                                                                                ignore=self.ignore_list)
@@ -289,7 +289,7 @@ class InstlClientCopy(InstlClient):
         required_and_exec = self.info_map_table.get_required_exec_items(what="file")
         num_files_to_set_exec = len(required_and_exec)
         if num_files_to_set_exec > 0:
-            self.batch_accum += self.platform_helper.pushd("$(LOCAL_REPO_SYNC_DIR)")
+            self.batch_accum += self.platform_helper.pushd("$(COPY_SOURCES_ROOT_DIR)")
             have_info_path = var_stack.resolve("$(REQUIRED_INFO_MAP_PATH)")
             self.batch_accum += self.platform_helper.set_exec_for_folder(have_info_path)
             self.platform_helper.num_items_for_progress_report += num_files_to_set_exec
