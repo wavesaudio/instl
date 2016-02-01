@@ -528,20 +528,28 @@ class InstlAdmin(InstlInstanceBase):
     # to do: prevent create-links and up2s3 if there are files marked as symlinks
     def do_fix_symlinks(self):
         self.batch_accum.set_current_section('admin')
-        folder_to_check = var_stack.resolve("$(STAGING_FOLDER)")
+
+        stage_folder = var_stack.resolve("$(STAGING_FOLDER)")
+        folders_to_check = self.prepare_limit_list(stage_folder)
+        if tuple(folders_to_check) == (stage_folder,):
+            print("fix-symlink for the whole repository")
+        else:
+            print("fix-symlink limited to ", "; ".join(folders_to_check))
+
         valid_symlinks = list()
         broken_symlinks = list()
-        for root, dirs, files in os.walk(folder_to_check, followlinks=False):
-            for item in files + dirs:
-                item_path = os.path.join(root, item)
-                if os.path.islink(item_path):
-                    target_path = os.path.realpath(item_path)
-                    link_value = os.readlink(item_path)
-                    if os.path.isdir(target_path) or os.path.isfile(target_path):
-                        valid_symlinks.append((item_path, link_value))
-                    else:
-                        valid_symlinks.append((item_path, link_value))
-                        broken_symlinks.append((item_path, link_value))
+        for folder_to_check in folders_to_check:
+            for root, dirs, files in os.walk(folder_to_check, followlinks=False):
+                for item in files + dirs:
+                    item_path = os.path.join(root, item)
+                    if os.path.islink(item_path):
+                        target_path = os.path.realpath(item_path)
+                        link_value = os.readlink(item_path)
+                        if os.path.isdir(target_path) or os.path.isfile(target_path):
+                            valid_symlinks.append((item_path, link_value))
+                        else:
+                            valid_symlinks.append((item_path, link_value))  # fix even the broken symlinks
+                            broken_symlinks.append((item_path, link_value))
         if len(broken_symlinks) > 0:
             print("Found broken symlinks")
             for symlink_file, link_value in broken_symlinks:
