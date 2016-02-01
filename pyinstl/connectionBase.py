@@ -4,6 +4,7 @@
 import abc
 import urllib.request, urllib.parse, urllib.error
 import urllib.parse
+import json
 
 from configVar import var_stack
 
@@ -27,10 +28,28 @@ class ConnectionBase(object):
             for cookie_line in cookie_list:
                 cred_split = cookie_line.split(":", 2)
                 if len(cred_split) == 2 and net_loc.lower() == cred_split[0].lower():
-                    retVal = cred_split[1]
+                    retVal = 'Cookie', cred_split[1]
                     break
-        #else:
-        #    print("No cookie list")
+
+        return retVal
+
+    def get_custom_headers(self, net_loc):
+        retVal = list()
+        cookie = self.get_cookie(net_loc)
+        if cookie is not None:
+            retVal.append(cookie)
+        custom_headers = var_stack.resolve_var_to_list_if_exists("CUSTOM_HEADERS")
+        if custom_headers:
+            for custom_header in custom_headers:
+                custom_header_split = custom_header.split(":", 1)
+                header_net_loc, header_values = custom_header_split[0], custom_header_split[1]
+                if header_net_loc.lower() == net_loc.lower():
+                    try:
+                        header_values = json.loads(header_values)
+                    except Exception as ex:
+                        print("CUSTOM_HEADERS not valid json", custom_headers, ex)
+                    else:
+                        retVal.extend(list(header_values.items()))
         return retVal
 
     @abc.abstractmethod
@@ -97,5 +116,5 @@ def connection_factory():
 def translate_url(in_bare_url):
     translated_url = connection_factory().translate_url(in_bare_url)
     parsed = urllib.parse.urlparse(translated_url)
-    cookie = connection_factory().get_cookie(parsed.netloc)
+    cookie = connection_factory().get_custom_headers(parsed.netloc)
     return translated_url, cookie

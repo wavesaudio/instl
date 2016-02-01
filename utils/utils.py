@@ -96,7 +96,7 @@ class open_for_read_file_or_url(object):
     def __init__(self, in_file_or_url, translate_url_callback=None, path_searcher=None):
         self.local_file_path = None
         self.url = None
-        self.cookie = None
+        self.custom_headers = None
         self.fd = None
         match = self.protocol_header_re.match(in_file_or_url)
         if not match:  # it's a local file
@@ -113,14 +113,15 @@ class open_for_read_file_or_url(object):
         else:
             self.url = in_file_or_url
             if translate_url_callback is not None:
-                self.url, self.cookie = translate_url_callback(self.url)
+                self.url, self.custom_headers = translate_url_callback(self.url)
 
     def __enter__(self):
         try:
             if self.url:
                 opener = urllib.request.build_opener()
-                if self.cookie:
-                    opener.addheaders.append(('Cookie', self.cookie))
+                if self.custom_headers:
+                    for custom_header in self.custom_headers:
+                        opener.addheaders.append(custom_header)
                 self.fd = opener.open(self.url)
             elif self.local_file_path:
                 self.fd = open(self.local_file_path, "r")

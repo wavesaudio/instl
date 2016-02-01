@@ -13,7 +13,6 @@ class BatchAccumulator(object):
     section_order = ("pre", "assign", "begin", "links", "upload", "sync", "post-sync", "copy", "post-copy", "remove", "admin", "end", "post")
 
     def __init__(self):
-        self.variables_assignment_lines = list()
         self.instruction_lines = defaultdict(list)
         self.indent_level = 0
         self.current_section = None
@@ -36,7 +35,6 @@ class BatchAccumulator(object):
         return self
 
     def __len__(self):
-        retVal = len(self.variables_assignment_lines)
         for section, section_lines in self.instruction_lines.items():
             retVal += len(section_lines)
         return retVal
@@ -54,7 +52,6 @@ class BatchAccumulator(object):
         return lines
 
     def merge_with(self, another_accum):
-        self.variables_assignment_lines.extend(another_accum.variables_assignment_lines)
         save_section = self.current_section
         for section in BatchAccumulator.section_order:
             self.set_current_section(section)
