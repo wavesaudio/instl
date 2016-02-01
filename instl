@@ -43,12 +43,12 @@ def get_instl_launch_command():
     """
     launch_command = None
     if getattr(sys, 'frozen', False):
-        launch_command = quoteme_double(os.path.realpath(sys.executable))
+        launch_command = utils.quoteme_double(os.path.realpath(sys.executable))
     elif __file__:
         if os_family_name == "Win":
-            launch_command = quoteme_double(sys.executable) + " " + quoteme_double(os.path.realpath(__file__))
+            launch_command = " ".join((utils.quoteme_double(sys.executable), utils.quoteme_double(os.path.realpath(__file__))))
         else:
-            launch_command = quoteme_double(os.path.realpath(__file__))
+            launch_command = utils.quoteme_double(os.path.realpath(__file__))
     return launch_command
 
 
@@ -98,7 +98,7 @@ class CommandLineOptions(object):
         self.restart_the_dock = None
 
     def __str__(self):
-        return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
+        return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).items())])
 
 
 def prepare_args_parser(in_command):
@@ -143,7 +143,7 @@ def prepare_args_parser(in_command):
         'up-repo-rev':          {'mode': 'an', 'options': ('out', 'run', 'conf',), 'help':  'upload repository revision file to admin folder'},
         'up2s3':                {'mode': 'an', 'options': ( 'out', 'run', 'conf',), 'help':  'upload installation sources to S3'},
         'verify-index':         {'mode': 'an', 'options': ('in', 'cred'), 'help':  'Verify that index and info map are compatible'},
-        'verify-repo':          {'mode': 'an', 'options': ('conf'), 'help':  'Verify a local repository against its index'},
+        'verify-repo':          {'mode': 'an', 'options': ('conf',), 'help':  'Verify a local repository against its index'},
         'version':              {'mode': 'ds', 'options': (), 'help':  'display instl version'},
         'win-shortcut':         {'mode': 'ds', 'options': (), 'help':  'create a Windows shortcut'},
         'wtar':                 {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'create .wtar files from specified files and folders'},

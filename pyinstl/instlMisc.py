@@ -74,9 +74,7 @@ class InstlMisc(InstlInstanceBase):
         utils.run_processes_in_parallel(commands)
 
     def do_unwtar(self):
-        self.no_artifacts = False
-        if "__NO_WTAR_ARTIFACTS__" in var_stack:
-            self.no_artifacts = True
+        self.no_artifacts = "__NO_WTAR_ARTIFACTS__" in var_stack
 
         what_to_work_on = "."
         if "__MAIN_INPUT_FILE__" in var_stack:
