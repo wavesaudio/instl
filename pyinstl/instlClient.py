@@ -3,6 +3,7 @@
 import os
 import time
 from collections import OrderedDict, defaultdict, deque
+import itertools
 import utils
 from .installItem import InstallItem, guid_list, iids_from_guids
 import aYaml
@@ -50,10 +51,10 @@ class RequireMan(object):
                 retVal[i] = sorted(list(self.require_map[i]))
         return retVal
 
-    def get_user_requested_items(self):
+    def get_previously_installed_root_items(self):
         """
         :return: return only the items that the user requested to install, not those installed as dependents
-                of other items. These items identified by having themselves in their required_by list
+                of other items. Such items identified by having themselves in their required_by list
         """
         retVal = [iid for iid, required_by in self.require_map.items() if iid in required_by]
         return retVal
@@ -67,6 +68,7 @@ class InstallInstructionsState(object):
         self.__instlObj = instlObj
         self.__root_items = None
         self.__root_items_translated = None
+        self.__root_update_items = None
         self.__orphan_items = None
         self.__all_items = utils.unique_list()
         self.__all_items_by_target_folder = None
@@ -133,13 +135,18 @@ class InstallInstructionsState(object):
         # root_install_items might have guid in it, translate them to iids
         self.__root_items_translated = utils.unique_list()
         self.__orphan_items = utils.unique_list()
-        for IID in self.__root_items:
+        for IID in filter(lambda i: i != "__UPDATE__", self.__root_items):
             # if IID is a guid, iids_from_guids will translate to iid's, or return the IID otherwise
             iids_from_the_guid = iids_from_guids(self.__instlObj.install_definitions_index, IID)
             if len(iids_from_the_guid) > 0:
                 self.__root_items_translated.extend(iids_from_the_guid)
             else:
                 self.__orphan_items.append(IID)
+
+        self.__root_update_items =list()
+        if "__UPDATE__" in self.__root_items:
+            self.__root_update_items.extend(self.req_man.get_previously_installed_root_items())
+
         self.__root_items_translated.sort()  # for repeatability
 
     def calculate_all_items(self, update_mode="none"):
@@ -149,12 +156,23 @@ class InstallInstructionsState(object):
         """
         for IID in self.__root_items_translated:
             try:
-                # all items in the root list are marked as required by them selves
                 self.__instlObj.install_definitions_index[IID].get_recursive_depends(self.__instlObj.install_definitions_index,
                                                                                      self.__all_items,
                                                                                      self.__orphan_items)
             except KeyError:
                 self.__orphan_items.append(IID)
+
+        self.__all_update_items = list()
+        for IID in self.__root_update_items:
+            try:
+                self.__instlObj.install_definitions_index[IID].get_recursive_depends(self.__instlObj.install_definitions_index,
+                                                                                     self.__all_update_items,
+                                                                                     self.__orphan_items)
+            except KeyError:
+                self.__orphan_items.append(IID)
+
+        # remove from update items the items tha will be installed anyway
+        self.__all_update_items = list(set(self.__all_update_items) - set(self.__all_items)).sort()
 
         self.calc_require_for_root_items()
         self.__all_items.sort()        # for repeatability
@@ -163,11 +181,12 @@ class InstallInstructionsState(object):
 
     def calc_require_for_root_items(self):
 
+        all_root_items = list(set(self.__root_update_items) | set(self.__root_items_translated))
         # the root install items were required by themselves
-        for IID in self.__root_items_translated:
+        for IID in all_root_items:
             self.req_man.add_x_depends_on_ys(IID, IID)
 
-        r_list = deque(self.__root_items_translated)
+        r_list = deque(all_root_items)
         while len(r_list) > 0:
             next_round = set()
             for IID in r_list:
