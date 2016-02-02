@@ -378,12 +378,12 @@ class CMDObj(cmd.Cmd, object):
 
     def do_read(self, params):
         if params:
-            for afile in shlex.split(params):
+            for a_file in shlex.split(params):
                 try:
-                    self.client_prog_inst.read_yaml_file(afile)
+                    self.client_prog_inst.read_yaml_file(a_file)
                     self.client_prog_inst.add_default_items()
                 except Exception as ex:
-                    print("read", afile, ex)
+                    print("read", a_file, ex)
             self.client_prog_inst.resolve_index_inheritance()
         else:
             self.help_read()
