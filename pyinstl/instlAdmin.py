@@ -52,12 +52,10 @@ class InstlAdmin(InstlInstanceBase):
                     pass  # lo nora
 
     def do_command(self):
-        the_command = var_stack.resolve("$(__MAIN_COMMAND__)")
         self.set_default_variables()
         self.platform_helper.num_items_for_progress_report = int(var_stack.resolve("$(LAST_PROGRESS)"))
         self.platform_helper.init_copy_tool()
-        fixed_command_name = the_command.replace('-', '_')
-        do_command_func = getattr(self, "do_" + fixed_command_name)
+        do_command_func = getattr(self, "do_" + self.fixed_command)
         do_command_func()
 
     def do_trans(self):

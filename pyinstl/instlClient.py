@@ -50,6 +50,14 @@ class RequireMan(object):
                 retVal[i] = sorted(list(self.require_map[i]))
         return retVal
 
+    def get_user_requested_items(self):
+        """
+        :return: return only the items that the user requested to install, not those installed as dependents
+                of other items. These items identified by having themselves in their required_by list
+        """
+        retVal = [iid for iid, required_by in self.require_map.items() if iid in required_by]
+        return retVal
+
 
 # noinspection PyPep8Naming
 class InstallInstructionsState(object):
@@ -134,7 +142,7 @@ class InstallInstructionsState(object):
                 self.__orphan_items.append(IID)
         self.__root_items_translated.sort()  # for repeatability
 
-    def calculate_all_items(self):
+    def calculate_all_items(self, update_mode="none"):
         """ calculate the set of iids to install by starting with the root set and adding all dependencies.
             Initial list of iids should already be in self.root_install_items.
             If an install items was not found for a iid, the iid is added to the orphan set.
@@ -183,8 +191,6 @@ class InstlClient(InstlInstanceBase):
         self.installState = None
 
     def do_command(self):
-        the_command = var_stack.resolve("$(__MAIN_COMMAND__)")
-        fixed_command_name = the_command.replace('-', '_')
         # print("client_commands", fixed_command_name)
         self.installState = InstallInstructionsState(self)
         main_input_file_path = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
@@ -201,7 +207,7 @@ class InstlClient(InstlInstanceBase):
         self.calculate_install_items()
         self.platform_helper.num_items_for_progress_report = int(var_stack.resolve("$(LAST_PROGRESS)"))
 
-        do_command_func = getattr(self, "do_" + fixed_command_name)
+        do_command_func = getattr(self, "do_" + self.fixed_command)
         do_command_func()
         self.create_instl_history_file()
 
@@ -303,7 +309,7 @@ class InstlClient(InstlInstanceBase):
         all_guids_item.add_depends(*guid_list(self.install_definitions_index))
         self.install_definitions_index["__ALL_GUIDS_IID__"] = all_guids_item
 
-    def calculate_install_items(self):
+    def calculate_install_items(self, update_mode="none"):
         """ calculate the set of iids to install from the "MAIN_INSTALL_TARGETS" variable.
             Full set of install iids and orphan iids are also writen to variable.
         """
@@ -312,7 +318,8 @@ class InstlClient(InstlInstanceBase):
         for os_name in var_stack.resolve_to_list("$(TARGET_OS_NAMES)"):
             InstallItem.begin_get_for_specific_os(os_name)
         self.installState.root_items = var_stack.resolve_to_list("$(MAIN_INSTALL_TARGETS)")
-        self.installState.calculate_all_items()
+        update_mode = {"sync": "full", "copy": "by_repo_rev", "synccopy": "by_repo_rev"}.get(self.the_command, "none")
+        self.installState.calculate_all_items(update_mode=update_mode)
         #self.read_previous_requirements()
         var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(self.installState.all_items))
         var_stack.set_var("__ORPHAN_INSTALL_TARGETS__").extend(sorted(self.installState.orphan_items))

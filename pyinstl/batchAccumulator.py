@@ -35,6 +35,7 @@ class BatchAccumulator(object):
         return self
 
     def __len__(self):
+        retVal = 0
         for section, section_lines in self.instruction_lines.items():
             retVal += len(section_lines)
         return retVal

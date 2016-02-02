@@ -55,8 +55,6 @@ class InstlDoIt(InstlInstanceBase):
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
 
     def do_command(self):
-        the_command = var_stack.resolve("$(__MAIN_COMMAND__)")
-        fixed_command_name = the_command.replace('-', '_')
         # print("client_commands", fixed_command_name)
         self.installState = DoItInstructionsState()
         main_input_file_path = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
@@ -72,7 +70,7 @@ class InstlDoIt(InstlInstanceBase):
         self.calculate_default_doit_item_set()
         self.platform_helper.num_items_for_progress_report = int(var_stack.resolve("$(LAST_PROGRESS)"))
 
-        do_command_func = getattr(self, "do_" + fixed_command_name)
+        do_command_func = getattr(self, "do_" + self.fixed_command)
         do_command_func()
 
         self.create_variables_assignment()

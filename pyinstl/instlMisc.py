@@ -31,19 +31,17 @@ class InstlMisc(InstlInstanceBase):
             print("curr_progress: {self.curr_progress} != actual_progress: {self.actual_progress}".format(**locals()))
 
     def do_command(self):
-        the_command = var_stack.resolve("$(__MAIN_COMMAND__)", raise_on_fail=True)
-        fixed_command = the_command.replace('-', '_')
         self.curr_progress = int(var_stack.resolve("$(__START_DYNAMIC_PROGRESS__)")) + 1
         self.actual_progress = 1
         self.total_progress = int(var_stack.resolve("$(__TOTAL_DYNAMIC_PROGRESS__)"))
         self.progress_staccato_period = int(var_stack.resolve("$(PROGRESS_STACCATO_PERIOD)"))
         self.progress_staccato_count = 0
-        do_command_func = getattr(self, "do_" + fixed_command)
+        do_command_func = getattr(self, "do_" + self.fixed_command)
         before_time = time.clock()
         do_command_func()
         after_time = time.clock()
-        if the_command not in ("help", "version"):
-            print(the_command, "time:", round(after_time - before_time, 2), "sec.")
+        if self.the_command not in ("help", "version"):
+            print(self.the_command, "time:", round(after_time - before_time, 2), "sec.")
 
     def dynamic_progress(self, msg):
         if self.total_progress > 0:
@@ -204,22 +202,22 @@ class InstlMisc(InstlInstanceBase):
     def do_remove_empty_folders(self):
         folder_to_remove = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
         files_to_ignore = var_stack.resolve_to_list("$(REMOVE_EMPTY_FOLDERS_IGNORE_FILES)")
-        for rootpath, dirnames, filenames in os.walk(folder_to_remove, topdown=False, onerror=None, followlinks=False):
-            # when topdown=False os.walk creates dirnames for each rootpath at the beginning and has
+        for root_path, dir_names, file_names in os.walk(folder_to_remove, topdown=False, onerror=None, followlinks=False):
+            # when topdown=False os.walk creates dir_names for each root_path at the beginning and has
             # no knowledge if a directory has already been deleted.
-            existing_dirs = [dirname for dirname in dirnames if os.path.isdir(os.path.join(rootpath, dirname))]
+            existing_dirs = [dir_name for dir_name in dir_names if os.path.isdir(os.path.join(root_path, dir_name))]
             if len(existing_dirs) == 0:
                 ignored_files = list()
-                for filename in filenames:
+                for filename in file_names:
                     if filename in files_to_ignore:
                         ignored_files.append(filename)
                     else:
                         break
-                if len(filenames) == len(ignored_files):
+                if len(file_names) == len(ignored_files):
                     # only remove the ignored files if the folder is to be removed
                     for filename in ignored_files:
-                        os.remove(os.path.join(rootpath, filename))
-                    os.rmdir(rootpath)
+                        os.remove(os.path.join(root_path, filename))
+                    os.rmdir(root_path)
 
     def do_win_shortcut(self):
         shortcut_path = var_stack.resolve("$(__SHORTCUT_PATH__)", raise_on_fail=True)

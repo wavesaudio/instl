@@ -148,6 +148,8 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
                 var_stack.set_var(var, "from command line options").append(attrib_value[0])
 
         if cmd_line_options_obj.command:
+            self.the_command = cmd_line_options_obj.command
+            self.fixed_command = self.the_command.replace('-', '_')
             var_stack.set_var("__MAIN_COMMAND__", "from command line options").append(cmd_line_options_obj.command)
 
         if hasattr(cmd_line_options_obj, "subject") and cmd_line_options_obj.subject is not None:
@@ -234,9 +236,14 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
     def write_require_file(self, file_path, require_dict):
         with open(file_path, "w") as wfd:
             utils.make_open_file_read_write_for_all(wfd)
+
+            define_dict = aYaml.YamlDumpDocWrap({"REQUIRE_REPO_REV": var_stack.resolve("$(REPO_REV)")},
+                                                '!define', "definitions",
+                                                 explicit_start=True, sort_mappings=True)
             require_dict = aYaml.YamlDumpDocWrap(require_dict, '!require', "requirements",
                                                  explicit_start=True, sort_mappings=True)
-            aYaml.writeAsYaml(require_dict, wfd)
+
+            aYaml.writeAsYaml((define_dict, require_dict), wfd)
 
     internal_identifier_re = re.compile("""
                                         __                  # dunder here
