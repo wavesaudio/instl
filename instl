@@ -10,6 +10,7 @@ import os
 import sys
 import argparse
 
+import tempfile
 import appdirs
 from utils import InstlException
 import utils
@@ -435,7 +436,8 @@ def main():
                     "__USER_DATA_DIR__": os.path.normpath(appdirs.user_data_dir()),
                     "__USER_CONFIG_DIR__": os.path.normpath(appdirs.user_config_dir()),
                     "__USER_HOME_DIR__": os.path.normpath(os.path.expanduser("~")),
-                    "__USER_DESKTOP_DIR__": os.path.normpath("$(__USER_HOME_DIR__)/Desktop")
+                    "__USER_DESKTOP_DIR__": os.path.normpath("$(__USER_HOME_DIR__)/Desktop"),
+                    "__USER_TEMP_DIR__": os.path.normpath(os.path.join(tempfile.gettempdir(), "$(SYNC_BASE_URL_MAIN_ITEM)/$(REPO_NAME)"))
                     }
     if os_family_name != "Win":
         initial_vars.update(

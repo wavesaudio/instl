@@ -102,7 +102,7 @@ class InstallItem(object):
     __slots__ = ('__iid', '__name', '__guids',
                  '__remark', "__description", '__inherit_from',
                  '__install_for_os_stack', '__items', '__resolved_inherit',
-                 '__var_list', '__user_data')
+                 '__var_list', '__user_data', '__last_require_repo_rev')
     os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
     allowed_item_keys = ('name', 'guid','install_sources', 'install_folders', 'inherit', 'depends', 'actions', 'remark')
     allowed_top_level_keys = os_names[1:] + allowed_item_keys
@@ -185,6 +185,7 @@ class InstallItem(object):
         self.__items = defaultdict(InstallItem.create_items_section)
         self.__var_list = None
         self.__user_data = None
+        self.__last_require_repo_rev = 0
 
     def read_from_yaml_by_idd(self, all_items_node):
         my_node = all_items_node[self.__iid]
@@ -468,6 +469,13 @@ class InstallItem(object):
     def iid(self):
         return self.__iid
 
+    @property
+    def last_require_repo_rev(self):
+        return self.__last_require_repo_rev
+
+    @last_require_repo_rev.setter
+    def last_require_repo_rev(self, new_last_require_repo_rev):
+        self.__last_require_repo_rev = int(new_last_require_repo_rev)
 
 def guid_list(items_map):
     retVal = utils.unique_list()

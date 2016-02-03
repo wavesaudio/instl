@@ -724,3 +724,11 @@ class SVNTable(object):
         min_revision = self.session.query(SVNRow, func.min(SVNRow.revision_remote)).scalar()
         max_revision = self.session.query(SVNRow, func.max(SVNRow.revision_remote)).scalar()
         return min_revision.revision_remote, max_revision.revision_remote
+
+    def get_max_repo_rev_for_source(self, source):
+        source_path, source_type = source[0], source[1]
+        max_revision = self.session.query(func.max(SVNRow.revision_remote))\
+                                .filter(SVNRow.fileFlag == True)\
+                                .filter(SVNRow.path.like(source_path+"%"))\
+                                .scalar()
+        return max_revision

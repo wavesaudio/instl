@@ -66,10 +66,12 @@ class InstallInstructionsState(object):
 
     def __init__(self, instlObj):
         self.__instlObj = instlObj
-        self.__root_items = None
-        self.__root_items_translated = None
-        self.__root_update_items = None
-        self.__orphan_items = None
+        self.__root_items = utils.unique_list()
+        self.__root_items_translated = utils.unique_list()
+        self.__root_update_items = utils.unique_list()
+        self.__all_update_items = utils.unique_list()
+        self.__actual_update_items = utils.unique_list()
+        self.__orphan_items = utils.unique_list()
         self.__all_items = utils.unique_list()
         self.__all_items_by_target_folder = None
         self.__no_copy_items_by_sync_folder = None
@@ -82,7 +84,7 @@ class InstallInstructionsState(object):
     @root_items.setter
     def root_items(self, root_items):
         root_items = list(filter(bool, root_items))  # avoid empty strings
-        self.__root_items = utils.unique_list(sorted(root_items))
+        self.__root_items.extend(sorted(root_items))
         self.__translate_root_items()
 
     @property
@@ -108,6 +110,10 @@ class InstallInstructionsState(object):
     def repr_for_yaml(self):
         retVal = OrderedDict()
         retVal['root_install_items'] = list(self.__root_items)
+        retVal['root_install_items_translated'] = list(self.__root_items_translated)
+        retVal['root_update_items'] = list(self.__root_update_items)
+        retVal['all_update_items'] = list(self.__all_update_items)
+        retVal['actual_update_items'] = list(self.__actual_update_items)
         retVal['full_install_items'] = list(self.__all_items)
         retVal['orphan_install_items'] = list(self.__orphan_items)
         retVal['install_items_by_target_folder'] = {folder: list(item) for folder, item in self.all_items_by_target_folder.items()}
@@ -133,9 +139,7 @@ class InstallInstructionsState(object):
 
     def __translate_root_items(self):
         # root_install_items might have guid in it, translate them to iids
-        self.__root_items_translated = utils.unique_list()
-        self.__orphan_items = utils.unique_list()
-        for IID in filter(lambda i: i != "__UPDATE__", self.__root_items):
+        for IID in filter(lambda i: i != "  ", self.__root_items):
             # if IID is a guid, iids_from_guids will translate to iid's, or return the IID otherwise
             iids_from_the_guid = iids_from_guids(self.__instlObj.install_definitions_index, IID)
             if len(iids_from_the_guid) > 0:
@@ -143,7 +147,7 @@ class InstallInstructionsState(object):
             else:
                 self.__orphan_items.append(IID)
 
-        self.__root_update_items =list()
+        self.__root_update_items = list()
         if "__UPDATE__" in self.__root_items:
             self.__root_update_items.extend(self.req_man.get_previously_installed_root_items())
 
@@ -151,8 +155,10 @@ class InstallInstructionsState(object):
 
     def calculate_all_items(self, update_mode="none"):
         """ calculate the set of iids to install by starting with the root set and adding all dependencies.
-            Initial list of iids should already be in self.root_install_items.
+            Initial list of iids should already be in self.__root_items_translated.
             If an install items was not found for a iid, the iid is added to the orphan set.
+            Same is done for the update items. The actual update items list is then calculated by removing
+            the root items and their dependencies from the update items.
         """
         for IID in self.__root_items_translated:
             try:
@@ -162,7 +168,6 @@ class InstallInstructionsState(object):
             except KeyError:
                 self.__orphan_items.append(IID)
 
-        self.__all_update_items = list()
         for IID in self.__root_update_items:
             try:
                 self.__instlObj.install_definitions_index[IID].get_recursive_depends(self.__instlObj.install_definitions_index,
@@ -171,8 +176,12 @@ class InstallInstructionsState(object):
             except KeyError:
                 self.__orphan_items.append(IID)
 
-        # remove from update items the items tha will be installed anyway
-        self.__all_update_items = list(set(self.__all_update_items) - set(self.__all_items)).sort()
+        # remove from update items the items that will be installed anyway
+        self.__actual_update_items.extend(sorted(list(set(self.__all_update_items) - set(self.__all_items))))
+        last_require_repo_rev = int("$(REQUIRE_REPO_REV)" @ var_stack)
+        for iid in self.__actual_update_items:
+            self.__instlObj.install_definitions_index[iid].last_require_repo_rev = last_require_repo_rev
+        self.__all_items.extend(self.__actual_update_items)
 
         self.calc_require_for_root_items()
         self.__all_items.sort()        # for repeatability
@@ -199,7 +208,7 @@ class InstallInstructionsState(object):
     def calc_items_to_remove(self):
         unrequired_items, unmentioned_items = self.req_man.calc_items_to_remove(self.__root_items_translated)
         self.__all_items = sorted(unrequired_items + unmentioned_items)
-        self.__orphan_items = unmentioned_items
+        self.__orphan_items.extend(unmentioned_items)
         self.__sort_all_items_by_target_folder()
 
 
@@ -332,6 +341,14 @@ class InstlClient(InstlInstanceBase):
         """ calculate the set of iids to install from the "MAIN_INSTALL_TARGETS" variable.
             Full set of install iids and orphan iids are also writen to variable.
         """
+        # read the require.yaml file, if any, we'll need it to calculate updates
+        require_path = var_stack.resolve("$(SITE_REQUIRE_FILE_PATH)")
+        if os.path.isfile(require_path):
+            try:
+                self.read_yaml_file(require_path, req_reader=self.installState.req_man)
+            except Exception as ex:
+                print("failed to read", require_path, ex)
+
         if "MAIN_INSTALL_TARGETS" not in var_stack:
             raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
         for os_name in var_stack.resolve_to_list("$(TARGET_OS_NAMES)"):

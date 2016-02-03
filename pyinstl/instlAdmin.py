@@ -894,7 +894,8 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_verify_repo(self):
         self.read_yaml_file(var_stack.resolve("$(__CONFIG_FILE__)"))
-        self.read_yaml_file(var_stack.resolve("$(STAGING_FOLDER)/instl/index.yaml"))
+        self.read_yaml_file(var_stack.resolve("$(STAGING_FOLDER_INDEX)"))
+        self.resolve_index_inheritance()
 
         the_folder = var_stack.resolve_var("STAGING_FOLDER")
         self.info_map_table.initialize_from_folder(the_folder)
@@ -920,9 +921,14 @@ class InstlAdmin(InstlInstanceBase):
                         iid_problem_messages.append(" ".join(("depends on non existing", dependee )))
                 # check sources
                 for source in iid_to_sources[iid]:
-                    num_file_for_source = self.info_map_table.mark_required_for_source(source)
-                    if num_file_for_source == 0:
+                    num_files_for_source = self.info_map_table.mark_required_for_source(source)
+                    if num_files_for_source == 0:
                         iid_problem_messages.append(" ".join(("source", utils.quoteme_single(str(source)),"required by", iid, "does not have files")))
+                # check targets
+                if len(iid_to_sources[iid]) > 0:
+                    target_folders = var_stack.resolve_var_to_list("iid_folder_list")
+                    if len(target_folders) == 0:
+                        iid_problem_messages.append(" ".join(("source", utils.quoteme_single(str(source)),"required by", iid, "does not have target folder")))
                 if iid_problem_messages:
                     print(iid+":")
                     for problem_message in sorted(iid_problem_messages):
