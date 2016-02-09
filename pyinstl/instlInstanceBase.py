@@ -331,7 +331,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
                     for copy_destination in i_node["copy"]:
                         need_to_copy = True
                         destination_file_resolved_path = var_stack.resolve(copy_destination.value)
-                        if os.path.isfile(destination_file_resolved_path):
+                        if os.path.isfile(destination_file_resolved_path) and expected_checksum is not None:
                             checksums_match = utils.check_file_checksum(file_path=destination_file_resolved_path, expected_checksum=expected_checksum)
                             need_to_copy = not checksums_match
                         if need_to_copy:
