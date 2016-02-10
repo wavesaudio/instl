@@ -75,7 +75,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         """
         retVal = (
             '''resolve_symlinks() {''',
-            '''find -P "$1" -type f -name '*.symlink' | while read readlink_file; do''',
+            '''find -P "$1" -type f -name '*.symlink'  -not -path "$(COPY_SOURCES_ROOT_DIR)*" | while read readlink_file; do''',
             '''     link_target=${readlink_file%%.symlink}''',
             '''     if [ ! -h "${link_target}" ]''',
             '''     then''',
@@ -190,14 +190,14 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
             copy_command = """cp -f "{src_file}" "{trg_file}" """.format(**locals())
         return copy_command
 
-    def resolve_symlink_files(self, in_dir="."):
-        """ create instructions to turn .readlink files into symlinks.
+    def resolve_symlink_files(self, in_dir="$PWD"):
+        """ create instructions to turn .symlinks files into real symlinks.
             Main problem was with files that had space in their name, just
             adding \" was no enough, had to separate each step to a single line
             which solved the spaces problem. Also find returns an empty string
             even when there were no files found, and therefor the check
         """
-        resolve_command = " ".join(("resolve_symlinks", utils.quoteme_double(in_dir) ))
+        resolve_command = " ".join(("resolve_symlinks", utils.quoteme_double(in_dir)))
         return resolve_command
 
     def check_checksum_for_file(self, file_path, checksum):
