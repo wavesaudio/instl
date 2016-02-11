@@ -62,7 +62,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         retVal = (
             'mkdir_with_owner() {',
             'mkdir -p -m a+rwx "$1"',               # -m will set the perm even if the dir exists
-            'chown $(__USER_ID__): "$1" | true',    # ignore error if owner cannot be changed
+            'chown $(__USER_ID__): "$1" || true',    # ignore error if owner cannot be changed
             '}')
         return retVal
 
