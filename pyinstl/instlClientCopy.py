@@ -64,20 +64,26 @@ class InstlClientCopy(InstlClient):
         # first create all target folders so to avoid dependency order problems such as creating links between folders
         if len(sorted_target_folder_list) > 0:
             self.batch_accum += self.platform_helper.progress("Creating folders...")
-            for target_folder_name in sorted_target_folder_list:
-                self.batch_accum += self.platform_helper.mkdir_with_owner(target_folder_name)
-                self.batch_accum += self.platform_helper.progress("Created folder "+target_folder_name)
+            for target_folder_path in sorted_target_folder_list:
+                if os.path.isfile(target_folder_path @ var_stack):
+                    # weird as it maybe, some users have files where a folder should be.
+                    # test for isfile is done here rather than in the batch file, because
+                    # Windows does not have proper way to check "is file" in a batch.
+                    self.batch_accum += self.platform_helper.rmfile(target_folder_path)
+                    self.batch_accum += self.platform_helper.progress("Removed file that should be a folder "+target_folder_path)
+                self.batch_accum += self.platform_helper.mkdir_with_owner(target_folder_path)
+                self.batch_accum += self.platform_helper.progress("Created folder "+target_folder_path)
             self.batch_accum += self.platform_helper.progress("Create folders done")
 
         if 'Mac' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
             self.pre_copy_mac_handling()
 
-        for target_folder_name in sorted_target_folder_list:
+        for target_folder_path in sorted_target_folder_list:
             num_items_copied_to_folder = 0
-            items_in_folder = sorted(self.installState.all_items_by_target_folder[target_folder_name])
+            items_in_folder = sorted(self.installState.all_items_by_target_folder[target_folder_path])
             self.batch_accum += self.platform_helper.new_line()
-            self.batch_accum += self.platform_helper.cd(target_folder_name)
-            self.batch_accum += self.platform_helper.progress("Copying to "+target_folder_name+"...")
+            self.batch_accum += self.platform_helper.cd(target_folder_path)
+            self.batch_accum += self.platform_helper.progress("Copying to "+target_folder_path+"...")
 
             # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
             self.accumulate_unique_actions('pre_copy_to_folder', items_in_folder)
@@ -106,7 +112,7 @@ class InstlClientCopy(InstlClient):
 
             # accumulate post_copy_to_folder actions from all items, eliminating duplicates
             self.accumulate_unique_actions('post_copy_to_folder', items_in_folder)
-            self.batch_accum += self.platform_helper.progress("Copying to "+target_folder_name+" done")
+            self.batch_accum += self.platform_helper.progress("Copying to "+target_folder_path+" done")
 
             self.batch_accum.indent_level -= 1
 
