@@ -4,10 +4,9 @@
 
 import os
 
-import utils
 from configVar import var_stack
 
-from .installItem import InstallItem, guid_list, iids_from_guids
+from .installItem import InstallItem
 from .instlClientRemove import InstlClientRemove
 
 

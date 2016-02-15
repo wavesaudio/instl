@@ -65,14 +65,15 @@ class InstlClientCopy(InstlClient):
         if len(sorted_target_folder_list) > 0:
             self.batch_accum += self.platform_helper.progress("Creating folders...")
             for target_folder_path in sorted_target_folder_list:
+                self.batch_accum += self.platform_helper.progress("Creating folder {0}...".format(target_folder_path))
                 if os.path.isfile(target_folder_path @ var_stack):
                     # weird as it maybe, some users have files where a folder should be.
                     # test for isfile is done here rather than in the batch file, because
                     # Windows does not have proper way to check "is file" in a batch.
                     self.batch_accum += self.platform_helper.rmfile(target_folder_path)
-                    self.batch_accum += self.platform_helper.progress("Removed file that should be a folder "+target_folder_path)
+                    self.batch_accum += self.platform_helper.progress("Removed file that should be a folder {0}".format(target_folder_path))
                 self.batch_accum += self.platform_helper.mkdir_with_owner(target_folder_path)
-                self.batch_accum += self.platform_helper.progress("Created folder "+target_folder_path)
+                self.batch_accum += self.platform_helper.progress("Create folder {0} done".format(target_folder_path))
             self.batch_accum += self.platform_helper.progress("Create folders done")
 
         if 'Mac' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
@@ -83,7 +84,7 @@ class InstlClientCopy(InstlClient):
             items_in_folder = sorted(self.installState.all_items_by_target_folder[target_folder_path])
             self.batch_accum += self.platform_helper.new_line()
             self.batch_accum += self.platform_helper.cd(target_folder_path)
-            self.batch_accum += self.platform_helper.progress("Copying to "+target_folder_path+"...")
+            self.batch_accum += self.platform_helper.progress("Copying to {0}...".format(target_folder_path))
 
             # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
             self.accumulate_unique_actions('pre_copy_to_folder', items_in_folder)
@@ -112,7 +113,7 @@ class InstlClientCopy(InstlClient):
 
             # accumulate post_copy_to_folder actions from all items, eliminating duplicates
             self.accumulate_unique_actions('post_copy_to_folder', items_in_folder)
-            self.batch_accum += self.platform_helper.progress("Copying to "+target_folder_path+" done")
+            self.batch_accum += self.platform_helper.progress("Copying to {0} done".format(target_folder_path))
 
             self.batch_accum.indent_level -= 1
 
@@ -121,7 +122,7 @@ class InstlClientCopy(InstlClient):
             items_in_folder = self.installState.no_copy_items_by_sync_folder[sync_folder_name]
             self.batch_accum += self.platform_helper.new_line()
             self.batch_accum += self.platform_helper.cd(sync_folder_name)
-            self.batch_accum += self.platform_helper.progress("Actions in "+sync_folder_name+" ...")
+            self.batch_accum += self.platform_helper.progress("Actions in {0}...".format(sync_folder_name))
             self.batch_accum.indent_level += 1
 
             # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
@@ -195,7 +196,6 @@ class InstlClientCopy(InstlClient):
         if first_wtar_item:
             self.batch_accum += self.platform_helper.unwtar_something(first_wtar_item.name(), no_artifacts=True)
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
-        self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
 
     def create_copy_instructions_for_dir_cont(self, source_path, name_for_progress_message):
         source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
@@ -219,7 +219,6 @@ class InstlClientCopy(InstlClient):
             if source_item.is_first_wtar_file():
                 self.batch_accum += self.platform_helper.unwtar_something(source_item.path_starting_from_dir(source_path), no_artifacts=True)
                 self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
-        self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
 
     def create_copy_instructions_for_files(self, source_path, name_for_progress_message):
         source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
@@ -241,7 +240,6 @@ class InstlClientCopy(InstlClient):
             if source_file.is_first_wtar_file():
                 self.batch_accum += self.platform_helper.unwtar_something(source_file.name(), no_artifacts=True)
                 self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
-        self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
 
     def create_copy_instructions_for_dir(self, source_path, name_for_progress_message):
         dir_item = self.info_map_table.get_item(source_path, what="dir")
@@ -265,7 +263,6 @@ class InstlClientCopy(InstlClient):
                 if source_item.is_first_wtar_file():
                     self.batch_accum += self.platform_helper.unwtar_something(source_item.path_starting_from_dir(source_path_dir), no_artifacts=True)
                     self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
-            self.batch_accum += self.platform_helper.progress("Copy {name_for_progress_message}".format(**locals()))
         else:
             # it might be a dir that was wtarred
             self.create_copy_instructions_for_file(source_path, name_for_progress_message)
@@ -274,6 +271,7 @@ class InstlClientCopy(InstlClient):
         """ source is a tuple (source_path, tag), where tag is either !file or !dir
         """
 
+        self.batch_accum += self.platform_helper.progress("Copy {0}...".format(name_for_progress_message))
         if source[1] == '!file':  # get a single file
             self.create_copy_instructions_for_file(source[0], name_for_progress_message)
         elif source[1] == '!dir_cont':  # get all files and folders from a folder
@@ -284,6 +282,7 @@ class InstlClientCopy(InstlClient):
             self.create_copy_instructions_for_dir(source[0], name_for_progress_message)
         else:
             raise ValueError("unknown source type "+source[1]+" for "+source[0])
+        self.batch_accum += self.platform_helper.progress("Copy {0} done".format(name_for_progress_message))
         self.batch_accum += self.platform_helper.remark("---")
 
     # special handling when running on Mac OS
