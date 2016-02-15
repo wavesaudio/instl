@@ -34,7 +34,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
             self.remark(self.instlObj.get_version_str()),
             self.remark(datetime.datetime.today().isoformat()),
             "set -e",
-            # "set -u",
+            "umask 0000",
             self.get_install_instructions_exit_func(),
             self.get_install_instructions_mkdir_with_owner_func(),
             self.get_resolve_symlinks_func(),
