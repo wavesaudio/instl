@@ -25,9 +25,9 @@ a = Analysis(['instl'],
              win_private_assemblies=None,
              cipher=block_cipher)
 
-pure_sorted = sorted(a.pure)
-for i, pure in enumerate(pure_sorted):
-    print(i, pure)
+#pure_sorted = sorted(a.pure)
+#for i, pure in enumerate(pure_sorted):
+#    print(i, pure)
 
 instl_defaults_path = os.path.join("defaults")
 for defaults_file in os.listdir(instl_defaults_path):
