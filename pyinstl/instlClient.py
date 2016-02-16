@@ -267,10 +267,13 @@ class InstlClient(InstlInstanceBase):
         var_stack.set_var("__BATCH_CREATE_TIME__").append(time.strftime("%Y/%m/%d %H:%M:%S"))
         yaml_of_defines = aYaml.YamlDumpDocWrap(var_stack, '!define', "Definitions",
                                                 explicit_start=True, sort_mappings=True)
+
         # write the history file, but only if variable LOCAL_REPO_BOOKKEEPING_DIR is defined
         # and the folder actually exists.
-        if os.path.isdir(var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)", default="")):
-            with open(var_stack.resolve("$(INSTL_HISTORY_TEMP_PATH)"), "w") as wfd:
+        instl_temp_history_file_path = var_stack.resolve("$(INSTL_HISTORY_TEMP_PATH)")
+        instl_temp_history_folder, instl_temp_history_file_name = os.path.split(instl_temp_history_file_path)
+        if os.path.isdir(instl_temp_history_folder):
+            with open(instl_temp_history_file_path, "w") as wfd:
                 utils.make_open_file_read_write_for_all(wfd)
                 aYaml.writeAsYaml(yaml_of_defines, wfd)
             self.batch_accum += self.platform_helper.append_file_to_file("$(INSTL_HISTORY_TEMP_PATH)",
