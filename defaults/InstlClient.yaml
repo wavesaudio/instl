@@ -48,3 +48,10 @@ COPY_IGNORE_PATTERNS:
 RSYNC_PERM_OPTIONS: a+rw,+X
 
 WTAR_RATIO: 1.3
+
+# usually copy is done from the sync folder, but using a separate variabe
+# allows us to specify a different folder
+COPY_SOURCES_ROOT_DIR: $(LOCAL_REPO_SYNC_DIR)
+
+# if require.yaml exists REQUIRE_REPO_REV will be overriden
+REQUIRE_REPO_REV: 0

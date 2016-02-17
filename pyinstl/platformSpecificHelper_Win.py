@@ -460,7 +460,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def run_instl(self):
         command_prefix = ""
         if not getattr(sys, 'frozen', False):
-            command_prefix = "python "
+            command_prefix = "python3 "
         instl_command = command_prefix + '"$(__INSTL_EXE_PATH__)"'
         return instl_command
 

@@ -34,7 +34,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
             self.remark(self.instlObj.get_version_str()),
             self.remark(datetime.datetime.today().isoformat()),
             "set -e",
-            # "set -u",
+            "umask 0000",
             self.get_install_instructions_exit_func(),
             self.get_install_instructions_mkdir_with_owner_func(),
             self.get_resolve_symlinks_func(),
@@ -61,8 +61,8 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
     def get_install_instructions_mkdir_with_owner_func(self):
         retVal = (
             'mkdir_with_owner() {',
-            'mkdir -p -m a+rwx "$1"',
-            'chown $(__USER_ID__): "$1"',
+            'mkdir -p -m a+rwx "$1"',               # -m will set the perm even if the dir exists
+            'chown $(__USER_ID__): "$1" || true',    # ignore error if owner cannot be changed
             '}')
         return retVal
 
@@ -75,7 +75,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         """
         retVal = (
             '''resolve_symlinks() {''',
-            '''find -P "$1" -type f -name '*.symlink' | while read readlink_file; do''',
+            '''find -P "$1" -type f -name '*.symlink'  -not -path "$(COPY_SOURCES_ROOT_DIR)*" | while read readlink_file; do''',
             '''     link_target=${readlink_file%%.symlink}''',
             '''     if [ ! -h "${link_target}" ]''',
             '''     then''',
@@ -147,7 +147,14 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         return 'find . -maxdepth 1 -mindepth 1 -type d -print0 | xargs -0 "$(SVN_CLIENT_PATH)" cleanup --non-interactive'
 
     def var_assign(self, identifier, value, comment=None):
-        retVal = identifier + '="' + value + '"'
+        quoter = '"'
+        if '"' in value:
+            quoter = "'"
+            if "'" in value:
+                print(value, """has both ' and " quote chars;""", "identifier:", identifier)
+                return ()
+
+        retVal = "".join((identifier, '=', quoter, value, quoter))
         if comment is not None:
             retVal += ' ' + self.remark(str(comment))
         return retVal
@@ -183,14 +190,14 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
             copy_command = """cp -f "{src_file}" "{trg_file}" """.format(**locals())
         return copy_command
 
-    def resolve_symlink_files(self, in_dir="."):
-        """ create instructions to turn .readlink files into symlinks.
+    def resolve_symlink_files(self, in_dir="$PWD"):
+        """ create instructions to turn .symlinks files into real symlinks.
             Main problem was with files that had space in their name, just
             adding \" was no enough, had to separate each step to a single line
             which solved the spaces problem. Also find returns an empty string
             even when there were no files found, and therefor the check
         """
-        resolve_command = " ".join(("resolve_symlinks", utils.quoteme_double(in_dir) ))
+        resolve_command = " ".join(("resolve_symlinks", utils.quoteme_double(in_dir)))
         return resolve_command
 
     def check_checksum_for_file(self, file_path, checksum):

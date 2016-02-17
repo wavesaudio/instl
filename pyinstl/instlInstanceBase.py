@@ -9,6 +9,7 @@ import abc
 import yaml
 import io
 import appdirs
+from collections import OrderedDict, defaultdict
 
 import aYaml
 import utils
@@ -21,14 +22,6 @@ from configVar import value_ref_re
 from configVar import var_stack
 from .installItem import InstallItem
 from . import connectionBase
-
-# The plan:
-# when online copy & sync and offline sync, get info_map.txt url in INFO_MAP_FILE_URL*
-# into LOCAL_REPO_REV_BOOKKEEPING_DIR/remote_info_map.txt. When sync is done
-# when when sync is done it will write $(LOCAL_REPO_BOOKKEEPING_DIR)/have_info_map.txt.
-# Offline copy will look for $(LOCAL_REPO_BOOKKEEPING_DIR)/have_info_map.txt
-# All copy will end with writing $(LOCAL_REPO_BOOKKEEPING_DIR)/installed_info_map.txt
-# * which usually takes from INFO_MAP_FILE_URL_SECURE
 
 
 # noinspection PyPep8Naming
@@ -155,6 +148,8 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
                 var_stack.set_var(var, "from command line options").append(attrib_value[0])
 
         if cmd_line_options_obj.command:
+            self.the_command = cmd_line_options_obj.command
+            self.fixed_command = self.the_command.replace('-', '_')
             var_stack.set_var("__MAIN_COMMAND__", "from command line options").append(cmd_line_options_obj.command)
 
         if hasattr(cmd_line_options_obj, "subject") and cmd_line_options_obj.subject is not None:
@@ -206,55 +201,49 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
         retVal = doc_node.tag in acceptables
         return retVal
 
-    def read_yaml_from_stream(self, the_stream):
+    def read_yaml_from_stream(self, the_stream, *args, **kwargs):
         for a_node in yaml.compose_all(the_stream):
             if self.is_acceptable_yaml_doc(a_node):
                 if a_node.tag.startswith('!define_const'):
-                    self.read_const_defines(a_node)
+                    self.read_const_defines(a_node, *args, **kwargs)
                 elif a_node.tag.startswith('!define'):
-                    self.read_defines(a_node)
+                    self.read_defines(a_node, *args, **kwargs)
                 elif a_node.tag.startswith('!index'):
-                    self.read_index(a_node)
+                    self.read_index(a_node, *args, **kwargs)
                 elif a_node.tag.startswith('!require'):
-                    self.read_require(a_node)
+                    self.read_require(a_node, *args, **kwargs)
         if not self.check_version_compatibility():
             raise ValueError(var_stack.resolve("Minimal instl version $(INSTL_MINIMAL_VERSION) > current version $(__INSTL_VERSION__); ")+var_stack.get_configVar_obj("INSTL_MINIMAL_VERSION").description)
 
-    def read_yaml_file(self, file_path):
+    def read_yaml_file(self, file_path, *args, **kwargs):
         try:
             with utils.open_for_read_file_or_url(file_path, connectionBase.translate_url, self.path_searcher) as file_fd:
                 buffer = file_fd.read()
                 buffer = utils.unicodify(buffer)
                 buffer = io.StringIO(buffer)
                 buffer.name = file_path
-                self.read_yaml_from_stream(buffer)
+                self.read_yaml_from_stream(buffer, *args, **kwargs)
             var_stack.get_configVar_obj("__READ_YAML_FILES__").append(file_path)
         except Exception as ex:
             print("Exception reading file:", file_path, ex)
             raise
 
-    def read_require(self, a_node):
-        # dependencies_file_path = var_stack.resolve("$(SITE_REQUIRE_FILE_PATH)")
-        if a_node.isMapping():
-            for identifier, contents in a_node.items():
-                if identifier in self.install_definitions_index:
-                    self.install_definitions_index[identifier].add_required_by(*[required_iid.value for required_iid in contents])
-                else:
-                    # require file might contain IIDs form previous installations that are no longer in the index
-                    item_not_in_index = InstallItem(identifier)
-                    item_not_in_index.add_required_by(*[required_iid.value for required_iid in contents])
-                    self.install_definitions_index[identifier] = item_not_in_index
+    def read_require(self, a_node, *args, **kwargs):
+        req_reader = kwargs.get("req_reader")
+        if req_reader is not None:
+            req_reader.read_require_node(a_node)
 
-    def write_require_file(self, file_path):
-        require_dict = dict()
-        for IID in sorted(self.install_definitions_index.keys()):
-            if len(self.install_definitions_index[IID].required_by) > 0:
-                require_dict[IID] = sorted(self.install_definitions_index[IID].required_by)
+    def write_require_file(self, file_path, require_dict):
         with open(file_path, "w") as wfd:
             utils.make_open_file_read_write_for_all(wfd)
+
+            define_dict = aYaml.YamlDumpDocWrap({"REQUIRE_REPO_REV": var_stack.resolve("$(REPO_REV)")},
+                                                '!define', "definitions",
+                                                 explicit_start=True, sort_mappings=True)
             require_dict = aYaml.YamlDumpDocWrap(require_dict, '!require', "requirements",
                                                  explicit_start=True, sort_mappings=True)
-            aYaml.writeAsYaml(require_dict, wfd)
+
+            aYaml.writeAsYaml((define_dict, require_dict), wfd)
 
     internal_identifier_re = re.compile("""
                                         __                  # dunder here
@@ -270,7 +259,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
                                                              return_original_if_not_found=True)
                 var_stack.set_var(path_var_to_resolve, "resolve_defined_paths").append(resolved_path)
 
-    def read_defines(self, a_node):
+    def read_defines(self, a_node, *args, **kwargs):
         # if document is empty we get a scalar node
         if a_node.isMapping():
             for identifier, contents in a_node.items():
@@ -279,7 +268,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
                 elif identifier == '__include__':
                     self.read_include_node(contents)
 
-    def read_const_defines(self, a_node):
+    def read_const_defines(self, a_node, *args, **kwargs):
         """ Read a !define_const sub-doc. All variables will be made const.
             Reading of internal state identifiers is allowed.
             __include__ is not allowed.
@@ -342,7 +331,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
                     for copy_destination in i_node["copy"]:
                         need_to_copy = True
                         destination_file_resolved_path = var_stack.resolve(copy_destination.value)
-                        if os.path.isfile(destination_file_resolved_path):
+                        if os.path.isfile(destination_file_resolved_path) and expected_checksum is not None:
                             checksums_match = utils.check_file_checksum(file_path=destination_file_resolved_path, expected_checksum=expected_checksum)
                             need_to_copy = not checksums_match
                         if need_to_copy:
@@ -443,7 +432,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
         with utils.write_to_file_or_stdout(state_file) as fd:
             aYaml.writeAsYaml(self, fd)
 
-    def read_index(self, a_node):
+    def read_index(self, a_node, *args, **kwargs):
         self.install_definitions_index.update(read_index_from_yaml(a_node))
 
     def find_cycles(self):

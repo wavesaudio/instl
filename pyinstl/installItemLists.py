@@ -70,7 +70,7 @@ class InstallItemLists(object):
         retVal['root_install_items'] = list(self.root_install_items)
         retVal['update_install_items'] = list(self.update_install_items)
         retVal['full_install_items'] = list(self.full_install_items)
-        retVal['orphan_install_items'] = list(self.orphan_install_items)
+        retVal['orphan_install_items'] = list(self.orphan_items)
         retVal['install_items_by_target_folder'] = {folder: list(self.install_items_by_target_folder[folder]) for folder
                                                     in self.install_items_by_target_folder}
         retVal['no_copy_items_by_sync_folder'] = list(self.no_copy_items_by_sync_folder)
@@ -102,7 +102,7 @@ class InstallItemLists(object):
         root_install_iids_translated = utils.unique_list()
         for IID in self.original_install_items:
             # if IID is a guid iids_from_guid will translate to iid's, or return the IID otherwise
-            iids_from_the_guid = iids_from_guids(instlObj.install_definitions_index, (IID,))
+            iids_from_the_guid = iids_from_guids(instlObj.install_definitions_index, IID)
             if len(iids_from_the_guid) > 0:
                 self.__root_install_items.extend(iids_from_the_guid)
             else:
@@ -119,12 +119,3 @@ class InstallItemLists(object):
                 self.__orphan_install_items.append(IID)
 
         self.sort_install_items_by_target_folder(instlObj)
-
-    def get_require_dict(self, instlObj):
-        for IID in self.top_level_install_items:
-            instlObj.install_definitions_index[IID].calc_required(instlObj.install_definitions_index, is_top_item=True)
-        require_dict = dict()
-        for IID, install_item in instlObj.install_definitions_index.items():
-            if len(install_item.required_by) > 0:
-                require_dict[IID] = install_item.required_by
-        return require_dict

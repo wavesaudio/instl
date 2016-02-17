@@ -40,7 +40,7 @@ class DoItInstructionsState(object):
         root_install_iids_translated = utils.unique_list()
         for root_IID in self.root_doit_items:
             # if IID is a guid iids_from_guid will translate to iid's, or return the IID otherwise
-            iids_from_the_root_iid = iids_from_guids(instlObj.install_definitions_index, (root_IID,))
+            iids_from_the_root_iid = iids_from_guids(instlObj.install_definitions_index, root_IID)
             for IID in iids_from_the_root_iid:
                 if IID in instlObj.install_definitions_index:
                     root_install_iids_translated.append(IID)
@@ -55,8 +55,6 @@ class InstlDoIt(InstlInstanceBase):
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
 
     def do_command(self):
-        the_command = var_stack.resolve("$(__MAIN_COMMAND__)")
-        fixed_command_name = the_command.replace('-', '_')
         # print("client_commands", fixed_command_name)
         self.installState = DoItInstructionsState()
         main_input_file_path = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
@@ -72,7 +70,7 @@ class InstlDoIt(InstlInstanceBase):
         self.calculate_default_doit_item_set()
         self.platform_helper.num_items_for_progress_report = int(var_stack.resolve("$(LAST_PROGRESS)"))
 
-        do_command_func = getattr(self, "do_" + fixed_command_name)
+        do_command_func = getattr(self, "do_" + self.fixed_command)
         do_command_func()
 
         self.create_variables_assignment()
@@ -145,14 +143,8 @@ class InstlDoIt(InstlInstanceBase):
         self.installState.root_doit_items.extend(var_stack.resolve_to_list("$(MAIN_DOIT_ITEMS)"))
         self.installState.root_doit_items = list(filter(bool, self.installState.root_doit_items))
         self.installState.calculate_full_doit_items_set(self)
-        self.read_previous_requirements()
         var_stack.set_var("__FULL_LIST_OF_DOIT_TARGETS__").extend(self.installState.full_doit_items)
         var_stack.set_var("__ORPHAN_DOIT_TARGETS__").extend(self.installState.orphan_doit_items)
-
-    def read_previous_requirements(self):
-        require_file_path = var_stack.resolve("$(SITE_REQUIRE_FILE_PATH)")
-        if os.path.isfile(require_file_path):
-            self.read_yaml_file(require_file_path)
 
     def accumulate_unique_actions(self, action_type, iid_list):
         """ accumulate action_type actions from iid_list, eliminating duplicates"""

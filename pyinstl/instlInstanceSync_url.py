@@ -41,22 +41,28 @@ class InstlInstanceSync_url(InstlInstanceSync):
         utils.safe_makedirs(curl_config_folder)
         curl_config_file_path = var_stack.resolve(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"), raise_on_fail=True)
         num_config_files = int(var_stack.resolve("$(PARALLEL_SYNC)"))
-        config_file_list = self.instlObj.platform_helper.dl_tool.create_config_files(curl_config_file_path,
-                                                                                     num_config_files)
-        if len(config_file_list) > 0:
-            self.instlObj.batch_accum += self.instlObj.platform_helper.progress(
-                "Downloading with " + str(len(config_file_list)) + " processes in parallel")
+        config_file_list = self.instlObj.platform_helper.dl_tool.create_config_files(curl_config_file_path, num_config_files)
+
+        actual_num_config_files = len(config_file_list)
+        if actual_num_config_files > 0:
+            dl_start_message = "Downloading with {actual_num_config_files} process{dl_start_message_plural}"
+            dl_start_message_plural = "es in parallel" if actual_num_config_files > 1 else ""
+            self.instlObj.batch_accum += self.instlObj.platform_helper.progress(dl_start_message.format(**locals()))
+
             parallel_run_config_file_path = var_stack.resolve(
                 os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME).parallel-run"))
             self.instlObj.batch_accum += self.instlObj.platform_helper.dl_tool.download_from_config_files(
                 parallel_run_config_file_path, config_file_list)
+
+            num_files_to_download = int("$(__NUM_FILES_TO_DOWNLOAD__)" @ var_stack)
+            dl_end_message = "Downloading {num_files_to_download} file{dl_end_message_plural} done"
+            dl_end_message_plural = "s" if num_files_to_download > 1 else ""
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress(
-                "Downloading $(__NUM_FILES_TO_DOWNLOAD__) files done", self.files_to_download)
+                dl_end_message.format(**locals()), self.files_to_download)
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
     def create_check_checksum_instructions(self, in_file_list):
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Checking checksum...")
-        # todo: fix check_checksum call, from which info_map it will read?
         self.instlObj.batch_accum += self.instlObj.platform_helper.check_checksum_for_folder("$(TO_SYNC_INFO_MAP_PATH)")
         self.instlObj.platform_helper.num_items_for_progress_report += len(in_file_list)
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Check checksum done")

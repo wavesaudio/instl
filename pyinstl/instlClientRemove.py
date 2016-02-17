@@ -34,31 +34,36 @@ class InstlClientRemove(InstlClient):
 
         self.batch_accum.set_current_section('remove')
         self.batch_accum += self.platform_helper.progress("Starting remove")
-        sorted_target_folder_list = sorted(self.installState.install_items_by_target_folder,
+        sorted_target_folder_list = sorted(self.installState.all_items_by_target_folder,
                                            key=lambda fold: var_stack.resolve(fold),
                                            reverse=True)
         # print(sorted_target_folder_list)
-        self.accumulate_unique_actions('pre_remove', self.installState.full_install_items)
+        self.accumulate_unique_actions('pre_remove', self.installState.all_items)
 
         for folder_name in sorted_target_folder_list:
+            self.batch_accum += self.platform_helper.progress("Removing from {0}".format(folder_name))
             var_stack.set_var("__TARGET_DIR__").append(os.path.normpath(folder_name))
-            items_in_folder = self.installState.install_items_by_target_folder[folder_name]
+            items_in_folder = self.installState.all_items_by_target_folder[folder_name]
             self.batch_accum += self.platform_helper.new_line()
 
             self.accumulate_unique_actions('pre_remove_from_folder', items_in_folder)
 
             for IID in items_in_folder:
                 with self.install_definitions_index[IID].push_var_stack_scope() as installi:
+                    self.batch_accum += self.platform_helper.progress("Removing {installi.name}...".format(**locals()))
                     for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
                         source = var_stack.resolve_var_to_list(source_var)
+                        self.batch_accum += self.platform_helper.progress("Removing {source[0]}...".format(**locals()))
                         self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_pre_remove_item")
                         self.create_remove_instructions_for_source(folder_name, source)
                         self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_post_remove_item")
-                        self.batch_accum += self.platform_helper.progress("Remove {installi.name}".format(**locals()))
+                        self.batch_accum += self.platform_helper.progress("Remove {source[0]} done".format(**locals()))
+                    self.batch_accum += self.platform_helper.progress("Remove {installi.name} done".format(**locals()))
 
             self.accumulate_unique_actions('post_remove_from_folder', items_in_folder)
+            self.batch_accum += self.platform_helper.progress("Remove from {0} done".format(folder_name))
 
-        self.accumulate_unique_actions('post_remove', self.installState.full_install_items)
+        self.accumulate_unique_actions('post_remove', self.installState.all_items)
 
     # create_remove_instructions_for_source:
     # Create instructions to remove a specific source from a specific target folder.

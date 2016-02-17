@@ -52,12 +52,10 @@ class InstlAdmin(InstlInstanceBase):
                     pass  # lo nora
 
     def do_command(self):
-        the_command = var_stack.resolve("$(__MAIN_COMMAND__)")
         self.set_default_variables()
         self.platform_helper.num_items_for_progress_report = int(var_stack.resolve("$(LAST_PROGRESS)"))
         self.platform_helper.init_copy_tool()
-        fixed_command_name = the_command.replace('-', '_')
-        do_command_func = getattr(self, "do_" + fixed_command_name)
+        do_command_func = getattr(self, "do_" + self.fixed_command)
         do_command_func()
 
     def do_trans(self):
@@ -528,20 +526,28 @@ class InstlAdmin(InstlInstanceBase):
     # to do: prevent create-links and up2s3 if there are files marked as symlinks
     def do_fix_symlinks(self):
         self.batch_accum.set_current_section('admin')
-        folder_to_check = var_stack.resolve("$(STAGING_FOLDER)")
+
+        stage_folder = var_stack.resolve("$(STAGING_FOLDER)")
+        folders_to_check = self.prepare_limit_list(stage_folder)
+        if tuple(folders_to_check) == (stage_folder,):
+            print("fix-symlink for the whole repository")
+        else:
+            print("fix-symlink limited to ", "; ".join(folders_to_check))
+
         valid_symlinks = list()
         broken_symlinks = list()
-        for root, dirs, files in os.walk(folder_to_check, followlinks=False):
-            for item in files + dirs:
-                item_path = os.path.join(root, item)
-                if os.path.islink(item_path):
-                    target_path = os.path.realpath(item_path)
-                    link_value = os.readlink(item_path)
-                    if os.path.isdir(target_path) or os.path.isfile(target_path):
-                        valid_symlinks.append((item_path, link_value))
-                    else:
-                        valid_symlinks.append((item_path, link_value))
-                        broken_symlinks.append((item_path, link_value))
+        for folder_to_check in folders_to_check:
+            for root, dirs, files in os.walk(folder_to_check, followlinks=False):
+                for item in files + dirs:
+                    item_path = os.path.join(root, item)
+                    if os.path.islink(item_path):
+                        target_path = os.path.realpath(item_path)
+                        link_value = os.readlink(item_path)
+                        if os.path.isdir(target_path) or os.path.isfile(target_path):
+                            valid_symlinks.append((item_path, link_value))
+                        else:
+                            valid_symlinks.append((item_path, link_value))  # fix even the broken symlinks
+                            broken_symlinks.append((item_path, link_value))
         if len(broken_symlinks) > 0:
             print("Found broken symlinks")
             for symlink_file, link_value in broken_symlinks:
@@ -888,7 +894,8 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_verify_repo(self):
         self.read_yaml_file(var_stack.resolve("$(__CONFIG_FILE__)"))
-        self.read_yaml_file(var_stack.resolve("$(STAGING_FOLDER)/instl/index.yaml"))
+        self.read_yaml_file(var_stack.resolve("$(STAGING_FOLDER_INDEX)"))
+        self.resolve_index_inheritance()
 
         the_folder = var_stack.resolve_var("STAGING_FOLDER")
         self.info_map_table.initialize_from_folder(the_folder)
@@ -914,9 +921,14 @@ class InstlAdmin(InstlInstanceBase):
                         iid_problem_messages.append(" ".join(("depends on non existing", dependee )))
                 # check sources
                 for source in iid_to_sources[iid]:
-                    num_file_for_source = self.info_map_table.mark_required_for_source(source)
-                    if num_file_for_source == 0:
+                    num_files_for_source = self.info_map_table.mark_required_for_source(source)
+                    if num_files_for_source == 0:
                         iid_problem_messages.append(" ".join(("source", utils.quoteme_single(str(source)),"required by", iid, "does not have files")))
+                # check targets
+                if len(iid_to_sources[iid]) > 0:
+                    target_folders = var_stack.resolve_var_to_list("iid_folder_list")
+                    if len(target_folders) == 0:
+                        iid_problem_messages.append(" ".join(("source", utils.quoteme_single(str(source)),"required by", iid, "does not have target folder")))
                 if iid_problem_messages:
                     print(iid+":")
                     for problem_message in sorted(iid_problem_messages):

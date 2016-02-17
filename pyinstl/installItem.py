@@ -102,7 +102,7 @@ class InstallItem(object):
     __slots__ = ('__iid', '__name', '__guids',
                  '__remark', "__description", '__inherit_from',
                  '__install_for_os_stack', '__items', '__resolved_inherit',
-                 '__var_list', '__required_by', '__user_data')
+                 '__var_list', '__user_data', '__last_require_repo_rev')
     os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
     allowed_item_keys = ('name', 'guid','install_sources', 'install_folders', 'inherit', 'depends', 'actions', 'remark')
     allowed_top_level_keys = os_names[1:] + allowed_item_keys
@@ -184,8 +184,8 @@ class InstallItem(object):
         self.__install_for_os_stack = [InstallItem.os_names[0]] # reading for all platforms ('common') or for which specific platforms ('Mac', 'Win')?
         self.__items = defaultdict(InstallItem.create_items_section)
         self.__var_list = None
-        self.__required_by = utils.unique_list()
         self.__user_data = None
+        self.__last_require_repo_rev = 0
 
     def read_from_yaml_by_idd(self, all_items_node):
         my_node = all_items_node[self.__iid]
@@ -323,8 +323,6 @@ class InstallItem(object):
         return self.__get_item_list_for_default_oses_by_category('install_folders')
 
     def add_depends(self, *new_depends):
-        if not new_depends:
-            raise ValueError("new_depend cannot be null")
         self.__add_items_to_default_os_by_category('depends', *new_depends)
 
     def _depend_list(self):
@@ -353,14 +351,6 @@ class InstallItem(object):
     def get_depends(self):
         return self._depend_list()
 
-    def calc_required(self, items_map, is_top_item):
-        for depend in self._depend_list():
-            if len(items_map[depend].__required_by) == 0: # so calc_required will be called only once for each iid
-                items_map[depend].calc_required(items_map, is_top_item=False)
-            items_map[depend].add_required_by(self.__iid)
-            if is_top_item:
-                self.__required_by.append(self.__iid) # top level items are marked as required by themselves
-
     def get_recursive_depends(self, items_map, out_set, orphan_set):
         if self.__iid not in out_set:
             out_set.append(self.__iid)
@@ -368,9 +358,8 @@ class InstallItem(object):
             for depend in self._depend_list():
                 try:
                     # if IID is a guid, iids_from_guids will translate to iid's, or return the IID otherwise
-                    dependees = iids_from_guids(items_map, (depend,))
+                    dependees = iids_from_guids(items_map, depend)
                     for dependee in dependees:
-                        items_map[dependee].add_required_by(self.__iid)
                         if dependee not in out_set:  # avoid cycles, save time
                             items_map[dependee].get_recursive_depends(items_map, out_set, orphan_set)
                 except KeyError:
@@ -481,12 +470,12 @@ class InstallItem(object):
         return self.__iid
 
     @property
-    def required_by(self):
-        return self.__required_by
+    def last_require_repo_rev(self):
+        return self.__last_require_repo_rev
 
-    def add_required_by(self, *another_required_by):
-        self.__required_by.extend(another_required_by)
-
+    @last_require_repo_rev.setter
+    def last_require_repo_rev(self, new_last_require_repo_rev):
+        self.__last_require_repo_rev = int(new_last_require_repo_rev)
 
 def guid_list(items_map):
     retVal = utils.unique_list()
@@ -495,7 +484,7 @@ def guid_list(items_map):
     return retVal
 
 
-def iids_from_guids(items_map, guids_or_iids):
+def iids_from_guids(items_map, *guids_or_iids):
     """ guid_or_iid might be a guid or normal IID
         if it's a guid return all IIDs that have this gui
         if it's not return the IID itself. """

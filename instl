@@ -10,6 +10,7 @@ import os
 import sys
 import argparse
 
+import tempfile
 import appdirs
 from utils import InstlException
 import utils
@@ -43,12 +44,12 @@ def get_instl_launch_command():
     """
     launch_command = None
     if getattr(sys, 'frozen', False):
-        launch_command = quoteme_double(os.path.realpath(sys.executable))
+        launch_command = utils.quoteme_double(os.path.realpath(sys.executable))
     elif __file__:
         if os_family_name == "Win":
-            launch_command = quoteme_double(sys.executable) + " " + quoteme_double(os.path.realpath(__file__))
+            launch_command = " ".join((utils.quoteme_double(sys.executable), utils.quoteme_double(os.path.realpath(__file__))))
         else:
-            launch_command = quoteme_double(os.path.realpath(__file__))
+            launch_command = utils.quoteme_double(os.path.realpath(__file__))
     return launch_command
 
 
@@ -98,7 +99,7 @@ class CommandLineOptions(object):
         self.restart_the_dock = None
 
     def __str__(self):
-        return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
+        return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).items())])
 
 
 def prepare_args_parser(in_command):
@@ -121,7 +122,7 @@ def prepare_args_parser(in_command):
         'file-sizes':           {'mode': 'an', 'options': ('in', 'out'), 'help':  'Create a list of files and their sizes'},
         'fix-perm':             {'mode': 'an', 'options': ('out', 'run','conf', 'limit'), 'help':  'Fix Mac OS permissions'},
         'fix-props':            {'mode': 'an', 'options': ('out', 'run','conf'), 'help':  'create svn commands to remove redundant properties such as executable bit from files that should not be marked executable'},
-        'fix-symlinks':         {'mode': 'an', 'options': ('out', 'run','conf',), 'help':  'replace symlinks with .symlinks files'},
+        'fix-symlinks':         {'mode': 'an', 'options': ('out', 'run','conf', 'limit'), 'help':  'replace symlinks with .symlinks files'},
         'gui':                  {'mode': 'gi', 'options': (), 'help':  'graphical user interface'},
         'help':                 {'mode': 'ds', 'options': (), 'help':  'help'},
         'ls':                   {'mode': 'ds', 'options': ('in', 'out', 'limit'), 'help':  'create a directory listing'},
@@ -143,7 +144,7 @@ def prepare_args_parser(in_command):
         'up-repo-rev':          {'mode': 'an', 'options': ('out', 'run', 'conf',), 'help':  'upload repository revision file to admin folder'},
         'up2s3':                {'mode': 'an', 'options': ( 'out', 'run', 'conf',), 'help':  'upload installation sources to S3'},
         'verify-index':         {'mode': 'an', 'options': ('in', 'cred'), 'help':  'Verify that index and info map are compatible'},
-        'verify-repo':          {'mode': 'an', 'options': ('conf'), 'help':  'Verify a local repository against its index'},
+        'verify-repo':          {'mode': 'an', 'options': ('conf',), 'help':  'Verify a local repository against its index'},
         'version':              {'mode': 'ds', 'options': (), 'help':  'display instl version'},
         'win-shortcut':         {'mode': 'ds', 'options': (), 'help':  'create a Windows shortcut'},
         'wtar':                 {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'create .wtar files from specified files and folders'},
@@ -435,7 +436,8 @@ def main():
                     "__USER_DATA_DIR__": os.path.normpath(appdirs.user_data_dir()),
                     "__USER_CONFIG_DIR__": os.path.normpath(appdirs.user_config_dir()),
                     "__USER_HOME_DIR__": os.path.normpath(os.path.expanduser("~")),
-                    "__USER_DESKTOP_DIR__": os.path.normpath("$(__USER_HOME_DIR__)/Desktop")
+                    "__USER_DESKTOP_DIR__": os.path.normpath("$(__USER_HOME_DIR__)/Desktop"),
+                    "__USER_TEMP_DIR__": os.path.normpath(os.path.join(tempfile.gettempdir(), "$(SYNC_BASE_URL_MAIN_ITEM)/$(REPO_NAME)"))
                     }
     if os_family_name != "Win":
         initial_vars.update(

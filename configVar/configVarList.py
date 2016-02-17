@@ -171,38 +171,49 @@ class ConfigVarList(object):
             which defaults to a single space.
             None existent variables are left as is if default==None, otherwise value of default is inserted
         """
-        resolved_str = str_to_resolve
-        search_start_pos = 0
-        #print("resolving:", str_to_resolve)
-        while True:
-            match = value_ref_re.search(resolved_str, search_start_pos)
-            if not match:
-                break
-            replacement = default
-            var_name = match.group('var_name')
-            if var_name in self:
-                if var_name in self.__resolve_stack:
-                    raise Exception("circular resolving of '$({})', resolve stack: {}".format(var_name, self.__resolve_stack))
-                self.__resolve_stack.append(var_name)
-                if match.group('varref_array'):
-                    array_index = int(match.group('array_index'))
-                    if array_index < len(self[var_name]):
-                        replacement = self[var_name][array_index]
+        try:
+            resolved_str = str_to_resolve
+            search_start_pos = 0
+            #print("resolving:", str_to_resolve)
+            while True:
+                match = value_ref_re.search(resolved_str, search_start_pos)
+                if not match:
+                    break
+                replacement = default
+                var_name = match.group('var_name')
+                if var_name in self:
+                    if var_name in self.__resolve_stack:
+                        raise Exception("circular resolving of '$({})', resolve stack: {}".format(var_name, self.__resolve_stack))
+                    self.__resolve_stack.append(var_name)
+                    if match.group('varref_array'):
+                        array_index = int(match.group('array_index'))
+                        if array_index < len(self[var_name]):
+                            replacement = self[var_name][array_index]
+                    else:
+                        var_joint_values = list_sep.join([val for val in self[var_name] if val])
+                        replacement = self.resolve(var_joint_values, list_sep)
+
+                    self.__resolve_stack.pop()
+
+                # if var_name was not found skip it on the next search
+                if replacement is None:
+                    search_start_pos = match.end('varref_pattern')
                 else:
-                    var_joint_values = list_sep.join([val for val in self[var_name] if val])
-                    replacement = self.resolve(var_joint_values, list_sep)
-
-                self.__resolve_stack.pop()
-
-            # if var_name was not found skip it on the next search
-            if replacement is None:
-                search_start_pos = match.end('varref_pattern')
-            else:
-                resolved_str = resolved_str.replace(match.group('varref_pattern'), replacement)
-            #print("    ", resolved_str)
+                    resolved_str = resolved_str.replace(match.group('varref_pattern'), replacement)
+                #print("    ", resolved_str)
+        except TypeError:
+            print("TypeError while resolving", str_to_resolve)
+            if raise_on_fail:
+                raise
         if raise_on_fail and not self.is_resolved(resolved_str):
             raise ValueError("Cannot fully resolve "+str_to_resolve+ ": "+resolved_str)
         return resolved_str
+
+    # just an experiment
+    def __matmul__(self, str_to_resolve):
+        return self.resolve(str_to_resolve)
+    def __rmatmul__(self, str_to_resolve):
+        return self.resolve(str_to_resolve)
 
     def resolve_to_list(self, str_to_resolve, list_sep=" ", default=None):
         """ Resolve a string, possibly with $() style references.
