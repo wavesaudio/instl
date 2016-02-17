@@ -234,6 +234,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
                 # next try to ask the system using the where command
                 try:
                     where_tool_path = subprocess.check_output("where " + original_tool_value).strip()
+                    where_tool_path = utils.unicodify(where_tool_path)
                     if os.path.isfile(where_tool_path):
                         tool_path = where_tool_path
                         var_stack.set_var(tool_to_find_var_name, "find_cmd_tool").append(tool_path)
