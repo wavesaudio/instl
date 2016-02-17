@@ -62,7 +62,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
     def create_check_checksum_instructions(self, in_file_list):
-        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Checking checksum...")
+        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Check checksum ...")
         self.instlObj.batch_accum += self.instlObj.platform_helper.check_checksum_for_folder("$(TO_SYNC_INFO_MAP_PATH)")
         self.instlObj.platform_helper.num_items_for_progress_report += len(in_file_list)
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Check checksum done")
@@ -85,7 +85,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 file_item = self.instlObj.info_map_table.get_item(item_path=item_partial_path, what="file")
                 if file_item is None:  # file was not found in info_map
                     self.instlObj.batch_accum += self.instlObj.platform_helper.rmfile(item_full_path)
-                    self.instlObj.batch_accum += self.instlObj.platform_helper.progress("removed redundant file "+item_full_path)
+                    self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Removed redundant file "+item_full_path)
 
     def create_download_instructions(self):
         """ remove files in sync folder that do not appear in the info map table

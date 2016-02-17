@@ -63,9 +63,9 @@ class InstlClientCopy(InstlClient):
 
         # first create all target folders so to avoid dependency order problems such as creating links between folders
         if len(sorted_target_folder_list) > 0:
-            self.batch_accum += self.platform_helper.progress("Creating folders...")
+            self.batch_accum += self.platform_helper.progress("Create folders ...")
             for target_folder_path in sorted_target_folder_list:
-                self.batch_accum += self.platform_helper.progress("Creating folder {0}...".format(target_folder_path))
+                self.batch_accum += self.platform_helper.progress("Create folder {0} ...".format(target_folder_path))
                 if os.path.isfile(target_folder_path @ var_stack):
                     # weird as it maybe, some users have files where a folder should be.
                     # test for isfile is done here rather than in the batch file, because
@@ -85,7 +85,7 @@ class InstlClientCopy(InstlClient):
             self.batch_accum += self.platform_helper.new_line()
             self.batch_accum += self.platform_helper.remark("- Begin folder {0}".format(target_folder_path))
             self.batch_accum += self.platform_helper.cd(target_folder_path)
-            self.batch_accum += self.platform_helper.progress("Copying to {0}...".format(target_folder_path))
+            self.batch_accum += self.platform_helper.progress("copy to {0} ...".format(target_folder_path))
 
             # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
             self.accumulate_unique_actions('pre_copy_to_folder', items_in_folder)
@@ -112,13 +112,13 @@ class InstlClientCopy(InstlClient):
             # only if items were actually copied there's need to (Mac only) resolve symlinks
             if num_items_copied_to_folder > 0:
                 if 'Mac' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
-                    self.batch_accum += self.platform_helper.progress("Resolving symlinks...")
+                    self.batch_accum += self.platform_helper.progress("Resolve symlinks ...")
                     self.batch_accum += self.platform_helper.resolve_symlink_files()
                     self.batch_accum += self.platform_helper.progress("Resolve symlinks done")
 
             # accumulate post_copy_to_folder actions from all items, eliminating duplicates
             self.accumulate_unique_actions('post_copy_to_folder', items_in_folder)
-            self.batch_accum += self.platform_helper.progress("Copying to {0} done".format(target_folder_path))
+            self.batch_accum += self.platform_helper.progress("Copy to {0} done".format(target_folder_path))
 
             self.batch_accum += self.platform_helper.remark("- End folder {0}".format(target_folder_path))
             self.batch_accum.indent_level -= 1
@@ -128,7 +128,7 @@ class InstlClientCopy(InstlClient):
             items_in_folder = self.installState.no_copy_items_by_sync_folder[sync_folder_name]
             self.batch_accum += self.platform_helper.new_line()
             self.batch_accum += self.platform_helper.cd(sync_folder_name)
-            self.batch_accum += self.platform_helper.progress("Actions in {0}...".format(sync_folder_name))
+            self.batch_accum += self.platform_helper.progress("Actions in {0} ...".format(sync_folder_name))
             self.batch_accum.indent_level += 1
 
             # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
@@ -148,7 +148,7 @@ class InstlClientCopy(InstlClient):
             self.accumulate_unique_actions('post_copy_to_folder', items_in_folder)
 
             self.batch_accum += self.platform_helper.progress("{sync_folder_name}".format(**locals()))
-            self.batch_accum += self.platform_helper.progress("Actions in "+sync_folder_name+" done")
+            self.batch_accum += self.platform_helper.progress("Actions in {0} done".format(sync_folder_name))
             self.batch_accum.indent_level -= 1
 
         print(self.bytes_to_copy, "bytes to copy")
@@ -277,7 +277,7 @@ class InstlClientCopy(InstlClient):
         """ source is a tuple (source_path, tag), where tag is either !file or !dir
         """
 
-        self.batch_accum += self.platform_helper.progress("Copy {0}...".format(name_for_progress_message))
+        self.batch_accum += self.platform_helper.progress("Copy {0} ...".format(name_for_progress_message))
         if source[1] == '!file':  # get a single file
             self.create_copy_instructions_for_file(source[0], name_for_progress_message)
         elif source[1] == '!dir_cont':  # get all files and folders from a folder
