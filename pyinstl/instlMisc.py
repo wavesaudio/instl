@@ -281,6 +281,6 @@ class InstlMisc(InstlInstanceBase):
         else:
             folders_to_list.append(main_folder_to_list)
 
-        the_listing = utils.folder_listing(folders_to_list)
+        the_listing = utils.folder_listing(*folders_to_list)
         with utils.write_to_file_or_stdout(out_file) as wfd:
             wfd.write(the_listing)

@@ -820,7 +820,7 @@ def win_folder_ls(the_path):
     return listing_lines
 
 
-def folder_listing(folders_to_list):
+def folder_listing(*folders_to_list):
     os_names = get_current_os_names()
     listing_lines = list()
     if "Mac" in os_names:
