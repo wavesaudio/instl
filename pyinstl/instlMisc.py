@@ -109,7 +109,7 @@ class InstlMisc(InstlInstanceBase):
                 for wtar_file_path in files_to_unwtar:
                     self.unwtar_a_file(wtar_file_path)
         else:
-            print(what_to_work_on, "is not a file or directory")
+            raise FileNotFoundError(what_to_work_on)
 
     def unwtar_a_file(self, wtar_file_path):
         try:
@@ -132,7 +132,7 @@ class InstlMisc(InstlInstanceBase):
                 base_folder = "."
             joined_file_path = norm_first_file[:-3] # without the final '.aa'
             filter_pattern = base_name[:-2] + "??"  # with ?? instead of aa
-            matching_files = sorted(fnmatch.filter(os.listdir(base_folder), filter_pattern))
+            matching_files = sorted(fnmatch.filter((f.name for f in os.scandir(base_folder)), filter_pattern))
             with open(joined_file_path, "wb") as wfd:
                 for a_file in matching_files:
                     with open(os.path.join(base_folder, a_file), "rb") as rfd:
@@ -143,7 +143,7 @@ class InstlMisc(InstlInstanceBase):
                     #self.dynamic_progress("removing {a_file}".format(**locals()))
             # self.dynamic_progress("joined {joined_file_path}".format(**locals()))
             return joined_file_path
-        except BaseException as es:
+        except Exception as es:
             try: # try to remove the tar file
                 os.remove(joined_file_path)
             except: # but no worry if file does not exist
