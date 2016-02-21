@@ -2,6 +2,7 @@
 
 
 import os
+import pathlib
 
 import utils
 from .instlInstanceSyncBase import InstlInstanceSync
@@ -71,7 +72,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def create_remove_unwanted_files_in_sync_folder_instructions(self):
         """ Remove files in the sync folder that are not in info_map
         """
-        prefix_len = len(self.local_sync_dir)+1
+        pure_local_sync_dir = pathlib.PurePath(self.local_sync_dir)
         files_checked = 0
         for root, dirs, files in os.walk(self.local_sync_dir, followlinks=False):
             try: dirs.remove("bookkeeping")
@@ -80,12 +81,12 @@ class InstlInstanceSync_url(InstlInstanceSync):
             except: pass  # todo: use FILE_EXCLUDE_REGEX
             for disk_item in files:
                 files_checked += 1
-                item_full_path = os.path.join(root, disk_item)
-                item_partial_path = item_full_path[prefix_len:]
+                item_full_path = pathlib.PurePath(root, disk_item)
+                item_partial_path = item_full_path.relative_to(pure_local_sync_dir).as_posix()
                 file_item = self.instlObj.info_map_table.get_item(item_path=item_partial_path, what="file")
                 if file_item is None:  # file was not found in info_map
-                    self.instlObj.batch_accum += self.instlObj.platform_helper.rmfile(item_full_path)
-                    self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Removed redundant file "+item_full_path)
+                    self.instlObj.batch_accum += self.instlObj.platform_helper.rmfile(str(item_full_path))
+                    self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Removed redundant file "+str(item_full_path))
 
     def create_download_instructions(self):
         """ remove files in sync folder that do not appear in the info map table
