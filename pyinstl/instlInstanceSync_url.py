@@ -34,7 +34,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         for file_item in in_file_list:
             source_url = file_item.url
             if source_url is None:
-                source_url = '/'.join(utils.make_one_list(self.sync_base_url, str(file_item.revision_remote), file_item.path))
+                source_url = '/'.join(utils.make_one_list(self.sync_base_url, str(file_item.revision), file_item.path))
             self.instlObj.platform_helper.dl_tool.add_download_url(source_url, file_item.path, verbatim=source_url==file_item.url)
 
     def create_curl_download_instructions(self):

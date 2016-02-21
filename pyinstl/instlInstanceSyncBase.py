@@ -50,6 +50,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         """ Reads the info map of the static files available for syncing.
             Writes the map to local sync folder for reference and debugging.
         """
+        info_map_file_url = None
         try:
             utils.safe_makedirs(var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)", raise_on_fail=True))
             utils.safe_makedirs(var_stack.resolve("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)", raise_on_fail=True))
@@ -62,8 +63,9 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
                                       expected_checksum=var_stack.resolve("$(INFO_MAP_FILE_URL_CHECKSUM)"))
 
             self.instlObj.info_map_table.read_from_file(var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)"), a_format="text")
-            utils.smart_copy_file(var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)"),
-                                  var_stack.resolve("$(NEW_HAVE_INFO_MAP_PATH)"))
+            self.instlObj.info_map_table.write_to_file(var_stack.resolve("$(NEW_HAVE_INFO_MAP_PATH)"), field_to_write=('path', 'flags', 'revision', 'checksum', 'size'))
+            #utils.smart_copy_file(var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)"),
+            #                      var_stack.resolve("$(NEW_HAVE_INFO_MAP_PATH)"))
         except:
             print("Exception reading info_map:", info_map_file_url)
             raise

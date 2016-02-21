@@ -11,13 +11,16 @@ alchemy_base = declarative_base()
 wtar_file_re = re.compile(r"""^.+\.wtar(\...)?$""")
 
 
+fields_relevant_to_dirs = ('path', 'parent', 'level', 'flags', 'revision', 'required')
+fields_relevant_to_str = ('path', 'flags', 'revision', 'checksum', 'size', 'url')
+
 class SVNRow(alchemy_base):
     __tablename__ = 'svnitem'
     path = Column(String, primary_key=True)
     parent = Column(String)  # todo: this should be in another table
     level = Column(Integer)
     flags = Column(String)
-    revision_remote = Column(Integer, default=0)
+    revision = Column(Integer, default=0)
     fileFlag = Column(BOOLEAN, default=False)
     dirFlag = Column(BOOLEAN, default=False)
     checksum = Column(String(40), default=None)
@@ -29,7 +32,7 @@ class SVNRow(alchemy_base):
 
     def __repr__(self):
         return ("<{self.level}, {self.path}, '{self.flags}'"
-                ", rev-remote:{self.revision_remote}, f:{self.fileFlag}, d:{self.dirFlag}"
+                ", rev-remote:{self.revision}, f:{self.fileFlag}, d:{self.dirFlag}"
                 ", checksum:{self.checksum}, size:{self.size}"
                 ", url:{self.url}"
                 ", required:{self.required}, need_download:{self.need_download}"
@@ -38,13 +41,33 @@ class SVNRow(alchemy_base):
 
     def __str__(self):
         """ __str__ representation - this is what will be written to info_map.txt files"""
-        retVal = "{}, {}, {}".format(self.path, self.flags, self.revision_remote)
+        retVal = "{}, {}, {}".format(self.path, self.flags, self.revision)
         if self.checksum:
             retVal = "{}, {}".format(retVal, self.checksum)
         if self.size != -1:
             retVal = "{}, {}".format(retVal, self.size)
         if self.url:
             retVal = "{}, {}".format(retVal, self.url)
+        return retVal
+
+    def str_specific_fields(self, fields_to_repr):
+        """ represent self as a string and limiting the fields written to those in fields_to_repr.
+        :param fields_to_repr: only fields whose name is on this list will be written.
+                if list is empty or None, fall back to __str__
+        :return: string of comma separated values
+        """
+        if fields_to_repr is None or len(fields_to_repr) == 0:
+            retVal = self.__str__()
+        else:
+            value_list = list()
+            if self.isDir():
+                for name in fields_to_repr:
+                    if name in fields_relevant_to_dirs:
+                        value_list.append(str(getattr(self, name, "no member named "+name)))
+            else:
+                for name in fields_to_repr:
+                    value_list.append(str(getattr(self, name, "no member named "+name)))
+            retVal = ", ".join(value_list)
         return retVal
 
     def name(self):

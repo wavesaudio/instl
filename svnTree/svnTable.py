@@ -148,28 +148,6 @@ class SVNTable(object):
         insert_dicts = self.read_from_text_to_dict(rfd)
         self.insert_dicts_to_db(insert_dicts)
 
-    def update_from_text(self, rfd, revision_is_local=True):
-        """
-        Update the db from a text file
-        :param rfd:
-        :param revision_is_local: if true revision_local will be updated otherwise revision_remote
-        :return: nada
-        """
-        update_dicts = list()
-        for line in rfd:
-            line = line.strip()
-            item_dict = SVNTable.item_dict_from_str(line)
-            if item_dict:
-                if revision_is_local:
-                    item_dict['revision_local'] = item_dict['revision_remote']
-                    del item_dict['revision_remote']
-                update_dicts.append(item_dict)
-            else:
-                match = comment_line_re.match(line)
-                if match:
-                    self.comments.append(match.group("the_comment"))
-        self.session.bulk_update_mappings(SVNRow, update_dicts)
-
     @staticmethod
     def get_wtar_file_status(file_name):
         is_wtar_file = wtar_file_re.match(file_name) is not None
@@ -191,7 +169,7 @@ class SVNTable(object):
             item_details['path'] = match.group('path')
             item_details['parent'] = "/".join(item_details['path'].split("/")[:-1])
             item_details['level'] = len(item_details['path'].split("/"))
-            item_details['revision_remote'] = int(match.group('revision'))
+            item_details['revision'] = int(match.group('revision'))
             item_details['flags'] = match.group('flags')
             item_details['fileFlag'] = 'f' in item_details['flags']
             item_details['dirFlag'] = 'd' in item_details['flags']
@@ -206,7 +184,7 @@ class SVNTable(object):
     def valid_write_formats(self):
         return list(self.write_func_by_format.keys())
 
-    def write_to_file(self, in_file, in_format="guess", comments=True, items_list=None):
+    def write_to_file(self, in_file, in_format="guess", comments=True, items_list=None, field_to_write=None):
         """ pass in_file="stdout" to output to stdout.
             in_format is either text, yaml, pickle
         """
@@ -218,18 +196,19 @@ class SVNTable(object):
             in_format = map_info_extension_to_format[extension[1:]]
         if in_format in list(self.write_func_by_format.keys()):
             with utils.write_to_file_or_stdout(in_file) as wfd:
-                self.write_func_by_format[in_format](wfd, items_list, comments)
+                self.write_func_by_format[in_format](wfd, items_list, comments, field_to_write=field_to_write)
                 self.files_written_list.append(in_file)
         else:
             raise ValueError("Unknown write in_format " + in_format)
 
-    def write_as_text(self, wfd, items_list, comments=True):
+    def write_as_text(self, wfd, items_list, comments=True, field_to_write=None):
         if comments and len(self.comments) > 0:
             for comment in self.comments:
                 wfd.write("# " + comment + "\n")
             wfd.write("\n")
         for item in items_list:
-            wfd.write(str(item) + "\n")
+            wfd.write(item.str_specific_fields(field_to_write) + "\n")
+#            wfd.write(str(item) + "\n")
 
     def iter_svn_info(self, long_info_fd):
         """ Go over the lines of the output of svn info command
@@ -262,11 +241,11 @@ class SVNTable(object):
                     retVal['fileFlag'] = False
                     retVal['dirFlag'] = True
                 if "Last Changed Rev" in a_record:
-                    retVal['revision_remote'] = int(a_record["Last Changed Rev"])
+                    retVal['revision'] = int(a_record["Last Changed Rev"])
                 elif "Revision" in a_record:
-                    retVal['revision_remote'] = int(a_record["Revision"])
+                    retVal['revision'] = int(a_record["Revision"])
                 else:
-                    retVal['revision_remote'] = -1
+                    retVal['revision'] = -1
                 retVal['checksum'] = a_record.get("Checksum", None)
                 retVal['extra_props'] = ""
 
@@ -302,7 +281,7 @@ class SVNTable(object):
         split_path = item_details['path'].split("/")
         item_details['parent'] = "/".join(split_path[:-1])
         item_details['level'] = len(split_path)
-        item_details['revision_remote'] = 0
+        item_details['revision'] = 0
         if os.path.islink(full_path): # check for link first: os.path.isdir returns True for a link to dir
             flags = "fs"
         elif os.path.isfile(full_path):
@@ -358,8 +337,8 @@ class SVNTable(object):
         self.comments = list()
 
     def set_base_revision(self, base_revision):
-        self.session.query(SVNRow).filter(SVNRow.revision_remote < base_revision).\
-                                    update({"revision_remote": base_revision})
+        self.session.query(SVNRow).filter(SVNRow.revision < base_revision).\
+                                    update({"revision": base_revision})
 
     def read_file_sizes(self, rfd):
         update_dicts = list()
@@ -686,7 +665,7 @@ class SVNTable(object):
         """
         update_statement = update(SVNRow)\
             .where(SVNRow.fileFlag == True)\
-            .where(SVNRow.revision_remote == required_revision)\
+            .where(SVNRow.revision == required_revision)\
             .values(required=True)
         self.session.execute(update_statement)
         self.mark_required_completion()
@@ -721,13 +700,13 @@ class SVNTable(object):
         return [unrequired_file[0] for unrequired_file in unrequired_files]
 
     def min_max_revision(self):
-        min_revision = self.session.query(SVNRow, func.min(SVNRow.revision_remote)).scalar()
-        max_revision = self.session.query(SVNRow, func.max(SVNRow.revision_remote)).scalar()
-        return min_revision.revision_remote, max_revision.revision_remote
+        min_revision = self.session.query(SVNRow, func.min(SVNRow.revision)).scalar()
+        max_revision = self.session.query(SVNRow, func.max(SVNRow.revision)).scalar()
+        return min_revision.revision, max_revision.revision
 
     def get_max_repo_rev_for_source(self, source):
         source_path, source_type = source[0], source[1]
-        max_revision = self.session.query(func.max(SVNRow.revision_remote))\
+        max_revision = self.session.query(func.max(SVNRow.revision))\
                                 .filter(SVNRow.fileFlag == True)\
                                 .filter(SVNRow.path.like(source_path+"%"))\
                                 .scalar()
