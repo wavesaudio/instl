@@ -242,8 +242,10 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
                     pass # never mind, we'll try on our own
 
             if tool_path is None:
+                win_paths = utils.unique_list()
                 # try to find the tool in the PATH variable
-                win_paths = os.environ["PATH"].split(";")
+                if "PATH" in os.environ:
+                    win_paths.extend(os.environ["PATH"].split(";"))
                 # also add some known location in case user's PATH variable was altered
                 if "SystemRoot" in os.environ:
                     know_locations = (os.path.join(os.environ["SystemRoot"], "System32"),
