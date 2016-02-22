@@ -743,8 +743,18 @@ def unix_item_ls(the_path):
     the_parts.append(the_stats[stat.ST_INO])  # inode number
     the_parts.append(unix_permissions_to_str(the_stats.st_mode)) # permissions
     the_parts.append(the_stats[stat.ST_NLINK])  # num links
-    the_parts.append(pwd.getpwuid(the_stats[stat.ST_UID])[0])  # user
-    the_parts.append(grp.getgrgid(the_stats[stat.ST_GID])[0])  # group
+    try:
+        the_parts.append(pwd.getpwuid(the_stats[stat.ST_UID])[0])  # user
+    except KeyError:
+        the_parts.append(str(the_stats[stat.ST_UID])[0]) # unknown user name, get the number
+    except Exception:
+        the_parts.append("no_uid")
+    try:
+        the_parts.append(grp.getgrgid(the_stats[stat.ST_GID])[0])  # group
+    except KeyError:
+        the_parts.append(str(the_stats[stat.ST_GID])[0]) # unknown group name, get the number
+    except Exception:
+        the_parts.append("no_gid")
     the_parts.append(the_stats[stat.ST_SIZE])  # size in bytes
     the_parts.append(time.strftime("%Y/%m/%d-%H:%M:%S", time.gmtime((the_stats[stat.ST_MTIME]))))  # modification time
     if not (stat.S_ISLNK(the_stats.st_mode) or stat.S_ISDIR(the_stats.st_mode)):
