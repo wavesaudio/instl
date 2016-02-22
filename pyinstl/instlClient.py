@@ -3,7 +3,6 @@
 import os
 import time
 from collections import OrderedDict, defaultdict, deque
-import itertools
 import utils
 from .installItem import InstallItem, guid_list, iids_from_guids
 import aYaml
@@ -60,7 +59,7 @@ class RequireMan(object):
         return retVal
 
 
-# noinspection PyPep8Naming
+# noinspection PyPep8Naming,PyUnresolvedReferences
 class InstallInstructionsState(object):
     """ holds state for specific creating of install instructions """
 
@@ -236,6 +235,7 @@ class InstlClient(InstlInstanceBase):
         super().__init__(initial_vars)
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         self.installState = None
+        self.action_type_to_progress_message = None
 
     def do_command(self):
         # print("client_commands", fixed_command_name)

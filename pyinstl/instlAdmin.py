@@ -158,7 +158,6 @@ class InstlAdmin(InstlInstanceBase):
 
         self.batch_accum.set_current_section('links')
 
-        info_as_io = None
         # call svn info to find out the last repo revision
         last_repo_rev = self.get_last_repo_rev()
         base_repo_rev = int(var_stack.resolve("$(BASE_REPO_REV)"))
@@ -398,7 +397,6 @@ class InstlAdmin(InstlInstanceBase):
         accum += self.platform_helper.echo("done up2s3 revision $(__CURR_REPO_REV__)")
 
     def create_sig_for_file(self, file_to_sig):
-        retVal = None
         config_dir, _ = os.path.split(var_stack.resolve("$(__CONFIG_FILE_PATH__)"))
         private_key_file = os.path.join(config_dir, var_stack.resolve("$(REPO_NAME)") + ".private_key")
         with open(private_key_file, "rb") as private_key_fd:
@@ -477,6 +475,7 @@ class InstlAdmin(InstlInstanceBase):
         svn_info_command = [var_stack.resolve("$(SVN_CLIENT_PATH)"), "info", "--depth", "infinity"]
         proc = subprocess.Popen(svn_info_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         my_stdout, my_stderr = proc.communicate()
+        my_stdout, my_stderr = utils.unicodify(my_stdout), utils.unicodify(my_stderr)
         if proc.returncode != 0 or my_stderr != "":
             raise ValueError("Could not read info from svn: " + my_stderr)
         # write svn info to file for debugging and reference. But go one folder up so not to be in the svn repo.
@@ -605,8 +604,8 @@ class InstlAdmin(InstlInstanceBase):
 
     def stage2svn_for_folder(self, comparer):
         # copy new items:
-        for item in comparer.left_only:
-            item_path = os.path.join(comparer.left, item)
+        for left_only_item in comparer.left_only:
+            item_path = os.path.join(comparer.left, left_only_item)
             if os.path.islink(item_path):
                 raise utils.InstlException(item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
             elif os.path.isfile(item_path):
@@ -632,8 +631,8 @@ class InstlAdmin(InstlInstanceBase):
             self.batch_accum += self.platform_helper.progress(item_path)
 
         # copy changed items:
-        for item in comparer.diff_files:
-            item_path = os.path.join(comparer.left, item)
+        for diff_item in comparer.diff_files:
+            item_path = os.path.join(comparer.left, diff_item)
             if os.path.islink(item_path):
                 raise utils.InstlException(item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
             elif os.path.isfile(item_path):
@@ -645,15 +644,14 @@ class InstlAdmin(InstlInstanceBase):
             self.batch_accum += self.platform_helper.progress(item_path)
 
         # tell svn about new items, svn will not accept 'add' for changed items
-        for item in comparer.left_only:
-            self.batch_accum += self.platform_helper.svn_add_item(os.path.join(comparer.right, item))
-            self.batch_accum += self.platform_helper.progress(os.path.join(comparer.right, item))
+        for left_only_item in comparer.left_only:
+            self.batch_accum += self.platform_helper.svn_add_item(os.path.join(comparer.right, left_only_item))
+            self.batch_accum += self.platform_helper.progress(os.path.join(comparer.right, left_only_item))
 
         # removed items:
-        for item in comparer.right_only:
-            item_path = os.path.join(comparer.left, item)
-            self.batch_accum += self.platform_helper.svn_remove_item(os.path.join(comparer.right, item))
-            self.batch_accum += self.platform_helper.progress(os.path.join(comparer.right, item))
+        for right_only_item in comparer.right_only:
+            self.batch_accum += self.platform_helper.svn_remove_item(os.path.join(comparer.right, right_only_item))
+            self.batch_accum += self.platform_helper.progress(os.path.join(comparer.right, right_only_item))
 
         # recurse to sub folders
         for sub_comparer in list(comparer.subdirs.values()):
@@ -665,7 +663,7 @@ class InstlAdmin(InstlInstanceBase):
         file_wtar_regex_list = var_stack.resolve_to_list("$(FILE_WTAR_REGEX)")
         self.compiled_file_wtar_regex = utils.compile_regex_list_ORed(file_wtar_regex_list)
 
-        self.min_file_size_to_wtar = int(var_stack.resolve(("$(MIN_FILE_SIZE_TO_WTAR)")))
+        self.min_file_size_to_wtar = int(var_stack.resolve("$(MIN_FILE_SIZE_TO_WTAR)"))
 
         if "WTAR_BY_FILE_SIZE_EXCLUDE_REGEX" in var_stack:
             wtar_by_file_size_exclude_regex = var_stack.resolve("$(WTAR_BY_FILE_SIZE_EXCLUDE_REGEX)")
@@ -758,7 +756,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_svn2stage(self):
         self.batch_accum.set_current_section('admin')
-        stage_folder = var_stack.resolve(("$(STAGING_FOLDER)"))
+        stage_folder = var_stack.resolve("$(STAGING_FOLDER)")
         svn_folder = var_stack.resolve("$(SVN_CHECKOUT_FOLDER)")
 
         # --limit command line option might have been specified
@@ -849,7 +847,7 @@ class InstlAdmin(InstlInstanceBase):
             with self.install_definitions_index[iid].push_var_stack_scope():
                 for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
                     source_var_obj = var_stack.get_configVar_obj(source_var)
-                    source, type, target_os = source_var_obj
+                    source, source_type, target_os = source_var_obj
                     target_oses = list()
                     if target_os in ("common", "Mac"):
                         target_oses.append("Mac")
@@ -858,7 +856,7 @@ class InstlAdmin(InstlInstanceBase):
                     for target_os in target_oses:
                         var_stack.set_var("SOURCE_PREFIX").append(target_os)
                         resolved_source = var_stack.resolve(source)
-                        retVal[iid].append((resolved_source, type))
+                        retVal[iid].append((resolved_source, source_type))
         return retVal
 
     def do_verify_index(self):
@@ -928,7 +926,7 @@ class InstlAdmin(InstlInstanceBase):
                 if len(iid_to_sources[iid]) > 0:
                     target_folders = var_stack.resolve_var_to_list("iid_folder_list")
                     if len(target_folders) == 0:
-                        iid_problem_messages.append(" ".join(("source", utils.quoteme_single(str(source)),"required by", iid, "does not have target folder")))
+                        iid_problem_messages.append(" ".join(("iid", iid, "does not have target folder")))
                 if iid_problem_messages:
                     print(iid+":")
                     for problem_message in sorted(iid_problem_messages):
