@@ -363,8 +363,8 @@ class PlatformSpecificHelperBase(object):
         unwtar_command_parts = [self.instlObj.platform_helper.run_instl(),
                                 "unwtar",
                                 "--in", utils.quoteme_double(what_to_unwtar),
-                                "--start-progress", str(self.num_items_for_progress_report),
-                                "--total-progress", "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)",
+                                #"--start-progress", str(self.num_items_for_progress_report),
+                                #"--total-progress", "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)",
         ]
         if no_artifacts:
             unwtar_command_parts.append("--no-artifacts")
