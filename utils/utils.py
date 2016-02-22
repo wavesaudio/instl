@@ -339,20 +339,11 @@ class ChangeDirIfExists(object):
             os.chdir(self.savedPath)
 
 
-def safe_makedirs(path_to_dir):
-    """ solves a problem with python 2.7 where os.makedirs raises if the dir already exist  """
-    try:
-        os.makedirs(path_to_dir)
-    except:  # os.makedirs raises is the directory already exists
-        pass
-    return path_to_dir
-
-
 def safe_remove_file(path_to_file):
     """ solves a problem with python 2.7 where os.remove raises if the file does not exist  """
     try:
         os.remove(path_to_file)
-    except:  # os.remove raises is the file does not exists
+    except FileNotFoundError:  # os.remove raises is the file does not exists
         pass
     return path_to_file
 
@@ -703,7 +694,7 @@ def smart_copy_file(source_path, destination_path):
     else: # assume destination is a non-existing file
         d = destination_path
         d_dir, d_name = os.path.split(destination_path)
-        safe_makedirs(d_dir) # will do nothing if already exists
+        os.makedirs(d_dir, exist_ok=True)
 
     try:
         getattr(os, "link") # will raise on windows, os.link is not always available (Win)

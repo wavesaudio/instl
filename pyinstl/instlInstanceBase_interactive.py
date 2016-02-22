@@ -122,10 +122,7 @@ class CMDObj(cmd.Cmd, object):
             readline.parse_and_bind("set show-all-if-unmodified on")
             readline.parse_and_bind("set expand-tilde on")
             history_file_dir = appdirs.user_data_dir(self.this_program_name, self.this_program_name)
-            try:
-                os.makedirs(history_file_dir)
-            except:  # os.makedirs raises is the directory already exists
-                pass
+            os.makedirs(history_file_dir, exist_ok=True)
             self.history_file_path = os.path.join(history_file_dir, "." + self.this_program_name + "_console_history")
             try:
                 readline.read_history_file(self.history_file_path)

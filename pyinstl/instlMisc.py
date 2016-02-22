@@ -181,7 +181,7 @@ class InstlMisc(InstlInstanceBase):
         self.progress_staccato_command = True
         self.info_map_table.read_from_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
         for dir_item in self.info_map_table.get_items(what="dir"):
-            utils.safe_makedirs(dir_item.path)
+            os.makedirs(dir_item.path, exist_ok=True)
             self.dynamic_progress("Create folder {dir_item.path}".format(**locals()))
 
     def do_test_import(self):

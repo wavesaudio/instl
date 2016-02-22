@@ -363,7 +363,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
             var_stack.set_var("USER_CACHE_DIR", var_description).append(user_cache_dir)
         if make_dir:
             user_cache_dir_resolved = var_stack.resolve("$(USER_CACHE_DIR)", raise_on_fail=True)
-            utils.safe_makedirs(user_cache_dir_resolved)
+            os.makedirs(user_cache_dir_resolved, exist_ok=True)
 
     def get_default_sync_dir(self, continue_dir=None, make_dir=True):
         self.calc_user_cache_dir_var()
@@ -374,7 +374,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
         # print("1------------------", user_cache_dir, "-", from_url, "-", retVal)
         if make_dir and retVal:
             retVal = var_stack.resolve(retVal, raise_on_fail=True)
-            utils.safe_makedirs(retVal)
+            os.makedirs(retVal, exist_ok=True)
         return retVal
 
     def relative_sync_folder_for_source(self, source):

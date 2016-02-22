@@ -411,7 +411,7 @@ class InstlClient(InstlInstanceBase):
         # write the require file as it should look after copy is done
         new_require_file_path = var_stack.resolve("$(NEW_SITE_REQUIRE_FILE_PATH)", raise_on_fail=True)
         new_require_file_dir, new_require_file_name = os.path.split(new_require_file_path)
-        utils.safe_makedirs(new_require_file_dir)
+        os.makedirs(new_require_file_dir, exist_ok=True)
         self.write_require_file(new_require_file_path, self.installState.req_man.repr_for_yaml())
         # Copy the new require file over the old one, if copy fails the old file remains.
         self.batch_accum += self.platform_helper.copy_file_to_file("$(NEW_SITE_REQUIRE_FILE_PATH)",

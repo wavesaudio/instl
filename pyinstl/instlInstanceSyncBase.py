@@ -52,8 +52,8 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         """
         info_map_file_url = None
         try:
-            utils.safe_makedirs(var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)", raise_on_fail=True))
-            utils.safe_makedirs(var_stack.resolve("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)", raise_on_fail=True))
+            os.makedirs(var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)", raise_on_fail=True), exist_ok=True)
+            os.makedirs(var_stack.resolve("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)", raise_on_fail=True), exist_ok=True)
             info_map_file_url = var_stack.resolve("$(INFO_MAP_FILE_URL)")
             local_copy_of_info_map = var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)")
             utils.download_from_file_or_url(info_map_file_url,

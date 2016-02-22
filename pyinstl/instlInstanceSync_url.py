@@ -39,7 +39,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
     def create_curl_download_instructions(self):
         curl_config_folder = var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)/curl", raise_on_fail=True)
-        utils.safe_makedirs(curl_config_folder)
+        os.makedirs(curl_config_folder, exist_ok=True)
         curl_config_file_path = var_stack.resolve(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"), raise_on_fail=True)
         num_config_files = int(var_stack.resolve("$(PARALLEL_SYNC)"))
         config_file_list = self.instlObj.platform_helper.dl_tool.create_config_files(curl_config_file_path, num_config_files)

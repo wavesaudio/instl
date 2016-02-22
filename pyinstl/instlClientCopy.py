@@ -41,6 +41,22 @@ class InstlClientCopy(InstlClient):
         except:
             pass # if it did not work - forget it
 
+    def write_copy_to_folder_debug_info(self, folder_path):
+        try:
+            if var_stack.defined('ECHO_LOG_FILE'):
+                log_file_path = var_stack.resolve("$(ECHO_LOG_FILE)")
+                log_folder, log_file = os.path.split(log_file_path)
+                manifests_log_folder = os.path.join(log_folder, "manifests")
+                os.makedirs(manifests_log_folder, exist_ok=True)
+                folder_path_parent, folder_name = os.path.split(var_stack.resolve(folder_path))
+                ls_output_file = os.path.join(manifests_log_folder, folder_name+"-folder-manifest.txt")
+                create_folder_ls_command_parts = [self.platform_helper.run_instl(), "ls",
+                                              "--in", '"."',
+                                              "--out", utils.quoteme_double(ls_output_file)]
+                self.batch_accum += " ".join(create_folder_ls_command_parts)
+        except:
+            pass # if it did not work - forget it
+
     def create_copy_instructions(self):
         self.write_copy_debug_info()
         # If we got here while in synccopy command, there is no need to read the info map again.
@@ -119,7 +135,7 @@ class InstlClientCopy(InstlClient):
             # accumulate post_copy_to_folder actions from all items, eliminating duplicates
             self.accumulate_unique_actions('post_copy_to_folder', items_in_folder)
             self.batch_accum += self.platform_helper.progress("Copy to {0} done".format(target_folder_path))
-
+            #self.write_copy_to_folder_debug_info(target_folder_path)
             self.batch_accum += self.platform_helper.remark("- End folder {0}".format(target_folder_path))
             self.batch_accum.indent_level -= 1
 

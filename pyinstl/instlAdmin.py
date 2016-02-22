@@ -434,7 +434,7 @@ class InstlAdmin(InstlInstanceBase):
 
         repo_rev_yaml = aYaml.YamlDumpDocWrap(var_stack.repr_for_yaml(repo_rev_vars, include_comments=False),
                                               '!define', "", explicit_start=True, sort_mappings=True)
-        utils.safe_makedirs(var_stack.resolve("$(ROOT_LINKS_FOLDER)/admin"))
+        os.makedirs(var_stack.resolve("$(ROOT_LINKS_FOLDER)/admin"), exist_ok=True)
         local_file = var_stack.resolve("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
         with open(local_file, "w") as wfd:
             aYaml.writeAsYaml(repo_rev_yaml, out_stream=wfd, indentor=None, sort=True)
