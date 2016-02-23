@@ -224,11 +224,6 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         wtar_command = " ".join(wtar_command_parts)
         return wtar_command
 
-    def unwtar_file(self, file_path):
-        unwtar_command = " ".join(("$(WTAR_OPENER_TOOL_PATH)", "-x", "-f", utils.quoteme_double(file_path)))
-        done_stamp_file = file_path + ".done"
-        return unwtar_command, self.touch(done_stamp_file)
-
     def split_func(self):
         the_split_func = ("""
 split_file()

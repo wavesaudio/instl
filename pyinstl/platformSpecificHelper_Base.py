@@ -355,10 +355,6 @@ class PlatformSpecificHelperBase(object):
     def tar(self, to_tar_name):
         pass
 
-    @abc.abstractmethod
-    def unwtar_file(self, file_path):
-        pass
-
     def unwtar_something(self, what_to_unwtar, no_artifacts=False):
         unwtar_command_parts = [self.instlObj.platform_helper.run_instl(),
                                 "unwtar",

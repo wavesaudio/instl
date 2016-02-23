@@ -107,9 +107,6 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
     def tar(self, to_tar_name):
         raise NotImplementedError
 
-    def unwtar_file(self, file_path):
-        raise NotImplementedError
-
     def wait_for_child_processes(self):
         return ("wait",)
 

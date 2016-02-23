@@ -38,7 +38,7 @@ class InstlClientCopy(InstlClient):
                 with open(os.path.join(log_folder, "sync-folder-manifest.txt"), "w") as wfd:
                     repo_sync_dir = var_stack.resolve("$(COPY_SOURCES_ROOT_DIR)")
                     wfd.write(utils.folder_listing(repo_sync_dir))
-        except:
+        except Exception:
             pass # if it did not work - forget it
 
     def write_copy_to_folder_debug_info(self, folder_path):
@@ -54,7 +54,7 @@ class InstlClientCopy(InstlClient):
                                               "--in", '"."',
                                               "--out", utils.quoteme_double(ls_output_file)]
                 self.batch_accum += " ".join(create_folder_ls_command_parts)
-        except:
+        except Exception:
             pass # if it did not work - forget it
 
     def create_copy_instructions(self):

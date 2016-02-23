@@ -219,8 +219,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
 
     def find_cmd_tool(self, tool_to_find_var_name):
         """ locate the path to a cmd.exe tool on windows, if found put the full path in variable
-        :param tool_name: e.g. robocopy.exe
-        :param variable_name: variable to save the path in
+        :param tool_to_find_var_name: variable name of tool or full path to tool
         :return: the path to the tool
         """
         tool_path = None
@@ -238,18 +237,21 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
                     if os.path.isfile(where_tool_path):
                         tool_path = where_tool_path
                         var_stack.set_var(tool_to_find_var_name, "find_cmd_tool").append(tool_path)
-                except:
+                except Exception:
                     pass # never mind, we'll try on our own
 
             if tool_path is None:
                 win_paths = utils.unique_list()
                 # try to find the tool in the PATH variable
                 if "PATH" in os.environ:
-                    win_paths.extend(os.environ["PATH"].split(";"))
+                    win_paths.extend(utils.unicodify(os.environ["PATH"]).split(";"))
+                else:
+                    print("PATH was not found in environment variables")
                 # also add some known location in case user's PATH variable was altered
                 if "SystemRoot" in os.environ:
-                    know_locations = (os.path.join(os.environ["SystemRoot"], "System32"),
-                                      os.path.join(os.environ["SystemRoot"], "SysWOW64"))
+                    system_root = utils.unicodify(os.environ["SystemRoot"])
+                    know_locations = (os.path.join(system_root, "System32"),
+                                      os.path.join(system_root, "SysWOW64"))
                     win_paths.extend(know_locations)
                 for win_path in win_paths:
                     tool_path = os.path.join(win_path, original_tool_value)
@@ -341,7 +343,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         check_cd_command = " ".join(("if /I not", norm_directory, "==", utils.quoteme_double("%CD%"),
                                     "(", "echo Error: failed to cd to", norm_directory, "1>&2",
                                     "&", "GOTO", "EXIT_ON_ERROR", ")"))
-        return cd_command, check_cd_command
+        return is_exists_command, cd_command, check_cd_command
 
     def pushd(self, directory):
         norm_directory = utils.quoteme_double(os.path.normpath(directory))
@@ -425,20 +427,6 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
 
     def tar(self, to_tar_name):
         raise NotImplementedError
-
-    def unwtar_file(self, wtar_file):
-        tar_file = wtar_file + ".tar"
-        unzip_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "x", "-y", "-bd",
-                               utils.quoteme_double(wtar_file), "-so", ">", utils.quoteme_double(tar_file),
-                               "2>NUL")
-        untar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "x", "-y", "-bd",
-                               utils.quoteme_double(tar_file), "2>NUL")
-        rm_tar_command = self.rmfile(tar_file)
-        done_stamp_file = wtar_file + ".done"
-        untar_commands = " ".join(unzip_command_parts), self.exit_if_error(), \
-                         " ".join(untar_command_parts), self.exit_if_error(), \
-                         rm_tar_command, self.touch(done_stamp_file)
-        return untar_commands
 
     def wait_for_child_processes(self):
         return ("echo wait_for_child_processes not implemented yet for windows",)

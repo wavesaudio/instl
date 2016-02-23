@@ -128,14 +128,14 @@ yaml.MappingNode.__getitem__ = get_mapping_item
 yaml.SequenceNode.__getitem__ = get_sequence_item
 
 
-def mappaing_containes(self, key):
+def mapping_contains(self, key):
     """ support 'if x in y:...' """
     try:
         self.__getitem__(key)
         return True
     except:
         return False
-yaml.MappingNode.__contains__ = mappaing_containes
+yaml.MappingNode.__contains__ = mapping_contains
 
 
 def ifTrueOrFalse(test, ifTrue, ifFalse):

@@ -141,7 +141,6 @@ def read_from_file_or_url(in_url, translate_url_callback=None, public_key=None, 
         If test against either sig or checksum fails - raise IOError.
         Return: file contents.
     """
-    contents_buffer = None
     with open_for_read_file_or_url(in_url, translate_url_callback) as rfd:
         contents_buffer = rfd.read()
         #print("After reading",in_url, "contents_buffer has", len(contents_buffer), "bytes", file=sys.stderr)
@@ -259,7 +258,7 @@ class unique_list(list):
 
     def count(self, item):
         """ Overriding count is not required - just more efficient """
-        return self.__attendance.count(item)
+        return 1 if item in self.__attendance else 0
 
     def sort(self, key=None, reverse=False):
         """ Sometimes sort is needed after all ... """
@@ -534,6 +533,7 @@ def P4GetPathFromDepotPath(depot_path):
     command_parts = ["p4", "where", depot_path]
     proc = subprocess.Popen(command_parts, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
     _stdout, _stderr = proc.communicate()
+    _stdout, _stderr = unicodify(_stdout), unicodify(_stderr)
     retcode = proc.returncode
     if retcode == 0:
         lines = _stdout.split("\n")
@@ -706,10 +706,10 @@ def smart_copy_file(source_path, destination_path):
                 pass # same inode no need to copy
         else:
             os.link(s, d)
-    except Exception as link_ex:
+    except Exception:
         try:
             shutil.copy2(s, d)
-        except Exception as shutil_ex:
+        except Exception:
             pass
 
 

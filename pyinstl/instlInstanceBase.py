@@ -9,7 +9,6 @@ import abc
 import yaml
 import io
 import appdirs
-from collections import OrderedDict, defaultdict
 
 import aYaml
 import utils

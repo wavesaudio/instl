@@ -28,7 +28,7 @@ class InstlMisc(InstlInstanceBase):
 
     def __del__(self):
         if self.curr_progress != self.actual_progress:
-            print("curr_progress: {self.curr_progress} != actual_progress: {self.actual_progress}".format(**locals()))
+            print(self.fixed_command, "curr_progress: {self.curr_progress} != actual_progress: {self.actual_progress}".format(**locals()))
 
     def do_command(self):
         self.curr_progress = int(var_stack.resolve("$(__START_DYNAMIC_PROGRESS__)")) + 1
@@ -119,7 +119,7 @@ class InstlMisc(InstlInstanceBase):
             if self.no_artifacts:
                 os.remove(wtar_file_path)
             # self.dynamic_progress("Expanding {wtar_file_path}".format(**locals()))
-        except tarfile.ReadError as re_er:
+        except tarfile.ReadError:
             print("tarfile read error while opening file", os.path.abspath(wtar_file_path))
             raise
 
@@ -144,10 +144,8 @@ class InstlMisc(InstlInstanceBase):
             # self.dynamic_progress("joined {joined_file_path}".format(**locals()))
             return joined_file_path
         except Exception as es:
-            try: # try to remove the tar file
-                os.remove(joined_file_path)
-            except: # but no worry if file does not exist
-                pass
+            # try to remove the tar file
+            utils.safe_remove_file(joined_file_path)
             print("exception while join_split_files", first_file)
             raise es
 
@@ -191,7 +189,7 @@ class InstlMisc(InstlInstanceBase):
         for module in ("yaml", "appdirs", "configVar", "utils", "svnTree", "aYaml"):
             try:
                 importlib.import_module(module)
-            except ImportError as im_err:
+            except ImportError:
                 bad_modules.append(module)
         if len(bad_modules) > 0:
             print("missing modules:", bad_modules)
@@ -252,7 +250,7 @@ class InstlMisc(InstlInstanceBase):
                 if restart_the_doc:
                     dock_util_command.append("--restart")
                 else:
-                    print("mac-dock confusing options, both --path and --restart were not suppied")
+                    print("mac-dock confusing options, both --path and --restart were not supplied")
             else:
                 dock_util_command.append("--add")
                 dock_util_command.append(path_to_item)
