@@ -44,9 +44,9 @@ def find_leafs(item_graph):
 def find_needed_by(item_graph, node):
     retVal = utils.set_with_order()
     if node in item_graph:
-        preds = item_graph.predecessors(node)
-        for pred in preds:
-            if pred not in retVal:
-                retVal.append(pred)
-                retVal.extend(find_needed_by(item_graph, pred))
+        predecessors = item_graph.predecessors(node)
+        for predecessor in predecessors:
+            if predecessor not in retVal:
+                retVal.append(predecessor)
+                retVal.extend(find_needed_by(item_graph, predecessor))
     return retVal

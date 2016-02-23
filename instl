@@ -67,6 +67,7 @@ class CommandLineOptions(object):
         holds command line options
     """
     def __init__(self):
+        self.mode = None
         self.command = None
         self.input_file = None
         self.output_file = None

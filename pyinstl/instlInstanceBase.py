@@ -39,6 +39,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
         self.allow_reading_of_internal_vars = False
         self.path_searcher = utils.SearchPaths(var_stack.get_configVar_obj("__SEARCH_PATHS__"))
         self.init_default_vars(initial_vars)
+        # noinspection PyUnresolvedReferences
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         # initialize the search paths helper with the current directory and dir where instl is now
         self.path_searcher.add_search_path(os.getcwd())
@@ -358,6 +359,8 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
             elif os_family_name == "Linux":
                 user_cache_dir_param = "$(COMPANY_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
                 user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
+            else:
+                raise RuntimeError("Unknown operating system "+os_family_name)
             var_description = "from InstlInstanceBase.get_user_cache_dir"
             var_stack.set_var("USER_CACHE_DIR", var_description).append(user_cache_dir)
         if make_dir:
@@ -408,7 +411,7 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
             # However regular user cannot chmod for file created under sudo, hence the try/except
             try:
                 os.chmod(self.out_file_realpath, 0o777)
-            except:
+            except Exception:
                 pass
         else:
             self.out_file_realpath = "stdout"
@@ -421,9 +424,9 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
 
         p = Popen([self.out_file_realpath], executable=self.out_file_realpath, shell=False)
         unused_stdout, unused_stderr = p.communicate()
-        retcode = p.returncode
-        if retcode != 0:
-            raise SystemExit(self.out_file_realpath + " returned exit code " + str(retcode))
+        return_code = p.returncode
+        if return_code != 0:
+            raise SystemExit(self.out_file_realpath + " returned exit code " + str(return_code))
 
     def write_program_state(self):
 

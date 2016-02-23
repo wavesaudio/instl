@@ -133,7 +133,7 @@ def mapping_contains(self, key):
     try:
         self.__getitem__(key)
         return True
-    except:
+    except Exception:
         return False
 yaml.MappingNode.__contains__ = mapping_contains
 

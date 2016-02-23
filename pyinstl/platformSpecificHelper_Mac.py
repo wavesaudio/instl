@@ -127,7 +127,6 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
 
     def rmdir(self, directory, recursive=False):
         """ If recursive==False, only empty directory will be removed """
-        rmdir_command = ""
         if recursive:
             rmdir_command = " ".join(("rm", "-fr", utils.quoteme_double(directory) ))
         else:

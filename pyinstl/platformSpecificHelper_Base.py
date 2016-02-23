@@ -276,8 +276,7 @@ class PlatformSpecificHelperBase(object):
         retVal = ()
         self.progress_staccato_count = (self.progress_staccato_count + 1) % self.progress_staccato_period
         if self.progress_staccato_count == 0:
-            prog_instruction = self.progress(msg)
-            retVal = prog_instruction
+            retVal = self.progress(msg)
         return retVal
 
     @abc.abstractmethod

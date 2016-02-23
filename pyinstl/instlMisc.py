@@ -15,9 +15,11 @@ from configVar import var_stack
 from . import connectionBase
 
 
+# noinspection PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences
 class InstlMisc(InstlInstanceBase):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
+        # noinspection PyUnresolvedReferences
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         self.curr_progress = 0
         self.actual_progress = 0
@@ -119,8 +121,8 @@ class InstlMisc(InstlInstanceBase):
             if self.no_artifacts:
                 os.remove(wtar_file_path)
             # self.dynamic_progress("Expanding {wtar_file_path}".format(**locals()))
-        except tarfile.ReadError:
-            print("tarfile read error while opening file", os.path.abspath(wtar_file_path))
+        except tarfile.TarError:
+            print("tarfile error while opening file", os.path.abspath(wtar_file_path))
             raise
 
     def join_split_files(self, first_file):

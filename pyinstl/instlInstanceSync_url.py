@@ -6,7 +6,6 @@ import pathlib
 
 import utils
 from .instlInstanceSyncBase import InstlInstanceSync
-from .batchAccumulator import BatchAccumulator
 from configVar import var_stack
 
 
@@ -76,9 +75,9 @@ class InstlInstanceSync_url(InstlInstanceSync):
         files_checked = 0
         for root, dirs, files in os.walk(self.local_sync_dir, followlinks=False):
             try: dirs.remove("bookkeeping")
-            except: pass # todo: use FOLDER_EXCLUDE_REGEX
+            except Exception: pass # todo: use FOLDER_EXCLUDE_REGEX
             try: files.remove(".DS_Store")
-            except: pass  # todo: use FILE_EXCLUDE_REGEX
+            except Exception: pass  # todo: use FILE_EXCLUDE_REGEX
             for disk_item in files:
                 files_checked += 1
                 item_full_path = pathlib.PurePath(root, disk_item)

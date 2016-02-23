@@ -52,6 +52,7 @@ class DoItInstructionsState(object):
 class InstlDoIt(InstlInstanceBase):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
+        # noinspection PyUnresolvedReferences
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
 
     def do_command(self):

@@ -124,6 +124,7 @@ class InstallItem(object):
     @staticmethod
     def merge_item_sections(this_items, the_other_items):
         common_items = set(list(this_items.keys()) + list(the_other_items.keys()))
+        item = None
         try:
             for item in common_items:
                 this_items[item].extend(the_other_items[item])
@@ -408,18 +409,6 @@ class InstallItem(object):
                 retVal[os_] = os_items
 
         return retVal
-
-    def merge_from_another_InstallItem(self, otherInstallItem):
-        """ merge the contents of another InstallItem """
-        # self.__iid = iid is not merged
-        # self.name = name is not merged
-        # self.__guids = guid is not merged
-        # name of the other item is added to the remark
-        if not self.__remark:
-            self.__remark = self.__name
-        self.__remark += ", " + otherInstallItem.name
-        self.__inherit_from.update(otherInstallItem.__inherit_from)
-        self.merge_all_item_sections(otherInstallItem)
 
     def resolve_inheritance(self, InstallItemsDict):
         if not self.__resolved_inherit:

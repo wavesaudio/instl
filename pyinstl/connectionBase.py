@@ -11,7 +11,7 @@ from configVar import var_stack
 have_boto = True
 try:
     import boto
-except:
+except Exception:
     have_boto = False
 
 

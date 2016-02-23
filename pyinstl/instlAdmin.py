@@ -40,7 +40,7 @@ class InstlAdmin(InstlInstanceBase):
                     public_key_file = var_stack.resove("$(PUBLIC_KEY_FILE)")
                     public_key_text = open(public_key_file, "rb").read()
                     var_stack.set_var("PUBLIC_KEY", "from " + public_key_file).append(public_key_text)
-                except:
+                except Exception:
                     pass  # lo nora
         if "PRIVATE_KEY" not in var_stack:
             if "PRIVATE_KEY_FILE" in var_stack:
@@ -48,7 +48,7 @@ class InstlAdmin(InstlInstanceBase):
                     private_key_file = var_stack.resove("$(PRIVATE_KEY_FILE)")
                     private_key_text = open(private_key_file, "rb").read()
                     var_stack.set_var("PUBLIC_KEY", "from " + private_key_file).append(private_key_text)
-                except:
+                except Exception:
                     pass  # lo nora
 
     def do_command(self):
@@ -121,8 +121,8 @@ class InstlAdmin(InstlInstanceBase):
                         print(msg)
                         # if we need to create links, remove the upload stems in order to force upload
                         try: os.remove(var_stack.resolve("$(ROOT_LINKS_FOLDER_REPO)/"+str(revision)+"/$(UP_2_S3_STAMP_FILE_NAME)"))
-                        except: pass
-                except:
+                        except Exception: pass
+                except Exception:
                     pass  # no previous base repo rev indication was found so return True to re-create the links
             else:
                 retVal = False
@@ -692,7 +692,7 @@ class InstlAdmin(InstlInstanceBase):
                             retVal = True
                     else:
                         retVal = True
-        except:
+        except Exception:
             pass
         return retVal
 

@@ -131,7 +131,7 @@ class ConfigVarList(object):
 
     def read_environment(self):
         """ Get values from environment """
-        for env_key, env_value in os.os.environ.items():
+        for env_key, env_value in os.environ.items():
             if env_key == "":  # not sure why, sometimes I get an empty string as env variable name
                 continue
             self.set_var(env_key, "from environment").append(env_value)
@@ -171,8 +171,8 @@ class ConfigVarList(object):
             which defaults to a single space.
             None existent variables are left as is if default==None, otherwise value of default is inserted
         """
+        resolved_str = str_to_resolve
         try:
-            resolved_str = str_to_resolve
             search_start_pos = 0
             #print("resolving:", str_to_resolve)
             while True:

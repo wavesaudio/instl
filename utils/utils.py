@@ -189,7 +189,7 @@ class unique_list(list):
     """
     unique_list implements a list where all items are unique.
     Functionality can also be described as set with order.
-    unique_list should behave as a python list except:
+    unique_list should behave as a python list except Exception:
         Adding items the end of the list (by append, extend) will do nothing if the
             item is already in the list.
         Adding to the middle of the list (insert, __setitem__)
@@ -278,6 +278,7 @@ class set_with_order(unique_list):
         super().__init__(initial_list)
 
 
+# noinspection PyProtectedMember
 def print_var(var_name):
     calling_frame = sys._getframe().f_back
     var_val = calling_frame.f_locals.get(var_name, calling_frame.f_globals.get(var_name, None))
@@ -298,7 +299,7 @@ def main_url_item(url):
         retVal = parseResult.netloc
         if not retVal:
             retVal = parseResult.path
-    except:
+    except Exception:
         retVal = ""
     return retVal
 
@@ -314,7 +315,7 @@ def relative_url(base, target):
 
 
 def deprecated(deprecated_func):
-    def raise_deprecation(*unused_args, **unused_kargs):
+    def raise_deprecation(*unused_args, **unused_kwargs):
         raise DeprecationWarning(deprecated_func.__name__, "is deprecated")
 
     return raise_deprecation
@@ -447,7 +448,7 @@ def check_buffer_signature(buff, textual_sig, public_key):
         binary_sig = base64.b64decode(textual_sig)
         rsa.verify(buff, binary_sig, pubkeyObj)
         return True
-    except:
+    except Exception:
         return False
 
 
@@ -531,11 +532,11 @@ def make_one_list(*things):
 def P4GetPathFromDepotPath(depot_path):
     retVal = None
     command_parts = ["p4", "where", depot_path]
-    proc = subprocess.Popen(command_parts, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
-    _stdout, _stderr = proc.communicate()
+    p4_process = subprocess.Popen(command_parts, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
+    _stdout, _stderr = p4_process.communicate()
     _stdout, _stderr = unicodify(_stdout), unicodify(_stderr)
-    retcode = proc.returncode
-    if retcode == 0:
+    return_code = p4_process.returncode
+    if return_code == 0:
         lines = _stdout.split("\n")
         where_line_reg_str = "".join( (re.escape(depot_path), "\s+", "//.+", "\s+", "(?P<disk_path>/.+)") )
         match = re.match(where_line_reg_str, lines[0])
@@ -598,10 +599,10 @@ def find_sequences(in_sorted_list, is_next_func=lambda a,b: int(a)+1==int(b), re
 def make_open_file_read_write_for_all(fd):
     try:
         os.fchmod(fd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
-    except:
+    except Exception:
         try:
             os.chmod(fd.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
-        except:
+        except Exception:
             print("make_open_file_read_write_for_all: failed for ", fd.name)
 
 
@@ -615,7 +616,7 @@ def timing(f):
         if time1 != time2:
             print ('%s function took %0.3f ms' % (f.__name__, (time2-time1)*1000.0))
         else:
-            print ('%s function took apparently no time at all' % (f.__name__))
+            print ('%s function took apparently no time at all' % f.__name__)
         return ret
     return wrap
 
@@ -653,11 +654,12 @@ def excluded_walk(root_to_walk, file_exclude_regex=None, dir_exclude_regex=None,
         yield root, dirs, files
 
 
+# noinspection PyUnresolvedReferences
 def get_disk_free_space(in_path):
     retVal = 0
     if 'Win' in get_current_os_names():
-        secsPerClus, bytesPerSec, nFreeClus, totClus = win32file.GetDiskFreeSpace(in_path)
-        retVal = secsPerClus * bytesPerSec * nFreeClus
+        secsPerCluster, bytesPerSec, nFreeCluster, totCluster = win32file.GetDiskFreeSpace(in_path)
+        retVal = secsPerCluster * bytesPerSec * nFreeCluster
     elif 'Mac' in get_current_os_names():
         st = os.statvfs(in_path)
         retVal = st.f_bavail * st.f_frsize
@@ -677,7 +679,7 @@ def clean_old_files(dir_to_clean, older_than_days):
                 file_time = os.path.getmtime(a_file_path)
                 if file_time < threshold_time:
                     os.remove(a_file_path)
-    except:
+    except Exception:
         pass
 
 
@@ -779,6 +781,7 @@ def unix_folder_ls(the_path):
     return listing_lines
 
 
+# noinspection PyUnresolvedReferences
 def win_item_ls(the_path):
     import win32security
     the_parts = list()
@@ -839,7 +842,7 @@ def folder_listing(*folders_to_list):
 def unicodify(in_something):
     try:
         retVal = in_something.decode('utf-8')
-    except:
+    except Exception:
         retVal = str(in_something)
 
     return retVal

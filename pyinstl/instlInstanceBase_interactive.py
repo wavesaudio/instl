@@ -25,7 +25,7 @@ elif current_os == 'Linux':
 
 try:
     import cmd
-except:
+except Exception:
     print("failed to import cmd, interactive mode not supported")
     raise
 
@@ -126,10 +126,10 @@ class CMDObj(cmd.Cmd, object):
             self.history_file_path = os.path.join(history_file_dir, "." + self.this_program_name + "_console_history")
             try:
                 readline.read_history_file(self.history_file_path)
-            except:  # Corrupt or non existent history file might raise an exception
+            except Exception:  # Corrupt or non existent history file might raise an exception
                 try:
                     os.remove(self.history_file_path)
-                except:
+                except Exception:
                     pass  # if removing the file also fail - just ignore it
         if colorama_loaded:
             colorama.init()
@@ -143,7 +143,7 @@ class CMDObj(cmd.Cmd, object):
                 compact_history()
                 readline.set_history_length(32)
                 readline.write_history_file(self.history_file_path)
-        except:
+        except Exception:
             pass
         # restart only after saving history, otherwise history will not be saved (;-o).
         os.chdir(self.save_dir)
@@ -157,7 +157,7 @@ class CMDObj(cmd.Cmd, object):
         except utils.InstlException as ie:
             print("instl exception", ie.message)
             traceback.print_exception(type(ie.original_exception), ie.original_exception, sys.exc_info()[2])
-        except Exception as unused_ex:
+        except Exception:
             print("unhandled exception")
             import traceback
 
@@ -177,7 +177,7 @@ class CMDObj(cmd.Cmd, object):
         matches = []
         if text:
             try:
-                matches.extend([adir for adir in insensitive_glob(text + '*') if os.path.isdir(adir)])
+                matches.extend([a_dir for a_dir in insensitive_glob(text + '*') if os.path.isdir(a_dir)])
             except Exception as es:
                 pass
         return matches
@@ -205,19 +205,19 @@ class CMDObj(cmd.Cmd, object):
 
     def prepare_coloring_dict(self):
         """ Prepare a dictionary with identifiers mapped to their "colored" representation.
-            Left hand index enrties: 'SAMPLE_IID:' translates to colorama.Fore.GREEN+'SAMPLE_IID'+colorama.Fore.RESET+":".
-            Right hand index enrties: '- SAMPLE_IID:' translates to "- "+colorama.Fore.YELLOW+'SAMPLE_IID'+colorama.Fore.RESET.
-            Variable references: $(SAMPLE_VARAIBLE) translates to colorama.Fore.BLUE+$(SAMPLE_VARAIBLE).
-            The returned dictionary can be used in replace_all_from_dict() for "coloring" the text before output to stdcout.
+            Left hand index entries: 'SAMPLE_IID:' translates to colorama.Fore.GREEN+'SAMPLE_IID'+colorama.Fore.RESET+":".
+            Right hand index entries: '- SAMPLE_IID:' translates to "- "+colorama.Fore.YELLOW+'SAMPLE_IID'+colorama.Fore.RESET.
+            Variable references: $(SAMPLE_VARIABLE) translates to colorama.Fore.BLUE+$(SAMPLE_VARIABLE).
+            The returned dictionary can be used in replace_all_from_dict() for "coloring" the text before output to stdout.
         """
         retVal = dict()
-        defs = self.client_prog_inst.create_completion_list("define")
+        definitions = self.client_prog_inst.create_completion_list("define")
         index = self.client_prog_inst.create_completion_list("index")
         guids = self.client_prog_inst.create_completion_list("guid")
 
-        retVal.update({"$(" + identi + ")": text_with_color("$(" + identi + ")", "blue") for identi in defs})
-        retVal.update({identi + ":": text_with_color(identi, "green") + ":" for identi in defs})
-        retVal.update({"- " + identi: "- " + text_with_color(identi, "yellow") for identi in defs})
+        retVal.update({"$(" + identi + ")": text_with_color("$(" + identi + ")", "blue") for identi in definitions})
+        retVal.update({identi + ":": text_with_color(identi, "green") + ":" for identi in definitions})
+        retVal.update({"- " + identi: "- " + text_with_color(identi, "yellow") for identi in definitions})
 
         retVal.update({dex + ":": text_with_color(dex, "green") + ":" for dex in index})
         retVal.update({"- " + dex: "- " + text_with_color(dex, "yellow") for dex in index})
@@ -234,14 +234,14 @@ class CMDObj(cmd.Cmd, object):
         return retVal
 
     def do_apropos(self, params):
-        defs = self.client_prog_inst.create_completion_list("define")
+        definitions = self.client_prog_inst.create_completion_list("define")
         index = self.client_prog_inst.create_completion_list("index")
         guids = self.client_prog_inst.create_completion_list("guid")
-        defs_results = utils.unique_list()
+        definitions_results = utils.unique_list()
         index_results = utils.unique_list()
         guids_results = utils.unique_list()
         search_for = params.split()
-        work_list = ((defs, defs_results), (index, index_results), (guids, guids_results))
+        work_list = ((definitions, definitions_results), (index, index_results), (guids, guids_results))
         for param in search_for:
             for id_list, results in work_list:
                 for identifier in id_list:
@@ -249,8 +249,8 @@ class CMDObj(cmd.Cmd, object):
                     if found_it:
                         results.append (identifier)
         print ("variables:")
-        if defs_results:
-            for var in defs_results:
+        if definitions_results:
+            for var in definitions_results:
                 print ("   ", var)
         else:
             print ("    no matching variables were found")

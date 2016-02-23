@@ -113,7 +113,7 @@ def verboseOutput(*args):
     if verbose:
         try:
             print("verbose:", args)
-        except:
+        except Exception:
             pass
 
 
@@ -294,7 +294,7 @@ def dock_util(args):
                     try:
                         # join and print relevant data into a string separated by tabs
                         print('\t'.join((item['tile-data']['file-label'], item['tile-data']['file-data']['_CFURLString'], section, plist_path)))
-                    except:
+                    except Exception:
                         pass
 
         elif find_label != None: # --find action
@@ -309,7 +309,7 @@ def dock_util(args):
                         if pl[section][item_offset]['tile-data']['file-label'] == find_label:
                             item_found = True
                             print(find_label, "was found in", section, "at slot", item_offset+1, "in", plist_path)
-                    except:
+                    except Exception:
                         pass
             if not item_found:
                 print(find_label, "was not found in", plist_path)
@@ -400,7 +400,7 @@ def valid_uid(uid):
     try:
         pwd.getpwuid(uid)
         return True
-    except:
+    except Exception:
         return False
 
 def getOsxVersion():
@@ -492,7 +492,7 @@ def moveItem(pl, move_label=None, position=None, before_item=None, after_item=No
 
                 try:
                     int(position)
-                except:
+                except Exception:
                     print('Invalid position', position)
                     return False
                 pl[section].insert(int(position)-1, item_to_move)
@@ -591,7 +591,7 @@ def addItem(pl, add_path, replace_label=None, position=None, before_item=None, a
         else:
             try:
                 int(position)
-            except:
+            except Exception:
                 print('Invalid position', position)
                 return False
             if int(position) == 0:

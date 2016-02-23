@@ -56,8 +56,8 @@ class SearchPaths(object):
         There are two cases when this will not be the case:
         1. A full path to a file was given. The folder might not be in the search paths.
             In fact, the reason a full path was given is that it's folder would be added.
-        2. A partial path was given, such as 'somelib/somelib.h". In which case the path
-            up to and including somelib would be added.
+        2. A partial path was given, such as 'some_lib/some_lib.h". In which case the path
+            up to and including some_lib would be added.
         If return_original_if_not_found is True, then the function will return original
         input path if file was not found, instead of None.
         """

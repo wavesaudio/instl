@@ -66,7 +66,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
             self.instlObj.info_map_table.write_to_file(var_stack.resolve("$(NEW_HAVE_INFO_MAP_PATH)"), field_to_write=('path', 'flags', 'revision', 'checksum', 'size'))
             #utils.smart_copy_file(var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)"),
             #                      var_stack.resolve("$(NEW_HAVE_INFO_MAP_PATH)"))
-        except:
+        except Exception:
             print("Exception reading info_map:", info_map_file_url)
             raise
 

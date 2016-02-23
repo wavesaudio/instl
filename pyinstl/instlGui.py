@@ -47,9 +47,11 @@ admin_command_template_variables = {
 }
 
 
+# noinspection PyAttributeOutsideInit
 class InstlGui(InstlInstanceBase):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
+        # noinspection PyUnresolvedReferences
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
 
         self.master = Tk()
@@ -96,7 +98,7 @@ class InstlGui(InstlInstanceBase):
     def read_history(self):
         try:
             self.read_yaml_file(var_stack.resolve_var("INSTL_GUI_CONFIG_FILE_NAME"))
-        except:
+        except Exception:
             pass
 
 
@@ -145,6 +147,7 @@ class InstlGui(InstlInstanceBase):
     def open_file_for_edit(self, path_to_file):
         path_to_file = os.path.relpath(path_to_file)
         try:
+            # noinspection PyUnresolvedReferences
             os.startfile(path_to_file, 'edit')
         except AttributeError:
             subprocess.call(['open', path_to_file])
@@ -193,7 +196,6 @@ class InstlGui(InstlInstanceBase):
         return retVal
 
     def update_client_input_file_combo(self, *args):
-        prev_input_file = var_stack.resolve_var("CLIENT_GUI_IN_FILE")
         new_input_file = self.client_input_path_var.get()
         if os.path.isfile(new_input_file):
             new_input_file_dir, new_input_file_name = os.path.split(new_input_file)
@@ -277,26 +279,26 @@ class InstlGui(InstlInstanceBase):
         command_line = self.create_client_command_line()
 
         if getattr(os, "setsid", None):
-            proc = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid)  # Unix
+            client_process = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid)  # Unix
         else:
-            proc = subprocess.Popen(command_line, executable=command_line[0], shell=False)  # Windows
-        unused_stdout, unused_stderr = proc.communicate()
-        retcode = proc.returncode
-        if retcode != 0:
-            print(" ".join(command_line) + " returned exit code " + str(retcode))
+            client_process = subprocess.Popen(command_line, executable=command_line[0], shell=False)  # Windows
+        unused_stdout, unused_stderr = client_process.communicate()
+        return_code = client_process.returncode
+        if return_code != 0:
+            print(" ".join(command_line) + " returned exit code " + str(return_code))
 
     def run_admin(self):
         self.update_admin_state()
         command_line = self.create_admin_command_line()
 
         if getattr(os, "setsid", None):
-            proc = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid)  # Unix
+            admin_process = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid)  # Unix
         else:
-            proc = subprocess.Popen(command_line, executable=command_line[0], shell=False)  # Windows
-        unused_stdout, unused_stderr = proc.communicate()
-        retcode = proc.returncode
-        if retcode != 0:
-            print(" ".join(command_line) + " returned exit code " + str(retcode))
+            admin_process = subprocess.Popen(command_line, executable=command_line[0], shell=False)  # Windows
+        unused_stdout, unused_stderr = admin_process.communicate()
+        return_code = admin_process.returncode
+        if return_code != 0:
+            print(" ".join(command_line) + " returned exit code " + str(return_code))
 
     def create_admin_frame(self, master):
 
@@ -507,13 +509,13 @@ class InstlGui(InstlInstanceBase):
                         "--in", path_to_yaml]
 
         if getattr(os, "setsid", None):
-            proc = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid)  # Unix
+            check_yaml_process = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid)  # Unix
         else:
-            proc = subprocess.Popen(command_line, executable=command_line[0], shell=False)  # Windows
-        unused_stdout, unused_stderr = proc.communicate()
-        retcode = proc.returncode
-        if retcode != 0:
-            print(" ".join(command_line) + " returned exit code " + str(retcode))
+            check_yaml_process = subprocess.Popen(command_line, executable=command_line[0], shell=False)  # Windows
+        unused_stdout, unused_stderr = check_yaml_process.communicate()
+        return_code = check_yaml_process.returncode
+        if return_code != 0:
+            print(" ".join(command_line) + " returned exit code " + str(return_code))
         else:
             print(path_to_yaml, "read OK")
 
@@ -543,7 +545,7 @@ class ToolTip(Toplevel):
         self.overrideredirect(True)  # The ToolTip Toplevel should have no frame or title bar
 
         self.msgVar = StringVar()  # The msgVar will contain the text displayed by the ToolTip
-        if msg == None:
+        if msg is None:
             self.msgVar.set('No message provided')
         else:
             self.msgVar.set(msg)
@@ -592,7 +594,7 @@ class ToolTip(Toplevel):
         self.geometry( '+%i+%i' % ( event.x_root+10, event.y_root+10 ) )        # Offset the ToolTip 10x10 pixes southwest of the pointer
         try:
             self.msgVar.set( self.msgFunc() )                                   # Try to call the message function.  Will not change the message if the message function is None or the message function fails
-        except:
+        except Exception:
             pass
         self.after(int(self.delay * 1000), self.show)
 

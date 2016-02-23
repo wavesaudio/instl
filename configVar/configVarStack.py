@@ -76,7 +76,7 @@ class ConfigVarStack(configVarList.ConfigVarList):
             that were not read from file.
         """
         try:
-            var_obj = self[var_name]
+            self[var_name]
         except KeyError:
             new_var = self._ConfigVarList_objs[-1].get_configVar_obj(var_name)
             new_var.append(var_value)
