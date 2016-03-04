@@ -1,6 +1,6 @@
 .. raw:: html
 
-   <META HTTP-EQUIV="refresh" CONTENT="1">
+   <META HTTP-EQUIV="refresh" CONTENT="60">
 
 .. _commands:
 
