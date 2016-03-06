@@ -82,6 +82,13 @@ command:
             Reads the given index-file and for each IID prints to depend-file all the IID it depends on and all IID needed by it.
             To print to standard out specify --out stdout
 
+    fail:
+        short: Fail on purpose and return an exit code (runtime command)
+        long: |
+            Usage: instl fail [--exit-code a_number]
+            The fail command is used to simulate a situation where instl fils and returns an exit code (ERRORLEVEL on windows).
+            If --exit-code is given that number is use as exit code, otherwise default exit code is 1.
+
     fix-perm:
         short: Fix unix style permissions (admin command)
         long: |

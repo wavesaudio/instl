@@ -17,7 +17,7 @@ class HelpItem(object):
         self.texts = dict()
 
     def read_from_yaml(self, item_value_node):
-        for value_name, value_text in item_value_node:
+        for value_name, value_text in item_value_node.items():
             self.texts[value_name] = value_text.value
 
     def short_text(self):
@@ -39,8 +39,8 @@ class HelpHelper(object):
         with utils.open_for_read_file_or_url(help_file_path) as file_fd:
             for a_node in yaml.compose_all(file_fd):
                 if a_node.isMapping():
-                    for topic_name, topic_items_node in a_node:
-                        for item_name, item_value_node in topic_items_node:
+                    for topic_name, topic_items_node in a_node.items():
+                        for item_name, item_value_node in topic_items_node.items():
                             newItem = HelpItem(topic_name, item_name)
                             newItem.read_from_yaml(item_value_node)
                             self.help_items[item_name] = newItem

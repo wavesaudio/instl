@@ -98,6 +98,7 @@ class CommandLineOptions(object):
         self.dock_item_label = None
         self.remove_from_dock = None
         self.restart_the_dock = None
+        self.fail_exit_code = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).items())])
@@ -120,6 +121,7 @@ def prepare_args_parser(in_command):
         'create-rsa-keys':      {'mode': 'an', 'options': ('conf',), 'help':  'create private and public keys'},
         'depend':               {'mode': 'an', 'options': ('in', 'out',), 'help':  'output a dependencies map for an index file'},
         'doit':                 {'mode': 'di', 'options': ('in', 'out', 'run'), 'help':  'Do something'},
+        'fail':                 {'mode': 'ds', 'options': (), 'help': "fail and return exit code"},
         'file-sizes':           {'mode': 'an', 'options': ('in', 'out'), 'help':  'Create a list of files and their sizes'},
         'fix-perm':             {'mode': 'an', 'options': ('out', 'run','conf', 'limit'), 'help':  'Fix Mac OS permissions'},
         'fix-props':            {'mode': 'an', 'options': ('out', 'run','conf'), 'help':  'create svn commands to remove redundant properties such as executable bit from files that should not be marked executable'},
@@ -386,6 +388,15 @@ def prepare_args_parser(in_command):
                                 action='store_true',
                                 dest='all_revisions',
                                 help="work on all revisions even if above repo-rev")
+
+    elif 'fail' == in_command:
+        mac_dock_options = command_parser.add_argument_group(description=in_command+' arguments:')
+        mac_dock_options.add_argument('--exit-code',
+                                required=False,
+                                nargs=1,
+                                metavar='exit-code-to-return',
+                                dest='fail_exit_code',
+                                help="exit code to return")
 
     elif 'help' == in_command:
         help_options = command_parser.add_argument_group(description='help subject:')

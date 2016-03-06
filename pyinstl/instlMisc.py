@@ -284,3 +284,11 @@ class InstlMisc(InstlInstanceBase):
         the_listing = utils.folder_listing(*folders_to_list)
         with utils.write_to_file_or_stdout(out_file) as wfd:
             wfd.write(the_listing)
+
+    def do_fail(self):
+        exit_code = 1
+        if "__FAIL_EXIT_CODE__" in var_stack:
+            exit_code = int("$(__FAIL_EXIT_CODE__)" @ var_stack)
+        print("Failing on purpose with exit code", exit_code)
+        sys.exit(exit_code)
+
