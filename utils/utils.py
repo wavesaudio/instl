@@ -65,7 +65,7 @@ class write_to_file_or_stdout(object):
 
     def __enter__(self):
         if self.file_path != "stdout":
-            self.fd = open(self.file_path, "w")
+            self.fd = open(self.file_path, "w", encoding='utf-8')
         return self.fd
 
     def __exit__(self, unused_type, unused_value, unused_traceback):
@@ -124,7 +124,7 @@ class open_for_read_file_or_url(object):
                         opener.addheaders.append(custom_header)
                 self.fd = opener.open(self.url)
             elif self.local_file_path:
-                self.fd = open(self.local_file_path, "r")
+                self.fd = open(self.local_file_path, "r", encoding='utf-8')
         except urllib.error.URLError as url_err:
             print (url_err, self.url)
             raise

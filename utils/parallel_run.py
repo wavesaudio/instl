@@ -20,6 +20,7 @@ def run_processes_in_parallel(commands):
     except Exception:
         killall_and_exit()
 
+
 def run_parallels(commands):
     global exit_val
     for command in commands:

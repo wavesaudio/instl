@@ -582,11 +582,13 @@ class DownloadTool_win_curl(DownloadToolBase):
             return ()
 
     def download_from_config_files(self, parallel_run_config_file_path, config_files):
-        with open(parallel_run_config_file_path, "w") as wfd:
+        import win32api
+        with open(parallel_run_config_file_path, "w", encoding='utf-8') as wfd:
             utils.make_open_file_read_write_for_all(wfd)
             for config_file in config_files:
-                normalized_path = config_file.replace("\\", "/")
-                wfd.write(var_stack.resolve("\"$(DOWNLOAD_TOOL_PATH)\" --config \""+normalized_path+"\"\n", raise_on_fail=True))
+                # curl on windows has problem with path to config files that have unicode characters
+                normalized_path = win32api.GetShortPathName(config_file)
+                wfd.write(var_stack.resolve('''"$(DOWNLOAD_TOOL_PATH)" --config "{}"\n'''.format(normalized_path), raise_on_fail=True))
 
         download_command = " ".join((self.platform_helper.run_instl(),  "parallel-run", "--in", utils.quoteme_double(parallel_run_config_file_path)))
         return download_command, self.platform_helper.exit_if_error()
