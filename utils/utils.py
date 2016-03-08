@@ -93,10 +93,11 @@ class open_for_read_file_or_url(object):
                         ://
                         """, re.VERBOSE)
 
-    def __init__(self, in_file_or_url, translate_url_callback=None, path_searcher=None):
+    def __init__(self, in_file_or_url, translate_url_callback=None, path_searcher=None, encoding='utf-8'):
         self.local_file_path = None
         self.url = None
         self.custom_headers = None
+        self.encoding = encoding
         self.fd = None
         match = self.protocol_header_re.match(in_file_or_url)
         if not match:  # it's a local file
@@ -124,7 +125,10 @@ class open_for_read_file_or_url(object):
                         opener.addheaders.append(custom_header)
                 self.fd = opener.open(self.url)
             elif self.local_file_path:
-                self.fd = open(self.local_file_path, "r", encoding='utf-8')
+                if self.encoding is None:
+                    self.fd = open(self.local_file_path, "rb")
+                else:
+                    self.fd = open(self.local_file_path, "r", encoding=self.encoding)
         except urllib.error.URLError as url_err:
             print (url_err, self.url)
             raise
@@ -136,20 +140,20 @@ class open_for_read_file_or_url(object):
         self.fd.close()
 
 
-def read_from_file_or_url(in_url, translate_url_callback=None, public_key=None, textual_sig=None, expected_checksum=None):
+def read_from_file_or_url(in_url, translate_url_callback=None, public_key=None, textual_sig=None, expected_checksum=None, encoding='utf-8'):
     """ Read a file from local disk or url. Check signature or checksum if given.
         If test against either sig or checksum fails - raise IOError.
         Return: file contents.
     """
-    with open_for_read_file_or_url(in_url, translate_url_callback) as rfd:
+    with open_for_read_file_or_url(in_url, translate_url_callback, encoding=encoding) as rfd:
         contents_buffer = rfd.read()
-        #print("After reading",in_url, "contents_buffer has", len(contents_buffer), "bytes", file=sys.stderr)
-        if contents_buffer:
-            # check sig or checksum only if they were given
-            if (public_key, textual_sig, expected_checksum) != (None, None, None):
-                buffer_ok = check_buffer_signature_or_checksum(contents_buffer, public_key, textual_sig, expected_checksum)
-                if not buffer_ok:
-                    raise IOError("Checksum or Signature mismatch", in_url)
+        if encoding is not None: # when reading from url we're not sure what the encoding is
+            contents_buffer = unicodify(contents_buffer, encoding=encoding)
+        # check sig or checksum only if they were given
+        if (public_key, textual_sig, expected_checksum) != (None, None, None):
+            buffer_ok = check_buffer_signature_or_checksum(contents_buffer, public_key, textual_sig, expected_checksum)
+            if not buffer_ok:
+                raise IOError("Checksum or Signature mismatch", in_url)
     return contents_buffer
 
 
@@ -168,11 +172,12 @@ def download_from_file_or_url(in_url, in_local_path, translate_url_callback=None
         if (public_key, textual_sig, expected_checksum) != (None, None, None):
             fileOK = check_file_signature_or_checksum(in_local_path, public_key, textual_sig, expected_checksum)
         if not fileOK:
+            print("File will be downloaded because check checksum failed for", in_url, "cached at local path", in_local_path, "expected_checksum:", expected_checksum)
             os.remove(in_local_path)
         fileExists = fileOK
 
     if not fileExists:
-        contents_buffer = read_from_file_or_url(in_url, translate_url_callback, public_key, textual_sig, expected_checksum)
+        contents_buffer = read_from_file_or_url(in_url, translate_url_callback, public_key, textual_sig, expected_checksum, encoding=None)
         if contents_buffer:
             with open(in_local_path, "wb") as wfd:
                 make_open_file_read_write_for_all(wfd)
@@ -561,13 +566,6 @@ def replace_all_from_dict(in_text, *in_replace_only_these, **in_replacement_dic)
     return retVal
 
 
-def convert_to_str_unless_None(to_convert):
-    if to_convert is None:
-        return None
-    else:
-        return str(to_convert)
-
-
 # find sequences in a sorted list.
 # in_sorted_list: a sorted list of things to search sequences in.
 # is_next_func: The function that determines if one thing is the consecutive of another.
@@ -839,10 +837,12 @@ def folder_listing(*folders_to_list):
     return "\n".join(formatted_lines_lines)
 
 
-def unicodify(in_something):
-    try:
-        retVal = in_something.decode('utf-8')
-    except Exception:
-        retVal = str(in_something)
-
+def unicodify(in_something, encoding='utf-8'):
+    if in_something is not None:
+        try:
+            retVal = in_something.decode(encoding)
+        except Exception:
+            retVal = str(in_something)
+    else:
+        retVal = None
     return retVal

@@ -112,7 +112,7 @@ class InstlAdmin(InstlInstanceBase):
         if os.path.isfile(create_links_done_stamp_file):
             if revision == current_base_repo_rev:  # revision is the new base_repo_rev
                 try:
-                    previous_base_repo_rev = int(open(create_links_done_stamp_file, "r").read())  # try to read the previous
+                    previous_base_repo_rev = int(open(create_links_done_stamp_file, "r", encoding='utf-8').read())  # try to read the previous
                     if previous_base_repo_rev == current_base_repo_rev:
                         retVal = False
                     else:
@@ -434,7 +434,7 @@ class InstlAdmin(InstlInstanceBase):
                                               '!define', "", explicit_start=True, sort_mappings=True)
         os.makedirs(var_stack.resolve("$(ROOT_LINKS_FOLDER)/admin"), exist_ok=True)
         local_file = var_stack.resolve("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
-        with open(local_file, "w") as wfd:
+        with open(local_file, "w", encoding='utf-8') as wfd:
             aYaml.writeAsYaml(repo_rev_yaml, out_stream=wfd, indentor=None, sort=True)
             print("created", local_file)
 
@@ -479,7 +479,7 @@ class InstlAdmin(InstlInstanceBase):
         if proc.returncode != 0 or my_stderr != "":
             raise ValueError("Could not read info from svn: " + my_stderr)
         # write svn info to file for debugging and reference. But go one folder up so not to be in the svn repo.
-        with open("../svn-info-for-fix-props.txt", "w") as wfd:
+        with open("../svn-info-for-fix-props.txt", "w", encoding='utf-8') as wfd:
             wfd.write(my_stdout)
         self.info_map_table.read_from_file("../svn-info-for-fix-props.txt", a_format="info")
 
@@ -487,7 +487,7 @@ class InstlAdmin(InstlInstanceBase):
         svn_props_command = [var_stack.resolve("$(SVN_CLIENT_PATH)"), "proplist", "--depth", "infinity"]
         proc = subprocess.Popen(svn_props_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         my_stdout, my_stderr = proc.communicate()
-        with open("../svn-proplist-for-fix-props.txt", "w") as wfd:
+        with open("../svn-proplist-for-fix-props.txt", "w", encoding='utf-8') as wfd:
             wfd.write(my_stdout)
         self.info_map_table.read_from_file(var_stack.resolve("../svn-proplist-for-fix-props.txt"), a_format="props")
 

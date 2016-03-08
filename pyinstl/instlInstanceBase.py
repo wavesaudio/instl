@@ -37,7 +37,8 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
         # only when allow_reading_of_internal_vars is true, variables who's name begins and ends with "__"
         # can be read from file
         self.allow_reading_of_internal_vars = False
-        self.path_searcher = utils.SearchPaths(var_stack.get_configVar_obj("__SEARCH_PATHS__"))
+        search_paths_var = var_stack.get_configVar_obj("__SEARCH_PATHS__")
+        self.path_searcher = utils.SearchPaths(search_paths_var)
         self.init_default_vars(initial_vars)
         # noinspection PyUnresolvedReferences
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
@@ -236,10 +237,10 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
             req_reader.read_require_node(a_node)
 
     def write_require_file(self, file_path, require_dict):
-        with open(file_path, "w") as wfd:
+        with open(file_path, "w", encoding='utf-8') as wfd:
             utils.make_open_file_read_write_for_all(wfd)
 
-            define_dict = aYaml.YamlDumpDocWrap({"REQUIRE_REPO_REV": var_stack.resolve("$(REPO_REV)")},
+            define_dict = aYaml.YamlDumpDocWrap({"REQUIRE_REPO_REV": var_stack.resolve("$(MAX_REPO_REV)")},
                                                 '!define', "definitions",
                                                  explicit_start=True, sort_mappings=True)
             require_dict = aYaml.YamlDumpDocWrap(require_dict, '!require', "requirements",
@@ -518,3 +519,9 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
         for install_def in list(self.install_definitions_index.values()):
             install_def.resolve_inheritance(self.install_definitions_index)
 
+
+    def read_info_map_from_file(self, info_map_from_file_path):
+        self.info_map_table.read_from_file(info_map_from_file_path, a_format="text")
+        min_revision, max_revision = self.info_map_table.min_max_revision()
+        var_stack.set_var("MIN_REPO_REV", "from " + info_map_from_file_path).append(min_revision)
+        var_stack.set_var("MAX_REPO_REV", "from " + info_map_from_file_path).append(max_revision)

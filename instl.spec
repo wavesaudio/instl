@@ -40,7 +40,7 @@ git_branch = check_output(["git", "rev-parse", "--symbolic-full-name", "--abbrev
 PyInstallerVersion =  re.split(r'[~\\/]+', HOMEPATH)[-1]
 
 compile_info_path = os.path.join("build", "compile-info.yaml")
-with open(compile_info_path, "w") as wfd:
+with open(compile_info_path, "w", encoding='utf-8') as wfd:
     wfd.write(
 """
 --- !define_const

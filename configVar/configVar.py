@@ -13,6 +13,7 @@ import os
 
 import utils
 
+
 class ConfigVar(object):
     """ Keep a single, named, config variable and it's values.
         Also info about where it came from (file, line).
@@ -29,10 +30,8 @@ class ConfigVar(object):
         self.__name = utils.unicodify(name)
         self.__description = utils.unicodify(description)
         self.resolved_num = 0
-        normed_values = list(map(utils.unicodify, values))
-        if self.__name.endswith(self.variable_name_endings_to_normpath):
-            normed_values = [os.path.normpath(value) for value in normed_values]
-        self.__values = list(map(utils.unicodify, normed_values))
+        self.__values = list()
+        ConfigVar.extend(self, values) # explicit call so ConstConfigVar can be initialized
 
     @property
     def name(self):
@@ -83,23 +82,19 @@ class ConfigVar(object):
     def clear_values(self):
         self.__values = list()
 
-    def append(self, value):
+    def norm_values(self, *values):
+        normed_values = list(map(utils.unicodify, values))
         if self.__name.endswith(self.variable_name_endings_to_normpath):
-            normed_value = os.path.normpath(value)
-            self.__values.append(normed_value)
-        else:
-            self.__values.append(utils.convert_to_str_unless_None(value))
+            normed_values = list(map(os.path.normpath, normed_values))
+        return normed_values
+
+    def append(self, value):
+        normed_value = self.norm_values(value)[0]
+        self.__values.append(normed_value)
 
     def extend(self, values):
-        if values:
-            if not hasattr(values, '__iter__'):
-                raise TypeError(str(values)+" is not a iterable")
-        if self.__name.endswith(self.variable_name_endings_to_normpath):
-            normed_values = [os.path.normpath(value) for value in values]
-            self.__values.extend(normed_values)
-        else:
-            self.__values.extend([utils.convert_to_str_unless_None(value) for value in values])
-
+        normed_values = self.norm_values(*values)
+        self.__values.extend(normed_values)
 
 class ConstConfigVar(ConfigVar):
     """ ConfigVar override where values cannot be changed after construction """

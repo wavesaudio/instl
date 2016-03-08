@@ -154,7 +154,7 @@ class InstlMisc(InstlInstanceBase):
     def do_check_checksum(self):
         self.progress_staccato_command = True
         bad_checksum_list = list()
-        self.info_map_table.read_from_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
+        self.read_info_map_from_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
         for file_item in self.info_map_table.get_items(what="file"):
             if os.path.isfile(file_item.path):
                 file_checksum = utils.get_file_checksum(file_item.path)
@@ -170,7 +170,7 @@ class InstlMisc(InstlInstanceBase):
 
     def do_set_exec(self):
         self.progress_staccato_command = True
-        self.info_map_table.read_from_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
+        self.read_info_map_from_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
         for file_item in self.info_map_table.get_exec_items(what="file"):
             if os.path.isfile(file_item.path):
                 file_stat = os.stat(file_item.path)
@@ -179,7 +179,7 @@ class InstlMisc(InstlInstanceBase):
 
     def do_create_folders(self):
         self.progress_staccato_command = True
-        self.info_map_table.read_from_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
+        self.read_info_map_from_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
         for dir_item in self.info_map_table.get_items(what="dir"):
             os.makedirs(dir_item.path, exist_ok=True)
             self.dynamic_progress("Create folder {dir_item.path}".format(**locals()))

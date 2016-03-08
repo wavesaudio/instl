@@ -35,7 +35,7 @@ class InstlClientCopy(InstlClient):
             if var_stack.defined('ECHO_LOG_FILE'):
                 log_file_path = var_stack.resolve("$(ECHO_LOG_FILE)")
                 log_folder, log_file = os.path.split(log_file_path)
-                with open(os.path.join(log_folder, "sync-folder-manifest.txt"), "w") as wfd:
+                with open(os.path.join(log_folder, "sync-folder-manifest.txt"), "w", encoding='utf-8') as wfd:
                     repo_sync_dir = var_stack.resolve("$(COPY_SOURCES_ROOT_DIR)")
                     wfd.write(utils.folder_listing(repo_sync_dir))
         except Exception:
@@ -65,7 +65,7 @@ class InstlClientCopy(InstlClient):
         # but before it was executed in which case HAVE_INFO_MAP_FOR_COPY will be defined to NEW_HAVE_INFO_MAP_PATH.
         if len(self.info_map_table.files_read_list) == 0:
             have_info_path = var_stack.resolve("$(HAVE_INFO_MAP_FOR_COPY)")
-            self.info_map_table.read_from_file(have_info_path, a_format="text")
+            self.read_info_map_from_file(have_info_path)
 
         # copy and actions instructions for sources
         self.batch_accum.set_current_section('copy')

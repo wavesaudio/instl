@@ -195,7 +195,10 @@ class InstallInstructionsState(object):
         # if in repair mode (__repair_installed_items is true), all items get last_require_repo_rev==0
         # by default and all items will be copied.
         if not self.__repair_installed_items:
-            require_file_repo_rev = int("$(REQUIRE_REPO_REV)" @ var_stack)
+            try:
+                require_file_repo_rev = int("$(REQUIRE_REPO_REV)" @ var_stack)
+            except ValueError:
+                require_file_repo_rev = 0 # in case there was junk in require file
             for iid in self.__actual_update_items:
                 self.__instlObj.install_definitions_index[iid].last_require_repo_rev = require_file_repo_rev
 

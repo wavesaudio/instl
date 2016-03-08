@@ -62,7 +62,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
                                       cache=True,
                                       expected_checksum=var_stack.resolve("$(INFO_MAP_FILE_URL_CHECKSUM)"))
 
-            self.instlObj.info_map_table.read_from_file(local_copy_of_info_map, a_format="text")
+            self.instlObj.read_info_map_from_file(local_copy_of_info_map)
             self.instlObj.info_map_table.write_to_file(var_stack.resolve("$(NEW_HAVE_INFO_MAP_PATH)"), field_to_write=('path', 'flags', 'revision', 'checksum', 'size'))
             #utils.smart_copy_file(local_copy_of_info_map,
             #                      var_stack.resolve("$(NEW_HAVE_INFO_MAP_PATH)"))
