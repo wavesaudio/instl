@@ -209,8 +209,12 @@ class InstlClientCopy(InstlClient):
             self.batch_accum += self.platform_helper.echo("copy {source_item_path}".format(**locals()))
 
             if 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
-                self.batch_accum += self.platform_helper.chmod(source_file.chmod_spec(), source_file.name())
-                self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_file.chmod_spec(), source_file.name()))
+                if not source_file.path.endswith(".symlink"):
+                    self.batch_accum += self.platform_helper.chmod(source_file.chmod_spec(), source_file.name())
+                    self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_file.chmod_spec(), source_file.name()))
+                else:   # a hack to prevent chmod for symlink files because .symlink files might have been already handled
+                        # by resolve_symlinks in the sync stage by instl version <= 1.0.
+                    self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_file.name()))
 
             self.bytes_to_copy += self.calc_size_of_file_item(source_file)
             if source_file.is_first_wtar_file():
@@ -232,8 +236,12 @@ class InstlClientCopy(InstlClient):
         if 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
             for source_item in source_items:
                 source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path)
-                self.batch_accum += self.platform_helper.chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)
-                self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_item.chmod_spec(), source_path_relative_to_current_dir))
+                if not source_item.path.endswith(".symlink"):
+                    self.batch_accum += self.platform_helper.chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)
+                    self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_item.chmod_spec(), source_path_relative_to_current_dir))
+                else:   # a hack to prevent chmod for symlink files because .symlink files might have been already handled
+                        # by resolve_symlinks in the sync stage by instl version <= 1.0.
+                    self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_path_relative_to_current_dir))
 
         items_to_unwtar = list()
         for source_item in source_items:
@@ -253,8 +261,12 @@ class InstlClientCopy(InstlClient):
 
         if 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
             for source_file in source_files:
-                self.batch_accum += self.platform_helper.chmod(source_file.chmod_spec(), source_file.name())
-                self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_file.chmod_spec(), source_file.name()))
+                if not source_file.path.endswith(".symlink"):
+                    self.batch_accum += self.platform_helper.chmod(source_file.chmod_spec(), source_file.name())
+                    self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_file.chmod_spec(), source_file.name()))
+                else:   # a hack to prevent chmod for symlink files because .symlink files might have been already handled
+                        # by resolve_symlinks in the sync stage by instl version <= 1.0.
+                    self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_file.name()))
 
         num_items_to_unwtar = 0
         for source_file in source_files:
@@ -276,9 +288,12 @@ class InstlClientCopy(InstlClient):
             if 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
                 for source_item in source_items:
                     source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path_dir)
-                    self.batch_accum += self.platform_helper.chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)
-                    self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_item.chmod_spec(), source_path_relative_to_current_dir))
-
+                    if not source_item.path.endswith(".symlink"):
+                        self.batch_accum += self.platform_helper.chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)
+                        self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_item.chmod_spec(), source_path_relative_to_current_dir))
+                    else:   # a hack to prevent chmod for symlink files because .symlink files might have been already handled
+                            # by resolve_symlinks in the sync stage by instl version <= 1.0.
+                        self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_path_relative_to_current_dir))
             items_to_unwtar = list()
             for source_item in source_items:
                 self.bytes_to_copy += self.calc_size_of_file_item(source_item)
