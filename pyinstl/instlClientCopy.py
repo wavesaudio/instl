@@ -208,7 +208,7 @@ class InstlClientCopy(InstlClient):
                                                                                 ignore=self.ignore_list)
             self.batch_accum += self.platform_helper.echo("copy {source_item_path}".format(**locals()))
 
-            if 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
+            if 'Mac' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
                 if not source_file.path.endswith(".symlink"):
                     self.batch_accum += self.platform_helper.chmod(source_file.chmod_spec(), source_file.name())
                     self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_file.chmod_spec(), source_file.name()))
@@ -233,7 +233,7 @@ class InstlClientCopy(InstlClient):
         self.batch_accum += self.platform_helper.echo("copy {source_path_abs}".format(**locals()))
         source_items = self.info_map_table.get_items_in_dir(dir_path=source_path, what="any")
 
-        if 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
+        if 'Mac' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
             for source_item in source_items:
                 source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path)
                 if not source_item.path.endswith(".symlink"):
@@ -259,7 +259,7 @@ class InstlClientCopy(InstlClient):
 
         source_files = self.info_map_table.get_items_in_dir(dir_path=source_path, what="file", levels_deep=1)
 
-        if 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
+        if 'Mac' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
             for source_file in source_files:
                 if not source_file.path.endswith(".symlink"):
                     self.batch_accum += self.platform_helper.chmod(source_file.chmod_spec(), source_file.name())
@@ -285,7 +285,7 @@ class InstlClientCopy(InstlClient):
             source_items = self.info_map_table.get_items_in_dir(dir_path=source_path, what="any")
 
             source_path_dir, source_path_name = os.path.split(source_path)
-            if 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
+            if 'Mac' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
                 for source_item in source_items:
                     source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path_dir)
                     if not source_item.path.endswith(".symlink"):
