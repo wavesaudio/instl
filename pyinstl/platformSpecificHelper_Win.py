@@ -428,6 +428,12 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def tar(self, to_tar_name):
         raise NotImplementedError
 
+    def unwtar_something(self, what_to_unwtar, no_artifacts=False):
+        unwtar_command = super().unwtar_something(what_to_unwtar, no_artifacts)
+        check_error_level_command = self.exit_if_error(error_threshold=1)
+        return unwtar_command, check_error_level_command
+
+
     def wait_for_child_processes(self):
         return ("echo wait_for_child_processes not implemented yet for windows",)
 

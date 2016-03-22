@@ -220,8 +220,9 @@ class InstlClientCopy(InstlClient):
             if source_file.is_first_wtar_file():
                 first_wtar_item = source_file
         if first_wtar_item:
+            self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
             self.batch_accum += self.platform_helper.unwtar_something(first_wtar_item.name(), no_artifacts=True)
-            self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
+            self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
 
     def create_copy_instructions_for_dir_cont(self, source_path, name_for_progress_message):
         source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
@@ -247,8 +248,9 @@ class InstlClientCopy(InstlClient):
         for source_item in source_items:
             self.bytes_to_copy += self.calc_size_of_file_item(source_item)
             if source_item.is_first_wtar_file():
+                self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
                 self.batch_accum += self.platform_helper.unwtar_something(source_item.path_starting_from_dir(source_path), no_artifacts=True)
-                self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
+                self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
 
     def create_copy_instructions_for_files(self, source_path, name_for_progress_message):
         source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
@@ -272,8 +274,9 @@ class InstlClientCopy(InstlClient):
         for source_file in source_files:
             self.bytes_to_copy += self.calc_size_of_file_item(source_file)
             if source_file.is_first_wtar_file():
+                self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
                 self.batch_accum += self.platform_helper.unwtar_something(source_file.name(), no_artifacts=True)
-                self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
+                self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
 
     def create_copy_instructions_for_dir(self, source_path, name_for_progress_message):
         dir_item = self.info_map_table.get_item(source_path, what="dir")
@@ -298,8 +301,9 @@ class InstlClientCopy(InstlClient):
             for source_item in source_items:
                 self.bytes_to_copy += self.calc_size_of_file_item(source_item)
                 if source_item.is_first_wtar_file():
+                    self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
                     self.batch_accum += self.platform_helper.unwtar_something(source_item.path_starting_from_dir(source_path_dir), no_artifacts=True)
-                    self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message}".format(**locals()))
+                    self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
         else:
             # it might be a dir that was wtarred
             self.create_copy_instructions_for_file(source_path, name_for_progress_message)
