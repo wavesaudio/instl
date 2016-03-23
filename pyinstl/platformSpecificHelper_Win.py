@@ -446,8 +446,8 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def unlock(self, file_path, recursive=False, ignore_errors=True):
         recurse_flag = ""
         if recursive:
-            recurse_flag = "/S"
-        writable_command = " ".join(("attrib", "-R", recurse_flag, "/D", utils.quoteme_double(file_path)))
+            recurse_flag = "/S /D"
+        writable_command = " ".join(("$(ATTRIB_PATH)", "-R", recurse_flag, utils.quoteme_double(file_path)))
         return writable_command
 
     def touch(self, file_path):
