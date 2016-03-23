@@ -221,6 +221,7 @@ class InstlClientCopy(InstlClient):
                 first_wtar_item = source_file
         if first_wtar_item:
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
+            self.batch_accum += self.platform_helper.unlock(first_wtar_item.name_without_wtar_extension())
             self.batch_accum += self.platform_helper.unwtar_something(first_wtar_item.name(), no_artifacts=True)
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
 
@@ -249,6 +250,7 @@ class InstlClientCopy(InstlClient):
             self.bytes_to_copy += self.calc_size_of_file_item(source_item)
             if source_item.is_first_wtar_file():
                 self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
+                self.batch_accum += self.platform_helper.unlock(source_item.name_without_wtar_extension(), recursive=True)
                 self.batch_accum += self.platform_helper.unwtar_something(source_item.path_starting_from_dir(source_path), no_artifacts=True)
                 self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
 
@@ -275,6 +277,7 @@ class InstlClientCopy(InstlClient):
             self.bytes_to_copy += self.calc_size_of_file_item(source_file)
             if source_file.is_first_wtar_file():
                 self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
+                self.batch_accum += self.platform_helper.unlock(source_file.name_without_wtar_extension())
                 self.batch_accum += self.platform_helper.unwtar_something(source_file.name(), no_artifacts=True)
                 self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
 
@@ -302,6 +305,7 @@ class InstlClientCopy(InstlClient):
                 self.bytes_to_copy += self.calc_size_of_file_item(source_item)
                 if source_item.is_first_wtar_file():
                     self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
+                    self.batch_accum += self.platform_helper.unlock(source_item.name_without_wtar_extension(), recursive=True)
                     self.batch_accum += self.platform_helper.unwtar_something(source_item.path_starting_from_dir(source_path_dir), no_artifacts=True)
                     self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
         else:

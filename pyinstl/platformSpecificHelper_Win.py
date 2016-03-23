@@ -443,11 +443,12 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def make_executable(self, file_path):
         raise NotImplementedError
 
-    def unlock(self, file_path, recursive=False):
-        """ Remove the system's read-only flag, this is different from permissions.
-            Not relevant for Linux.
-        """
-        raise NotImplementedError
+    def unlock(self, file_path, recursive=False, ignore_errors=True):
+        recurse_flag = ""
+        if recursive:
+            recurse_flag = "/S"
+        writable_command = " ".join(("attrib", "-R", recurse_flag, "/D", utils.quoteme_double(file_path)))
+        return writable_command
 
     def touch(self, file_path):
         touch_command = " ".join(("type", "NUL", ">", utils.quoteme_double(file_path)))

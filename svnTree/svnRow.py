@@ -8,7 +8,7 @@ from sqlalchemy.ext.declarative import declarative_base
 
 alchemy_base = declarative_base()
 
-wtar_file_re = re.compile(r"""^.+\.wtar(\...)?$""")
+wtar_file_re = re.compile(r"""^(?P<original_name>.+)\.wtar(\...)?$""")
 
 
 fields_relevant_to_dirs = ('path', 'parent', 'level', 'flags', 'revision', 'required')
@@ -92,6 +92,20 @@ class SVNRow(alchemy_base):
 
     def isSymlink(self):
         return 's' in self.flags
+
+    def name_without_wtar_extension(self):
+        retVal = self.name()
+        match = wtar_file_re.match(retVal)
+        if match:
+            retVal = match.group('original_name')
+        return retVal
+
+    def path_without_wtar_extension(self):
+        retVal = self.path
+        match = wtar_file_re.match(retVal)
+        if match:
+            retVal = match.group('original_name')
+        return retVal
 
     def is_wtar_file(self):
         match = wtar_file_re.match(self.path)
