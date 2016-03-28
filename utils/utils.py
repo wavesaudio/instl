@@ -151,9 +151,14 @@ def read_from_file_or_url(in_url, translate_url_callback=None, public_key=None, 
             contents_buffer = unicodify(contents_buffer, encoding=encoding)
         # check sig or checksum only if they were given
         if (public_key, textual_sig, expected_checksum) != (None, None, None):
+            if encoding is not None:
+                print("Checksum check requested for", in_url, "but encoding is not None, encoding:", encoding,
+                      "expected checksum: ", expected_checksum)
             buffer_ok = check_buffer_signature_or_checksum(contents_buffer, public_key, textual_sig, expected_checksum)
             if not buffer_ok:
-                raise IOError("Checksum or Signature mismatch", in_url)
+                actual_checksum = get_buffer_checksum(contents_buffer)
+                raise IOError("Checksum or Signature mismatch", in_url, "expected checksum: ", expected_checksum,
+                              "actual checksum:", actual_checksum, "encoding:", encoding)
     return contents_buffer
 
 
