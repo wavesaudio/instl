@@ -21,6 +21,13 @@ command:
             If --sha2 option is given check-sig will calculate the file's sha1 checksum and compare the result to the given checksum.
             check-sig is a utility command, it is not needed for creating or using instl-based installer.
 
+    checksum:
+        short: calculate sha1 checksum for a file or files in a folder (misc command)
+        long: |
+            Usage: instl checksum --in path_to_file_or_folder_to_checksum
+            checksum command just calculates the file(s)'s checksum, it does not check against any given checksum as check-sig or check-checksum commands do.
+            checksum is a utility command, it is not needed for creating or using instl-based installer.
+
     copy:
       short: Install files to their destination. (client command)
       long: |

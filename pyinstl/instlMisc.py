@@ -292,3 +292,15 @@ class InstlMisc(InstlInstanceBase):
         print("Failing on purpose with exit code", exit_code)
         sys.exit(exit_code)
 
+
+    def do_checksum(self):
+        path_to_checksum = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
+        if os.path.isfile(path_to_checksum):
+            the_checksum = utils.get_file_checksum(path_to_checksum)
+            print(": ".join((path_to_checksum, the_checksum)))
+        elif os.path.isdir(path_to_checksum):
+            for root, dirs, files in os.walk(path_to_checksum):
+                for a_file in files:
+                    a_file_path = os.path.join(root, a_file)
+                    the_checksum = utils.get_file_checksum(a_file_path)
+                    print(": ".join((a_file_path, the_checksum)))
