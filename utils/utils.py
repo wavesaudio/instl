@@ -151,6 +151,8 @@ def read_from_file_or_url(in_url, translate_url_callback=None, public_key=None, 
             contents_buffer = unicodify(contents_buffer, encoding=encoding)
         # check sig or checksum only if they were given
         if (public_key, textual_sig, expected_checksum) != (None, None, None):
+            if len(contents_buffer) == 0:
+                print("Empty contents returned from", in_url)
             if encoding is not None:
                 print("Checksum check requested for", in_url, "but encoding is not None, encoding:", encoding,
                       "expected checksum: ", expected_checksum)
