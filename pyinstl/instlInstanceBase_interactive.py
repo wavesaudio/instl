@@ -335,9 +335,9 @@ class CMDObj(cmd.Cmd, object):
 
 
     def do_statistics(self, unused_params):
-        num_files = self.admin_prog_inst.num_items("all-files")
-        num_dirs =  self.admin_prog_inst.num_items("all-dirs")
-        num_total = self.admin_prog_inst.num_items("all-items")
+        num_files = self.admin_prog_inst.info_map_table.num_items("all-files")
+        num_dirs =  self.admin_prog_inst.info_map_table.num_items("all-dirs")
+        num_total = self.admin_prog_inst.info_map_table.num_items("all-items")
         min_revision, max_revision = self.admin_prog_inst.info_map_table.min_max_revision()
 
         print("Num files:", num_files)
@@ -400,7 +400,7 @@ class CMDObj(cmd.Cmd, object):
                 self.admin_prog_inst.info_map_table.read_from_file(a_file)
                 time_end = time.clock()
                 print("opened file:", "'" + a_file + "'")
-                print("    %d items read in %0.3f ms" % (self.admin_prog_inst.num_items("all-items"), (time_end-time_start)*1000.0))
+                print("    %d items read in %0.3f ms" % (self.admin_prog_inst.info_map_table.num_items("all-items"), (time_end-time_start)*1000.0))
         else:
             self.help_read()
         return False
