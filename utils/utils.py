@@ -152,10 +152,9 @@ def read_from_file_or_url(in_url, translate_url_callback=None, public_key=None, 
         # check sig or checksum only if they were given
         if (public_key, textual_sig, expected_checksum) != (None, None, None):
             if len(contents_buffer) == 0:
-                print("Empty contents returned from", in_url)
+                raise IOError("Empty contents returned from", in_url, "; expected checksum: ", expected_checksum, "; encoding:", encoding)
             if encoding is not None:
-                print("Checksum check requested for", in_url, "but encoding is not None, encoding:", encoding,
-                      "expected checksum: ", expected_checksum)
+                raise IOError("Checksum check requested for", in_url, "but encoding is not None, encoding:", encoding, "; expected checksum: ", expected_checksum)
             buffer_ok = check_buffer_signature_or_checksum(contents_buffer, public_key, textual_sig, expected_checksum)
             if not buffer_ok:
                 actual_checksum = get_buffer_checksum(contents_buffer)
@@ -846,9 +845,11 @@ def folder_listing(*folders_to_list):
 
 def unicodify(in_something, encoding='utf-8'):
     if in_something is not None:
-        try:
+        if isinstance(in_something, str):
+            retVal = in_something
+        elif isinstance(in_something, bytes):
             retVal = in_something.decode(encoding)
-        except Exception:
+        else:
             retVal = str(in_something)
     else:
         retVal = None
