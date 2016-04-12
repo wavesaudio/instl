@@ -1,5 +1,5 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 import subprocess
 import time
@@ -17,20 +17,21 @@ def run_processes_in_parallel(commands):
         run_parallels(commands)
         exit_val = 0
         killall_and_exit()
-    except Exception as es:
+    except Exception:
         killall_and_exit()
+
 
 def run_parallels(commands):
     global exit_val
     for command in commands:
         try:
             if getattr(os, "setsid", None):
-                proc = subprocess.Popen(command, executable=command[0], shell=False, preexec_fn=os.setsid) # Unix
+                a_process = subprocess.Popen(command, executable=command[0], shell=False, preexec_fn=os.setsid) # Unix
             else:
-                proc = subprocess.Popen(command, executable=command[0], shell=False) # Windows
-            #print("Started", command, proc.pid)
+                a_process = subprocess.Popen(command, executable=command[0], shell=False) # Windows
+            #print("Started", command, a_process.pid)
             #sys.stdout.flush()
-            process_list.append(proc)
+            process_list.append(a_process)
         except Exception as es:
             print("failed to start", command, es.strerror, file=sys.stderr)
             sys.stdout.flush()
@@ -39,15 +40,15 @@ def run_parallels(commands):
 
     active_process_list = list()
     while process_list:
-        for proc in process_list:
-            status = proc.poll()
+        for a_process in process_list:
+            status = a_process.poll()
             if status is None: # None means it's still alive
-                #sys.stdout.write(str(proc.pid) + " still alive\n")
+                #sys.stdout.write(str(a_process.pid) + " still alive\n")
                 #sys.stdout.flush()
-                active_process_list.append(proc)
+                active_process_list.append(a_process)
                 #continue
             else:
-                #sys.stdout.write(str(proc.pid) + " just died " + str(status) + "\n")
+                #sys.stdout.write(str(a_process.pid) + " just died " + str(status) + "\n")
                 #sys.stdout.flush()
                 if status != 0:
                     exit_val = status
@@ -64,15 +65,15 @@ def signal_handler(signum, frame):
     killall_and_exit()
 
 def killall_and_exit():
-    for proc in process_list:
-        status = proc.poll()
+    for a_process in process_list:
+        status = a_process.poll()
         if status is None: # None means it's still alive
-            #sys.stdout.write("killall_and_exit: "+str(proc.pid) + " gets killed\n")
+            #sys.stdout.write("killall_and_exit: "+str(a_process.pid) + " gets killed\n")
             #sys.stdout.flush()
             if getattr(os, "killpg", None):
-                os.killpg(proc.pid, signal.SIGTERM) # Unix
+                os.killpg(a_process.pid, signal.SIGTERM) # Unix
             else:
-                proc.kill() # Windows
+                a_process.kill() # Windows
     sys.exit(exit_val)
     
 def install_signal_handlers():

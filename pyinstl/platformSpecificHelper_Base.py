@@ -1,21 +1,20 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 import os
 import abc
 
 import utils
 from configVar import var_stack
-import connectionBase
+from . import connectionBase
 
 
-class CopyToolBase(object):
+class CopyToolBase(object, metaclass=abc.ABCMeta):
     """ Create copy commands. Each function should be overridden to implement the copying
         on specific platform using a specific copying tool. All functions return
         a list of commands, even if there is only one. This will allow to return
         multiple commands if needed.
     """
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self, platform_helper):
         self.platform_helper = platform_helper
@@ -83,7 +82,7 @@ class CopyToolBase(object):
 
 class CopyToolRsync(CopyToolBase):
     def __init__(self, platform_helper):
-        super(CopyToolRsync, self).__init__(platform_helper)
+        super().__init__(platform_helper)
 
     def finalize(self):
         pass
@@ -97,7 +96,7 @@ class CopyToolRsync(CopyToolBase):
     def create_ignore_spec(self, ignore):
         retVal = ""
         if ignore:
-            if isinstance(ignore, basestring):
+            if isinstance(ignore, str):
                 ignore = (ignore,)
             retVal = " ".join(["--exclude=" + utils.quoteme_single(ignoree) for ignoree in ignore])
         return retVal
@@ -112,13 +111,7 @@ class CopyToolRsync(CopyToolBase):
         else:
             sync_command = """rsync -l -r -E --delete {ignore_spec} "{src_dir}" "{trg_dir}" """.format(**locals())
 
-        permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)", default="")
-        chmod_command = ""
-        if permissions_spec:
-            src_dir_dir, src_dir_name = os.path.split(src_dir)
-            target = os.path.join(trg_dir, src_dir_name)
-            chmod_command ="""chmod -f -R {permissions_spec} "{target}" """.format(**locals())
-        return sync_command, chmod_command
+        return sync_command
 
     def copy_file_to_dir(self, src_file, trg_dir, link_dest=False, ignore=None):
         assert not src_file.endswith("/")
@@ -131,13 +124,7 @@ class CopyToolRsync(CopyToolBase):
         else:
             sync_command = """rsync -l -r -E {ignore_spec} "{src_file}" "{trg_dir}" """.format(**locals())
 
-        permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)", default="")
-        chmod_command = ""
-        if permissions_spec:
-            src_file_dir, src_file_name = os.path.split(src_file)
-            target = os.path.join(trg_dir, src_file_name)
-            chmod_command ="""chmod -f {permissions_spec} "{target}" """.format(**locals())
-        return sync_command, chmod_command
+        return sync_command
 
     def copy_file_to_file(self, src_file, trg_file, link_dest=False, ignore=None):
         assert not src_file.endswith("/")
@@ -150,11 +137,7 @@ class CopyToolRsync(CopyToolBase):
         else:
             sync_command = """rsync -l -r -E {ignore_spec} "{src_file}" "{trg_file}" """.format(**locals())
 
-        permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)", default="")
-        chmod_command = ""
-        if permissions_spec:
-            chmod_command ="""chmod -f {permissions_spec} "{trg_file}" """.format(**locals())
-        return sync_command, chmod_command
+        return sync_command
 
     def copy_dir_contents_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None, preserve_dest_files=True):
         if not src_dir.endswith("/"):
@@ -169,11 +152,7 @@ class CopyToolRsync(CopyToolBase):
         else:
             sync_command = """rsync -l -r -E {delete_spec} {ignore_spec} "{src_dir}" "{trg_dir}" """.format(**locals())
 
-        permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)", default="")
-        chmod_command = ""
-        if permissions_spec:
-            chmod_command = """chmod -f -R {permissions_spec} "{trg_dir}" """.format(**locals())
-        return sync_command, chmod_command
+        return sync_command
 
     def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
         if not src_dir.endswith("/"):
@@ -186,11 +165,7 @@ class CopyToolRsync(CopyToolBase):
         else:
             sync_command = """rsync -l -E -d --exclude='*/' {ignore_spec} "{src_dir}"/* "{trg_dir}" """.format(**locals())
 
-        permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)")
-        chmod_command = ""
-        if permissions_spec:
-            chmod_command = """find "{trg_dir}" -maxdepth 1 -mindepth 1 -type f -print0 | xargs -0 chmod -f {permissions_spec}""".format(**locals())
-        return sync_command, chmod_command
+        return sync_command
 
     def remove_file(self, file_to_remove):
         remove_command = """rm -f -v "{file_to_remove}" """.format(**locals())
@@ -301,8 +276,7 @@ class PlatformSpecificHelperBase(object):
         retVal = ()
         self.progress_staccato_count = (self.progress_staccato_count + 1) % self.progress_staccato_period
         if self.progress_staccato_count == 0:
-            prog_instruction = self.progress(msg)
-            retVal = prog_instruction
+            retVal = self.progress(msg)
         return retVal
 
     @abc.abstractmethod
@@ -380,16 +354,12 @@ class PlatformSpecificHelperBase(object):
     def tar(self, to_tar_name):
         pass
 
-    @abc.abstractmethod
-    def unwtar_file(self, filepath):
-        pass
-
     def unwtar_something(self, what_to_unwtar, no_artifacts=False):
         unwtar_command_parts = [self.instlObj.platform_helper.run_instl(),
                                 "unwtar",
                                 "--in", utils.quoteme_double(what_to_unwtar),
-                                "--start-progress", str(self.num_items_for_progress_report),
-                                "--total-progress", "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)",
+                                #"--start-progress", str(self.num_items_for_progress_report),
+                                #"--total-progress", "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)",
         ]
         if no_artifacts:
             unwtar_command_parts.append("--no-artifacts")
@@ -405,15 +375,15 @@ class PlatformSpecificHelperBase(object):
         pass
 
     @abc.abstractmethod
-    def chmod(self, new_mode, filepath):
+    def chmod(self, new_mode, file_path):
         pass
 
     @abc.abstractmethod
-    def make_executable(self, filepath):
+    def make_executable(self, file_path):
         pass
 
     @abc.abstractmethod
-    def unlock(self, filepath, recursive=False):
+    def unlock(self, file_path, recursive=False, ignore_errors=True):
         """ Remove the system's read-only flag, this is different from permissions.
             For changing permissions use chmod.
         """
@@ -437,15 +407,15 @@ class PlatformSpecificHelperBase(object):
 
 def PlatformSpecificHelperFactory(in_os, instlObj):
     if in_os == "Mac":
-        import platformSpecificHelper_Mac
+        from . import platformSpecificHelper_Mac
 
         retVal = platformSpecificHelper_Mac.PlatformSpecificHelperMac(instlObj)
     elif in_os == "Win":
-        import platformSpecificHelper_Win
+        from . import platformSpecificHelper_Win
 
         retVal = platformSpecificHelper_Win.PlatformSpecificHelperWin(instlObj)
     elif in_os == "Linux":
-        import platformSpecificHelper_Linux
+        from . import platformSpecificHelper_Linux
 
         retVal = platformSpecificHelper_Linux.PlatformSpecificHelperLinux(instlObj)
     else:
@@ -453,7 +423,7 @@ def PlatformSpecificHelperFactory(in_os, instlObj):
     return retVal
 
 
-class DownloadToolBase(object):
+class DownloadToolBase(object, metaclass=abc.ABCMeta):
     """ Create download commands. Each function should be overridden to implement the download
         on specific platform using a specific copying tool. All functions return
         a list of commands, even if there is only one. This will allow to return
@@ -462,8 +432,6 @@ class DownloadToolBase(object):
     curl_write_out_str = r'%{url_effective}, %{size_download} bytes, %{time_total} sec., %{speed_download} bps.\n'
     # for debugging:
     curl_extra_write_out_str = r'    num_connects:%{num_connects}, time_namelookup: %{time_namelookup}, time_connect: %{time_connect}, time_pretransfer: %{time_pretransfer}, time_redirect: %{time_redirect}, time_starttransfer: %{time_starttransfer}\n\n'
-
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self, platform_helper):
         self.platform_helper = platform_helper

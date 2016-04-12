@@ -1,10 +1,9 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 import sys
 import os
 import time
-import logging
 import shlex
 import platform
 import re
@@ -12,7 +11,7 @@ import re
 import appdirs
 
 import utils
-from installItem import guid_list, iids_from_guid
+from .installItem import guid_list, iids_from_guids
 from configVar import var_stack
 
 
@@ -26,7 +25,7 @@ elif current_os == 'Linux':
 
 try:
     import cmd
-except:
+except Exception:
     print("failed to import cmd, interactive mode not supported")
     raise
 
@@ -36,12 +35,17 @@ try:
 
     readline_loaded = True
 except ImportError:
-    try:
-        import pyreadline as readline
+    if current_os == 'Win':
+        try:
+            import pyreadline as readline
 
-        readline_loaded = True
-    except ImportError:
-        print("failed to import pyreadline, readline functionality not supported")
+            readline_loaded = True
+        except ImportError:
+            print("failed to import pyreadline, readline functionality not supported")
+        except BaseException as ex:
+            print(type(ex), ex, "failed to import pyreadline, readline functionality not supported")
+    else:
+        print("failed to import readline, readline functionality not supported")
 
 colorama_loaded = False
 try:
@@ -51,7 +55,7 @@ try:
 except ImportError:
     print("failed to import colorama, color text functionality not supported")
 
-import instlInstanceBase
+from . import instlInstanceBase
 import aYaml
 
 if colorama_loaded:
@@ -118,17 +122,14 @@ class CMDObj(cmd.Cmd, object):
             readline.parse_and_bind("set show-all-if-unmodified on")
             readline.parse_and_bind("set expand-tilde on")
             history_file_dir = appdirs.user_data_dir(self.this_program_name, self.this_program_name)
-            try:
-                os.makedirs(history_file_dir)
-            except:  # os.makedirs raises is the directory already exists
-                pass
+            os.makedirs(history_file_dir, exist_ok=True)
             self.history_file_path = os.path.join(history_file_dir, "." + self.this_program_name + "_console_history")
             try:
                 readline.read_history_file(self.history_file_path)
-            except:  # Corrupt or non existent history file might raise an exception
+            except Exception:  # Corrupt or non existent history file might raise an exception
                 try:
                     os.remove(self.history_file_path)
-                except:
+                except Exception:
                     pass  # if removing the file also fail - just ignore it
         if colorama_loaded:
             colorama.init()
@@ -142,7 +143,7 @@ class CMDObj(cmd.Cmd, object):
                 compact_history()
                 readline.set_history_length(32)
                 readline.write_history_file(self.history_file_path)
-        except:
+        except Exception:
             pass
         # restart only after saving history, otherwise history will not be saved (;-o).
         os.chdir(self.save_dir)
@@ -152,16 +153,11 @@ class CMDObj(cmd.Cmd, object):
     def onecmd(self, line):
         retVal = False
         try:
-            retVal = super(CMDObj, self).onecmd(line)
+            retVal = super().onecmd(line)
         except utils.InstlException as ie:
             print("instl exception", ie.message)
-            from utils.log_utils import debug_logging_started
-
-            if debug_logging_started:
-                import traceback
-
-                traceback.print_exception(type(ie.original_exception), ie.original_exception, sys.exc_info()[2])
-        except Exception as unused_ex:
+            traceback.print_exception(type(ie.original_exception), ie.original_exception, sys.exc_info()[2])
+        except Exception:
             print("unhandled exception")
             import traceback
 
@@ -174,16 +170,16 @@ class CMDObj(cmd.Cmd, object):
             try:
                 matches.extend(insensitive_glob(text + '*'))
             except Exception as es:
-                logging.info(es)
+                pass
         return matches
 
     def dir_completion(self, text, unused_line, unused_begidx, unused_endidx):
         matches = []
         if text:
             try:
-                matches.extend([adir for adir in insensitive_glob(text + '*') if os.path.isdir(adir)])
+                matches.extend([a_dir for a_dir in insensitive_glob(text + '*') if os.path.isdir(a_dir)])
             except Exception as es:
-                logging.info(es)
+                pass
         return matches
 
     def do_shell(self, s):
@@ -209,19 +205,19 @@ class CMDObj(cmd.Cmd, object):
 
     def prepare_coloring_dict(self):
         """ Prepare a dictionary with identifiers mapped to their "colored" representation.
-            Left hand index enrties: 'SAMPLE_IID:' translates to colorama.Fore.GREEN+'SAMPLE_IID'+colorama.Fore.RESET+":".
-            Right hand index enrties: '- SAMPLE_IID:' translates to "- "+colorama.Fore.YELLOW+'SAMPLE_IID'+colorama.Fore.RESET.
-            Variable references: $(SAMPLE_VARAIBLE) translates to colorama.Fore.BLUE+$(SAMPLE_VARAIBLE).
-            The returned dictionary can be used in replace_all_from_dict() for "coloring" the text before output to stdcout.
+            Left hand index entries: 'SAMPLE_IID:' translates to colorama.Fore.GREEN+'SAMPLE_IID'+colorama.Fore.RESET+":".
+            Right hand index entries: '- SAMPLE_IID:' translates to "- "+colorama.Fore.YELLOW+'SAMPLE_IID'+colorama.Fore.RESET.
+            Variable references: $(SAMPLE_VARIABLE) translates to colorama.Fore.BLUE+$(SAMPLE_VARIABLE).
+            The returned dictionary can be used in replace_all_from_dict() for "coloring" the text before output to stdout.
         """
         retVal = dict()
-        defs = self.client_prog_inst.create_completion_list("define")
+        definitions = self.client_prog_inst.create_completion_list("define")
         index = self.client_prog_inst.create_completion_list("index")
         guids = self.client_prog_inst.create_completion_list("guid")
 
-        retVal.update({"$(" + identi + ")": text_with_color("$(" + identi + ")", "blue") for identi in defs})
-        retVal.update({identi + ":": text_with_color(identi, "green") + ":" for identi in defs})
-        retVal.update({"- " + identi: "- " + text_with_color(identi, "yellow") for identi in defs})
+        retVal.update({"$(" + identi + ")": text_with_color("$(" + identi + ")", "blue") for identi in definitions})
+        retVal.update({identi + ":": text_with_color(identi, "green") + ":" for identi in definitions})
+        retVal.update({"- " + identi: "- " + text_with_color(identi, "yellow") for identi in definitions})
 
         retVal.update({dex + ":": text_with_color(dex, "green") + ":" for dex in index})
         retVal.update({"- " + dex: "- " + text_with_color(dex, "yellow") for dex in index})
@@ -238,14 +234,14 @@ class CMDObj(cmd.Cmd, object):
         return retVal
 
     def do_apropos(self, params):
-        defs = self.client_prog_inst.create_completion_list("define")
+        definitions = self.client_prog_inst.create_completion_list("define")
         index = self.client_prog_inst.create_completion_list("index")
         guids = self.client_prog_inst.create_completion_list("guid")
-        defs_results = utils.unique_list()
+        definitions_results = utils.unique_list()
         index_results = utils.unique_list()
         guids_results = utils.unique_list()
         search_for = params.split()
-        work_list = ((defs, defs_results), (index, index_results), (guids, guids_results))
+        work_list = ((definitions, definitions_results), (index, index_results), (guids, guids_results))
         for param in search_for:
             for id_list, results in work_list:
                 for identifier in id_list:
@@ -253,8 +249,8 @@ class CMDObj(cmd.Cmd, object):
                     if found_it:
                         results.append (identifier)
         print ("variables:")
-        if defs_results:
-            for var in defs_results:
+        if definitions_results:
+            for var in definitions_results:
                 print ("   ", var)
         else:
             print ("    no matching variables were found")
@@ -290,7 +286,7 @@ class CMDObj(cmd.Cmd, object):
                 self.client_prog_inst.do_list(identifier_list, out_list)
         else:
             self.client_prog_inst.do_list(None, out_list)
-        joined_list = "".join(out_list.list()).encode('ascii', 'ignore')  # just in case some unicode got in...
+        joined_list = "".join(out_list.list())
         colored_string = self.color_vars(joined_list)
         sys.stdout.write(colored_string)
         return False
@@ -339,14 +335,11 @@ class CMDObj(cmd.Cmd, object):
 
 
     def do_statistics(self, unused_params):
-        num_files = self.admin_prog_inst.svnTree.num_subs_in_tree(what="file")
-        num_dirs = self.admin_prog_inst.svnTree.num_subs_in_tree(what="dir")
-        num_total = self.admin_prog_inst.svnTree.num_subs_in_tree(what="all")
-        min_revision = 4000000000
-        max_revision = 0
-        for item in self.admin_prog_inst.svnTree.walk_items():
-            min_revision = min(min_revision, item.revision)
-            max_revision = max(max_revision, item.revision)
+        num_files = self.admin_prog_inst.info_map_table.num_items("all-files")
+        num_dirs =  self.admin_prog_inst.info_map_table.num_items("all-dirs")
+        num_total = self.admin_prog_inst.info_map_table.num_items("all-items")
+        min_revision, max_revision = self.admin_prog_inst.info_map_table.min_max_revision()
+
         print("Num files:", num_files)
         print("Num dirs:", num_dirs)
         print("Total items:", num_total)
@@ -382,12 +375,12 @@ class CMDObj(cmd.Cmd, object):
 
     def do_read(self, params):
         if params:
-            for afile in shlex.split(params):
+            for a_file in shlex.split(params):
                 try:
-                    self.client_prog_inst.read_yaml_file(afile)
+                    self.client_prog_inst.read_yaml_file(a_file)
                     self.client_prog_inst.add_default_items()
                 except Exception as ex:
-                    print("read", afile, ex)
+                    print("read", a_file, ex)
             self.client_prog_inst.resolve_index_inheritance()
         else:
             self.help_read()
@@ -402,12 +395,12 @@ class CMDObj(cmd.Cmd, object):
 
     def do_readinfo(self, params):
         if params:
-            for afile in shlex.split(params):
+            for a_file in shlex.split(params):
                 time_start = time.clock()
-                self.admin_prog_inst.read_info_map_file(afile)
+                self.admin_prog_inst.info_map_table.read_from_file(a_file)
                 time_end = time.clock()
-                print("opened file:", "'" + afile + "'")
-                print("    %d items read in %0.3f ms" % (self.admin_prog_inst.svnTree.num_subs_in_tree(), (time_end-time_start)*1000.0))
+                print("opened file:", "'" + a_file + "'")
+                print("    %d items read in %0.3f ms" % (self.admin_prog_inst.info_map_table.num_items("all-items"), (time_end-time_start)*1000.0))
         else:
             self.help_read()
         return False
@@ -417,55 +410,55 @@ class CMDObj(cmd.Cmd, object):
 
     def help_readinfo(self):
         print("read path_to_file")
-        print("    reads an svn info file")
+        print("    reads an info_map file")
 
     def do_listinfo(self, params):
         items_to_list = list()
         if params:
             for param in shlex.split(params):
-                item = self.admin_prog_inst.svnTree.get_item_at_path(param.rstrip("/"))
+                item = self.admin_prog_inst.info_map_table.get_item(param.rstrip("/"), what="any")
                 if item:
                     items_to_list.append(item)
+                    if item.isDir():
+                        items_to_list.extend(self.admin_prog_inst.info_map_table.get_items_in_dir(dir_path=item.path))
                 else:
                     print("No item named:", param)
         else:
-            items_to_list = [self.admin_prog_inst.svnTree]
+            items_to_list = self.admin_prog_inst.get_items(what="any")
         for item in items_to_list:
             print(str(item))
-            if item.isDir():
-                for sub_item in item.walk_items():
-                    print(str(sub_item))
         return False
 
-    def complete_listinfo(self, text, line, unused_begidx, unused_endidx):
-        complete_listinfo_line_re = re.compile("""listinfo\s+(?P<the_text>.*)""")
-        match = complete_listinfo_line_re.match(line)
-        if match:
-            text = match.group("the_text")
-        retVal = list()
-        if text.endswith("/"):
-            item = self.admin_prog_inst.svnTree.get_item_at_path(text.rstrip("/"))
-            if item and item.isDir():
-                file_list, dir_list = item.sorted_sub_items()
-                retVal.extend([a_file.name for a_file in file_list])
-                retVal.extend([a_dir.name + "/" for a_dir in dir_list])
-        else:
-            item = self.admin_prog_inst.svnTree.get_item_at_path(text)
-            if item and item.isDir():
-                file_list, dir_list = item.sorted_sub_items()
-                retVal.extend(["/" + a_file.name for a_file in file_list])
-                retVal.extend(["/" + a_dir.name + "/" for a_dir in dir_list])
-            else:
-                path_parts = text.split("/")
-                if len(path_parts) == 1:
-                    item = self.admin_prog_inst.svnTree
-                else:
-                    item = self.admin_prog_inst.svnTree.get_item_at_path(path_parts[:-1])
-                if item:
-                    file_list, dir_list = item.sorted_sub_items()
-                    retVal.extend([a_file.name for a_file in file_list if a_file.name.startswith(path_parts[-1])])
-                    retVal.extend([a_dir.name + "/" for a_dir in dir_list if a_dir.name.startswith(path_parts[-1])])
-        return retVal
+#    def complete_listinfo(self, text, line, unused_begidx, unused_endidx):
+#        complete_listinfo_line_re = re.compile("""listinfo\s+(?P<the_text>.*)""")
+#        match = complete_listinfo_line_re.match(line)
+#        if match:
+#            text = match.group("the_text")
+#        retVal = list()
+#        if text.endswith("/"):
+#            items = self.admin_prog_inst.info_map_table.get_items_in_dir(text.rstrip("/"), levels_deep=1)
+#            if items:
+#                retVal.extend([a_file.name for a_file in items if a_file.isFile()])
+#                retVal.extend([a_dir.name + "/" for a_dir in items if a_file.isDir()])
+#        else:
+#            item = self.admin_prog_inst.info_map_table.get_item(text)
+#            if item:
+#                if item.isDir():
+#                    items = self.admin_prog_inst.info_map_table.get_items_in_dir(text, levels_deep=1)
+#                    if items:
+#                        retVal.extend([a_file.name for a_file in items if a_file.isFile()])
+#                        retVal.extend([a_dir.name + "/" for a_dir in items if a_file.isDir()])
+#            elif False:
+#                path_parts = text.split("/")
+#                if len(path_parts) == 1:
+#                    item = self.admin_prog_inst.svnTree
+#                else:
+#                    item = self.admin_prog_inst.svnTree.get_item(path_parts[:-1])
+#                if item:
+#                    file_list, dir_list = item.sorted_sub_items()
+#                    retVal.extend([a_file.name for a_file in file_list if a_file.name.startswith(path_parts[-1])])
+#                    retVal.extend([a_dir.name + "/" for a_dir in dir_list if a_dir.name.startswith(path_parts[-1])])
+#        return retVal
 
     def help_listinfo(self):
         print("listinfo [path_to_item [...]]")
@@ -619,45 +612,6 @@ class CMDObj(cmd.Cmd, object):
             for param in params:
                 do_help(param)
 
-    def report_logging_state(self):
-        import utils.log_utils
-
-        top_logger = logging.getLogger()
-        print("logging level:", logging.getLevelName(top_logger.getEffectiveLevel()))
-        log_file_path = utils.log_utils.get_log_file_path(self.this_program_name, self.this_program_name, debug=False)
-        print("logging INFO level to", log_file_path)
-        debug_log_file_path = utils.log_utils.get_log_file_path(self.this_program_name, self.this_program_name, debug=True)
-        if os.path.isfile(debug_log_file_path):
-            print("logging DEBUG level to", debug_log_file_path)
-        else:
-            print("Not logging DEBUG level to", debug_log_file_path)
-
-    def do_log(self, params):
-        import utils.log_utils
-
-        top_logger = logging.getLogger()
-        if params:
-            params = shlex.split(params)
-            if params[0].lower() == "debug":
-                debug_log_file_path = utils.log_utils.get_log_file_path(self.this_program_name, self.this_program_name, debug=True)
-                if len(params) == 1 or params[1].lower() in ("on", "true", "yes"):
-                    if top_logger.getEffectiveLevel() > utils.log_utils.debug_logging_level or not os.path.isfile(debug_log_file_path):
-                        utils.log_utils.setup_file_logging(debug_log_file_path, utils.log_utils.debug_logging_level)
-                        utils.log_utils.debug_logging_started = True
-                elif params[1].lower() in ("off", "false", "no"):
-                    top_logger.setLevel(utils.log_utils.default_logging_level)
-                    try:
-                        utils.log_utils.teardown_file_logging(debug_log_file_path, utils.log_utils.default_logging_level)
-                    except:
-                        pass
-                var_stack.get_configVar_obj("LOG_FILE_DEBUG")[2] = utils.log_utils.debug_logging_started
-        self.report_logging_state()
-
-    def help_log(self):
-        print("log: displays log status")
-        print("log debug [on | true | yes]: starts debug level logging")
-        print("log debug off | false | no: stops debug level logging")
-
     # evaluate python expressions
     def do_python(self, param):
         if param:
@@ -686,14 +640,14 @@ class CMDObj(cmd.Cmd, object):
 def compact_history():
     if hasattr(readline, "replace_history_item"):
         unique_history = utils.unique_list()
-        for index in reversed(range(1, readline.get_current_history_length())):
+        for index in reversed(list(range(1, readline.get_current_history_length()))):
             hist_item = readline.get_history_item(index)
             if hist_item:  # some history items are None (usually at index 0)
                 unique_history.append(readline.get_history_item(index))
         unique_history.reverse()
         for index in range(len(unique_history)):
             readline.replace_history_item(index + 1, unique_history[index])
-        for index in reversed(range(len(unique_history) + 1, readline.get_current_history_length())):
+        for index in reversed(list(range(len(unique_history) + 1, readline.get_current_history_length()))):
             readline.remove_history_item(index)
 
 
@@ -709,7 +663,7 @@ def do_list_imp(self, what=None, stream=sys.stdout):
     individual_items_to_write = list()
     for item_to_do in list_to_do:
         if utils.guid_re.match(item_to_do):
-            whole_sections_to_write.append({item_to_do: iids_from_guid(self.install_definitions_index, item_to_do)})
+            whole_sections_to_write.append({item_to_do: sorted(iids_from_guids(self.install_definitions_index, item_to_do))})
         elif item_to_do == "define":
             whole_sections_to_write.append(aYaml.YamlDumpDocWrap(var_stack, '!define', "Definitions", explicit_start=True, sort_mappings=True))
         elif item_to_do == "index":
@@ -717,7 +671,7 @@ def do_list_imp(self, what=None, stream=sys.stdout):
         elif item_to_do == "guid":
             guid_dict = dict()
             for lic in guid_list(self.install_definitions_index):
-                guid_dict[lic] = iids_from_guid(self.install_definitions_index, lic)
+                guid_dict[lic] = sorted(iids_from_guids(self.install_definitions_index, lic))
             whole_sections_to_write.append(aYaml.YamlDumpDocWrap(guid_dict, '!guid', "guid to IID", explicit_start=True, sort_mappings=True))
         else:
             individual_items_to_write.append(item_to_do)
@@ -729,9 +683,9 @@ def create_completion_list_imp(self, for_what="all"):
     retVal = list()
     try:
         if for_what in ("all", "index"):
-            retVal.extend(self.install_definitions_index.keys())
+            retVal.extend(list(self.install_definitions_index.keys()))
         if for_what in ("all", "define"):
-            retVal.extend(var_stack.keys())
+            retVal.extend(list(var_stack.keys()))
         if for_what in ("all", "guid"):
             retVal.extend(guid_list(self.install_definitions_index))
     except Exception as ex:

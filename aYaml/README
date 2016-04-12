@@ -1,4 +1,4 @@
-argumentedYaml adds some functionality to PyYaml:
+augmentedYaml adds some functionality to PyYaml:
 Methods isScalar(), isSequence(), isMapping() for easier identification of ScalarNode
     SequenceNode, MappingNode.
 Method __len__ returns the number of items in value.

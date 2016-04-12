@@ -1,44 +1,47 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 import os
 import sys
 import re
 import abc
-import logging
 
 import yaml
-import StringIO
+import io
 import appdirs
 
 import aYaml
 import utils
-from batchAccumulator import BatchAccumulator
-from installItem import read_index_from_yaml
-from platformSpecificHelper_Base import PlatformSpecificHelperFactory
+from .batchAccumulator import BatchAccumulator
+from .installItem import read_index_from_yaml
+from .platformSpecificHelper_Base import PlatformSpecificHelperFactory
+from svnTree import SVNTable
 
 from configVar import value_ref_re
 from configVar import var_stack
-from installItem import InstallItem
-import connectionBase
+from .installItem import InstallItem
+from . import connectionBase
+
 
 # noinspection PyPep8Naming
-class InstlInstanceBase(object):
+class InstlInstanceBase(object, metaclass=abc.ABCMeta):
     """ Main object of instl. Keeps the state of variables and install index
         and knows how to create a batch file for installation. InstlInstanceBase
         must be inherited by platform specific implementations, such as InstlInstance_mac
         or InstlInstance_win.
     """
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self, initial_vars=None):
-        # init objects owned by this class
+        self.info_map_table = SVNTable()
 
         # only when allow_reading_of_internal_vars is true, variables who's name begins and ends with "__"
         # can be read from file
         self.allow_reading_of_internal_vars = False
-        self.path_searcher = utils.SearchPaths(var_stack.get_configVar_obj("__SEARCH_PATHS__"))
+        search_paths_var = var_stack.get_configVar_obj("__SEARCH_PATHS__")
+        self.path_searcher = utils.SearchPaths(search_paths_var)
         self.init_default_vars(initial_vars)
+        # noinspection PyUnresolvedReferences
+        self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         # initialize the search paths helper with the current directory and dir where instl is now
         self.path_searcher.add_search_path(os.getcwd())
         self.path_searcher.add_search_path(os.path.dirname(os.path.realpath(sys.argv[0])))
@@ -62,8 +65,8 @@ class InstlInstanceBase(object):
     def init_default_vars(self, initial_vars):
         if initial_vars:
             var_description = "from initial_vars"
-            for var, value in initial_vars.iteritems():
-                if isinstance(value, basestring):
+            for var, value in initial_vars.items():
+                if isinstance(value, str):
                     var_stack.add_const_config_variable(var, var_description, value)
                 else:
                     var_stack.add_const_config_variable(var, var_description, *value)
@@ -85,18 +88,7 @@ class InstlInstanceBase(object):
             else:
                 var_stack.add_const_config_variable("__COMPILATION_TIME__", var_description, "(not compiled)")
 
-        # read class specific defaults/*.yaml
-        self.read_name_specific_defaults_file(type(self).__name__)
         self.read_user_config()
-
-        log_file = utils.log_utils.get_log_file_path(var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)"),
-                                                     var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)"), debug=False)
-        var_stack.set_var("LOG_FILE", var_description).append(log_file)
-        debug_log_file = utils.log_utils.get_log_file_path(var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)"),
-                                                           var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)"), debug=True)
-        var_stack.set_var("LOG_FILE_DEBUG", var_description).extend((
-            debug_log_file, logging.getLevelName(utils.log_utils.debug_logging_level),
-            utils.log_utils.debug_logging_started))
 
     def read_name_specific_defaults_file(self, file_name):
         """ read class specific file from defaults/class_name.yaml """
@@ -117,7 +109,6 @@ class InstlInstanceBase(object):
         missing_vars = [var for var in prerequisite_vars if var not in var_stack]
         if len(missing_vars) > 0:
             msg = "Prerequisite variables were not defined: " + ", ".join(missing_vars)
-            logging.info("msg")
             raise ValueError(msg)
 
     def init_from_cmd_line_options(self, cmd_line_options_obj):
@@ -140,7 +131,7 @@ class InstlInstanceBase(object):
             "file_sizes_file": ("__FILE_SIZES_FILE__", None)
         }
 
-        for attrib, var in const_attrib_to_var.iteritems():
+        for attrib, var in const_attrib_to_var.items():
             attrib_value = getattr(cmd_line_options_obj, attrib)
             if attrib_value:
                 var_stack.add_const_config_variable(var[0], "from command line options", *attrib_value)
@@ -148,17 +139,18 @@ class InstlInstanceBase(object):
                 var_stack.add_const_config_variable(var[0], "from default", var[1])
 
         non_const_attrib_to_var = {
-            "filter_in": "__FILTER_IN_VERSION__",
             "target_repo_rev": "TARGET_REPO_REV",
             "base_repo_rev": "BASE_REPO_REV",
         }
 
-        for attrib, var in non_const_attrib_to_var.iteritems():
+        for attrib, var in non_const_attrib_to_var.items():
             attrib_value = getattr(cmd_line_options_obj, attrib)
             if attrib_value:
                 var_stack.set_var(var, "from command line options").append(attrib_value[0])
 
         if cmd_line_options_obj.command:
+            self.the_command = cmd_line_options_obj.command
+            self.fixed_command = self.the_command.replace('-', '_')
             var_stack.set_var("__MAIN_COMMAND__", "from command line options").append(cmd_line_options_obj.command)
 
         if hasattr(cmd_line_options_obj, "subject") and cmd_line_options_obj.subject is not None:
@@ -170,9 +162,7 @@ class InstlInstanceBase(object):
         if cmd_line_options_obj.state_file:
             var_stack.add_const_config_variable("__MAIN_STATE_FILE__", "from command line options",
                                                 cmd_line_options_obj.state_file)
-        if cmd_line_options_obj.filter_out:
-            var_stack.add_const_config_variable("__FILTER_OUT_PATHS__", "from command line options",
-                                                *cmd_line_options_obj.filter_out)
+
         if cmd_line_options_obj.run:
             var_stack.add_const_config_variable("__RUN_BATCH__", "from command line options", "yes")
 
@@ -190,6 +180,8 @@ class InstlInstanceBase(object):
             var_stack.add_const_config_variable("__REMOVE_FROM_DOCK__", "from command line options", "yes")
         if cmd_line_options_obj.restart_the_dock:
             var_stack.add_const_config_variable("__RESTART_THE_DOCK__", "from command line options", "yes")
+        if cmd_line_options_obj.fail_exit_code:
+            var_stack.add_const_config_variable("__FAIL_EXIT_CODE__", "from command line options", *cmd_line_options_obj.fail_exit_code)
 
         if cmd_line_options_obj.define:
             individual_definitions = cmd_line_options_obj.define[0].split(",")
@@ -212,60 +204,49 @@ class InstlInstanceBase(object):
         retVal = doc_node.tag in acceptables
         return retVal
 
-    def read_yaml_from_stream(self, the_stream):
+    def read_yaml_from_stream(self, the_stream, *args, **kwargs):
         for a_node in yaml.compose_all(the_stream):
             if self.is_acceptable_yaml_doc(a_node):
                 if a_node.tag.startswith('!define_const'):
-                    self.read_const_defines(a_node)
+                    self.read_const_defines(a_node, *args, **kwargs)
                 elif a_node.tag.startswith('!define'):
-                    self.read_defines(a_node)
+                    self.read_defines(a_node, *args, **kwargs)
                 elif a_node.tag.startswith('!index'):
-                    self.read_index(a_node)
+                    self.read_index(a_node, *args, **kwargs)
                 elif a_node.tag.startswith('!require'):
-                    self.read_require(a_node)
-                else:
-                    logging.error(
-                        "Unknown document tag '%s' while reading file %s; Tag should be one of: !define, !index'",
-                        a_node.tag, file_path)
+                    self.read_require(a_node, *args, **kwargs)
         if not self.check_version_compatibility():
             raise ValueError(var_stack.resolve("Minimal instl version $(INSTL_MINIMAL_VERSION) > current version $(__INSTL_VERSION__); ")+var_stack.get_configVar_obj("INSTL_MINIMAL_VERSION").description)
 
-    def read_yaml_file(self, file_path):
-        logging.info("%s", file_path)
+    def read_yaml_file(self, file_path, *args, **kwargs):
         try:
             with utils.open_for_read_file_or_url(file_path, connectionBase.translate_url, self.path_searcher) as file_fd:
-                buffer = StringIO.StringIO(file_fd.read())
-                self.read_yaml_from_stream(buffer)
+                buffer = file_fd.read()
+                buffer = utils.unicodify(buffer)
+                buffer = io.StringIO(buffer)
+                buffer.name = file_path
+                self.read_yaml_from_stream(buffer, *args, **kwargs)
             var_stack.get_configVar_obj("__READ_YAML_FILES__").append(file_path)
-        except:
-            print("Exception reading file:", file_path)
+        except Exception as ex:
+            print("Exception reading file:", file_path, ex)
             raise
 
-    def read_require(self, a_node):
-        # dependencies_file_path = var_stack.resolve("$(SITE_REQUIRE_FILE_PATH)")
-        if a_node.isMapping():
-            for identifier, contents in a_node:
-                logging.debug("%s: %s", identifier, str(contents))
-                if identifier in self.install_definitions_index:
-                    self.install_definitions_index[identifier].required_by.extend([required_iid.value for required_iid in contents])
-                else:
-                    # require file might contain IIDs form previous installations that are no longer in the index
-                    item_not_in_index = InstallItem()
-                    item_not_in_index.iid = identifier
-                    item_not_in_index.required_by.extend([required_iid.value for required_iid in contents])
-                    self.install_definitions_index[identifier] = item_not_in_index
+    def read_require(self, a_node, *args, **kwargs):
+        req_reader = kwargs.get("req_reader")
+        if req_reader is not None:
+            req_reader.read_require_node(a_node)
 
-
-    def write_require_file(self, file_path):
-        require_dict = dict()
-        for IID in sorted(self.install_definitions_index.iterkeys()):
-            if len(self.install_definitions_index[IID].required_by) > 0:
-                require_dict[IID] = sorted(self.install_definitions_index[IID].required_by)
-        with open(file_path, "w") as wfd:
+    def write_require_file(self, file_path, require_dict):
+        with open(file_path, "w", encoding='utf-8') as wfd:
             utils.make_open_file_read_write_for_all(wfd)
+
+            define_dict = aYaml.YamlDumpDocWrap({"REQUIRE_REPO_REV": var_stack.resolve("$(MAX_REPO_REV)")},
+                                                '!define', "definitions",
+                                                 explicit_start=True, sort_mappings=True)
             require_dict = aYaml.YamlDumpDocWrap(require_dict, '!require', "requirements",
                                                  explicit_start=True, sort_mappings=True)
-            aYaml.writeAsYaml(require_dict, wfd)
+
+            aYaml.writeAsYaml((define_dict, require_dict), wfd)
 
     internal_identifier_re = re.compile("""
                                         __                  # dunder here
@@ -281,26 +262,24 @@ class InstlInstanceBase(object):
                                                              return_original_if_not_found=True)
                 var_stack.set_var(path_var_to_resolve, "resolve_defined_paths").append(resolved_path)
 
-    def read_defines(self, a_node):
+    def read_defines(self, a_node, *args, **kwargs):
         # if document is empty we get a scalar node
         if a_node.isMapping():
-            for identifier, contents in a_node:
-                logging.debug("%s: %s", identifier, str(contents))
+            for identifier, contents in a_node.items():
                 if self.allow_reading_of_internal_vars or not self.internal_identifier_re.match(identifier):  # do not read internal state identifiers
                     var_stack.set_var(identifier, str(contents.start_mark)).extend([item.value for item in contents])
                 elif identifier == '__include__':
                     self.read_include_node(contents)
 
-    def read_const_defines(self, a_node):
+    def read_const_defines(self, a_node, *args, **kwargs):
         """ Read a !define_const sub-doc. All variables will be made const.
             Reading of internal state identifiers is allowed.
             __include__ is not allowed.
         """
         if a_node.isMapping():
-            for identifier, contents in a_node:
+            for identifier, contents in a_node.items():
                 if identifier == "__include__":
                     raise ValueError("!define_const doc cannot except __include__")
-                logging.debug("%s: %s", identifier, str(contents))
                 var_stack.add_const_config_variable(identifier, "from !define_const section",
                                                     *[item.value for item in contents])
 
@@ -325,8 +304,8 @@ class InstlInstanceBase(object):
                 self.read_include_node(sub_i_node)
         elif i_node.isMapping():
             if "url" in i_node:
-                resolved_file_url = var_stack.resolve(i_node["url"].value)
                 cached_files_dir = self.get_default_sync_dir(continue_dir="cache", make_dir=True)
+                resolved_file_url = var_stack.resolve(i_node["url"].value)
                 cached_file_path = None
                 expected_checksum = None
                 if "checksum" in i_node:
@@ -353,12 +332,17 @@ class InstlInstanceBase(object):
                 if "copy" in i_node:
                     self.batch_accum.set_current_section('post')
                     for copy_destination in i_node["copy"]:
-                        destination_folder, destination_file_name = os.path.split(copy_destination.value)
-                        self.batch_accum += self.platform_helper.mkdir(destination_folder)
-                        self.batch_accum += self.platform_helper.copy_tool.copy_file_to_file(cached_file_path,
-                                                                                             var_stack.resolve(
-                                                                                                 copy_destination.value),
-                                                                                             link_dest=True)
+                        need_to_copy = True
+                        destination_file_resolved_path = var_stack.resolve(copy_destination.value)
+                        if os.path.isfile(destination_file_resolved_path) and expected_checksum is not None:
+                            checksums_match = utils.check_file_checksum(file_path=destination_file_resolved_path, expected_checksum=expected_checksum)
+                            need_to_copy = not checksums_match
+                        if need_to_copy:
+                            destination_folder, destination_file_name = os.path.split(copy_destination.value)
+                            self.batch_accum += self.platform_helper.mkdir(destination_folder)
+                            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_file(cached_file_path,
+                                                                                                 var_stack.resolve(copy_destination.value),
+                                                                                                 link_dest=True)
 
     def create_variables_assignment(self):
         self.batch_accum.set_current_section("assign")
@@ -378,11 +362,13 @@ class InstlInstanceBase(object):
             elif os_family_name == "Linux":
                 user_cache_dir_param = "$(COMPANY_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
                 user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
+            else:
+                raise RuntimeError("Unknown operating system "+os_family_name)
             var_description = "from InstlInstanceBase.get_user_cache_dir"
             var_stack.set_var("USER_CACHE_DIR", var_description).append(user_cache_dir)
         if make_dir:
             user_cache_dir_resolved = var_stack.resolve("$(USER_CACHE_DIR)", raise_on_fail=True)
-            utils.safe_makedirs(user_cache_dir_resolved)
+            os.makedirs(user_cache_dir_resolved, exist_ok=True)
 
     def get_default_sync_dir(self, continue_dir=None, make_dir=True):
         self.calc_user_cache_dir_var()
@@ -393,16 +379,17 @@ class InstlInstanceBase(object):
         # print("1------------------", user_cache_dir, "-", from_url, "-", retVal)
         if make_dir and retVal:
             retVal = var_stack.resolve(retVal, raise_on_fail=True)
-            utils.safe_makedirs(retVal)
+            os.makedirs(retVal, exist_ok=True)
         return retVal
 
     def relative_sync_folder_for_source(self, source):
-        if source[1] in ('!dir', '!file'):
-            retVal = "/".join(source[0].split("/")[0:-1])
-        elif source[1] in ('!dir_cont', '!files'):
-            retVal = source[0]
+        source_path, source_type = source[0], source[1]
+        if source_type in ('!dir', '!file'):
+            retVal = "/".join(source_path.split("/")[0:-1])
+        elif source_type in ('!dir_cont', '!files'):
+            retVal = source_path
         else:
-            raise ValueError("unknown tag for source " + source[0] + ": " + source[1])
+            raise ValueError("unknown tag for source " + source_path + ": " + source_type)
         return retVal
 
     def write_batch_file(self):
@@ -416,8 +403,6 @@ class InstlInstanceBase(object):
         lines_after_var_replacement = '\n'.join(
             [value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines])
 
-        from utils import write_to_file_or_stdout
-
         out_file = var_stack.resolve("$(__MAIN_OUT_FILE__)", raise_on_fail=True)
         with utils.write_to_file_or_stdout(out_file) as fd:
             fd.write(lines_after_var_replacement)
@@ -428,34 +413,31 @@ class InstlInstanceBase(object):
             # chmod to 0777 so that file created under sudo, can be re-written under regular user.
             # However regular user cannot chmod for file created under sudo, hence the try/except
             try:
-                os.chmod(self.out_file_realpath, 0777)
-            except:
+                os.chmod(self.out_file_realpath, 0o777)
+            except Exception:
                 pass
         else:
             self.out_file_realpath = "stdout"
         msg = " ".join(
             (self.out_file_realpath, str(self.platform_helper.num_items_for_progress_report), "progress items"))
         print(msg)
-        logging.info(msg)
 
     def run_batch_file(self):
-        logging.info("running batch file %s", self.out_file_realpath)
         from subprocess import Popen
 
         p = Popen([self.out_file_realpath], executable=self.out_file_realpath, shell=False)
         unused_stdout, unused_stderr = p.communicate()
-        retcode = p.returncode
-        if retcode != 0:
-            raise SystemExit(self.out_file_realpath + " returned exit code " + str(retcode))
+        return_code = p.returncode
+        if return_code != 0:
+            raise SystemExit(self.out_file_realpath + " returned exit code " + str(return_code))
 
     def write_program_state(self):
-        from utils import write_to_file_or_stdout
 
         state_file = var_stack.resolve("$(__MAIN_STATE_FILE__)", raise_on_fail=True)
         with utils.write_to_file_or_stdout(state_file) as fd:
             aYaml.writeAsYaml(self, fd)
 
-    def read_index(self, a_node):
+    def read_index(self, a_node, *args, **kwargs):
         self.install_definitions_index.update(read_index_from_yaml(a_node))
 
     def find_cycles(self):
@@ -463,7 +445,7 @@ class InstlInstanceBase(object):
             print("index empty - nothing to check")
         else:
             try:
-                from pyinstl import installItemGraph
+                from . import installItemGraph
 
                 depend_graph = installItemGraph.create_dependencies_graph(self.install_definitions_index)
                 depend_cycles = installItemGraph.find_cycles(depend_graph)
@@ -482,17 +464,11 @@ class InstlInstanceBase(object):
             except ImportError:  # no installItemGraph, no worry
                 print("Could not load installItemGraph")
 
-    def read_info_map_file(self, in_file_path, a_format="guess"):
-        self.svnTree.read_info_map_from_file(in_file_path, a_format)
-
-    def write_info_map_file(self):
-        self.svnTree.write_to_file(var_stack.resolve("$(__MAIN_OUT_FILE__)", raise_on_fail=True))
-
     def check_version_compatibility(self):
         retVal = True
         if "INSTL_MINIMAL_VERSION" in var_stack:
-            inst_ver = map(int, var_stack.resolve_to_list("$(__INSTL_VERSION__)"))
-            required_ver = map(int, var_stack.resolve_to_list("$(INSTL_MINIMAL_VERSION)"))
+            inst_ver = list(map(int, var_stack.resolve_to_list("$(__INSTL_VERSION__)")))
+            required_ver = list(map(int, var_stack.resolve_to_list("$(INSTL_MINIMAL_VERSION)")))
             retVal = inst_ver >= required_ver
         return retVal
 
@@ -504,10 +480,10 @@ class InstlInstanceBase(object):
         original_name = self.wtar_file_re.match(wtar_name).group('base_name')
         return original_name
 
-    # Given a list of file/folder names, replace those which a rewtared with the original file name.
+    # Given a list of file/folder names, replace those which are wtarred with the original file name.
     # E.g. ['a', 'b.wtar', 'c.wtar.aa', 'c.wtar.ab'] => ['a', 'b', 'c']
     # We must work on the whole list since several wtar file names might merge to a single original file name.
-    def replace_wtar_names_with_real_names(self, original_list):
+    def original_names_from_wtars_names(self, original_list):
         replaced_list = utils.unique_list()
         replaced_list.extend([self.original_name_from_wtar_name(file_name) for file_name in original_list])
         return replaced_list
@@ -517,7 +493,7 @@ class InstlInstanceBase(object):
         if iid not in self.install_definitions_index:
             raise KeyError(iid + " is not in index")
         InstallItem.begin_get_for_all_oses()
-        with self.install_definitions_index[iid]:
+        with self.install_definitions_index[iid].push_var_stack_scope():
             for dep in var_stack.resolve_var_to_list("iid_depend_list"):
                 if dep in self.install_definitions_index:
                     out_list.append(dep)
@@ -528,7 +504,7 @@ class InstlInstanceBase(object):
 
     def needed_by(self, iid):
         try:
-            from pyinstl import installItemGraph
+            from . import installItemGraph
 
             InstallItem.begin_get_for_all_oses()
             graph = installItemGraph.create_dependencies_graph(self.install_definitions_index)
@@ -540,6 +516,12 @@ class InstlInstanceBase(object):
             return None
 
     def resolve_index_inheritance(self):
-        for install_def in self.install_definitions_index.values():
+        for install_def in list(self.install_definitions_index.values()):
             install_def.resolve_inheritance(self.install_definitions_index)
 
+
+    def read_info_map_from_file(self, info_map_from_file_path):
+        self.info_map_table.read_from_file(info_map_from_file_path, a_format="text")
+        min_revision, max_revision = self.info_map_table.min_max_revision()
+        var_stack.set_var("MIN_REPO_REV", "from " + info_map_from_file_path).append(min_revision)
+        var_stack.set_var("MAX_REPO_REV", "from " + info_map_from_file_path).append(max_revision)

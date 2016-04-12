@@ -1,21 +1,23 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 import sys
 import os
-import stat
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import re
-import urlparse
 import hashlib
 import base64
 import collections
 import subprocess
 import time
+import shutil
 import numbers
 import stat
 
 import rsa
+from functools import reduce
+from itertools import repeat
+
 
 
 def Is64Windows():
@@ -63,7 +65,7 @@ class write_to_file_or_stdout(object):
 
     def __enter__(self):
         if self.file_path != "stdout":
-            self.fd = open(self.file_path, "w")
+            self.fd = open(self.file_path, "w", encoding='utf-8')
         return self.fd
 
     def __exit__(self, unused_type, unused_value, unused_traceback):
@@ -91,10 +93,11 @@ class open_for_read_file_or_url(object):
                         ://
                         """, re.VERBOSE)
 
-    def __init__(self, in_file_or_url, translate_url_callback=None, path_searcher=None):
+    def __init__(self, in_file_or_url, translate_url_callback=None, path_searcher=None, encoding='utf-8'):
         self.local_file_path = None
         self.url = None
-        self.cookie = None
+        self.custom_headers = None
+        self.encoding = encoding
         self.fd = None
         match = self.protocol_header_re.match(in_file_or_url)
         if not match:  # it's a local file
@@ -111,18 +114,22 @@ class open_for_read_file_or_url(object):
         else:
             self.url = in_file_or_url
             if translate_url_callback is not None:
-                self.url, self.cookie = translate_url_callback(self.url)
+                self.url, self.custom_headers = translate_url_callback(self.url)
 
     def __enter__(self):
         try:
             if self.url:
-                opener = urllib2.build_opener()
-                if self.cookie:
-                    opener.addheaders.append(('Cookie', self.cookie))
+                opener = urllib.request.build_opener()
+                if self.custom_headers:
+                    for custom_header in self.custom_headers:
+                        opener.addheaders.append(custom_header)
                 self.fd = opener.open(self.url)
             elif self.local_file_path:
-                self.fd = open(self.local_file_path, "r")
-        except urllib2.URLError as url_err:
+                if self.encoding is None:
+                    self.fd = open(self.local_file_path, "rb")
+                else:
+                    self.fd = open(self.local_file_path, "r", encoding=self.encoding)
+        except urllib.error.URLError as url_err:
             print (url_err, self.url)
             raise
         if "name" not in dir(self.fd) and "url" in dir(self.fd):
@@ -133,21 +140,26 @@ class open_for_read_file_or_url(object):
         self.fd.close()
 
 
-def read_from_file_or_url(in_url, translate_url_callback=None, public_key=None, textual_sig=None, expected_checksum=None):
+def read_from_file_or_url(in_url, translate_url_callback=None, public_key=None, textual_sig=None, expected_checksum=None, encoding='utf-8'):
     """ Read a file from local disk or url. Check signature or checksum if given.
         If test against either sig or checksum fails - raise IOError.
         Return: file contents.
     """
-    contents_buffer = None
-    with open_for_read_file_or_url(in_url, translate_url_callback) as rfd:
+    with open_for_read_file_or_url(in_url, translate_url_callback, encoding=encoding) as rfd:
         contents_buffer = rfd.read()
-        #print("After reading",in_url, "contents_buffer has", len(contents_buffer), "bytes", file=sys.stderr)
-        if contents_buffer:
-            # check sig or checksum only if they were given
-            if (public_key, textual_sig, expected_checksum) != (None, None, None):
-                buffer_ok = check_buffer_signature_or_checksum(contents_buffer, public_key, textual_sig, expected_checksum)
-                if not buffer_ok:
-                    raise IOError("Checksum or Signature mismatch", in_url)
+        if encoding is not None: # when reading from url we're not sure what the encoding is
+            contents_buffer = unicodify(contents_buffer, encoding=encoding)
+        # check sig or checksum only if they were given
+        if (public_key, textual_sig, expected_checksum) != (None, None, None):
+            if len(contents_buffer) == 0:
+                raise IOError("Empty contents returned from", in_url, "; expected checksum: ", expected_checksum, "; encoding:", encoding)
+            if encoding is not None:
+                raise IOError("Checksum check requested for", in_url, "but encoding is not None, encoding:", encoding, "; expected checksum: ", expected_checksum)
+            buffer_ok = check_buffer_signature_or_checksum(contents_buffer, public_key, textual_sig, expected_checksum)
+            if not buffer_ok:
+                actual_checksum = get_buffer_checksum(contents_buffer)
+                raise IOError("Checksum or Signature mismatch", in_url, "expected checksum: ", expected_checksum,
+                              "actual checksum:", actual_checksum, "encoding:", encoding)
     return contents_buffer
 
 
@@ -166,11 +178,12 @@ def download_from_file_or_url(in_url, in_local_path, translate_url_callback=None
         if (public_key, textual_sig, expected_checksum) != (None, None, None):
             fileOK = check_file_signature_or_checksum(in_local_path, public_key, textual_sig, expected_checksum)
         if not fileOK:
+            print("File will be downloaded because check checksum failed for", in_url, "cached at local path", in_local_path, "expected_checksum:", expected_checksum)
             os.remove(in_local_path)
         fileExists = fileOK
 
     if not fileExists:
-        contents_buffer = read_from_file_or_url(in_url, translate_url_callback, public_key, textual_sig, expected_checksum)
+        contents_buffer = read_from_file_or_url(in_url, translate_url_callback, public_key, textual_sig, expected_checksum, encoding=None)
         if contents_buffer:
             with open(in_local_path, "wb") as wfd:
                 make_open_file_read_write_for_all(wfd)
@@ -187,7 +200,7 @@ class unique_list(list):
     """
     unique_list implements a list where all items are unique.
     Functionality can also be described as set with order.
-    unique_list should behave as a python list except:
+    unique_list should behave as a python list except Exception:
         Adding items the end of the list (by append, extend) will do nothing if the
             item is already in the list.
         Adding to the middle of the list (insert, __setitem__)
@@ -196,7 +209,7 @@ class unique_list(list):
     __slots__ = ('__attendance',)
 
     def __init__(self, initial_list=()):
-        super(unique_list, self).__init__()
+        super().__init__()
         self.__attendance = set()
         self.extend(initial_list)
 
@@ -205,16 +218,16 @@ class unique_list(list):
         if prev_item != item:
             if item in self.__attendance:
                 prev_index_for_item = self.index(item)
-                super(unique_list, self).__setitem__(index, item)
+                super().__setitem__(index, item)
                 del self[prev_index_for_item]
                 self.__attendance.add(item)
             else:
-                super(unique_list, self).__setitem__(index, item)
+                super().__setitem__(index, item)
                 self.__attendance.remove(prev_item)
                 self.__attendance.add(item)
 
     def __delitem__(self, index):
-        super(unique_list, self).__delitem__(index)
+        super().__delitem__(index)
         self.__attendance.remove(self[index])
 
     def __contains__(self, item):
@@ -223,53 +236,60 @@ class unique_list(list):
 
     def append(self, item):
         if item not in self.__attendance:
-            super(unique_list, self).append(item)
+            super().append(item)
             self.__attendance.add(item)
 
     def extend(self, items=()):
         for item in items:
             if item not in self.__attendance:
-                super(unique_list, self).append(item)
+                super().append(item)
                 self.__attendance.add(item)
 
     def insert(self, index, item):
         if item in self.__attendance:
             prev_index_for_item = self.index(item)
             if index != prev_index_for_item:
-                super(unique_list, self).insert(index, item)
+                super().insert(index, item)
                 if prev_index_for_item < index:
-                    super(unique_list, self).__delitem__(prev_index_for_item)
+                    super().__delitem__(prev_index_for_item)
                 else:
-                    super(unique_list, self).__delitem__(prev_index_for_item+1)
+                    super().__delitem__(prev_index_for_item+1)
         else:
-            super(unique_list, self).insert(index, item)
+            super().insert(index, item)
             self.__attendance.add(item)
 
     def remove(self, item):
         if item in self.__attendance:
-            super(unique_list, self).remove(item)
+            super().remove(item)
             self.__attendance.remove(item)
 
     def pop(self, index=-1):
         self.__attendance.remove(self[index])
-        return super(unique_list, self).pop(index)
+        return super().pop(index)
 
     def count(self, item):
         """ Overriding count is not required - just more efficient """
-        return self.__attendance.count(item)
+        return 1 if item in self.__attendance else 0
 
-    def sort(self, cmp=None, key=None, reverse=False):
+    def sort(self, key=None, reverse=False):
         """ Sometimes sort is needed after all ... """
-        super(unique_list, self).sort(cmp, key, reverse)
+        super().sort(key=key, reverse=reverse)
 
     def empty(self):
         return len(self.__attendance) == 0
 
+    def clear(self):
+        super().clear()
+        self.__attendance.clear()
+
+
 class set_with_order(unique_list):
     """ Just another name for unique_list """
     def __init__(self, initial_list=()):
-        super(set_with_order, self).__init__(initial_list)
+        super().__init__(initial_list)
 
+
+# noinspection PyProtectedMember
 def print_var(var_name):
     calling_frame = sys._getframe().f_back
     var_val = calling_frame.f_locals.get(var_name, calling_frame.f_globals.get(var_name, None))
@@ -278,25 +298,26 @@ def print_var(var_name):
 
 def last_url_item(url):
     url = url.strip("/")
-    url_path = urlparse.urlparse(url).path
+    url_path = urllib.parse.urlparse(url).path
     _, retVal = os.path.split(url_path)
     return retVal
 
+
 def main_url_item(url):
     try:
-        parseResult = urlparse.urlparse(url)
+        parseResult = urllib.parse.urlparse(url)
         #print("+++++++", url, "+", parseResult)
         retVal = parseResult.netloc
         if not retVal:
             retVal = parseResult.path
-    except:
+    except Exception:
         retVal = ""
     return retVal
 
 
 def relative_url(base, target):
-    base_path = urlparse.urlparse(base.strip("/")).path
-    target_path = urlparse.urlparse(target.strip("/")).path
+    base_path = urllib.parse.urlparse(base.strip("/")).path
+    target_path = urllib.parse.urlparse(target.strip("/")).path
     retVal = None
     if target_path.startswith(base_path):
         retVal = target_path.replace(base_path, '', 1)
@@ -305,7 +326,7 @@ def relative_url(base, target):
 
 
 def deprecated(deprecated_func):
-    def raise_deprecation(*unused_args, **unused_kargs):
+    def raise_deprecation(*unused_args, **unused_kwargs):
         raise DeprecationWarning(deprecated_func.__name__, "is deprecated")
 
     return raise_deprecation
@@ -329,20 +350,11 @@ class ChangeDirIfExists(object):
             os.chdir(self.savedPath)
 
 
-def safe_makedirs(path_to_dir):
-    """ solves a problem with python 2.7 where os.makedirs raises if the dir already exist  """
-    try:
-        os.makedirs(path_to_dir)
-    except:  # os.makedirs raises is the directory already exists
-        pass
-    return path_to_dir
-
-
 def safe_remove_file(path_to_file):
     """ solves a problem with python 2.7 where os.remove raises if the file does not exist  """
     try:
         os.remove(path_to_file)
-    except:  # os.remove raises is the file does not exists
+    except FileNotFoundError:  # os.remove raises is the file does not exists
         pass
     return path_to_file
 
@@ -385,10 +397,9 @@ def gen_col_format(width_list, align_list=None, sep=' '):
 def ContinuationIter(the_iter, continuation_value=None):
     """ ContinuationIter yield all the values of the_iter and then continue yielding continuation_value
     """
-    for val in the_iter:
-        yield val
-    while True:
-        yield continuation_value
+    yield from the_iter
+    yield from repeat(continuation_value)
+
 
 def ParallelContinuationIter(*iterables):
     """ Like zip ParallelContinuationIter will yield a list of items from the
@@ -400,9 +411,10 @@ def ParallelContinuationIter(*iterables):
         [3, None]
     """
     max_size = max([len(lis) for lis in iterables])
-    continue_iterables = map(ContinuationIter, iterables)
+    continue_iterables = list(map(ContinuationIter, iterables))
     for i in range(max_size):
-        yield map(next, continue_iterables)
+        yield list(map(next, continue_iterables))
+
 
 def create_file_signatures(file_path, private_key_text=None):
     """ create rsa signature and sha1 checksum for a file.
@@ -423,13 +435,6 @@ def create_file_signatures(file_path, private_key_text=None):
     return retVal
 
 
-def get_file_checksum(file_path):
-    with open(file_path, "rb") as rfd:
-        file_contents = rfd.read()
-        retVal = get_buffer_checksum(file_contents)
-    return retVal
-
-
 def get_buffer_checksum(buff):
     sha1ner = hashlib.sha1()
     sha1ner.update(buff)
@@ -437,9 +442,14 @@ def get_buffer_checksum(buff):
     return retVal
 
 
+def compare_checksums(_1st_checksum, _2nd_checksum):
+    retVal = _1st_checksum.lower() == _2nd_checksum.lower()
+    return retVal
+
+
 def check_buffer_checksum(buff, expected_checksum):
     checksum = get_buffer_checksum(buff)
-    retVal = checksum.lower() == expected_checksum.lower()
+    retVal = compare_checksums(checksum, expected_checksum)
     return retVal
 
 
@@ -449,7 +459,7 @@ def check_buffer_signature(buff, textual_sig, public_key):
         binary_sig = base64.b64decode(textual_sig)
         rsa.verify(buff, binary_sig, pubkeyObj)
         return True
-    except:
+    except Exception:
         return False
 
 
@@ -463,21 +473,24 @@ def check_buffer_signature_or_checksum(buff, public_key=None, textual_sig=None, 
 
 
 def check_file_signature_or_checksum(file_path, public_key=None, textual_sig=None, expected_checksum=None):
-    retVal = False
     with open(file_path, "rb") as rfd:
         retVal = check_buffer_signature_or_checksum(rfd.read(), public_key, textual_sig, expected_checksum)
     return retVal
 
 
 def check_file_checksum(file_path, expected_checksum):
-    retVal = False
     with open(file_path, "rb") as rfd:
         retVal = check_buffer_checksum(rfd.read(), expected_checksum)
     return retVal
 
 
+def get_file_checksum(file_path):
+    with open(file_path, "rb") as rfd:
+        retVal = get_buffer_checksum(rfd.read())
+    return retVal
+
+
 def check_file_signature(file_path, textual_sig, public_key):
-    retVal = False
     with open(file_path, "rb") as rfd:
         retVal = check_buffer_signature(rfd.read(), textual_sig, public_key)
     return retVal
@@ -495,7 +508,7 @@ def quoteme_single(to_quote):
 
 
 def quoteme_double(to_quote):
-    return "".join( ('"', to_quote, '"') )
+    return "".join(('"', to_quote, '"'))
 
 detect_quotations = re.compile("(?P<prefix>[\"'])(?P<the_unquoted_text>.+)(?P=prefix)")
 
@@ -516,11 +529,11 @@ guid_re = re.compile("""
 
 
 def make_one_list(*things):
-    """ flaten things to one single list.
+    """ flatten things to one single list.
     """
     retVal = list()
     for thing in things:
-        if isinstance(thing, collections.Iterable) and not isinstance(thing, basestring):
+        if isinstance(thing, collections.Iterable) and not isinstance(thing, str):
             retVal.extend(thing)
         else:
             retVal.append(thing)
@@ -530,10 +543,11 @@ def make_one_list(*things):
 def P4GetPathFromDepotPath(depot_path):
     retVal = None
     command_parts = ["p4", "where", depot_path]
-    proc = subprocess.Popen(command_parts, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
-    _stdout, _stderr = proc.communicate()
-    retcode = proc.returncode
-    if retcode == 0:
+    p4_process = subprocess.Popen(command_parts, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
+    _stdout, _stderr = p4_process.communicate()
+    _stdout, _stderr = unicodify(_stdout), unicodify(_stderr)
+    return_code = p4_process.returncode
+    if return_code == 0:
         lines = _stdout.split("\n")
         where_line_reg_str = "".join( (re.escape(depot_path), "\s+", "//.+", "\s+", "(?P<disk_path>/.+)") )
         match = re.match(where_line_reg_str, lines[0])
@@ -556,13 +570,6 @@ def replace_all_from_dict(in_text, *in_replace_only_these, **in_replacement_dic)
     for look_for in sorted(in_replace_only_these, key=lambda s: -len(s)):
         retVal = retVal.replace(look_for, in_replacement_dic[look_for])
     return retVal
-
-
-def convert_to_str_unless_None(to_convert):
-    if to_convert is None:
-        return None
-    else:
-        return str(to_convert)
 
 
 # find sequences in a sorted list.
@@ -596,22 +603,24 @@ def find_sequences(in_sorted_list, is_next_func=lambda a,b: int(a)+1==int(b), re
 def make_open_file_read_write_for_all(fd):
     try:
         os.fchmod(fd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
-    except:
+    except Exception:
         try:
             os.chmod(fd.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
-        except:
+        except Exception:
             print("make_open_file_read_write_for_all: failed for ", fd.name)
+
 
 def timing(f):
     import time
-    def wrap(*args):
+
+    def wrap(*args, **kwargs):
         time1 = time.clock()
-        ret = f(*args)
+        ret = f(*args, **kwargs)
         time2 = time.clock()
         if time1 != time2:
-            print ('%s function took %0.3f ms' % (f.func_name, (time2-time1)*1000.0))
+            print ('%s function took %0.3f ms' % (f.__name__, (time2-time1)*1000.0))
         else:
-            print ('%s function took apparently no time at all' % (f.func_name))
+            print ('%s function took apparently no time at all' % f.__name__)
         return ret
     return wrap
 
@@ -649,11 +658,12 @@ def excluded_walk(root_to_walk, file_exclude_regex=None, dir_exclude_regex=None,
         yield root, dirs, files
 
 
+# noinspection PyUnresolvedReferences
 def get_disk_free_space(in_path):
     retVal = 0
     if 'Win' in get_current_os_names():
-        secsPerClus, bytesPerSec, nFreeClus, totClus = win32file.GetDiskFreeSpace(in_path)
-        retVal = secsPerClus * bytesPerSec * nFreeClus
+        secsPerCluster, bytesPerSec, nFreeCluster, totCluster = win32file.GetDiskFreeSpace(in_path)
+        retVal = secsPerCluster * bytesPerSec * nFreeCluster
     elif 'Mac' in get_current_os_names():
         st = os.statvfs(in_path)
         retVal = st.f_bavail * st.f_frsize
@@ -673,8 +683,40 @@ def clean_old_files(dir_to_clean, older_than_days):
                 file_time = os.path.getmtime(a_file_path)
                 if file_time < threshold_time:
                     os.remove(a_file_path)
-    except:
+    except Exception:
         pass
+
+
+def smart_copy_file(source_path, destination_path):
+    s = source_path
+    s_dir, s_name = os.path.split(source_path)
+    d_file_exists = False
+    if os.path.isdir(destination_path):
+        d = os.path.join(destination_path, s_name)
+        d_file_exists = os.path.isfile(d)
+    elif os.path.isfile(destination_path):
+        d = destination_path
+        d_file_exists = True
+    else: # assume destination is a non-existing file
+        d = destination_path
+        d_dir, d_name = os.path.split(destination_path)
+        os.makedirs(d_dir, exist_ok=True)
+
+    try:
+        getattr(os, "link") # will raise on windows, os.link is not always available (Win)
+        if d_file_exists:
+            if os.stat(s).st_ino != os.stat(d).st_ino:
+                safe_remove_file(d)
+                os.link(s, d)  # will raise if different drives
+            else:
+                pass # same inode no need to copy
+        else:
+            os.link(s, d)
+    except Exception:
+        try:
+            shutil.copy2(s, d)
+        except Exception:
+            pass
 
 
 oct_digit_to_perm_chars = {'7':'rwx', '6' :'rw-', '5' : 'r-x', '4':'r--', '3':'-wx', '2':'-w-', '1':'--x', '0': '---'}
@@ -698,8 +740,18 @@ def unix_item_ls(the_path):
     the_parts.append(the_stats[stat.ST_INO])  # inode number
     the_parts.append(unix_permissions_to_str(the_stats.st_mode)) # permissions
     the_parts.append(the_stats[stat.ST_NLINK])  # num links
-    the_parts.append(pwd.getpwuid(the_stats[stat.ST_UID])[0])  # user
-    the_parts.append(grp.getgrgid(the_stats[stat.ST_GID])[0])  # group
+    try:
+        the_parts.append(pwd.getpwuid(the_stats[stat.ST_UID])[0])  # user
+    except KeyError:
+        the_parts.append(str(the_stats[stat.ST_UID])[0]) # unknown user name, get the number
+    except Exception:
+        the_parts.append("no_uid")
+    try:
+        the_parts.append(grp.getgrgid(the_stats[stat.ST_GID])[0])  # group
+    except KeyError:
+        the_parts.append(str(the_stats[stat.ST_GID])[0]) # unknown group name, get the number
+    except Exception:
+        the_parts.append("no_gid")
     the_parts.append(the_stats[stat.ST_SIZE])  # size in bytes
     the_parts.append(time.strftime("%Y/%m/%d-%H:%M:%S", time.gmtime((the_stats[stat.ST_MTIME]))))  # modification time
     if not (stat.S_ISLNK(the_stats.st_mode) or stat.S_ISDIR(the_stats.st_mode)):
@@ -722,20 +774,18 @@ def unix_item_ls(the_path):
 
 
 def unix_folder_ls(the_path):
-    lines = list()
+    listing_lines = list()
     for root_path, dirs, files in os.walk(the_path, followlinks=False):
         dirs = sorted(dirs, key=lambda s: s.lower())
-        lines.append(unix_item_ls(root_path))
+        listing_lines.append(unix_item_ls(root_path))
         files_to_list = sorted(files + [slink for slink in dirs if os.path.islink(os.path.join(root_path, slink))], key=lambda s: s.lower())
         for file_to_list in files_to_list:
             full_path = os.path.join(root_path, file_to_list)
-            lines.append(unix_item_ls(full_path))
-    width_list, align_list = max_widths(lines)
-    col_formats = gen_col_format(width_list, align_list)
-    formatted_lines_lines = [col_formats[len(ls_line)].format(*ls_line) for ls_line in lines]
-    return "\n".join(formatted_lines_lines)
+            listing_lines.append(unix_item_ls(full_path))
+    return listing_lines
 
 
+# noinspection PyUnresolvedReferences
 def win_item_ls(the_path):
     import win32security
     the_parts = list()
@@ -767,23 +817,40 @@ def win_item_ls(the_path):
 
 
 def win_folder_ls(the_path):
-    lines = list()
+    listing_lines = list()
     for root_path, dirs, files in os.walk(the_path, followlinks=False):
         dirs = sorted(dirs, key=lambda s: s.lower())
-        lines.append(win_item_ls(root_path))
+        listing_lines.append(win_item_ls(root_path))
         files_to_list = sorted(files + [slink for slink in dirs if os.path.islink(os.path.join(root_path, slink))], key=lambda s: s.lower())
         for file_to_list in files_to_list:
             full_path = os.path.join(root_path, file_to_list)
-            lines.append(win_item_ls(full_path))
-    width_list, align_list = max_widths(lines)
+            listing_lines.append(win_item_ls(full_path))
+    return listing_lines
+
+
+def folder_listing(*folders_to_list):
+    os_names = get_current_os_names()
+    listing_lines = list()
+    if "Mac" in os_names:
+        for folder_path in folders_to_list:
+            listing_lines.extend(unix_folder_ls(folder_path))
+    elif "Win" in os_names:
+        for folder_path in folders_to_list:
+            listing_lines.extend(win_folder_ls(folder_path))
+    width_list, align_list = max_widths(listing_lines)
     col_formats = gen_col_format(width_list, align_list)
-    formatted_lines_lines = [col_formats[len(ls_line)].format(*ls_line) for ls_line in lines]
+    formatted_lines_lines = [col_formats[len(ls_line)].format(*ls_line) for ls_line in listing_lines]
     return "\n".join(formatted_lines_lines)
 
 
-def folder_listing(the_path):
-    os_names = get_current_os_names()
-    if "Mac" in os_names:
-        return unix_folder_ls(the_path)
-    elif "Win" in os_names:
-        return win_folder_ls(the_path)
+def unicodify(in_something, encoding='utf-8'):
+    if in_something is not None:
+        if isinstance(in_something, str):
+            retVal = in_something
+        elif isinstance(in_something, bytes):
+            retVal = in_something.decode(encoding)
+        else:
+            retVal = str(in_something)
+    else:
+        retVal = None
+    return retVal

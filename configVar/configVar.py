@@ -1,6 +1,6 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3
 
-from __future__ import print_function
+
 
 """
     Copyright (c) 2012, Shai Shasag
@@ -12,6 +12,7 @@ import sys
 import os
 
 import utils
+
 
 class ConfigVar(object):
     """ Keep a single, named, config variable and it's values.
@@ -26,13 +27,11 @@ class ConfigVar(object):
     variable_name_endings_to_normpath = ("_PATH", "_DIR", "_DIR_NAME", "_FILE_NAME", "_PATH__", "_DIR__", "_DIR_NAME__", "_FILE_NAME__")
 
     def __init__(self, name, description="", *values):
-        self.__name = name
-        self.__description = description
+        self.__name = utils.unicodify(name)
+        self.__description = utils.unicodify(description)
         self.resolved_num = 0
-        normed_values = map(str, values)
-        if self.__name.endswith(self.variable_name_endings_to_normpath):
-            normed_values = [os.path.normpath(value) for value in normed_values]
-        self.__values = map(str, normed_values)
+        self.__values = list()
+        ConfigVar.extend(self, values) # explicit call so ConstConfigVar can be initialized
 
     @property
     def name(self):
@@ -83,34 +82,26 @@ class ConfigVar(object):
     def clear_values(self):
         self.__values = list()
 
-    def append(self, value):
+    def norm_values(self, *values):
+        normed_values = list(map(utils.unicodify, values))
         if self.__name.endswith(self.variable_name_endings_to_normpath):
-            normed_value = os.path.normpath(value)
-            self.__values.append(normed_value)
-        else:
-            self.__values.append(utils.convert_to_str_unless_None(value))
+            normed_values = list(map(os.path.normpath, normed_values))
+        return normed_values
+
+    def append(self, value):
+        normed_value = self.norm_values(value)[0]
+        self.__values.append(normed_value)
 
     def extend(self, values):
-        if values:
-            if not hasattr(values, '__iter__'):
-                raise TypeError(str(values)+" is not a iterable")
-        if self.__name.endswith(self.variable_name_endings_to_normpath):
-            normed_values = [os.path.normpath(value) for value in values]
-            self.__values.extend(normed_values)
-        else:
-            self.__values.extend([utils.convert_to_str_unless_None(value) for value in values])
-
+        normed_values = self.norm_values(*values)
+        self.__values.extend(normed_values)
 
 class ConstConfigVar(ConfigVar):
     """ ConfigVar override where values cannot be changed after construction """
     __slots__ = ()
 
     def __init__(self, name, description="", *values):
-        if sys.version_info < (3, 0):
-            super(ConstConfigVar, self).__init__(name, description, *values)
-        else:
-            raise "Python version too advanced, need 2.X not "+str(sys.version_info)
-        #    super().__init__(name, description, *values)
+        super().__init__(name, description, *values)
 
     @ConfigVar.description.setter
     def description(self, unused_description):

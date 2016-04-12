@@ -1,12 +1,12 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 """
     Copyright (c) 2012, Shai Shasag
     All rights reserved.
     Licensed under BSD 3 clause license, see LICENSE file for details.
 
-    argumentedYaml adds some functionality to PyYaml:
+    augmentedYaml adds some functionality to PyYaml:
         Methods isScalar(), isSequence(), isMapping()
     for easier identification of
         ScalarNode SequenceNode, MappingNode.
@@ -82,8 +82,7 @@ def iter_mapping_keys(self):
         the key as a string. The assumption
         is that mapping key is a scalar
     """
-    for map_tuple in self.value:
-        yield str(map_tuple[0].value)
+    yield from map(lambda map_tuple: str(map_tuple[0].value), self.value)
 
 
 def iter_sequence(self):
@@ -94,8 +93,8 @@ def iter_sequence(self):
         yield item
 
 yaml.ScalarNode.__iter__ = iter_scalar
-yaml.MappingNode.__iter__ = iter_mapping
-yaml.MappingNode.iterkeys = iter_mapping_keys
+yaml.MappingNode.items = iter_mapping
+yaml.MappingNode.__iter__ = iter_mapping_keys
 yaml.SequenceNode.__iter__ = iter_sequence
 
 
@@ -129,14 +128,14 @@ yaml.MappingNode.__getitem__ = get_mapping_item
 yaml.SequenceNode.__getitem__ = get_sequence_item
 
 
-def mappaing_containes(self, key):
+def mapping_contains(self, key):
     """ support 'if x in y:...' """
     try:
         self.__getitem__(key)
         return True
-    except:
+    except Exception:
         return False
-yaml.MappingNode.__contains__ = mappaing_containes
+yaml.MappingNode.__contains__ = mapping_contains
 
 
 def ifTrueOrFalse(test, ifTrue, ifFalse):
@@ -153,8 +152,7 @@ class YamlDumpWrap(object):
         have comments and tags. Sorting mapping by key is also optional.
     """
     def __init__(self, value=None, tag="", comment="", sort_mappings=False):
-        # sometimes tag's type is unicode, pyYaml is strange...
-        self.tag = tag.encode('ascii', 'ignore')
+        self.tag = tag
         self.comment = comment
         self.value = value
         self.sort_mappings = sort_mappings
@@ -171,7 +169,7 @@ class YamlDumpWrap(object):
     def isScalar(self):
         return isScalar(self.value)
 
-    def writePrefix(self, out_stream,indentor ):
+    def writePrefix(self, out_stream, indentor):
         if isinstance(self.value, (list, tuple, dict)):
             if self.tag or self.comment:
                 indentor.lineSepAndIndent(out_stream)
@@ -193,7 +191,7 @@ class YamlDumpDocWrap(YamlDumpWrap):
         self, value=None, tag="", comment="",
             explicit_start=True, explicit_end=False,
             sort_mappings=False):
-        super(YamlDumpDocWrap, self).__init__(tag=tag, comment=comment,
+        super().__init__(tag=tag, comment=comment,
                                               value=value,
                                               sort_mappings=sort_mappings)
         self.explicit_start = explicit_start
@@ -320,7 +318,7 @@ def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False):
         if sort and not isinstance(pyObj, OrderedDict):
             theKeys = sorted(pyObj.keys())
         else:
-            theKeys = pyObj.keys()
+            theKeys = list(pyObj.keys())
         for item in theKeys:
             nl_before_key = (parent_item != 'l')
             if nl_before_key:

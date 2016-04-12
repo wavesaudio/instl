@@ -1,22 +1,22 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 import datetime
 
 import utils
-from platformSpecificHelper_Base import PlatformSpecificHelperBase
-from platformSpecificHelper_Base import CopyToolRsync
-from platformSpecificHelper_Base import DownloadToolBase
+from .platformSpecificHelper_Base import PlatformSpecificHelperBase
+from .platformSpecificHelper_Base import CopyToolRsync
+from .platformSpecificHelper_Base import DownloadToolBase
 
 
 class CopyToolLinuxRsync(CopyToolRsync):
     def __init__(self, platform_helper):
-        super(CopyToolLinuxRsync, self).__init__(platform_helper)
+        super().__init__(platform_helper)
 
 
 class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
     def __init__(self, instlObj):
-        super(PlatformSpecificHelperLinux, self).__init__(instlObj)
+        super().__init__(instlObj)
         self.var_replacement_pattern = "${\g<var_name>}"
         self.dl_tool = DownloadTool_linux_curl(self)
 
@@ -107,27 +107,24 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
     def tar(self, to_tar_name):
         raise NotImplementedError
 
-    def unwtar_file(self, filepath):
-        raise NotImplementedError
-
     def wait_for_child_processes(self):
         return ("wait",)
 
-    def chmod(self, new_mode, filepath):
-        chmod_command = " ".join(("chmod", new_mode, utils.quoteme_double(filepath)))
+    def chmod(self, new_mode, file_path):
+        chmod_command = " ".join(("chmod", new_mode, utils.quoteme_double(file_path)))
         return chmod_command
 
-    def make_executable(self, filepath):
-        return self.chmod("a+x", filepath)
+    def make_executable(self, file_path):
+        return self.chmod("a+x", file_path)
 
-    def unlock(self, filepath, recursive=False):
+    def unlock(self, file_path, recursive=False):
         """ Remove the system's read-only flag, this is different from permissions.
             Not relevant for Linux.
         """
         return ""
 
-    def touch(self, filepath):
-        touch_command = " ".join(("touch", utils.quoteme_double(filepath) ))
+    def touch(self, file_path):
+        touch_command = " ".join(("touch", utils.quoteme_double(file_path) ))
         return touch_command
 
     def append_file_to_file(self, source_file, target_file):
@@ -137,7 +134,7 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
 
 class DownloadTool_linux_curl(DownloadToolBase):
     def __init__(self, platform_helper):
-        super(DownloadTool_linux_curl, self).__init__(platform_helper)
+        super().__init__(platform_helper)
 
     def download_url_to_file(self, src_url, trg_file):
         """ Create command to download a single file.

@@ -1,5 +1,5 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 import utils
 from configVar import var_stack
 
@@ -12,7 +12,7 @@ except ImportError as IE:
 def create_dependencies_graph(item_map):
     retVal = nx.DiGraph()
     for item in item_map:
-        with item_map[item]:
+        with item_map[item].push_var_stack_scope():
             for dependant in var_stack.resolve_var_to_list("iid_depend_list"):
                 retVal.add_edge(var_stack.resolve_var("iid_iid"), dependant)
     return retVal
@@ -21,7 +21,7 @@ def create_dependencies_graph(item_map):
 def create_inheritItem_graph(item_map):
     retVal = nx.DiGraph()
     for item in item_map:
-        with item_map[item]:
+        with item_map[item].push_var_stack_scope():
             for dependant in var_stack.resolve_var_to_list("iid_inherit"):
                 retVal.add_edge(var_stack.resolve_var("iid_iid"), dependant)
     return retVal
@@ -44,9 +44,9 @@ def find_leafs(item_graph):
 def find_needed_by(item_graph, node):
     retVal = utils.set_with_order()
     if node in item_graph:
-        preds = item_graph.predecessors(node)
-        for pred in preds:
-            if pred not in retVal:
-                retVal.append(pred)
-                retVal.extend(find_needed_by(item_graph, pred))
+        predecessors = item_graph.predecessors(node)
+        for predecessor in predecessors:
+            if predecessor not in retVal:
+                retVal.append(predecessor)
+                retVal.extend(find_needed_by(item_graph, predecessor))
     return retVal

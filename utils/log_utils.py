@@ -1,5 +1,5 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 """
     Copyright (c) 2013, Shai Shasag
@@ -16,10 +16,7 @@ import logging.handlers
 
 def get_log_folder_path(in_appname, in_appauthor):
     retVal = appdirs.user_log_dir(appname=in_appname, appauthor=in_appauthor)
-    try:
-        os.makedirs(retVal)
-    except:  # os.makedirs raises is the directory already exists
-        pass
+    os.makedirs(retVal, exist_ok=True)
     return retVal
 
 

@@ -1,5 +1,5 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 """
     Copyright (c) 2012, Shai Shasag
@@ -13,12 +13,9 @@ from __future__ import print_function
 import os
 import sys
 import re
-import logging
-
-#sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 
 import aYaml
-import configVar
+from . import configVar
 
 
 value_ref_re = re.compile("""(
@@ -79,7 +76,7 @@ class ConfigVarList(object):
         return retVal
 
     def __str__(self):
-        var_names = [''.join((name, ": ", self.resolve_var(name))) for name in self.keys()]
+        var_names = [''.join((name, ": ", self.resolve_var(name))) for name in list(self.keys())]
         return '\n'.join(var_names)
 
     def __iter__(self):
@@ -89,7 +86,7 @@ class ConfigVarList(object):
         return var_name in self._ConfigVar_objs
 
     def keys(self):
-        return self._ConfigVar_objs.keys()
+        return list(self._ConfigVar_objs.keys())
 
     def description(self, var_name):
         """ Get description for variable """
@@ -127,7 +124,6 @@ class ConfigVarList(object):
         else:
             addedValue = configVar.ConstConfigVar(name, description, *values)
             self._ConfigVar_objs[addedValue.name] = addedValue
-            logging.debug("... %s: %s", name, ", ".join(map(str, values)))
 
     def duplicate_variable(self, source_name, target_name):
         source_obj = self[source_name]
@@ -135,17 +131,17 @@ class ConfigVarList(object):
 
     def read_environment(self):
         """ Get values from environment """
-        for env in os.environ:
-            if env == "":  # not sure why I get an empty string
+        for env_key, env_value in os.environ.items():
+            if env_key == "":  # not sure why, sometimes I get an empty string as env variable name
                 continue
-            self.set_var(env, "from environment").append(os.environ[env])
+            self.set_var(env_key, "from environment").append(env_value)
 
     def repr_for_yaml(self, which_vars=None, include_comments=True, ignore_unknown_vars=False):
         retVal = dict()
         vars_list = list()
         if not which_vars:
-            vars_list.extend(self.keys())
-        elif isinstance(which_vars, basestring):
+            vars_list.extend(list(self.keys()))
+        elif isinstance(which_vars, str):
             vars_list.append(which_vars)
         else:
             vars_list = which_vars
@@ -176,37 +172,48 @@ class ConfigVarList(object):
             None existent variables are left as is if default==None, otherwise value of default is inserted
         """
         resolved_str = str_to_resolve
-        search_start_pos = 0
-        #print("resolving:", str_to_resolve)
-        while True:
-            match = value_ref_re.search(resolved_str, search_start_pos)
-            if not match:
-                break
-            replacement = default
-            var_name = match.group('var_name')
-            if var_name in self:
-                if var_name in self.__resolve_stack:
-                    raise Exception("circular resolving of '$({})', resolve stack: {}".format(var_name, self.__resolve_stack))
-                self.__resolve_stack.append(var_name)
-                if match.group('varref_array'):
-                    array_index = int(match.group('array_index'))
-                    if array_index < len(self[var_name]):
-                        replacement = self[var_name][array_index]
+        try:
+            search_start_pos = 0
+            #print("resolving:", str_to_resolve)
+            while True:
+                match = value_ref_re.search(resolved_str, search_start_pos)
+                if not match:
+                    break
+                replacement = default
+                var_name = match.group('var_name')
+                if var_name in self:
+                    if var_name in self.__resolve_stack:
+                        raise Exception("circular resolving of '$({})', resolve stack: {}".format(var_name, self.__resolve_stack))
+                    self.__resolve_stack.append(var_name)
+                    if match.group('varref_array'):
+                        array_index = int(match.group('array_index'))
+                        if array_index < len(self[var_name]):
+                            replacement = self[var_name][array_index]
+                    else:
+                        var_joint_values = list_sep.join([val for val in self[var_name] if val])
+                        replacement = self.resolve(var_joint_values, list_sep)
+
+                    self.__resolve_stack.pop()
+
+                # if var_name was not found skip it on the next search
+                if replacement is None:
+                    search_start_pos = match.end('varref_pattern')
                 else:
-                    var_joint_values = list_sep.join([val for val in self[var_name] if val])
-                    replacement = self.resolve(var_joint_values, list_sep)
-
-                self.__resolve_stack.pop()
-
-            # if var_name was not found skip it on the next search
-            if replacement is None:
-                search_start_pos = match.end('varref_pattern')
-            else:
-                resolved_str = resolved_str.replace(match.group('varref_pattern'), replacement)
-            #print("    ", resolved_str)
+                    resolved_str = resolved_str.replace(match.group('varref_pattern'), replacement)
+                #print("    ", resolved_str)
+        except TypeError:
+            print("TypeError while resolving", str_to_resolve)
+            if raise_on_fail:
+                raise
         if raise_on_fail and not self.is_resolved(resolved_str):
-            raise ValueError("Cannot full resolve "+str_to_resolve+ ": "+resolved_str)
+            raise ValueError("Cannot fully resolve "+str_to_resolve+ ": "+resolved_str)
         return resolved_str
+
+    # just an experiment
+    def __matmul__(self, str_to_resolve):
+        return self.resolve(str_to_resolve)
+    def __rmatmul__(self, str_to_resolve):
+        return self.resolve(str_to_resolve)
 
     def resolve_to_list(self, str_to_resolve, list_sep=" ", default=None):
         """ Resolve a string, possibly with $() style references.

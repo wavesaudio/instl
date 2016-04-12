@@ -1,24 +1,24 @@
-#!/usr/bin/env python2.7
-from __future__ import print_function
+#!/usr/bin/env python3
+
 
 import os
 import datetime
 
 import utils
 from configVar import var_stack
-from platformSpecificHelper_Base import PlatformSpecificHelperBase
-from platformSpecificHelper_Base import CopyToolRsync
-from platformSpecificHelper_Base import DownloadToolBase
+from .platformSpecificHelper_Base import PlatformSpecificHelperBase
+from .platformSpecificHelper_Base import CopyToolRsync
+from .platformSpecificHelper_Base import DownloadToolBase
 
 
 class CopyToolMacRsync(CopyToolRsync):
     def __init__(self, platform_helper):
-        super(CopyToolMacRsync, self).__init__(platform_helper)
+        super().__init__(platform_helper)
 
 
 class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
     def __init__(self, instlObj):
-        super(PlatformSpecificHelperMac, self).__init__(instlObj)
+        super().__init__(instlObj)
         self.var_replacement_pattern = "${\g<var_name>}"
         self.echo_template = 'echo "{}"'
 
@@ -34,7 +34,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
             self.remark(self.instlObj.get_version_str()),
             self.remark(datetime.datetime.today().isoformat()),
             "set -e",
-            # "set -u",
+            "umask 0000",
             self.get_install_instructions_exit_func(),
             self.get_install_instructions_mkdir_with_owner_func(),
             self.get_resolve_symlinks_func(),
@@ -61,8 +61,8 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
     def get_install_instructions_mkdir_with_owner_func(self):
         retVal = (
             'mkdir_with_owner() {',
-            'mkdir -p -m a+rwx "$1"',
-            'chown $(__USER_ID__): "$1"',
+            'mkdir -p -m a+rwx "$1"',               # -m will set the perm even if the dir exists
+            'chown $(__USER_ID__): "$1" || true',    # ignore error if owner cannot be changed
             '}')
         return retVal
 
@@ -75,7 +75,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         """
         retVal = (
             '''resolve_symlinks() {''',
-            '''find -P "$1" -type f -name '*.symlink' | while read readlink_file; do''',
+            '''find -P "$1" -type f -name '*.symlink'  -not -path "$(COPY_SOURCES_ROOT_DIR)*" | while read readlink_file; do''',
             '''     link_target=${readlink_file%%.symlink}''',
             '''     if [ ! -h "${link_target}" ]''',
             '''     then''',
@@ -127,7 +127,6 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
 
     def rmdir(self, directory, recursive=False):
         """ If recursive==False, only empty directory will be removed """
-        rmdir_command = ""
         if recursive:
             rmdir_command = " ".join(("rm", "-fr", utils.quoteme_double(directory) ))
         else:
@@ -147,7 +146,14 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         return 'find . -maxdepth 1 -mindepth 1 -type d -print0 | xargs -0 "$(SVN_CLIENT_PATH)" cleanup --non-interactive'
 
     def var_assign(self, identifier, value, comment=None):
-        retVal = identifier + '="' + value + '"'
+        quoter = '"'
+        if '"' in value:
+            quoter = "'"
+            if "'" in value:
+                print(value, """has both ' and " quote chars;""", "identifier:", identifier)
+                return ()
+
+        retVal = "".join((identifier, '=', quoter, value, quoter))
         if comment is not None:
             retVal += ' ' + self.remark(str(comment))
         return retVal
@@ -183,14 +189,14 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
             copy_command = """cp -f "{src_file}" "{trg_file}" """.format(**locals())
         return copy_command
 
-    def resolve_symlink_files(self, in_dir="."):
-        """ create instructions to turn .readlink files into symlinks.
+    def resolve_symlink_files(self, in_dir="$PWD"):
+        """ create instructions to turn .symlinks files into real symlinks.
             Main problem was with files that had space in their name, just
             adding \" was no enough, had to separate each step to a single line
             which solved the spaces problem. Also find returns an empty string
             even when there were no files found, and therefor the check
         """
-        resolve_command = " ".join(("resolve_symlinks", utils.quoteme_double(in_dir) ))
+        resolve_command = " ".join(("resolve_symlinks", utils.quoteme_double(in_dir)))
         return resolve_command
 
     def check_checksum_for_file(self, file_path, checksum):
@@ -216,11 +222,6 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         wtar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "-c", "--use-compress-program bzip2", "-f", utils.quoteme_double(to_tar_name+'.wtar'), utils.quoteme_double(to_tar_name))
         wtar_command = " ".join(wtar_command_parts)
         return wtar_command
-
-    def unwtar_file(self, file_path):
-        unwtar_command = " ".join(("$(WTAR_OPENER_TOOL_PATH)", "-x", "-f", utils.quoteme_double(file_path)))
-        done_stamp_file = file_path + ".done"
-        return unwtar_command, self.touch(done_stamp_file)
 
     def split_func(self):
         the_split_func = ("""
@@ -251,14 +252,21 @@ split_file()
     def make_executable(self, file_path):
         return self.chmod("a+x", file_path)
 
-    def unlock(self, file_path, recursive=False):
+    def make_writable(self, file_path):
+        return self.chmod("a+w", file_path)
+
+    def unlock(self, file_path, recursive=False, ignore_errors=True):
         """ Remove the system's read-only flag, this is different from permissions.
             For changing permissions use chmod.
         """
-        recurse_flag = ""
+        ignore_errors_flag = recurse_flag = ""
+        if ignore_errors:
+            ignore_errors_flag = "-f"
         if recursive:
             recurse_flag = "-R"
-        nouchg_command = " ".join(("chflags", recurse_flag, "nouchg", utils.quoteme_double(file_path)))
+        nouchg_command = " ".join(("chflags", ignore_errors_flag, recurse_flag, "nouchg", utils.quoteme_double(file_path)))
+        if ignore_errors: # -f is not enough in case the file does not exist, chflags will still exit with 1
+            nouchg_command = " ".join((nouchg_command, "||", "true"))
         return nouchg_command
 
     def touch(self, file_path):
@@ -272,7 +280,7 @@ split_file()
 
 class DownloadTool_mac_curl(DownloadToolBase):
     def __init__(self, platform_helper):
-        super(DownloadTool_mac_curl, self).__init__(platform_helper)
+        super().__init__(platform_helper)
 
     def download_url_to_file(self, src_url, trg_file):
         """ Create command to download a single file.
@@ -316,16 +324,16 @@ class DownloadTool_mac_curl(DownloadToolBase):
             list_for_file_cycler = itertools.cycle(list_of_lines_for_files)
             url_num = 0
             for url, path in self.urls_to_download:
-                line_list = list_for_file_cycler.next()
+                line_list = next(list_for_file_cycler)
                 line_list.append('''url = "{url}"\noutput = "{path}"\n\n'''.format(**locals()))
                 url_num += 1
 
             num_digits = len(str(actual_num_files))
-            file_name_list = ["-".join( (curl_config_file_path, str(file_i).zfill(num_digits)) ) for file_i in xrange(actual_num_files)]
+            file_name_list = ["-".join( (curl_config_file_path, str(file_i).zfill(num_digits)) ) for file_i in range(actual_num_files)]
 
             lise_of_lines_iter = iter(list_of_lines_for_files)
             for file_name in file_name_list:
-                with open(file_name, "w") as wfd:
+                with open(file_name, "w", encoding='utf-8') as wfd:
                     utils.make_open_file_read_write_for_all(wfd)
                     wfd.write("insecure\n")
                     wfd.write("raw\n")
@@ -340,7 +348,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
                     wfd.write("write-out = \"Progress: ... of ...; " + os.path.basename(wfd.name) + ": " + DownloadToolBase.curl_write_out_str + "\"\n")
                     wfd.write("\n")
                     wfd.write("\n")
-                    list_of_lines = lise_of_lines_iter.next()
+                    list_of_lines = next(lise_of_lines_iter)
                     for line in list_of_lines:
                         wfd.write(line)
 
@@ -350,7 +358,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
 
     def download_from_config_files(self, parallel_run_config_file_path, config_files):
 
-        with open(parallel_run_config_file_path, "w") as wfd:
+        with open(parallel_run_config_file_path, "w", encoding='utf-8') as wfd:
             utils.make_open_file_read_write_for_all(wfd)
             for config_file in config_files:
                 wfd.write(var_stack.resolve('"$(DOWNLOAD_TOOL_PATH)" --config "{config_file}"\n'.format(**locals()), raise_on_fail=True))

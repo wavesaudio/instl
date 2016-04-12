@@ -1,1 +1,1 @@
-from svnTree import SVNTree, WtarFilter
+from .svnTable import SVNTable

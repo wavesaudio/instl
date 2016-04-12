@@ -21,6 +21,13 @@ command:
             If --sha2 option is given check-sig will calculate the file's sha1 checksum and compare the result to the given checksum.
             check-sig is a utility command, it is not needed for creating or using instl-based installer.
 
+    checksum:
+        short: calculate sha1 checksum for a file or files in a folder (misc command)
+        long: |
+            Usage: instl checksum --in path_to_file_or_folder_to_checksum
+            checksum command just calculates the file(s)'s checksum, it does not check against any given checksum as check-sig or check-checksum commands do.
+            checksum is a utility command, it is not needed for creating or using instl-based installer.
+
     copy:
       short: Install files to their destination. (client command)
       long: |
@@ -81,6 +88,13 @@ command:
             Usage instl depend --in index-file --out depend-file
             Reads the given index-file and for each IID prints to depend-file all the IID it depends on and all IID needed by it.
             To print to standard out specify --out stdout
+
+    fail:
+        short: Fail on purpose and return an exit code (runtime command)
+        long: |
+            Usage: instl fail [--exit-code a_number]
+            The fail command is used to simulate a situation where instl fils and returns an exit code (ERRORLEVEL on windows).
+            If --exit-code is given that number is use as exit code, otherwise default exit code is 1.
 
     fix-perm:
         short: Fix unix style permissions (admin command)
@@ -174,7 +188,7 @@ command:
     trans:
         short: Translates between the various format of svn info files. (admin command)
         long:  |
-            Usage: instl trans --in svn_info_file [--props svn_props_file] [--filter-out path_to_filter_out [, path_to_filter_out] ] [--filter-in version_to_filter_in]
+            Usage: instl trans --in svn_info_file [--props svn_props_file] [--filter-in version_to_filter_in]
             instl's trans command can translate between the format created by svn info command and the native instl info format. Additional input that can be given is the output of the svn proplist command. trans also has limited filtering options.
             trans command is used in the output of create-links command.
 

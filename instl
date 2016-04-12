@@ -1,8 +1,6 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3
 
 """ main executable for instl """
-
-from __future__ import print_function
 
 # this might overcome some codepage problems on Windows
 #import codecs
@@ -11,18 +9,14 @@ from __future__ import print_function
 import os
 import sys
 import argparse
-import logging
 
+import tempfile
 import appdirs
 from utils import InstlException
+import utils
 
 # umask to 0 so that all files created under sudo, can be re-written under regular user.
 os.umask(0)
-
-# setup logging, must be done before other imports
-from utils import setup_logging
-setup_logging("instl", "instl")
-import utils
 
 
 current_os_names = utils.get_current_os_names()
@@ -50,12 +44,12 @@ def get_instl_launch_command():
     """
     launch_command = None
     if getattr(sys, 'frozen', False):
-        launch_command = quoteme_double(os.path.realpath(sys.executable))
+        launch_command = utils.quoteme_double(os.path.realpath(sys.executable))
     elif __file__:
         if os_family_name == "Win":
-            launch_command =  quoteme_double(sys.executable) + " " + quoteme_double(os.path.realpath(__file__))
+            launch_command = " ".join((utils.quoteme_double(sys.executable), utils.quoteme_double(os.path.realpath(__file__))))
         else:
-            launch_command = quoteme_double(os.path.realpath(__file__))
+            launch_command = utils.quoteme_double(os.path.realpath(__file__))
     return launch_command
 
 
@@ -73,13 +67,13 @@ class CommandLineOptions(object):
         holds command line options
     """
     def __init__(self):
+        self.mode = None
         self.command = None
         self.input_file = None
         self.output_file = None
         self.run = False
         self.state_file = None
         self.props_file = None
-        self.filter_out = None
         self.filter_in = None
         self.target_repo_rev = None
         self.base_repo_rev = None
@@ -104,9 +98,10 @@ class CommandLineOptions(object):
         self.dock_item_label = None
         self.remove_from_dock = None
         self.restart_the_dock = None
+        self.fail_exit_code = None
 
     def __str__(self):
-        return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).iteritems())])
+        return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).items())])
 
 
 def prepare_args_parser(in_command):
@@ -118,6 +113,7 @@ def prepare_args_parser(in_command):
     commands_details = {
         'check-checksum':       {'mode': 'ds', 'options': ('in', 'prog',), 'help':  'check checksum for a list of files from info_map file'},
         'check-sig':            {'mode': 'an', 'options': ('in', 'conf',), 'help':  'check sha1 checksum and/or rsa signature for a file'},
+        'checksum':             {'mode': 'ds', 'options': ('in',), 'help':  'calculate checksum for a file'},
         'copy':                 {'mode': 'ct', 'options': ('in', 'out', 'run', 'cred'), 'help':  'copy files to target paths'},
         'create-folders':       {'mode': 'ds', 'options': ('in',  'prog',), 'help':  'create folders from info_map file'},
         'create-infomap':       {'mode': 'an', 'options': ('conf', 'out', 'run'), 'help': 'create infomap file for repository'},
@@ -126,12 +122,14 @@ def prepare_args_parser(in_command):
         'create-rsa-keys':      {'mode': 'an', 'options': ('conf',), 'help':  'create private and public keys'},
         'depend':               {'mode': 'an', 'options': ('in', 'out',), 'help':  'output a dependencies map for an index file'},
         'doit':                 {'mode': 'di', 'options': ('in', 'out', 'run'), 'help':  'Do something'},
+        'fail':                 {'mode': 'ds', 'options': (), 'help': "fail and return exit code"},
         'file-sizes':           {'mode': 'an', 'options': ('in', 'out'), 'help':  'Create a list of files and their sizes'},
         'fix-perm':             {'mode': 'an', 'options': ('out', 'run','conf', 'limit'), 'help':  'Fix Mac OS permissions'},
         'fix-props':            {'mode': 'an', 'options': ('out', 'run','conf'), 'help':  'create svn commands to remove redundant properties such as executable bit from files that should not be marked executable'},
-        'fix-symlinks':         {'mode': 'an', 'options': ('out', 'run','conf',), 'help':  'replace symlinks with .symlinks files'},
+        'fix-symlinks':         {'mode': 'an', 'options': ('out', 'run','conf', 'limit'), 'help':  'replace symlinks with .symlinks files'},
         'gui':                  {'mode': 'gi', 'options': (), 'help':  'graphical user interface'},
         'help':                 {'mode': 'ds', 'options': (), 'help':  'help'},
+        'ls':                   {'mode': 'ds', 'options': ('in', 'out', 'limit'), 'help':  'create a directory listing'},
         'mac-dock':             {'mode': 'ds', 'options': (), 'help': "add or remove to Mac OS's Dock"},
         'make-sig':             {'mode': 'an', 'options': ('in', 'conf',), 'help':  'create sha1 checksum and rsa signature for a file'},
         'parallel-run':         {'mode': 'ds', 'options': ('in', ), 'help':  'Run processes in parallel'},
@@ -150,7 +148,7 @@ def prepare_args_parser(in_command):
         'up-repo-rev':          {'mode': 'an', 'options': ('out', 'run', 'conf',), 'help':  'upload repository revision file to admin folder'},
         'up2s3':                {'mode': 'an', 'options': ( 'out', 'run', 'conf',), 'help':  'upload installation sources to S3'},
         'verify-index':         {'mode': 'an', 'options': ('in', 'cred'), 'help':  'Verify that index and info map are compatible'},
-        'verify-repo':          {'mode': 'an', 'options': ('conf'), 'help':  'Verify a local repository against its index'},
+        'verify-repo':          {'mode': 'an', 'options': ('conf',), 'help':  'Verify a local repository against its index'},
         'version':              {'mode': 'ds', 'options': (), 'help':  'display instl version'},
         'win-shortcut':         {'mode': 'ds', 'options': (), 'help':  'create a Windows shortcut'},
         'wtar':                 {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'create .wtar files from specified files and folders'},
@@ -173,7 +171,7 @@ def prepare_args_parser(in_command):
             for arg in line_no_whitespace.split():
                 if not arg:
                     continue
-                elif  arg[0] == '#':
+                elif arg[0] == '#':
                     break
                 yield arg
 
@@ -209,7 +207,7 @@ def prepare_args_parser(in_command):
                                     dest='input_file',
                                     help="file or folder to act upon")
 
-    # required --out
+    # optional --out
     if 'out' in command_details['options']:
         output_options = command_parser.add_argument_group(description='output arguments:')
         output_options.add_argument('--out', '-o',
@@ -279,18 +277,7 @@ def prepare_args_parser(in_command):
                                 metavar='path-to-props-file',
                                 dest='props_file',
                                 help="file to read svn properties from")
-        trans_options.add_argument('--filter-out',
-                                required=False,
-                                nargs='+',
-                                metavar='paths-to-filter-out',
-                                dest='filter_out',
-                                help="paths to filter out, comma separated")
-        trans_options.add_argument('--filter-in',
-                                required=False,
-                                nargs=1,
-                                metavar='version-to-filter-in',
-                                dest='filter_in',
-                                help="version to filter in, all other version will be left out")
+
         trans_options.add_argument('--base-repo-rev',
                                 required=False,
                                 nargs=1,
@@ -403,6 +390,15 @@ def prepare_args_parser(in_command):
                                 dest='all_revisions',
                                 help="work on all revisions even if above repo-rev")
 
+    elif 'fail' == in_command:
+        mac_dock_options = command_parser.add_argument_group(description=in_command+' arguments:')
+        mac_dock_options.add_argument('--exit-code',
+                                required=False,
+                                nargs=1,
+                                metavar='exit-code-to-return',
+                                dest='fail_exit_code',
+                                help="exit code to return")
+
     elif 'help' == in_command:
         help_options = command_parser.add_argument_group(description='help subject:')
         help_options.add_argument('subject', nargs='?')
@@ -453,17 +449,18 @@ def main():
                     "__USER_DATA_DIR__": os.path.normpath(appdirs.user_data_dir()),
                     "__USER_CONFIG_DIR__": os.path.normpath(appdirs.user_config_dir()),
                     "__USER_HOME_DIR__": os.path.normpath(os.path.expanduser("~")),
-                    "__USER_DESKTOP_DIR__": os.path.normpath("$(__USER_HOME_DIR__)/Desktop")
+                    "__USER_DESKTOP_DIR__": os.path.normpath("$(__USER_HOME_DIR__)/Desktop"),
+                    "__USER_TEMP_DIR__": os.path.normpath(os.path.join(tempfile.gettempdir(), "$(SYNC_BASE_URL_MAIN_ITEM)/$(REPO_NAME)")),
+                    "__USER_PATH__": os.environ.get("PATH", "PATH environment variable undefined"),
                     }
     if os_family_name != "Win":
         initial_vars.update(
                     {"__USER_ID__": str(os.getuid()),
                      "__GROUP_ID__": str(os.getgid())})
 
-    logging.info("Command %s", options.command)
     if options.mode == "client":
-        from pyinstl.instlClient import InstlClient
-        instance = InstlClient(initial_vars)
+        from pyinstl.instlClient import InstlClientFactory
+        instance = InstlClientFactory(initial_vars, options.command)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "doit":
@@ -502,7 +499,7 @@ def main():
             instance.do_command()
     else:
         raise InstlException("incomprehensible command line options:\n", options)
-    logging.info("Done %s", options.command)
+    #print('\n'.join(sorted(sys.modules)))
 
 if __name__ == "__main__":
     main()

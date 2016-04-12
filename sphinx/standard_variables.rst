@@ -14,19 +14,19 @@ These variable can be supplied by the used in the !define file, but have deafult
 
     * BASE_SRC_URL: Base Subversion URL for all install_sources sections in the index file. Defaults to "$(SYNC_BASE_URL)/$(TARGET_OS)". 
     * BOOKKEEPING_DIR_URL: Subversion URL for the folder holding the index file. Defaults to "$(SYNC_BASE_URL)/instl"
-    * COPY_TOOL: The commandline tool used to copy files. Deafault to 'rsync' on Mac and 'robocopy' on Windows.
+    * COPY_TOOL: The commandline tool used to copy files. Defaults to 'rsync' on Mac and 'robocopy' on Windows.
     * __CURRENT_OS__: The os **instl** is currently running on. Values are 'Win' for Windows and 'Mac' for Mac OS.
-    * LOCAL_SYNC_DIR: The folder where **instl** will sync the installation sources to. Defaults to the systam's temporary folder.
+    * LOCAL_SYNC_DIR: The folder where **instl** will sync the installation sources to. Defaults to the system temporary folder.
     * REPO_NAME: The part of SYNC_BASE_URL representing the name of the repository. Defaults to the last URL element of SYNC_BASE_URL.
-    * REPO_REV: The version of the subversion reprository to sync. defaults to HEAD.
+    * REPO_REV: The version of the subversion repository to sync. defaults to HEAD.
     * SYNC_LOG_FILE: Path to a file where sync log will be written. Defaults to "${LOCAL_SYNC_DIR}/${REPO_NAME}/"+time.time()+"sync.log.
     * TARGET_OS: The os **instl** is installing to.  Values are 'Win' for Windows and 'Mac' for Mac OS. Defaults to __CURRENT_OS__.
     
 Public **instl** created variables
 =================================
-These variables are creaedt internally by **instl** and are writtent to the output script.
-    * REL_BOOKKIPING_PATH: The path element to added to SYNC_BASE_URL to create BOOKKEEPING_DIR_URL. Calculeted by **instl**.
-    * REL_SRC_PATH: The path element to added to SYNC_BASE_URL to create BASE_SRC_URL. Calculeted by **instl**.
+These variables are create internally by **instl** and are written to the output script.
+    * REL_BOOKKEEPING_PATH: The path element to added to SYNC_BASE_URL to create BOOKKEEPING_DIR_URL. Calculated by **instl**.
+    * REL_SRC_PATH: The path element to added to SYNC_BASE_URL to create BASE_SRC_URL. Calculated by **instl**.
 
 Private **instl** created variables
 ==================================

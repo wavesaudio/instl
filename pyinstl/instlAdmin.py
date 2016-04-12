@@ -1,37 +1,37 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3
 
-from __future__ import print_function
 
 import os
 import filecmp
-import cStringIO as StringIO
+import io
 import re
 import fnmatch
 import subprocess
 from collections import defaultdict
 import stat
 
-import svnTree
 import utils
 import aYaml
-from instlInstanceBase import InstlInstanceBase
-from installItem import InstallItem
-from batchAccumulator import BatchAccumulator
+from .instlInstanceBase import InstlInstanceBase
+from .installItem import InstallItem
+from .batchAccumulator import BatchAccumulator
 from configVar import var_stack
-import connectionBase
 
 
 # noinspection PyPep8,PyPep8,PyPep8
 class InstlAdmin(InstlInstanceBase):
 
     def __init__(self, initial_vars):
-        super(InstlAdmin, self).__init__(initial_vars)
-        self.svnTree = svnTree.SVNTree()
+        super().__init__(initial_vars)
+        self.read_name_specific_defaults_file(super().__thisclass__.__name__)
 
     def set_default_variables(self):
         if "__CONFIG_FILE__" in var_stack:
             config_file_resolved = self.path_searcher.find_file(var_stack.resolve("$(__CONFIG_FILE__)"), return_original_if_not_found=True)
             var_stack.set_var("__CONFIG_FILE_PATH__").append(config_file_resolved)
+            if "__MAIN_OUT_FILE__" not in var_stack:
+                var_stack.add_const_config_variable("__MAIN_OUT_FILE__", "from command line options",
+                                                    "$(__CONFIG_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)")
             self.read_yaml_file(config_file_resolved)
             self.resolve_defined_paths()
         if "PUBLIC_KEY" not in var_stack:
@@ -40,7 +40,7 @@ class InstlAdmin(InstlInstanceBase):
                     public_key_file = var_stack.resove("$(PUBLIC_KEY_FILE)")
                     public_key_text = open(public_key_file, "rb").read()
                     var_stack.set_var("PUBLIC_KEY", "from " + public_key_file).append(public_key_text)
-                except:
+                except Exception:
                     pass  # lo nora
         if "PRIVATE_KEY" not in var_stack:
             if "PRIVATE_KEY_FILE" in var_stack:
@@ -48,54 +48,36 @@ class InstlAdmin(InstlInstanceBase):
                     private_key_file = var_stack.resove("$(PRIVATE_KEY_FILE)")
                     private_key_text = open(private_key_file, "rb").read()
                     var_stack.set_var("PUBLIC_KEY", "from " + private_key_file).append(private_key_text)
-                except:
+                except Exception:
                     pass  # lo nora
 
     def do_command(self):
-        the_command = var_stack.resolve("$(__MAIN_COMMAND__)")
         self.set_default_variables()
         self.platform_helper.num_items_for_progress_report = int(var_stack.resolve("$(LAST_PROGRESS)"))
         self.platform_helper.init_copy_tool()
-        fixed_command_name = the_command.replace('-', '_')
-        do_command_func = getattr(self, "do_" + fixed_command_name)
+        do_command_func = getattr(self, "do_" + self.fixed_command)
         do_command_func()
 
     def do_trans(self):
-        self.read_info_map_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)"))
+        self.info_map_table.read_from_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)"), a_format="info")
         if "__PROPS_FILE__" in var_stack:
-            self.read_info_map_file(var_stack.resolve("$(__PROPS_FILE__)"))
+            self.info_map_table.read_from_file(var_stack.resolve("$(__PROPS_FILE__)"), a_format="props")
         if "__FILE_SIZES_FILE__" in var_stack:
-            self.read_info_map_file(var_stack.resolve("$(__FILE_SIZES_FILE__)"), a_format="file-sizes")
-        self.filter_out_info_map(var_stack.resolve_to_list("$(__FILTER_OUT_PATHS__)"))
+            self.info_map_table.read_from_file(var_stack.resolve("$(__FILE_SIZES_FILE__)"), a_format="file-sizes")
 
         base_rev = int(var_stack.resolve("$(BASE_REPO_REV)"))
         if base_rev > 0:
-            for item in self.svnTree.walk_items():
-                item.revision = max(item.revision, base_rev)
+            self.info_map_table.set_base_revision(base_rev)
 
-        if "__FILTER_IN_VERSION__" in var_stack:
-            self.filter_in_specific_version(var_stack.resolve("$(__FILTER_IN_VERSION__)"))
         if "__BASE_URL__" in var_stack:
             self.add_urls_to_info_map()
-        self.write_info_map_file()
-
-        #for item in self.svnTree.walk_items(what="dir"):
-        #    print(item.full_path(), item.size)
-
+        self.info_map_table.write_to_file(var_stack.resolve("$(__MAIN_OUT_FILE__)"))
 
     def add_urls_to_info_map(self):
         base_url = var_stack.resolve_var("__BASE_URL__")
-        for file_item in self.svnTree.walk_items(what="file"):
-            file_item.url = os.path.join(base_url, str(file_item.revision), file_item.full_path())
+        for file_item in self.info_map_table.get_items(what="file"):
+            file_item.url = os.path.join(base_url, str(file_item.revision), file_item.path)
             print(file_item)
-
-    def filter_out_info_map(self, paths_to_filter_out):
-        for path in paths_to_filter_out:
-            self.svnTree.remove_item_at_path(path)
-
-    def filter_in_specific_version(self, ver):
-        remove_predicate = InstlAdmin.RemoveIfNotSpecificVersion(int(ver))
-        self.svnTree.recursive_remove_depth_first(remove_predicate)
 
     def get_revision_range(self):
         revision_range_re = re.compile("""
@@ -130,7 +112,7 @@ class InstlAdmin(InstlInstanceBase):
         if os.path.isfile(create_links_done_stamp_file):
             if revision == current_base_repo_rev:  # revision is the new base_repo_rev
                 try:
-                    previous_base_repo_rev = int(open(create_links_done_stamp_file, "r").read())  # try to read the previous
+                    previous_base_repo_rev = int(open(create_links_done_stamp_file, "r", encoding='utf-8').read())  # try to read the previous
                     if previous_base_repo_rev == current_base_repo_rev:
                         retVal = False
                     else:
@@ -139,8 +121,8 @@ class InstlAdmin(InstlInstanceBase):
                         print(msg)
                         # if we need to create links, remove the upload stems in order to force upload
                         try: os.remove(var_stack.resolve("$(ROOT_LINKS_FOLDER_REPO)/"+str(revision)+"/$(UP_2_S3_STAMP_FILE_NAME)"))
-                        except: pass
-                except:
+                        except Exception: pass
+                except Exception:
                     pass  # no previous base repo rev indication was found so return True to re-create the links
             else:
                 retVal = False
@@ -157,9 +139,10 @@ class InstlAdmin(InstlInstanceBase):
         with utils.ChangeDirIfExists(repo_url):
             proc = subprocess.Popen(svn_info_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             my_stdout, my_stderr = proc.communicate()
+            my_stdout, my_stderr = utils.unicodify(my_stdout), utils.unicodify(my_stderr)
             if proc.returncode != 0 or my_stderr != "":
-                raise ValueError("Could not read info from svn: " + my_stderr)
-            info_as_io = StringIO.StringIO(my_stdout)
+                raise ValueError("Could not read info from svn: ", my_stderr, proc.returncode)
+            info_as_io = io.StringIO(my_stdout)
             for line in info_as_io:
                 match = revision_line_re.match(line)
                 if match:
@@ -175,7 +158,6 @@ class InstlAdmin(InstlInstanceBase):
 
         self.batch_accum.set_current_section('links')
 
-        info_as_io = None
         # call svn info to find out the last repo revision
         last_repo_rev = self.get_last_repo_rev()
         base_repo_rev = int(var_stack.resolve("$(BASE_REPO_REV)"))
@@ -306,7 +288,7 @@ class InstlAdmin(InstlInstanceBase):
         max_repo_rev_to_work_on = curr_repo_rev
         if "__ALL_REVISIONS__" in var_stack:
             max_repo_rev_to_work_on = last_repo_rev
-        revision_list = range(base_repo_rev, max_repo_rev_to_work_on+1)
+        revision_list = list(range(base_repo_rev, max_repo_rev_to_work_on+1))
         dirs_to_upload = list()
         no_need_upload_nums = list()
         yes_need_upload_nums = list()
@@ -351,7 +333,7 @@ class InstlAdmin(InstlInstanceBase):
             save_dir_var = "REV_" + dir_name + "_SAVE_DIR"
             self.batch_accum += self.platform_helper.save_dir(save_dir_var)
             var_stack.set_var("__CURR_REPO_REV__").append(dir_name)
-            self.do_upload_to_s3_aws_for_revision(accum)
+            self.upload_to_s3_aws_for_revision(accum)
             revision_lines = accum.finalize_list_of_lines()  # will resolve with current  __CURR_REPO_REV__
             self.batch_accum += revision_lines
             self.batch_accum += self.platform_helper.restore_dir(save_dir_var)
@@ -362,12 +344,12 @@ class InstlAdmin(InstlInstanceBase):
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
 
-    def do_upload_to_s3_aws_for_revision(self, accum):
+    def upload_to_s3_aws_for_revision(self, accum):
         map_file_path = 'instl/info_map.txt'
         info_map_path = var_stack.resolve("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/" + map_file_path)
         repo_rev = int(var_stack.resolve("$(__CURR_REPO_REV__)"))
-        self.svnTree.clear_subs()
-        self.read_info_map_file(info_map_path)
+        self.info_map_table.clear_all()
+        self.info_map_table.read_from_file(info_map_path)
 
         accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
 
@@ -377,30 +359,20 @@ class InstlAdmin(InstlInstanceBase):
         # Files a folders that do not belong to __CURR_REPO_REV__ should not be uploaded.
         # Since aws sync command uploads the whole folder, we delete from disk all files
         # and folders that should not be uploaded.
-        # To save delete instructions for every file we rely on the fact that each folder
-        # has revision which is the maximum revision of it's sub-items.
-        self.svnTree.remove_item_at_path('instl')  # never remove the instl folder
-        from collections import deque
+        # To save delete instructions for every file, we first delete those folders where
+        # all files are not __CURR_REPO_REV__. Then the remaining files  are removed
+        self.info_map_table.mark_required_for_dir('instl') # never remove the instl folder
+        self.info_map_table.mark_required_for_revision(repo_rev)
 
-        dir_queue = deque()
-        dir_queue.append(self.svnTree)
-        while len(dir_queue) > 0:
-            curr_item = dir_queue.popleft()
-            files, dirs = curr_item.unsorted_sub_items()
-            for file_item in files:
-                if file_item.revision > repo_rev:
-                    raise ValueError(str(file_item) + " revision > repo_rev " + str(repo_rev))
-                elif file_item.revision < repo_rev:
-                    accum += self.platform_helper.rmfile(file_item.full_path())
-                    accum += self.platform_helper.progress("rmfile " + file_item.full_path())
-            for dir_item in dirs:
-                if dir_item.revision > repo_rev:
-                    raise ValueError(str(dir_item) + " revision > repo_rev " + str(repo_rev))
-                elif dir_item.revision < repo_rev:  # whole folder should be removed
-                    accum += self.platform_helper.rmdir(dir_item.full_path(), recursive=True)
-                    accum += self.platform_helper.progress("rmdir " + dir_item.full_path())
-                else:
-                    dir_queue.append(dir_item)  # need to check inside the folder
+        unrequired_dirs = self.info_map_table.get_unrequired_paths_where_parent_required(what="dir")
+        for unrequired_dir in unrequired_dirs:
+            accum += self.platform_helper.rmdir(unrequired_dir, recursive=True)
+            accum += self.platform_helper.progress("rmdir " + unrequired_dir)
+
+        unrequired_files = self.info_map_table.get_unrequired_paths_where_parent_required(what="file")
+        for unrequired_file in unrequired_files:
+            accum += self.platform_helper.rmfile(unrequired_file)
+            accum += self.platform_helper.progress("rmfile " + unrequired_file)
 
         # remove broken links, aws cannot handle them
         accum += " ".join( ("find", ".", "-type", "l", "!", "-exec", "test", "-e", "{}", "\;", "-exec", "rm", "-f", "{}", "\;") )
@@ -425,7 +397,6 @@ class InstlAdmin(InstlInstanceBase):
         accum += self.platform_helper.echo("done up2s3 revision $(__CURR_REPO_REV__)")
 
     def create_sig_for_file(self, file_to_sig):
-        retVal = None
         config_dir, _ = os.path.split(var_stack.resolve("$(__CONFIG_FILE_PATH__)"))
         private_key_file = os.path.join(config_dir, var_stack.resolve("$(REPO_NAME)") + ".private_key")
         with open(private_key_file, "rb") as private_key_fd:
@@ -461,9 +432,9 @@ class InstlAdmin(InstlInstanceBase):
 
         repo_rev_yaml = aYaml.YamlDumpDocWrap(var_stack.repr_for_yaml(repo_rev_vars, include_comments=False),
                                               '!define', "", explicit_start=True, sort_mappings=True)
-        utils.safe_makedirs(var_stack.resolve("$(ROOT_LINKS_FOLDER)/admin"))
+        os.makedirs(var_stack.resolve("$(ROOT_LINKS_FOLDER)/admin"), exist_ok=True)
         local_file = var_stack.resolve("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
-        with open(local_file, "w") as wfd:
+        with open(local_file, "w", encoding='utf-8') as wfd:
             aYaml.writeAsYaml(repo_rev_yaml, out_stream=wfd, indentor=None, sort=True)
             print("created", local_file)
 
@@ -504,40 +475,41 @@ class InstlAdmin(InstlInstanceBase):
         svn_info_command = [var_stack.resolve("$(SVN_CLIENT_PATH)"), "info", "--depth", "infinity"]
         proc = subprocess.Popen(svn_info_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         my_stdout, my_stderr = proc.communicate()
+        my_stdout, my_stderr = utils.unicodify(my_stdout), utils.unicodify(my_stderr)
         if proc.returncode != 0 or my_stderr != "":
             raise ValueError("Could not read info from svn: " + my_stderr)
         # write svn info to file for debugging and reference. But go one folder up so not to be in the svn repo.
-        with open("../svn-info-for-fix-props.txt", "w") as wfd:
+        with open("../svn-info-for-fix-props.txt", "w", encoding='utf-8') as wfd:
             wfd.write(my_stdout)
-        with open("../svn-info-for-fix-props.txt", "r") as rfd:
-            self.svnTree.read_from_svn_info(rfd)
+        self.info_map_table.read_from_file("../svn-info-for-fix-props.txt", a_format="info")
 
         # read svn props
         svn_props_command = [var_stack.resolve("$(SVN_CLIENT_PATH)"), "proplist", "--depth", "infinity"]
         proc = subprocess.Popen(svn_props_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         my_stdout, my_stderr = proc.communicate()
-        with open("../svn-proplist-for-fix-props.txt", "w") as wfd:
+        with open("../svn-proplist-for-fix-props.txt", "w", encoding='utf-8') as wfd:
             wfd.write(my_stdout)
-        with open("../svn-proplist-for-fix-props.txt", "r") as rfd:
-            self.svnTree.read_props(rfd)
+        self.info_map_table.read_from_file(var_stack.resolve("../svn-proplist-for-fix-props.txt"), a_format="props")
 
         self.batch_accum += self.platform_helper.cd(repo_folder)
 
-        for item in self.svnTree.walk_items():
+        should_be_exec_regex_list = var_stack.resolve_to_list("$(EXEC_PROP_REGEX)")
+        self.compiled_should_be_exec_regex = utils.compile_regex_list_ORed(should_be_exec_regex_list)
+
+        for item in self.info_map_table.get_items(what="any"):
             shouldBeExec = self.should_be_exec(item)
-            if item.props:
-                for extra_prop in item.props:
-                    # print("remove prop", extra_prop, "from", item.full_path())
-                    self.batch_accum += " ".join( (var_stack.resolve("$(SVN_CLIENT_PATH)"), "propdel", "svn:"+extra_prop, '"'+item.full_path()+'"') )
-                    self.batch_accum += self.platform_helper.progress(" ".join(("remove prop", extra_prop, "from", item.full_path())) )
+            for extra_prop in item.extra_props_list():
+                # print("remove prop", extra_prop, "from", item.path)
+                self.batch_accum += " ".join( (var_stack.resolve("$(SVN_CLIENT_PATH)"), "propdel", "svn:"+extra_prop, '"'+item.path+'"') )
+                self.batch_accum += self.platform_helper.progress(" ".join(("remove prop", extra_prop, "from", item.path)) )
             if item.isExecutable() and not shouldBeExec:
-                # print("remove prop", "executable", "from", item.full_path())
-                self.batch_accum += " ".join( (var_stack.resolve("$(SVN_CLIENT_PATH)"), "propdel", 'svn:executable', '"'+item.full_path()+'"') )
-                self.batch_accum += self.platform_helper.progress(" ".join(("remove prop", "executable", "from", item.full_path())) )
+                # print("remove prop", "executable", "from", item.path)
+                self.batch_accum += " ".join( (var_stack.resolve("$(SVN_CLIENT_PATH)"), "propdel", 'svn:executable', '"'+item.path+'"') )
+                self.batch_accum += self.platform_helper.progress(" ".join(("remove prop", "executable", "from", item.path)) )
             elif not item.isExecutable() and shouldBeExec:
-                # print("add prop", "executable", "to", item.full_path())
-                self.batch_accum += " ".join( (var_stack.resolve("$(SVN_CLIENT_PATH)"), "propset", 'svn:executable', 'yes', '"'+item.full_path()+'"') )
-                self.batch_accum += self.platform_helper.progress(" ".join(("add prop", "executable", "from", item.full_path())) )
+                # print("add prop", "executable", "to", item.path)
+                self.batch_accum += " ".join( (var_stack.resolve("$(SVN_CLIENT_PATH)"), "propset", 'svn:executable', 'yes', '"'+item.path+'"') )
+                self.batch_accum += self.platform_helper.progress(" ".join(("add prop", "executable", "from", item.path)) )
         self.create_variables_assignment()
         os.chdir(save_dir)
         self.write_batch_file()
@@ -553,20 +525,28 @@ class InstlAdmin(InstlInstanceBase):
     # to do: prevent create-links and up2s3 if there are files marked as symlinks
     def do_fix_symlinks(self):
         self.batch_accum.set_current_section('admin')
-        folder_to_check = var_stack.resolve("$(STAGING_FOLDER)")
+
+        stage_folder = var_stack.resolve("$(STAGING_FOLDER)")
+        folders_to_check = self.prepare_limit_list(stage_folder)
+        if tuple(folders_to_check) == (stage_folder,):
+            print("fix-symlink for the whole repository")
+        else:
+            print("fix-symlink limited to ", "; ".join(folders_to_check))
+
         valid_symlinks = list()
         broken_symlinks = list()
-        for root, dirs, files in os.walk(folder_to_check, followlinks=False):
-            for item in files + dirs:
-                item_path = os.path.join(root, item)
-                if os.path.islink(item_path):
-                    target_path = os.path.realpath(item_path)
-                    link_value = os.readlink(item_path)
-                    if os.path.isdir(target_path) or os.path.isfile(target_path):
-                        valid_symlinks.append((item_path, link_value))
-                    else:
-                        valid_symlinks.append((item_path, link_value))
-                        broken_symlinks.append((item_path, link_value))
+        for folder_to_check in folders_to_check:
+            for root, dirs, files in os.walk(folder_to_check, followlinks=False):
+                for item in files + dirs:
+                    item_path = os.path.join(root, item)
+                    if os.path.islink(item_path):
+                        target_path = os.path.realpath(item_path)
+                        link_value = os.readlink(item_path)
+                        if os.path.isdir(target_path) or os.path.isfile(target_path):
+                            valid_symlinks.append((item_path, link_value))
+                        else:
+                            valid_symlinks.append((item_path, link_value))  # fix even the broken symlinks
+                            broken_symlinks.append((item_path, link_value))
         if len(broken_symlinks) > 0:
             print("Found broken symlinks")
             for symlink_file, link_value in broken_symlinks:
@@ -624,8 +604,8 @@ class InstlAdmin(InstlInstanceBase):
 
     def stage2svn_for_folder(self, comparer):
         # copy new items:
-        for item in comparer.left_only:
-            item_path = os.path.join(comparer.left, item)
+        for left_only_item in comparer.left_only:
+            item_path = os.path.join(comparer.left, left_only_item)
             if os.path.islink(item_path):
                 raise utils.InstlException(item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
             elif os.path.isfile(item_path):
@@ -651,8 +631,8 @@ class InstlAdmin(InstlInstanceBase):
             self.batch_accum += self.platform_helper.progress(item_path)
 
         # copy changed items:
-        for item in comparer.diff_files:
-            item_path = os.path.join(comparer.left, item)
+        for diff_item in comparer.diff_files:
+            item_path = os.path.join(comparer.left, diff_item)
             if os.path.islink(item_path):
                 raise utils.InstlException(item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
             elif os.path.isfile(item_path):
@@ -664,18 +644,17 @@ class InstlAdmin(InstlInstanceBase):
             self.batch_accum += self.platform_helper.progress(item_path)
 
         # tell svn about new items, svn will not accept 'add' for changed items
-        for item in comparer.left_only:
-            self.batch_accum += self.platform_helper.svn_add_item(os.path.join(comparer.right, item))
-            self.batch_accum += self.platform_helper.progress(os.path.join(comparer.right, item))
+        for left_only_item in comparer.left_only:
+            self.batch_accum += self.platform_helper.svn_add_item(os.path.join(comparer.right, left_only_item))
+            self.batch_accum += self.platform_helper.progress(os.path.join(comparer.right, left_only_item))
 
         # removed items:
-        for item in comparer.right_only:
-            item_path = os.path.join(comparer.left, item)
-            self.batch_accum += self.platform_helper.svn_remove_item(os.path.join(comparer.right, item))
-            self.batch_accum += self.platform_helper.progress(os.path.join(comparer.right, item))
+        for right_only_item in comparer.right_only:
+            self.batch_accum += self.platform_helper.svn_remove_item(os.path.join(comparer.right, right_only_item))
+            self.batch_accum += self.platform_helper.progress(os.path.join(comparer.right, right_only_item))
 
         # recurse to sub folders
-        for sub_comparer in comparer.subdirs.values():
+        for sub_comparer in list(comparer.subdirs.values()):
             self.stage2svn_for_folder(sub_comparer)
 
     def prepare_conditions_for_wtar(self):
@@ -684,7 +663,7 @@ class InstlAdmin(InstlInstanceBase):
         file_wtar_regex_list = var_stack.resolve_to_list("$(FILE_WTAR_REGEX)")
         self.compiled_file_wtar_regex = utils.compile_regex_list_ORed(file_wtar_regex_list)
 
-        self.min_file_size_to_wtar = int(var_stack.resolve(("$(MIN_FILE_SIZE_TO_WTAR)")))
+        self.min_file_size_to_wtar = int(var_stack.resolve("$(MIN_FILE_SIZE_TO_WTAR)"))
 
         if "WTAR_BY_FILE_SIZE_EXCLUDE_REGEX" in var_stack:
             wtar_by_file_size_exclude_regex = var_stack.resolve("$(WTAR_BY_FILE_SIZE_EXCLUDE_REGEX)")
@@ -713,7 +692,7 @@ class InstlAdmin(InstlInstanceBase):
                             retVal = True
                     else:
                         retVal = True
-        except:
+        except Exception:
             pass
         return retVal
 
@@ -777,7 +756,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_svn2stage(self):
         self.batch_accum.set_current_section('admin')
-        stage_folder = var_stack.resolve(("$(STAGING_FOLDER)"))
+        stage_folder = var_stack.resolve("$(STAGING_FOLDER)")
         svn_folder = var_stack.resolve("$(SVN_CHECKOUT_FOLDER)")
 
         # --limit command line option might have been specified
@@ -865,10 +844,10 @@ class InstlAdmin(InstlInstanceBase):
         retVal = defaultdict(utils.unique_list)
         InstallItem.begin_get_for_all_oses()
         for iid in sorted(self.install_definitions_index):
-            with self.install_definitions_index[iid]:
+            with self.install_definitions_index[iid].push_var_stack_scope():
                 for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
                     source_var_obj = var_stack.get_configVar_obj(source_var)
-                    source, type, target_os = source_var_obj
+                    source, source_type, target_os = source_var_obj
                     target_oses = list()
                     if target_os in ("common", "Mac"):
                         target_oses.append("Mac")
@@ -877,63 +856,14 @@ class InstlAdmin(InstlInstanceBase):
                     for target_os in target_oses:
                         var_stack.set_var("SOURCE_PREFIX").append(target_os)
                         resolved_source = var_stack.resolve(source)
-                        retVal[iid].append((resolved_source, type))
+                        retVal[iid].append((resolved_source, source_type))
         return retVal
 
     def do_verify_index(self):
         self.read_yaml_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)"))
-        info_map = svnTree.SVNTree()
-        with utils.open_for_read_file_or_url(var_stack.resolve("$(INFO_MAP_FILE_URL)"), connectionBase.translate_url) as rfd:
-            info_map.read_from_text(rfd)
+        self.info_map_table.read_from_file(var_stack.resolve("$(INFO_MAP_FILE_URL)"))
 
-        iid_to_sources = self.sources_from_iids()
-
-        for iid in sorted(iid_to_sources):
-            with self.install_definitions_index[iid]:
-                iid_problem_messages = list()
-                # check inherits
-                for inheritee in var_stack.resolve_var_to_list("iid_inherit"):
-                    if inheritee not in self.install_definitions_index:
-                        iid_problem_messages.append(" ".join(("inherits from non existing", inheritee )))
-                # check depends
-                for dependee in var_stack.resolve_var_to_list("iid_depend_list"):
-                    if dependee not in self.install_definitions_index:
-                        iid_problem_messages.append(" ".join(("depends on non existing", dependee )))
-                # check sources
-                for source in iid_to_sources[iid]:
-                    its_a_wtar = False
-                    map_item = info_map.get_item_at_path(source[0])
-                    if map_item is None:  # maybe it's a wtar
-                        map_item = info_map.get_item_at_path(source[0] + ".wtar")
-                        its_a_wtar = True
-                    if map_item is None:  # maybe it's a split wtar
-                        map_item = info_map.get_item_at_path(source[0] + ".wtar.aa")
-                        its_a_wtar = True
-
-                    if map_item is None:
-                        iid_problem_messages.append(" ".join(("source", utils.quoteme_single(source[0]), "does not exist")))
-                    else:
-                        if not its_a_wtar:
-                            if source[1] in ("!dir", "!dir_cont", "!files"):
-                                if map_item.isFile():
-                                    iid_problem_messages.append(" ".join( ("source", utils.quoteme_single(source[0]), "is a file but type is", source[1]) ))
-                                else:
-                                    file_list, dir_list = map_item.unsorted_sub_items()
-                                    if source[1] == "!files" and len(file_list) == 0:
-                                        iid_problem_messages.append(" ".join( ("source", utils.quoteme_single(source[0]), "has no files but type is", source[1]) ))
-                                    if source[1] in ("!dir", "!dir_cont") and len(file_list)+len(dir_list) == 0:
-                                        iid_problem_messages.append(" ".join( ("source", utils.quoteme_single(source[0]), "has no files or dirs but type is", source[1]) ))
-                            if source[1] == "!file"  and not map_item.isFile():
-                                iid_problem_messages.append(" ".join( ("source", utils.quoteme_single(source[0]), "is a dir but type is", source[1]) ))
-                if iid_problem_messages:
-                    print(iid + ":")
-                    for problem_message in sorted(iid_problem_messages):
-                        print("   ", problem_message)
-        self.find_cycles()
-        print("index:", len(self.install_definitions_index), "iids")
-        num_files = info_map.num_subs_in_tree(what="file")
-        num_dirs = info_map.num_subs_in_tree(what="dir")
-        print("info map:", num_files, "files in", num_dirs, "folders")
+        self.verify_index_to_repo()
 
     def do_read_yaml(self):
         self.read_yaml_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)"))
@@ -961,16 +891,23 @@ class InstlAdmin(InstlInstanceBase):
         print("dependencies written to", out_file_path)
 
     def do_verify_repo(self):
-        self.read_yaml_file(var_stack.resolve("$(STAGING_FOLDER)/instl/index.yaml"))
+        self.read_yaml_file(var_stack.resolve("$(__CONFIG_FILE__)"))
+        self.read_yaml_file(var_stack.resolve("$(STAGING_FOLDER_INDEX)"))
+        self.resolve_index_inheritance()
 
-        info_map = svnTree.SVNTree()
         the_folder = var_stack.resolve_var("STAGING_FOLDER")
-        info_map.initialize_from_folder(the_folder)
+        self.info_map_table.initialize_from_folder(the_folder)
 
+        self.verify_index_to_repo()
+
+    def verify_index_to_repo(self):
+        """ helper function for verify-repo and verify-index commands
+            Assuming the index and info-map have already been read
+            check the expect files from the index appear in the info-map
+        """
         iid_to_sources = self.sources_from_iids()
-
         for iid in sorted(iid_to_sources):
-            with self.install_definitions_index[iid]:
+            with self.install_definitions_index[iid].push_var_stack_scope():
                 iid_problem_messages = list()
                 # check inherits
                 for inheritee in var_stack.resolve_var_to_list("iid_inherit"):
@@ -982,47 +919,41 @@ class InstlAdmin(InstlInstanceBase):
                         iid_problem_messages.append(" ".join(("depends on non existing", dependee )))
                 # check sources
                 for source in iid_to_sources[iid]:
-                    its_a_wtar = False
-                    map_item = info_map.get_item_at_path(source[0])
-                    if map_item is None:  # maybe it's a wtar
-                        map_item = info_map.get_item_at_path(source[0] + ".wtar")
-                        its_a_wtar = True
-                    if map_item is None:  # maybe it's a split wtar
-                        map_item = info_map.get_item_at_path(source[0] + ".wtar.aa")
-                        its_a_wtar = True
-
-                    if map_item is None:
-                        iid_problem_messages.append(" ".join(("source", utils.quoteme_single(source[0]), "does not exist")))
-                    else:
-                        if not its_a_wtar:
-                            if source[1] in ("!dir", "!dir_cont", "!files"):
-                                if map_item.isFile():
-                                    iid_problem_messages.append(" ".join( ("source", utils.quoteme_single(source[0]), "is a file but type is", source[1]) ))
-                                else:
-                                    file_list, dir_list = map_item.unsorted_sub_items()
-                                    if source[1] == "!files" and len(file_list) == 0:
-                                        iid_problem_messages.append(" ".join( ("source", utils.quoteme_single(source[0]), "has no files but type is", source[1]) ))
-                                    if source[1] in ("!dir", "!dir_cont") and len(file_list)+len(dir_list) == 0:
-                                        iid_problem_messages.append(" ".join( ("source", utils.quoteme_single(source[0]), "has no files or dirs but type is", source[1]) ))
-                            if source[1] == "!file"  and not map_item.isFile():
-                                iid_problem_messages.append(" ".join( ("source", utils.quoteme_single(source[0]), "is a dir but type is", source[1]) ))
+                    num_files_for_source = self.info_map_table.mark_required_for_source(source)
+                    if num_files_for_source == 0:
+                        iid_problem_messages.append(" ".join(("source", utils.quoteme_single(str(source)),"required by", iid, "does not have files")))
+                # check targets
+                if len(iid_to_sources[iid]) > 0:
+                    target_folders = var_stack.resolve_var_to_list("iid_folder_list")
+                    if len(target_folders) == 0:
+                        iid_problem_messages.append(" ".join(("iid", iid, "does not have target folder")))
                 if iid_problem_messages:
                     print(iid+":")
                     for problem_message in sorted(iid_problem_messages):
                         print("   ", problem_message)
+        self.info_map_table.mark_required_completion()
         self.find_cycles()
         print("index:", len(self.install_definitions_index), "iids")
-        num_files = info_map.num_subs_in_tree(what="file")
-        num_dirs = info_map.num_subs_in_tree(what="dir")
+        num_files = self.info_map_table.num_items("all-files")
+        num_dirs = self.info_map_table.num_items("all-dirs")
+        num_required_files = self.info_map_table.num_items("required-files")
+        num_required_dirs = self.info_map_table.num_items("required-dirs")
         print("info map:", num_files, "files in", num_dirs, "folders")
+        print("info map:", num_required_files, "required files, ", num_required_dirs, "required folders")
 
+        unrequired_files = self.info_map_table.get_required_items(what="file", get_unrequired=True)
+        print("unrequired files:")
+        [print("    ", f.path) for f in unrequired_files]
+        unrequired_dirs = self.info_map_table.get_required_items(what="dir",  get_unrequired=True)
+        print("unrequired dirs:")
+        [print("    ", d.path) for d in unrequired_dirs]
 
     def should_file_be_exec(self, file_path):
         retVal = self.compiled_should_be_exec_regex.search(file_path)
         return retVal is not None
 
     def should_be_exec(self, item):
-        retVal = item.isFile() and self.should_file_be_exec(item.full_path())
+        retVal = item.isFile() and self.should_file_be_exec(item.path)
         return retVal
 
     def prepare_limit_list(self, top_folder):
@@ -1068,8 +999,8 @@ class InstlAdmin(InstlInstanceBase):
                             self.batch_accum += self.platform_helper.progress("chmod a-x " + item_path)
                             files_that_should_not_be_exec.append(item_path)
 
-        self.batch_accum += self.platform_helper.chmod("-R a+rw,+X", folder_to_check)
-        self.batch_accum += self.platform_helper.progress("chmod -R a+rw,+X " + folder_to_check)
+            self.batch_accum += self.platform_helper.chmod("-R a+rw,+X", folder_to_check)
+            self.batch_accum += self.platform_helper.progress("chmod -R a+rw,+X " + folder_to_check)
 
         if len(files_that_should_not_be_exec) > 0:
             print("Exec bit will be removed from the {} following files".format(len(files_that_should_not_be_exec)))
