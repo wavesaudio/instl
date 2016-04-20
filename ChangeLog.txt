@@ -2,7 +2,8 @@
 
     user visible changes client:
     * Allow multiple guids per IID
-
+    * New options for Robocopy to reduce verbosity
+    
     programmer visible changes:
     * removed readline and colorama from test_import - they are needed only for interactive mode and should not create an error on compilation.
 
