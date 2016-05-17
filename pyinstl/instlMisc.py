@@ -221,6 +221,7 @@ class InstlMisc(InstlInstanceBase):
         shortcut_path = var_stack.resolve("$(__SHORTCUT_PATH__)", raise_on_fail=True)
         target_path = var_stack.resolve("$(__SHORTCUT_TARGET_PATH__)", raise_on_fail=True)
         working_directory, target_name = os.path.split(target_path)
+        runasadmin = "__RUN_AS_ADMIN__" in var_stack
         from win32com.client import Dispatch
 
         shell = Dispatch("WScript.Shell")
@@ -228,6 +229,20 @@ class InstlMisc(InstlInstanceBase):
         shortcut.Targetpath = target_path
         shortcut.WorkingDirectory = working_directory
         shortcut.save()
+        if runasadmin:
+            import pythoncom
+            from win32com.shell import shell, shellcon
+            link_data = pythoncom.CoCreateInstance(
+                shell.CLSID_ShellLink,
+                None,
+                pythoncom.CLSCTX_INPROC_SERVER,
+                shell.IID_IShellLinkDataList)
+            file = link_data.QueryInterface(pythoncom.IID_IPersistFile)
+            file.Load(shortcut_path)
+            flags = link_data.GetFlags()
+            if not flags & shellcon.SLDF_RUNAS_USER:
+                link_data.SetFlags(flags | shellcon.SLDF_RUNAS_USER)
+                file.Save(shortcut_path, 0)
 
     def do_translate_url(self):
         url_to_translate = var_stack.resolve("$(__MAIN_INPUT_FILE__)")

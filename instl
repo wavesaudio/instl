@@ -99,6 +99,7 @@ class CommandLineOptions(object):
         self.remove_from_dock = None
         self.restart_the_dock = None
         self.fail_exit_code = None
+        self.set_runasadmin = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).items())])
@@ -340,11 +341,17 @@ def prepare_args_parser(in_command):
                             dest='shortcut_path',
                             help="path to the shortcut itself")
         short_cut_options.add_argument('--target',
-                            required=True,
-                            nargs=1,
-                            metavar='target',
-                            dest='target_path',
-                            help="path to the item being shortcut")
+                                       required=True,
+                                       nargs=1,
+                                       metavar='target',
+                                       dest='target_path',
+                                       help="path to the item being shortcut")
+        short_cut_options.add_argument('--run-as-admin',
+                                       required=False,
+                                       default=False,
+                                       action='store_true',
+                                       dest='set_runasadmin',
+                                       help="set run as admin flag")
 
     elif 'mac-dock' == in_command:
         mac_dock_options = command_parser.add_argument_group(description=in_command+' arguments:')
