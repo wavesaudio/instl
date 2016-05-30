@@ -128,6 +128,16 @@ command:
                 instl help <option>
                 instl help defaults
 
+    ls:
+        short: create a listing of a directory (misc command)
+        long: |
+            Usage: instl ls --in path-to-input-folder --out path-to-output-file [--limit limit-command-to [limit-command-to ...]]
+            Creates a listing of a path-to-input-folder and writes it to path-to-output-file in the format:
+            indode   permissions  * user group     size modification-time   checksum (for files)                     full-path
+            76307926 -rw-r--r--   1 dany staff     1045 2016/05/19-21:19:24 269d13fab3baf56de091457082ea3e04cc113267 /Volumes/Release/Plugins/API-2500.bundle/Contents/Info.plist
+            If --limit is supplied only these subfolder will be listed.
+            *==number of links.
+
     make-sig:
         short: Create RSA signature and sha1 checksum for a file. (admin command)
         long: |

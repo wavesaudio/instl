@@ -73,7 +73,7 @@ class HelpHelper(object):
         if item:
             import textwrap
 
-            long_formatted = "\n\n".join([textwrap.fill(line, 90,
+            long_formatted = "\n\n".join([textwrap.fill(line, 200,
                                                        replace_whitespace=False,
                                                        initial_indent='    ',
                                                        subsequent_indent='    ') for line in
