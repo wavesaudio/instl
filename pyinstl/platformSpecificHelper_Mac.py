@@ -266,7 +266,7 @@ split_file()
             recurse_flag = "-R"
         nouchg_command = " ".join(("chflags", ignore_errors_flag, recurse_flag, "nouchg", utils.quoteme_double(file_path)))
         if ignore_errors: # -f is not enough in case the file does not exist, chflags will still exit with 1
-            nouchg_command = " ".join((nouchg_command, "||", "true"))
+            nouchg_command = " ".join((nouchg_command, "2>", "/dev/null", "||", "true"))
         return nouchg_command
 
     def touch(self, file_path):

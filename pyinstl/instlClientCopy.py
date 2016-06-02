@@ -58,7 +58,8 @@ class InstlClientCopy(InstlClient):
             pass # if it did not work - forget it
 
     def create_copy_instructions(self):
-        self.write_copy_debug_info()
+        self.create_sync_folder_manifest_command("before-copy")
+        #self.write_copy_debug_info()
         # If we got here while in synccopy command, there is no need to read the info map again.
         # If we got here while in copy command, read HAVE_INFO_MAP_FOR_COPY which defaults to HAVE_INFO_MAP_PATH.
         # Copy might be called after the sync batch file was created

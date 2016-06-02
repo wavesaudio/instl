@@ -1,11 +1,16 @@
-???? 1.2.?.?
+2/6/2016 1.2.2.0
 
     user visible changes client:
+    * sync command batch file creates sync folder manifest before and after it does it's work
+    * copy command batch file creates sync folder manifest before it does it's work
     * Allow multiple guids per IID
     * New options for Robocopy to reduce verbosity
-    
+    * PlatformSpecificHelperMac.unlock will print its output to /dev/null because we do not care for the error message if the items being unlocked do not exists
+    * utils.folder_listing adds comments with date the manifest was created and the folder(s_ being manifested
+
     programmer visible changes:
     * removed readline and colorama from test_import - they are needed only for interactive mode and should not create an error on compilation.
+    * New functions InstlClient.create_folder_manifest_command  InstlClient.create_sync_folder_manifest_command
 
 3/1/2016 1.1.1.0
 

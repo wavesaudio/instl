@@ -111,6 +111,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.create_check_checksum_instructions(file_list)
 
     def create_sync_instructions(self, installState):
+        self.instlObj.create_sync_folder_manifest_command("before-sync")
         super().create_sync_instructions(installState)
         self.prepare_list_of_sync_items()
 
@@ -126,3 +127,4 @@ class InstlInstanceSync_url(InstlInstanceSync):
                                                                                      "$(HAVE_INFO_MAP_PATH)")
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.popd()
+        self.instlObj.create_sync_folder_manifest_command("after-sync")

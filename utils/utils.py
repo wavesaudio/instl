@@ -13,6 +13,8 @@ import time
 import shutil
 import numbers
 import stat
+import datetime
+from pathlib import PurePath
 
 import rsa
 from functools import reduce
@@ -831,16 +833,27 @@ def win_folder_ls(the_path):
 def folder_listing(*folders_to_list):
     os_names = get_current_os_names()
     listing_lines = list()
+    folders_to_list = sorted(folders_to_list, key=lambda file: PurePath(file).parts)
     if "Mac" in os_names:
         for folder_path in folders_to_list:
+            listing_lines.append(" ".join(("#", datetime.datetime.today().isoformat(), "listing of ", folder_path)))
             listing_lines.extend(unix_folder_ls(folder_path))
     elif "Win" in os_names:
         for folder_path in folders_to_list:
+            listing_lines.append(" ".join(("#", datetime.datetime.today().isoformat(), "listing of ", folder_path)))
             listing_lines.extend(win_folder_ls(folder_path))
-    width_list, align_list = max_widths(listing_lines)
+    # when calculating widths - avoid comment lines
+    width_list, align_list = max_widths([line for line in listing_lines if not str(line[0]).startswith('#')])
     col_formats = gen_col_format(width_list, align_list)
-    formatted_lines_lines = [col_formats[len(ls_line)].format(*ls_line) for ls_line in listing_lines]
-    return "\n".join(formatted_lines_lines)
+    formatted_lines_lines = list()
+    for ls_line in listing_lines:
+        # when printing - avoid formatting of comment lines
+        if str(ls_line[0]).startswith('#'):
+            formatted_lines_lines.append(ls_line)
+        else:
+            formatted_lines_lines.append(col_formats[len(ls_line)].format(*ls_line))
+    retVal = "\n".join(formatted_lines_lines)
+    return retVal
 
 
 def unicodify(in_something, encoding='utf-8'):

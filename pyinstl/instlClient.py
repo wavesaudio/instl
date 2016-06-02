@@ -420,6 +420,28 @@ class InstlClient(InstlInstanceBase):
         self.batch_accum += self.platform_helper.copy_file_to_file("$(NEW_SITE_REQUIRE_FILE_PATH)",
                                                                    "$(SITE_REQUIRE_FILE_PATH)")
 
+    def create_folder_manifest_command(self, which_folder_to_manifest, output_folder, output_file_name):
+        """ create batch commands to write a manifest of specific folder to a file """
+        self.batch_accum += self.platform_helper.mkdir(output_folder)
+        ls_output_file = os.path.join(output_folder, output_file_name)
+        create_folder_ls_command_parts = [self.platform_helper.run_instl(), "ls",
+                                      "--in",  utils.quoteme_double(which_folder_to_manifest),
+                                      "--out", utils.quoteme_double(ls_output_file)]
+        if var_stack.resolve("$(__CURRENT_OS__)") == "Mac":
+            create_folder_ls_command_parts.extend(("||", "true"))
+        self.batch_accum += " ".join(create_folder_ls_command_parts)
+
+    def create_sync_folder_manifest_command(self, manifest_file_name_prefix):
+        """ create batch commands to write a manifest of the sync folder to a file """
+        which_folder_to_manifest = "$(COPY_SOURCES_ROOT_DIR)"
+        param_to_extract_output_folder_from = "__MAIN_OUT_FILE__"
+        if var_stack.defined('ECHO_LOG_FILE'):
+            param_to_extract_output_folder_from = "ECHO_LOG_FILE"
+        log_file_path = var_stack.resolve_var(param_to_extract_output_folder_from)
+        output_folder, _ = os.path.split(log_file_path)
+        output_file_name = manifest_file_name_prefix+"-sync-folder-manifest.txt"
+        self.create_folder_manifest_command(which_folder_to_manifest, output_folder, output_file_name)
+
 
 def InstlClientFactory(initial_vars, command):
     retVal = None
