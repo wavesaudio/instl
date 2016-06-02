@@ -22,20 +22,14 @@ class InstlMisc(InstlInstanceBase):
         # noinspection PyUnresolvedReferences
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         self.curr_progress = 0
-        self.actual_progress = 0
         self.total_progress = 0
         self.progress_staccato_command = False
         self.progress_staccato_period = 1
         self.progress_staccato_count = 0
 
-    def __del__(self):
-        if self.curr_progress != self.actual_progress:
-            print(self.fixed_command, "curr_progress: {self.curr_progress} != actual_progress: {self.actual_progress}".format(**locals()))
-
     def do_command(self):
-        self.curr_progress = int(var_stack.resolve("$(__START_DYNAMIC_PROGRESS__)")) + 1
-        self.actual_progress = 1
-        self.total_progress = int(var_stack.resolve("$(__TOTAL_DYNAMIC_PROGRESS__)"))
+        self.curr_progress = int(var_stack.resolve("$(__START_DYNAMIC_PROGRESS__)"))
+        self.total_progress = int(var_stack.resolve("$(__TOTAL_DYNAMIC_PROGRESS__)")) # if var does not exist default is 0, meaning not to display dynamic progress
         self.progress_staccato_period = int(var_stack.resolve("$(PROGRESS_STACCATO_PERIOD)"))
         self.progress_staccato_count = 0
         do_command_func = getattr(self, "do_" + self.fixed_command)
@@ -49,7 +43,6 @@ class InstlMisc(InstlInstanceBase):
         if self.total_progress > 0:
             self.progress_staccato_count = (self.progress_staccato_count + 1) % self.progress_staccato_period
             self.curr_progress += 1
-            self.actual_progress += 1
             if not self.progress_staccato_command or self.progress_staccato_count == 0:
                 print("Progress: {self.curr_progress} of {self.total_progress}; {msg}".format(**locals()))
 

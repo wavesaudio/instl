@@ -22,10 +22,11 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.local_sync_dir = var_stack.resolve("$(LOCAL_REPO_SYNC_DIR)")
 
     def create_sync_folders(self):
+        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Create folders ...")
+        need_download_dirs_list = self.instlObj.info_map_table.get_download_items(what="dir")
         self.instlObj.batch_accum += self.instlObj.platform_helper.create_folders("$(TO_SYNC_INFO_MAP_PATH)")
-        # todo: fix create_folders call, from which info_map it will read?
-        # self.instlObj.platform_helper.num_items_for_progress_report += num_dirs_to_create
-        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Create folders")
+        self.instlObj.platform_helper.num_items_for_progress_report += len(need_download_dirs_list)
+        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Create folders done")
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
     def create_sync_urls(self, in_file_list):

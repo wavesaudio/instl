@@ -365,7 +365,7 @@ def max_widths(list_of_lists):
     """ inputs is a list of lists. output is a list of maximum str length for each
         position. E.g (('a', 'ccc'), ('bb', a', 'fff')) will return: (2, 3, 3)
     """
-    longest_list_len = reduce(max, [len(a_list) for a_list in list_of_lists])
+    longest_list_len = reduce(max, [len(a_list) for a_list in list_of_lists], 0)
     width_list = [0] * longest_list_len  # pre allocate the max list length
     align_list = ['<'] * longest_list_len  # default is align to left
     for a_list in list_of_lists:
@@ -837,11 +837,18 @@ def folder_listing(*folders_to_list):
     if "Mac" in os_names:
         for folder_path in folders_to_list:
             listing_lines.append(" ".join(("#", datetime.datetime.today().isoformat(), "listing of", folder_path)))
-            listing_lines.extend(unix_folder_ls(folder_path))
+            if os.path.isdir(folder_path):
+                listing_lines.extend(unix_folder_ls(folder_path))
+            else:
+                listing_lines.append(" ".join(("#", "folder was not found", folder_path)))
+
     elif "Win" in os_names:
         for folder_path in folders_to_list:
             listing_lines.append(" ".join(("#", datetime.datetime.today().isoformat(), "listing of", folder_path)))
-            listing_lines.extend(win_folder_ls(folder_path))
+            if os.path.isdir(folder_path):
+                listing_lines.extend(win_folder_ls(folder_path))
+            else:
+                listing_lines.append(" ".join(("#", "folder was not found:", folder_path)))
     # when calculating widths - avoid comment lines
     width_list, align_list = max_widths([line for line in listing_lines if not str(line[0]).startswith('#')])
     col_formats = gen_col_format(width_list, align_list)
@@ -852,6 +859,7 @@ def folder_listing(*folders_to_list):
             formatted_lines_lines.append(ls_line)
         else:
             formatted_lines_lines.append(col_formats[len(ls_line)].format(*ls_line))
+    formatted_lines_lines.append("")  # line break at the end so not to be joined with the next line when printing to Terminal
     retVal = "\n".join(formatted_lines_lines)
     return retVal
 
