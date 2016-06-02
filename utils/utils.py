@@ -836,11 +836,11 @@ def folder_listing(*folders_to_list):
     folders_to_list = sorted(folders_to_list, key=lambda file: PurePath(file).parts)
     if "Mac" in os_names:
         for folder_path in folders_to_list:
-            listing_lines.append(" ".join(("#", datetime.datetime.today().isoformat(), "listing of ", folder_path)))
+            listing_lines.append(" ".join(("#", datetime.datetime.today().isoformat(), "listing of", folder_path)))
             listing_lines.extend(unix_folder_ls(folder_path))
     elif "Win" in os_names:
         for folder_path in folders_to_list:
-            listing_lines.append(" ".join(("#", datetime.datetime.today().isoformat(), "listing of ", folder_path)))
+            listing_lines.append(" ".join(("#", datetime.datetime.today().isoformat(), "listing of", folder_path)))
             listing_lines.extend(win_folder_ls(folder_path))
     # when calculating widths - avoid comment lines
     width_list, align_list = max_widths([line for line in listing_lines if not str(line[0]).startswith('#')])
