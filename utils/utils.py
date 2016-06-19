@@ -875,3 +875,21 @@ def unicodify(in_something, encoding='utf-8'):
     else:
         retVal = None
     return retVal
+
+
+def bool_int_to_str(in_bool_int):
+    if in_bool_int == 0:
+        retVal = "no"
+    else:
+        retVal = "yes"
+    return retVal
+
+
+def str_to_bool_int(the_str):
+    if the_str.lower() in ("yes", "true", "y", 't'):
+        retVal = 1
+    elif the_str.lower() in ("no", "false", "n", "f"):
+        retVal = 0
+    else:
+        raise ValueError("Cannot translate", the_str, "to bool-int")
+    return retVal

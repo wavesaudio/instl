@@ -36,7 +36,7 @@ class InstlMisc(InstlInstanceBase):
         before_time = time.clock()
         do_command_func()
         after_time = time.clock()
-        if self.the_command not in ("help", "version"):
+        if utils.str_to_bool_int(var_stack.unresolved_var("PRINT_COMMAND_TIME")):
             print(self.the_command, "time:", round(after_time - before_time, 2), "sec.")
 
     def dynamic_progress(self, msg):
@@ -47,10 +47,12 @@ class InstlMisc(InstlInstanceBase):
                 print("Progress: {self.curr_progress} of {self.total_progress}; {msg}".format(**locals()))
 
     def do_version(self):
+        var_stack.set_var("PRINT_COMMAND_TIME").append("no") # do not print time report
         print(self.get_version_str())
 
     def do_help(self):
         import pyinstl.helpHelper
+        var_stack.set_var("PRINT_COMMAND_TIME").append("no") # do not print time report
 
         help_folder_path = os.path.join(var_stack.resolve("$(__INSTL_DATA_FOLDER__)", raise_on_fail=True), "help")
         pyinstl.helpHelper.do_help(var_stack.resolve("$(__HELP_SUBJECT__)", raise_on_fail=True), help_folder_path, self)
@@ -312,3 +314,11 @@ class InstlMisc(InstlInstanceBase):
                     a_file_path = os.path.join(root, a_file)
                     the_checksum = utils.get_file_checksum(a_file_path)
                     print(": ".join((a_file_path, the_checksum)))
+
+    def do_resolve(self):
+        var_stack.set_var("PRINT_COMMAND_TIME").append("no") # do not print time report
+        definitions_file = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
+        self.read_yaml_file(definitions_file)
+        text_to_resolve = sys.stdin.read()
+        resolved_text = var_stack.resolve(text_to_resolve)
+        sys.stdout.write(resolved_text)

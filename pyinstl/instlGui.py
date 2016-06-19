@@ -16,23 +16,6 @@ from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
 
 
-def bool_int_to_str(in_bool_int):
-    if in_bool_int == 0:
-        retVal = "no"
-    else:
-        retVal = "yes"
-    return retVal
-
-
-def str_to_bool_int(the_str):
-    if the_str.lower() in ("yes", "true", "y", 't'):
-        retVal = 1
-    elif the_str.lower() in ("no", "false", "n", "f"):
-        retVal = 0
-    else:
-        raise ValueError("Cannot translate", the_str, "to bool-int")
-    return retVal
-
 
 admin_command_template_variables = {
     'svn2stage': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
@@ -212,7 +195,7 @@ class InstlGui(InstlInstanceBase):
         var_stack.set_var("CLIENT_GUI_IN_FILE_NAME").append(input_file_base_name)
 
         var_stack.set_var("CLIENT_GUI_OUT_FILE").append(self.client_output_path_var.get())
-        var_stack.set_var("CLIENT_GUI_RUN_BATCH").append(bool_int_to_str(self.run_client_batch_file_var.get()))
+        var_stack.set_var("CLIENT_GUI_RUN_BATCH").append(utils.bool_int_to_str(self.run_client_batch_file_var.get()))
         var_stack.set_var("CLIENT_GUI_CREDENTIALS").append(self.client_credentials_var.get())
         var_stack.set_var("CLIENT_GUI_CREDENTIALS_ON").append(self.client_credentials_on_var.get())
 
@@ -251,7 +234,7 @@ class InstlGui(InstlInstanceBase):
 
         var_stack.set_var("ADMIN_GUI_OUT_BATCH_FILE").append(self.admin_output_path_var.get())
 
-        var_stack.set_var("ADMIN_GUI_RUN_BATCH").append(bool_int_to_str(self.run_admin_batch_file_var.get()))
+        var_stack.set_var("ADMIN_GUI_RUN_BATCH").append(utils.bool_int_to_str(self.run_admin_batch_file_var.get()))
         var_stack.set_var("ADMIN_GUI_LIMIT").append(self.admin_limit_var.get())
 
         self.admin_stage_index_var.set(var_stack.resolve("$(__STAGING_INDEX_FILE__)"))
@@ -317,7 +300,7 @@ class InstlGui(InstlInstanceBase):
         commandNameMenu.grid(row=curr_row, column=1, sticky=W)
         ToolTip(commandNameMenu, msg="instl admin command")
 
-        self.run_admin_batch_file_var.set(str_to_bool_int(var_stack.unresolved_var("ADMIN_GUI_RUN_BATCH")))
+        self.run_admin_batch_file_var.set(utils.str_to_bool_int(var_stack.unresolved_var("ADMIN_GUI_RUN_BATCH")))
         self.admin_run_batch_file_checkbox = Checkbutton(admin_frame, text="Run batch file", variable=self.run_admin_batch_file_var,
                     command=self.update_admin_state)
         self.admin_run_batch_file_checkbox.grid(row=curr_row, column=2, columnspan=2, sticky=E)
@@ -412,7 +395,7 @@ class InstlGui(InstlInstanceBase):
         OptionMenu(client_frame, self.client_command_name_var,
                    self.client_command_name_var.get(), *client_command_list, command=self.update_client_state).grid(row=curr_row, column=1, sticky=W)
 
-        self.run_client_batch_file_var.set(str_to_bool_int(var_stack.unresolved_var("CLIENT_GUI_RUN_BATCH")))
+        self.run_client_batch_file_var.set(utils.str_to_bool_int(var_stack.unresolved_var("CLIENT_GUI_RUN_BATCH")))
         self.client_run_batch_file_checkbox = Checkbutton(client_frame, text="Run batch file",
                     variable=self.run_client_batch_file_var, command=self.update_client_state)
         self.client_run_batch_file_checkbox.grid(row=curr_row, column=2, sticky=E)

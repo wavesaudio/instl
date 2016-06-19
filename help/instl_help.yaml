@@ -159,6 +159,13 @@ command:
             instl's remove command will create a batch file containing instructions to remove files from their designated locations on disk. Said files were previously copied using the copy command. Definition of what items to remove from which destination is taken from the instl-config-yaml-file. Default remove action for installed item is to erase the files from disk, but other instructions can be given in the instl-config-yaml-file. All items and their dependecies are removed without considering if other items might depend on the removed items.
             Keep in mind that remove command does not actually copy anything, unless the --run flag is given. You will need to run the produced batch file in order to actually remove the files.
 
+    resolve:
+        short: Read text from stdin, resolve $() style variables and print result to stdout (misc command)
+        long: |
+            Usage: instl resolve --in yaml-with-variable-definitions [< input-file] [> output-file]
+            resolve command will read variable definiiotns from !define section in yaml-with-variable-definitions file.
+            Text from stdin will be resolved using the variable definitions and printed to stdout.
+
     set-exec:
         short: Sets the executable bit for certine files. (runtime command)
         long: |

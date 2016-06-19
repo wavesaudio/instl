@@ -137,6 +137,7 @@ def prepare_args_parser(in_command):
         'read-yaml':            {'mode': 'an', 'options': ('in', ), 'help':  "reads a yaml file to verify it's contents"},
         'remove-empty-folders': {'mode': 'ds', 'options': ('in', ), 'help':  'remove folders is they are empty'},
         'remove':               {'mode': 'ct', 'options': ('in', 'out', 'run',), 'help':  'remove items installed by copy'},
+        'resolve':              {'mode': 'ds', 'options': ('in',), 'help':  'read text from stdin, resolve $() style variables and print result to stdout'},
         'set-exec':             {'mode': 'ds', 'options': ('in', 'prog',), 'help':  'set executable bit for appropriate files'},
         'stage2svn':            {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'add/remove files in staging to svn sync repository'},
         'svn2stage':            {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'svn sync repository and copy to staging folder'},

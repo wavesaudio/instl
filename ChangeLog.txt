@@ -1,3 +1,10 @@
+???? 1.2.3.0
+
+    * Functions bool_int_to_str, str_to_bool_int moved to utils
+    * New command resolve, to resolve $() variables in arbitrary text
+    * New variable, PRINT_COMMAND_TIME, to control if a command displays time information when it's done. Default set to yes.
+
+
 2/6/2016 1.2.2.0
 
     user visible changes client:
