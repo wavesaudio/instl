@@ -1,5 +1,5 @@
 2/6/2016 1.2.2.0
- 
+
     user visible changes client:
     * Fixed the progress count when creating sync sub-folders
     * sync command batch file creates sync folder manifest before and after it does it's work
