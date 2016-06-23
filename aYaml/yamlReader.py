@@ -49,6 +49,7 @@ class YamlReader(object):
                 buffer = io.StringIO(buffer)     # turn text to a stream
                 buffer.name = file_path          # this will help identify the file for debugging and messages
                 self.read_yaml_from_stream(buffer, *args, **kwargs)
+                self.init_specific_doc_readers()  # call again in case the reading changed the readers (ACCEPTABLE_YAML_DOC_TAGS)
         except Exception as ex:
             print("Exception reading file:", file_path, ex)
             raise
