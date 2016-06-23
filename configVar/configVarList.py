@@ -15,7 +15,7 @@ import sys
 import re
 
 import aYaml
-from . import configVar
+from . import configVarOne
 
 
 value_ref_re = re.compile("""(
@@ -93,7 +93,7 @@ class ConfigVarList(object):
         return self[var_name].description
 
     def get_configVar_obj(self, var_name):
-        retVal = self._ConfigVar_objs.setdefault(var_name, configVar.ConfigVar(var_name))
+        retVal = self._ConfigVar_objs.setdefault(var_name, configVarOne.ConfigVar(var_name))
         return retVal
 
     def set_var(self, var_name, description=None):
@@ -122,7 +122,7 @@ class ConfigVarList(object):
                             ", previous values: {}".format(name, self._ConfigVar_objs[name].description,
                                                            str(values), str(list(self._ConfigVar_objs[name]))))
         else:
-            addedValue = configVar.ConstConfigVar(name, description, *values)
+            addedValue = configVarOne.ConstConfigVar(name, description, *values)
             self._ConfigVar_objs[addedValue.name] = addedValue
 
     def duplicate_variable(self, source_name, target_name):

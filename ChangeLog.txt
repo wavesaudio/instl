@@ -1,11 +1,15 @@
 ???? 1.2.3.0
 
-    * Functions bool_int_to_str, str_to_bool_int moved to utils
+    user visible changes client:
     * New command resolve, to resolve $() variables in arbitrary text
     * New variable, PRINT_COMMAND_TIME, to control if a command displays time information when it's done. Default set to yes.
+
+    programmer visible changes:
+    * Functions bool_int_to_str, str_to_bool_int moved to utils
     * Some fixes to dockutils: modern language usage,
         stopped using the function path_as_string as it had encoding issues,
         replaced readPlistFromString with readPlistFromBytes even though readPlistFromBytes is deprecated.
+    * file configVar.py renamed cnfigVarOne.py to avoid conflict with the module who's name is also configVar
 
 2/6/2016 1.2.2.0
 
