@@ -5,3 +5,4 @@
 """
 
 from .augmentedYaml import YamlDumpDocWrap, YamlDumpWrap, writeAsYaml
+from .yamlReader import YamlReader
