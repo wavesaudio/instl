@@ -1,8 +1,10 @@
 ???? 1.2.2.1
 
+    programmer visible changes:
     * Some fixes to dockutils: modern language usage,
         stopped using the function path_as_string as it had encoding issues,
         replaced readPlistFromString with readPlistFromBytes even though readPlistFromBytes is deprecated.
+    * file configVar.py renamed cnfigVarOne.py to avoid conflict with the module who's name is also configVar
 
 2/6/2016 1.2.2.0
 
