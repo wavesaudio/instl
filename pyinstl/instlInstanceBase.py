@@ -65,7 +65,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.specific_doc_readers["!define"] = self.read_defines
         self.specific_doc_readers["!define_const"] = self.read_const_defines
 
-        acceptables = var_stack.resolve_var_to_list_if_exists("$(ACCEPTABLE_YAML_DOC_TAGS)")
+        acceptables = var_stack.resolve_var_to_list_if_exists("ACCEPTABLE_YAML_DOC_TAGS")
         if "__INSTL_COMPILED__" in var_stack:
             if var_stack.resolve("$(__INSTL_COMPILED__)") == "True":
                 acceptables.append("define_Compiled")

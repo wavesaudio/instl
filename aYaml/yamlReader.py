@@ -22,7 +22,6 @@ class YamlReader(object):
         self.path_searcher = None
         self.url_translator = None
         self.specific_doc_readers = dict()
-        self.init_specific_doc_readers()
 
     def init_specific_doc_readers(self): # this function must be overridden
         self.specific_doc_readers["__no_tag__"] = self.do_nothing_node_reader
@@ -49,13 +48,13 @@ class YamlReader(object):
                 buffer = io.StringIO(buffer)     # turn text to a stream
                 buffer.name = file_path          # this will help identify the file for debugging and messages
                 self.read_yaml_from_stream(buffer, *args, **kwargs)
-                self.init_specific_doc_readers()  # call again in case the reading changed the readers (ACCEPTABLE_YAML_DOC_TAGS)
         except Exception as ex:
             print("Exception reading file:", file_path, ex)
             raise
 
     def read_yaml_from_stream(self, the_stream, *args, **kwargs):
         for a_node in yaml.compose_all(the_stream):
+            self.init_specific_doc_readers()  # in case previous reading changed the assigned readers (ACCEPTABLE_YAML_DOC_TAGS)
             read_func = self.get_read_function_for_doc(a_node)
             if read_func is not None:
                 read_func(a_node, *args, **kwargs)
