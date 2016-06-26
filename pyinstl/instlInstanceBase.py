@@ -19,12 +19,14 @@ from svnTree import SVNTable
 
 from configVar import value_ref_re
 from configVar import var_stack
+from configVar import ConfigVarYamlReader
+
 from .installItem import InstallItem
 from . import connectionBase
 
 
 # noinspection PyPep8Naming
-class InstlInstanceBase(object, metaclass=abc.ABCMeta):
+class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
     """ Main object of instl. Keeps the state of variables and install index
         and knows how to create a batch file for installation. InstlInstanceBase
         must be inherited by platform specific implementations, such as InstlInstance_mac
@@ -33,12 +35,11 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
 
     def __init__(self, initial_vars=None):
         self.info_map_table = SVNTable()
+        ConfigVarYamlReader.__init__(self)
 
-        # only when allow_reading_of_internal_vars is true, variables who's name begins and ends with "__"
-        # can be read from file
-        self.allow_reading_of_internal_vars = False
         search_paths_var = var_stack.get_configVar_obj("__SEARCH_PATHS__")
         self.path_searcher = utils.SearchPaths(search_paths_var)
+        self.url_translator = connectionBase.translate_url
         self.init_default_vars(initial_vars)
         # noinspection PyUnresolvedReferences
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
@@ -55,6 +56,26 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
         self.batch_accum = BatchAccumulator()
         self.do_not_write_vars = ("INFO_MAP_SIG", "INDEX_SIG", "PUBLIC_KEY", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "__CREDENTIALS__")
         self.out_file_realpath = None
+
+    def init_specific_doc_readers(self):
+        ConfigVarYamlReader.init_specific_doc_readers(self)
+        self.specific_doc_readers.pop("__no_tag__", None)
+        self.specific_doc_readers.pop("__unknown_tag__", None)
+
+        self.specific_doc_readers["!define"] = self.read_defines
+        self.specific_doc_readers["!define_const"] = self.read_const_defines
+
+        acceptables = var_stack.resolve_var_to_list_if_exists("ACCEPTABLE_YAML_DOC_TAGS")
+        if "__INSTL_COMPILED__" in var_stack:
+            if var_stack.resolve("$(__INSTL_COMPILED__)") == "True":
+                acceptables.append("define_Compiled")
+            else:
+                acceptables.append("define_Uncompiled")
+        for acceptibul in acceptables:
+            self.specific_doc_readers["!" + acceptibul] = self.read_defines
+
+        self.specific_doc_readers["!index"] = self.read_index
+        self.specific_doc_readers["!require"] = self.read_require
 
     def get_version_str(self):
         retVal = var_stack.resolve(
@@ -195,43 +216,8 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
             var_stack.add_const_config_variable("__MAIN_OUT_FILE__", "from command line options",
                                                 "$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)")
 
-    def is_acceptable_yaml_doc(self, doc_node):
-        acceptables = var_stack.resolve_to_list("$(ACCEPTABLE_YAML_DOC_TAGS)") + ["define", "define_const", "index", 'require']
-        if "__INSTL_COMPILED__" in var_stack:
-            if var_stack.resolve("$(__INSTL_COMPILED__)") == "True":
-                acceptables.append("define_Compiled")
-            else:
-                acceptables.append("define_Uncompiled")
-        acceptables = ["!" + acceptibul for acceptibul in acceptables]
-        retVal = doc_node.tag in acceptables
-        return retVal
-
-    def read_yaml_from_stream(self, the_stream, *args, **kwargs):
-        for a_node in yaml.compose_all(the_stream):
-            if self.is_acceptable_yaml_doc(a_node):
-                if a_node.tag.startswith('!define_const'):
-                    self.read_const_defines(a_node, *args, **kwargs)
-                elif a_node.tag.startswith('!define'):
-                    self.read_defines(a_node, *args, **kwargs)
-                elif a_node.tag.startswith('!index'):
-                    self.read_index(a_node, *args, **kwargs)
-                elif a_node.tag.startswith('!require'):
-                    self.read_require(a_node, *args, **kwargs)
-        if not self.check_version_compatibility():
-            raise ValueError(var_stack.resolve("Minimal instl version $(INSTL_MINIMAL_VERSION) > current version $(__INSTL_VERSION__); ")+var_stack.get_configVar_obj("INSTL_MINIMAL_VERSION").description)
-
-    def read_yaml_file(self, file_path, *args, **kwargs):
-        try:
-            with utils.open_for_read_file_or_url(file_path, connectionBase.translate_url, self.path_searcher) as file_fd:
-                buffer = file_fd.read()
-                buffer = utils.unicodify(buffer)
-                buffer = io.StringIO(buffer)
-                buffer.name = file_path
-                self.read_yaml_from_stream(buffer, *args, **kwargs)
-            var_stack.get_configVar_obj("__READ_YAML_FILES__").append(file_path)
-        except Exception as ex:
-            print("Exception reading file:", file_path, ex)
-            raise
+#        if not self.check_version_compatibility():
+#            raise ValueError(var_stack.resolve("Minimal instl version $(INSTL_MINIMAL_VERSION) > current version $(__INSTL_VERSION__); ")+var_stack.get_configVar_obj("INSTL_MINIMAL_VERSION").description)
 
     def read_require(self, a_node, *args, **kwargs):
         req_reader = kwargs.get("req_reader")
@@ -263,27 +249,6 @@ class InstlInstanceBase(object, metaclass=abc.ABCMeta):
                 resolved_path = self.path_searcher.find_file(var_stack.resolve_var(path_var_to_resolve),
                                                              return_original_if_not_found=True)
                 var_stack.set_var(path_var_to_resolve, "resolve_defined_paths").append(resolved_path)
-
-    def read_defines(self, a_node, *args, **kwargs):
-        # if document is empty we get a scalar node
-        if a_node.isMapping():
-            for identifier, contents in a_node.items():
-                if self.allow_reading_of_internal_vars or not self.internal_identifier_re.match(identifier):  # do not read internal state identifiers
-                    var_stack.set_var(identifier, str(contents.start_mark)).extend([item.value for item in contents])
-                elif identifier == '__include__':
-                    self.read_include_node(contents)
-
-    def read_const_defines(self, a_node, *args, **kwargs):
-        """ Read a !define_const sub-doc. All variables will be made const.
-            Reading of internal state identifiers is allowed.
-            __include__ is not allowed.
-        """
-        if a_node.isMapping():
-            for identifier, contents in a_node.items():
-                if identifier == "__include__":
-                    raise ValueError("!define_const doc cannot except __include__")
-                var_stack.add_const_config_variable(identifier, "from !define_const section",
-                                                    *[item.value for item in contents])
 
     def provision_public_key_text(self):
         if "PUBLIC_KEY" not in var_stack:

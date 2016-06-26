@@ -254,7 +254,7 @@ class ConfigVarList(object):
         return retVal
 
     def resolve_var_to_list_if_exists(self, var_name, list_sep=" ", default=""):
-        retVal = ()
+        retVal = []
         if var_name in self:
             var_reference = "".join( ("$(", var_name, ")") )
             retVal = self.resolve_to_list(var_reference)
