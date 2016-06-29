@@ -119,7 +119,8 @@ class InstlDoIt(InstlInstanceBase):
 
     def doit_for_item(self, IID, action):
         with self.install_definitions_index[IID].push_var_stack_scope() as doit_item:
-            self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_"+action)
+            action_list = var_stack.resolve_var_to_list_if_exists("iid_action_list_"+action)
+            self.batch_accum += action_list
             doit_item.user_data = True
 
     def add_default_items(self):

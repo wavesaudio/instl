@@ -262,13 +262,13 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         resolved_public_key = var_stack.resolve("$(PUBLIC_KEY)")
         return resolved_public_key
 
-    def read_include_node(self, i_node):
+    def read_include_node(self, i_node, *args, **kwargs):
         if i_node.isScalar():
             resolved_file_name = var_stack.resolve(i_node.value)
             self.read_yaml_file(resolved_file_name)
         elif i_node.isSequence():
             for sub_i_node in i_node:
-                self.read_include_node(sub_i_node)
+                self.read_include_node(sub_i_node, *args, **kwargs)
         elif i_node.isMapping():
             if "url" in i_node:
                 cached_files_dir = self.get_default_sync_dir(continue_dir="cache", make_dir=True)
@@ -371,6 +371,8 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             [value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines])
 
         out_file = var_stack.resolve("$(__MAIN_OUT_FILE__)", raise_on_fail=True)
+        d_path, f_name = os.path.split(out_file)
+        os.makedirs(d_path, exist_ok=True)
         with utils.write_to_file_or_stdout(out_file) as fd:
             fd.write(lines_after_var_replacement)
             fd.write('\n')

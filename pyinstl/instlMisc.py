@@ -302,7 +302,6 @@ class InstlMisc(InstlInstanceBase):
         print("Failing on purpose with exit code", exit_code)
         sys.exit(exit_code)
 
-
     def do_checksum(self):
         path_to_checksum = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
         if os.path.isfile(path_to_checksum):
@@ -317,8 +316,12 @@ class InstlMisc(InstlInstanceBase):
 
     def do_resolve(self):
         var_stack.set_var("PRINT_COMMAND_TIME").append("no") # do not print time report
-        definitions_file = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
-        self.read_yaml_file(definitions_file)
-        text_to_resolve = sys.stdin.read()
+        config_file = var_stack.resolve("$(__CONFIG_FILE__)")
+        input_file = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
+        output_file = var_stack.resolve("$(__MAIN_OUT_FILE__)")
+        self.read_yaml_file(config_file)
+        with open(input_file, "r") as rfd:
+            text_to_resolve = rfd.read()
         resolved_text = var_stack.resolve(text_to_resolve)
-        sys.stdout.write(resolved_text)
+        with open(output_file, "w") as wfd:
+            wfd.write(resolved_text)

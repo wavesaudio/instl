@@ -129,12 +129,18 @@ class ConfigVarList(object):
         source_obj = self[source_name]
         self.set_var(target_name, source_obj.description).extend(source_obj)
 
-    def read_environment(self):
-        """ Get values from environment """
-        for env_key, env_value in os.environ.items():
-            if env_key == "":  # not sure why, sometimes I get an empty string as env variable name
-                continue
-            self.set_var(env_key, "from environment").append(env_value)
+    def read_environment(self, regex=None):
+        """ Get values from environment. Get all values if regex is None.
+            Get values matching regex otherwise """
+        if regex is None:
+            for env_key, env_value in os.environ.items():
+                if env_key == "":  # not sure why, sometimes I get an empty string as env variable name
+                    continue
+                self.set_var(env_key, "from environment").append(env_value)
+        else:
+            for env_key, env_value in os.environ.items():
+                if re.match(regex, env_key):
+                    self.set_var(env_key, "from environment").append(env_value)
 
     def repr_for_yaml(self, which_vars=None, include_comments=True, ignore_unknown_vars=False):
         retVal = dict()
@@ -234,7 +240,8 @@ class ConfigVarList(object):
                     if value is None:
                         resolved_list.append(None)
                     else:
-                        resolved_list.extend(self.resolve_to_list(value, list_sep))
+                        resolved_list_for_value = self.resolve_to_list(value, list_sep)
+                        resolved_list.extend(resolved_list_for_value)
             else:
                 if default is None:
                     resolved_list.append(str_to_resolve)
@@ -242,7 +249,8 @@ class ConfigVarList(object):
                     resolved_list.append(default)
             self.__resolve_stack.pop()
         else:
-            resolved_list.append(self.resolve(str_to_resolve, list_sep))
+            resolved_str = self.resolve(str_to_resolve, list_sep)
+            resolved_list.append(resolved_str)
         return resolved_list
 
     def resolve_var(self, var_name, list_sep=" ", default=""):
