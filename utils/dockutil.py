@@ -386,13 +386,19 @@ def writePlist(pl, plist_path):
     if os.geteuid() == 0:
         # Running defaults as the user only works if the user exists
         if valid_uid(plist_stat.st_uid):
-            subprocess.Popen(['sudo', '-u', '#%d' % plist_stat.st_uid, '-g', '#%d' % plist_stat.st_gid, 'defaults', 'import', plist_path, plist_import_path])
+            #subprocess.Popen(['sudo', '-u', '#%d' % plist_stat.st_uid, '-g', '#%d' % plist_stat.st_gid, 'defaults', 'import', plist_path, plist_import_path])
+            #subprocess.Popen(['sudo', '-u', '#%d' % plist_stat.st_uid, '-g', '#%d' % plist_stat.st_gid, 'defaults', 'write', plist_path, plist_import_path])
+            subprocess.Popen(['sudo', '-u', '#%d' % plist_stat.st_uid, '-g', '#%d' % plist_stat.st_gid, 'cp', '-f', plist_import_path, plist_path])
         else:
-            subprocess.Popen(['defaults', 'import', plist_path, plist_import_path])
+            #subprocess.Popen(['defaults', 'import', plist_path, plist_import_path])
+            #subprocess.Popen(['defaults', 'write', plist_path, plist_import_path])
+            subprocess.Popen(['cp', '-f', plist_import_path, plist_path])
             os.chown(plist_path, plist_stat.st_uid, plist_stat.st_gid)
             os.chmod(plist_path, plist_stat.st_mode)
     else:
-        subprocess.Popen(['defaults', 'import', plist_path, plist_import_path])
+        #subprocess.Popen(['defaults', 'import', plist_path, plist_import_path])
+        #subprocess.Popen(['defaults', 'write', plist_path, plist_import_path, '1'])
+        subprocess.Popen(['cp', '-f', plist_import_path, plist_path])
 
 
 def valid_uid(uid):
