@@ -371,6 +371,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             [value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines])
 
         out_file = var_stack.resolve("$(__MAIN_OUT_FILE__)", raise_on_fail=True)
+        out_file = os.path.abspath(out_file)
         d_path, f_name = os.path.split(out_file)
         os.makedirs(d_path, exist_ok=True)
         with utils.write_to_file_or_stdout(out_file) as fd:
