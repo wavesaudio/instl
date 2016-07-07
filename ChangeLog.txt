@@ -1,4 +1,4 @@
-???? 1.2.3.0
+26/6/2016 1.2.2.1
 
     user visible changes client:
     * New command resolve, to resolve $() variables in arbitrary text
@@ -10,6 +10,8 @@
         stopped using the function path_as_string as it had encoding issues,
         replaced readPlistFromString with readPlistFromBytes even though readPlistFromBytes is deprecated.
     * file configVar.py renamed cnfigVarOne.py to avoid conflict with the module who's name is also configVar
+    * New base class for reading yaml files: aYaml.YamlReader
+    * New class ConfigVarYamlReader inherits from aYaml.YamlReader
 
 2/6/2016 1.2.2.0
 
