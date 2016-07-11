@@ -17,6 +17,7 @@ from contextlib import contextmanager
 
 import aYaml
 from . import configVarOne
+from . import configVarParser
 
 
 value_ref_re = re.compile("""(
@@ -367,7 +368,31 @@ class ConfigVarList(object):
     # separate to segments, resolve each segment using resolve_str_to_str
     # join resolved segments with ""
     def resolve2_str_to_str(self, str_to_resolve):
-        pass
+        parsed_str = ""
+        for literal_text, variable_name, variable_params, original_variable_str in configVarParser.var_parse_imp(str_to_resolve):
+            if literal_text is not None:
+                parsed_str += literal_text
+            if variable_name is not None:
+                list_params, kw_param = configVarParser.parse_var_params()
+                parsed_str += self.resolve2_var_with_params(variable_name, list_params, kw_param, original_variable_str)
+        return parsed_str
+
+    def resolve2_var_with_params(self, variable_name, list_params, kw_params, original_variable_str):
+        with self.push_scope_context():
+            evaluated_params = {}
+            for iparam in range(len(list_params)):
+                # create __1__ positional params
+                evaluated_params["".join(("__", str(iparam), "__"))] = list_params[iparam]
+            evaluated_params.kw_params()
+            self.update(evaluated_params)
+            retVal = self.resolve2_var_to_list(variable_name, original_variable_str)
+        return retVal
+
+    def resolve2_var_to_list(self, variable_name, default_value=""):
+        retVal = [default_value]
+        if variable_name in self:
+            retVal = list(self[variable_name])
+        return retVal
 
     # for batchAccum only single ref string can return a list size > 1
     def resolve2_str_to_list(self, str_to_resolve):
