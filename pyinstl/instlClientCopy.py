@@ -26,17 +26,17 @@ class InstlClientCopy(InstlClient):
         self.bytes_to_copy = 0
         self.wtar_ratio = 1.3 # ratio between wtar file and it's uncompressed contents
         if "WTAR_RATIO" in var_stack:
-            self.wtar_ratio = float(var_stack.resolve("$(WTAR_RATIO)"))
+            self.wtar_ratio = float(var_stack.ResolveVarToStr("WTAR_RATIO"))
         self.calc_user_cache_dir_var() # this will set USER_CACHE_DIR if it was not explicitly defined
         self.ignore_list = var_stack.resolve_to_list("$(COPY_IGNORE_PATTERNS)")
 
     def write_copy_debug_info(self):
         try:
             if var_stack.defined('ECHO_LOG_FILE'):
-                log_file_path = var_stack.resolve("$(ECHO_LOG_FILE)")
+                log_file_path = var_stack.ResolveVarToStr("ECHO_LOG_FILE")
                 log_folder, log_file = os.path.split(log_file_path)
                 with open(os.path.join(log_folder, "sync-folder-manifest.txt"), "w", encoding='utf-8') as wfd:
-                    repo_sync_dir = var_stack.resolve("$(COPY_SOURCES_ROOT_DIR)")
+                    repo_sync_dir = var_stack.ResolveVarToStr("COPY_SOURCES_ROOT_DIR")
                     wfd.write(utils.folder_listing(repo_sync_dir))
         except Exception:
             pass # if it did not work - forget it
@@ -44,7 +44,7 @@ class InstlClientCopy(InstlClient):
     def write_copy_to_folder_debug_info(self, folder_path):
         try:
             if var_stack.defined('ECHO_LOG_FILE'):
-                log_file_path = var_stack.resolve("$(ECHO_LOG_FILE)")
+                log_file_path = var_stack.ResolveVarToStr("ECHO_LOG_FILE")
                 log_folder, log_file = os.path.split(log_file_path)
                 manifests_log_folder = os.path.join(log_folder, "manifests")
                 os.makedirs(manifests_log_folder, exist_ok=True)
@@ -65,7 +65,7 @@ class InstlClientCopy(InstlClient):
         # Copy might be called after the sync batch file was created
         # but before it was executed in which case HAVE_INFO_MAP_FOR_COPY will be defined to NEW_HAVE_INFO_MAP_PATH.
         if len(self.info_map_table.files_read_list) == 0:
-            have_info_path = var_stack.resolve("$(HAVE_INFO_MAP_FOR_COPY)")
+            have_info_path = var_stack.ResolveVarToStr("HAVE_INFO_MAP_FOR_COPY")
             self.read_info_map_from_file(have_info_path)
 
         # copy and actions instructions for sources
@@ -176,7 +176,7 @@ class InstlClientCopy(InstlClient):
         # Copy have_info file to "site" (e.g. /Library/Application support/... or c:\ProgramData\...)
         # for reference. But when preparing offline installers the site location is the same as the sync location
         # so copy should be avoided.
-        if var_stack.resolve("$(HAVE_INFO_MAP_PATH)") != var_stack.resolve("$(SITE_HAVE_INFO_MAP_PATH)"):
+        if var_stack.ResolveVarToStr("HAVE_INFO_MAP_PATH") != var_stack.ResolveVarToStr("SITE_HAVE_INFO_MAP_PATH"):
             self.batch_accum += self.platform_helper.mkdir_with_owner("$(SITE_REPO_BOOKKEEPING_DIR)")
             self.batch_accum += self.platform_helper.progress("Created folder $(SITE_REPO_BOOKKEEPING_DIR)")
             self.batch_accum += self.platform_helper.copy_file_to_file("$(HAVE_INFO_MAP_PATH)", "$(SITE_HAVE_INFO_MAP_PATH)")
@@ -336,7 +336,7 @@ class InstlClientCopy(InstlClient):
         num_files_to_set_exec = len(required_and_exec)
         if num_files_to_set_exec > 0:
             self.batch_accum += self.platform_helper.pushd("$(COPY_SOURCES_ROOT_DIR)")
-            have_info_path = var_stack.resolve("$(REQUIRED_INFO_MAP_PATH)")
+            have_info_path = var_stack.ResolveVarToStr("REQUIRED_INFO_MAP_PATH")
             self.batch_accum += self.platform_helper.set_exec_for_folder(have_info_path)
             self.platform_helper.num_items_for_progress_report += num_files_to_set_exec
             self.batch_accum += self.platform_helper.progress("Set exec done")

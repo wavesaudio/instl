@@ -35,7 +35,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
 
         if "PUBLIC_KEY" not in var_stack:
             if "PUBLIC_KEY_FILE" in var_stack:
-                public_key_file = var_stack.resolve("$(PUBLIC_KEY_FILE)")
+                public_key_file = var_stack.ResolveVarToStr("PUBLIC_KEY_FILE")
                 with utils.open_for_read_file_or_url(public_key_file, connectionBase.translate_url, self.instlObj.path_searcher) as file_fd:
                     public_key_text = file_fd.read()
                     var_stack.set_var("PUBLIC_KEY", "from " + public_key_file).append(public_key_text)
@@ -54,18 +54,18 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         try:
             os.makedirs(var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)", raise_on_fail=True), exist_ok=True)
             os.makedirs(var_stack.resolve("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)", raise_on_fail=True), exist_ok=True)
-            info_map_file_url = var_stack.resolve("$(INFO_MAP_FILE_URL)")
-            local_copy_of_info_map = var_stack.resolve("$(LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH)")
+            info_map_file_url = var_stack.ResolveVarToStr("INFO_MAP_FILE_URL")
+            local_copy_of_info_map = var_stack.ResolveVarToStr("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH")
             utils.download_from_file_or_url(info_map_file_url,
                                       local_copy_of_info_map,
                                       connectionBase.translate_url,
                                       cache=True,
-                                      expected_checksum=var_stack.resolve("$(INFO_MAP_FILE_URL_CHECKSUM)"))
+                                      expected_checksum=var_stack.ResolveVarToStr("INFO_MAP_FILE_URL_CHECKSUM"))
 
             self.instlObj.read_info_map_from_file(local_copy_of_info_map)
-            self.instlObj.info_map_table.write_to_file(var_stack.resolve("$(NEW_HAVE_INFO_MAP_PATH)"), field_to_write=('path', 'flags', 'revision', 'checksum', 'size'))
+            self.instlObj.info_map_table.write_to_file(var_stack.ResolveVarToStr("NEW_HAVE_INFO_MAP_PATH"), field_to_write=('path', 'flags', 'revision', 'checksum', 'size'))
             #utils.smart_copy_file(local_copy_of_info_map,
-            #                      var_stack.resolve("$(NEW_HAVE_INFO_MAP_PATH)"))
+            #                      var_stack.ResolveVarToStr("NEW_HAVE_INFO_MAP_PATH"))
         except Exception:
             print("Exception reading info_map:", info_map_file_url)
             raise
@@ -81,7 +81,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
                     source = var_stack.resolve_var_to_list(source_var)
                     self.instlObj.info_map_table.mark_required_for_source(source)
         self.instlObj.info_map_table.mark_required_completion()
-        required_file_path = var_stack.resolve("$(REQUIRED_INFO_MAP_PATH)")
+        required_file_path = var_stack.ResolveVarToStr("REQUIRED_INFO_MAP_PATH")
         required_items_list = self.instlObj.info_map_table.get_required_items()
         self.instlObj.info_map_table.write_to_file(in_file=required_file_path, items_list=required_items_list)
 
@@ -91,7 +91,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
              the files that exists and have correct checksum.
         """
         self.instlObj.info_map_table.mark_need_download(self.local_sync_dir)
-        need_download_file_path = var_stack.resolve("$(TO_SYNC_INFO_MAP_PATH)")
+        need_download_file_path = var_stack.ResolveVarToStr("TO_SYNC_INFO_MAP_PATH")
         need_download_items_list = self.instlObj.info_map_table.get_download_items()
         self.instlObj.info_map_table.write_to_file(in_file=need_download_file_path, items_list=need_download_items_list)
 

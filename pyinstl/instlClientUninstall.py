@@ -28,7 +28,7 @@ class InstlClientUninstall(InstlClientRemove):
             raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
         for os_name in var_stack.resolve_to_list("$(TARGET_OS_NAMES)"):
             InstallItem.begin_get_for_specific_os(os_name)
-        require_path = var_stack.resolve("$(SITE_REQUIRE_FILE_PATH)")
+        require_path = var_stack.ResolveVarToStr("SITE_REQUIRE_FILE_PATH")
         if os.path.isfile(require_path):
             try:
                 self.read_yaml_file(require_path, req_reader=self.installState.req_man)

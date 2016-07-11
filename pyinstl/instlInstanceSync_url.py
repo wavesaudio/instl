@@ -19,7 +19,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
     def init_sync_vars(self):
         super().init_sync_vars()
-        self.local_sync_dir = var_stack.resolve("$(LOCAL_REPO_SYNC_DIR)")
+        self.local_sync_dir = var_stack.ResolveVarToStr("LOCAL_REPO_SYNC_DIR")
 
     def create_sync_folders(self):
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Create folders ...")
@@ -30,7 +30,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
     def create_sync_urls(self, in_file_list):
-        self.sync_base_url = var_stack.resolve("$(SYNC_BASE_URL)")
+        self.sync_base_url = var_stack.ResolveVarToStr("SYNC_BASE_URL")
         for file_item in in_file_list:
             source_url = file_item.url
             if source_url is None:
@@ -41,7 +41,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         curl_config_folder = var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)/curl", raise_on_fail=True)
         os.makedirs(curl_config_folder, exist_ok=True)
         curl_config_file_path = var_stack.resolve(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"), raise_on_fail=True)
-        num_config_files = int(var_stack.resolve("$(PARALLEL_SYNC)"))
+        num_config_files = int(var_stack.ResolveVarToStr("PARALLEL_SYNC"))
         config_file_list = self.instlObj.platform_helper.dl_tool.create_config_files(curl_config_file_path, num_config_files)
 
         actual_num_config_files = len(config_file_list)

@@ -14,4 +14,4 @@ class InstlInstanceSync_boto(InstlInstanceSync):
 
     def init_sync_vars(self):
         super().init_sync_vars()
-        self.local_sync_dir = var_stack.resolve("$(LOCAL_REPO_SYNC_DIR)")
+        self.local_sync_dir = var_stack.ResolveVarToStr("LOCAL_REPO_SYNC_DIR")

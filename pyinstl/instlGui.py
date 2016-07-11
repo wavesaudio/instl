@@ -237,10 +237,10 @@ class InstlGui(InstlInstanceBase):
         var_stack.set_var("ADMIN_GUI_RUN_BATCH").append(utils.bool_int_to_str(self.run_admin_batch_file_var.get()))
         var_stack.set_var("ADMIN_GUI_LIMIT").append(self.admin_limit_var.get())
 
-        self.admin_stage_index_var.set(var_stack.resolve("$(__STAGING_INDEX_FILE__)"))
+        self.admin_stage_index_var.set(var_stack.ResolveVarToStr("__STAGING_INDEX_FILE__"))
         self.admin_svn_repo_var.set(var_stack.resolve("$(SVN_REPO_URL), REPO_REV: $(REPO_REV)"))
 
-        sync_url = var_stack.resolve("$(SYNC_BASE_URL)")
+        sync_url = var_stack.ResolveVarToStr("SYNC_BASE_URL")
         self.admin_sync_url_var.set(sync_url)
 
         if self.admin_command_name_var.get() in self.commands_that_accept_limit_option:
@@ -336,7 +336,7 @@ class InstlGui(InstlInstanceBase):
         editIndexButt.grid(row=curr_row, column=4, sticky=W)
         ToolTip(editIndexButt, msg="edit repository index")
 
-        checkIndexButt = Button(admin_frame, width=3, text="Chk",  command=lambda: self.check_yaml(var_stack.resolve("$(__STAGING_INDEX_FILE__)")))
+        checkIndexButt = Button(admin_frame, width=3, text="Chk",  command=lambda: self.check_yaml(var_stack.ResolveVarToStr("__STAGING_INDEX_FILE__")))
         checkIndexButt.grid(row=curr_row, column=5, sticky=W)
         ToolTip(checkIndexButt, msg="read repository index to check it's structure")
 

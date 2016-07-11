@@ -46,7 +46,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         """ To do: dedicate a variable to copy logging (COPY_LOG_FILE ???)
         """
         retVal = ""
-        # log_file = var_stack.resolve("$(LOG_FILE)")
+        # log_file = var_stack.ResolveVarToStr("LOG_FILE")
         # retVal = " /LOG:{log_file}".format(**locals())
         return retVal
 
@@ -263,7 +263,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return tool_path
 
     def init_platform_tools(self):
-        download_tool_name = var_stack.resolve("$(DOWNLOAD_TOOL_PATH)")
+        download_tool_name = var_stack.ResolveVarToStr("DOWNLOAD_TOOL_PATH")
         if download_tool_name.endswith("wget.exe"):
             self.dl_tool = DownloadTool_win_wget(self)
         elif download_tool_name.endswith("curl.exe"):
@@ -399,7 +399,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         elif tool_name == "xcopy":
             self.copy_tool = CopyTool_win_xcopy(self)
         else:
-            raise ValueError(tool_name, "is not a valid copy tool for", var_stack.resolve("$(TARGET_OS)"))
+            raise ValueError(tool_name, "is not a valid copy tool for", var_stack.ResolveVarToStr("TARGET_OS"))
 
     def copy_file_to_file(self, src_file, trg_file, hard_link=False):
         norm_src_file = utils.quoteme_double(os.path.normpath(src_file))

@@ -18,10 +18,10 @@ class InstlInstanceSync_svn(InstlInstanceSync):
 
         var_description = "InstlInstanceSync_svn.init_sync_vars"
         var_stack.set_value_if_var_does_not_exist("REPO_REV", "HEAD", description=var_description)
-        bookkeeping_relative_path = utils.relative_url(var_stack.resolve("$(SYNC_BASE_URL)"), var_stack.resolve("$(BOOKKEEPING_DIR_URL)"))
+        bookkeeping_relative_path = utils.relative_url(var_stack.ResolveVarToStr("SYNC_BASE_URL"), var_stack.ResolveVarToStr("BOOKKEEPING_DIR_URL"))
         var_stack.set_var("REL_BOOKKEEPING_PATH", var_description).append(bookkeeping_relative_path)
 
-        rel_sources = utils.relative_url(var_stack.resolve("$(SYNC_BASE_URL)"), var_stack.resolve("$(SYNC_BASE_URL)"))
+        rel_sources = utils.relative_url(var_stack.ResolveVarToStr("SYNC_BASE_URL"), var_stack.ResolveVarToStr("SYNC_BASE_URL"))
         var_stack.set_var("REL_SRC_PATH", var_description).append(rel_sources)
 
     def create_sync_instructions(self, installState):

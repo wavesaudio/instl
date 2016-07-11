@@ -243,7 +243,7 @@ class InstlClient(InstlInstanceBase):
     def do_command(self):
         # print("client_commands", fixed_command_name)
         self.installState = InstallInstructionsState(self)
-        main_input_file_path = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
+        main_input_file_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         self.read_yaml_file(main_input_file_path)
         self.init_default_client_vars()
         self.resolve_defined_paths()
@@ -255,7 +255,7 @@ class InstlClient(InstlInstanceBase):
         self.resolve_index_inheritance()
         self.add_default_items()
         self.calculate_install_items()
-        self.platform_helper.num_items_for_progress_report = int(var_stack.resolve("$(LAST_PROGRESS)"))
+        self.platform_helper.num_items_for_progress_report = int(var_stack.ResolveVarToStr("LAST_PROGRESS"))
 
         do_command_func = getattr(self, "do_" + self.fixed_command)
         do_command_func()
@@ -273,7 +273,7 @@ class InstlClient(InstlInstanceBase):
 
         # write the history file, but only if variable LOCAL_REPO_BOOKKEEPING_DIR is defined
         # and the folder actually exists.
-        instl_temp_history_file_path = var_stack.resolve("$(INSTL_HISTORY_TEMP_PATH)")
+        instl_temp_history_file_path = var_stack.ResolveVarToStr("INSTL_HISTORY_TEMP_PATH")
         instl_temp_history_folder, instl_temp_history_file_name = os.path.split(instl_temp_history_file_path)
         if os.path.isdir(instl_temp_history_folder):
             with open(instl_temp_history_file_path, "w", encoding='utf-8') as wfd:
@@ -283,7 +283,7 @@ class InstlClient(InstlInstanceBase):
                                                                          "$(INSTL_HISTORY_PATH)")
 
     def read_repo_type_defaults(self):
-        repo_type_defaults_file_path = os.path.join(var_stack.resolve("$(__INSTL_DATA_FOLDER__)"), "defaults",
+        repo_type_defaults_file_path = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults",
                                                     var_stack.resolve("$(REPO_TYPE).yaml"))
         if os.path.isfile(repo_type_defaults_file_path):
             self.read_yaml_file(repo_type_defaults_file_path)
@@ -291,24 +291,24 @@ class InstlClient(InstlInstanceBase):
     def init_default_client_vars(self):
         if "SYNC_BASE_URL" in var_stack:
             #raise ValueError("'SYNC_BASE_URL' was not defined")
-            resolved_sync_base_url = var_stack.resolve("$(SYNC_BASE_URL)")
+            resolved_sync_base_url = var_stack.ResolveVarToStr("SYNC_BASE_URL")
             url_main_item = utils.main_url_item(resolved_sync_base_url)
             var_stack.set_var("SYNC_BASE_URL_MAIN_ITEM", description="from init_default_client_vars").append(url_main_item)
         # TARGET_OS_NAMES defaults to __CURRENT_OS_NAMES__, which is not what we want if syncing to
         # an OS which is not the current
-        if var_stack.resolve("$(TARGET_OS)") != var_stack.resolve("$(__CURRENT_OS__)"):
+        if var_stack.ResolveVarToStr("TARGET_OS") != var_stack.ResolveVarToStr("__CURRENT_OS__"):
             target_os_names = var_stack.resolve_var_to_list(var_stack.resolve("$(TARGET_OS)_ALL_OS_NAMES"))
             var_stack.set_var("TARGET_OS_NAMES").extend(target_os_names)
-            second_name = var_stack.resolve("$(TARGET_OS)")
+            second_name = var_stack.ResolveVarToStr("TARGET_OS")
             if len(target_os_names) > 1:
                 second_name = target_os_names[1]
             var_stack.set_var("TARGET_OS_SECOND_NAME").append(second_name)
 
         self.read_repo_type_defaults()
-        if var_stack.resolve("$(REPO_TYPE)") == "P4":
+        if var_stack.ResolveVarToStr("REPO_TYPE") == "P4":
             if "P4_SYNC_DIR" not in var_stack:
                 if "SYNC_BASE_URL" in var_stack:
-                    p4_sync_dir = utils.P4GetPathFromDepotPath(var_stack.resolve("$(SYNC_BASE_URL)"))
+                    p4_sync_dir = utils.P4GetPathFromDepotPath(var_stack.ResolveVarToStr("SYNC_BASE_URL"))
                     var_stack.set_var("P4_SYNC_DIR", "from SYNC_BASE_URL").append(p4_sync_dir)
 
     def repr_for_yaml(self, what=None):
@@ -367,7 +367,7 @@ class InstlClient(InstlInstanceBase):
             Full set of install iids and orphan iids are also writen to variable.
         """
         # read the require.yaml file, if any, we'll need it to calculate updates
-        require_path = var_stack.resolve("$(SITE_REQUIRE_FILE_PATH)")
+        require_path = var_stack.ResolveVarToStr("SITE_REQUIRE_FILE_PATH")
         if os.path.isfile(require_path):
             try:
                 self.read_yaml_file(require_path, req_reader=self.installState.req_man)
@@ -385,7 +385,7 @@ class InstlClient(InstlInstanceBase):
         var_stack.set_var("__ORPHAN_INSTALL_TARGETS__").extend(sorted(self.installState.orphan_items))
 
     def read_previous_requirements(self):
-        require_file_path = var_stack.resolve("$(SITE_REQUIRE_FILE_PATH)")
+        require_file_path = var_stack.ResolveVarToStr("SITE_REQUIRE_FILE_PATH")
         if os.path.isfile(require_file_path):
             self.read_yaml_file(require_file_path)
 
@@ -427,7 +427,7 @@ class InstlClient(InstlInstanceBase):
         create_folder_ls_command_parts = [self.platform_helper.run_instl(), "ls",
                                       "--in",  utils.quoteme_double(which_folder_to_manifest),
                                       "--out", utils.quoteme_double(ls_output_file)]
-        if var_stack.resolve("$(__CURRENT_OS__)") == "Mac":
+        if var_stack.ResolveVarToStr("__CURRENT_OS__") == "Mac":
             create_folder_ls_command_parts.extend(("||", "true"))
         self.batch_accum += " ".join(create_folder_ls_command_parts)
 

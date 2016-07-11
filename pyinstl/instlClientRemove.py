@@ -27,9 +27,9 @@ class InstlClientRemove(InstlClient):
 
     def create_remove_instructions(self):
 
-        have_info_path = var_stack.resolve("$(HAVE_INFO_MAP_PATH)")
+        have_info_path = var_stack.ResolveVarToStr("HAVE_INFO_MAP_PATH")
         if not os.path.isfile(have_info_path):
-            have_info_path = var_stack.resolve("$(SITE_HAVE_INFO_MAP_PATH)")
+            have_info_path = var_stack.ResolveVarToStr("SITE_HAVE_INFO_MAP_PATH")
         self.read_info_map_from_file(have_info_path)
 
         self.batch_accum.set_current_section('remove')

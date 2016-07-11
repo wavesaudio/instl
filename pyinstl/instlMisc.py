@@ -28,9 +28,9 @@ class InstlMisc(InstlInstanceBase):
         self.progress_staccato_count = 0
 
     def do_command(self):
-        self.curr_progress = int(var_stack.resolve("$(__START_DYNAMIC_PROGRESS__)"))
-        self.total_progress = int(var_stack.resolve("$(__TOTAL_DYNAMIC_PROGRESS__)")) # if var does not exist default is 0, meaning not to display dynamic progress
-        self.progress_staccato_period = int(var_stack.resolve("$(PROGRESS_STACCATO_PERIOD)"))
+        self.curr_progress = int(var_stack.ResolveVarToStr("__START_DYNAMIC_PROGRESS__"))
+        self.total_progress = int(var_stack.ResolveVarToStr("__TOTAL_DYNAMIC_PROGRESS__")) # if var does not exist default is 0, meaning not to display dynamic progress
+        self.progress_staccato_period = int(var_stack.ResolveVarToStr("PROGRESS_STACCATO_PERIOD"))
         self.progress_staccato_count = 0
         do_command_func = getattr(self, "do_" + self.fixed_command)
         before_time = time.clock()
@@ -73,7 +73,7 @@ class InstlMisc(InstlInstanceBase):
 
         what_to_work_on = "."
         if "__MAIN_INPUT_FILE__" in var_stack:
-            what_to_work_on = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
+            what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
 
         if os.path.isfile(what_to_work_on):
             if what_to_work_on.endswith(".wtar.aa"):
@@ -193,7 +193,7 @@ class InstlMisc(InstlInstanceBase):
             sys.exit(17)
 
     def do_remove_empty_folders(self):
-        folder_to_remove = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
+        folder_to_remove = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         files_to_ignore = var_stack.resolve_to_list("$(REMOVE_EMPTY_FOLDERS_IGNORE_FILES)")
         for root_path, dir_names, file_names in os.walk(folder_to_remove, topdown=False, onerror=None, followlinks=False):
             # when topdown=False os.walk creates dir_names for each root_path at the beginning and has
@@ -240,7 +240,7 @@ class InstlMisc(InstlInstanceBase):
                 file.Save(shortcut_path, 0)
 
     def do_translate_url(self):
-        url_to_translate = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
+        url_to_translate = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         translated_url = connectionBase.connection_factory().translate_url(url_to_translate)
         print(translated_url)
 
@@ -277,11 +277,11 @@ class InstlMisc(InstlInstanceBase):
 
     def do_ls(self):
         if "__MAIN_OUT_FILE__" in var_stack:
-            out_file = var_stack.resolve("$(__MAIN_OUT_FILE__)")
+            out_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
         else:
             out_file = "stdout"
 
-        main_folder_to_list = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
+        main_folder_to_list = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         folders_to_list = []
         if var_stack.defined("__LIMIT_COMMAND_TO__"):
             limit_list = var_stack.resolve_to_list("$(__LIMIT_COMMAND_TO__)")
@@ -303,7 +303,7 @@ class InstlMisc(InstlInstanceBase):
         sys.exit(exit_code)
 
     def do_checksum(self):
-        path_to_checksum = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
+        path_to_checksum = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         if os.path.isfile(path_to_checksum):
             the_checksum = utils.get_file_checksum(path_to_checksum)
             print(": ".join((path_to_checksum, the_checksum)))
@@ -316,9 +316,9 @@ class InstlMisc(InstlInstanceBase):
 
     def do_resolve(self):
         var_stack.set_var("PRINT_COMMAND_TIME").append("no") # do not print time report
-        config_file = var_stack.resolve("$(__CONFIG_FILE__)")
-        input_file = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
-        output_file = var_stack.resolve("$(__MAIN_OUT_FILE__)")
+        config_file = var_stack.ResolveVarToStr("__CONFIG_FILE__")
+        input_file = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        output_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
         self.read_yaml_file(config_file)
         with open(input_file, "r") as rfd:
             text_to_resolve = rfd.read()

@@ -67,7 +67,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
         acceptables = var_stack.resolve_var_to_list_if_exists("ACCEPTABLE_YAML_DOC_TAGS")
         if "__INSTL_COMPILED__" in var_stack:
-            if var_stack.resolve("$(__INSTL_COMPILED__)") == "True":
+            if var_stack.ResolveVarToStr("__INSTL_COMPILED__") == "True":
                 acceptables.append("define_Compiled")
             else:
                 acceptables.append("define_Uncompiled")
@@ -95,16 +95,16 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         var_description = "from InstlInstanceBase.init_default_vars"
 
         # read defaults/main.yaml
-        main_defaults_file_path = os.path.join(var_stack.resolve("$(__INSTL_DATA_FOLDER__)"), "defaults", "main.yaml")
+        main_defaults_file_path = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults", "main.yaml")
         self.read_yaml_file(main_defaults_file_path)
 
         # read defaults/compile-info.yaml
-        compile_info_file_path = os.path.join(var_stack.resolve("$(__INSTL_DATA_FOLDER__)"), "defaults",
+        compile_info_file_path = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults",
                                               "compile-info.yaml")
         if os.path.isfile(compile_info_file_path):
             self.read_yaml_file(compile_info_file_path)
         if "__COMPILATION_TIME__" not in var_stack:
-            if var_stack.resolve("$(__INSTL_COMPILED__)") == "True":
+            if var_stack.ResolveVarToStr("__INSTL_COMPILED__") == "True":
                 var_stack.add_const_config_variable("__COMPILATION_TIME__", var_description, "unknown compilation time")
             else:
                 var_stack.add_const_config_variable("__COMPILATION_TIME__", var_description, "(not compiled)")
@@ -113,13 +113,13 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def read_name_specific_defaults_file(self, file_name):
         """ read class specific file from defaults/class_name.yaml """
-        name_specific_defaults_file_path = os.path.join(var_stack.resolve("$(__INSTL_DATA_FOLDER__)"), "defaults",
+        name_specific_defaults_file_path = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults",
                                                         file_name + ".yaml")
         if os.path.isfile(name_specific_defaults_file_path):
             self.read_yaml_file(name_specific_defaults_file_path)
 
     def read_user_config(self):
-        user_config_path = var_stack.resolve("$(__USER_CONFIG_FILE_PATH__)")
+        user_config_path = var_stack.ResolveVarToStr("__USER_CONFIG_FILE_PATH__")
         if os.path.isfile(user_config_path):
             previous_allow_reading_of_internal_vars = self.allow_reading_of_internal_vars
             self.allow_reading_of_internal_vars = True
@@ -228,7 +228,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         with open(file_path, "w", encoding='utf-8') as wfd:
             utils.make_open_file_read_write_for_all(wfd)
 
-            define_dict = aYaml.YamlDumpDocWrap({"REQUIRE_REPO_REV": var_stack.resolve("$(MAX_REPO_REV)")},
+            define_dict = aYaml.YamlDumpDocWrap({"REQUIRE_REPO_REV": var_stack.ResolveVarToStr("MAX_REPO_REV")},
                                                 '!define', "definitions",
                                                  explicit_start=True, sort_mappings=True)
             require_dict = aYaml.YamlDumpDocWrap(require_dict, '!require', "requirements",
@@ -253,13 +253,13 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
     def provision_public_key_text(self):
         if "PUBLIC_KEY" not in var_stack:
             if "PUBLIC_KEY_FILE" in var_stack:
-                public_key_file = var_stack.resolve("$(PUBLIC_KEY_FILE)")
+                public_key_file = var_stack.ResolveVarToStr("PUBLIC_KEY_FILE")
                 with utils.open_for_read_file_or_url(public_key_file, connectionBase.translate_url, self.path_searcher) as file_fd:
                     public_key_text = file_fd.read()
                     var_stack.set_var("PUBLIC_KEY", "from " + public_key_file).append(public_key_text)
             else:
                 raise ValueError("No public key, variables PUBLIC_KEY & PUBLIC_KEY_FILE are not defined")
-        resolved_public_key = var_stack.resolve("$(PUBLIC_KEY)")
+        resolved_public_key = var_stack.ResolveVarToStr("PUBLIC_KEY")
         return resolved_public_key
 
     def read_include_node(self, i_node, *args, **kwargs):
@@ -320,7 +320,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def calc_user_cache_dir_var(self, make_dir=True):
         if "USER_CACHE_DIR" not in var_stack:
-            os_family_name = var_stack.resolve("$(__CURRENT_OS__)")
+            os_family_name = var_stack.ResolveVarToStr("__CURRENT_OS__")
             if os_family_name == "Mac":
                 user_cache_dir_param = "$(COMPANY_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
                 user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)

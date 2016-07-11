@@ -203,9 +203,9 @@ class PlatformSpecificHelperBase(object):
         pass
 
     def init_copy_tool(self):
-        copy_tool_name = self.DefaultCopyToolName(var_stack.resolve("$(__CURRENT_OS__)")) # copy instructions are always produced for the current os
+        copy_tool_name = self.DefaultCopyToolName(var_stack.ResolveVarToStr("__CURRENT_OS__")) # copy instructions are always produced for the current os
         if "COPY_TOOL" in var_stack:
-            copy_tool_name = var_stack.resolve("$(COPY_TOOL)")
+            copy_tool_name = var_stack.ResolveVarToStr("COPY_TOOL")
         self.use_copy_tool(copy_tool_name)
 
     @abc.abstractmethod

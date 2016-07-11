@@ -108,7 +108,7 @@ class CMDObj(cmd.Cmd, object):
         self.history_file_path = None
         self.prompt = None
         self.save_dir = None
-        self.this_program_name = var_stack.resolve("$(INSTL_EXEC_DISPLAY_NAME)")
+        self.this_program_name = var_stack.ResolveVarToStr("INSTL_EXEC_DISPLAY_NAME")
 
     def __enter__(self):
         if readline_loaded:
@@ -631,7 +631,7 @@ class CMDObj(cmd.Cmd, object):
         print("")
 
     def do_which(self, param):
-        print(var_stack.resolve("$(__INSTL_EXE_PATH__)"))
+        print(var_stack.ResolveVarToStr("__INSTL_EXE_PATH__"))
 
     def help_which(self):
         print("print full path to currently running instl")

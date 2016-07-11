@@ -11,7 +11,7 @@ class InstlClientSync(InstlClient):
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
 
     def do_sync(self):
-        repo_type = var_stack.resolve("$(REPO_TYPE)")
+        repo_type = var_stack.ResolveVarToStr("REPO_TYPE")
         if repo_type == "URL":
             from .instlInstanceSync_url import InstlInstanceSync_url
 
