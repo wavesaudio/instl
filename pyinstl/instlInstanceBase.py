@@ -46,9 +46,9 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         # initialize the search paths helper with the current directory and dir where instl is now
         self.path_searcher.add_search_path(os.getcwd())
         self.path_searcher.add_search_path(os.path.dirname(os.path.realpath(sys.argv[0])))
-        self.path_searcher.add_search_path(var_stack.resolve("$(__INSTL_DATA_FOLDER__)"))
+        self.path_searcher.add_search_path(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"))
 
-        self.platform_helper = PlatformSpecificHelperFactory(var_stack.resolve("$(__CURRENT_OS__)"), self)
+        self.platform_helper = PlatformSpecificHelperFactory(var_stack.ResolveVarToStr("__CURRENT_OS__"), self)
         # init initial copy tool, tool might be later overridden after reading variable COPY_TOOL from yaml.
         self.platform_helper.init_copy_tool()
 

@@ -34,32 +34,41 @@ def params_to_dict(params_text):
 
 
 class VarParseImpContext(object):
-    reset_yield_value = ("", None, "", "")
+    reset_yield_value = ("", None, None, None)
     # Unfortunatly '(', ')' are also acceptable in variable name on Windows, these will get special attention in the code
     # However, '(', ')' in a variable name must be balanced
     variable_name_acceptable_characters = set((c for c in string.ascii_letters + string.digits + '_'))
 
     def __init__(self):
-        (self.literal_text, self.variable_name, self.variable_params, self.variable_str) = self.reset_yield_value
+        (self.literal_text,
+         self.variable_name,
+         self.variable_params,
+         self.variable_str) = self.reset_yield_value
         self.parenthesis_balance = 0
         self.state = LITERAL_STATE
 
     def reset_return_tuple(self):
-        (self.literal_text, self.variable_name, self.variable_params, self.variable_str) = self.reset_yield_value
+        (self.literal_text,
+         self.variable_name,
+         self.variable_params,
+         self.variable_str) = self.reset_yield_value
 
     def get_return_tuple(self):
-        return self.literal_text, self.variable_name, self.variable_params, self.variable_str
+        return (self.literal_text,
+                self.variable_name,
+                self.variable_params,
+                self.variable_str)
 
     def discard_variable(self, c):
         self.literal_text += self.variable_str
-        self.variable_str = ""
+        self.variable_str = None
         self.variable_name = None
-        self.variable_params = ""
+        self.variable_params = None
         self.parenthesis_balance = 0
         self.state = LITERAL_STATE
         if c == '$':
             self.literal_text = self.literal_text[:-1]
-            self.variable_str += "$"
+            self.variable_str = "$"
             self.state = VAR_REF_STARTED_STATE
 
 
@@ -75,13 +84,16 @@ def var_parse_imp(f_string):
     for c in f_string:
         if cont.state == LITERAL_STATE:
             if c == '$':
-                cont.variable_str += "$"
+                cont.variable_str = "$"
                 cont.state = VAR_REF_STARTED_STATE
             else:
                 cont.literal_text += c
         elif cont.state == VAR_NAME_STATE:
             cont.variable_str += c
             if c in cont.variable_name_acceptable_characters:
+                cont.variable_name += c
+            elif c == '(':
+                cont.parenthesis_balance += 1
                 cont.variable_name += c
             elif c == ')':
                 cont.parenthesis_balance -= 1
@@ -91,9 +103,6 @@ def var_parse_imp(f_string):
                     cont.state = LITERAL_STATE
                 else:
                     cont.variable_name += c
-            elif c == '(':
-                cont.parenthesis_balance += 1
-                cont.variable_name += c
             elif c == '<':
                 cont.variable_params = ""
                 cont.state = PARAMS_STATE
@@ -101,14 +110,14 @@ def var_parse_imp(f_string):
                 cont.state = VAR_NAME_ENDED_STATE
             else:  # unrecognised character so default to literal
                 cont.discard_variable(c)
-        elif cont.state == VAR_REF_STARTED_STATE:
-                cont.variable_str += c
-                if c == '(':
-                    cont.variable_name = ""
-                    cont.parenthesis_balance += 1
-                    cont.state = VAR_NAME_STATE
-                else:  # not an opening parenthesis after $, go back to cont.literal_text
-                    cont.discard_variable(c)
+        elif cont.state == VAR_REF_STARTED_STATE:  # '$' was found
+            cont.variable_str += c
+            if c == '(':
+                cont.variable_name = ""
+                cont.parenthesis_balance += 1
+                cont.state = VAR_NAME_STATE
+            else:  # not an opening parenthesis after $, go back to cont.literal_text
+                cont.discard_variable(c)
         elif cont.state == VAR_NAME_ENDED_STATE:
             cont.variable_str += c
             if c == ')':
@@ -157,23 +166,24 @@ vars_split_level_2_re = re.compile("\s*=\s*", re.X)
 def parse_var_params(var_params_str):
     list_retVal = []
     kw_retVal = {}
-    comma_separated_list = vars_split_level_1_re.split(var_params_str.strip())
-    for csi in comma_separated_list:
-        single_param = vars_split_level_2_re.split(csi.strip(), 1)
-        if len(single_param) > 1:
-            if single_param[0] and single_param[1]:
-                kw_retVal[single_param[0]] = single_param[1]
-            else:  # "=", '=a' or 'a=' should translate to a single param
-                list_retVal.append(csi.strip())
-        else:
-            if single_param[0]:
-                list_retVal.append(single_param[0])
+    if var_params_str:  # might be None (no params) or "" (empty params, i.e. $(A<>))
+        comma_separated_list = vars_split_level_1_re.split(var_params_str.strip())
+        for csi in comma_separated_list:
+            single_param = vars_split_level_2_re.split(csi.strip(), 1)
+            if len(single_param) > 1:
+                if single_param[0] and single_param[1]:
+                    kw_retVal[single_param[0]] = single_param[1]
+                else:  # "=", '=a' or 'a=' should translate to a single param
+                    list_retVal.append(csi.strip())
+            else:
+                if single_param[0]:
+                    list_retVal.append(single_param[0])
     return list_retVal, kw_retVal
 
 
 def resolve_variable_1(var_name, var_params, default=""):
     retVal = "".join(("!",var_name))
-    if var_params is not  None:
+    if var_params is not None:
         retVal = "".join((retVal, "(", var_params, ")"))
     return retVal
 
@@ -185,7 +195,7 @@ def resolve_variable_2(var_name, var_params, default=""):
 def parse_str(str_to_parse, var_resolver):
     parsed_str = ""
     for literal_text, variable_name, variable_params, variable_str in var_parse_imp(str_to_parse):
-        if literal_text is not None:
+        if literal_text:
             parsed_str += literal_text
         if variable_name is not None:
             parsed_str += var_resolver(variable_name, variable_params, variable_str)
