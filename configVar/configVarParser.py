@@ -34,7 +34,7 @@ def params_to_dict(params_text):
 
 
 class VarParseImpContext(object):
-    reset_yield_value = ("", None, None, "")
+    reset_yield_value = ("", None, "", "")
     # Unfortunatly '(', ')' are also acceptable in variable name on Windows, these will get special attention in the code
     # However, '(', ')' in a variable name must be balanced
     variable_name_acceptable_characters = set((c for c in string.ascii_letters + string.digits + '_'))
@@ -54,7 +54,7 @@ class VarParseImpContext(object):
         self.literal_text += self.variable_str
         self.variable_str = ""
         self.variable_name = None
-        self.variable_params = None
+        self.variable_params = ""
         self.parenthesis_balance = 0
         self.state = LITERAL_STATE
         if c == '$':

@@ -78,9 +78,9 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.specific_doc_readers["!require"] = self.read_require
 
     def get_version_str(self):
+        instl_ver_str = var_stack.resolve_var("__INSTL_VERSION__", list_sep=".")
         retVal = var_stack.resolve(
-            "$(INSTL_EXEC_DISPLAY_NAME) version $(__INSTL_VERSION__) $(__COMPILATION_TIME__) $(__PLATFORM_NODE__)",
-            list_sep=".", default="")
+            "$(INSTL_EXEC_DISPLAY_NAME) version "+instl_ver_str+" $(__COMPILATION_TIME__) $(__PLATFORM_NODE__)")
         return retVal
 
     def init_default_vars(self, initial_vars):

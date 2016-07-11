@@ -19,7 +19,6 @@ import aYaml
 from . import configVarOne
 from . import configVarParser
 
-
 value_ref_re = re.compile("""(
                             (?P<varref_pattern>
                                 (?P<varref_marker>[$])      # $
@@ -44,34 +43,7 @@ only_one_value_ref_re = re.compile("""
                             )                         # )
                             $
                             """, re.X)
-action_ref_re = re.compile("""
-    (?P<action_pattern>
-        \s*
-        \$<
-            (?P<action_name>[a-zA-Z0-9_]+?)
-        \s*
-        (?P<action_vars_section>
-        \s*\(\s*
-            (?P<action_vars>.*)
-        \s*\)\s*
-        )??
-        >
-        \s*
-        $
-    )""", re.X)
 
-vars_split_level_1_re = re.compile("\s*,\s*", re.X)
-vars_split_level_2_re = re.compile("\s*=\s*", re.X)
-
-
-def actions_vars_to_dict(in_vars_text):
-    retVal = {}
-    if in_vars_text:
-        var_assign_list = vars_split_level_1_re.split(in_vars_text)
-        for var_assign in var_assign_list:
-            single_var_assign = vars_split_level_2_re.split(var_assign, 1)
-            retVal[single_var_assign[0]] = single_var_assign[1]
-    return retVal
 
 class ConfigVarList(object):
     """ Keeps a list of named build config values.
@@ -201,60 +173,52 @@ class ConfigVarList(object):
         return retVal
 
     def resolve(self, str_to_resolve, list_sep=" ", default=None, raise_on_fail=False):
-        """ Resolve a string, possibly with $() or $<> style references.
+        """ Resolve a string, possibly with $() style references.
             For Variables that hold more than one value, the values are connected with list_sep
             which defaults to a single space.
             None existent variables are left as is if default==None, otherwise value of default is inserted
         """
         resolved_str = str_to_resolve
         try:
-            match = action_ref_re.match(str_to_resolve)
-            if match:
-                self.push_scope()
-                action_name = match.group('action_name')
-                action_variables = match.group('action_variables')
-                evaled_variables = {}
-                if action_variables:
-                    to_eval = "".join(('{', action_variables, '}'))
-                    evaled_variables.update(ast.literal_eval(to_eval))
-                    self.update(evaled_variables)
-                resolved_str = self.resolve_var(action_name)
-                self.pop_scope()
-            else:
-                search_start_pos = 0
-                #print("resolving:", str_to_resolve)
-                while True:
-                    match = value_ref_re.search(resolved_str, search_start_pos)
-                    if not match:
-                        break
-                    replacement = default
-                    var_name = match.group('var_name')
-                    if var_name in self:
-                        if var_name in self.__resolve_stack:
-                            raise Exception("circular resolving of '$({})', resolve stack: {}".format(var_name, self.__resolve_stack))
-                        self.__resolve_stack.append(var_name)
-                        if match.group('varref_array'):
-                            array_index = int(match.group('array_index'))
-                            if array_index < len(self[var_name]):
-                                replacement = self[var_name][array_index]
-                        else:
-                            var_joint_values = list_sep.join([val for val in self[var_name] if val])
-                            replacement = self.resolve(var_joint_values, list_sep)
-
-                        self.__resolve_stack.pop()
-
-                    # if var_name was not found skip it on the next search
-                    if replacement is None:
-                        search_start_pos = match.end('varref_pattern')
+            search_start_pos = 0
+            #print("resolving:", str_to_resolve)
+            while True:
+                match = value_ref_re.search(resolved_str, search_start_pos)
+                if not match:
+                    break
+                replacement = default
+                var_name = match.group('var_name')
+                if var_name in self:
+                    if var_name in self.__resolve_stack:
+                        raise Exception("circular resolving of '$({})', resolve stack: {}".format(var_name, self.__resolve_stack))
+                    self.__resolve_stack.append(var_name)
+                    if match.group('varref_array'):
+                        array_index = int(match.group('array_index'))
+                        if array_index < len(self[var_name]):
+                            replacement = self[var_name][array_index]
                     else:
-                        resolved_str = resolved_str.replace(match.group('varref_pattern'), replacement)
-                    #print("    ", resolved_str)
+                        var_joint_values = list_sep.join([val for val in self[var_name] if val])
+                        replacement = self.resolve(var_joint_values, list_sep)
+
+                    self.__resolve_stack.pop()
+
+                # if var_name was not found skip it on the next search
+                if replacement is None:
+                    search_start_pos = match.end('varref_pattern')
+                else:
+                    resolved_str = resolved_str.replace(match.group('varref_pattern'), replacement)
+                #print("    ", resolved_str)
         except TypeError:
             print("TypeError while resolving", str_to_resolve)
             if raise_on_fail:
                 raise
         if raise_on_fail and not self.is_resolved(resolved_str):
             raise ValueError("Cannot fully resolve "+str_to_resolve+ ": "+resolved_str)
+
+        testRetVal = self.ResolveStrToStr(str_to_resolve, list_sep=list_sep)
+        if resolved_str != testRetVal:
+            print(str_to_resolve, resolved_str, testRetVal)
+            raise ValueError(str_to_resolve, resolved_str, testRetVal)
         return resolved_str
 
     # just an experiment
@@ -282,8 +246,7 @@ class ConfigVarList(object):
                     if value is None:
                         resolved_list.append(None)
                     else:
-                        resolved_list_for_value = self.resolve_to_list(value, list_sep)
-                        resolved_list.extend(resolved_list_for_value)
+                        resolved_list.extend(self.resolve_to_list(value, list_sep))
             else:
                 if default is None:
                     resolved_list.append(str_to_resolve)
@@ -291,8 +254,7 @@ class ConfigVarList(object):
                     resolved_list.append(default)
             self.__resolve_stack.pop()
         else:
-            resolved_str = self.resolve(str_to_resolve, list_sep)
-            resolved_list.append(resolved_str)
+            resolved_list.append(self.resolve(str_to_resolve, list_sep))
         return resolved_list
 
     def resolve_var(self, var_name, list_sep=" ", default=""):
@@ -334,66 +296,66 @@ class ConfigVarList(object):
         yield self
         self.__resolve_stack.pop()
 
-    # if var_name_to_resolve not found return default or raise if default is None
-    # resolve each value separately using resolve_var_to_str
-    # if num values > 1, will join with str_to_join_list
-    # empty value(s) ???
-    # return string
-    def resolve2_var_to_str(self, var_name_to_resolve, str_to_join_list=" ", default=""):
-        retVal = default
-        if var_name_to_resolve in self:
-            with self.circular_resolve_check(var_name_to_resolve):
-                resolved_values = [self.resolve2_str_to_str(val) for val in self[var_name_to_resolve] if val is not None]
-                retVal = str_to_join_list.join(resolved_values)
-        elif default is None:
-            raise ValueError("Variable name was not found " + var_name_to_resolve)
-        return retVal
+    def ResolveStrToListWithStatistics(self, str_to_resolve):
+        """ resolve a string to a list, return the list and also the number of variables and literal in the list.
+            Returning these statistic will help
+        """
+        resolved_parts = list()
+        num_literals = 0
+        num_variables = 0
+        for literal_text, variable_name, variable_params_str, original_variable_str in configVarParser.var_parse_imp(str_to_resolve):
+            if literal_text:
+                resolved_parts.append(literal_text)
+                num_literals += 1
+            if variable_name:
+                positional_params, key_word_params = configVarParser.parse_var_params(variable_params_str)
+                resolved_parts.extend(self.ResolveVarWithParamsToList(variable_name, positional_params, key_word_params, original_variable_str))
+                num_variables += 1
+        return resolved_parts, num_literals, num_variables
 
-    # resolve each value separately using resolve_var_to_list
-    # concatenate the lists
-    # if variable has a value that resolves to a list this will flatten the lists to a single list
-    # return list
-    def resolve2_var_to_list(self, var_name_to_resolve, default=""):
-        retVal = list()
-        if var_name_to_resolve in self:
-            with self.circular_resolve_check(var_name_to_resolve):
-                resolved_values = [self.resolve2_str_to_list(val) for val in self[var_name_to_resolve] if val is not None]
-                retVal.extend(resolved_values)
-        elif default is not None:
-            retVal.append(default)
+    def ResolveStrToListIfSingleVar(self, str_to_resolve):
+        resolved_parts, num_literals, num_variables = self.ResolveStrToListWithStatistics(str_to_resolve)
+        if num_literals == 0 and num_variables == 1:
+            retVal = resolved_parts
         else:
-            raise ValueError("Variable name was not found " + var_name_to_resolve)
+            retVal = ["".join(resolved_parts)]
         return retVal
 
-    # separate to segments, resolve each segment using resolve_str_to_str
-    # join resolved segments with ""
-    def resolve2_str_to_str(self, str_to_resolve):
-        parsed_str = ""
-        for literal_text, variable_name, variable_params, original_variable_str in configVarParser.var_parse_imp(str_to_resolve):
-            if literal_text is not None:
-                parsed_str += literal_text
-            if variable_name is not None:
-                list_params, kw_param = configVarParser.parse_var_params()
-                parsed_str += self.resolve2_var_with_params(variable_name, list_params, kw_param, original_variable_str)
-        return parsed_str
+    def ResolveStrToStr(self, str_to_resolve, list_sep=""):
+        resolved_parts = self.ResolveStrToListIfSingleVar(str_to_resolve)
+        resolved_str = list_sep.join(resolved_parts)
+        return resolved_str
 
-    def resolve2_var_with_params(self, variable_name, list_params, kw_params, original_variable_str):
+    def ResolveVarToStr(self, in_var, list_sep="", default=None):
+        value_list = self.ResolveVarToList(in_var, default)
+        retVal = list_sep.join(value_list)
+        return retVal
+
+    def ResolveVarToList(self, in_var, default=None):
+        retVal = list()
+        if in_var in self:
+            with self.circular_resolve_check(in_var):
+                for value in self[in_var]:
+                    if value is None:
+                        retVal.append(None)
+                    else:
+                        resolved_list_for_value = self.ResolveStrToListIfSingleVar(value)
+                        retVal.extend(resolved_list_for_value)
+        else:
+            if default is None:
+                raise ValueError("Variable was not found " + in_var)
+            else:
+                retVal.append(default)
+        return retVal
+
+    def ResolveVarWithParamsToList(self, in_var, positional_params, key_word_params, original_variable_str):
         with self.push_scope_context():
             evaluated_params = {}
-            for iparam in range(len(list_params)):
+            for i_param in range(len(positional_params)):
                 # create __1__ positional params
-                evaluated_params["".join(("__", str(iparam), "__"))] = list_params[iparam]
-            evaluated_params.kw_params()
+                evaluated_params["".join(("__", str(i_param), "__"))] = positional_params[i_param]
+            evaluated_params.update(key_word_params)
             self.update(evaluated_params)
-            retVal = self.resolve2_var_to_list(variable_name, original_variable_str)
+            retVal = self.ResolveVarToList(in_var, original_variable_str)
         return retVal
 
-    def resolve2_var_to_list(self, variable_name, default_value=""):
-        retVal = [default_value]
-        if variable_name in self:
-            retVal = list(self[variable_name])
-        return retVal
-
-    # for batchAccum only single ref string can return a list size > 1
-    def resolve2_str_to_list(self, str_to_resolve):
-        pass

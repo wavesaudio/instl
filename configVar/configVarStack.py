@@ -116,7 +116,7 @@ class ConfigVarStack(configVarList.ConfigVarList):
                 if include_comments:
                     theComment = self[var_name].description
                 if resolve:
-                    var_value = self.resolve_var(var_name)
+                    var_value = self.resolve_var_to_list(var_name)
                 else:
                     var_value = self.unresolved_var_to_list(var_name)
                 if len(var_value) == 1:
