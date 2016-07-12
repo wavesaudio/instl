@@ -86,7 +86,7 @@ class InstallItemLists(object):
                         self.install_items_by_target_folder[norm_folder].append(IID)
                 else:  # items that need no copy
                     for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
-                        source = var_stack.resolve_var_to_list(source_var)
+                        source = var_stack.ResolveVarToList(source_var)
                         relative_sync_folder = instlObj.relative_sync_folder_for_source(source)
                         sync_folder = os.path.join("$(LOCAL_REPO_SYNC_DIR)", relative_sync_folder)
                         self.no_copy_items_by_sync_folder[sync_folder].append(IID)

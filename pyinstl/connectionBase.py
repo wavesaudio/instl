@@ -22,9 +22,8 @@ class ConnectionBase(object):
 
     def get_cookie(self, net_loc):
         retVal = None
-        cookie_list = var_stack.resolve_var_to_list_if_exists("COOKIE_JAR")
+        cookie_list = var_stack.ResolveVarToList("COOKIE_JAR", default=[])
         if cookie_list:
-            #print("cookie list:", cookie_list)
             for cookie_line in cookie_list:
                 cred_split = cookie_line.split(":", 2)
                 if len(cred_split) == 2 and net_loc.lower() == cred_split[0].lower():
@@ -38,7 +37,7 @@ class ConnectionBase(object):
         cookie = self.get_cookie(net_loc)
         if cookie is not None:
             retVal.append(cookie)
-        custom_headers = var_stack.resolve_var_to_list_if_exists("CUSTOM_HEADERS")
+        custom_headers = var_stack.ResolveVarToList("CUSTOM_HEADERS", default=[])
         if custom_headers:
             for custom_header in custom_headers:
                 custom_header_split = custom_header.split(":", 1)
@@ -81,8 +80,8 @@ if have_boto:
             super().__init__()
             self.boto_conn = None
             self.open_bucket = None
-            default_expiration_str = var_stack.resolve("$(S3_SECURE_URL_EXPIRATION)", default=str(60*60*24))
-            self.default_expiration =  int(default_expiration_str)# in seconds
+            default_expiration_str = var_stack.ResolveVarToStr("S3_SECURE_URL_EXPIRATION", default=str(60*60*24))
+            self.default_expiration =  int(default_expiration_str)  # in seconds
             self.open_connection(credentials)
 
         def open_connection(self, credentials):
@@ -104,7 +103,7 @@ if have_boto:
 def connection_factory():
     if ConnectionBase.repo_connection is None:
         if "__CREDENTIALS__" in var_stack and have_boto:
-            credentials = var_stack.resolve_var("__CREDENTIALS__", default=None)
+            credentials = var_stack.ResolveVarToStr("__CREDENTIALS__")
             cred_split = credentials.split(":")
             if cred_split[0].lower() == "s3":
                 ConnectionBase.repo_connection = ConnectionS3(cred_split[1:])

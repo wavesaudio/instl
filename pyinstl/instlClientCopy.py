@@ -28,7 +28,7 @@ class InstlClientCopy(InstlClient):
         if "WTAR_RATIO" in var_stack:
             self.wtar_ratio = float(var_stack.ResolveVarToStr("WTAR_RATIO"))
         self.calc_user_cache_dir_var() # this will set USER_CACHE_DIR if it was not explicitly defined
-        self.ignore_list = var_stack.resolve_to_list("$(COPY_IGNORE_PATTERNS)")
+        self.ignore_list = var_stack.ResolveVarToList("COPY_IGNORE_PATTERNS")
 
     def write_copy_debug_info(self):
         try:
@@ -48,7 +48,7 @@ class InstlClientCopy(InstlClient):
                 log_folder, log_file = os.path.split(log_file_path)
                 manifests_log_folder = os.path.join(log_folder, "manifests")
                 os.makedirs(manifests_log_folder, exist_ok=True)
-                folder_path_parent, folder_name = os.path.split(var_stack.resolve(folder_path))
+                folder_path_parent, folder_name = os.path.split(var_stack.ResolveStrToStr(folder_path))
                 ls_output_file = os.path.join(manifests_log_folder, folder_name+"-folder-manifest.txt")
                 create_folder_ls_command_parts = [self.platform_helper.run_instl(), "ls",
                                               "--in", '"."',
@@ -76,14 +76,14 @@ class InstlClientCopy(InstlClient):
         self.batch_accum += self.platform_helper.new_line()
 
         sorted_target_folder_list = sorted(self.installState.all_items_by_target_folder,
-                                           key=lambda fold: var_stack.resolve(fold))
+                                           key=lambda fold: var_stack.ResolveStrToStr(fold))
 
         # first create all target folders so to avoid dependency order problems such as creating links between folders
         if len(sorted_target_folder_list) > 0:
             self.batch_accum += self.platform_helper.progress("Create folders ...")
             for target_folder_path in sorted_target_folder_list:
                 self.batch_accum += self.platform_helper.progress("Create folder {0} ...".format(target_folder_path))
-                if os.path.isfile(target_folder_path @ var_stack):
+                if os.path.isfile(var_stack.ResolveStrToStr(target_folder_path)):
                     # weird as it maybe, some users have files where a folder should be.
                     # test for isfile is done here rather than in the batch file, because
                     # Windows does not have proper way to check "is file" in a batch.
@@ -93,7 +93,7 @@ class InstlClientCopy(InstlClient):
                 self.batch_accum += self.platform_helper.progress("Create folder {0} done".format(target_folder_path))
             self.batch_accum += self.platform_helper.progress("Create folders done")
 
-        if 'Mac' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
+        if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
             self.pre_copy_mac_handling()
 
         for target_folder_path in sorted_target_folder_list:
@@ -113,22 +113,22 @@ class InstlClientCopy(InstlClient):
                 with self.install_definitions_index[IID].push_var_stack_scope() as installi:
                     self.batch_accum += self.platform_helper.remark("-- Begin iid {0}".format(installi.iid))
                     for source_var in sorted(var_stack.get_configVar_obj("iid_source_var_list")):
-                        source = var_stack.resolve_var_to_list(source_var)
+                        source = var_stack.ResolveVarToList(source_var)
                         need_to_copy_source = installi.last_require_repo_rev == 0 or installi.last_require_repo_rev < self.get_max_repo_rev_for_source(source)
                         #print(installi.name, installi.last_require_repo_rev, need_to_copy_source, self.get_max_repo_rev_for_source(source))
                         if need_to_copy_source:
                             self.batch_accum += self.platform_helper.remark("--- Begin source {0}".format(source[0]))
                             num_items_copied_to_folder += 1
-                            self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_pre_copy_item")
+                            self.batch_accum += var_stack.ResolveVarToList("iid_action_list_pre_copy_item", default=[])
                             self.create_copy_instructions_for_source(source, installi.name)
-                            self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_post_copy_item")
+                            self.batch_accum += var_stack.ResolveVarToList("iid_action_list_post_copy_item", default=[])
                             self.batch_accum += self.platform_helper.remark("--- End source {0}".format(source[0]))
                     self.batch_accum += self.platform_helper.remark("-- End iid {0}".format(installi.iid))
             self.batch_accum += self.platform_helper.copy_tool.end_copy_folder()
 
             # only if items were actually copied there's need to (Mac only) resolve symlinks
             if num_items_copied_to_folder > 0:
-                if 'Mac' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
+                if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
                     self.batch_accum += self.platform_helper.progress("Resolve symlinks ...")
                     self.batch_accum += self.platform_helper.resolve_symlink_files()
                     self.batch_accum += self.platform_helper.progress("Resolve symlinks done")
@@ -138,7 +138,6 @@ class InstlClientCopy(InstlClient):
             self.batch_accum += self.platform_helper.progress("Copy to {0} done".format(target_folder_path))
             #self.write_copy_to_folder_debug_info(target_folder_path)
             self.batch_accum += self.platform_helper.remark("- End folder {0}".format(target_folder_path))
-            self.batch_accum.indent_level -= 1
 
         # actions instructions for sources that do not need copying, here folder_name is the sync folder
         for sync_folder_name in sorted(self.installState.no_copy_items_by_sync_folder.keys()):
@@ -146,27 +145,25 @@ class InstlClientCopy(InstlClient):
             self.batch_accum += self.platform_helper.new_line()
             self.batch_accum += self.platform_helper.cd(sync_folder_name)
             self.batch_accum += self.platform_helper.progress("Actions in {0} ...".format(sync_folder_name))
-            self.batch_accum.indent_level += 1
 
             # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
             self.accumulate_unique_actions('pre_copy_to_folder', items_in_folder)
 
             for IID in sorted(items_in_folder):
                 with self.install_definitions_index[IID].push_var_stack_scope():
-                    for source_var in sorted(var_stack.resolve_var_to_list_if_exists("iid_source_var_list")):
-                        source = var_stack.resolve_var_to_list(source_var)
+                    for source_var in sorted(var_stack.ResolveVarToList("iid_source_var_list", default=[])):
+                        source = var_stack.ResolveVarToList(source_var)
                         source_folder, source_name = os.path.split(source[0])
                         to_unwtar = os.path.join(sync_folder_name, source_name)
                         self.batch_accum += self.platform_helper.unwtar_something(to_unwtar, no_artifacts=True)
-                    self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_pre_copy_item")
-                    self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_post_copy_item")
+                    self.batch_accum += var_stack.ResolveVarToList("iid_action_list_pre_copy_item", default=[])
+                    self.batch_accum += var_stack.ResolveVarToList("iid_action_list_post_copy_item", default=[])
 
             # accumulate post_copy_to_folder actions from all items, eliminating duplicates
             self.accumulate_unique_actions('post_copy_to_folder', items_in_folder)
 
             self.batch_accum += self.platform_helper.progress("{sync_folder_name}".format(**locals()))
             self.batch_accum += self.platform_helper.progress("Actions in {0} done".format(sync_folder_name))
-            self.batch_accum.indent_level -= 1
 
         print(self.bytes_to_copy, "bytes to copy")
 
@@ -209,7 +206,7 @@ class InstlClientCopy(InstlClient):
                                                                                 ignore=self.ignore_list)
             self.batch_accum += self.platform_helper.echo("copy {source_item_path}".format(**locals()))
 
-            if 'Mac' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
+            if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
                 if not source_file.path.endswith(".symlink"):
                     self.batch_accum += self.platform_helper.chmod(source_file.chmod_spec(), source_file.name())
                     self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_file.chmod_spec(), source_file.name()))
@@ -236,7 +233,7 @@ class InstlClientCopy(InstlClient):
         self.batch_accum += self.platform_helper.echo("copy {source_path_abs}".format(**locals()))
         source_items = self.info_map_table.get_items_in_dir(dir_path=source_path, what="any")
 
-        if 'Mac' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
+        if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
             for source_item in source_items:
                 source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path)
                 if not source_item.path.endswith(".symlink"):
@@ -264,7 +261,7 @@ class InstlClientCopy(InstlClient):
 
         source_files = self.info_map_table.get_items_in_dir(dir_path=source_path, what="file", levels_deep=1)
 
-        if 'Mac' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
+        if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
             for source_file in source_files:
                 if not source_file.path.endswith(".symlink"):
                     self.batch_accum += self.platform_helper.chmod(source_file.chmod_spec(), source_file.name())
@@ -292,7 +289,7 @@ class InstlClientCopy(InstlClient):
             source_items = self.info_map_table.get_items_in_dir(dir_path=source_path, what="any")
 
             source_path_dir, source_path_name = os.path.split(source_path)
-            if 'Mac' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)") and 'Mac' in var_stack.resolve_to_list("$(TARGET_OS)"):
+            if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
                 for source_item in source_items:
                     source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path_dir)
                     if not source_item.path.endswith(".symlink"):

@@ -135,7 +135,7 @@ class InstallInstructionsState(object):
                         self.__all_items_by_target_folder[norm_folder].append(IID)
                 else:  # items that need no copy
                     for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
-                        source = var_stack.resolve_var_to_list(source_var)
+                        source = var_stack.ResolveVarToList(source_var)
                         relative_sync_folder = self.__instlObj.relative_sync_folder_for_source(source)
                         sync_folder = os.path.join("$(LOCAL_REPO_SYNC_DIR)", relative_sync_folder)
                         self.__no_copy_items_by_sync_folder[sync_folder].append(IID)
@@ -195,10 +195,7 @@ class InstallInstructionsState(object):
         # if in repair mode (__repair_installed_items is true), all items get last_require_repo_rev==0
         # by default and all items will be copied.
         if not self.__repair_installed_items:
-            try:
-                require_file_repo_rev = int("$(REQUIRE_REPO_REV)" @ var_stack)
-            except ValueError:
-                require_file_repo_rev = 0 # in case there was junk in require file
+            require_file_repo_rev = int(var_stack.ResolveVarToStr("REQUIRE_REPO_REV", default="0"))
             for iid in self.__actual_update_items:
                 self.__instlObj.install_definitions_index[iid].last_require_repo_rev = require_file_repo_rev
 
@@ -284,7 +281,7 @@ class InstlClient(InstlInstanceBase):
 
     def read_repo_type_defaults(self):
         repo_type_defaults_file_path = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults",
-                                                    var_stack.resolve("$(REPO_TYPE).yaml"))
+                                                    var_stack.ResolveStrToStr("$(REPO_TYPE).yaml"))
         if os.path.isfile(repo_type_defaults_file_path):
             self.read_yaml_file(repo_type_defaults_file_path)
 
@@ -297,7 +294,7 @@ class InstlClient(InstlInstanceBase):
         # TARGET_OS_NAMES defaults to __CURRENT_OS_NAMES__, which is not what we want if syncing to
         # an OS which is not the current
         if var_stack.ResolveVarToStr("TARGET_OS") != var_stack.ResolveVarToStr("__CURRENT_OS__"):
-            target_os_names = var_stack.resolve_var_to_list(var_stack.resolve("$(TARGET_OS)_ALL_OS_NAMES"))
+            target_os_names = var_stack.ResolveVarToList(var_stack.ResolveStrToStr("$(TARGET_OS)_ALL_OS_NAMES"))
             var_stack.set_var("TARGET_OS_NAMES").extend(target_os_names)
             second_name = var_stack.ResolveVarToStr("TARGET_OS")
             if len(target_os_names) > 1:
@@ -376,9 +373,9 @@ class InstlClient(InstlInstanceBase):
 
         if "MAIN_INSTALL_TARGETS" not in var_stack:
             raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
-        for os_name in var_stack.resolve_to_list("$(TARGET_OS_NAMES)"):
+        for os_name in var_stack.ResolveVarToList("TARGET_OS_NAMES"):
             InstallItem.begin_get_for_specific_os(os_name)
-        self.installState.root_items = var_stack.resolve_to_list("$(MAIN_INSTALL_TARGETS)")
+        self.installState.root_items = var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS")
         self.installState.calculate_all_items()
         #self.read_previous_requirements()
         var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(self.installState.all_items))
@@ -395,7 +392,7 @@ class InstlClient(InstlInstanceBase):
         for IID in sorted(iid_list):
             with self.install_definitions_index[IID].push_var_stack_scope() as installi:
                 action_var_name = "iid_action_list_" + action_type
-                item_actions = var_stack.resolve_var_to_list_if_exists(action_var_name)
+                item_actions = var_stack.ResolveVarToList(action_var_name, default=[])
                 num_unique_actions = 0
                 for an_action in item_actions:
                     len_before = len(unique_actions)
@@ -412,7 +409,7 @@ class InstlClient(InstlInstanceBase):
 
     def create_require_file_instructions(self):
         # write the require file as it should look after copy is done
-        new_require_file_path = var_stack.resolve("$(NEW_SITE_REQUIRE_FILE_PATH)", raise_on_fail=True)
+        new_require_file_path = var_stack.ResolveVarToStr("NEW_SITE_REQUIRE_FILE_PATH")
         new_require_file_dir, new_require_file_name = os.path.split(new_require_file_path)
         os.makedirs(new_require_file_dir, exist_ok=True)
         self.write_require_file(new_require_file_path, self.installState.req_man.repr_for_yaml())
@@ -437,7 +434,7 @@ class InstlClient(InstlInstanceBase):
         param_to_extract_output_folder_from = "__MAIN_OUT_FILE__"
         if var_stack.defined('ECHO_LOG_FILE'):
             param_to_extract_output_folder_from = "ECHO_LOG_FILE"
-        log_file_path = var_stack.resolve_var(param_to_extract_output_folder_from)
+        log_file_path = var_stack.ResolveVarToStr(param_to_extract_output_folder_from)
         output_folder, _ = os.path.split(log_file_path)
         output_file_name = manifest_file_name_prefix+"-sync-folder-manifest.txt"
         self.create_folder_manifest_command(which_folder_to_manifest, output_folder, output_file_name)

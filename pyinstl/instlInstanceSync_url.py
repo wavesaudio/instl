@@ -38,9 +38,9 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.instlObj.platform_helper.dl_tool.add_download_url(source_url, file_item.path, verbatim=source_url==file_item.url)
 
     def create_curl_download_instructions(self):
-        curl_config_folder = var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)/curl", raise_on_fail=True)
+        curl_config_folder = var_stack.ResolveStrToStr("$(LOCAL_REPO_BOOKKEEPING_DIR)/curl")
         os.makedirs(curl_config_folder, exist_ok=True)
-        curl_config_file_path = var_stack.resolve(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"), raise_on_fail=True)
+        curl_config_file_path = var_stack.ResolveStrToStr(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"))
         num_config_files = int(var_stack.ResolveVarToStr("PARALLEL_SYNC"))
         config_file_list = self.instlObj.platform_helper.dl_tool.create_config_files(curl_config_file_path, num_config_files)
 
@@ -50,12 +50,12 @@ class InstlInstanceSync_url(InstlInstanceSync):
             dl_start_message_plural = "es in parallel" if actual_num_config_files > 1 else ""
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress(dl_start_message.format(**locals()))
 
-            parallel_run_config_file_path = var_stack.resolve(
+            parallel_run_config_file_path = var_stack.ResolveStrToStr(
                 os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME).parallel-run"))
             self.instlObj.batch_accum += self.instlObj.platform_helper.dl_tool.download_from_config_files(
                 parallel_run_config_file_path, config_file_list)
 
-            num_files_to_download = int("$(__NUM_FILES_TO_DOWNLOAD__)" @ var_stack)
+            num_files_to_download = int(var_stack.ResolveVarToStr("__NUM_FILES_TO_DOWNLOAD__"))
             dl_end_message = "Downloading {num_files_to_download} file{dl_end_message_plural} done"
             dl_end_message_plural = "s" if num_files_to_download > 1 else ""
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress(

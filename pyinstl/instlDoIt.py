@@ -88,7 +88,7 @@ class InstlDoIt(InstlInstanceBase):
         # TARGET_OS_NAMES defaults to __CURRENT_OS_NAMES__, which is not what we want if syncing to
         # an OS which is not the current
         if var_stack.ResolveVarToStr("TARGET_OS") != var_stack.ResolveVarToStr("__CURRENT_OS__"):
-            target_os_names = var_stack.resolve_var_to_list(var_stack.resolve("$(TARGET_OS)_ALL_OS_NAMES"))
+            target_os_names = var_stack.ResolveVarToList(var_stack.ResolveStrToStr("$(TARGET_OS)_ALL_OS_NAMES"))
             var_stack.set_var("TARGET_OS_NAMES").extend(target_os_names)
             second_name = var_stack.ResolveVarToStr("TARGET_OS")
             if len(target_os_names) > 1:
@@ -119,7 +119,7 @@ class InstlDoIt(InstlInstanceBase):
 
     def doit_for_item(self, IID, action):
         with self.install_definitions_index[IID].push_var_stack_scope() as doit_item:
-            action_list = var_stack.resolve_var_to_list_if_exists("iid_action_list_"+action)
+            action_list = var_stack.ResolveVarToList("iid_action_list_"+action, default=[])
             self.batch_accum += action_list
             doit_item.user_data = True
 
@@ -140,9 +140,9 @@ class InstlDoIt(InstlInstanceBase):
         """
         if "MAIN_DOIT_ITEMS" not in var_stack:
             raise ValueError("'MAIN_DOIT_ITEMS' was not defined")
-        for os_name in var_stack.resolve_to_list("$(TARGET_OS_NAMES)"):
+        for os_name in var_stack.ResolveVarToList("TARGET_OS_NAMES"):
             InstallItem.begin_get_for_specific_os(os_name)
-        self.installState.root_doit_items.extend(var_stack.resolve_to_list("$(MAIN_DOIT_ITEMS)"))
+        self.installState.root_doit_items.extend(var_stack.ResolveVarToList("MAIN_DOIT_ITEMS"))
         self.installState.root_doit_items = list(filter(bool, self.installState.root_doit_items))
         self.installState.calculate_full_doit_items_set(self)
         var_stack.set_var("__FULL_LIST_OF_DOIT_TARGETS__").extend(self.installState.full_doit_items)
@@ -154,7 +154,7 @@ class InstlDoIt(InstlInstanceBase):
         for IID in iid_list:
             with self.install_definitions_index[IID].push_var_stack_scope() as installi:
                 action_var_name = "iid_action_list_" + action_type
-                item_actions = var_stack.resolve_var_to_list_if_exists(action_var_name)
+                item_actions = var_stack.ResolveVarToList(action_var_name, default=[])
                 num_unique_actions = 0
                 for an_action in item_actions:
                     len_before = len(unique_actions)

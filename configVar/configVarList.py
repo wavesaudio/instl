@@ -15,6 +15,7 @@ import ast
 import re
 from contextlib import contextmanager
 
+import utils
 import aYaml
 from . import configVarOne
 from . import configVarParser
@@ -172,7 +173,7 @@ class ConfigVarList(object):
         retVal = match is None
         return retVal
 
-    def resolve(self, str_to_resolve, list_sep=" ", default=None, raise_on_fail=False):
+    def resolve_deprecated(self, str_to_resolve, list_sep=" ", default=None, raise_on_fail=False):
         """ Resolve a string, possibly with $() style references.
             For Variables that hold more than one value, the values are connected with list_sep
             which defaults to a single space.
@@ -221,13 +222,7 @@ class ConfigVarList(object):
             raise ValueError(str_to_resolve, resolved_str, testRetVal)
         return resolved_str
 
-    # just an experiment
-    def __matmul__(self, str_to_resolve):
-        return self.resolve(str_to_resolve)
-    def __rmatmul__(self, str_to_resolve):
-        return self.resolve(str_to_resolve)
-
-    def resolve_to_list(self, str_to_resolve, list_sep=" ", default=None):
+    def resolve_to_list_deprecated(self, str_to_resolve, list_sep=" ", default=None):
         """ Resolve a string, possibly with $() style references.
             If the string is a single reference to a variable, a list of resolved values is returned.
             If the values themselves are a single reference to a variable, their own values extend the list
@@ -257,15 +252,15 @@ class ConfigVarList(object):
             resolved_list.append(self.resolve(str_to_resolve, list_sep))
         return resolved_list
 
-    def resolve_var(self, var_name, list_sep=" ", default=""):
+    def resolve_var_deprecated(self, var_name, list_sep=" ", default=""):
         retVal = self.resolve( "".join( ("$(", var_name, ")") ))
         return retVal
 
-    def resolve_var_to_list(self, var_name, list_sep=" ", default=""):
+    def resolve_var_to_list_deprecated(self, var_name, list_sep=" ", default=""):
         retVal = self.resolve_to_list( "".join( ("$(", var_name, ")") ))
         return retVal
 
-    def resolve_var_to_list_if_exists(self, var_name, list_sep=" ", default=""):
+    def resolve_var_to_list_if_exists_deprecated(self, var_name, list_sep=" ", default=""):
         retVal = []
         if var_name in self:
             var_reference = "".join( ("$(", var_name, ")") )
@@ -327,7 +322,7 @@ class ConfigVarList(object):
         return resolved_str
 
     def ResolveVarToStr(self, in_var, list_sep="", default=None):
-        value_list = self.ResolveVarToList(in_var, default)
+        value_list = self.ResolveVarToList(in_var, default=[default])
         retVal = list_sep.join(value_list)
         return retVal
 
@@ -342,10 +337,10 @@ class ConfigVarList(object):
                         resolved_list_for_value = self.ResolveStrToListIfSingleVar(value)
                         retVal.extend(resolved_list_for_value)
         else:
-            if default is None:
-                raise ValueError("Variable was not found " + in_var)
+            if utils.is_iterable_but_not_str(default):
+                retVal = default
             else:
-                retVal.append(default)
+                raise ValueError("Variable {} was not found and default given {} is not a list".format(in_var, default))
         return retVal
 
     def ResolveVarWithParamsToList(self, in_var, positional_params, key_word_params, original_variable_str):
@@ -353,9 +348,10 @@ class ConfigVarList(object):
             evaluated_params = {}
             for i_param in range(len(positional_params)):
                 # create __1__ positional params
-                evaluated_params["".join(("__", str(i_param), "__"))] = positional_params[i_param]
+                pos_param_name = "".join(("__", str(i_param+1), "__"))
+                evaluated_params[pos_param_name] = positional_params[i_param]
             evaluated_params.update(key_word_params)
             self.update(evaluated_params)
-            retVal = self.ResolveVarToList(in_var, original_variable_str)
+            retVal = self.ResolveVarToList(in_var, [original_variable_str])
         return retVal
 

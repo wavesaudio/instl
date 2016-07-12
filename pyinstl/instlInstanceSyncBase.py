@@ -30,7 +30,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         """ Prepares variables for sync. Will raise ValueError if a mandatory variable
             is not defined.
         """
-        prerequisite_vars = var_stack.resolve_var_to_list("__SYNC_PREREQUISITE_VARIABLES__")
+        prerequisite_vars = var_stack.ResolveVarToList("__SYNC_PREREQUISITE_VARIABLES__")
         self.instlObj.check_prerequisite_var_existence(prerequisite_vars)
 
         if "PUBLIC_KEY" not in var_stack:
@@ -52,8 +52,8 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         """
         info_map_file_url = None
         try:
-            os.makedirs(var_stack.resolve("$(LOCAL_REPO_BOOKKEEPING_DIR)", raise_on_fail=True), exist_ok=True)
-            os.makedirs(var_stack.resolve("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)", raise_on_fail=True), exist_ok=True)
+            os.makedirs(var_stack.ResolveVarToStr("LOCAL_REPO_BOOKKEEPING_DIR"), exist_ok=True)
+            os.makedirs(var_stack.ResolveVarToStr("LOCAL_REPO_REV_BOOKKEEPING_DIR"), exist_ok=True)
             info_map_file_url = var_stack.ResolveVarToStr("INFO_MAP_FILE_URL")
             local_copy_of_info_map = var_stack.ResolveVarToStr("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH")
             utils.download_from_file_or_url(info_map_file_url,
@@ -78,7 +78,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         for iid in self.installState.all_items:
             with self.instlObj.install_definitions_index[iid].push_var_stack_scope():
                 for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
-                    source = var_stack.resolve_var_to_list(source_var)
+                    source = var_stack.ResolveVarToList(source_var)
                     self.instlObj.info_map_table.mark_required_for_source(source)
         self.instlObj.info_map_table.mark_required_completion()
         required_file_path = var_stack.ResolveVarToStr("REQUIRED_INFO_MAP_PATH")

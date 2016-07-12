@@ -40,7 +40,7 @@ class InstlGui(InstlInstanceBase):
         self.master = Tk()
         self.master.createcommand('exit', self.quit_app)  # exit from quit menu or Command-Q
         self.master.protocol('WM_DELETE_WINDOW', self.quit_app)  # exit from closing the window
-        self.commands_that_accept_limit_option = var_stack.resolve_to_list("$(__COMMANDS_WITH_LIMIT_OPTION__)")
+        self.commands_that_accept_limit_option = var_stack.ResolveVarToList("__COMMANDS_WITH_LIMIT_OPTION__")
 
         self.client_command_name_var = StringVar()
         self.client_input_path_var = StringVar()
@@ -66,11 +66,11 @@ class InstlGui(InstlInstanceBase):
         exit()
 
     def set_default_variables(self):
-        client_command_list = var_stack.resolve_var_to_list("__CLIENT_GUI_CMD_LIST__")
+        client_command_list = var_stack.ResolveVarToList("__CLIENT_GUI_CMD_LIST__")
         var_stack.set_var("CLIENT_GUI_CMD").append(client_command_list[0])
-        admin_command_list = var_stack.resolve_var_to_list("__ADMIN_GUI_CMD_LIST__")
+        admin_command_list = var_stack.ResolveVarToList("__ADMIN_GUI_CMD_LIST__")
         var_stack.set_var("ADMIN_GUI_CMD").append(admin_command_list[0])
-        self.commands_with_run_option_list = var_stack.resolve_var_to_list("__COMMANDS_WITH_RUN_OPTION__")
+        self.commands_with_run_option_list = var_stack.ResolveVarToList("__COMMANDS_WITH_RUN_OPTION__")
 
 
     def do_command(self):
@@ -80,7 +80,7 @@ class InstlGui(InstlInstanceBase):
 
     def read_history(self):
         try:
-            self.read_yaml_file(var_stack.resolve_var("INSTL_GUI_CONFIG_FILE_NAME"))
+            self.read_yaml_file(var_stack.ResolveVarToStr("INSTL_GUI_CONFIG_FILE_NAME"))
         except Exception:
             pass
 
@@ -89,9 +89,9 @@ class InstlGui(InstlInstanceBase):
         selected_tab = self.notebook.tab(self.notebook.select(), option='text')
         var_stack.set_var("SELECTED_TAB").append(selected_tab)
 
-        the_list_yaml_ready= var_stack.repr_for_yaml(which_vars=var_stack.resolve_var_to_list("__GUI_CONFIG_FILE_VARS__"), include_comments=False, resolve=False, ignore_unknown_vars=True)
+        the_list_yaml_ready= var_stack.repr_for_yaml(which_vars=var_stack.ResolveVarToList("__GUI_CONFIG_FILE_VARS__", default=[]), include_comments=False, resolve=False, ignore_unknown_vars=True)
         the_doc_yaml_ready = aYaml.YamlDumpDocWrap(the_list_yaml_ready, '!define', "Definitions", explicit_start=True, sort_mappings=True)
-        with open(var_stack.resolve_var("INSTL_GUI_CONFIG_FILE_NAME"), "w", encoding='utf-8') as wfd:
+        with open(var_stack.ResolveVarToStr("INSTL_GUI_CONFIG_FILE_NAME"), "w", encoding='utf-8') as wfd:
             utils.make_open_file_read_write_for_all(wfd)
             aYaml.writeAsYaml(the_doc_yaml_ready, wfd)
 
@@ -136,9 +136,9 @@ class InstlGui(InstlInstanceBase):
             subprocess.call(['open', path_to_file])
 
     def create_client_command_line(self):
-        retVal = [var_stack.resolve_var("__INSTL_EXE_PATH__"), var_stack.resolve_var("CLIENT_GUI_CMD"),
-                  "--in", var_stack.resolve_var("CLIENT_GUI_IN_FILE"),
-                  "--out", var_stack.resolve_var("CLIENT_GUI_OUT_FILE")]
+        retVal = [var_stack.ResolveVarToStr("__INSTL_EXE_PATH__"), var_stack.ResolveVarToStr("CLIENT_GUI_CMD"),
+                  "--in", var_stack.ResolveVarToStr("CLIENT_GUI_IN_FILE"),
+                  "--out", var_stack.ResolveVarToStr("CLIENT_GUI_OUT_FILE")]
 
         if self.client_credentials_on_var.get():
             credentials = self.client_credentials_var.get()
@@ -149,16 +149,16 @@ class InstlGui(InstlInstanceBase):
         if self.run_client_batch_file_var.get() == 1:
             retVal.append("--run")
 
-        if 'Win' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)"):
+        if 'Win' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
             if not getattr(sys, 'frozen', False):
                 retVal.insert(0, sys.executable)
 
         return retVal
 
     def create_admin_command_line(self):
-        command_name = var_stack.resolve_var("ADMIN_GUI_CMD")
+        command_name = var_stack.ResolveVarToStr("ADMIN_GUI_CMD")
         template_variable = admin_command_template_variables[command_name]
-        retVal = var_stack.resolve_var_to_list(template_variable)
+        retVal = var_stack.ResolveVarToList(template_variable)
 
         # some special handling of command line parameters cannot yet be expressed in the command template
         if command_name != 'depend':
@@ -172,7 +172,7 @@ class InstlGui(InstlInstanceBase):
             if self.run_admin_batch_file_var.get() == 1 and command_name in self.commands_with_run_option_list:
                 retVal.append("--run")
 
-        if 'Win' in var_stack.resolve_to_list("$(__CURRENT_OS_NAMES__)"):
+        if 'Win' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
             if not getattr(sys, 'frozen', False):
                 retVal.insert(0, sys.executable)
 
@@ -206,10 +206,10 @@ class InstlGui(InstlInstanceBase):
 
         command_line = " ".join(self.create_client_command_line())
 
-        self.client_command_line_var.set(var_stack.resolve(command_line))
+        self.client_command_line_var.set(ResolveStrToStr.resolve(command_line))
 
     def read_admin_config_file(self):
-        config_path = var_stack.resolve_var("ADMIN_GUI_CONFIG_FILE", default="")
+        config_path = var_stack.ResolveVarToStr("ADMIN_GUI_CONFIG_FILE", default="")
         if os.path.isfile(config_path):
             var_stack.get_configVar_obj("__SEARCH_PATHS__").clear_values() # so __include__ file will not be found on old paths
             self.read_yaml_file(config_path)
@@ -221,7 +221,7 @@ class InstlGui(InstlInstanceBase):
     def update_admin_state(self, *args):
         var_stack.set_var("ADMIN_GUI_CMD").append(self.admin_command_name_var.get())
 
-        current_config_path = var_stack.resolve_var("ADMIN_GUI_CONFIG_FILE", default="")
+        current_config_path = var_stack.ResolveVarToStr("ADMIN_GUI_CONFIG_FILE", default="")
         new_config_path = self.admin_config_path_var.get()
         if current_config_path != new_config_path:
             self.admin_config_file_dirty = True
@@ -238,7 +238,7 @@ class InstlGui(InstlInstanceBase):
         var_stack.set_var("ADMIN_GUI_LIMIT").append(self.admin_limit_var.get())
 
         self.admin_stage_index_var.set(var_stack.ResolveVarToStr("__STAGING_INDEX_FILE__"))
-        self.admin_svn_repo_var.set(var_stack.resolve("$(SVN_REPO_URL), REPO_REV: $(REPO_REV)"))
+        self.admin_svn_repo_var.set(var_stack.ResolveStrToStr("$(SVN_REPO_URL), REPO_REV: $(REPO_REV)"))
 
         sync_url = var_stack.ResolveVarToStr("SYNC_BASE_URL")
         self.admin_sync_url_var.set(sync_url)
@@ -255,7 +255,7 @@ class InstlGui(InstlInstanceBase):
 
         command_line = " ".join(self.create_admin_command_line())
 
-        self.admin_command_line_var.set(var_stack.resolve(command_line))
+        self.admin_command_line_var.set(var_stack.ResolveStrToStr(command_line))
 
     def run_client(self):
         self.update_client_state()
@@ -293,7 +293,7 @@ class InstlGui(InstlInstanceBase):
 
         # instl command selection
         self.admin_command_name_var.set(var_stack.unresolved_var("ADMIN_GUI_CMD"))
-        admin_command_list = var_stack.resolve_var_to_list("__ADMIN_GUI_CMD_LIST__")
+        admin_command_list = var_stack.ResolveVarToList("__ADMIN_GUI_CMD_LIST__")
         commandNameMenu = OptionMenu(admin_frame, self.admin_command_name_var,
                                      self.admin_command_name_var.get(), *admin_command_list,
                                      command=self.update_admin_state)
@@ -319,12 +319,12 @@ class InstlGui(InstlInstanceBase):
         ToolTip(openConfigButt, msg="open admin config file")
 
         editConfigButt = Button(admin_frame, width=4, text="Edit",
-                                command=lambda: self.open_file_for_edit(var_stack.resolve_var("ADMIN_GUI_CONFIG_FILE")))
+                                command=lambda: self.open_file_for_edit(var_stack.ResolveVarToStr("ADMIN_GUI_CONFIG_FILE")))
         editConfigButt.grid(row=curr_row, column=4, sticky=W)
         ToolTip(editConfigButt, msg="edit admin config file")
 
         checkConfigButt = Button(admin_frame, width=3, text="Chk",
-                                 command=lambda: self.check_yaml(var_stack.resolve_var("ADMIN_GUI_CONFIG_FILE")))
+                                 command=lambda: self.check_yaml(var_stack.ResolveVarToStr("ADMIN_GUI_CONFIG_FILE")))
         checkConfigButt.grid(row=curr_row, column=5, sticky=W)
         ToolTip(checkConfigButt, msg="read admin config file to check it's structure")
 
@@ -332,7 +332,7 @@ class InstlGui(InstlInstanceBase):
         curr_row += 1
         Label(admin_frame, text="Stage index:").grid(row=curr_row, column=0, sticky=E)
         Label(admin_frame, text="---", textvariable=self.admin_stage_index_var).grid(row=curr_row, column=1, columnspan=2, sticky=W)
-        editIndexButt = Button(admin_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_stack.resolve("$(__STAGING_INDEX_FILE__)", raise_on_fail=True)))
+        editIndexButt = Button(admin_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_stack.ResolveVarToStr("__STAGING_INDEX_FILE__")))
         editIndexButt.grid(row=curr_row, column=4, sticky=W)
         ToolTip(editIndexButt, msg="edit repository index")
 
@@ -362,7 +362,7 @@ class InstlGui(InstlInstanceBase):
         self.admin_output_path_var.trace('w', self.update_admin_state)
         Button(admin_frame, width=2, text="...", command=self.get_admin_output_file).grid(row=curr_row, column=3, sticky=W)
         Button(admin_frame, width=4, text="Edit",
-                command=lambda: self.open_file_for_edit(var_stack.resolve_var("ADMIN_GUI_OUT_BATCH_FILE"))).grid(row=curr_row, column=4, sticky=W)
+                command=lambda: self.open_file_for_edit(var_stack.ResolveVarToStr("ADMIN_GUI_OUT_BATCH_FILE"))).grid(row=curr_row, column=4, sticky=W)
 
         # relative path to limit folder
         curr_row += 1
@@ -390,7 +390,7 @@ class InstlGui(InstlInstanceBase):
         command_label.grid(row=curr_row, column=0, sticky=W)
 
         # instl command selection
-        client_command_list = var_stack.resolve_var_to_list("__CLIENT_GUI_CMD_LIST__")
+        client_command_list = var_stack.ResolveVarToList("__CLIENT_GUI_CMD_LIST__")
         self.client_command_name_var.set(var_stack.unresolved_var("CLIENT_GUI_CMD"))
         OptionMenu(client_frame, self.client_command_name_var,
                    self.client_command_name_var.get(), *client_command_list, command=self.update_client_state).grid(row=curr_row, column=1, sticky=W)
@@ -409,9 +409,9 @@ class InstlGui(InstlInstanceBase):
         self.client_input_path_var.trace('w', self.update_client_state)
         Button(client_frame, width=2, text="...", command=self.get_client_input_file).grid(row=curr_row, column=3, sticky=W)
         Button(client_frame, width=4, text="Edit",
-               command=lambda: self.open_file_for_edit(var_stack.resolve_var("CLIENT_GUI_IN_FILE"))).grid(row=curr_row, column=4, sticky=W)
+               command=lambda: self.open_file_for_edit(var_stack.ResolveVarToStr("CLIENT_GUI_IN_FILE"))).grid(row=curr_row, column=4, sticky=W)
         Button(client_frame, width=3, text="Chk",
-               command=lambda: self.check_yaml(var_stack.resolve_var("CLIENT_GUI_IN_FILE"))).grid(row=curr_row, column=5, sticky=W)
+               command=lambda: self.check_yaml(var_stack.ResolveVarToStr("CLIENT_GUI_IN_FILE"))).grid(row=curr_row, column=5, sticky=W)
 
         # path to output file
         curr_row += 1
@@ -421,7 +421,7 @@ class InstlGui(InstlInstanceBase):
         self.client_output_path_var.trace('w', self.update_client_state)
         Button(client_frame, width=2, text="...", command=self.get_client_output_file).grid(row=curr_row, column=3, sticky=W)
         Button(client_frame, width=4, text="Edit",
-                command=lambda: self.open_file_for_edit(var_stack.resolve_var("CLIENT_GUI_OUT_FILE"))).grid(row=curr_row, column=4, sticky=W)
+                command=lambda: self.open_file_for_edit(var_stack.ResolveVarToStr("CLIENT_GUI_OUT_FILE"))).grid(row=curr_row, column=4, sticky=W)
 
         # s3 user credentials
         curr_row += 1
@@ -470,7 +470,7 @@ class InstlGui(InstlInstanceBase):
         self.notebook.add(client_frame, text='Client')
         self.notebook.add(admin_frame, text='Admin')
 
-        to_be_selected_tab_name = var_stack.resolve_var("SELECTED_TAB")
+        to_be_selected_tab_name = var_stack.ResolveVarToStr("SELECTED_TAB")
         for tab_id in self.notebook.tabs():
             tab_name = self.notebook.tab(tab_id, option='text')
             if tab_name == to_be_selected_tab_name:
@@ -480,7 +480,7 @@ class InstlGui(InstlInstanceBase):
         self.master.resizable(0, 0)
 
         # bring window to front, be default it stays behind the Terminal window
-        if var_stack.resolve_var("__CURRENT_OS__") == "Mac":
+        if var_stack.ResolveVarToStr("__CURRENT_OS__") == "Mac":
             os.system('''/usr/bin/osascript -e 'tell app "Finder" to set frontmost of process "Python" to true' ''')
 
         self.master.mainloop()
@@ -488,7 +488,7 @@ class InstlGui(InstlInstanceBase):
         # self.master.destroy() # optional; see description below
 
     def check_yaml(self, path_to_yaml):
-        command_line = [var_stack.resolve_var("__INSTL_EXE_PATH__"), "read-yaml",
+        command_line = [var_stack.ResolveVarToStr("__INSTL_EXE_PATH__"), "read-yaml",
                         "--in", path_to_yaml]
 
         if getattr(os, "setsid", None):

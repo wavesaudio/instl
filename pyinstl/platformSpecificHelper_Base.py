@@ -116,7 +116,7 @@ class CopyToolRsync(CopyToolBase):
     def copy_file_to_dir(self, src_file, trg_dir, link_dest=False, ignore=None):
         assert not src_file.endswith("/")
         ignore_spec = self.create_ignore_spec(ignore)
-        permissions_spec = var_stack.resolve("$(RSYNC_PERM_OPTIONS)", default="")
+        permissions_spec = var_stack.ResolveVarToStr("RSYNC_PERM_OPTIONS", default="")
         if link_dest:
             the_link_dest, src_file_name = os.path.split(src_file)
             relative_link_dest = os.path.relpath(the_link_dest, trg_dir)
@@ -182,7 +182,7 @@ class PlatformSpecificHelperBase(object):
         self.copy_tool = None
         self.dl_tool = None
         self.num_items_for_progress_report = 0
-        self.progress_staccato_period = int(var_stack.resolve("$(PROGRESS_STACCATO_PERIOD)", default="128"))
+        self.progress_staccato_period = int(var_stack.ResolveVarToStr("PROGRESS_STACCATO_PERIOD", default="128"))
         self.progress_staccato_count = 0
 
     def DefaultCopyToolName(self, target_os):

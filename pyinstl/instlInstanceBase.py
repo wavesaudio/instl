@@ -65,7 +65,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.specific_doc_readers["!define"] = self.read_defines
         self.specific_doc_readers["!define_const"] = self.read_const_defines
 
-        acceptables = var_stack.resolve_var_to_list_if_exists("ACCEPTABLE_YAML_DOC_TAGS")
+        acceptables = var_stack.ResolveVarToList("ACCEPTABLE_YAML_DOC_TAGS", default=[])
         if "__INSTL_COMPILED__" in var_stack:
             if var_stack.ResolveVarToStr("__INSTL_COMPILED__") == "True":
                 acceptables.append("define_Compiled")
@@ -78,8 +78,8 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.specific_doc_readers["!require"] = self.read_require
 
     def get_version_str(self):
-        instl_ver_str = var_stack.resolve_var("__INSTL_VERSION__", list_sep=".")
-        retVal = var_stack.resolve(
+        instl_ver_str = ".".join(var_stack.ResolveVarToList("__INSTL_VERSION__"))
+        retVal = var_stack.ResolveStrToStr(
             "$(INSTL_EXEC_DISPLAY_NAME) version "+instl_ver_str+" $(__COMPILATION_TIME__) $(__PLATFORM_NODE__)")
         return retVal
 
@@ -243,10 +243,10 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                                         """, re.VERBOSE)
 
     def resolve_defined_paths(self):
-        self.path_searcher.add_search_paths(var_stack.resolve_to_list("$(SEARCH_PATHS)"))
-        for path_var_to_resolve in var_stack.resolve_to_list("$(PATHS_TO_RESOLVE)"):
+        self.path_searcher.add_search_paths(var_stack.ResolveVarToList("SEARCH_PATHS", default=[]))
+        for path_var_to_resolve in var_stack.ResolveVarToList("PATHS_TO_RESOLVE", default=[]):
             if path_var_to_resolve in var_stack:
-                resolved_path = self.path_searcher.find_file(var_stack.resolve_var(path_var_to_resolve),
+                resolved_path = self.path_searcher.find_file(var_stack.ResolveVarToStr(path_var_to_resolve),
                                                              return_original_if_not_found=True)
                 var_stack.set_var(path_var_to_resolve, "resolve_defined_paths").append(resolved_path)
 
@@ -264,7 +264,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def read_include_node(self, i_node, *args, **kwargs):
         if i_node.isScalar():
-            resolved_file_name = var_stack.resolve(i_node.value)
+            resolved_file_name = var_stack.ResolveStrToStr(i_node.value)
             self.read_yaml_file(resolved_file_name)
         elif i_node.isSequence():
             for sub_i_node in i_node:
@@ -272,17 +272,17 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         elif i_node.isMapping():
             if "url" in i_node:
                 cached_files_dir = self.get_default_sync_dir(continue_dir="cache", make_dir=True)
-                resolved_file_url = var_stack.resolve(i_node["url"].value)
+                resolved_file_url = var_stack.ResolveStrToStr(i_node["url"].value)
                 cached_file_path = None
                 expected_checksum = None
                 if "checksum" in i_node:
-                    expected_checksum = var_stack.resolve(i_node["checksum"].value)
+                    expected_checksum = var_stack.ResolveStrToStr(i_node["checksum"].value)
                     cached_file_path = os.path.join(cached_files_dir, expected_checksum)
 
                 expected_signature = None
                 public_key_text = None
                 if "sig" in i_node:
-                    expected_signature = var_stack.resolve(i_node["sig"].value)
+                    expected_signature = var_stack.ResolveStrToStr(i_node["sig"].value)
                     public_key_text = self.provision_public_key_text()
 
                 if expected_checksum is None:
@@ -300,7 +300,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                     self.batch_accum.set_current_section('post')
                     for copy_destination in i_node["copy"]:
                         need_to_copy = True
-                        destination_file_resolved_path = var_stack.resolve(copy_destination.value)
+                        destination_file_resolved_path = var_stack.ResolveStrToStr(copy_destination.value)
                         if os.path.isfile(destination_file_resolved_path) and expected_checksum is not None:
                             checksums_match = utils.check_file_checksum(file_path=destination_file_resolved_path, expected_checksum=expected_checksum)
                             need_to_copy = not checksums_match
@@ -308,14 +308,14 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                             destination_folder, destination_file_name = os.path.split(copy_destination.value)
                             self.batch_accum += self.platform_helper.mkdir(destination_folder)
                             self.batch_accum += self.platform_helper.copy_tool.copy_file_to_file(cached_file_path,
-                                                                                                 var_stack.resolve(copy_destination.value),
+                                                                                                 var_stack.ResolveStrToStr(copy_destination.value),
                                                                                                  link_dest=True)
 
     def create_variables_assignment(self):
         self.batch_accum.set_current_section("assign")
         for identifier in var_stack:
             if identifier not in self.do_not_write_vars:
-                self.batch_accum += self.platform_helper.var_assign(identifier, var_stack.resolve_var(identifier),
+                self.batch_accum += self.platform_helper.var_assign(identifier, var_stack.ResolveVarToStr(identifier, list_sep=" "),
                                                                     None)  # var_stack[identifier].resolved_num
 
     def calc_user_cache_dir_var(self, make_dir=True):
@@ -334,7 +334,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             var_description = "from InstlInstanceBase.get_user_cache_dir"
             var_stack.set_var("USER_CACHE_DIR", var_description).append(user_cache_dir)
         if make_dir:
-            user_cache_dir_resolved = var_stack.resolve("$(USER_CACHE_DIR)", raise_on_fail=True)
+            user_cache_dir_resolved = var_stack.ResolveVarToStr("USER_CACHE_DIR")
             os.makedirs(user_cache_dir_resolved, exist_ok=True)
 
     def get_default_sync_dir(self, continue_dir=None, make_dir=True):
@@ -345,7 +345,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             retVal = "$(USER_CACHE_DIR)"
         # print("1------------------", user_cache_dir, "-", from_url, "-", retVal)
         if make_dir and retVal:
-            retVal = var_stack.resolve(retVal, raise_on_fail=True)
+            retVal = var_stack.ResolveStrToStr(retVal)
             os.makedirs(retVal, exist_ok=True)
         return retVal
 
@@ -367,10 +367,13 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             str(self.platform_helper.num_items_for_progress_report))
         self.batch_accum += self.platform_helper.get_install_instructions_postfix()
         lines = self.batch_accum.finalize_list_of_lines()
+        for line in lines:
+            if type(line) != str:
+                raise TypeError("Not a string", type(line), line)
         lines_after_var_replacement = '\n'.join(
             [value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines])
 
-        out_file = var_stack.resolve("$(__MAIN_OUT_FILE__)", raise_on_fail=True)
+        out_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
         out_file = os.path.abspath(out_file)
         d_path, f_name = os.path.split(out_file)
         os.makedirs(d_path, exist_ok=True)
@@ -403,7 +406,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def write_program_state(self):
 
-        state_file = var_stack.resolve("$(__MAIN_STATE_FILE__)", raise_on_fail=True)
+        state_file = var_stack.ResolveVarToStr("__MAIN_STATE_FILE__")
         with utils.write_to_file_or_stdout(state_file) as fd:
             aYaml.writeAsYaml(self, fd)
 
@@ -437,8 +440,8 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
     def check_version_compatibility(self):
         retVal = True
         if "INSTL_MINIMAL_VERSION" in var_stack:
-            inst_ver = list(map(int, var_stack.resolve_to_list("$(__INSTL_VERSION__)")))
-            required_ver = list(map(int, var_stack.resolve_to_list("$(INSTL_MINIMAL_VERSION)")))
+            inst_ver = list(map(int, var_stack.ResolveVarToList("__INSTL_VERSION__")))
+            required_ver = list(map(int, var_stack.ResolveVarToList("INSTL_MINIMAL_VERSION")))
             retVal = inst_ver >= required_ver
         return retVal
 
@@ -464,7 +467,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             raise KeyError(iid + " is not in index")
         InstallItem.begin_get_for_all_oses()
         with self.install_definitions_index[iid].push_var_stack_scope():
-            for dep in var_stack.resolve_var_to_list("iid_depend_list"):
+            for dep in var_stack.ResolveVarToList("iid_depend_list"):
                 if dep in self.install_definitions_index:
                     out_list.append(dep)
                     self.needs(dep, out_list)

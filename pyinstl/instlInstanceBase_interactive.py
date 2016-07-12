@@ -624,7 +624,7 @@ class CMDObj(cmd.Cmd, object):
     # resolve a string containing variables.
     def do_resolve(self, param):
         if param:
-            print(var_stack.resolve(param))
+            print(var_stack.ResolveStrToStr(param))
         return False
 
     def help_resolve(self):

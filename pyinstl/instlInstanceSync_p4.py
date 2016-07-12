@@ -30,7 +30,7 @@ class InstlInstanceSync_p4(InstlInstanceSync):
         for iid in self.installState.all_items:
             with self.install_definitions_index[iid].push_var_stack_scope():
                 for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
-                    source = var_stack.resolve_var_to_list(source_var)
+                    source = var_stack.ResolveVarToList(source_var)
                     self.p4_sync_for_source(source)
 
     def p4_sync_for_source(self, source):
