@@ -1,17 +1,7 @@
 #!/usr/bin/env python3
 
-import os
-import sys
-import stat
-import grp
-import pwd
-import time
-import numbers
 import re
-import appdirs
 import string
-import ast
-from pathlib import PurePath
 
 
 def params_to_dict(params_text):
