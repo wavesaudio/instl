@@ -120,7 +120,11 @@ class InstlDoIt(InstlInstanceBase):
     def doit_for_item(self, IID, action):
         with self.install_definitions_index[IID].push_var_stack_scope() as doit_item:
             action_list = var_stack.ResolveVarToList("iid_action_list_"+action, default=[])
+            if len(action_list) > 0:
+                self.batch_accum += self.platform_helper.remark("--- Begin "+doit_item.name)
             self.batch_accum += action_list
+            if len(action_list) > 0:
+                self.batch_accum += self.platform_helper.remark("--- End "+doit_item.name+"\n")
             doit_item.user_data = True
 
     def add_default_items(self):
