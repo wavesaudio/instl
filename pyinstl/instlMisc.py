@@ -315,7 +315,11 @@ class InstlMisc(InstlInstanceBase):
     def do_resolve(self):
         var_stack.set_var("PRINT_COMMAND_TIME").append("no") # do not print time report
         config_file = var_stack.ResolveVarToStr("__CONFIG_FILE__")
+        if not os.path.isfile(config_file):
+            raise FileNotFoundError(config_file, var_stack.unresolved_var("__CONFIG_FILE__"))
         input_file = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        if not os.path.isfile(input_file):
+            raise FileNotFoundError(input_file, var_stack.unresolved_var("__MAIN_INPUT_FILE__"))
         output_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
         self.read_yaml_file(config_file)
         with open(input_file, "r") as rfd:
