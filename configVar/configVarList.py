@@ -348,7 +348,7 @@ class ConfigVarList(object):
             evaluated_params = {}
             for i_param in range(len(positional_params)):
                 # create __1__ positional params
-                pos_param_name = "".join(("__", str(i_param+1), "__"))
+                pos_param_name = "".join(("__", in_var, "_", str(i_param+1), "__"))
                 evaluated_params[pos_param_name] = positional_params[i_param]
             evaluated_params.update(key_word_params)
             self.update(evaluated_params)
