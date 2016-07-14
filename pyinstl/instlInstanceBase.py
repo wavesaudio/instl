@@ -72,7 +72,10 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             else:
                 acceptables.append("define_Uncompiled")
         for acceptibul in acceptables:
-            self.specific_doc_readers["!" + acceptibul] = self.read_defines
+            if acceptibul.startswith("define_if_not_exist"):
+                self.specific_doc_readers["!" + acceptibul] = self.read_defines_if_not_exist
+            elif acceptibul.startswith("define"):
+                self.specific_doc_readers["!" + acceptibul] = self.read_defines
 
         self.specific_doc_readers["!index"] = self.read_index
         self.specific_doc_readers["!require"] = self.read_require
