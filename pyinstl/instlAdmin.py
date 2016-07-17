@@ -912,21 +912,25 @@ class InstlAdmin(InstlInstanceBase):
                 # check inherits
                 for inheritee in var_stack.ResolveVarToList("iid_inherit", default=[]):
                     if inheritee not in self.install_definitions_index:
-                        iid_problem_messages.append(" ".join(("inherits from non existing", inheritee )))
+                        err_message = " ".join(("inherits from non existing", inheritee ))
+                        iid_problem_messages.append(err_message)
                 # check depends
                 for dependee in var_stack.ResolveVarToList("iid_depend_list", default=[]):
                     if dependee not in self.install_definitions_index:
-                        iid_problem_messages.append(" ".join(("depends on non existing", dependee )))
+                        err_message = " ".join(("depends on non existing", dependee ))
+                        iid_problem_messages.append(err_message)
                 # check sources
                 for source in iid_to_sources[iid]:
                     num_files_for_source = self.info_map_table.mark_required_for_source(source)
                     if num_files_for_source == 0:
-                        iid_problem_messages.append(" ".join(("source", utils.quoteme_single(str(source)),"required by", iid, "does not have files")))
+                        err_message = " ".join(("source", utils.quoteme_single(str(source)),"required by", iid, "does not have files"))
+                        iid_problem_messages.append(err_message)
                 # check targets
                 if len(iid_to_sources[iid]) > 0:
                     target_folders = var_stack.ResolveVarToList("iid_folder_list", default=[])
                     if len(target_folders) == 0:
-                        iid_problem_messages.append(" ".join(("iid", iid, "does not have target folder")))
+                        err_message = " ".join(("iid", iid, "does not have target folder"))
+                        iid_problem_messages.append(err_message)
                 if iid_problem_messages:
                     print(iid+":")
                     for problem_message in sorted(iid_problem_messages):

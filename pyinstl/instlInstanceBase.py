@@ -6,8 +6,7 @@ import sys
 import re
 import abc
 
-import yaml
-import io
+import platform
 import appdirs
 
 import aYaml
@@ -79,6 +78,8 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def get_version_str(self):
         instl_ver_str = ".".join(var_stack.ResolveVarToList("__INSTL_VERSION__"))
+        if "__PLATFORM_NODE__" not in var_stack:
+            var_stack.update({"__PLATFORM_NODE__": platform.node()})
         retVal = var_stack.ResolveStrToStr(
             "$(INSTL_EXEC_DISPLAY_NAME) version "+instl_ver_str+" $(__COMPILATION_TIME__) $(__PLATFORM_NODE__)")
         return retVal
