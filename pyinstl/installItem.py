@@ -98,6 +98,7 @@ def read_index_from_yaml(all_items_node):
             retVal[IID] = item
     return retVal
 
+
 class InstallItem(object):
     __slots__ = ('__iid', '__name', '__guids',
                  '__remark', "__description", '__inherit_from',
@@ -182,7 +183,7 @@ class InstallItem(object):
         self.__remark = ""
         self.__description = ""
         self.__inherit_from = utils.unique_list()
-        self.__install_for_os_stack = [InstallItem.os_names[0]] # reading for all platforms ('common') or for which specific platforms ('Mac', 'Win')?
+        self.__install_for_os_stack = [InstallItem.os_names[0]]  # reading for all platforms ('common') or for which specific platforms ('Mac', 'Win')?
         self.__items = defaultdict(InstallItem.create_items_section)
         self.__var_list = None
         self.__user_data = None
@@ -465,6 +466,7 @@ class InstallItem(object):
     @last_require_repo_rev.setter
     def last_require_repo_rev(self, new_last_require_repo_rev):
         self.__last_require_repo_rev = int(new_last_require_repo_rev)
+
 
 def guid_list(items_map):
     retVal = utils.unique_list()
