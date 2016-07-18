@@ -7,13 +7,12 @@
     Licensed under BSD 3 clause license, see LICENSE file for details.
 
     configVarList module has but a single class ConfigVarList
-    import pyinstl.configVarList
 """
 
 import os
-import ast
 import re
 from contextlib import contextmanager
+import pathlib
 
 import utils
 import aYaml
@@ -51,6 +50,7 @@ class ConfigVarList(object):
         Help values resolve $() style references. """
 
     __resolve_stack = list() # for preventing circular references during resolve.
+    variable_name_endings_to_normpath = ("_PATH", "_DIR", "_DIR_NAME", "_FILE_NAME", "_PATH__", "_DIR__", "_DIR_NAME__", "_FILE_NAME__")
 
     def __init__(self):
         self._ConfigVar_objs = dict() # ConfigVar objects are kept here mapped by their name.
@@ -335,7 +335,18 @@ class ConfigVarList(object):
                         retVal.append(None)
                     else:
                         resolved_list_for_value = self.ResolveStrToListIfSingleVar(value)
-                        retVal.extend(resolved_list_for_value)
+                        # special handling of variables tha end with _DIR etc...
+                        # see configVarOne.ConfigVar.variable_name_endings_to_normpath for full list
+                        if in_var.endswith(self.variable_name_endings_to_normpath):
+                            for unresolved_path in resolved_list_for_value:
+                                try:  # if it's a real path this will get the absolute path
+                                    resolved_path = pathlib.Path(unresolved_path).resolve()
+                                    resolved_path_str = str(resolved_path)
+                                    retVal.append(resolved_path_str)
+                                except:  # not a real path? no matter
+                                    retVal.append(unresolved_path)
+                        else:
+                            retVal.extend(resolved_list_for_value)
         else:
             if utils.is_iterable_but_not_str(default):
                 retVal = default
