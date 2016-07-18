@@ -460,6 +460,7 @@ def main():
                     "__USER_DESKTOP_DIR__": os.path.normpath("$(__USER_HOME_DIR__)/Desktop"),
                     "__USER_TEMP_DIR__": os.path.normpath(os.path.join(tempfile.gettempdir(), "$(SYNC_BASE_URL_MAIN_ITEM)/$(REPO_NAME)")),
                     "__USER_PATH__": os.environ.get("PATH", "PATH environment variable undefined"),
+                    "__PATH_SEP__": os.path.sep
                     }
     if os_family_name != "Win":
         initial_vars.update(
