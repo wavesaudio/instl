@@ -122,14 +122,14 @@ class InstlDoIt(InstlInstanceBase):
             action_list = var_stack.ResolveVarToList("iid_action_list_"+action, default=[])
             if len(action_list) > 0:
                 self.batch_accum += self.platform_helper.remark("--- Begin "+doit_item.name)
-                self.batch_accum += self.platform_helper.progress(var_stack.ResolveVarToStr("iid_name")+"...")
+                self.batch_accum += self.platform_helper.progress(doit_item.name+"...")
             num_actions = len(action_list)
             for i in range(num_actions):
                 self.batch_accum += action_list[i]
                 if i != num_actions - 1:
-                    self.batch_accum += self.platform_helper.progress(var_stack.ResolveVarToStr("iid_name") + " "+str(i+1))
+                    self.batch_accum += self.platform_helper.progress(doit_item.name + " "+str(i+1))
             if len(action_list) > 0:
-                self.batch_accum += self.platform_helper.progress(var_stack.ResolveVarToStr("iid_name") + ". done")
+                self.batch_accum += self.platform_helper.progress(doit_item.name + ". done")
                 self.batch_accum += self.platform_helper.remark("--- End "+doit_item.name+"\n")
             doit_item.user_data = True
 
