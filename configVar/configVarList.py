@@ -343,8 +343,10 @@ class ConfigVarList(object):
                                     resolved_path = pathlib.Path(unresolved_path).resolve()
                                     resolved_path_str = str(resolved_path)
                                     retVal.append(resolved_path_str)
-                                except:  # not a real path? no matter
-                                    retVal.append(unresolved_path)
+                                except:  # not really path? path does not exist? no matter,
+                                    # str(PurePath) should change the path separator to local value
+                                    pure_path = str(pathlib.PurePath(unresolved_path))
+                                    retVal.append(pure_path)
                         else:
                             retVal.extend(resolved_list_for_value)
         else:
