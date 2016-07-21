@@ -28,9 +28,9 @@ class InstlMisc(InstlInstanceBase):
         self.progress_staccato_count = 0
 
     def do_command(self):
-        self.curr_progress = int(var_stack.resolve("$(__START_DYNAMIC_PROGRESS__)"))
-        self.total_progress = int(var_stack.resolve("$(__TOTAL_DYNAMIC_PROGRESS__)")) # if var does not exist default is 0, meaning not to display dynamic progress
-        self.progress_staccato_period = int(var_stack.resolve("$(PROGRESS_STACCATO_PERIOD)"))
+        self.curr_progress = int(var_stack.ResolveVarToStr("__START_DYNAMIC_PROGRESS__"))
+        self.total_progress = int(var_stack.ResolveVarToStr("__TOTAL_DYNAMIC_PROGRESS__")) # if var does not exist default is 0, meaning not to display dynamic progress
+        self.progress_staccato_period = int(var_stack.ResolveVarToStr("PROGRESS_STACCATO_PERIOD"))
         self.progress_staccato_count = 0
         do_command_func = getattr(self, "do_" + self.fixed_command)
         before_time = time.clock()
@@ -54,11 +54,11 @@ class InstlMisc(InstlInstanceBase):
         import pyinstl.helpHelper
         var_stack.set_var("PRINT_COMMAND_TIME").append("no") # do not print time report
 
-        help_folder_path = os.path.join(var_stack.resolve("$(__INSTL_DATA_FOLDER__)", raise_on_fail=True), "help")
-        pyinstl.helpHelper.do_help(var_stack.resolve("$(__HELP_SUBJECT__)", raise_on_fail=True), help_folder_path, self)
+        help_folder_path = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "help")
+        pyinstl.helpHelper.do_help(var_stack.ResolveVarToStr("__HELP_SUBJECT__"), help_folder_path, self)
 
     def do_parallel_run(self):
-        processes_list_file = var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True)
+        processes_list_file = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         commands = list()
         with open(processes_list_file, "r", encoding='utf-8') as rfd:
             for line in rfd:
@@ -73,7 +73,7 @@ class InstlMisc(InstlInstanceBase):
 
         what_to_work_on = "."
         if "__MAIN_INPUT_FILE__" in var_stack:
-            what_to_work_on = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
+            what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
 
         if os.path.isfile(what_to_work_on):
             if what_to_work_on.endswith(".wtar.aa"):
@@ -149,7 +149,7 @@ class InstlMisc(InstlInstanceBase):
     def do_check_checksum(self):
         self.progress_staccato_command = True
         bad_checksum_list = list()
-        self.read_info_map_from_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
+        self.read_info_map_from_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
         for file_item in self.info_map_table.get_items(what="file"):
             if os.path.isfile(file_item.path):
                 file_checksum = utils.get_file_checksum(file_item.path)
@@ -165,7 +165,7 @@ class InstlMisc(InstlInstanceBase):
 
     def do_set_exec(self):
         self.progress_staccato_command = True
-        self.read_info_map_from_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
+        self.read_info_map_from_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
         for file_item in self.info_map_table.get_exec_items(what="file"):
             if os.path.isfile(file_item.path):
                 file_stat = os.stat(file_item.path)
@@ -174,7 +174,7 @@ class InstlMisc(InstlInstanceBase):
 
     def do_create_folders(self):
         self.progress_staccato_command = True
-        self.read_info_map_from_file(var_stack.resolve("$(__MAIN_INPUT_FILE__)", raise_on_fail=True))
+        self.read_info_map_from_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
         for dir_item in self.info_map_table.get_items(what="dir"):
             os.makedirs(dir_item.path, exist_ok=True)
             self.dynamic_progress("Create folder {dir_item.path}".format(**locals()))
@@ -193,8 +193,8 @@ class InstlMisc(InstlInstanceBase):
             sys.exit(17)
 
     def do_remove_empty_folders(self):
-        folder_to_remove = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
-        files_to_ignore = var_stack.resolve_to_list("$(REMOVE_EMPTY_FOLDERS_IGNORE_FILES)")
+        folder_to_remove = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        files_to_ignore = var_stack.ResolveVarToList("REMOVE_EMPTY_FOLDERS_IGNORE_FILES")
         for root_path, dir_names, file_names in os.walk(folder_to_remove, topdown=False, onerror=None, followlinks=False):
             # when topdown=False os.walk creates dir_names for each root_path at the beginning and has
             # no knowledge if a directory has already been deleted.
@@ -213,8 +213,8 @@ class InstlMisc(InstlInstanceBase):
                     os.rmdir(root_path)
 
     def do_win_shortcut(self):
-        shortcut_path = var_stack.resolve("$(__SHORTCUT_PATH__)", raise_on_fail=True)
-        target_path = var_stack.resolve("$(__SHORTCUT_TARGET_PATH__)", raise_on_fail=True)
+        shortcut_path = var_stack.ResolveVarToStr("__SHORTCUT_PATH__")
+        target_path = var_stack.ResolveVarToStr("__SHORTCUT_TARGET_PATH__")
         working_directory, target_name = os.path.split(target_path)
         runasadmin = "__RUN_AS_ADMIN__" in var_stack
         from win32com.client import Dispatch
@@ -240,14 +240,14 @@ class InstlMisc(InstlInstanceBase):
                 file.Save(shortcut_path, 0)
 
     def do_translate_url(self):
-        url_to_translate = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
+        url_to_translate = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         translated_url = connectionBase.connection_factory().translate_url(url_to_translate)
         print(translated_url)
 
     def do_mac_dock(self):
-        path_to_item = var_stack.resolve("$(__DOCK_ITEM_PATH__)", default="")
-        label_for_item = var_stack.resolve("$(__DOCK_ITEM_LABEL__)", default="")
-        restart_the_doc = var_stack.resolve("$(__RESTART_THE_DOCK__)", default="")
+        path_to_item = var_stack.ResolveVarToStr("__DOCK_ITEM_PATH__", default="")
+        label_for_item = var_stack.ResolveVarToStr("__DOCK_ITEM_LABEL__", default="")
+        restart_the_doc = var_stack.ResolveVarToStr("__RESTART_THE_DOCK__", default="")
         remove = "__REMOVE_FROM_DOCK__" in var_stack
 
         dock_util_command = list()
@@ -277,14 +277,14 @@ class InstlMisc(InstlInstanceBase):
 
     def do_ls(self):
         if "__MAIN_OUT_FILE__" in var_stack:
-            out_file = var_stack.resolve("$(__MAIN_OUT_FILE__)")
+            out_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
         else:
             out_file = "stdout"
 
-        main_folder_to_list = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
+        main_folder_to_list = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         folders_to_list = []
         if var_stack.defined("__LIMIT_COMMAND_TO__"):
-            limit_list = var_stack.resolve_to_list("$(__LIMIT_COMMAND_TO__)")
+            limit_list = var_stack.ResolveVarToList("__LIMIT_COMMAND_TO__")
             for limit in limit_list:
                 limit = utils.unquoteme(limit)
                 folders_to_list.append(os.path.join(main_folder_to_list, limit))
@@ -296,15 +296,12 @@ class InstlMisc(InstlInstanceBase):
             wfd.write(the_listing)
 
     def do_fail(self):
-        exit_code = 1
-        if "__FAIL_EXIT_CODE__" in var_stack:
-            exit_code = int("$(__FAIL_EXIT_CODE__)" @ var_stack)
+        exit_code = int(var_stack.ResolveVarToStr("__FAIL_EXIT_CODE__", default="1") )
         print("Failing on purpose with exit code", exit_code)
         sys.exit(exit_code)
 
-
     def do_checksum(self):
-        path_to_checksum = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
+        path_to_checksum = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         if os.path.isfile(path_to_checksum):
             the_checksum = utils.get_file_checksum(path_to_checksum)
             print(": ".join((path_to_checksum, the_checksum)))
@@ -317,8 +314,16 @@ class InstlMisc(InstlInstanceBase):
 
     def do_resolve(self):
         var_stack.set_var("PRINT_COMMAND_TIME").append("no") # do not print time report
-        definitions_file = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
-        self.read_yaml_file(definitions_file)
-        text_to_resolve = sys.stdin.read()
-        resolved_text = var_stack.resolve(text_to_resolve)
-        sys.stdout.write(resolved_text)
+        config_file = var_stack.ResolveVarToStr("__CONFIG_FILE__")
+        if not os.path.isfile(config_file):
+            raise FileNotFoundError(config_file, var_stack.unresolved_var("__CONFIG_FILE__"))
+        input_file = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        if not os.path.isfile(input_file):
+            raise FileNotFoundError(input_file, var_stack.unresolved_var("__MAIN_INPUT_FILE__"))
+        output_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
+        self.read_yaml_file(config_file)
+        with open(input_file, "r") as rfd:
+            text_to_resolve = rfd.read()
+        resolved_text = var_stack.ResolveStrToStr(text_to_resolve)
+        with open(output_file, "w") as wfd:
+            wfd.write(resolved_text)

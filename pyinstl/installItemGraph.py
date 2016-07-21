@@ -13,8 +13,8 @@ def create_dependencies_graph(item_map):
     retVal = nx.DiGraph()
     for item in item_map:
         with item_map[item].push_var_stack_scope():
-            for dependant in var_stack.resolve_var_to_list("iid_depend_list"):
-                retVal.add_edge(var_stack.resolve_var("iid_iid"), dependant)
+            for dependant in var_stack.ResolveVarToList("iid_depend_list"):
+                retVal.add_edge(var_stack.ResolveVarToStr("iid_iid"), dependant)
     return retVal
 
 
@@ -22,8 +22,8 @@ def create_inheritItem_graph(item_map):
     retVal = nx.DiGraph()
     for item in item_map:
         with item_map[item].push_var_stack_scope():
-            for dependant in var_stack.resolve_var_to_list("iid_inherit"):
-                retVal.add_edge(var_stack.resolve_var("iid_iid"), dependant)
+            for dependant in var_stack.ResolveVarToList("iid_inherit"):
+                retVal.add_edge(var_stack.ResolveVarToStr("iid_iid"), dependant)
     return retVal
 
 

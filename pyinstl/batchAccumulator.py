@@ -13,8 +13,7 @@ class BatchAccumulator(object):
     section_order = ("pre", "assign", "begin", "links", "upload", "sync", "post-sync", "copy", "post-copy", "remove", "admin", "end", "post")
 
     def __init__(self):
-        self.instruction_lines = defaultdict(list)
-        self.indent_level = 0
+        self.__instruction_lines = defaultdict(list)
         self.current_section = None
 
     def set_current_section(self, section):
@@ -25,7 +24,7 @@ class BatchAccumulator(object):
 
     def add(self, instructions):
         if isinstance(instructions, str):
-            self.instruction_lines[self.current_section].append(" " * 4 * self.indent_level + instructions)
+            self.__add_single_line__(instructions)
         else:
             for instruction in instructions:
                 self.add(instruction)
@@ -34,21 +33,28 @@ class BatchAccumulator(object):
         self.add(instructions)
         return self
 
+    def __add_single_line__(self, single_line):
+        """ make sure only strings are added """
+        if isinstance(single_line, str):
+            self.__instruction_lines[self.current_section].append(single_line)
+        else:
+            raise TypeError("Not a string", type(single_line), single_line)
+
     def __len__(self):
         retVal = 0
-        for section, section_lines in self.instruction_lines.items():
+        for section, section_lines in self.__instruction_lines.items():
             retVal += len(section_lines)
         return retVal
 
     def finalize_list_of_lines(self):
         lines = list()
         for section in BatchAccumulator.section_order:
-            section_lines = self.instruction_lines[section]
+            section_lines = self.__instruction_lines[section]
             if section_lines:
                 if section == "assign":
                     section_lines.sort()
-                resolved_sync_instruction_lines = list(map(var_stack.resolve, section_lines))
-                lines.extend(resolved_sync_instruction_lines)
+                for section_line in section_lines:
+                    lines.extend(var_stack.ResolveStrToListIfSingleVar(section_line))
                 lines.append("")  # empty string will cause to emit new line
         return lines
 

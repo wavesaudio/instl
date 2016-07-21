@@ -893,3 +893,8 @@ def str_to_bool_int(the_str):
     else:
         raise ValueError("Cannot translate", the_str, "to bool-int")
     return retVal
+
+
+def is_iterable_but_not_str(obj_to_check):
+    retVal = hasattr(obj_to_check, '__iter__') and not isinstance(obj_to_check, str)
+    return retVal

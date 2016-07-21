@@ -27,15 +27,15 @@ class InstlClientRemove(InstlClient):
 
     def create_remove_instructions(self):
 
-        have_info_path = var_stack.resolve("$(HAVE_INFO_MAP_PATH)")
+        have_info_path = var_stack.ResolveVarToStr("HAVE_INFO_MAP_PATH")
         if not os.path.isfile(have_info_path):
-            have_info_path = var_stack.resolve("$(SITE_HAVE_INFO_MAP_PATH)")
+            have_info_path = var_stack.ResolveVarToStr("SITE_HAVE_INFO_MAP_PATH")
         self.read_info_map_from_file(have_info_path)
 
         self.batch_accum.set_current_section('remove')
         self.batch_accum += self.platform_helper.progress("Starting remove")
         sorted_target_folder_list = sorted(self.installState.all_items_by_target_folder,
-                                           key=lambda fold: var_stack.resolve(fold),
+                                           key=lambda fold: var_stack.ResolveStrToStr(fold),
                                            reverse=True)
         # print(sorted_target_folder_list)
         self.accumulate_unique_actions('pre_remove', self.installState.all_items)
@@ -52,11 +52,11 @@ class InstlClientRemove(InstlClient):
                 with self.install_definitions_index[IID].push_var_stack_scope() as installi:
                     self.batch_accum += self.platform_helper.progress("Removing {installi.name}...".format(**locals()))
                     for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
-                        source = var_stack.resolve_var_to_list(source_var)
+                        source = var_stack.ResolveVarToList(source_var)
                         self.batch_accum += self.platform_helper.progress("Removing {source[0]}...".format(**locals()))
-                        self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_pre_remove_item")
+                        self.batch_accum += var_stack.ResolveVarToList("iid_action_list_pre_remove_item", default=[])
                         self.create_remove_instructions_for_source(folder_name, source)
-                        self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_post_remove_item")
+                        self.batch_accum += var_stack.ResolveVarToList("iid_action_list_post_remove_item", default=[])
                         self.batch_accum += self.platform_helper.progress("Remove {source[0]} done".format(**locals()))
                     self.batch_accum += self.platform_helper.progress("Remove {installi.name} done".format(**locals()))
 
@@ -79,7 +79,7 @@ class InstlClientRemove(InstlClient):
         base_, leaf = os.path.split(source_path)
         to_remove_path = os.path.normpath(os.path.join(folder, leaf))
 
-        remove_actions = var_stack.resolve_var_to_list_if_exists("iid_action_list_remove_item")
+        remove_actions = var_stack.ResolveVarToList("iid_action_list_remove_item", default=[])
         if len(remove_actions) == 0:  # no specific actions were specified, so just remove the files
             if source_type == '!dir':  # remove whole folder
                 remove_action = self.platform_helper.rmdir(to_remove_path, recursive=True)

@@ -84,8 +84,9 @@ class ConfigVar(object):
 
     def norm_values(self, *values):
         normed_values = list(map(utils.unicodify, values))
-        if self.__name.endswith(self.variable_name_endings_to_normpath):
-            normed_values = list(map(os.path.normpath, normed_values))
+        # normalization of paths moved to configVarList.ResolveVarToList
+        # if self.__name.endswith(self.variable_name_endings_to_normpath):
+        #     normed_values = list(map(os.path.normpath, normed_values))
         return normed_values
 
     def append(self, value):

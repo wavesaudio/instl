@@ -7,16 +7,17 @@
     Licensed under BSD 3 clause license, see LICENSE file for details.
 
     configVarList module has but a single class ConfigVarList
-    import pyinstl.configVarList
 """
 
 import os
-import sys
 import re
+from contextlib import contextmanager
+import pathlib
 
+import utils
 import aYaml
 from . import configVarOne
-
+from . import configVarParser
 
 value_ref_re = re.compile("""(
                             (?P<varref_pattern>
@@ -49,6 +50,7 @@ class ConfigVarList(object):
         Help values resolve $() style references. """
 
     __resolve_stack = list() # for preventing circular references during resolve.
+    variable_name_endings_to_normpath = ("_PATH", "_DIR", "_DIR_NAME", "_FILE_NAME", "_PATH__", "_DIR__", "_DIR_NAME__", "_FILE_NAME__")
 
     def __init__(self):
         self._ConfigVar_objs = dict() # ConfigVar objects are kept here mapped by their name.
@@ -129,12 +131,18 @@ class ConfigVarList(object):
         source_obj = self[source_name]
         self.set_var(target_name, source_obj.description).extend(source_obj)
 
-    def read_environment(self):
-        """ Get values from environment """
-        for env_key, env_value in os.environ.items():
-            if env_key == "":  # not sure why, sometimes I get an empty string as env variable name
-                continue
-            self.set_var(env_key, "from environment").append(env_value)
+    def read_environment(self, regex=None):
+        """ Get values from environment. Get all values if regex is None.
+            Get values matching regex otherwise """
+        if regex is None:
+            for env_key, env_value in os.environ.items():
+                if env_key == "":  # not sure why, sometimes I get an empty string as env variable name
+                    continue
+                self.set_var(env_key, "from environment").append(env_value)
+        else:
+            for env_key, env_value in os.environ.items():
+                if re.match(regex, env_key):
+                    self.set_var(env_key, "from environment").append(env_value)
 
     def repr_for_yaml(self, which_vars=None, include_comments=True, ignore_unknown_vars=False):
         retVal = dict()
@@ -165,7 +173,7 @@ class ConfigVarList(object):
         retVal = match is None
         return retVal
 
-    def resolve(self, str_to_resolve, list_sep=" ", default=None, raise_on_fail=False):
+    def resolve_deprecated(self, str_to_resolve, list_sep=" ", default=None, raise_on_fail=False):
         """ Resolve a string, possibly with $() style references.
             For Variables that hold more than one value, the values are connected with list_sep
             which defaults to a single space.
@@ -207,15 +215,14 @@ class ConfigVarList(object):
                 raise
         if raise_on_fail and not self.is_resolved(resolved_str):
             raise ValueError("Cannot fully resolve "+str_to_resolve+ ": "+resolved_str)
+
+        testRetVal = self.ResolveStrToStr(str_to_resolve, list_sep=list_sep)
+        if resolved_str != testRetVal:
+            print(str_to_resolve, resolved_str, testRetVal)
+            raise ValueError(str_to_resolve, resolved_str, testRetVal)
         return resolved_str
 
-    # just an experiment
-    def __matmul__(self, str_to_resolve):
-        return self.resolve(str_to_resolve)
-    def __rmatmul__(self, str_to_resolve):
-        return self.resolve(str_to_resolve)
-
-    def resolve_to_list(self, str_to_resolve, list_sep=" ", default=None):
+    def resolve_to_list_deprecated(self, str_to_resolve, list_sep=" ", default=None):
         """ Resolve a string, possibly with $() style references.
             If the string is a single reference to a variable, a list of resolved values is returned.
             If the values themselves are a single reference to a variable, their own values extend the list
@@ -245,15 +252,15 @@ class ConfigVarList(object):
             resolved_list.append(self.resolve(str_to_resolve, list_sep))
         return resolved_list
 
-    def resolve_var(self, var_name, list_sep=" ", default=""):
+    def resolve_var_deprecated(self, var_name, list_sep=" ", default=""):
         retVal = self.resolve( "".join( ("$(", var_name, ")") ))
         return retVal
 
-    def resolve_var_to_list(self, var_name, list_sep=" ", default=""):
+    def resolve_var_to_list_deprecated(self, var_name, list_sep=" ", default=""):
         retVal = self.resolve_to_list( "".join( ("$(", var_name, ")") ))
         return retVal
 
-    def resolve_var_to_list_if_exists(self, var_name, list_sep=" ", default=""):
+    def resolve_var_to_list_if_exists_deprecated(self, var_name, list_sep=" ", default=""):
         retVal = []
         if var_name in self:
             var_reference = "".join( ("$(", var_name, ")") )
@@ -271,3 +278,93 @@ class ConfigVarList(object):
         if var_name in self:
             retVal = [val for val in self[var_name]]
         return retVal
+
+    def update(self, update_dict):
+        for var_name, var_value in update_dict.items():
+            self.set_var(var_name).append(var_value)
+
+    @contextmanager
+    def circular_resolve_check(self, var_name):
+        if var_name in self.__resolve_stack:
+            raise Exception("circular resolving of variable '{}', resolve stack: {}".format(var_name, self.__resolve_stack))
+        self.__resolve_stack.append(var_name)
+        yield self
+        self.__resolve_stack.pop()
+
+    def ResolveStrToListWithStatistics(self, str_to_resolve):
+        """ resolve a string to a list, return the list and also the number of variables and literal in the list.
+            Returning these statistic will help
+        """
+        resolved_parts = list()
+        num_literals = 0
+        num_variables = 0
+        for literal_text, variable_name, variable_params_str, original_variable_str in configVarParser.var_parse_imp(str_to_resolve):
+            if literal_text:
+                resolved_parts.append(literal_text)
+                num_literals += 1
+            if variable_name:
+                positional_params, key_word_params = configVarParser.parse_var_params(variable_params_str)
+                resolved_parts.extend(self.ResolveVarWithParamsToList(variable_name, positional_params, key_word_params, original_variable_str))
+                num_variables += 1
+        return resolved_parts, num_literals, num_variables
+
+    def ResolveStrToListIfSingleVar(self, str_to_resolve):
+        resolved_parts, num_literals, num_variables = self.ResolveStrToListWithStatistics(str_to_resolve)
+        if num_literals == 0 and num_variables == 1:
+            retVal = resolved_parts
+        else:
+            retVal = ["".join(resolved_parts)]
+        return retVal
+
+    def ResolveStrToStr(self, str_to_resolve, list_sep=""):
+        resolved_parts = self.ResolveStrToListIfSingleVar(str_to_resolve)
+        resolved_str = list_sep.join(resolved_parts)
+        return resolved_str
+
+    def ResolveVarToStr(self, in_var, list_sep="", default=None):
+        value_list = self.ResolveVarToList(in_var, default=[default])
+        retVal = list_sep.join(value_list)
+        return retVal
+
+    def ResolveVarToList(self, in_var, default=None):
+        retVal = list()
+        if in_var in self:
+            with self.circular_resolve_check(in_var):
+                for value in self[in_var]:
+                    if value is None:
+                        retVal.append(None)
+                    else:
+                        resolved_list_for_value = self.ResolveStrToListIfSingleVar(value)
+                        # special handling of variables tha end with _DIR etc...
+                        # see configVarOne.ConfigVar.variable_name_endings_to_normpath for full list
+                        if in_var.endswith(self.variable_name_endings_to_normpath):
+                            for unresolved_path in resolved_list_for_value:
+                                try:  # if it's a real path this will get the absolute path
+                                    resolved_path = pathlib.Path(unresolved_path).resolve()
+                                    resolved_path_str = str(resolved_path)
+                                    retVal.append(resolved_path_str)
+                                except:  # not really path? path does not exist? no matter,
+                                    # str(PurePath) should change the path separator to local value
+                                    pure_path = str(pathlib.PurePath(unresolved_path))
+                                    retVal.append(pure_path)
+                        else:
+                            retVal.extend(resolved_list_for_value)
+        else:
+            if utils.is_iterable_but_not_str(default):
+                retVal = default
+            else:
+                raise ValueError("Variable {} was not found and default given {} is not a list".format(in_var, default))
+        return retVal
+
+    def ResolveVarWithParamsToList(self, in_var, positional_params, key_word_params, original_variable_str):
+        with self.push_scope_context():
+            evaluated_params = {}
+            for i_param in range(len(positional_params)):
+                # create __1__ positional params
+                pos_param_name = "".join(("__", in_var, "_", str(i_param+1), "__"))
+                evaluated_params[pos_param_name] = positional_params[i_param]
+            evaluated_params.update(key_word_params)
+            self.update(evaluated_params)
+            retVal = self.ResolveVarToList(in_var, [original_variable_str])
+        return retVal
+

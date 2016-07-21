@@ -23,14 +23,14 @@ class InstlInstanceSync_p4(InstlInstanceSync):
     def create_download_instructions(self):
         self.instlObj.batch_accum.set_current_section('sync')
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Starting sync from $(SYNC_BASE_URL)")
-        self.sync_base_url = var_stack.resolve("$(SYNC_BASE_URL)")
+        self.sync_base_url = var_stack.ResolveVarToStr("SYNC_BASE_URL")
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
         for iid in self.installState.all_items:
             with self.install_definitions_index[iid].push_var_stack_scope():
                 for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
-                    source = var_stack.resolve_var_to_list(source_var)
+                    source = var_stack.ResolveVarToList(source_var)
                     self.p4_sync_for_source(source)
 
     def p4_sync_for_source(self, source):

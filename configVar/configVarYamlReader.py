@@ -31,16 +31,20 @@ class ConfigVarYamlReader(aYaml.YamlReader):
         self.specific_doc_readers["__unknown_tag__"] = self.read_defines
         self.specific_doc_readers["!define"] = self.read_defines
         self.specific_doc_readers["!define_const"] = self.read_const_defines
+        self.specific_doc_readers["!define_if_not_exist"] = self.read_defines_if_not_exist
 
     def read_defines(self, a_node, *args, **kwargs):
         # if document is empty we get a scalar node
         if a_node.isMapping():
             for identifier, contents in a_node.items():
-                if self.allow_reading_of_internal_vars or not internal_identifier_re.match(
+                if identifier == '__include__':
+                    self.read_include_node(contents, *args, **kwargs)
+                elif identifier == "__environment__":
+                    for item in contents:
+                        var_stack.read_environment(item.value)
+                elif self.allow_reading_of_internal_vars or not internal_identifier_re.match(
                         identifier):  # do not read internal state identifiers
                     var_stack.set_var(identifier, str(contents.start_mark)).extend([item.value for item in contents])
-                elif identifier == '__include__':
-                    self.read_include_node(contents)
 
     def read_const_defines(self, a_node, *args, **kwargs):
         """ Read a !define_const sub-doc. All variables will be made const.
@@ -54,7 +58,18 @@ class ConfigVarYamlReader(aYaml.YamlReader):
                 var_stack.add_const_config_variable(identifier, "from !define_const section",
                                                     *[item.value for item in contents])
 
-    def read_include_node(self, i_node):
+    def read_defines_if_not_exist(self, a_node, *args, **kwargs):
+        # if document is empty we get a scalar node
+        if a_node.isMapping():
+            for identifier, contents in a_node.items():
+                if identifier == "__include__":
+                    raise ValueError("!define_if_not_exist doc cannot except __include__")
+                if self.allow_reading_of_internal_vars or not internal_identifier_re.match(
+                        identifier):  # do not read internal state identifiers
+                    if identifier not in var_stack:
+                        var_stack.set_var(identifier, str(contents.start_mark)).extend([item.value for item in contents])
+
+    def read_include_node(self, i_node, *args, **kwargs):
         pass  # override to handle __include__ nodes
 
 

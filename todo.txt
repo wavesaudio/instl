@@ -4,7 +4,7 @@
 
 Could storage wish list:
     Be able to avoid creating the urls on server - maybe use some time limited token?
-    Be able to donload whole folders???
+    Be able to download whole folders???
 
 handle UTF in parameters passed to instl
 handle UTF for paths in !define and !index files
@@ -22,3 +22,6 @@ Put order in syncer classes: boto, p4, svn, url
 
 readthedocs
 markdown
+
+rethink resolve definition, what to do with defaults, missing values, etc
+resolve implementation - standard python resolve?

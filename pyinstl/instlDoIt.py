@@ -58,7 +58,7 @@ class InstlDoIt(InstlInstanceBase):
     def do_command(self):
         # print("client_commands", fixed_command_name)
         self.installState = DoItInstructionsState()
-        main_input_file_path = var_stack.resolve("$(__MAIN_INPUT_FILE__)")
+        main_input_file_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         self.read_yaml_file(main_input_file_path)
         self.init_default_doit_vars()
         self.resolve_defined_paths()
@@ -69,7 +69,7 @@ class InstlDoIt(InstlInstanceBase):
         self.resolve_index_inheritance()
         self.add_default_items()
         self.calculate_default_doit_item_set()
-        self.platform_helper.num_items_for_progress_report = int(var_stack.resolve("$(LAST_PROGRESS)"))
+        self.platform_helper.num_items_for_progress_report = int(var_stack.ResolveVarToStr("LAST_PROGRESS"))
 
         do_command_func = getattr(self, "do_" + self.fixed_command)
         do_command_func()
@@ -82,15 +82,15 @@ class InstlDoIt(InstlInstanceBase):
     def init_default_doit_vars(self):
         if "SYNC_BASE_URL" in var_stack:
             #raise ValueError("'SYNC_BASE_URL' was not defined")
-            resolved_sync_base_url = var_stack.resolve("$(SYNC_BASE_URL)")
+            resolved_sync_base_url = var_stack.ResolveVarToStr("SYNC_BASE_URL")
             url_main_item = utils.main_url_item(resolved_sync_base_url)
             var_stack.set_var("SYNC_BASE_URL_MAIN_ITEM", description="from init_default_client_vars").append(url_main_item)
         # TARGET_OS_NAMES defaults to __CURRENT_OS_NAMES__, which is not what we want if syncing to
         # an OS which is not the current
-        if var_stack.resolve("$(TARGET_OS)") != var_stack.resolve("$(__CURRENT_OS__)"):
-            target_os_names = var_stack.resolve_var_to_list(var_stack.resolve("$(TARGET_OS)_ALL_OS_NAMES"))
+        if var_stack.ResolveVarToStr("TARGET_OS") != var_stack.ResolveVarToStr("__CURRENT_OS__"):
+            target_os_names = var_stack.ResolveVarToList(var_stack.ResolveStrToStr("$(TARGET_OS)_ALL_OS_NAMES"))
             var_stack.set_var("TARGET_OS_NAMES").extend(target_os_names)
-            second_name = var_stack.resolve("$(TARGET_OS)")
+            second_name = var_stack.ResolveVarToStr("TARGET_OS")
             if len(target_os_names) > 1:
                 second_name = target_os_names[1]
             var_stack.set_var("TARGET_OS_SECOND_NAME").append(second_name)
@@ -119,7 +119,18 @@ class InstlDoIt(InstlInstanceBase):
 
     def doit_for_item(self, IID, action):
         with self.install_definitions_index[IID].push_var_stack_scope() as doit_item:
-            self.batch_accum += var_stack.resolve_var_to_list_if_exists("iid_action_list_"+action)
+            action_list = var_stack.ResolveVarToList("iid_action_list_"+action, default=[])
+            if len(action_list) > 0:
+                self.batch_accum += self.platform_helper.remark("--- Begin "+doit_item.name)
+                self.batch_accum += self.platform_helper.progress(doit_item.name+"...")
+            num_actions = len(action_list)
+            for i in range(num_actions):
+                self.batch_accum += action_list[i]
+                if i != num_actions - 1:
+                    self.batch_accum += self.platform_helper.progress(doit_item.name + " "+str(i+1))
+            if len(action_list) > 0:
+                self.batch_accum += self.platform_helper.progress(doit_item.name + ". done")
+                self.batch_accum += self.platform_helper.remark("--- End "+doit_item.name+"\n")
             doit_item.user_data = True
 
     def add_default_items(self):
@@ -139,9 +150,9 @@ class InstlDoIt(InstlInstanceBase):
         """
         if "MAIN_DOIT_ITEMS" not in var_stack:
             raise ValueError("'MAIN_DOIT_ITEMS' was not defined")
-        for os_name in var_stack.resolve_to_list("$(TARGET_OS_NAMES)"):
+        for os_name in var_stack.ResolveVarToList("TARGET_OS_NAMES"):
             InstallItem.begin_get_for_specific_os(os_name)
-        self.installState.root_doit_items.extend(var_stack.resolve_to_list("$(MAIN_DOIT_ITEMS)"))
+        self.installState.root_doit_items.extend(var_stack.ResolveVarToList("MAIN_DOIT_ITEMS"))
         self.installState.root_doit_items = list(filter(bool, self.installState.root_doit_items))
         self.installState.calculate_full_doit_items_set(self)
         var_stack.set_var("__FULL_LIST_OF_DOIT_TARGETS__").extend(self.installState.full_doit_items)
@@ -153,7 +164,7 @@ class InstlDoIt(InstlInstanceBase):
         for IID in iid_list:
             with self.install_definitions_index[IID].push_var_stack_scope() as installi:
                 action_var_name = "iid_action_list_" + action_type
-                item_actions = var_stack.resolve_var_to_list_if_exists(action_var_name)
+                item_actions = var_stack.ResolveVarToList(action_var_name, default=[])
                 num_unique_actions = 0
                 for an_action in item_actions:
                     len_before = len(unique_actions)

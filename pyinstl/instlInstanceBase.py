@@ -6,8 +6,7 @@ import sys
 import re
 import abc
 
-import yaml
-import io
+import platform
 import appdirs
 
 import aYaml
@@ -46,9 +45,9 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         # initialize the search paths helper with the current directory and dir where instl is now
         self.path_searcher.add_search_path(os.getcwd())
         self.path_searcher.add_search_path(os.path.dirname(os.path.realpath(sys.argv[0])))
-        self.path_searcher.add_search_path(var_stack.resolve("$(__INSTL_DATA_FOLDER__)"))
+        self.path_searcher.add_search_path(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"))
 
-        self.platform_helper = PlatformSpecificHelperFactory(var_stack.resolve("$(__CURRENT_OS__)"), self)
+        self.platform_helper = PlatformSpecificHelperFactory(var_stack.ResolveVarToStr("__CURRENT_OS__"), self)
         # init initial copy tool, tool might be later overridden after reading variable COPY_TOOL from yaml.
         self.platform_helper.init_copy_tool()
 
@@ -65,22 +64,27 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.specific_doc_readers["!define"] = self.read_defines
         self.specific_doc_readers["!define_const"] = self.read_const_defines
 
-        acceptables = var_stack.resolve_var_to_list_if_exists("ACCEPTABLE_YAML_DOC_TAGS")
+        acceptables = var_stack.ResolveVarToList("ACCEPTABLE_YAML_DOC_TAGS", default=[])
         if "__INSTL_COMPILED__" in var_stack:
-            if var_stack.resolve("$(__INSTL_COMPILED__)") == "True":
+            if var_stack.ResolveVarToStr("__INSTL_COMPILED__") == "True":
                 acceptables.append("define_Compiled")
             else:
                 acceptables.append("define_Uncompiled")
         for acceptibul in acceptables:
-            self.specific_doc_readers["!" + acceptibul] = self.read_defines
+            if acceptibul.startswith("define_if_not_exist"):
+                self.specific_doc_readers["!" + acceptibul] = self.read_defines_if_not_exist
+            elif acceptibul.startswith("define"):
+                self.specific_doc_readers["!" + acceptibul] = self.read_defines
 
         self.specific_doc_readers["!index"] = self.read_index
         self.specific_doc_readers["!require"] = self.read_require
 
     def get_version_str(self):
-        retVal = var_stack.resolve(
-            "$(INSTL_EXEC_DISPLAY_NAME) version $(__INSTL_VERSION__) $(__COMPILATION_TIME__) $(__PLATFORM_NODE__)",
-            list_sep=".", default="")
+        instl_ver_str = ".".join(var_stack.ResolveVarToList("__INSTL_VERSION__"))
+        if "__PLATFORM_NODE__" not in var_stack:
+            var_stack.update({"__PLATFORM_NODE__": platform.node()})
+        retVal = var_stack.ResolveStrToStr(
+            "$(INSTL_EXEC_DISPLAY_NAME) version "+instl_ver_str+" $(__COMPILATION_TIME__) $(__PLATFORM_NODE__)")
         return retVal
 
     def init_default_vars(self, initial_vars):
@@ -95,16 +99,16 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         var_description = "from InstlInstanceBase.init_default_vars"
 
         # read defaults/main.yaml
-        main_defaults_file_path = os.path.join(var_stack.resolve("$(__INSTL_DATA_FOLDER__)"), "defaults", "main.yaml")
+        main_defaults_file_path = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults", "main.yaml")
         self.read_yaml_file(main_defaults_file_path)
 
         # read defaults/compile-info.yaml
-        compile_info_file_path = os.path.join(var_stack.resolve("$(__INSTL_DATA_FOLDER__)"), "defaults",
+        compile_info_file_path = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults",
                                               "compile-info.yaml")
         if os.path.isfile(compile_info_file_path):
             self.read_yaml_file(compile_info_file_path)
         if "__COMPILATION_TIME__" not in var_stack:
-            if var_stack.resolve("$(__INSTL_COMPILED__)") == "True":
+            if var_stack.ResolveVarToStr("__INSTL_COMPILED__") == "True":
                 var_stack.add_const_config_variable("__COMPILATION_TIME__", var_description, "unknown compilation time")
             else:
                 var_stack.add_const_config_variable("__COMPILATION_TIME__", var_description, "(not compiled)")
@@ -113,13 +117,13 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def read_name_specific_defaults_file(self, file_name):
         """ read class specific file from defaults/class_name.yaml """
-        name_specific_defaults_file_path = os.path.join(var_stack.resolve("$(__INSTL_DATA_FOLDER__)"), "defaults",
+        name_specific_defaults_file_path = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults",
                                                         file_name + ".yaml")
         if os.path.isfile(name_specific_defaults_file_path):
             self.read_yaml_file(name_specific_defaults_file_path)
 
     def read_user_config(self):
-        user_config_path = var_stack.resolve("$(__USER_CONFIG_FILE_PATH__)")
+        user_config_path = var_stack.ResolveVarToStr("__USER_CONFIG_FILE_PATH__")
         if os.path.isfile(user_config_path):
             previous_allow_reading_of_internal_vars = self.allow_reading_of_internal_vars
             self.allow_reading_of_internal_vars = True
@@ -228,7 +232,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         with open(file_path, "w", encoding='utf-8') as wfd:
             utils.make_open_file_read_write_for_all(wfd)
 
-            define_dict = aYaml.YamlDumpDocWrap({"REQUIRE_REPO_REV": var_stack.resolve("$(MAX_REPO_REV)")},
+            define_dict = aYaml.YamlDumpDocWrap({"REQUIRE_REPO_REV": var_stack.ResolveVarToStr("MAX_REPO_REV")},
                                                 '!define', "definitions",
                                                  explicit_start=True, sort_mappings=True)
             require_dict = aYaml.YamlDumpDocWrap(require_dict, '!require', "requirements",
@@ -243,46 +247,46 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                                         """, re.VERBOSE)
 
     def resolve_defined_paths(self):
-        self.path_searcher.add_search_paths(var_stack.resolve_to_list("$(SEARCH_PATHS)"))
-        for path_var_to_resolve in var_stack.resolve_to_list("$(PATHS_TO_RESOLVE)"):
+        self.path_searcher.add_search_paths(var_stack.ResolveVarToList("SEARCH_PATHS", default=[]))
+        for path_var_to_resolve in var_stack.ResolveVarToList("PATHS_TO_RESOLVE", default=[]):
             if path_var_to_resolve in var_stack:
-                resolved_path = self.path_searcher.find_file(var_stack.resolve_var(path_var_to_resolve),
+                resolved_path = self.path_searcher.find_file(var_stack.ResolveVarToStr(path_var_to_resolve),
                                                              return_original_if_not_found=True)
                 var_stack.set_var(path_var_to_resolve, "resolve_defined_paths").append(resolved_path)
 
     def provision_public_key_text(self):
         if "PUBLIC_KEY" not in var_stack:
             if "PUBLIC_KEY_FILE" in var_stack:
-                public_key_file = var_stack.resolve("$(PUBLIC_KEY_FILE)")
+                public_key_file = var_stack.ResolveVarToStr("PUBLIC_KEY_FILE")
                 with utils.open_for_read_file_or_url(public_key_file, connectionBase.translate_url, self.path_searcher) as file_fd:
                     public_key_text = file_fd.read()
                     var_stack.set_var("PUBLIC_KEY", "from " + public_key_file).append(public_key_text)
             else:
                 raise ValueError("No public key, variables PUBLIC_KEY & PUBLIC_KEY_FILE are not defined")
-        resolved_public_key = var_stack.resolve("$(PUBLIC_KEY)")
+        resolved_public_key = var_stack.ResolveVarToStr("PUBLIC_KEY")
         return resolved_public_key
 
-    def read_include_node(self, i_node):
+    def read_include_node(self, i_node, *args, **kwargs):
         if i_node.isScalar():
-            resolved_file_name = var_stack.resolve(i_node.value)
+            resolved_file_name = var_stack.ResolveStrToStr(i_node.value)
             self.read_yaml_file(resolved_file_name)
         elif i_node.isSequence():
             for sub_i_node in i_node:
-                self.read_include_node(sub_i_node)
+                self.read_include_node(sub_i_node, *args, **kwargs)
         elif i_node.isMapping():
             if "url" in i_node:
                 cached_files_dir = self.get_default_sync_dir(continue_dir="cache", make_dir=True)
-                resolved_file_url = var_stack.resolve(i_node["url"].value)
+                resolved_file_url = var_stack.ResolveStrToStr(i_node["url"].value)
                 cached_file_path = None
                 expected_checksum = None
                 if "checksum" in i_node:
-                    expected_checksum = var_stack.resolve(i_node["checksum"].value)
+                    expected_checksum = var_stack.ResolveStrToStr(i_node["checksum"].value)
                     cached_file_path = os.path.join(cached_files_dir, expected_checksum)
 
                 expected_signature = None
                 public_key_text = None
                 if "sig" in i_node:
-                    expected_signature = var_stack.resolve(i_node["sig"].value)
+                    expected_signature = var_stack.ResolveStrToStr(i_node["sig"].value)
                     public_key_text = self.provision_public_key_text()
 
                 if expected_checksum is None:
@@ -300,7 +304,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                     self.batch_accum.set_current_section('post')
                     for copy_destination in i_node["copy"]:
                         need_to_copy = True
-                        destination_file_resolved_path = var_stack.resolve(copy_destination.value)
+                        destination_file_resolved_path = var_stack.ResolveStrToStr(copy_destination.value)
                         if os.path.isfile(destination_file_resolved_path) and expected_checksum is not None:
                             checksums_match = utils.check_file_checksum(file_path=destination_file_resolved_path, expected_checksum=expected_checksum)
                             need_to_copy = not checksums_match
@@ -308,19 +312,19 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                             destination_folder, destination_file_name = os.path.split(copy_destination.value)
                             self.batch_accum += self.platform_helper.mkdir(destination_folder)
                             self.batch_accum += self.platform_helper.copy_tool.copy_file_to_file(cached_file_path,
-                                                                                                 var_stack.resolve(copy_destination.value),
+                                                                                                 var_stack.ResolveStrToStr(copy_destination.value),
                                                                                                  link_dest=True)
 
     def create_variables_assignment(self):
         self.batch_accum.set_current_section("assign")
         for identifier in var_stack:
             if identifier not in self.do_not_write_vars:
-                self.batch_accum += self.platform_helper.var_assign(identifier, var_stack.resolve_var(identifier),
+                self.batch_accum += self.platform_helper.var_assign(identifier, var_stack.ResolveVarToStr(identifier, list_sep=" "),
                                                                     None)  # var_stack[identifier].resolved_num
 
     def calc_user_cache_dir_var(self, make_dir=True):
         if "USER_CACHE_DIR" not in var_stack:
-            os_family_name = var_stack.resolve("$(__CURRENT_OS__)")
+            os_family_name = var_stack.ResolveVarToStr("__CURRENT_OS__")
             if os_family_name == "Mac":
                 user_cache_dir_param = "$(COMPANY_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
                 user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
@@ -334,7 +338,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             var_description = "from InstlInstanceBase.get_user_cache_dir"
             var_stack.set_var("USER_CACHE_DIR", var_description).append(user_cache_dir)
         if make_dir:
-            user_cache_dir_resolved = var_stack.resolve("$(USER_CACHE_DIR)", raise_on_fail=True)
+            user_cache_dir_resolved = var_stack.ResolveVarToStr("USER_CACHE_DIR")
             os.makedirs(user_cache_dir_resolved, exist_ok=True)
 
     def get_default_sync_dir(self, continue_dir=None, make_dir=True):
@@ -345,7 +349,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             retVal = "$(USER_CACHE_DIR)"
         # print("1------------------", user_cache_dir, "-", from_url, "-", retVal)
         if make_dir and retVal:
-            retVal = var_stack.resolve(retVal, raise_on_fail=True)
+            retVal = var_stack.ResolveStrToStr(retVal)
             os.makedirs(retVal, exist_ok=True)
         return retVal
 
@@ -367,10 +371,16 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             str(self.platform_helper.num_items_for_progress_report))
         self.batch_accum += self.platform_helper.get_install_instructions_postfix()
         lines = self.batch_accum.finalize_list_of_lines()
+        for line in lines:
+            if type(line) != str:
+                raise TypeError("Not a string", type(line), line)
         lines_after_var_replacement = '\n'.join(
             [value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines])
 
-        out_file = var_stack.resolve("$(__MAIN_OUT_FILE__)", raise_on_fail=True)
+        out_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
+        out_file = os.path.abspath(out_file)
+        d_path, f_name = os.path.split(out_file)
+        os.makedirs(d_path, exist_ok=True)
         with utils.write_to_file_or_stdout(out_file) as fd:
             fd.write(lines_after_var_replacement)
             fd.write('\n')
@@ -400,7 +410,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def write_program_state(self):
 
-        state_file = var_stack.resolve("$(__MAIN_STATE_FILE__)", raise_on_fail=True)
+        state_file = var_stack.ResolveVarToStr("__MAIN_STATE_FILE__")
         with utils.write_to_file_or_stdout(state_file) as fd:
             aYaml.writeAsYaml(self, fd)
 
@@ -434,8 +444,8 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
     def check_version_compatibility(self):
         retVal = True
         if "INSTL_MINIMAL_VERSION" in var_stack:
-            inst_ver = list(map(int, var_stack.resolve_to_list("$(__INSTL_VERSION__)")))
-            required_ver = list(map(int, var_stack.resolve_to_list("$(INSTL_MINIMAL_VERSION)")))
+            inst_ver = list(map(int, var_stack.ResolveVarToList("__INSTL_VERSION__")))
+            required_ver = list(map(int, var_stack.ResolveVarToList("INSTL_MINIMAL_VERSION")))
             retVal = inst_ver >= required_ver
         return retVal
 
@@ -461,7 +471,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             raise KeyError(iid + " is not in index")
         InstallItem.begin_get_for_all_oses()
         with self.install_definitions_index[iid].push_var_stack_scope():
-            for dep in var_stack.resolve_var_to_list("iid_depend_list"):
+            for dep in var_stack.ResolveVarToList("iid_depend_list"):
                 if dep in self.install_definitions_index:
                     out_list.append(dep)
                     self.needs(dep, out_list)

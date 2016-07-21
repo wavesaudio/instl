@@ -46,7 +46,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         """ To do: dedicate a variable to copy logging (COPY_LOG_FILE ???)
         """
         retVal = ""
-        # log_file = var_stack.resolve("$(LOG_FILE)")
+        # log_file = var_stack.ResolveVarToStr("LOG_FILE")
         # retVal = " /LOG:{log_file}".format(**locals())
         return retVal
 
@@ -131,7 +131,7 @@ class CopyTool_win_xcopy(CopyToolBase):
             if isinstance(ignore, str):
                 ignore = (ignore,)
             self.excludes_set.update([ignoree.lstrip("*") for ignoree in ignore])
-            retVal = var_stack.resolve("/EXCLUDE:$(XCOPY_EXCLUDE_FILE_NAME)")
+            retVal = var_stack.ResolveStrToStr("/EXCLUDE:$(XCOPY_EXCLUDE_FILE_NAME)")
         return retVal
 
     def begin_copy_folder(self):
@@ -199,7 +199,7 @@ class CopyTool_win_xcopy(CopyToolBase):
 
     def create_excludes_file(self):
         if self.excludes_set:
-            with open(var_stack.resolve("$(XCOPY_EXCLUDE_FILE_PATH)", raise_on_fail=True), "w") as wfd:
+            with open(var_stack.ResolveVarToStr("XCOPY_EXCLUDE_FILE_PATH"), "w") as wfd:
                 utils.make_open_file_read_write_for_all(wfd)
                 wfd.write("\n".join(self.excludes_set))
 
@@ -224,7 +224,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         """
         tool_path = None
         if tool_to_find_var_name in var_stack:
-            original_tool_value = var_stack.resolve_var(tool_to_find_var_name)
+            original_tool_value = var_stack.ResolveVarToStr(tool_to_find_var_name)
             # first try the variable, could be that the tool was already found
             if os.path.isfile(original_tool_value):
                 tool_path = original_tool_value
@@ -263,14 +263,14 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return tool_path
 
     def init_platform_tools(self):
-        download_tool_name = var_stack.resolve("$(DOWNLOAD_TOOL_PATH)")
+        download_tool_name = var_stack.ResolveVarToStr("DOWNLOAD_TOOL_PATH")
         if download_tool_name.endswith("wget.exe"):
             self.dl_tool = DownloadTool_win_wget(self)
         elif download_tool_name.endswith("curl.exe"):
             self.dl_tool = DownloadTool_win_curl(self)
         for find_tool_var in \
-                list(var_stack.resolve_var_to_list_if_exists("CMD_TOOLS_TO_FIND")) +\
-                list(var_stack.resolve_var_to_list_if_exists("CMD_TOOLS_TO_FIND_INTERNAL")):
+                list(var_stack.ResolveVarToList("CMD_TOOLS_TO_FIND", default=[])) +\
+                list(var_stack.ResolveVarToList("CMD_TOOLS_TO_FIND_INTERNAL", default=[])):
             self.find_cmd_tool(find_tool_var)
 
     def get_install_instructions_prefix(self):
@@ -399,7 +399,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         elif tool_name == "xcopy":
             self.copy_tool = CopyTool_win_xcopy(self)
         else:
-            raise ValueError(tool_name, "is not a valid copy tool for", var_stack.resolve("$(TARGET_OS)"))
+            raise ValueError(tool_name, "is not a valid copy tool for", var_stack.ResolveVarToStr("TARGET_OS"))
 
     def copy_file_to_file(self, src_file, trg_file, hard_link=False):
         norm_src_file = utils.quoteme_double(os.path.normpath(src_file))
@@ -509,9 +509,9 @@ class DownloadTool_win_curl(DownloadToolBase):
         """ Create command to download a single file.
             src_url is expected to be already escaped (spaces as %20...)
         """
-        connect_time_out = var_stack.resolve("$(CURL_CONNECT_TIMEOUT)", raise_on_fail=True)
-        max_time = var_stack.resolve("$(CURL_MAX_TIME)", raise_on_fail=True)
-        retries = var_stack.resolve("$(CURL_RETRIES)", raise_on_fail=True)
+        connect_time_out = var_stack.ResolveVarToStr("CURL_CONNECT_TIMEOUT")
+        max_time = var_stack.ResolveVarToStr("CURL_MAX_TIME")
+        retries = var_stack.ResolveVarToStr("CURL_RETRIES")
         download_command_parts = list()
         download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
         download_command_parts.append("--insecure")
@@ -538,9 +538,9 @@ class DownloadTool_win_curl(DownloadToolBase):
 
         num_urls_to_download = len(self.urls_to_download)
         if num_urls_to_download > 0:
-            connect_time_out = var_stack.resolve("$(CURL_CONNECT_TIMEOUT)", raise_on_fail=True)
-            max_time = var_stack.resolve("$(CURL_MAX_TIME)", raise_on_fail=True)
-            retries = var_stack.resolve("$(CURL_RETRIES)", raise_on_fail=True)
+            connect_time_out = var_stack.ResolveVarToStr("CURL_CONNECT_TIMEOUT")
+            max_time = var_stack.ResolveVarToStr("CURL_MAX_TIME")
+            retries = var_stack.ResolveVarToStr("CURL_RETRIES")
             actual_num_files = int(max(0, min(num_urls_to_download, num_files)))
 
             num_digits = len(str(actual_num_files))
@@ -586,7 +586,7 @@ class DownloadTool_win_curl(DownloadToolBase):
             for config_file in config_files:
                 # curl on windows has problem with path to config files that have unicode characters
                 normalized_path = win32api.GetShortPathName(config_file)
-                wfd.write(var_stack.resolve('''"$(DOWNLOAD_TOOL_PATH)" --config "{}"\n'''.format(normalized_path), raise_on_fail=True))
+                wfd.write(var_stack.ResolveStrToStr('''"$(DOWNLOAD_TOOL_PATH)" --config "{}"\n'''.format(normalized_path)))
 
         download_command = " ".join((self.platform_helper.run_instl(),  "parallel-run", "--in", utils.quoteme_double(parallel_run_config_file_path)))
         return download_command, self.platform_helper.exit_if_error()

@@ -1,8 +1,10 @@
-26/6/2016 1.2.2.1
+???? 1.2.3.0
 
     user visible changes client:
     * New command resolve, to resolve $() variables in arbitrary text
     * New variable, PRINT_COMMAND_TIME, to control if a command displays time information when it's done. Default set to yes.
+    * New document tag for yamls: "!define_if_not_exist" will read the values only if they do not exists, implemented in ConfigVarYamlReader.read_defines_if_not_exist
+    * resolve command accepts --config-file, --in, --out instead of read/write to stdin/stdout. SO it can change the file inplace
 
     programmer visible changes:
     * Functions bool_int_to_str, str_to_bool_int moved to utils
@@ -10,6 +12,9 @@
         stopped using the function path_as_string as it had encoding issues,
         replaced readPlistFromString with readPlistFromBytes even though readPlistFromBytes is deprecated.
     * file configVar.py renamed cnfigVarOne.py to avoid conflict with the module who's name is also configVar
+    * configVarList.read_environment - new parameter 'regex' to filter the environment variables being read
+    * InstlInstanceBase.read_include_node now accepts *args, **kwargs
+    * InstlInstanceBase.write_batch_file now creates the directory for the batch file
     * New base class for reading yaml files: aYaml.YamlReader
     * New class ConfigVarYamlReader inherits from aYaml.YamlReader
 

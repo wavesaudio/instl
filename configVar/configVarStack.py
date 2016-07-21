@@ -11,7 +11,7 @@
 """
 
 import os
-import sys
+from contextlib import contextmanager
 
 #sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 
@@ -116,7 +116,7 @@ class ConfigVarStack(configVarList.ConfigVarList):
                 if include_comments:
                     theComment = self[var_name].description
                 if resolve:
-                    var_value = self.resolve_var(var_name)
+                    var_value = self.ResolveVarToList(var_name)
                 else:
                     var_value = self.unresolved_var_to_list(var_name)
                 if len(var_value) == 1:
@@ -137,6 +137,11 @@ class ConfigVarStack(configVarList.ConfigVarList):
         retVal = self._ConfigVarList_objs.pop()
         return retVal
 
+    @contextmanager
+    def push_scope_context(self, scope=None):
+        self.push_scope(scope)
+        yield self
+        self.pop_scope()
 
 # This is the global variable list serving all parts of instl
 var_stack = ConfigVarStack()

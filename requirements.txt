@@ -4,3 +4,4 @@ colorama>=0.3.7
 rsa>=3.4.2
 boto>=2.40.0
 networkx>=1.11
+pip>=8.1.2

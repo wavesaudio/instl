@@ -286,9 +286,9 @@ class DownloadTool_mac_curl(DownloadToolBase):
         """ Create command to download a single file.
             src_url is expected to be already escaped (spaces as %20...)
         """
-        connect_time_out = var_stack.resolve("$(CURL_CONNECT_TIMEOUT)", raise_on_fail=True)
-        max_time = var_stack.resolve("$(CURL_MAX_TIME)", raise_on_fail=True)
-        retries = var_stack.resolve("$(CURL_RETRIES)", raise_on_fail=True)
+        connect_time_out = var_stack.ResolveVarToStr("CURL_CONNECT_TIMEOUT")
+        max_time = var_stack.ResolveVarToStr("CURL_MAX_TIME")
+        retries = var_stack.ResolveVarToStr("CURL_RETRIES")
         download_command_parts = list()
         download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
         download_command_parts.append("--insecure")
@@ -315,9 +315,9 @@ class DownloadTool_mac_curl(DownloadToolBase):
 
         num_urls_to_download = len(self.urls_to_download)
         if num_urls_to_download > 0:
-            connect_time_out = var_stack.resolve("$(CURL_CONNECT_TIMEOUT)", raise_on_fail=True)
-            max_time = var_stack.resolve("$(CURL_MAX_TIME)", raise_on_fail=True)
-            retries = var_stack.resolve("$(CURL_RETRIES)", raise_on_fail=True)
+            connect_time_out = var_stack.ResolveVarToStr("CURL_CONNECT_TIMEOUT")
+            max_time = var_stack.ResolveVarToStr("CURL_MAX_TIME")
+            retries = var_stack.ResolveVarToStr("CURL_RETRIES")
 
             actual_num_files = max(0, min(num_urls_to_download, num_files))
             list_of_lines_for_files = [list() for i in range(actual_num_files)]
@@ -361,7 +361,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
         with open(parallel_run_config_file_path, "w", encoding='utf-8') as wfd:
             utils.make_open_file_read_write_for_all(wfd)
             for config_file in config_files:
-                wfd.write(var_stack.resolve('"$(DOWNLOAD_TOOL_PATH)" --config "{config_file}"\n'.format(**locals()), raise_on_fail=True))
+                wfd.write(var_stack.ResolveStrToStr('"$(DOWNLOAD_TOOL_PATH)" --config "{config_file}"\n'.format(**locals())))
 
         download_command = " ".join( (self.platform_helper.run_instl(),  "parallel-run", "--in", utils.quoteme_double(parallel_run_config_file_path)) )
         return download_command
