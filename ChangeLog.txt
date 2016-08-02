@@ -1,10 +1,11 @@
-???? 1.2.3.0
+21/7/2016 1.2.3.0
 
     user visible changes client:
     * New command resolve, to resolve $() variables in arbitrary text
     * New variable, PRINT_COMMAND_TIME, to control if a command displays time information when it's done. Default set to yes.
     * New document tag for yamls: "!define_if_not_exist" will read the values only if they do not exists, implemented in ConfigVarYamlReader.read_defines_if_not_exist
     * resolve command accepts --config-file, --in, --out instead of read/write to stdin/stdout. SO it can change the file inplace
+    * Progress messages added to doit
 
     programmer visible changes:
     * Functions bool_int_to_str, str_to_bool_int moved to utils
@@ -17,6 +18,10 @@
     * InstlInstanceBase.write_batch_file now creates the directory for the batch file
     * New base class for reading yaml files: aYaml.YamlReader
     * New class ConfigVarYamlReader inherits from aYaml.YamlReader
+    * New parser for variables resolution. Old function were renamed *_deprecated. New functions for resolving: ResolveVarToStr, ResolveVarToList, etc    * _DIR & _PATH variables are resolved as path instead of read as such. This will allow for better resolution becuase more information is known.
+    * BatchAccumulator better handling of list of lines and single lines
+    * New function: utils.is_iterable_but_not_str
+    * Removed code to indent batch files - it was not working anyway.
 
 2/6/2016 1.2.2.0
 

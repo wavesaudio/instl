@@ -206,7 +206,7 @@ class InstlGui(InstlInstanceBase):
 
         command_line = " ".join(self.create_client_command_line())
 
-        self.client_command_line_var.set(ResolveStrToStr.resolve(command_line))
+        self.client_command_line_var.set(var_stack.ResolveStrToStr.resolve(command_line))
 
     def read_admin_config_file(self):
         config_path = var_stack.ResolveVarToStr("ADMIN_GUI_CONFIG_FILE", default="")
