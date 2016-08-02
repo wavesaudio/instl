@@ -637,13 +637,20 @@ class SVNTable(object):
         ancestors = list()
         for file_item in required_file_items:
             ancestors.extend(file_item.get_ancestry()[:-1])
-        ancestors = set(ancestors)
-        if len(ancestors) == 0:
-            print("no ancestors for")
-        update_statement = update(SVNRow)\
-                .where(SVNRow.path.in_(ancestors))\
-                .values(required=True)
-        self.session.execute(update_statement)
+        ancestors = sorted(list(set(ancestors)))
+        # sqllite UPDATE cannot accept more than SQLITE_LIMIT_VARIABLE_NUMBER variables
+        # SQLITE_LIMIT_VARIABLE_NUMBER == 999, but I found no way to get this number dynamically
+        # following code does the updates in chunks:
+        chunk_size = 512
+        slice_begin = 0
+        slice_end = 0
+        while slice_end < len(ancestors):
+            slice_end = min(slice_end + chunk_size, len(ancestors))
+            update_statement = update(SVNRow)\
+                    .where(SVNRow.path.in_(ancestors[slice_begin:slice_end]))\
+                    .values(required=True)
+            self.session.execute(update_statement)
+            slice_begin += chunk_size
 
     def mark_need_download(self, local_sync_dir):
         ancestors = list()
@@ -653,12 +660,20 @@ class SVNTable(object):
             if utils.need_to_download_file(local_path, file_item.checksum):
                 file_item.need_download = True
                 ancestors.extend(file_item.get_ancestry()[:-1])
-        ancestors = set(ancestors)
-        if len(ancestors) > 0:
+        ancestors = sorted(list(set(ancestors)))
+        # sqllite UPDATE cannot accept more than SQLITE_LIMIT_VARIABLE_NUMBER variables
+        # SQLITE_LIMIT_VARIABLE_NUMBER == 999, but I found no way to get this number dynamically
+        # following code does the updates in chunks:
+        chunk_size = 512
+        slice_begin = 0
+        slice_end = 0
+        while slice_end < len(ancestors):
+            slice_end = min(slice_end + chunk_size, len(ancestors))
             update_statement = update(SVNRow)\
-                    .where(SVNRow.path.in_(ancestors))\
+                    .where(SVNRow.path.in_(ancestors[slice_begin:slice_end]))\
                     .values(need_download=True)
             self.session.execute(update_statement)
+            slice_begin += chunk_size
 
     def mark_required_for_revision(self, required_revision):
         """ mark all files and dirs as required if they are of specific revision

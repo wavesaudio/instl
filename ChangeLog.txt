@@ -1,4 +1,4 @@
-21/7/2016 1.2.3.0
+???? 1.2.3.0
 
     user visible changes client:
     * New command resolve, to resolve $() variables in arbitrary text
@@ -22,6 +22,7 @@
     * BatchAccumulator better handling of list of lines and single lines
     * New function: utils.is_iterable_but_not_str
     * Removed code to indent batch files - it was not working anyway.
+    * sqlalchemy Update cannot accept more than 999 variables, so it is now called in chunks of 512
 
 2/6/2016 1.2.2.0
 
