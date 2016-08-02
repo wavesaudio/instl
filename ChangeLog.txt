@@ -17,6 +17,7 @@
     * InstlInstanceBase.write_batch_file now creates the directory for the batch file
     * New base class for reading yaml files: aYaml.YamlReader
     * New class ConfigVarYamlReader inherits from aYaml.YamlReader
+    * sqlalchemy Update cannot accept more than 999 variables, so it is now called in chunks of 512
 
 2/6/2016 1.2.2.0
 
