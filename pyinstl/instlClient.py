@@ -280,10 +280,11 @@ class InstlClient(InstlInstanceBase):
                                                                          "$(INSTL_HISTORY_PATH)")
 
     def read_repo_type_defaults(self):
-        repo_type_defaults_file_path = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults",
+        if "REPO_TYPE" in var_stack:  # some commands do not need to have REPO_TYPE
+            repo_type_defaults_file_path = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults",
                                                     var_stack.ResolveStrToStr("$(REPO_TYPE).yaml"))
-        if os.path.isfile(repo_type_defaults_file_path):
-            self.read_yaml_file(repo_type_defaults_file_path)
+            if os.path.isfile(repo_type_defaults_file_path):
+                self.read_yaml_file(repo_type_defaults_file_path)
 
     def init_default_client_vars(self):
         if "SYNC_BASE_URL" in var_stack:
@@ -302,7 +303,7 @@ class InstlClient(InstlInstanceBase):
             var_stack.set_var("TARGET_OS_SECOND_NAME").append(second_name)
 
         self.read_repo_type_defaults()
-        if var_stack.ResolveVarToStr("REPO_TYPE") == "P4":
+        if var_stack.ResolveVarToStr("REPO_TYPE", default="URL") == "P4":
             if "P4_SYNC_DIR" not in var_stack:
                 if "SYNC_BASE_URL" in var_stack:
                     p4_sync_dir = utils.P4GetPathFromDepotPath(var_stack.ResolveVarToStr("SYNC_BASE_URL"))
