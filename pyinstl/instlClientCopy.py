@@ -306,6 +306,10 @@ class InstlClientCopy(InstlClient):
                     self.batch_accum += self.platform_helper.unlock(source_item.name_without_wtar_extension(), recursive=True)
                     self.batch_accum += self.platform_helper.unwtar_something(source_item.path_starting_from_dir(source_path_dir), no_artifacts=True)
                     self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
+            if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
+                self.batch_accum += self.platform_helper.chmod("-R -f a+rwX", source_path_name)
+                self.batch_accum += self.platform_helper.echo(
+                    "chmod {} {}".format("-R -f a+rwX", source_path_name))
         else:
             # it might be a dir that was wtarred
             self.create_copy_instructions_for_file(source_path, name_for_progress_message)

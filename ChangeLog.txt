@@ -1,6 +1,7 @@
-9/8/2016 1.2.3.1
+15/8/2016 1.2.3.1
     user visible changes client:
     * Some check for value of REPO_REV were redundant and failed commands such as remove.
+    * chmod -R -f a+xwX after copy dir to dir on Mac. Should solve permission problems when in stalling on Mac form installer created on Windows.
 
     programmer visible changes:
     * Added packaging.requirements to hiddenimports in instl.spec to overcome compilation issue on Windows
