@@ -455,6 +455,9 @@ def InstlClientFactory(initial_vars, command):
     elif command == "uninstall":
         from .instlClientUninstall import InstlClientUninstall
         retVal = InstlClientUninstall(initial_vars)
+    elif command in ('report-installed', 'report-update'):
+        from .instlClientReport import InstlClientReport
+        retVal = InstlClientReport(initial_vars)
     elif command == "synccopy":
         from .instlClientSync import InstlClientSync
         from .instlClientCopy import InstlClientCopy

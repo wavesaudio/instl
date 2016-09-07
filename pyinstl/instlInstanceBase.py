@@ -415,7 +415,8 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             aYaml.writeAsYaml(self, fd)
 
     def read_index(self, a_node, *args, **kwargs):
-        self.install_definitions_index.update(read_index_from_yaml(a_node))
+        index_dict = kwargs.get('index_dict', self.install_definitions_index)
+        index_dict.update(read_index_from_yaml(a_node))
 
     def find_cycles(self):
         if not self.install_definitions_index:
