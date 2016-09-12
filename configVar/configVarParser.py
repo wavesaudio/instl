@@ -4,6 +4,7 @@ import re
 import string
 from collections import namedtuple
 
+
 def params_to_dict(params_text):
     retVal = {}
     if params_text:
@@ -14,15 +15,6 @@ def params_to_dict(params_text):
                 retVal[single_var_assign[0]] = single_var_assign[1]
     return retVal
 
-
-(LITERAL_STATE,
- VAR_REF_STARTED_STATE,
- VAR_NAME_STATE,
- PARAMS_STATE,
- ARRAY_STATE,
- VAR_NAME_ENDED_STATE,
- PARAMS_ENDED_STATE,
- ARRAY_ENDED_STATE) = range(8)
 
 # return value for a partial parse. example strings to parse: "blah $(ABC<a, b, c=7, d=8>)" or "blah $(ABC[5])"
 ParseRetVal = namedtuple('ParseRetVal',
@@ -59,7 +51,6 @@ class VarParseImpContext(object):
             self.array_index_str,
             self.array_index_int) = self.reset_yield_value
         self.parenthesis_balance = 0
-        self.state = LITERAL_STATE
 
     def reset_return_tuple(self):
         (self.literal_text,
@@ -80,17 +71,6 @@ class VarParseImpContext(object):
                          self.key_word_params,
                          self.array_index_str,
                          self.array_index_int)
-
-    def discard_variable(self, c):
-        new_literal_text = self.literal_text + self.variable_str
-        self.reset_return_tuple()
-        self.literal_text = new_literal_text
-        self.parenthesis_balance = 0
-        self.state = LITERAL_STATE
-        if c == '$':
-            self.literal_text = self.literal_text[:-1]
-            self.variable_str = "$"
-            self.state = VAR_REF_STARTED_STATE
 
 
 vars_split_level_1_re = re.compile("\s*,\s*", re.X)
@@ -121,112 +101,156 @@ def var_parse_imp(f_string):
                 else:
                     if single_param[0]:
                         cont.positional_params.append(single_param[0])
+    
+    def discard_variable(c, cont):
+        next_state = literal_state
+        new_literal_text = cont.literal_text + cont.variable_str
+        cont.reset_return_tuple()
+        cont.literal_text = new_literal_text
+        cont.parenthesis_balance = 0
+        if c == '$':
+            cont.literal_text = cont.literal_text[:-1]
+            cont.variable_str = "$"
+            next_state = var_ref_started_state
+        return next_state
+
+    def literal_state(c, cont):
+        next_state = literal_state
+        if c == '$':
+            cont.variable_str = "$"
+            next_state = var_ref_started_state
+        else:
+            cont.literal_text += c
+        return next_state, None
+
+    def var_name_state(c, cont):
+        next_state = var_name_state
+        yield_val = None
+        cont.variable_str += c
+        if c in cont.variable_name_acceptable_characters:
+            cont.variable_name += c
+        elif c == '(':
+            cont.parenthesis_balance += 1
+            cont.variable_name += c
+        elif c == ')':
+            cont.parenthesis_balance -= 1
+            if cont.parenthesis_balance == 0:
+                yield_val = cont.get_return_tuple()
+                cont.reset_return_tuple()
+                next_state = literal_state
+            else:
+                cont.variable_name += c
+        elif c == '<':
+            cont.variable_params_str = ""
+            next_state = params_state
+        elif c == '[':
+            cont.array_index_str = ""
+            next_state = array_state
+        elif c in string.whitespace:
+            next_state = var_name_ended_state
+        else:  # unrecognised character so default to literal
+            next_state = discard_variable(c, cont)
+        return next_state, yield_val
+
+    def var_ref_started_state(c, cont):  # '$' was found
+        next_state = None
+        cont.variable_str += c
+        if c == '(':
+            cont.variable_name = ""
+            cont.parenthesis_balance += 1
+            next_state = var_name_state
+        else:  # not an opening parenthesis after $, go back to cont.literal_text
+            next_state = discard_variable(c, cont)
+        return next_state, None
+
+    def var_name_ended_state(c, cont):
+        next_state = var_name_ended_state
+        yield_val = None
+        cont.variable_str += c
+        if c == ')':
+            cont.parenthesis_balance -= 1
+            yield_val = cont.get_return_tuple()
+            cont.reset_return_tuple()
+            next_state = literal_state
+        elif c == '<':
+            cont.variable_params_str = ""
+            next_state = params_state
+        elif c in string.whitespace:
+            pass
+        else: # unrecognised character so default to literal
+            next_state = discard_variable(c, cont)
+        return next_state, yield_val
+
+    def params_state(c, cont):
+        next_state = params_state
+        cont.variable_str += c
+        if c == '>':
+            next_state = params_ended_state
+        else:
+            cont.variable_params_str += c
+        return next_state, None
+
+    def array_state(c, cont):
+        next_state = array_state
+        cont.variable_str += c
+        if c == ']':
+            next_state = array_ended_state
+        else:
+            cont.array_index_str += c
+        return next_state, None
+
+    # params_ended_state & array_ended_state are used to track whitespace after > or ] and before the closing )
+    def params_ended_state(c, cont):
+        next_state = params_ended_state
+        yield_val = None
+        cont.variable_str += c
+        if c == ')':
+            cont.parenthesis_balance -= 1
+            parse_var_params(cont)
+            yield_val = cont.get_return_tuple()
+            cont.reset_return_tuple()
+            next_state = literal_state
+        elif c in string.whitespace:
+            pass
+        else:  # unrecognised character so default to literal
+            next_state = discard_variable(c, cont)
+        return next_state, yield_val
+
+    def array_ended_state(c, cont):
+        next_state = array_ended_state
+        yield_val = None
+        cont.variable_str += c
+        if c == ')':
+            cont.parenthesis_balance -= 1
+            try:
+                cont.array_index_int = int(cont.array_index_str)
+                yield_val = cont.get_return_tuple()
+                cont.reset_return_tuple()
+                next_state = literal_state
+            except ValueError:
+                next_state = discard_variable(c, cont)
+        elif c in string.whitespace:
+            pass
+        else:  # unrecognised character so default to literal
+            next_state = discard_variable(c, cont)
+        return next_state, yield_val
 
     cont = VarParseImpContext()
+    next_state_func = literal_state
     for c in f_string:
-        if cont.state == LITERAL_STATE:
-            if c == '$':
-                cont.variable_str = "$"
-                cont.state = VAR_REF_STARTED_STATE
-            else:
-                cont.literal_text += c
-        elif cont.state == VAR_NAME_STATE:
-            cont.variable_str += c
-            if c in cont.variable_name_acceptable_characters:
-                cont.variable_name += c
-            elif c == '(':
-                cont.parenthesis_balance += 1
-                cont.variable_name += c
-            elif c == ')':
-                cont.parenthesis_balance -= 1
-                if cont.parenthesis_balance == 0:
-                    yield cont.get_return_tuple()
-                    cont.reset_return_tuple()
-                    cont.state = LITERAL_STATE
-                else:
-                    cont.variable_name += c
-            elif c == '<':
-                cont.variable_params_str = ""
-                cont.state = PARAMS_STATE
-            elif c == '[':
-                cont.array_index_str = ""
-                cont.state = ARRAY_STATE
-            elif c in string.whitespace:
-                cont.state = VAR_NAME_ENDED_STATE
-            else:  # unrecognised character so default to literal
-                cont.discard_variable(c)
-        elif cont.state == VAR_REF_STARTED_STATE:  # '$' was found
-            cont.variable_str += c
-            if c == '(':
-                cont.variable_name = ""
-                cont.parenthesis_balance += 1
-                cont.state = VAR_NAME_STATE
-            else:  # not an opening parenthesis after $, go back to cont.literal_text
-                cont.discard_variable(c)
-        elif cont.state == VAR_NAME_ENDED_STATE:
-            cont.variable_str += c
-            if c == ')':
-                cont.parenthesis_balance -= 1
-                yield cont.get_return_tuple()
-                cont.reset_return_tuple()
-                cont.state = LITERAL_STATE
-            elif c == '<':
-                cont.variable_params_str = ""
-                cont.state = PARAMS_STATE
-            elif c in string.whitespace:
-                pass
-            else: # unrecognised character so default to literal
-                cont.discard_variable(c)
-        elif cont.state == PARAMS_STATE:
-            cont.variable_str += c
-            if c == '>':
-                cont.state = PARAMS_ENDED_STATE
-            else:
-                cont.variable_params_str += c
-        elif cont.state == ARRAY_STATE:
-            cont.variable_str += c
-            if c == ']':
-                cont.state = ARRAY_ENDED_STATE
-            else:
-                cont.array_index_str += c
-        # PARAMS_ENDED_STATE & ARRAY_ENDED_STATE are used to track whitespace after > or ] and before the closing )
-        elif cont.state == PARAMS_ENDED_STATE:
-            cont.variable_str += c
-            if c == ')':
-                cont.parenthesis_balance -= 1
-                parse_var_params(cont)
-                yield cont.get_return_tuple()
-                cont.reset_return_tuple()
-                cont.state = LITERAL_STATE
-            elif c in string.whitespace:
-                pass
-            else:  # unrecognised character so default to literal
-                cont.discard_variable(c)
-        elif cont.state == ARRAY_ENDED_STATE:
-            cont.variable_str += c
-            if c == ')':
-                cont.parenthesis_balance -= 1
-                try:
-                    cont.array_index_int = int(cont.array_index_str)
-                    yield cont.get_return_tuple()
-                    cont.reset_return_tuple()
-                    cont.state = LITERAL_STATE
-                except ValueError:
-                    cont.discard_variable(c)
-            elif c in string.whitespace:
-                pass
-            else:  # unrecognised character so default to literal
-                cont.discard_variable(c)
+        next_state_func, yield_val = next_state_func(c, cont)
+        if yield_val is not None:
+            yield yield_val
 
     # Any of the following states means that parsing stopped while in variable
     # and therefor the whole variable string becomes part of the literal text
-    if cont.state in (VAR_REF_STARTED_STATE, VAR_NAME_STATE, PARAMS_STATE, ARRAY_STATE,
-                      VAR_NAME_ENDED_STATE, PARAMS_ENDED_STATE, ARRAY_ENDED_STATE):
+    if next_state_func in (var_ref_started_state, var_name_state, params_state, array_state,
+                      var_name_ended_state, params_ended_state, array_ended_state):
         cont.literal_text += cont.variable_str
         cont.variable_name = None
-        cont.state = LITERAL_STATE         # this will force a final yield
+        next_state_func = literal_state         # this will force a final yield
 
-    if cont.state == LITERAL_STATE:
+    if next_state_func == literal_state:
         yield cont.get_return_tuple()
     else:
         raise ValueError("failed to parse "+f_string)
