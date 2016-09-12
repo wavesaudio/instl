@@ -17,19 +17,28 @@ class InstlClientReport(InstlClient):
 
     def do_report_installed(self):
         self.current_index_yaml_path = var_stack.ResolveVarToStr('CURRENT_INDEX_YAML')
-        if os.path.isfile(self.current_index_yaml_path):
+        self.current_require_yaml_path = var_stack.ResolveVarToStr('CURRENT_REQUIRE_YAML')
+
+        if os.path.isfile(self.current_index_yaml_path) and os.path.isfile(self.current_require_yaml_path):
             self.current_index = dict()
             self.read_yaml_file(self.current_index_yaml_path, index_dict=self.current_index)
-            guids_to_ignore = var_stack.ResolveVarToList("IGNORED_GUIDS", [])
+            self.resolve_index_inheritance(index_dict=self.current_index)
 
-            for iid in sorted(self.current_index):
-                guids = []
-                for guid in self.current_index[iid].guids:
-                    if guid not in guids_to_ignore:
-                        guids.append(guid)
-                if guids or "REPORT_ONLY_ITEMS_WITH_GUIDS" not in var_stack:
-                    line = ", ".join((iid, self.current_index[iid].name, *guids, self.current_index[iid].version))
-                    print(line)
+            self.read_yaml_file(self.current_require_yaml_path, req_reader=self.installState.req_man)
+            root_items = self.installState.req_man.get_previously_installed_root_items()
+            guids_to_ignore = set(var_stack.ResolveVarToList("IGNORED_GUIDS", []))
+            report_only_items_with_guids = "REPORT_ONLY_ITEMS_WITH_GUIDS" in var_stack
+
+            for iid in sorted(self. current_index):
+                with self.current_index[iid].push_var_stack_scope():
+                    guid_list = list(set(var_stack.get_configVar_obj('iid_guid')).difference(guids_to_ignore))
+                    if len(guid_list) or not report_only_items_with_guids:
+                        var_stack.set_var('iid_guid').extend(guid_list)
+                        mark = "!" if iid in root_items else "?"
+                        line = var_stack.ResolveVarToStr("REPORT_INSTALLED_FORMAT")
+                        line += mark
+                        print(line)
+
         else:
             self.report_no_current_installation()
 

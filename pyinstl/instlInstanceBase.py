@@ -493,9 +493,11 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             print("Could not load installItemGraph")
             return None
 
-    def resolve_index_inheritance(self):
-        for install_def in list(self.install_definitions_index.values()):
-            install_def.resolve_inheritance(self.install_definitions_index)
+    def resolve_index_inheritance(self, index_dict=None):
+        if index_dict is None:
+            index_dict = self.install_definitions_index
+        for iid, install_def in sorted(index_dict.items()):
+            install_def.resolve_inheritance(index_dict)
 
 
     def read_info_map_from_file(self, info_map_from_file_path):

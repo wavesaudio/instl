@@ -55,3 +55,6 @@ COPY_SOURCES_ROOT_DIR: $(LOCAL_REPO_SYNC_DIR)
 
 # if require.yaml exists REQUIRE_REPO_REV will be overriden
 REQUIRE_REPO_REV: 0
+
+# default version for iids that do not have explicity version
+DEFAULT_IID_VERSION: 0.0.0
