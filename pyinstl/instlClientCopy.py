@@ -59,7 +59,7 @@ class InstlClientCopy(InstlClient):
 
     def create_copy_instructions(self):
         self.create_sync_folder_manifest_command("before-copy")
-        #self.write_copy_debug_info()
+        # self.write_copy_debug_info()
         # If we got here while in synccopy command, there is no need to read the info map again.
         # If we got here while in copy command, read HAVE_INFO_MAP_FOR_COPY which defaults to HAVE_INFO_MAP_PATH.
         # Copy might be called after the sync batch file was created
@@ -120,7 +120,7 @@ class InstlClientCopy(InstlClient):
                             self.batch_accum += self.platform_helper.remark("--- Begin source {0}".format(source[0]))
                             num_items_copied_to_folder += 1
                             self.batch_accum += var_stack.ResolveVarToList("iid_action_list_pre_copy_item", default=[])
-                            self.create_copy_instructions_for_source(source, installi.name)
+                            self.create_copy_instructions_for_source(source, installi.name_and_version)
                             self.batch_accum += var_stack.ResolveVarToList("iid_action_list_post_copy_item", default=[])
                             self.batch_accum += self.platform_helper.remark("--- End source {0}".format(source[0]))
                     self.batch_accum += self.platform_helper.remark("-- End iid {0}".format(installi.iid))

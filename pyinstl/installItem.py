@@ -105,7 +105,7 @@ class InstallItem(object):
                  '__install_for_os_stack', '__items', '__resolved_inherit',
                  '__var_list', '__user_data', '__last_require_repo_rev')
     os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
-    allowed_item_keys = ('name', 'guid','install_sources', 'install_folders', 'inherit', 'depends', 'actions', 'remark')
+    allowed_item_keys = ('name', 'guid','install_sources', 'install_folders', 'inherit', 'depends', 'actions', 'remark', 'version')
     allowed_top_level_keys = os_names[1:] + allowed_item_keys
     action_types = ('pre_copy', 'pre_copy_to_folder', 'pre_copy_item',
                     'post_copy_item', 'post_copy_to_folder', 'post_copy',
@@ -220,6 +220,8 @@ class InstallItem(object):
             self.add_depends(*[source.value for source in my_node['depends']])
         if 'actions' in my_node:
             self.read_actions(my_node['actions'])
+        if 'version' in my_node:
+            self.add_version(my_node['version'].value)
         for os_ in InstallItem.os_names[1:]:
             if os_ in my_node:
                 with self.set_for_specific_os(os_):
@@ -236,10 +238,12 @@ class InstallItem(object):
             self.__var_list.set_var("iid_iid").append(self.__iid)
             if self.__name:
                 self.__var_list.set_var("iid_name").append(self.__name)
-            for a_guid in self.__guids:
-                self.__var_list.get_configVar_obj("iid_guid").append(a_guid)
+            self.__var_list.get_configVar_obj("iid_guid").extend(self.__guids)
             if self.__remark:
                 self.__var_list.set_var("iid_remark").append(self.__remark)
+            the_version = self.version
+            if the_version:
+                self.__var_list.set_var("iid_version").append(the_version)
             self.__var_list.set_var("iid_inherit").extend(self.__inherit_from)
             self.__var_list.set_var("iid_folder_list").extend(self._folder_list())
             self.__var_list.set_var("iid_depend_list").extend(self._depend_list())
@@ -337,6 +341,9 @@ class InstallItem(object):
         for action_type, new_actions in action_nodes.items():
             self.add_actions(action_type, *[action.value for action in new_actions])
 
+    def add_version(self, in_version):
+        self.__add_items_to_default_os_by_category('version', in_version)
+
     def _action_list(self, action_type):
         if action_type not in InstallItem.action_types:
             raise KeyError("actions type must be one of: " + str(InstallItem.action_types) + " not " + action_type)
@@ -371,8 +378,10 @@ class InstallItem(object):
 
     def repr_for_yaml_items(self, for_which_os):
         retVal = None
+        retVal = OrderedDict()
         if self.__items[for_which_os]:
-            retVal = OrderedDict()
+            if self.__items[for_which_os]['version']:
+                retVal['version'] = self.__items[for_which_os]['version']
             if self.__items[for_which_os]['install_sources']:
                 source_list = list()
                 for source in self.__items[for_which_os]['install_sources']:
@@ -466,6 +475,21 @@ class InstallItem(object):
     @last_require_repo_rev.setter
     def last_require_repo_rev(self, new_last_require_repo_rev):
         self.__last_require_repo_rev = int(new_last_require_repo_rev)
+
+    @property
+    def version(self):
+        # next(iter([], default) is a trick to get the first item in a list or a default if the list is empty
+        the_version = next(iter(self.__get_item_list_for_default_oses_by_category('version')), "$(DEFAULT_IID_VERSION)")
+        return the_version
+
+    @property
+    def name_and_version(self):
+        retVal = self.name
+        the_version = self.version
+        if the_version:
+            retVal += " v"
+            retVal += the_version
+        return retVal
 
 
 def guid_list(items_map):

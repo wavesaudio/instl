@@ -298,13 +298,12 @@ class ConfigVarList(object):
         resolved_parts = list()
         num_literals = 0
         num_variables = 0
-        for literal_text, variable_name, variable_params_str, original_variable_str in configVarParser.var_parse_imp(str_to_resolve):
-            if literal_text:
-                resolved_parts.append(literal_text)
+        for parser_retVal in configVarParser.var_parse_imp(str_to_resolve):
+            if parser_retVal.literal_text:
+                resolved_parts.append(parser_retVal.literal_text)
                 num_literals += 1
-            if variable_name:
-                positional_params, key_word_params = configVarParser.parse_var_params(variable_params_str)
-                resolved_parts.extend(self.ResolveVarWithParamsToList(variable_name, positional_params, key_word_params, original_variable_str))
+            if parser_retVal.variable_name:
+                resolved_parts.extend(self.ResolveVarWithParamsToList(parser_retVal))
                 num_variables += 1
         return resolved_parts, num_literals, num_variables
 
@@ -356,15 +355,25 @@ class ConfigVarList(object):
                 raise ValueError("Variable {} was not found and default given {} is not a list".format(in_var, default))
         return retVal
 
-    def ResolveVarWithParamsToList(self, in_var, positional_params, key_word_params, original_variable_str):
+    def ResolveVarWithParamsToList(self, parser_retVal):
         with self.push_scope_context():
             evaluated_params = {}
-            for i_param in range(len(positional_params)):
-                # create __1__ positional params
-                pos_param_name = "".join(("__", in_var, "_", str(i_param+1), "__"))
-                evaluated_params[pos_param_name] = positional_params[i_param]
-            evaluated_params.update(key_word_params)
+            if parser_retVal.positional_params:
+                for i_param in range(len(parser_retVal.positional_params)):
+                    # create __1__ positional params
+                    pos_param_name = "".join(("__", parser_retVal.variable_name, "_", str(i_param+1), "__"))
+                    evaluated_params[pos_param_name] = parser_retVal.positional_params[i_param]
+            if parser_retVal.key_word_params:
+                evaluated_params.update(parser_retVal.key_word_params)
             self.update(evaluated_params)
-            retVal = self.ResolveVarToList(in_var, [original_variable_str])
-        return retVal
+            retVal = self.ResolveVarToList(parser_retVal.variable_name, [parser_retVal.variable_str])
+            array_range = (0, None)
+            if parser_retVal.array_index_int is not None:
+                if parser_retVal.array_index_int < 0:
+                    # convert negative indexes to positive because a[-1:0] returns an empty list
+                    normalized_index = len(retVal) + parser_retVal.array_index_int
+                    array_range = (normalized_index, normalized_index+1)
+                else:
+                    array_range = (parser_retVal.array_index_int, parser_retVal.array_index_int + 1)
+        return retVal[array_range[0]:array_range[1]]
 

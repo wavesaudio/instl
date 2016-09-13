@@ -257,7 +257,9 @@ class InstlClient(InstlInstanceBase):
         do_command_func = getattr(self, "do_" + self.fixed_command)
         do_command_func()
         self.create_instl_history_file()
+        self.command_output()
 
+    def command_output(self):
         self.create_variables_assignment()
         self.write_batch_file()
         if "__RUN_BATCH__" in var_stack:
@@ -455,6 +457,9 @@ def InstlClientFactory(initial_vars, command):
     elif command == "uninstall":
         from .instlClientUninstall import InstlClientUninstall
         retVal = InstlClientUninstall(initial_vars)
+    elif command in ('report-installed', 'report-update'):
+        from .instlClientReport import InstlClientReport
+        retVal = InstlClientReport(initial_vars)
     elif command == "synccopy":
         from .instlClientSync import InstlClientSync
         from .instlClientCopy import InstlClientCopy
