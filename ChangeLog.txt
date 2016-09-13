@@ -1,3 +1,12 @@
+13/9/2016 1.3.0.0
+
+    user visible changes client:
+    * InstallItem new member: version, and item variable iid_version, default comes from
+    * New commands 'report-installed', 'report-update' to report currently installed items and what's available to install
+
+    programmer visible changes:
+    * Improved configVar parsing and added array reference resolution: $(A[3])
+
 15/8/2016 1.2.3.1
     user visible changes client:
     * Some check for value of REPO_REV were redundant and failed commands such as remove.
