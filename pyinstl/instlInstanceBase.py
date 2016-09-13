@@ -153,7 +153,8 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             "target_path": ("__SHORTCUT_TARGET_PATH__", None),
             "credentials": ("__CREDENTIALS__", None),
             "base_url": ("__BASE_URL__", None),
-            "file_sizes_file": ("__FILE_SIZES_FILE__", None)
+            "file_sizes_file": ("__FILE_SIZES_FILE__", None),
+            "output_format": ("__OUTPUT_FORMAT__", "text")
         }
 
         for attrib, var in const_attrib_to_var.items():
@@ -215,10 +216,6 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             for definition in individual_definitions:
                 name, value = definition.split("=")
                 var_stack.set_var(name, "from command line define option").append(value)
-
-        if "__MAIN_OUT_FILE__" not in var_stack and "__MAIN_INPUT_FILE__" in var_stack:
-            var_stack.add_const_config_variable("__MAIN_OUT_FILE__", "from command line options",
-                                                "$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)")
 
 #        if not self.check_version_compatibility():
 #            raise ValueError(var_stack.resolve("Minimal instl version $(INSTL_MINIMAL_VERSION) > current version $(__INSTL_VERSION__); ")+var_stack.get_configVar_obj("INSTL_MINIMAL_VERSION").description)
@@ -377,6 +374,9 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         lines_after_var_replacement = '\n'.join(
             [value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines])
 
+        if "__MAIN_OUT_FILE__" not in var_stack and "__MAIN_INPUT_FILE__" in var_stack:
+            var_stack.add_const_config_variable("__MAIN_OUT_FILE__", "from write_batch_file",
+                                                "$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)")
         out_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
         out_file = os.path.abspath(out_file)
         d_path, f_name = os.path.split(out_file)
