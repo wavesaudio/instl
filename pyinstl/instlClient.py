@@ -11,17 +11,83 @@ from configVar import var_stack
 
 
 class RequireMan(object):
+    class RequireItem(object):
+        __slots__ = ('__required_by', '__version', '__guid')
+
+        def __init__(self):
+            self.__required_by = set()
+            self.__version = None
+            self.__guid = None
+
+        def should_write_to_yaml(self):
+            return self.has_required_by()
+
+        def repr_for_yaml(self):
+            retVal = dict()
+            retVal['required_by'] = self.required_by
+            if self.version:
+                retVal['version'] = self.version
+            if self.guid:
+                retVal['guid'] = self.guid
+            return retVal
+
+        def read_from_yaml(self, in_node):
+            if in_node.isSequence():
+                self.__required_by.update([required_iid.value for required_iid in in_node])
+            elif in_node.isMapping():
+                for field, field_contents in in_node.items():
+                    if field == 'required_by':
+                        self.__required_by.update([required_iid.value for required_iid in field_contents])
+                    elif field == 'version':
+                        self.version = field_contents.value
+                    elif field == 'guid':
+                        self.guid = field_contents.value
+
+        def has_required_by(self):
+             return len(self.__required_by) > 0
+
+        def add_required_by(self, new_required_by):
+            self.__required_by.add(new_required_by)
+
+        def remove_required_by(self, to_remove_items):
+            self.__required_by -= to_remove_items
+
+        # get the required by as sorted list
+        @property
+        def required_by(self):
+            return sorted(list(self.__required_by))
+
+        # get the required by as a set
+        def required_by_set(self):
+            return self.__required_by
+
+        @property
+        def version(self):
+            return self.__version
+
+        @version.setter
+        def version(self, new_version):
+            self.__version = new_version
+
+        @property
+        def guid(self):
+            return self.__guid
+
+        @guid.setter
+        def guid(self, new_guid):
+            self.__guid = new_guid
+
     def __init__(self):
-        self.require_map = defaultdict(set)
+        self.require_map = defaultdict(RequireMan.RequireItem)
 
     def add_x_depends_on_ys(self, x, *ys):
         for y in ys:
-            self.require_map[y].add(x)
+            self.require_map[y].add_required_by(x)
 
     def read_require_node(self, a_node):
         if a_node.isMapping():
             for identifier, contents in a_node.items():
-                self.require_map[identifier].update([required_iid.value for required_iid in contents])
+                self.require_map[identifier].read_from_yaml(contents)
 
     def calc_items_to_remove(self, initial_items):
         require_map_keys_set = set(self.require_map.keys())
@@ -34,20 +100,20 @@ class RequireMan(object):
         while len(to_remove_items) > 0:
             new_to_remove_items.clear()
             for iid in keys_to_check:
-                self.require_map[iid] -= to_remove_items
-                if len(self.require_map[iid]) == 0:
+                self.require_map[iid].remove_required_by(to_remove_items)
+                if self.require_map[iid].has_required_by():
                     new_to_remove_items.add(iid)
             keys_to_check -= new_to_remove_items  # so not to recheck empty items
             to_remove_items = new_to_remove_items - to_remove_items
 
-        unrequired_items  = sorted([iid for iid, required_by in sorted(self.require_map.items()) if len(required_by) == 0])
+        unrequired_items  = sorted([iid for iid, required_by in sorted(self.require_map.items()) if not required_by.has_required_by()])
         return unrequired_items, unmentioned_items
 
     def repr_for_yaml(self):
         retVal = OrderedDict()
-        for i in sorted(self.require_map.keys()):
-            if len(self.require_map[i]) > 0:
-                retVal[i] = sorted(list(self.require_map[i]))
+        for iid, req_item in sorted(self.require_map.items()):
+            if req_item.should_write_to_yaml():
+                retVal[iid] = req_item.repr_for_yaml()
         return retVal
 
     def get_previously_installed_root_items(self):
@@ -55,9 +121,16 @@ class RequireMan(object):
         :return: return only the items that the user requested to install, not those installed as dependents
                 of other items. Such items identified by having themselves in their required_by list
         """
-        retVal = [iid for iid, required_by in self.require_map.items() if iid in required_by]
+        retVal = [iid for iid, require_item in self.require_map.items() if iid in require_item.required_by_set()]
         return retVal
 
+    def update_details(self, iid_map):
+        for iid, require_item in self.require_map.items():
+            if iid in iid_map:
+                if iid_map[iid].version:
+                    require_item.version = iid_map[iid].version
+                if iid_map[iid].guids:
+                    require_item.guid = iid_map[iid].guids[0]
 
 # noinspection PyPep8Naming,PyUnresolvedReferences
 class InstallInstructionsState(object):
@@ -209,7 +282,7 @@ class InstallInstructionsState(object):
     def calc_require_for_root_items(self):
 
         all_root_items = list(set(self.__root_update_items) | set(self.__root_items_translated))
-        # the root install items were required by themselves
+        # the root install items are required by themselves
         for IID in all_root_items:
             self.req_man.add_x_depends_on_ys(IID, IID)
 
@@ -222,6 +295,7 @@ class InstallInstructionsState(object):
                 self.req_man.add_x_depends_on_ys(IID, *the_depends)
                 next_round.update(the_depends)
             r_list = list(next_round)
+        self.req_man.update_details(self.__instlObj.install_definitions_index)
 
     def calc_items_to_remove(self):
         unrequired_items, unmentioned_items = self.req_man.calc_items_to_remove(self.__root_items_translated)
