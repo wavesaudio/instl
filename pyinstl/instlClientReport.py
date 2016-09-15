@@ -14,7 +14,12 @@ class InstlClientReport(InstlClient):
         super().__init__(initial_vars)
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         self.current_index_yaml_path = None
-        self.output_data = None
+        self.current_require_yaml_path = None
+        self.guids_to_ignore = None
+        self.report_only_items_with_guids = False
+        self.report_installed_items = False
+        self.report_remote_items = False
+        self.output_data = []
 
     def command_output(self):
         if "__MAIN_OUT_FILE__" in var_stack:
@@ -33,7 +38,7 @@ class InstlClientReport(InstlClient):
             wfd.write(output_text)
             wfd.write("\n")
 
-    def do_report_installed(self):
+    def do_report_installed_versions(self):
         self.current_index_yaml_path = var_stack.ResolveVarToStr('CURRENT_INDEX_YAML')
         self.current_require_yaml_path = var_stack.ResolveVarToStr('CURRENT_REQUIRE_YAML')
 
@@ -50,7 +55,7 @@ class InstlClientReport(InstlClient):
 
             self.output_data = list()
 
-            for iid in sorted(self. current_index):
+            for iid in sorted(self.current_index):
                 with self.current_index[iid].push_var_stack_scope():
                     guid_list = list(set(var_stack.get_configVar_obj('iid_guid')).difference(guids_to_ignore))
                     if len(guid_list) or not report_only_items_with_guids:
@@ -61,11 +66,32 @@ class InstlClientReport(InstlClient):
         else:
             self.output_data = self.report_no_current_installation()
 
-    def do_report_update(self):
-        print("report-update")
+    def do_report_versions(self):
+        self.report_only_items_with_guids = "REPORT_ONLY_ITEMS_WITH_GUIDS" in var_stack
+        self.report_installed_items = "REPORT_INSTALLED_ITEMS" in var_stack
+        self.report_remote_items = "REPORT_REMOTE_ITEMS" in var_stack
+        self.guids_to_ignore = set(var_stack.ResolveVarToList("IGNORED_GUIDS", []))
+        if self.report_installed_items:
+            self.current_require_yaml_path = var_stack.ResolveVarToStr('CURRENT_REQUIRE_YAML')
+            if os.path.isfile(self.current_require_yaml_path):
+                self.read_yaml_file(self.current_require_yaml_path, req_reader=self.installState.req_man)
+
+        if self.report_remote_items:
+            for IID, installi in sorted(self.install_definitions_index.items()):
+                output_data_line = []
+                guid_list = list(set(installi.guids).difference(self.guids_to_ignore))
+                if len(guid_list) > 0 and installi.version:
+                    output_data_line.extend((guid_list[0], installi.version, installi.name))
+                    if installi.iid in self.installState.req_man and self.installState.req_man[installi.iid].version:
+                        output_data_line.append("!!"+self.installState.req_man[installi.iid].version+"!!")
+                    self.output_data.append(output_data_line)
 
     def calculate_install_items(self):
         pass
 
     def report_no_current_installation(self):
-        return "Looks like no product are installed, file not found: " + self.current_index_yaml_path
+        return (("Looks like no product are installed, file not found", self.current_index_yaml_path),)
+
+
+# import errno
+# raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.current_index_yaml_path)

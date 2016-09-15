@@ -80,6 +80,25 @@ class RequireMan(object):
     def __init__(self):
         self.require_map = defaultdict(RequireMan.RequireItem)
 
+    def __len__(self):
+        """ return number of RequireItems """
+        return len(self.require_map)
+
+    def __getitem__(self, iid):
+        """ return a RequireItem object by it's name """
+        return self.require_map[iid]
+
+    def __delitem__(self, key):
+        """ remove a RequireItem object by it's name """
+        if key in self.require_map:
+            del self.require_map[key]
+
+    def __iter__(self):
+        return iter(self.require_map)
+
+    def __contains__(self, iid):
+        return iid in self.require_map
+
     def add_x_depends_on_ys(self, x, *ys):
         for y in ys:
             self.require_map[y].add_required_by(x)
@@ -531,7 +550,7 @@ def InstlClientFactory(initial_vars, command):
     elif command == "uninstall":
         from .instlClientUninstall import InstlClientUninstall
         retVal = InstlClientUninstall(initial_vars)
-    elif command in ('report-installed', 'report-update'):
+    elif command in ('report-installed', 'report-update', 'report-versions'):
         from .instlClientReport import InstlClientReport
         retVal = InstlClientReport(initial_vars)
     elif command == "synccopy":

@@ -509,9 +509,11 @@ class DownloadTool_win_curl(DownloadToolBase):
         """ Create command to download a single file.
             src_url is expected to be already escaped (spaces as %20...)
         """
-        connect_time_out = var_stack.ResolveVarToStr("CURL_CONNECT_TIMEOUT")
-        max_time = var_stack.ResolveVarToStr("CURL_MAX_TIME")
-        retries = var_stack.ResolveVarToStr("CURL_RETRIES")
+        connect_time_out = var_stack.ResolveVarToStr("CURL_CONNECT_TIMEOUT", "16")
+        max_time = var_stack.ResolveVarToStr("CURL_MAX_TIME", "180")
+        retries = var_stack.ResolveVarToStr("CURL_RETRIES", "3")
+        retry_delay = var_stack.ResolveVarToStr("CURL_RETRY_DELAY", "60")
+
         download_command_parts = list()
         download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
         download_command_parts.append("--insecure")
@@ -526,6 +528,8 @@ class DownloadTool_win_curl(DownloadToolBase):
         download_command_parts.append(max_time)
         download_command_parts.append("--retry")
         download_command_parts.append(retries)
+        download_command_parts.append("--retry_delay")
+        download_command_parts.append(retry_delay)
         download_command_parts.append("write-out")
         download_command_parts.append(DownloadToolBase.curl_write_out_str)
         download_command_parts.append("-o")
@@ -538,9 +542,11 @@ class DownloadTool_win_curl(DownloadToolBase):
 
         num_urls_to_download = len(self.urls_to_download)
         if num_urls_to_download > 0:
-            connect_time_out = var_stack.ResolveVarToStr("CURL_CONNECT_TIMEOUT")
-            max_time = var_stack.ResolveVarToStr("CURL_MAX_TIME")
-            retries = var_stack.ResolveVarToStr("CURL_RETRIES")
+            connect_time_out = var_stack.ResolveVarToStr("CURL_CONNECT_TIMEOUT", "16")
+            max_time = var_stack.ResolveVarToStr("CURL_MAX_TIME", "180")
+            retries = var_stack.ResolveVarToStr("CURL_RETRIES", "3")
+            retry_delay = var_stack.ResolveVarToStr("CURL_RETRY_DELAY", "60")
+
             actual_num_files = int(max(0, min(num_urls_to_download, num_files)))
 
             num_digits = len(str(actual_num_files))
@@ -562,6 +568,7 @@ class DownloadTool_win_curl(DownloadToolBase):
                 wfd.write("connect-timeout = {connect_time_out}\n".format(**locals()))
                 wfd.write("max-time = {max_time}\n".format(**locals()))
                 wfd.write("retry = {retries}\n".format(**locals()))
+                wfd.write("retry_delay = {retry_delay}\n".format(**locals()))
                 wfd.write("write-out = \"Progress: ... of ...; " + os.path.basename(wfd.name) + ": " + DownloadToolBase.curl_write_out_str + "\"\n")
                 wfd.write("\n")
                 wfd.write("\n")
