@@ -1,3 +1,16 @@
+18/9/2016 1.3.0..1
+
+    user visible changes client:
+    * New defaults for curl parameters, and passing the --retry_delay option wchi was not passed before
+    * Changed (a little the meaning of __UPDATE_INSTALLED_ITEMS__ & __REPAIR_INSTALLED_ITEMS__ to always copy all updated items (until we figure out how to consider versions)
+    * report_versions command improved - but not operational yet
+
+    programmer visible changes:
+    * InstallItem variable iid_version defaults to if version was not given
+    * RequireMan.RequireItem new sub class for RequireMan to better handle each item
+    * RequireMan is iterable on it's items
+
+
 13/9/2016 1.3.0.0
 
     user visible changes client:
