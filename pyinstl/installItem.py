@@ -244,6 +244,8 @@ class InstallItem(object):
             the_version = self.version
             if the_version:
                 self.__var_list.set_var("iid_version").append(the_version)
+            else:
+                self.__var_list.set_var("iid_version").append("$(DEFAULT_IID_VERSION)")
             self.__var_list.set_var("iid_inherit").extend(self.__inherit_from)
             self.__var_list.set_var("iid_folder_list").extend(self._folder_list())
             self.__var_list.set_var("iid_depend_list").extend(self._depend_list())
@@ -479,7 +481,7 @@ class InstallItem(object):
     @property
     def version(self):
         # next(iter([], default) is a trick to get the first item in a list or a default if the list is empty
-        the_version = next(iter(self.__get_item_list_for_default_oses_by_category('version')), "$(DEFAULT_IID_VERSION)")
+        the_version = next(iter(self.__get_item_list_for_default_oses_by_category('version')), None)
         return the_version
 
     @property
