@@ -278,20 +278,22 @@ class InstallInstructionsState(object):
             except KeyError:
                 self.__orphan_items.append(IID)
 
-        # remove from update items the items that will be installed anyway
-        self.__actual_update_items.extend(sorted(list(set(self.__all_update_items) - set(self.__all_items))))
+        if False: # commented out currently we want all updates to always be installed
+            # remove from update items the items that will be installed anyway
+            self.__actual_update_items.extend(sorted(list(set(self.__all_update_items) - set(self.__all_items))))
 
-        # if there are items to update, but not in repair mode, assign require_file_repo_rev to
-        # these items' last_require_repo_rev so copy command will consider not to copy them in
-        # case their files have lower repo-rev.
-        # if in repair mode (__repair_installed_items is true), all items get last_require_repo_rev==0
-        # by default and all items will be copied.
-        if not self.__repair_installed_items:
-            require_file_repo_rev = int(var_stack.ResolveVarToStr("REQUIRE_REPO_REV", default="0"))
-            for iid in self.__actual_update_items:
-                self.__instlObj.install_definitions_index[iid].last_require_repo_rev = require_file_repo_rev
+            # if there are items to update, but not in repair mode, assign require_file_repo_rev to
+            # these items' last_require_repo_rev so copy command will consider not to copy them in
+            # case their files have lower repo-rev.
+            # if in repair mode (__repair_installed_items is true), all items get last_require_repo_rev==0
+            # by default and all items will be copied.
+            if not self.__repair_installed_items:
+                require_file_repo_rev = int(var_stack.ResolveVarToStr("REQUIRE_REPO_REV", default="0"))
+                for iid in self.__actual_update_items:
+                    self.__instlObj.install_definitions_index[iid].last_require_repo_rev = require_file_repo_rev
 
-        self.__all_items.extend(self.__actual_update_items)
+            self.__all_items.extend(self.__actual_update_items)
+        self.__all_items.extend(self.__all_update_items)
 
         self.calc_require_for_root_items()
         self.__all_items.sort()        # for repeatability
