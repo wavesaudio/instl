@@ -9,6 +9,7 @@ import aYaml
 from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
 
+explain_uninstall = False
 
 class RequireMan(object):
     class RequireItem(object):
@@ -48,9 +49,11 @@ class RequireMan(object):
 
         def add_required_by(self, new_required_by):
             self.__required_by.add(new_required_by)
+            return self.__required_by
 
         def remove_required_by(self, to_remove_items):
             self.__required_by -= to_remove_items
+            return self.__required_by
 
         # get the required by as sorted list
         @property
@@ -110,22 +113,29 @@ class RequireMan(object):
 
     def calc_items_to_remove(self, initial_items):
         require_map_keys_set = set(self.require_map.keys())
+        explain_uninstall and print("keys found in require file:", len(require_map_keys_set), sorted(require_map_keys_set))
         initial_items_set = set(initial_items)
+        explain_uninstall and print("items to remove, translated:", len(initial_items_set), sorted(initial_items_set))
         unmentioned_items = sorted(list(initial_items_set - require_map_keys_set))
+        explain_uninstall and print("items to remove that were not found in require file:", len(unmentioned_items), sorted(unmentioned_items))
 
         to_remove_items = initial_items_set & require_map_keys_set  # no need to check items unmentioned in the require map
+        explain_uninstall and print("items to remove that were found in require file:", len(to_remove_items), sorted(to_remove_items))
         new_to_remove_items = set()
         keys_to_check = require_map_keys_set
         while len(to_remove_items) > 0:
             new_to_remove_items.clear()
-            for iid in keys_to_check:
-                self.require_map[iid].remove_required_by(to_remove_items)
-                if self.require_map[iid].has_required_by():
+            explain_uninstall and print("removing from", len(keys_to_check), "items depends on:", sorted(to_remove_items))
+            for iid in sorted(keys_to_check):
+                still_depends_on = self.require_map[iid].remove_required_by(to_remove_items)
+                explain_uninstall and print("    ", "removed from", iid, ", depends left:", sorted(still_depends_on))
+                if not self.require_map[iid].has_required_by():
                     new_to_remove_items.add(iid)
-            keys_to_check -= new_to_remove_items  # so not to recheck empty items
+            keys_to_check -= new_to_remove_items  # so not to recheck empty items next round
             to_remove_items = new_to_remove_items - to_remove_items
 
-        unrequired_items  = sorted([iid for iid, required_by in sorted(self.require_map.items()) if not required_by.has_required_by()])
+        unrequired_items  = sorted([iid for iid, required_by in self.require_map.items() if not required_by.has_required_by()])
+        explain_uninstall and print("keys to remove:", len(unrequired_items), unrequired_items)
         return unrequired_items, unmentioned_items
 
     def repr_for_yaml(self):

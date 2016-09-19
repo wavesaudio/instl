@@ -1,4 +1,12 @@
-18/9/2016 1.3.0..1
+19/9/2016 1.3.0.2
+
+
+    user visible changes client:
+    * Fixed bug in the calculation of uninstall items
+    * Added option to "explain" uninstall calculations
+    * Fixed a bug in the creation of variable __MAIN_OUT_FILE__ in InstlInstanceBase.write_batch_file - it was done too late so the varaible was not printed to the batch file
+
+18/9/2016 1.3.0.1
 
     user visible changes client:
     * New defaults for curl parameters, and passing the --retry_delay option wchi was not passed before

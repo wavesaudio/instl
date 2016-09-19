@@ -41,9 +41,7 @@ class InstlClientUninstall(InstlClientRemove):
 
     def create_uninstall_instructions(self):
 
-        print("requested items to uninstall:", self.installState.root_items)
         if len(self.installState.all_items) > 0:
-            print("actual items to uninstall:", self.installState.all_items)
             self.create_remove_instructions()
             self.create_require_file_instructions()
         else:

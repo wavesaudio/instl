@@ -361,6 +361,10 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         return retVal
 
     def write_batch_file(self):
+        if "__MAIN_OUT_FILE__" not in var_stack and "__MAIN_INPUT_FILE__" in var_stack:
+            var_stack.add_const_config_variable("__MAIN_OUT_FILE__", "from write_batch_file",
+                                                "$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)")
+
         self.batch_accum.set_current_section('pre')
         self.batch_accum += self.platform_helper.get_install_instructions_prefix()
         self.batch_accum.set_current_section('post')
@@ -371,18 +375,17 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         for line in lines:
             if type(line) != str:
                 raise TypeError("Not a string", type(line), line)
-        lines_after_var_replacement = '\n'.join(
-            [value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines])
 
-        if "__MAIN_OUT_FILE__" not in var_stack and "__MAIN_INPUT_FILE__" in var_stack:
-            var_stack.add_const_config_variable("__MAIN_OUT_FILE__", "from write_batch_file",
-                                                "$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)")
+        # replace unresolved var references to native OS var refreces, e.g. $(HOME) would be %HOME% on Windows and ${HOME} one Mac
+        lines_after_var_replacement = [value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines]
+        output_text = "\n".join(lines_after_var_replacement)
+
         out_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
         out_file = os.path.abspath(out_file)
         d_path, f_name = os.path.split(out_file)
         os.makedirs(d_path, exist_ok=True)
         with utils.write_to_file_or_stdout(out_file) as fd:
-            fd.write(lines_after_var_replacement)
+            fd.write(output_text)
             fd.write('\n')
 
         if out_file != "stdout":
