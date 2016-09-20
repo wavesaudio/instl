@@ -9,7 +9,6 @@ import aYaml
 from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
 
-explain_uninstall = False
 
 class RequireMan(object):
     class RequireItem(object):
@@ -112,6 +111,7 @@ class RequireMan(object):
                 self.require_map[identifier].read_from_yaml(contents)
 
     def calc_items_to_remove(self, initial_items):
+        explain_uninstall = False
         require_map_keys_set = set(self.require_map.keys())
         explain_uninstall and print("keys found in require file:", len(require_map_keys_set), sorted(require_map_keys_set))
         initial_items_set = set(initial_items)
