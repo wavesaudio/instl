@@ -3,6 +3,8 @@
 import os
 import time
 from collections import OrderedDict, defaultdict, deque
+import distutils.version
+
 import utils
 from .installItem import InstallItem, guid_list, iids_from_guids
 import aYaml
@@ -153,6 +155,23 @@ class RequireMan(object):
         retVal = [iid for iid, require_item in self.require_map.items() if iid in require_item.required_by_set()]
         return retVal
 
+    def get_previously_installed_root_items_with_lower_version(self, iid_map):
+        """
+        :return: return only the items that the user requested to install, not those installed as dependents
+                of other items - but only items with lower version than in the index.
+        """
+        retVal = []
+        for iid, require_item in self.require_map.items():
+            if iid in require_item.required_by_set():
+                try:
+                    old_version = distutils.version.LooseVersion(self.require_map[iid].version)
+                    new_version = distutils.version.LooseVersion(iid_map[iid].version)
+                    if old_version < new_version:
+                        retVal.append(iid)
+                except Exception:
+                    retVal.append(iid)  # if no versions specified add it anyway
+        return retVal
+
     def update_details(self, iid_map):
         for iid, require_item in self.require_map.items():
             if iid in iid_map:
@@ -246,9 +265,11 @@ class InstallInstructionsState(object):
         # root_install_items might have guid in it, translate them to iids
         for IID in self.__root_items:
             if IID == "__UPDATE_INSTALLED_ITEMS__":
-                self.__update_installed_items = True
+                if self.the_command in ("sync", "synccopy"):
+                    self.__repair_installed_items = True  # if synccing we want to sync everything
+                else:
+                    self.__update_installed_items = True  # if copying we want to copy only iid's whose version changed
             elif IID == "__REPAIR_INSTALLED_ITEMS__":
-                self.__update_installed_items = True
                 self.__repair_installed_items = True
             else:
                 # if IID is a guid, iids_from_guids will translate to iid's, or return the IID otherwise
@@ -258,11 +279,12 @@ class InstallInstructionsState(object):
                 else:
                     self.__orphan_items.append(IID)
 
-
         self.__root_update_items = list()
         if self.__update_installed_items:
             self.__root_update_items.extend(self.req_man.get_previously_installed_root_items())
-
+        elif self.__repair_installed_items:
+            self.__root_update_items.extend(self.req_man.get_previously_installed_root_items_with_lower_version(self.__instlObj.install_definitions_index))
+        print("__root_update_items:", self.__root_update_items)
         self.__root_items_translated.sort()  # for repeatability
 
     def calculate_all_items(self):
