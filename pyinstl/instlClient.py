@@ -539,7 +539,7 @@ class InstlClient(InstlInstanceBase):
     def create_sync_folder_manifest_command(self, manifest_file_name_prefix):
         """ create batch commands to write a manifest of the sync folder to a file """
         which_folder_to_manifest = "$(COPY_SOURCES_ROOT_DIR)"
-        param_to_extract_output_folder_from = "__MAIN_OUT_FILE__"
+        param_to_extract_output_folder_from = "__MAIN_IN_FILE__"
         if var_stack.defined('ECHO_LOG_FILE'):
             param_to_extract_output_folder_from = "ECHO_LOG_FILE"
         log_file_path = var_stack.ResolveVarToStr(param_to_extract_output_folder_from)

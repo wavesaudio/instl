@@ -1,3 +1,9 @@
+???? 1.3.??
+
+    user visible changes client:
+    * InstlClient.create_sync_folder_manifest_command looks for the folder where to put the manifest in __MAIN_IN_FILE__ instead of __MAIN_OUT_FILE__. This was done because in some situations __MAIN_OUT_FILE__ is not defined yet.
+
+
 19/9/2016 1.3.0.2
 
 

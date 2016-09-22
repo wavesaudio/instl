@@ -376,7 +376,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             if type(line) != str:
                 raise TypeError("Not a string", type(line), line)
 
-        # replace unresolved var references to native OS var refreces, e.g. $(HOME) would be %HOME% on Windows and ${HOME} one Mac
+        # replace unresolved var references to native OS var references, e.g. $(HOME) would be %HOME% on Windows and ${HOME} one Mac
         lines_after_var_replacement = [value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines]
         output_text = "\n".join(lines_after_var_replacement)
 
