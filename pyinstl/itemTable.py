@@ -27,7 +27,7 @@ class ItemTable(object):
     os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
     def __init__(self):
         self.engine = create_engine('sqlite:///:memory:', echo=False)
-        alchemy_base.metadata.create_all(self.engine)
+        itemRow.alchemy_base.metadata.create_all(self.engine)
         self.session_maker = sessionmaker(bind=self.engine)
         self.session = self.session_maker()
         self.baked_queries_map = self.bake_baked_queries()
@@ -42,8 +42,28 @@ class ItemTable(object):
 
         return retVal
 
-    def read_from_index_yaml_node(self, in_node):
-        pass
+    def insert_dicts_to_db(self, item_insert_dicts, details_insert_dicts):
+        # self.session.bulk_insert_mappings(SVNRow, insert_dicts)
+        self.engine.execute(itemRow.ItemRow.__table__.insert(), item_insert_dicts)
+        self.engine.execute(itemRow.ItemDetailRow.__table__.insert(), details_insert_dicts)
+
+    def get_items(self, what="any"):
+
+        # get_all_items: return all items either files dirs or both, used by get_items()
+        if "get_all_items" not in self.baked_queries_map:
+            self.baked_queries_map["get_all_items"] = self.bakery(lambda session: session.query(itemRow.ItemRow))
+
+        retVal = self.baked_queries_map["get_all_items"](self.session).all()
+        return retVal
+
+    def get_details(self, what="any"):
+
+        # get_all_details: return all items either files dirs or both, used by get_items()
+        if "get_all_details" not in self.baked_queries_map:
+            self.baked_queries_map["get_all_details"] = self.bakery(lambda session: session.query(itemRow.ItemDetailRow))
+
+        retVal = self.baked_queries_map["get_all_details"](self.session).all()
+        return retVal
 
 from aYaml import YamlReader
 
@@ -54,7 +74,7 @@ class ItemTableYamlReader(YamlReader):
         self.items, self.details = list(), list()
 
     def init_specific_doc_readers(self): # this function must be overridden
-        self.specific_doc_readers["index"] = self.read_index_from_yaml
+        self.specific_doc_readers["!index"] = self.read_index_from_yaml
 
     def read_index_from_yaml(self,all_items_node):
         for IID in all_items_node:
@@ -63,12 +83,13 @@ class ItemTableYamlReader(YamlReader):
             self.details.extend(item_details)
 
     @staticmethod
-    def item_dicts_from_node(the_iid, the_node, the_os):
+    def item_dicts_from_node(the_iid, the_node):
         item, details = dict(), list()
         item['iid'] = the_iid
         if 'name' in the_node:
             item['name'] = the_node['name'].value
-
+        else:
+            item['name'] = None
         details = ItemTableYamlReader.read_item_details_from_node(the_iid, the_node)
         return item, details
 
@@ -90,8 +111,13 @@ class ItemTableYamlReader(YamlReader):
 if __name__ == "__main__":
     reader = ItemTableYamlReader()
     reader.read_yaml_file('/Volumes/BonaFide/installers/betainstl/V9/svn/instl/index.yaml')
-    print(reader.items)
-    print(reader.details)
+    #print("\n".join([str(item) for item in reader.items]))
+    #print("\n".join([str(detail) for detail in reader.details]))
+    it = ItemTable()
+    it.insert_dicts_to_db(reader.items, reader.details)
+    print("\n".join([str(item) for item in it.get_items()]))
+    #print("\n".join([str(detail) for detail in it.get_details()]))
+
 
 if False:
     def __repr__(self):
