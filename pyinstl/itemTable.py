@@ -42,11 +42,7 @@ class ItemTableYamlReader(YamlReader):
     def item_dicts_from_node(the_iid, the_node):
         item, details = dict(), list()
         item['iid'] = the_iid
-        if 'name' in the_node:
-            item['name'] = the_node['name'].value
-        else:
-            item['name'] = None
-        item['inheritance_resolved'] = False
+        item['inherit_resolved'] = False
         details = ItemTableYamlReader.read_item_details_from_node(the_iid, the_node)
         return item, details
 
@@ -89,13 +85,20 @@ class ItemTable(object):
         # self.session.bulk_insert_mappings(SVNRow, insert_dicts)
         self.engine.execute(itemRow.ItemRow.__table__.insert(), item_insert_dicts)
         self.engine.execute(itemRow.ItemDetailRow.__table__.insert(), details_insert_dicts)
+        self.create_initial_iid_to_detail_relation()
+
+    def create_initial_iid_to_detail_relation(self):
+        retVal = self.session.query(itemRow.ItemRow.iid, itemRow.ItemDetailRow._id).filter(itemRow.ItemRow.iid == itemRow.ItemDetailRow.iid).all()
+        tup_to_dict = [{'iid': iid, 'detail_row': row} for iid, row in retVal]
+        self.engine.execute(itemRow.ItemToDetailRelation.__table__.insert(), tup_to_dict)
+        return retVal
 
     def get_items(self, what="any"):
 
         # get_all_items: return all items either files dirs or both, used by get_items()
         if "get_all_items" not in self.baked_queries_map:
             self.baked_queries_map["get_all_items"] = self.bakery(lambda session: session.query(itemRow.ItemRow))
-            self.baked_queries_map["get_all_items"] += lambda q: q.order_by(itemRow.ItemRow.iid, itemRow.ItemRow.row_id)
+            self.baked_queries_map["get_all_items"] += lambda q: q.order_by(itemRow.ItemRow.iid)
 
         retVal = self.baked_queries_map["get_all_items"](self.session).all()
         return retVal
@@ -109,12 +112,22 @@ class ItemTable(object):
         retVal = self.baked_queries_map["get_all_details"](self.session).all()
         return retVal
 
+    def get_item_to_detail_relations(self, what="any"):
+
+        # get_all_details: return all items either files dirs or both, used by get_items()
+        if "get_item_to_detail_relations" not in self.baked_queries_map:
+            self.baked_queries_map["get_item_to_detail_relations"] = self.bakery(lambda session: session.query(itemRow.ItemToDetailRelation))
+            self.baked_queries_map["get_item_to_detail_relations"] += lambda q: q.order_by(itemRow.ItemToDetailRelation.iid)
+
+        retVal = self.baked_queries_map["get_item_to_detail_relations"](self.session).all()
+        return retVal
+
     def get_item(self, iid_to_get):
         retVal = self.session.query(itemRow.ItemRow).filter(itemRow.ItemRow.iid==iid_to_get).scalar()
         return retVal
 
     def get_item_by_resolved(self, iid_to_get, resolved_status):
-        retVal = self.session.query(itemRow.ItemRow).filter(itemRow.ItemRow.iid==iid_to_get, itemRow.ItemRow.inheritance_resolved == resolved_status).scalar()
+        retVal = self.session.query(itemRow.ItemRow).filter(itemRow.ItemRow.iid==iid_to_get, itemRow.ItemRow.inherit_resolved == resolved_status).scalar()
         return retVal
 
     def get_all_iids(self):
@@ -122,13 +135,18 @@ class ItemTable(object):
         return retVal
 
     def get_unresolved_items(self):
-        retVal = self.session.query(itemRow.ItemRow).filter(itemRow.ItemRow.inheritance_resolved == False).all()
+        retVal = self.session.query(itemRow.ItemRow).filter(itemRow.ItemRow.inherit_resolved == False).all()
         #retVal = [mm[0] for mm in retVal]
         return retVal
 
     def get_all_details_for_item(self, iid):
         retVal = self.session.query(itemRow.ItemDetailRow).filter(itemRow.ItemDetailRow.iid == iid).all()
         #retVal = [mm[0] for mm in retVal]
+        return retVal
+
+    def get_all_details_rows_for_item(self, iid):
+        retVal = self.session.query(itemRow.ItemToDetailRelation.detail_row).filter(itemRow.ItemToDetailRelation.iid == iid).all()
+        retVal = [mm[0] for mm in retVal]
         return retVal
 
     def get_details_for_item(self, iid, detail_name):
@@ -138,18 +156,17 @@ class ItemTable(object):
         return retVal
 
     def resolve_item_inheritance(self, item_to_resolve):
-        inherit_from = self.get_details_for_item(item_to_resolve.iid, 'inherit')
-        if len(inherit_from) > 0:
-            for i_f in inherit_from:
-                self.resolve_iid_inheritance(i_f)
-                details_for_item = self.get_all_details_for_item(i_f)
-                for d_f_i in details_for_item:
-                    if d_f_i.detail_name not in ItemTable.dont_inherit_details:
-                        new_d_f_i = {'iid': item_to_resolve.iid, 'os': d_f_i.os,
-                                 'detail_name': d_f_i.detail_name, 'detail_value': d_f_i.detail_value,
-                                 'inherited': True}
-                        self.engine.execute(itemRow.ItemDetailRow.__table__.insert(), new_d_f_i)
-            item_to_resolve.inheritance_resolved = True
+        if not item_to_resolve.inherit_resolved:
+            inherit_from = self.get_details_for_item(item_to_resolve.iid, 'inherit')
+            if len(inherit_from) > 0:
+                for i_f in inherit_from:
+                    self.resolve_iid_inheritance(i_f)
+                    detail_rows_for_item = self.get_all_details_rows_for_item(i_f)
+                    for d_r in detail_rows_for_item:
+                        #if d_f_i.detail_name not in ItemTable.dont_inherit_details:
+                            new_d_r = {'iid': item_to_resolve.iid, 'detail_row': d_r}
+                            self.engine.execute(itemRow.ItemToDetailRelation.__table__.insert(), new_d_r)
+            item_to_resolve.inherit_resolved = True
 
     def resolve_iid_inheritance(self, iid_to_resolve):
         item = self.get_item_by_resolved(iid_to_resolve, False)
@@ -174,16 +191,20 @@ if __name__ == "__main__":
     #print("\n".join([str(detail) for detail in reader.details]))
     it = ItemTable()
     it.insert_dicts_to_db(reader.items, reader.details)
-    #print("\n".join([str(item) for item in it.get_items()]))
-    #print("----")
-    #print("\n".join([str(detail) for detail in it.get_details()]))
-    #it.add_something()
-    print("----\n----")
-    #items = it.get_all_iids()
-    #print(type(items[0]), items)
     it.resolve_inheritance()
     print("\n".join([str(item) for item in it.get_items()]))
     print("----")
     print("\n".join([str(detail) for detail in it.get_details()]))
+    print("----")
+    print("\n".join([str(detail_relation) for detail_relation in it.get_item_to_detail_relations()]))
+
+    #it.add_something()
     print("----\n----")
+    #items = it.get_all_iids()
+    #print(type(items[0]), items)
+    #it.resolve_inheritance()
+    #print("\n".join([str(item) for item in it.get_items()]))
+    #print("----")
+    #print("\n".join([str(detail) for detail in it.get_details()]))
+    #print("----\n----")
 
