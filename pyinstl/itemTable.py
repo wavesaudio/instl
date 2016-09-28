@@ -13,10 +13,12 @@ from sqlalchemy import bindparam
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import func
 from sqlalchemy import event
+from sqlalchemy import text
+from sqlalchemy.engine import reflection
 
 import pyinstl
 from pyinstl import itemRow
-#from .itemRow import ItemRow, ItemDetailRow, alchemy_base
+from pyinstl.itemRow import ItemRow, ItemDetailRow, ItemToDetailRelation, alchemy_base
 
 import utils
 from configVar import var_stack
@@ -66,11 +68,45 @@ class ItemTable(object):
     dont_inherit_details = ('name','inherit')
     def __init__(self):
         self.engine = create_engine('sqlite:///:memory:', echo=False)
-        itemRow.alchemy_base.metadata.create_all(self.engine)
+        alchemy_base.metadata.create_all(self.engine)
         self.session_maker = sessionmaker(bind=self.engine)
         self.session = self.session_maker()
         self.baked_queries_map = self.bake_baked_queries()
         self.bakery = baked.bakery()
+        self._get_for_os = [ItemTable.os_names[0]]
+
+    def begin_get_for_all_oses(self):
+        """ adds all known os names to the list of os that will influence all get functions
+            such as depend_list, source_list etc.
+            This is a static method so it will influence all InstallItem objects.
+            This method is useful in code that does reporting or analyzing, where
+            there is need to have access to all oses not just the current or target os.
+        """
+        _get_for_os = []
+        _get_for_os.extend(ItemTable.os_names)
+
+    def reset_get_for_all_oses(self):
+        """ resets the list of os that will influence all get functions
+            such as depend_list, source_list etc.
+            This is a static method so it will influence all InstallItem objects.
+            This method is useful in code that does reporting or analyzing, where
+            there is need to have access to all oses not just the current or target os.
+        """
+        self._get_for_os = [self.os_names[0]]
+
+    def begin_get_for_specific_os(self, for_os):
+        """ adds another os name to the list of os that will influence all get functions
+            such as depend_list, source_list etc.
+            This is a static method so it will influence all InstallItem objects.
+        """
+        self._get_for_os.append(for_os)
+
+    def end_get_for_specific_os(self):
+        """ removed the last added os name to the list of os that will influence all get functions
+            such as depend_list, source_list etc.
+             This is a static method so it will influence all InstallItem objects.
+        """
+        self._get_for_os.pop()
 
     def bake_baked_queries(self):
         """ prepare baked queries for later use
@@ -83,81 +119,146 @@ class ItemTable(object):
 
     def insert_dicts_to_db(self, item_insert_dicts, details_insert_dicts):
         # self.session.bulk_insert_mappings(SVNRow, insert_dicts)
-        self.engine.execute(itemRow.ItemRow.__table__.insert(), item_insert_dicts)
-        self.engine.execute(itemRow.ItemDetailRow.__table__.insert(), details_insert_dicts)
+        self.engine.execute(ItemRow.__table__.insert(), item_insert_dicts)
+        self.engine.execute(ItemDetailRow.__table__.insert(), details_insert_dicts)
         self.create_initial_iid_to_detail_relation()
 
-    def create_initial_iid_to_detail_relation(self):
-        retVal = self.session.query(itemRow.ItemRow.iid, itemRow.ItemDetailRow._id).filter(itemRow.ItemRow.iid == itemRow.ItemDetailRow.iid).all()
-        tup_to_dict = [{'iid': iid, 'detail_row': row} for iid, row in retVal]
-        self.engine.execute(itemRow.ItemToDetailRelation.__table__.insert(), tup_to_dict)
-        return retVal
-
-    def get_items(self, what="any"):
-
-        # get_all_items: return all items either files dirs or both, used by get_items()
+    def get_items(self):  # tested by: TestItemTable.test_ItemRow_get_items
         if "get_all_items" not in self.baked_queries_map:
-            self.baked_queries_map["get_all_items"] = self.bakery(lambda session: session.query(itemRow.ItemRow))
-            self.baked_queries_map["get_all_items"] += lambda q: q.order_by(itemRow.ItemRow.iid)
-
-        retVal = self.baked_queries_map["get_all_items"](self.session).all()
+            the_query = self.bakery(lambda session: session.query(ItemRow))
+            the_query += lambda q: q.order_by(ItemRow.iid)
+            self.baked_queries_map["get_all_items"] = the_query
+        else:
+            the_query = self.baked_queries_map["get_all_items"]
+        retVal = the_query(self.session).all()
         return retVal
 
-    def get_details(self, what="any"):
+    def get_item(self, iid_to_get):  # tested by: TestItemTable.test_ItemRow_get_item
+        if "get_item" not in self.baked_queries_map:
+            the_query = self.bakery(lambda q: q.query(ItemRow))
+            the_query += lambda  q: q.filter(ItemRow.iid == bindparam("_iid"))
+            the_query += lambda q: q.order_by(ItemRow.iid)
+            self.baked_queries_map["get_item"] = the_query
+        else:
+            the_query = self.baked_queries_map["get_item"]
+        retVal = the_query(self.session).params(_iid=iid_to_get).first()
+        return retVal
+
+    def get_all_iids(self):
+        if "get_all_iids" not in self.baked_queries_map:
+            the_query = self.bakery(lambda q: q.query(ItemRow.iid))
+            the_query += lambda q: q.order_by(ItemRow.iid)
+            self.baked_queries_map["get_all_iids"] = the_query
+        else:
+            the_query = self.baked_queries_map["get_all_iids"]
+        retVal = the_query(self.session).all()
+        retVal = [m[0] for m in retVal]
+        return retVal
+
+    def get_item_by_resolve_status(self, iid_to_get, resolve_status):  # tested by: TestItemTable.test_get_item_by_resolve_status
+        # http://stackoverflow.com/questions/29161730/what-is-the-difference-between-one-and-first
+        if "get_item_by_resolve_status" not in self.baked_queries_map:
+            the_query = self.bakery(lambda q: q.query(ItemRow))
+            the_query += lambda  q: q.filter(ItemRow.iid == bindparam("_iid"),
+                                             ItemRow.inherit_resolved == bindparam("_resolved"))
+            self.baked_queries_map["get_item_by_resolve_status"] = the_query
+        else:
+            the_query = self.baked_queries_map["get_item_by_resolve_status"]
+        retVal = the_query(self.session).params(_iid=iid_to_get, _resolved=resolve_status).first()
+        return retVal
+
+    def get_items_by_resolve_status(self, resolve_status):  # tested by: TestItemTable.test_get_items_by_resolve_status
+        if "get_items_by_resolve_status" not in self.baked_queries_map:
+            the_query = self.bakery(lambda q: q.query(ItemRow))
+            the_query += lambda  q: q.filter(ItemRow.inherit_resolved == bindparam("_resolved"))
+            the_query += lambda q: q.order_by(ItemRow.iid)
+            self.baked_queries_map["get_items_by_resolve_status"] = the_query
+        else:
+            the_query = self.baked_queries_map["get_items_by_resolve_status"]
+        retVal = the_query(self.session).params(_resolved=resolve_status).all()
+        return retVal
+
+    def get_original_details_for_item(self, iid):  # tested by: TestItemTable.test_get_original_details_for_item
+        if "get_original_details_for_item" not in self.baked_queries_map:
+            the_query = self.bakery(lambda session: session.query(ItemDetailRow))
+            the_query += lambda q: q.filter(ItemDetailRow.origin_iid == bindparam('iid'))
+            #the_query += lambda q: q.filter(ItemDetailRow.os.in_([bindparam('get_for_os')]))
+            the_query += lambda q: q.order_by(ItemDetailRow._id)
+            self.baked_queries_map["get_original_details_for_item"] = the_query
+        else:
+            the_query = self.baked_queries_map["get_original_details_for_item"]
+
+        retVal = the_query(self.session).params(iid=iid, get_for_os=self._get_for_os).all()
+        return retVal
+
+    def create_initial_iid_to_detail_relation(self):
+        retVal = self.session.query(ItemRow.iid, ItemDetailRow._id).filter(ItemRow.iid == ItemDetailRow.origin_iid).all()
+        tup_to_dict = [{'iid': iid, 'detail_row': row} for iid, row in retVal]
+        self.engine.execute(ItemToDetailRelation.__table__.insert(), tup_to_dict)
+        return retVal
+
+    def get_details(self):
 
         # get_all_details: return all items either files dirs or both, used by get_items()
         if "get_all_details" not in self.baked_queries_map:
-            self.baked_queries_map["get_all_details"] = self.bakery(lambda session: session.query(itemRow.ItemDetailRow))
-
-        retVal = self.baked_queries_map["get_all_details"](self.session).all()
+            self.baked_queries_map["get_all_details"] = self.bakery(lambda session: session.query(ItemDetailRow))
+            self.baked_queries_map["get_all_details"] += self.bakery(lambda session: session.filter(ItemDetailRow.os.in_([bindparam('get_for_os')])))
+        retVal = self.baked_queries_map["get_all_details"](self.session).params().all(get_for_os=self._get_for_os)
         return retVal
 
     def get_item_to_detail_relations(self, what="any"):
 
         # get_all_details: return all items either files dirs or both, used by get_items()
         if "get_item_to_detail_relations" not in self.baked_queries_map:
-            self.baked_queries_map["get_item_to_detail_relations"] = self.bakery(lambda session: session.query(itemRow.ItemToDetailRelation))
-            self.baked_queries_map["get_item_to_detail_relations"] += lambda q: q.order_by(itemRow.ItemToDetailRelation.iid)
+            self.baked_queries_map["get_item_to_detail_relations"] = self.bakery(lambda session: session.query(ItemToDetailRelation))
+            self.baked_queries_map["get_item_to_detail_relations"] += lambda q: q.order_by(ItemToDetailRelation.iid)
 
         retVal = self.baked_queries_map["get_item_to_detail_relations"](self.session).all()
         return retVal
 
-    def get_item(self, iid_to_get):
-        retVal = self.session.query(itemRow.ItemRow).filter(itemRow.ItemRow.iid==iid_to_get).scalar()
-        return retVal
-
-    def get_item_by_resolved(self, iid_to_get, resolved_status):
-        retVal = self.session.query(itemRow.ItemRow).filter(itemRow.ItemRow.iid==iid_to_get, itemRow.ItemRow.inherit_resolved == resolved_status).scalar()
-        return retVal
-
-    def get_all_iids(self):
-        retVal = self.session.query(itemRow.ItemRow.iid).all()
-        return retVal
-
-    def get_unresolved_items(self):
-        retVal = self.session.query(itemRow.ItemRow).filter(itemRow.ItemRow.inherit_resolved == False).all()
-        #retVal = [mm[0] for mm in retVal]
-        return retVal
-
     def get_all_details_for_item(self, iid):
-        retVal = self.session.query(itemRow.ItemDetailRow).filter(itemRow.ItemDetailRow.iid == iid).all()
-        #retVal = [mm[0] for mm in retVal]
-        return retVal
+        if "get_all_details_for_item" not in self.baked_queries_map:
+            the_query = self.bakery(lambda session: session.query(ItemDetailRow))
+            the_query += lambda q: q.filter(ItemDetailRow.origin_iid == bindparam('iid'))
+            the_query += lambda q: q.filter(ItemDetailRow.os.in_([bindparam('get_for_os')]))
+            the_query += lambda q: q.order_by(ItemToDetailRelation._id)
+            self.baked_queries_map["get_all_details_for_item"] = the_query
+        else:
+            the_query = self.baked_queries_map["get_all_details_for_item"]
 
-    def get_all_details_rows_for_item(self, iid):
-        retVal = self.session.query(itemRow.ItemToDetailRelation.detail_row).filter(itemRow.ItemToDetailRelation.iid == iid).all()
+        retVal = the_query(self.session).params(iid=iid, get_for_os=self._get_for_os).all()
         retVal = [mm[0] for mm in retVal]
         return retVal
 
-    def get_details_for_item(self, iid, detail_name):
-        retVal = self.session.query(itemRow.ItemDetailRow.detail_value).filter(itemRow.ItemDetailRow.iid == iid,
-                                                                  itemRow.ItemDetailRow.detail_name == detail_name).all()
+    def get_specific_details_for_item(self, iid, detail_name):
+        # cannot use baked queries as they do not support array parameters
+        the_query = self.session.query(ItemDetailRow.detail_value)\
+            .filter(ItemDetailRow.origin_iid == iid,
+                    ItemDetailRow.detail_name == detail_name,
+                    ItemDetailRow.os.in_(self._get_for_os))
+        retVal = the_query.all()
+        retVal = [mm[0] for mm in retVal]
+        return retVal
+
+    def get_specific_details_for_item2(self, iid, detail_name):
+        if "get_specific_details_for_item" not in self.baked_queries_map:
+            the_query = self.bakery(lambda session: session.query(ItemDetailRow))
+            the_query += lambda q: q.filter(ItemDetailRow.origin_iid == bindparam('iid'))
+            the_query += lambda q: q.filter(ItemDetailRow.os.in_([bindparam('get_for_os')]))
+            the_query += lambda q: q.filter(ItemDetailRow.detail_name == bindparam('detail_name'))
+            self.baked_queries_map["get_specific_details_for_item"] = the_query
+        else:
+            the_query = self.baked_queries_map["get_specific_details_for_item"]
+
+        retVal = self.session.execute(text(the_query), iid=iid, get_for_os=self._get_for_os, detail_name=detail_name)
+
+        #retVal = the_query(self.session).params(iid=iid, get_for_os=self._get_for_os, detail_name=detail_name).all()
         retVal = [mm[0] for mm in retVal]
         return retVal
 
     def resolve_item_inheritance(self, item_to_resolve):
         if not item_to_resolve.inherit_resolved:
-            inherit_from = self.get_details_for_item(item_to_resolve.iid, 'inherit')
+            inherit_from = [self.get_specific_details_for_item(item_to_resolve.iid, 'inherit')]
             if len(inherit_from) > 0:
                 for i_f in inherit_from:
                     self.resolve_iid_inheritance(i_f)
@@ -165,11 +266,11 @@ class ItemTable(object):
                     for d_r in detail_rows_for_item:
                         #if d_f_i.detail_name not in ItemTable.dont_inherit_details:
                             new_d_r = {'iid': item_to_resolve.iid, 'detail_row': d_r}
-                            self.engine.execute(itemRow.ItemToDetailRelation.__table__.insert(), new_d_r)
+                            self.engine.execute(ItemToDetailRelation.__table__.insert(), new_d_r)
             item_to_resolve.inherit_resolved = True
 
     def resolve_iid_inheritance(self, iid_to_resolve):
-        item = self.get_item_by_resolved(iid_to_resolve, False)
+        item = self.get_item_by_resolve_status(iid_to_resolve, False)
         if item is not None:
             self.resolve_item_inheritance(item)
 
@@ -180,7 +281,7 @@ class ItemTable(object):
 
     def add_something(self):
         to_add = {'iid': "ADD", 'os': "ADD-os", 'detail_name': "ADD-detail_name", 'detail_value': "ADD-details_value", 'inherited': True}
-        self.engine.execute(itemRow.ItemDetailRow.__table__.insert(), to_add)
+        self.engine.execute(ItemDetailRow.__table__.insert(), to_add)
 
 if __name__ == "__main__":
     reader = ItemTableYamlReader()

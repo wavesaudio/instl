@@ -8,9 +8,7 @@ alchemy_base = declarative_base()
 
 class ItemRow(alchemy_base):
     __tablename__ = 'ItemRow'
-    #row_id = Column(Integer, primary_key=True, autoincrement=True)
     iid = Column(String, primary_key=True)
-    #name = Column(String(128), default=None)
     inherit_resolved = Column(BOOLEAN, default=False)
 
     def __repr__(self):
@@ -28,21 +26,19 @@ class ItemRow(alchemy_base):
 class ItemDetailRow(alchemy_base):
     __tablename__ = 'ItemDetailRow'
     _id = Column(Integer, primary_key=True, autoincrement=True)
-    iid = Column(String, ForeignKey("ItemRow.iid"))
+    origin_iid = Column(String, ForeignKey(ItemRow.iid))
     os = Column(String(8), default="common")  # enum?
     detail_name = Column(String)
     detail_value = Column(String)
-    inherited = Column(BOOLEAN, default=False)
 
     def __repr__(self):
-        return ("<{self._id}) {self.iid}, {self.os}"
+        return ("<{self._id}) {self.origin_iid}, {self.os}"
                 ", detail_name:{self.detail_name}"
-                ", detail_value:{self.detail_value}"
-                ", inherited:{self.inherited}>"
+                ", detail_value:{self.detail_value}>"
                 ).format(**locals())
 
     def __str__(self):
-        retVal = "{self._id}) {self.iid}, {self.os}, {self.detail_name}: {self.detail_value}, inherited: {self.inherited}".format(**locals())
+        retVal = "{self._id}) {self.origin_iid}, {self.os}, {self.detail_name}: {self.detail_value}".format(**locals())
         return retVal
 
 
