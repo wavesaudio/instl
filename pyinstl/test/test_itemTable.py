@@ -4,11 +4,13 @@
 import sys
 import os
 import unittest
+import time
 
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..", "..")))
 from pyinstl.itemRow import ItemRow, ItemDetailRow, ItemToDetailRelation, alchemy_base
 from pyinstl.itemTable import ItemTableYamlReader, ItemTable
+import aYaml
 
 
 def timing(f):
@@ -22,6 +24,26 @@ def timing(f):
     return wrap
 
 
+class TestReadWrite(unittest.TestCase):
+    def setUp(self):
+        self.it = ItemTable()
+        self.in_file_path = os.path.join(os.path.dirname(__file__), 'test-index-in.yaml')
+        self.out_file_path = os.path.join(os.path.dirname(__file__), 'test-index-out.yaml')
+        self.ref_file_path = os.path.join(os.path.dirname(__file__), 'test-index-ref.yaml')
+
+        self.it.read_yaml_file(self.in_file_path)
+
+    def tearDown(self):
+        pass
+
+    def test_write(self):
+        as_yaml = self.it.repr_for_yaml()
+        as_yaml_doc = aYaml.YamlDumpDocWrap(as_yaml, '!index')
+        as_yaml_doc.ReduceOneItemLists()
+        with open(self.out_file_path, "w") as wfd:
+            aYaml.writeAsYaml(as_yaml_doc, wfd)
+
+
 class TestItemTable(unittest.TestCase):
     def setUp(self):
         self.it = ItemTable()
@@ -30,12 +52,21 @@ class TestItemTable(unittest.TestCase):
         self.it.session.add(ItemRow(iid="A", inherit_resolved=False))
         self.it.session.add(ItemRow(iid="C", inherit_resolved=False))
         self.it.session.add(ItemRow(iid="B", inherit_resolved=False))
+        self.it.session.add(ItemRow(iid="DD", inherit_resolved=False))
 
         self.it.session.add(ItemDetailRow(origin_iid="D", os="common", detail_name="detail-1-D", detail_value="value-1-D"))
         self.it.session.add(ItemDetailRow(origin_iid="D", os="common", detail_name="detail-2-D", detail_value="value-2-D"))
+        self.it.session.add(ItemDetailRow(origin_iid="DD", os="common", detail_name="detail-1-D", detail_value="value-1-DD"))
+        self.it.session.add(ItemDetailRow(origin_iid="DD", os="common", detail_name="detail-2-D", detail_value="value-2-DD"))
 
     def tearDown(self):
         pass
+
+    def test_A_num_items(self):
+        the_items = self.it.get_items()
+        self.assertEqual(len(the_items), 5)
+        the_details = self.it.get_original_details()
+        self.assertEqual(len(the_details), 4)
 
     def test_ItemRow_get_item(self):
         the_item1 = self.it.get_item("B")
@@ -55,10 +86,10 @@ class TestItemTable(unittest.TestCase):
     def test_ItemRow_get_items(self):
         the_items1 = self.it.get_items()
         # items should come sorted by iid
-        self.assertEqual(the_items1[0].iid, "A")
-        self.assertEqual(the_items1[1].iid, "B")
+        self.assertEqual(the_items1[0].iid, "D")
+        self.assertEqual(the_items1[1].iid, "A")
         self.assertEqual(the_items1[2].iid, "C")
-        self.assertEqual(the_items1[3].iid, "D")
+        self.assertEqual(the_items1[3].iid, "B")
         the_items2 = self.it.get_items()
         self.assertEqual(the_items1, the_items2, "same list should be returned by two calls")
 
@@ -82,8 +113,9 @@ class TestItemTable(unittest.TestCase):
         a = self.it.get_item("A")
         b = self.it.get_item("B")
         c = self.it.get_item("C")
+        dd = self.it.get_item("DD")
         l1 = self.it.get_items_by_resolve_status(False)
-        self.assertEqual(l1, [a, b, c])
+        self.assertEqual(l1, [a, b, c, dd])
 
         d = self.it.get_item("D")
         l2 = self.it.get_items_by_resolve_status(True)
@@ -91,70 +123,36 @@ class TestItemTable(unittest.TestCase):
 
     def test_get_all_iids(self):
         all_iids1 = self.it.get_all_iids()
-        self.assertEqual(all_iids1, ["A", "B", "C", "D"])
+        self.assertEqual(all_iids1, ["A", "B", "C", "D", "DD"])
         all_iids2 = self.it.get_all_iids()
         self.assertEqual(all_iids1, all_iids2)
 
+    def test_get_original_details_all(self):
+        all_details = self.it.get_original_details()
+        self.assertEqual(len(all_details), 4)
+        self.assertEqual(str(all_details[0]), "1) D, common, detail-1-D: value-1-D")
+        self.assertEqual(str(all_details[1]), "2) D, common, detail-2-D: value-2-D")
+        self.assertEqual(str(all_details[2]), "3) DD, common, detail-1-D: value-1-DD")
+        self.assertEqual(str(all_details[3]), "4) DD, common, detail-2-D: value-2-DD")
+
     def test_get_original_details_for_item(self):
-        ds_for_D = self.it.get_original_details_for_item("D")
+        ds_for_D = self.it.get_original_details("D")
         self.assertEqual(str(ds_for_D[0]), "1) D, common, detail-1-D: value-1-D")
         self.assertEqual(str(ds_for_D[1]), "2) D, common, detail-2-D: value-2-D")
-        ds_for_Z = self.it.get_original_details_for_item("Z")
+        ds_for_Z = self.it.get_original_details("Z")
         self.assertEqual(ds_for_Z, [])
 
-if False:
-    def test_Construction(self):
-        self.assertEqual(self.ii1._inherit_list(), [])
-        self.assertEqual(self.ii1._source_list(), [])
-        self.assertEqual(self.ii1._depend_list(), [])
-        for action_type in InstallItem.action_types:
-            self.assertEqual(self.ii1._action_list(action_type), [])
+    def test_get_original_details_by_name(self):
+        ds_for_D = self.it.get_original_details(detail_name="detail-1-D")
+        self.assertEqual(str(ds_for_D[0]), "1) D, common, detail-1-D: value-1-D")
+        self.assertEqual(str(ds_for_D[1]), "3) DD, common, detail-1-D: value-1-DD")
+        ds_for_Z = self.it.get_original_details(detail_name="some-bullshit-detail-name")
+        self.assertEqual(ds_for_Z, [])
 
-    def test_get_set_by_common_os(self):
-        self.ii1.add_inherit("AN_INHERITE_1")
-        self.ii1.add_inherit("AN_INHERITE_2")
-        self.ii1.add_folders("A_FOLDER_1")
-        self.ii1.add_folders("A_FOLDER_2")
-        self.ii1.add_depends("A_DEPEND_1")
-        self.ii1.add_depends("A_DEPEND_2")
-        for action_type in InstallItem.action_types:
-            self.ii1.add_action(action_type, "AN_ACTION_OF_TYPE_" + action_type)
-
-        # check get is correct for "common"
-        self.assertEqual(self.ii1._inherit_list(), ["AN_INHERITE_1", "AN_INHERITE_2"])
-        self.assertEqual(self.ii1._folder_list(), ["A_FOLDER_1", "A_FOLDER_2"])
-        self.assertEqual(self.ii1._depend_list(), ["A_DEPEND_1", "A_DEPEND_2"])
-        for action_type in InstallItem.action_types:
-            self.assertEqual(self.ii1._action_list(action_type), ["AN_ACTION_OF_TYPE_" + action_type])
-
-    def test_get_set_by_other_os(self):
-        self.ii1.add_inherit("AN_INHERITE_1")
-        self.ii1.add_folders("A_FOLDER_1")
-        self.ii1.add_depends("A_DEPEND_1")
-        for action_type in InstallItem.action_types:
-            self.ii1.add_action(action_type, "AN_ACTION_1_OF_TYPE_" + action_type)
-
-        with self.ii1.set_for_specific_os("Win"):
-            self.ii1.add_inherit("AN_INHERITE_2")
-            self.ii1.add_folders("A_FOLDER_2")
-            self.ii1.add_depends("A_DEPEND_2")
-            for action_type in InstallItem.action_types:
-                self.ii1.add_action(action_type, "AN_ACTION_2_OF_TYPE_" + action_type)
-
-        # check get is correct for "common & Win"
-        self.assertEqual(self.ii1._inherit_list(),
-                         ["AN_INHERITE_1", "AN_INHERITE_2"])  # inherite is not dependant on os
-        self.assertEqual(self.ii1._folder_list(), ["A_FOLDER_1"])
-        self.assertEqual(self.ii1._depend_list(), ["A_DEPEND_1"])
-        for action_type in InstallItem.action_types:
-            self.assertEqual(self.ii1._action_list(action_type), ["AN_ACTION_1_OF_TYPE_" + action_type])
-
-        # check get is correct for "common & Win"
-        InstallItem.begin_get_for_specific_os("Win")
-        self.assertEqual(self.ii1._inherit_list(), ["AN_INHERITE_1", "AN_INHERITE_2"])
-        self.assertEqual(self.ii1._folder_list(), ["A_FOLDER_1", "A_FOLDER_2"])
-        self.assertEqual(self.ii1._depend_list(), ["A_DEPEND_1", "A_DEPEND_2"])
-        for action_type in InstallItem.action_types:
-            self.assertEqual(self.ii1._action_list(action_type),
-                             ["AN_ACTION_1_OF_TYPE_" + action_type, "AN_ACTION_2_OF_TYPE_" + action_type])
-        InstallItem.end_get_for_specific_os()
+    def test_get_original_details_for_item_by_name(self):
+        ds_for_D = self.it.get_original_details("D", "detail-1-D")
+        self.assertEqual(str(ds_for_D[0]), "1) D, common, detail-1-D: value-1-D")
+        ds_for_D = self.it.get_original_details("D", "some-bullshit-detail-name")
+        self.assertEqual(ds_for_D, [])
+        ds_for_D = self.it.get_original_details("some-bullshit-item", "detail-1-D")
+        self.assertEqual(ds_for_D, [])

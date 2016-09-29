@@ -15,7 +15,7 @@ import unittest
 #from test.test_utils import TestUtils
 #from test.test_platformSpecificHelper import TestPlatformSpecificHelper
 
-from test.test_itemTable import TestItemTable
+from test.test_itemTable import TestReadWrite, TestItemTable
 
 if __name__ == '__main__':
     unittest.main(verbosity=3)

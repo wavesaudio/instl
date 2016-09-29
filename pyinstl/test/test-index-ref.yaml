@@ -1,0 +1,27 @@
+--- !index
+
+
+C:
+    name: CCC
+    install_sources:
+        source_C
+
+D:
+    name: DDD
+    install_sources:
+        source_D
+
+A:
+    name: AAA
+    inherit:
+        B
+    install_sources:
+        source_A
+
+B:
+    name: BBB
+    inherit:
+        - C
+        - D
+    install_sources:
+        source_B

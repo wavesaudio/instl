@@ -3,6 +3,7 @@
 
 import os
 import sys
+from collections import defaultdict, OrderedDict
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -42,9 +43,7 @@ class ItemTableYamlReader(YamlReader):
 
     @staticmethod
     def item_dicts_from_node(the_iid, the_node):
-        item, details = dict(), list()
-        item['iid'] = the_iid
-        item['inherit_resolved'] = False
+        item = ItemRow(iid=the_iid, inherit_resolved=False)
         details = ItemTableYamlReader.read_item_details_from_node(the_iid, the_node)
         return item, details
 
@@ -60,12 +59,17 @@ class ItemTableYamlReader(YamlReader):
                 details.extend(actions_details)
             else:
                 for details_line in the_node[detail_name]:
-                    details.append({'iid': the_iid, 'os': the_os, 'detail_name': detail_name, 'detail_value': details_line.value, 'inherited': False})
+                    details.append({'origin_iid': the_iid, 'os': the_os, 'detail_name': detail_name, 'detail_value': details_line.value, 'inherited': False})
         return details
+
 
 class ItemTable(object):
     os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
-    dont_inherit_details = ('name','inherit')
+    action_types = ('pre_copy', 'pre_copy_to_folder', 'pre_copy_item',
+                    'post_copy_item', 'post_copy_to_folder', 'post_copy',
+                    'pre_remove', 'pre_remove_from_folder', 'pre_remove_item',
+                    'remove_item', 'post_remove_item', 'post_remove_from_folder',
+                    'post_remove', 'pre_doit', 'doit', 'post_doit')
     def __init__(self):
         self.engine = create_engine('sqlite:///:memory:', echo=False)
         alchemy_base.metadata.create_all(self.engine)
@@ -118,15 +122,14 @@ class ItemTable(object):
         return retVal
 
     def insert_dicts_to_db(self, item_insert_dicts, details_insert_dicts):
-        # self.session.bulk_insert_mappings(SVNRow, insert_dicts)
-        self.engine.execute(ItemRow.__table__.insert(), item_insert_dicts)
+        self.session.add_all(item_insert_dicts)
         self.engine.execute(ItemDetailRow.__table__.insert(), details_insert_dicts)
         self.create_initial_iid_to_detail_relation()
 
     def get_items(self):  # tested by: TestItemTable.test_ItemRow_get_items
         if "get_all_items" not in self.baked_queries_map:
             the_query = self.bakery(lambda session: session.query(ItemRow))
-            the_query += lambda q: q.order_by(ItemRow.iid)
+            the_query += lambda q: q.order_by(ItemRow._id)
             self.baked_queries_map["get_all_items"] = the_query
         else:
             the_query = self.baked_queries_map["get_all_items"]
@@ -136,12 +139,11 @@ class ItemTable(object):
     def get_item(self, iid_to_get):  # tested by: TestItemTable.test_ItemRow_get_item
         if "get_item" not in self.baked_queries_map:
             the_query = self.bakery(lambda q: q.query(ItemRow))
-            the_query += lambda  q: q.filter(ItemRow.iid == bindparam("_iid"))
-            the_query += lambda q: q.order_by(ItemRow.iid)
+            the_query += lambda  q: q.filter(ItemRow.iid == bindparam("iid_to_get"))
             self.baked_queries_map["get_item"] = the_query
         else:
             the_query = self.baked_queries_map["get_item"]
-        retVal = the_query(self.session).params(_iid=iid_to_get).first()
+        retVal = the_query(self.session).params(iid_to_get=iid_to_get).first()
         return retVal
 
     def get_all_iids(self):
@@ -178,17 +180,25 @@ class ItemTable(object):
         retVal = the_query(self.session).params(_resolved=resolve_status).all()
         return retVal
 
-    def get_original_details_for_item(self, iid):  # tested by: TestItemTable.test_get_original_details_for_item
-        if "get_original_details_for_item" not in self.baked_queries_map:
+    def get_original_details(self, iid=None, detail_name=None, os=None):  # tested by: TestItemTable.test_get_original_details_* functions
+        if "get_original_details" not in self.baked_queries_map:
             the_query = self.bakery(lambda session: session.query(ItemDetailRow))
-            the_query += lambda q: q.filter(ItemDetailRow.origin_iid == bindparam('iid'))
-            #the_query += lambda q: q.filter(ItemDetailRow.os.in_([bindparam('get_for_os')]))
+            the_query += lambda q: q.filter(ItemDetailRow.origin_iid.like(bindparam('iid')))
+            the_query += lambda q: q.filter(ItemDetailRow.detail_name.like(bindparam('detail_name')))
+            the_query += lambda q: q.filter(ItemDetailRow.os.like(bindparam('os')))
             the_query += lambda q: q.order_by(ItemDetailRow._id)
-            self.baked_queries_map["get_original_details_for_item"] = the_query
+            self.baked_queries_map["get_original_details"] = the_query
         else:
-            the_query = self.baked_queries_map["get_original_details_for_item"]
+            the_query = self.baked_queries_map["get_original_details"]
 
-        retVal = the_query(self.session).params(iid=iid, get_for_os=self._get_for_os).all()
+        if iid is None: iid = '%'
+        if detail_name is None: detail_name = '%'
+        if os is None: os = '%'
+        retVal = the_query(self.session).params(iid=iid, detail_name=detail_name, os=os).all()
+
+        # filter by os, apparently sqlalchemy cannot handle a variable length bindparam
+        #retVal = [od for od in retVal if od.os in self._get_for_os]
+
         return retVal
 
     def create_initial_iid_to_detail_relation(self):
@@ -197,13 +207,25 @@ class ItemTable(object):
         self.engine.execute(ItemToDetailRelation.__table__.insert(), tup_to_dict)
         return retVal
 
-    def get_details(self):
+    def get_resolved_details(self, iid=None, detail_name=None, os=None):  # tested by: TestItemTable.test_get_original_details_* functions
+        if "get_resolved_details" not in self.baked_queries_map:
+            the_query = self.bakery(lambda session: session.query(ItemDetailRow))
+            the_query += lambda q: q.filter(ItemDetailRow.origin_iid.like(bindparam('iid')))
+            the_query += lambda q: q.filter(ItemDetailRow.detail_name.like(bindparam('detail_name')))
+            the_query += lambda q: q.filter(ItemDetailRow.os.like(bindparam('os')))
+            the_query += lambda q: q.order_by(ItemDetailRow._id)
+            self.baked_queries_map["get_resolved_details"] = the_query
+        else:
+            the_query = self.baked_queries_map["get_resolved_details"]
 
-        # get_all_details: return all items either files dirs or both, used by get_items()
-        if "get_all_details" not in self.baked_queries_map:
-            self.baked_queries_map["get_all_details"] = self.bakery(lambda session: session.query(ItemDetailRow))
-            self.baked_queries_map["get_all_details"] += self.bakery(lambda session: session.filter(ItemDetailRow.os.in_([bindparam('get_for_os')])))
-        retVal = self.baked_queries_map["get_all_details"](self.session).params().all(get_for_os=self._get_for_os)
+        if iid is None: iid = '%'
+        if detail_name is None: detail_name = '%'
+        if os is None: os = '%'
+        retVal = the_query(self.session).params(iid=iid, detail_name=detail_name, os=os).all()
+
+        # filter by os, apparently sqlalchemy cannot handle a variable length bindparam
+        #retVal = [od for od in retVal if od.os in self._get_for_os]
+
         return retVal
 
     def get_item_to_detail_relations(self, what="any"):
@@ -279,19 +301,46 @@ class ItemTable(object):
         for unresolved_item in unresolved_items:
             self.resolve_item_inheritance(unresolved_item)
 
-    def add_something(self):
-        to_add = {'iid': "ADD", 'os': "ADD-os", 'detail_name': "ADD-detail_name", 'detail_value': "ADD-details_value", 'inherited': True}
-        self.engine.execute(ItemDetailRow.__table__.insert(), to_add)
+    def read_yaml_file(self, in_file_path):
+        reader = ItemTableYamlReader()
+        reader.read_yaml_file(in_file_path)
+        self.insert_dicts_to_db(reader.items, reader.details)
+
+    def repr_item_for_yaml(self, iid):
+        item_details = OrderedDict()
+        for os_name in self.os_names:
+            details_rows = self.get_original_details(iid=iid, os=os_name)
+            if len(details_rows) > 0:
+                if os_name == "common":
+                    work_on_dict = item_details
+                else:
+                    work_on_dict = item_details[os_name] = OrderedDict()
+                for details_row in details_rows:
+                    if details_row.detail_name in self.action_types:
+                        if 'actions' not in work_on_dict:
+                            work_on_dict['actions'] = OrderedDict()
+                        if details_row.detail_name not in work_on_dict['actions']:
+                            work_on_dict[details_row.detail_name]['actions'] = list()
+                        work_on_dict[details_row.detail_name]['actions'].append(details_row.detail_value)
+                    else:
+                        if details_row.detail_name not in work_on_dict:
+                            work_on_dict[details_row.detail_name] = list()
+                        work_on_dict[details_row.detail_name].append(details_row.detail_value)
+        return item_details
+
+    def repr_for_yaml(self):
+        retVal = OrderedDict()
+        the_items = self.get_items()
+        for item in the_items:
+            retVal[item.iid] = self.repr_item_for_yaml(item.iid)
+        return retVal
 
 if __name__ == "__main__":
-    reader = ItemTableYamlReader()
-
-    reader.read_yaml_file('/repositories/betainstl/svn/instl/index.yaml')
     #reader.read_yaml_file('/Users/shai/Desktop/sample_index.yaml')
     #print("\n".join([str(item) for item in reader.items]))
     #print("\n".join([str(detail) for detail in reader.details]))
     it = ItemTable()
-    it.insert_dicts_to_db(reader.items, reader.details)
+    it.read_yaml_file()
     it.resolve_inheritance()
     print("\n".join([str(item) for item in it.get_items()]))
     print("----")
@@ -299,7 +348,6 @@ if __name__ == "__main__":
     print("----")
     print("\n".join([str(detail_relation) for detail_relation in it.get_item_to_detail_relations()]))
 
-    #it.add_something()
     print("----\n----")
     #items = it.get_all_iids()
     #print(type(items[0]), items)

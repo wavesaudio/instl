@@ -185,6 +185,18 @@ class YamlDumpWrap(object):
                 out_stream.write(" # ")
                 out_stream.write(self.comment)
 
+    def ReduceOneItemLists(self, curr_node=None):
+        if curr_node is None:
+            curr_node = self.value
+        if isMapping(curr_node):
+            for n, i in curr_node.items():
+                self.ReduceOneItemLists(i)
+                if isSequence(i) and len(i) == 1:
+                    curr_node[n] = i[0]
+        elif isSequence(curr_node):
+            for i in curr_node:
+                self.ReduceOneItemLists(i)
+
 
 class YamlDumpDocWrap(YamlDumpWrap):
     def __init__(

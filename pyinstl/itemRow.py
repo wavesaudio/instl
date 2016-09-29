@@ -8,7 +8,8 @@ alchemy_base = declarative_base()
 
 class ItemRow(alchemy_base):
     __tablename__ = 'ItemRow'
-    iid = Column(String, primary_key=True)
+    _id = Column(Integer, primary_key=True, autoincrement=True)
+    iid = Column(String, unique=True)
     inherit_resolved = Column(BOOLEAN, default=False)
 
     def __repr__(self):
