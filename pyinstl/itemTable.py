@@ -5,8 +5,6 @@ import os
 import sys
 from collections import defaultdict, OrderedDict
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy import update
 from sqlalchemy import or_
 from sqlalchemy.ext import baked
@@ -17,14 +15,12 @@ from sqlalchemy import event
 from sqlalchemy import text
 from sqlalchemy.engine import reflection
 
-import pyinstl
-from pyinstl import itemRow
-from pyinstl.itemRow import ItemRow, ItemDetailRow, ItemToDetailRelation, alchemy_base
 
 import utils
 from configVar import var_stack
 from functools import reduce
 from aYaml import YamlReader
+from .db_alchemy import db_session_maker, db_engine, ItemRow, ItemDetailRow, ItemToDetailRelation
 
 
 class ItemTableYamlReader(YamlReader):
@@ -35,17 +31,16 @@ class ItemTableYamlReader(YamlReader):
     def init_specific_doc_readers(self): # this function must be overridden
         self.specific_doc_readers["!index"] = self.read_index_from_yaml
 
-    def read_index_from_yaml(self,all_items_node):
+    def read_index_from_yaml(self, all_items_node):
         for IID in all_items_node:
-            item, item_details = ItemTableYamlReader.item_dicts_from_node(IID, all_items_node[IID])
+            item = ItemTableYamlReader.item_from_node(IID, all_items_node[IID])
             self.items.append(item)
-            self.details.extend(item_details)
 
     @staticmethod
-    def item_dicts_from_node(the_iid, the_node):
+    def item_from_node(the_iid, the_node):
         item = ItemRow(iid=the_iid, inherit_resolved=False)
-        details = ItemTableYamlReader.read_item_details_from_node(the_iid, the_node)
-        return item, details
+        item.original_details = ItemTableYamlReader.read_item_details_from_node(the_iid, the_node)
+        return item
 
     @staticmethod
     def read_item_details_from_node(the_iid, the_node, the_os='common'):
@@ -59,7 +54,7 @@ class ItemTableYamlReader(YamlReader):
                 details.extend(actions_details)
             else:
                 for details_line in the_node[detail_name]:
-                    details.append({'origin_iid': the_iid, 'os': the_os, 'detail_name': detail_name, 'detail_value': details_line.value, 'inherited': False})
+                    details.append(ItemDetailRow(os=the_os, detail_name=detail_name, detail_value=details_line.value))
         return details
 
 
@@ -70,14 +65,18 @@ class ItemTable(object):
                     'pre_remove', 'pre_remove_from_folder', 'pre_remove_item',
                     'remove_item', 'post_remove_item', 'post_remove_from_folder',
                     'post_remove', 'pre_doit', 'doit', 'post_doit')
+
     def __init__(self):
-        self.engine = create_engine('sqlite:///:memory:', echo=False)
-        alchemy_base.metadata.create_all(self.engine)
-        self.session_maker = sessionmaker(bind=self.engine)
-        self.session = self.session_maker()
+        self.engine = db_engine
+        self.session = db_session_maker()
         self.baked_queries_map = self.bake_baked_queries()
         self.bakery = baked.bakery()
         self._get_for_os = [ItemTable.os_names[0]]
+
+    def clear_tables(self):
+        self.session.query(ItemToDetailRelation).delete()
+        self.session.query(ItemDetailRow).delete()
+        self.session.query(ItemRow).delete()
 
     def begin_get_for_all_oses(self):
         """ adds all known os names to the list of os that will influence all get functions
@@ -121,10 +120,10 @@ class ItemTable(object):
 
         return retVal
 
-    def insert_dicts_to_db(self, item_insert_dicts, details_insert_dicts):
+    def insert_dicts_to_db(self, item_insert_dicts):
         self.session.add_all(item_insert_dicts)
-        self.engine.execute(ItemDetailRow.__table__.insert(), details_insert_dicts)
-        self.create_initial_iid_to_detail_relation()
+        #self.create_initial_iid_to_detail_relation()
+        self.session.commit()
 
     def get_items(self):  # tested by: TestItemTable.test_ItemRow_get_items
         if "get_all_items" not in self.baked_queries_map:
@@ -181,9 +180,11 @@ class ItemTable(object):
         return retVal
 
     def get_original_details(self, iid=None, detail_name=None, os=None):  # tested by: TestItemTable.test_get_original_details_* functions
+
         if "get_original_details" not in self.baked_queries_map:
             the_query = self.bakery(lambda session: session.query(ItemDetailRow))
-            the_query += lambda q: q.filter(ItemDetailRow.origin_iid.like(bindparam('iid')))
+            the_query += lambda q: q.join(ItemRow)
+            the_query += lambda q: q.filter(ItemRow.iid.like(bindparam('iid')))
             the_query += lambda q: q.filter(ItemDetailRow.detail_name.like(bindparam('detail_name')))
             the_query += lambda q: q.filter(ItemDetailRow.os.like(bindparam('os')))
             the_query += lambda q: q.order_by(ItemDetailRow._id)
@@ -191,14 +192,13 @@ class ItemTable(object):
         else:
             the_query = self.baked_queries_map["get_original_details"]
 
-        if iid is None: iid = '%'
-        if detail_name is None: detail_name = '%'
-        if os is None: os = '%'
-        retVal = the_query(self.session).params(iid=iid, detail_name=detail_name, os=os).all()
-
+        # params with None are turned to '%'
+        params = [iid, detail_name, os]
+        for iparam in range(len(params)):
+            if params[iparam] is None: params[iparam] = '%'
+        retVal = the_query(self.session).params(iid=params[0], detail_name=params[1], os=params[2]).all()
         # filter by os, apparently sqlalchemy cannot handle a variable length bindparam
         #retVal = [od for od in retVal if od.os in self._get_for_os]
-
         return retVal
 
     def create_initial_iid_to_detail_relation(self):
@@ -304,7 +304,7 @@ class ItemTable(object):
     def read_yaml_file(self, in_file_path):
         reader = ItemTableYamlReader()
         reader.read_yaml_file(in_file_path)
-        self.insert_dicts_to_db(reader.items, reader.details)
+        self.insert_dicts_to_db(reader.items)
 
     def repr_item_for_yaml(self, iid):
         item_details = OrderedDict()
