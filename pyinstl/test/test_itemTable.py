@@ -27,15 +27,27 @@ def timing(f):
 class TestReadWrite(unittest.TestCase):
     def setUp(self):
         self.it = ItemTable()
+        self.it.clear_tables()
         self.in_file_path = os.path.join(os.path.dirname(__file__), 'test-index-in.yaml')
         self.out_file_path = os.path.join(os.path.dirname(__file__), 'test-index-out.yaml')
         self.ref_file_path = os.path.join(os.path.dirname(__file__), 'test-index-ref.yaml')
 
         self.it.read_yaml_file(self.in_file_path)
+        self.it.resolve_inheritance()
 
     def tearDown(self):
-        self.it.clear_tables()
+        #self.it.clear_tables()
+        pass
 
+    def test_01_contents(self):
+        items = self.it.get_items()
+        rrr = self.it.view_resolved()
+        print("\n".join(str(r) for r in rrr))
+        #items_strs = [str(item) for item in items]
+        #print(items_strs)
+        #expected_items_strs
+
+if False:
     def test_write(self):
         as_yaml = self.it.repr_for_yaml()
         as_yaml_doc = aYaml.YamlDumpDocWrap(as_yaml, '!index')

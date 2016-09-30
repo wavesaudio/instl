@@ -54,24 +54,30 @@ class ItemDetailRow(alchemy_base):
         retVal = "{self._id}) {self.owner_item_id}, {self.os}, {self.detail_name}: {self.detail_value}".format(**locals())
         return retVal
 
-ItemRow.original_details = relationship("ItemDetailRow", back_populates="item")
 
 
 class ItemToDetailRelation(alchemy_base):
     __tablename__ = 'ItemToDetailRelation'
     _id = Column(Integer, primary_key=True, autoincrement=True)
-    iid = Column(String, ForeignKey("ItemRow.iid"))
-    detail_row = Column(String, ForeignKey("ItemDetailRow._id"))
+    item_id = Column(String, ForeignKey("ItemRow._id"))
+    detail_id = Column(String, ForeignKey("ItemDetailRow._id"))
+
+    item = relationship("ItemRow", back_populates="all_details")
+    detail = relationship("ItemDetailRow", back_populates="resolved_details")
 
     def __repr__(self):
-        return ("<{self._id}) {self.iid}, {self.detail_row}>"
+        return ("<{self._id}) {self.item_id}, {self.detail_id}>"
                 ).format(**locals())
 
     def __str__(self):
-        retVal = "{self._id}) {self.iid}, {self.detail_row}".format(**locals())
+        retVal = "{self._id}) {self.item_id}, {self.detail_id}".format(**locals())
         return retVal
 
+ItemDetailRow.resolved_details = relationship(ItemToDetailRelation, back_populates="detail")
+ItemRow.original_details = relationship("ItemDetailRow", back_populates="item")
+ItemRow.all_details = relationship("ItemToDetailRelation", back_populates="item")
 
-db_engine = create_engine('sqlite:///:memory:', echo=False)
+#db_engine = create_engine('sqlite:///:memory:', echo=False)
+db_engine = create_engine('sqlite:////Users/shai/Desktop/instl.sqlite', echo=False)
 db_session_maker = sessionmaker(bind=db_engine)
 alchemy_base.metadata.create_all(db_engine)
