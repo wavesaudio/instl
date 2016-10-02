@@ -46,7 +46,7 @@ class ItemTableYamlReader(YamlReader):
     def read_item_details_from_node(the_iid, the_node, the_os='common'):
         details = list()
         for detail_name in the_node:
-            if detail_name in ItemTable.os_names[1:]:
+            if detail_name in IndexItemsTable.os_names[1:]:
                 os_specific_details = ItemTableYamlReader.read_item_details_from_node(the_iid, the_node[detail_name], detail_name)
                 details.extend(os_specific_details)
             elif detail_name == 'actions':
@@ -58,26 +58,55 @@ class ItemTableYamlReader(YamlReader):
         return details
 
 
-class ItemTable(object):
+class IndexItemsTable(object):
     os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
     action_types = ('pre_copy', 'pre_copy_to_folder', 'pre_copy_item',
                     'post_copy_item', 'post_copy_to_folder', 'post_copy',
                     'pre_remove', 'pre_remove_from_folder', 'pre_remove_item',
                     'remove_item', 'post_remove_item', 'post_remove_from_folder',
                     'post_remove', 'pre_doit', 'doit', 'post_doit')
+    not_inherit_details = ("name", "version", "inherit")
 
     def __init__(self):
         self.engine = db_engine
         self.session = db_session_maker()
         self.baked_queries_map = self.bake_baked_queries()
         self.bakery = baked.bakery()
-        self._get_for_os = [ItemTable.os_names[0]]
+        self._get_for_os = [IndexItemsTable.os_names[0]]
 
     def clear_tables(self):
         self.session.query(IndexItemToDetailRelation).delete()
         self.session.query(IndexItemDetailRow).delete()
         self.session.query(IndexItemRow).delete()
+        self.drop_views()
         self.session.commit()
+
+    def add_views(self):
+        stmt = text("""
+          CREATE VIEW "full_details_view" AS
+          SELECT IndexItemRow.iid, IndexItemDetailRow.detail_name, IndexItemDetailRow.detail_value, IndexItemToDetailRelation.generation FROM IndexItemRow
+          LEFT JOIN IndexItemToDetailRelation ON IndexItemToDetailRelation.item_id = IndexItemRow._id
+          LEFT JOIN IndexItemDetailRow ON IndexItemToDetailRelation.detail_id = IndexItemDetailRow._id
+          """)
+        self.session.execute(stmt)
+        stmt = text("""
+          CREATE VIEW "original_details_view" AS
+          SELECT IndexItemRow.iid, IndexItemDetailRow.detail_name, IndexItemDetailRow.detail_value FROM IndexItemRow
+          LEFT JOIN IndexItemToDetailRelation ON IndexItemToDetailRelation.item_id = IndexItemRow._id
+                  AND IndexItemToDetailRelation.generation = 0
+          LEFT JOIN IndexItemDetailRow ON IndexItemToDetailRelation.detail_id = IndexItemDetailRow._id
+          """)
+        self.session.execute(stmt)
+
+    def drop_views(self):
+        stmt = text("""
+            DROP VIEW IF EXISTS "full_details_view"
+            """)
+        self.session.execute(stmt)
+        stmt = text("""
+            DROP VIEW IF EXISTS "original_details_view"
+            """)
+        self.session.execute(stmt)
 
     def begin_get_for_all_oses(self):
         """ adds all known os names to the list of os that will influence all get functions
@@ -87,7 +116,7 @@ class ItemTable(object):
             there is need to have access to all oses not just the current or target os.
         """
         _get_for_os = []
-        _get_for_os.extend(ItemTable.os_names)
+        _get_for_os.extend(IndexItemsTable.os_names)
 
     def reset_get_for_all_oses(self):
         """ resets the list of os that will influence all get functions
@@ -132,7 +161,7 @@ class ItemTable(object):
         """
         if "get_all_items" not in self.baked_queries_map:
             the_query = self.bakery(lambda session: session.query(IndexItemRow))
-            the_query += lambda q: q.order_by("IndexItemRow._id")
+            the_query += lambda q: q.order_by(IndexItemRow._id)
             self.baked_queries_map["get_all_items"] = the_query
         else:
             the_query = self.baked_queries_map["get_all_items"]
@@ -146,7 +175,7 @@ class ItemTable(object):
         """
         if "get_index_item" not in self.baked_queries_map:
             the_query = self.bakery(lambda q: q.query(IndexItemRow))
-            the_query += lambda  q: q.filter(IndexItemRow.iid == bindparam("iid_to_get"))
+            the_query += lambda q: q.filter(IndexItemRow.iid == bindparam("iid_to_get"))
             self.baked_queries_map["get_index_item"] = the_query
         else:
             the_query = self.baked_queries_map["get_index_item"]
@@ -191,9 +220,24 @@ class ItemTable(object):
         retVal = the_query(self.session).params(_resolved=resolve_status).all()
         return retVal
 
-    def get_original_details(self, iid=None, detail_name=None, os=None):  # tested by: TestItemTable.test_get_original_details_* functions
-        """
+    def get_original_details_values(self, iid, detail_name):
+        if "get_original_details_values" not in self.baked_queries_map:
+            the_query = self.bakery(lambda session: session.query(IndexItemDetailRow.detail_value))
+            the_query += lambda q: q.join(IndexItemRow)
+            the_query += lambda q: q.filter(IndexItemRow.iid == bindparam('iid'))
+            the_query += lambda q: q.filter(IndexItemDetailRow.detail_name == bindparam('detail_name'))
+            the_query += lambda q: q.order_by(IndexItemDetailRow._id)
+            self.baked_queries_map["get_original_details_values"] = the_query
+        else:
+            the_query = self.baked_queries_map["get_original_details_values"]
 
+        retVal = the_query(self.session).params(iid=iid, detail_name=detail_name).all()
+        retVal = [m[0] for m in retVal]
+        return retVal
+
+    def get_original_details(self, iid=None, detail_name=None, os=None):
+        """
+        tested by: TestItemTable.test_get_original_details_* functions
         :param iid: get detail for specific iid or all if None
         :param detail_name: get detail with specific name or all names if None
         :param os: get detail for os name or for all oses if None
@@ -249,6 +293,7 @@ class ItemTable(object):
         else:
             the_query = self.baked_queries_map["get_resolved_details"]
 
+
         # params with None are turned to '%'
         params = [detail_name, os]
         for iparam in range(len(params)):
@@ -287,37 +332,35 @@ class ItemTable(object):
         retVal = [mm[0] for mm in retVal]
         return retVal
 
-    def resolve_item_inheritance(self, item_to_resolve):
-        inherit_from = self.get_original_details(item_to_resolve.iid, 'inherit')
+    def resolve_item_inheritance(self, item_to_resolve, generation=0):
+        # print("-"*generation, " ", item_to_resolve.iid)
+        inherit_from = self.get_original_details_values(item_to_resolve.iid, 'inherit')
         if len(inherit_from) > 0:
             for inherit_detail in inherit_from:
-                sub_item = self.get_index_item(inherit_detail.detail_value)
+                sub_item = self.get_index_item(inherit_detail)
                 if not sub_item.inherit_resolved:
-                    self.resolve_item_inheritance(sub_item)
+                    self.resolve_item_inheritance(sub_item, generation+1)
                 detail_rows_for_item = self.get_resolved_details(sub_item.iid)
                 new_relation_rows = list()
                 for d_r in detail_rows_for_item:
-                    new_relation_rows.append(IndexItemToDetailRelation(item_id=item_to_resolve._id, detail_id=d_r._id))
+                    if d_r.detail_name not in self.not_inherit_details:
+                        new_relation_rows.append(IndexItemToDetailRelation(item_id=item_to_resolve._id, detail_id=d_r._id, generation=generation+1))
                 self.session.add_all(new_relation_rows)
         item_to_resolve.inherit_resolved = True
-        self.session.commit()
 
-    def resolve_iid_inheritance(self, iid_to_resolve):
-        item = self.get_item_by_resolve_status(iid_to_resolve, False)
-        if item is not None:
-            self.resolve_item_inheritance(item)
-
+    @utils.timing
     def resolve_inheritance(self):
         items = self.get_all_index_items()
-        new_relations = list()
+        initial_relations = list()
         for item in items:
-            new_relations.extend([IndexItemToDetailRelation(item_id=item._id, detail_id=detail._id) for detail in item.original_details])
-        self.session.add_all(new_relations)
+            initial_relations.extend([IndexItemToDetailRelation(item_id=item._id, detail_id=detail._id, generation=0) for detail in item.original_details])
+        self.session.add_all(initial_relations)
         self.session.commit()
 
         for item in items:
             if not item.inherit_resolved:
                 self.resolve_item_inheritance(item)
+        self.session.commit()
 
     def read_yaml_file(self, in_file_path):
         reader = ItemTableYamlReader()
@@ -357,7 +400,7 @@ if __name__ == "__main__":
     #reader.read_yaml_file('/Users/shai/Desktop/sample_index.yaml')
     #print("\n".join([str(item) for item in reader.items]))
     #print("\n".join([str(detail) for detail in reader.details]))
-    it = ItemTable()
+    it = IndexItemsTable()
     it.read_yaml_file()
     it.resolve_inheritance()
     print("\n".join([str(item) for item in it.get_all_index_items()]))

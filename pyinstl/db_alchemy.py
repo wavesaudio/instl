@@ -60,21 +60,22 @@ class IndexItemToDetailRelation(alchemy_base):
     _id = Column(Integer, primary_key=True, autoincrement=True)
     item_id = Column(String, ForeignKey("IndexItemRow._id"))
     detail_id = Column(String, ForeignKey("IndexItemDetailRow._id"))
+    generation = Column(Integer, default=0)
 
-    item = relationship("IndexItemRow", back_populates="all_details")
-    detail = relationship("IndexItemDetailRow", back_populates="resolved_details")
+    #item = relationship("IndexItemRow", back_populates="all_details")
+    #detail = relationship("IndexItemDetailRow", back_populates="resolved_details")
 
     def __repr__(self):
-        return ("<{self._id}) {self.item_id}, {self.detail_id}>"
+        return ("<{self._id}) {self.item_id}, {self.detail_id}, gen {self.generation}>"
                 ).format(**locals())
 
     def __str__(self):
-        retVal = "{self._id}) {self.item_id}, {self.detail_id}".format(**locals())
+        retVal = "{self._id}) {self.item_id}, {self.detail_id}, gen {self.generation}".format(**locals())
         return retVal
 
-IndexItemDetailRow.resolved_details = relationship(IndexItemToDetailRelation, back_populates="detail")
+#IndexItemDetailRow.resolved_details = relationship(IndexItemToDetailRelation, back_populates="detail")
 IndexItemRow.original_details = relationship("IndexItemDetailRow", back_populates="item")
-IndexItemRow.all_details = relationship("IndexItemToDetailRelation", back_populates="item")
+#IndexItemRow.all_details = relationship("IndexItemToDetailRelation", back_populates="item")
 
 #db_engine = create_engine('sqlite:///:memory:', echo=False)
 db_engine = create_engine('sqlite:////Users/shai/Desktop/instl.sqlite', echo=False)

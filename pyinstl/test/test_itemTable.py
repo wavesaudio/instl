@@ -9,7 +9,7 @@ import time
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..", "..")))
 from pyinstl.db_alchemy import IndexItemRow, IndexItemDetailRow, IndexItemToDetailRelation
-from pyinstl.indexItemTable import ItemTableYamlReader, ItemTable
+from pyinstl.indexItemTable import ItemTableYamlReader, IndexItemsTable
 import aYaml
 
 
@@ -25,21 +25,29 @@ def timing(f):
 
 
 class TestReadWrite(unittest.TestCase):
+    @timing
     def setUp(self):
-        self.it = ItemTable()
+        self.it = IndexItemsTable()
         self.it.clear_tables()  # in case db was not cleaned last time the tests were run
 
         self.in_file_path = os.path.join(os.path.dirname(__file__), 'test-index-in.yaml')
+        self.in_file_path = "/repositories/betainstl/svn/instl/index.yaml"
         self.out_file_path = os.path.join(os.path.dirname(__file__), 'test-index-out.yaml')
         self.ref_file_path = os.path.join(os.path.dirname(__file__), 'test-index-ref.yaml')
 
         self.it.read_yaml_file(self.in_file_path)
         self.it.resolve_inheritance()
 
+        self.it.add_views()
+
     def tearDown(self):
-        self.it.clear_tables()
+        #self.it.clear_tables()
         pass
 
+    def test_00(self):
+        # dummy test to check setUp/tearDown on their own
+        pass
+if False:
     def test_01_contents_items(self):
         the_items1 = self.it.get_all_index_items()
         self.assertEqual(the_items1[0].iid, "C")
@@ -64,24 +72,18 @@ class TestReadWrite(unittest.TestCase):
 
     def test_03_contents_relations(self):
         all_relations = self.it.get_details_relations()
-        all_relations_list = [(int(rel.item_id), int(rel.detail_id)) for rel in all_relations]
-        expected_list = [(1, 1), (1, 2), (2, 3), (2, 4), (3, 5), (3, 6), (3, 7), (4, 8), (4, 9), (4, 10), (4, 11), (4, 1), (4, 2), (4, 3), (4, 4), (3, 8), (3, 9), (3, 10), (3, 11), (3, 1), (3, 2), (3, 3), (3, 4)]
+        all_relations_list = [(int(rel.item_id), int(rel.detail_id), int(rel.generation)) for rel in all_relations]
+        expected_list = [(1,1,0), (1,2,0), (2,3,0), (2,4,0), (3,5,0), (3,6,0), (3,7,0), (4,8,0), (4,9,0), (4,10,0), (4,11,0), (4,2,2), (4,4,2), (3,11,1), (3,2,1), (3,4,1)]
         self.assertEqual(all_relations_list, expected_list)
-        #rrr = self.it.view_resolved()
-        #print("\n".join(str(r) for r in rrr))
-        #items_strs = [str(item) for item in items]
-        #print(items_strs)
-        #expected_items_strs
 
     def test_04_contents_resolved_details(self):
-        print([(int(rel.item_id), int(rel.detail_id)) for rel in self.it.get_details_relations()])
+        #print([(int(rel.item_id), int(rel.detail_id), int(rel.generation)) for rel in self.it.get_details_relations()])
 
         all_resolved_details = list()
         for iid in self.it.get_all_iids():
             iid_resolved_details = self.it.get_resolved_details(iid)
             all_resolved_details.extend(iid_resolved_details)
 
-if False:
     def test_write(self):
         as_yaml = self.it.repr_for_yaml()
         as_yaml_doc = aYaml.YamlDumpDocWrap(as_yaml, '!index')
@@ -92,7 +94,7 @@ if False:
 
 class TestItemTable(unittest.TestCase):
     def setUp(self):
-        self.it = ItemTable()
+        self.it = IndexItemsTable()
         self.it.clear_tables()  # in case db was not cleaned last time the tests were run
 
         D = IndexItemRow(iid="D", inherit_resolved=True)
