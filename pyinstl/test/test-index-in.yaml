@@ -8,8 +8,7 @@ D:
     install_sources: source_D
 A:
     name: AAA
-    inherit:
-        B
+    inherit: B
     install_sources: source_A
 B:
     name: BBB
@@ -17,4 +16,3 @@ B:
         - C
         - D
     install_sources: source_B
-        

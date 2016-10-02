@@ -8,8 +8,8 @@ import time
 
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..", "..")))
-from pyinstl.db_alchemy import ItemRow, ItemDetailRow, ItemToDetailRelation
-from pyinstl.itemTable import ItemTableYamlReader, ItemTable
+from pyinstl.db_alchemy import IndexItemRow, IndexItemDetailRow, IndexItemToDetailRelation
+from pyinstl.indexItemTable import ItemTableYamlReader, ItemTable
 import aYaml
 
 
@@ -27,7 +27,8 @@ def timing(f):
 class TestReadWrite(unittest.TestCase):
     def setUp(self):
         self.it = ItemTable()
-        self.it.clear_tables()
+        self.it.clear_tables()  # in case db was not cleaned last time the tests were run
+
         self.in_file_path = os.path.join(os.path.dirname(__file__), 'test-index-in.yaml')
         self.out_file_path = os.path.join(os.path.dirname(__file__), 'test-index-out.yaml')
         self.ref_file_path = os.path.join(os.path.dirname(__file__), 'test-index-ref.yaml')
@@ -36,16 +37,49 @@ class TestReadWrite(unittest.TestCase):
         self.it.resolve_inheritance()
 
     def tearDown(self):
-        #self.it.clear_tables()
+        self.it.clear_tables()
         pass
 
-    def test_01_contents(self):
-        items = self.it.get_items()
-        rrr = self.it.view_resolved()
-        print("\n".join(str(r) for r in rrr))
+    def test_01_contents_items(self):
+        the_items1 = self.it.get_all_index_items()
+        self.assertEqual(the_items1[0].iid, "C")
+        self.assertEqual(the_items1[1].iid, "D")
+        self.assertEqual(the_items1[2].iid, "A")
+        self.assertEqual(the_items1[3].iid, "B")
+
+    def test_02_contents_original_details(self):
+        original_details = self.it.get_original_details()
+        self.assertEqual(len(original_details), 11)
+        self.assertEqual(str(original_details[0]), "1) 1, common, name: CCC")
+        self.assertEqual(str(original_details[1]), "2) 1, common, install_sources: source_C")
+        self.assertEqual(str(original_details[2]), "3) 2, common, name: DDD")
+        self.assertEqual(str(original_details[3]), "4) 2, common, install_sources: source_D")
+        self.assertEqual(str(original_details[4]), "5) 3, common, name: AAA")
+        self.assertEqual(str(original_details[5]), "6) 3, common, inherit: B")
+        self.assertEqual(str(original_details[6]), "7) 3, common, install_sources: source_A")
+        self.assertEqual(str(original_details[7]), "8) 4, common, name: BBB")
+        self.assertEqual(str(original_details[8]), "9) 4, common, inherit: C")
+        self.assertEqual(str(original_details[9]), "10) 4, common, inherit: D")
+        self.assertEqual(str(original_details[10]),"11) 4, common, install_sources: source_B")
+
+    def test_03_contents_relations(self):
+        all_relations = self.it.get_details_relations()
+        all_relations_list = [(int(rel.item_id), int(rel.detail_id)) for rel in all_relations]
+        expected_list = [(1, 1), (1, 2), (2, 3), (2, 4), (3, 5), (3, 6), (3, 7), (4, 8), (4, 9), (4, 10), (4, 11), (4, 1), (4, 2), (4, 3), (4, 4), (3, 8), (3, 9), (3, 10), (3, 11), (3, 1), (3, 2), (3, 3), (3, 4)]
+        self.assertEqual(all_relations_list, expected_list)
+        #rrr = self.it.view_resolved()
+        #print("\n".join(str(r) for r in rrr))
         #items_strs = [str(item) for item in items]
         #print(items_strs)
         #expected_items_strs
+
+    def test_04_contents_resolved_details(self):
+        print([(int(rel.item_id), int(rel.detail_id)) for rel in self.it.get_details_relations()])
+
+        all_resolved_details = list()
+        for iid in self.it.get_all_iids():
+            iid_resolved_details = self.it.get_resolved_details(iid)
+            all_resolved_details.extend(iid_resolved_details)
 
 if False:
     def test_write(self):
@@ -59,19 +93,20 @@ if False:
 class TestItemTable(unittest.TestCase):
     def setUp(self):
         self.it = ItemTable()
+        self.it.clear_tables()  # in case db was not cleaned last time the tests were run
 
-        D = ItemRow(iid="D", inherit_resolved=True)
-        D.original_details.extend([ItemDetailRow(os="common", detail_name="detail-1-D", detail_value="value-1-D"),
-                                  ItemDetailRow(os="common", detail_name="detail-2-D", detail_value="value-2-D")])
+        D = IndexItemRow(iid="D", inherit_resolved=True)
+        D.original_details.extend([IndexItemDetailRow(os="common", detail_name="detail-1-D", detail_value="value-1-D"),
+                                   IndexItemDetailRow(os="common", detail_name="detail-2-D", detail_value="value-2-D")])
         self.it.session.add(D)
 
-        self.it.session.add(ItemRow(iid="A", inherit_resolved=False))
-        self.it.session.add(ItemRow(iid="C", inherit_resolved=False))
-        self.it.session.add(ItemRow(iid="B", inherit_resolved=False))
+        self.it.session.add(IndexItemRow(iid="A", inherit_resolved=False))
+        self.it.session.add(IndexItemRow(iid="C", inherit_resolved=False))
+        self.it.session.add(IndexItemRow(iid="B", inherit_resolved=False))
 
-        DD_detail_1 = ItemDetailRow(os="common", detail_name="detail-1-D", detail_value="value-1-DD")
-        DD_detail_1.item = ItemRow(iid="DD", inherit_resolved=False)
-        DD_detail_2 = ItemDetailRow(os="common", detail_name="detail-2-D", detail_value="value-2-DD")
+        DD_detail_1 = IndexItemDetailRow(os="common", detail_name="detail-1-D", detail_value="value-1-DD")
+        DD_detail_1.item = IndexItemRow(iid="DD", inherit_resolved=False)
+        DD_detail_2 = IndexItemDetailRow(os="common", detail_name="detail-2-D", detail_value="value-2-DD")
         DD_detail_2.item = DD_detail_1.item
         self.it.session.add(DD_detail_1)
         self.it.session.add(DD_detail_2)
@@ -81,44 +116,48 @@ class TestItemTable(unittest.TestCase):
     def tearDown(self):
         self.it.clear_tables()
 
+    def test_00_empty_tables(self):
+        self.it.clear_tables()
+        the_items = self.it.get_all_index_items()
+        self.assertEqual(the_items, [])
+
     def test_01_num_items(self):
-        the_items = self.it.get_items()
+        the_items = self.it.get_all_index_items()
         self.assertEqual(len(the_items), 5)
         the_details = self.it.get_original_details()
         self.assertEqual(len(the_details), 4)
 
-    def test_02_ItemRow_get_item(self):
-        the_item1 = self.it.get_item("B")
+    def test_02_IndexItemRow_get_item(self):
+        the_item1 = self.it.get_index_item("B")
         self.assertEqual(the_item1.iid, "B")
 
-        the_item2 = self.it.get_item("A")
+        the_item2 = self.it.get_index_item("A")
         self.assertEqual(the_item2.iid, "A")
 
         self.assertNotEqual(the_item1, the_item2)
 
-        the_item3 = self.it.get_item("B")
+        the_item3 = self.it.get_index_item("B")
         self.assertIs(the_item1, the_item3, "same object should be returned by two calls with same iid")
 
-        the_item3 = self.it.get_item("Z")
-        self.assertIs(the_item3, None, "None should be returned for non existing ItemRow")
+        the_item3 = self.it.get_index_item("Z")
+        self.assertIs(the_item3, None, "None should be returned for non existing IndexItemRow")
 
-    def test_03_ItemRow_get_items(self):
-        the_items1 = self.it.get_items()
-        # items should come sorted by iid
+    def test_03_IndexItemRow_get_all_items(self):
+        the_items1 = self.it.get_all_index_items()
         self.assertEqual(the_items1[0].iid, "D")
         self.assertEqual(the_items1[1].iid, "A")
         self.assertEqual(the_items1[2].iid, "C")
         self.assertEqual(the_items1[3].iid, "B")
-        the_items2 = self.it.get_items()
+        the_items2 = self.it.get_all_index_items()
         self.assertEqual(the_items1, the_items2, "same list should be returned by two calls")
 
     def test_04_get_item_by_resolve_status(self):
-        a1 = self.it.get_item("A")
+        a1 = self.it.get_index_item("A")
         a2 = self.it.get_item_by_resolve_status("A", False)
         self.assertIs(a1, a2)
         a3 = self.it.get_item_by_resolve_status("A", True)
         self.assertIs(a3, None)
-        a1 = self.it.get_item("D")
+        a1 = self.it.get_index_item("D")
         a2 = self.it.get_item_by_resolve_status("D", True)
         self.assertIs(a1, a2)
         a3 = self.it.get_item_by_resolve_status("D", False)
@@ -129,14 +168,14 @@ class TestItemTable(unittest.TestCase):
         self.assertIs(a5, None)
 
     def test_05_get_items_by_resolve_status(self):
-        a = self.it.get_item("A")
-        b = self.it.get_item("B")
-        c = self.it.get_item("C")
-        dd = self.it.get_item("DD")
+        a = self.it.get_index_item("A")
+        b = self.it.get_index_item("B")
+        c = self.it.get_index_item("C")
+        dd = self.it.get_index_item("DD")
         l1 = self.it.get_items_by_resolve_status(False)
         self.assertEqual(l1, [a, b, c, dd])
 
-        d = self.it.get_item("D")
+        d = self.it.get_index_item("D")
         l2 = self.it.get_items_by_resolve_status(True)
         self.assertEqual(l2, [d])
 
