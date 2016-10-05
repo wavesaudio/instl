@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 
-
+#import os
+#import sys
 import re
 
 from sqlalchemy import Column, Integer, String, BOOLEAN
-from sqlalchemy.ext.declarative import declarative_base
+#from sqlalchemy.ext.declarative import declarative_base
 
-alchemy_base = declarative_base()
+#sys.path.append(os.path.realpath(os.path.join(__file__, ".." "..")))
+
+from pyinstl.db_alchemy import get_declarative_base, get_engine
+#alchemy_base = declarative_base()
 
 wtar_file_re = re.compile(r"""^(?P<original_name>.+)\.wtar(\...)?$""")
 
@@ -14,7 +18,8 @@ wtar_file_re = re.compile(r"""^(?P<original_name>.+)\.wtar(\...)?$""")
 fields_relevant_to_dirs = ('path', 'parent', 'level', 'flags', 'revision', 'required')
 fields_relevant_to_str = ('path', 'flags', 'revision', 'checksum', 'size', 'url')
 
-class SVNRow(alchemy_base):
+
+class SVNRow(get_declarative_base()):
     __tablename__ = 'svnitem'
     path = Column(String, primary_key=True)
     parent = Column(String)  # todo: this should be in another table
@@ -138,4 +143,4 @@ class SVNRow(alchemy_base):
                 retVal = self.path[len(starting_dir):]
         return retVal
 
-
+SVNRow.__table__.create(bind=get_engine(), checkfirst=True)

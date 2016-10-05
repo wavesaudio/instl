@@ -38,8 +38,6 @@ class TestReadWrite(unittest.TestCase):
         self.it.read_yaml_file(self.in_file_path)
         self.it.resolve_inheritance()
 
-        self.it.add_views()
-
     def tearDown(self):
         #self.it.clear_tables()
         pass

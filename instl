@@ -140,7 +140,7 @@ def prepare_args_parser(in_command):
         'remove':               {'mode': 'ct', 'options': ('in', 'out', 'run',), 'help':  'remove items installed by copy'},
         'report-installed-versions':     {'mode': 'ct', 'options': ('in', 'output_format'), 'help': 'report what is installed'},
         'report-versions':        {'mode': 'ct', 'options': ('in', 'output_format'), 'help': 'report what is installed and what needs update'},
-        'resolve':              {'mode': 'ds', 'options': ('in','out', 'conf'), 'help':  'read --in file resolve $() style variables and wtite result to --out, definitions are given in --config-file'},
+        'resolve':              {'mode': 'ds', 'options': ('in','out', 'conf'), 'help':  'read --in file resolve $() style variables and write result to --out, definitions are given in --config-file'},
         'set-exec':             {'mode': 'ds', 'options': ('in', 'prog',), 'help':  'set executable bit for appropriate files'},
         'stage2svn':            {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'add/remove files in staging to svn sync repository'},
         'svn2stage':            {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'svn sync repository and copy to staging folder'},

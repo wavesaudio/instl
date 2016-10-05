@@ -45,10 +45,10 @@ class InstlClientReport(InstlClient):
         output_text = ""
         if os.path.isfile(self.current_index_yaml_path) and os.path.isfile(self.current_require_yaml_path):
             self.current_index = dict()
-            self.read_yaml_file(self.current_index_yaml_path, index_dict=self.current_index)
-            self.resolve_index_inheritance(index_dict=self.current_index)
+            self.items_table.read_yaml_file(self.current_index_yaml_path, index_dict=self.current_index)
+            #self.resolve_index_inheritance(index_dict=self.current_index)
 
-            self.read_yaml_file(self.current_require_yaml_path, req_reader=self.installState.req_man)
+            self.items_table.read_yaml_file(self.current_require_yaml_path, req_reader=self.installState.req_man)
             root_items = self.installState.req_man.get_previously_installed_root_items()
             guids_to_ignore = set(var_stack.ResolveVarToList("IGNORED_GUIDS", []))
             report_only_items_with_guids = "REPORT_ONLY_ITEMS_WITH_GUIDS" in var_stack
@@ -71,20 +71,16 @@ class InstlClientReport(InstlClient):
         self.report_installed_items = "REPORT_INSTALLED_ITEMS" in var_stack
         self.report_remote_items = "REPORT_REMOTE_ITEMS" in var_stack
         self.guids_to_ignore = set(var_stack.ResolveVarToList("IGNORED_GUIDS", []))
-        if self.report_installed_items:
-            self.current_require_yaml_path = var_stack.ResolveVarToStr('CURRENT_REQUIRE_YAML')
-            if os.path.isfile(self.current_require_yaml_path):
-                self.read_yaml_file(self.current_require_yaml_path, req_reader=self.installState.req_man)
+        self.current_index_yaml_path = var_stack.ResolveVarToStr('CURRENT_INDEX_YAML')
+        self.current_require_yaml_path = var_stack.ResolveVarToStr('CURRENT_REQUIRE_YAML')
 
-        if self.report_remote_items:
-            for IID, installi in sorted(self.install_definitions_index.items()):
-                output_data_line = []
-                guid_list = list(set(installi.guids).difference(self.guids_to_ignore))
-                if len(guid_list) > 0 and installi.version:
-                    output_data_line.extend((guid_list[0], installi.version, installi.name))
-                    if installi.iid in self.installState.req_man and self.installState.req_man[installi.iid].version:
-                        output_data_line.append("!!"+self.installState.req_man[installi.iid].version+"!!")
-                    self.output_data.append(output_data_line)
+        if os.path.isfile(self.current_index_yaml_path):
+            self.items_table.read_yaml_file(self.current_index_yaml_path)
+            self.items_table.resolve_inheritance()
+        if os.path.isfile(self.current_require_yaml_path):
+            self.items_table.read_yaml_file(self.current_require_yaml_path)
+
+        self.output_data.extend(self.items_table.versions_report())
 
     def calculate_install_items(self):
         pass

@@ -15,10 +15,9 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import func
 from sqlalchemy import event
 
-from .svnRow import SVNRow, alchemy_base
+from .svnRow import SVNRow
 
 import utils
-from configVar import var_stack
 from functools import reduce
 
 comment_line_re = re.compile(r"""
@@ -60,12 +59,12 @@ map_info_extension_to_format = {"txt": "text", "text": "text",
                                 "file-sizes": "file-sizes"}
 
 
+from pyinstl.db_alchemy import create_session
+
+
 class SVNTable(object):
     def __init__(self):
-        self.engine = create_engine('sqlite:///:memory:', echo=False)
-        alchemy_base.metadata.create_all(self.engine)
-        self.session_maker = sessionmaker(bind=self.engine)
-        self.session = self.session_maker()
+        self.session = create_session()
         self.read_func_by_format = {"info": self.read_from_svn_info,
                                     "text": self.read_from_text,
                                     "props": self.read_props,

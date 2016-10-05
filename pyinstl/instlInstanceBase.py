@@ -22,6 +22,7 @@ from configVar import ConfigVarYamlReader
 
 from .installItem import InstallItem
 from . import connectionBase
+from .indexItemTable import IndexItemsTable
 
 
 # noinspection PyPep8Naming
@@ -34,6 +35,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def __init__(self, initial_vars=None):
         self.info_map_table = SVNTable()
+        self.items_table = IndexItemsTable()
         ConfigVarYamlReader.__init__(self)
 
         search_paths_var = var_stack.get_configVar_obj("__SEARCH_PATHS__")

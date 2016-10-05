@@ -180,6 +180,7 @@ class RequireMan(object):
                 if iid_map[iid].guids:
                     require_item.guid = iid_map[iid].guids[0]
 
+
 # noinspection PyPep8Naming,PyUnresolvedReferences
 class InstallInstructionsState(object):
     """ holds state for specific creating of install instructions """
