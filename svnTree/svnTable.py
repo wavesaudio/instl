@@ -3,22 +3,18 @@
 
 import os
 import re
-from contextlib import contextmanager
+from functools import reduce
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy import update
 from sqlalchemy import or_
 from sqlalchemy.ext import baked
 from sqlalchemy import bindparam
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import func
-from sqlalchemy import event
 
 from .svnRow import SVNRow
-
+from pyinstl.db_alchemy import create_session
 import utils
-from functools import reduce
 
 comment_line_re = re.compile(r"""
             ^
@@ -57,9 +53,6 @@ map_info_extension_to_format = {"txt": "text", "text": "text",
                                 "inf": "info", "info": "info",
                                 "props": "props", "prop": "props",
                                 "file-sizes": "file-sizes"}
-
-
-from pyinstl.db_alchemy import create_session
 
 
 class SVNTable(object):
@@ -140,8 +133,8 @@ class SVNTable(object):
         return retVal
 
     def insert_dicts_to_db(self, insert_dicts):
-        # self.session.bulk_insert_mappings(SVNRow, insert_dicts)
-        self.engine.execute(SVNRow.__table__.insert(), insert_dicts)
+        self.session.bulk_insert_mappings(SVNRow, insert_dicts)
+        #self.engine.execute(SVNRow.__table__.insert(), insert_dicts)
 
     def read_from_text(self, rfd):
         insert_dicts = self.read_from_text_to_dict(rfd)

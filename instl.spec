@@ -21,7 +21,7 @@ a = Analysis(['instl'],
              excludes=['PyQt4', 'matplotlib', "PIL", "numpy", "wx", "tornado", "networkx",
                          "pygraphviz", "unittest", "nose",
                         "tkinter", "Tkinter", "scipy", "setuptools",
-                         "distutils", "boto", "colorama"],
+                         "boto", "colorama"],
              win_no_prefer_redirects=None,
              win_private_assemblies=None,
              cipher=block_cipher)
