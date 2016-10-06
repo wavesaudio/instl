@@ -80,7 +80,8 @@ class InstlClientReport(InstlClient):
         if os.path.isfile(self.current_require_yaml_path):
             self.items_table.read_yaml_file(self.current_require_yaml_path)
 
-        self.output_data.extend(self.items_table.versions_report())
+        report_data = self.items_table.versions_report()
+        self.output_data.extend(report_data)
 
     def calculate_install_items(self):
         pass

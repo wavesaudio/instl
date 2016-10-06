@@ -89,7 +89,7 @@ class IndexItemsTable(object):
                     'pre_remove', 'pre_remove_from_folder', 'pre_remove_item',
                     'remove_item', 'post_remove_item', 'post_remove_from_folder',
                     'post_remove', 'pre_doit', 'doit', 'post_doit')
-    not_inherit_details = ("name", "version", "inherit")
+    not_inherit_details = ("name", "inherit")
 
     def __init__(self):
         self.session = create_session()
@@ -213,7 +213,7 @@ class IndexItemsTable(object):
         """
         if "get_all_items" not in self.baked_queries_map:
             the_query = self.bakery(lambda session: session.query(IndexItemRow))
-            the_query += lambda q: q.order_by(IndexItemRow._id)
+            the_query += lambda q: q.order_by(IndexItemRow.iid)
             self.baked_queries_map["get_all_items"] = the_query
         else:
             the_query = self.baked_queries_map["get_all_items"]
@@ -477,6 +477,5 @@ class IndexItemsTable(object):
             version = self.get_first_resolved_detail(item.iid, "version")
             require_version = self.get_first_resolved_detail(item.iid, "version_from_require", "_")
             if None not in (guid, version):
-                retVal.append((guid, require_version, version, item.iid))
-        retVal.append(("Total items", str(len(retVal))))
+                retVal.append((item.iid, guid, require_version, version))
         return retVal

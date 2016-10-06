@@ -381,16 +381,16 @@ def gen_col_format(width_list, align_list=None, sep=' '):
         position in the width_list.
         If align_list is supplied we can align numbers to the right and texts to the left
     """
-    retVal = list()
-    format_str = ""
-    retVal.append(format_str)
+    if align_list is None:
+        align_list = ['<'] * len(width_list)
+
     format_list = list()
-    if align_list:
-        for width_enum in enumerate(width_list):
-            format_list.append("{{:{align}{width}}}".format(width=width_enum[1], align=align_list[width_enum[0]]))
-    else:
-        for width_enum in enumerate(width_list):
-            format_list.append("{{:{align}{width}}}".format(width=width_enum[1], align='<'))
+
+    for width_enum in enumerate(width_list):
+        format_list.append("{{:{align}{width}}}".format(width=width_enum[1], align=align_list[width_enum[0]]))
+
+    retVal = list()
+    retVal.append("")  # for formatting a list of len 0
     for i in range(1, len(format_list)+1):
         retVal.append(sep.join(format_list[0:i]))
     return retVal

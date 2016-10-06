@@ -7,6 +7,9 @@ session.dirty - uncommitted changed records
 session.commit() explicitly done when querying
 """
 
+import os
+import sys
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
@@ -22,8 +25,15 @@ __db_declarative_base = None
 def get_engine():
     global __db_engine
     if __db_engine is None:
-        #__db_engine = create_engine('sqlite:///:memory:', echo=False)
-        __db_engine = create_engine('sqlite:////Users/shai/Desktop/instl.sqlite', echo=False)
+        engine_path = "sqlite:///"
+        if getattr(sys, 'frozen', False):
+            engine_path += ":memory:"
+        else:
+            logs_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Logs")
+            os.makedirs(logs_dir, exist_ok=True)
+            db_file = os.path.join(logs_dir, "instl.sqlite")
+            engine_path += db_file
+        __db_engine = create_engine(engine_path, echo=False)
     return __db_engine
 
 
