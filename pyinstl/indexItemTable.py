@@ -479,3 +479,20 @@ class IndexItemsTable(object):
             if None not in (guid, version):
                 retVal.append((item.iid, guid, require_version, version))
         return retVal
+
+    select_details_for_IID_with_full_details_view = \
+    "SELECT iid, detail_name, detail_value FROM full_details_view \
+    WHERE detail_name = :d_n AND iid = :iid"
+
+    select_details_for_IID = \
+    "SELECT IndexItemRow.iid, IndexItemDetailRow.detail_name, IndexItemDetailRow.detail_value, IndexItemToDetailRelation.generation FROM IndexItemRow \
+     INNER JOIN IndexItemToDetailRelation ON IndexItemToDetailRelation.item_id = IndexItemRow._id \
+     INNER JOIN IndexItemDetailRow \
+       ON IndexItemToDetailRelation.detail_id = IndexItemDetailRow._id \
+         AND   IndexItemDetailRow.detail_name = :d_n \
+     WHERE IndexItemRow.iid = :iid"
+
+    @utils.timing
+    def get_resolved_details_for_iid(self, iid, detail_name):
+        retVal = self.session.execute(IndexItemsTable.select_details_for_IID_with_full_details_view, {'d_n': detail_name, 'iid': iid}).fetchall()
+        return retVal

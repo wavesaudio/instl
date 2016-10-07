@@ -55,7 +55,7 @@ def get_declarative_base():
 class IndexItemRow(get_declarative_base()):
     __tablename__ = 'IndexItemRow'
     _id = Column(Integer, primary_key=True, autoincrement=True)
-    iid = Column(String, unique=True)
+    iid = Column(String, unique=True, index=True)
     inherit_resolved = Column(BOOLEAN, default=False)
     from_index = Column(BOOLEAN, default=False)
     from_require = Column(BOOLEAN, default=False)
@@ -91,9 +91,9 @@ IndexItemRow.required_by = relationship("IndexItemRequiredRow", back_populates="
 class IndexItemDetailRow(get_declarative_base()):
     __tablename__ = 'IndexItemDetailRow'
     _id = Column(Integer, primary_key=True, autoincrement=True)
-    owner_item_id = Column(String, ForeignKey("IndexItemRow._id"))
+    owner_item_id = Column(String, ForeignKey("IndexItemRow._id"), index=True)
     os = Column(String(8), default="common")  # enum?
-    detail_name = Column(String)
+    detail_name = Column(String, index=True)
     detail_value = Column(String)
 
     item = relationship("IndexItemRow", back_populates="original_details")
@@ -106,8 +106,8 @@ class IndexItemDetailRow(get_declarative_base()):
 class IndexItemToDetailRelation(get_declarative_base()):
     __tablename__ = 'IndexItemToDetailRelation'
     _id = Column(Integer, primary_key=True, autoincrement=True)
-    item_id = Column(String, ForeignKey("IndexItemRow._id"))
-    detail_id = Column(String, ForeignKey("IndexItemDetailRow._id"))
+    item_id = Column(String, ForeignKey("IndexItemRow._id"), index=True)
+    detail_id = Column(String, ForeignKey("IndexItemDetailRow._id"), index=True)
     generation = Column(Integer, default=0)
 
     item = relationship("IndexItemRow", back_populates="all_details")
