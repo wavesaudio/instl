@@ -51,6 +51,7 @@ class ConfigVarYamlReader(aYaml.YamlReader):
             Reading of internal state identifiers is allowed.
             __include__ is not allowed.
         """
+        del args, kwargs
         if a_node.isMapping():
             for identifier, contents in a_node.items():
                 if identifier == "__include__":

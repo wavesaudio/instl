@@ -153,7 +153,6 @@ def var_parse_imp(f_string):
         return next_state, yield_val
 
     def var_ref_started_state(c, cont):  # '$' was found
-        next_state = None
         cont.variable_str += c
         if c == '(':
             cont.variable_name = ""
@@ -266,6 +265,7 @@ def resolve_variable_1(parse_retVal, default=""):
 
 
 def resolve_variable_2(parse_retVal, default=""):
+    del parse_retVal
     return default
 
 

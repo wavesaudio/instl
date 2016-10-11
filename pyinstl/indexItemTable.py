@@ -378,7 +378,7 @@ class IndexItemsTable(object):
             retVal = default
         return retVal
 
-    def get_item_to_detail_relations(self, what="any"):
+    def get_item_to_detail_relations(self):
 
         # get_all_details: return all items either files dirs or both, used by get_all_index_items()
         if "get_item_to_detail_relations" not in self.baked_queries_map:

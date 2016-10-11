@@ -99,7 +99,7 @@ class CommandLineOptions(object):
         self.remove_from_dock = None
         self.restart_the_dock = None
         self.fail_exit_code = None
-        self.set_runasadmin = None
+        self.set_run_as_admin = None
         self.output_format = None
 
     def __str__(self):
@@ -334,7 +334,6 @@ def prepare_args_parser(in_command):
                                 dest='target_repo_rev',
                                 help="revision to create file for")
 
-
     elif 'up-repo-rev' == in_command:
         up_repo_rev_options = command_parser.add_argument_group(description=in_command+' arguments:')
         up_repo_rev_options.add_argument('--just-with-number', '-j',
@@ -362,7 +361,7 @@ def prepare_args_parser(in_command):
                                        required=False,
                                        default=False,
                                        action='store_true',
-                                       dest='set_runasadmin',
+                                       dest='set_run_as_admin',
                                        help="set run as admin flag")
 
     elif 'mac-dock' == in_command:

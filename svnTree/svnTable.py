@@ -630,7 +630,7 @@ class SVNTable(object):
         for file_item in required_file_items:
             ancestors.extend(file_item.get_ancestry()[:-1])
         ancestors = sorted(list(set(ancestors)))
-        # sqllite UPDATE cannot accept more than SQLITE_LIMIT_VARIABLE_NUMBER variables
+        # sqlite UPDATE cannot accept more than SQLITE_LIMIT_VARIABLE_NUMBER variables
         # SQLITE_LIMIT_VARIABLE_NUMBER == 999, but I found no way to get this number dynamically
         # following code does the updates in chunks:
         chunk_size = 512
@@ -653,7 +653,7 @@ class SVNTable(object):
                 file_item.need_download = True
                 ancestors.extend(file_item.get_ancestry()[:-1])
         ancestors = sorted(list(set(ancestors)))
-        # sqllite UPDATE cannot accept more than SQLITE_LIMIT_VARIABLE_NUMBER variables
+        # sqlite UPDATE cannot accept more than SQLITE_LIMIT_VARIABLE_NUMBER variables
         # SQLITE_LIMIT_VARIABLE_NUMBER == 999, but I found no way to get this number dynamically
         # following code does the updates in chunks:
         chunk_size = 512
@@ -692,7 +692,7 @@ class SVNTable(object):
 
         want_file = what in ("any", "file")
         want_dir = what in ("any", "dir")
-        get_files = what == "files"
+
         the_query = self.session.query(SVNRow.path)\
             .filter(SVNRow.fileFlag == want_file,
                     SVNRow.dirFlag == want_dir,

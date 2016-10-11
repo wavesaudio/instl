@@ -28,7 +28,6 @@ class YamlReader(object):
         self.specific_doc_readers["__unknown_tag__"] = self.do_nothing_node_reader
 
     def get_read_function_for_doc(self, a_node):
-        retVal = None
         if not a_node.tag:
             retVal = self.specific_doc_readers.get("__no_tag__", None)
         elif a_node.tag in self.specific_doc_readers:

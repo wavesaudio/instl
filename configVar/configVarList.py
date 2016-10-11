@@ -19,7 +19,7 @@ import aYaml
 from . import configVarOne
 from . import configVarParser
 
-value_ref_re = re.compile("""(
+value_ref_re = re.compile("""
                             (?P<varref_pattern>
                                 (?P<varref_marker>[$])      # $
                                 \(                          # (
@@ -29,7 +29,7 @@ value_ref_re = re.compile("""(
                                     \])?
                                 \)
                             )                         # )
-                            )""", re.X)
+                            """, re.X)
 only_one_value_ref_re = re.compile("""
                             ^
                             (?P<varref_pattern>
@@ -171,100 +171,6 @@ class ConfigVarList(object):
     def is_resolved(self, in_str):
         match = value_ref_re.search(in_str)
         retVal = match is None
-        return retVal
-
-    def resolve_deprecated(self, str_to_resolve, list_sep=" ", default=None, raise_on_fail=False):
-        """ Resolve a string, possibly with $() style references.
-            For Variables that hold more than one value, the values are connected with list_sep
-            which defaults to a single space.
-            None existent variables are left as is if default==None, otherwise value of default is inserted
-        """
-        resolved_str = str_to_resolve
-        try:
-            search_start_pos = 0
-            #print("resolving:", str_to_resolve)
-            while True:
-                match = value_ref_re.search(resolved_str, search_start_pos)
-                if not match:
-                    break
-                replacement = default
-                var_name = match.group('var_name')
-                if var_name in self:
-                    if var_name in self.__resolve_stack:
-                        raise Exception("circular resolving of '$({})', resolve stack: {}".format(var_name, self.__resolve_stack))
-                    self.__resolve_stack.append(var_name)
-                    if match.group('varref_array'):
-                        array_index = int(match.group('array_index'))
-                        if array_index < len(self[var_name]):
-                            replacement = self[var_name][array_index]
-                    else:
-                        var_joint_values = list_sep.join([val for val in self[var_name] if val])
-                        replacement = self.resolve(var_joint_values, list_sep)
-
-                    self.__resolve_stack.pop()
-
-                # if var_name was not found skip it on the next search
-                if replacement is None:
-                    search_start_pos = match.end('varref_pattern')
-                else:
-                    resolved_str = resolved_str.replace(match.group('varref_pattern'), replacement)
-                #print("    ", resolved_str)
-        except TypeError:
-            print("TypeError while resolving", str_to_resolve)
-            if raise_on_fail:
-                raise
-        if raise_on_fail and not self.is_resolved(resolved_str):
-            raise ValueError("Cannot fully resolve "+str_to_resolve+ ": "+resolved_str)
-
-        testRetVal = self.ResolveStrToStr(str_to_resolve, list_sep=list_sep)
-        if resolved_str != testRetVal:
-            print(str_to_resolve, resolved_str, testRetVal)
-            raise ValueError(str_to_resolve, resolved_str, testRetVal)
-        return resolved_str
-
-    def resolve_to_list_deprecated(self, str_to_resolve, list_sep=" ", default=None):
-        """ Resolve a string, possibly with $() style references.
-            If the string is a single reference to a variable, a list of resolved values is returned.
-            If the values themselves are a single reference to a variable, their own values extend the list
-            list_sep is used to combine values which are not part of single reference to a variable.
-            otherwise if the string is NOT a single reference to a variable, a list with single value is returned.
-         """
-        resolved_list = list()
-        match = only_one_value_ref_re.search(str_to_resolve)
-        if match:
-            var_name = match.group('var_name')
-            if var_name in self.__resolve_stack:
-                raise Exception("circular resolving of '$({})', resolve stack: {}".format(var_name, self.__resolve_stack))
-            self.__resolve_stack.append(var_name)
-            if var_name in self:
-                for value in self[var_name]:
-                    if value is None:
-                        resolved_list.append(None)
-                    else:
-                        resolved_list.extend(self.resolve_to_list(value, list_sep))
-            else:
-                if default is None:
-                    resolved_list.append(str_to_resolve)
-                else:
-                    resolved_list.append(default)
-            self.__resolve_stack.pop()
-        else:
-            resolved_list.append(self.resolve(str_to_resolve, list_sep))
-        return resolved_list
-
-    def resolve_var_deprecated(self, var_name, list_sep=" ", default=""):
-        retVal = self.resolve( "".join( ("$(", var_name, ")") ))
-        return retVal
-
-    def resolve_var_to_list_deprecated(self, var_name, list_sep=" ", default=""):
-        retVal = self.resolve_to_list( "".join( ("$(", var_name, ")") ))
-        return retVal
-
-    def resolve_var_to_list_if_exists_deprecated(self, var_name, list_sep=" ", default=""):
-        retVal = []
-        if var_name in self:
-            var_reference = "".join( ("$(", var_name, ")") )
-            retVal = self.resolve_to_list(var_reference)
         return retVal
 
     def unresolved_var(self, var_name, list_sep=" ", default=None):

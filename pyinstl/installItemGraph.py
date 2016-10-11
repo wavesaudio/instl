@@ -35,8 +35,8 @@ def find_cycles(item_graph):
 def find_leafs(item_graph):
     retVal = list()
     for node in sorted(item_graph):
-        neig = item_graph.neighbors(node)
-        if not neig:
+        the_neighbors = item_graph.neighbors(node)
+        if not the_neighbors:
             retVal.append(node)
     return retVal
 

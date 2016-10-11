@@ -329,6 +329,7 @@ def relative_url(base, target):
 
 def deprecated(deprecated_func):
     def raise_deprecation(*unused_args, **unused_kwargs):
+        del unused_args, unused_kwargs
         raise DeprecationWarning(deprecated_func.__name__, "is deprecated")
 
     return raise_deprecation

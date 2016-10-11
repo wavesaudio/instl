@@ -595,23 +595,23 @@ class InstlAdmin(InstlInstanceBase):
         for pair in stage_folder_svn_folder_pairs:
             if self.compiled_forbidden_folder_regex.search(pair[0]):
                 raise utils.InstlException(pair[0] + " has forbidden characters should not be committed to svn")
-            comparer = filecmp.dircmp(pair[0], pair[1], ignore=[".svn", ".DS_Store", "Icon\015"])
-            self.stage2svn_for_folder(comparer)
+            comparator = filecmp.dircmp(pair[0], pair[1], ignore=[".svn", ".DS_Store", "Icon\015"])
+            self.stage2svn_for_folder(comparator)
         self.create_variables_assignment()
         self.write_batch_file()
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
 
-    def stage2svn_for_folder(self, comparer):
+    def stage2svn_for_folder(self, comparator):
         # copy new items:
-        for left_only_item in comparer.left_only:
-            item_path = os.path.join(comparer.left, left_only_item)
+        for left_only_item in comparator.left_only:
+            item_path = os.path.join(comparator.left, left_only_item)
             if os.path.islink(item_path):
                 raise utils.InstlException(item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
             elif os.path.isfile(item_path):
                 if self.compiled_forbidden_file_regex.search(item_path):
                     raise utils.InstlException(item_path + " has forbidden characters should not be committed to svn")
-                self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(item_path, comparer.right, link_dest=False, ignore=".svn")
+                self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(item_path, comparator.right, link_dest=False, ignore=".svn")
             elif os.path.isdir(item_path):
                 if self.compiled_forbidden_folder_regex.search(item_path):
                     raise utils.InstlException(item_path + " has forbidden characters should not be committed to svn")
@@ -625,37 +625,37 @@ class InstlAdmin(InstlInstanceBase):
                             raise utils.InstlException(os.path.join(root, item)+" has forbidden characters should not be committed to svn")
 
 
-                self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(item_path, comparer.right, link_dest=False, ignore=".svn")
+                self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(item_path, comparator.right, link_dest=False, ignore=".svn")
             else:
                 raise utils.InstlException(item_path+" not a file, dir or symlink, an abomination!")
             self.batch_accum += self.platform_helper.progress(item_path)
 
         # copy changed items:
-        for diff_item in comparer.diff_files:
-            item_path = os.path.join(comparer.left, diff_item)
+        for diff_item in comparator.diff_files:
+            item_path = os.path.join(comparator.left, diff_item)
             if os.path.islink(item_path):
                 raise utils.InstlException(item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
             elif os.path.isfile(item_path):
                 if self.compiled_forbidden_file_regex.search(item_path):
                     raise utils.InstlException(item_path+" has forbidden characters should not be committed to svn")
-                self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(item_path, comparer.right, link_dest=False, ignore=".svn")
+                self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(item_path, comparator.right, link_dest=False, ignore=".svn")
             else:
                 raise utils.InstlException(item_path+" not a different file or symlink, an abomination!")
             self.batch_accum += self.platform_helper.progress(item_path)
 
         # tell svn about new items, svn will not accept 'add' for changed items
-        for left_only_item in comparer.left_only:
-            self.batch_accum += self.platform_helper.svn_add_item(os.path.join(comparer.right, left_only_item))
-            self.batch_accum += self.platform_helper.progress(os.path.join(comparer.right, left_only_item))
+        for left_only_item in comparator.left_only:
+            self.batch_accum += self.platform_helper.svn_add_item(os.path.join(comparator.right, left_only_item))
+            self.batch_accum += self.platform_helper.progress(os.path.join(comparator.right, left_only_item))
 
         # removed items:
-        for right_only_item in comparer.right_only:
-            self.batch_accum += self.platform_helper.svn_remove_item(os.path.join(comparer.right, right_only_item))
-            self.batch_accum += self.platform_helper.progress(os.path.join(comparer.right, right_only_item))
+        for right_only_item in comparator.right_only:
+            self.batch_accum += self.platform_helper.svn_remove_item(os.path.join(comparator.right, right_only_item))
+            self.batch_accum += self.platform_helper.progress(os.path.join(comparator.right, right_only_item))
 
         # recurse to sub folders
-        for sub_comparer in list(comparer.subdirs.values()):
-            self.stage2svn_for_folder(sub_comparer)
+        for sub_comparator in list(comparator.subdirs.values()):
+            self.stage2svn_for_folder(sub_comparator)
 
     def prepare_conditions_for_wtar(self):
         folder_wtar_regex_list = var_stack.ResolveVarToList("FOLDER_WTAR_REGEX")

@@ -216,7 +216,7 @@ class InstlMisc(InstlInstanceBase):
         shortcut_path = var_stack.ResolveVarToStr("__SHORTCUT_PATH__")
         target_path = var_stack.ResolveVarToStr("__SHORTCUT_TARGET_PATH__")
         working_directory, target_name = os.path.split(target_path)
-        runasadmin = "__RUN_AS_ADMIN__" in var_stack
+        run_as_admin = "__RUN_AS_ADMIN__" in var_stack
         from win32com.client import Dispatch
 
         shell = Dispatch("WScript.Shell")
@@ -224,7 +224,7 @@ class InstlMisc(InstlInstanceBase):
         shortcut.Targetpath = target_path
         shortcut.WorkingDirectory = working_directory
         shortcut.save()
-        if runasadmin:
+        if run_as_admin:
             import pythoncom
             from win32com.shell import shell, shellcon
             link_data = pythoncom.CoCreateInstance(

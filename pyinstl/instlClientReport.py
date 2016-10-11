@@ -42,7 +42,6 @@ class InstlClientReport(InstlClient):
         self.current_index_yaml_path = var_stack.ResolveVarToStr('CURRENT_INDEX_YAML')
         self.current_require_yaml_path = var_stack.ResolveVarToStr('CURRENT_REQUIRE_YAML')
 
-        output_text = ""
         if os.path.isfile(self.current_index_yaml_path) and os.path.isfile(self.current_require_yaml_path):
             self.current_index = dict()
             self.items_table.read_yaml_file(self.current_index_yaml_path, index_dict=self.current_index)

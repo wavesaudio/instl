@@ -267,7 +267,7 @@ class InstallInstructionsState(object):
         for IID in self.__root_items:
             if IID == "__UPDATE_INSTALLED_ITEMS__":
                 if self.the_command in ("sync", "synccopy"):
-                    self.__repair_installed_items = True  # if synccing we want to sync everything
+                    self.__repair_installed_items = True  # if syncing we want to sync everything
                 else:
                     self.__update_installed_items = True  # if copying we want to copy only iid's whose version changed
             elif IID == "__REPAIR_INSTALLED_ITEMS__":

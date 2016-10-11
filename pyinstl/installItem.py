@@ -379,7 +379,6 @@ class InstallItem(object):
                     #    print("get_recursive_depends: already added", self.__iid)
 
     def repr_for_yaml_items(self, for_which_os):
-        retVal = None
         retVal = OrderedDict()
         if self.__items[for_which_os]:
             if self.__items[for_which_os]['version']:

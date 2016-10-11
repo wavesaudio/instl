@@ -33,7 +33,7 @@ from collections import OrderedDict
 
 if __name__ == "__main__":
     pass
-    #sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
+    # sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 
 yaml.Node.isNone = lambda self: self.tag.endswith(":null")
 
@@ -204,8 +204,8 @@ class YamlDumpDocWrap(YamlDumpWrap):
             explicit_start=True, explicit_end=False,
             sort_mappings=False):
         super().__init__(tag=tag, comment=comment,
-                                              value=value,
-                                              sort_mappings=sort_mappings)
+                        value=value,
+                        sort_mappings=sort_mappings)
         self.explicit_start = explicit_start
         self.explicit_end = explicit_end
 

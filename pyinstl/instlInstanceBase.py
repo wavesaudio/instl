@@ -210,7 +210,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             var_stack.add_const_config_variable("__RESTART_THE_DOCK__", "from command line options", "yes")
         if cmd_line_options_obj.fail_exit_code:
             var_stack.add_const_config_variable("__FAIL_EXIT_CODE__", "from command line options", *cmd_line_options_obj.fail_exit_code)
-        if cmd_line_options_obj.set_runasadmin:
+        if cmd_line_options_obj.set_run_as_admin:
             var_stack.add_const_config_variable("__RUN_AS_ADMIN__", "from command line options", "yes")
 
         if cmd_line_options_obj.define:
@@ -223,6 +223,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 #            raise ValueError(var_stack.resolve("Minimal instl version $(INSTL_MINIMAL_VERSION) > current version $(__INSTL_VERSION__); ")+var_stack.get_configVar_obj("INSTL_MINIMAL_VERSION").description)
 
     def read_require(self, a_node, *args, **kwargs):
+        del args, kwargs
         req_reader = kwargs.get("req_reader")
         if req_reader is not None:
             req_reader.read_require_node(a_node)

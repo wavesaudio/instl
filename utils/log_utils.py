@@ -14,14 +14,14 @@ import logging
 import logging.handlers
 
 
-def get_log_folder_path(in_appname, in_appauthor):
-    retVal = appdirs.user_log_dir(appname=in_appname, appauthor=in_appauthor)
+def get_log_folder_path(in_app_name, in_app_author):
+    retVal = appdirs.user_log_dir(appname=in_app_name, appauthor=in_app_author)
     os.makedirs(retVal, exist_ok=True)
     return retVal
 
 
-def get_log_file_path(in_appname, in_appauthor, debug=False):
-    retVal = get_log_folder_path(in_appname, in_appauthor)
+def get_log_file_path(in_app_name, in_app_author, debug=False):
+    retVal = get_log_folder_path(in_app_name, in_app_author)
     if debug:
         retVal = os.path.join(retVal, "log.debug.txt")
     else:
@@ -101,7 +101,7 @@ func_log_wrapper_threshold_level = debug_logging_level
 
 def func_log_wrapper(logged_func):
     """ A decorator to print function begin/end messages to log.
-        If current logging level is above the threshhold the original function
+        If current logging level is above the threshold the original function
         is returned, and performance is not effected.
     """
     returned_func = logged_func
