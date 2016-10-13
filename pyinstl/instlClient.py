@@ -370,6 +370,7 @@ class InstlClient(InstlInstanceBase):
         self.installState = InstallInstructionsState(self)
         main_input_file_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         self.read_yaml_file(main_input_file_path)
+        self.items_table.resolve_inheritance()
         self.init_default_client_vars()
         self.resolve_defined_paths()
         self.batch_accum.set_current_section('begin')

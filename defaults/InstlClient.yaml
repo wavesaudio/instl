@@ -60,3 +60,5 @@ REQUIRE_REPO_REV: 0
 
 # default version for iids that do not have explicity version
 DEFAULT_IID_VERSION: 0.0.0
+
+OUTPUT_FORMAT: text

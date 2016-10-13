@@ -156,7 +156,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             "credentials": ("__CREDENTIALS__", None),
             "base_url": ("__BASE_URL__", None),
             "file_sizes_file": ("__FILE_SIZES_FILE__", None),
-            "output_format": ("__OUTPUT_FORMAT__", "text")
+            "output_format": ("__OUTPUT_FORMAT__", "$(OUTPUT_FORMAT)")
         }
 
         for attrib, var in const_attrib_to_var.items():
@@ -423,6 +423,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
     def read_index(self, a_node, *args, **kwargs):
         index_dict = kwargs.get('index_dict', self.install_definitions_index)
         index_dict.update(read_index_from_yaml(a_node))
+        self.items_table.read_index_node(a_node)
 
     def find_cycles(self):
         if not self.install_definitions_index:
