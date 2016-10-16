@@ -13,6 +13,7 @@
 
 import io
 import yaml
+import urllib.error
 
 import utils
 
@@ -47,6 +48,13 @@ class YamlReader(object):
                 buffer = io.StringIO(buffer)     # turn text to a stream
                 buffer.name = file_path          # this will help identify the file for debugging and messages
                 self.read_yaml_from_stream(buffer, *args, **kwargs)
+        except (FileNotFoundError, urllib.error.URLError) as ex:
+            ignore = kwargs.get('ignore_if_not_exist', False)
+            if ignore:
+                print("'ignore_if_not_exist' specified, ignoring FileNotFoundError for", file_path)
+            else:
+                print("Exception reading file:", file_path, ex)
+                raise
         except Exception as ex:
             print("Exception reading file:", file_path, ex)
             raise
