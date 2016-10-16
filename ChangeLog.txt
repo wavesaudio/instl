@@ -1,8 +1,16 @@
-???? 1.3.??
+16/10/2016 1.3.0.3
 
     user visible changes client:
     * InstlClient.create_sync_folder_manifest_command looks for the folder where to put the manifest in __MAIN_IN_FILE__ instead of __MAIN_OUT_FILE__. This was done because in some situations __MAIN_OUT_FILE__ is not defined yet.
+    * new include: __include_if_exist__, so non existing files can be ignored
+    * Default value for __OUTPUT_FORMAT__ is now OUTPUT_FORMAT so the format can be specified in !define sections
+    * added option --out to report-versions command
 
+    programmer visible changes:
+    * new optional flag to read_yaml_file ignore_if_not_exist to implement __include_if_exist__
+    * Added reading of index files to database together with previous reading method - as temporary transition method
+    * remove db file when initializing new db in non-compiled mode
+    * commit after reading index to prevent "locked db" when reading SVN map
 
 19/9/2016 1.3.0.2
 

@@ -502,3 +502,15 @@ class IndexItemsTable(object):
     def get_resolved_details_for_iid(self, iid, detail_name):
         retVal = self.session.execute(IndexItemsTable.select_details_for_IID_with_full_details_view, {'d_n': detail_name, 'iid': iid}).fetchall()
         return retVal
+
+    @utils.timing
+    def iids_from_guids(self, guid_or_iid_list):
+        query_vars = '("'+'","'.join(guid_or_iid_list)+'")'
+        query_text = """
+          SELECT DISTINCT iid FROM full_details_view
+            WHERE detail_name = "guid" AND detail_value COLLATE NOCASE in {0}
+            OR iid  in {0}""".format(query_vars)
+
+        retVal = self.session.execute(query_text).fetchall()
+        retVal = [mm[0] for mm in retVal]
+        return retVal

@@ -106,8 +106,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.read_yaml_file(main_defaults_file_path)
 
         # read defaults/compile-info.yaml
-        compile_info_file_path = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults",
-                                              "compile-info.yaml")
+        compile_info_file_path = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults", "compile-info.yaml")
         if os.path.isfile(compile_info_file_path):
             self.read_yaml_file(compile_info_file_path)
         if "__COMPILATION_TIME__" not in var_stack:

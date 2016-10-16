@@ -491,6 +491,37 @@ class InstlClient(InstlInstanceBase):
         all_guids_item.add_depends(*guid_list(self.install_definitions_index))
         self.install_definitions_index["__ALL_GUIDS_IID__"] = all_guids_item
 
+    def translate_root_items(self, main_install_targets):
+        # root_install_items might have guid in it, translate them to iids
+        for IID in main_install_targets:
+            if IID == "__UPDATE_INSTALLED_ITEMS__":
+                if self.the_command in ("sync", "synccopy"):
+                    self.__repair_installed_items = True  # if syncing we want to sync everything
+                else:
+                    self.__update_installed_items = True  # if copying we want to copy only iid's whose version changed
+            elif IID == "__REPAIR_INSTALLED_ITEMS__":
+                self.__repair_installed_items = True
+            else:
+                # if IID is a guid, iids_from_guids will translate to iid's, or return the IID otherwise
+                iids_from_the_guid = iids_from_guids(self.__instlObj.install_definitions_index, IID)
+                if len(iids_from_the_guid) > 0:
+                    self.__root_items_translated.extend(iids_from_the_guid)
+                else:
+                    self.__orphan_items.append(IID)
+
+        self.__root_update_items = list()
+        if self.__update_installed_items:
+            self.__root_update_items.extend(self.req_man.get_previously_installed_root_items())
+        elif self.__repair_installed_items:
+            self.__root_update_items.extend(self.req_man.get_previously_installed_root_items_with_lower_version(self.__instlObj.install_definitions_index))
+        print("__root_update_items:", self.__root_update_items)
+        self.__root_items_translated.sort()  # for repeatability
+
+    def calculate_all_needed_items(self, main_install_targets):
+        #main_install_targets = list(filter(bool, main_install_targets))  # avoid empty strings
+        translated_install_targets = self.items_table.iids_from_guids(main_install_targets)
+        return translated_install_targets
+
     def calculate_install_items(self):
         """ calculate the set of iids to install from the "MAIN_INSTALL_TARGETS" variable.
             Full set of install iids and orphan iids are also writen to variable.
@@ -507,7 +538,10 @@ class InstlClient(InstlInstanceBase):
             raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
         for os_name in var_stack.ResolveVarToList("TARGET_OS_NAMES"):
             InstallItem.begin_get_for_specific_os(os_name)
-        self.installState.root_items = var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS")
+        main_install_targets = var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS")
+        self.installState.root_items = main_install_targets
+        temp_root_items = self.calculate_all_needed_items(main_install_targets)
+        assert sorted(self.installState.root_items_translated) == sorted(temp_root_items)
         self.installState.calculate_all_items()
         #self.read_previous_requirements()
         var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(self.installState.all_items))
