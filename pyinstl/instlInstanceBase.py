@@ -224,7 +224,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 #            raise ValueError(var_stack.resolve("Minimal instl version $(INSTL_MINIMAL_VERSION) > current version $(__INSTL_VERSION__); ")+var_stack.get_configVar_obj("INSTL_MINIMAL_VERSION").description)
 
     def read_require(self, a_node, *args, **kwargs):
-        del args, kwargs
+        del args
         req_reader = kwargs.get("req_reader")
         if req_reader is not None:
             req_reader.read_require_node(a_node)
