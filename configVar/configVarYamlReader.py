@@ -39,6 +39,9 @@ class ConfigVarYamlReader(aYaml.YamlReader):
             for identifier, contents in a_node.items():
                 if identifier == '__include__':
                     self.read_include_node(contents, *args, **kwargs)
+                elif identifier == "__include_if_exist__":
+                    kwargs.update({'ignore_if_not_exist': True})
+                    self.read_include_node(contents, *args, **kwargs)
                 elif identifier == "__environment__":
                     for item in contents:
                         var_stack.read_environment(item.value)
@@ -54,8 +57,8 @@ class ConfigVarYamlReader(aYaml.YamlReader):
         del args, kwargs
         if a_node.isMapping():
             for identifier, contents in a_node.items():
-                if identifier == "__include__":
-                    raise ValueError("!define_const doc cannot except __include__")
+                if identifier in ("__include__", "__include_if_exist__"):
+                    raise ValueError("!define_const doc cannot except __include__ and __include_if_exist__")
                 var_stack.add_const_config_variable(identifier, "from !define_const section",
                                                     *[item.value for item in contents])
 
@@ -63,15 +66,14 @@ class ConfigVarYamlReader(aYaml.YamlReader):
         # if document is empty we get a scalar node
         if a_node.isMapping():
             for identifier, contents in a_node.items():
-                if identifier == "__include__":
-                    raise ValueError("!define_if_not_exist doc cannot except __include__")
-                if self.allow_reading_of_internal_vars or not internal_identifier_re.match(
-                        identifier):  # do not read internal state identifiers
+                if identifier in ("__include__", "__include_if_exist__"):
+                    raise ValueError("!define_if_not_exist doc cannot except __include__ and __include_if_exist__")
+                if self.allow_reading_of_internal_vars or not internal_identifier_re.match(identifier):  # do not read internal state identifiers
                     if identifier not in var_stack:
                         var_stack.set_var(identifier, str(contents.start_mark)).extend([item.value for item in contents])
 
     def read_include_node(self, i_node, *args, **kwargs):
-        pass  # override to handle __include__ nodes
+        pass  # override to handle __include__, __include_if_exist__ nodes
 
 
 if __name__ == "__main__":

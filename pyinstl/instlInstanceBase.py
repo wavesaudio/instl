@@ -8,6 +8,7 @@ import abc
 
 import platform
 import appdirs
+import urllib.error
 
 import aYaml
 import utils
@@ -269,7 +270,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
     def read_include_node(self, i_node, *args, **kwargs):
         if i_node.isScalar():
             resolved_file_name = var_stack.ResolveStrToStr(i_node.value)
-            self.read_yaml_file(resolved_file_name)
+            self.read_yaml_file(resolved_file_name, *args, **kwargs)
         elif i_node.isSequence():
             for sub_i_node in i_node:
                 self.read_include_node(sub_i_node, *args, **kwargs)
@@ -290,15 +291,21 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                     public_key_text = self.provision_public_key_text()
 
                 if expected_checksum is None:
-                    self.read_yaml_file(resolved_file_url)
+                    self.read_yaml_file(resolved_file_url, *args, **kwargs)
                     cached_file_path = resolved_file_url
                 else:
-                    utils.download_from_file_or_url(resolved_file_url,cached_file_path,
-                                              connectionBase.translate_url, cache=True,
-                                              public_key=public_key_text,
-                                              textual_sig=expected_signature,
-                                              expected_checksum=expected_checksum)
-                    self.read_yaml_file(cached_file_path)
+                    try:
+                        utils.download_from_file_or_url(resolved_file_url,cached_file_path,
+                                                  connectionBase.translate_url, cache=True,
+                                                  public_key=public_key_text,
+                                                  textual_sig=expected_signature,
+                                                  expected_checksum=expected_checksum)
+                        self.read_yaml_file(cached_file_path, *args, **kwargs)
+                    except (FileNotFoundError, urllib.error.URLError):
+                        ignore = kwargs.get('ignore_if_not_exist', False)
+                        if ignore:
+                            print("'ignore_if_not_exist' specified, ignoring FileNotFoundError for", resolved_file_url)
+                            raise
 
                 if "copy" in i_node:
                     self.batch_accum.set_current_section('post')

@@ -112,7 +112,7 @@ class open_for_read_file_or_url(object):
                 else:
                     self.local_file_path = os.path.realpath(self.local_file_path)
             else:
-                raise IOError("Could not locate local file", self.local_file_path)
+                raise FileNotFoundError("Could not locate local file", self.local_file_path)
         else:
             self.url = in_file_or_url
             if translate_url_callback is not None:

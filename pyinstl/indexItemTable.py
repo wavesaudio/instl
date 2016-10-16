@@ -439,10 +439,13 @@ class IndexItemsTable(object):
         self.reader.read_index_from_yaml(a_node)
         self.insert_index_to_db()
 
+    def read_require_node(self, a_node):
+        self.reader.read_index_from_yaml(a_node)
+        self.insert_required_to_db()
+
     def read_yaml_file(self, in_file_path):
         self.reader.read_yaml_file(in_file_path)
         self.insert_index_to_db()
-        self.insert_required_to_db()
 
     def repr_item_for_yaml(self, iid):
         item_details = OrderedDict()
