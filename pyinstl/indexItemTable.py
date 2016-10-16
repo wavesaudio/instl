@@ -184,9 +184,8 @@ class IndexItemsTable(object):
     def insert_index_to_db(self):
         if self.reader.index_items:
             self.session.add_all(self.reader.index_items)
-            self.session.flush()
             self.reader.index_items = self.reader.index_items[:]
-        self.session.flush()
+        self.session.commit()
 
     def insert_required_to_db(self):
         for iid, details_and_required in self.reader.require_items.items():

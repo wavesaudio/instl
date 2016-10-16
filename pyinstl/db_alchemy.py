@@ -17,6 +17,8 @@ from sqlalchemy import Column, Integer, String, BOOLEAN, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.engine import reflection
 
+import utils
+
 __db_engine = None
 __db_session_maker = None
 __db_declarative_base = None
@@ -32,6 +34,7 @@ def get_engine():
             logs_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Logs")
             os.makedirs(logs_dir, exist_ok=True)
             db_file = os.path.join(logs_dir, "instl.sqlite")
+            utils.safe_remove_file(db_file)
             engine_path += db_file
         __db_engine = create_engine(engine_path, echo=False)
     return __db_engine
