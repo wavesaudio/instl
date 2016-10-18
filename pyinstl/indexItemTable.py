@@ -20,7 +20,7 @@ import utils
 from configVar import var_stack
 from functools import reduce
 from aYaml import YamlReader
-from .db_alchemy import create_session, get_engine, IndexItemRow, IndexItemRequiredRow, IndexItemDetailRow, IndexItemToDetailRelation
+from .db_alchemy import create_session, get_engine, IndexItemOperatingSystem, IndexItemRow, IndexItemRequiredRow, IndexItemDetailRow, IndexItemToDetailRelation
 
 
 class ItemTableYamlReader(YamlReader):
@@ -94,6 +94,7 @@ class IndexItemsTable(object):
     def __init__(self):
         self.session = create_session()
         self.clear_tables()
+        self.add_default_tables()
         self.add_views()
         #inspector = reflection.Inspector.from_engine(get_engine())
         #print("Tables:", inspector.get_table_names())
@@ -104,12 +105,22 @@ class IndexItemsTable(object):
         self.reader = ItemTableYamlReader()
 
     def clear_tables(self):
+        #print(get_engine().table_names())
+        self.session.query(IndexItemOperatingSystem).delete()
         self.session.query(IndexItemToDetailRelation).delete()
         self.session.query(IndexItemDetailRow).delete()
         self.session.query(IndexItemRow).delete()
         self.session.query(IndexItemRequiredRow).delete()
         self.drop_views()
         self.session.commit()
+
+    def add_default_tables(self):
+        os_items_to_add = list()
+        os_items_to_add.append(IndexItemOperatingSystem(_id=0, name='common', active=True))
+        for id, os_name in enumerate(IndexItemsTable.os_names[1:]):
+            new_item = IndexItemOperatingSystem(_id=id+1, name=os_name, active=False)
+            os_items_to_add.append(new_item)
+        self.session.add_all(os_items_to_add)
 
     def add_views(self):
         stmt = text("""
