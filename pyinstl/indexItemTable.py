@@ -514,3 +514,25 @@ class IndexItemsTable(object):
         retVal = self.session.execute(query_text).fetchall()
         retVal = [mm[0] for mm in retVal]
         return retVal
+
+    @utils.timing
+    def calculate_all_items(self, main_install_targets):
+        query_vars = "('" + "'), ('".join(main_install_targets) + "')"
+        query_text = """
+    WITH RECURSIVE depends_on_temp_query(iid) AS (
+        VALUES {0}
+        UNION
+        SELECT
+            IndexItemDetailRow.detail_value
+        FROM IndexItemRow
+            INNER JOIN depends_on_temp_query ON IndexItemRow.iid = depends_on_temp_query.iid
+            INNER JOIN IndexItemToDetailRelation ON IndexItemToDetailRelation.item_id = IndexItemRow._id
+            INNER JOIN IndexItemDetailRow ON IndexItemToDetailRelation.detail_id = IndexItemDetailRow._id
+                                             AND IndexItemDetailRow.detail_name = 'depends'
+      )
+    SELECT * FROM depends_on_temp_query;
+""".format(query_vars)
+
+        retVal = self.session.execute(query_text).fetchall()
+        retVal = [mm[0] for mm in retVal]
+        return retVal

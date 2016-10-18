@@ -288,6 +288,7 @@ class InstallInstructionsState(object):
         print("__root_update_items:", self.__root_update_items)
         self.__root_items_translated.sort()  # for repeatability
 
+    @utils.timing
     def calculate_all_items(self):
         """ calculate the set of iids to install by starting with the root set and adding all dependencies.
             Initial list of iids should already be in self.__root_items_translated.
@@ -332,6 +333,7 @@ class InstallInstructionsState(object):
         self.__all_items.sort()        # for repeatability
         self.__orphan_items.sort()     # for repeatability
         self.__sort_all_items_by_target_folder()
+        return self.__all_items
 
     def calc_require_for_root_items(self):
 
@@ -517,10 +519,9 @@ class InstlClient(InstlInstanceBase):
         print("__root_update_items:", self.__root_update_items)
         self.__root_items_translated.sort()  # for repeatability
 
-    def calculate_all_needed_items(self, main_install_targets):
-        #main_install_targets = list(filter(bool, main_install_targets))  # avoid empty strings
-        translated_install_targets = self.items_table.iids_from_guids(main_install_targets)
-        return translated_install_targets
+    def calculate_all_items(self, main_install_targets):
+        retVal = self.items_table.calculate_all_items(main_install_targets)
+        return retVal
 
     def calculate_install_items(self):
         """ calculate the set of iids to install from the "MAIN_INSTALL_TARGETS" variable.
@@ -540,10 +541,13 @@ class InstlClient(InstlInstanceBase):
             InstallItem.begin_get_for_specific_os(os_name)
         main_install_targets = var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS")
         self.installState.root_items = main_install_targets
-        temp_root_items = self.calculate_all_needed_items(main_install_targets)
-        assert sorted(self.installState.root_items_translated) == sorted(temp_root_items)
-        self.installState.calculate_all_items()
-        #self.read_previous_requirements()
+        root_items_from_table = self.items_table.iids_from_guids(main_install_targets)
+        #assert sorted(self.installState.root_items_translated) == sorted(root_items_from_table)
+        all_items_from_installState = self.installState.calculate_all_items()
+        all_items_from_table = self.calculate_all_items(root_items_from_table)
+        #print("all_items_from_installState", len(all_items_from_installState), sorted(all_items_from_installState))
+        #print("all_items_from_table", len(all_items_from_table), sorted(all_items_from_table))
+        #assert sorted(all_items_from_installState) == sorted(all_items_from_table)
         var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(self.installState.all_items))
         var_stack.set_var("__ORPHAN_INSTALL_TARGETS__").extend(sorted(self.installState.orphan_items))
 
