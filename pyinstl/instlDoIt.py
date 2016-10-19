@@ -150,8 +150,12 @@ class InstlDoIt(InstlInstanceBase):
         """
         if "MAIN_DOIT_ITEMS" not in var_stack:
             raise ValueError("'MAIN_DOIT_ITEMS' was not defined")
-        for os_name in var_stack.ResolveVarToList("TARGET_OS_NAMES"):
+        active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
+        self.items_table.begin_get_for_specific_oses(active_oses)
+
+        for os_name in active_oses:
             InstallItem.begin_get_for_specific_os(os_name)
+
         self.installState.root_doit_items.extend(var_stack.ResolveVarToList("MAIN_DOIT_ITEMS"))
         self.installState.root_doit_items = list(filter(bool, self.installState.root_doit_items))
         self.installState.calculate_full_doit_items_set(self)

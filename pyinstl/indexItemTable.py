@@ -20,7 +20,7 @@ import utils
 from configVar import var_stack
 from functools import reduce
 from aYaml import YamlReader
-from .db_alchemy import create_session, get_engine, IndexItemOperatingSystem, IndexItemRow, IndexItemRequiredRow, IndexItemDetailRow, IndexItemToDetailRelation
+from .db_alchemy import create_session, get_engine, IndexItemDetailOperatingSystem, IndexItemRow, IndexItemRequiredRow, IndexItemDetailRow, IndexItemToDetailRelation
 
 
 class ItemTableYamlReader(YamlReader):
@@ -49,7 +49,7 @@ class ItemTableYamlReader(YamlReader):
     def read_item_details_from_node(the_iid, the_node, the_os='common'):
         details = list()
         for detail_name in the_node:
-            if detail_name in IndexItemsTable.os_names[1:]:
+            if detail_name in IndexItemsTable.os_names.keys():
                 os_specific_details = ItemTableYamlReader.read_item_details_from_node(the_iid, the_node[detail_name], detail_name)
                 details.extend(os_specific_details)
             elif detail_name == 'actions':
@@ -57,7 +57,7 @@ class ItemTableYamlReader(YamlReader):
                 details.extend(actions_details)
             else:
                 for details_line in the_node[detail_name]:
-                    details.append(IndexItemDetailRow(os=the_os, detail_name=detail_name, detail_value=details_line.value))
+                    details.append(IndexItemDetailRow(os_id=IndexItemsTable.os_names[the_os], detail_name=detail_name, detail_value=details_line.value))
         return details
 
     def read_require_from_yaml(self, all_items_node):
@@ -83,7 +83,7 @@ class ItemTableYamlReader(YamlReader):
 
 
 class IndexItemsTable(object):
-    os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
+    os_names = {'common': 0, 'Mac': 1, 'Mac32': 2, 'Mac64': 3, 'Win': 4, 'Win32': 5, 'Win64': 6}
     action_types = ('pre_copy', 'pre_copy_to_folder', 'pre_copy_item',
                     'post_copy_item', 'post_copy_to_folder', 'post_copy',
                     'pre_remove', 'pre_remove_from_folder', 'pre_remove_item',
@@ -94,6 +94,7 @@ class IndexItemsTable(object):
     def __init__(self):
         self.session = create_session()
         self.clear_tables()
+        self.os_names_db_objs = list()
         self.add_default_tables()
         self.add_views()
         #inspector = reflection.Inspector.from_engine(get_engine())
@@ -101,12 +102,11 @@ class IndexItemsTable(object):
         #print("Views:", inspector.get_view_names())
         self.baked_queries_map = self.bake_baked_queries()
         self.bakery = baked.bakery()
-        self._get_for_os = [IndexItemsTable.os_names[0]]
         self.reader = ItemTableYamlReader()
 
     def clear_tables(self):
         #print(get_engine().table_names())
-        self.session.query(IndexItemOperatingSystem).delete()
+        self.session.query(IndexItemDetailOperatingSystem).delete()
         self.session.query(IndexItemToDetailRelation).delete()
         self.session.query(IndexItemDetailRow).delete()
         self.session.query(IndexItemRow).delete()
@@ -115,29 +115,30 @@ class IndexItemsTable(object):
         self.session.commit()
 
     def add_default_tables(self):
-        os_items_to_add = list()
-        os_items_to_add.append(IndexItemOperatingSystem(_id=0, name='common', active=True))
-        for id, os_name in enumerate(IndexItemsTable.os_names[1:]):
-            new_item = IndexItemOperatingSystem(_id=id+1, name=os_name, active=False)
-            os_items_to_add.append(new_item)
-        self.session.add_all(os_items_to_add)
+
+        for os_name, _id in IndexItemsTable.os_names.items():
+            new_item = IndexItemDetailOperatingSystem(_id=_id, name=os_name, active=False)
+            self.os_names_db_objs.append(new_item)
+        self.session.add_all(self.os_names_db_objs)
 
     def add_views(self):
         stmt = text("""
           CREATE VIEW "full_details_view" AS
-          SELECT IndexItemRow.iid, IndexItemDetailRow.detail_name, IndexItemDetailRow.detail_value, IndexItemToDetailRelation.generation FROM IndexItemRow
+          SELECT IndexItemRow.iid, IndexItemDetailRow.detail_name, IndexItemDetailRow.detail_value, IndexItemDetailOperatingSystem.name,IndexItemToDetailRelation.generation FROM IndexItemRow
           LEFT JOIN IndexItemToDetailRelation ON IndexItemToDetailRelation.item_id = IndexItemRow._id
           LEFT JOIN IndexItemDetailRow ON IndexItemToDetailRelation.detail_id = IndexItemDetailRow._id
+          LEFT JOIN IndexItemDetailOperatingSystem ON IndexItemDetailOperatingSystem._id = IndexItemDetailRow.os_id
           """)
         self.session.execute(stmt)
 
         stmt = text("""
           CREATE VIEW "original_details_view" AS
-          SELECT IndexItemRow.iid, IndexItemDetailRow.detail_name, IndexItemDetailRow.detail_value FROM IndexItemRow
+          SELECT IndexItemRow.iid, IndexItemDetailRow.detail_name, IndexItemDetailRow.detail_value, IndexItemDetailOperatingSystem.name FROM IndexItemRow
           LEFT JOIN IndexItemToDetailRelation ON IndexItemToDetailRelation.item_id = IndexItemRow._id
                   AND IndexItemToDetailRelation.generation = 0
           LEFT JOIN IndexItemDetailRow ON IndexItemToDetailRelation.detail_id = IndexItemDetailRow._id
-          """)
+           LEFT JOIN IndexItemDetailOperatingSystem ON IndexItemDetailOperatingSystem._id = IndexItemDetailRow.os_id
+         """)
         self.session.execute(stmt)
 
     def drop_views(self):
@@ -157,8 +158,8 @@ class IndexItemsTable(object):
             This method is useful in code that does reporting or analyzing, where
             there is need to have access to all oses not just the current or target os.
         """
-        _get_for_os = []
-        _get_for_os.extend(IndexItemsTable.os_names)
+        for os_name_obj in self.os_names_db_objs:
+            os_name_obj.active = True
 
     def reset_get_for_all_oses(self):
         """ resets the list of os that will influence all get functions
@@ -167,21 +168,30 @@ class IndexItemsTable(object):
             This method is useful in code that does reporting or analyzing, where
             there is need to have access to all oses not just the current or target os.
         """
-        self._get_for_os = [self.os_names[0]]
+        for os_name_obj in self.os_names_db_objs:
+            if os_name_obj.name == "common":
+                os_name_obj.active = True
+            else:
+                os_name_obj.active = False
 
-    def begin_get_for_specific_os(self, for_os):
+    def begin_get_for_specific_oses(self, *for_oses):
         """ adds another os name to the list of os that will influence all get functions
             such as depend_list, source_list etc.
             This is a static method so it will influence all InstallItem objects.
         """
-        self._get_for_os.append(for_os)
+        for_oses = *for_oses, "common",
+        for os_name_obj in self.os_names_db_objs:
+            if os_name_obj.name in for_oses:
+                os_name_obj.active = True
+            else:
+                os_name_obj.active = False
 
     def end_get_for_specific_os(self):
         """ removed the last added os name to the list of os that will influence all get functions
             such as depend_list, source_list etc.
              This is a static method so it will influence all InstallItem objects.
         """
-        self._get_for_os.pop()
+        self.reset_get_for_all_oses()
 
     def bake_baked_queries(self):
         """ prepare baked queries for later use
@@ -288,6 +298,8 @@ class IndexItemsTable(object):
             the_query += lambda q: q.join(IndexItemRow)
             the_query += lambda q: q.filter(IndexItemRow.iid == bindparam('iid'))
             the_query += lambda q: q.filter(IndexItemDetailRow.detail_name == bindparam('detail_name'))
+            the_query += lambda q: q.join(IndexItemDetailOperatingSystem)
+            the_query += lambda q: q.filter(IndexItemDetailOperatingSystem._id == IndexItemDetailRow.os_id, IndexItemDetailOperatingSystem.active == True)
             the_query += lambda q: q.order_by(IndexItemDetailRow._id)
             self.baked_queries_map["get_original_details_values"] = the_query
         else:
@@ -310,7 +322,7 @@ class IndexItemsTable(object):
             the_query += lambda q: q.join(IndexItemRow)
             the_query += lambda q: q.filter(IndexItemRow.iid.like(bindparam('iid')))
             the_query += lambda q: q.filter(IndexItemDetailRow.detail_name.like(bindparam('detail_name')))
-            the_query += lambda q: q.filter(IndexItemDetailRow.os.like(bindparam('os')))
+            the_query += lambda q: q.filter(IndexItemDetailRow.os_id.like(bindparam('os')))
             the_query += lambda q: q.order_by(IndexItemDetailRow._id)
             self.baked_queries_map["get_original_details"] = the_query
         else:
@@ -321,8 +333,6 @@ class IndexItemsTable(object):
         for iparam in range(len(params)):
             if params[iparam] is None: params[iparam] = '%'
         retVal = the_query(self.session).params(iid=params[0], detail_name=params[1], os=params[2]).all()
-        # filter by os, apparently sqlalchemy cannot handle a variable length bindparam
-        #retVal = [od for od in retVal if od.os in self._get_for_os]
         return retVal
 
     def get_details_relations(self):
@@ -396,23 +406,6 @@ class IndexItemsTable(object):
             self.baked_queries_map["get_item_to_detail_relations"] += lambda q: q.order_by(IndexItemToDetailRelation.iid)
 
         retVal = self.baked_queries_map["get_item_to_detail_relations"](self.session).all()
-        return retVal
-
-    def get_all_details_for_item(self, iid):
-        if "get_all_details_for_item" not in self.baked_queries_map:
-            the_query = self.bakery(lambda session: session.query(IndexItemDetailRow))
-            the_query += lambda q: q.filter(IndexItemDetailRow.origin_iid == bindparam('iid'))
-            the_query += lambda q: q.filter(IndexItemDetailRow.os.in_([bindparam('get_for_os')]))
-            the_query += lambda q: q.order_by(IndexItemToDetailRelation._id)
-            self.baked_queries_map["get_all_details_for_item"] = the_query
-        else:
-            the_query = self.baked_queries_map["get_all_details_for_item"]
-
-        retVal = the_query(self.session).params(iid=iid, get_for_os=self._get_for_os).all()
-        retVal = [mm[0] for mm in retVal]
-        return retVal
-        #retVal = the_query(self.session).params(iid=iid, get_for_os=self._get_for_os, detail_name=detail_name).all()
-        retVal = [mm[0] for mm in retVal]
         return retVal
 
     def resolve_item_inheritance(self, item_to_resolve, generation=0):
@@ -535,13 +528,14 @@ class IndexItemsTable(object):
         UNION
         SELECT
             IndexItemDetailRow.detail_value
+
         FROM IndexItemRow
             INNER JOIN depends_on_temp_query ON IndexItemRow.iid = depends_on_temp_query.iid
             INNER JOIN IndexItemToDetailRelation ON IndexItemToDetailRelation.item_id = IndexItemRow._id
-            INNER JOIN IndexItemDetailRow ON IndexItemToDetailRelation.detail_id = IndexItemDetailRow._id
-                                             AND IndexItemDetailRow.detail_name = 'depends'
-      )
-    SELECT * FROM depends_on_temp_query;
+            INNER JOIN IndexItemDetailRow ON IndexItemToDetailRelation.detail_id = IndexItemDetailRow._id AND IndexItemDetailRow.detail_name = 'depends'
+            INNER JOIN IndexItemDetailOperatingSystem ON IndexItemDetailRow.os_id = IndexItemDetailOperatingSystem._id AND IndexItemDetailOperatingSystem.active = 1
+        )
+    SELECT * FROM depends_on_temp_query ORDER BY depends_on_temp_query.iid
 """.format(query_vars)
 
         retVal = self.session.execute(query_text).fetchall()

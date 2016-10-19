@@ -54,8 +54,8 @@ def get_declarative_base():
         __db_declarative_base = declarative_base()
     return __db_declarative_base
 
-class IndexItemOperatingSystem(get_declarative_base()):
-    __tablename__ = 'IndexItemOperatingSystem'
+class IndexItemDetailOperatingSystem(get_declarative_base()):
+    __tablename__ = 'IndexItemDetailOperatingSystem'
     _id = Column(Integer, primary_key=True)
     name = Column(String, unique=True)
     active = Column(BOOLEAN, default=False)
@@ -103,14 +103,15 @@ class IndexItemDetailRow(get_declarative_base()):
     __tablename__ = 'IndexItemDetailRow'
     _id = Column(Integer, primary_key=True, autoincrement=True)
     owner_item_id = Column(String, ForeignKey("IndexItemRow._id"), index=True)
-    os = Column(String(8), default="common")  # enum?
+    os_id = Column(Integer, ForeignKey("IndexItemDetailOperatingSystem._id"))
     detail_name = Column(String, index=True)
     detail_value = Column(String)
 
+    os = relationship("IndexItemDetailOperatingSystem")
     item = relationship("IndexItemRow", back_populates="original_details")
 
     def __str__(self):
-        retVal = "{self._id}) {self.owner_item_id}, {self.os}, {self.detail_name}: {self.detail_value}".format(**locals())
+        retVal = "{self._id}) {self.owner_item_id}, {self.os_id}, {self.detail_name}: {self.detail_value}".format(**locals())
         return retVal
 
 
@@ -132,7 +133,7 @@ IndexItemDetailRow.resolved_details = relationship(IndexItemToDetailRelation, ba
 IndexItemRow.original_details = relationship("IndexItemDetailRow", back_populates="item")
 IndexItemRow.all_details = relationship("IndexItemToDetailRelation", back_populates="item")
 
-IndexItemOperatingSystem.__table__.create(bind=get_engine(), checkfirst=True)
+IndexItemDetailOperatingSystem.__table__.create(bind=get_engine(), checkfirst=True)
 IndexItemRow.__table__.create(bind=get_engine(), checkfirst=True)
 IndexItemRequiredRow.__table__.create(bind=get_engine(), checkfirst=True)
 IndexItemDetailRow.__table__.create(bind=get_engine(), checkfirst=True)
