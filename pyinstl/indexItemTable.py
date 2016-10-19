@@ -124,7 +124,7 @@ class IndexItemsTable(object):
     def add_views(self):
         stmt = text("""
           CREATE VIEW "full_details_view" AS
-          SELECT IndexItemRow.iid, IndexItemDetailRow.detail_name, IndexItemDetailRow.detail_value, IndexItemDetailOperatingSystem.name,IndexItemToDetailRelation.generation FROM IndexItemRow
+          SELECT IndexItemRow.iid, IndexItemDetailRow.detail_name, IndexItemDetailRow.detail_value, IndexItemDetailOperatingSystem.name AS "os",IndexItemToDetailRelation.generation FROM IndexItemRow
           LEFT JOIN IndexItemToDetailRelation ON IndexItemToDetailRelation.item_id = IndexItemRow._id
           LEFT JOIN IndexItemDetailRow ON IndexItemToDetailRelation.detail_id = IndexItemDetailRow._id
           LEFT JOIN IndexItemDetailOperatingSystem ON IndexItemDetailOperatingSystem._id = IndexItemDetailRow.os_id
@@ -133,7 +133,7 @@ class IndexItemsTable(object):
 
         stmt = text("""
           CREATE VIEW "original_details_view" AS
-          SELECT IndexItemRow.iid, IndexItemDetailRow.detail_name, IndexItemDetailRow.detail_value, IndexItemDetailOperatingSystem.name FROM IndexItemRow
+          SELECT IndexItemRow.iid, IndexItemDetailRow.detail_name, IndexItemDetailRow.detail_value, IndexItemDetailOperatingSystem.name  AS "os" FROM IndexItemRow
           LEFT JOIN IndexItemToDetailRelation ON IndexItemToDetailRelation.item_id = IndexItemRow._id
                   AND IndexItemToDetailRelation.generation = 0
           LEFT JOIN IndexItemDetailRow ON IndexItemToDetailRelation.detail_id = IndexItemDetailRow._id
@@ -202,11 +202,12 @@ class IndexItemsTable(object):
 
         return retVal
 
+    @utils.timing
     def insert_index_to_db(self):
         if self.reader.index_items:
             self.session.add_all(self.reader.index_items)
             self.reader.index_items = self.reader.index_items[:]
-        self.session.commit()
+            self.session.add_all(self.create_default_items()) # __ALL_ITEMS_IID__, __ALL_GUIDS_IID__
 
     def insert_required_to_db(self):
         for iid, details_and_required in self.reader.require_items.items():
@@ -254,6 +255,22 @@ class IndexItemsTable(object):
         retVal = the_query(self.session).params(iid_to_get=iid_to_get).first()
         return retVal
 
+    def get_all_iids_with_guids(self):
+        """
+        :return: list of all iids in the db that have guids, empty list if none are found
+        """
+        if "get_all_iids_with_guids" not in self.baked_queries_map:
+            the_query = self.bakery(lambda q: q.query(IndexItemRow.iid))
+            the_query += lambda q: q.join(IndexItemDetailRow)
+            the_query += lambda q: q.filter(IndexItemDetailRow.detail_name == 'guid')
+            the_query += lambda q: q.order_by(IndexItemRow.iid)
+            self.baked_queries_map["get_all_iids_with_guids"] = the_query
+        else:
+            the_query = self.baked_queries_map["get_all_iids_with_guids"]
+        retVal = the_query(self.session).all()
+        retVal = [m[0] for m in retVal]
+        return retVal
+
     def get_all_iids(self):
         """
         tested by: TestItemTable.test_06_get_all_iids
@@ -268,6 +285,14 @@ class IndexItemsTable(object):
         retVal = the_query(self.session).all()
         retVal = [m[0] for m in retVal]
         return retVal
+
+    def create_default_items(self):
+        all_items_item = IndexItemRow(iid="__ALL_ITEMS_IID__", inherit_resolved=True, from_index=False)
+        all_items_item.original_details = [IndexItemDetailRow(os_id=0, detail_name='depends', detail_value=iid) for iid in self.get_all_iids()]
+
+        all_guids_item = IndexItemRow(iid="__ALL_GUIDS_IID__", inherit_resolved=True, from_index=False)
+        all_guids_item.original_details = [IndexItemDetailRow(os_id=0, detail_name='depends', detail_value=iid) for iid in self.get_all_iids_with_guids()]
+        return all_items_item, all_guids_item
 
     def get_item_by_resolve_status(self, iid_to_get, resolve_status):  # tested by: TestItemTable.test_get_item_by_resolve_status
         # http://stackoverflow.com/questions/29161730/what-is-the-difference-between-one-and-first
@@ -431,12 +456,10 @@ class IndexItemsTable(object):
         for item in items:
             initial_relations.extend([IndexItemToDetailRelation(item_id=item._id, detail_id=detail._id, generation=0) for detail in item.original_details])
         self.session.add_all(initial_relations)
-        self.session.commit()
 
         for item in items:
             if not item.inherit_resolved:
                 self.resolve_item_inheritance(item)
-        self.session.commit()
 
     def read_index_node(self, a_node):
         self.reader.read_index_from_yaml(a_node)
@@ -511,15 +534,33 @@ class IndexItemsTable(object):
     def iids_from_guids(self, guid_or_iid_list):
         query_vars = '("'+'","'.join(guid_or_iid_list)+'")'
         query_text = """
-          SELECT DISTINCT iid FROM full_details_view
-            WHERE detail_name = "guid" AND detail_value COLLATE NOCASE in {0}
-            OR iid  in {0}""".format(query_vars)
+          SELECT DISTINCT iid, detail_value FROM full_details_view
+            WHERE detail_name = "guid" AND detail_value in {0}
+            AND generation = 0
+        """.format(query_vars)
 
-        retVal = self.session.execute(query_text).fetchall()
-        retVal = [mm[0] for mm in retVal]
-        return retVal
+        # query will return list of (iid, guid)'s
+        ret_list = self.session.execute(query_text).fetchall()
+        returned_iids, returned_guids = zip(*ret_list)
+        orphaned_guids = list(set(guid_or_iid_list)-set(returned_guids))
 
-    @utils.timing
+        return returned_iids, orphaned_guids
+
+    # find which iids are in the database
+    def iids_from_iids(self, iid_list):
+        query_vars = '("'+'","'.join(iid_list)+'")'
+        query_text = """
+            SELECT iid
+            FROM IndexItemRow
+            WHERE iid IN {0}
+        """.format(query_vars)
+
+        # query will return list those iid in iid_list that were found in the index
+        existing_iids = [iid[0] for iid in self.session.execute(query_text).fetchall()]
+        orphan_iids = list(set(iid_list)-set(existing_iids))
+
+        return existing_iids, orphan_iids
+
     def calculate_all_items(self, main_install_targets):
         query_vars = "('" + "'), ('".join(main_install_targets) + "')"
         query_text = """
