@@ -382,8 +382,8 @@ class InstlClient(InstlInstanceBase):
 
         active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
         self.items_table.begin_get_for_specific_oses(*active_oses)
-
         self.items_table.resolve_inheritance()
+
         self.init_default_client_vars()
         self.resolve_defined_paths()
         self.batch_accum.set_current_section('begin')

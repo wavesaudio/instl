@@ -65,7 +65,7 @@ class IndexItemsTable(object):
     def add_views(self):
         stmt = text("""
           CREATE VIEW "full_details_view" AS
-          SELECT IndexItemRow.iid, IndexItemDetailRow.detail_name, IndexItemDetailRow.detail_value, IndexItemDetailOperatingSystem.name AS "os",IndexItemToDetailRelation.generation FROM IndexItemRow
+          SELECT IndexItemToDetailRelation._id, IndexItemRow.iid, IndexItemDetailRow.detail_name, IndexItemDetailRow.detail_value, IndexItemDetailOperatingSystem.name AS "os",IndexItemToDetailRelation.generation FROM IndexItemRow
           LEFT JOIN IndexItemToDetailRelation ON IndexItemToDetailRelation.item_id = IndexItemRow._id
           LEFT JOIN IndexItemDetailRow ON IndexItemToDetailRelation.detail_id = IndexItemDetailRow._id
           LEFT JOIN IndexItemDetailOperatingSystem ON IndexItemDetailOperatingSystem._id = IndexItemDetailRow.os_id
@@ -74,7 +74,7 @@ class IndexItemsTable(object):
 
         stmt = text("""
           CREATE VIEW "original_details_view" AS
-          SELECT IndexItemRow.iid, IndexItemDetailRow.detail_name, IndexItemDetailRow.detail_value, IndexItemDetailOperatingSystem.name  AS "os" FROM IndexItemRow
+          SELECT IndexItemDetailRow._id, IndexItemRow.iid, IndexItemDetailRow.detail_name, IndexItemDetailRow.detail_value, IndexItemDetailOperatingSystem.name  AS "os" FROM IndexItemRow
           LEFT JOIN IndexItemToDetailRelation ON IndexItemToDetailRelation.item_id = IndexItemRow._id
                   AND IndexItemToDetailRelation.generation = 0
           LEFT JOIN IndexItemDetailRow ON IndexItemToDetailRelation.detail_id = IndexItemDetailRow._id
@@ -143,23 +143,14 @@ class IndexItemsTable(object):
 
         return retVal
 
-    def insert_required_to_db(self):
-        for iid, details_and_required in self.reader.require_items.items():
+    def insert_require_to_db(self, require_items):
+        for iid, details in require_items.items():
             old_item = self.get_index_item(iid)
             if old_item is not None:
                 old_item.from_require = True
-                old_item.original_details.extend(details_and_required[0])
-                for new_original in details_and_required[0]:
-                    new_original.resolved_details.append(IndexItemToDetailRelation(item_id=old_item._id, detail_id=new_original._id))
-
-                old_item.required_by.extend(details_and_required[1])
+                old_item.original_details.extend(details)
             else:
-                new_item = IndexItemRow(iid=iid, from_require=True,
-                                        original_details=details_and_required[0],
-                                        required_by=details_and_required[1])
-                self.session.add(new_item)
-        self.session.commit()
-        self.reader.require_items.clear()
+                print(iid, "found in require but not in index")
 
     def get_all_index_items(self):
         """
@@ -424,26 +415,37 @@ class IndexItemsTable(object):
         for item in index_items:
             self.session.add(item)
         self.create_default_items()
+        self.session.commit()
 
+    @utils.timing
     def read_require_node(self, a_node):
+        self.stats = {'id': 0, "guid": 0, "version": 0, "by": 0}
+        require_items = dict()
         for IID in a_node:
-            self.read_item_details_from_require_node(IID, a_node[IID])
-        self.insert_required_to_db()
+            self.stats["id"] += 1
+            require_details = self.read_item_details_from_require_node(IID, a_node[IID])
+            if require_details:
+                require_items[IID] = require_details
+        print("read_require_node stats:", self.stats, "total_details:", self.stats["guid"]+self.stats["version"]+self.stats["by"])
+        self.insert_require_to_db(require_items)
+        self.session.commit()
 
     def read_item_details_from_require_node(self, the_iid, the_node):
         details = list()
-        required_by = list()
         for detail_name in the_node:
             if detail_name == "guid":
-                new_detail = IndexItemDetailRow(os="common", detail_name="guid_from_require", detail_value=the_node["guid"].value)
+                self.stats["guid"] += 1
+                new_detail = IndexItemDetailRow(os_id=self.os_names['common'], detail_name="require_guid", detail_value=the_node["guid"].value)
                 details.append(new_detail)
             elif detail_name == "version":
-                new_detail = IndexItemDetailRow(os="common", detail_name="version_from_require", detail_value=the_node["version"].value)
+                self.stats["version"] += 1
+                new_detail = IndexItemDetailRow(os_id=self.os_names['common'], detail_name="require_version", detail_value=the_node["version"].value)
                 details.append(new_detail)
             elif detail_name == "required_by":
-                for required_by in the_node["required_by"]:
-                    required_by.append(IndexItemRequiredRow(owner_item_id=the_iid, required_by_iid=required_by.value))
-        self.require_items[the_iid] = details, required_by
+                for require_by in the_node["required_by"]:
+                   self.stats["by"] += 1
+                   details.append(IndexItemDetailRow(os_id=self.os_names['common'], detail_name="require_by", detail_value=require_by.value))
+        return details
 
     def repr_item_for_yaml(self, iid):
         item_details = OrderedDict()
