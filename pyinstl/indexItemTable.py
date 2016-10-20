@@ -15,71 +15,13 @@ from sqlalchemy import event
 from sqlalchemy import text
 from sqlalchemy.engine import reflection
 from sqlalchemy.orm import aliased
+from sqlalchemy.orm import state
 
 import utils
 from configVar import var_stack
 from functools import reduce
 from aYaml import YamlReader
 from .db_alchemy import create_session, get_engine, IndexItemDetailOperatingSystem, IndexItemRow, IndexItemRequiredRow, IndexItemDetailRow, IndexItemToDetailRelation
-
-
-class ItemTableYamlReader(YamlReader):
-    def __init__(self):
-        super().__init__()
-        self.index_items = list()
-        self.index_details = list()
-        self.require_items = dict()
-
-    def init_specific_doc_readers(self): # this function must be overridden
-        self.specific_doc_readers["!index"] = self.read_index_from_yaml
-        self.specific_doc_readers["!require"] = self.read_require_from_yaml
-
-    def read_index_from_yaml(self, all_items_node):
-        for IID in all_items_node:
-            item = ItemTableYamlReader.item_from_index_node(IID, all_items_node[IID])
-            self.index_items.append(item)
-
-    @staticmethod
-    def item_from_index_node(the_iid, the_node):
-        item = IndexItemRow(iid=the_iid, inherit_resolved=False, from_index=True)
-        item.original_details = ItemTableYamlReader.read_item_details_from_node(the_iid, the_node)
-        return item
-
-    @staticmethod
-    def read_item_details_from_node(the_iid, the_node, the_os='common'):
-        details = list()
-        for detail_name in the_node:
-            if detail_name in IndexItemsTable.os_names.keys():
-                os_specific_details = ItemTableYamlReader.read_item_details_from_node(the_iid, the_node[detail_name], detail_name)
-                details.extend(os_specific_details)
-            elif detail_name == 'actions':
-                actions_details = ItemTableYamlReader.read_item_details_from_node(the_iid, the_node['actions'], the_os)
-                details.extend(actions_details)
-            else:
-                for details_line in the_node[detail_name]:
-                    details.append(IndexItemDetailRow(os_id=IndexItemsTable.os_names[the_os], detail_name=detail_name, detail_value=details_line.value))
-        return details
-
-    def read_require_from_yaml(self, all_items_node):
-        for IID in all_items_node:
-            item_lists = ItemTableYamlReader.read_item_details_from_require_node(IID, all_items_node[IID])
-            self.require_items[IID] = item_lists
-
-    @staticmethod
-    def read_item_details_from_require_node(the_iid, the_node):
-        details = list()
-        required_by = list()
-        for detail_name in the_node:
-            if detail_name == "guid":
-                new_detail = IndexItemDetailRow(os="common", detail_name="guid_from_require", detail_value=the_node["guid"].value)
-                details.append(new_detail)
-            elif detail_name == "version":
-                new_detail = IndexItemDetailRow(os="common", detail_name="version_from_require", detail_value=the_node["version"].value)
-                details.append(new_detail)
-            elif detail_name == "required_by":
-                for riid in the_node["required_by"]:
-                    required_by.append(IndexItemRequiredRow(owner_item_id=the_iid, required_by_iid=riid.value))
-        return details, required_by
 
 
 class IndexItemsTable(object):
@@ -102,7 +44,6 @@ class IndexItemsTable(object):
         #print("Views:", inspector.get_view_names())
         self.baked_queries_map = self.bake_baked_queries()
         self.bakery = baked.bakery()
-        self.reader = ItemTableYamlReader()
 
     def clear_tables(self):
         #print(get_engine().table_names())
@@ -202,13 +143,6 @@ class IndexItemsTable(object):
 
         return retVal
 
-    @utils.timing
-    def insert_index_to_db(self):
-        if self.reader.index_items:
-            self.session.add_all(self.reader.index_items)
-            self.reader.index_items = self.reader.index_items[:]
-            self.session.add_all(self.create_default_items()) # __ALL_ITEMS_IID__, __ALL_GUIDS_IID__
-
     def insert_required_to_db(self):
         for iid, details_and_required in self.reader.require_items.items():
             old_item = self.get_index_item(iid)
@@ -289,10 +223,11 @@ class IndexItemsTable(object):
     def create_default_items(self):
         all_items_item = IndexItemRow(iid="__ALL_ITEMS_IID__", inherit_resolved=True, from_index=False)
         all_items_item.original_details = [IndexItemDetailRow(os_id=0, detail_name='depends', detail_value=iid) for iid in self.get_all_iids()]
+        self.session.add(all_items_item)
 
         all_guids_item = IndexItemRow(iid="__ALL_GUIDS_IID__", inherit_resolved=True, from_index=False)
         all_guids_item.original_details = [IndexItemDetailRow(os_id=0, detail_name='depends', detail_value=iid) for iid in self.get_all_iids_with_guids()]
-        return all_items_item, all_guids_item
+        self.session.add(all_guids_item)
 
     def get_item_by_resolve_status(self, iid_to_get, resolve_status):  # tested by: TestItemTable.test_get_item_by_resolve_status
         # http://stackoverflow.com/questions/29161730/what-is-the-difference-between-one-and-first
@@ -461,17 +396,54 @@ class IndexItemsTable(object):
             if not item.inherit_resolved:
                 self.resolve_item_inheritance(item)
 
+    def item_from_index_node(self, the_iid, the_node):
+        item = IndexItemRow(iid=the_iid, inherit_resolved=False, from_index=True)
+        item.original_details = self.read_item_details_from_node(the_iid, the_node)
+        return item
+
+    def read_item_details_from_node(self, the_iid, the_node, the_os='common'):
+        details = list()
+        for detail_name in the_node:
+            if detail_name in IndexItemsTable.os_names:
+                os_specific_details = self.read_item_details_from_node(the_iid, the_node[detail_name], the_os=detail_name)
+                details.extend(os_specific_details)
+            elif detail_name == 'actions':
+                actions_details = self.read_item_details_from_node(the_iid, the_node['actions'], the_os)
+                details.extend(actions_details)
+            else:
+                for details_line in the_node[detail_name]:
+                    new_detail = IndexItemDetailRow(os_id=self.os_names[the_os], detail_name=detail_name, detail_value=details_line.value)
+                    details.append(new_detail)
+        return details
+
     def read_index_node(self, a_node):
-        self.reader.read_index_from_yaml(a_node)
-        self.insert_index_to_db()
+        index_items = list()
+        for IID in a_node:
+            item = self.item_from_index_node(IID, a_node[IID])
+            index_items.append(item)
+        for item in index_items:
+            self.session.add(item)
+        self.create_default_items()
 
     def read_require_node(self, a_node):
-        self.reader.read_index_from_yaml(a_node)
+        for IID in a_node:
+            self.read_item_details_from_require_node(IID, a_node[IID])
         self.insert_required_to_db()
 
-    def read_yaml_file(self, in_file_path):
-        self.reader.read_yaml_file(in_file_path)
-        self.insert_index_to_db()
+    def read_item_details_from_require_node(self, the_iid, the_node):
+        details = list()
+        required_by = list()
+        for detail_name in the_node:
+            if detail_name == "guid":
+                new_detail = IndexItemDetailRow(os="common", detail_name="guid_from_require", detail_value=the_node["guid"].value)
+                details.append(new_detail)
+            elif detail_name == "version":
+                new_detail = IndexItemDetailRow(os="common", detail_name="version_from_require", detail_value=the_node["version"].value)
+                details.append(new_detail)
+            elif detail_name == "required_by":
+                for required_by in the_node["required_by"]:
+                    required_by.append(IndexItemRequiredRow(owner_item_id=the_iid, required_by_iid=required_by.value))
+        self.require_items[the_iid] = details, required_by
 
     def repr_item_for_yaml(self, iid):
         item_details = OrderedDict()

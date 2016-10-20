@@ -227,6 +227,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         req_reader = kwargs.get("req_reader")
         if req_reader is not None:
             req_reader.read_require_node(a_node)
+        self.items_table.read_require_node()
 
     def write_require_file(self, file_path, require_dict):
         with open(file_path, "w", encoding='utf-8') as wfd:
