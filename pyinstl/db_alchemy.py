@@ -43,7 +43,7 @@ def get_engine():
 def create_session():
     global __db_session_maker
     if __db_session_maker is None:
-        __db_session_maker = sessionmaker(bind=get_engine())
+        __db_session_maker = sessionmaker(bind=get_engine(), autocommit=False)
     new_session = __db_session_maker()
     return new_session
 

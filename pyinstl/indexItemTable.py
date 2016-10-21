@@ -37,7 +37,8 @@ class IndexItemsTable(object):
         self.session = create_session()
         self.clear_tables()
         self.os_names_db_objs = list()
-        self.add_default_tables()
+        self.add_default_values()
+        self.add_triggers()
         self.add_views()
         #inspector = reflection.Inspector.from_engine(get_engine())
         #print("Tables:", inspector.get_table_names())
@@ -47,20 +48,38 @@ class IndexItemsTable(object):
 
     def clear_tables(self):
         #print(get_engine().table_names())
+        self.drop_triggers()
+        self.drop_views()
         self.session.query(IndexItemDetailOperatingSystem).delete()
         self.session.query(IndexItemToDetailRelation).delete()
         self.session.query(IndexItemDetailRow).delete()
         self.session.query(IndexItemRow).delete()
         self.session.query(IndexItemRequiredRow).delete()
-        self.drop_views()
         self.session.commit()
 
-    def add_default_tables(self):
+    def add_default_values(self):
 
         for os_name, _id in IndexItemsTable.os_names.items():
             new_item = IndexItemDetailOperatingSystem(_id=_id, name=os_name, active=False)
             self.os_names_db_objs.append(new_item)
         self.session.add_all(self.os_names_db_objs)
+
+    def add_triggers(self):
+        stmt = text("""
+            CREATE TRIGGER IF NOT EXISTS CreateRelationOnNewDetail
+                AFTER INSERT ON IndexItemDetailRow
+            BEGIN
+                INSERT INTO IndexItemToDetailRelation (detail_id, generation, item_id)
+                VALUES (NEW._id,  0, NEW.owner_item_id);
+            END;
+        """)
+        self.session.execute(stmt)
+
+    def drop_triggers(self):
+        stmt = text("""
+            DROP TRIGGER IF EXISTS "CreateRelationOnNewDetail"
+            """)
+        self.session.execute(stmt)
 
     def add_views(self):
         stmt = text("""
@@ -381,11 +400,6 @@ class IndexItemsTable(object):
     @utils.timing
     def resolve_inheritance(self):
         items = self.get_all_index_items()
-        initial_relations = list()
-        for item in items:
-            initial_relations.extend([IndexItemToDetailRelation(item_id=item._id, detail_id=detail._id, generation=0) for detail in item.original_details])
-        self.session.add_all(initial_relations)
-
         for item in items:
             if not item.inherit_resolved:
                 self.resolve_item_inheritance(item)
@@ -410,6 +424,7 @@ class IndexItemsTable(object):
                     details.append(new_detail)
         return details
 
+    @utils.timing
     def read_index_node(self, a_node):
         index_items = list()
         for IID in a_node:
@@ -418,35 +433,29 @@ class IndexItemsTable(object):
         for item in index_items:
             self.session.add(item)
         self.create_default_items()
-        self.session.commit()
+        #self.session.commit()
 
     @utils.timing
     def read_require_node(self, a_node):
-        self.stats = {'id': 0, "guid": 0, "version": 0, "by": 0}
         require_items = dict()
         for IID in a_node:
-            self.stats["id"] += 1
             require_details = self.read_item_details_from_require_node(IID, a_node[IID])
             if require_details:
                 require_items[IID] = require_details
-        print("read_require_node stats:", self.stats, "total_details:", self.stats["guid"]+self.stats["version"]+self.stats["by"])
         self.insert_require_to_db(require_items)
-        self.session.commit()
+        #self.session.commit()
 
     def read_item_details_from_require_node(self, the_iid, the_node):
         details = list()
         for detail_name in the_node:
             if detail_name == "guid":
-                self.stats["guid"] += 1
                 new_detail = IndexItemDetailRow(os_id=self.os_names['common'], detail_name="require_guid", detail_value=the_node["guid"].value)
                 details.append(new_detail)
             elif detail_name == "version":
-                self.stats["version"] += 1
                 new_detail = IndexItemDetailRow(os_id=self.os_names['common'], detail_name="require_version", detail_value=the_node["version"].value)
                 details.append(new_detail)
             elif detail_name == "required_by":
                 for require_by in the_node["required_by"]:
-                   self.stats["by"] += 1
                    details.append(IndexItemDetailRow(os_id=self.os_names['common'], detail_name="require_by", detail_value=require_by.value))
         return details
 
