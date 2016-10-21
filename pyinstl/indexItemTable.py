@@ -73,12 +73,15 @@ class IndexItemsTable(object):
         self.session.execute(stmt)
 
         stmt = text("""
-          CREATE VIEW "original_details_view" AS
-          SELECT IndexItemDetailRow._id, IndexItemRow.iid, IndexItemDetailRow.detail_name, IndexItemDetailRow.detail_value, IndexItemDetailOperatingSystem.name  AS "os" FROM IndexItemRow
-          LEFT JOIN IndexItemToDetailRelation ON IndexItemToDetailRelation.item_id = IndexItemRow._id
-                  AND IndexItemToDetailRelation.generation = 0
-          LEFT JOIN IndexItemDetailRow ON IndexItemToDetailRelation.detail_id = IndexItemDetailRow._id
-           LEFT JOIN IndexItemDetailOperatingSystem ON IndexItemDetailOperatingSystem._id = IndexItemDetailRow.os_id
+            CREATE VIEW "original_details_view" AS
+            SELECT IndexItemDetailRow._id,
+                IndexItemRow.iid,
+                IndexItemDetailRow.detail_name,
+                IndexItemDetailRow.detail_value,
+                IndexItemDetailOperatingSystem.name  AS "os"
+            FROM IndexItemDetailRow
+            LEFT JOIN IndexItemRow ON IndexItemDetailRow.owner_item_id = IndexItemRow._id
+            LEFT JOIN IndexItemDetailOperatingSystem ON IndexItemDetailOperatingSystem._id = IndexItemDetailRow.os_id
          """)
         self.session.execute(stmt)
 
