@@ -38,42 +38,15 @@ class InstlClientReport(InstlClient):
             wfd.write(output_text)
             wfd.write("\n")
 
-    def do_report_installed_versions(self):
-        self.current_index_yaml_path = var_stack.ResolveVarToStr('CURRENT_INDEX_YAML')
-        self.current_require_yaml_path = var_stack.ResolveVarToStr('CURRENT_REQUIRE_YAML')
-
-        if os.path.isfile(self.current_index_yaml_path) and os.path.isfile(self.current_require_yaml_path):
-            self.current_index = dict()
-            self.items_table.read_yaml_file(self.current_index_yaml_path, index_dict=self.current_index)
-            #self.resolve_index_inheritance(index_dict=self.current_index)
-
-            self.items_table.read_yaml_file(self.current_require_yaml_path, req_reader=self.installState.req_man)
-            root_items = self.installState.req_man.get_previously_installed_root_items()
-            guids_to_ignore = set(var_stack.ResolveVarToList("IGNORED_GUIDS", []))
-            report_only_items_with_guids = "REPORT_ONLY_ITEMS_WITH_GUIDS" in var_stack
-
-            self.output_data = list()
-
-            for iid in sorted(self.current_index):
-                with self.current_index[iid].push_var_stack_scope():
-                    guid_list = list(set(var_stack.get_configVar_obj('iid_guid')).difference(guids_to_ignore))
-                    if len(guid_list) or not report_only_items_with_guids:
-                        var_stack.set_var('iid_guid').extend(guid_list)
-                        single_iid_report_data = var_stack.ResolveVarToList("REPORT_INSTALLED_FIELDS")
-                        self.output_data.append(single_iid_report_data)
-                        self.output_data.sort()
-        else:
-            self.output_data = self.report_no_current_installation()
-
     def do_report_versions(self):
         self.report_only_items_with_guids = "REPORT_ONLY_ITEMS_WITH_GUIDS" in var_stack
         self.report_installed_items = "REPORT_INSTALLED_ITEMS" in var_stack
         self.report_remote_items = "REPORT_REMOTE_ITEMS" in var_stack
         self.guids_to_ignore = set(var_stack.ResolveVarToList("IGNORED_GUIDS", []))
-        self.current_require_yaml_path = var_stack.ResolveVarToStr('SITE_REQUIRE_FILE_PATH')
+        #self.current_require_yaml_path = var_stack.ResolveVarToStr('SITE_REQUIRE_FILE_PATH')
 
-        if os.path.isfile(self.current_require_yaml_path):
-            self.items_table.read_yaml_file(self.current_require_yaml_path)
+        #if os.path.isfile(self.current_require_yaml_path):
+        #    self.items_table.read_yaml_file(self.current_require_yaml_path)
 
         report_data = self.items_table.versions_report()
         self.output_data.extend(report_data)

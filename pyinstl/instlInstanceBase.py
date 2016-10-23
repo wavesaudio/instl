@@ -305,6 +305,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                         ignore = kwargs.get('ignore_if_not_exist', False)
                         if ignore:
                             print("'ignore_if_not_exist' specified, ignoring FileNotFoundError for", resolved_file_url)
+                        else:
                             raise
 
                 if "copy" in i_node:

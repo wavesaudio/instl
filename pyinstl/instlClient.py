@@ -541,19 +541,20 @@ class InstlClient(InstlInstanceBase):
 
     @utils.timing
     def calculate_all_items_table(self):
-        self.all_items_from_table = self.items_table.calculate_all_items(self.root_items_translated_from_table)
+        self.all_items_from_table = self.items_table.get_recursive_dependencies(self.root_items_translated_from_table)
 
     def calculate_install_items(self):
         """ calculate the set of iids to install from the "MAIN_INSTALL_TARGETS" variable.
             Full set of install iids and orphan iids are also writen to variable.
         """
-        # read the require.yaml file, if any, we'll need it to calculate updates
-        require_path = var_stack.ResolveVarToStr("SITE_REQUIRE_FILE_PATH")
-        if os.path.isfile(require_path):
-            try:
-                self.read_yaml_file(require_path, req_reader=self.installState.req_man)
-            except Exception as ex:
-                print("failed to read", require_path, ex)
+        if False:
+            # read the require.yaml file, if any, we'll need it to calculate updates
+            require_path = var_stack.ResolveVarToStr("SITE_REQUIRE_FILE_PATH")
+            if os.path.isfile(require_path):
+                try:
+                    self.read_yaml_file(require_path, req_reader=self.installState.req_man)
+                except Exception as ex:
+                    print("failed to read", require_path, ex)
 
         if "MAIN_INSTALL_TARGETS" not in var_stack:
             raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")

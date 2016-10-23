@@ -83,58 +83,27 @@ class IndexItemRow(get_declarative_base()):
         return retVal
 
 
-class IndexItemRequiredRow(get_declarative_base()):
-    __tablename__ = "IndexItemRequiredRow"
-    _id = Column(Integer, primary_key=True, autoincrement=True)
-    owner_item_id = Column(String, ForeignKey("IndexItemRow._id"))
-    required_by_iid = Column(String)
-    item = relationship("IndexItemRow", back_populates="required_by")
-
-    def __str__(self):
-         retVal = ("{self._id}) {self.owner_item_id} {self.required_by_iid}"
-                ).format(**locals())
-         return retVal
-
-
-IndexItemRow.required_by = relationship("IndexItemRequiredRow", back_populates="item")
-
-
 class IndexItemDetailRow(get_declarative_base()):
     __tablename__ = 'IndexItemDetailRow'
     _id = Column(Integer, primary_key=True, autoincrement=True)
-    owner_item_id = Column(String, ForeignKey("IndexItemRow._id"), index=True)
-    os_id = Column(Integer, ForeignKey("IndexItemDetailOperatingSystem._id"))
-    detail_name = Column(String, index=True)
+    original_iid = Column(String, ForeignKey("IndexItemRow.iid"), index=True)
+    owner_iid    = Column(String, ForeignKey("IndexItemRow.iid"), index=True)
+    os_id        = Column(Integer, ForeignKey("IndexItemDetailOperatingSystem._id"))
+    detail_name  = Column(String, index=True)
     detail_value = Column(String)
+    generation   = Column(Integer, default=0)
 
-    os = relationship("IndexItemDetailOperatingSystem")
-    item = relationship("IndexItemRow", back_populates="original_details")
-
-    def __str__(self):
-        retVal = "{self._id}) {self.owner_item_id}, {self.os_id}, {self.detail_name}: {self.detail_value}".format(**locals())
-        return retVal
-
-
-class IndexItemToDetailRelation(get_declarative_base()):
-    __tablename__ = 'IndexItemToDetailRelation'
-    _id = Column(Integer, primary_key=True, autoincrement=True)
-    item_id = Column(String, ForeignKey("IndexItemRow._id"), index=True)
-    detail_id = Column(String, ForeignKey("IndexItemDetailRow._id"), index=True)
-    generation = Column(Integer, default=0)
-
-    item = relationship("IndexItemRow", back_populates="all_details")
-    detail = relationship("IndexItemDetailRow", back_populates="resolved_details")
+    #os = relationship("IndexItemDetailOperatingSystem")
+    #item = relationship("IndexItemRow", back_populates="original_details")
 
     def __str__(self):
-        retVal = "{self._id}) {self.item_id}, {self.detail_id}, gen {self.generation}".format(**locals())
+        retVal = "{self._id}) owner: {self.owner_iid}, origi: {self.original_iid}, os: {self.os_id}, gen: {self.generation} {self.detail_name}: {self.detail_value}".format(**locals())
         return retVal
 
-IndexItemDetailRow.resolved_details = relationship(IndexItemToDetailRelation, back_populates="detail")
-IndexItemRow.original_details = relationship("IndexItemDetailRow", back_populates="item")
-IndexItemRow.all_details = relationship("IndexItemToDetailRelation", back_populates="item")
+#IndexItemDetailRow.resolved_details = relationship(IndexItemToDetailRelation, back_populates="detail")
+#IndexItemRow.original_details = relationship("IndexItemDetailRow", back_populates="item")
+#IndexItemRow.all_details = relationship("IndexItemToDetailRelation", back_populates="item")
 
 IndexItemDetailOperatingSystem.__table__.create(bind=get_engine(), checkfirst=True)
 IndexItemRow.__table__.create(bind=get_engine(), checkfirst=True)
-IndexItemRequiredRow.__table__.create(bind=get_engine(), checkfirst=True)
 IndexItemDetailRow.__table__.create(bind=get_engine(), checkfirst=True)
-IndexItemToDetailRelation.__table__.create(bind=get_engine(), checkfirst=True)
