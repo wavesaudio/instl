@@ -530,6 +530,16 @@ guid_re = re.compile("""
                 $
                 """, re.VERBOSE)
 
+def separate_guids_from_iids(items_list):
+    reVal_non_guids = list()
+    retVal_guids = list()
+    for item in items_list:
+        if guid_re.match(item.lower()):
+            retVal_guids.append(item.lower())
+        else:
+            reVal_non_guids.append(item)
+    return reVal_non_guids, retVal_guids
+
 
 def make_one_list(*things):
     """ flatten things to one single list.

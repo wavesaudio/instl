@@ -286,8 +286,16 @@ class InstallInstructionsState(object):
         elif self.__repair_installed_items:
             self.__root_update_items.extend(self.req_man.get_previously_installed_root_items_with_lower_version(self.__instlObj.install_definitions_index))
         print("__root_update_items:", self.__root_update_items)
+
+        # find orphan IIDs that were not translated from guids
+        for IID in self.__root_items_translated[:]:
+            if IID not in self.__instlObj.install_definitions_index:
+                self.__root_items_translated.remove(IID)
+                self.__orphan_items.append(IID)
+
         self.__root_items_translated.sort()  # for repeatability
 
+    @utils.timing
     def calculate_all_items(self):
         """ calculate the set of iids to install by starting with the root set and adding all dependencies.
             Initial list of iids should already be in self.__root_items_translated.
@@ -332,6 +340,7 @@ class InstallInstructionsState(object):
         self.__all_items.sort()        # for repeatability
         self.__orphan_items.sort()     # for repeatability
         self.__sort_all_items_by_target_folder()
+        return self.__all_items
 
     def calc_require_for_root_items(self):
 
@@ -370,7 +379,11 @@ class InstlClient(InstlInstanceBase):
         self.installState = InstallInstructionsState(self)
         main_input_file_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         self.read_yaml_file(main_input_file_path)
+
+        active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
+        self.items_table.begin_get_for_specific_oses(*active_oses)
         self.items_table.resolve_inheritance()
+
         self.init_default_client_vars()
         self.resolve_defined_paths()
         self.batch_accum.set_current_section('begin')
@@ -491,25 +504,83 @@ class InstlClient(InstlInstanceBase):
         all_guids_item.add_depends(*guid_list(self.install_definitions_index))
         self.install_definitions_index["__ALL_GUIDS_IID__"] = all_guids_item
 
+    def translate_root_items(self, main_install_targets):
+        # root_install_items might have guid in it, translate them to iids
+        for IID in main_install_targets:
+            if IID == "__UPDATE_INSTALLED_ITEMS__":
+                if self.the_command in ("sync", "synccopy"):
+                    self.__repair_installed_items = True  # if syncing we want to sync everything
+                else:
+                    self.__update_installed_items = True  # if copying we want to copy only iid's whose version changed
+            elif IID == "__REPAIR_INSTALLED_ITEMS__":
+                self.__repair_installed_items = True
+            else:
+                # if IID is a guid, iids_from_guids will translate to iid's, or return the IID otherwise
+                iids_from_the_guid = iids_from_guids(self.__instlObj.install_definitions_index, IID)
+                if len(iids_from_the_guid) > 0:
+                    self.__root_items_translated.extend(iids_from_the_guid)
+                else:
+                    self.__orphan_items.append(IID)
+
+        self.__root_update_items = list()
+        if self.__update_installed_items:
+            self.__root_update_items.extend(self.req_man.get_previously_installed_root_items())
+        elif self.__repair_installed_items:
+            self.__root_update_items.extend(self.req_man.get_previously_installed_root_items_with_lower_version(self.__instlObj.install_definitions_index))
+        print("__root_update_items:", self.__root_update_items)
+        self.__root_items_translated.sort()  # for repeatability
+
+    @utils.timing
+    def translate_root_items_table(self, main_install_targets):
+        iids, guids = utils.separate_guids_from_iids(main_install_targets)
+        iids_from_guids, orphaned_guids = self.items_table.iids_from_guids(guids)
+        iids.extend(iids_from_guids)
+        iids, orphaned_iids = self.items_table.iids_from_iids(iids)
+        self.root_items_translated_from_table = sorted(iids)
+        self.orphan_items_from_table = sorted(orphaned_guids + orphaned_iids)
+
+    @utils.timing
+    def calculate_all_items_table(self):
+        self.all_items_from_table = self.items_table.get_recursive_dependencies(self.root_items_translated_from_table)
+
     def calculate_install_items(self):
         """ calculate the set of iids to install from the "MAIN_INSTALL_TARGETS" variable.
             Full set of install iids and orphan iids are also writen to variable.
         """
-        # read the require.yaml file, if any, we'll need it to calculate updates
-        require_path = var_stack.ResolveVarToStr("SITE_REQUIRE_FILE_PATH")
-        if os.path.isfile(require_path):
-            try:
-                self.read_yaml_file(require_path, req_reader=self.installState.req_man)
-            except Exception as ex:
-                print("failed to read", require_path, ex)
+        if False:
+            # read the require.yaml file, if any, we'll need it to calculate updates
+            require_path = var_stack.ResolveVarToStr("SITE_REQUIRE_FILE_PATH")
+            if os.path.isfile(require_path):
+                try:
+                    self.read_yaml_file(require_path, req_reader=self.installState.req_man)
+                except Exception as ex:
+                    print("failed to read", require_path, ex)
 
         if "MAIN_INSTALL_TARGETS" not in var_stack:
             raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
-        for os_name in var_stack.ResolveVarToList("TARGET_OS_NAMES"):
+
+        active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
+        for os_name in active_oses:
             InstallItem.begin_get_for_specific_os(os_name)
-        self.installState.root_items = var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS")
-        self.installState.calculate_all_items()
-        #self.read_previous_requirements()
+
+        main_install_targets = var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS")
+        self.installState.root_items = main_install_targets
+        #print("self.installState.root_items_translated:", self.installState.root_items_translated)
+
+        self.translate_root_items_table(main_install_targets)
+        #print("root_items_from_table:", self.root_items_translated_from_table)
+        #print("orphan_items_from_table:", self.orphan_items_from_table)
+
+        #assert sorted(self.installState.root_items_translated) == sorted(self.root_items_translated_from_table)
+        #assert sorted(self.installState.orphan_items), sorted(self.orphan_items_from_table)
+
+        all_items_from_installState = self.installState.calculate_all_items()
+        self.calculate_all_items_table()
+
+        #print("all_items_from_installState:", all_items_from_installState)
+        #print("all_items_from_table:", self.all_items_from_table)
+        #assert sorted(all_items_from_installState) == sorted(self.all_items_from_table)
+
         var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(self.installState.all_items))
         var_stack.set_var("__ORPHAN_INSTALL_TARGETS__").extend(sorted(self.installState.orphan_items))
 

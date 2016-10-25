@@ -106,8 +106,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.read_yaml_file(main_defaults_file_path)
 
         # read defaults/compile-info.yaml
-        compile_info_file_path = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults",
-                                              "compile-info.yaml")
+        compile_info_file_path = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults", "compile-info.yaml")
         if os.path.isfile(compile_info_file_path):
             self.read_yaml_file(compile_info_file_path)
         if "__COMPILATION_TIME__" not in var_stack:
@@ -228,6 +227,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         req_reader = kwargs.get("req_reader")
         if req_reader is not None:
             req_reader.read_require_node(a_node)
+        self.items_table.read_require_node(a_node)
 
     def write_require_file(self, file_path, require_dict):
         with open(file_path, "w", encoding='utf-8') as wfd:
@@ -305,6 +305,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                         ignore = kwargs.get('ignore_if_not_exist', False)
                         if ignore:
                             print("'ignore_if_not_exist' specified, ignoring FileNotFoundError for", resolved_file_url)
+                        else:
                             raise
 
                 if "copy" in i_node:

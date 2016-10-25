@@ -26,8 +26,12 @@ class InstlClientUninstall(InstlClientRemove):
     def calculate_install_items(self):
         if "MAIN_INSTALL_TARGETS" not in var_stack:
             raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
-        for os_name in var_stack.ResolveVarToList("TARGET_OS_NAMES"):
+        active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
+        self.items_table.begin_get_for_specific_oses(active_oses)
+
+        for os_name in active_oses:
             InstallItem.begin_get_for_specific_os(os_name)
+
         require_path = var_stack.ResolveVarToStr("SITE_REQUIRE_FILE_PATH")
         if os.path.isfile(require_path):
             try:
