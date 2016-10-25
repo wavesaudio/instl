@@ -43,10 +43,6 @@ class InstlClientReport(InstlClient):
         self.report_installed_items = "REPORT_INSTALLED_ITEMS" in var_stack
         self.report_remote_items = "REPORT_REMOTE_ITEMS" in var_stack
         self.guids_to_ignore = set(var_stack.ResolveVarToList("IGNORED_GUIDS", []))
-        #self.current_require_yaml_path = var_stack.ResolveVarToStr('SITE_REQUIRE_FILE_PATH')
-
-        #if os.path.isfile(self.current_require_yaml_path):
-        #    self.items_table.read_yaml_file(self.current_require_yaml_path)
 
         report_data = self.items_table.versions_report()
         self.output_data.extend(report_data)

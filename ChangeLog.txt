@@ -1,3 +1,15 @@
+???? 1.3.0.?
+
+25/10/2016 1.3.0.4
+
+    user visible changes client:
+    * reading of require.yaml is done with __include_if_exists__ instead from code
+    programmer visible changes:
+    * new class IndexItemDetailOperatingSystem
+    * removed classes IndexItemRequiredRow, IndexItemToDetailRelation
+    * IndexItemsTable: many changes and improvements of database usage
+
+
 16/10/2016 1.3.0.3
 
     user visible changes client:

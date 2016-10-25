@@ -225,8 +225,9 @@ class IndexItemsTable(object):
         :return: list of all iids in the db that have guids, empty list if none are found
         """
         if "get_all_installed_iids" not in self.baked_queries_map:
-            the_query = self.bakery(lambda q: q.query(IndexItemRow.iid))
-            the_query += lambda q: q.filter(IndexItemRow.from_require == True)
+            the_query = self.bakery(lambda q: q.query(IndexItemDetailRow.original_iid))
+            the_query += lambda q: q.filter(IndexItemDetailRow.detail_name == "require_by",
+                                            IndexItemDetailRow.detail_value == IndexItemDetailRow.original_iid)
             self.baked_queries_map["get_all_installed_iids"] = the_query
         else:
             the_query = self.baked_queries_map["get_all_installed_iids"]
@@ -235,17 +236,27 @@ class IndexItemsTable(object):
         return retVal
 
     def get_all_installed_iids_needing_update(self):
+        """ Return all iids that were installed, have a version, and that version is different from the version in the index
         """
-        :return: list of all iids in the db that have guids, empty list if none are found
-        """
-        if "get_all_installed_iids_needing_update" not in self.baked_queries_map:
-            the_query = self.bakery(lambda q: q.query(IndexItemRow.iid))
-            the_query += lambda q: q.filter(IndexItemRow.from_require == True)
-            self.baked_queries_map["get_all_installed_iids_needing_update"] = the_query
-        else:
-            the_query = self.baked_queries_map["get_all_installed_iids_needing_update"]
-        retVal = the_query(self.session).all()
-        retVal = [m[0] for m in retVal]
+        query_text = """
+                SELECT require_version.owner_iid, require_version.detail_value AS require, remote_version.detail_value AS remote
+                FROM IndexItemDetailRow AS require_version
+                LEFT JOIN (
+                    select owner_iid, detail_value, min(generation)
+                    from IndexItemDetailRow AS remote_version
+                      INNER JOIN IndexItemDetailOperatingSystem
+                          ON IndexItemDetailOperatingSystem._id = remote_version.os_id
+                              AND IndexItemDetailOperatingSystem.active = 1
+                    WHERE detail_name="version"
+                    GROUP BY owner_iid
+                    ) remote_version
+                WHERE detail_name="require_version"
+                      AND remote_version.owner_iid=require_version.owner_iid
+                      AND require_version.detail_value!=remote_version.detail_value
+            """
+
+        retVal = self.session.execute(query_text).fetchall()
+        retVal = [mm[0] for mm in retVal]
         return retVal
 
     def get_all_iids(self):
@@ -266,26 +277,38 @@ class IndexItemsTable(object):
     def create_default_index_items(self):
         the_os_id = self.os_names['common']
         the_iid = "__ALL_ITEMS_IID__"
-        all_items_item = IndexItemRow(iid=the_iid, inherit_resolved=True, from_index=False)
-        depends_details = [IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=the_os_id, detail_name='depends', detail_value=iid, generation=0) for iid in self.get_all_iids()]
+        all_items_item = IndexItemRow(iid=the_iid, inherit_resolved=True, from_index=False, from_require=False)
+        depends_details = [IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid,
+                                              detail_name='depends', detail_value=iid,
+                                              os_id=the_os_id, generation=0) for iid in self.get_all_iids()]
         self.session.add(all_items_item)
         self.session.add_all(depends_details)
 
         the_iid = "__ALL_GUIDS_IID__"
-        all_guids_item = IndexItemRow(iid="__ALL_GUIDS_IID__", inherit_resolved=True, from_index=False)
-        depends_details = [IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=the_os_id, detail_name='depends', detail_value=iid, generation=0) for iid in self.get_all_iids_with_guids()]
+        all_guids_item = IndexItemRow(iid=the_iid, inherit_resolved=True, from_index=False, from_require=False)
+        depends_details = [IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid,
+                                              detail_name='depends', detail_value=iid,
+                                              os_id=the_os_id, generation=0) for iid in self.get_all_iids_with_guids()]
         self.session.add(all_guids_item)
         self.session.add_all(depends_details)
 
     def create_default_require_items(self):
-        repair_item = IndexItemRow(iid="__REPAIR_INSTALLED_ITEMS__", inherit_resolved=True, from_index=False)
-        repair_item.original_details = [IndexItemDetailRow(os_id=0, detail_name='depends', detail_value=iid) for iid in self.get_all_installed_iids()]
+        the_os_id = self.os_names['common']
+        the_iid = "__REPAIR_INSTALLED_ITEMS__"
+        repair_item = IndexItemRow(iid=the_iid, inherit_resolved=True, from_index=False, from_require=False)
+        repair_item_details = [IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid,
+                                                  detail_name='depends', detail_value=iid,
+                                                  os_id=the_os_id, generation=0) for iid in self.get_all_installed_iids()]
         self.session.add(repair_item)
+        self.session.add_all(repair_item_details)
 
-        update_item = IndexItemRow(iid="__UPDATE_INSTALLED_ITEMS__", inherit_resolved=True, from_index=False)
-        update_item.original_details = [IndexItemDetailRow(os_id=0, detail_name='depends', detail_value=iid) for iid in self.get_all_iids()]
+        the_iid = "__UPDATE_INSTALLED_ITEMS__"
+        update_item = IndexItemRow(iid=the_iid, inherit_resolved=True, from_index=False, from_require=False)
+        update_item_details = [IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid,
+                                                  detail_name='depends', detail_value=iid,
+                                                  os_id=the_os_id, generation=0) for iid in self.get_all_installed_iids_needing_update()]
         self.session.add(update_item)
-
+        self.session.add_all(update_item_details)
 
     def get_item_by_resolve_status(self, iid_to_get, resolve_status):  # tested by: TestItemTable.test_get_item_by_resolve_status
         # http://stackoverflow.com/questions/29161730/what-is-the-difference-between-one-and-first
@@ -473,6 +496,7 @@ class IndexItemsTable(object):
             if require_details:
                 require_items[IID] = require_details
         self.insert_require_to_db(require_items)
+        self.create_default_require_items()
 
     def read_item_details_from_require_node(self, the_iid, the_node):
         os_id=self.os_names['common']
@@ -563,16 +587,21 @@ class IndexItemsTable(object):
 
     @utils.timing
     def iids_from_guids(self, guid_or_iid_list):
-        query_vars = '("'+'","'.join(guid_or_iid_list)+'")'
-        query_text = """
-          SELECT DISTINCT owner_iid, detail_value FROM IndexItemDetailRow
-            WHERE detail_name = "guid" AND detail_value in {0}
-        """.format(query_vars)
+        returned_iids = list()
+        orphaned_guids = list()
+        if guid_or_iid_list:
+            query_vars = '("'+'","'.join(guid_or_iid_list)+'")'
+            query_text = """
+              SELECT DISTINCT owner_iid, detail_value FROM IndexItemDetailRow
+                WHERE detail_name = "guid" AND detail_value in {0}
+            """.format(query_vars)
 
-        # query will return list of (iid, guid)'s
-        ret_list = self.session.execute(query_text).fetchall()
-        returned_iids, returned_guids = zip(*ret_list)
-        orphaned_guids = list(set(guid_or_iid_list)-set(returned_guids))
+            # query will return list of (iid, guid)'s
+            ret_list = self.session.execute(query_text).fetchall()
+            returned_guids = list()
+            if len(ret_list) > 0:
+                returned_iids, returned_guids = zip(*ret_list)
+            orphaned_guids = list(set(guid_or_iid_list)-set(returned_guids))
 
         return returned_iids, orphaned_guids
 
@@ -591,27 +620,29 @@ class IndexItemsTable(object):
 
         return existing_iids, orphan_iids
 
-    def get_recursive_dependencies(self, main_install_targets):#!
-        query_vars = "('" + "'), ('".join(main_install_targets) + "')"
-        query_text = """
-    WITH RECURSIVE depends_on_temp_query(iid) AS (
-        VALUES {0}
-        UNION
-        SELECT
-            IndexItemDetailRow.detail_value
-        FROM IndexItemDetailRow, depends_on_temp_query
-        INNER JOIN IndexItemDetailOperatingSystem ON
-                IndexItemDetailRow.os_id = IndexItemDetailOperatingSystem._id
+    def get_recursive_dependencies(self, main_install_targets):
+        retVal = list()
+        if main_install_targets:
+            query_vars = "('" + "'), ('".join(main_install_targets) + "')"
+            query_text = """
+        WITH RECURSIVE depends_on_temp_query(iid) AS (
+            VALUES {0}
+            UNION
+            SELECT
+                IndexItemDetailRow.detail_value
+            FROM IndexItemDetailRow, depends_on_temp_query
+            INNER JOIN IndexItemDetailOperatingSystem ON
+                    IndexItemDetailRow.os_id = IndexItemDetailOperatingSystem._id
+                        AND
+                    IndexItemDetailOperatingSystem.active = 1
+            WHERE
+                IndexItemDetailRow.detail_name = 'depends'
                     AND
-                IndexItemDetailOperatingSystem.active = 1
-        WHERE
-            IndexItemDetailRow.detail_name = 'depends'
-                AND
-            IndexItemDetailRow.owner_iid = depends_on_temp_query.iid
-        )
-    SELECT * FROM depends_on_temp_query ORDER BY depends_on_temp_query.iid
-""".format(query_vars)
+                IndexItemDetailRow.owner_iid = depends_on_temp_query.iid
+            )
+        SELECT * FROM depends_on_temp_query ORDER BY depends_on_temp_query.iid
+    """.format(query_vars)
 
-        retVal = self.session.execute(query_text).fetchall()
-        retVal = [mm[0] for mm in retVal]
+            retVal = self.session.execute(query_text).fetchall()
+            retVal = [mm[0] for mm in retVal]
         return retVal
