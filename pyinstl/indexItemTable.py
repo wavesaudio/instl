@@ -424,7 +424,6 @@ class IndexItemsTable(object):
                 if d_of_ii.detail_name not in self.not_inherit_details:
                     inherited_detail = IndexItemDetailRow(original_iid=d_of_ii.original_iid, owner_iid=item_to_resolve.iid, os_id=d_of_ii.os_id, detail_name=d_of_ii.detail_name, detail_value=d_of_ii.detail_value, generation=d_of_ii.generation+1)
                     self.session.add(inherited_detail)
-                    print(inherited_detail)
         item_to_resolve.inherit_resolved = True
 
     @utils.timing

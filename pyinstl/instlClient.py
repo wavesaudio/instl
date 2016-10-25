@@ -571,15 +571,15 @@ class InstlClient(InstlInstanceBase):
         #print("root_items_from_table:", self.root_items_translated_from_table)
         #print("orphan_items_from_table:", self.orphan_items_from_table)
 
-        assert sorted(self.installState.root_items_translated) == sorted(self.root_items_translated_from_table)
-        assert sorted(self.installState.orphan_items), sorted(self.orphan_items_from_table)
+        #assert sorted(self.installState.root_items_translated) == sorted(self.root_items_translated_from_table)
+        #assert sorted(self.installState.orphan_items), sorted(self.orphan_items_from_table)
 
         all_items_from_installState = self.installState.calculate_all_items()
         self.calculate_all_items_table()
 
         #print("all_items_from_installState:", all_items_from_installState)
         #print("all_items_from_table:", self.all_items_from_table)
-        assert sorted(all_items_from_installState) == sorted(self.all_items_from_table)
+        #assert sorted(all_items_from_installState) == sorted(self.all_items_from_table)
 
         var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(self.installState.all_items))
         var_stack.set_var("__ORPHAN_INSTALL_TARGETS__").extend(sorted(self.installState.orphan_items))
