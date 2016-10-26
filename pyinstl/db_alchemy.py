@@ -71,6 +71,7 @@ class IndexItemRow(get_declarative_base()):
     inherit_resolved = Column(BOOLEAN, default=False)
     from_index = Column(BOOLEAN, default=False)
     from_require = Column(BOOLEAN, default=False)
+    active = Column(Integer, default=0)
 
     def __str__(self):
         resolved_str = "resolved" if self.inherit_resolved else "unresolved"

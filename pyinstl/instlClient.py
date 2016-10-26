@@ -400,6 +400,7 @@ class InstlClient(InstlInstanceBase):
         do_command_func()
         self.create_instl_history_file()
         self.command_output()
+        self.items_table.finished_using_db()
 
     def command_output(self):
         self.create_variables_assignment()
@@ -535,9 +536,43 @@ class InstlClient(InstlInstanceBase):
         iids, guids = utils.separate_guids_from_iids(main_install_targets)
         iids_from_guids, orphaned_guids = self.items_table.iids_from_guids(guids)
         iids.extend(iids_from_guids)
+
+        repair_installed_items = False
+        update_installed_items = False
+        if "__UPDATE_INSTALLED_ITEMS__" in iids:
+            if self.the_command in ("sync", "synccopy"):
+                repair_installed_items = True  # if syncing we want to sync everything
+            else:
+                update_installed_items = True  # if copying we want to copy only iid's whose version changed
+            iids.remove("__UPDATE_INSTALLED_ITEMS__")
+        if "__REPAIR_INSTALLED_ITEMS__" in main_install_targets:
+            repair_installed_items = True
+            iids.remove("__REPAIR_INSTALLED_ITEMS__")
+
+        if repair_installed_items:
+            pass
+        elif update_installed_items:
+            pass
         iids, orphaned_iids = self.items_table.iids_from_iids(iids)
         self.root_items_translated_from_table = sorted(iids)
         self.orphan_items_from_table = sorted(orphaned_guids + orphaned_iids)
+
+    @utils.timing
+    def translate_root_items_table2(self, main_install_targets):
+        update_iid = None
+        if "__UPDATE_INSTALLED_ITEMS__" in main_install_targets:
+            if self.the_command in ("sync", "synccopy"):
+                update_iid = "__REPAIR_INSTALLED_ITEMS__"  # if syncing we want to sync everything
+            else:
+                update_iid = "__UPDATE_INSTALLED_ITEMS__"  # if copying we want to copy only iid's whose version changed
+            main_install_targets.remove("__UPDATE_INSTALLED_ITEMS__")
+        if "__REPAIR_INSTALLED_ITEMS__" in main_install_targets:
+            update_iid = "__REPAIR_INSTALLED_ITEMS__"
+            main_install_targets.remove("__REPAIR_INSTALLED_ITEMS__")
+        if update_iid is not None:
+            self.items_table.activate_direct_dependencies([update_iid], 1)
+        self.items_table.activate_iids(main_install_targets, 1)
+        self.items_table.activate_guids(main_install_targets, 1)
 
     @utils.timing
     def calculate_all_items_table(self):
@@ -568,6 +603,7 @@ class InstlClient(InstlInstanceBase):
         #print("self.installState.root_items_translated:", self.installState.root_items_translated)
 
         self.translate_root_items_table(main_install_targets)
+        self.translate_root_items_table2(main_install_targets)
         #print("root_items_from_table:", self.root_items_translated_from_table)
         #print("orphan_items_from_table:", self.orphan_items_from_table)
 

@@ -38,13 +38,17 @@ class IndexItemsTable(object):
         self.clear_tables()
         self.os_names_db_objs = list()
         self.add_default_values()
-        #self.add_triggers()
+        self.add_triggers()
         self.add_views()
         #inspector = reflection.Inspector.from_engine(get_engine())
         #print("Tables:", inspector.get_table_names())
         #print("Views:", inspector.get_view_names())
         self.baked_queries_map = self.bake_baked_queries()
         self.bakery = baked.bakery()
+
+    def finished_using_db(self):
+        if not getattr(sys, 'frozen', False):
+            self.session.commit()
 
     def clear_tables(self):
         #print(get_engine().table_names())
@@ -62,7 +66,8 @@ class IndexItemsTable(object):
             self.os_names_db_objs.append(new_item)
         self.session.add_all(self.os_names_db_objs)
 
-    def add_triggers(self):#!
+    def add_triggers(self):
+        return  # no triggers currently defined, below is an old one for reference
         stmt = text("""
             CREATE TRIGGER IF NOT EXISTS CreateRelationOnNewDetail
                 AFTER INSERT ON IndexItemDetailRow
@@ -604,6 +609,71 @@ class IndexItemsTable(object):
             orphaned_guids = list(set(guid_or_iid_list)-set(returned_guids))
 
         return returned_iids, orphaned_guids
+
+    def activate_iids(self, iid_list, active_value=None):
+        """ update the active field of the iids in the list.
+            if active_value is not None this exact value will be used,
+            otherwise the active field will be incremented.
+        """
+        if iid_list:
+            active_set_value = "active+1"
+            if active_value is not None:
+                active_set_value=str(active_value)
+            query_vars = '("'+'","'.join(iid_list)+'")'
+            query_text = """
+                UPDATE IndexItemRow
+                SET active={0}
+                WHERE iid IN {1}
+            """.format(active_set_value, query_vars)
+
+            self.session.execute(query_text)
+
+    def activate_guids(self, guid_list, active_value=None):
+        """ update the active field of the iids who's guid is in the list.
+            if active_value is not None this exact value will be used,
+            otherwise the active field will be incremented.
+        """
+        if guid_list:
+            active_set_value = "active+1"
+            if active_value is not None:
+                active_set_value=str(active_value)
+            query_vars = '("'+'","'.join(guid_list)+'")'
+            query_text = """
+                UPDATE IndexItemRow
+                SET active={0}
+                WHERE iid IN (
+                    SELECT owner_iid
+                    FROM IndexItemDetailRow
+                    WHERE detail_name="guid"
+                    AND detail_value in {1}
+                    )
+             """.format(active_set_value, query_vars)
+
+            self.session.execute(query_text)
+
+    def activate_direct_dependencies(self, depends_of_list, active_value=None):
+        """ update the active field of the iids who are direct dependants of the iids in the list.
+            if active_value is not None this exact value will be used,
+            otherwise the active field will be incremented.
+        """
+        if depends_of_list:
+            active_set_value = "active+1"
+            if active_value is not None:
+                active_set_value=str(active_value)
+            query_vars = '("'+'","'.join(depends_of_list)+'")'
+            query_text = """
+                UPDATE IndexItemRow
+                SET active={0}
+                WHERE iid IN (
+                    SELECT detail_value
+                    FROM IndexItemDetailRow
+                    WHERE detail_name="depends"
+                    AND owner_iid in {1}
+                )
+            """.format(active_set_value, query_vars)
+
+            self.session.execute(query_text)
+
 
     # find which iids are in the database
     def iids_from_iids(self, iid_list):
