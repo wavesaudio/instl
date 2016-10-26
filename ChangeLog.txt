@@ -1,8 +1,9 @@
-???? 1.3.0.?
-
-26/10/2016 1.3.0.4
+26/10/2016 1.3.0.5
 
     programmer visible changes:
+    * fixed IndexItemTable.iids_from_guids for cases where not guids are supplied
+    * fixed IndexItemTable.get_recursive_dependencies for cases where no main_install_targets are supplied
+    * fixed IndexItemTable.create_default_require_items, IndexItemTable.create_default_index_items that where not producing the correct items
     * sqlalchemy: use a single session instead of separate ones for SVNTable and IndexTables,
         solves a problem when working with admin commands
 
@@ -15,12 +16,6 @@
     * removed classes IndexItemRequiredRow, IndexItemToDetailRelation
     * IndexItemsTable: many changes and improvements of database usage
 
-
-26/10/2016 1.3.0.4
-
-    programmer visible changes:
-    * sqlalchemy: use a single session instead of separate ones for SVNTable and IndexTables,
-        solves a problem when working with admin commands
 
 16/10/2016 1.3.0.3
 
