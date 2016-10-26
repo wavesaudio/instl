@@ -21,6 +21,7 @@ import utils
 
 __db_engine = None
 __db_session_maker = None
+__db_session = None
 __db_declarative_base = None
 
 
@@ -41,11 +42,11 @@ def get_engine():
 
 
 def create_session():
-    global __db_session_maker
+    global __db_session_maker, __db_session
     if __db_session_maker is None:
         __db_session_maker = sessionmaker(bind=get_engine(), autocommit=False)
-    new_session = __db_session_maker()
-    return new_session
+        __db_session = __db_session_maker()
+    return __db_session
 
 
 def get_declarative_base():
