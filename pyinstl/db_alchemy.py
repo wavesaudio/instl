@@ -55,6 +55,7 @@ def get_declarative_base():
         __db_declarative_base = declarative_base()
     return __db_declarative_base
 
+
 class IndexItemDetailOperatingSystem(get_declarative_base()):
     __tablename__ = 'IndexItemDetailOperatingSystem'
     _id = Column(Integer, primary_key=True)
@@ -63,6 +64,7 @@ class IndexItemDetailOperatingSystem(get_declarative_base()):
     def __str__(self):
         retVal = "self._id) {self.name} active: {self.active}".format(**locals())
         return retVal
+
 
 class IndexItemRow(get_declarative_base()):
     __tablename__ = 'IndexItemRow'

@@ -595,26 +595,47 @@ class IndexItemsTable(object):
         return retVal
 
     @utils.timing
-    def iids_from_guids(self, guid_or_iid_list):
+    def iids_from_guids(self, guid_list):
         returned_iids = list()
         orphaned_guids = list()
-        if guid_or_iid_list:
-            query_vars = '("'+'","'.join(guid_or_iid_list)+'")'
-            query_text = """
-              SELECT DISTINCT owner_iid, detail_value FROM IndexItemDetailRow
-                WHERE detail_name = "guid" AND detail_value in {0}
-            """.format(query_vars)
+        if guid_list:
+            # add all guids to table IndexGuidToItemTranslate with iid field defaults to Null
+            for a_guid in list(set(guid_list)):  # list(set()) will remove duplicates
+                self.session.add(IndexGuidToItemTranslate(guid=a_guid))
+            self.session.flush()
 
-            # query will return list of (iid, guid)'s
-            ret_list = self.session.execute(query_text).fetchall()
-            returned_guids = list()
-            if len(ret_list) > 0:
-                returned_iids, returned_guids = zip(*ret_list)
-            orphaned_guids = list(set(guid_or_iid_list)-set(returned_guids))
+            # insert to table IndexGuidToItemTranslate guid, iid pairs.
+            # a guid might yield 0, 1, or more iids
+            query_text = """
+                INSERT INTO IndexGuidToItemTranslate(guid, iid)
+                SELECT IndexItemDetailRow.detail_value, IndexItemDetailRow.owner_iid
+                FROM IndexItemDetailRow
+                WHERE
+                    IndexItemDetailRow.detail_name='guid'
+                    AND IndexItemDetailRow.detail_value IN (SELECT guid FROM IndexGuidToItemTranslate WHERE iid IS NULL);
+                """
+            self.session.execute(query_text)
+            self.session.flush()
+
+            # return a list of guid, count pairs.
+            # Guids with count of 0 are guid that could not be translated to iids
+            query_text = """
+                SELECT guid, count(guid) FROM IndexGuidToItemTranslate
+                GROUP BY guid;
+                """
+            count_guids = self.session.execute(query_text).fetchall()
+            for guid, count in count_guids:
+                if count < 2:
+                    orphaned_guids.append(guid)
+            all_iids = self.session.query(IndexGuidToItemTranslate.iid)\
+                    .distinct(IndexGuidToItemTranslate.iid)\
+                    .filter(IndexGuidToItemTranslate.iid != None)\
+                    .order_by('iid').all()
+            returned_iids = [iid[0] for iid in all_iids]
 
         return returned_iids, orphaned_guids
 
-    def activate_iids(self, iid_list, status_value=None):
+    def set_status_of_iids(self, iid_list, status_value=None):
         """ update the status field of the iids in the list.
             if status_value is not None this exact value will be used,
             otherwise the status field will be incremented.
@@ -632,33 +653,11 @@ class IndexItemsTable(object):
 
             self.session.execute(query_text)
 
-    def activate_guids(self, guid_list, status_value=None):
-        """ update the status field of the iids who's guid is in the list.
-            if status_value is not None this exact value will be used,
-            otherwise the status field will be incremented.
-        """
-        if guid_list:
-            status_set_value = "status+1"
-            if status_value is not None:
-                status_set_value=str(status_value)
-            query_vars = '("'+'","'.join(guid_list)+'")'
-            query_text = """
-                UPDATE IndexItemRow
-                SET status={0}
-                WHERE iid IN (
-                    SELECT owner_iid
-                    FROM IndexItemDetailRow
-                    WHERE detail_name="guid"
-                    AND detail_value in {1}
-                    )
-             """.format(status_set_value, query_vars)
-
-            self.session.execute(query_text)
-
-    def activate_direct_dependencies(self, depends_of_list, status_value=None):
+    def set_status_of_direct_dependencies(self, depends_of_list, status_value=None):
         """ update the status field of the iids who are direct dependants of the iids in the list.
             if status_value is not None this exact value will be used,
             otherwise the status field will be incremented.
+            used to mark dependents of the special build in iids such as __ALL_ITEMS_IID__
         """
         if depends_of_list:
             status_set_value = "status+1"
@@ -678,7 +677,6 @@ class IndexItemsTable(object):
 
             self.session.execute(query_text)
 
-
     # find which iids are in the database
     def iids_from_iids(self, iid_list):
         query_vars = '("'+'","'.join(iid_list)+'")'
@@ -695,7 +693,6 @@ class IndexItemsTable(object):
         return existing_iids, orphan_iids
 
     def get_recursive_dependencies(self):
-        retVal = list()
         query_text = """
             WITH RECURSIVE find_dependants(_IID_) AS
             (
@@ -720,7 +717,7 @@ class IndexItemsTable(object):
         retVal = [mm[0] for mm in retVal]
         return retVal
 
-    def change_items_status(self, old_status, new_status, iid_list):
+    def change_status_of_iids(self, old_status, new_status, iid_list):
         if iid_list:
             query_vars = '("'+'","'.join(iid_list)+'")'
             query_text = """
@@ -729,33 +726,24 @@ class IndexItemsTable(object):
                 WHERE status={old_status}
                 AND iid IN {query_vars}
             """.format(**locals())
-
             self.session.execute(query_text)
-        
-    def translate_guids_to_iids(self, guid_list):
-        guid_list = 'dae7bc2a-a257-440f-8ca7-f5ce1d999329', 'e8f6b97d-ad21-11e0-8088-b7fd7bebd530', 'e8f6b97d-ad21-11e0-8088-b7fd7bebdddd'
-        for a_guid in guid_list:
-            self.session.add(IndexGuidToItemTranslate(guid=a_guid))
-        self.session.flush()
+            self.session.commit()  # not sure why but commit is a must here of all places for the update to be written
 
+    def get_iids_by_status(self, status):
         query_text = """
-            INSERT INTO IndexGuidToItemTranslate(guid, iid)
-            SELECT IndexItemDetailRow.detail_value, IndexItemDetailRow.owner_iid
-            FROM IndexItemDetailRow
-            WHERE
-                IndexItemDetailRow.detail_name='guid'
-                AND IndexItemDetailRow.detail_value IN (SELECT guid FROM IndexGuidToItemTranslate WHERE iid IS NULL);
-            """
-        in_ret = self.session.execute(query_text)
-        print("in_ret:", in_ret)
+            SELECT iid
+            FROM IndexItemRow
+            WHERE status={status}
+        """.format(**locals())
+        retVal = self.session.execute(query_text).fetchall()
+        retVal = [mm[0] for mm in retVal]
+        return retVal
+
+    def mark_main_install_iids(self, iid_list, special_build_in_iids):
+        special_iids_to_mark = set(iid_list) & set(special_build_in_iids)
+        regular_iids_to_mark = set(iid_list) - set(special_build_in_iids)
+        self.set_status_of_direct_dependencies(special_iids_to_mark, status_value=1)
+        self.set_status_of_iids(regular_iids_to_mark, status_value=1)
         self.session.flush()
-
-        all_guids = self.session.query(IndexGuidToItemTranslate).order_by('guid').all()
-        print("all_guids:\n", "\n".join([str(a_guid) for a_guid in all_guids]))
-
-        query_text = """
-            SELECT guid, count(guid) FROM IndexGuidToItemTranslate
-            GROUP BY guid;
-            """
-        count_guids = self.session.execute(query_text).fetchall()
-        print("count_guids:", count_guids)
+        retVal = self.get_iids_by_status(1)
+        return retVal
