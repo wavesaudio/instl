@@ -454,7 +454,7 @@ class IndexItemsTable(object):
                     self.session.add(inherited_detail)
         item_to_resolve.inherit_resolved = True
 
-    #@utils.timing
+    @utils.timing
     def resolve_inheritance(self):
         items = self.get_all_index_items()
         for item in items:
@@ -484,7 +484,7 @@ class IndexItemsTable(object):
                     details.append(new_detail)
         return details
 
-    #@utils.timing
+    @utils.timing
     def read_index_node(self, a_node):
         index_items = list()
         original_details = list()
@@ -496,7 +496,7 @@ class IndexItemsTable(object):
         self.session.add_all(original_details)
         self.create_default_index_items()
 
-    #@utils.timing
+    @utils.timing
     def read_require_node(self, a_node):
         require_items = dict()
         if a_node.isMapping():
@@ -551,7 +551,7 @@ class IndexItemsTable(object):
             retVal[item.iid] = self.repr_item_for_yaml(item.iid)
         return retVal
 
-    #@utils.timing
+    @utils.timing
     def versions_report(self):
         query_text = """
             SELECT
@@ -589,12 +589,12 @@ class IndexItemsTable(object):
          AND   IndexItemDetailRow.detail_name = :d_n \
      WHERE IndexItemRow.iid = :iid"
 
-    #@utils.timing
+    @utils.timing
     def get_resolved_details_for_iid(self, iid, detail_name):
         retVal = self.session.execute(IndexItemsTable.select_details_for_IID_with_full_details_view, {'d_n': detail_name, 'iid': iid}).fetchall()
         return retVal
 
-    #@utils.timing
+    @utils.timing
     def iids_from_guids(self, guid_or_iid_list):
         returned_iids = list()
         orphaned_guids = list()

@@ -297,7 +297,7 @@ class InstallInstructionsState(object):
 
         self.__root_items_translated.sort()  # for repeatability
 
-    #@utils.timing
+    @utils.timing
     def calculate_all_items(self):
         """ calculate the set of iids to install by starting with the root set and adding all dependencies.
             Initial list of iids should already be in self.__root_items_translated.
@@ -532,7 +532,7 @@ class InstlClient(InstlInstanceBase):
         print("__root_update_items:", self.__root_update_items)
         self.__root_items_translated.sort()  # for repeatability
 
-    #@utils.timing
+    @utils.timing
     def translate_root_items_table(self, main_install_targets):
         iids, guids = utils.separate_guids_from_iids(main_install_targets)
         iids_from_guids, orphaned_guids = self.items_table.iids_from_guids(guids)
@@ -541,7 +541,7 @@ class InstlClient(InstlInstanceBase):
         self.root_items_translated_from_table = sorted(iids)
         self.orphan_items_from_table = sorted(orphaned_guids + orphaned_iids)
 
-    #@utils.timing
+    @utils.timing
     def calculate_all_items_table(self):
         self.all_items_from_table = self.items_table.get_recursive_dependencies(self.root_items_translated_from_table)
 
