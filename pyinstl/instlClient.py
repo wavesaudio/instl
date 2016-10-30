@@ -282,9 +282,11 @@ class InstallInstructionsState(object):
 
         self.__root_update_items = list()
         if self.__update_installed_items:
-            self.__root_update_items.extend(self.req_man.get_previously_installed_root_items())
+            items_to_update = self.req_man.get_previously_installed_root_items_with_lower_version(self.__instlObj.install_definitions_index)
+            self.__root_update_items.extend(items_to_update)
         elif self.__repair_installed_items:
-            self.__root_update_items.extend(self.req_man.get_previously_installed_root_items_with_lower_version(self.__instlObj.install_definitions_index))
+            items_to_repair = self.req_man.get_previously_installed_root_items()
+            self.__root_update_items.extend(items_to_repair)
         print("__root_update_items:", self.__root_update_items)
 
         # find orphan IIDs that were not translated from guids
@@ -295,7 +297,7 @@ class InstallInstructionsState(object):
 
         self.__root_items_translated.sort()  # for repeatability
 
-    @utils.timing
+    #@utils.timing
     def calculate_all_items(self):
         """ calculate the set of iids to install by starting with the root set and adding all dependencies.
             Initial list of iids should already be in self.__root_items_translated.
@@ -378,7 +380,7 @@ class InstlClient(InstlInstanceBase):
         # print("client_commands", fixed_command_name)
         self.installState = InstallInstructionsState(self)
         main_input_file_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
-        self.read_yaml_file(main_input_file_path)
+        self.read_yaml_file(main_input_file_path, req_reader=self.installState.req_man)
 
         active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
         self.items_table.begin_get_for_specific_oses(*active_oses)
@@ -530,7 +532,7 @@ class InstlClient(InstlInstanceBase):
         print("__root_update_items:", self.__root_update_items)
         self.__root_items_translated.sort()  # for repeatability
 
-    @utils.timing
+    #@utils.timing
     def translate_root_items_table(self, main_install_targets):
         iids, guids = utils.separate_guids_from_iids(main_install_targets)
         iids_from_guids, orphaned_guids = self.items_table.iids_from_guids(guids)
@@ -539,7 +541,7 @@ class InstlClient(InstlInstanceBase):
         self.root_items_translated_from_table = sorted(iids)
         self.orphan_items_from_table = sorted(orphaned_guids + orphaned_iids)
 
-    @utils.timing
+    #@utils.timing
     def calculate_all_items_table(self):
         self.all_items_from_table = self.items_table.get_recursive_dependencies(self.root_items_translated_from_table)
 
@@ -634,13 +636,16 @@ class InstlClient(InstlInstanceBase):
     def create_sync_folder_manifest_command(self, manifest_file_name_prefix):
         """ create batch commands to write a manifest of the sync folder to a file """
         which_folder_to_manifest = "$(COPY_SOURCES_ROOT_DIR)"
-        param_to_extract_output_folder_from = "__MAIN_IN_FILE__"
-        if var_stack.defined('ECHO_LOG_FILE'):
-            param_to_extract_output_folder_from = "ECHO_LOG_FILE"
-        log_file_path = var_stack.ResolveVarToStr(param_to_extract_output_folder_from)
-        output_folder, _ = os.path.split(log_file_path)
         output_file_name = manifest_file_name_prefix+"-sync-folder-manifest.txt"
-        self.create_folder_manifest_command(which_folder_to_manifest, output_folder, output_file_name)
+        for param_to_extract_output_folder_from in ('ECHO_LOG_FILE', '__MAIN_INPUT_FILE__', '__MAIN_OUT_FILE__'):
+            if var_stack.defined(param_to_extract_output_folder_from):
+                log_file_path = var_stack.ResolveVarToStr(param_to_extract_output_folder_from)
+                output_folder, _ = os.path.split(log_file_path)
+                if os.path.isdir(output_folder):
+                    break
+                output_folder = None
+        if output_folder is not None:
+            self.create_folder_manifest_command(which_folder_to_manifest, output_folder, output_file_name)
 
 
 def InstlClientFactory(initial_vars, command):

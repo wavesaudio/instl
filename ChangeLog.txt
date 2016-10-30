@@ -1,3 +1,14 @@
+30/10/2016 1.3.0.6
+
+    programmer visible changes:
+    * fixed IndexItemsTable.read_require_node to handle empty !require sections
+    * fixed reading of require files from include sections
+
+    user visible changes client:
+    * fixed handling of __UPDATE_INSTALLED_ITEMS__ & __REPAIR_INSTALLED_ITEMS__ in InstallInstructionsState.__translate_root_items
+    * fixed InstlClient.create_sync_folder_manifest_command, to try getting the output folder from params 'ECHO_LOG_FILE', '__MAIN_INPUT_FILE__', '__MAIN_OUT_FILE__'
+i
+
 26/10/2016 1.3.0.5
 
     programmer visible changes:
@@ -20,7 +31,7 @@
 16/10/2016 1.3.0.3
 
     user visible changes client:
-    * InstlClient.create_sync_folder_manifest_command looks for the folder where to put the manifest in __MAIN_IN_FILE__ instead of __MAIN_OUT_FILE__. This was done because in some situations __MAIN_OUT_FILE__ is not defined yet.
+    * InstlClient.create_sync_folder_manifest_command looks for the folder where to put the manifest in __MAIN_INPUT_FILE__ instead of __MAIN_OUT_FILE__. This was done because in some situations __MAIN_OUT_FILE__ is not defined yet.
     * new include: __include_if_exist__, so non existing files can be ignored
     * Default value for __OUTPUT_FORMAT__ is now OUTPUT_FORMAT so the format can be specified in !define sections
     * added option --out to report-versions command
