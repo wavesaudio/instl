@@ -557,8 +557,7 @@ class InstlClient(InstlInstanceBase):
         self.root_items_translated_from_table = sorted(iids)
         self.orphan_items_from_table = sorted(orphaned_guids + orphaned_iids)
 
-    @utils.timing
-    def translate_root_items_table2(self, main_install_targets):
+    def translate_special_update_iids(self, main_install_targets):
         update_iid = None
         if "__UPDATE_INSTALLED_ITEMS__" in main_install_targets:
             if self.the_command in ("sync", "synccopy"):
@@ -571,12 +570,20 @@ class InstlClient(InstlInstanceBase):
             main_install_targets.remove("__REPAIR_INSTALLED_ITEMS__")
         if update_iid is not None:
             self.items_table.activate_direct_dependencies([update_iid], 1)
+        return main_install_targets
+
+    @utils.timing
+    def translate_main_install_targets(self, main_install_targets):
+        main_install_targets = self.translate_special_update_iids(main_install_targets)
+        non_guids, guids = utils.separate_guids_from_iids(main_install_targets)
+        self.items_table.translate_guids_to_iids(guids)
         self.items_table.activate_iids(main_install_targets, 1)
         self.items_table.activate_guids(main_install_targets, 1)
 
     @utils.timing
     def calculate_all_items_table(self):
-        self.all_items_from_table = self.items_table.get_recursive_dependencies(self.root_items_translated_from_table)
+        self.all_items_from_table = self.items_table.get_recursive_dependencies()
+        self.items_table.change_items_status(0, 2, self.all_items_from_table)
 
     def calculate_install_items(self):
         """ calculate the set of iids to install from the "MAIN_INSTALL_TARGETS" variable.
@@ -603,7 +610,7 @@ class InstlClient(InstlInstanceBase):
         #print("self.installState.root_items_translated:", self.installState.root_items_translated)
 
         self.translate_root_items_table(main_install_targets)
-        self.translate_root_items_table2(main_install_targets)
+        self.translate_main_install_targets(main_install_targets)
         #print("root_items_from_table:", self.root_items_translated_from_table)
         #print("orphan_items_from_table:", self.orphan_items_from_table)
 

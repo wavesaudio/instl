@@ -71,16 +71,17 @@ class IndexItemRow(get_declarative_base()):
     inherit_resolved = Column(BOOLEAN, default=False)
     from_index = Column(BOOLEAN, default=False)
     from_require = Column(BOOLEAN, default=False)
-    active = Column(Integer, default=0)
+    status = Column(Integer, default=0)
 
     def __str__(self):
         resolved_str = "resolved" if self.inherit_resolved else "unresolved"
         from_index_str = "yes" if self.from_index else "no"
         from_require_str = "yes" if self.from_require else "no"
-        retVal = ("{self._id}) {self.iid} "
+        retVal = ("{self._id}) {self.iid}, "
                 "inheritance: {resolved}, "
                 "from index: {from_index_str}, "
-                "from require: {from_require_str}"
+                "from require: {from_require_str},"
+                "status: {self.status}"
                 ).format(**locals())
         return retVal
 
@@ -94,13 +95,29 @@ class IndexItemDetailRow(get_declarative_base()):
     detail_name  = Column(String, index=True)
     detail_value = Column(String)
     generation   = Column(Integer, default=0)
+    tag          = Column(String)
 
     #os = relationship("IndexItemDetailOperatingSystem")
     #item = relationship("IndexItemRow", back_populates="original_details")
 
     def __str__(self):
-        retVal = "{self._id}) owner: {self.owner_iid}, origi: {self.original_iid}, os: {self.os_id}, gen: {self.generation} {self.detail_name}: {self.detail_value}".format(**locals())
+        retVal = ("{self._id}) owner: {self.owner_iid}, "
+                    "origi: {self.original_iid}, "
+                    "os: {self.os_id}, "
+                    "gen: {self.generation}, "
+                    "tag: {self.tag}, "
+                    "{self.detail_name}: {self.detail_value}").format(**locals())
         return retVal
+
+class IndexGuidToItemTranslate(get_declarative_base()):
+    __tablename__ = 'IndexGuidToItemTranslate'
+    _id = Column(Integer, primary_key=True, autoincrement=True)
+    guid  = Column(String)
+    iid = Column(String, default=None)
+    def __str__(self):
+        retVal = "{self.guid} {self.iid}".format(**locals())
+        return retVal
+
 
 #IndexItemDetailRow.resolved_details = relationship(IndexItemToDetailRelation, back_populates="detail")
 #IndexItemRow.original_details = relationship("IndexItemDetailRow", back_populates="item")
@@ -109,3 +126,4 @@ class IndexItemDetailRow(get_declarative_base()):
 IndexItemDetailOperatingSystem.__table__.create(bind=get_engine(), checkfirst=True)
 IndexItemRow.__table__.create(bind=get_engine(), checkfirst=True)
 IndexItemDetailRow.__table__.create(bind=get_engine(), checkfirst=True)
+IndexGuidToItemTranslate.__table__.create(bind=get_engine(), checkfirst=True)

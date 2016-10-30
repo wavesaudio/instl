@@ -21,7 +21,7 @@ import utils
 from configVar import var_stack
 from functools import reduce
 from aYaml import YamlReader
-from .db_alchemy import create_session, get_engine, IndexItemDetailOperatingSystem, IndexItemRow, IndexItemDetailRow #!
+from .db_alchemy import create_session, get_engine, IndexItemDetailOperatingSystem, IndexItemRow, IndexItemDetailRow, IndexGuidToItemTranslate
 
 
 class IndexItemsTable(object):
@@ -477,7 +477,10 @@ class IndexItemsTable(object):
                 details.extend(actions_details)
             else:
                 for details_line in the_node[detail_name]:
-                    new_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=self.os_names[the_os], detail_name=detail_name, detail_value=details_line.value, generation=0)
+                    tag = details_line.tag if details_line.tag[0]=='!' else None
+                    if detail_name == "install_sources" and tag is None:
+                        tag = '!dir'
+                    new_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=self.os_names[the_os], detail_name=detail_name, detail_value=details_line.value, generation=0, tag=tag)
                     details.append(new_detail)
         return details
 
@@ -610,67 +613,67 @@ class IndexItemsTable(object):
 
         return returned_iids, orphaned_guids
 
-    def activate_iids(self, iid_list, active_value=None):
-        """ update the active field of the iids in the list.
-            if active_value is not None this exact value will be used,
-            otherwise the active field will be incremented.
+    def activate_iids(self, iid_list, status_value=None):
+        """ update the status field of the iids in the list.
+            if status_value is not None this exact value will be used,
+            otherwise the status field will be incremented.
         """
         if iid_list:
-            active_set_value = "active+1"
-            if active_value is not None:
-                active_set_value=str(active_value)
+            status_set_value = "status+1"
+            if status_value is not None:
+                status_set_value=str(status_value)
             query_vars = '("'+'","'.join(iid_list)+'")'
             query_text = """
                 UPDATE IndexItemRow
-                SET active={0}
+                SET status={0}
                 WHERE iid IN {1}
-            """.format(active_set_value, query_vars)
+            """.format(status_set_value, query_vars)
 
             self.session.execute(query_text)
 
-    def activate_guids(self, guid_list, active_value=None):
-        """ update the active field of the iids who's guid is in the list.
-            if active_value is not None this exact value will be used,
-            otherwise the active field will be incremented.
+    def activate_guids(self, guid_list, status_value=None):
+        """ update the status field of the iids who's guid is in the list.
+            if status_value is not None this exact value will be used,
+            otherwise the status field will be incremented.
         """
         if guid_list:
-            active_set_value = "active+1"
-            if active_value is not None:
-                active_set_value=str(active_value)
+            status_set_value = "status+1"
+            if status_value is not None:
+                status_set_value=str(status_value)
             query_vars = '("'+'","'.join(guid_list)+'")'
             query_text = """
                 UPDATE IndexItemRow
-                SET active={0}
+                SET status={0}
                 WHERE iid IN (
                     SELECT owner_iid
                     FROM IndexItemDetailRow
                     WHERE detail_name="guid"
                     AND detail_value in {1}
                     )
-             """.format(active_set_value, query_vars)
+             """.format(status_set_value, query_vars)
 
             self.session.execute(query_text)
 
-    def activate_direct_dependencies(self, depends_of_list, active_value=None):
-        """ update the active field of the iids who are direct dependants of the iids in the list.
-            if active_value is not None this exact value will be used,
-            otherwise the active field will be incremented.
+    def activate_direct_dependencies(self, depends_of_list, status_value=None):
+        """ update the status field of the iids who are direct dependants of the iids in the list.
+            if status_value is not None this exact value will be used,
+            otherwise the status field will be incremented.
         """
         if depends_of_list:
-            active_set_value = "active+1"
-            if active_value is not None:
-                active_set_value=str(active_value)
+            status_set_value = "status+1"
+            if status_value is not None:
+                status_set_value=str(status_value)
             query_vars = '("'+'","'.join(depends_of_list)+'")'
             query_text = """
                 UPDATE IndexItemRow
-                SET active={0}
+                SET status={0}
                 WHERE iid IN (
                     SELECT detail_value
                     FROM IndexItemDetailRow
                     WHERE detail_name="depends"
                     AND owner_iid in {1}
                 )
-            """.format(active_set_value, query_vars)
+            """.format(status_set_value, query_vars)
 
             self.session.execute(query_text)
 
@@ -690,29 +693,68 @@ class IndexItemsTable(object):
 
         return existing_iids, orphan_iids
 
-    def get_recursive_dependencies(self, main_install_targets):
+    def get_recursive_dependencies(self):
         retVal = list()
-        if main_install_targets:
-            query_vars = "('" + "'), ('".join(main_install_targets) + "')"
-            query_text = """
-        WITH RECURSIVE depends_on_temp_query(iid) AS (
-            VALUES {0}
+        query_text = """
+            WITH RECURSIVE find_dependants(_IID_) AS
+            (
+            SELECT iid FROM IndexItemRow WHERE status=1
             UNION
-            SELECT
-                IndexItemDetailRow.detail_value
-            FROM IndexItemDetailRow, depends_on_temp_query
-            INNER JOIN IndexItemDetailOperatingSystem ON
-                    IndexItemDetailRow.os_id = IndexItemDetailOperatingSystem._id
-                        AND
+
+            SELECT IndexItemDetailRow.detail_value
+            FROM IndexItemDetailRow, find_dependants
+                 INNER JOIN IndexItemDetailOperatingSystem ON
+                 IndexItemDetailRow.os_id = IndexItemDetailOperatingSystem._id
+                    AND
                     IndexItemDetailOperatingSystem.active = 1
             WHERE
                 IndexItemDetailRow.detail_name = 'depends'
-                    AND
-                IndexItemDetailRow.owner_iid = depends_on_temp_query.iid
+            AND
+                IndexItemDetailRow.owner_iid = find_dependants._IID_
             )
-        SELECT * FROM depends_on_temp_query ORDER BY depends_on_temp_query.iid
-    """.format(query_vars)
+            SELECT _IID_ FROM find_dependants
+        """.format()
 
-            retVal = self.session.execute(query_text).fetchall()
-            retVal = [mm[0] for mm in retVal]
+        retVal = self.session.execute(query_text).fetchall()
+        retVal = [mm[0] for mm in retVal]
         return retVal
+
+    def change_items_status(self, old_status, new_status, iid_list):
+        if iid_list:
+            query_vars = '("'+'","'.join(iid_list)+'")'
+            query_text = """
+                UPDATE IndexItemRow
+                SET status={new_status}
+                WHERE status={old_status}
+                AND iid IN {query_vars}
+            """.format(**locals())
+
+            self.session.execute(query_text)
+        
+    def translate_guids_to_iids(self, guid_list):
+        guid_list = 'dae7bc2a-a257-440f-8ca7-f5ce1d999329', 'e8f6b97d-ad21-11e0-8088-b7fd7bebd530', 'e8f6b97d-ad21-11e0-8088-b7fd7bebdddd'
+        for a_guid in guid_list:
+            self.session.add(IndexGuidToItemTranslate(guid=a_guid))
+        self.session.flush()
+
+        query_text = """
+            INSERT INTO IndexGuidToItemTranslate(guid, iid)
+            SELECT IndexItemDetailRow.detail_value, IndexItemDetailRow.owner_iid
+            FROM IndexItemDetailRow
+            WHERE
+                IndexItemDetailRow.detail_name='guid'
+                AND IndexItemDetailRow.detail_value IN (SELECT guid FROM IndexGuidToItemTranslate WHERE iid IS NULL);
+            """
+        in_ret = self.session.execute(query_text)
+        print("in_ret:", in_ret)
+        self.session.flush()
+
+        all_guids = self.session.query(IndexGuidToItemTranslate).order_by('guid').all()
+        print("all_guids:\n", "\n".join([str(a_guid) for a_guid in all_guids]))
+
+        query_text = """
+            SELECT guid, count(guid) FROM IndexGuidToItemTranslate
+            GROUP BY guid;
+            """
+        count_guids = self.session.execute(query_text).fetchall()
+        print("count_guids:", count_guids)
