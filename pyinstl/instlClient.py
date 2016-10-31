@@ -282,12 +282,12 @@ class InstallInstructionsState(object):
                     self.__orphan_items.append(IID)
 
         self.__root_update_items = list()
-        if self.__update_installed_items:
-            items_to_update = self.req_man.get_previously_installed_root_items_with_lower_version(self.__instlObj.install_definitions_index)
-            self.__root_update_items.extend(items_to_update)
-        elif self.__repair_installed_items:
+        if self.__repair_installed_items:  # repair takes precedent over update
             items_to_repair = self.req_man.get_previously_installed_root_items()
             self.__root_update_items.extend(items_to_repair)
+        elif self.__update_installed_items:
+            items_to_update = self.req_man.get_previously_installed_root_items_with_lower_version(self.__instlObj.install_definitions_index)
+            self.__root_update_items.extend(items_to_update)
 
         # find orphan IIDs that were not translated from guids
         for IID in self.__root_items_translated[:]:
@@ -524,14 +524,6 @@ class InstlClient(InstlInstanceBase):
         """ calculate the set of iids to install from the "MAIN_INSTALL_TARGETS" variable.
             Full set of install iids and orphan iids are also writen to variable.
         """
-        if False:
-            # read the require.yaml file, if any, we'll need it to calculate updates
-            require_path = var_stack.ResolveVarToStr("SITE_REQUIRE_FILE_PATH")
-            if os.path.isfile(require_path):
-                try:
-                    self.read_yaml_file(require_path, req_reader=self.installState.req_man)
-                except Exception as ex:
-                    print("failed to read", require_path, ex)
 
         if "MAIN_INSTALL_TARGETS" not in var_stack:
             raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
