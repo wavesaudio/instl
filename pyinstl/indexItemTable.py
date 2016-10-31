@@ -721,6 +721,10 @@ class IndexItemsTable(object):
 
     def mark_main_install_iids(self, iid_list, special_build_in_iids):
         special_iids_to_mark = set(iid_list) & set(special_build_in_iids)
+        if "__UPDATE_INSTALLED_ITEMS__" in special_iids_to_mark\
+            and "__REPAIR_INSTALLED_ITEMS__" in special_iids_to_mark:
+            special_iids_to_mark.remove("__UPDATE_INSTALLED_ITEMS__") # repair takes precedent over update
+
         regular_iids_to_mark = set(iid_list) - set(special_build_in_iids)
         self.set_status_of_direct_dependencies(special_iids_to_mark, status_value=1)
         self.set_status_of_iids(regular_iids_to_mark, status_value=1)
