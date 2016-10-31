@@ -199,6 +199,7 @@ class InstallInstructionsState(object):
         self.__update_installed_items = False
         self.__repair_installed_items = False
         self.req_man = RequireMan()
+        self.the_command = None
 
     @property
     def root_items(self):
@@ -287,7 +288,6 @@ class InstallInstructionsState(object):
         elif self.__repair_installed_items:
             items_to_repair = self.req_man.get_previously_installed_root_items()
             self.__root_update_items.extend(items_to_repair)
-        print("__root_update_items:", self.__root_update_items)
 
         # find orphan IIDs that were not translated from guids
         for IID in self.__root_items_translated[:]:
@@ -379,6 +379,7 @@ class InstlClient(InstlInstanceBase):
     def do_command(self):
         # print("client_commands", fixed_command_name)
         self.installState = InstallInstructionsState(self)
+        self.installState.the_command = self.the_command  # hack until db is fully used
         main_input_file_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         self.read_yaml_file(main_input_file_path, req_reader=self.installState.req_man)
 
@@ -505,32 +506,6 @@ class InstlClient(InstlInstanceBase):
         all_guids_item.name = "All GUIDs"
         all_guids_item.add_depends(*guid_list(self.install_definitions_index))
         self.install_definitions_index["__ALL_GUIDS_IID__"] = all_guids_item
-
-    def translate_root_items(self, main_install_targets):
-        # root_install_items might have guid in it, translate them to iids
-        for IID in main_install_targets:
-            if IID == "__UPDATE_INSTALLED_ITEMS__":
-                if self.the_command in ("sync", "synccopy"):
-                    self.__repair_installed_items = True  # if syncing we want to sync everything
-                else:
-                    self.__update_installed_items = True  # if copying we want to copy only iid's whose version changed
-            elif IID == "__REPAIR_INSTALLED_ITEMS__":
-                self.__repair_installed_items = True
-            else:
-                # if IID is a guid, iids_from_guids will translate to iid's, or return the IID otherwise
-                iids_from_the_guid = iids_from_guids(self.__instlObj.install_definitions_index, IID)
-                if len(iids_from_the_guid) > 0:
-                    self.__root_items_translated.extend(iids_from_the_guid)
-                else:
-                    self.__orphan_items.append(IID)
-
-        self.__root_update_items = list()
-        if self.__update_installed_items:
-            self.__root_update_items.extend(self.req_man.get_previously_installed_root_items())
-        elif self.__repair_installed_items:
-            self.__root_update_items.extend(self.req_man.get_previously_installed_root_items_with_lower_version(self.__instlObj.install_definitions_index))
-        print("__root_update_items:", self.__root_update_items)
-        self.__root_items_translated.sort()  # for repeatability
 
     #@utils.timing
     def translate_root_items_table(self, main_install_targets):
