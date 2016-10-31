@@ -516,8 +516,11 @@ class InstlClient(InstlInstanceBase):
         all_guids_item.add_depends(*guid_list(self.install_definitions_index))
         self.install_definitions_index["__ALL_GUIDS_IID__"] = all_guids_item
 
-    @utils.timing
     def calculate_install_items(self):
+        self.calculate_main_install_items()
+        self.calculate_all_install_items()
+
+    def calculate_main_install_items(self):
         """ calculate the set of iids to install from the "MAIN_INSTALL_TARGETS" variable.
             Full set of install iids and orphan iids are also writen to variable.
         """
@@ -531,12 +534,17 @@ class InstlClient(InstlInstanceBase):
 
         main_install_targets = var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS")
         main_install_iids, orphan_iids = self.translate_main_install_targets_to_iids(main_install_targets)
-        all_items_from_table = self.items_table.get_recursive_dependencies()
-        self.items_table.change_status_of_iids(0, 2, all_items_from_table)
-        self.installState.set_from_db(main_install_targets, main_install_iids, orphan_iids, all_items_from_table)
-
-        var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(all_items_from_table))
+        var_stack.set_var("__MAIN_INSTALL_IIDS__").extend(sorted(main_install_iids))
         var_stack.set_var("__ORPHAN_INSTALL_TARGETS__").extend(sorted(orphan_iids))
+
+    def calculate_all_install_items(self):
+        all_items_from_table = self.items_table.get_recursive_dependencies()
+        var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(all_items_from_table))
+        self.items_table.change_status_of_iids(0, 2, all_items_from_table)
+        self.installState.set_from_db(var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS"),
+                                      var_stack.ResolveVarToList("__MAIN_INSTALL_IIDS__"),
+                                      var_stack.ResolveVarToList("__ORPHAN_INSTALL_TARGETS__"),
+                                      all_items_from_table)
 
     @utils.timing
     def translate_main_install_targets_to_iids(self, main_install_targets):
