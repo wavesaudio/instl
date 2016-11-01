@@ -2,8 +2,8 @@
 
 
 
-import os
-
+import sys
+from collections import deque, defaultdict
 from configVar import var_stack
 
 from .installItem import InstallItem
@@ -24,24 +24,42 @@ class InstlClientUninstall(InstlClientRemove):
         self.init_remove_vars()
 
     def calculate_install_items(self):
-        if "MAIN_INSTALL_TARGETS" not in var_stack:
-            raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
-        active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
-        self.items_table.begin_get_for_specific_oses(active_oses)
-
-        for os_name in active_oses:
-            InstallItem.begin_get_for_specific_os(os_name)
-
-        require_path = var_stack.ResolveVarToStr("SITE_REQUIRE_FILE_PATH")
-        if os.path.isfile(require_path):
-            try:
-                self.read_yaml_file(require_path, req_reader=self.installState.req_man)
-            except Exception as ex:
-                print("failed to read", require_path, ex)
-        self.installState.root_items = var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS")
+        self.calculate_main_install_items()
         self.installState.calc_items_to_remove()
-        var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(self.installState.all_items))
-        var_stack.set_var("__ORPHAN_INSTALL_TARGETS__").extend(sorted(self.installState.orphan_items))
+        self.calculate_items_to_remove()
+
+    def calculate_items_to_remove(self):
+        iid_candidates_for_uninstall = var_stack.ResolveVarToList("__MAIN_INSTALL_IIDS__")
+        req_trans_items = self.items_table.get_all_require_translate_items()
+
+        # create a count of how much require_by each item has
+        how_many_require_by = defaultdict( lambda: 0 )
+        for rt in req_trans_items:
+            how_many_require_by[rt.iid] += 1
+
+        candi_que = deque(iid_candidates_for_uninstall)
+
+        while len(candi_que) > 0:
+            candi = candi_que.popleft()
+            for req_trans in req_trans_items:
+                if req_trans.status == 0:
+                    if req_trans.require_by == candi:
+                        req_trans.status += 1
+                        how_many_require_by[req_trans.iid] -= 1
+                        if how_many_require_by[req_trans.iid] == 0 and req_trans.iid != candi:
+                            candi_que.append(req_trans.iid)
+
+        # items who;s count is 0 should be uninstalled
+        all_uninstall_items = [iid for iid, count in how_many_require_by.items() if count == 0]
+        var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(all_uninstall_items))
+
+        iids_that_should_not_be_uninstalled = list(set(iid_candidates_for_uninstall)-set(all_uninstall_items))
+        self.items_table.change_status_of_iids(1, 0, iids_that_should_not_be_uninstalled)
+        self.items_table.change_status_of_iids(0, 2, all_uninstall_items)
+        self.installState.set_from_db(var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS"),
+                                      var_stack.ResolveVarToList("__MAIN_INSTALL_IIDS__"),
+                                      var_stack.ResolveVarToList("__ORPHAN_INSTALL_TARGETS__"),
+                                      all_uninstall_items)
 
     def create_uninstall_instructions(self):
 

@@ -120,6 +120,16 @@ class IndexGuidToItemTranslate(get_declarative_base()):
         retVal = "{self.guid} {self.iid}".format(**locals())
         return retVal
 
+class IndexRequireTranslate(get_declarative_base()):
+    __tablename__ = 'IndexRequireTranslate'
+    _id = Column(Integer, primary_key=True, autoincrement=True)
+    iid  = Column(String)
+    require_by = Column(String)
+    status = Column(Integer, default=0)
+    def __str__(self):
+        retVal = "{self.iid} required by {self.require_by}, status: {self.status}".format(**locals())
+        return retVal
+
 
 #IndexItemDetailRow.resolved_details = relationship(IndexItemToDetailRelation, back_populates="detail")
 #IndexItemRow.original_details = relationship("IndexItemDetailRow", back_populates="item")
@@ -129,3 +139,4 @@ IndexItemDetailOperatingSystem.__table__.create(bind=get_engine(), checkfirst=Tr
 IndexItemRow.__table__.create(bind=get_engine(), checkfirst=True)
 IndexItemDetailRow.__table__.create(bind=get_engine(), checkfirst=True)
 IndexGuidToItemTranslate.__table__.create(bind=get_engine(), checkfirst=True)
+IndexRequireTranslate.__table__.create(bind=get_engine(), checkfirst=True)
