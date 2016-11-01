@@ -46,7 +46,7 @@ class RequireMan(object):
                         self.guid = field_contents.value
 
         def has_required_by(self):
-             return len(self.__required_by) > 0
+            return len(self.__required_by) > 0
 
         def add_required_by(self, new_required_by):
             self.__required_by.add(new_required_by)
@@ -209,21 +209,6 @@ class InstallInstructionsState(object):
         self.__all_items = in_all_items
         self.__sort_all_items_by_target_folder()
 
-
-    @property
-    def root_items(self):
-        return self.__root_items
-
-    @root_items.setter
-    def root_items(self, root_items):
-        root_items = list(filter(bool, root_items))  # avoid empty strings
-        self.__root_items.extend(sorted(root_items))
-        self.__translate_root_items()
-
-    @property
-    def root_items_translated(self):
-        return self.__root_items_translated
-
     @property
     def orphan_items(self):
         return self.__orphan_items
@@ -251,8 +236,6 @@ class InstallInstructionsState(object):
         retVal['orphan_install_items'] = list(self.__orphan_items)
         retVal['install_items_by_target_folder'] = {folder: list(item) for folder, item in self.all_items_by_target_folder.items()}
         retVal['no_copy_items_by_sync_folder'] = list(self.__no_copy_items_by_sync_folder)
-        retVal['update_installed_items'] = str(self.__update_installed_items)
-        retVal['repair_installed_items'] = str(self.__repair_installed_items)
         return retVal
 
     def __sort_all_items_by_target_folder(self):
@@ -271,88 +254,6 @@ class InstallInstructionsState(object):
                         relative_sync_folder = self.__instlObj.relative_sync_folder_for_source(source)
                         sync_folder = os.path.join("$(LOCAL_REPO_SYNC_DIR)", relative_sync_folder)
                         self.__no_copy_items_by_sync_folder[sync_folder].append(IID)
-
-    def __translate_root_items(self):
-        # root_install_items might have guid in it, translate them to iids
-        for IID in self.__root_items:
-            if IID == "__UPDATE_INSTALLED_ITEMS__":
-                if self.the_command in ("sync", "synccopy"):
-                    self.__repair_installed_items = True  # if syncing we want to sync everything
-                else:
-                    self.__update_installed_items = True  # if copying we want to copy only iid's whose version changed
-            elif IID == "__REPAIR_INSTALLED_ITEMS__":
-                self.__repair_installed_items = True
-            else:
-                # if IID is a guid, iids_from_guids will translate to iid's, or return the IID otherwise
-                iids_from_the_guid = iids_from_guids(self.__instlObj.install_definitions_index, IID)
-                if len(iids_from_the_guid) > 0:
-                    self.__root_items_translated.extend(iids_from_the_guid)
-                else:
-                    self.__orphan_items.append(IID)
-
-        self.__root_update_items = list()
-        if self.__update_installed_items:
-            items_to_update = self.req_man.get_previously_installed_root_items_with_lower_version(self.__instlObj.install_definitions_index)
-            self.__root_update_items.extend(items_to_update)
-        elif self.__repair_installed_items:
-            items_to_repair = self.req_man.get_previously_installed_root_items()
-            self.__root_update_items.extend(items_to_repair)
-        print("__root_update_items:", self.__root_update_items)
-
-        # find orphan IIDs that were not translated from guids
-        for IID in self.__root_items_translated[:]:
-            if IID not in self.__instlObj.install_definitions_index:
-                self.__root_items_translated.remove(IID)
-                self.__orphan_items.append(IID)
-
-        self.__root_items_translated.sort()  # for repeatability
-
-    @utils.timing
-    def calculate_all_items(self):
-        """ calculate the set of iids to install by starting with the root set and adding all dependencies.
-            Initial list of iids should already be in self.__root_items_translated.
-            If an install items was not found for a iid, the iid is added to the orphan set.
-            Same is done for the update items. The actual update items list is then calculated by removing
-            the root items and their dependencies from the update items.
-        """
-        for IID in self.__root_items_translated:
-            try:
-                self.__instlObj.install_definitions_index[IID].get_recursive_depends(self.__instlObj.install_definitions_index,
-                                                                                     self.__all_items,
-                                                                                     self.__orphan_items)
-            except KeyError:
-                self.__orphan_items.append(IID)
-
-        for IID in self.__root_update_items:
-            try:
-                self.__instlObj.install_definitions_index[IID].get_recursive_depends(self.__instlObj.install_definitions_index,
-                                                                                     self.__all_update_items,
-                                                                                     self.__orphan_items)
-            except KeyError:
-                self.__orphan_items.append(IID)
-
-        if False: # commented out currently we want all updates to always be installed
-            # remove from update items the items that will be installed anyway
-            self.__actual_update_items.extend(sorted(list(set(self.__all_update_items) - set(self.__all_items))))
-
-            # if there are items to update, but not in repair mode, assign require_file_repo_rev to
-            # these items' last_require_repo_rev so copy command will consider not to copy them in
-            # case their files have lower repo-rev.
-            # if in repair mode (__repair_installed_items is true), all items get last_require_repo_rev==0
-            # by default and all items will be copied.
-            if not self.__repair_installed_items:
-                require_file_repo_rev = int(var_stack.ResolveVarToStr("REQUIRE_REPO_REV", default="0"))
-                for iid in self.__actual_update_items:
-                    self.__instlObj.install_definitions_index[iid].last_require_repo_rev = require_file_repo_rev
-
-            self.__all_items.extend(self.__actual_update_items)
-        self.__all_items.extend(self.__all_update_items)
-
-        self.calc_require_for_root_items()
-        self.__all_items.sort()        # for repeatability
-        self.__orphan_items.sort()     # for repeatability
-        self.__sort_all_items_by_target_folder()
-        return self.__all_items
 
     def calc_require_for_root_items(self):
 
@@ -549,7 +450,6 @@ class InstlClient(InstlInstanceBase):
         iids = self.items_table.mark_main_install_iids(iids, special_build_in_iids)
 
         return sorted(iids), sorted(orphaned_guids + orphaned_iids)
-
 
     def read_previous_requirements(self):
         require_file_path = var_stack.ResolveVarToStr("SITE_REQUIRE_FILE_PATH")
