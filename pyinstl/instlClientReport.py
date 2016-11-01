@@ -45,6 +45,8 @@ class InstlClientReport(InstlClient):
         self.guids_to_ignore = set(var_stack.ResolveVarToList("IGNORED_GUIDS", []))
 
         report_data = self.items_table.versions_report()
+        self.items_table.commit_changes()
+
         self.output_data.extend(report_data)
 
     def calculate_install_items(self):

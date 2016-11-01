@@ -40,25 +40,24 @@ class IndexItemsTable(object):
         self.add_default_values()
         self.add_triggers()
         self.add_views()
-        #inspector = reflection.Inspector.from_engine(get_engine())
-        #print("Tables:", inspector.get_table_names())
-        #print("Views:", inspector.get_view_names())
+        # inspector = reflection.Inspector.from_engine(get_engine())
+        # print("Tables:", inspector.get_table_names())
+        # print("Views:", inspector.get_view_names())
         self.baked_queries_map = self.bake_baked_queries()
         self.bakery = baked.bakery()
 
-    def finished_using_db(self):
-        if not getattr(sys, 'frozen', False):
-            self.session.commit()
+    def commit_changes(self):
+        self.session.commit()
 
     def clear_tables(self):
-        #print(get_engine().table_names())
+        # print(get_engine().table_names())
         self.drop_triggers()
         self.drop_views()
         self.session.query(IndexRequireTranslate).delete()
         self.session.query(IndexItemDetailOperatingSystem).delete()
         self.session.query(IndexItemDetailRow).delete()
         self.session.query(IndexItemRow).delete()
-        self.session.commit()
+        self.commit_changes()
 
     def add_default_values(self):
 
@@ -428,7 +427,7 @@ class IndexItemsTable(object):
                     self.session.add(inherited_detail)
         item_to_resolve.inherit_resolved = True
 
-    @utils.timing
+    #@utils.timing
     def resolve_inheritance(self):
         items = self.get_all_index_items()
         for item in items:
@@ -470,7 +469,7 @@ class IndexItemsTable(object):
         self.session.add_all(original_details)
         self.create_default_index_items()
 
-    @utils.timing
+    #@utils.timing
     def read_require_node(self, a_node):
         require_items = dict()
         if a_node.isMapping():
@@ -529,11 +528,11 @@ class IndexItemsTable(object):
             retVal[item.iid] = self.repr_item_for_yaml(item.iid)
         return retVal
 
-    @utils.timing
+    #@utils.timing
     def versions_report(self):
         query_text = """
             SELECT
-                remote.owner_iid, item_guid.detail_value AS guid, coalesce(require_version.detail_value, "_") AS 'require ver', remote.detail_value AS 'remote ver', min(remote.generation)
+                remote.owner_iid, item_guid.detail_value AS guid, coalesce(item_name.detail_value, "_") AS name, coalesce(require_version.detail_value, "_") AS 'require ver', remote.detail_value AS 'remote ver', min(remote.generation)
             FROM IndexItemDetailRow AS remote
 
             JOIN IndexItemDetailOperatingSystem
@@ -545,13 +544,16 @@ class IndexItemsTable(object):
             JOIN IndexItemDetailRow as item_guid
                 ON  item_guid.detail_name = 'guid'
                 AND item_guid.owner_iid=remote.owner_iid
+            JOIN IndexItemDetailRow as item_name
+                ON  item_name.detail_name = 'name'
+                AND item_name.owner_iid=remote.owner_iid
             WHERE
                 remote.detail_name = 'version'
             GROUP BY remote.owner_iid
         """
 
         retVal = self.session.execute(query_text).fetchall()
-        retVal = [mm[:4] for mm in retVal]
+        retVal = [mm[:5] for mm in retVal]
         return retVal
 
     select_details_for_IID_with_full_details_view = \
@@ -567,7 +569,7 @@ class IndexItemsTable(object):
          AND   IndexItemDetailRow.detail_name = :d_n \
      WHERE IndexItemRow.iid = :iid"
 
-    @utils.timing
+    #@utils.timing
     def get_resolved_details_for_iid(self, iid, detail_name):
         retVal = self.session.execute(IndexItemsTable.select_details_for_IID_with_full_details_view, {'d_n': detail_name, 'iid': iid}).fetchall()
         return retVal

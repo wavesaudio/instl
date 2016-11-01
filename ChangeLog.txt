@@ -1,6 +1,11 @@
-???? 1.3.0.7
+???? 1.3.0.8
 
-30/10/2016 1.3.0.6
+1/11/2016 1.3.0.7
+
+    user visible changes client:
+    * Add to report-versions command reporting of product name as it appears in index.yaml
+
+???? 1.3.0.730/10/2016 1.3.0.6
 
     programmer visible changes:
     * fixed IndexItemsTable.read_require_node to handle empty !require sections
