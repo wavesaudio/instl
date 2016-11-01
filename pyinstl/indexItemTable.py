@@ -38,22 +38,25 @@ class IndexItemsTable(object):
         self.clear_tables()
         self.os_names_db_objs = list()
         self.add_default_values()
-        #self.add_triggers()
+        # self.add_triggers()
         self.add_views()
-        #inspector = reflection.Inspector.from_engine(get_engine())
-        #print("Tables:", inspector.get_table_names())
-        #print("Views:", inspector.get_view_names())
+        # inspector = reflection.Inspector.from_engine(get_engine())
+        # print("Tables:", inspector.get_table_names())
+        # print("Views:", inspector.get_view_names())
         self.baked_queries_map = self.bake_baked_queries()
         self.bakery = baked.bakery()
 
+    def commit_changes(self):
+        self.session.commit()
+
     def clear_tables(self):
-        #print(get_engine().table_names())
+        # print(get_engine().table_names())
         self.drop_triggers()
         self.drop_views()
         self.session.query(IndexItemDetailOperatingSystem).delete()
         self.session.query(IndexItemDetailRow).delete()
         self.session.query(IndexItemRow).delete()
-        self.session.commit()
+        self.commit_changes()
 
     def add_default_values(self):
 
@@ -62,7 +65,7 @@ class IndexItemsTable(object):
             self.os_names_db_objs.append(new_item)
         self.session.add_all(self.os_names_db_objs)
 
-    def add_triggers(self):#!
+    def add_triggers(self):
         stmt = text("""
             CREATE TRIGGER IF NOT EXISTS CreateRelationOnNewDetail
                 AFTER INSERT ON IndexItemDetailRow
@@ -547,7 +550,7 @@ class IndexItemsTable(object):
     def versions_report(self):
         query_text = """
             SELECT
-                remote.owner_iid, item_guid.detail_value AS guid, coalesce(require_version.detail_value, "_") AS 'require ver', remote.detail_value AS 'remote ver', min(remote.generation)
+                remote.owner_iid, item_guid.detail_value AS guid, coalesce(item_name.detail_value, "_") AS name, coalesce(require_version.detail_value, "_") AS 'require ver', remote.detail_value AS 'remote ver', min(remote.generation)
             FROM IndexItemDetailRow AS remote
 
             JOIN IndexItemDetailOperatingSystem
@@ -559,13 +562,16 @@ class IndexItemsTable(object):
             JOIN IndexItemDetailRow as item_guid
                 ON  item_guid.detail_name = 'guid'
                 AND item_guid.owner_iid=remote.owner_iid
+            JOIN IndexItemDetailRow as item_name
+                ON  item_name.detail_name = 'name'
+                AND item_name.owner_iid=remote.owner_iid
             WHERE
                 remote.detail_name = 'version'
             GROUP BY remote.owner_iid
         """
 
         retVal = self.session.execute(query_text).fetchall()
-        retVal = [mm[:4] for mm in retVal]
+        retVal = [mm[:5] for mm in retVal]
         return retVal
 
     select_details_for_IID_with_full_details_view = \
