@@ -67,21 +67,98 @@ class IndexItemsTable(object):
         self.session.add_all(self.os_names_db_objs)
 
     def add_triggers(self):
-        stmt = text("""
-            CREATE TRIGGER IF NOT EXISTS register_require_by_trigger
+        stmt = """
+            CREATE TRIGGER IF NOT EXISTS translate_require_by_trigger
                 AFTER INSERT ON IndexItemDetailRow
                 WHEN NEW.detail_name="require_by"
             BEGIN
                 INSERT INTO IndexRequireTranslate (iid, require_by, status)
                 VALUES (NEW.owner_iid,  NEW.detail_value, 0);
             END;
-        """)
+        """
         self.session.execute(stmt)
 
+        trigger_text = """
+            CREATE TRIGGER create_require_for_installed_iids_trigger
+            AFTER UPDATE OF status ON IndexItemRow
+            WHEN NEW.status > 0
+            BEGIN
+
+            -- remove previous require_by NEW.iid
+            DELETE FROM IndexItemDetailRow
+            WHERE detail_name = "require_by"
+            AND detail_value = NEW.iid;
+
+            -- remove previous require_version, require_guid owned NEW.iid
+            DELETE FROM IndexItemDetailRow
+            WHERE owner_iid = NEW.iid
+            AND detail_name IN ("require_version", "require_guid");
+
+            -- add require_version
+            INSERT INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
+            SELECT original_iid, owner_iid, os_id, 'require_version', detail_value, min(generation)
+            FROM IndexItemDetailRow
+            JOIN IndexItemDetailOperatingSystem ON IndexItemDetailOperatingSystem._id = IndexItemDetailRow.os_id
+                AND IndexItemDetailOperatingSystem.active = 1
+            WHERE owner_iid  = NEW.iid
+            AND detail_name='version'
+            GROUP BY owner_iid;
+
+            -- add require_guid
+            INSERT INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
+            SELECT original_iid, owner_iid, os_id, 'require_guid', detail_value, min(generation)
+            FROM IndexItemDetailRow
+            JOIN IndexItemDetailOperatingSystem ON IndexItemDetailOperatingSystem._id = IndexItemDetailRow.os_id
+                AND IndexItemDetailOperatingSystem.active = 1
+            WHERE IndexItemDetailRow.owner_iid = NEW.iid
+            AND detail_name='guid'
+            GROUP BY owner_iid;
+
+            -- self-referenced require_by for main install iids which are marked by status 1
+            INSERT INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
+            SELECT NEW.iid, NEW.iid, 0, 'require_by', NEW.iid, 0
+            WHERE NEW.status=1;
+
+            -- require_by for all install iids
+            INSERT INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
+            SELECT original_iid, detail_value, os_id, 'require_by', NEW.iid, generation
+            FROM IndexItemDetailRow
+            JOIN IndexItemDetailOperatingSystem ON IndexItemDetailOperatingSystem._id = IndexItemDetailRow.os_id
+                AND IndexItemDetailOperatingSystem.active = 1
+            WHERE IndexItemDetailRow.owner_iid = NEW.iid
+            AND detail_name='depends';
+
+            END;
+        """
+        self.session.execute(trigger_text)
+        trigger_text = """
+            CREATE TRIGGER remove_require_for_uninstalled_iids_trigger
+            AFTER UPDATE OF status ON IndexItemRow
+            WHEN NEW.status < 0
+            BEGIN
+                DELETE FROM IndexItemDetailRow
+                WHERE IndexItemDetailRow.owner_iid=NEW.iid
+                AND IndexItemDetailRow.detail_name LIKE "req%";
+
+                DELETE FROM IndexItemDetailRow
+                WHERE IndexItemDetailRow.detail_value=NEW.iid
+                AND IndexItemDetailRow.detail_name = "require_by";
+            END;
+        """
+        self.session.execute(trigger_text)
+
     def drop_triggers(self):
-        stmt = text("""
-            DROP TRIGGER IF EXISTS register_require_by_trigger;
-            """)
+        stmt = """
+            DROP TRIGGER IF EXISTS translate_require_by_trigger;
+            """
+        self.session.execute(stmt)
+        stmt = """
+            DROP TRIGGER IF EXISTS create_require_for_installed_iids_trigger;
+            """
+        self.session.execute(stmt)
+        stmt = """
+            DROP TRIGGER IF EXISTS remove_require_for_uninstalled_iids_trigger;
+            """
         self.session.execute(stmt)
 
     def add_views(self):#!
@@ -130,6 +207,7 @@ class IndexItemsTable(object):
         """
         for os_name_obj in self.os_names_db_objs:
             os_name_obj.active = True
+        self.session.commit()
 
     def reset_get_for_all_oses(self):
         """ resets the list of os that will influence all get functions
@@ -143,6 +221,7 @@ class IndexItemsTable(object):
                 os_name_obj.active = True
             else:
                 os_name_obj.active = False
+        self.session.commit()
 
     def begin_get_for_specific_oses(self, *for_oses):
         """ adds another os name to the list of os that will influence all get functions
@@ -155,6 +234,7 @@ class IndexItemsTable(object):
                 os_name_obj.active = True
             else:
                 os_name_obj.active = False
+        self.session.commit()
 
     def end_get_for_specific_os(self):
         """ removed the last added os name to the list of os that will influence all get functions
@@ -180,6 +260,7 @@ class IndexItemsTable(object):
                 self.session.add_all(details)
             else:
                 print(iid, "found in require but not in index")
+        self.session.commit()
 
     def get_all_require_translate_items(self):
         """
@@ -259,7 +340,7 @@ class IndexItemsTable(object):
                 SELECT require_version.owner_iid, require_version.detail_value AS require, remote_version.detail_value AS remote
                 FROM IndexItemDetailRow AS require_version
                 LEFT JOIN (
-                    select owner_iid, detail_value, min(generation)
+                    SELECT owner_iid, detail_value, min(generation)
                     from IndexItemDetailRow AS remote_version
                       INNER JOIN IndexItemDetailOperatingSystem
                           ON IndexItemDetailOperatingSystem._id = remote_version.os_id
@@ -392,7 +473,7 @@ class IndexItemsTable(object):
         retVal = the_query(self.session).params(iid=params[0], detail_name=params[1], os=params[2]).all()
         return retVal
 
-    def get_resolved_details(self, iid, detail_name=None, os=None):#!  # tested by: TestItemTable.
+    def get_resolved_details(self, iid, detail_name=None):#!  # tested by: TestItemTable.
         if "get_resolved_details" not in self.baked_queries_map:
             the_query = self.bakery(lambda session: session.query(IndexItemDetailRow))
             the_query += lambda q: q.filter(IndexItemDetailRow.owner_iid == bindparam('iid'))
@@ -405,12 +486,23 @@ class IndexItemsTable(object):
         else:
             the_query = self.baked_queries_map["get_resolved_details"]
 
-
         # params with None are turned to '%'
         params = [detail_name]
         for iparam in range(len(params)):
             if params[iparam] is None: params[iparam] = '%'
         retVal = the_query(self.session).params(iid=iid, detail_name=params[0]).all()
+        return retVal
+
+    def get_details_by_name_for_all_iids(self, detail_name):
+        if "get_details_by_name_for_all_iids" not in self.baked_queries_map:
+            the_query = self.bakery(lambda session: session.query(IndexItemDetailRow))
+            the_query += lambda q: q.filter(IndexItemDetailRow.detail_name.like(bindparam('detail_name')))
+            the_query += lambda q: q.order_by(IndexItemDetailRow.owner_iid)
+            self.baked_queries_map["get_details_by_name_for_all_iids"] = the_query
+        else:
+            the_query = self.baked_queries_map["get_details_by_name_for_all_iids"]
+
+        retVal = the_query(self.session).params(detail_name=detail_name).all()
         return retVal
 
     def resolve_item_inheritance(self, item_to_resolve, generation=0):
@@ -467,6 +559,7 @@ class IndexItemsTable(object):
             original_details.extend(original_item_details)
         self.session.add_all(index_items)
         self.session.add_all(original_details)
+        self.session.commit()
         self.create_default_index_items()
 
     #@utils.timing
@@ -486,14 +579,17 @@ class IndexItemsTable(object):
         if the_node.isMapping():
             for detail_name in the_node:
                 if detail_name == "guid":
-                    new_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=os_id, detail_name="require_guid", detail_value=the_node["guid"].value)
-                    details.append(new_detail)
+                    for guid_sub in the_node["guid"]:
+                        new_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=os_id, detail_name="require_guid", detail_value=guid_sub.value)
+                        details.append(new_detail)
                 elif detail_name == "version":
-                    new_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=os_id, detail_name="require_version", detail_value=the_node["version"].value)
-                    details.append(new_detail)
-                elif detail_name == "required_by":
-                    for require_by in the_node["required_by"]:
-                       details.append(IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=os_id, detail_name="require_by", detail_value=require_by.value))
+                     for version_sub in the_node["version"]:
+                        new_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=os_id, detail_name="require_version", detail_value=version_sub.value)
+                        details.append(new_detail)
+                elif detail_name == "require_by":
+                    for require_by in the_node["require_by"]:
+                        new_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=os_id, detail_name="require_by", detail_value=require_by.value)
+                        details.append(new_detail)
         elif the_node.isSequence():
             for require_by in the_node:
                 details.append(IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=os_id, detail_name="require_by", detail_value=require_by.value))
@@ -672,44 +768,45 @@ class IndexItemsTable(object):
 
         return existing_iids, orphan_iids
 
-    def get_recursive_dependencies(self):
+    def get_recursive_dependencies(self, look_for_status=1):
+        retVal = list()
         query_text = """
             WITH RECURSIVE find_dependants(_IID_) AS
             (
-            SELECT iid FROM IndexItemRow WHERE status=1
+            SELECT iid FROM IndexItemRow WHERE status={}
             UNION
 
             SELECT IndexItemDetailRow.detail_value
             FROM IndexItemDetailRow, find_dependants
                  INNER JOIN IndexItemDetailOperatingSystem ON
                  IndexItemDetailRow.os_id = IndexItemDetailOperatingSystem._id
-                    AND
-                    IndexItemDetailOperatingSystem.active = 1
+                    AND IndexItemDetailOperatingSystem.active = 1
             WHERE
                 IndexItemDetailRow.detail_name = 'depends'
             AND
                 IndexItemDetailRow.owner_iid = find_dependants._IID_
             )
             SELECT _IID_ FROM find_dependants
-        """.format()
+        """.format(look_for_status)
 
-        retVal = self.session.execute(query_text).fetchall()
-        retVal = [mm[0] for mm in retVal]
+        exec_result = self.session.execute(query_text)
+        if exec_result.returns_rows:
+            fetched_results = exec_result.fetchall()
+            retVal = [mm[0] for mm in fetched_results]
+
         return retVal
 
     def change_status_of_iids(self, old_status, new_status, iid_list):
         if iid_list:
-            query_vars = 'AND iid IN ' + '("' + '","'.join(iid_list) + '")'
-        else:
-            query_vars = ""
-        query_text = """
-            UPDATE IndexItemRow
-            SET status={new_status}
-            WHERE status={old_status}
-            {query_vars}
-          """.format(**locals())
-        self.session.execute(query_text)
-        self.session.commit()  # not sure why but commit is a must here of all places for the update to be written
+            query_vars = '("' + '","'.join(iid_list) + '")'
+            query_text = """
+                UPDATE IndexItemRow
+                SET status={new_status}
+                WHERE status={old_status}
+                AND iid IN {query_vars}
+              """.format(**locals())
+            self.session.execute(query_text)
+            self.session.commit()  # not sure why but commit is a must here of all places for the update to be written
 
     def get_iids_by_status(self, status):
         query_text = """
