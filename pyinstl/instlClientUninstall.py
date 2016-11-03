@@ -25,7 +25,6 @@ class InstlClientUninstall(InstlClientRemove):
 
     def calculate_install_items(self):
         self.calculate_main_install_items()
-        self.installState.calc_items_to_remove()
         self.calculate_all_uninstall_items()
 
     def calculate_all_uninstall_items(self):
@@ -77,11 +76,11 @@ class InstlClientUninstall(InstlClientRemove):
         self.installState.set_from_db(var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS"),
                                       var_stack.ResolveVarToList("__MAIN_INSTALL_IIDS__"),
                                       var_stack.ResolveVarToList("__ORPHAN_INSTALL_TARGETS__"),
-                                      all_uninstall_items)
+                                      var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
 
     def create_uninstall_instructions(self):
 
-        if len(self.installState.all_items) > 0:
+        if len(var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__")) > 0:
             self.create_remove_instructions()
             self.create_require_file_instructions()
         else:

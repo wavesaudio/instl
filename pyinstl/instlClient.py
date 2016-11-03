@@ -112,34 +112,6 @@ class RequireMan(object):
             for identifier, contents in a_node.items():
                 self.require_map[identifier].read_from_yaml(contents)
 
-    def calc_items_to_remove(self, initial_items):
-        explain_uninstall = False
-        require_map_keys_set = set(self.require_map.keys())
-        explain_uninstall and print("keys found in require file:", len(require_map_keys_set), sorted(require_map_keys_set))
-        initial_items_set = set(initial_items)
-        explain_uninstall and print("items to remove, translated:", len(initial_items_set), sorted(initial_items_set))
-        unmentioned_items = sorted(list(initial_items_set - require_map_keys_set))
-        explain_uninstall and print("items to remove that were not found in require file:", len(unmentioned_items), sorted(unmentioned_items))
-
-        to_remove_items = initial_items_set & require_map_keys_set  # no need to check items unmentioned in the require map
-        explain_uninstall and print("items to remove that were found in require file:", len(to_remove_items), sorted(to_remove_items))
-        new_to_remove_items = set()
-        keys_to_check = require_map_keys_set
-        while len(to_remove_items) > 0:
-            new_to_remove_items.clear()
-            explain_uninstall and print("removing from", len(keys_to_check), "items depends on:", sorted(to_remove_items))
-            for iid in sorted(keys_to_check):
-                still_depends_on = self.require_map[iid].remove_required_by(to_remove_items)
-                explain_uninstall and print("    ", "removed from", iid, ", depends left:", sorted(still_depends_on))
-                if not self.require_map[iid].has_required_by():
-                    new_to_remove_items.add(iid)
-            keys_to_check -= new_to_remove_items  # so not to recheck empty items next round
-            to_remove_items = new_to_remove_items - to_remove_items
-
-        unrequired_items  = sorted([iid for iid, required_by in self.require_map.items() if not required_by.has_required_by()])
-        explain_uninstall and print("keys to remove:", len(unrequired_items), unrequired_items)
-        return unrequired_items, unmentioned_items
-
     def repr_for_yaml(self):
         retVal = OrderedDict()
         for iid, req_item in sorted(self.require_map.items()):
@@ -187,13 +159,10 @@ class InstallInstructionsState(object):
 
     def __init__(self, instlObj):
         self.__instlObj = instlObj
-        self.__root_items = utils.unique_list()
-        self.__root_items_translated = utils.unique_list()
         self.__root_update_items = utils.unique_list()
         self.__all_update_items = utils.unique_list()
         self.__actual_update_items = utils.unique_list()
         self.__orphan_items = utils.unique_list()
-        self.__all_items = utils.unique_list()
         self.__all_items_by_target_folder = None
         self.__no_copy_items_by_sync_folder = None
         self.__update_installed_items = False
@@ -203,15 +172,7 @@ class InstallInstructionsState(object):
     # temporary - to allow continue usage of InstallInstructionsState
     # while calculating install items with db,
     def set_from_db(self, in_root_items, in_translated_root_items, in_orphan_items, in_all_items):
-        self.__root_items = in_root_items
-        self.__root_items_translated = in_translated_root_items
-        self.__orphan_items = in_orphan_items
-        self.__all_items = in_all_items
         self.__sort_all_items_by_target_folder()
-
-    @property
-    def orphan_items(self):
-        return self.__orphan_items
 
     @property
     def all_items(self):
@@ -227,13 +188,13 @@ class InstallInstructionsState(object):
 
     def repr_for_yaml(self):
         retVal = OrderedDict()
-        retVal['root_install_items'] = list(self.__root_items)
-        retVal['root_install_items_translated'] = list(self.__root_items_translated)
+        retVal['root_install_items'] = var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS")
+        retVal['root_install_items_translated'] = var_stack.ResolveVarToList("__MAIN_INSTALL_IIDS__")
         retVal['root_update_items'] = list(self.__root_update_items)
         retVal['all_update_items'] = list(self.__all_update_items)
         retVal['actual_update_items'] = list(self.__actual_update_items)
-        retVal['full_install_items'] = list(self.__all_items)
-        retVal['orphan_install_items'] = list(self.__orphan_items)
+        retVal['full_install_items'] = var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__")
+        retVal['orphan_install_items'] = var_stack.ResolveVarToList("__ORPHAN_INSTALL_TARGETS__")
         retVal['install_items_by_target_folder'] = {folder: list(item) for folder, item in self.all_items_by_target_folder.items()}
         retVal['no_copy_items_by_sync_folder'] = list(self.__no_copy_items_by_sync_folder)
         return retVal
@@ -241,7 +202,7 @@ class InstallInstructionsState(object):
     def __sort_all_items_by_target_folder(self):
         self.__all_items_by_target_folder = defaultdict(utils.unique_list)
         self.__no_copy_items_by_sync_folder = defaultdict(utils.unique_list)
-        for IID in self.__all_items:
+        for IID in var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"):
             with self.__instlObj.install_definitions_index[IID].push_var_stack_scope():
                 folder_list_for_idd = [folder for folder in var_stack["iid_folder_list"]]
                 if folder_list_for_idd:
@@ -254,30 +215,6 @@ class InstallInstructionsState(object):
                         relative_sync_folder = self.__instlObj.relative_sync_folder_for_source(source)
                         sync_folder = os.path.join("$(LOCAL_REPO_SYNC_DIR)", relative_sync_folder)
                         self.__no_copy_items_by_sync_folder[sync_folder].append(IID)
-
-    def calc_require_for_root_items(self):
-
-        all_root_items = list(set(self.__root_update_items) | set(self.__root_items_translated))
-        # the root install items are required by themselves
-        for IID in all_root_items:
-            self.req_man.add_x_depends_on_ys(IID, IID)
-
-        r_list = deque(all_root_items)
-        while len(r_list) > 0:
-            next_round = set()
-            for IID in r_list:
-                the_depends = iids_from_guids(self.__instlObj.install_definitions_index,
-                                              *self.__instlObj.install_definitions_index[IID].get_depends())
-                self.req_man.add_x_depends_on_ys(IID, *the_depends)
-                next_round.update(the_depends)
-            r_list = list(next_round)
-        self.req_man.update_details(self.__instlObj.install_definitions_index)
-
-    def calc_items_to_remove(self):
-        unrequired_items, unmentioned_items = self.req_man.calc_items_to_remove(self.__root_items_translated)
-        self.__all_items = sorted(unrequired_items + unmentioned_items)
-        self.__orphan_items.extend(unmentioned_items)
-        self.__sort_all_items_by_target_folder()
 
 
 class InstlClient(InstlInstanceBase):
@@ -453,7 +390,7 @@ class InstlClient(InstlInstanceBase):
         self.installState.set_from_db(var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS"),
                                       var_stack.ResolveVarToList("__MAIN_INSTALL_IIDS__"),
                                       var_stack.ResolveVarToList("__ORPHAN_INSTALL_TARGETS__"),
-                                      all_items_from_table)
+                                      var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
 
     def resolve_special_build_in_iids(self, iids):
         iids_set = set(iids)
