@@ -72,7 +72,7 @@ class IndexItemsTable(object):
                 AFTER INSERT ON IndexItemDetailRow
                 WHEN NEW.detail_name="require_by"
             BEGIN
-                INSERT INTO IndexRequireTranslate (iid, require_by, status)
+                INSERT OR IGNORE INTO IndexRequireTranslate (iid, require_by, status)
                 VALUES (NEW.owner_iid,  NEW.detail_value, 0);
             END;
         """
