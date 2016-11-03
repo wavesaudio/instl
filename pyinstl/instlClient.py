@@ -289,12 +289,13 @@ class InstlClient(InstlInstanceBase):
 
     def do_command(self):
         # print("client_commands", fixed_command_name)
+        active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
+        self.items_table.begin_get_for_specific_oses(*active_oses)
+
         self.installState = InstallInstructionsState(self)
         main_input_file_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         self.read_yaml_file(main_input_file_path, req_reader=self.installState.req_man)
 
-        active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
-        self.items_table.begin_get_for_specific_oses(*active_oses)
         self.items_table.resolve_inheritance()
 
         self.init_default_client_vars()
@@ -464,7 +465,7 @@ class InstlClient(InstlInstanceBase):
                 and "__REPAIR_INSTALLED_ITEMS__" in found_special_build_in_iids:
                 found_special_build_in_iids.remove("__UPDATE_INSTALLED_ITEMS__") # repair takes precedent over update
             for special_iid in found_special_build_in_iids:
-                more_iids = self.items_table.get_resolved_details(iid=special_iid, detail_name='depends')
+                more_iids = self.items_table.get_resolved_details_value(iid=special_iid, detail_name='depends')
                 iids_set.update(more_iids)
         return list(iids_set)
 
@@ -543,6 +544,7 @@ class InstlClient(InstlInstanceBase):
             for sub_item in item.values():
                 sub_item.sort()
         return retVal
+
 
 def InstlClientFactory(initial_vars, command):
     retVal = None

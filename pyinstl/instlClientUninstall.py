@@ -37,8 +37,25 @@ class InstlClientUninstall(InstlClientRemove):
         for rt in req_trans_items:
             how_many_require_by[rt.iid] += 1
 
-        candi_que = deque(iid_candidates_for_uninstall)
+        # some main uninstall items might be required by other items (that are not uninstalled), and so should not be uninstalled
+        for candi in iid_candidates_for_uninstall:
+            for req_trans in req_trans_items:
+                if req_trans.status == 0:
+                    if req_trans.require_by == candi:
+                        req_trans.status += 1
+                        how_many_require_by[req_trans.iid] -= 1
 
+        items_required_by_no_one = [iid for iid, count in how_many_require_by.items() if count == 0]
+        should_be_uninstalled = list(set(iid_candidates_for_uninstall) & set(items_required_by_no_one))
+
+        # now calculate dependencies for main items that should be uninstalled
+        # zero status and count
+        how_many_require_by = defaultdict( lambda: 0 )
+        for rt in req_trans_items:
+            how_many_require_by[rt.iid] +=1
+            rt.status = 0
+
+        candi_que = deque(should_be_uninstalled)
         while len(candi_que) > 0:
             candi = candi_que.popleft()
             for req_trans in req_trans_items:

@@ -493,6 +493,27 @@ class IndexItemsTable(object):
         retVal = the_query(self.session).params(iid=iid, detail_name=params[0]).all()
         return retVal
 
+    def get_resolved_details_value(self, iid, detail_name=None):
+        if "get_resolved_details_value" not in self.baked_queries_map:
+            the_query = self.bakery(lambda session: session.query(IndexItemDetailRow.detail_value))
+            the_query += lambda q: q.filter(IndexItemDetailRow.owner_iid == bindparam('iid'))
+            the_query += lambda q: q.filter(IndexItemDetailRow.detail_name.like(bindparam('detail_name')))
+            the_query += lambda q: q.join(IndexItemDetailOperatingSystem)
+            the_query += lambda q: q.filter(IndexItemDetailRow.os_id == IndexItemDetailOperatingSystem._id)
+            the_query += lambda q: q.filter(IndexItemDetailOperatingSystem.active == True)
+            the_query += lambda q: q.order_by(IndexItemDetailRow._id)
+            self.baked_queries_map["get_resolved_details_value"] = the_query
+        else:
+            the_query = self.baked_queries_map["get_resolved_details_value"]
+
+        # params with None are turned to '%'
+        params = [detail_name]
+        for iparam in range(len(params)):
+            if params[iparam] is None: params[iparam] = '%'
+        retVal = the_query(self.session).params(iid=iid, detail_name=params[0]).all()
+        retVal = [m[0] for m in retVal]
+        return retVal
+
     def get_details_by_name_for_all_iids(self, detail_name):
         if "get_details_by_name_for_all_iids" not in self.baked_queries_map:
             the_query = self.bakery(lambda session: session.query(IndexItemDetailRow))
@@ -790,9 +811,8 @@ class IndexItemsTable(object):
         """.format(look_for_status)
 
         exec_result = self.session.execute(query_text)
-        if exec_result.returns_rows:
-            fetched_results = exec_result.fetchall()
-            retVal = [mm[0] for mm in fetched_results]
+        fetched_results = exec_result.fetchall()
+        retVal = [mm[0] for mm in fetched_results]
 
         return retVal
 
