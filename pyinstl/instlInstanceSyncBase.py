@@ -75,7 +75,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
             Folders containing these these files are also marked.
             All required items are written to required_info_map.txt for reference.
         """
-        for iid in self.installState.all_items:
+        for iid in var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"):
             with self.instlObj.install_definitions_index[iid].push_var_stack_scope():
                 for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
                     source = var_stack.ResolveVarToList(source_var)

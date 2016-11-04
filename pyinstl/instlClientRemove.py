@@ -38,7 +38,7 @@ class InstlClientRemove(InstlClient):
                                            key=lambda fold: var_stack.ResolveStrToStr(fold),
                                            reverse=True)
         # print(sorted_target_folder_list)
-        self.accumulate_unique_actions('pre_remove', self.installState.all_items)
+        self.accumulate_unique_actions('pre_remove', var_stack.ResolveVarToList("__MAIN_INSTALL_IIDS__"))
 
         for folder_name in sorted_target_folder_list:
             self.batch_accum += self.platform_helper.progress("Removing from {0}".format(folder_name))
@@ -63,7 +63,7 @@ class InstlClientRemove(InstlClient):
             self.accumulate_unique_actions('post_remove_from_folder', items_in_folder)
             self.batch_accum += self.platform_helper.progress("Remove from {0} done".format(folder_name))
 
-        self.accumulate_unique_actions('post_remove', self.installState.all_items)
+        self.accumulate_unique_actions('post_remove', var_stack.ResolveVarToList("__MAIN_INSTALL_IIDS__"))
 
     # create_remove_instructions_for_source:
     # Create instructions to remove a specific source from a specific target folder.

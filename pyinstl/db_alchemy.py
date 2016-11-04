@@ -14,7 +14,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, BOOLEAN, ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy import UniqueConstraint
 from sqlalchemy.engine import reflection
 
 import utils
@@ -111,6 +111,7 @@ class IndexItemDetailRow(get_declarative_base()):
                     "{self.detail_name}: {self.detail_value}").format(**locals())
         return retVal
 
+
 class IndexGuidToItemTranslate(get_declarative_base()):
     __tablename__ = 'IndexGuidToItemTranslate'
     _id = Column(Integer, primary_key=True, autoincrement=True)
@@ -120,12 +121,15 @@ class IndexGuidToItemTranslate(get_declarative_base()):
         retVal = "{self.guid} {self.iid}".format(**locals())
         return retVal
 
+
 class IndexRequireTranslate(get_declarative_base()):
     __tablename__ = 'IndexRequireTranslate'
     _id = Column(Integer, primary_key=True, autoincrement=True)
-    iid  = Column(String)
+    iid = Column(String)
     require_by = Column(String)
     status = Column(Integer, default=0)
+    __table_args__ = (UniqueConstraint('iid', 'require_by'),)
+
     def __str__(self):
         retVal = "{self.iid} required by {self.require_by}, status: {self.status}".format(**locals())
         return retVal

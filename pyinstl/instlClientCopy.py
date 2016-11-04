@@ -72,7 +72,7 @@ class InstlClientCopy(InstlClient):
         self.batch_accum.set_current_section('copy')
         self.batch_accum += self.platform_helper.progress("Starting copy from $(COPY_SOURCES_ROOT_DIR)")
 
-        self.accumulate_unique_actions('pre_copy', self.installState.all_items)
+        self.accumulate_unique_actions('pre_copy', var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
         self.batch_accum += self.platform_helper.new_line()
 
         sorted_target_folder_list = sorted(self.installState.all_items_by_target_folder,
@@ -167,7 +167,7 @@ class InstlClientCopy(InstlClient):
 
         print(self.bytes_to_copy, "bytes to copy")
 
-        self.accumulate_unique_actions('post_copy', self.installState.all_items)
+        self.accumulate_unique_actions('post_copy', var_stack.ResolveVarToList("__MAIN_INSTALL_IIDS__"))
 
         self.batch_accum.set_current_section('post-copy')
         # Copy have_info file to "site" (e.g. /Library/Application support/... or c:\ProgramData\...)
@@ -184,7 +184,7 @@ class InstlClientCopy(InstlClient):
         self.create_require_file_instructions()
 
         # messages about orphan iids
-        for iid in sorted(self.installState.orphan_items):
+        for iid in sorted(var_stack.ResolveVarToList("__ORPHAN_INSTALL_TARGETS__")):
             self.batch_accum += self.platform_helper.echo("Don't know how to install " + iid)
         self.batch_accum += self.platform_helper.progress("Done copy")
 
