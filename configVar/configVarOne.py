@@ -43,6 +43,11 @@ class ConfigVar(object):
         """ return the description of this variable """
         return self.__description
 
+    @property
+    def unresolved_values(self):
+        """ return the unresolved values of this variable """
+        return self.__values
+
     @description.setter
     def description(self, description):
         """ Assign new description """
