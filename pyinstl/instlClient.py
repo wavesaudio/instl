@@ -216,6 +216,50 @@ class InstallInstructionsState(object):
                         sync_folder = os.path.join("$(LOCAL_REPO_SYNC_DIR)", relative_sync_folder)
                         self.__no_copy_items_by_sync_folder[sync_folder].append(IID)
 
+        self.__all_items_by_target_folder_table = defaultdict(utils.unique_list)
+        folder_to_iid_list = self.__instlObj.items_table.target_folders_to_items()
+        for folder, IID in folder_to_iid_list:
+            norm_folder = os.path.normpath(folder)
+            self.__all_items_by_target_folder_table[norm_folder].append(IID)
+        dd = DictDiffer(self.__all_items_by_target_folder_table, self.__all_items_by_target_folder)
+        print("1. only in table:", dd.added())
+        print("1. only in state:", dd.removed())
+        print("1. different", dd.changed())
+
+        self.__no_copy_items_by_sync_folder_table = defaultdict(utils.unique_list)
+        folder_to_iid_list = self.__instlObj.items_table.source_folders_to_items_without_target_folders()
+        for folder, IID, tag in folder_to_iid_list:
+            source = folder # var_stack.ResolveVarToList(folder)
+            relative_sync_folder = self.__instlObj.relative_sync_folder_for_source_table(source, tag)
+            sync_folder = os.path.join("$(LOCAL_REPO_SYNC_DIR)", relative_sync_folder)
+            self.__no_copy_items_by_sync_folder_table[sync_folder].append(IID)
+        dd = DictDiffer(self.__no_copy_items_by_sync_folder_table, self.__no_copy_items_by_sync_folder)
+        print("2. only in table:", dd.added())
+        print("2. only in state:", dd.removed())
+        print("2. different", dd.changed())
+        #self.__all_items_by_target_folder = self.__all_items_by_target_folder_table
+        #self.__no_copy_items_by_sync_folder = self.__no_copy_items_by_sync_folder_table
+
+class DictDiffer(object):
+    """
+    Calculate the difference between two dictionaries as:
+    (1) items added
+    (2) items removed
+    (3) keys same in both but changed values
+    (4) keys same in both and unchanged values
+    """
+    def __init__(self, current_dict, past_dict):
+        self.current_dict, self.past_dict = current_dict, past_dict
+        self.set_current, self.set_past = set(current_dict.keys()), set(past_dict.keys())
+        self.intersect = self.set_current.intersection(self.set_past)
+    def added(self):
+        return self.set_current - self.intersect
+    def removed(self):
+        return self.set_past - self.intersect
+    def changed(self):
+        return set(o for o in self.intersect if sorted(self.past_dict[o]) != sorted(self.current_dict[o]))
+    def unchanged(self):
+        return set(o for o in self.intersect if sorted(self.past_dict[o]) == sorted(self.current_dict[o]))
 
 class InstlClient(InstlInstanceBase):
     def __init__(self, initial_vars):

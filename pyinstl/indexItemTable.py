@@ -862,3 +862,43 @@ class IndexItemsTable(object):
             """
         retVal = self.session.execute(query_text).fetchall()
         return retVal
+
+    def target_folders_to_items(self):
+        query_text = """
+            SELECT IndexItemDetailRow.detail_value, IndexItemDetailRow.owner_iid
+            FROM IndexItemDetailRow, IndexItemRow
+                JOIN IndexItemDetailOperatingSystem
+                    ON IndexItemDetailOperatingSystem._id=IndexItemDetailRow.os_id
+                    AND IndexItemDetailOperatingSystem.active=1
+            WHERE IndexItemDetailRow.detail_name="install_folders"
+                AND IndexItemRow.iid=IndexItemDetailRow.owner_iid
+                AND IndexItemRow.status != 0
+            ORDER BY IndexItemDetailRow.detail_value
+            """
+        retVal = self.session.execute(query_text).fetchall()
+        return retVal
+
+    def source_folders_to_items_without_target_folders(self):
+        query_text = """
+            SELECT IndexItemDetailRow.detail_value, IndexItemDetailRow.owner_iid, IndexItemDetailRow.tag
+            FROM IndexItemDetailRow, IndexItemRow
+            JOIN IndexItemDetailOperatingSystem
+                ON IndexItemDetailOperatingSystem._id = IndexItemDetailRow.os_id
+                   AND IndexItemDetailOperatingSystem.active = 1
+            WHERE IndexItemDetailRow.owner_iid NOT IN (
+                SELECT DISTINCT IndexItemDetailRow.owner_iid
+                FROM IndexItemDetailRow, IndexItemRow
+                    JOIN IndexItemDetailOperatingSystem
+                        ON IndexItemDetailOperatingSystem._id = IndexItemDetailRow.os_id
+                           AND IndexItemDetailOperatingSystem.active = 1
+                WHERE IndexItemDetailRow.detail_name = "install_folders"
+                      AND IndexItemRow.iid = IndexItemDetailRow.owner_iid
+                      AND IndexItemRow.status > 0
+                ORDER BY IndexItemDetailRow.owner_iid
+            )
+            AND IndexItemDetailRow.detail_name="install_sources"
+                AND IndexItemRow.iid = IndexItemDetailRow.owner_iid
+                AND IndexItemRow.status != 0
+            """
+        retVal = self.session.execute(query_text).fetchall()
+        return retVal
