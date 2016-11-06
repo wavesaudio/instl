@@ -34,7 +34,7 @@ class InstlClientRemove(InstlClient):
 
         self.batch_accum.set_current_section('remove')
         self.batch_accum += self.platform_helper.progress("Starting remove")
-        sorted_target_folder_list = sorted(self.installState.all_items_by_target_folder,
+        sorted_target_folder_list = sorted(self.all_items_by_target_folder,
                                            key=lambda fold: var_stack.ResolveStrToStr(fold),
                                            reverse=True)
         # print(sorted_target_folder_list)
@@ -43,7 +43,7 @@ class InstlClientRemove(InstlClient):
         for folder_name in sorted_target_folder_list:
             self.batch_accum += self.platform_helper.progress("Removing from {0}".format(folder_name))
             var_stack.set_var("__TARGET_DIR__").append(os.path.normpath(folder_name))
-            items_in_folder = self.installState.all_items_by_target_folder[folder_name]
+            items_in_folder = self.all_items_by_target_folder[folder_name]
             self.batch_accum += self.platform_helper.new_line()
 
             self.accumulate_unique_actions('pre_remove_from_folder', items_in_folder)

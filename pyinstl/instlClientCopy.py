@@ -75,7 +75,7 @@ class InstlClientCopy(InstlClient):
         self.accumulate_unique_actions('pre_copy', var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
         self.batch_accum += self.platform_helper.new_line()
 
-        sorted_target_folder_list = sorted(self.installState.all_items_by_target_folder,
+        sorted_target_folder_list = sorted(self.all_items_by_target_folder,
                                            key=lambda fold: var_stack.ResolveStrToStr(fold))
 
         # first create all target folders so to avoid dependency order problems such as creating links between folders
@@ -98,7 +98,7 @@ class InstlClientCopy(InstlClient):
 
         for target_folder_path in sorted_target_folder_list:
             num_items_copied_to_folder = 0
-            items_in_folder = sorted(self.installState.all_items_by_target_folder[target_folder_path])
+            items_in_folder = sorted(self.all_items_by_target_folder[target_folder_path])
             self.batch_accum += self.platform_helper.new_line()
             self.batch_accum += self.platform_helper.remark("- Begin folder {0}".format(target_folder_path))
             self.batch_accum += self.platform_helper.cd(target_folder_path)
@@ -140,8 +140,8 @@ class InstlClientCopy(InstlClient):
             self.batch_accum += self.platform_helper.remark("- End folder {0}".format(target_folder_path))
 
         # actions instructions for sources that do not need copying, here folder_name is the sync folder
-        for sync_folder_name in sorted(self.installState.no_copy_items_by_sync_folder.keys()):
-            items_in_folder = self.installState.no_copy_items_by_sync_folder[sync_folder_name]
+        for sync_folder_name in sorted(self.no_copy_items_by_sync_folder.keys()):
+            items_in_folder = self.no_copy_items_by_sync_folder[sync_folder_name]
             self.batch_accum += self.platform_helper.new_line()
             self.batch_accum += self.platform_helper.cd(sync_folder_name)
             self.batch_accum += self.platform_helper.progress("Actions in {0} ...".format(sync_folder_name))

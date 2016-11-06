@@ -83,10 +83,7 @@ class InstlClientUninstall(InstlClientRemove):
         var_stack.set_var("__ORPHAN_INSTALL_TARGETS__").extend(iids_that_should_not_be_uninstalled)
 
         self.items_table.change_status_of_iids(0, -1, all_uninstall_items)
-        self.installState.set_from_db(var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS"),
-                                      var_stack.ResolveVarToList("__MAIN_INSTALL_IIDS__"),
-                                      var_stack.ResolveVarToList("__ORPHAN_INSTALL_TARGETS__"),
-                                      var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
+        self.sort_all_items_by_target_folder()
 
     def create_uninstall_instructions(self):
 

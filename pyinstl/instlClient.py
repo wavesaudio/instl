@@ -163,8 +163,6 @@ class InstallInstructionsState(object):
         self.__all_update_items = utils.unique_list()
         self.__actual_update_items = utils.unique_list()
         self.__orphan_items = utils.unique_list()
-        self.__all_items_by_target_folder = None
-        self.__no_copy_items_by_sync_folder = None
         self.__update_installed_items = False
         self.__repair_installed_items = False
         self.req_man = RequireMan()
@@ -178,14 +176,6 @@ class InstallInstructionsState(object):
     def all_items(self):
         return self.__all_items
 
-    @property
-    def all_items_by_target_folder(self):
-        return self.__all_items_by_target_folder
-
-    @property
-    def no_copy_items_by_sync_folder(self):
-        return self.__no_copy_items_by_sync_folder
-
     def repr_for_yaml(self):
         retVal = OrderedDict()
         retVal['root_install_items'] = var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS")
@@ -195,50 +185,7 @@ class InstallInstructionsState(object):
         retVal['actual_update_items'] = list(self.__actual_update_items)
         retVal['full_install_items'] = var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__")
         retVal['orphan_install_items'] = var_stack.ResolveVarToList("__ORPHAN_INSTALL_TARGETS__")
-        retVal['install_items_by_target_folder'] = {folder: list(item) for folder, item in self.all_items_by_target_folder.items()}
-        retVal['no_copy_items_by_sync_folder'] = list(self.__no_copy_items_by_sync_folder)
         return retVal
-
-    def __sort_all_items_by_target_folder(self):
-        self.__all_items_by_target_folder = defaultdict(utils.unique_list)
-        self.__no_copy_items_by_sync_folder = defaultdict(utils.unique_list)
-        for IID in var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"):
-            with self.__instlObj.install_definitions_index[IID].push_var_stack_scope():
-                folder_list_for_idd = [folder for folder in var_stack["iid_folder_list"]]
-                if folder_list_for_idd:
-                    for folder in folder_list_for_idd:
-                        norm_folder = os.path.normpath(folder)
-                        self.__all_items_by_target_folder[norm_folder].append(IID)
-                else:  # items that need no copy
-                    for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
-                        source = var_stack.ResolveVarToList(source_var)
-                        relative_sync_folder = self.__instlObj.relative_sync_folder_for_source(source)
-                        sync_folder = os.path.join("$(LOCAL_REPO_SYNC_DIR)", relative_sync_folder)
-                        self.__no_copy_items_by_sync_folder[sync_folder].append(IID)
-
-        self.__all_items_by_target_folder_table = defaultdict(utils.unique_list)
-        folder_to_iid_list = self.__instlObj.items_table.target_folders_to_items()
-        for folder, IID in folder_to_iid_list:
-            norm_folder = os.path.normpath(folder)
-            self.__all_items_by_target_folder_table[norm_folder].append(IID)
-        dd = DictDiffer(self.__all_items_by_target_folder_table, self.__all_items_by_target_folder)
-        print("1. only in table:", dd.added())
-        print("1. only in state:", dd.removed())
-        print("1. different", dd.changed())
-
-        self.__no_copy_items_by_sync_folder_table = defaultdict(utils.unique_list)
-        folder_to_iid_list = self.__instlObj.items_table.source_folders_to_items_without_target_folders()
-        for folder, IID, tag in folder_to_iid_list:
-            source = folder # var_stack.ResolveVarToList(folder)
-            relative_sync_folder = self.__instlObj.relative_sync_folder_for_source_table(source, tag)
-            sync_folder = os.path.join("$(LOCAL_REPO_SYNC_DIR)", relative_sync_folder)
-            self.__no_copy_items_by_sync_folder_table[sync_folder].append(IID)
-        dd = DictDiffer(self.__no_copy_items_by_sync_folder_table, self.__no_copy_items_by_sync_folder)
-        print("2. only in table:", dd.added())
-        print("2. only in state:", dd.removed())
-        print("2. different", dd.changed())
-        #self.__all_items_by_target_folder = self.__all_items_by_target_folder_table
-        #self.__no_copy_items_by_sync_folder = self.__no_copy_items_by_sync_folder_table
 
 class DictDiffer(object):
     """
@@ -267,6 +214,29 @@ class InstlClient(InstlInstanceBase):
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         self.installState = None
         self.action_type_to_progress_message = None
+        self.__all_items_by_target_folder = defaultdict(utils.unique_list)
+        self.__no_copy_items_by_sync_folder = defaultdict(utils.unique_list)
+
+    @property
+    def all_items_by_target_folder(self):
+        return self.__all_items_by_target_folder
+
+    @property
+    def no_copy_items_by_sync_folder(self):
+        return self.__no_copy_items_by_sync_folder
+
+    def sort_all_items_by_target_folder(self):
+        folder_to_iid_list = self.items_table.target_folders_to_items()
+        for folder, IID in folder_to_iid_list:
+            norm_folder = os.path.normpath(folder)
+            self.__all_items_by_target_folder[norm_folder].append(IID)
+
+        folder_to_iid_list = self.items_table.source_folders_to_items_without_target_folders()
+        for folder, IID, tag in folder_to_iid_list:
+            source = folder # var_stack.ResolveVarToList(folder)
+            relative_sync_folder = self.relative_sync_folder_for_source_table(source, tag)
+            sync_folder = os.path.join("$(LOCAL_REPO_SYNC_DIR)", relative_sync_folder)
+            self.__no_copy_items_by_sync_folder[sync_folder].append(IID)
 
     def do_command(self):
         # print("client_commands", fixed_command_name)
@@ -431,10 +401,7 @@ class InstlClient(InstlInstanceBase):
         all_items_from_table = self.items_table.get_recursive_dependencies(look_for_status=1)
         var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(all_items_from_table))
         self.items_table.change_status_of_iids(0, 2, all_items_from_table)
-        self.installState.set_from_db(var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS"),
-                                      var_stack.ResolveVarToList("__MAIN_INSTALL_IIDS__"),
-                                      var_stack.ResolveVarToList("__ORPHAN_INSTALL_TARGETS__"),
-                                      var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
+        self.sort_all_items_by_target_folder()
 
     def resolve_special_build_in_iids(self, iids):
         iids_set = set(iids)
