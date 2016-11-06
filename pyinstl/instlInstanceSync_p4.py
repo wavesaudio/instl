@@ -15,8 +15,8 @@ class InstlInstanceSync_p4(InstlInstanceSync):
     def init_sync_vars(self):
         super().init_sync_vars()
 
-    def create_sync_instructions(self, installState):
-        super().create_sync_instructions(installState)
+    def create_sync_instructions(self):
+        super().create_sync_instructions()
         self.create_download_instructions()
         self.instlObj.batch_accum.set_current_section('post-sync')
 

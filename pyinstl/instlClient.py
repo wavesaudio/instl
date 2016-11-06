@@ -2,217 +2,19 @@
 
 import os
 import time
-from collections import OrderedDict, defaultdict, deque
-import distutils.version
+from collections import defaultdict
 
 import utils
-from .installItem import InstallItem, guid_list, iids_from_guids
+from .installItem import InstallItem, guid_list
 import aYaml
 from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
 
 
-class RequireMan(object):
-    class RequireItem(object):
-        __slots__ = ('__required_by', '__version', '__guid')
-
-        def __init__(self):
-            self.__required_by = set()
-            self.__version = None
-            self.__guid = None
-
-        def should_write_to_yaml(self):
-            return self.has_required_by()
-
-        def repr_for_yaml(self):
-            retVal = dict()
-            retVal['required_by'] = self.required_by
-            if self.version:
-                retVal['version'] = self.version
-            if self.guid:
-                retVal['guid'] = self.guid
-            return retVal
-
-        def read_from_yaml(self, in_node):
-            if in_node.isSequence():
-                self.__required_by.update([required_iid.value for required_iid in in_node])
-            elif in_node.isMapping():
-                for field, field_contents in in_node.items():
-                    if field == 'required_by':
-                        self.__required_by.update([required_iid.value for required_iid in field_contents])
-                    elif field == 'version':
-                        self.version = field_contents.value
-                    elif field == 'guid':
-                        self.guid = field_contents.value
-
-        def has_required_by(self):
-            return len(self.__required_by) > 0
-
-        def add_required_by(self, new_required_by):
-            self.__required_by.add(new_required_by)
-            return self.__required_by
-
-        def remove_required_by(self, to_remove_items):
-            self.__required_by -= to_remove_items
-            return self.__required_by
-
-        # get the required by as sorted list
-        @property
-        def required_by(self):
-            return sorted(list(self.__required_by))
-
-        # get the required by as a set
-        def required_by_set(self):
-            return self.__required_by
-
-        @property
-        def version(self):
-            return self.__version
-
-        @version.setter
-        def version(self, new_version):
-            self.__version = new_version
-
-        @property
-        def guid(self):
-            return self.__guid
-
-        @guid.setter
-        def guid(self, new_guid):
-            self.__guid = new_guid
-
-    def __init__(self):
-        self.require_map = defaultdict(RequireMan.RequireItem)
-
-    def __len__(self):
-        """ return number of RequireItems """
-        return len(self.require_map)
-
-    def __getitem__(self, iid):
-        """ return a RequireItem object by it's name """
-        return self.require_map[iid]
-
-    def __delitem__(self, key):
-        """ remove a RequireItem object by it's name """
-        if key in self.require_map:
-            del self.require_map[key]
-
-    def __iter__(self):
-        return iter(self.require_map)
-
-    def __contains__(self, iid):
-        return iid in self.require_map
-
-    def add_x_depends_on_ys(self, x, *ys):
-        for y in ys:
-            self.require_map[y].add_required_by(x)
-
-    def read_require_node(self, a_node):
-        if a_node.isMapping():
-            for identifier, contents in a_node.items():
-                self.require_map[identifier].read_from_yaml(contents)
-
-    def repr_for_yaml(self):
-        retVal = OrderedDict()
-        for iid, req_item in sorted(self.require_map.items()):
-            if req_item.should_write_to_yaml():
-                retVal[iid] = req_item.repr_for_yaml()
-        return retVal
-
-    def get_previously_installed_root_items(self):
-        """
-        :return: return only the items that the user requested to install, not those installed as dependents
-                of other items. Such items identified by having themselves in their required_by list
-        """
-        retVal = [iid for iid, require_item in self.require_map.items() if iid in require_item.required_by_set()]
-        return retVal
-
-    def get_previously_installed_root_items_with_lower_version(self, iid_map):
-        """
-        :return: return only the items that the user requested to install, not those installed as dependents
-                of other items - but only items with lower version than in the index.
-        """
-        retVal = []
-        for iid, require_item in self.require_map.items():
-            if iid in require_item.required_by_set():
-                try:
-                    old_version = distutils.version.LooseVersion(self.require_map[iid].version)
-                    new_version = distutils.version.LooseVersion(iid_map[iid].version)
-                    if old_version < new_version:
-                        retVal.append(iid)
-                except Exception:
-                    retVal.append(iid)  # if no versions specified add it anyway
-        return retVal
-
-    def update_details(self, iid_map):
-        for iid, require_item in self.require_map.items():
-            if iid in iid_map:
-                if iid_map[iid].version:
-                    require_item.version = iid_map[iid].version
-                if iid_map[iid].guids:
-                    require_item.guid = iid_map[iid].guids[0]
-
-
-# noinspection PyPep8Naming,PyUnresolvedReferences
-class InstallInstructionsState(object):
-    """ holds state for specific creating of install instructions """
-
-    def __init__(self, instlObj):
-        self.__instlObj = instlObj
-        self.__root_update_items = utils.unique_list()
-        self.__all_update_items = utils.unique_list()
-        self.__actual_update_items = utils.unique_list()
-        self.__orphan_items = utils.unique_list()
-        self.__update_installed_items = False
-        self.__repair_installed_items = False
-        self.req_man = RequireMan()
-
-    # temporary - to allow continue usage of InstallInstructionsState
-    # while calculating install items with db,
-    def set_from_db(self, in_root_items, in_translated_root_items, in_orphan_items, in_all_items):
-        self.__sort_all_items_by_target_folder()
-
-    @property
-    def all_items(self):
-        return self.__all_items
-
-    def repr_for_yaml(self):
-        retVal = OrderedDict()
-        retVal['root_install_items'] = var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS")
-        retVal['root_install_items_translated'] = var_stack.ResolveVarToList("__MAIN_INSTALL_IIDS__")
-        retVal['root_update_items'] = list(self.__root_update_items)
-        retVal['all_update_items'] = list(self.__all_update_items)
-        retVal['actual_update_items'] = list(self.__actual_update_items)
-        retVal['full_install_items'] = var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__")
-        retVal['orphan_install_items'] = var_stack.ResolveVarToList("__ORPHAN_INSTALL_TARGETS__")
-        return retVal
-
-class DictDiffer(object):
-    """
-    Calculate the difference between two dictionaries as:
-    (1) items added
-    (2) items removed
-    (3) keys same in both but changed values
-    (4) keys same in both and unchanged values
-    """
-    def __init__(self, current_dict, past_dict):
-        self.current_dict, self.past_dict = current_dict, past_dict
-        self.set_current, self.set_past = set(current_dict.keys()), set(past_dict.keys())
-        self.intersect = self.set_current.intersection(self.set_past)
-    def added(self):
-        return self.set_current - self.intersect
-    def removed(self):
-        return self.set_past - self.intersect
-    def changed(self):
-        return set(o for o in self.intersect if sorted(self.past_dict[o]) != sorted(self.current_dict[o]))
-    def unchanged(self):
-        return set(o for o in self.intersect if sorted(self.past_dict[o]) == sorted(self.current_dict[o]))
-
 class InstlClient(InstlInstanceBase):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
-        self.installState = None
         self.action_type_to_progress_message = None
         self.__all_items_by_target_folder = defaultdict(utils.unique_list)
         self.__no_copy_items_by_sync_folder = defaultdict(utils.unique_list)
@@ -243,9 +45,8 @@ class InstlClient(InstlInstanceBase):
         active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
         self.items_table.begin_get_for_specific_oses(*active_oses)
 
-        self.installState = InstallInstructionsState(self)
         main_input_file_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
-        self.read_yaml_file(main_input_file_path, req_reader=self.installState.req_man)
+        self.read_yaml_file(main_input_file_path)
 
         self.items_table.resolve_inheritance()
 
@@ -448,7 +249,6 @@ class InstlClient(InstlInstanceBase):
         new_require_file_path = var_stack.ResolveVarToStr("NEW_SITE_REQUIRE_FILE_PATH")
         new_require_file_dir, new_require_file_name = os.path.split(new_require_file_path)
         os.makedirs(new_require_file_dir, exist_ok=True)
-        # self.write_require_file(new_require_file_path, self.installState.req_man.repr_for_yaml())
         self.write_require_file(new_require_file_path, self.repr_require_for_yaml())
         # Copy the new require file over the old one, if copy fails the old file remains.
         self.batch_accum += self.platform_helper.copy_file_to_file("$(NEW_SITE_REQUIRE_FILE_PATH)",

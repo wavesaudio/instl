@@ -22,7 +22,6 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
 
     def __init__(self, instlObj):
         self.instlObj = instlObj  # instance of the instl application
-        self.installState = None  # object holding batch instructions
         self.local_sync_dir = None  # will be resolved from $(LOCAL_REPO_SYNC_DIR)
         self.files_to_download = 0
 
@@ -42,9 +41,8 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         self.instlObj.calc_user_cache_dir_var() # this will set USER_CACHE_DIR if it was not explicitly defined
 
     # Overridden by InstlInstanceSync_url, or parallel sync classes
-    def create_sync_instructions(self, installState):
+    def create_sync_instructions(self):
         self.instlObj.batch_accum.set_current_section('sync')
-        self.installState = installState
 
     def read_remote_info_map(self):
         """ Reads the info map of the static files available for syncing.

@@ -24,8 +24,8 @@ class InstlInstanceSync_svn(InstlInstanceSync):
         rel_sources = utils.relative_url(var_stack.ResolveVarToStr("SYNC_BASE_URL"), var_stack.ResolveVarToStr("SYNC_BASE_URL"))
         var_stack.set_var("REL_SRC_PATH", var_description).append(rel_sources)
 
-    def create_sync_instructions(self, installState):
-        super().create_sync_instructions(installState)
+    def create_sync_instructions(self):
+        super().create_sync_instructions()
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Starting sync from $(SYNC_BASE_URL)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir("$(LOCAL_SYNC_DIR)")

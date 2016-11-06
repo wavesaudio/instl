@@ -111,9 +111,9 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.create_curl_download_instructions()
         self.create_check_checksum_instructions(file_list)
 
-    def create_sync_instructions(self, installState):
+    def create_sync_instructions(self):
         self.instlObj.create_sync_folder_manifest_command("before-sync")
-        super().create_sync_instructions(installState)
+        super().create_sync_instructions()
         self.prepare_list_of_sync_items()
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Starting sync from $(SYNC_BASE_URL)")
