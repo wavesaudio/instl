@@ -27,7 +27,7 @@ class InstlInstanceSync_p4(InstlInstanceSync):
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
-        for iid in var_stack.ResolveVarToList("__MAIN_INSTALL_IIDS__"):
+        for iid in var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"):
             with self.install_definitions_index[iid].push_var_stack_scope():
                 for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
                     source = var_stack.ResolveVarToList(source_var)

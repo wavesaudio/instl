@@ -167,7 +167,7 @@ class InstlClientCopy(InstlClient):
 
         print(self.bytes_to_copy, "bytes to copy")
 
-        self.accumulate_unique_actions('post_copy', var_stack.ResolveVarToList("__MAIN_INSTALL_IIDS__"))
+        self.accumulate_unique_actions('post_copy', var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
 
         self.batch_accum.set_current_section('post-copy')
         # Copy have_info file to "site" (e.g. /Library/Application support/... or c:\ProgramData\...)
