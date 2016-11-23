@@ -1,3 +1,9 @@
+23/11/2016 1.3.0.10
+
+    programmer visible changes:
+    * removed boto from the exclude list of pyinstaller, so compiled versions of instl can access S3 with the
+        __CREDENTIALS__ variable
+
 6/11/2016 1.3.0.9
 
     * Integrated from version-check branch. All dependencies and require calculations are done through database.
