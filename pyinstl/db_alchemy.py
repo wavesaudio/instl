@@ -15,7 +15,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, BOOLEAN, ForeignKey
 from sqlalchemy import UniqueConstraint
-from sqlalchemy.engine import reflection
+from sqlalchemy.sql import default_comparator  # needed for PyInstaller
 
 import utils
 
