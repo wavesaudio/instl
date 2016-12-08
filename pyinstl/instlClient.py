@@ -49,6 +49,7 @@ class InstlClient(InstlInstanceBase):
         self.read_yaml_file(main_input_file_path)
 
         self.items_table.resolve_inheritance()
+        self.items_table.create_default_items()
 
         self.init_default_client_vars()
         self.resolve_defined_paths()

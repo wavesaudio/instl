@@ -13,9 +13,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import func
 from sqlalchemy import event
 from sqlalchemy import text
-from sqlalchemy.engine import reflection
-from sqlalchemy.orm import aliased
-from sqlalchemy.orm import state
+from sqlalchemy.exc import SQLAlchemyError
 
 import utils
 from configVar import var_stack
@@ -260,7 +258,7 @@ class IndexItemsTable(object):
                 self.session.add_all(details)
             else:
                 print(iid, "found in require but not in index")
-        self.session.commit()
+        #self.session.commit()
 
     def get_all_require_translate_items(self):
         """
@@ -306,16 +304,23 @@ class IndexItemsTable(object):
         """
         :return: list of all iids in the db that have guids, empty list if none are found
         """
-        if "get_all_iids_with_guids" not in self.baked_queries_map:
-            the_query = self.bakery(lambda q: q.query(IndexItemRow.iid))
-            the_query += lambda q: q.join(IndexItemDetailRow, IndexItemDetailRow.owner_iid==IndexItemRow.iid)
-            the_query += lambda q: q.filter(IndexItemDetailRow.detail_name == 'guid')
-            the_query += lambda q: q.order_by(IndexItemRow.iid)
-            self.baked_queries_map["get_all_iids_with_guids"] = the_query
-        else:
-            the_query = self.baked_queries_map["get_all_iids_with_guids"]
-        retVal = the_query(self.session).all()
-        retVal = [m[0] for m in retVal]
+        retVal = list()
+        query_text = """
+            SELECT owner_iid
+            from IndexItemDetailRow
+            WHERE IndexItemDetailRow.detail_name="guid"
+            AND owner_iid=original_iid
+            ORDER BY owner_iid
+            """
+
+        try:
+            exec_result = self.session.execute(query_text)
+            if exec_result.returns_rows:
+                retVal = exec_result.fetchall()   # now retVal is a list of (IID, require_ver, remote_ver)
+                retVal = [mm[0] for mm in retVal] # need only the IID, but getting the versions is for debugging
+        except SQLAlchemyError as ex:
+            raise
+
         return retVal
 
     def get_all_installed_iids(self):
@@ -336,6 +341,7 @@ class IndexItemsTable(object):
     def get_all_installed_iids_needing_update(self):
         """ Return all iids that were installed, have a version, and that version is different from the version in the index
         """
+        retVal = list()
         query_text = """
                 SELECT require_version.owner_iid, require_version.detail_value AS require, remote_version.detail_value AS remote
                 FROM IndexItemDetailRow AS require_version
@@ -353,8 +359,14 @@ class IndexItemsTable(object):
                       AND require_version.detail_value!=remote_version.detail_value
             """
 
-        retVal = self.session.execute(query_text).fetchall()
-        retVal = [mm[0] for mm in retVal]
+        try:
+            exec_result = self.session.execute(query_text)
+            if exec_result.returns_rows:
+                retVal = exec_result.fetchall()   # now retVal is a list of (IID, require_ver, remote_ver)
+                retVal = [mm[0] for mm in retVal] # need only the IID, but getting the versions is for debugging
+        except SQLAlchemyError as ex:
+            raise
+
         return retVal
 
     def get_all_iids(self):
@@ -402,9 +414,10 @@ class IndexItemsTable(object):
 
         the_iid = "__UPDATE_INSTALLED_ITEMS__"
         update_item = IndexItemRow(iid=the_iid, inherit_resolved=True, from_index=False, from_require=False)
+        iids_needing_update = self.get_all_installed_iids_needing_update()
         update_item_details = [IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid,
                                                   detail_name='depends', detail_value=iid,
-                                                  os_id=the_os_id, generation=0) for iid in self.get_all_installed_iids_needing_update()]
+                                                  os_id=the_os_id, generation=0) for iid in iids_needing_update]
         self.session.add(update_item)
         self.session.add_all(update_item_details)
 
@@ -580,8 +593,7 @@ class IndexItemsTable(object):
             original_details.extend(original_item_details)
         self.session.add_all(index_items)
         self.session.add_all(original_details)
-        self.session.commit()
-        self.create_default_index_items()
+        #self.session.commit()
 
     #@utils.timing
     def read_require_node(self, a_node):
@@ -592,7 +604,6 @@ class IndexItemsTable(object):
                 if require_details:
                     require_items[IID] = require_details
             self.insert_require_to_db(require_items)
-            self.create_default_require_items()
 
     def read_item_details_from_require_node(self, the_iid, the_node):
         os_id=self.os_names['common']
@@ -669,8 +680,14 @@ class IndexItemsTable(object):
             GROUP BY remote.owner_iid
         """
 
-        retVal = self.session.execute(query_text).fetchall()
-        retVal = [mm[:5] for mm in retVal]
+        try:
+            exec_result = self.session.execute(query_text)
+            if exec_result.returns_rows:
+                fetched_results = exec_result.fetchall()
+                retVal = [mm[:5] for mm in fetched_results]
+        except SQLAlchemyError as ex:
+            raise
+
         return retVal
 
     select_details_for_IID_with_full_details_view = \
@@ -783,8 +800,15 @@ class IndexItemsTable(object):
             WHERE iid IN {0}
         """.format(query_vars)
 
+        try:
+            exec_result = self.session.execute(query_text)
+            if exec_result.returns_rows:
+                fetched_results = exec_result.fetchall()
+                existing_iids = [mm[0] for mm in fetched_results]
+        except SQLAlchemyError as ex:
+            raise
+
         # query will return list those iid in iid_list that were found in the index
-        existing_iids = [iid[0] for iid in self.session.execute(query_text).fetchall()]
         orphan_iids = list(set(iid_list)-set(existing_iids))
 
         return existing_iids, orphan_iids
@@ -810,9 +834,13 @@ class IndexItemsTable(object):
             SELECT _IID_ FROM find_dependants
         """.format(look_for_status)
 
-        exec_result = self.session.execute(query_text)
-        fetched_results = exec_result.fetchall()
-        retVal = [mm[0] for mm in fetched_results]
+        try:
+            exec_result = self.session.execute(query_text)
+            if exec_result.returns_rows:
+                fetched_results = exec_result.fetchall()
+                retVal = [mm[0] for mm in fetched_results]
+        except SQLAlchemyError as ex:
+            raise
 
         return retVal
 
@@ -826,16 +854,22 @@ class IndexItemsTable(object):
                 AND iid IN {query_vars}
               """.format(**locals())
             self.session.execute(query_text)
-            self.session.commit()  # not sure why but commit is a must here of all places for the update to be written
+            #self.session.commit()  # not sure why but commit is a must here of all places for the update to be written
 
     def get_iids_by_status(self, status):
+        retVal = list()
         query_text = """
             SELECT iid
             FROM IndexItemRow
             WHERE status={status}
         """.format(**locals())
-        retVal = self.session.execute(query_text).fetchall()
-        retVal = [mm[0] for mm in retVal]
+        try:
+            exec_result = self.session.execute(query_text)
+            if exec_result.returns_rows:
+                fetched_results = exec_result.fetchall()
+                retVal = [mm[0] for mm in fetched_results]
+        except SQLAlchemyError as ex:
+            raise
         return retVal
 
     def mark_main_install_iids(self, iid_list, special_build_in_iids):
@@ -860,7 +894,12 @@ class IndexItemsTable(object):
             AND IndexItemDetailRow.detail_name='version'
             GROUP BY IndexItemDetailRow.owner_iid
             """
-        retVal = self.session.execute(query_text).fetchall()
+        try:
+            exec_result = self.session.execute(query_text)
+            if exec_result.returns_rows:
+                retVal = exec_result.fetchall()
+        except SQLAlchemyError as ex:
+            raise
         return retVal
 
     def target_folders_to_items(self):
@@ -875,10 +914,16 @@ class IndexItemsTable(object):
                 AND IndexItemRow.status != 0
             ORDER BY IndexItemDetailRow.detail_value
             """
-        retVal = self.session.execute(query_text).fetchall()
+        try:
+            exec_result = self.session.execute(query_text)
+            if exec_result.returns_rows:
+                retVal = exec_result.fetchall()
+        except SQLAlchemyError as ex:
+            raise
         return retVal
 
     def source_folders_to_items_without_target_folders(self):
+        retVal = list()
         query_text = """
             SELECT IndexItemDetailRow.detail_value, IndexItemDetailRow.owner_iid, IndexItemDetailRow.tag
             FROM IndexItemDetailRow, IndexItemRow
@@ -901,4 +946,15 @@ class IndexItemsTable(object):
                 AND IndexItemRow.status != 0
             """
         retVal = self.session.execute(query_text).fetchall()
+        try:
+            exec_result = self.session.execute(query_text)
+            if exec_result.returns_rows:
+                retVal = exec_result.fetchall()
+        except SQLAlchemyError as ex:
+            raise
         return retVal
+
+    def create_default_items(self):
+        self.create_default_index_items()
+        self.create_default_require_items()
+        self.session.flush()
