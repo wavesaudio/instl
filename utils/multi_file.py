@@ -7,6 +7,25 @@ import stat
 import tarfile
 
 
+"""
+    MultiFileReader opens one or more files and reads them as if they
+    were one continuous file. Open mode parameter can either be
+    'r' for text files or 'rb' for binary files. readline is not supported
+    nor is writing.
+    MultiFileReader implements the io.RawIOBase interface.
+
+    Example:
+        fd = MultiFileReader('r', ['a.txt', 'b.txt'])
+        the_text = fd.read()
+        fd.close()
+
+    Or as context manager:
+        with MultiFileReader('rb', ['a.bin', 'b.bin']) as fd:
+            buff = fd.read(20)
+            while buff:
+                do_something(buff)
+                buff = fd.read(20)
+"""
 
 class MultiFileReader(io.RawIOBase):
     class OpenFileData(object):
@@ -66,10 +85,10 @@ class MultiFileReader(io.RawIOBase):
         return False
 
     def fileno(self):
-        raise OSError("MultiFileReader does not have a fileno")
+        raise io.UnsupportedOperation("MultiFileReader does not have a fileno")
 
     def truncate(self, size=None):
-        raise OSError("MultiFileReader does not support truncate")
+        raise io.UnsupportedOperation("MultiFileReader does not support truncate")
 
     def seekable(self):
         return -1 < self.current_fd_index
@@ -82,10 +101,10 @@ class MultiFileReader(io.RawIOBase):
         return retVal
 
     def readline(self, size=-1):
-        raise NotImplementedError("MultiFileReader.readline is not implemented (yet)")
+        raise io.UnsupportedOperation("MultiFileReader.readline is not implemented (yet)")
 
     def readlines(self, hint=-1):
-        raise NotImplementedError("MultiFileReader.readlines is not implemented (yet)")
+        raise io.UnsupportedOperation("MultiFileReader.readlines is not implemented (yet)")
 
     def tell(self):
         if self.current_fd_index < self.num_files:
@@ -112,6 +131,8 @@ class MultiFileReader(io.RawIOBase):
 
     def __next_file(self):
         self.current_fd_index += 1
+        if self.current_fd_index < len(self.the_files):
+            self.the_files[self.current_fd_index].fd.seek(0)
 
     def read(self, size=-1):
         buff = self.empty_buffer
@@ -137,34 +158,39 @@ class MultiFileReader(io.RawIOBase):
         buff = self.read(size=-1)
         return buff
 
-files_to_read = ["1.txt", "2.txt", "1.txt"]
-def read_some_files(in_files_to_read):
-    mfd = MultiFileReader("r", in_files_to_read)
-    mfd.open()
-    try:
-        while True:
-            buff = mfd.read(8)
-            len_buff = len(buff)
-            if len_buff == 8:
-                mfd.seek(-1, io.SEEK_CUR)
-            if buff:
-                print(str(buff), end="")
-            else:
-                break
-        mfd.flush()
-    except Exception as ex:
-        print("\nException!", ex)
-        raise
-    mfd.close()
+if __name__ == "__main__":
+    files_to_read = ["1.txt", "2.txt", "1.txt"]
+    def read_some_files(in_files_to_read):
+        mfd = MultiFileReader("r", in_files_to_read)
+        mfd.open()
+        try:
+            while True:
+                buff = mfd.read(8)
+                len_buff = len(buff)
+                if len_buff == 8:
+                    mfd.seek(-1, io.SEEK_CUR)
+                if buff:
+                    print(str(buff), end="")
+                else:
+                    break
+            mfd.flush()
+        except Exception as ex:
+            print("\nException!", ex)
+            raise
+        mfd.close()
 
-read_some_files(files_to_read)
+    #read_some_files(files_to_read)
 
-files_to_read = ["/repositories/betainstl/stage/Mac/Plugins/NX.bundle/Contents/Resources.wtar.aa",
-                 "/repositories/betainstl/stage/Mac/Plugins/NX.bundle/Contents/Resources.wtar.ab"]
-def unwtar_some_files(in_files_to_unwtar):
-    wtar_folder_path = "/Users/shai/Desktop"
-    with MultiFileReader("br", in_files_to_unwtar) as fd:
-        with tarfile.open(fileobj=fd) as tar:
-            tar.extractall(wtar_folder_path)
+    files_to_read = ["/repositories/betainstl/stage/Mac/Plugins/NX.bundle/Contents/Resources.wtar.xx",
+"/repositories/betainstl/stage/Mac/Plugins/NX.bundle/Contents/Resources.wtar.xx",
+                     "/repositories/betainstl/stage/Mac/Plugins/NX.bundle/Contents/Resources.wtar.aa",
+                      "/repositories/betainstl/stage/Mac/Plugins/NX.bundle/Contents/Resources.wtar.xx",
+                     "/repositories/betainstl/stage/Mac/Plugins/NX.bundle/Contents/Resources.wtar.ab",
+                     "/repositories/betainstl/stage/Mac/Plugins/NX.bundle/Contents/Resources.wtar.xx",]
+    def unwtar_some_files(in_files_to_unwtar):
+        wtar_folder_path = "/Users/shai/Desktop"
+        with MultiFileReader("br", in_files_to_unwtar) as fd:
+            with tarfile.open(fileobj=fd) as tar:
+                tar.extractall(wtar_folder_path)
 
-unwtar_some_files(files_to_read)
+    unwtar_some_files(files_to_read)
