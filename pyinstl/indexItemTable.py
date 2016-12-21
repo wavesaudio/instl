@@ -656,11 +656,15 @@ class IndexItemsTable(object):
             retVal[item.iid] = self.repr_item_for_yaml(item.iid)
         return retVal
 
-    #@utils.timing
     def versions_report(self):
         query_text = """
             SELECT
-                remote.owner_iid, item_guid.detail_value AS guid, coalesce(item_name.detail_value, "_") AS name, coalesce(require_version.detail_value, "_") AS 'require ver', remote.detail_value AS 'remote ver', min(remote.generation)
+                  coalesce(remote.owner_iid, "_") AS owner_iid,
+                  coalesce(item_guid.detail_value, "_") AS guid,
+                  coalesce(item_name.detail_value, "_") AS name,
+                  coalesce(require_version.detail_value, "_") AS 'require ver',
+                  coalesce(remote.detail_value, "_") AS 'remote ver',
+                  min(remote.generation)
             FROM IndexItemDetailRow AS remote
 
             JOIN IndexItemDetailOperatingSystem
@@ -669,10 +673,10 @@ class IndexItemsTable(object):
             LEFT  JOIN IndexItemDetailRow as require_version
                 ON  require_version.detail_name = 'require_version'
                 AND require_version.owner_iid=remote.owner_iid
-            JOIN IndexItemDetailRow as item_guid
+            LEFT JOIN IndexItemDetailRow as item_guid
                 ON  item_guid.detail_name = 'guid'
                 AND item_guid.owner_iid=remote.owner_iid
-            JOIN IndexItemDetailRow as item_name
+            LEFT JOIN IndexItemDetailRow as item_name
                 ON  item_name.detail_name = 'name'
                 AND item_name.owner_iid=remote.owner_iid
             WHERE
