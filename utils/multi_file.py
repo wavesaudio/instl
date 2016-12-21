@@ -4,7 +4,7 @@ import io
 import os
 import sys
 import stat
-import tarfile
+# import tarfile
 
 
 
@@ -157,14 +157,3 @@ def read_some_files(in_files_to_read):
         raise
     mfd.close()
 
-read_some_files(files_to_read)
-
-files_to_read = ["/repositories/betainstl/stage/Mac/Plugins/NX.bundle/Contents/Resources.wtar.aa",
-                 "/repositories/betainstl/stage/Mac/Plugins/NX.bundle/Contents/Resources.wtar.ab"]
-def unwtar_some_files(in_files_to_unwtar):
-    wtar_folder_path = "/Users/shai/Desktop"
-    with MultiFileReader("br", in_files_to_unwtar) as fd:
-        with tarfile.open(fileobj=fd) as tar:
-            tar.extractall(wtar_folder_path)
-
-unwtar_some_files(files_to_read)
