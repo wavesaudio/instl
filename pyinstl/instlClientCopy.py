@@ -283,10 +283,6 @@ class InstlClientCopy(InstlClient):
         dir_item = self.info_map_table.get_item(source_path, what="dir")
         if dir_item is not None:
             source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
-
-            # unwtar will take directly so no need to copy those files
-            if '*.wtar' not in self.ignore_list: self.ignore_list.append('*.wtar')
-
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path_abs, ".",
                                                                                link_dest=True,
                                                                                ignore=self.ignore_list)
@@ -308,7 +304,7 @@ class InstlClientCopy(InstlClient):
                 if source_item.is_first_wtar_file():
                     self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
                     self.batch_accum += self.platform_helper.unlock(source_item.name_without_wtar_extension(), recursive=True)
-                    self.batch_accum += self.platform_helper.unwtar_something(source_item.path_starting_from_dir(source_path_dir), no_artifacts=True, src_dir=source_path_dir)
+                    self.batch_accum += self.platform_helper.unwtar_something(source_item.path_starting_from_dir(source_path_dir), no_artifacts=True)
                     self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
             if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
                 self.batch_accum += self.platform_helper.chmod("-R -f a+rwX", source_path_name)

@@ -95,10 +95,6 @@ class ConfigVar(object):
         return normed_values
 
     def append(self, value):
-        """
-
-        :rtype: object
-        """
         normed_value = self.norm_values(value)[0]
         self.__values.append(normed_value)
 
