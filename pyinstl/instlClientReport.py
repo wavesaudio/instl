@@ -47,6 +47,8 @@ class InstlClientReport(InstlClient):
         report_data = self.items_table.versions_report()
         self.items_table.commit_changes()
 
+        self.check_binaries_versions()
+
         self.output_data.extend(report_data)
 
     def calculate_install_items(self):
@@ -55,6 +57,25 @@ class InstlClientReport(InstlClient):
     def report_no_current_installation(self):
         return (("Looks like no product are installed, file not found", self.current_index_yaml_path),)
 
+    def check_binaries_versions(self):
+        try:
+            path_to_search = var_stack.ResolveVarToList('CHECK_BINARIES_VERSION_FOLDERS')
+            require_repo_rev = int(var_stack.ResolveVarToStr('REQUIRE_REPO_REV'))
+            print("REQUIRE_REPO_REV", require_repo_rev)
+            max_repo_rev = int(var_stack.ResolveVarToStr('CHECK_BINARIES_VERSION_MAXIMAL_REPO_REV'))
+            print("CHECK_BINARIES_VERSION_MAXIMAL_REPO_REV", max_repo_rev)
+            if require_repo_rev > max_repo_rev:
+                raise Exception("require_repo_rev <= max_repo_rev")
 
-# import errno
-# raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.current_index_yaml_path)
+            binaries_version_list = list()
+            for a_path in path_to_search:
+                binaries_version_from_folder = self.check_binaries_versions_in_folder(a_path)
+                binaries_version_list.extend(binaries_version_from_folder)
+
+        except Exception as ex:
+            print("not doing check_binaries_versions", ex)
+
+    def check_binaries_versions_in_folder(self, in_path):
+        print("check_binaries_versions_in_folder:", in_path)
+        retVal = list()
+        return retVal
