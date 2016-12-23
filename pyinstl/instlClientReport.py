@@ -47,8 +47,6 @@ class InstlClientReport(InstlClient):
         report_data = self.items_table.versions_report()
         self.items_table.commit_changes()
 
-        self.check_binaries_versions()
-
         self.output_data.extend(report_data)
 
     def calculate_install_items(self):
@@ -56,6 +54,9 @@ class InstlClientReport(InstlClient):
 
     def report_no_current_installation(self):
         return (("Looks like no product are installed, file not found", self.current_index_yaml_path),)
+
+    def do_report_gal(self):
+        self.check_binaries_versions()
 
     def check_binaries_versions(self):
         try:
@@ -76,6 +77,11 @@ class InstlClientReport(InstlClient):
             print("not doing check_binaries_versions", ex)
 
     def check_binaries_versions_in_folder(self, in_path):
-        print("check_binaries_versions_in_folder:", in_path)
         retVal = list()
+        for root_path, dirs, files in os.walk(in_path, followlinks=False):
+            for a_something in dirs+files:
+                info = utils.extract_binary_info(os.path.join(root_path, a_something))
+                if info is not None:
+                    retVal.append(info)
+        print(retVal)
         return retVal
