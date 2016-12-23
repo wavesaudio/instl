@@ -354,7 +354,7 @@ class PlatformSpecificHelperBase(object):
     def tar(self, to_tar_name):
         pass
 
-    def unwtar_something(self, what_to_unwtar, no_artifacts=False, src_dir=None):
+    def unwtar_something(self, what_to_unwtar, no_artifacts=False):
         unwtar_command_parts = [self.instlObj.platform_helper.run_instl(),
                                 "unwtar",
                                 "--in", utils.quoteme_double(what_to_unwtar),
@@ -363,8 +363,6 @@ class PlatformSpecificHelperBase(object):
         ]
         if no_artifacts:
             unwtar_command_parts.append("--no-artifacts")
-        if src_dir:
-            unwtar_command_parts.extend(["--src", utils.quoteme_double(src_dir)])
         unwtar_command = " ".join(unwtar_command_parts)
         return unwtar_command
 
