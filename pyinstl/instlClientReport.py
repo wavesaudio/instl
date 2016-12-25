@@ -78,10 +78,26 @@ class InstlClientReport(InstlClient):
 
     def check_binaries_versions_in_folder(self, in_path):
         retVal = list()
+        print("checking", in_path+":")
+        current_os = var_stack.ResolveVarToStr("__CURRENT_OS__")
         for root_path, dirs, files in os.walk(in_path, followlinks=False):
-            for a_something in dirs+files:
-                info = utils.extract_binary_info(os.path.join(root_path, a_something))
-                if info is not None:
-                    retVal.append(info)
+            info = utils.extract_binary_info(current_os, root_path)
+            if info is not None:
+                print("    info for", root_path, info)
+                retVal.append(info)
+                del dirs[:]  # info was found for root_path, no need to dig deeper
+                del files[:]
+            else:
+                print("    no info for", root_path)
+                for a_file in files:
+                    file_full_path = os.path.join(root_path, a_file)
+                    if not os.path.islink(file_full_path):
+                        info = utils.extract_binary_info(current_os, file_full_path)
+                        if info is not None:
+                            print("    info for", file_full_path, info)
+                            retVal.append(info)
+                        else:
+                            print("    no info for", file_full_path)
+
         print(retVal)
         return retVal
