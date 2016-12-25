@@ -309,7 +309,7 @@ def InstlClientFactory(initial_vars, command):
     elif command == "uninstall":
         from .instlClientUninstall import InstlClientUninstall
         retVal = InstlClientUninstall(initial_vars)
-    elif command in ('report-installed', 'report-update', 'report-versions'):
+    elif command in ('report-installed', 'report-update', 'report-versions', 'report-gal'):
         from .instlClientReport import InstlClientReport
         retVal = InstlClientReport(initial_vars)
     elif command == "synccopy":

@@ -55,6 +55,49 @@ class InstlClientReport(InstlClient):
     def report_no_current_installation(self):
         return (("Looks like no product are installed, file not found", self.current_index_yaml_path),)
 
+    def do_report_gal(self):
+        self.check_binaries_versions()
 
-# import errno
-# raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.current_index_yaml_path)
+    def check_binaries_versions(self):
+        try:
+            path_to_search = var_stack.ResolveVarToList('CHECK_BINARIES_VERSION_FOLDERS')
+            require_repo_rev = int(var_stack.ResolveVarToStr('REQUIRE_REPO_REV'))
+            print("REQUIRE_REPO_REV", require_repo_rev)
+            max_repo_rev = int(var_stack.ResolveVarToStr('CHECK_BINARIES_VERSION_MAXIMAL_REPO_REV'))
+            print("CHECK_BINARIES_VERSION_MAXIMAL_REPO_REV", max_repo_rev)
+            if require_repo_rev > max_repo_rev:
+                raise Exception("require_repo_rev <= max_repo_rev")
+
+            binaries_version_list = list()
+            for a_path in path_to_search:
+                binaries_version_from_folder = self.check_binaries_versions_in_folder(a_path)
+                binaries_version_list.extend(binaries_version_from_folder)
+
+        except Exception as ex:
+            print("not doing check_binaries_versions", ex)
+
+    def check_binaries_versions_in_folder(self, in_path):
+        retVal = list()
+        print("checking", in_path+":")
+        current_os = var_stack.ResolveVarToStr("__CURRENT_OS__")
+        for root_path, dirs, files in os.walk(in_path, followlinks=False):
+            info = utils.extract_binary_info(current_os, root_path)
+            if info is not None:
+                print("    info for", root_path, info)
+                retVal.append(info)
+                del dirs[:]  # info was found for root_path, no need to dig deeper
+                del files[:]
+            else:
+                print("    no info for", root_path)
+                for a_file in files:
+                    file_full_path = os.path.join(root_path, a_file)
+                    if not os.path.islink(file_full_path):
+                        info = utils.extract_binary_info(current_os, file_full_path)
+                        if info is not None:
+                            print("    info for", file_full_path, info)
+                            retVal.append(info)
+                        else:
+                            print("    no info for", file_full_path)
+
+        print(retVal)
+        return retVal
