@@ -19,7 +19,13 @@ import utils
 from configVar import var_stack
 from functools import reduce
 from aYaml import YamlReader
-from .db_alchemy import create_session, get_engine, IndexItemDetailOperatingSystem, IndexItemRow, IndexItemDetailRow, IndexGuidToItemTranslate, IndexRequireTranslate
+from .db_alchemy import create_session,\
+    IndexItemDetailOperatingSystem, \
+    IndexItemRow, \
+    IndexItemDetailRow, \
+    IndexGuidToItemTranslate, \
+    IndexRequireTranslate, \
+    FoundOnDiskItemRow
 
 
 class IndexItemsTable(object):
@@ -583,7 +589,6 @@ class IndexItemsTable(object):
                     details.append(new_detail)
         return details
 
-    @utils.timing
     def read_index_node(self, a_node):
         index_items = list()
         original_details = list()
@@ -962,3 +967,39 @@ class IndexItemsTable(object):
         self.create_default_index_items()
         self.create_default_require_items()
         self.session.flush()
+
+    def require_items_without_version_or_guid(self):
+        retVal = list()
+        query_text = """
+          SELECT IndexItemRow.iid,
+                index_ver_t.detail_value AS index_version,
+                require_ver_t.detail_value AS require_version,
+                index_guid_t.detail_value AS index_guid,
+                require_guid_t.detail_value AS require_guid,
+                min(index_ver_t.generation) AS generation
+            from IndexItemRow
+                JOIN IndexItemDetailRow AS index_ver_t ON IndexItemRow.iid = index_ver_t.owner_iid
+                AND index_ver_t.detail_name='version'
+                Left JOIN IndexItemDetailRow AS require_ver_t ON IndexItemRow.iid = require_ver_t.owner_iid
+                AND require_ver_t.detail_name='require_version'
+                JOIN IndexItemDetailRow AS index_guid_t ON IndexItemRow.iid = index_guid_t.owner_iid
+                AND index_guid_t.detail_name='guid'
+                Left JOIN IndexItemDetailRow AS require_guid_t ON IndexItemRow.iid = require_guid_t.owner_iid
+                AND require_guid_t.detail_name='require_guid'
+            WHERE from_require=1 AND (require_ver_t.detail_value ISNULL OR require_guid_t.detail_value ISNULL)
+            GROUP BY IndexItemRow.iid
+          """
+        retVal = self.session.execute(query_text).fetchall()
+        try:
+            exec_result = self.session.execute(query_text)
+            if exec_result.returns_rows:
+                retVal = exec_result.fetchall()
+        except SQLAlchemyError as ex:
+            raise
+        # returns: [(index_version, require_version, index_guid, require_guid, generation), ...]
+        return retVal
+
+    def insert_binary_versions(self, binaries_version_list):
+        for binary_details in binaries_version_list:
+            folder, name = os.path.split(binary_details[0])
+            self.session.add(FoundOnDiskItemRow(name=name, path=binary_details[0], version=binary_details[1], guid=binary_details[2]))
