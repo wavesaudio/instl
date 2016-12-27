@@ -717,7 +717,6 @@ class IndexItemsTable(object):
         retVal = self.session.execute(IndexItemsTable.select_details_for_IID_with_full_details_view, {'d_n': detail_name, 'iid': iid}).fetchall()
         return retVal
 
-    @utils.timing
     def iids_from_guids(self, guid_list):
         returned_iids = list()
         orphaned_guids = list()
