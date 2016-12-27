@@ -8,12 +8,7 @@ import shlex
 import tarfile
 import fnmatch
 import time
-
 import utils
-
-# GuyC: not sure why cannot do import multi_file as it resides near utils.py so instead we do:
-from ..utils import multi_file
-
 from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
 from . import connectionBase
