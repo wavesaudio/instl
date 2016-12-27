@@ -76,7 +76,7 @@ class InstlMisc(InstlInstanceBase):
 
         if os.path.isfile(what_to_work_on):
             if what_to_work_on.endswith(".wtar.aa"):
-                what_to_work_on = self.join_split_files(what_to_work_on)
+                what_to_work_on = self.find_split_files(what_to_work_on)
             if what_to_work_on.endswith(".wtar"):
                 self.unwtar_a_file(what_to_work_on)
         elif os.path.isdir(what_to_work_on):
@@ -93,7 +93,7 @@ class InstlMisc(InstlInstanceBase):
                 for a_file in files:
                     a_file_path = os.path.join(root, a_file)
                     if a_file_path.endswith(".wtar.aa"):
-                        joint_file = self.join_split_files(a_file_path)
+                        joint_file = self.find_split_files(a_file_path)
                         files_to_unwtar.append(joint_file)
 
                 # find unsplit wtar files
@@ -102,34 +102,28 @@ class InstlMisc(InstlInstanceBase):
                     if a_file_path.endswith(".wtar"):
                         files_to_unwtar.append(a_file_path)
 
-                for wtar_file_path in files_to_unwtar:
-                    self.unwtar_a_file(wtar_file_path)
+                for wtar_file_paths in files_to_unwtar:
+                    self.unwtar_a_file(*wtar_file_paths)
         else:
             raise FileNotFoundError(what_to_work_on)
 
-    def unwtar_a_file(self, wtar_file_path):
+    def unwtar_a_file(self, *wtar_file_paths):
         try:
-            wtar_folder_path, _ = os.path.split(wtar_file_path)
-
-            if type(wtar_file_path) is list:
-                # a list means we should use multi read
-                with MultiFileReader("br", wtar_file_path) as fd:
-                    with tarfile.open(fileobj=fd) as tar:
-                        tar.extractall(wtar_folder_path)
-
-            else:
-                with tarfile.open(wtar_file_path, "r") as tar:
+            wtar_folder_path, _ = os.path.split(wtar_file_paths[0])
+            with utils.MultiFileReader("br", wtar_file_paths) as fd:
+                with tarfile.open(fileobj=fd) as tar:
                     tar.extractall(wtar_folder_path)
 
             if self.no_artifacts:
-                os.remove(wtar_file_path)
-            # self.dynamic_progress("Expanding {wtar_file_path}".format(**locals()))
+                for wtar_file in wtar_file_paths:
+                    os.remove(wtar_file)
+            # self.dynamic_progress("Expanding {wtar_file_paths}".format(**locals()))
 
         except tarfile.TarError:
-            print("tarfile error while opening file", os.path.abspath(wtar_file_path))
+            print("tarfile error while opening file", os.path.abspath(wtar_file_path[0]))
             raise
 
-    def join_split_files(self, first_file):
+    def find_split_files(self, first_file):
         try:
             norm_first_file = os.path.normpath(first_file) # remove trialing . if any
             base_folder, base_name = os.path.split(norm_first_file)
@@ -139,8 +133,11 @@ class InstlMisc(InstlInstanceBase):
             files_to_read = [norm_first_file]
             for a_file in matching_files:
                 files_to_read.append(os.path.join(base_folder, a_file))
+
+            return files_to_read
+        
         except Exception as es:
-            print("exception while join_split_files", first_file)
+            print("exception while find_split_files", first_file)
             raise es
 
     def do_check_checksum(self):
