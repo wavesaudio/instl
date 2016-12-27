@@ -47,7 +47,26 @@ class InstlClientReport(InstlClient):
         report_data = self.items_table.versions_report()
         self.items_table.commit_changes()
 
+        orphan_require_items = self.items_table.require_items_without_version_or_guid()
+        if len(orphan_require_items) > 0 and self.should_check_for_binary_versions():
+            binaries_version_list = self.get_binaries_versions()  # returns [(index_version, require_version, index_guid, require_guid, generation), ...]
+            if len(binaries_version_list) > 0:
+                for bin_ver in binaries_version_list:
+                    if bin_ver[2] is not None:  # we have a guid
+                        for ori in orphan_require_items:
+                            if ori[2] == bin_ver[2]:
+                                print(ori, "new version:", bin_ver[1])
+
         self.output_data.extend(report_data)
+
+    def should_check_for_binary_versions(self):
+        try:
+            retVal = 'CHECK_BINARIES_VERSION_FOLDERS' in var_stack \
+                and int(var_stack.ResolveVarToStr('CHECK_BINARIES_VERSION_MAXIMAL_REPO_REV')) \
+                    >= int(var_stack.ResolveVarToStr('REQUIRE_REPO_REV'))
+        except Exception:
+            retVal = False
+        return retVal
 
     def calculate_install_items(self):
         pass
@@ -56,25 +75,22 @@ class InstlClientReport(InstlClient):
         return (("Looks like no product are installed, file not found", self.current_index_yaml_path),)
 
     def do_report_gal(self):
-        self.check_binaries_versions()
+        self.get_binaries_versions()
 
-    def check_binaries_versions(self):
+    def get_binaries_versions(self):
+        binaries_version_list = list()
         try:
             path_to_search = var_stack.ResolveVarToList('CHECK_BINARIES_VERSION_FOLDERS')
-            require_repo_rev = int(var_stack.ResolveVarToStr('REQUIRE_REPO_REV'))
-            print("REQUIRE_REPO_REV", require_repo_rev)
-            max_repo_rev = int(var_stack.ResolveVarToStr('CHECK_BINARIES_VERSION_MAXIMAL_REPO_REV'))
-            print("CHECK_BINARIES_VERSION_MAXIMAL_REPO_REV", max_repo_rev)
-            if require_repo_rev > max_repo_rev:
-                raise Exception("require_repo_rev <= max_repo_rev")
 
-            binaries_version_list = list()
             for a_path in path_to_search:
                 binaries_version_from_folder = self.check_binaries_versions_in_folder(a_path)
                 binaries_version_list.extend(binaries_version_from_folder)
 
+            self.items_table.insert_binary_versions(binaries_version_list)
+
         except Exception as ex:
             print("not doing check_binaries_versions", ex)
+        return binaries_version_list
 
     def check_binaries_versions_in_folder(self, in_path):
         retVal = list()
@@ -83,21 +99,21 @@ class InstlClientReport(InstlClient):
         for root_path, dirs, files in os.walk(in_path, followlinks=False):
             info = utils.extract_binary_info(current_os, root_path)
             if info is not None:
-                print("    info for", root_path, info)
+                #print("    info for", root_path, info)
                 retVal.append(info)
                 del dirs[:]  # info was found for root_path, no need to dig deeper
                 del files[:]
             else:
-                print("    no info for", root_path)
+                #print("    no info for", root_path)
                 for a_file in files:
                     file_full_path = os.path.join(root_path, a_file)
                     if not os.path.islink(file_full_path):
                         info = utils.extract_binary_info(current_os, file_full_path)
                         if info is not None:
-                            print("    info for", file_full_path, info)
+                        #    print("    info for", file_full_path, info)
                             retVal.append(info)
-                        else:
-                            print("    no info for", file_full_path)
+                        #else:
+                        #    print("    no info for", file_full_path)
 
-        print(retVal)
+        #print(retVal)
         return retVal
