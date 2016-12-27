@@ -120,7 +120,7 @@ class InstlMisc(InstlInstanceBase):
             # self.dynamic_progress("Expanding {wtar_file_paths}".format(**locals()))
 
         except tarfile.TarError:
-            print("tarfile error while opening file", os.path.abspath(wtar_file_path[0]))
+            print("tarfile error while opening file", os.path.abspath(wtar_file_paths[0]))
             raise
 
     def find_split_files(self, first_file):
@@ -135,7 +135,7 @@ class InstlMisc(InstlInstanceBase):
                 files_to_read.append(os.path.join(base_folder, a_file))
 
             return files_to_read
-        
+
         except Exception as es:
             print("exception while find_split_files", first_file)
             raise es
