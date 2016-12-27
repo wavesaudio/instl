@@ -8,7 +8,6 @@ import shlex
 import tarfile
 import fnmatch
 import time
-
 import utils
 from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
@@ -77,7 +76,7 @@ class InstlMisc(InstlInstanceBase):
 
         if os.path.isfile(what_to_work_on):
             if what_to_work_on.endswith(".wtar.aa"):
-                what_to_work_on = self.join_split_files(what_to_work_on)
+                what_to_work_on = self.find_split_files(what_to_work_on)
             if what_to_work_on.endswith(".wtar"):
                 self.unwtar_a_file(what_to_work_on)
         elif os.path.isdir(what_to_work_on):
@@ -94,7 +93,7 @@ class InstlMisc(InstlInstanceBase):
                 for a_file in files:
                     a_file_path = os.path.join(root, a_file)
                     if a_file_path.endswith(".wtar.aa"):
-                        joint_file = self.join_split_files(a_file_path)
+                        joint_file = self.find_split_files(a_file_path)
                         files_to_unwtar.append(joint_file)
 
                 # find unsplit wtar files
@@ -103,47 +102,42 @@ class InstlMisc(InstlInstanceBase):
                     if a_file_path.endswith(".wtar"):
                         files_to_unwtar.append(a_file_path)
 
-                for wtar_file_path in files_to_unwtar:
-                    self.unwtar_a_file(wtar_file_path)
+                for wtar_file_paths in files_to_unwtar:
+                    self.unwtar_a_file(*wtar_file_paths)
         else:
             raise FileNotFoundError(what_to_work_on)
 
-    def unwtar_a_file(self, wtar_file_path):
+    def unwtar_a_file(self, *wtar_file_paths):
         try:
-            wtar_folder_path, _ = os.path.split(wtar_file_path)
-            with tarfile.open(wtar_file_path, "r") as tar:
-                tar.extractall(wtar_folder_path)
+            wtar_folder_path, _ = os.path.split(wtar_file_paths[0])
+            with utils.MultiFileReader("br", wtar_file_paths) as fd:
+                with tarfile.open(fileobj=fd) as tar:
+                    tar.extractall(wtar_folder_path)
+
             if self.no_artifacts:
-                os.remove(wtar_file_path)
-            # self.dynamic_progress("Expanding {wtar_file_path}".format(**locals()))
+                for wtar_file in wtar_file_paths:
+                    os.remove(wtar_file)
+            # self.dynamic_progress("Expanding {wtar_file_paths}".format(**locals()))
+
         except tarfile.TarError:
-            print("tarfile error while opening file", os.path.abspath(wtar_file_path))
+            print("tarfile error while opening file", os.path.abspath(wtar_file_paths[0]))
             raise
 
-    def join_split_files(self, first_file):
-        joined_file_path = None
+    def find_split_files(self, first_file):
         try:
             norm_first_file = os.path.normpath(first_file) # remove trialing . if any
             base_folder, base_name = os.path.split(norm_first_file)
-            if not base_folder:
-                base_folder = "."
-            joined_file_path = norm_first_file[:-3] # without the final '.aa'
+            if not base_folder: base_folder = "."
             filter_pattern = base_name[:-2] + "??"  # with ?? instead of aa
             matching_files = sorted(fnmatch.filter((f.name for f in os.scandir(base_folder)), filter_pattern))
-            with open(joined_file_path, "wb") as wfd:
-                for a_file in matching_files:
-                    with open(os.path.join(base_folder, a_file), "rb") as rfd:
-                        wfd.write(rfd.read())
-            if self.no_artifacts:
-                for a_file in matching_files:
-                    os.remove(os.path.join(base_folder, a_file))
-                    #self.dynamic_progress("removing {a_file}".format(**locals()))
-            # self.dynamic_progress("joined {joined_file_path}".format(**locals()))
-            return joined_file_path
+            files_to_read = [norm_first_file]
+            for a_file in matching_files:
+                files_to_read.append(os.path.join(base_folder, a_file))
+
+            return files_to_read
+
         except Exception as es:
-            # try to remove the tar file
-            utils.safe_remove_file(joined_file_path)
-            print("exception while join_split_files", first_file)
+            print("exception while find_split_files", first_file)
             raise es
 
     def do_check_checksum(self):
