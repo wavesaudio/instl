@@ -199,10 +199,17 @@ class InstlClient(InstlInstanceBase):
         var_stack.set_var("__ORPHAN_INSTALL_TARGETS__").extend(sorted(orphaned_main_guids+orphaned_main_iids))
 
     def calculate_all_install_items(self):
-        self.items_table.change_status_of_iids(0, 1, var_stack.ResolveVarToList("__MAIN_INSTALL_IIDS__"))
+        self.items_table.change_status_of_iids_to_another_status(0, 1, var_stack.ResolveVarToList("__MAIN_INSTALL_IIDS__"))
         all_items_from_table = self.items_table.get_recursive_dependencies(look_for_status=1)
         var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(all_items_from_table))
-        self.items_table.change_status_of_iids(0, 2, all_items_from_table)
+        self.items_table.change_status_of_iids_to_another_status(0, 2, all_items_from_table)
+        if "IGNORED_IIDS" in var_stack:
+            ignored_iids = var_stack.ResolveVarToList("IGNORED_IIDS")
+            self.items_table.change_status_of_iids(0, ignored_iids)
+            all_items_from_table_except_ignored = list(set(all_items_from_table) - set(ignored_iids))
+            var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(all_items_from_table_except_ignored))
+
+
         self.sort_all_items_by_target_folder()
 
     def resolve_special_build_in_iids(self, iids):
