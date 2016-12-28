@@ -137,34 +137,35 @@ class MultiFileReader(io.RawIOBase):
         buff = self.read(size=-1)
         return buff
 
-files_to_read = ["1.txt", "2.txt", "1.txt"]
-def read_some_files(in_files_to_read):
-    mfd = MultiFileReader("r", in_files_to_read)
-    mfd.open()
-    try:
-        while True:
-            buff = mfd.read(8)
-            len_buff = len(buff)
-            if len_buff == 8:
-                mfd.seek(-1, io.SEEK_CUR)
-            if buff:
-                print(str(buff), end="")
-            else:
-                break
-        mfd.flush()
-    except Exception as ex:
-        print("\nException!", ex)
-        raise
-    mfd.close()
+if __name__ == '__main__':
+    files_to_read = ["1.txt", "2.txt", "1.txt"]
+    def read_some_files(in_files_to_read):
+        mfd = MultiFileReader("r", in_files_to_read)
+        mfd.open()
+        try:
+            while True:
+                buff = mfd.read(8)
+                len_buff = len(buff)
+                if len_buff == 8:
+                    mfd.seek(-1, io.SEEK_CUR)
+                if buff:
+                    print(str(buff), end="")
+                else:
+                    break
+            mfd.flush()
+        except Exception as ex:
+            print("\nException!", ex)
+            raise
+        mfd.close()
 
-read_some_files(files_to_read)
+    read_some_files(files_to_read)
 
-files_to_read = ["/repositories/betainstl/stage/Mac/Plugins/NX.bundle/Contents/Resources.wtar.aa",
-                 "/repositories/betainstl/stage/Mac/Plugins/NX.bundle/Contents/Resources.wtar.ab"]
-def unwtar_some_files(in_files_to_unwtar):
-    wtar_folder_path = "/Users/shai/Desktop"
-    with MultiFileReader("br", in_files_to_unwtar) as fd:
-        with tarfile.open(fileobj=fd) as tar:
-            tar.extractall(wtar_folder_path)
+    files_to_read = ["/repositories/betainstl/stage/Mac/Plugins/NX.bundle/Contents/Resources.wtar.aa",
+                     "/repositories/betainstl/stage/Mac/Plugins/NX.bundle/Contents/Resources.wtar.ab"]
+    def unwtar_some_files(in_files_to_unwtar):
+        wtar_folder_path = "/Users/shai/Desktop"
+        with MultiFileReader("br", in_files_to_unwtar) as fd:
+            with tarfile.open(fileobj=fd) as tar:
+                tar.extractall(wtar_folder_path)
 
-unwtar_some_files(files_to_read)
+    unwtar_some_files(files_to_read)
