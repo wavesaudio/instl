@@ -98,7 +98,6 @@ def Mac_pkg(in_path):
     subprocess.call(clr_tmp.split(' '))
     # extract pkg to tmp
     subprocess.call(extract_pkg_to_tmp.split(' '))
-
     dist_path = '/tmp/forSGDriverVersion/Distribution'
     with open (dist_path, 'r') as fo:
         lines = fo.readlines()
@@ -124,10 +123,43 @@ def Win_bundle(in_path):
         ms = info['FileVersionMS']
         ls = info['FileVersionLS']
         version = '%d.%d.%d.%d' % (win32api.HIWORD(ms), win32api.LOWORD(ms), win32api.HIWORD(ls), win32api.LOWORD(ls))
+    if version:
+        guid = get_guid(in_path)
+        retVal = (in_path, version, guid)
+    return retVal
+
+
+def Win_aaxplugin(in_path):
+    retVal = None
+    dllname = os.path.basename(in_path).replace('bundle', 'aaxplugin')
+    dllpath = os.path.join(in_path, 'Contents', 'x64', dllname)
+    try:
+        info = win32api.GetFileVersionInfo(dllpath, "\\")
+        ms = info['FileVersionMS']
+        ls = info['FileVersionLS']
+    except:
+        version = None
+    else:
+        version = '%d.%d.%d.%d' % (win32api.HIWORD(ms), win32api.LOWORD(ms), win32api.HIWORD(ls), win32api.LOWORD(ls))
+    if version:
+        retVal = (in_path, version, None)
+    return retVal
 
 
 def Win_file(in_path):
-    pass
+    retVal = None
+    try:
+        info = win32api.GetFileVersionInfo(in_path, "\\")
+        ms = info['FileVersionMS']
+        ls = info['FileVersionLS']
+    except:
+        version = None
+    else:
+        version = '%d.%d.%d.%d' % (win32api.HIWORD(ms), win32api.LOWORD(ms), win32api.HIWORD(ls), win32api.LOWORD(ls))
+    if version:
+        retVal = (in_path, version, None)
+    return retVal
+
 
 
 def extract_binary_info(in_os, in_path):
@@ -153,7 +185,12 @@ extract_info_funcs_by_extension = {
         },
     'Win': {
         '.bundle': Win_bundle,
+        '.aaxplugin': Win_aaxplugin,
         '.exe': Win_file,
+        '.dll': Win_file,
+        '.dpm': Win_file,
+        '.vst3': Win_file,
+        '.wfi': get_wfi_version
         }
 }
 
