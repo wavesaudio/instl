@@ -78,8 +78,9 @@ class InstlMisc(InstlInstanceBase):
         if os.path.isfile(what_to_work_on):
             if what_to_work_on.endswith(".wtar.aa"):
                 what_to_work_on = self.find_split_files(what_to_work_on)
-            if what_to_work_on.endswith(".wtar"):
                 self.unwtar_a_file(what_to_work_on)
+            elif what_to_work_on.endswith(".wtar"):
+                self.unwtar_a_file([what_to_work_on])
         elif os.path.isdir(what_to_work_on):
             for root, dirs, files in os.walk(what_to_work_on, followlinks=False):
                 # a hack to prevent unwtarring of the sync folder. Copy command might copy something
