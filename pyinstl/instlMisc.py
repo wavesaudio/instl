@@ -12,6 +12,7 @@ import utils
 from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
 from . import connectionBase
+from utils.multi_file import MultiFileReader
 
 
 # noinspection PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences
@@ -86,31 +87,26 @@ class InstlMisc(InstlInstanceBase):
                 if "bookkeeping" in dirs:
                     dirs[:] = []
                     continue
-                # unique_list so if both .wtar and .wtar.aa exists the list after joining will not have double entries
-                files_to_unwtar = utils.unique_list()
-                # find split files and join them, this must be done before looking for the joint .wtar files
-                # so if previously the join failed and left a non-complete .wtar file, this .wtar will be overwritten
+
+                files_to_unwtar = []
+
                 for a_file in files:
                     a_file_path = os.path.join(root, a_file)
                     if a_file_path.endswith(".wtar.aa"):
-                        joint_file = self.find_split_files(a_file_path)
-                        files_to_unwtar.append(joint_file)
-
-                # find unsplit wtar files
-                for a_file in files:
-                    a_file_path = os.path.join(root, a_file)
+                        split_files = self.find_split_files(a_file_path)
+                        files_to_unwtar.append(split_files)
                     if a_file_path.endswith(".wtar"):
-                        files_to_unwtar.append(a_file_path)
+                        files_to_unwtar.append([a_file_path])
 
                 for wtar_file_paths in files_to_unwtar:
-                    self.unwtar_a_file(*wtar_file_paths)
+                    self.unwtar_a_file(wtar_file_paths)
         else:
             raise FileNotFoundError(what_to_work_on)
 
-    def unwtar_a_file(self, *wtar_file_paths):
+    def unwtar_a_file(self, wtar_file_paths):
         try:
             wtar_folder_path, _ = os.path.split(wtar_file_paths[0])
-            with utils.MultiFileReader("br", wtar_file_paths) as fd:
+            with MultiFileReader("br", wtar_file_paths) as fd:
                 with tarfile.open(fileobj=fd) as tar:
                     tar.extractall(wtar_folder_path)
 
@@ -118,6 +114,10 @@ class InstlMisc(InstlInstanceBase):
                 for wtar_file in wtar_file_paths:
                     os.remove(wtar_file)
             # self.dynamic_progress("Expanding {wtar_file_paths}".format(**locals()))
+
+        except OSError as e:
+            print("Invalid stream on split file with {}".format(wtar_folder_path))
+            raise e
 
         except tarfile.TarError:
             print("tarfile error while opening file", os.path.abspath(wtar_file_paths[0]))
@@ -130,7 +130,7 @@ class InstlMisc(InstlInstanceBase):
             if not base_folder: base_folder = "."
             filter_pattern = base_name[:-2] + "??"  # with ?? instead of aa
             matching_files = sorted(fnmatch.filter((f.name for f in os.scandir(base_folder)), filter_pattern))
-            files_to_read = [norm_first_file]
+            files_to_read = []
             for a_file in matching_files:
                 files_to_read.append(os.path.join(base_folder, a_file))
 
