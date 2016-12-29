@@ -852,7 +852,7 @@ class IndexItemsTable(object):
 
         return retVal
 
-    def change_status_of_iids(self, old_status, new_status, iid_list):
+    def change_status_of_iids_to_another_status(self, old_status, new_status, iid_list):
         if iid_list:
             query_vars = '("' + '","'.join(iid_list) + '")'
             query_text = """
@@ -860,6 +860,17 @@ class IndexItemsTable(object):
                 SET status={new_status}
                 WHERE status={old_status}
                 AND iid IN {query_vars}
+              """.format(**locals())
+            self.session.execute(query_text)
+            #self.session.commit()  # not sure why but commit is a must here of all places for the update to be written
+
+    def change_status_of_iids(self, new_status, iid_list):
+        if iid_list:
+            query_vars = '("' + '","'.join(iid_list) + '")'
+            query_text = """
+                UPDATE IndexItemRow
+                SET status={new_status}
+                WHERE iid IN {query_vars}
               """.format(**locals())
             self.session.execute(query_text)
             #self.session.commit()  # not sure why but commit is a must here of all places for the update to be written

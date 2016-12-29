@@ -187,6 +187,7 @@ if __name__ == "__main__":
                       "/repositories/betainstl/stage/Mac/Plugins/NX.bundle/Contents/Resources.wtar.xx",
                      "/repositories/betainstl/stage/Mac/Plugins/NX.bundle/Contents/Resources.wtar.ab",
                      "/repositories/betainstl/stage/Mac/Plugins/NX.bundle/Contents/Resources.wtar.xx",]
+
     def unwtar_some_files(in_files_to_unwtar):
         wtar_folder_path = "/Users/shai/Desktop"
         with MultiFileReader("br", in_files_to_unwtar) as fd:
