@@ -96,7 +96,7 @@ class InstlMisc(InstlInstanceBase):
                     if a_file_path.endswith(".wtar.aa"):
                         split_files = self.find_split_files(a_file_path)
                         files_to_unwtar.append(split_files)
-                    if a_file_path.endswith(".wtar"):
+                    elif a_file_path.endswith(".wtar"):
                         files_to_unwtar.append([a_file_path])
 
                 for wtar_file_paths in files_to_unwtar:
