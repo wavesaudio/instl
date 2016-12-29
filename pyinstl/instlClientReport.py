@@ -126,5 +126,5 @@ class InstlClientReport(InstlClient):
                             #else:
                             #    print("    no info for", file_full_path)
 
-        #print(retVal)
+        print(retVal)
         return retVal
