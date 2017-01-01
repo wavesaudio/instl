@@ -44,18 +44,26 @@ class InstlClientReport(InstlClient):
         self.report_remote_items = "REPORT_REMOTE_ITEMS" in var_stack
         self.guids_to_ignore = set(var_stack.ResolveVarToList("IGNORED_GUIDS", []))
 
-        report_data = self.items_table.versions_report()
-        self.items_table.commit_changes()
-
         orphan_require_items = self.items_table.require_items_without_version_or_guid()
         if len(orphan_require_items) > 0 and self.should_check_for_binary_versions():
             binaries_version_list = self.get_binaries_versions()  # returns [(index_version, require_version, index_guid, require_guid, generation), ...]
-            if len(binaries_version_list) > 0:
-                for bin_ver in binaries_version_list:
-                    if bin_ver[2] is not None:  # we have a guid
-                        for ori in orphan_require_items:
-                            if ori[2] == bin_ver[2]:
-                                print(ori, "new version:", bin_ver[1])
+            for ori in orphan_require_items:
+                # ori: (iid, index_version, require_version, index_guid, require_guid, generation)
+                if not ori[2]:
+                    IndexItemDetailRow(original_iid=ori[0], owner_iid=ori[0], os_id=0,
+                                       detail_name="require_version", detail_value='?',
+                                       generation=0)
+                if not ori[4]:
+                    IndexItemDetailRow(original_iid=ori[0], owner_iid=ori[0], os_id=0,
+                                       detail_name="require_guid", detail_value='?',
+                                       generation=0)
+
+
+
+
+
+        report_data = self.items_table.versions_report()
+        self.items_table.commit_changes()
 
         self.output_data.extend(report_data)
 
@@ -103,6 +111,7 @@ class InstlClientReport(InstlClient):
         current_os = var_stack.ResolveVarToStr("__CURRENT_OS__")
         for root_path, dirs, files in os.walk(in_path, followlinks=False):
             if in_compiled_ignore_folder_regex and in_compiled_ignore_folder_regex.search(root_path):
+                print("skipping", root_path)
                 del dirs[:]  # skip root_path and it's siblings
                 del files[:]
             else:
@@ -125,6 +134,6 @@ class InstlClientReport(InstlClient):
                                 retVal.append(info)
                             #else:
                             #    print("    no info for", file_full_path)
-
-        print(retVal)
+        for ret in retVal:
+            print(ret)
         return retVal

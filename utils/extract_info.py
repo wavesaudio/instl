@@ -15,8 +15,8 @@ if sys.platform == 'win32':
 def default_extract_info(in_path):
     return None
 
-# cross platform
 
+# cross platform
 def get_guid(in_path):
     guid = None
     xml_path = os.path.join(in_path, 'Contents', 'Resources', 'InfoXML', '1000.xml')
@@ -46,8 +46,8 @@ def get_wfi_version(in_path):
         retVal = (in_path, version, None)
     return retVal
 
-# Mac
 
+# Mac
 def Mac_bundle(in_path):
     retVal = None
     plist_path = os.path.join(in_path, 'Contents/Info.plist')
@@ -57,7 +57,7 @@ def Mac_bundle(in_path):
             version = pl.get('CFBundleGetInfoString').split(' ')[0]
             guid = get_guid(in_path)
 
-            if version:
+            if version or guid:
                 retVal = (in_path, version, guid)
     return retVal
 
@@ -108,8 +108,8 @@ def Mac_pkg(in_path):
     retVal = (in_path, version, None)
     return retVal
 
-# Windows
 
+# Windows
 def Win_bundle(in_path):
     retVal = None
     dllname = os.path.basename(in_path).replace('bundle', 'dll')
@@ -159,7 +159,6 @@ def Win_file(in_path):
     if version:
         retVal = (in_path, version, None)
     return retVal
-
 
 
 def extract_binary_info(in_os, in_path):

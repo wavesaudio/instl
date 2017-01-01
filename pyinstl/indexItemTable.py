@@ -72,6 +72,38 @@ class IndexItemsTable(object):
 
     def add_triggers(self):
         stmt = """
+            CREATE TRIGGER IF NOT EXISTS add_iid_to_FoundOnDiskItemRow_guid_not_null
+                AFTER INSERT ON FoundOnDiskItemRow
+                WHEN NEW.guid IS NOT NULL
+            BEGIN
+                UPDATE FoundOnDiskItemRow
+                SET iid  = (
+                    SELECT owner_iid
+                    FROM IndexItemDetailRow
+                    WHERE detail_name='guid'
+                    AND detail_value=NEW.guid)
+                WHERE NEW.guid=FoundOnDiskItemRow.guid;
+            END;
+        """
+        self.session.execute(stmt)
+
+        stmt = """
+            CREATE TRIGGER IF NOT EXISTS add_iid_to_FoundOnDiskItemRow_guid_is_null
+                AFTER INSERT ON FoundOnDiskItemRow
+                WHEN NEW.guid IS NULL
+            BEGIN
+                UPDATE OR IGNORE FoundOnDiskItemRow
+                SET iid  = (
+                    SELECT owner_iid
+                    FROM IndexItemDetailRow
+                    WHERE detail_name='install_sources'
+                    AND detail_value LIKE '%' || NEW.name)
+                WHERE FoundOnDiskItemRow.name = NEW.name;
+            END;
+        """
+        self.session.execute(stmt)
+
+        stmt = """
             CREATE TRIGGER IF NOT EXISTS translate_require_by_trigger
                 AFTER INSERT ON IndexItemDetailRow
                 WHEN NEW.detail_name="require_by"
@@ -162,6 +194,14 @@ class IndexItemsTable(object):
         self.session.execute(stmt)
         stmt = """
             DROP TRIGGER IF EXISTS remove_require_for_uninstalled_iids_trigger;
+            """
+        self.session.execute(stmt)
+        stmt = """
+            DROP TRIGGER IF EXISTS add_iid_to_FoundOnDiskItemRow_guid_not_null;
+            """
+        self.session.execute(stmt)
+        stmt = """
+            DROP TRIGGER IF EXISTS add_iid_to_FoundOnDiskItemRow_guid_is_null;
             """
         self.session.execute(stmt)
 
@@ -1006,7 +1046,7 @@ class IndexItemsTable(object):
                 retVal = exec_result.fetchall()
         except SQLAlchemyError as ex:
             raise
-        # returns: [(index_version, require_version, index_guid, require_guid, generation), ...]
+        # returns: [(iid, index_version, require_version, index_guid, require_guid, generation), ...]
         return retVal
 
     def insert_binary_versions(self, binaries_version_list):

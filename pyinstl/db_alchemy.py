@@ -119,6 +119,7 @@ class FoundOnDiskItemRow(get_declarative_base()):
     name = Column(String)
     version = Column(String)
     guid = Column(String)
+    iid = Column(String)
 
     def __str__(self):
         retVal = ("{self._id}) name: {self.name}, "
