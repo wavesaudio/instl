@@ -511,8 +511,8 @@ class DownloadTool_win_curl(DownloadToolBase):
         """
         connect_time_out = var_stack.ResolveVarToStr("CURL_CONNECT_TIMEOUT", "16")
         max_time = var_stack.ResolveVarToStr("CURL_MAX_TIME", "180")
-        retries = var_stack.ResolveVarToStr("CURL_RETRIES", "3")
-        retry_delay = var_stack.ResolveVarToStr("CURL_RETRY_DELAY", "60")
+        retries = var_stack.ResolveVarToStr("CURL_RETRIES", "2")
+        retry_delay = var_stack.ResolveVarToStr("CURL_RETRY_DELAY", "8")
 
         download_command_parts = list()
         download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
@@ -528,7 +528,7 @@ class DownloadTool_win_curl(DownloadToolBase):
         download_command_parts.append(max_time)
         download_command_parts.append("--retry")
         download_command_parts.append(retries)
-        download_command_parts.append("--retry_delay")
+        download_command_parts.append("--retry-delay")
         download_command_parts.append(retry_delay)
         download_command_parts.append("write-out")
         download_command_parts.append(DownloadToolBase.curl_write_out_str)
@@ -544,8 +544,8 @@ class DownloadTool_win_curl(DownloadToolBase):
         if num_urls_to_download > 0:
             connect_time_out = var_stack.ResolveVarToStr("CURL_CONNECT_TIMEOUT", "16")
             max_time = var_stack.ResolveVarToStr("CURL_MAX_TIME", "180")
-            retries = var_stack.ResolveVarToStr("CURL_RETRIES", "3")
-            retry_delay = var_stack.ResolveVarToStr("CURL_RETRY_DELAY", "60")
+            retries = var_stack.ResolveVarToStr("CURL_RETRIES", "2")
+            retry_delay = var_stack.ResolveVarToStr("CURL_RETRY_DELAY", "8")
 
             actual_num_files = int(max(0, min(num_urls_to_download, num_files)))
 
@@ -568,7 +568,7 @@ class DownloadTool_win_curl(DownloadToolBase):
                 wfd.write("connect-timeout = {connect_time_out}\n".format(**locals()))
                 wfd.write("max-time = {max_time}\n".format(**locals()))
                 wfd.write("retry = {retries}\n".format(**locals()))
-                wfd.write("retry_delay = {retry_delay}\n".format(**locals()))
+                wfd.write("retry-delay = {retry_delay}\n".format(**locals()))
                 wfd.write("write-out = \"Progress: ... of ...; " + os.path.basename(wfd.name) + ": " + DownloadToolBase.curl_write_out_str + "\"\n")
                 wfd.write("\n")
                 wfd.write("\n")
