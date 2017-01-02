@@ -245,7 +245,7 @@ class InstlClientCopy(InstlClient):
                     self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_path_relative_to_current_dir))
 
         # check if there are .wtar files (complete or partial)
-        folder_contains_wtar = None
+        folder_contains_wtar = False
         for source_item in source_items:
             self.bytes_to_copy += self.calc_size_of_file_item(source_item)
             if source_item.is_first_wtar_file():
@@ -255,7 +255,7 @@ class InstlClientCopy(InstlClient):
         # unwtar at folder-based if needed
         if folder_contains_wtar:
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
-            self.batch_accum += self.platform_helper.unwtar_something(source_path, no_artifacts=True)
+            self.batch_accum += self.platform_helper.unwtar_something(".", no_artifacts=True)
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
 
     def create_copy_instructions_for_files(self, source_path, name_for_progress_message):
@@ -277,7 +277,7 @@ class InstlClientCopy(InstlClient):
                     self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_file.name()))
 
         # check if there are .wtar files (complete or partial)
-        folder_contains_wtar = None
+        folder_contains_wtar = False
         for source_item in source_files:
             self.bytes_to_copy += self.calc_size_of_file_item(source_item)
             if source_item.is_first_wtar_file():
@@ -287,7 +287,7 @@ class InstlClientCopy(InstlClient):
         # unwtar at folder-based if needed
         if folder_contains_wtar:
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
-            self.batch_accum += self.platform_helper.unwtar_something(source_path, no_artifacts=True)
+            self.batch_accum += self.platform_helper.unwtar_something(".", no_artifacts=True)
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
 
     def create_copy_instructions_for_dir(self, source_path, name_for_progress_message):
@@ -311,7 +311,7 @@ class InstlClientCopy(InstlClient):
                         self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_path_relative_to_current_dir))
 
             # check if there are .wtar files (complete or partial)
-            folder_contains_wtar = None
+            folder_contains_wtar = False
             for source_item in source_items:
                 self.bytes_to_copy += self.calc_size_of_file_item(source_item)
                 if source_item.is_first_wtar_file():
