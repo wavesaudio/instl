@@ -203,8 +203,8 @@ class InstlClient(InstlInstanceBase):
         all_items_from_table = self.items_table.get_recursive_dependencies(look_for_status=1)
         var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(all_items_from_table))
         self.items_table.change_status_of_iids_to_another_status(0, 2, all_items_from_table)
-        if "IGNORED_IIDS" in var_stack:
-            ignored_iids = var_stack.ResolveVarToList("IGNORED_IIDS")
+        if "MAIN_IGNORED_TARGETS" in var_stack:
+            ignored_iids = var_stack.ResolveVarToList("MAIN_IGNORED_TARGETS")
             self.items_table.change_status_of_iids(0, ignored_iids)
             all_items_from_table_except_ignored = list(set(all_items_from_table) - set(ignored_iids))
             var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(all_items_from_table_except_ignored))
