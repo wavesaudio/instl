@@ -71,6 +71,7 @@ class IndexItemsTable(object):
         self.session.add_all(self.os_names_db_objs)
 
     def add_triggers(self):
+        # when reading "require_by" detail, add to IndexRequireTranslate table
         stmt = """
             CREATE TRIGGER IF NOT EXISTS add_iid_to_FoundOnDiskItemRow_guid_not_null
                 AFTER INSERT ON FoundOnDiskItemRow
@@ -114,6 +115,7 @@ class IndexItemsTable(object):
         """
         self.session.execute(stmt)
 
+        # when changing the status of item to install, adjust item's require_XXX details
         trigger_text = """
             CREATE TRIGGER create_require_for_installed_iids_trigger
             AFTER UPDATE OF status ON IndexItemRow
@@ -134,9 +136,8 @@ class IndexItemsTable(object):
             INSERT INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
             SELECT original_iid, owner_iid, os_id, 'require_version', detail_value, min(generation)
             FROM IndexItemDetailRow
-            JOIN IndexItemDetailOperatingSystem ON IndexItemDetailOperatingSystem._id = IndexItemDetailRow.os_id
-                AND IndexItemDetailOperatingSystem.active = 1
             WHERE owner_iid  = NEW.iid
+            AND active = 1
             AND detail_name='version'
             GROUP BY owner_iid;
 
@@ -144,9 +145,8 @@ class IndexItemsTable(object):
             INSERT INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
             SELECT original_iid, owner_iid, os_id, 'require_guid', detail_value, min(generation)
             FROM IndexItemDetailRow
-            JOIN IndexItemDetailOperatingSystem ON IndexItemDetailOperatingSystem._id = IndexItemDetailRow.os_id
-                AND IndexItemDetailOperatingSystem.active = 1
             WHERE IndexItemDetailRow.owner_iid = NEW.iid
+            AND active = 1
             AND detail_name='guid'
             GROUP BY owner_iid;
 
@@ -159,14 +159,15 @@ class IndexItemsTable(object):
             INSERT INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
             SELECT original_iid, detail_value, os_id, 'require_by', NEW.iid, generation
             FROM IndexItemDetailRow
-            JOIN IndexItemDetailOperatingSystem ON IndexItemDetailOperatingSystem._id = IndexItemDetailRow.os_id
-                AND IndexItemDetailOperatingSystem.active = 1
             WHERE IndexItemDetailRow.owner_iid = NEW.iid
+            AND active = 1
             AND detail_name='depends';
 
             END;
         """
         self.session.execute(trigger_text)
+
+        # when changing the status of item to uninstall, remove item's require_XXX details
         trigger_text = """
             CREATE TRIGGER remove_require_for_uninstalled_iids_trigger
             AFTER UPDATE OF status ON IndexItemRow
@@ -179,6 +180,32 @@ class IndexItemsTable(object):
                 DELETE FROM IndexItemDetailRow
                 WHERE IndexItemDetailRow.detail_value=NEW.iid
                 AND IndexItemDetailRow.detail_name = "require_by";
+            END;
+        """
+        self.session.execute(trigger_text)
+
+        # when an os becomes active/de-active set all details accordingly
+        trigger_text = """
+            CREATE TRIGGER adjust_active_os_for_details
+            AFTER UPDATE OF active ON IndexItemDetailOperatingSystem
+            BEGIN
+                UPDATE IndexItemDetailRow
+                SET    active =  NEW.active
+                WHERE  IndexItemDetailRow.os_id = NEW._id;
+            END;
+        """
+        self.session.execute(trigger_text)
+
+        # when adding new detail set it's active state according to os
+        trigger_text = """
+            CREATE TRIGGER set_active_os_for_details
+            AFTER INSERT ON IndexItemDetailRow
+            BEGIN
+                 UPDATE IndexItemDetailRow
+                 SET active = (SELECT IndexItemDetailOperatingSystem.active
+                                FROM IndexItemDetailOperatingSystem
+                                WHERE IndexItemDetailOperatingSystem._id=NEW.os_id)
+                 WHERE IndexItemDetailRow._id = NEW._id;
             END;
         """
         self.session.execute(trigger_text)
@@ -197,6 +224,15 @@ class IndexItemsTable(object):
             """
         self.session.execute(stmt)
         stmt = """
+            DROP TRIGGER IF EXISTS adjust_active_os_for_details;
+            """
+        self.session.execute(stmt)
+        stmt = """
+            DROP TRIGGER IF EXISTS set_active_os_for_details;
+            """
+        self.session.execute(stmt)
+
+        stmt = """
             DROP TRIGGER IF EXISTS add_iid_to_FoundOnDiskItemRow_guid_not_null;
             """
         self.session.execute(stmt)
@@ -205,17 +241,15 @@ class IndexItemsTable(object):
             """
         self.session.execute(stmt)
 
-    def add_views(self):#!
+    def add_views(self):
         stmt = text("""
            CREATE VIEW "full_details_view" AS
             SELECT IndexItemDetailRow._id,
                 IndexItemDetailRow.owner_iid AS "owner iid",
                 IndexItemDetailRow.original_iid AS "original iid",
                 IndexItemDetailRow.detail_name,
-                IndexItemDetailRow.detail_value,
-                IndexItemDetailOperatingSystem.name  AS "os"
+                IndexItemDetailRow.detail_value
             FROM IndexItemDetailRow
-            LEFT JOIN IndexItemDetailOperatingSystem ON IndexItemDetailOperatingSystem._id = IndexItemDetailRow.os_id
           """)
         self.session.execute(stmt)
 
@@ -224,10 +258,8 @@ class IndexItemsTable(object):
             SELECT IndexItemDetailRow._id,
                 IndexItemDetailRow.original_iid AS "iid",
                 IndexItemDetailRow.detail_name,
-                IndexItemDetailRow.detail_value,
-                IndexItemDetailOperatingSystem.name  AS "os"
+                IndexItemDetailRow.detail_value
             FROM IndexItemDetailRow
-            LEFT JOIN IndexItemDetailOperatingSystem ON IndexItemDetailOperatingSystem._id = IndexItemDetailRow.os_id
             WHERE IndexItemDetailRow.original_iid == IndexItemDetailRow.owner_iid
          """)
         self.session.execute(stmt)
@@ -304,7 +336,7 @@ class IndexItemsTable(object):
                 self.session.add_all(details)
             else:
                 print(iid, "found in require but not in index")
-        #self.session.commit()
+        # self.session.commit()
 
     def get_all_require_translate_items(self):
         """
@@ -376,7 +408,7 @@ class IndexItemsTable(object):
         if "get_all_installed_iids" not in self.baked_queries_map:
             the_query = self.bakery(lambda q: q.query(IndexItemDetailRow.original_iid))
             the_query += lambda q: q.filter(IndexItemDetailRow.detail_name == "require_by",
-                                            IndexItemDetailRow.detail_value == IndexItemDetailRow.original_iid)
+                                            IndexItemDetailRow.detail_value == IndexItemDetailRow.original_iid, IndexItemDetailRow.active == True)
             self.baked_queries_map["get_all_installed_iids"] = the_query
         else:
             the_query = self.baked_queries_map["get_all_installed_iids"]
@@ -394,10 +426,8 @@ class IndexItemsTable(object):
                 LEFT JOIN (
                     SELECT owner_iid, detail_value, min(generation)
                     from IndexItemDetailRow AS remote_version
-                      INNER JOIN IndexItemDetailOperatingSystem
-                          ON IndexItemDetailOperatingSystem._id = remote_version.os_id
-                              AND IndexItemDetailOperatingSystem.active = 1
                     WHERE detail_name="version"
+                    AND active = 1
                     GROUP BY owner_iid
                     ) remote_version
                 WHERE detail_name="require_version"
@@ -495,8 +525,7 @@ class IndexItemsTable(object):
             the_query = self.bakery(lambda session: session.query(IndexItemDetailRow.detail_value))
             the_query += lambda q: q.filter(IndexItemDetailRow.original_iid == bindparam('iid'))
             the_query += lambda q: q.filter(IndexItemDetailRow.detail_name == bindparam('detail_name'))
-            the_query += lambda q: q.join(IndexItemDetailOperatingSystem)
-            the_query += lambda q: q.filter(IndexItemDetailOperatingSystem._id == IndexItemDetailRow.os_id, IndexItemDetailOperatingSystem.active == True)
+            the_query += lambda q: q.filter(IndexItemDetailRow.active == True)
             the_query += lambda q: q.order_by(IndexItemDetailRow._id)
             self.baked_queries_map["get_original_details_values"] = the_query
         else:
@@ -506,12 +535,12 @@ class IndexItemsTable(object):
         retVal = [m[0] for m in retVal]
         return retVal
 
-    def get_original_details(self, iid=None, detail_name=None, os=None):
+    def get_original_details(self, iid=None, detail_name=None, in_os=None):
         """
         tested by: TestItemTable.test_get_original_details_* functions
         :param iid: get detail for specific iid or all if None
         :param detail_name: get detail with specific name or all names if None
-        :param os: get detail for os name or for all oses if None
+        :param in_os: get detail for os name or for all oses if None
         :return: list original details in the order they were inserted
         """
         if "get_original_details" not in self.baked_queries_map:
@@ -519,14 +548,14 @@ class IndexItemsTable(object):
             the_query += lambda q: q.join(IndexItemRow)
             the_query += lambda q: q.filter(IndexItemRow.iid.like(bindparam('iid')))
             the_query += lambda q: q.filter(IndexItemDetailRow.detail_name.like(bindparam('detail_name')))
-            the_query += lambda q: q.filter(IndexItemDetailRow.os_id.like(bindparam('os')))
+            the_query += lambda q: q.filter(IndexItemDetailRow.os_id.like(bindparam('in_os')))
             the_query += lambda q: q.order_by(IndexItemDetailRow._id)
             self.baked_queries_map["get_original_details"] = the_query
         else:
             the_query = self.baked_queries_map["get_original_details"]
 
         # params with None are turned to '%'
-        params = [iid, detail_name, os]
+        params = [iid, detail_name, in_os]
         for iparam in range(len(params)):
             if params[iparam] is None: params[iparam] = '%'
         retVal = the_query(self.session).params(iid=params[0], detail_name=params[1], os=params[2]).all()
@@ -537,9 +566,7 @@ class IndexItemsTable(object):
             the_query = self.bakery(lambda session: session.query(IndexItemDetailRow))
             the_query += lambda q: q.filter(IndexItemDetailRow.owner_iid == bindparam('iid'))
             the_query += lambda q: q.filter(IndexItemDetailRow.detail_name.like(bindparam('detail_name')))
-            the_query += lambda q: q.join(IndexItemDetailOperatingSystem)
-            the_query += lambda q: q.filter(IndexItemDetailRow.os_id == IndexItemDetailOperatingSystem._id)
-            the_query += lambda q: q.filter(IndexItemDetailOperatingSystem.active == True)
+            the_query += lambda q: q.filter(IndexItemDetailRow.active == True)
             the_query += lambda q: q.order_by(IndexItemDetailRow._id)
             self.baked_queries_map["get_resolved_details"] = the_query
         else:
@@ -557,9 +584,7 @@ class IndexItemsTable(object):
             the_query = self.bakery(lambda session: session.query(IndexItemDetailRow.detail_value))
             the_query += lambda q: q.filter(IndexItemDetailRow.owner_iid == bindparam('iid'))
             the_query += lambda q: q.filter(IndexItemDetailRow.detail_name.like(bindparam('detail_name')))
-            the_query += lambda q: q.join(IndexItemDetailOperatingSystem)
-            the_query += lambda q: q.filter(IndexItemDetailRow.os_id == IndexItemDetailOperatingSystem._id)
-            the_query += lambda q: q.filter(IndexItemDetailOperatingSystem.active == True)
+            the_query += lambda q: q.filter(IndexItemDetailRow.active == True)
             the_query += lambda q: q.order_by(IndexItemDetailRow._id)
             self.baked_queries_map["get_resolved_details_value"] = the_query
         else:
@@ -577,6 +602,7 @@ class IndexItemsTable(object):
         if "get_details_by_name_for_all_iids" not in self.baked_queries_map:
             the_query = self.bakery(lambda session: session.query(IndexItemDetailRow))
             the_query += lambda q: q.filter(IndexItemDetailRow.detail_name.like(bindparam('detail_name')))
+            the_query += lambda q: q.filter(IndexItemDetailRow.active == True)
             the_query += lambda q: q.order_by(IndexItemDetailRow.owner_iid)
             self.baked_queries_map["get_details_by_name_for_all_iids"] = the_query
         else:
@@ -599,7 +625,7 @@ class IndexItemsTable(object):
                     self.session.add(inherited_detail)
         item_to_resolve.inherit_resolved = True
 
-    #@utils.timing
+    # @utils.timing
     def resolve_inheritance(self):
         items = self.get_all_index_items()
         for item in items:
@@ -638,9 +664,9 @@ class IndexItemsTable(object):
             original_details.extend(original_item_details)
         self.session.add_all(index_items)
         self.session.add_all(original_details)
-        #self.session.commit()
+        # self.session.commit()
 
-    #@utils.timing
+    # @utils.timing
     def read_require_node(self, a_node):
         require_items = dict()
         if a_node.isMapping():
@@ -675,7 +701,7 @@ class IndexItemsTable(object):
     def repr_item_for_yaml(self, iid):
         item_details = OrderedDict()
         for os_name in self.os_names:
-            details_rows = self.get_original_details(iid=iid, os=os_name)
+            details_rows = self.get_original_details(iid=iid, in_os=os_name)
             if len(details_rows) > 0:
                 if os_name == "common":
                     work_on_dict = item_details
@@ -702,6 +728,7 @@ class IndexItemsTable(object):
         return retVal
 
     def versions_report(self):
+        retVal = list()
         query_text = """
             SELECT
                   coalesce(remote.owner_iid, "_") AS owner_iid,
@@ -712,9 +739,6 @@ class IndexItemsTable(object):
                   min(remote.generation)
             FROM IndexItemDetailRow AS remote
 
-            JOIN IndexItemDetailOperatingSystem
-                ON IndexItemDetailOperatingSystem._id = remote.os_id
-                    AND IndexItemDetailOperatingSystem.active = 1
             LEFT  JOIN IndexItemDetailRow as require_version
                 ON  require_version.detail_name = 'require_version'
                 AND require_version.owner_iid=remote.owner_iid
@@ -724,6 +748,7 @@ class IndexItemsTable(object):
             LEFT JOIN IndexItemDetailRow as item_name
                 ON  item_name.detail_name = 'name'
                 AND item_name.owner_iid=remote.owner_iid
+                AND item_guid.active=1
             WHERE
                 remote.detail_name = 'version'
             GROUP BY remote.owner_iid
@@ -733,8 +758,8 @@ class IndexItemsTable(object):
             exec_result = self.session.execute(query_text)
             if exec_result.returns_rows:
                 fetched_results = exec_result.fetchall()
-                retVal = [mm[:5] for mm in fetched_results]
-        except SQLAlchemyError as ex:
+                retVal.extend([mm[:5] for mm in fetched_results])
+        except SQLAlchemyError:
             raise
 
         return retVal
@@ -743,7 +768,7 @@ class IndexItemsTable(object):
     "SELECT iid, detail_name, detail_value FROM full_details_view \
     WHERE detail_name = :d_n AND iid = :iid"
 
-    #!
+    # !
     select_details_for_IID = \
     "SELECT IndexItemRow.iid, IndexItemDetailRow.detail_name, IndexItemDetailRow.detail_value, IndexItemToDetailRelation.generation FROM IndexItemRow \
      INNER JOIN IndexItemToDetailRelation ON IndexItemToDetailRelation.item_id = IndexItemRow._id \
@@ -752,7 +777,7 @@ class IndexItemsTable(object):
          AND   IndexItemDetailRow.detail_name = :d_n \
      WHERE IndexItemRow.iid = :iid"
 
-    #@utils.timing
+    # @utils.timing
     def get_resolved_details_for_iid(self, iid, detail_name):
         retVal = self.session.execute(IndexItemsTable.select_details_for_IID_with_full_details_view, {'d_n': detail_name, 'iid': iid}).fetchall()
         return retVal
@@ -841,6 +866,8 @@ class IndexItemsTable(object):
 
     # find which iids are in the database
     def iids_from_iids(self, iid_list):
+        existing_iids = None
+        orphan_iids = None
         query_vars = '("'+'","'.join(iid_list)+'")'
         query_text = """
             SELECT iid
@@ -853,11 +880,10 @@ class IndexItemsTable(object):
             if exec_result.returns_rows:
                 fetched_results = exec_result.fetchall()
                 existing_iids = [mm[0] for mm in fetched_results]
-        except SQLAlchemyError as ex:
+                # query will return list those iid in iid_list that were found in the index
+                orphan_iids = list(set(iid_list)-set(existing_iids))
+        except SQLAlchemyError:
             raise
-
-        # query will return list those iid in iid_list that were found in the index
-        orphan_iids = list(set(iid_list)-set(existing_iids))
 
         return existing_iids, orphan_iids
 
@@ -871,13 +897,12 @@ class IndexItemsTable(object):
 
             SELECT IndexItemDetailRow.detail_value
             FROM IndexItemDetailRow, find_dependants
-                 INNER JOIN IndexItemDetailOperatingSystem ON
-                 IndexItemDetailRow.os_id = IndexItemDetailOperatingSystem._id
-                    AND IndexItemDetailOperatingSystem.active = 1
             WHERE
                 IndexItemDetailRow.detail_name = 'depends'
             AND
                 IndexItemDetailRow.owner_iid = find_dependants._IID_
+            AND
+                IndexItemDetailRow.active = 1
             )
             SELECT _IID_ FROM find_dependants
         """.format(look_for_status)
@@ -945,6 +970,7 @@ class IndexItemsTable(object):
         return retVal
 
     def select_versions_for_installed_item(self):
+        retVal = list()
         query_text = """
             SELECT IndexItemDetailRow.owner_iid, IndexItemDetailRow.detail_name, IndexItemDetailRow.detail_value, min(IndexItemDetailRow.generation)
             FROM IndexItemRow, IndexItemDetailRow
@@ -956,28 +982,27 @@ class IndexItemsTable(object):
         try:
             exec_result = self.session.execute(query_text)
             if exec_result.returns_rows:
-                retVal = exec_result.fetchall()
-        except SQLAlchemyError as ex:
+                retVal.extend(exec_result.fetchall())
+        except SQLAlchemyError:
             raise
         return retVal
 
     def target_folders_to_items(self):
+        retVal = list()
         query_text = """
             SELECT IndexItemDetailRow.detail_value, IndexItemDetailRow.owner_iid
             FROM IndexItemDetailRow, IndexItemRow
-                JOIN IndexItemDetailOperatingSystem
-                    ON IndexItemDetailOperatingSystem._id=IndexItemDetailRow.os_id
-                    AND IndexItemDetailOperatingSystem.active=1
             WHERE IndexItemDetailRow.detail_name="install_folders"
                 AND IndexItemRow.iid=IndexItemDetailRow.owner_iid
                 AND IndexItemRow.status != 0
+                AND IndexItemDetailRow.active = 1
             ORDER BY IndexItemDetailRow.detail_value
             """
         try:
             exec_result = self.session.execute(query_text)
             if exec_result.returns_rows:
-                retVal = exec_result.fetchall()
-        except SQLAlchemyError as ex:
+                retVal.extend(exec_result.fetchall())
+        except SQLAlchemyError:
             raise
         return retVal
 
@@ -986,32 +1011,115 @@ class IndexItemsTable(object):
         query_text = """
             SELECT IndexItemDetailRow.detail_value, IndexItemDetailRow.owner_iid, IndexItemDetailRow.tag
             FROM IndexItemDetailRow, IndexItemRow
-            JOIN IndexItemDetailOperatingSystem
-                ON IndexItemDetailOperatingSystem._id = IndexItemDetailRow.os_id
-                   AND IndexItemDetailOperatingSystem.active = 1
             WHERE IndexItemDetailRow.owner_iid NOT IN (
                 SELECT DISTINCT IndexItemDetailRow.owner_iid
                 FROM IndexItemDetailRow, IndexItemRow
-                    JOIN IndexItemDetailOperatingSystem
-                        ON IndexItemDetailOperatingSystem._id = IndexItemDetailRow.os_id
-                           AND IndexItemDetailOperatingSystem.active = 1
                 WHERE IndexItemDetailRow.detail_name = "install_folders"
                       AND IndexItemRow.iid = IndexItemDetailRow.owner_iid
                       AND IndexItemRow.status > 0
+                      AND IndexItemDetailRow.active = 1
                 ORDER BY IndexItemDetailRow.owner_iid
             )
             AND IndexItemDetailRow.detail_name="install_sources"
                 AND IndexItemRow.iid = IndexItemDetailRow.owner_iid
                 AND IndexItemRow.status != 0
+                AND IndexItemDetailRow.active = 1
             """
-        retVal = self.session.execute(query_text).fetchall()
         try:
             exec_result = self.session.execute(query_text)
             if exec_result.returns_rows:
-                retVal = exec_result.fetchall()
-        except SQLAlchemyError as ex:
+                retVal.extend(exec_result.fetchall())
+        except SQLAlchemyError:
             raise
         return retVal
+
+    def name_and_version_report_for_active_iids(self):
+        query_text = """
+            SELECT IndexItemRow.iid,
+                    coalesce(name_row.detail_value, "")       AS name,
+                    coalesce(version_row.detail_value, "")    AS version,
+                    min(version_row.generation) AS ver_gen,
+                    min(name_row.generation)    AS name_gen
+            FROM IndexItemRow
+                LEFT JOIN IndexItemDetailRow AS version_row
+                    ON version_row.owner_iid=IndexItemRow.iid
+                    AND version_row.detail_name='version'
+                    AND version_row.active=1
+                LEFT JOIN IndexItemDetailRow AS name_row
+                    ON name_row.owner_iid=IndexItemRow.iid
+                    AND name_row.detail_name='name'
+                    AND name_row.active=1
+            WHERE status!=0
+            GROUP BY IndexItemRow.iid
+            """
+        fetched_results = self.session.execute(query_text).fetchall()
+        return fetched_results
+
+    def get_iids_and_details_for_active_iids(self, detail_name, unique_values=False, limit_to_iids=None):
+        group_by_values_filter = "GROUP BY IndexItemDetailRow.detail_value" if unique_values else ""
+        limit_to_iids_filter = ""
+        if limit_to_iids:
+            limit_to_iids_filter = " ".join(('AND IndexItemDetailRow.owner_iid IN ("', '","'.join(limit_to_iids), '")'))
+
+        query_text = """
+            SELECT  IndexItemDetailRow.owner_iid, IndexItemDetailRow.detail_value
+            FROM IndexItemDetailRow
+                JOIN IndexItemRow
+                    ON  IndexItemRow.iid=IndexItemDetailRow.owner_iid
+                    AND IndexItemRow.status!=0
+            WHERE IndexItemDetailRow.detail_name="{detail_name}"
+                AND IndexItemDetailRow.active = 1
+            {limit_to_iids_filter}
+            {group_by_values_filter}
+            ORDER BY IndexItemDetailRow._id
+            """.format(**locals())
+        fetched_results = self.session.execute(query_text).fetchall()
+        return fetched_results
+
+    def get_details_for_active_iids(self, detail_name, unique_values=False, limit_to_iids=None):
+        distinct = "DISTINCT" if unique_values else ""
+        limit_to_iids_filter = ""
+        if limit_to_iids:
+            limit_to_iids_filter = 'AND IndexItemDetailRow.owner_iid IN ("'
+            limit_to_iids_filter += '","'.join(limit_to_iids)
+            limit_to_iids_filter += '")'
+
+        query_text = """
+            SELECT {0} IndexItemDetailRow.detail_value
+            FROM IndexItemDetailRow
+                JOIN IndexItemRow
+                    ON  IndexItemRow.iid=IndexItemDetailRow.owner_iid
+                    AND IndexItemRow.status!=0
+            WHERE IndexItemDetailRow.detail_name="{1}"
+                AND IndexItemDetailRow.active = 1
+                {2}
+            ORDER BY IndexItemDetailRow._id
+            """.format(distinct, detail_name, limit_to_iids_filter)
+        fetched_results = self.session.execute(query_text).fetchall()
+        retVal = [mm[0] for mm in fetched_results]
+        return retVal
+
+    def get_details_and_tag_for_active_iids(self, detail_name, unique_values=False, limit_to_iids=None):
+        distinct = "DISTINCT" if unique_values else ""
+        limit_to_iids_filter = ""
+        if limit_to_iids:
+            limit_to_iids_filter = 'AND IndexItemDetailRow.owner_iid IN ("'
+            limit_to_iids_filter += '","'.join(limit_to_iids)
+            limit_to_iids_filter += '")'
+
+        query_text = """
+            SELECT {0} IndexItemDetailRow.detail_value, IndexItemDetailRow.tag
+            FROM IndexItemDetailRow
+                JOIN IndexItemRow
+                    ON  IndexItemRow.iid=IndexItemDetailRow.owner_iid
+                    AND IndexItemRow.status!=0
+            WHERE IndexItemDetailRow.detail_name="{1}"
+                AND IndexItemDetailRow.active = 1
+                {2}
+            ORDER BY IndexItemDetailRow._id
+            """.format(distinct, detail_name, limit_to_iids_filter)
+        fetched_results = self.session.execute(query_text).fetchall()
+        return fetched_results
 
     def create_default_items(self):
         self.create_default_index_items()
@@ -1039,12 +1147,11 @@ class IndexItemsTable(object):
             WHERE from_require=1 AND (require_ver_t.detail_value ISNULL OR require_guid_t.detail_value ISNULL)
             GROUP BY IndexItemRow.iid
           """
-        retVal = self.session.execute(query_text).fetchall()
         try:
             exec_result = self.session.execute(query_text)
             if exec_result.returns_rows:
-                retVal = exec_result.fetchall()
-        except SQLAlchemyError as ex:
+                retVal.extend(exec_result.fetchall())
+        except SQLAlchemyError:
             raise
         # returns: [(iid, index_version, require_version, index_guid, require_guid, generation), ...]
         return retVal

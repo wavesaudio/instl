@@ -111,7 +111,6 @@ class InstlClientReport(InstlClient):
         current_os = var_stack.ResolveVarToStr("__CURRENT_OS__")
         for root_path, dirs, files in os.walk(in_path, followlinks=False):
             if in_compiled_ignore_folder_regex and in_compiled_ignore_folder_regex.search(root_path):
-                print("skipping", root_path)
                 del dirs[:]  # skip root_path and it's siblings
                 del files[:]
             else:

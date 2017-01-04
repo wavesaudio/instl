@@ -57,6 +57,21 @@ class InstlClientCopy(InstlClient):
         except Exception:
             pass # if it did not work - forget it
 
+    def create_create_folders_instructions(self, folder_list):
+        if len(folder_list) > 0:
+            self.batch_accum += self.platform_helper.progress("Create folders ...")
+            for target_folder_path in folder_list:
+                self.batch_accum += self.platform_helper.progress("Create folder {0} ...".format(target_folder_path))
+                if os.path.isfile(var_stack.ResolveStrToStr(target_folder_path)):
+                    # weird as it maybe, some users have files where a folder should be.
+                    # test for isfile is done here rather than in the batch file, because
+                    # Windows does not have proper way to check "is file" in a batch.
+                    self.batch_accum += self.platform_helper.rmfile(target_folder_path)
+                    self.batch_accum += self.platform_helper.progress("Removed file that should be a folder {0}".format(target_folder_path))
+                self.batch_accum += self.platform_helper.mkdir_with_owner(target_folder_path)
+                self.batch_accum += self.platform_helper.progress("Create folder {0} done".format(target_folder_path))
+            self.batch_accum += self.platform_helper.progress("Create folders done")
+
     def create_copy_instructions(self):
         self.create_sync_folder_manifest_command("before-copy")
         # self.write_copy_debug_info()
@@ -79,19 +94,7 @@ class InstlClientCopy(InstlClient):
                                            key=lambda fold: var_stack.ResolveStrToStr(fold))
 
         # first create all target folders so to avoid dependency order problems such as creating links between folders
-        if len(sorted_target_folder_list) > 0:
-            self.batch_accum += self.platform_helper.progress("Create folders ...")
-            for target_folder_path in sorted_target_folder_list:
-                self.batch_accum += self.platform_helper.progress("Create folder {0} ...".format(target_folder_path))
-                if os.path.isfile(var_stack.ResolveStrToStr(target_folder_path)):
-                    # weird as it maybe, some users have files where a folder should be.
-                    # test for isfile is done here rather than in the batch file, because
-                    # Windows does not have proper way to check "is file" in a batch.
-                    self.batch_accum += self.platform_helper.rmfile(target_folder_path)
-                    self.batch_accum += self.platform_helper.progress("Removed file that should be a folder {0}".format(target_folder_path))
-                self.batch_accum += self.platform_helper.mkdir_with_owner(target_folder_path)
-                self.batch_accum += self.platform_helper.progress("Create folder {0} done".format(target_folder_path))
-            self.batch_accum += self.platform_helper.progress("Create folders done")
+        self.create_create_folders_instructions(sorted_target_folder_list)
 
         if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
             self.pre_copy_mac_handling()
@@ -217,6 +220,7 @@ class InstlClientCopy(InstlClient):
             self.bytes_to_copy += self.calc_size_of_file_item(source_file)
             if source_file.is_first_wtar_file():
                 first_wtar_item = source_file
+
         if first_wtar_item:
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
             self.batch_accum += self.platform_helper.unlock(first_wtar_item.name_without_wtar_extension())
@@ -243,14 +247,19 @@ class InstlClientCopy(InstlClient):
                         # by resolve_symlinks in the sync stage by instl version <= 1.0.
                     self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_path_relative_to_current_dir))
 
-        items_to_unwtar = list()
+        # check if there are .wtar files (complete or partial)
+        folder_contains_wtar = False
         for source_item in source_items:
             self.bytes_to_copy += self.calc_size_of_file_item(source_item)
             if source_item.is_first_wtar_file():
-                self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
                 self.batch_accum += self.platform_helper.unlock(source_item.name_without_wtar_extension(), recursive=True)
-                self.batch_accum += self.platform_helper.unwtar_something(source_item.path_starting_from_dir(source_path), no_artifacts=True)
-                self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
+                folder_contains_wtar = True
+
+        # unwtar at folder-based if needed
+        if folder_contains_wtar:
+            self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
+            self.batch_accum += self.platform_helper.unwtar_something(".", no_artifacts=True)
+            self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
 
     def create_copy_instructions_for_files(self, source_path, name_for_progress_message):
         source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
@@ -270,14 +279,19 @@ class InstlClientCopy(InstlClient):
                         # by resolve_symlinks in the sync stage by instl version <= 1.0.
                     self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_file.name()))
 
-        num_items_to_unwtar = 0
-        for source_file in source_files:
-            self.bytes_to_copy += self.calc_size_of_file_item(source_file)
-            if source_file.is_first_wtar_file():
-                self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
-                self.batch_accum += self.platform_helper.unlock(source_file.name_without_wtar_extension())
-                self.batch_accum += self.platform_helper.unwtar_something(source_file.name(), no_artifacts=True)
-                self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
+        # check if there are .wtar files (complete or partial)
+        folder_contains_wtar = False
+        for source_item in source_files:
+            self.bytes_to_copy += self.calc_size_of_file_item(source_item)
+            if source_item.is_first_wtar_file():
+                self.batch_accum += self.platform_helper.unlock(source_item.name_without_wtar_extension(), recursive=True)
+                folder_contains_wtar = True
+
+        # unwtar at folder-based if needed
+        if folder_contains_wtar:
+            self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
+            self.batch_accum += self.platform_helper.unwtar_something(".", no_artifacts=True)
+            self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
 
     def create_copy_instructions_for_dir(self, source_path, name_for_progress_message):
         dir_item = self.info_map_table.get_item(source_path, what="dir")
@@ -298,14 +312,24 @@ class InstlClientCopy(InstlClient):
                     else:   # a hack to prevent chmod for symlink files because .symlink files might have been already handled
                             # by resolve_symlinks in the sync stage by instl version <= 1.0.
                         self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_path_relative_to_current_dir))
-            items_to_unwtar = list()
+
+            # check if there are .wtar files (complete or partial)
+            folder_contains_wtar = False
             for source_item in source_items:
                 self.bytes_to_copy += self.calc_size_of_file_item(source_item)
                 if source_item.is_first_wtar_file():
-                    self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
-                    self.batch_accum += self.platform_helper.unlock(source_item.name_without_wtar_extension(), recursive=True)
-                    self.batch_accum += self.platform_helper.unwtar_something(source_item.path_starting_from_dir(source_path_dir), no_artifacts=True)
-                    self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
+                    self.batch_accum += self.platform_helper.unlock(source_item.name_without_wtar_extension(),
+                                                                    recursive=True)
+                    folder_contains_wtar = True
+
+            # unwtar at folder-based if needed
+            if folder_contains_wtar:
+                self.batch_accum += self.platform_helper.progress(
+                    "Expand {name_for_progress_message} ...".format(**locals()))
+                self.batch_accum += self.platform_helper.unwtar_something(source_path_name, no_artifacts=True)
+                self.batch_accum += self.platform_helper.progress(
+                    "Expand {name_for_progress_message} done".format(**locals()))
+
             if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
                 self.batch_accum += self.platform_helper.chmod("-R -f a+rwX", source_path_name)
                 self.batch_accum += self.platform_helper.echo(
