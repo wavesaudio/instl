@@ -49,11 +49,11 @@ class InstlClientReport(InstlClient):
             binaries_version_list = self.get_binaries_versions()  # returns [(index_version, require_version, index_guid, require_guid, generation), ...]
             for ori in orphan_require_items:
                 # ori: (iid, index_version, require_version, index_guid, require_guid, generation)
-                if not ori[2]:
+                if False and not ori[2]:
                     IndexItemDetailRow(original_iid=ori[0], owner_iid=ori[0], os_id=0,
                                        detail_name="require_version", detail_value='?',
                                        generation=0)
-                if not ori[4]:
+                if False and not ori[4]:
                     IndexItemDetailRow(original_iid=ori[0], owner_iid=ori[0], os_id=0,
                                        detail_name="require_guid", detail_value='?',
                                        generation=0)
