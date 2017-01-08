@@ -9,6 +9,7 @@ from .instlClient import InstlClient
 from .installItem import read_index_from_yaml
 import utils
 
+
 class InstlClientReport(InstlClient):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
@@ -32,7 +33,7 @@ class InstlClientReport(InstlClient):
             lines = [", ".join(line_data) for line_data in self.output_data]
             output_text = "\n".join(lines)
         elif output_format == "json":
-            output_text = json.dumps(self.output_data)
+            output_text = json.dumps(self.output_data, indent=1)
 
         with utils.write_to_file_or_stdout(out_file) as wfd:
             wfd.write(output_text)
@@ -47,20 +48,8 @@ class InstlClientReport(InstlClient):
         orphan_require_items = self.items_table.require_items_without_version_or_guid()
         if len(orphan_require_items) > 0 and self.should_check_for_binary_versions():
             binaries_version_list = self.get_binaries_versions()  # returns [(index_version, require_version, index_guid, require_guid, generation), ...]
-            for ori in orphan_require_items:
-                # ori: (iid, index_version, require_version, index_guid, require_guid, generation)
-                if False and not ori[2]:
-                    IndexItemDetailRow(original_iid=ori[0], owner_iid=ori[0], os_id=0,
-                                       detail_name="require_version", detail_value='?',
-                                       generation=0)
-                if False and not ori[4]:
-                    IndexItemDetailRow(original_iid=ori[0], owner_iid=ori[0], os_id=0,
-                                       detail_name="require_guid", detail_value='?',
-                                       generation=0)
-
-
-
-
+            self.items_table.add_require_version_from_binaries()
+            self.items_table.add_require_guid_from_binaries()
 
         report_data = self.items_table.versions_report()
         self.items_table.commit_changes()
@@ -107,7 +96,6 @@ class InstlClientReport(InstlClient):
 
     def check_binaries_versions_in_folder(self, in_path, in_compiled_ignore_folder_regex):
         retVal = list()
-        print("checking", in_path+":")
         current_os = var_stack.ResolveVarToStr("__CURRENT_OS__")
         for root_path, dirs, files in os.walk(in_path, followlinks=False):
             if in_compiled_ignore_folder_regex and in_compiled_ignore_folder_regex.search(root_path):
@@ -116,12 +104,10 @@ class InstlClientReport(InstlClient):
             else:
                 info = utils.extract_binary_info(current_os, root_path)
                 if info is not None:
-                    #print("    info for", root_path, info)
                     retVal.append(info)
                     del dirs[:]  # info was found for root_path, no need to dig deeper
                     del files[:]
                 else:
-                    #print("    no info for", root_path)
                     for a_file in files:
                         file_full_path = os.path.join(root_path, a_file)
                         if in_compiled_ignore_folder_regex and in_compiled_ignore_folder_regex.search(file_full_path):
@@ -129,10 +115,5 @@ class InstlClientReport(InstlClient):
                         if not os.path.islink(file_full_path):
                             info = utils.extract_binary_info(current_os, file_full_path)
                             if info is not None:
-                            #    print("    info for", file_full_path, info)
                                 retVal.append(info)
-                            #else:
-                            #    print("    no info for", file_full_path)
-        for ret in retVal:
-            print(ret)
         return retVal

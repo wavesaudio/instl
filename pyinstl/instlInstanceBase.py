@@ -321,11 +321,11 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                                                                                                  var_stack.ResolveStrToStr(copy_destination.value),
                                                                                                  link_dest=True)
 
-    def create_variables_assignment(self):
-        self.batch_accum.set_current_section("assign")
+    def create_variables_assignment(self, in_batch_accum):
+        in_batch_accum.set_current_section("assign")
         for identifier in var_stack:
             if identifier not in self.do_not_write_vars:
-                self.batch_accum += self.platform_helper.var_assign(identifier, var_stack.ResolveVarToStr(identifier, list_sep=" "),
+                in_batch_accum += self.platform_helper.var_assign(identifier, var_stack.ResolveVarToStr(identifier, list_sep=" "),
                                                                     None)  # var_stack[identifier].resolved_num
 
     def calc_user_cache_dir_var(self, make_dir=True):
@@ -384,20 +384,18 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             raise ValueError("unknown tag for source " + source_path + ": " + source_type)
         return retVal
 
-
-
-    def write_batch_file(self):
+    def write_batch_file(self, in_batch_accum, file_name_post_fix=""):
         if "__MAIN_OUT_FILE__" not in var_stack and "__MAIN_INPUT_FILE__" in var_stack:
             var_stack.add_const_config_variable("__MAIN_OUT_FILE__", "from write_batch_file",
                                                 "$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)")
 
-        self.batch_accum.set_current_section('pre')
-        self.batch_accum += self.platform_helper.get_install_instructions_prefix()
-        self.batch_accum.set_current_section('post')
+        in_batch_accum.set_current_section('pre')
+        in_batch_accum += self.platform_helper.get_install_instructions_prefix()
+        in_batch_accum.set_current_section('post')
         var_stack.set_var("TOTAL_ITEMS_FOR_PROGRESS_REPORT").append(
             str(self.platform_helper.num_items_for_progress_report))
-        self.batch_accum += self.platform_helper.get_install_instructions_postfix()
-        lines = self.batch_accum.finalize_list_of_lines()
+        in_batch_accum += self.platform_helper.get_install_instructions_postfix()
+        lines = in_batch_accum.finalize_list_of_lines()
         for line in lines:
             if type(line) != str:
                 raise TypeError("Not a string", type(line), line)
@@ -407,6 +405,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         output_text = "\n".join(lines_after_var_replacement)
 
         out_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
+        out_file += file_name_post_fix
         out_file = os.path.abspath(out_file)
         d_path, f_name = os.path.split(out_file)
         os.makedirs(d_path, exist_ok=True)

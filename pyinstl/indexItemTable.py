@@ -2,23 +2,13 @@
 
 
 import os
-import sys
-from collections import defaultdict, OrderedDict
+from collections import OrderedDict
 
-from sqlalchemy import update
-from sqlalchemy import or_
 from sqlalchemy.ext import baked
 from sqlalchemy import bindparam
-from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy import func
-from sqlalchemy import event
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-import utils
-from configVar import var_stack
-from functools import reduce
-from aYaml import YamlReader
 from .db_alchemy import create_session,\
     IndexItemDetailOperatingSystem, \
     IndexItemRow, \
@@ -243,34 +233,66 @@ class IndexItemsTable(object):
 
     def add_views(self):
         stmt = text("""
-           CREATE VIEW "full_details_view" AS
-            SELECT IndexItemDetailRow._id,
-                IndexItemDetailRow.owner_iid AS "owner iid",
-                IndexItemDetailRow.original_iid AS "original iid",
-                IndexItemDetailRow.detail_name,
-                IndexItemDetailRow.detail_value
-            FROM IndexItemDetailRow
+        CREATE VIEW "require_items_without_require_version_view" AS
+        SELECT main_item_t.iid, found_t.version AS found_version, yes_index_version_t.detail_value AS index_version, min(detail_t.generation)
+        FROM IndexItemDetailRow AS detail_t
+            JOIN IndexItemRow AS main_item_t
+                ON detail_t.owner_iid = main_item_t.iid
+                AND main_item_t.from_require=1
+            JOIN FoundOnDiskItemRow AS found_t
+                ON found_t.iid = main_item_t.iid
+                AND found_t.version IS NOT NULL
+            JOIN IndexItemDetailRow AS yes_index_version_t
+                ON yes_index_version_t.owner_iid = main_item_t.iid
+                AND yes_index_version_t.detail_name='version'
+                AND yes_index_version_t.active=1
+        WHERE NOT EXISTS(
+                SELECT no_require_version_t.owner_iid
+                    FROM IndexItemDetailRow AS no_require_version_t
+                    WHERE
+                            no_require_version_t.owner_iid = main_item_t.iid
+                        AND
+                            no_require_version_t.detail_name='require_version'
+                AND no_require_version_t.active=1
+            )
+        GROUP BY detail_t.owner_iid
           """)
         self.session.execute(stmt)
 
         stmt = text("""
-            CREATE VIEW "original_details_view" AS
-            SELECT IndexItemDetailRow._id,
-                IndexItemDetailRow.original_iid AS "iid",
-                IndexItemDetailRow.detail_name,
-                IndexItemDetailRow.detail_value
-            FROM IndexItemDetailRow
-            WHERE IndexItemDetailRow.original_iid == IndexItemDetailRow.owner_iid
+       CREATE VIEW "require_items_without_require_guid_view" AS
+        SELECT main_item_t.iid, found_t.guid AS found_guid, yes_index_guid_t.detail_value AS index_guid, min(detail_t.generation)
+        FROM IndexItemDetailRow AS detail_t
+            JOIN IndexItemRow AS main_item_t
+                ON detail_t.owner_iid = main_item_t.iid
+                AND main_item_t.from_require=1
+            JOIN FoundOnDiskItemRow AS found_t
+                ON found_t.iid = main_item_t.iid
+                AND found_t.guid IS NOT NULL
+            JOIN IndexItemDetailRow AS yes_index_guid_t
+                ON yes_index_guid_t.owner_iid = main_item_t.iid
+                AND yes_index_guid_t.detail_name='guid'
+                AND yes_index_guid_t.active=1
+        WHERE NOT EXISTS(
+                SELECT no_require_guid_t.owner_iid
+                    FROM IndexItemDetailRow AS no_require_guid_t
+                    WHERE
+                            no_require_guid_t.owner_iid = main_item_t.iid
+                        AND
+                            no_require_guid_t.detail_name='require_guid'
+                AND no_require_guid_t.active=1
+            )
+        GROUP BY detail_t.owner_iid
          """)
         self.session.execute(stmt)
 
     def drop_views(self):
         stmt = text("""
-            DROP VIEW IF EXISTS "full_details_view"
+            DROP VIEW IF EXISTS "require_items_without_require_version_view"
             """)
         self.session.execute(stmt)
         stmt = text("""
-            DROP VIEW IF EXISTS "original_details_view"
+            DROP VIEW IF EXISTS "require_items_without_require_guid_view"
             """)
         self.session.execute(stmt)
 
@@ -759,7 +781,7 @@ class IndexItemsTable(object):
             if exec_result.returns_rows:
                 fetched_results = exec_result.fetchall()
                 retVal.extend([mm[:5] for mm in fetched_results])
-        except SQLAlchemyError:
+        except SQLAlchemyError as ex:
             raise
 
         return retVal
@@ -882,9 +904,8 @@ class IndexItemsTable(object):
                 existing_iids = [mm[0] for mm in fetched_results]
                 # query will return list those iid in iid_list that were found in the index
                 orphan_iids = list(set(iid_list)-set(existing_iids))
-        except SQLAlchemyError:
+        except SQLAlchemyError as ex:
             raise
-
         return existing_iids, orphan_iids
 
     def get_recursive_dependencies(self, look_for_status=1):
@@ -983,7 +1004,7 @@ class IndexItemsTable(object):
             exec_result = self.session.execute(query_text)
             if exec_result.returns_rows:
                 retVal.extend(exec_result.fetchall())
-        except SQLAlchemyError:
+        except SQLAlchemyError as ex:
             raise
         return retVal
 
@@ -1029,7 +1050,7 @@ class IndexItemsTable(object):
             exec_result = self.session.execute(query_text)
             if exec_result.returns_rows:
                 retVal.extend(exec_result.fetchall())
-        except SQLAlchemyError:
+        except SQLAlchemyError as ex:
             raise
         return retVal
 
@@ -1151,7 +1172,7 @@ class IndexItemsTable(object):
             exec_result = self.session.execute(query_text)
             if exec_result.returns_rows:
                 retVal.extend(exec_result.fetchall())
-        except SQLAlchemyError:
+        except SQLAlchemyError as ex:
             raise
         # returns: [(iid, index_version, require_version, index_guid, require_guid, generation), ...]
         return retVal
@@ -1160,3 +1181,28 @@ class IndexItemsTable(object):
         for binary_details in binaries_version_list:
             folder, name = os.path.split(binary_details[0])
             self.session.add(FoundOnDiskItemRow(name=name, path=binary_details[0], version=binary_details[1], guid=binary_details[2]))
+        self.commit_changes()
+
+    def add_require_version_from_binaries(self):
+        query_text = """
+            INSERT OR REPLACE INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
+            SELECT iid, iid, 0, 'require_version', found_version, 0
+            FROM require_items_without_require_version_view
+            """
+        try:
+            exec_result = self.session.execute(query_text)
+        except SQLAlchemyError as ex:
+            print(ex)
+            raise
+
+    def add_require_guid_from_binaries(self):
+        query_text = """
+            INSERT OR REPLACE INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
+            SELECT iid, iid, 0, 'require_guid', found_guid, 0
+            FROM require_items_without_require_guid_view
+            """
+        try:
+            exec_result = self.session.execute(query_text)
+        except SQLAlchemyError as ex:
+            print(ex)
+            raise

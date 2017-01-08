@@ -80,8 +80,8 @@ class InstlClient(InstlInstanceBase):
         self.items_table.commit_changes()
 
     def command_output(self):
-        self.create_variables_assignment()
-        self.write_batch_file()
+        self.create_variables_assignment(self.batch_accum)
+        self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
 
@@ -264,6 +264,22 @@ class InstlClient(InstlInstanceBase):
                         unique_actions.append(
                             self.platform_helper.progress("{installi.name} {action_description}".format(**locals())))
         self.batch_accum += unique_actions
+
+    def accumulate_unique_actions_for_active_iids(self, action_type, limit_to_iids=None):
+        """ accumulate action_type actions from iid_list, eliminating duplicates"""
+        iid_and_action = self.items_table.get_iids_and_details_for_active_iids(action_type, unique_values=True, limit_to_iids=limit_to_iids)
+        prev_iid = None
+        for IID, an_action in iid_and_action:
+            if prev_iid != IID:
+                num_unique_actions_for_iid = 0
+                prev_iid = IID
+            else:
+                num_unique_actions_for_iid += 1
+            self.batch_accum += an_action
+            action_description = self.action_type_to_progress_message[action_type]
+            if num_unique_actions_for_iid > 1:
+                action_description = " ".join((action_description, str(num_unique_actions_for_iid)))
+            self.batch_accum += self.platform_helper.progress("{0} {1}".format(self.iid_to_name_and_version[IID].name_and_version, action_description))
 
     def create_require_file_instructions(self):
         # write the require file as it should look after copy is done

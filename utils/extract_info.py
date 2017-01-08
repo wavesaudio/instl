@@ -35,12 +35,9 @@ def get_wfi_version(in_path):
     version = None
     with codecs.open(in_path, 'r', encoding='utf-8', errors='ignore') as f:
         raw = f.readlines()
-        #print('DEBUG: raw =', type(raw), raw)
     for line in raw:
         if 'version value' in line:
-            #print('DEBUG: line =', type(line), line)
             version = line.split('"')[1]
-            # print 'wfi version string =', version
             break
     if version:
         retVal = (in_path, version, None)
@@ -54,7 +51,7 @@ def Mac_bundle(in_path):
     if os.path.exists(plist_path):
         with open(plist_path, 'rb') as fp:
             pl = plistlib.load(fp)
-            version = pl.get('CFBundleGetInfoString').split(' ')[0]
+            version = pl.get('CFBundleVersion')
             guid = get_guid(in_path)
 
             if version or guid:
@@ -68,7 +65,7 @@ def Mac_framework(in_path):
     if os.path.exists(plist_path):
         with open(plist_path, 'rb') as fp:
             pl = plistlib.load(fp)
-            version = pl.get('CFBundleGetInfoString').split(' ')[0]
+            version = pl.get('CFBundleVersion')
             if version:
                 retVal = (in_path, version, None)
     return retVal
@@ -76,7 +73,6 @@ def Mac_framework(in_path):
 
 def Mac_dylib(in_path):
     retVal = None
-    #ipdpath = '/Library/Application Support/Waves/Modules/InnerProcessDictionary.dylib'
     out = subprocess.Popen(['otool', '-L', in_path], stdout=subprocess.PIPE).stdout
     lines = out.readlines()
     out.close()
