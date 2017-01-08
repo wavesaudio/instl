@@ -362,6 +362,14 @@ def safe_remove_file(path_to_file):
     return path_to_file
 
 
+def safe_remove_folder(path_to_folder, ignore_errors=True):
+    try:
+        shutil.rmtree(path_to_folder)
+    except Exception as ex:
+        pass
+    return path_to_folder
+
+
 def max_widths(list_of_lists):
     """ inputs is a list of lists. output is a list of maximum str length for each
         position. E.g (('a', 'ccc'), ('bb', a', 'fff')) will return: (2, 3, 3)

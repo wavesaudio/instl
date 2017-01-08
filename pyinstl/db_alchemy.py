@@ -98,6 +98,7 @@ class IndexItemDetailRow(get_declarative_base()):
     detail_value = Column(String)
     generation   = Column(Integer, default=0)
     tag          = Column(String)
+    active       = Column(Integer, default=0)
 
     #os = relationship("IndexItemDetailOperatingSystem")
     #item = relationship("IndexItemRow", back_populates="original_details")
@@ -108,6 +109,7 @@ class IndexItemDetailRow(get_declarative_base()):
                     "os: {self.os_id}, "
                     "gen: {self.generation}, "
                     "tag: {self.tag}, "
+                    "active: {self.active}, "
                     "{self.detail_name}: {self.detail_value}").format(**locals())
         return retVal
 
@@ -119,9 +121,11 @@ class FoundOnDiskItemRow(get_declarative_base()):
     name = Column(String)
     version = Column(String)
     guid = Column(String)
+    iid = Column(String)
 
     def __str__(self):
         retVal = ("{self._id}) name: {self.name}, "
+                    "iid: {self.iid}, "
                     "version: {self.version}, "
                     "guid: {self.guid}, "
                     "path: {self.path}").format(**locals())

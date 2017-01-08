@@ -530,7 +530,8 @@ class SVNTable(object):
             self.baked_queries_map["required_items_for_file"] += lambda q: q.filter(SVNRow.fileFlag==True)
             self.baked_queries_map["required_items_for_file"] += lambda q: q.filter(or_(SVNRow.path == bindparam('file_path'), SVNRow.path.like(bindparam('file_path') + ".wtar%")))
 
-        return self.baked_queries_map["required_items_for_file"](self.session).params(file_path=file_path).all()
+        retVal = self.baked_queries_map["required_items_for_file"](self.session).params(file_path=file_path).all()
+        return retVal
 
     def mark_required_for_file(self, file_path):
         """ mark a file as required or if file was wtarred

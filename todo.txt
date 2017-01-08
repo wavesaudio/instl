@@ -1,27 +1,46 @@
-- unwtar stay out of sync folder not just bookkeeping
-- resolvesymlink stay out of sync folder not just bookkeeping
-- why is WavesLib with 2 wtars?
+todo:
 
-Could storage wish list:
-    Be able to avoid creating the urls on server - maybe use some time limited token?
+wtar:
+    - avoid compression when wtarring zip files
+
+unwtar:
+    - directly from sync folder
+
+copy:
+    - unwtar stay out of sync folder not just bookkeeping
+    - resolvesymlink stay out of sync folder not just bookkeeping
+
+Cloud storage wish list:
+    Be able to avoid creating the urls on server - maybe use some time limited token? CloudFront?
     Be able to download whole folders???
 
-handle UTF in parameters passed to instl
-handle UTF for paths in !define and !index files
+installer:
+    - checkout cxfreeze instead of pyinstaller
+    - folder instead of single file. Is launching really faster?
 
-checkout cxfreeze instead of pyinstaller
+error handling:
+    - better handling and reporting of unknown command names, missing files, missing parameters, etc...
 
-better handling and reporting of unknown command names, missing files, missing parameters, etc...
-
-convert all commands that use --limit to work with prepare_limit_list
-remove .DS_Store before wtar
+Admin:
+    - convert all commands that use --limit to work with prepare_limit_list
+    - remove .DS_Store before wtar
 
 Put order in syncer classes: boto, p4, svn, url
     - decide which are not useful and remove them
     - unite the syncer classes and the instlInstance
 
-readthedocs
-markdown
+documentation:
+    - readthedocs
+    - markdown
 
-rethink resolve definition, what to do with defaults, missing values, etc
-resolve implementation - standard python resolve?
+database:
+    - get rid of sqlalchemy use plain sqlite
+    - read schema, views, triggers from file
+    - move SELECT(*)'s to be views
+
+done:
+    - handle UTF in parameters passed to instl
+    - handle UTF for paths in !define and !index files
+    - resolve implementation - state machine
+    - unwtar join and untar in the same operation - saving multiple reads
+    - unwtar commands for whole copied folders, not for individual wtars

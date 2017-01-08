@@ -15,8 +15,8 @@ if sys.platform == 'win32':
 def default_extract_info(in_path):
     return None
 
-# cross platform
 
+# cross platform
 def get_guid(in_path):
     guid = None
     xml_path = os.path.join(in_path, 'Contents', 'Resources', 'InfoXML', '1000.xml')
@@ -35,29 +35,26 @@ def get_wfi_version(in_path):
     version = None
     with codecs.open(in_path, 'r', encoding='utf-8', errors='ignore') as f:
         raw = f.readlines()
-        #print('DEBUG: raw =', type(raw), raw)
     for line in raw:
         if 'version value' in line:
-            #print('DEBUG: line =', type(line), line)
             version = line.split('"')[1]
-            # print 'wfi version string =', version
             break
     if version:
         retVal = (in_path, version, None)
     return retVal
 
-# Mac
 
+# Mac
 def Mac_bundle(in_path):
     retVal = None
     plist_path = os.path.join(in_path, 'Contents/Info.plist')
     if os.path.exists(plist_path):
         with open(plist_path, 'rb') as fp:
             pl = plistlib.load(fp)
-            version = pl.get('CFBundleGetInfoString').split(' ')[0]
+            version = pl.get('CFBundleVersion')
             guid = get_guid(in_path)
 
-            if version:
+            if version or guid:
                 retVal = (in_path, version, guid)
     return retVal
 
@@ -68,7 +65,7 @@ def Mac_framework(in_path):
     if os.path.exists(plist_path):
         with open(plist_path, 'rb') as fp:
             pl = plistlib.load(fp)
-            version = pl.get('CFBundleGetInfoString').split(' ')[0]
+            version = pl.get('CFBundleVersion')
             if version:
                 retVal = (in_path, version, None)
     return retVal
@@ -76,7 +73,6 @@ def Mac_framework(in_path):
 
 def Mac_dylib(in_path):
     retVal = None
-    #ipdpath = '/Library/Application Support/Waves/Modules/InnerProcessDictionary.dylib'
     out = subprocess.Popen(['otool', '-L', in_path], stdout=subprocess.PIPE).stdout
     lines = out.readlines()
     out.close()
@@ -108,8 +104,8 @@ def Mac_pkg(in_path):
     retVal = (in_path, version, None)
     return retVal
 
-# Windows
 
+# Windows
 def Win_bundle(in_path):
     retVal = None
     dllname = os.path.basename(in_path).replace('bundle', 'dll')
@@ -159,7 +155,6 @@ def Win_file(in_path):
     if version:
         retVal = (in_path, version, None)
     return retVal
-
 
 
 def extract_binary_info(in_os, in_path):

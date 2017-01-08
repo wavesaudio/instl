@@ -1,3 +1,15 @@
+8/1/2017 1.3.1.0
+
+    user visible changes client:
+    * report-versions works with extracting binary version when they are missing from require.yaml:
+    * more human readable json output to report-versions, with indents and line breaks
+
+    programmer visible changes:
+    * replaced previous views with views to reflect those items that did not have guid or version in require.yaml and such guid/version was found in binaries
+    * Mac_bundle, Mac_framework: look for CFBundleVersion not CFBundleGetInfoString
+    * new function utils.safe_remove_folder
+    * new row to table IndexItemDetailRow: active. Will be automaticaly set to 0/1 according to current OS
+
 19/12/2016 1.3.0.13
 
     programmer visible changes:

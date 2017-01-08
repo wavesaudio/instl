@@ -57,6 +57,21 @@ class InstlClientCopy(InstlClient):
         except Exception:
             pass # if it did not work - forget it
 
+    def create_create_folders_instructions(self, folder_list):
+        if len(folder_list) > 0:
+            self.batch_accum += self.platform_helper.progress("Create folders ...")
+            for target_folder_path in folder_list:
+                self.batch_accum += self.platform_helper.progress("Create folder {0} ...".format(target_folder_path))
+                if os.path.isfile(var_stack.ResolveStrToStr(target_folder_path)):
+                    # weird as it maybe, some users have files where a folder should be.
+                    # test for isfile is done here rather than in the batch file, because
+                    # Windows does not have proper way to check "is file" in a batch.
+                    self.batch_accum += self.platform_helper.rmfile(target_folder_path)
+                    self.batch_accum += self.platform_helper.progress("Removed file that should be a folder {0}".format(target_folder_path))
+                self.batch_accum += self.platform_helper.mkdir_with_owner(target_folder_path)
+                self.batch_accum += self.platform_helper.progress("Create folder {0} done".format(target_folder_path))
+            self.batch_accum += self.platform_helper.progress("Create folders done")
+
     def create_copy_instructions(self):
         self.create_sync_folder_manifest_command("before-copy")
         # self.write_copy_debug_info()
@@ -79,19 +94,7 @@ class InstlClientCopy(InstlClient):
                                            key=lambda fold: var_stack.ResolveStrToStr(fold))
 
         # first create all target folders so to avoid dependency order problems such as creating links between folders
-        if len(sorted_target_folder_list) > 0:
-            self.batch_accum += self.platform_helper.progress("Create folders ...")
-            for target_folder_path in sorted_target_folder_list:
-                self.batch_accum += self.platform_helper.progress("Create folder {0} ...".format(target_folder_path))
-                if os.path.isfile(var_stack.ResolveStrToStr(target_folder_path)):
-                    # weird as it maybe, some users have files where a folder should be.
-                    # test for isfile is done here rather than in the batch file, because
-                    # Windows does not have proper way to check "is file" in a batch.
-                    self.batch_accum += self.platform_helper.rmfile(target_folder_path)
-                    self.batch_accum += self.platform_helper.progress("Removed file that should be a folder {0}".format(target_folder_path))
-                self.batch_accum += self.platform_helper.mkdir_with_owner(target_folder_path)
-                self.batch_accum += self.platform_helper.progress("Create folder {0} done".format(target_folder_path))
-            self.batch_accum += self.platform_helper.progress("Create folders done")
+        self.create_create_folders_instructions(sorted_target_folder_list)
 
         if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
             self.pre_copy_mac_handling()
