@@ -74,8 +74,8 @@ class InstlDoIt(InstlInstanceBase):
         do_command_func = getattr(self, "do_" + self.fixed_command)
         do_command_func()
 
-        self.create_variables_assignment()
-        self.write_batch_file()
+        self.create_variables_assignment(self.batch_accum)
+        self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
 

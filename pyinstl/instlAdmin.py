@@ -204,8 +204,8 @@ class InstlAdmin(InstlInstanceBase):
             msg = " ".join( ("Links already created for all revisions:", str(base_repo_rev), "...", str(max_repo_rev_to_work_on)) )
             print(msg)
 
-        self.create_variables_assignment()
-        self.write_batch_file()
+        self.create_variables_assignment(self.batch_accum)
+        self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
 
@@ -339,8 +339,8 @@ class InstlAdmin(InstlInstanceBase):
             self.batch_accum += self.platform_helper.restore_dir(save_dir_var)
             self.batch_accum += self.platform_helper.new_line()
 
-        self.create_variables_assignment()
-        self.write_batch_file()
+        self.create_variables_assignment(self.batch_accum)
+        self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
 
@@ -460,8 +460,8 @@ class InstlAdmin(InstlInstanceBase):
                             ] )
         self.batch_accum += self.platform_helper.progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)'")
 
-        self.create_variables_assignment()
-        self.write_batch_file()
+        self.create_variables_assignment(self.batch_accum)
+        self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
 
@@ -510,9 +510,9 @@ class InstlAdmin(InstlInstanceBase):
                 # print("add prop", "executable", "to", item.path)
                 self.batch_accum += " ".join( (var_stack.ResolveVarToStr("SVN_CLIENT_PATH"), "propset", 'svn:executable', 'yes', '"'+item.path+'"') )
                 self.batch_accum += self.platform_helper.progress(" ".join(("add prop", "executable", "from", item.path)) )
-        self.create_variables_assignment()
+        self.create_variables_assignment(self.batch_accum)
         os.chdir(save_dir)
-        self.write_batch_file()
+        self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
 
@@ -558,8 +558,8 @@ class InstlAdmin(InstlInstanceBase):
                 self.batch_accum += self.platform_helper.rmfile(symlink_file)
                 self.batch_accum += self.platform_helper.progress(symlink_text_path)
                 self.batch_accum += self.platform_helper.new_line()
-        self.create_variables_assignment()
-        self.write_batch_file()
+        self.create_variables_assignment(self.batch_accum)
+        self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
 
@@ -597,8 +597,8 @@ class InstlAdmin(InstlInstanceBase):
                 raise utils.InstlException(pair[0] + " has forbidden characters should not be committed to svn")
             comparator = filecmp.dircmp(pair[0], pair[1], ignore=[".svn", ".DS_Store", "Icon\015"])
             self.stage2svn_for_folder(comparator)
-        self.create_variables_assignment()
-        self.write_batch_file()
+        self.create_variables_assignment(self.batch_accum)
+        self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
 
@@ -749,8 +749,8 @@ class InstlAdmin(InstlInstanceBase):
                         self.batch_accum += self.platform_helper.rmfile(item_to_tar)
                     self.batch_accum += self.platform_helper.progress(item_to_tar_full_path)
                     self.batch_accum += self.platform_helper.new_line()
-        self.create_variables_assignment()
-        self.write_batch_file()
+        self.create_variables_assignment(self.batch_accum)
+        self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
 
@@ -785,8 +785,8 @@ class InstlAdmin(InstlInstanceBase):
             self.batch_accum += self.platform_helper.progress("Checkout {} to {}".format(checkout_url, limit_info[1]))
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(limit_info[1], limit_info[2], link_dest=False, ignore=(".svn", ".DS_Store"), preserve_dest_files=False)
             self.batch_accum += self.platform_helper.progress("rsync {} to {}".format(limit_info[1], limit_info[2]))
-        self.create_variables_assignment()
-        self.write_batch_file()
+        self.create_variables_assignment(self.batch_accum)
+        self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
 
@@ -1018,8 +1018,8 @@ class InstlAdmin(InstlInstanceBase):
                 print("   ", a_file)
             print()
 
-        self.create_variables_assignment()
-        self.write_batch_file()
+        self.create_variables_assignment(self.batch_accum)
+        self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
 
@@ -1087,7 +1087,7 @@ class InstlAdmin(InstlInstanceBase):
         self.create_info_map(svn_folder, results_folder, accum)
         self.batch_accum.merge_with(accum)
 
-        self.create_variables_assignment()
-        self.write_batch_file()
+        self.create_variables_assignment(self.batch_accum)
+        self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
