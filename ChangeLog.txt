@@ -1,3 +1,9 @@
+11/1/2017 1.3.2.0
+
+    programmer visible changes:
+     * new database view: report_versions_view - the summery of all require and version searches
+     * added get_binaries_versions to InstlClient.do_command so data will be available to all client commands, e.g. copy and sync.
+
 8/1/2017 1.3.1.0
 
     user visible changes client:

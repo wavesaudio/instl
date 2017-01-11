@@ -59,6 +59,12 @@ class InstlClient(InstlInstanceBase):
         self.read_yaml_file(main_input_file_path)
 
         self.items_table.resolve_inheritance()
+        self.items_table.commit_changes()
+        if self.should_check_for_binary_versions():
+            self.get_binaries_versions()
+            self.items_table.add_require_version_from_binaries()
+            self.items_table.add_require_guid_from_binaries()
+        self.items_table.commit_changes()
         self.items_table.create_default_items()
 
         self.init_default_client_vars()
@@ -330,6 +336,58 @@ class InstlClient(InstlInstanceBase):
                 sub_item.sort()
         return retVal
 
+    def should_check_for_binary_versions(self):
+        try:
+            retVal = 'CHECK_BINARIES_VERSION_FOLDERS' in var_stack \
+                and int(var_stack.ResolveVarToStr('CHECK_BINARIES_VERSION_MAXIMAL_REPO_REV')) \
+                    >= int(var_stack.ResolveVarToStr('REQUIRE_REPO_REV'))
+        except Exception:
+            retVal = False
+        return retVal
+
+    def get_binaries_versions(self):
+        binaries_version_list = list()
+        try:
+            path_to_search = var_stack.ResolveVarToList('CHECK_BINARIES_VERSION_FOLDERS')
+
+            compiled_ignore_folder_regex = None
+            if "CHECK_BINARIES_VERSION_FOLDER_EXCLUDE_REGEX" in var_stack:
+                ignore_folder_regex_list = var_stack.ResolveVarToList("CHECK_BINARIES_VERSION_FOLDER_EXCLUDE_REGEX")
+                compiled_ignore_folder_regex = utils.compile_regex_list_ORed(ignore_folder_regex_list)
+
+            for a_path in path_to_search:
+                binaries_version_from_folder = self.check_binaries_versions_in_folder(a_path, compiled_ignore_folder_regex)
+                binaries_version_list.extend(binaries_version_from_folder)
+
+            self.items_table.insert_binary_versions(binaries_version_list)
+
+        except Exception as ex:
+            print("not doing check_binaries_versions", ex)
+        return binaries_version_list
+
+    def check_binaries_versions_in_folder(self, in_path, in_compiled_ignore_folder_regex):
+        retVal = list()
+        current_os = var_stack.ResolveVarToStr("__CURRENT_OS__")
+        for root_path, dirs, files in os.walk(in_path, followlinks=False):
+            if in_compiled_ignore_folder_regex and in_compiled_ignore_folder_regex.search(root_path):
+                del dirs[:]  # skip root_path and it's siblings
+                del files[:]
+            else:
+                info = utils.extract_binary_info(current_os, root_path)
+                if info is not None:
+                    retVal.append(info)
+                    del dirs[:]  # info was found for root_path, no need to dig deeper
+                    del files[:]
+                else:
+                    for a_file in files:
+                        file_full_path = os.path.join(root_path, a_file)
+                        if in_compiled_ignore_folder_regex and in_compiled_ignore_folder_regex.search(file_full_path):
+                            continue
+                        if not os.path.islink(file_full_path):
+                            info = utils.extract_binary_info(current_os, file_full_path)
+                            if info is not None:
+                                retVal.append(info)
+        return retVal
 
 def InstlClientFactory(initial_vars, command):
     retVal = None
