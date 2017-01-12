@@ -44,6 +44,19 @@ only_one_value_ref_re = re.compile("""
                             $
                             """, re.X)
 
+def InitRedisConn():
+    try:
+        import redis
+        redis_conn = redis.StrictRedis(host='localhost', port=63179, db=2)
+        redis_conn.ping()
+        print('connect to redis OK', redis_conn)
+    except Exception as ex:
+        print('connect to redis FAILED', redis_conn)
+        redis_conn = None
+    else:
+        redis_conn.flushdb()
+    return redis_conn
+
 
 class ConfigVarList(object):
     """ Keeps a list of named build config values.
@@ -51,6 +64,8 @@ class ConfigVarList(object):
 
     __resolve_stack = list() # for preventing circular references during resolve.
     variable_name_endings_to_normpath = ("_PATH", "_DIR", "_DIR_NAME", "_FILE_NAME", "_PATH__", "_DIR__", "_DIR_NAME__", "_FILE_NAME__")
+
+    redis_conn = InitRedisConn()
 
     def __init__(self):
         self._ConfigVar_objs = dict() # ConfigVar objects are kept here mapped by their name.
@@ -224,17 +239,26 @@ class ConfigVarList(object):
     def ResolveStrToStr(self, str_to_resolve, list_sep=""):
         resolved_parts = self.ResolveStrToListIfSingleVar(str_to_resolve)
         resolved_str = list_sep.join(resolved_parts)
+        if ConfigVarList.redis_conn:
+            ConfigVarList.redis_conn.hincrby('wv:instl:ConfigVarList:ResolveStrToStr', str_to_resolve)
         return resolved_str
 
     def ResolveVarToStr(self, in_var, list_sep="", default=None):
         value_list = self.ResolveVarToList(in_var, default=[default])
         retVal = list_sep.join(value_list)
+        if ConfigVarList.redis_conn:
+            ConfigVarList.redis_conn.hincrby('wv:instl:ConfigVarList:ResolveVarToStr', in_var)
         return retVal
 
     def ResolveVarToList(self, in_var, default=None):
         retVal = list()
         if in_var in self:
             with self.circular_resolve_check(in_var):
+                if self[in_var].fixed_value:
+                    retVal.extend(value for value in self[in_var])
+                    if ConfigVarList.redis_conn:
+                        ConfigVarList.redis_conn.hincrby('wv:instl:ConfigVarList:ResolveVarToList:fixed_value', in_var)
+                    return retVal
                 for value in self[in_var]:
                     if value is None:
                         retVal.append(None)
@@ -254,11 +278,15 @@ class ConfigVarList(object):
                                     retVal.append(pure_path)
                         else:
                             retVal.extend(resolved_list_for_value)
+            if self[in_var].freeze_values_on_first_resolve:
+                self[in_var].set_frozen_values(*retVal)
         else:
             if utils.is_iterable_but_not_str(default):
                 retVal = default
             else:
                 raise ValueError("Variable {} was not found and default given {} is not a list".format(in_var, default))
+        if ConfigVarList.redis_conn:
+            ConfigVarList.redis_conn.hincrby('wv:instl:ConfigVarList:ResolveVarToList', in_var)
         return retVal
 
     def ResolveVarWithParamsToList(self, parser_retVal):

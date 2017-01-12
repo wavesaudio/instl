@@ -1,5 +1,8 @@
 todo:
 
+ConfigVars:
+    - reduce the number of resolves, by caching values
+
 wtar:
     - avoid compression when wtarring zip files
 

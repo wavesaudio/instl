@@ -343,6 +343,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 raise RuntimeError("Unknown operating system "+os_family_name)
             var_description = "from InstlInstanceBase.get_user_cache_dir"
             var_stack.set_var("USER_CACHE_DIR", var_description).append(user_cache_dir)
+            var_stack.get_configVar_obj("USER_CACHE_DIR").freeze_values_on_first_resolve = True
         if make_dir:
             user_cache_dir_resolved = var_stack.ResolveVarToStr("USER_CACHE_DIR")
             os.makedirs(user_cache_dir_resolved, exist_ok=True)
@@ -391,6 +392,9 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
         var_stack.set_var("TOTAL_ITEMS_FOR_PROGRESS_REPORT").append(
             str(self.platform_helper.num_items_for_progress_report))
+
+        for var_name in var_stack:
+            var_stack.get_configVar_obj(var_name).freeze_values_on_first_resolve = True
         self.create_variables_assignment(in_batch_accum)
 
         in_batch_accum.set_current_section('pre')
