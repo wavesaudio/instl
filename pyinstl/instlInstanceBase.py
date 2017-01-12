@@ -389,11 +389,13 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             var_stack.add_const_config_variable("__MAIN_OUT_FILE__", "from write_batch_file",
                                                 "$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)")
 
+        var_stack.set_var("TOTAL_ITEMS_FOR_PROGRESS_REPORT").append(
+            str(self.platform_helper.num_items_for_progress_report))
+        self.create_variables_assignment(in_batch_accum)
+
         in_batch_accum.set_current_section('pre')
         in_batch_accum += self.platform_helper.get_install_instructions_prefix()
         in_batch_accum.set_current_section('post')
-        var_stack.set_var("TOTAL_ITEMS_FOR_PROGRESS_REPORT").append(
-            str(self.platform_helper.num_items_for_progress_report))
         in_batch_accum += self.platform_helper.get_install_instructions_postfix()
         lines = in_batch_accum.finalize_list_of_lines()
         for line in lines:

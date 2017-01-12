@@ -9,6 +9,7 @@ unwtar:
 copy:
     - unwtar stay out of sync folder not just bookkeeping
     - resolvesymlink stay out of sync folder not just bookkeeping
+    - add a 'remove_previous_version' field to index that will be done before pre_copy or pre_copy_to_folder
 
 Cloud storage wish list:
     Be able to avoid creating the urls on server - maybe use some time limited token? CloudFront?

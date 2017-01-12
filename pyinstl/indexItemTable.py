@@ -1097,6 +1097,7 @@ class IndexItemsTable(object):
         return fetched_results
 
     def get_iids_and_details_for_active_iids(self, detail_name, unique_values=False, limit_to_iids=None):
+        retVal = list()
         group_by_values_filter = "GROUP BY IndexItemDetailRow.detail_value" if unique_values else ""
         limit_to_iids_filter = ""
         if limit_to_iids:
@@ -1114,8 +1115,13 @@ class IndexItemsTable(object):
             {group_by_values_filter}
             ORDER BY IndexItemDetailRow._id
             """.format(**locals())
-        fetched_results = self.session.execute(query_text).fetchall()
-        return fetched_results
+        try:
+            exec_result = self.session.execute(query_text)
+            if exec_result.returns_rows:
+                retVal.extend(exec_result.fetchall())
+        except SQLAlchemyError as ex:
+            raise
+        return retVal
 
     def get_details_for_active_iids(self, detail_name, unique_values=False, limit_to_iids=None):
         distinct = "DISTINCT" if unique_values else ""

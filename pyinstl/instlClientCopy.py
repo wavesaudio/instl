@@ -88,6 +88,7 @@ class InstlClientCopy(InstlClient):
         self.batch_accum += self.platform_helper.progress("Starting copy from $(COPY_SOURCES_ROOT_DIR)")
 
         self.accumulate_unique_actions('pre_copy', var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
+        #self.accumulate_unique_actions_for_active_iids('pre_copy')
         self.batch_accum += self.platform_helper.new_line()
 
         sorted_target_folder_list = sorted(self.all_items_by_target_folder,
@@ -109,6 +110,7 @@ class InstlClientCopy(InstlClient):
 
             # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
             self.accumulate_unique_actions('pre_copy_to_folder', items_in_folder)
+            #self.accumulate_unique_actions_for_active_iids('pre_copy_to_folder', items_in_folder)
 
             batch_accum_len_before = len(self.batch_accum)
             self.batch_accum += self.platform_helper.copy_tool.begin_copy_folder()

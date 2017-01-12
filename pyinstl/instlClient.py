@@ -86,7 +86,6 @@ class InstlClient(InstlInstanceBase):
         self.items_table.commit_changes()
 
     def command_output(self):
-        self.create_variables_assignment(self.batch_accum)
         self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()

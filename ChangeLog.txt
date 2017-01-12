@@ -1,3 +1,13 @@
+11/1/2017 1.3.2.1
+
+
+    user visible changes client:
+    * default for HAVE_INFO_MAP_FOR_COPY is now $(NEW_HAVE_INFO_MAP_PATH), to allow creating copy batch file after creating sync batch file but before running the sync batch file
+
+    programmer visible changes:
+    * create_variables_assignment moved to inside write_batch_file, as they were always done one after another. This will allow for several variables to be written to the batch file which were not written before.
+
+
 11/1/2017 1.3.2.0
 
     programmer visible changes:
