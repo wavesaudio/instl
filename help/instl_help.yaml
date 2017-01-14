@@ -29,8 +29,8 @@ command:
             checksum is a utility command, it is not needed for creating or using instl-based installer.
 
     copy:
-      short: Install files to their destination. (client command)
-      long: |
+        short: Install files to their destination. (client command)
+        long: |
             Usage: instl copy --in instl-config-yaml-file --out copy.sh [--run]
             instl's copy command will create a batch file containing instructions to copy files to their designated locations on disk. Said files were previously downloaded using the sync command. Definition of what to copy to which destination is taken from the instl-config-yaml-file.
             Keep in mind that copy command does not actually copy anything, unless the --run flag is given. You will need to run the produced batch file in order to actually install the files.
@@ -153,8 +153,8 @@ command:
             parallel-run command is used in the batch file created by the sync or synccopy commands.
 
     remove:
-      short: Remove installed files and all their dependencies. (client command)
-      long: |
+        short: Remove installed files and all their dependencies. (client command)
+        long: |
             Usage: instl remove --in instl-config-yaml-file --out remove.sh [--run]
             instl's remove command will create a batch file containing instructions to remove files from their designated locations on disk. Said files were previously copied using the copy command. Definition of what items to remove from which destination is taken from the instl-config-yaml-file. Default remove action for installed item is to erase the files from disk, but other instructions can be given in the instl-config-yaml-file. All items and their dependecies are removed without considering if other items might depend on the removed items.
             Keep in mind that remove command does not actually copy anything, unless the --run flag is given. You will need to run the produced batch file in order to actually remove the files.
@@ -189,8 +189,8 @@ command:
             Keep in mind that svn2stage command does not actually do anything, unless the --run flag is given. You will need to run the produced batch file in order to actually run the svn and copy commands.
 
     sync:
-      short: Download files. (client command)
-      long: |
+        short: Download files. (client command)
+        long: |
             Usage: instl sync --in instl-config-yaml-file --out sync.sh [--run]
             instl's sync command will create a batch file containing instructions to download required files. Said files can be later copied to their final destination using the copy command. Definition of what to sync from what url is taken from the instl-config-yaml-file.
             Keep in mind that sync command does not actually download anything, unless the --run flag is given. You will need to run the produced batch file in order to actually download the files.
@@ -225,8 +225,8 @@ command:
             If all imports are OK, no message is written to stdout (except command timing statistics) and exit code is 0. In case of error a list of missing modules is printed and non-zero exit code is returned.
 
     uninstall:
-      short: Remove installed files considering dependencies. (client command)
-      long: |
+        short: Remove installed files considering dependencies. (client command)
+        long: |
             Usage: instl uninstall --in instl-config-yaml-file --out uninstall.sh [--run]
             instl's uninstall command will create a batch file containing instructions to remove files from their designated locations on disk. Said files were previously copied using the copy command. Definition of what items to remove from which destination is taken from the instl-config-yaml-file. Default uninstall action for installed item is to erase the files from disk, but other instructions can be given in the instl-config-yaml-file. Items and their dependecies are removed only if they are not needed by other items that remain installed.
             Keep in mind that uninstall command does not actually copy anything, unless the --run flag is given. You will need to run the produced batch file in order to actually uninstall the files.
@@ -234,11 +234,12 @@ command:
     unwtar:
         short: Combines split wtar files and uncompresses wtar files. (runtime command)
         long: |
-            Usage: instl unwtar [--in file-or-folder] [--no-artifacts]
-            Files who's extension is in the format '*.wtar.aa' are split files and are combined to a single .wtar file. If combination is successful a '.wtar.aa.done' file is created, this will prevent subsequent runs of unwtar from combining the files again.
-            Files who's extension is in the format '*.wtar' are untared to their directory. If untarring is successful a '.wtar.done' file is created, this will prevent subsequent runs of unwtar from untarring the files again.
+            Usage: instl unwtar [--in file-or-folder] [--out] [--no-artifacts]
+			Files who's extension is in the format '*.wtar.aa' are being read as one without being combined first.
+            Files who's extension is in the format '*.wtar' are untared to their directory.
             If --no-artifacts option is given in all .wtar.??, .wtar and .done files are removed.
-            If --in option is given, unwtar acts on the given file or folder, otherwise it will work on the currect direcotry. Working on direcotries is recursive.
+            If --in option is given, unwtar acts on the given file or folder. Otherwise it will work on the currect direcotry. Working on direcotries is recursive.
+            If --out option is given, unwtar extracts into this folder. Otherwise it will extract into the current direcotry.
             unwtar command is used in the batch file created by the sync or synccopy commands.
 
     up-repo-rev:
@@ -280,12 +281,12 @@ command:
             Usage: instl version
 
     win-shortcut:
-      short: Creates a Windows shortcut. (runtime command)
-      long: |
-        Usage: instl win-shortcut --shortcut in-path-to-shortcut --target in-path-to-target --run-as-admin
-        Creates a windows shortcut in the path specified by in-path-to-shortcut (run-as-admin is optional). in-path-to-shortcut must end with .lnk.
-        in-path-to-target is what the shortcut will lead to. run-as-admin is set up RanAsAdmin flag.
-        The "Starts in" section of the shortcut is set to the parent folder of in-path-to-target.
+        short: Creates a Windows shortcut. (runtime command)
+        long: |
+            Usage: instl win-shortcut --shortcut in-path-to-shortcut --target in-path-to-target --run-as-admin
+            Creates a windows shortcut in the path specified by in-path-to-shortcut (run-as-admin is optional). in-path-to-shortcut must end with .lnk.
+            in-path-to-target is what the shortcut will lead to. run-as-admin is set up RanAsAdmin flag.
+            The "Starts in" section of the shortcut is set to the parent folder of in-path-to-target.
 
     wtar:
         short: Compress files and folder to a .wtar file. (admin command)
