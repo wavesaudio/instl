@@ -297,6 +297,10 @@ class InstlClientCopy(InstlClient):
         dir_item = self.info_map_table.get_item(source_path, what="dir")
         if dir_item is not None:
             source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
+
+            # unwtar will take place directly so no need to copy those files
+            if '*.wtar' not in self.ignore_list: self.ignore_list.append('*.wtar')
+
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path_abs, ".",
                                                                                link_dest=True,
                                                                                ignore=self.ignore_list)
