@@ -202,6 +202,10 @@ class InstlClientCopy(InstlClient):
     def create_copy_instructions_for_file(self, source_path, name_for_progress_message):
         source_files = self.info_map_table.get_required_for_file(source_path)
         first_wtar_item = None
+
+        # unwtar will take place directly so no need to copy those files
+        if '*.wtar' not in self.ignore_list: self.ignore_list.append('*.wtar')
+
         for source_file in source_files:
             source_item_path = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_file.path)
             self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_item_path, ".",
@@ -229,6 +233,10 @@ class InstlClientCopy(InstlClient):
 
     def create_copy_instructions_for_dir_cont(self, source_path, name_for_progress_message):
         source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
+		
+        # unwtar will take place directly so no need to copy those files
+        if '*.wtar' not in self.ignore_list: self.ignore_list.append('*.wtar')
+		
         self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path_abs, ".",
                                                                                     link_dest=True,
                                                                                     ignore=self.ignore_list,
@@ -263,6 +271,10 @@ class InstlClientCopy(InstlClient):
 
     def create_copy_instructions_for_files(self, source_path, name_for_progress_message):
         source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
+		
+        # unwtar will take place directly so no need to copy those files
+        if '*.wtar' not in self.ignore_list: self.ignore_list.append('*.wtar')
+		
         self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path_abs, ".",
                                                                                  link_dest=True,
                                                                                  ignore=self.ignore_list)
