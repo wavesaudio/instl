@@ -158,7 +158,7 @@ class InstlClientCopy(InstlClient):
                         source = var_stack.ResolveVarToList(source_var)
                         source_folder, source_name = os.path.split(source[0])
                         to_unwtar = os.path.join(sync_folder_name, source_name)
-                        self.batch_accum += self.platform_helper.unwtar_something(to_unwtar, no_artifacts=False, where_to_unwtar=source_name)
+                        self.batch_accum += self.platform_helper.unwtar_something(to_unwtar, no_artifacts=False, where_to_unwtar='.')
                     self.batch_accum += var_stack.ResolveVarToList("iid_action_list_pre_copy_item", default=[])
                     self.batch_accum += var_stack.ResolveVarToList("iid_action_list_post_copy_item", default=[])
 
@@ -228,7 +228,7 @@ class InstlClientCopy(InstlClient):
         if first_wtar_item:
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
             self.batch_accum += self.platform_helper.unlock(first_wtar_item.name_without_wtar_extension())
-            self.batch_accum += self.platform_helper.unwtar_something(first_wtar_item.name(), no_artifacts=False, where_to_unwtar=first_wtar_item.name())
+            self.batch_accum += self.platform_helper.unwtar_something(first_wtar_item.name(), no_artifacts=False, where_to_unwtar='.')
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
 
     def create_copy_instructions_for_dir_cont(self, source_path, name_for_progress_message):
@@ -266,7 +266,7 @@ class InstlClientCopy(InstlClient):
         # unwtar at folder-based if needed
         if folder_contains_wtar:
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
-            self.batch_accum += self.platform_helper.unwtar_something(".", no_artifacts=False, where_to_unwtar=".")
+            self.batch_accum += self.platform_helper.unwtar_something(".", no_artifacts=False, where_to_unwtar='.')
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
 
     def create_copy_instructions_for_files(self, source_path, name_for_progress_message):
@@ -302,7 +302,7 @@ class InstlClientCopy(InstlClient):
         # unwtar at folder-based if needed
         if folder_contains_wtar:
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
-            self.batch_accum += self.platform_helper.unwtar_something(".", no_artifacts=False, where_to_unwtar=".")
+            self.batch_accum += self.platform_helper.unwtar_something(".", no_artifacts=False, where_to_unwtar='.')
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
 
     def create_copy_instructions_for_dir(self, source_path, name_for_progress_message):
@@ -342,7 +342,7 @@ class InstlClientCopy(InstlClient):
             if folder_contains_wtar:
                 self.batch_accum += self.platform_helper.progress(
                     "Expand {name_for_progress_message} ...".format(**locals()))
-                self.batch_accum += self.platform_helper.unwtar_something(source_path_name, no_artifacts=False, where_to_unwtar=source_path_name)
+                self.batch_accum += self.platform_helper.unwtar_something(source_path_name, no_artifacts=False, where_to_unwtar='.')
                 self.batch_accum += self.platform_helper.progress(
                     "Expand {name_for_progress_message} done".format(**locals()))
 
