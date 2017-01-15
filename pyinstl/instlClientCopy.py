@@ -204,7 +204,7 @@ class InstlClientCopy(InstlClient):
         first_wtar_item = None
 
         # unwtar will take place directly so no need to copy those files
-        if '*.wtar' not in self.ignore_list: self.ignore_list.append('*.wtar')
+        if '*.wtar*' not in self.ignore_list: self.ignore_list.append('*.wtar*')
 
         for source_file in source_files:
             source_item_path = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_file.path)
@@ -235,7 +235,7 @@ class InstlClientCopy(InstlClient):
         source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
 		
         # unwtar will take place directly so no need to copy those files
-        if '*.wtar' not in self.ignore_list: self.ignore_list.append('*.wtar')
+        if '*.wtar*' not in self.ignore_list: self.ignore_list.append('*.wtar*')
 		
         self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(source_path_abs, ".",
                                                                                     link_dest=True,
@@ -273,7 +273,7 @@ class InstlClientCopy(InstlClient):
         source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
 		
         # unwtar will take place directly so no need to copy those files
-        if '*.wtar' not in self.ignore_list: self.ignore_list.append('*.wtar')
+        if '*.wtar*' not in self.ignore_list: self.ignore_list.append('*.wtar*')
 		
         self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path_abs, ".",
                                                                                  link_dest=True,
@@ -311,7 +311,7 @@ class InstlClientCopy(InstlClient):
             source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
 
             # unwtar will take place directly so no need to copy those files
-            if '*.wtar' not in self.ignore_list: self.ignore_list.append('*.wtar')
+            if '*.wtar*' not in self.ignore_list: self.ignore_list.append('*.wtar*')
 
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path_abs, ".",
                                                                                link_dest=True,
