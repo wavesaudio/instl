@@ -56,7 +56,7 @@ class ConfigVar(object):
         self.__description = str(description)
 
     @property
-    def fixed_value(self):
+    def frozen_value(self):
         return self.__values_are_frozen
 
     @property

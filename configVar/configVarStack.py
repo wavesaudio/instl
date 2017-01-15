@@ -143,5 +143,9 @@ class ConfigVarStack(configVarList.ConfigVarList):
         yield self
         self.pop_scope()
 
+    def freeze_vars_on_first_resolve(self):
+        for var_obj in self._ConfigVarList_objs:
+            var_obj.freeze_vars_on_first_resolve()
+
 # This is the global variable list serving all parts of instl
 var_stack = ConfigVarStack()

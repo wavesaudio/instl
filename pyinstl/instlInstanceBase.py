@@ -393,8 +393,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         var_stack.set_var("TOTAL_ITEMS_FOR_PROGRESS_REPORT").append(
             str(self.platform_helper.num_items_for_progress_report))
 
-        for var_name in var_stack:
-            var_stack.get_configVar_obj(var_name).freeze_values_on_first_resolve = True
+        var_stack.freeze_vars_on_first_resolve()
         self.create_variables_assignment(in_batch_accum)
 
         in_batch_accum.set_current_section('pre')
