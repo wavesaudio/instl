@@ -105,11 +105,19 @@ class InstlMisc(InstlInstanceBase):
     def unwtar_a_file(self, wtar_file_paths, output_folder):
         try:
             wtar_folder_path, _ = os.path.split(wtar_file_paths[0])
+            current_folder_re_valid = re.sub(r'\\', '/', os.getcwd())
+            wtar_folder_path_re_valid = re.sub(r'\\', '/', wtar_folder_path)
+
+            # since we are unwtarring a folder, there might be a deeper folder structure (a tail folder). If so, we need to add it to the extractall dest path
+            if output_folder == '.': # in case of a .wtar that should be extracted in its local folder
+                m = re.search('{}.(.*)'.format(current_folder_re_valid), wtar_folder_path_re_valid)
+            else:
+                m = re.search('.*{}.(.*)'.format(output_folder), wtar_folder_path)
+                
+            tail_folder = m.group(1) if m else ''
+            
             with MultiFileReader("br", wtar_file_paths) as fd:
                 with tarfile.open(fileobj=fd) as tar:
-                    # since we are unwtarring a folder, there might be a deeper folder structure (a tail folder). If so, we need to add it to the extractall dest path
-                    m = re.search('.*{}.(.*)'.format(output_folder), wtar_folder_path)
-                    tail_folder = m.group(1) if m else ''
                     tar.extractall(os.path.join(os.getcwd(), output_folder, tail_folder))
 
             if self.no_artifacts:
