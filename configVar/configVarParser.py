@@ -28,6 +28,7 @@ ParseRetVal = namedtuple('ParseRetVal',
                           'array_index_int'       # variable array index as integer or None
                           ])
 
+
 class VarParseImpContext(object):
     reset_yield_value = ParseRetVal(literal_text="",
                                     variable_str=None,
@@ -64,13 +65,13 @@ class VarParseImpContext(object):
 
     def get_return_tuple(self):
         return ParseRetVal(self.literal_text,
-                         self.variable_str,
-                         self.variable_params_str,
-                         self.variable_name,
-                         self.positional_params,
-                         self.key_word_params,
-                         self.array_index_str,
-                         self.array_index_int)
+                           self.variable_str,
+                           self.variable_params_str,
+                           self.variable_name,
+                           self.positional_params,
+                           self.key_word_params,
+                           self.array_index_str,
+                           self.array_index_int)
 
 
 vars_split_level_1_re = re.compile("\s*,\s*", re.X)
@@ -115,12 +116,12 @@ def var_parse_imp(f_string):
         return next_state
 
     def literal_state(c, cont):
-        next_state = literal_state
         if c == '$':
             cont.variable_str = "$"
             next_state = var_ref_started_state
         else:
             cont.literal_text += c
+            next_state = literal_state
         return next_state, None
 
     def var_name_state(c, cont):
@@ -128,9 +129,6 @@ def var_parse_imp(f_string):
         yield_val = None
         cont.variable_str += c
         if c in cont.variable_name_acceptable_characters:
-            cont.variable_name += c
-        elif c == '(':
-            cont.parenthesis_balance += 1
             cont.variable_name += c
         elif c == ')':
             cont.parenthesis_balance -= 1
@@ -140,6 +138,9 @@ def var_parse_imp(f_string):
                 next_state = literal_state
             else:
                 cont.variable_name += c
+        elif c == '(':
+            cont.parenthesis_balance += 1
+            cont.variable_name += c
         elif c == '<':
             cont.variable_params_str = ""
             next_state = params_state
