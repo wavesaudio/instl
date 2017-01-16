@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-
+import re
 import os
 import stat
 import sys
@@ -107,7 +107,10 @@ class InstlMisc(InstlInstanceBase):
             wtar_folder_path, _ = os.path.split(wtar_file_paths[0])
             with MultiFileReader("br", wtar_file_paths) as fd:
                 with tarfile.open(fileobj=fd) as tar:
-                    tar.extractall(wtar_folder_path)
+                    # since we are unwtarring a folder, there might be a deeper folder structure (a tail folder). If so, we need to add it to the extractall dest path
+                    m = re.search('.*{}.(.*)'.format(output_folder), wtar_folder_path)
+                    tail_folder = m.group(1) if m else ''
+                    tar.extractall(os.path.join(os.getcwd(), output_folder, tail_folder))
 
             if self.no_artifacts:
                 for wtar_file in wtar_file_paths:
