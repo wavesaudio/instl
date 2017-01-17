@@ -22,7 +22,7 @@ class ConfigVar(object):
         Values are kept as strings and are converted to strings upon append/extend.
         ConfigVar Emulates a list container
     """
-    __slots__ = ("__name", "__description", "__values", "resolved_num", "__values_are_frozen", "__freeze_values_on_first_resolve")
+    __slots__ = ("__name", "__description", "__values", "resolved_num", "__non_freeze", "__values_are_frozen", "__freeze_values_on_first_resolve")
     # variables with name ending with these endings will have their value passed through os.path.normpath
     variable_name_endings_to_normpath = ("_PATH", "_DIR", "_DIR_NAME", "_FILE_NAME", "_PATH__", "_DIR__", "_DIR_NAME__", "_FILE_NAME__")
 
@@ -31,6 +31,7 @@ class ConfigVar(object):
         self.__description = utils.unicodify(description)
         self.resolved_num = 0
         self.__values = list()
+        self.__non_freeze = False
         self.__values_are_frozen = False
         self.__freeze_values_on_first_resolve = False
         ConfigVar.extend(self, values) # explicit call so ConstConfigVar can be initialized
@@ -65,7 +66,21 @@ class ConfigVar(object):
 
     @freeze_values_on_first_resolve.setter
     def freeze_values_on_first_resolve(self, new_value):
-        self.__freeze_values_on_first_resolve = new_value
+        if self.__non_freeze:
+            self.__freeze_values_on_first_resolve = False
+        else:
+            self.__freeze_values_on_first_resolve = new_value
+
+    @property
+    def non_freeze(self):
+        return self.__non_freeze
+
+    @non_freeze.setter
+    def non_freeze(self, new_value):
+        self.__non_freeze = new_value
+        if self.__non_freeze:
+            self.__values_are_frozen = False
+            self.__freeze_values_on_first_resolve = False
 
     def __str__(self):
         ln = '\n'
@@ -110,7 +125,7 @@ class ConfigVar(object):
 
     def append(self, value):
         normed_value = self.norm_values(value)[0]
-        if normed_value is not None:
+        if normed_value is not None and not self.__non_freeze:
             if "$(" in normed_value:
                 self.__values_are_frozen = False
             else:
@@ -123,9 +138,9 @@ class ConfigVar(object):
             ConfigVar.append(self, value)
 
     def set_frozen_values(self, *values):
-        self.__values = values
-        self.__values_are_frozen = True
-        #print("set_frozen_values: ", self.name)
+        if not self.__non_freeze:
+            self.__values = values
+            self.__values_are_frozen = True
 
 
 class ConstConfigVar(ConfigVar):

@@ -47,7 +47,10 @@ class ConfigVarYamlReader(aYaml.YamlReader):
                         var_stack.read_environment(item.value)
                 elif self.allow_reading_of_internal_vars or not internal_identifier_re.match(
                         identifier):  # do not read internal state identifiers
-                    var_stack.set_var(identifier, str(contents.start_mark)).extend([item.value for item in contents])
+                    new_var = var_stack.set_var(identifier, str(contents.start_mark))
+                    if contents.tag == '!non_freeze':
+                        new_var.non_freeze = True
+                    new_var.extend([item.value for item in contents])
 
     def read_const_defines(self, a_node, *args, **kwargs):
         """ Read a !define_const sub-doc. All variables will be made const.
