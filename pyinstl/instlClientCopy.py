@@ -291,9 +291,9 @@ class InstlClientCopy(InstlClient):
                         self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_file.name()))
 
             # check if there are .wtar files (complete or partial)
-            self.bytes_to_copy += self.calc_size_of_file_item(source_item)
-            if source_item.is_first_wtar_file():
-                self.batch_accum += self.platform_helper.unlock(source_item.name_without_wtar_extension(), recursive=True)
+            self.bytes_to_copy += self.calc_size_of_file_item(source_file)
+            if source_file.is_first_wtar_file():
+                self.batch_accum += self.platform_helper.unlock(source_file.name_without_wtar_extension(), recursive=True)
                 folder_contains_wtar = True
 
         # unwtar at folder-based if needed
