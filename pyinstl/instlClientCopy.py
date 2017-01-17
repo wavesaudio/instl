@@ -250,8 +250,9 @@ class InstlClientCopy(InstlClient):
         self.batch_accum += self.platform_helper.echo("copy {source_path_abs}".format(**locals()))
         source_items = self.info_map_table.get_items_in_dir(dir_path=source_path, what="any")
 
-        if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
-            for source_item in source_items:
+        folder_contains_wtar = False
+        for source_item in source_items:
+            if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
                 if not any(ignore_item in source_item for ignore_item in self.ignore_additions):
                     source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path)
                     if not source_item.path.endswith(".symlink"):
@@ -260,10 +261,8 @@ class InstlClientCopy(InstlClient):
                     else:   # a hack to prevent chmod for symlink files because .symlink files might have been already handled
                             # by resolve_symlinks in the sync stage by instl version <= 1.0.
                         self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_path_relative_to_current_dir))
-
-        # check if there are .wtar files (complete or partial)
-        folder_contains_wtar = False
-        for source_item in source_items:
+                        
+            # check if there are .wtar files (complete or partial)
             self.bytes_to_copy += self.calc_size_of_file_item(source_item)
             if source_item.is_first_wtar_file():
                 self.batch_accum += self.platform_helper.unlock(source_item.name_without_wtar_extension(), recursive=True)
@@ -288,8 +287,9 @@ class InstlClientCopy(InstlClient):
 
         source_files = self.info_map_table.get_items_in_dir(dir_path=source_path, what="file", levels_deep=1)
 
-        if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
-            for source_file in source_files:
+        folder_contains_wtar = False
+        for source_file in source_files:
+            if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
                 if not any(ignore_item in source_file for ignore_item in self.ignore_additions):
                     if not source_file.path.endswith(".symlink"):
                         self.batch_accum += self.platform_helper.chmod(source_file.chmod_spec(), source_file.name())
@@ -298,9 +298,7 @@ class InstlClientCopy(InstlClient):
                             # by resolve_symlinks in the sync stage by instl version <= 1.0.
                         self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_file.name()))
 
-        # check if there are .wtar files (complete or partial)
-        folder_contains_wtar = False
-        for source_item in source_files:
+            # check if there are .wtar files (complete or partial)
             self.bytes_to_copy += self.calc_size_of_file_item(source_item)
             if source_item.is_first_wtar_file():
                 self.batch_accum += self.platform_helper.unlock(source_item.name_without_wtar_extension(), recursive=True)
@@ -326,8 +324,9 @@ class InstlClientCopy(InstlClient):
             source_items = self.info_map_table.get_items_in_dir(dir_path=source_path, what="any")
 
             source_path_dir, source_path_name = os.path.split(source_path)
-            if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
-                for source_item in source_items:
+            folder_contains_wtar = False
+            for source_item in source_items:
+                if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
                     if not any(ignore_item in source_item for ignore_item in self.ignore_additions):
                         source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path_dir)
                         if not source_item.path.endswith(".symlink"):
@@ -337,13 +336,10 @@ class InstlClientCopy(InstlClient):
                                 # by resolve_symlinks in the sync stage by instl version <= 1.0.
                             self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_path_relative_to_current_dir))
 
-            # check if there are .wtar files (complete or partial)
-            folder_contains_wtar = False
-            for source_item in source_items:
+                # check if there are .wtar files (complete or partial)
                 self.bytes_to_copy += self.calc_size_of_file_item(source_item)
                 if source_item.is_first_wtar_file():
-                    self.batch_accum += self.platform_helper.unlock(source_item.name_without_wtar_extension(),
-                                                                    recursive=True)
+                    self.batch_accum += self.platform_helper.unlock(source_item.name_without_wtar_extension(), recursive=True)
                     folder_contains_wtar = True
 
             # unwtar at folder-based if needed
