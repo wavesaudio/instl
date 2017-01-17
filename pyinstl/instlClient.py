@@ -21,6 +21,7 @@ def NameAndVersionFromQueryResults(q_results_tuple):
     retVal = NameAndVersion(name=name, version=q_results_tuple[2], name_and_version=n_and_v)
     return retVal
 
+
 class InstlClient(InstlInstanceBase):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
@@ -78,6 +79,7 @@ class InstlClient(InstlInstanceBase):
         self.add_default_items()
         self.calculate_install_items()
         self.platform_helper.num_items_for_progress_report = int(var_stack.ResolveVarToStr("LAST_PROGRESS"))
+        self.platform_helper.no_progress_messages = "NO_PROGRESS_MESSAGES" in var_stack
 
         do_command_func = getattr(self, "do_" + self.fixed_command)
         do_command_func()

@@ -184,7 +184,7 @@ class PlatformSpecificHelperBase(object):
         self.num_items_for_progress_report = 0
         self.progress_staccato_period = int(var_stack.ResolveVarToStr("PROGRESS_STACCATO_PERIOD", default="128"))
         self.progress_staccato_count = 0
-        self.no_progress_messages = "NO_PROGRESS_MESSAGES" in var_stack
+        self.no_progress_messages = False
 
     def DefaultCopyToolName(self, target_os):
         if target_os == "Win":
