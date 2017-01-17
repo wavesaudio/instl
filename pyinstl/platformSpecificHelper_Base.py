@@ -269,6 +269,7 @@ class PlatformSpecificHelperBase(object):
 
     def progress(self, msg, num_items=0):
         self.num_items_for_progress_report += num_items + 1
+        return ()
         prog_msg = "Progress: {} of $(TOTAL_ITEMS_FOR_PROGRESS_REPORT); ".format(str(self.num_items_for_progress_report)) + msg
         return self.echo(prog_msg)
 

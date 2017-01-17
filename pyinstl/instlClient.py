@@ -274,6 +274,7 @@ class InstlClient(InstlInstanceBase):
         """ accumulate action_type actions from iid_list, eliminating duplicates"""
         iid_and_action = self.items_table.get_iids_and_details_for_active_iids(action_type, unique_values=True, limit_to_iids=limit_to_iids)
         prev_iid = None
+        iid_and_action.sort(key=lambda tup: tup[0])
         for IID, an_action in iid_and_action:
             if prev_iid != IID:
                 num_unique_actions_for_iid = 0
@@ -282,9 +283,10 @@ class InstlClient(InstlInstanceBase):
                 num_unique_actions_for_iid += 1
             self.batch_accum += an_action
             action_description = self.action_type_to_progress_message[action_type]
-            if num_unique_actions_for_iid > 1:
-                action_description = " ".join((action_description, str(num_unique_actions_for_iid)))
-            self.batch_accum += self.platform_helper.progress("{0} {1}".format(self.iid_to_name_and_version[IID].name_and_version, action_description))
+            #if num_unique_actions_for_iid > 1:
+            #    action_description = " ".join((action_description, str(num_unique_actions_for_iid)))
+            self.batch_accum += self.platform_helper.progress("{0} {1}".format(self.iid_to_name_and_version[IID].name, action_description))
+    # name_and_version
 
     def create_require_file_instructions(self):
         # write the require file as it should look after copy is done

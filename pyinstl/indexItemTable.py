@@ -17,6 +17,8 @@ from .db_alchemy import create_session,\
     IndexRequireTranslate, \
     FoundOnDiskItemRow
 
+import utils
+
 
 class IndexItemsTable(object):
     os_names = {'common': 0, 'Mac': 1, 'Mac32': 2, 'Mac64': 3, 'Win': 4, 'Win32': 5, 'Win64': 6}
@@ -1101,7 +1103,8 @@ class IndexItemsTable(object):
         group_by_values_filter = "GROUP BY IndexItemDetailRow.detail_value" if unique_values else ""
         limit_to_iids_filter = ""
         if limit_to_iids:
-            limit_to_iids_filter = " ".join(('AND IndexItemDetailRow.owner_iid IN ("', '","'.join(limit_to_iids), '")'))
+            quoted_limit_to_iids = [utils.quoteme_single(iid) for iid in limit_to_iids]
+            limit_to_iids_filter = " ".join(('AND IndexItemDetailRow.owner_iid IN (', ",".join(quoted_limit_to_iids), ')'))
 
         query_text = """
             SELECT  IndexItemDetailRow.owner_iid, IndexItemDetailRow.detail_value
@@ -1127,9 +1130,10 @@ class IndexItemsTable(object):
         distinct = "DISTINCT" if unique_values else ""
         limit_to_iids_filter = ""
         if limit_to_iids:
-            limit_to_iids_filter = 'AND IndexItemDetailRow.owner_iid IN ("'
-            limit_to_iids_filter += '","'.join(limit_to_iids)
-            limit_to_iids_filter += '")'
+            limit_to_iids_filter = 'AND IndexItemDetailRow.owner_iid IN ('
+            quoted_limit_to_iids = [utils.quoteme_single(iid) for iid in limit_to_iids_filter]
+            limit_to_iids_filter += ','.join(quoted_limit_to_iids)
+            limit_to_iids_filter += ')'
 
         query_text = """
             SELECT {0} IndexItemDetailRow.detail_value
