@@ -184,6 +184,7 @@ class PlatformSpecificHelperBase(object):
         self.num_items_for_progress_report = 0
         self.progress_staccato_period = int(var_stack.ResolveVarToStr("PROGRESS_STACCATO_PERIOD", default="128"))
         self.progress_staccato_count = 0
+        self.no_progress_messages = False
 
     def DefaultCopyToolName(self, target_os):
         if target_os == "Win":
@@ -269,9 +270,11 @@ class PlatformSpecificHelperBase(object):
 
     def progress(self, msg, num_items=0):
         self.num_items_for_progress_report += num_items + 1
-        return ()
-        prog_msg = "Progress: {} of $(TOTAL_ITEMS_FOR_PROGRESS_REPORT); ".format(str(self.num_items_for_progress_report)) + msg
-        return self.echo(prog_msg)
+        if not self.no_progress_messages:
+            prog_msg = "Progress: {} of $(TOTAL_ITEMS_FOR_PROGRESS_REPORT); ".format(str(self.num_items_for_progress_report)) + msg
+            return self.echo(prog_msg)
+        else:
+            return ()
 
     def progress_staccato(self, msg):
         retVal = ()
