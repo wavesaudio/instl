@@ -87,7 +87,6 @@ class InstlClientCopy(InstlClient):
         self.batch_accum.set_current_section('copy')
         self.batch_accum += self.platform_helper.progress("Starting copy from $(COPY_SOURCES_ROOT_DIR)")
 
-        #self.accumulate_unique_actions('pre_copy', var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
         self.accumulate_unique_actions_for_active_iids('pre_copy')
         self.batch_accum += self.platform_helper.new_line()
 
@@ -109,7 +108,6 @@ class InstlClientCopy(InstlClient):
             self.batch_accum += self.platform_helper.progress("copy to {0} ...".format(target_folder_path))
 
             # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
-            #self.accumulate_unique_actions('pre_copy_to_folder', items_in_folder)
             self.accumulate_unique_actions_for_active_iids('pre_copy_to_folder', items_in_folder)
 
             batch_accum_len_before = len(self.batch_accum)
@@ -139,7 +137,6 @@ class InstlClientCopy(InstlClient):
                     self.batch_accum += self.platform_helper.progress("Resolve symlinks done")
 
             # accumulate post_copy_to_folder actions from all items, eliminating duplicates
-            #self.accumulate_unique_actions('post_copy_to_folder', items_in_folder)
             self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)
             self.batch_accum += self.platform_helper.progress("Copy to {0} done".format(target_folder_path))
             #self.write_copy_to_folder_debug_info(target_folder_path)
@@ -153,7 +150,6 @@ class InstlClientCopy(InstlClient):
             self.batch_accum += self.platform_helper.progress("Actions in {0} ...".format(sync_folder_name))
 
             # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
-            #self.accumulate_unique_actions('pre_copy_to_folder', items_in_folder)
             self.accumulate_unique_actions_for_active_iids('pre_copy_to_folder', items_in_folder)
 
             for IID in sorted(items_in_folder):
@@ -167,7 +163,6 @@ class InstlClientCopy(InstlClient):
                     self.batch_accum += var_stack.ResolveVarToList("iid_action_list_post_copy_item", default=[])
 
             # accumulate post_copy_to_folder actions from all items, eliminating duplicates
-            #self.accumulate_unique_actions('post_copy_to_folder', items_in_folder)
             self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)
 
             self.batch_accum += self.platform_helper.progress("{sync_folder_name}".format(**locals()))
@@ -175,7 +170,6 @@ class InstlClientCopy(InstlClient):
 
         print(self.bytes_to_copy, "bytes to copy")
 
-        #self.accumulate_unique_actions('post_copy', var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
         self.accumulate_unique_actions_for_active_iids('post_copy')
 
         self.batch_accum.set_current_section('post-copy')

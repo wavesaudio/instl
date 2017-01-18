@@ -31,6 +31,7 @@ class InstlClientRemove(InstlClient):
         if not os.path.isfile(have_info_path):
             have_info_path = var_stack.ResolveVarToStr("SITE_HAVE_INFO_MAP_PATH")
         self.read_info_map_from_file(have_info_path)
+        self.calc_iid_to_name_and_version()
 
         self.batch_accum.set_current_section('remove')
         self.batch_accum += self.platform_helper.progress("Starting remove")
@@ -38,15 +39,15 @@ class InstlClientRemove(InstlClient):
                                            key=lambda fold: var_stack.ResolveStrToStr(fold),
                                            reverse=True)
         # print(sorted_target_folder_list)
-        self.accumulate_unique_actions('pre_remove', var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
+        self.accumulate_unique_actions_for_active_iids('pre_remove')
 
         for folder_name in sorted_target_folder_list:
             self.batch_accum += self.platform_helper.progress("Removing from {0}".format(folder_name))
-            var_stack.set_var("__TARGET_DIR__").append(os.path.normpath(folder_name))
+            var_stack.set_var("__TARGET_DIR__", non_freeze=True).append(os.path.normpath(folder_name))
             items_in_folder = self.all_items_by_target_folder[folder_name]
             self.batch_accum += self.platform_helper.new_line()
 
-            self.accumulate_unique_actions('pre_remove_from_folder', items_in_folder)
+            self.accumulate_unique_actions_for_active_iids('pre_remove_from_folder', items_in_folder)
 
             for IID in items_in_folder:
                 with self.install_definitions_index[IID].push_var_stack_scope() as installi:
@@ -60,10 +61,11 @@ class InstlClientRemove(InstlClient):
                         self.batch_accum += self.platform_helper.progress("Remove {source[0]} done".format(**locals()))
                     self.batch_accum += self.platform_helper.progress("Remove {installi.name} done".format(**locals()))
 
-            self.accumulate_unique_actions('post_remove_from_folder', items_in_folder)
+            self.accumulate_unique_actions_for_active_iids('post_remove_from_folder', items_in_folder)
+
             self.batch_accum += self.platform_helper.progress("Remove from {0} done".format(folder_name))
 
-        self.accumulate_unique_actions('post_remove', var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
+        self.accumulate_unique_actions_for_active_iids('post_remove')
 
     # create_remove_instructions_for_source:
     # Create instructions to remove a specific source from a specific target folder.

@@ -98,8 +98,9 @@ class ConfigVarList(object):
         retVal = self._ConfigVar_objs.setdefault(var_name, configVarOne.ConfigVar(var_name))
         return retVal
 
-    def set_var(self, var_name, description=None):
+    def set_var(self, var_name, description=None, non_freeze=False):
         retVal = self.get_configVar_obj(var_name)
+        retVal.non_freeze = non_freeze
         retVal.clear_values()
         if description is not None:
             retVal.description = description

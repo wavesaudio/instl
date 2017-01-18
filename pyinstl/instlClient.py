@@ -226,8 +226,10 @@ class InstlClient(InstlInstanceBase):
             all_items_from_table_except_ignored = list(set(all_items_from_table) - set(ignored_iids))
             var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(all_items_from_table_except_ignored))
 
-
         self.sort_all_items_by_target_folder()
+        self.calc_iid_to_name_and_version()
+
+    def calc_iid_to_name_and_version(self):
         iids_and_names_from_db = self.items_table.name_and_version_report_for_active_iids()
         for from_db in iids_and_names_from_db:
             self.iid_to_name_and_version[from_db[0]] = NameAndVersionFromQueryResults(from_db)
