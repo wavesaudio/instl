@@ -718,6 +718,7 @@ class InstlAdmin(InstlInstanceBase):
             folder_to_check = folders_to_check.pop()
             dir_items = os.listdir(folder_to_check)
             items_to_tar = list()
+            items_to_delete = list()
             for dir_item in sorted(dir_items):
                 dir_item_full_path = os.path.join(folder_to_check, dir_item)
                 if not os.path.islink(dir_item_full_path):
@@ -726,32 +727,47 @@ class InstlAdmin(InstlInstanceBase):
                         items_to_tar.append(dir_item)
                     else:
                         if not already_tarred:
+                            # remove previous wtarred versions of dir_item, if there are any
                             for delete_file in dir_items:
                                 if fnmatch.fnmatch(delete_file, dir_item + '.wtar*'):
-                                    self.batch_accum += self.platform_helper.rmfile(delete_file)
+                                    items_to_delete.append(delete_file)
                         if os.path.isdir(dir_item_full_path):
                             folders_to_check.append(dir_item_full_path)
-            if items_to_tar:
+
+            if items_to_tar or items_to_delete:
+                self.batch_accum += self.platform_helper.progress("begin folder {}".format(folder_to_check))
                 self.batch_accum += self.platform_helper.cd(folder_to_check)
+                for delete_file in items_to_delete:
+                    self.batch_accum += self.platform_helper.rmfile(delete_file)
+                    self.batch_accum += self.platform_helper.progress("removed file {}".format(delete_file))
                 for item_to_tar in items_to_tar:
                     item_to_tar_full_path = os.path.join(folder_to_check, item_to_tar)
                     if item_to_tar.endswith(".wtar"):
                         for delete_file in dir_items:
                             if fnmatch.fnmatch(delete_file, item_to_tar + '.??'):
                                 self.batch_accum += self.platform_helper.rmfile(delete_file)
+                                self.batch_accum += self.platform_helper.progress("removed file {} {}".format(delete_file))
                         self.batch_accum += self.platform_helper.split(item_to_tar)
+                        self.batch_accum += self.platform_helper.progress("split file {}".format(item_to_tar))
                     else:
                         for delete_file in dir_items:
                             if fnmatch.fnmatch(delete_file, item_to_tar + '.wtar*'):
                                 self.batch_accum += self.platform_helper.rmfile(delete_file)
+                                self.batch_accum += self.platform_helper.progress("removed file {}".format(delete_file))
                         self.batch_accum += self.platform_helper.tar(item_to_tar)
+                        self.batch_accum += self.platform_helper.progress("tar file {}".format(item_to_tar))
                         self.batch_accum += self.platform_helper.split(item_to_tar + ".wtar")
+                        self.batch_accum += self.platform_helper.progress("split file {}".format(item_to_tar + ".wtar"))
                     if os.path.isdir(item_to_tar_full_path):
                         self.batch_accum += self.platform_helper.rmdir(item_to_tar, recursive=True)
+                        self.batch_accum += self.platform_helper.progress("removed dir {}".format(item_to_tar))
                     elif os.path.isfile(item_to_tar_full_path):
                         self.batch_accum += self.platform_helper.rmfile(item_to_tar)
+                        self.batch_accum += self.platform_helper.progress("removed file {}".format(item_to_tar))
                     self.batch_accum += self.platform_helper.progress(item_to_tar_full_path)
                     self.batch_accum += self.platform_helper.new_line()
+                self.batch_accum += self.platform_helper.progress("end folder {}".format(folder_to_check))
+                self.batch_accum += self.platform_helper.new_line()
 
         self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
