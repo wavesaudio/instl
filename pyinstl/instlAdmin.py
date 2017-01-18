@@ -672,8 +672,10 @@ class InstlAdmin(InstlInstanceBase):
 
     def should_wtar(self, dir_item):
         retVal = False
+        already_tarred = False
         try:
             if self.already_wtarred_regex.search(dir_item):
+                already_tarred = True
                 raise Exception
             if os.path.isdir(dir_item):
                 if self.compiled_folder_wtar_regex.search(dir_item):
@@ -691,7 +693,7 @@ class InstlAdmin(InstlInstanceBase):
                         retVal = True
         except Exception:
             pass
-        return retVal
+        return retVal, already_tarred
 
     def do_wtar(self):
         self.batch_accum.set_current_section('admin')
@@ -719,10 +721,14 @@ class InstlAdmin(InstlInstanceBase):
             for dir_item in sorted(dir_items):
                 dir_item_full_path = os.path.join(folder_to_check, dir_item)
                 if not os.path.islink(dir_item_full_path):
-                    to_tar = self.should_wtar(dir_item_full_path)
+                    to_tar, already_tarred = self.should_wtar(dir_item_full_path)
                     if to_tar:
                         items_to_tar.append(dir_item)
                     else:
+                        if not already_tarred:
+                            for delete_file in dir_items:
+                                if fnmatch.fnmatch(delete_file, dir_item + '.wtar*'):
+                                    self.batch_accum += self.platform_helper.rmfile(delete_file)
                         if os.path.isdir(dir_item_full_path):
                             folders_to_check.append(dir_item_full_path)
             if items_to_tar:

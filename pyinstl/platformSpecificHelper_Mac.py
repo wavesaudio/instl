@@ -219,7 +219,10 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         return check_command
 
     def tar(self, to_tar_name):
-        wtar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "-c", "--use-compress-program bzip2", "-f", utils.quoteme_double(to_tar_name+'.wtar'), utils.quoteme_double(to_tar_name))
+        if ".zip" in to_tar_name:
+            wtar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "-c", "-f", utils.quoteme_double(to_tar_name+'.wtar'), utils.quoteme_double(to_tar_name))
+        else:
+            wtar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "-c", "--use-compress-program bzip2", "-f", utils.quoteme_double(to_tar_name + '.wtar'), utils.quoteme_double(to_tar_name))
         wtar_command = " ".join(wtar_command_parts)
         return wtar_command
 
