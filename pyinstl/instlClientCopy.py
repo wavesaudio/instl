@@ -212,13 +212,16 @@ class InstlClientCopy(InstlClient):
 
         for source_file in source_files:
             source_item_path = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_file.path)
-            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_item_path, ".",
-                                                                                link_dest=True,
-                                                                                ignore=self.ignore_list)
-            self.batch_accum += self.platform_helper.echo("copy {source_item_path}".format(**locals()))
+            if not any(ignore_item in source_file.name() for ignore_item in self.ignore_additions):
+                
+                # ignore_list is passed for the sake of completeness but is not being used further down the road in copy_file_to_dir
+                self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_item_path, ".",
+                                                                                    link_dest=True,
+                                                                                    ignore=self.ignore_list) 
+                                                                                    
+                self.batch_accum += self.platform_helper.echo("copy {source_item_path}".format(**locals()))
 
-            if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
-                if not any(ignore_item in source_file for ignore_item in self.ignore_additions):
+                if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
                     if not source_file.path.endswith(".symlink"):
                         self.batch_accum += self.platform_helper.chmod(source_file.chmod_spec(), source_file.name())
                         self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_file.chmod_spec(), source_file.name()))
@@ -226,7 +229,8 @@ class InstlClientCopy(InstlClient):
                             # by resolve_symlinks in the sync stage by instl version <= 1.0.
                         self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_file.name()))
 
-            self.bytes_to_copy += self.calc_size_of_file_item(source_file)
+                self.bytes_to_copy += self.calc_size_of_file_item(source_file)
+            
             if source_file.is_first_wtar_file():
                 first_wtar_item = source_file
 
@@ -249,7 +253,7 @@ class InstlClientCopy(InstlClient):
         folder_contains_wtar = False
         for source_item in source_items:
             if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
-                if not any(ignore_item in source_item for ignore_item in self.ignore_additions):
+                if not any(ignore_item in source_item.name() for ignore_item in self.ignore_additions):
                     source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path)
                     if not source_item.path.endswith(".symlink"):
                         self.batch_accum += self.platform_helper.chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)
@@ -282,7 +286,7 @@ class InstlClientCopy(InstlClient):
         folder_contains_wtar = False
         for source_file in source_files:
             if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
-                if not any(ignore_item in source_file for ignore_item in self.ignore_additions):
+                if not any(ignore_item in source_file.name() for ignore_item in self.ignore_additions):
                     if not source_file.path.endswith(".symlink"):
                         self.batch_accum += self.platform_helper.chmod(source_file.chmod_spec(), source_file.name())
                         self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_file.chmod_spec(), source_file.name()))
@@ -315,7 +319,7 @@ class InstlClientCopy(InstlClient):
             folder_contains_wtar = False
             for source_item in source_items:
                 if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
-                    if not any(ignore_item in source_item for ignore_item in self.ignore_additions):
+                    if not any(ignore_item in source_item.name() for ignore_item in self.ignore_additions):
                         source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path_dir)
                         if not source_item.path.endswith(".symlink"):
                             self.batch_accum += self.platform_helper.chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)

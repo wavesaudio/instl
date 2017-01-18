@@ -74,11 +74,11 @@ class InstlMisc(InstlInstanceBase):
         where_to_unwtar = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__") if "__MAIN_OUT_FILE__" in var_stack else "."
 
         if os.path.isfile(what_to_work_on):
-            if what_to_work_on.endswith(".wtar.aa"):
+            if what_to_work_on.endswith(".wtar.aa"): # this case apparently is no longer relevant
                 what_to_work_on = self.find_split_files(what_to_work_on)
                 self.unwtar_a_file(what_to_work_on, where_to_unwtar)
             elif what_to_work_on.endswith(".wtar"):
-                self.unwtar_a_file([what_to_work_on], where_to_unwtar)
+                self.unwtar_a_file([what_to_work_on], '.')
         elif os.path.isdir(what_to_work_on):
             for root, dirs, files in os.walk(what_to_work_on, followlinks=False):
                 # a hack to prevent unwtarring of the sync folder. Copy command might copy something
@@ -98,27 +98,21 @@ class InstlMisc(InstlInstanceBase):
                         files_to_unwtar.append([a_file_path])
 
                 for wtar_file_paths in files_to_unwtar:
-                    self.unwtar_a_file(wtar_file_paths, where_to_unwtar)
+                    # since we are unwtarring a folder, there might be a deeper folder structure (a tail folder). If so, we need to add it to the extractall dest path
+                    m = re.search('.*{}.(.*)'.format(where_to_unwtar), wtar_file_paths[0])
+                    tail_full = m.group(1) if m else ''
+                    tail_folder, _ = os.path.split(tail_full)
+                    destination_folder = os.path.join(os.getcwd(), where_to_unwtar, tail_folder)
+                    self.unwtar_a_file(wtar_file_paths, destination_folder)
         else:
             raise FileNotFoundError(what_to_work_on)
 
-    def unwtar_a_file(self, wtar_file_paths, output_folder):
+    def unwtar_a_file(self, wtar_file_paths, destination_folder):
         try:
             wtar_folder_path, _ = os.path.split(wtar_file_paths[0])
-            current_folder_re_valid = re.sub(r'\\', '/', os.getcwd())
-            wtar_folder_path_re_valid = re.sub(r'\\', '/', wtar_folder_path)
-
-            # since we are unwtarring a folder, there might be a deeper folder structure (a tail folder). If so, we need to add it to the extractall dest path
-            if output_folder == '.': # in case of a .wtar that should be extracted in its local folder
-                m = re.search('{}.(.*)'.format(current_folder_re_valid), wtar_folder_path_re_valid)
-            else:
-                m = re.search('.*{}.(.*)'.format(output_folder), wtar_folder_path)
-                
-            tail_folder = m.group(1) if m else ''
-            
             with MultiFileReader("br", wtar_file_paths) as fd:
                 with tarfile.open(fileobj=fd) as tar:
-                    tar.extractall(os.path.join(os.getcwd(), output_folder, tail_folder))
+                    tar.extractall(destination_folder)
 
             if self.no_artifacts:
                 for wtar_file in wtar_file_paths:
