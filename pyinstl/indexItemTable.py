@@ -17,6 +17,8 @@ from .db_alchemy import create_session,\
     IndexRequireTranslate, \
     FoundOnDiskItemRow
 
+import utils
+
 
 class IndexItemsTable(object):
     os_names = {'common': 0, 'Mac': 1, 'Mac32': 2, 'Mac64': 3, 'Win': 4, 'Win32': 5, 'Win64': 6}
@@ -61,7 +63,8 @@ class IndexItemsTable(object):
         self.session.add_all(self.os_names_db_objs)
 
     def add_triggers(self):
-        # when reading "require_by" detail, add to IndexRequireTranslate table
+        # item found on disk that has a guid. This trigger will find the IID
+        # for that guid in IndexItemDetailRow and update the FoundOnDiskItemRow row
         stmt = """
             CREATE TRIGGER IF NOT EXISTS add_iid_to_FoundOnDiskItemRow_guid_not_null
                 AFTER INSERT ON FoundOnDiskItemRow
@@ -78,6 +81,8 @@ class IndexItemsTable(object):
         """
         self.session.execute(stmt)
 
+        # item found on disk that has no guid. This trigger will find the IID
+        # for that  in IndexItemDetailRow by comparing the file's name and update the FoundOnDiskItemRow row
         stmt = """
             CREATE TRIGGER IF NOT EXISTS add_iid_to_FoundOnDiskItemRow_guid_is_null
                 AFTER INSERT ON FoundOnDiskItemRow
@@ -94,6 +99,7 @@ class IndexItemsTable(object):
         """
         self.session.execute(stmt)
 
+        # when reading "require_by" detail, add to IndexRequireTranslate table
         stmt = """
             CREATE TRIGGER IF NOT EXISTS translate_require_by_trigger
                 AFTER INSERT ON IndexItemDetailRow
@@ -232,6 +238,7 @@ class IndexItemsTable(object):
         self.session.execute(stmt)
 
     def add_views(self):
+        # view of items from require.yaml that do not have a require_version field
         stmt = text("""
         CREATE VIEW "require_items_without_require_version_view" AS
         SELECT main_item_t.iid, found_t.version AS found_version, yes_index_version_t.detail_value AS index_version, min(detail_t.generation)
@@ -259,6 +266,7 @@ class IndexItemsTable(object):
           """)
         self.session.execute(stmt)
 
+        # view of items from require.yaml that do not have a require_guid field
         stmt = text("""
        CREATE VIEW "require_items_without_require_guid_view" AS
         SELECT main_item_t.iid, found_t.guid AS found_guid, yes_index_guid_t.detail_value AS index_guid, min(detail_t.generation)
@@ -286,6 +294,36 @@ class IndexItemsTable(object):
          """)
         self.session.execute(stmt)
 
+        # the final report-versions view
+        stmt = text("""
+        CREATE VIEW "report_versions_view" AS
+            SELECT
+                  coalesce(remote.owner_iid, "_") AS owner_iid,
+                  coalesce(item_guid.detail_value, "_") AS guid,
+                  coalesce(item_name.detail_value, "_") AS name,
+                  coalesce(require_version.detail_value, "_") AS 'require ver',
+                  coalesce(remote.detail_value, "_") AS 'remote ver',
+                  min(remote.generation)
+            FROM IndexItemDetailRow AS remote
+
+            LEFT  JOIN IndexItemDetailRow as require_version
+                ON  require_version.detail_name = 'require_version'
+                AND require_version.owner_iid=remote.owner_iid
+                AND require_version.active=1
+            LEFT JOIN IndexItemDetailRow as item_guid
+                ON  item_guid.detail_name = 'guid'
+                AND item_guid.owner_iid=remote.owner_iid
+                AND item_guid.active=1
+            LEFT JOIN IndexItemDetailRow as item_name
+                ON  item_name.detail_name = 'name'
+                AND item_name.owner_iid=remote.owner_iid
+                AND item_name.active=1
+            WHERE
+                remote.detail_name = 'version'
+            GROUP BY remote.owner_iid
+            """)
+        self.session.execute(stmt)
+
     def drop_views(self):
         stmt = text("""
             DROP VIEW IF EXISTS "require_items_without_require_version_view"
@@ -293,6 +331,10 @@ class IndexItemsTable(object):
         self.session.execute(stmt)
         stmt = text("""
             DROP VIEW IF EXISTS "require_items_without_require_guid_view"
+            """)
+        self.session.execute(stmt)
+        stmt = text("""
+            DROP VIEW IF EXISTS "report_versions_view"
             """)
         self.session.execute(stmt)
 
@@ -752,28 +794,8 @@ class IndexItemsTable(object):
     def versions_report(self):
         retVal = list()
         query_text = """
-            SELECT
-                  coalesce(remote.owner_iid, "_") AS owner_iid,
-                  coalesce(item_guid.detail_value, "_") AS guid,
-                  coalesce(item_name.detail_value, "_") AS name,
-                  coalesce(require_version.detail_value, "_") AS 'require ver',
-                  coalesce(remote.detail_value, "_") AS 'remote ver',
-                  min(remote.generation)
-            FROM IndexItemDetailRow AS remote
-
-            LEFT  JOIN IndexItemDetailRow as require_version
-                ON  require_version.detail_name = 'require_version'
-                AND require_version.owner_iid=remote.owner_iid
-            LEFT JOIN IndexItemDetailRow as item_guid
-                ON  item_guid.detail_name = 'guid'
-                AND item_guid.owner_iid=remote.owner_iid
-            LEFT JOIN IndexItemDetailRow as item_name
-                ON  item_name.detail_name = 'name'
-                AND item_name.owner_iid=remote.owner_iid
-                AND item_guid.active=1
-            WHERE
-                remote.detail_name = 'version'
-            GROUP BY remote.owner_iid
+           SELECT *
+          FROM 'report_versions_view'
         """
 
         try:
@@ -1077,10 +1099,12 @@ class IndexItemsTable(object):
         return fetched_results
 
     def get_iids_and_details_for_active_iids(self, detail_name, unique_values=False, limit_to_iids=None):
+        retVal = list()
         group_by_values_filter = "GROUP BY IndexItemDetailRow.detail_value" if unique_values else ""
         limit_to_iids_filter = ""
         if limit_to_iids:
-            limit_to_iids_filter = " ".join(('AND IndexItemDetailRow.owner_iid IN ("', '","'.join(limit_to_iids), '")'))
+            quoted_limit_to_iids = [utils.quoteme_single(iid) for iid in limit_to_iids]
+            limit_to_iids_filter = " ".join(('AND IndexItemDetailRow.owner_iid IN (', ",".join(quoted_limit_to_iids), ')'))
 
         query_text = """
             SELECT  IndexItemDetailRow.owner_iid, IndexItemDetailRow.detail_value
@@ -1094,16 +1118,22 @@ class IndexItemsTable(object):
             {group_by_values_filter}
             ORDER BY IndexItemDetailRow._id
             """.format(**locals())
-        fetched_results = self.session.execute(query_text).fetchall()
-        return fetched_results
+        try:
+            exec_result = self.session.execute(query_text)
+            if exec_result.returns_rows:
+                retVal.extend(exec_result.fetchall())
+        except SQLAlchemyError as ex:
+            raise
+        return retVal
 
     def get_details_for_active_iids(self, detail_name, unique_values=False, limit_to_iids=None):
         distinct = "DISTINCT" if unique_values else ""
         limit_to_iids_filter = ""
         if limit_to_iids:
-            limit_to_iids_filter = 'AND IndexItemDetailRow.owner_iid IN ("'
-            limit_to_iids_filter += '","'.join(limit_to_iids)
-            limit_to_iids_filter += '")'
+            limit_to_iids_filter = 'AND IndexItemDetailRow.owner_iid IN ('
+            quoted_limit_to_iids = [utils.quoteme_single(iid) for iid in limit_to_iids_filter]
+            limit_to_iids_filter += ','.join(quoted_limit_to_iids)
+            limit_to_iids_filter += ')'
 
         query_text = """
             SELECT {0} IndexItemDetailRow.detail_value
