@@ -21,8 +21,8 @@ fields_relevant_to_str = ('path', 'flags', 'revision', 'checksum', 'size', 'url'
 
 class SVNRow(get_declarative_base()):
     __tablename__ = 'svnitem'
-    _id = Column(Integer, primary_key=True, autoincrement=True)
-    path = Column(String)
+    _id = Column(Integer, primary_key=True)
+    path = Column(String, index=True)
     parent = Column(String)  # todo: this should be in another table
     level = Column(Integer)
     flags = Column(String)
