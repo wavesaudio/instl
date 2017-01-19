@@ -15,6 +15,7 @@ from sqlalchemy import func
 from .svnRow import SVNRow
 from pyinstl.db_alchemy import create_session
 import utils
+from configVar import var_stack
 
 comment_line_re = re.compile(r"""
             ^
@@ -719,3 +720,34 @@ class SVNTable(object):
                                 .filter(SVNRow.path.like(source_path+"%"))\
                                 .scalar()
         return max_revision
+
+    def mark_required_files_for_active_items(self):
+        source_prefix = var_stack.ResolveVarToStr('SOURCE_PREFIX')
+        query_text = """
+        UPDATE svnitem
+        SET required=1
+        WHERE svnitem._id IN
+        (
+            SELECT svnitem._id
+            FROM svnitem
+            JOIN IndexItemDetailRow as install_sources_t
+                ON install_sources_t.detail_name='install_sources'
+                AND install_sources_t.active = 1
+            JOIN IndexItemRow as active_items_t
+                ON install_sources_t.owner_iid=active_items_t.iid
+                AND active_items_t.status=1
+            WHERE fileFlag=1
+            AND path LIKE
+                CASE substr(install_sources_t.detail_value,1,1)
+                WHEN "/" THEN -- absolute path
+                    substr(install_sources_t.detail_value, 2) || "%"
+                ELSE          -- relative to $(SOURCE_PREFIX): Mac or Win
+                    "{source_prefix}/" || install_sources_t.detail_value || "%"
+                END
+        )
+        """.format(source_prefix=source_prefix)
+        import time
+        before = time.time()
+        exec_result = self.session.execute(query_text)
+        after = time.time()
+        print("mark_required_files_for_active_items", exec_result.rowcount, after-before)
