@@ -340,7 +340,14 @@ class InstlClient(InstlInstanceBase):
         return retVal
 
     def should_check_for_binary_versions(self):
-        retVal = 'CHECK_BINARIES_VERSIONS' in var_stack \
+        """ checking versions inside binaries is heavy task.
+            should_check_for_binary_versions returns if it's needed.
+            True value will be returned if check was explicitly requested
+            or if update of installed items was requested
+        """
+        explicitly_asked_for_binaries_check = 'CHECK_BINARIES_VERSIONS' in var_stack
+        update_was_requested = "__UPDATE_INSTALLED_ITEMS__" in var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS", [])
+        retVal = explicitly_asked_for_binaries_check or update_was_requested
         return retVal
 
     def get_binaries_versions(self):
