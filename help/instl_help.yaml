@@ -235,7 +235,7 @@ command:
         short: Combines split wtar files and uncompresses wtar files. (runtime command)
         long: |
             Usage: instl unwtar [--in file-or-folder] [--out] [--no-artifacts]
-			Files who's extension is in the format '*.wtar.aa' are being read as one without being combined first.
+            Files who's extension is in the format '*.wtar.aa' are being read as one without being combined first.
             Files who's extension is in the format '*.wtar' are untared to their directory.
             If --no-artifacts option is given in all .wtar.??, .wtar and .done files are removed.
             If --in option is given, unwtar acts on the given file or folder. Otherwise it will work on the currect direcotry. Working on direcotries is recursive.

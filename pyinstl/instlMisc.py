@@ -70,8 +70,8 @@ class InstlMisc(InstlInstanceBase):
 
     def do_unwtar(self):
         self.no_artifacts = "__NO_WTAR_ARTIFACTS__" in var_stack
-        what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__") if "__MAIN_INPUT_FILE__" in var_stack else "."
-        where_to_unwtar = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__") if "__MAIN_OUT_FILE__" in var_stack else "."
+        what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__", default=".")
+        where_to_unwtar = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__", default=None)
 
         if os.path.isfile(what_to_work_on):
             if what_to_work_on.endswith(".wtar.aa"): # this case apparently is no longer relevant
@@ -104,12 +104,14 @@ class InstlMisc(InstlInstanceBase):
                     tail_folder, _ = os.path.split(tail_full)
                     destination_folder = os.path.join(os.getcwd(), where_to_unwtar, tail_folder)
                     self.unwtar_a_file(wtar_file_paths, destination_folder)
+                    
         else:
             raise FileNotFoundError(what_to_work_on)
 
-    def unwtar_a_file(self, wtar_file_paths, destination_folder):
+    def unwtar_a_file(self, wtar_file_paths, destination_folder=None):
         try:
             wtar_folder_path, _ = os.path.split(wtar_file_paths[0])
+            if destination_folder == None: destination_folder = wtar_folder_path
             with MultiFileReader("br", wtar_file_paths) as fd:
                 with tarfile.open(fileobj=fd) as tar:
                     tar.extractall(destination_folder)
