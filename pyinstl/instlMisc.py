@@ -78,7 +78,7 @@ class InstlMisc(InstlInstanceBase):
                 what_to_work_on = self.find_split_files(what_to_work_on)
                 self.unwtar_a_file(what_to_work_on, where_to_unwtar)
             elif what_to_work_on.endswith(".wtar"):
-                self.unwtar_a_file([what_to_work_on], '.')
+                self.unwtar_a_file([what_to_work_on], where_to_unwtar)
         elif os.path.isdir(what_to_work_on):
             for root, dirs, files in os.walk(what_to_work_on, followlinks=False):
                 # a hack to prevent unwtarring of the sync folder. Copy command might copy something
@@ -102,8 +102,9 @@ class InstlMisc(InstlInstanceBase):
 
     def unwtar_a_file(self, wtar_file_paths, destination_folder=None):
         try:
-            wtar_folder_path, _ = os.path.split(wtar_file_paths[0])
-            if destination_folder == None: destination_folder = wtar_folder_path
+            if destination_folder is None:
+                wtar_folder_path, _ = os.path.split(wtar_file_paths[0])
+                destination_folder = wtar_folder_path
             with MultiFileReader("br", wtar_file_paths) as fd:
                 with tarfile.open(fileobj=fd) as tar:
                     tar.extractall(destination_folder)
@@ -114,7 +115,7 @@ class InstlMisc(InstlInstanceBase):
             # self.dynamic_progress("Expanding {wtar_file_paths}".format(**locals()))
 
         except OSError as e:
-            print("Invalid stream on split file with {}".format(wtar_folder_path))
+            print("Invalid stream on split file with {}".format(wtar_file_paths[0]))
             raise e
 
         except tarfile.TarError:
