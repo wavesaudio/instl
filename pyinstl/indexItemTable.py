@@ -324,6 +324,34 @@ class IndexItemsTable(object):
             """)
         self.session.execute(stmt)
 
+        stmt = text("""
+        CREATE VIEW "active_sources_and_sync_folders_view" AS
+        SELECT install_sources_t.owner_iid,install_sources_t.tag,
+            install_sources_t.detail_value AS install_sources,
+            coalesce(existing_sync_folders_t.detail_value,
+                    CASE substr(install_sources_t.detail_value,1,1)
+                    WHEN "/" THEN -- absolute path
+                        substr(install_sources_t.detail_value, 2)
+                    WHEN "$" THEN -- relative to some variable
+                        install_sources_t.detail_value
+                    ELSE          -- relative to $(SOURCE_PREFIX): Mac or Win
+                        "$(SOURCE_PREFIX)/" || install_sources_t.detail_value
+                    END )
+                     AS sync_folders
+        FROM IndexItemDetailRow as install_sources_t
+        JOIN IndexItemRow
+            ON IndexItemRow.iid=install_sources_t.owner_iid
+            AND IndexItemRow.status=1
+        LEFT JOIN IndexItemDetailRow AS existing_sync_folders_t
+            ON existing_sync_folders_t.detail_name='sync_folders'
+            AND existing_sync_folders_t.owner_iid=install_sources_t.owner_iid
+            AND existing_sync_folders_t.active=1
+        WHERE
+        install_sources_t.detail_name='install_sources'
+        AND install_sources_t.active=1
+        """)
+        self.session.execute(stmt)
+
     def drop_views(self):
         stmt = text("""
             DROP VIEW IF EXISTS "require_items_without_require_version_view"
@@ -337,6 +365,11 @@ class IndexItemsTable(object):
             DROP VIEW IF EXISTS "report_versions_view"
             """)
         self.session.execute(stmt)
+        stmt = text("""
+            DROP VIEW IF EXISTS "active_sources_and_sync_folders_view"
+            """)
+        self.session.execute(stmt)
+
 
     def begin_get_for_all_oses(self):
         """ adds all known os names to the list of os that will influence all get functions
@@ -1236,3 +1269,27 @@ class IndexItemsTable(object):
         except SQLAlchemyError as ex:
             print(ex)
             raise
+
+    def get_sync_folders_and_sources_for_active_iids(self):
+        retVal = list()
+        query_text = """
+            SELECT sync_folders_t.owner_iid AS iid,
+                    sync_folders_t.detail_value AS sync_folder,
+                    install_sources_t.detail_value AS source,
+                    install_sources_t.tag AS tag
+                FROM IndexItemDetailRow AS sync_folders_t
+                    JOIN IndexItemDetailRow AS install_sources_t
+                        ON install_sources_t.owner_iid = sync_folders_t.owner_iid
+                        AND install_sources_t.active=1
+                        AND install_sources_t.detail_name='install_sources'
+            WHERE sync_folders_t.detail_name='sync_folders'
+                AND sync_folders_t.active=1
+        """
+        try:
+            exec_result = self.session.execute(query_text)
+            if exec_result.returns_rows:
+                # returns [(iid, sync_folder, source, source_tag),...]
+                retVal.extend(exec_result.fetchall())
+        except SQLAlchemyError as ex:
+            raise
+        return retVal

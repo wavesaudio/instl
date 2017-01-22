@@ -164,7 +164,9 @@ class SVNTable(object):
             item_details['level'] = len(item_details['path'].split("/"))
             item_details['revision'] = int(match.group('revision'))
             item_details['flags'] = match.group('flags')
-            item_details['fileFlag'] = 'f' in item_details['flags']
+            if 'f' in item_details['flags']:
+                item_details['fileFlag'] = True
+                item_details['download_path'] = "/".join(("$(LOCAL_REPO_SYNC_DIR)", item_details['path']))
             item_details['dirFlag'] = 'd' in item_details['flags']
             item_details['checksum'] = match.group('checksum')
             item_details['url'] = match.group('url')
@@ -229,6 +231,7 @@ class SVNTable(object):
                     retVal['flags'] = "f"
                     retVal['fileFlag'] = True
                     retVal['dirFlag'] = False
+                    retVal['download_path'] = "/".join(("$(LOCAL_REPO_SYNC_DIR)", retVal['path']))
                 elif a_record["Node Kind"] == "directory":
                     retVal['flags'] = "d"
                     retVal['fileFlag'] = False
@@ -646,11 +649,11 @@ class SVNTable(object):
             self.session.execute(update_statement)
             slice_begin += chunk_size
 
-    def mark_need_download(self, local_sync_dir):
+    def mark_need_download(self):
         ancestors = list()
         required_file_items = self.get_required_items(what="file")
         for file_item in required_file_items:
-            local_path = os.path.join(local_sync_dir, file_item.path)
+            local_path = var_stack.ResolveStrToStr(file_item.download_path)
             if utils.need_to_download_file(local_path, file_item.checksum):
                 file_item.need_download = True
                 ancestors.extend(file_item.get_ancestry()[:-1])
@@ -746,8 +749,4 @@ class SVNTable(object):
                 END
         )
         """.format(source_prefix=source_prefix)
-        import time
-        before = time.time()
         exec_result = self.session.execute(query_text)
-        after = time.time()
-        print("mark_required_files_for_active_items", exec_result.rowcount, after-before)

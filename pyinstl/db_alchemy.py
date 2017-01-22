@@ -73,7 +73,7 @@ class IndexItemRow(get_declarative_base()):
     inherit_resolved = Column(BOOLEAN, default=False)
     from_index = Column(BOOLEAN, default=False)
     from_require = Column(BOOLEAN, default=False)
-    status = Column(Integer, default=0)
+    status = Column(Integer, default=0, index=True)
 
     def __str__(self):
         resolved_str = "resolved" if self.inherit_resolved else "unresolved"
@@ -98,7 +98,7 @@ class IndexItemDetailRow(get_declarative_base()):
     detail_value = Column(String)
     generation   = Column(Integer, default=0)
     tag          = Column(String)
-    active       = Column(Integer, default=0)
+    active       = Column(Integer, default=0, index=True)
 
     #os = relationship("IndexItemDetailOperatingSystem")
     #item = relationship("IndexItemRow", back_populates="original_details")
