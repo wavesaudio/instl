@@ -51,7 +51,11 @@ def Mac_bundle(in_path):
     if os.path.exists(plist_path):
         with open(plist_path, 'rb') as fp:
             pl = plistlib.load(fp)
-            version = pl.get('CFBundleVersion')
+            version = pl.get('CFBundleGetInfoString', "").split()
+            if len(version) > 0:
+                version = version[0]
+            else:
+                version = None
             guid = get_guid(in_path)
 
             if version or guid:
@@ -65,7 +69,11 @@ def Mac_framework(in_path):
     if os.path.exists(plist_path):
         with open(plist_path, 'rb') as fp:
             pl = plistlib.load(fp)
-            version = pl.get('CFBundleVersion')
+            version = pl.get('CFBundleGetInfoString', "").split()
+            if len(version) > 0:
+                version = version[0]
+            else:
+                version = None
             if version:
                 retVal = (in_path, version, None)
     return retVal

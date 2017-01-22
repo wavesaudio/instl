@@ -204,7 +204,6 @@ class InstlAdmin(InstlInstanceBase):
             msg = " ".join( ("Links already created for all revisions:", str(base_repo_rev), "...", str(max_repo_rev_to_work_on)) )
             print(msg)
 
-        self.create_variables_assignment(self.batch_accum)
         self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
@@ -339,7 +338,6 @@ class InstlAdmin(InstlInstanceBase):
             self.batch_accum += self.platform_helper.restore_dir(save_dir_var)
             self.batch_accum += self.platform_helper.new_line()
 
-        self.create_variables_assignment(self.batch_accum)
         self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
@@ -460,7 +458,6 @@ class InstlAdmin(InstlInstanceBase):
                             ] )
         self.batch_accum += self.platform_helper.progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)'")
 
-        self.create_variables_assignment(self.batch_accum)
         self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
@@ -510,7 +507,7 @@ class InstlAdmin(InstlInstanceBase):
                 # print("add prop", "executable", "to", item.path)
                 self.batch_accum += " ".join( (var_stack.ResolveVarToStr("SVN_CLIENT_PATH"), "propset", 'svn:executable', 'yes', '"'+item.path+'"') )
                 self.batch_accum += self.platform_helper.progress(" ".join(("add prop", "executable", "from", item.path)) )
-        self.create_variables_assignment(self.batch_accum)
+
         os.chdir(save_dir)
         self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
@@ -558,7 +555,7 @@ class InstlAdmin(InstlInstanceBase):
                 self.batch_accum += self.platform_helper.rmfile(symlink_file)
                 self.batch_accum += self.platform_helper.progress(symlink_text_path)
                 self.batch_accum += self.platform_helper.new_line()
-        self.create_variables_assignment(self.batch_accum)
+
         self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
@@ -597,7 +594,7 @@ class InstlAdmin(InstlInstanceBase):
                 raise utils.InstlException(pair[0] + " has forbidden characters should not be committed to svn")
             comparator = filecmp.dircmp(pair[0], pair[1], ignore=[".svn", ".DS_Store", "Icon\015"])
             self.stage2svn_for_folder(comparator)
-        self.create_variables_assignment(self.batch_accum)
+
         self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
@@ -675,8 +672,10 @@ class InstlAdmin(InstlInstanceBase):
 
     def should_wtar(self, dir_item):
         retVal = False
+        already_tarred = False
         try:
             if self.already_wtarred_regex.search(dir_item):
+                already_tarred = True
                 raise Exception
             if os.path.isdir(dir_item):
                 if self.compiled_folder_wtar_regex.search(dir_item):
@@ -694,7 +693,7 @@ class InstlAdmin(InstlInstanceBase):
                         retVal = True
         except Exception:
             pass
-        return retVal
+        return retVal, already_tarred
 
     def do_wtar(self):
         self.batch_accum.set_current_section('admin')
@@ -719,37 +718,57 @@ class InstlAdmin(InstlInstanceBase):
             folder_to_check = folders_to_check.pop()
             dir_items = os.listdir(folder_to_check)
             items_to_tar = list()
+            items_to_delete = list()
             for dir_item in sorted(dir_items):
                 dir_item_full_path = os.path.join(folder_to_check, dir_item)
                 if not os.path.islink(dir_item_full_path):
-                    to_tar = self.should_wtar(dir_item_full_path)
+                    to_tar, already_tarred = self.should_wtar(dir_item_full_path)
                     if to_tar:
                         items_to_tar.append(dir_item)
                     else:
+                        if not already_tarred:
+                            # remove previous wtarred versions of dir_item, if there are any
+                            for delete_file in dir_items:
+                                if fnmatch.fnmatch(delete_file, dir_item + '.wtar*'):
+                                    items_to_delete.append(delete_file)
                         if os.path.isdir(dir_item_full_path):
                             folders_to_check.append(dir_item_full_path)
-            if items_to_tar:
+
+            if items_to_tar or items_to_delete:
+                self.batch_accum += self.platform_helper.progress("begin folder {}".format(folder_to_check))
                 self.batch_accum += self.platform_helper.cd(folder_to_check)
+                for delete_file in items_to_delete:
+                    self.batch_accum += self.platform_helper.rmfile(delete_file)
+                    self.batch_accum += self.platform_helper.progress("removed file {}".format(delete_file))
                 for item_to_tar in items_to_tar:
                     item_to_tar_full_path = os.path.join(folder_to_check, item_to_tar)
                     if item_to_tar.endswith(".wtar"):
                         for delete_file in dir_items:
                             if fnmatch.fnmatch(delete_file, item_to_tar + '.??'):
                                 self.batch_accum += self.platform_helper.rmfile(delete_file)
+                                self.batch_accum += self.platform_helper.progress("removed file {} {}".format(delete_file))
                         self.batch_accum += self.platform_helper.split(item_to_tar)
+                        self.batch_accum += self.platform_helper.progress("split file {}".format(item_to_tar))
                     else:
                         for delete_file in dir_items:
                             if fnmatch.fnmatch(delete_file, item_to_tar + '.wtar*'):
                                 self.batch_accum += self.platform_helper.rmfile(delete_file)
+                                self.batch_accum += self.platform_helper.progress("removed file {}".format(delete_file))
                         self.batch_accum += self.platform_helper.tar(item_to_tar)
+                        self.batch_accum += self.platform_helper.progress("tar file {}".format(item_to_tar))
                         self.batch_accum += self.platform_helper.split(item_to_tar + ".wtar")
+                        self.batch_accum += self.platform_helper.progress("split file {}".format(item_to_tar + ".wtar"))
                     if os.path.isdir(item_to_tar_full_path):
                         self.batch_accum += self.platform_helper.rmdir(item_to_tar, recursive=True)
+                        self.batch_accum += self.platform_helper.progress("removed dir {}".format(item_to_tar))
                     elif os.path.isfile(item_to_tar_full_path):
                         self.batch_accum += self.platform_helper.rmfile(item_to_tar)
+                        self.batch_accum += self.platform_helper.progress("removed file {}".format(item_to_tar))
                     self.batch_accum += self.platform_helper.progress(item_to_tar_full_path)
                     self.batch_accum += self.platform_helper.new_line()
-        self.create_variables_assignment(self.batch_accum)
+                self.batch_accum += self.platform_helper.progress("end folder {}".format(folder_to_check))
+                self.batch_accum += self.platform_helper.new_line()
+
         self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
@@ -785,7 +804,7 @@ class InstlAdmin(InstlInstanceBase):
             self.batch_accum += self.platform_helper.progress("Checkout {} to {}".format(checkout_url, limit_info[1]))
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(limit_info[1], limit_info[2], link_dest=False, ignore=(".svn", ".DS_Store"), preserve_dest_files=False)
             self.batch_accum += self.platform_helper.progress("rsync {} to {}".format(limit_info[1], limit_info[2]))
-        self.create_variables_assignment(self.batch_accum)
+
         self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
@@ -1018,7 +1037,6 @@ class InstlAdmin(InstlInstanceBase):
                 print("   ", a_file)
             print()
 
-        self.create_variables_assignment(self.batch_accum)
         self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
@@ -1087,7 +1105,6 @@ class InstlAdmin(InstlInstanceBase):
         self.create_info_map(svn_folder, results_folder, accum)
         self.batch_accum.merge_with(accum)
 
-        self.create_variables_assignment(self.batch_accum)
         self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()

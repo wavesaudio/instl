@@ -44,16 +44,16 @@ only_one_value_ref_re = re.compile("""
                             $
                             """, re.X)
 
-
 class ConfigVarList(object):
     """ Keeps a list of named build config values.
         Help values resolve $() style references. """
 
-    __resolve_stack = list() # for preventing circular references during resolve.
+    __resolve_stack = list()  # for preventing circular references during resolve.
+    __non_freeze_counter = 0  # to force resolving even of frozen variables increment this
     variable_name_endings_to_normpath = ("_PATH", "_DIR", "_DIR_NAME", "_FILE_NAME", "_PATH__", "_DIR__", "_DIR_NAME__", "_FILE_NAME__")
 
     def __init__(self):
-        self._ConfigVar_objs = dict() # ConfigVar objects are kept here mapped by their name.
+        self._ConfigVar_objs = dict()  # ConfigVar objects are kept here mapped by their name.
 
     def __len__(self):
         """ return number of ConfigVars """
@@ -234,6 +234,9 @@ class ConfigVarList(object):
     def ResolveVarToList(self, in_var, default=None):
         retVal = list()
         if in_var in self:
+            if self.__non_freeze_counter == 0 and self[in_var].frozen_value:
+                retVal.extend(value for value in self[in_var])
+                return retVal
             with self.circular_resolve_check(in_var):
                 for value in self[in_var]:
                     if value is None:
@@ -254,6 +257,8 @@ class ConfigVarList(object):
                                     retVal.append(pure_path)
                         else:
                             retVal.extend(resolved_list_for_value)
+            if self.__non_freeze_counter == 0 and self[in_var].freeze_values_on_first_resolve:
+                self[in_var].set_frozen_values(*retVal)
         else:
             if utils.is_iterable_but_not_str(default):
                 retVal = default
@@ -271,8 +276,12 @@ class ConfigVarList(object):
                     evaluated_params[pos_param_name] = parser_retVal.positional_params[i_param]
             if parser_retVal.key_word_params:
                 evaluated_params.update(parser_retVal.key_word_params)
-            self.update(evaluated_params)
+            if evaluated_params:
+                self.__non_freeze_counter += 1
+                self.update(evaluated_params)
             retVal = self.ResolveVarToList(parser_retVal.variable_name, [parser_retVal.variable_str])
+            if evaluated_params:
+                self.__non_freeze_counter -= 1
             array_range = (0, None)
             if parser_retVal.array_index_int is not None:
                 if parser_retVal.array_index_int < 0:
@@ -283,3 +292,6 @@ class ConfigVarList(object):
                     array_range = (parser_retVal.array_index_int, parser_retVal.array_index_int + 1)
         return retVal[array_range[0]:array_range[1]]
 
+    def freeze_vars_on_first_resolve(self):
+        for var_obj in self._ConfigVar_objs.values():
+            var_obj.freeze_values_on_first_resolve = True

@@ -21,6 +21,7 @@ def NameAndVersionFromQueryResults(q_results_tuple):
     retVal = NameAndVersion(name=name, version=q_results_tuple[2], name_and_version=n_and_v)
     return retVal
 
+
 class InstlClient(InstlInstanceBase):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
@@ -59,6 +60,12 @@ class InstlClient(InstlInstanceBase):
         self.read_yaml_file(main_input_file_path)
 
         self.items_table.resolve_inheritance()
+        self.items_table.commit_changes()
+        if self.should_check_for_binary_versions():
+            self.get_binaries_versions()
+            self.items_table.add_require_version_from_binaries()
+            self.items_table.add_require_guid_from_binaries()
+        self.items_table.commit_changes()
         self.items_table.create_default_items()
 
         self.init_default_client_vars()
@@ -72,6 +79,7 @@ class InstlClient(InstlInstanceBase):
         self.add_default_items()
         self.calculate_install_items()
         self.platform_helper.num_items_for_progress_report = int(var_stack.ResolveVarToStr("LAST_PROGRESS"))
+        self.platform_helper.no_progress_messages = "NO_PROGRESS_MESSAGES" in var_stack
 
         do_command_func = getattr(self, "do_" + self.fixed_command)
         do_command_func()
@@ -80,7 +88,6 @@ class InstlClient(InstlInstanceBase):
         self.items_table.commit_changes()
 
     def command_output(self):
-        self.create_variables_assignment(self.batch_accum)
         self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
@@ -269,6 +276,7 @@ class InstlClient(InstlInstanceBase):
         """ accumulate action_type actions from iid_list, eliminating duplicates"""
         iid_and_action = self.items_table.get_iids_and_details_for_active_iids(action_type, unique_values=True, limit_to_iids=limit_to_iids)
         prev_iid = None
+        iid_and_action.sort(key=lambda tup: tup[0])
         for IID, an_action in iid_and_action:
             if prev_iid != IID:
                 num_unique_actions_for_iid = 0
@@ -277,9 +285,10 @@ class InstlClient(InstlInstanceBase):
                 num_unique_actions_for_iid += 1
             self.batch_accum += an_action
             action_description = self.action_type_to_progress_message[action_type]
-            if num_unique_actions_for_iid > 1:
-                action_description = " ".join((action_description, str(num_unique_actions_for_iid)))
-            self.batch_accum += self.platform_helper.progress("{0} {1}".format(self.iid_to_name_and_version[IID].name_and_version, action_description))
+            #if num_unique_actions_for_iid > 1:
+            #    action_description = " ".join((action_description, str(num_unique_actions_for_iid)))
+            self.batch_accum += self.platform_helper.progress("{0} {1}".format(self.iid_to_name_and_version[IID].name, action_description))
+    # name_and_version
 
     def create_require_file_instructions(self):
         # write the require file as it should look after copy is done
@@ -330,6 +339,60 @@ class InstlClient(InstlInstanceBase):
                 sub_item.sort()
         return retVal
 
+    def should_check_for_binary_versions(self):
+        """ checking versions inside binaries is heavy task.
+            should_check_for_binary_versions returns if it's needed.
+            True value will be returned if check was explicitly requested
+            or if update of installed items was requested
+        """
+        explicitly_asked_for_binaries_check = 'CHECK_BINARIES_VERSIONS' in var_stack
+        update_was_requested = "__UPDATE_INSTALLED_ITEMS__" in var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS", [])
+        retVal = explicitly_asked_for_binaries_check or update_was_requested
+        return retVal
+
+    def get_binaries_versions(self):
+        binaries_version_list = list()
+        try:
+            path_to_search = var_stack.ResolveVarToList('CHECK_BINARIES_VERSION_FOLDERS', default=[])
+
+            compiled_ignore_folder_regex = None
+            if "CHECK_BINARIES_VERSION_FOLDER_EXCLUDE_REGEX" in var_stack:
+                ignore_folder_regex_list = var_stack.ResolveVarToList("CHECK_BINARIES_VERSION_FOLDER_EXCLUDE_REGEX")
+                compiled_ignore_folder_regex = utils.compile_regex_list_ORed(ignore_folder_regex_list)
+
+            for a_path in path_to_search:
+                binaries_version_from_folder = self.check_binaries_versions_in_folder(a_path, compiled_ignore_folder_regex)
+                binaries_version_list.extend(binaries_version_from_folder)
+
+            self.items_table.insert_binary_versions(binaries_version_list)
+
+        except Exception as ex:
+            print("not doing check_binaries_versions", ex)
+        return binaries_version_list
+
+    def check_binaries_versions_in_folder(self, in_path, in_compiled_ignore_folder_regex):
+        retVal = list()
+        current_os = var_stack.ResolveVarToStr("__CURRENT_OS__")
+        for root_path, dirs, files in os.walk(in_path, followlinks=False):
+            if in_compiled_ignore_folder_regex and in_compiled_ignore_folder_regex.search(root_path):
+                del dirs[:]  # skip root_path and it's siblings
+                del files[:]
+            else:
+                info = utils.extract_binary_info(current_os, root_path)
+                if info is not None:
+                    retVal.append(info)
+                    del dirs[:]  # info was found for root_path, no need to dig deeper
+                    del files[:]
+                else:
+                    for a_file in files:
+                        file_full_path = os.path.join(root_path, a_file)
+                        if in_compiled_ignore_folder_regex and in_compiled_ignore_folder_regex.search(file_full_path):
+                            continue
+                        if not os.path.islink(file_full_path):
+                            info = utils.extract_binary_info(current_os, file_full_path)
+                            if info is not None:
+                                retVal.append(info)
+        return retVal
 
 def InstlClientFactory(initial_vars, command):
     retVal = None
