@@ -625,8 +625,6 @@ class SVNTable(object):
             num_required_files = self.mark_required_for_dir(source_path)
         elif source_type == '!file':
             num_required_files = self.mark_required_for_file(source_path)
-        elif source_type == '!files':
-            num_required_files = self.mark_required_for_files(source_path)
         return num_required_files
 
     def mark_required_completion(self):

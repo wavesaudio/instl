@@ -360,8 +360,6 @@ class InstlClientCopy(InstlClient):
             self.create_copy_instructions_for_file(source[0], name_for_progress_message)
         elif source[1] == '!dir_cont':  # get all files and folders from a folder
             self.create_copy_instructions_for_dir_cont(source[0], name_for_progress_message)
-        elif source[1] == '!files':  # get all files from a folder
-            self.create_copy_instructions_for_files(source[0], name_for_progress_message)
         elif source[1] == '!dir':  # !dir
             self.create_copy_instructions_for_dir(source[0], name_for_progress_message)
         else:

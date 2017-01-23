@@ -38,7 +38,5 @@ class InstlInstanceSync_p4(InstlInstanceSync):
         source_path, source_type = source[0], source[1]
         if source_type == '!file':
             self.instlObj.batch_accum += " ".join(("p4", "sync", '"$(SYNC_BASE_URL)/' + source_path + '"$(REPO_REV)'))
-        elif source_type == '!files':
-            print("p4 does not know yet to sync !files")
         elif source_type == '!dir' or source_type == '!dir_cont':  # !dir and !dir_cont are only different when copying
             self.instlObj.batch_accum += " ".join(("p4", "sync", '"$(SYNC_BASE_URL)/' + source_path + '/..."$(REPO_REV)'))
