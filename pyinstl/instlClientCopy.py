@@ -242,8 +242,8 @@ class InstlClientCopy(InstlClient):
 
         if first_wtar_item:
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
+            self.batch_accum += self.platform_helper.unwtar_something(source_item_path, no_artifacts=False, where_to_unwtar='.')
             self.batch_accum += self.platform_helper.unlock(first_wtar_item.name_without_wtar_extension())
-            self.batch_accum += self.platform_helper.unwtar_something(source_item_path, no_artifacts=False, where_to_unwtar=first_wtar_item.name())
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
 
     def create_copy_instructions_for_dir_cont(self, source_path, name_for_progress_message):
@@ -256,7 +256,6 @@ class InstlClientCopy(InstlClient):
         self.batch_accum += self.platform_helper.echo("copy {source_path_abs}".format(**locals()))
         source_items = self.info_map_table.get_items_in_dir(dir_path=source_path, what="any")
 
-        folder_contains_wtar = False
         for source_item in source_items:
             if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
                 if not any(ignore_item in source_item.name() for ignore_item in self.ignore_additions):
@@ -271,15 +270,14 @@ class InstlClientCopy(InstlClient):
             # check if there are .wtar files (complete or partial)
             self.bytes_to_copy += self.calc_size_of_file_item(source_item)
             if source_item.is_first_wtar_file():
+                if not hasattr(self, "unwtar_once_dir_cont"): # unwtar only once, first thing
+                    self.unwtar_once_dir_cont = 1
+                    self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
+                    self.batch_accum += self.platform_helper.unwtar_something(source_path_abs, no_artifacts=False, where_to_unwtar='.')
+                    self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
+                        
                 self.batch_accum += self.platform_helper.unlock(source_item.name_without_wtar_extension(), recursive=True)
-                folder_contains_wtar = True
-
-        # unwtar at folder-based if needed
-        if folder_contains_wtar:
-            self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
-            self.batch_accum += self.platform_helper.unwtar_something(source_path_abs, no_artifacts=False, where_to_unwtar='.')
-            self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
-
+                
     def create_copy_instructions_for_files(self, source_path, name_for_progress_message):
         source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
         self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path_abs, ".",
@@ -289,7 +287,6 @@ class InstlClientCopy(InstlClient):
 
         source_files = self.info_map_table.get_items_in_dir(dir_path=source_path, what="file", levels_deep=1)
 
-        folder_contains_wtar = False
         for source_file in source_files:
             if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
                 if not any(ignore_item in source_file.name() for ignore_item in self.ignore_additions):
@@ -303,14 +300,13 @@ class InstlClientCopy(InstlClient):
             # check if there are .wtar files (complete or partial)
             self.bytes_to_copy += self.calc_size_of_file_item(source_file)
             if source_file.is_first_wtar_file():
+                if not hasattr(self, "unwtar_once_files"): # unwtar only once, first thing
+                    self.unwtar_once_files = 1
+                    self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
+                    self.batch_accum += self.platform_helper.unwtar_something(source_path_abs, no_artifacts=False, where_to_unwtar='.')
+                    self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
+                    
                 self.batch_accum += self.platform_helper.unlock(source_file.name_without_wtar_extension(), recursive=True)
-                folder_contains_wtar = True
-
-        # unwtar at folder-based if needed
-        if folder_contains_wtar:
-            self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
-            self.batch_accum += self.platform_helper.unwtar_something(source_path_abs, no_artifacts=False, where_to_unwtar='.')
-            self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
 
     def create_copy_instructions_for_dir(self, source_path, name_for_progress_message):
         dir_item = self.info_map_table.get_item(source_path, what="dir")
@@ -322,7 +318,6 @@ class InstlClientCopy(InstlClient):
             source_items = self.info_map_table.get_items_in_dir(dir_path=source_path, what="any")
 
             source_path_dir, source_path_name = os.path.split(source_path)
-            folder_contains_wtar = False
             for source_item in source_items:
                 if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
                     if not any(ignore_item in source_item.name() for ignore_item in self.ignore_additions):
@@ -337,16 +332,13 @@ class InstlClientCopy(InstlClient):
                 # check if there are .wtar files (complete or partial)
                 self.bytes_to_copy += self.calc_size_of_file_item(source_item)
                 if source_item.is_first_wtar_file():
+                    if not hasattr(self, "unwtar_once_dir"): # unwtar only once, first thing
+                        self.unwtar_once_dir = 1
+                        self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
+                        self.batch_accum += self.platform_helper.unwtar_something(source_path_abs, no_artifacts=False, where_to_unwtar=source_path_name)
+                        self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
+                        
                     self.batch_accum += self.platform_helper.unlock(source_item.name_without_wtar_extension(), recursive=True)
-                    folder_contains_wtar = True
-
-            # unwtar at folder-based if needed
-            if folder_contains_wtar:
-                self.batch_accum += self.platform_helper.progress(
-                    "Expand {name_for_progress_message} ...".format(**locals()))
-                self.batch_accum += self.platform_helper.unwtar_something(source_path_abs, no_artifacts=False, where_to_unwtar=source_path_name)
-                self.batch_accum += self.platform_helper.progress(
-                    "Expand {name_for_progress_message} done".format(**locals()))
 
             if not any(ignore_item in source_path_name for ignore_item in self.ignore_additions):
                 if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
