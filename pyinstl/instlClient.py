@@ -394,7 +394,7 @@ class InstlClient(InstlInstanceBase):
                                 retVal.append(info)
         return retVal
 
-    def fix_sync_locations_for_items_with_special_sync_folders(self):
+    def set_sync_locations_for_active_items(self):
         sync_and_source = self.items_table.get_sync_folders_and_sources_for_active_iids()   # returns [(iid, sync_folder, source, source_tag),...]
         for iid, sync_folder, source, source_tag in sync_and_source:
             if source[0] == "/":
@@ -404,20 +404,25 @@ class InstlClient(InstlInstanceBase):
             else:
                 fixed_source = "/".join(("$(SOURCE_PREFIX)", source))
             fixed_source = var_stack.ResolveStrToStr(fixed_source)
+
             if source_tag in ('!dir', '!dir_cont'):
                 items = self.info_map_table.get_items_in_dir(dir_path=fixed_source, what="file")
-                if  source_tag == '!dir':
-                    source_parent = "/".join(fixed_source.split("/")[:-1])
-                else:  # !dir_cont
-                    source_parent = fixed_source
-                for item in items:
-                    item.download_path = "/".join((sync_folder, item.path[len(source_parent)+1:]))
+                if sync_folder:
+                    if  source_tag == '!dir':
+                        source_parent = "/".join(fixed_source.split("/")[:-1])
+                    else:  # !dir_cont
+                        source_parent = fixed_source
+                    for item in items:
+                        item.download_path = var_stack.ResolveStrToStr("/".join((sync_folder, item.path[len(source_parent)+1:])))
+                else:
+                    for item in items:
+                        item.download_path = var_stack.ResolveStrToStr("/".join(("$(LOCAL_REPO_SYNC_DIR)", item.path)))
             elif source_tag == '!file':
                 item = self.info_map_table.get_item(fixed_source, what="file")
-                item.download_path = sync_folder
-            #print(item.download_path)
-            #print(iid, sync_folder, fixed_source, source_tag, source_parent)
-
+                if sync_folder:
+                    item.download_path = var_stack.ResolveStrToStr(sync_folder)
+                else:
+                    item.download_path = var_stack.ResolveStrToStr("/".join(("$(LOCAL_REPO_SYNC_DIR)", item.path)))
 
 def InstlClientFactory(initial_vars, command):
     retVal = None

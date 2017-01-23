@@ -146,13 +146,13 @@ class InstlMisc(InstlInstanceBase):
         bad_checksum_list = list()
         self.read_info_map_from_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
         for file_item in self.info_map_table.get_items(what="file"):
-            if os.path.isfile(file_item.path):
-                file_checksum = utils.get_file_checksum(file_item.path)
+            if os.path.isfile(file_item.download_path):
+                file_checksum = utils.get_file_checksum(file_item.download_path)
                 if not utils.compare_checksums(file_checksum, file_item.checksum):
-                    sigs = utils.create_file_signatures(file_item.path)
-                    bad_checksum_list.append( " ".join(("Bad checksum:", file_item.path, "expected", file_item.checksum, "found", sigs["sha1_checksum"])) )
+                    sigs = utils.create_file_signatures(file_item.download_path)
+                    bad_checksum_list.append( " ".join(("Bad checksum:", file_item.download_path, "expected", file_item.checksum, "found", sigs["sha1_checksum"])) )
             else:
-                bad_checksum_list.append(" ".join((file_item.path, "does not exist")))
+                bad_checksum_list.append(" ".join((file_item.download_path, "does not exist")))
             self.dynamic_progress("Check checksum {file_item.path}".format(**locals()))
         if bad_checksum_list:
             print("\n".join(bad_checksum_list))
@@ -169,10 +169,16 @@ class InstlMisc(InstlInstanceBase):
 
     def do_create_folders(self):
         self.progress_staccato_command = True
-        self.read_info_map_from_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
-        for dir_item in self.info_map_table.get_items(what="dir"):
-            os.makedirs(dir_item.path, exist_ok=True)
-            self.dynamic_progress("Create folder {dir_item.path}".format(**locals()))
+        input_file = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        self.read_info_map_from_file(input_file)
+        file_items = self.info_map_table.get_items(what="file")
+        dirs_to_create = utils.unique_list()
+        for file_item in file_items:
+            the_folder, _ = os.path.split(file_item.download_path)
+            dirs_to_create.append(the_folder)
+        for dir_to_create in dirs_to_create:
+            os.makedirs(dir_to_create, exist_ok=True)
+            self.dynamic_progress("Create folder {dir_to_create}".format(**locals()))
 
     def do_test_import(self):
         import importlib

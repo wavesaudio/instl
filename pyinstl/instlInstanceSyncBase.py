@@ -84,7 +84,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
              All files marked 'required' are marked as needed download unless.
              the files that exists and have correct checksum.
         """
-        self.instlObj.fix_sync_locations_for_items_with_special_sync_folders()
+        self.instlObj.set_sync_locations_for_active_items()
         self.instlObj.info_map_table.mark_need_download()
         need_download_file_path = var_stack.ResolveVarToStr("TO_SYNC_INFO_MAP_PATH")
         need_download_items_list = self.instlObj.info_map_table.get_download_items()

@@ -36,6 +36,8 @@ text_line_re = re.compile(r"""
             (?P<size>[\d]+))?       # 356985
             (,\s+
             (?P<url>(http(s)?|ftp)://.+))?    # http://....
+            (,\s+dl_path:'
+            (?P<dl_path>([^',]+))')?
             """, re.X)
 flags_and_revision_re = re.compile(r"""
                 ^
@@ -158,22 +160,23 @@ class SVNTable(object):
         item_details = None
         match = text_line_re.match(the_str)
         if match:
+            the_matched_groups = match.groupdict()
             item_details = dict()
-            item_details['path'] = match.group('path')
+            item_details['path'] = the_matched_groups['path']
             item_details['parent'] = "/".join(item_details['path'].split("/")[:-1])
             item_details['level'] = len(item_details['path'].split("/"))
-            item_details['revision'] = int(match.group('revision'))
-            item_details['flags'] = match.group('flags')
-            if 'f' in item_details['flags']:
-                item_details['fileFlag'] = True
-                item_details['download_path'] = "/".join(("$(LOCAL_REPO_SYNC_DIR)", item_details['path']))
-            item_details['dirFlag'] = 'd' in item_details['flags']
-            item_details['checksum'] = match.group('checksum')
-            item_details['url'] = match.group('url')
-            item_details['size'] = int(match.group('size')) if match.group('size')  else 0
+            item_details['revision'] = int(the_matched_groups['revision'])
+            item_details['flags'] = the_matched_groups['flags']
+            item_details['fileFlag'] = 'f' in the_matched_groups['flags']
+            item_details['dirFlag'] = 'd' in the_matched_groups['flags']
+            item_details['checksum'] = the_matched_groups.get('checksum')
+            item_details['url'] = the_matched_groups.get('url')
+            the_size = the_matched_groups['size']
+            item_details['size'] = int(0 if the_size is None else the_size)
             item_details['required'] = False
             item_details['need_download'] = False
             item_details['extra_props'] = ""
+            item_details['download_path'] = the_matched_groups.get('dl_path')
         return item_details
 
     def valid_write_formats(self):
@@ -654,7 +657,8 @@ class SVNTable(object):
         required_file_items = self.get_required_items(what="file")
         for file_item in required_file_items:
             local_path = var_stack.ResolveStrToStr(file_item.download_path)
-            if utils.need_to_download_file(local_path, file_item.checksum):
+            assert local_path == file_item.download_path
+            if utils.need_to_download_file(file_item.download_path, file_item.checksum):
                 file_item.need_download = True
                 ancestors.extend(file_item.get_ancestry()[:-1])
         ancestors = sorted(list(set(ancestors)))

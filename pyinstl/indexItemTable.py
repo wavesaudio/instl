@@ -1273,17 +1273,21 @@ class IndexItemsTable(object):
     def get_sync_folders_and_sources_for_active_iids(self):
         retVal = list()
         query_text = """
-            SELECT sync_folders_t.owner_iid AS iid,
+            SELECT install_sources_t.owner_iid AS iid,
                     sync_folders_t.detail_value AS sync_folder,
                     install_sources_t.detail_value AS source,
                     install_sources_t.tag AS tag
-                FROM IndexItemDetailRow AS sync_folders_t
-                    JOIN IndexItemDetailRow AS install_sources_t
-                        ON install_sources_t.owner_iid = sync_folders_t.owner_iid
-                        AND install_sources_t.active=1
-                        AND install_sources_t.detail_name='install_sources'
-            WHERE sync_folders_t.detail_name='sync_folders'
-                AND sync_folders_t.active=1
+            FROM IndexItemDetailRow AS install_sources_t
+                JOIN IndexItemRow AS iid_t
+                    ON iid_t.iid=install_sources_t.owner_iid
+                    AND iid_t.status=1
+                LEFT JOIN IndexItemDetailRow AS sync_folders_t
+                    ON sync_folders_t.active=1
+                    AND install_sources_t.owner_iid = sync_folders_t.owner_iid
+                        AND sync_folders_t.detail_name='sync_folders'
+            WHERE
+                install_sources_t.active=1
+                AND install_sources_t.detail_name='install_sources'
         """
         try:
             exec_result = self.session.execute(query_text)

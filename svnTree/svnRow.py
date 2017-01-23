@@ -4,6 +4,7 @@ import re
 
 from sqlalchemy import Column, Integer, String, BOOLEAN, ForeignKey
 from pyinstl.db_alchemy import get_declarative_base, get_engine
+from configVar import var_stack
 
 wtar_file_re = re.compile(r"""^(?P<original_name>.+)\.wtar(\...)?$""")
 
@@ -37,6 +38,7 @@ class SVNRow(get_declarative_base()):
                 ", url:{self.url}"
                 ", required:{self.required}, need_download:{self.need_download}"
                 ", extra_props:{self.extra_props}, parent:{self.parent}>"
+                ", download_path:{self.download_path}"
                 ).format(**locals())
 
     def __str__(self):
@@ -48,6 +50,8 @@ class SVNRow(get_declarative_base()):
             retVal = "{}, {}".format(retVal, self.size)
         if self.url:
             retVal = "{}, {}".format(retVal, self.url)
+        if self.download_path:
+            retVal = "{}, dl_path:'{}'".format(retVal, var_stack.ResolveStrToStr(self.download_path))
         return retVal
 
     def str_specific_fields(self, fields_to_repr):
