@@ -318,6 +318,8 @@ class InstlClientCopy(InstlClient):
             source_items = self.info_map_table.get_items_in_dir(dir_path=source_path, what="any")
 
             source_path_dir, source_path_name = os.path.split(source_path)
+
+            num_wtars = 0
             for source_item in source_items:
                 if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
                     if not any(ignore_item in source_item.name() for ignore_item in self.ignore_additions):
@@ -332,13 +334,13 @@ class InstlClientCopy(InstlClient):
                 # check if there are .wtar files (complete or partial)
                 self.bytes_to_copy += self.calc_size_of_file_item(source_item)
                 if source_item.is_first_wtar_file():
-                    if not hasattr(self, "unwtar_once_dir"): # unwtar only once, first thing
-                        self.unwtar_once_dir = 1
-                        self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
-                        self.batch_accum += self.platform_helper.unwtar_something(source_path_abs, no_artifacts=False, where_to_unwtar=source_path_name)
-                        self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
-                        
-                    self.batch_accum += self.platform_helper.unlock(source_item.name_without_wtar_extension(), recursive=True)
+                    num_wtars += 1
+            if num_wtars > 0:
+                self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
+                self.batch_accum += self.platform_helper.unwtar_something(source_path_abs, no_artifacts=False, where_to_unwtar=source_path_name)
+                self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
+
+                self.batch_accum += self.platform_helper.unlock(".", recursive=True)
 
             if not any(ignore_item in source_path_name for ignore_item in self.ignore_additions):
                 if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
