@@ -340,18 +340,20 @@ class InstlClient(InstlInstanceBase):
         return retVal
 
     def should_check_for_binary_versions(self):
-        try:
-            retVal = 'CHECK_BINARIES_VERSION_FOLDERS' in var_stack \
-                and int(var_stack.ResolveVarToStr('CHECK_BINARIES_VERSION_MAXIMAL_REPO_REV')) \
-                    >= int(var_stack.ResolveVarToStr('REQUIRE_REPO_REV'))
-        except Exception:
-            retVal = False
+        """ checking versions inside binaries is heavy task.
+            should_check_for_binary_versions returns if it's needed.
+            True value will be returned if check was explicitly requested
+            or if update of installed items was requested
+        """
+        explicitly_asked_for_binaries_check = 'CHECK_BINARIES_VERSIONS' in var_stack
+        update_was_requested = "__UPDATE_INSTALLED_ITEMS__" in var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS", [])
+        retVal = explicitly_asked_for_binaries_check or update_was_requested
         return retVal
 
     def get_binaries_versions(self):
         binaries_version_list = list()
         try:
-            path_to_search = var_stack.ResolveVarToList('CHECK_BINARIES_VERSION_FOLDERS')
+            path_to_search = var_stack.ResolveVarToList('CHECK_BINARIES_VERSION_FOLDERS', default=[])
 
             compiled_ignore_folder_regex = None
             if "CHECK_BINARIES_VERSION_FOLDER_EXCLUDE_REGEX" in var_stack:
