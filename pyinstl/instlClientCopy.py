@@ -16,6 +16,13 @@ class InstlClientCopy(InstlClient):
 
     def do_copy(self):
         self.init_copy_vars()
+
+        # unwtar will take place directly so no need to copy those files
+        self.ignore_additions = ['.wtar']
+        for ignore_item in self.ignore_additions:
+            ignore_item_wildcards = '*{}*'.format(ignore_item)
+            if ignore_item_wildcards not in self.ignore_list: self.ignore_list.append(ignore_item_wildcards)
+
         self.create_copy_instructions()
 
     def init_copy_vars(self):
@@ -162,7 +169,7 @@ class InstlClientCopy(InstlClient):
                         source = var_stack.ResolveVarToList(source_var)
                         source_folder, source_name = os.path.split(source[0])
                         to_unwtar = os.path.join(sync_folder_name, source_name)
-                        self.batch_accum += self.platform_helper.unwtar_something(to_unwtar, no_artifacts=True)
+                        self.batch_accum += self.platform_helper.unwtar_something(to_unwtar, no_artifacts=False, where_to_unwtar='.')
                     self.batch_accum += var_stack.ResolveVarToList("iid_action_list_pre_copy_item", default=[])
                     self.batch_accum += var_stack.ResolveVarToList("iid_action_list_post_copy_item", default=[])
 
@@ -208,29 +215,35 @@ class InstlClientCopy(InstlClient):
     def create_copy_instructions_for_file(self, source_path, name_for_progress_message):
         source_files = self.info_map_table.get_required_for_file(source_path)
         first_wtar_item = None
+
         for source_file in source_files:
             source_item_path = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_file.path)
-            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_item_path, ".",
-                                                                                link_dest=True,
-                                                                                ignore=self.ignore_list)
-            self.batch_accum += self.platform_helper.echo("copy {source_item_path}".format(**locals()))
+            if not any(ignore_item in source_file.name() for ignore_item in self.ignore_additions):
+                
+                # ignore_list is passed for the sake of completeness but is not being used further down the road in copy_file_to_dir
+                self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_item_path, ".",
+                                                                                    link_dest=True,
+                                                                                    ignore=self.ignore_list) 
+                                                                                    
+                self.batch_accum += self.platform_helper.echo("copy {source_item_path}".format(**locals()))
 
-            if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
-                if not source_file.path.endswith(".symlink"):
-                    self.batch_accum += self.platform_helper.chmod(source_file.chmod_spec(), source_file.name())
-                    self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_file.chmod_spec(), source_file.name()))
-                else:   # a hack to prevent chmod for symlink files because .symlink files might have been already handled
-                        # by resolve_symlinks in the sync stage by instl version <= 1.0.
-                    self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_file.name()))
+                if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
+                    if not source_file.path.endswith(".symlink"):
+                        self.batch_accum += self.platform_helper.chmod(source_file.chmod_spec(), source_file.name())
+                        self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_file.chmod_spec(), source_file.name()))
+                    else:   # a hack to prevent chmod for symlink files because .symlink files might have been already handled
+                            # by resolve_symlinks in the sync stage by instl version <= 1.0.
+                        self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_file.name()))
 
-            self.bytes_to_copy += self.calc_size_of_file_item(source_file)
+                self.bytes_to_copy += self.calc_size_of_file_item(source_file)
+            
             if source_file.is_first_wtar_file():
                 first_wtar_item = source_file
 
         if first_wtar_item:
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
+            self.batch_accum += self.platform_helper.unwtar_something(source_item_path, no_artifacts=False, where_to_unwtar='.')
             self.batch_accum += self.platform_helper.unlock(first_wtar_item.name_without_wtar_extension())
-            self.batch_accum += self.platform_helper.unwtar_something(first_wtar_item.name(), no_artifacts=True)
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
 
     def create_copy_instructions_for_dir_cont(self, source_path, name_for_progress_message):
@@ -243,30 +256,28 @@ class InstlClientCopy(InstlClient):
         self.batch_accum += self.platform_helper.echo("copy {source_path_abs}".format(**locals()))
         source_items = self.info_map_table.get_items_in_dir(dir_path=source_path, what="any")
 
-        if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
-            for source_item in source_items:
-                source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path)
-                if not source_item.path.endswith(".symlink"):
-                    self.batch_accum += self.platform_helper.chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)
-                    self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_item.chmod_spec(), source_path_relative_to_current_dir))
-                else:   # a hack to prevent chmod for symlink files because .symlink files might have been already handled
-                        # by resolve_symlinks in the sync stage by instl version <= 1.0.
-                    self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_path_relative_to_current_dir))
-
-        # check if there are .wtar files (complete or partial)
-        folder_contains_wtar = False
         for source_item in source_items:
+            if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
+                if not any(ignore_item in source_item.name() for ignore_item in self.ignore_additions):
+                    source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path)
+                    if not source_item.path.endswith(".symlink"):
+                        self.batch_accum += self.platform_helper.chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)
+                        self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_item.chmod_spec(), source_path_relative_to_current_dir))
+                    else:   # a hack to prevent chmod for symlink files because .symlink files might have been already handled
+                            # by resolve_symlinks in the sync stage by instl version <= 1.0.
+                        self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_path_relative_to_current_dir))
+                        
+            # check if there are .wtar files (complete or partial)
             self.bytes_to_copy += self.calc_size_of_file_item(source_item)
             if source_item.is_first_wtar_file():
+                if not hasattr(self, "unwtar_once_dir_cont"): # unwtar only once, first thing
+                    self.unwtar_once_dir_cont = 1
+                    self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
+                    self.batch_accum += self.platform_helper.unwtar_something(source_path_abs, no_artifacts=False, where_to_unwtar='.')
+                    self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
+                        
                 self.batch_accum += self.platform_helper.unlock(source_item.name_without_wtar_extension(), recursive=True)
-                folder_contains_wtar = True
-
-        # unwtar at folder-based if needed
-        if folder_contains_wtar:
-            self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
-            self.batch_accum += self.platform_helper.unwtar_something(".", no_artifacts=True)
-            self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
-
+                
     def create_copy_instructions_for_files(self, source_path, name_for_progress_message):
         source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
         self.batch_accum += self.platform_helper.copy_tool.copy_dir_files_to_dir(source_path_abs, ".",
@@ -276,28 +287,26 @@ class InstlClientCopy(InstlClient):
 
         source_files = self.info_map_table.get_items_in_dir(dir_path=source_path, what="file", levels_deep=1)
 
-        if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
-            for source_file in source_files:
-                if not source_file.path.endswith(".symlink"):
-                    self.batch_accum += self.platform_helper.chmod(source_file.chmod_spec(), source_file.name())
-                    self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_file.chmod_spec(), source_file.name()))
-                else:   # a hack to prevent chmod for symlink files because .symlink files might have been already handled
-                        # by resolve_symlinks in the sync stage by instl version <= 1.0.
-                    self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_file.name()))
+        for source_file in source_files:
+            if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
+                if not any(ignore_item in source_file.name() for ignore_item in self.ignore_additions):
+                    if not source_file.path.endswith(".symlink"):
+                        self.batch_accum += self.platform_helper.chmod(source_file.chmod_spec(), source_file.name())
+                        self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_file.chmod_spec(), source_file.name()))
+                    else:   # a hack to prevent chmod for symlink files because .symlink files might have been already handled
+                            # by resolve_symlinks in the sync stage by instl version <= 1.0.
+                        self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_file.name()))
 
-        # check if there are .wtar files (complete or partial)
-        folder_contains_wtar = False
-        for source_item in source_files:
-            self.bytes_to_copy += self.calc_size_of_file_item(source_item)
-            if source_item.is_first_wtar_file():
-                self.batch_accum += self.platform_helper.unlock(source_item.name_without_wtar_extension(), recursive=True)
-                folder_contains_wtar = True
-
-        # unwtar at folder-based if needed
-        if folder_contains_wtar:
-            self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
-            self.batch_accum += self.platform_helper.unwtar_something(".", no_artifacts=True)
-            self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
+            # check if there are .wtar files (complete or partial)
+            self.bytes_to_copy += self.calc_size_of_file_item(source_file)
+            if source_file.is_first_wtar_file():
+                if not hasattr(self, "unwtar_once_files"): # unwtar only once, first thing
+                    self.unwtar_once_files = 1
+                    self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
+                    self.batch_accum += self.platform_helper.unwtar_something(source_path_abs, no_artifacts=False, where_to_unwtar='.')
+                    self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
+                    
+                self.batch_accum += self.platform_helper.unlock(source_file.name_without_wtar_extension(), recursive=True)
 
     def create_copy_instructions_for_dir(self, source_path, name_for_progress_message):
         dir_item = self.info_map_table.get_item(source_path, what="dir")
@@ -309,37 +318,35 @@ class InstlClientCopy(InstlClient):
             source_items = self.info_map_table.get_items_in_dir(dir_path=source_path, what="any")
 
             source_path_dir, source_path_name = os.path.split(source_path)
-            if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
-                for source_item in source_items:
-                    source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path_dir)
-                    if not source_item.path.endswith(".symlink"):
-                        self.batch_accum += self.platform_helper.chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)
-                        self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_item.chmod_spec(), source_path_relative_to_current_dir))
-                    else:   # a hack to prevent chmod for symlink files because .symlink files might have been already handled
-                            # by resolve_symlinks in the sync stage by instl version <= 1.0.
-                        self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_path_relative_to_current_dir))
 
-            # check if there are .wtar files (complete or partial)
-            folder_contains_wtar = False
+            num_wtars = 0
             for source_item in source_items:
+                if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
+                    if not any(ignore_item in source_item.name() for ignore_item in self.ignore_additions):
+                        source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path_dir)
+                        if not source_item.path.endswith(".symlink"):
+                            self.batch_accum += self.platform_helper.chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)
+                            self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_item.chmod_spec(), source_path_relative_to_current_dir))
+                        else:   # a hack to prevent chmod for symlink files because .symlink files might have been already handled
+                                # by resolve_symlinks in the sync stage by instl version <= 1.0.
+                            self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_path_relative_to_current_dir))
+
+                # check if there are .wtar files (complete or partial)
                 self.bytes_to_copy += self.calc_size_of_file_item(source_item)
                 if source_item.is_first_wtar_file():
-                    self.batch_accum += self.platform_helper.unlock(source_item.name_without_wtar_extension(),
-                                                                    recursive=True)
-                    folder_contains_wtar = True
+                    num_wtars += 1
+            if num_wtars > 0:
+                self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
+                self.batch_accum += self.platform_helper.unwtar_something(source_path_abs, no_artifacts=False, where_to_unwtar=source_path_name)
+                self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
 
-            # unwtar at folder-based if needed
-            if folder_contains_wtar:
-                self.batch_accum += self.platform_helper.progress(
-                    "Expand {name_for_progress_message} ...".format(**locals()))
-                self.batch_accum += self.platform_helper.unwtar_something(source_path_name, no_artifacts=True)
-                self.batch_accum += self.platform_helper.progress(
-                    "Expand {name_for_progress_message} done".format(**locals()))
+                self.batch_accum += self.platform_helper.unlock(".", recursive=True)
 
-            if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
-                self.batch_accum += self.platform_helper.chmod("-R -f a+rwX", source_path_name)
-                self.batch_accum += self.platform_helper.echo(
-                    "chmod {} {}".format("-R -f a+rwX", source_path_name))
+            if not any(ignore_item in source_path_name for ignore_item in self.ignore_additions):
+                if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
+                    self.batch_accum += self.platform_helper.chmod("-R -f a+rwX", source_path_name)
+                    self.batch_accum += self.platform_helper.echo(
+                        "chmod {} {}".format("-R -f a+rwX", source_path_name))
         else:
             # it might be a dir that was wtarred
             self.create_copy_instructions_for_file(source_path, name_for_progress_message)

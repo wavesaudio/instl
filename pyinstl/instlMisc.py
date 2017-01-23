@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-
+import re
 import os
 import stat
 import sys
@@ -70,17 +70,15 @@ class InstlMisc(InstlInstanceBase):
 
     def do_unwtar(self):
         self.no_artifacts = "__NO_WTAR_ARTIFACTS__" in var_stack
-
-        what_to_work_on = "."
-        if "__MAIN_INPUT_FILE__" in var_stack:
-            what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__", default='.')
+        where_to_unwtar = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__", default='.')
 
         if os.path.isfile(what_to_work_on):
-            if what_to_work_on.endswith(".wtar.aa"):
+            if what_to_work_on.endswith(".wtar.aa"): # this case apparently is no longer relevant
                 what_to_work_on = self.find_split_files(what_to_work_on)
-                self.unwtar_a_file(what_to_work_on)
+                self.unwtar_a_file(what_to_work_on, where_to_unwtar)
             elif what_to_work_on.endswith(".wtar"):
-                self.unwtar_a_file([what_to_work_on])
+                self.unwtar_a_file([what_to_work_on], where_to_unwtar)
         elif os.path.isdir(what_to_work_on):
             for root, dirs, files in os.walk(what_to_work_on, followlinks=False):
                 # a hack to prevent unwtarring of the sync folder. Copy command might copy something
@@ -89,27 +87,27 @@ class InstlMisc(InstlInstanceBase):
                     dirs[:] = []
                     continue
 
-                files_to_unwtar = []
-
+                tail_folder = root[len(what_to_work_on):].strip("\\/")
+                where_to_unwtar_the_file = os.path.join(where_to_unwtar, tail_folder)
                 for a_file in files:
                     a_file_path = os.path.join(root, a_file)
                     if a_file_path.endswith(".wtar.aa"):
                         split_files = self.find_split_files(a_file_path)
-                        files_to_unwtar.append(split_files)
+                        self.unwtar_a_file(split_files, where_to_unwtar_the_file)
                     elif a_file_path.endswith(".wtar"):
-                        files_to_unwtar.append([a_file_path])
-
-                for wtar_file_paths in files_to_unwtar:
-                    self.unwtar_a_file(wtar_file_paths)
+                        self.unwtar_a_file([a_file_path], where_to_unwtar_the_file)
+                    
         else:
             raise FileNotFoundError(what_to_work_on)
 
-    def unwtar_a_file(self, wtar_file_paths):
+    def unwtar_a_file(self, wtar_file_paths, destination_folder=None):
         try:
-            wtar_folder_path, _ = os.path.split(wtar_file_paths[0])
+            if destination_folder is None:
+                wtar_folder_path, _ = os.path.split(wtar_file_paths[0])
+                destination_folder = wtar_folder_path
             with MultiFileReader("br", wtar_file_paths) as fd:
                 with tarfile.open(fileobj=fd) as tar:
-                    tar.extractall(wtar_folder_path)
+                    tar.extractall(destination_folder)
 
             if self.no_artifacts:
                 for wtar_file in wtar_file_paths:
@@ -117,7 +115,7 @@ class InstlMisc(InstlInstanceBase):
             # self.dynamic_progress("Expanding {wtar_file_paths}".format(**locals()))
 
         except OSError as e:
-            print("Invalid stream on split file with {}".format(wtar_folder_path))
+            print("Invalid stream on split file with {}".format(wtar_file_paths[0]))
             raise e
 
         except tarfile.TarError:
