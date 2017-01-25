@@ -5,6 +5,7 @@ import os
 import sys
 import datetime
 import subprocess
+import re
 
 import utils
 from .platformSpecificHelper_Base import PlatformSpecificHelperBase
@@ -244,7 +245,9 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
                 win_paths = utils.unique_list()
                 # try to find the tool in the PATH variable
                 if "PATH" in os.environ:
-                    win_paths.extend(utils.unicodify(os.environ["PATH"]).split(";"))
+                    # remove newline characters that might lurk in the path (see tech support case 143589)
+                    adjusted_path = re.sub('[\r\n]',"?",utils.unicodify(os.environ["PATH"]))
+                    win_paths.extend(adjusted_path.split(";"))
                 else:
                     print("PATH was not found in environment variables")
                 # also add some known location in case user's PATH variable was altered
