@@ -341,9 +341,9 @@ class IndexItemsTable(object):
         FROM IndexItemDetailRow as install_sources_t
         JOIN IndexItemRow
             ON IndexItemRow.iid=install_sources_t.owner_iid
-            AND IndexItemRow.status=1
+            AND IndexItemRow.status > 0
         LEFT JOIN IndexItemDetailRow AS existing_sync_folders_t
-            ON existing_sync_folders_t.detail_name='sync_folders'
+            ON existing_sync_folders_t.detail_name='direct_sync'
             AND existing_sync_folders_t.owner_iid=install_sources_t.owner_iid
             AND existing_sync_folders_t.active=1
         WHERE
@@ -1273,18 +1273,23 @@ class IndexItemsTable(object):
     def get_sync_folders_and_sources_for_active_iids(self):
         retVal = list()
         query_text = """
-            SELECT install_sources_t.owner_iid AS iid,
-                    sync_folders_t.detail_value AS sync_folder,
+             SELECT install_sources_t.owner_iid AS iid,
+                    direct_sync_t.detail_value AS direct_sync_indicator,
                     install_sources_t.detail_value AS source,
-                    install_sources_t.tag AS tag
+                    install_sources_t.tag AS tag,
+                    install_folders_t.detail_value AS install_folder
             FROM IndexItemDetailRow AS install_sources_t
                 JOIN IndexItemRow AS iid_t
                     ON iid_t.iid=install_sources_t.owner_iid
-                    AND iid_t.status=1
-                LEFT JOIN IndexItemDetailRow AS sync_folders_t
-                    ON sync_folders_t.active=1
-                    AND install_sources_t.owner_iid = sync_folders_t.owner_iid
-                        AND sync_folders_t.detail_name='sync_folders'
+                    AND iid_t.status > 0
+                JOIN IndexItemDetailRow AS install_folders_t
+                    ON install_folders_t.active=1
+                    AND install_sources_t.owner_iid = install_folders_t.owner_iid
+                        AND install_folders_t.detail_name='install_folders'
+                LEFT JOIN IndexItemDetailRow AS direct_sync_t
+                    ON direct_sync_t.active=1
+                    AND install_sources_t.owner_iid = direct_sync_t.owner_iid
+                        AND direct_sync_t.detail_name='direct_sync'
             WHERE
                 install_sources_t.active=1
                 AND install_sources_t.detail_name='install_sources'
@@ -1292,7 +1297,7 @@ class IndexItemsTable(object):
         try:
             exec_result = self.session.execute(query_text)
             if exec_result.returns_rows:
-                # returns [(iid, sync_folder, source, source_tag),...]
+                # returns [(iid, direct_sync_indicator, source, source_tag, install_folder),...]
                 retVal.extend(exec_result.fetchall())
         except SQLAlchemyError as ex:
             raise
