@@ -1066,8 +1066,12 @@ class IndexItemsTable(object):
     def target_folders_to_items(self):
         retVal = list()
         query_text = """
-            SELECT IndexItemDetailRow.detail_value, IndexItemDetailRow.owner_iid
+            SELECT IndexItemDetailRow.owner_iid, IndexItemDetailRow.detail_value, IndexItemDetailRow.tag, direct_sync_t.detail_value
             FROM IndexItemDetailRow, IndexItemRow
+            LEFT JOIN IndexItemDetailRow AS direct_sync_t
+              ON IndexItemRow.iid=direct_sync_t.owner_iid
+                AND direct_sync_t.detail_name = 'direct_sync'
+                AND direct_sync_t.active = 1
             WHERE IndexItemDetailRow.detail_name="install_folders"
                 AND IndexItemRow.iid=IndexItemDetailRow.owner_iid
                 AND IndexItemRow.status != 0
@@ -1282,7 +1286,7 @@ class IndexItemsTable(object):
                 JOIN IndexItemRow AS iid_t
                     ON iid_t.iid=install_sources_t.owner_iid
                     AND iid_t.status > 0
-                JOIN IndexItemDetailRow AS install_folders_t
+                LEFT JOIN IndexItemDetailRow AS install_folders_t
                     ON install_folders_t.active=1
                     AND install_sources_t.owner_iid = install_folders_t.owner_iid
                         AND install_folders_t.detail_name='install_folders'

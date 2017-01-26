@@ -79,35 +79,7 @@ class InstlClientCopy(InstlClient):
                 self.batch_accum += self.platform_helper.progress("Create folder {0} done".format(target_folder_path))
             self.batch_accum += self.platform_helper.progress("Create folders done")
 
-    def create_copy_instructions(self):
-        self.create_sync_folder_manifest_command("before-copy")
-        # self.write_copy_debug_info()
-        # If we got here while in synccopy command, there is no need to read the info map again.
-        # If we got here while in copy command, read HAVE_INFO_MAP_FOR_COPY which defaults to HAVE_INFO_MAP_PATH.
-        # Copy might be called after the sync batch file was created
-        # but before it was executed in which case HAVE_INFO_MAP_FOR_COPY will be defined to NEW_HAVE_INFO_MAP_PATH.
-        if len(self.info_map_table.files_read_list) == 0:
-            have_info_path = var_stack.ResolveVarToStr("HAVE_INFO_MAP_FOR_COPY")
-            self.read_info_map_from_file(have_info_path)
-
-        # copy and actions instructions for sources
-        self.batch_accum.set_current_section('copy')
-        self.batch_accum += self.platform_helper.progress("Starting copy from $(COPY_SOURCES_ROOT_DIR)")
-
-        #self.accumulate_unique_actions('pre_copy', var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
-        self.accumulate_unique_actions_for_active_iids('pre_copy')
-        self.batch_accum += self.platform_helper.new_line()
-
-        sorted_target_folder_list = sorted(self.all_items_by_target_folder,
-                                           key=lambda fold: var_stack.ResolveStrToStr(fold))
-
-        # first create all target folders so to avoid dependency order problems such as creating links between folders
-        self.create_create_folders_instructions(sorted_target_folder_list)
-
-        if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
-            self.pre_copy_mac_handling()
-
-        for target_folder_path in sorted_target_folder_list:
+    def create_copy_instructions_for_target_folder(self, target_folder_path):
             num_items_copied_to_folder = 0
             items_in_folder = sorted(self.all_items_by_target_folder[target_folder_path])
             self.batch_accum += self.platform_helper.new_line()
@@ -116,7 +88,6 @@ class InstlClientCopy(InstlClient):
             self.batch_accum += self.platform_helper.progress("copy to {0} ...".format(target_folder_path))
 
             # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
-            #self.accumulate_unique_actions('pre_copy_to_folder', items_in_folder)
             self.accumulate_unique_actions_for_active_iids('pre_copy_to_folder', items_in_folder)
 
             batch_accum_len_before = len(self.batch_accum)
@@ -127,7 +98,6 @@ class InstlClientCopy(InstlClient):
                     for source_var in sorted(var_stack.get_configVar_obj("iid_source_var_list")):
                         source = var_stack.ResolveVarToList(source_var)
                         need_to_copy_source = installi.last_require_repo_rev == 0 or installi.last_require_repo_rev < self.get_max_repo_rev_for_source(source)
-                        #print(installi.name, installi.last_require_repo_rev, need_to_copy_source, self.get_max_repo_rev_for_source(source))
                         if need_to_copy_source:
                             self.batch_accum += self.platform_helper.remark("--- Begin source {0}".format(source[0]))
                             num_items_copied_to_folder += 1
@@ -146,43 +116,90 @@ class InstlClientCopy(InstlClient):
                     self.batch_accum += self.platform_helper.progress("Resolve symlinks done")
 
             # accumulate post_copy_to_folder actions from all items, eliminating duplicates
-            #self.accumulate_unique_actions('post_copy_to_folder', items_in_folder)
             self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)
             self.batch_accum += self.platform_helper.progress("Copy to {0} done".format(target_folder_path))
-            #self.write_copy_to_folder_debug_info(target_folder_path)
             self.batch_accum += self.platform_helper.remark("- End folder {0}".format(target_folder_path))
+
+    def create_copy_instructions_for_no_copy_folder(self, sync_folder_name):
+        """ Instructions for sources that do not need copying
+            These are sources that do not have 'install_folder' section OR those with active
+            'direct_sync' section.
+        """
+        self.batch_accum.begin_transaction()
+
+        actual_instructions = 0  # num "real" instruction not including cd, newline, progress, echo etc...
+
+        items_in_folder = self.no_copy_items_by_sync_folder[sync_folder_name]
+        self.batch_accum += self.platform_helper.new_line()
+        self.batch_accum += self.platform_helper.cd(sync_folder_name)
+        self.batch_accum += self.platform_helper.progress("Actions in {0} ...".format(sync_folder_name))
+
+        # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
+        actual_instructions += self.accumulate_unique_actions_for_active_iids('pre_copy_to_folder', items_in_folder)
+
+        num_wtars = 0
+        for IID in sorted(items_in_folder):
+            with self.install_definitions_index[IID].push_var_stack_scope():
+                for source_var in sorted(var_stack.ResolveVarToList("iid_source_var_list", default=[])):
+                    source = var_stack.ResolveVarToList(source_var)
+                    num_wtars = self.info_map_table.count_wtar_items_of_dir(source[0]);
+                self.batch_accum.begin_transaction()
+                self.batch_accum += var_stack.ResolveVarToList("iid_action_list_pre_copy_item", default=[])
+                self.batch_accum += var_stack.ResolveVarToList("iid_action_list_post_copy_item", default=[])
+                actual_instructions += self.batch_accum.end_transaction()
+
+        if num_wtars > 0:
+            source_folder, source_name = os.path.split(source[0])
+            #to_unwtar = os.path.join(sync_folder_name, source_name)
+            self.batch_accum += self.platform_helper.unwtar_something(sync_folder_name, no_artifacts=False, where_to_unwtar='.')
+            actual_instructions += 1
+
+        # accumulate post_copy_to_folder actions from all items, eliminating duplicates
+        actual_instructions += self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)
+
+        self.batch_accum += self.platform_helper.progress("{sync_folder_name}".format(**locals()))
+        self.batch_accum += self.platform_helper.progress("Actions in {0} done".format(sync_folder_name))
+
+        if actual_instructions > 0:
+            self.batch_accum.end_transaction()
+        else:
+            self.batch_accum.cancel_transaction()
+
+    def create_copy_instructions(self):
+        self.create_sync_folder_manifest_command("before-copy")
+        # If we got here while in synccopy command, there is no need to read the info map again.
+        # If we got here while in copy command, read HAVE_INFO_MAP_FOR_COPY which defaults to HAVE_INFO_MAP_PATH.
+        # Copy might be called after the sync batch file was created
+        # but before it was executed in which case HAVE_INFO_MAP_FOR_COPY will be defined to NEW_HAVE_INFO_MAP_PATH.
+        if len(self.info_map_table.files_read_list) == 0:
+            have_info_path = var_stack.ResolveVarToStr("HAVE_INFO_MAP_FOR_COPY")
+            self.read_info_map_from_file(have_info_path)
+
+        # copy and actions instructions for sources
+        self.batch_accum.set_current_section('copy')
+        self.batch_accum += self.platform_helper.progress("Starting copy from $(COPY_SOURCES_ROOT_DIR)")
+
+        self.accumulate_unique_actions_for_active_iids('pre_copy')
+        self.batch_accum += self.platform_helper.new_line()
+
+        sorted_target_folder_list = sorted(self.all_items_by_target_folder,
+                                           key=lambda fold: var_stack.ResolveStrToStr(fold))
+
+        # first create all target folders so to avoid dependency order problems such as creating links between folders
+        self.create_create_folders_instructions(sorted_target_folder_list)
+
+        if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
+            self.pre_copy_mac_handling()
+
+        for target_folder_path in sorted_target_folder_list:
+            self.create_copy_instructions_for_target_folder(target_folder_path)
 
         # actions instructions for sources that do not need copying, here folder_name is the sync folder
         for sync_folder_name in sorted(self.no_copy_items_by_sync_folder.keys()):
-            items_in_folder = self.no_copy_items_by_sync_folder[sync_folder_name]
-            self.batch_accum += self.platform_helper.new_line()
-            self.batch_accum += self.platform_helper.cd(sync_folder_name)
-            self.batch_accum += self.platform_helper.progress("Actions in {0} ...".format(sync_folder_name))
-
-            # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
-            #self.accumulate_unique_actions('pre_copy_to_folder', items_in_folder)
-            self.accumulate_unique_actions_for_active_iids('pre_copy_to_folder', items_in_folder)
-
-            for IID in sorted(items_in_folder):
-                with self.install_definitions_index[IID].push_var_stack_scope():
-                    for source_var in sorted(var_stack.ResolveVarToList("iid_source_var_list", default=[])):
-                        source = var_stack.ResolveVarToList(source_var)
-                        source_folder, source_name = os.path.split(source[0])
-                        to_unwtar = os.path.join(sync_folder_name, source_name)
-                        self.batch_accum += self.platform_helper.unwtar_something(to_unwtar, no_artifacts=False, where_to_unwtar='.')
-                    self.batch_accum += var_stack.ResolveVarToList("iid_action_list_pre_copy_item", default=[])
-                    self.batch_accum += var_stack.ResolveVarToList("iid_action_list_post_copy_item", default=[])
-
-            # accumulate post_copy_to_folder actions from all items, eliminating duplicates
-            #self.accumulate_unique_actions('post_copy_to_folder', items_in_folder)
-            self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)
-
-            self.batch_accum += self.platform_helper.progress("{sync_folder_name}".format(**locals()))
-            self.batch_accum += self.platform_helper.progress("Actions in {0} done".format(sync_folder_name))
+            self.create_copy_instructions_for_no_copy_folder(sync_folder_name)
 
         print(self.bytes_to_copy, "bytes to copy")
 
-        #self.accumulate_unique_actions('post_copy', var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
         self.accumulate_unique_actions_for_active_iids('post_copy')
 
         self.batch_accum.set_current_section('post-copy')

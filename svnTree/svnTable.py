@@ -11,6 +11,7 @@ from sqlalchemy.ext import baked
 from sqlalchemy import bindparam
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 
 from .svnRow import SVNRow
 from pyinstl.db_alchemy import create_session
@@ -565,6 +566,40 @@ class SVNTable(object):
             results = self.session.execute(update_statement)
             retVal = results.rowcount
 
+        return retVal
+
+    def get_file_items_of_dir(self, dir_path):
+        """ get all file items in dir_path OR if the dir_path itself is wtarred - the wtarred file items.
+            results are recursive so files from sub folders are also returned
+        """
+        if "get_file_items_of_dir" not in self.baked_queries_map:
+            self.baked_queries_map["get_file_items_of_dir"] = self.bakery(lambda session: session.query(SVNRow))
+            self.baked_queries_map["get_file_items_of_dir"] += lambda q: q.filter(SVNRow.fileFlag == True)
+            self.baked_queries_map["get_file_items_of_dir"] += lambda q: q.filter(or_(SVNRow.path.like(bindparam('dir_path')+"/%"),
+                                                                                 SVNRow.path.like(bindparam('dir_path')+".wtar%")))
+
+        files_of_dir = self.baked_queries_map["get_file_items_of_dir"](self.session).params(dir_path=dir_path).all()
+        return files_of_dir
+
+    def count_wtar_items_of_dir(self, dir_path):
+        """ count all wtar items in dir_path OR if the dir_path itself is wtarred - count of wtarred file items.
+            results are recursive so count from sub folders are also accumulated
+        """
+        retVal = 0
+        query_text = """
+            SELECT COUNT(*)
+            FROM svnitem
+            WHERE
+              fileFlag = 1
+              AND
+              ( path LIKE "{dir_path}" || ".wtar%"
+                OR
+              path LIKE "{dir_path}" || "/%.wtar%" )
+             """.format(dir_path=dir_path)
+        try:
+            retVal = self.session.execute(query_text).first()[0]
+        except SQLAlchemyError:
+            raise
         return retVal
 
     def get_items_in_dir(self, dir_path="", what="any", levels_deep=1024):
