@@ -71,7 +71,9 @@ class InstlMisc(InstlInstanceBase):
     def do_unwtar(self):
         self.no_artifacts = "__NO_WTAR_ARTIFACTS__" in var_stack
         what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__", default='.')
-        where_to_unwtar = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__", default='.')
+        where_to_unwtar = None
+        if "__MAIN_OUT_FILE__" in var_stack:
+            var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
 
         if os.path.isfile(what_to_work_on):
             if what_to_work_on.endswith(".wtar.aa"): # this case apparently is no longer relevant
@@ -80,6 +82,7 @@ class InstlMisc(InstlInstanceBase):
             elif what_to_work_on.endswith(".wtar"):
                 self.unwtar_a_file([what_to_work_on], where_to_unwtar)
         elif os.path.isdir(what_to_work_on):
+            where_to_unwtar_the_file = None
             for root, dirs, files in os.walk(what_to_work_on, followlinks=False):
                 # a hack to prevent unwtarring of the sync folder. Copy command might copy something
                 # to the top level of the sync folder.
@@ -88,7 +91,8 @@ class InstlMisc(InstlInstanceBase):
                     continue
 
                 tail_folder = root[len(what_to_work_on):].strip("\\/")
-                where_to_unwtar_the_file = os.path.join(where_to_unwtar, tail_folder)
+                if where_to_unwtar is not None:
+                    where_to_unwtar_the_file = os.path.join(where_to_unwtar, tail_folder)
                 for a_file in files:
                     a_file_path = os.path.join(root, a_file)
                     if a_file_path.endswith(".wtar.aa"):
@@ -103,10 +107,10 @@ class InstlMisc(InstlInstanceBase):
     def unwtar_a_file(self, wtar_file_paths, destination_folder=None):
         try:
             if destination_folder is None:
-                wtar_folder_path, _ = os.path.split(wtar_file_paths[0])
-                destination_folder = wtar_folder_path
+                destination_folder, _ = os.path.split(wtar_file_paths[0])
             with MultiFileReader("br", wtar_file_paths) as fd:
                 with tarfile.open(fileobj=fd) as tar:
+                    #print(wtar_file_paths[0]); tar.list(); print("...")
                     tar.extractall(destination_folder)
 
             if self.no_artifacts:
