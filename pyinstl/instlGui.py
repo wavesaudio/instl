@@ -205,8 +205,8 @@ class InstlGui(InstlInstanceBase):
             self.client_run_batch_file_checkbox.configure(state='disabled')
 
         command_line = " ".join(self.create_client_command_line())
-
-        self.client_command_line_var.set(var_stack.ResolveStrToStr(command_line))
+        self.T_client.delete(1.0, END)
+        self.T_client.insert(END, var_stack.ResolveStrToStr(command_line))
 
     def read_admin_config_file(self):
         config_path = var_stack.ResolveVarToStr("ADMIN_GUI_CONFIG_FILE", default="")
@@ -255,7 +255,8 @@ class InstlGui(InstlInstanceBase):
 
         command_line = " ".join(self.create_admin_command_line())
 
-        self.admin_command_line_var.set(var_stack.ResolveStrToStr(command_line))
+        self.T_admin.delete(1.0, END)
+        self.T_admin.insert(END, var_stack.ResolveStrToStr(command_line))
 
     def run_client(self):
         self.update_client_state()
@@ -374,9 +375,9 @@ class InstlGui(InstlInstanceBase):
 
         # the combined command line text
         curr_row += 1
-        Button(admin_frame, width=6, text="run:", command=self.run_admin).grid(row=curr_row, column=0, sticky=W)
-        self.admin_command_line_var = StringVar()
-        Label(admin_frame, textvariable=self.admin_command_line_var, wraplength=400, anchor=W).grid(row=curr_row, column=1, columnspan=2, sticky=W)
+        Button(admin_frame, width=6, text="run:", command=self.run_admin).grid(row=curr_row, column=0, sticky=N)
+        self.T_admin = Text(admin_frame, height=7)
+        self.T_admin.grid(row=curr_row, column=1, columnspan=2, sticky=W)
 
         return admin_frame
 
@@ -436,9 +437,9 @@ class InstlGui(InstlInstanceBase):
 
         # the combined command line text
         curr_row += 1
-        Button(client_frame, width=6, text="run:", command=self.run_client).grid(row=curr_row, column=0, sticky=W)
-        self.client_command_line_var = StringVar()
-        Label(client_frame, textvariable=self.client_command_line_var, wraplength=400, anchor=W).grid(row=curr_row, column=1, columnspan=4, sticky=W)
+        Button(client_frame, width=6, text="run:", command=self.run_client).grid(row=curr_row, column=0, sticky=N)
+        self.T_client = Text(client_frame, height=7)
+        self.T_client.grid(row=curr_row, column=1, columnspan=2, sticky=W)
 
         client_frame.grid_columnconfigure(0, minsize=80)
         client_frame.grid_columnconfigure(1, minsize=300)
