@@ -206,17 +206,17 @@ class InstlGui(InstlInstanceBase):
 
         command_line = " ".join(self.create_client_command_line())
 
-        self.client_command_line_var.set(var_stack.ResolveStrToStr.resolve(command_line))
+        self.client_command_line_var.set(var_stack.ResolveStrToStr(command_line))
 
     def read_admin_config_file(self):
         config_path = var_stack.ResolveVarToStr("ADMIN_GUI_CONFIG_FILE", default="")
-        if os.path.isfile(config_path):
-            var_stack.get_configVar_obj("__SEARCH_PATHS__").clear_values() # so __include__ file will not be found on old paths
-            self.read_yaml_file(config_path)
-            self.admin_config_file_dirty = False
-        else:
-            print("File not found:", config_path)
-
+        if config_path != "":
+            if os.path.isfile(config_path):
+                var_stack.get_configVar_obj("__SEARCH_PATHS__").clear_values() # so __include__ file will not be found on old paths
+                self.read_yaml_file(config_path)
+                self.admin_config_file_dirty = False
+            else:
+                print("File not found:", config_path)
 
     def update_admin_state(self, *args):
         var_stack.set_var("ADMIN_GUI_CMD").append(self.admin_command_name_var.get())
