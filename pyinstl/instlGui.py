@@ -128,7 +128,12 @@ class InstlGui(InstlInstanceBase):
             self.update_admin_state()
 
     def open_file_for_edit(self, path_to_file):
+        if path_to_file == "": return
         path_to_file = os.path.relpath(path_to_file)
+        if not os.path.isfile(path_to_file):
+            print("File not found:", path_to_file)
+            return
+
         try:
             # noinspection PyUnresolvedReferences
             os.startfile(path_to_file, 'edit')
@@ -220,8 +225,8 @@ class InstlGui(InstlInstanceBase):
 
     def update_admin_state(self, *args):
         var_stack.set_var("ADMIN_GUI_CMD").append(self.admin_command_name_var.get())
-
         current_config_path = var_stack.ResolveVarToStr("ADMIN_GUI_CONFIG_FILE", default="")
+        
         new_config_path = self.admin_config_path_var.get()
         if current_config_path != new_config_path:
             self.admin_config_file_dirty = True
@@ -492,10 +497,15 @@ class InstlGui(InstlInstanceBase):
         command_line = [var_stack.ResolveVarToStr("__INSTL_EXE_PATH__"), "read-yaml",
                         "--in", path_to_yaml]
 
-        if getattr(os, "setsid", None):
-            check_yaml_process = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid)  # Unix
-        else:
-            check_yaml_process = subprocess.Popen(command_line, executable=command_line[0], shell=False)  # Windows
+        try:
+            if getattr(os, "setsid", None):
+                check_yaml_process = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid)  # Unix
+            else:
+                check_yaml_process = subprocess.Popen(command_line, executable=command_line[0], shell=False)  # Windows
+        except OSError:
+            print("Cannot run:", command_line)
+            return
+            
         unused_stdout, unused_stderr = check_yaml_process.communicate()
         return_code = check_yaml_process.returncode
         if return_code != 0:
