@@ -274,7 +274,6 @@ class InstlClientCopy(InstlClient):
                num_wtars += 1
                
         if num_wtars > 0:
-            self.unwtar_once_for_dir_cont.append(source_path_abs) # so we won't unwtar this again in this session
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
             self.batch_accum += self.platform_helper.unwtar_something(source_path_abs, no_artifacts=False, where_to_unwtar='.')
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
