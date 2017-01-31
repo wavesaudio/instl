@@ -228,8 +228,11 @@ class ConfigVarList(object):
 
     def ResolveVarToStr(self, in_var, list_sep="", default=None):
         value_list = self.ResolveVarToList(in_var, default=[default])
-        retVal = list_sep.join(value_list)
-        return retVal
+        if all(x is None for x in value_list):
+            return default
+        else:
+            retVal = list_sep.join(value_list)
+            return retVal
 
     def ResolveVarToList(self, in_var, default=None):
         retVal = list()

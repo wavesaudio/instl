@@ -128,7 +128,12 @@ class InstlGui(InstlInstanceBase):
             self.update_admin_state()
 
     def open_file_for_edit(self, path_to_file):
+        if path_to_file == "": return
         path_to_file = os.path.relpath(path_to_file)
+        if not os.path.isfile(path_to_file):
+            print("File not found:", path_to_file)
+            return
+
         try:
             # noinspection PyUnresolvedReferences
             os.startfile(path_to_file, 'edit')
@@ -205,23 +210,23 @@ class InstlGui(InstlInstanceBase):
             self.client_run_batch_file_checkbox.configure(state='disabled')
 
         command_line = " ".join(self.create_client_command_line())
-
-        self.client_command_line_var.set(var_stack.ResolveStrToStr.resolve(command_line))
+        self.T_client.delete(1.0, END)
+        self.T_client.insert(END, var_stack.ResolveStrToStr(command_line))
 
     def read_admin_config_file(self):
         config_path = var_stack.ResolveVarToStr("ADMIN_GUI_CONFIG_FILE", default="")
-        if os.path.isfile(config_path):
-            var_stack.get_configVar_obj("__SEARCH_PATHS__").clear_values() # so __include__ file will not be found on old paths
-            self.read_yaml_file(config_path)
-            self.admin_config_file_dirty = False
-        else:
-            print("File not found:", config_path)
-
+        if config_path != "":
+            if os.path.isfile(config_path):
+                var_stack.get_configVar_obj("__SEARCH_PATHS__").clear_values() # so __include__ file will not be found on old paths
+                self.read_yaml_file(config_path)
+                self.admin_config_file_dirty = False
+            else:
+                print("File not found:", config_path)
 
     def update_admin_state(self, *args):
         var_stack.set_var("ADMIN_GUI_CMD").append(self.admin_command_name_var.get())
-
         current_config_path = var_stack.ResolveVarToStr("ADMIN_GUI_CONFIG_FILE", default="")
+        
         new_config_path = self.admin_config_path_var.get()
         if current_config_path != new_config_path:
             self.admin_config_file_dirty = True
@@ -255,7 +260,8 @@ class InstlGui(InstlInstanceBase):
 
         command_line = " ".join(self.create_admin_command_line())
 
-        self.admin_command_line_var.set(var_stack.ResolveStrToStr(command_line))
+        self.T_admin.delete(1.0, END)
+        self.T_admin.insert(END, var_stack.ResolveStrToStr(command_line))
 
     def run_client(self):
         self.update_client_state()
@@ -374,9 +380,9 @@ class InstlGui(InstlInstanceBase):
 
         # the combined command line text
         curr_row += 1
-        Button(admin_frame, width=6, text="run:", command=self.run_admin).grid(row=curr_row, column=0, sticky=W)
-        self.admin_command_line_var = StringVar()
-        Label(admin_frame, textvariable=self.admin_command_line_var, wraplength=400, anchor=W).grid(row=curr_row, column=1, columnspan=2, sticky=W)
+        Button(admin_frame, width=6, text="run:", command=self.run_admin).grid(row=curr_row, column=0, sticky=N)
+        self.T_admin = Text(admin_frame, height=7)
+        self.T_admin.grid(row=curr_row, column=1, columnspan=2, sticky=W)
 
         return admin_frame
 
@@ -436,9 +442,9 @@ class InstlGui(InstlInstanceBase):
 
         # the combined command line text
         curr_row += 1
-        Button(client_frame, width=6, text="run:", command=self.run_client).grid(row=curr_row, column=0, sticky=W)
-        self.client_command_line_var = StringVar()
-        Label(client_frame, textvariable=self.client_command_line_var, wraplength=400, anchor=W).grid(row=curr_row, column=1, columnspan=4, sticky=W)
+        Button(client_frame, width=6, text="run:", command=self.run_client).grid(row=curr_row, column=0, sticky=N)
+        self.T_client = Text(client_frame, height=7)
+        self.T_client.grid(row=curr_row, column=1, columnspan=2, sticky=W)
 
         client_frame.grid_columnconfigure(0, minsize=80)
         client_frame.grid_columnconfigure(1, minsize=300)
@@ -491,10 +497,15 @@ class InstlGui(InstlInstanceBase):
         command_line = [var_stack.ResolveVarToStr("__INSTL_EXE_PATH__"), "read-yaml",
                         "--in", path_to_yaml]
 
-        if getattr(os, "setsid", None):
-            check_yaml_process = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid)  # Unix
-        else:
-            check_yaml_process = subprocess.Popen(command_line, executable=command_line[0], shell=False)  # Windows
+        try:
+            if getattr(os, "setsid", None):
+                check_yaml_process = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid)  # Unix
+            else:
+                check_yaml_process = subprocess.Popen(command_line, executable=command_line[0], shell=False)  # Windows
+        except OSError:
+            print("Cannot run:", command_line)
+            return
+            
         unused_stdout, unused_stderr = check_yaml_process.communicate()
         return_code = check_yaml_process.returncode
         if return_code != 0:
