@@ -73,7 +73,7 @@ class InstlMisc(InstlInstanceBase):
         what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__", default='.')
         where_to_unwtar = None
         if "__MAIN_OUT_FILE__" in var_stack:
-            var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
+            where_to_unwtar = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
 
         if os.path.isfile(what_to_work_on):
             if what_to_work_on.endswith(".wtar.aa"): # this case apparently is no longer relevant
