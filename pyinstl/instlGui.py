@@ -388,6 +388,7 @@ class InstlGui(InstlInstanceBase):
         Button(admin_frame, width=6, text="run:", command=self.run_admin).grid(row=curr_row, column=0, sticky=N)
         self.T_admin = Text(admin_frame, height=7)
         self.T_admin.grid(row=curr_row, column=1, columnspan=2, sticky=W)
+        self.T_admin.configure(state='disabled')
 
         return admin_frame
 
@@ -450,6 +451,7 @@ class InstlGui(InstlInstanceBase):
         Button(client_frame, width=6, text="run:", command=self.run_client).grid(row=curr_row, column=0, sticky=N)
         self.T_client = Text(client_frame, height=7)
         self.T_client.grid(row=curr_row, column=1, columnspan=2, sticky=W)
+        self.T_client.configure(state='disabled')
 
         client_frame.grid_columnconfigure(0, minsize=80)
         client_frame.grid_columnconfigure(1, minsize=300)
