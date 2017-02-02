@@ -325,8 +325,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         in_batch_accum.set_current_section("assign")
         for identifier in var_stack:
             if identifier not in self.do_not_write_vars:
-                in_batch_accum += self.platform_helper.var_assign(identifier, var_stack.ResolveVarToStr(identifier, list_sep=" "),
-                                                                    None)  # var_stack[identifier].resolved_num
+                in_batch_accum += self.platform_helper.var_assign(identifier, var_stack.ResolveVarToStr(identifier, list_sep=" ", default=""))  # var_stack[identifier].resolved_num
 
     def calc_user_cache_dir_var(self, make_dir=True):
         if "USER_CACHE_DIR" not in var_stack:
