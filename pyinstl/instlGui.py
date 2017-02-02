@@ -210,8 +210,10 @@ class InstlGui(InstlInstanceBase):
             self.client_run_batch_file_checkbox.configure(state='disabled')
 
         command_line = " ".join(self.create_client_command_line())
+        self.T_client.configure(state='normal')
         self.T_client.delete(1.0, END)
         self.T_client.insert(END, var_stack.ResolveStrToStr(command_line))
+        self.T_client.configure(state='disabled')
 
     def read_admin_config_file(self):
         config_path = var_stack.ResolveVarToStr("ADMIN_GUI_CONFIG_FILE", default="")
@@ -226,8 +228,9 @@ class InstlGui(InstlInstanceBase):
     def update_admin_state(self, *args):
         var_stack.set_var("ADMIN_GUI_CMD").append(self.admin_command_name_var.get())
         current_config_path = var_stack.ResolveVarToStr("ADMIN_GUI_CONFIG_FILE", default="")
-        
         new_config_path = self.admin_config_path_var.get()
+        if not os.path.isfile(new_config_path): return
+        
         if current_config_path != new_config_path:
             self.admin_config_file_dirty = True
         var_stack.set_var("ADMIN_GUI_CONFIG_FILE").append(new_config_path)
@@ -260,8 +263,10 @@ class InstlGui(InstlInstanceBase):
 
         command_line = " ".join(self.create_admin_command_line())
 
+        self.T_admin.configure(state='normal')
         self.T_admin.delete(1.0, END)
         self.T_admin.insert(END, var_stack.ResolveStrToStr(command_line))
+        self.T_admin.configure(state='disabled')
 
     def run_client(self):
         self.update_client_state()
