@@ -16,6 +16,10 @@ from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
 
 
+tab_names = {
+    'ADMIN':   'Admin',
+    'CLIENT':  'Client'
+}
 
 admin_command_template_variables = {
     'svn2stage': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
@@ -190,6 +194,7 @@ class InstlGui(InstlInstanceBase):
             items_in_dir = os.listdir(new_input_file_dir)
             dir_items = [os.path.join(new_input_file_dir, item) for item in items_in_dir if os.path.isfile(os.path.join(new_input_file_dir, item))]
             self.client_input_combobox.configure(values=dir_items)
+            
         var_stack.set_var("CLIENT_GUI_IN_FILE").append(self.client_input_path_var.get())
 
     def update_client_state(self, *args):
@@ -390,7 +395,22 @@ class InstlGui(InstlInstanceBase):
         self.T_admin.grid(row=curr_row, column=1, columnspan=2, sticky=W)
         self.T_admin.configure(state='disabled')
 
+        curr_row += 1
+        Button(admin_frame, width=9, text="clipboard", command=self.copy_to_clipboard).grid(row=curr_row, column=1, sticky=W)
+
         return admin_frame
+
+    def copy_to_clipboard(self):
+        value = ""
+        if self.tab_name == tab_names['ADMIN']:
+            value = self.T_admin.get("1.0",END)
+        elif self.tab_name == tab_names['CLIENT']:
+            value = self.T_client.get("1.0",END)
+
+        if value != "":
+            self.master.clipboard_clear()
+            self.master.clipboard_append(value)
+            print("data was copied to clipboard!")
 
     def create_client_frame(self, master):
 
@@ -453,6 +473,9 @@ class InstlGui(InstlInstanceBase):
         self.T_client.grid(row=curr_row, column=1, columnspan=2, sticky=W)
         self.T_client.configure(state='disabled')
 
+        curr_row += 1
+        Button(client_frame, width=9, text="clipboard", command=self.copy_to_clipboard).grid(row=curr_row, column=1, sticky=W)
+        
         client_frame.grid_columnconfigure(0, minsize=80)
         client_frame.grid_columnconfigure(1, minsize=300)
         client_frame.grid_columnconfigure(2, minsize=80)
@@ -461,13 +484,13 @@ class InstlGui(InstlInstanceBase):
 
     def tabChangedEvent(self, *args):
         tab_id = self.notebook.select()
-        tab_name = self.notebook.tab(tab_id, option='text')
-        if tab_name == "Admin":
+        self.tab_name = self.notebook.tab(tab_id, option='text')
+        if self.tab_name == tab_names['ADMIN']:
             self.update_admin_state()
-        elif tab_name == "Client":
+        elif self.tab_name == tab_names['CLIENT']:
             self.update_client_state()
         else:
-            print("Unknown tab", tab_name)
+            print("Unknown tab", self.tab_name)
 
     def create_gui(self):
 
