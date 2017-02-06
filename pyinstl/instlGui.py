@@ -175,8 +175,19 @@ class InstlGui(InstlInstanceBase):
                 limit_path = self.admin_limit_var.get()
                 if limit_path != "":
                     retVal.append("--limit")
-                    limit_paths = shlex.split(limit_path)  # there might be space separated paths
-                    retVal.extend(limit_paths)
+                    
+                    # there might be space separated paths, but -
+                    
+                    # ideally, the following line should be enough but by default quotes are not supported properly...
+                    #limit_paths = shlex.split(limit_path)
+                    
+                    # ... so we have to do it the long way
+                    limit_paths = shlex.shlex(limit_path)
+                    limit_paths.quotes = '"'
+                    limit_paths.whitespace_split = True
+                    limit_paths.commenters = '' # support the '#' char by setting commenters to ''
+                    limit_paths.wordchars += '"'
+                    retVal.extend(list(limit_paths))
 
             if self.run_admin_batch_file_var.get() == 1 and command_name in self.commands_with_run_option_list:
                 retVal.append("--run")
