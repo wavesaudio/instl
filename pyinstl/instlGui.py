@@ -21,6 +21,12 @@ tab_names = {
     'CLIENT':  'Client'
 }
 
+if getattr(os, "setsid", None):
+    default_font_size = 16 # for Mac
+else:
+    default_font_size = 12 # for Windows
+
+print(default_font_size)
 admin_command_template_variables = {
     'svn2stage': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
     'fix-symlinks': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
@@ -401,7 +407,7 @@ class InstlGui(InstlInstanceBase):
         # the combined command line text
         curr_row += 1
         Button(admin_frame, width=6, text="run:", command=self.run_admin).grid(row=curr_row, column=0, sticky=N)
-        self.T_admin = Text(admin_frame, height=7, font=("Courier", 12))
+        self.T_admin = Text(admin_frame, height=7, font=("Courier", default_font_size))
         self.T_admin.grid(row=curr_row, column=1, columnspan=2, sticky=W)
         self.T_admin.configure(state='disabled')
 
@@ -479,7 +485,7 @@ class InstlGui(InstlInstanceBase):
         # the combined command line text
         curr_row += 1
         Button(client_frame, width=6, text="run:", command=self.run_client).grid(row=curr_row, column=0, sticky=N)
-        self.T_client = Text(client_frame, height=7, font=("Courier", 12))
+        self.T_client = Text(client_frame, height=7, font=("Courier", default_font_size))
         self.T_client.grid(row=curr_row, column=1, columnspan=2, sticky=W)
         self.T_client.configure(state='disabled')
 
