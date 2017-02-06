@@ -234,7 +234,6 @@ class InstlGui(InstlInstanceBase):
         var_stack.set_var("ADMIN_GUI_CMD").append(self.admin_command_name_var.get())
         current_config_path = var_stack.ResolveVarToStr("ADMIN_GUI_CONFIG_FILE", default="")
         new_config_path = self.admin_config_path_var.get()
-        if not os.path.isfile(new_config_path): return
         
         if current_config_path != new_config_path:
             self.admin_config_file_dirty = True
@@ -407,7 +406,7 @@ class InstlGui(InstlInstanceBase):
         elif self.tab_name == tab_names['CLIENT']:
             value = self.T_client.get("1.0",END)
 
-        if value != "":
+        if value not in ["", "\n"]:
             self.master.clipboard_clear()
             self.master.clipboard_append(value)
             print("data was copied to clipboard!")
