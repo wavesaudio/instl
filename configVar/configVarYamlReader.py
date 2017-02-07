@@ -43,8 +43,8 @@ class ConfigVarYamlReader(aYaml.YamlReader):
                     kwargs.update({'ignore_if_not_exist': True})
                     self.read_include_node(contents, *args, **kwargs)
                 elif identifier == "__environment__":
-                    for item in contents:
-                        var_stack.read_environment(item.value)
+                    contents_list = [c.value for c in contents]
+                    var_stack.read_environment(contents_list)
                 elif self.allow_reading_of_internal_vars or not internal_identifier_re.match(
                         identifier):  # do not read internal state identifiers
                     new_var = var_stack.set_var(identifier, str(contents.start_mark))
