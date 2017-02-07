@@ -713,9 +713,12 @@ class IndexItemsTable(object):
             else:
                 for details_line in the_node[detail_name]:
                     tag = details_line.tag if details_line.tag[0]=='!' else None
+                    value = details_line.value
                     if detail_name == "install_sources" and tag is None:
                         tag = '!dir'
-                    new_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=self.os_names[the_os], detail_name=detail_name, detail_value=details_line.value, generation=0, tag=tag)
+                    elif detail_name == "guid":
+                        value = value.lower()
+                    new_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=self.os_names[the_os], detail_name=detail_name, detail_value=value, generation=0, tag=tag)
                     details.append(new_detail)
         return details
 
