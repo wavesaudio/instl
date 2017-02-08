@@ -217,15 +217,15 @@ class InstlClientCopy(InstlClient):
         first_wtar_item = None
 
         for source_file in source_files:
-            source_item_path = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_file.path)
+            source_file.sync_path = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_file.path)
             if not any(ignore_item in source_file.name() for ignore_item in self.ignore_additions):
                 
                 # ignore_list is passed for the sake of completeness but is not being used further down the road in copy_file_to_dir
-                self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_item_path, ".",
+                self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_file.sync_path, ".",
                                                                                     link_dest=True,
                                                                                     ignore=self.ignore_list) 
                                                                                     
-                self.batch_accum += self.platform_helper.echo("copy {source_item_path}".format(**locals()))
+                self.batch_accum += self.platform_helper.echo("copy {source_file.sync_path}".format(**locals()))
 
                 if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
                     if not source_file.path.endswith(".symlink"):
@@ -242,7 +242,7 @@ class InstlClientCopy(InstlClient):
 
         if first_wtar_item:
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
-            self.batch_accum += self.platform_helper.unwtar_something(source_item_path, no_artifacts=False, where_to_unwtar='.')
+            self.batch_accum += self.platform_helper.unwtar_something(first_wtar_item.sync_path, no_artifacts=False, where_to_unwtar='.')
             self.batch_accum += self.platform_helper.unlock(first_wtar_item.name_without_wtar_extension())
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
 
