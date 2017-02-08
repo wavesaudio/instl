@@ -1,7 +1,8 @@
-7/2/2017 1.3.2.3
+8/2/2017 1.3.2.3
 
     * user visible changes client:
     fixed create_copy_instructions_for_file to correctly handle !file item that is wtar.
+    * fixed report-versions where version is different between Mac and Windows
 
     programmer visible changes:
     * Fixed the reading of environment varaibles under "__environment__":

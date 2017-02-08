@@ -320,7 +320,8 @@ class IndexItemsTable(object):
                 AND item_name.active=1
             WHERE
                 remote.detail_name = 'version'
-            GROUP BY remote.owner_iid
+                AND remote.active=1
+           GROUP BY remote.owner_iid
             """)
         self.session.execute(stmt)
 
