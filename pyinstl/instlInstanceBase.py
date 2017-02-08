@@ -157,6 +157,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             "credentials": ("__CREDENTIALS__", None),
             "base_url": ("__BASE_URL__", None),
             "file_sizes_file": ("__FILE_SIZES_FILE__", None),
+            "collect_fields": ("__COLLECT_FIELDS__", None),
             "output_format": ("__OUTPUT_FORMAT__", "$(OUTPUT_FORMAT)")
         }
 

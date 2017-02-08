@@ -131,10 +131,14 @@ command:
     ls:
         short: create a listing of a directory (misc command)
         long: |
-            Usage: instl ls --in path-to-input-folder --out path-to-output-file [--limit limit-command-to [limit-command-to ...]]
+            Usage: instl ls --in path-to-input-folder --out path-to-output-file [--limit limit-command-to [limit-command-to ...]] [--collect what_to_collect]
             Creates a listing of a path-to-input-folder and writes it to path-to-output-file in the format:
-            indode   permissions  * user group     size modification-time   checksum (for files)                     full-path
-            76307926 -rw-r--r--   1 dany staff     1045 2016/05/19-21:19:24 269d13fab3baf56de091457082ea3e04cc113267 /Volumes/Release/Plugins/API-2500.bundle/Contents/Info.plist
+            if collect is ommited all fields are shown by default in the following order -
+              indode   permissions  * user group     size modification-time   checksum (for files)                     full-path
+              76307926 -rw-r--r--   1 dany staff     1045 2016/05/19-21:19:24 269d13fab3baf56de091457082ea3e04cc113267 /Volumes/Release/Plugins/API-2500.bundle/Contents/Info.plist
+            --collect can be any combination and order of these letters:
+              for Mac: IRLUGSTCP - Inode, peRmissions, num Links, User, Group, Size, Time, Checksum, Path
+              for Windows: TDSUGCP - Time, is_Dir, Size, User, Group, Checksum, Path
             If --limit is supplied only these subfolder will be listed.
             *==number of links.
 
