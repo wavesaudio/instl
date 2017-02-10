@@ -760,6 +760,16 @@ class InstlAdmin(InstlInstanceBase):
                         # STCP stands for for Size, Time, Checksum, Path
                         manifest_file_name = var_stack.ResolveVarToStr("TAR_MANIFEST_FILE_NAME")
                         self.batch_accum += self.platform_helper.ls(folder=item_to_tar, collect='STCP', output_file=manifest_file_name)
+
+                        # now, if item_to_tar is inside a .bundle,
+                        # it would be wise to create another file with the version of it.
+                        # then we can read it in unwtar, compare and if different,
+                        # unwtar the file without further checks
+
+                        # ONLY IF WE ARE INSIDE A .bundle
+                        # plugin_name = ...
+                        #self.batch_accum += self.platform_helper.create_bundle_version_file(item_to_tar, plugin_name)
+
                         self.batch_accum += self.platform_helper.tar(item_to_tar)
                         self.batch_accum += self.platform_helper.rmfile(os.path.join(item_to_tar, manifest_file_name))
 
