@@ -44,6 +44,8 @@ S3_SECURE_URL_EXPIRATION: 86400
 
 PRINT_COMMAND_TIME: yes
 
+TAR_MANIFEST_FILE_NAME: tar_content.txt
+
 --- !define_Mac
 MKDIR_CMD: mkdir_with_owner
 BATCH_EXT: sh

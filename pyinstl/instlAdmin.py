@@ -754,7 +754,15 @@ class InstlAdmin(InstlInstanceBase):
                             if fnmatch.fnmatch(delete_file, item_to_tar + '.wtar*'):
                                 self.batch_accum += self.platform_helper.rmfile(delete_file)
                                 self.batch_accum += self.platform_helper.progress("removed file {}".format(delete_file))
+
+                        # Calling ls() to create a manifest tar content.
+                        # We then tar it as well and delete it from the stage
+                        # STCP stands for for Size, Time, Checksum, Path
+                        manifest_file_name = var_stack.ResolveVarToStr("TAR_MANIFEST_FILE_NAME")
+                        self.batch_accum += self.platform_helper.ls(folder=item_to_tar, collect='STCP', output_file=manifest_file_name)
                         self.batch_accum += self.platform_helper.tar(item_to_tar)
+                        self.batch_accum += self.platform_helper.rmfile(os.path.join(item_to_tar, manifest_file_name))
+
                         self.batch_accum += self.platform_helper.progress("tar file {}".format(item_to_tar))
                         self.batch_accum += self.platform_helper.split(item_to_tar + ".wtar")
                         self.batch_accum += self.platform_helper.progress("split file {}".format(item_to_tar + ".wtar"))
