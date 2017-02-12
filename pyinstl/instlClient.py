@@ -425,19 +425,22 @@ class InstlClient(InstlInstanceBase):
                         source_parent = "/".join(fixed_source.split("/")[:-1])
                     else:  # !dir_cont
                         source_parent = fixed_source
+                    assert install_folder is not None
                     for item in items:
-                        assert install_folder is not None
                         item.download_path = var_stack.ResolveStrToStr("/".join((install_folder, item.path[len(source_parent)+1:])))
                 else:
                     for item in items:
                         item.download_path = var_stack.ResolveStrToStr("/".join(("$(LOCAL_REPO_SYNC_DIR)", item.path)))
             elif source_tag == '!file':
-                item = self.info_map_table.get_item(fixed_source, what="file")
+                items_for_file = self.info_map_table.get_required_for_file(fixed_source)
                 if direct_sync:
                     assert install_folder is not None
-                    item.download_path = var_stack.ResolveStrToStr(install_folder)
+                    for item in items_for_file:
+                        item.download_path = var_stack.ResolveStrToStr("/".join((install_folder, item.path[len(source_parent)+1:])))
                 else:
-                    item.download_path = var_stack.ResolveStrToStr("/".join(("$(LOCAL_REPO_SYNC_DIR)", item.path)))
+                    for item in items_for_file:
+                        item.download_path = var_stack.ResolveStrToStr("/".join(("$(LOCAL_REPO_SYNC_DIR)", item.path)))
+
 
 def InstlClientFactory(initial_vars, command):
     retVal = None

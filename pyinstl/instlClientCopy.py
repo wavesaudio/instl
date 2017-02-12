@@ -305,12 +305,13 @@ class InstlClientCopy(InstlClient):
         if len(folder_list) > 0:
             self.batch_accum += self.platform_helper.progress("Create folders ...")
             for target_folder_path in folder_list:
+                resolved_target_folder_path = self.pre_resolve_path(target_folder_path)
                 self.batch_accum += self.platform_helper.progress("Create folder {0} ...".format(target_folder_path))
-                if os.path.isfile(var_stack.ResolveStrToStr(target_folder_path)):
+                if os.path.isfile(var_stack.ResolveStrToStr(resolved_target_folder_path)):
                     # weird as it maybe, some users have files where a folder should be.
                     # test for isfile is done here rather than in the batch file, because
                     # Windows does not have proper way to check "is file" in a batch.
-                    self.batch_accum += self.platform_helper.rmfile(target_folder_path)
+                    self.batch_accum += self.platform_helper.rmfile(resolved_target_folder_path)
                     self.batch_accum += self.platform_helper.progress("Removed file that should be a folder {0}".format(target_folder_path))
                 self.batch_accum += self.platform_helper.mkdir_with_owner(resolved_target_folder_path)
                 self.batch_accum += self.platform_helper.progress("Create folder {0} done".format(resolved_target_folder_path))
@@ -356,6 +357,16 @@ class InstlClientCopy(InstlClient):
             self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)
             self.batch_accum += self.platform_helper.progress("Copy to {0} done".format(target_folder_path))
             self.batch_accum += self.platform_helper.remark("- End folder {0}".format(target_folder_path))
+
+    # Todo: move function to a better location
+    def pre_resolve_path(self, path_to_resolve):
+        """ for some paths we cannot wait for resolution in the batch file"""
+        resolved_path = var_stack.ResolveStrToStr(path_to_resolve)
+        try:
+            resolved_path = str(pathlib.Path(resolved_path).resolve())
+        except:
+            pass
+        return resolved_path
 
     def create_copy_instructions_for_no_copy_folder(self, sync_folder_name):
         """ Instructions for sources that do not need copying

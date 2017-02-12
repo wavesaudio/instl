@@ -92,7 +92,7 @@ class InstlMisc(InstlInstanceBase):
 
                 tail_folder = root[len(what_to_work_on):].strip("\\/")
                 if where_to_unwtar is not None:
-                where_to_unwtar_the_file = os.path.join(where_to_unwtar, tail_folder)
+                    where_to_unwtar_the_file = os.path.join(where_to_unwtar, tail_folder)
                 for a_file in files:
                     a_file_path = os.path.join(root, a_file)
                     if a_file_path.endswith(".wtar.aa"):
