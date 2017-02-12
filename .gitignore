@@ -1,0 +1,7 @@
+.DS_Store
+.idea
+*.pyc
+*.pyo
+build
+dist
+instl-gui.yaml
