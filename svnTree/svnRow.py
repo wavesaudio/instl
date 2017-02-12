@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+#import os
+#import sys
 import re
 
 from sqlalchemy import Column, Integer, String, BOOLEAN, ForeignKey

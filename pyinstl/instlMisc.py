@@ -71,7 +71,9 @@ class InstlMisc(InstlInstanceBase):
     def do_unwtar(self):
         self.no_artifacts = "__NO_WTAR_ARTIFACTS__" in var_stack
         what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__", default='.')
-        where_to_unwtar = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__", default='.')
+        where_to_unwtar = None
+        if "__MAIN_OUT_FILE__" in var_stack:
+            where_to_unwtar = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
 
         if os.path.isfile(what_to_work_on):
             if what_to_work_on.endswith(".wtar.aa"): # this case apparently is no longer relevant
@@ -80,6 +82,7 @@ class InstlMisc(InstlInstanceBase):
             elif what_to_work_on.endswith(".wtar"):
                 self.unwtar_a_file([what_to_work_on], where_to_unwtar)
         elif os.path.isdir(what_to_work_on):
+            where_to_unwtar_the_file = None
             for root, dirs, files in os.walk(what_to_work_on, followlinks=False):
                 # a hack to prevent unwtarring of the sync folder. Copy command might copy something
                 # to the top level of the sync folder.
@@ -88,6 +91,7 @@ class InstlMisc(InstlInstanceBase):
                     continue
 
                 tail_folder = root[len(what_to_work_on):].strip("\\/")
+                if where_to_unwtar is not None:
                 where_to_unwtar_the_file = os.path.join(where_to_unwtar, tail_folder)
                 for a_file in files:
                     a_file_path = os.path.join(root, a_file)
@@ -96,15 +100,14 @@ class InstlMisc(InstlInstanceBase):
                         self.unwtar_a_file(split_files, where_to_unwtar_the_file)
                     elif a_file_path.endswith(".wtar"):
                         self.unwtar_a_file([a_file_path], where_to_unwtar_the_file)
-                    
+
         else:
             raise FileNotFoundError(what_to_work_on)
 
     def unwtar_a_file(self, wtar_file_paths, destination_folder=None):
         try:
             if destination_folder is None:
-                wtar_folder_path, _ = os.path.split(wtar_file_paths[0])
-                destination_folder = wtar_folder_path
+                destination_folder, _ = os.path.split(wtar_file_paths[0])
             with MultiFileReader("br", wtar_file_paths) as fd:
                 with tarfile.open(fileobj=fd) as tar:
                     tar.extractall(destination_folder)
@@ -167,16 +170,10 @@ class InstlMisc(InstlInstanceBase):
 
     def do_create_folders(self):
         self.progress_staccato_command = True
-        input_file = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
-        self.read_info_map_from_file(input_file)
-        file_items = self.info_map_table.get_items(what="file")
-        dirs_to_create = utils.unique_list()
-        for file_item in file_items:
-            the_folder, _ = os.path.split(file_item.download_path)
-            dirs_to_create.append(the_folder)
-        for dir_to_create in dirs_to_create:
-            os.makedirs(dir_to_create, exist_ok=True)
-            self.dynamic_progress("Create folder {dir_to_create}".format(**locals()))
+        self.read_info_map_from_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
+        for dir_item in self.info_map_table.get_items(what="dir"):
+            os.makedirs(dir_item.path, exist_ok=True)
+            self.dynamic_progress("Create folder {dir_item.path}".format(**locals()))
 
     def do_test_import(self):
         import importlib

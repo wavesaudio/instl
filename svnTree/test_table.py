@@ -61,6 +61,7 @@ sources = (('Mac/Plugins/Enigma.bundle', '!dir', 'common'),
     ('Mac/Modules/WavesLicenseEngine.bundle', '!dir', 'common'),
     ('Common/Plugins/Documents/Waves System Guide.pdf', '!file', 'common'),
     ('Common/SoundGrid/Firmware/SGS/SGS_9.7.wfi', '!file', 'common'),
+    ('Common/Data/IR1Impulses/Basic', '!files', 'common'),
            )
 
 if __name__ == "__main__":

@@ -289,7 +289,7 @@ class PlatformSpecificHelperBase(object):
         pass
 
     @abc.abstractmethod
-    def var_assign(self, identifier, value, comment=None):
+    def var_assign(self, identifier, value):
         pass
 
     def setup_echo(self):
@@ -361,16 +361,14 @@ class PlatformSpecificHelperBase(object):
     def unwtar_something(self, what_to_unwtar, no_artifacts=False, where_to_unwtar=None):
         unwtar_command_parts = [self.instlObj.platform_helper.run_instl(),
                                 "unwtar",
-                                "--in", utils.quoteme_double(what_to_unwtar),
-                                #"--start-progress", str(self.num_items_for_progress_report),
-                                #"--total-progress", "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)",
-        ]
+                                "--in",
+                                utils.quoteme_double(what_to_unwtar)]
         if no_artifacts:
             unwtar_command_parts.append("--no-artifacts")
 
         if where_to_unwtar:
             unwtar_command_parts.extend(["--out", utils.quoteme_double(where_to_unwtar)])
-			
+
         unwtar_command = " ".join(unwtar_command_parts)
         return unwtar_command
 
