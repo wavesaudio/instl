@@ -753,103 +753,151 @@ def unix_permissions_to_str(the_mod):
     return retVal
 
 
-def unix_item_ls(the_path):
+def unix_item_ls(the_path, collect='*'):
+    # collect tells us what to collect. '*' is everything we know: Inode, peRmissions, num Links, User, Group, Size, Time, Checksum, Path
+    if collect == '*':
+        collect = 'IRLUGSTCP' # order does matters!
+
+    collect = list(collect) # to support pop
+
     import grp
     import pwd
     the_parts = list()
     the_stats = os.lstat(the_path)
-    the_parts.append(the_stats[stat.ST_INO])  # inode number
-    the_parts.append(unix_permissions_to_str(the_stats.st_mode)) # permissions
-    the_parts.append(the_stats[stat.ST_NLINK])  # num links
-    try:
-        the_parts.append(pwd.getpwuid(the_stats[stat.ST_UID])[0])  # user
-    except KeyError:
-        the_parts.append(str(the_stats[stat.ST_UID])[0]) # unknown user name, get the number
-    except Exception:
-        the_parts.append("no_uid")
-    try:
-        the_parts.append(grp.getgrgid(the_stats[stat.ST_GID])[0])  # group
-    except KeyError:
-        the_parts.append(str(the_stats[stat.ST_GID])[0]) # unknown group name, get the number
-    except Exception:
-        the_parts.append("no_gid")
-    the_parts.append(the_stats[stat.ST_SIZE])  # size in bytes
-    the_parts.append(time.strftime("%Y/%m/%d-%H:%M:%S", time.gmtime((the_stats[stat.ST_MTIME]))))  # modification time
-    if not (stat.S_ISLNK(the_stats.st_mode) or stat.S_ISDIR(the_stats.st_mode)):
-        the_parts.append(get_file_checksum(the_path))
-    else:
-        the_parts.append("")
-    path_to_print = the_path
-    if stat.S_ISLNK(the_stats.st_mode):
-        path_to_print += '@'
-    elif stat.S_ISDIR(the_stats.st_mode):
-        path_to_print += '/'
-    elif the_stats.st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH):
-        path_to_print += '*'
-    elif stat.S_ISSOCK(the_stats.st_mode):
-        path_to_print += '='
-    elif stat.S_ISFIFO(the_stats.st_mode):
-        path_to_print += '|'
-    the_parts.append(path_to_print)
+
+    while not collect == []:
+        collect_col = collect.pop(0)
+
+        if collect_col == 'I':
+            the_parts.append(the_stats[stat.ST_INO])  # inode number
+
+        if collect_col == 'R':
+            the_parts.append(unix_permissions_to_str(the_stats.st_mode)) # permissions
+
+        if collect_col == 'L':
+            the_parts.append(the_stats[stat.ST_NLINK])  # num links
+
+        if collect_col == 'U':
+            try:
+                the_parts.append(pwd.getpwuid(the_stats[stat.ST_UID])[0])  # user
+            except KeyError:
+                the_parts.append(str(the_stats[stat.ST_UID])[0]) # unknown user name, get the number
+            except Exception:
+                the_parts.append("no_uid")
+
+        if collect_col == 'G':
+            try:
+                the_parts.append(grp.getgrgid(the_stats[stat.ST_GID])[0])  # group
+            except KeyError:
+                the_parts.append(str(the_stats[stat.ST_GID])[0]) # unknown group name, get the number
+            except Exception:
+                the_parts.append("no_gid")
+
+        if collect_col == 'S':
+            the_parts.append(the_stats[stat.ST_SIZE])  # size in bytes
+
+        if collect_col == 'T':
+            the_parts.append(time.strftime("%Y/%m/%d-%H:%M:%S", time.gmtime((the_stats[stat.ST_MTIME]))))  # modification time
+
+        if collect_col == 'C':
+            if not (stat.S_ISLNK(the_stats.st_mode) or stat.S_ISDIR(the_stats.st_mode)):
+                the_parts.append(get_file_checksum(the_path))
+            else:
+                the_parts.append("")
+
+        if collect_col == 'P':
+            path_to_print = the_path
+            if stat.S_ISLNK(the_stats.st_mode):
+                path_to_print += '@'
+            elif stat.S_ISDIR(the_stats.st_mode):
+                path_to_print += '/'
+            elif the_stats.st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH):
+                path_to_print += '*'
+            elif stat.S_ISSOCK(the_stats.st_mode):
+                path_to_print += '='
+            elif stat.S_ISFIFO(the_stats.st_mode):
+                path_to_print += '|'
+            the_parts.append(path_to_print)
+
     return the_parts
 
 
-def unix_folder_ls(the_path):
+def unix_folder_ls(the_path, collect='*'):
     listing_lines = list()
     for root_path, dirs, files in os.walk(the_path, followlinks=False):
         dirs = sorted(dirs, key=lambda s: s.lower())
-        listing_lines.append(unix_item_ls(root_path))
+        listing_lines.append(unix_item_ls(root_path, collect=collect))
         files_to_list = sorted(files + [slink for slink in dirs if os.path.islink(os.path.join(root_path, slink))], key=lambda s: s.lower())
         for file_to_list in files_to_list:
             full_path = os.path.join(root_path, file_to_list)
-            listing_lines.append(unix_item_ls(full_path))
+            listing_lines.append(unix_item_ls(full_path, collect=collect))
     return listing_lines
 
 
 # noinspection PyUnresolvedReferences
-def win_item_ls(the_path):
+def win_item_ls(the_path, collect='*'):
+    # collect tells us what to collect. '*' is everything: Time, is_Dir, Size, User, Group, Checksum, Path
+    if collect == '*':
+        collect = 'TDSUGCP' # order does matters!
+
+    collect = list(collect) # to support pop
+
     import win32security
     the_parts = list()
     the_stats = os.lstat(the_path)
-    the_parts.append(time.strftime("%Y/%m/%d %H:%M:%S", time.gmtime((the_stats[stat.ST_MTIME]))))  # modification time
-    if stat.S_ISDIR(the_stats.st_mode):
-        the_parts.append("<DIR>")
-    else:
-        the_parts.append("")
-    the_parts.append(the_stats[stat.ST_SIZE])  # size in bytes
 
-    sd = win32security.GetFileSecurity (the_path, win32security.OWNER_SECURITY_INFORMATION)
-    owner_sid = sd.GetSecurityDescriptorOwner()
-    name, domain, __type = win32security.LookupAccountSid (None, owner_sid)
-    the_parts.append(domain+"\\"+name)  # user
+    while not collect == []:
+        collect_col = collect.pop(0)
 
-    sd = win32security.GetFileSecurity (the_path, win32security.GROUP_SECURITY_INFORMATION)
-    owner_sid = sd.GetSecurityDescriptorGroup()
-    name, domain, __type = win32security.LookupAccountSid (None, owner_sid)
-    the_parts.append(domain+"\\"+name)  # group
+        if collect_col == 'T':
+            the_parts.append(time.strftime("%Y/%m/%d %H:%M:%S", time.gmtime((the_stats[stat.ST_MTIME]))))  # modification time
 
-    if not (stat.S_ISLNK(the_stats.st_mode) or stat.S_ISDIR(the_stats.st_mode)):
-        the_parts.append(get_file_checksum(the_path))
-    else:
-        the_parts.append("")
-    path_to_print = the_path
-    the_parts.append(path_to_print)
+        if collect_col == 'D':
+            if stat.S_ISDIR(the_stats.st_mode):
+                the_parts.append("<DIR>")
+            else:
+                the_parts.append("")
+        if collect_col == 'S':
+            the_parts.append(the_stats[stat.ST_SIZE])  # size in bytes
+
+        if collect_col == 'U':
+            sd = win32security.GetFileSecurity (the_path, win32security.OWNER_SECURITY_INFORMATION)
+            owner_sid = sd.GetSecurityDescriptorOwner()
+            name, domain, __type = win32security.LookupAccountSid (None, owner_sid)
+            the_parts.append(domain+"\\"+name)  # user
+
+        if collect_col == 'G':
+            sd = win32security.GetFileSecurity (the_path, win32security.GROUP_SECURITY_INFORMATION)
+            owner_sid = sd.GetSecurityDescriptorGroup()
+            name, domain, __type = win32security.LookupAccountSid (None, owner_sid)
+            the_parts.append(domain+"\\"+name)  # group
+
+        if collect_col == 'C':
+            if not (stat.S_ISLNK(the_stats.st_mode) or stat.S_ISDIR(the_stats.st_mode)):
+                the_parts.append(get_file_checksum(the_path))
+            else:
+                the_parts.append("")
+
+        if collect_col == 'P':
+            path_to_print = the_path
+            the_parts.append(path_to_print)
+
     return the_parts
 
 
-def win_folder_ls(the_path):
+def win_folder_ls(the_path, collect='*'):
     listing_lines = list()
     for root_path, dirs, files in os.walk(the_path, followlinks=False):
         dirs = sorted(dirs, key=lambda s: s.lower())
-        listing_lines.append(win_item_ls(root_path))
+        listing_lines.append(win_item_ls(root_path, collect=collect))
         files_to_list = sorted(files + [slink for slink in dirs if os.path.islink(os.path.join(root_path, slink))], key=lambda s: s.lower())
         for file_to_list in files_to_list:
             full_path = os.path.join(root_path, file_to_list)
-            listing_lines.append(win_item_ls(full_path))
+            listing_lines.append(win_item_ls(full_path, collect=collect))
     return listing_lines
 
 
-def folder_listing(*folders_to_list):
+def folder_listing(*folders_to_list, collect='*'):
     os_names = get_current_os_names()
     listing_lines = list()
     folders_to_list = sorted(folders_to_list, key=lambda file: PurePath(file).parts)
@@ -857,7 +905,7 @@ def folder_listing(*folders_to_list):
         for folder_path in folders_to_list:
             listing_lines.append(" ".join(("#", datetime.datetime.today().isoformat(), "listing of", folder_path)))
             if os.path.isdir(folder_path):
-                listing_lines.extend(unix_folder_ls(folder_path))
+                listing_lines.extend(unix_folder_ls(folder_path, collect=collect))
             else:
                 listing_lines.append(" ".join(("#", "folder was not found", folder_path)))
 
@@ -865,7 +913,7 @@ def folder_listing(*folders_to_list):
         for folder_path in folders_to_list:
             listing_lines.append(" ".join(("#", datetime.datetime.today().isoformat(), "listing of", folder_path)))
             if os.path.isdir(folder_path):
-                listing_lines.extend(win_folder_ls(folder_path))
+                listing_lines.extend(win_folder_ls(folder_path, collect=collect))
             else:
                 listing_lines.append(" ".join(("#", "folder was not found:", folder_path)))
     # when calculating widths - avoid comment lines

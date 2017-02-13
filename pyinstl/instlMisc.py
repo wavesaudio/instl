@@ -272,7 +272,7 @@ class InstlMisc(InstlInstanceBase):
             dock_util_command.append("--no-restart")
         utils.dock_util(dock_util_command)
 
-    def do_ls(self):
+    def do_ls(self, collect='*'):
         if "__MAIN_OUT_FILE__" in var_stack:
             out_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
         else:
@@ -288,7 +288,8 @@ class InstlMisc(InstlInstanceBase):
         else:
             folders_to_list.append(main_folder_to_list)
 
-        the_listing = utils.folder_listing(*folders_to_list)
+        collect = var_stack.ResolveVarToStr("__COLLECT_FIELDS__", default=collect)
+        the_listing = utils.folder_listing(*folders_to_list, collect=collect)
         with utils.write_to_file_or_stdout(out_file) as wfd:
             wfd.write(the_listing)
 
