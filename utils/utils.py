@@ -753,7 +753,7 @@ def unix_permissions_to_str(the_mod):
     return retVal
 
 
-def unix_item_ls(the_path, collect='*'):
+def unix_item_ls(the_path, collect='*', extra_info=False):
     # collect tells us what to collect. '*' is everything we know: Inode, peRmissions, num Links, User, Group, Size, Time, Checksum, Path
     if collect == '*':
         collect = 'IRLUGSTCP' # order does matters!
@@ -803,16 +803,18 @@ def unix_item_ls(the_path, collect='*'):
 
         if collect_col == 'P':
             path_to_print = the_path
-            if stat.S_ISLNK(the_stats.st_mode):
-                path_to_print += '@'
-            elif stat.S_ISDIR(the_stats.st_mode):
-                path_to_print += '/'
-            elif the_stats.st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH):
-                path_to_print += '*'
-            elif stat.S_ISSOCK(the_stats.st_mode):
-                path_to_print += '='
-            elif stat.S_ISFIFO(the_stats.st_mode):
-                path_to_print += '|'
+            if extra_info:
+                if stat.S_ISLNK(the_stats.st_mode):
+                    path_to_print += '@'
+                elif stat.S_ISDIR(the_stats.st_mode):
+                    path_to_print += '/'
+                elif the_stats.st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH):
+                    path_to_print += '*'
+                elif stat.S_ISSOCK(the_stats.st_mode):
+                    path_to_print += '='
+                elif stat.S_ISFIFO(the_stats.st_mode):
+                    path_to_print += '|'
+
             the_parts.append(path_to_print)
 
     return the_parts
@@ -831,7 +833,7 @@ def unix_folder_ls(the_path, collect='*'):
 
 
 # noinspection PyUnresolvedReferences
-def win_item_ls(the_path, collect='*'):
+def win_item_ls(the_path, collect='*', extra_info=False):
     # collect tells us what to collect. '*' is everything: Time, is_Dir, Size, User, Group, Checksum, Path
     if collect == '*':
         collect = 'TDSUGCP' # order does matters!
