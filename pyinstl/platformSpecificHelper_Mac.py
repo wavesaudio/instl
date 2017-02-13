@@ -227,7 +227,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
                             "ls",
                             "--in",
                             utils.quoteme_double(folder),
-                            "--collect",
+                            "--output-format",
                             utils.quoteme_double(collect),
                             "--out",
                             utils.quoteme_double(os.path.join(folder, output_file)))

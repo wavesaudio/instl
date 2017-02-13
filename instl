@@ -102,7 +102,6 @@ class CommandLineOptions(object):
         self.fail_exit_code = None
         self.set_run_as_admin = None
         self.output_format = None
-        self.collect_fields = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).items())])
@@ -133,7 +132,7 @@ def prepare_args_parser(in_command):
         'fix-symlinks':         {'mode': 'an', 'options': ('out', 'run','conf', 'limit'), 'help':  'replace symlinks with .symlinks files'},
         'gui':                  {'mode': 'gi', 'options': (), 'help':  'graphical user interface'},
         'help':                 {'mode': 'ds', 'options': (), 'help':  'help'},
-        'ls':                   {'mode': 'ds', 'options': ('in', 'out', 'limit', 'collect'), 'help':  'create a directory listing'},
+        'ls':                   {'mode': 'ds', 'options': ('in', 'out', 'limit', 'output_format'), 'help':  'create a directory listing'},
         'mac-dock':             {'mode': 'ds', 'options': (), 'help': "add or remove to Mac OS's Dock"},
         'make-sig':             {'mode': 'an', 'options': ('in', 'conf',), 'help':  'create sha1 checksum and rsa signature for a file'},
         'parallel-run':         {'mode': 'ds', 'options': ('in', ), 'help':  'Run processes in parallel'},
@@ -224,16 +223,6 @@ def prepare_args_parser(in_command):
                                     metavar='path-to-output-file',
                                     dest='output_file',
                                     help="output file")
-
-    # optional --collect
-    if 'collect' in command_details['options']:
-        ls_options = command_parser.add_argument_group(description='ls arguments:')
-        ls_options.add_argument('--collect',
-                                    required=False,
-                                    nargs=1,
-                                    metavar='collect-file-attributes-fields',
-                                    dest='collect_fields',
-                                    help="collect file attributes fields")
 
     if 'run' in command_details['options']:
         run_option = command_parser.add_argument_group(description='run arguments:')

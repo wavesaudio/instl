@@ -756,22 +756,31 @@ class InstlAdmin(InstlInstanceBase):
                                 self.batch_accum += self.platform_helper.progress("removed file {}".format(delete_file))
 
                         # Calling ls() to create a manifest tar content.
-                        # We then tar it as well and delete it from the stage
-                        # STCP stands for for Size, Time, Checksum, Path
-                        manifest_file_name = var_stack.ResolveVarToStr("TAR_MANIFEST_FILE_NAME")
-                        self.batch_accum += self.platform_helper.ls(folder=item_to_tar, collect='STCP', output_file=manifest_file_name)
+                        # Only in case of a folder; No sense otherwise.
+                        manifest_file_is_created = False
+                        if os.path.isdir(item_to_tar_full_path):
+                            # We then tar it as well and delete it from the stage
+                            manifest_file_name = var_stack.ResolveVarToStr("TAR_MANIFEST_FILE_NAME")
 
-                        # now, if item_to_tar is inside a .bundle,
-                        # it would be wise to create another file with the version of it.
-                        # then we can read it in unwtar, compare and if different,
-                        # unwtar the file without further checks
+                            # STCP stands for for Size, Time, Checksum, Path
+                            self.batch_accum += self.platform_helper.ls(folder=item_to_tar, collect='STCP', output_file=manifest_file_name)
+                            manifest_file_is_created = True
 
-                        # ONLY IF WE ARE INSIDE A .bundle
-                        # plugin_name = ...
-                        #self.batch_accum += self.platform_helper.create_bundle_version_file(item_to_tar, plugin_name)
+                            # now, if item_to_tar is inside a .bundle,
+                            # it would be wise to create another file with the version of it.
+                            # then we can read it in unwtar, compare and if different,
+                            # unwtar the file without further checks
 
+                            # ONLY IF WE ARE INSIDE A .bundle
+                            # plugin_name = ...
+                            #self.batch_accum += self.platform_helper.create_bundle_version_file(item_to_tar, plugin_name)
+
+                        # tar with or without the manifest
                         self.batch_accum += self.platform_helper.tar(item_to_tar)
-                        self.batch_accum += self.platform_helper.rmfile(os.path.join(item_to_tar, manifest_file_name))
+
+                        # delete the manifest file in case one was created
+                        if manifest_file_is_created:
+                            self.batch_accum += self.platform_helper.rmfile(os.path.join(item_to_tar, manifest_file_name))
 
                         self.batch_accum += self.platform_helper.progress("tar file {}".format(item_to_tar))
                         self.batch_accum += self.platform_helper.split(item_to_tar + ".wtar")

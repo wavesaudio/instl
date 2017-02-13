@@ -111,7 +111,11 @@ class InstlMisc(InstlInstanceBase):
             with MultiFileReader("br", wtar_file_paths) as fd:
                 with tarfile.open(fileobj=fd) as tar:
                     #print(wtar_file_paths[0]); tar.list(); print("...")
-                    tar.extractall(destination_folder)
+
+                    for tarinfo in tar:
+                        print(tarinfo.name, "is", tarinfo.size)
+
+                    #tar.extractall(destination_folder)
 
             if self.no_artifacts:
                 for wtar_file in wtar_file_paths:
@@ -275,6 +279,12 @@ class InstlMisc(InstlInstanceBase):
     def do_ls(self, collect='*'):
         if "__MAIN_OUT_FILE__" in var_stack:
             out_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
+
+            # despite the race condition, we check for ability to create a file
+            # in order to save the work.
+            if not os.access(out_file, os.W_OK):
+                print("Cannot create {}".format(out_file))
+                return
         else:
             out_file = "stdout"
 
@@ -288,10 +298,15 @@ class InstlMisc(InstlInstanceBase):
         else:
             folders_to_list.append(main_folder_to_list)
 
-        collect = var_stack.ResolveVarToStr("__COLLECT_FIELDS__", default=collect)
+        collect = var_stack.ResolveVarToStr("__OUTPUT_FORMAT__", default=collect)
         the_listing = utils.folder_listing(*folders_to_list, collect=collect)
-        with utils.write_to_file_or_stdout(out_file) as wfd:
-            wfd.write(the_listing)
+
+        try:
+            with utils.write_to_file_or_stdout(out_file) as wfd:
+                wfd.write(the_listing)
+
+        except NotADirectoryError:
+            print("Cannot output to {}".format(out_file))
 
     def do_fail(self):
         exit_code = int(var_stack.ResolveVarToStr("__FAIL_EXIT_CODE__", default="1") )

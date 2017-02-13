@@ -758,16 +758,12 @@ def unix_item_ls(the_path, collect='*'):
     if collect == '*':
         collect = 'IRLUGSTCP' # order does matters!
 
-    collect = list(collect) # to support pop
-
     import grp
     import pwd
     the_parts = list()
     the_stats = os.lstat(the_path)
 
-    while not collect == []:
-        collect_col = collect.pop(0)
-
+    for collect_col in collect:
         if collect_col == 'I':
             the_parts.append(the_stats[stat.ST_INO])  # inode number
 
@@ -840,15 +836,11 @@ def win_item_ls(the_path, collect='*'):
     if collect == '*':
         collect = 'TDSUGCP' # order does matters!
 
-    collect = list(collect) # to support pop
-
     import win32security
     the_parts = list()
     the_stats = os.lstat(the_path)
 
-    while not collect == []:
-        collect_col = collect.pop(0)
-
+    for collect_col in collect:
         if collect_col == 'T':
             the_parts.append(time.strftime("%Y/%m/%d %H:%M:%S", time.gmtime((the_stats[stat.ST_MTIME]))))  # modification time
 
