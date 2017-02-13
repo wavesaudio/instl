@@ -144,15 +144,15 @@ class InstlMisc(InstlInstanceBase):
                                     'checksum': m.group(3)  # but we need checksum
                                 }
 
-                        # this will holds members that are different and thus need to be extracted
+                        # this will hold members that are different and thus need to be extracted
                         member_collection = []
                         for member in tar:
-                            # we don't want to extract the manifest
+                            # we don't want to extract the manifest again
                             if member.name == os.path.join(fname, manifest_file_name):
                                  continue
 
                             if member.isdir():
-                                # folders are always being extracted to allow empty ones
+                                # folders are always welcome, especially empty ones
                                 member_collection.append(member)
                                 continue
 
@@ -163,7 +163,7 @@ class InstlMisc(InstlInstanceBase):
                                 continue
 
                             if member.size == os.stat(existing_file_full_path).st_size:
-                                # damn! same size, so we must compare checksum
+                                # damn! same size. we must compare checksum
                                 cs_ratsui = tar_content_per_manifest[member.name]['checksum']
                                 cs_matsui = utils.get_file_checksum(existing_file_full_path)
                                 if not cs_ratsui == cs_matsui:

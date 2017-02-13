@@ -753,10 +753,10 @@ def unix_permissions_to_str(the_mod):
     return retVal
 
 
-def unix_item_ls(the_path, collect='*', extra_info=False):
-    # collect tells us what to collect. '*' is everything we know: Inode, peRmissions, num Links, User, Group, Size, Time, Checksum, Path
+def unix_item_ls(the_path, collect='*'):
+    # collect tells us what to collect. '*' is everything we know: Inode, peRmissions, num Links, User, Group, Size, Time, Checksum, Path, Extra info
     if collect == '*':
-        collect = 'IRLUGSTCP' # order does matters!
+        collect = 'IRLUGSTCPE' # order does matters!
 
     import grp
     import pwd
@@ -803,7 +803,7 @@ def unix_item_ls(the_path, collect='*', extra_info=False):
 
         if collect_col == 'P':
             path_to_print = the_path
-            if extra_info:
+            if collect_col == 'E':
                 if stat.S_ISLNK(the_stats.st_mode):
                     path_to_print += '@'
                 elif stat.S_ISDIR(the_stats.st_mode):
@@ -833,7 +833,7 @@ def unix_folder_ls(the_path, collect='*'):
 
 
 # noinspection PyUnresolvedReferences
-def win_item_ls(the_path, collect='*', extra_info=False):
+def win_item_ls(the_path, collect='*'):
     # collect tells us what to collect. '*' is everything: Time, is_Dir, Size, User, Group, Checksum, Path
     if collect == '*':
         collect = 'TDSUGCP' # order does matters!
