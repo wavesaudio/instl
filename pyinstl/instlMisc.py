@@ -105,19 +105,20 @@ class InstlMisc(InstlInstanceBase):
             raise FileNotFoundError(what_to_work_on)
 
     def unwtar_a_file(self, wtar_file_paths, destination_folder=None):
-        try:
-            if destination_folder is None:
-                destination_folder, full_file_name_to_unwtar = os.path.split(wtar_file_paths[0])
+        manifest_file_name = var_stack.ResolveVarToStr("TAR_MANIFEST_FILE_NAME")
 
+        if destination_folder is None:
+            destination_folder, full_file_name_to_unwtar = os.path.split(wtar_file_paths[0])
+        else:
+            _, full_file_name_to_unwtar = destination_folder
+
+        # we need the root folder name within the .wtar file to map the exact location of the manifest
+        fname, _ = os.path.splitext(full_file_name_to_unwtar)
+
+        try:
             with MultiFileReader("br", wtar_file_paths) as fd:
                 with tarfile.open(fileobj=fd) as tar:
-                    #print(wtar_file_paths[0]); tar.list(); print("...")
-
                     # first, let's try to read the manifest
-                    manifest_file_name = var_stack.ResolveVarToStr("TAR_MANIFEST_FILE_NAME")
-                    fname, _ = os.path.splitext(full_file_name_to_unwtar)
-                    # fname is equal to the root folder name within the .wtar file
-                    # and we need it to map the exact location of the manifest
                     try:
                         # per doc, extractall() is safer than extract().
                         # nevertheless, since we just read the manifest from memory, we don't care.
@@ -130,26 +131,26 @@ class InstlMisc(InstlInstanceBase):
                             line = line.decode('ascii').strip() # we know its ascii
 
                             # no remarks and no folders are needed
+                            # because we always extract folders
                             if line.startswith('#') or line.endswith(os.sep):
                                 continue
 
-                            # that's what we want to have: (Size, Time,) Checksum, Path
+                            # that's what we want to have: Checksum, Path
+                            # we didn't need size because we have member.size, brought to us for free
                             # this regex doesn't handle folders! (folders don't have checksum)
                             # but since we have excluded them up stairs, it's ok
-                            m = re.search('(.*) (.*) (.*) ({}.*)'.format(fname), line)
+                            m = re.search('(.*) ({}.*)'.format(fname), line)
                             if m:
-                                tar_content_per_manifest[m.group(4)] = {
-                                #   'size':     m.group(1), # we have member.size!
-                                #   'time':     m.group(2), # we don't need it
-                                    'checksum': m.group(3)  # but we need checksum
+                                tar_content_per_manifest[m.group(2)] = {
+                                    'checksum': m.group(1)  # but we need checksum
                                 }
 
                         # this will hold members that are different and thus need to be extracted
                         member_collection = []
                         for member in tar:
-                            # we don't want to extract the manifest again
                             if member.name == os.path.join(fname, manifest_file_name):
-                                 continue
+                                # we don't want to extract the manifest again
+                                continue
 
                             if member.isdir():
                                 # folders are always welcome, especially empty ones
@@ -158,19 +159,27 @@ class InstlMisc(InstlInstanceBase):
 
                             existing_file_full_path = os.path.join(destination_folder, member.name)
                             if not os.path.isfile(existing_file_full_path):
-                                # file doesn't exist. extract
+                                # file doesn't exist. manifest or not, just extract.
                                 member_collection.append(member)
                                 continue
 
+                            # at this point we have a file in the tar that exist on the file-system
                             if member.size == os.stat(existing_file_full_path).st_size:
                                 # damn! same size. we must compare checksum
-                                cs_ratsui = tar_content_per_manifest[member.name]['checksum']
-                                cs_matsui = utils.get_file_checksum(existing_file_full_path)
-                                if not cs_ratsui == cs_matsui:
-                                    # not same cs? pile it up for extraction
+                                if tar_content_per_manifest[member.name]: # just to be on the safe side
+                                    cs_ratsui = tar_content_per_manifest[member.name]['checksum']
+                                    cs_matsui = utils.get_file_checksum(existing_file_full_path)
+                                    if not cs_ratsui == cs_matsui:
+                                        # not same cs? pile it up for extraction
+                                        member_collection.append(member)
+
+                                else:
+                                    # did someone manually add a file to the tar?
+                                    # this is strange! a file exists in tar but it's not in the manifest!
                                     member_collection.append(member)
 
-                            else: # different size? we want you
+                            else:
+                                # different size? we want you
                                 member_collection.append(member)
                                 continue
 

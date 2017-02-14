@@ -762,8 +762,8 @@ class InstlAdmin(InstlInstanceBase):
                             # We then tar it as well and delete it from the stage
                             manifest_file_name = var_stack.ResolveVarToStr("TAR_MANIFEST_FILE_NAME")
 
-                            # STCP stands for Size, Time, Checksum, Path
-                            self.batch_accum += self.platform_helper.ls(folder=item_to_tar, collect='STCP', output_file=manifest_file_name)
+                            # CP stands for Checksum, Path
+                            self.batch_accum += self.platform_helper.ls(folder=item_to_tar, collect='CP', output_file=manifest_file_name)
                             manifest_file_is_created = True
 
                             # now, if item_to_tar is inside a .bundle,
