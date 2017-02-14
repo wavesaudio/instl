@@ -110,7 +110,7 @@ class InstlMisc(InstlInstanceBase):
         if destination_folder is None:
             destination_folder, full_file_name_to_unwtar = os.path.split(wtar_file_paths[0])
         else:
-            _, full_file_name_to_unwtar = destination_folder
+            _, full_file_name_to_unwtar = os.path.split(wtar_file_paths[0])
 
         # we need the root folder name within the .wtar file to map the exact location of the manifest
         fname, _ = os.path.splitext(full_file_name_to_unwtar)
