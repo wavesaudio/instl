@@ -21,7 +21,6 @@ from functools import reduce
 from itertools import repeat
 
 
-
 def Is64Windows():
     return 'PROGRAMFILES(X86)' in os.environ
 
@@ -760,6 +759,7 @@ def unix_item_ls(the_path, collect='*'):
 
     import grp
     import pwd
+
     the_parts = list()
     the_stats = os.lstat(the_path)
 
@@ -829,7 +829,43 @@ def unix_folder_ls(the_path, collect='*'):
         for file_to_list in files_to_list:
             full_path = os.path.join(root_path, file_to_list)
             listing_lines.append(unix_item_ls(full_path, collect=collect))
+
+            # W (list content of .Wtar files) is a special case and must be specifically requested
+            if 'W' in collect:
+                listing_lines.extend(produce_tar_list(full_path))
+
     return listing_lines
+
+def produce_tar_list(tar_file):
+    tar_list = list()
+    if tar_file.endswith(".wtar.aa") or tar_file.endswith(".wtar"):  # only wtar
+        if os.path.isfile(tar_file):
+            from utils.multi_file import MultiFileReader
+            import tarfile
+
+            what_to_work_on = None
+            if tar_file.endswith(".wtar.aa"):
+                what_to_work_on = find_split_files(tar_file)
+            elif tar_file.endswith(".wtar"):
+                what_to_work_on = [tar_file]
+
+            try:
+                with MultiFileReader("br", what_to_work_on) as fd:
+                    with tarfile.open(fileobj=fd) as tar:
+                        for member in tar:
+                            tar_list.append(['--->', member.name, member.size])
+
+                tar_list.append(['# end of tar file'])
+                tar_list.append(['#'])
+
+            except OSError as e:
+                print("Invalid stream on split file with {}".format(what_to_work_on[0]))
+                raise e
+
+            except tarfile.TarError:
+                print("tarfile error while opening file", os.path.abspath(what_to_work_on[0]))
+                raise
+    return tar_list
 
 
 # noinspection PyUnresolvedReferences
@@ -888,7 +924,30 @@ def win_folder_ls(the_path, collect='*'):
         for file_to_list in files_to_list:
             full_path = os.path.join(root_path, file_to_list)
             listing_lines.append(win_item_ls(full_path, collect=collect))
+
+            # W (list content of .Wtar files) is a special case and must be specifically requested
+            if 'W' in collect:
+                listing_lines.extend(produce_tar_list(full_path))
+
     return listing_lines
+
+
+def find_split_files(first_file):
+    try:
+        norm_first_file = os.path.normpath(first_file)  # remove trailing . if any
+        base_folder, base_name = os.path.split(norm_first_file)
+        if not base_folder: base_folder = "."
+        filter_pattern = base_name[:-2] + "??"  # with ?? instead of aa
+        matching_files = sorted(fnmatch.filter((f.name for f in os.scandir(base_folder)), filter_pattern))
+        files_to_read = []
+        for a_file in matching_files:
+            files_to_read.append(os.path.join(base_folder, a_file))
+
+        return files_to_read
+
+    except Exception as es:
+        print("exception while find_split_files", first_file)
+        raise es
 
 
 def folder_listing(*folders_to_list, collect='*'):

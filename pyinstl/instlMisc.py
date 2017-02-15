@@ -77,7 +77,7 @@ class InstlMisc(InstlInstanceBase):
 
         if os.path.isfile(what_to_work_on):
             if what_to_work_on.endswith(".wtar.aa"): # this case apparently is no longer relevant
-                what_to_work_on = self.find_split_files(what_to_work_on)
+                what_to_work_on = utils.find_split_files(what_to_work_on)
                 self.unwtar_a_file(what_to_work_on, where_to_unwtar)
             elif what_to_work_on.endswith(".wtar"):
                 self.unwtar_a_file([what_to_work_on], where_to_unwtar)
@@ -96,7 +96,7 @@ class InstlMisc(InstlInstanceBase):
                 for a_file in files:
                     a_file_path = os.path.join(root, a_file)
                     if a_file_path.endswith(".wtar.aa"):
-                        split_files = self.find_split_files(a_file_path)
+                        split_files = utils.find_split_files(a_file_path)
                         self.unwtar_a_file(split_files, where_to_unwtar_the_file)
                     elif a_file_path.endswith(".wtar"):
                         self.unwtar_a_file([a_file_path], where_to_unwtar_the_file)
@@ -110,7 +110,7 @@ class InstlMisc(InstlInstanceBase):
         if destination_folder is None:
             destination_folder, full_file_name_to_unwtar = os.path.split(wtar_file_paths[0])
         else:
-            _, full_file_name_to_unwtar = os.path.split(wtar_file_paths[0])
+            stam, full_file_name_to_unwtar = os.path.split(wtar_file_paths[0])
 
         # we need the root folder name within the .wtar file to map the exact location of the manifest
         fname, _ = os.path.splitext(full_file_name_to_unwtar)
@@ -126,7 +126,7 @@ class InstlMisc(InstlInstanceBase):
                         manifest_raw_content = tar.extractfile(os.path.join(fname, manifest_file_name))
 
                         # yeah, a manifest!
-                        tar_content_per_manifest= {}
+                        tar_content_per_manifest = {}
                         for line in manifest_raw_content.readlines():
                             line = line.decode('ascii').strip() # we know its ascii
 
@@ -206,22 +206,6 @@ class InstlMisc(InstlInstanceBase):
             print("tarfile error while opening file", os.path.abspath(wtar_file_paths[0]))
             raise
 
-    def find_split_files(self, first_file):
-        try:
-            norm_first_file = os.path.normpath(first_file) # remove trialing . if any
-            base_folder, base_name = os.path.split(norm_first_file)
-            if not base_folder: base_folder = "."
-            filter_pattern = base_name[:-2] + "??"  # with ?? instead of aa
-            matching_files = sorted(fnmatch.filter((f.name for f in os.scandir(base_folder)), filter_pattern))
-            files_to_read = []
-            for a_file in matching_files:
-                files_to_read.append(os.path.join(base_folder, a_file))
-
-            return files_to_read
-
-        except Exception as es:
-            print("exception while find_split_files", first_file)
-            raise es
 
     def do_check_checksum(self):
         self.progress_staccato_command = True

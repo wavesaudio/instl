@@ -139,6 +139,10 @@ command:
             --output_format can be any combination and order of these letters:
               for Mac: IRLUGSTCP - Inode, peRmissions, num Links, User, Group, Size, Time, Checksum, Path
               for Windows: TDSUGCP - Time, is_Dir, Size, User, Group, Checksum, Path
+              Additional options:
+                E (Extra info) depends on object, @/*=| will be append
+                W (.Wtar content) will list .wtar content
+                * (default): Mac - IRLUGSTCPE, Windows - TDSUGCP
             If --limit is supplied only these subfolder will be listed.
             *==number of links.
 
