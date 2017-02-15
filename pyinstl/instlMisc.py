@@ -148,28 +148,27 @@ class InstlMisc(InstlInstanceBase):
                         # this will hold members that are different and thus need to be extracted
                         member_collection = []
                         for member in tar:
+                            existing_file_full_path = os.path.join(destination_folder, member.name)
                             if member.name == os.path.join(fname, manifest_file_name):
                                 # we don't want to extract the manifest again
                                 continue
-
-                            if member.isdir():
+                            elif member.isdir():
                                 # folders are always welcome, especially empty ones
                                 member_collection.append(member)
-                                continue
-
-                            existing_file_full_path = os.path.join(destination_folder, member.name)
-                            if not os.path.isfile(existing_file_full_path):
+                            elif not os.path.isfile(existing_file_full_path):
                                 # file doesn't exist. manifest or not, just extract.
                                 member_collection.append(member)
-                                continue
 
                             # at this point we have a file in the tar that exist on the file-system
-                            if member.size == os.stat(existing_file_full_path).st_size:
+                            elif member.size == os.stat(existing_file_full_path).st_size:
                                 # damn! same size. we must compare checksum
                                 if tar_content_per_manifest[member.name]: # just to be on the safe side
                                     cs_ratsui = tar_content_per_manifest[member.name]['checksum']
                                     cs_matsui = utils.get_file_checksum(existing_file_full_path)
-                                    if not cs_ratsui == cs_matsui:
+                                    if cs_ratsui == cs_matsui:
+                                        # this is the only case we will skip a member
+                                        pass
+                                    else:
                                         # not same cs? pile it up for extraction
                                         member_collection.append(member)
 
@@ -181,7 +180,6 @@ class InstlMisc(InstlInstanceBase):
                             else:
                                 # different size? we want you
                                 member_collection.append(member)
-                                continue
 
                         # extracting only what we need
                         tar.extractall(destination_folder, members=member_collection)
@@ -190,8 +188,10 @@ class InstlMisc(InstlInstanceBase):
                         # that's ok, a manifest is optional. we'll extract everything
                         tar.extractall(destination_folder)
 
-                        # oops, we have extracted the manifest as well
-                        os.remove(os.path.join(destination_folder, fname, manifest_file_name))
+                        local_manifest_file = os.path.join(destination_folder, fname, manifest_file_name)
+                        if os.path.isfile(local_manifest_file):
+                            # oops, we have extracted the manifest as well
+                            os.remove(local_manifest_file)
 
             if self.no_artifacts:
                 for wtar_file in wtar_file_paths:
@@ -336,7 +336,8 @@ class InstlMisc(InstlInstanceBase):
             dock_util_command.append("--no-restart")
         utils.dock_util(dock_util_command)
 
-    def do_ls(self, collect='*'):
+    def do_ls(self):
+        collect = '*'
         if "__MAIN_OUT_FILE__" in var_stack:
             out_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
         else:

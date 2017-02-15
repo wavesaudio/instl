@@ -762,49 +762,41 @@ def unix_item_ls(the_path, collect):
     for collect_col in collect:
         if collect_col == 'I':
             the_parts.append(the_stats[stat.ST_INO])  # inode number
-
-        if collect_col == 'R':
+        elif collect_col == 'R':
             the_parts.append(unix_permissions_to_str(the_stats.st_mode)) # permissions
-
-        if collect_col == 'L':
+        elif collect_col == 'L':
             the_parts.append(the_stats[stat.ST_NLINK])  # num links
-
-        if collect_col == 'U':
+        elif collect_col == 'U':
             try:
                 the_parts.append(pwd.getpwuid(the_stats[stat.ST_UID])[0])  # user
             except KeyError:
                 the_parts.append(str(the_stats[stat.ST_UID])[0]) # unknown user name, get the number
             except Exception:
                 the_parts.append("no_uid")
-
-        if collect_col == 'G':
+        elif collect_col == 'G':
             try:
                 the_parts.append(grp.getgrgid(the_stats[stat.ST_GID])[0])  # group
             except KeyError:
                 the_parts.append(str(the_stats[stat.ST_GID])[0]) # unknown group name, get the number
             except Exception:
                 the_parts.append("no_gid")
-
-        if collect_col == 'S':
+        elif collect_col == 'S':
             the_parts.append(the_stats[stat.ST_SIZE])  # size in bytes
-
-        if collect_col == 'T':
+        elif collect_col == 'T':
             the_parts.append(time.strftime("%Y/%m/%d-%H:%M:%S", time.gmtime((the_stats[stat.ST_MTIME]))))  # modification time
-
-        if collect_col == 'C':
+        elif collect_col == 'C':
             if not (stat.S_ISLNK(the_stats.st_mode) or stat.S_ISDIR(the_stats.st_mode)):
                 the_parts.append(get_file_checksum(the_path))
             else:
                 the_parts.append("")
-
-        if collect_col == 'P':
+        elif collect_col == 'P':
             path_to_print = the_path
 
             # E will bring us Extra data (path postfix) but we want to know if it's DIR in any case
             if stat.S_ISDIR(the_stats.st_mode):
                 path_to_print += '/'
 
-            if collect_col == 'E':
+            if 'E' in collect:
                 if stat.S_ISLNK(the_stats.st_mode):
                     path_to_print += '@'
                 elif stat.S_ISDIR(the_stats.st_mode):
@@ -864,38 +856,24 @@ def produce_tar_list(tar_file, collect):
                             for collect_col in collect:
                                 if collect_col == 'W':
                                     continue # since W was the trigger to all that
-
-                                if collect_col == 'R':
+                                elif collect_col == 'R':
                                     the_parts.append(member.mode)
-                                    continue
-
-                                if collect_col == 'U':
+                                elif collect_col == 'U':
                                     the_parts.append("--".join([member.uid, member.uname]))
-                                    continue
-
-                                if collect_col == 'G':
+                                elif collect_col == 'G':
                                     the_parts.append("--".join([member.gid, member.gname]))
-                                    continue
-
-                                if collect_col == 'S':
+                                elif collect_col == 'S':
                                     the_parts.append(member.size)
-                                    continue
-
-                                if collect_col == 'T':
+                                elif collect_col == 'T':
                                     the_parts.append(member.mtime)
-                                    continue
-
-                                if collect_col == 'P':
+                                elif collect_col == 'P':
                                     the_parts.append(member.name)
-                                    continue
-
-                                if collect_col == 'D':
+                                elif collect_col == 'D':
                                     the_parts.append("<DIR>" if member.isdir() else "")
-                                    continue
-
-                                # coming here means that we got a char we can't do anything
-                                # still, we must allocate a place it
-                                the_parts.append("")
+                                else:
+                                    # coming here means that we got a char we can't do anything with.
+                                    # still, we must allocate a place it
+                                    the_parts.append("")
 
                             tar_list.append(the_parts)
                 tar_list.append('# End of .wtar content')
@@ -919,34 +897,29 @@ def win_item_ls(the_path, collect):
     for collect_col in collect:
         if collect_col == 'T':
             the_parts.append(time.strftime("%Y/%m/%d %H:%M:%S", time.gmtime((the_stats[stat.ST_MTIME]))))  # modification time
-
-        if collect_col == 'D':
+        elif collect_col == 'D':
             if stat.S_ISDIR(the_stats.st_mode):
                 the_parts.append("<DIR>")
             else:
                 the_parts.append("")
-        if collect_col == 'S':
+        elif collect_col == 'S':
             the_parts.append(the_stats[stat.ST_SIZE])  # size in bytes
-
-        if collect_col == 'U':
+        elif collect_col == 'U':
             sd = win32security.GetFileSecurity (the_path, win32security.OWNER_SECURITY_INFORMATION)
             owner_sid = sd.GetSecurityDescriptorOwner()
             name, domain, __type = win32security.LookupAccountSid (None, owner_sid)
             the_parts.append(domain+"\\"+name)  # user
-
-        if collect_col == 'G':
+        elif collect_col == 'G':
             sd = win32security.GetFileSecurity (the_path, win32security.GROUP_SECURITY_INFORMATION)
             owner_sid = sd.GetSecurityDescriptorGroup()
             name, domain, __type = win32security.LookupAccountSid (None, owner_sid)
             the_parts.append(domain+"\\"+name)  # group
-
-        if collect_col == 'C':
+        elif collect_col == 'C':
             if not (stat.S_ISLNK(the_stats.st_mode) or stat.S_ISDIR(the_stats.st_mode)):
                 the_parts.append(get_file_checksum(the_path))
             else:
                 the_parts.append("")
-
-        if collect_col == 'P':
+        elif collect_col == 'P':
             path_to_print = the_path
             the_parts.append(path_to_print)
 
