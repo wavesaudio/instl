@@ -752,11 +752,7 @@ def unix_permissions_to_str(the_mod):
     return retVal
 
 
-def unix_item_ls(the_path, collect='*'):
-    # collect tells us what to collect. '*' is everything we know: Inode, peRmissions, num Links, User, Group, Size, Time, Checksum, Path, Extra info
-    if collect == '*':
-        collect = 'IRLUGSTCPE' # order does matters!
-
+def unix_item_ls(the_path, collect):
     import grp
     import pwd
 
@@ -803,6 +799,11 @@ def unix_item_ls(the_path, collect='*'):
 
         if collect_col == 'P':
             path_to_print = the_path
+
+            # E will bring us Extra data (path postfix) but we want to know if it's DIR in any case
+            if stat.S_ISDIR(the_stats.st_mode):
+                path_to_print += '/'
+
             if collect_col == 'E':
                 if stat.S_ISLNK(the_stats.st_mode):
                     path_to_print += '@'
@@ -821,6 +822,10 @@ def unix_item_ls(the_path, collect='*'):
 
 
 def unix_folder_ls(the_path, collect='*'):
+    # collect tells us what to collect. '*' is everything we know: Inode, peRmissions, num Links, User, Group, Size, Time, Checksum, Path, Extra info
+    if collect == '*':
+        collect = 'IRLUGSTCPE' # order does matters!
+
     listing_lines = list()
     for root_path, dirs, files in os.walk(the_path, followlinks=False):
         dirs = sorted(dirs, key=lambda s: s.lower())
@@ -832,11 +837,12 @@ def unix_folder_ls(the_path, collect='*'):
 
             # W (list content of .Wtar files) is a special case and must be specifically requested
             if 'W' in collect:
-                listing_lines.extend(produce_tar_list(full_path))
+                listing_lines.extend(produce_tar_list(tar_file=full_path, collect=collect))
 
     return listing_lines
 
-def produce_tar_list(tar_file):
+
+def produce_tar_list(tar_file, collect):
     tar_list = list()
     if tar_file.endswith(".wtar.aa") or tar_file.endswith(".wtar"):  # only wtar
         if os.path.isfile(tar_file):
@@ -850,13 +856,49 @@ def produce_tar_list(tar_file):
                 what_to_work_on = [tar_file]
 
             try:
+                tar_list.append('# Start of .wtar content')
                 with MultiFileReader("br", what_to_work_on) as fd:
                     with tarfile.open(fileobj=fd) as tar:
                         for member in tar:
-                            tar_list.append(['--->', member.name, member.size])
+                            the_parts = list()
+                            for collect_col in collect:
+                                if collect_col == 'W':
+                                    continue # since W was the trigger to all that
 
-                tar_list.append(['# end of tar file'])
-                tar_list.append(['#'])
+                                if collect_col == 'R':
+                                    the_parts.append(member.mode)
+                                    continue
+
+                                if collect_col == 'U':
+                                    the_parts.append("--".join([member.uid, member.uname]))
+                                    continue
+
+                                if collect_col == 'G':
+                                    the_parts.append("--".join([member.gid, member.gname]))
+                                    continue
+
+                                if collect_col == 'S':
+                                    the_parts.append(member.size)
+                                    continue
+
+                                if collect_col == 'T':
+                                    the_parts.append(member.mtime)
+                                    continue
+
+                                if collect_col == 'P':
+                                    the_parts.append(member.name)
+                                    continue
+
+                                if collect_col == 'D':
+                                    the_parts.append("<DIR>" if member.isdir() else "")
+                                    continue
+
+                                # coming here means that we got a char we can't do anything
+                                # still, we must allocate a place it
+                                the_parts.append("")
+
+                            tar_list.append(the_parts)
+                tar_list.append('# End of .wtar content')
 
             except OSError as e:
                 print("Invalid stream on split file with {}".format(what_to_work_on[0]))
@@ -869,11 +911,7 @@ def produce_tar_list(tar_file):
 
 
 # noinspection PyUnresolvedReferences
-def win_item_ls(the_path, collect='*'):
-    # collect tells us what to collect. '*' is everything: Time, is_Dir, Size, User, Group, Checksum, Path
-    if collect == '*':
-        collect = 'TDSUGCP' # order does matters!
-
+def win_item_ls(the_path, collect):
     import win32security
     the_parts = list()
     the_stats = os.lstat(the_path)
@@ -916,6 +954,10 @@ def win_item_ls(the_path, collect='*'):
 
 
 def win_folder_ls(the_path, collect='*'):
+    # collect tells us what to collect. '*' is everything: Time, is_Dir, Size, User, Group, Checksum, Path
+    if collect == '*':
+        collect = 'TDSUGCP' # order does matters!
+
     listing_lines = list()
     for root_path, dirs, files in os.walk(the_path, followlinks=False):
         dirs = sorted(dirs, key=lambda s: s.lower())
@@ -927,7 +969,7 @@ def win_folder_ls(the_path, collect='*'):
 
             # W (list content of .Wtar files) is a special case and must be specifically requested
             if 'W' in collect:
-                listing_lines.extend(produce_tar_list(full_path))
+                listing_lines.extend(produce_tar_list(tar_file=full_path, collect=collect))
 
     return listing_lines
 
