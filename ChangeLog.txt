@@ -1,7 +1,15 @@
-8/2/2017 1.3.2.3
+15/2/2017 1.3.2.4
 
     * user visible changes client:
-    fixed create_copy_instructions_for_file to correctly handle !file item that is wtar.
+    * CHECK_BINARIES_VERSION_FILE_EXCLUDE_REGEX will effect which files not to consider when doing version report
+    programmer visible changes:
+    * utils.compile_regex_list_ORed verbose default changed to False, because spaces in regexs should be consider
+    * Disabled usage of Mac_dylib in report-versions because otool is available only on systems where developer tools were installed, so usage of otool cannot be deployed to users
+
+8/2/2017 1.3.2.3
+
+    user visible changes client:
+    * fixed create_copy_instructions_for_file to correctly handle !file item that is wtar.
     * fixed report-versions where version is different between Mac and Windows
 
     programmer visible changes:
