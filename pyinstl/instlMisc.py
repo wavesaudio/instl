@@ -113,84 +113,84 @@ class InstlMisc(InstlInstanceBase):
 
         # we need the root folder name within the .wtar file to map the exact location of the manifest
         fname, _ = os.path.splitext(full_file_name_to_unwtar)
+        local_manifest_file = os.path.join(destination_folder, fname, manifest_file_name)
 
         try:
             with MultiFileReader("br", wtar_file_paths) as fd:
                 with tarfile.open(fileobj=fd) as tar:
-                    # first, let's try to read the manifest
-                    try:
-                        # per doc, extractall() is safer than extract().
-                        # nevertheless, since we just read the manifest from memory, we don't care.
-                        # we will care later with actual extract.
-                        manifest_raw_content = tar.extractfile(os.path.join(fname, manifest_file_name))
+                    if not os.listdir(os.path.join(destination_folder, fname)):
+                        # dest folder is empty. there is nothing to compare to so unwtar everything
+                        self.unconditional_unwtar(tar, destination_folder, local_manifest_file)
+                    else:
+                        # let's try to read the manifest
+                        try:
+                            # per doc, extractall() is safer than extract().
+                            # nevertheless, since we just read the manifest from memory, we don't care.
+                            # we will care later with actual extract.
+                            manifest_raw_content = tar.extractfile(os.path.join(fname, manifest_file_name))
 
-                        # yeah, a manifest!
-                        tar_content_per_manifest = {}
-                        for line in manifest_raw_content.readlines():
-                            line = line.decode('ascii').strip() # we know its ascii
+                            # yeah, a manifest!
+                            tar_content_per_manifest = {}
+                            for line in manifest_raw_content.readlines():
+                                line = line.decode('ascii').strip() # we know its ascii
 
-                            # no remarks and no folders are needed
-                            # because we always extract folders
-                            if line.startswith('#') or line.endswith(os.sep):
-                                continue
+                                # no remarks and no folders are needed
+                                # because we always extract folders
+                                if line.startswith('#') or line.endswith(os.sep):
+                                    continue
 
-                            # that's what we want to have: Checksum, Path
-                            # we didn't need size because we have member.size, brought to us for free
-                            # this regex doesn't handle folders! (folders don't have checksum)
-                            # but since we have excluded them up stairs, it's ok
-                            m = re.search('(.*) ({}.*)'.format(fname), line)
-                            if m:
-                                tar_content_per_manifest[m.group(2)] = {
-                                    'checksum': m.group(1)  # but we need checksum
-                                }
+                                # 1. that's what we want to have: Checksum, Path
+                                # we don't need size because we have member.size, brought to us for free
+                                # 2. this regex doesn't handle folders! (folders don't have checksum)
+                                # but since we have excluded them up stairs, it's ok
+                                m = re.search('(.*) ({}.*)'.format(fname), line)
+                                if m:
+                                    tar_content_per_manifest[m.group(2)] = {
+                                        'checksum': m.group(1)  # but we need checksum
+                                    }
 
-                        # this will hold members that are different and thus need to be extracted
-                        member_collection = []
-                        for member in tar:
-                            existing_file_full_path = os.path.join(destination_folder, member.name)
-                            if member.name == os.path.join(fname, manifest_file_name):
-                                # we don't want to extract the manifest again
-                                continue
-                            elif member.isdir():
-                                # folders are always welcome, especially empty ones
-                                member_collection.append(member)
-                            elif not os.path.isfile(existing_file_full_path):
-                                # file doesn't exist. manifest or not, just extract.
-                                member_collection.append(member)
+                            # this will hold members that are different and thus need to be extracted
+                            member_collection = []
+                            for member in tar:
+                                existing_file_full_path = os.path.join(destination_folder, member.name)
+                                if member.name == os.path.join(fname, manifest_file_name):
+                                    # we don't want to extract the manifest again
+                                    continue
+                                elif member.isdir():
+                                    # folders are always welcome, especially empty ones
+                                    member_collection.append(member)
+                                elif not os.path.isfile(existing_file_full_path):
+                                    # file doesn't exist. manifest or not, just extract.
+                                    member_collection.append(member)
 
-                            # at this point we have a file in the tar that exist on the file-system
-                            elif member.size == os.stat(existing_file_full_path).st_size:
-                                # damn! same size. we must compare checksum
-                                if tar_content_per_manifest[member.name]: # just to be on the safe side
-                                    cs_ratsui = tar_content_per_manifest[member.name]['checksum']
-                                    cs_matsui = utils.get_file_checksum(existing_file_full_path)
-                                    if cs_ratsui == cs_matsui:
-                                        # this is the only case we will skip a member
-                                        pass
+                                # at this point we have a file in the tar that exist on the file-system
+                                elif member.size == os.stat(existing_file_full_path).st_size:
+                                    # damn! same size. we must compare checksum
+                                    if tar_content_per_manifest[member.name]: # just to be on the safe side
+                                        cs_ratsui = tar_content_per_manifest[member.name]['checksum']
+                                        cs_matsui = utils.get_file_checksum(existing_file_full_path)
+                                        if cs_ratsui == cs_matsui:
+                                            # this is the only case we will skip a member
+                                            pass
+                                        else:
+                                            # not same cs? pile it up for extraction
+                                            member_collection.append(member)
+
                                     else:
-                                        # not same cs? pile it up for extraction
+                                        # did someone manually add a file to the tar?
+                                        # this is strange! a file exists in tar but it's not in the manifest!
                                         member_collection.append(member)
 
                                 else:
-                                    # did someone manually add a file to the tar?
-                                    # this is strange! a file exists in tar but it's not in the manifest!
+                                    # different size? we want you
                                     member_collection.append(member)
 
-                            else:
-                                # different size? we want you
-                                member_collection.append(member)
+                            # extracting only what we need
+                            tar.extractall(destination_folder, members=member_collection)
 
-                        # extracting only what we need
-                        tar.extractall(destination_folder, members=member_collection)
-
-                    except KeyError:
-                        # that's ok, a manifest is optional. we'll extract everything
-                        tar.extractall(destination_folder)
-
-                        local_manifest_file = os.path.join(destination_folder, fname, manifest_file_name)
-                        if os.path.isfile(local_manifest_file):
-                            # oops, we have extracted the manifest as well
-                            os.remove(local_manifest_file)
+                        except KeyError:
+                            # that's ok, a manifest is optional. we'll extract everything
+                            self.unconditional_unwtar(tar, destination_folder, local_manifest_file)
 
             if self.no_artifacts:
                 for wtar_file in wtar_file_paths:
@@ -204,6 +204,13 @@ class InstlMisc(InstlInstanceBase):
         except tarfile.TarError:
             print("tarfile error while opening file", os.path.abspath(wtar_file_paths[0]))
             raise
+
+    def unconditional_unwtar(self, tarfile, dest, manifest_file=None):
+        tarfile.extractall(dest)
+        if manifest:
+            if os.path.isfile(manifest_file):
+                # oops, we have extracted the manifest as well
+                os.remove(manifest_file)
 
 
     def do_check_checksum(self):
