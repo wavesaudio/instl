@@ -123,7 +123,7 @@ class InstlMisc(InstlInstanceBase):
         try:
             with MultiFileReader("br", wtar_file_paths) as fd:
                 with tarfile.open(fileobj=fd) as tar:
-                    if os.path.isdir(os.path.join(destination_folder, fname)) and not os.listdir(os.path.join(destination_folder, fname)):
+                    if not os.path.isdir(os.path.join(destination_folder, fname)) or not os.listdir(os.path.join(destination_folder, fname)):
                         # dest folder is empty. there is nothing to compare to so unwtar everything
                         self.unconditional_unwtar(tar, destination_folder, local_manifest_file)
                     else:
