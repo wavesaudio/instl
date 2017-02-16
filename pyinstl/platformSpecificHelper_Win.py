@@ -15,7 +15,7 @@ from configVar import var_stack
 
 
 def dos_escape(some_string):
-    escaped_string = some_string.replace("&", "^&")
+    escaped_string = some_string.replace("&", "^&").replace("|", "^|")
     return escaped_string
 
 

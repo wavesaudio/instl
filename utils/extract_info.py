@@ -80,6 +80,9 @@ def Mac_framework(in_path):
 
 
 def Mac_dylib(in_path):
+    """ otool is available only on systems where developer tools were installed,
+        so usage of otool cannot be deployed to users
+    """
     retVal = None
     out = subprocess.Popen(['otool', '-L', in_path], stdout=subprocess.PIPE).stdout
     lines = out.readlines()
@@ -182,7 +185,7 @@ extract_info_funcs_by_extension = {
         '.component': Mac_bundle,
         '.app': Mac_bundle,
         '.framework': Mac_framework,
-        '.dylib': Mac_dylib,
+        #  '.dylib': Mac_dylib,  # otool is available only on systems where developer tools were installed, so usage of otool cannot be deployed to users
         '.pkg': Mac_pkg,
         '.wfi': get_wfi_version
         },
