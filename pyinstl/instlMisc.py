@@ -118,7 +118,7 @@ class InstlMisc(InstlInstanceBase):
         try:
             with MultiFileReader("br", wtar_file_paths) as fd:
                 with tarfile.open(fileobj=fd) as tar:
-                    if not os.listdir(os.path.join(destination_folder, fname)):
+                    if os.path.isdir(os.path.join(destination_folder, fname)) and not os.listdir(os.path.join(destination_folder, fname)):
                         # dest folder is empty. there is nothing to compare to so unwtar everything
                         self.unconditional_unwtar(tar, destination_folder, local_manifest_file)
                     else:
@@ -207,7 +207,7 @@ class InstlMisc(InstlInstanceBase):
 
     def unconditional_unwtar(self, tarfile, dest, manifest_file=None):
         tarfile.extractall(dest)
-        if manifest:
+        if manifest_file:
             if os.path.isfile(manifest_file):
                 # oops, we have extracted the manifest as well
                 os.remove(manifest_file)
