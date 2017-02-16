@@ -195,7 +195,7 @@ class InstlMisc(InstlInstanceBase):
 
                         except KeyError:
                             # that's ok, a manifest is optional. we'll extract everything
-                            self.unconditional_unwtar(tar, destination_folder, local_manifest_file)
+                            self.unconditional_unwtar(tar, destination_folder)
 
             if self.no_artifacts:
                 for wtar_file in wtar_file_paths:
@@ -210,8 +210,8 @@ class InstlMisc(InstlInstanceBase):
             print("tarfile error while opening file", os.path.abspath(wtar_file_paths[0]))
             raise
 
-    def unconditional_unwtar(self, tarfile, dest, manifest_file=None):
-        tarfile.extractall(dest)
+    def unconditional_unwtar(self, my_tarfile, dest, manifest_file=None):
+        my_tarfile.extractall(dest)
         if manifest_file:
             if os.path.isfile(manifest_file):
                 # oops, we have extracted the manifest as well
