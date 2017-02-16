@@ -15,6 +15,7 @@ import numbers
 import stat
 import datetime
 from pathlib import PurePath
+import fnmatch
 
 import rsa
 from functools import reduce

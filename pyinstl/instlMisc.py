@@ -6,7 +6,6 @@ import stat
 import sys
 import shlex
 import tarfile
-import fnmatch
 import time
 import utils
 from .instlInstanceBase import InstlInstanceBase
@@ -337,7 +336,6 @@ class InstlMisc(InstlInstanceBase):
         utils.dock_util(dock_util_command)
 
     def do_ls(self):
-        collect = '*'
         if "__MAIN_OUT_FILE__" in var_stack:
             out_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
         else:
@@ -353,7 +351,7 @@ class InstlMisc(InstlInstanceBase):
         else:
             folders_to_list.append(main_folder_to_list)
 
-        collect = var_stack.ResolveVarToStr("__OUTPUT_FORMAT__", default=collect)
+        collect = var_stack.ResolveVarToStr("__OUTPUT_FORMAT__", default='*')
         the_listing = utils.folder_listing(*folders_to_list, collect=collect)
 
         try:
