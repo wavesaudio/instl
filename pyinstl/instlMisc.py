@@ -112,7 +112,12 @@ class InstlMisc(InstlInstanceBase):
             stam, full_file_name_to_unwtar = os.path.split(wtar_file_paths[0])
 
         # we need the root folder name within the .wtar file to map the exact location of the manifest
-        fname, _ = os.path.splitext(full_file_name_to_unwtar)
+        fname = full_file_name_to_unwtar # but...
+        if full_file_name_to_unwtar.endswith(".wtar.aa"):
+            fname = full_file_name_to_unwtar[:-8]
+        elif full_file_name_to_unwtar.endswith(".wtar"):
+            fname = full_file_name_to_unwtar[:-5]
+
         local_manifest_file = os.path.join(destination_folder, fname, manifest_file_name)
 
         try:
