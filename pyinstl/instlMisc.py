@@ -162,8 +162,8 @@ class InstlMisc(InstlInstanceBase):
                                     # we don't want to extract the manifest again
                                     continue
                                 elif member.isdir():
-                                    # folders are always welcome, especially empty ones
-                                    member_collection.append(member)
+                                    if not os.path.isdir(os.path.join(destination_folder, member.name)):
+                                        member_collection.append(member)
                                 elif not os.path.isfile(existing_file_full_path):
                                     # file doesn't exist. manifest or not, just extract.
                                     member_collection.append(member)
