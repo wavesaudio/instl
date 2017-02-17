@@ -139,8 +139,8 @@ class InstlMisc(InstlInstanceBase):
                             for line in manifest_raw_content.readlines():
                                 line = line.decode('ascii').strip() # we know its ascii
 
-                                # no remarks and no folders are needed
-                                # because we always extract folders
+                                # remarks are not needed nor are folders because we check
+                                # against existing folder and not against the manifest
                                 if line.startswith('#') or line.endswith(os.sep):
                                     continue
 
@@ -171,7 +171,7 @@ class InstlMisc(InstlInstanceBase):
                                 # at this point we have a file in the tar that exist on the file-system
                                 elif member.size == os.stat(existing_file_full_path).st_size:
                                     # damn! same size. we must compare checksum
-                                    if tar_content_per_manifest[member.name]: # just to be on the safe side
+                                    if member.name in tar_content_per_manifest: # just to be on the safe side
                                         cs_ratsui = tar_content_per_manifest[member.name]['checksum']
                                         cs_matsui = utils.get_file_checksum(existing_file_full_path)
                                         if cs_ratsui == cs_matsui:
