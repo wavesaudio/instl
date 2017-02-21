@@ -67,16 +67,20 @@ class IndexItemsTable(object):
         # for that guid in IndexItemDetailRow and update the FoundOnDiskItemRow row
         stmt = """
             CREATE TRIGGER IF NOT EXISTS add_iid_to_FoundOnDiskItemRow_guid_not_null
-                AFTER INSERT ON FoundOnDiskItemRow
-                WHEN NEW.guid IS NOT NULL
+            AFTER INSERT ON FoundOnDiskItemRow
+                WHEN(NEW.guid IS NOT NULL)
             BEGIN
                 UPDATE FoundOnDiskItemRow
                 SET iid  = (
-                    SELECT owner_iid
-                    FROM IndexItemDetailRow
-                    WHERE detail_name='guid'
-                    AND detail_value=NEW.guid)
-                WHERE NEW.guid=FoundOnDiskItemRow.guid;
+                    SELECT name_item_t.owner_iid
+                    FROM IndexItemDetailRow AS guid_item_t
+                      JOIN IndexItemDetailRow AS name_item_t
+                        ON name_item_t.detail_name='install_sources'
+                        AND name_item_t.detail_value LIKE '%' || NEW.name
+                        AND name_item_t.owner_iid=guid_item_t.owner_iid
+                    WHERE guid_item_t.detail_name='guid'
+                      AND guid_item_t.detail_value=NEW.guid)
+               WHERE FoundOnDiskItemRow._id=NEW._id;
             END;
         """
         self.session.execute(stmt)
@@ -85,16 +89,16 @@ class IndexItemsTable(object):
         # for that  in IndexItemDetailRow by comparing the file's name and update the FoundOnDiskItemRow row
         stmt = """
             CREATE TRIGGER IF NOT EXISTS add_iid_to_FoundOnDiskItemRow_guid_is_null
-                AFTER INSERT ON FoundOnDiskItemRow
+            AFTER INSERT ON FoundOnDiskItemRow
                 WHEN NEW.guid IS NULL
             BEGIN
                 UPDATE OR IGNORE FoundOnDiskItemRow
                 SET iid  = (
-                    SELECT owner_iid
+                    SELECT IndexItemDetailRow.owner_iid
                     FROM IndexItemDetailRow
                     WHERE detail_name='install_sources'
                     AND detail_value LIKE '%' || NEW.name)
-                WHERE FoundOnDiskItemRow.name = NEW.name;
+               WHERE FoundOnDiskItemRow._id=NEW._id;
             END;
         """
         self.session.execute(stmt)
@@ -240,57 +244,43 @@ class IndexItemsTable(object):
     def add_views(self):
         # view of items from require.yaml that do not have a require_version field
         stmt = text("""
+        -- iid, index_version, generation
         CREATE VIEW "require_items_without_require_version_view" AS
-        SELECT main_item_t.iid, found_t.version AS found_version, yes_index_version_t.detail_value AS index_version, min(detail_t.generation)
-        FROM IndexItemDetailRow AS detail_t
+        SELECT main_details_t.owner_iid AS iid,
+            main_details_t.detail_value AS index_version,
+            min(main_details_t.generation) AS generation
+        FROM IndexItemDetailRow AS main_details_t
             JOIN IndexItemRow AS main_item_t
-                ON detail_t.owner_iid = main_item_t.iid
-                AND main_item_t.from_require=1
-            JOIN FoundOnDiskItemRow AS found_t
-                ON found_t.iid = main_item_t.iid
-                AND found_t.version IS NOT NULL
-            JOIN IndexItemDetailRow AS yes_index_version_t
-                ON yes_index_version_t.owner_iid = main_item_t.iid
-                AND yes_index_version_t.detail_name='version'
-                AND yes_index_version_t.active=1
-        WHERE NOT EXISTS(
-                SELECT no_require_version_t.owner_iid
-                    FROM IndexItemDetailRow AS no_require_version_t
-                    WHERE
-                            no_require_version_t.owner_iid = main_item_t.iid
-                        AND
-                            no_require_version_t.detail_name='require_version'
-                AND no_require_version_t.active=1
-            )
-        GROUP BY detail_t.owner_iid
-          """)
+            ON main_item_t.iid=main_details_t.owner_iid
+            AND main_item_t.from_require=1
+            LEFT JOIN IndexItemDetailRow AS no_require_version_t
+            ON no_require_version_t.detail_name='require_version'
+            AND main_details_t.owner_iid=no_require_version_t.owner_iid
+        WHERE main_details_t.detail_name='version'
+            AND no_require_version_t.detail_value ISNULL
+            AND main_details_t.active=1
+        GROUP BY (main_details_t.owner_iid)
+        """)
         self.session.execute(stmt)
 
         # view of items from require.yaml that do not have a require_guid field
         stmt = text("""
-       CREATE VIEW "require_items_without_require_guid_view" AS
-        SELECT main_item_t.iid, found_t.guid AS found_guid, yes_index_guid_t.detail_value AS index_guid, min(detail_t.generation)
-        FROM IndexItemDetailRow AS detail_t
+        CREATE VIEW "require_items_without_require_guid_view" AS
+        SELECT
+            main_details_t.owner_iid       AS iid,
+            main_details_t.detail_value    AS index_guid,
+            min(main_details_t.generation) AS generation
+        FROM IndexItemDetailRow AS main_details_t
             JOIN IndexItemRow AS main_item_t
-                ON detail_t.owner_iid = main_item_t.iid
-                AND main_item_t.from_require=1
-            JOIN FoundOnDiskItemRow AS found_t
-                ON found_t.iid = main_item_t.iid
-                AND found_t.guid IS NOT NULL
-            JOIN IndexItemDetailRow AS yes_index_guid_t
-                ON yes_index_guid_t.owner_iid = main_item_t.iid
-                AND yes_index_guid_t.detail_name='guid'
-                AND yes_index_guid_t.active=1
-        WHERE NOT EXISTS(
-                SELECT no_require_guid_t.owner_iid
-                    FROM IndexItemDetailRow AS no_require_guid_t
-                    WHERE
-                            no_require_guid_t.owner_iid = main_item_t.iid
-                        AND
-                            no_require_guid_t.detail_name='require_guid'
-                AND no_require_guid_t.active=1
-            )
-        GROUP BY detail_t.owner_iid
+                ON main_item_t.iid = main_details_t.owner_iid
+                   AND main_item_t.from_require = 1
+            LEFT JOIN IndexItemDetailRow AS no_guid_version_t
+                ON no_guid_version_t.detail_name = 'require_guid'
+                AND main_details_t.owner_iid=no_guid_version_t.owner_iid
+        WHERE main_details_t.detail_name='guid'
+        AND no_guid_version_t.detail_value ISNULL
+        AND main_details_t.active=1
+        GROUP BY (main_details_t.owner_iid)
          """)
         self.session.execute(stmt)
 
@@ -1219,10 +1209,18 @@ class IndexItemsTable(object):
 
     def add_require_version_from_binaries(self):
         query_text = """
-            INSERT OR REPLACE INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
-            SELECT iid, iid, 0, 'require_version', found_version, 0
-            FROM require_items_without_require_version_view
-            """
+        INSERT OR REPLACE INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
+        SELECT  FoundOnDiskItemRow.iid, -- original_iid
+                FoundOnDiskItemRow.iid, -- owner_iid
+                0,                      -- os_id
+                'require_version',      -- detail_name
+                FoundOnDiskItemRow.version, -- detail_value
+                0                       -- generation
+        FROM require_items_without_require_version_view
+        JOIN FoundOnDiskItemRow
+            ON FoundOnDiskItemRow.iid=require_items_without_require_version_view.iid
+            AND FoundOnDiskItemRow.version NOTNULL
+        """
         try:
             exec_result = self.session.execute(query_text)
         except SQLAlchemyError as ex:
@@ -1231,10 +1229,18 @@ class IndexItemsTable(object):
 
     def add_require_guid_from_binaries(self):
         query_text = """
-            INSERT OR REPLACE INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
-            SELECT iid, iid, 0, 'require_guid', found_guid, 0
-            FROM require_items_without_require_guid_view
-            """
+        INSERT OR REPLACE INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
+        SELECT  FoundOnDiskItemRow.iid, -- original_iid
+                FoundOnDiskItemRow.iid, -- owner_iid
+                0,                      -- os_id
+                'require_guid',      -- detail_name
+                FoundOnDiskItemRow.version, -- detail_value
+                0                       -- generation
+        FROM require_items_without_require_guid_view
+        JOIN FoundOnDiskItemRow
+            ON FoundOnDiskItemRow.iid=require_items_without_require_guid_view.iid
+            AND FoundOnDiskItemRow.guid NOTNULL
+        """
         try:
             exec_result = self.session.execute(query_text)
         except SQLAlchemyError as ex:
