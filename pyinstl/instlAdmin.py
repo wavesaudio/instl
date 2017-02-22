@@ -757,30 +757,36 @@ class InstlAdmin(InstlInstanceBase):
 
                         # Calling ls() to create a manifest tar content.
                         # Only in case of a folder; No sense otherwise.
-                        manifest_file_is_created = False
-                        if os.path.isdir(item_to_tar_full_path):
-                            # We then tar it as well and delete it from the stage
-                            manifest_file_name = var_stack.ResolveVarToStr("TAR_MANIFEST_FILE_NAME")
 
-                            # CP stands for Checksum, Path
-                            self.batch_accum += self.platform_helper.ls(folder=item_to_tar, collect='CP', output_file=manifest_file_name)
-                            manifest_file_is_created = True
+                        # TODO: since conditional unwtar requires further research
+                        # thus we don't need the manifest - code below will not run
+                        if False:
+                            manifest_file_is_created = False
+                            if os.path.isdir(item_to_tar_full_path):
+                                # We then tar it as well and delete it from the stage
+                                manifest_file_name = var_stack.ResolveVarToStr("TAR_MANIFEST_FILE_NAME")
 
-                            # now, if item_to_tar is inside a .bundle,
-                            # it would be wise to create another file with the version of it.
-                            # then we can read it in unwtar, compare and if different,
-                            # unwtar the file without further checks
+                                # CP stands for Checksum, Path
+                                self.batch_accum += self.platform_helper.ls(folder=item_to_tar, collect='CP', output_file=manifest_file_name)
+                                manifest_file_is_created = True
 
-                            # ONLY IF WE ARE INSIDE A .bundle
-                            # plugin_name = ...
-                            #self.batch_accum += self.platform_helper.create_bundle_version_file(item_to_tar, plugin_name)
+                                # now, if item_to_tar is inside a .bundle,
+                                # it would be wise to create another file with the version of it.
+                                # then we can read it in unwtar, compare and if different,
+                                # unwtar the file without further checks
+
+                                # ONLY IF WE ARE INSIDE A .bundle
+                                # plugin_name = ...
+                                #self.batch_accum += self.platform_helper.create_bundle_version_file(item_to_tar, plugin_name)
 
                         # tar with or without the manifest
                         self.batch_accum += self.platform_helper.tar(item_to_tar)
 
                         # delete the manifest file in case one was created
-                        if manifest_file_is_created:
-                            self.batch_accum += self.platform_helper.rmfile(os.path.join(item_to_tar, manifest_file_name))
+                        # TODO: further conditional unwtar is needed. code below will not run for now
+                        if False:
+                            if manifest_file_is_created:
+                                self.batch_accum += self.platform_helper.rmfile(os.path.join(item_to_tar, manifest_file_name))
 
                         self.batch_accum += self.platform_helper.progress("tar file {}".format(item_to_tar))
                         self.batch_accum += self.platform_helper.split(item_to_tar + ".wtar")

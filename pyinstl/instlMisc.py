@@ -123,79 +123,83 @@ class InstlMisc(InstlInstanceBase):
         try:
             with MultiFileReader("br", wtar_file_paths) as fd:
                 with tarfile.open(fileobj=fd) as tar:
-                    if not os.path.isdir(os.path.join(destination_folder, fname)) or not os.listdir(os.path.join(destination_folder, fname)):
-                        # dest folder is empty. there is nothing to compare to so unwtar everything
-                        self.unconditional_unwtar(tar, destination_folder, local_manifest_file)
+                    # TODO: since conditional unwtar requires further research, code below is forced
+                    if True:
+                        self.unconditional_unwtar(tar, destination_folder)
                     else:
-                        # let's try to read the manifest
-                        try:
-                            # per doc, extractall() is safer than extract().
-                            # nevertheless, since we just read the manifest from memory, we don't care.
-                            # we will care later with actual extract.
-                            manifest_raw_content = tar.extractfile(os.path.join(fname, manifest_file_name))
+                        if not os.path.isdir(os.path.join(destination_folder, fname)) or not os.listdir(os.path.join(destination_folder, fname)):
+                            # dest folder is empty. there is nothing to compare to so unwtar everything
+                            self.unconditional_unwtar(tar, destination_folder, local_manifest_file)
+                        else:
+                            # let's try to read the manifest
+                            try:
+                                # per doc, extractall() is safer than extract().
+                                # nevertheless, since we just read the manifest from memory, we don't care.
+                                # we will care later with actual extract.
+                                manifest_raw_content = tar.extractfile(os.path.join(fname, manifest_file_name))
 
-                            # yeah, a manifest!
-                            tar_content_per_manifest = {}
-                            for line in manifest_raw_content.readlines():
-                                line = line.decode('ascii').strip() # we know its ascii
+                                # yeah, a manifest!
+                                tar_content_per_manifest = {}
+                                for line in manifest_raw_content.readlines():
+                                    line = line.decode('ascii').strip() # we know its ascii
 
-                                # remarks are not needed nor are folders because we check
-                                # against existing folder and not against the manifest
-                                if line.startswith('#') or line.endswith(os.sep):
-                                    continue
+                                    # remarks are not needed nor are folders because we check
+                                    # against existing folder and not against the manifest
+                                    if line.startswith('#') or line.endswith(os.sep):
+                                        continue
 
-                                # 1. that's what we want to have: Checksum, Path
-                                # we don't need size because we have member.size, brought to us for free
-                                # 2. this regex doesn't handle folders! (folders don't have checksum)
-                                # but since we have excluded them up stairs, it's ok
-                                m = re.search('(.*) ({}.*)'.format(fname), line)
-                                if m:
-                                    tar_content_per_manifest[m.group(2)] = {
-                                        'checksum': m.group(1)  # but we need checksum
-                                    }
+                                    # 1. that's what we want to have: Checksum, Path
+                                    # we don't need size because we have member.size, brought to us for free
+                                    # 2. this regex doesn't handle folders! (folders don't have checksum)
+                                    # but since we have excluded them up stairs, it's ok
+                                    m = re.search('(.*) ({}.*)'.format(fname), line)
+                                    if m:
+                                        tar_content_per_manifest[m.group(2)] = {
+                                            'checksum': m.group(1)  # but we need checksum
+                                        }
 
-                            # this will hold members that are different and thus need to be extracted
-                            member_collection = []
-                            for member in tar:
-                                existing_file_full_path = os.path.join(destination_folder, member.name)
-                                if member.name == os.path.join(fname, manifest_file_name):
-                                    # we don't want to extract the manifest again
-                                    continue
-                                elif member.isdir():
-                                    if not os.path.isdir(os.path.join(destination_folder, member.name)):
+                                # this will hold members that are different and thus need to be extracted
+                                member_collection = []
+                                for member in tar:
+                                    existing_file_full_path = os.path.join(destination_folder, member.name)
+                                    if member.name == os.path.join(fname, manifest_file_name):
+                                        # we don't want to extract the manifest again
+                                        continue
+                                    elif member.isdir():
+                                        if not os.path.isdir(os.path.join(destination_folder, member.name)):
+                                            member_collection.append(member)
+                                    elif not os.path.isfile(existing_file_full_path):
+                                        # file doesn't exist. manifest or not, just extract.
                                         member_collection.append(member)
-                                elif not os.path.isfile(existing_file_full_path):
-                                    # file doesn't exist. manifest or not, just extract.
-                                    member_collection.append(member)
 
-                                # at this point we have a file in the tar that exist on the file-system
-                                elif member.size == os.stat(existing_file_full_path).st_size:
-                                    # damn! same size. we must compare checksum
-                                    if member.name in tar_content_per_manifest: # just to be on the safe side
-                                        cs_ratsui = tar_content_per_manifest[member.name]['checksum']
-                                        cs_matsui = utils.get_file_checksum(existing_file_full_path)
-                                        if cs_ratsui == cs_matsui:
-                                            # this is the only case we will skip a member
-                                            pass
+                                    # at this point we have a file in the tar that exist on the file-system
+                                    elif member.size == os.stat(existing_file_full_path).st_size:
+                                        # damn! same size. we must compare checksum
+                                        if member.name in tar_content_per_manifest: # just to be on the safe side
+                                            cs_ratsui = tar_content_per_manifest[member.name]['checksum']
+                                            cs_matsui = utils.get_file_checksum(existing_file_full_path)
+                                            if cs_ratsui == cs_matsui:
+                                                # this is the only case we will skip a member
+                                                pass
+                                            else:
+                                                # not same cs? pile it up for extraction
+                                                member_collection.append(member)
+
                                         else:
-                                            # not same cs? pile it up for extraction
+                                            # did someone manually add a file to the tar?
+                                            # this is strange! a file exists in tar but it's not in the manifest!
                                             member_collection.append(member)
 
                                     else:
-                                        # did someone manually add a file to the tar?
-                                        # this is strange! a file exists in tar but it's not in the manifest!
+                                        # different size? we want you
                                         member_collection.append(member)
 
-                                else:
-                                    # different size? we want you
-                                    member_collection.append(member)
+                                # extracting only what we need
+                                tar.extractall(destination_folder, members=member_collection)
 
-                            # extracting only what we need
-                            tar.extractall(destination_folder, members=member_collection)
-
-                        except KeyError:
-                            # that's ok, a manifest is optional. we'll extract everything
-                            self.unconditional_unwtar(tar, destination_folder)
+                            except KeyError:
+                                # that's ok, a manifest is optional. we'll extract everything
+                                self.unconditional_unwtar(tar, destination_folder)
 
             if self.no_artifacts:
                 for wtar_file in wtar_file_paths:
