@@ -53,11 +53,13 @@ class InstlClient(InstlInstanceBase):
 
     def do_command(self):
         # print("client_commands", fixed_command_name)
-        active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
-        self.items_table.begin_get_for_specific_oses(*active_oses)
 
         main_input_file_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         self.read_yaml_file(main_input_file_path)
+
+        self.init_default_client_vars()
+        active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
+        self.items_table.begin_get_for_specific_oses(*active_oses)
 
         self.items_table.resolve_inheritance()
         self.items_table.commit_changes()
@@ -68,7 +70,6 @@ class InstlClient(InstlInstanceBase):
         self.items_table.commit_changes()
         self.items_table.create_default_items()
 
-        self.init_default_client_vars()
         self.resolve_defined_paths()
         self.batch_accum.set_current_section('begin')
         self.batch_accum += self.platform_helper.setup_echo()

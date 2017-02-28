@@ -1,3 +1,8 @@
+28/2/2017 1.3.3.2
+
+    programmer visible changes:
+    * moved around some varible intialization to accommodate for creating offline installers for Mac on windows
+
 21/2/3017 1.3.3.1
 
     user visible changes client:
