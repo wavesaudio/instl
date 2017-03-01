@@ -196,6 +196,33 @@ class IndexItemsTable(object):
         """
         self.session.execute(trigger_text)
 
+        if False:  # debugging table and trigger
+            table_text = """
+                CREATE TABLE ChangeLog
+                (
+                _id INTEGER PRIMARY KEY NOT NULL,
+                time DATETIME default (datetime('now','localtime')),
+                owner_iid TEXT,
+                detail_name TEXT,
+                detail_value TEXT,
+                os_id INTEGER,
+                old_active INTEGER,
+                new_active INTEGER,
+                log_text TEXT
+                );
+            """
+            self.session.execute(table_text)
+
+            trigger_text = """
+                CREATE TRIGGER log_adjust_active_os_for_details
+                AFTER UPDATE OF active ON IndexItemDetailRow
+                BEGIN
+                    INSERT INTO ChangeLog (owner_iid, detail_name, detail_value, os_id, old_active, new_active)
+                    VALUES (OLD.owner_iid, OLD.detail_name, OLD.detail_value, OLD.os_id,  OLD.active,  NEW.active);
+                END;
+            """
+            self.session.execute(trigger_text)
+
         # when adding new detail set it's active state according to os
         trigger_text = """
             CREATE TRIGGER set_active_os_for_details
@@ -336,9 +363,15 @@ class IndexItemsTable(object):
             This method is useful in code that does reporting or analyzing, where
             there is need to have access to all oses not just the current or target os.
         """
-        for os_name_obj in self.os_names_db_objs:
-            os_name_obj.active = True
-        self.session.commit()
+        query_text = """
+            UPDATE IndexItemDetailOperatingSystem
+            SET active = 1
+         """
+        try:
+            exec_result = self.session.execute(query_text)
+        except SQLAlchemyError as ex:
+            print(ex)
+            raise
 
     def reset_get_for_all_oses(self):
         """ resets the list of os that will influence all get functions
@@ -347,25 +380,30 @@ class IndexItemsTable(object):
             This method is useful in code that does reporting or analyzing, where
             there is need to have access to all oses not just the current or target os.
         """
-        for os_name_obj in self.os_names_db_objs:
-            if os_name_obj.name == "common":
-                os_name_obj.active = True
-            else:
-                os_name_obj.active = False
-        self.session.commit()
+        self.begin_get_for_specific_oses()
 
     def begin_get_for_specific_oses(self, *for_oses):
         """ adds another os name to the list of os that will influence all get functions
             such as depend_list, source_list etc.
             This is a static method so it will influence all InstallItem objects.
         """
-        for_oses = *for_oses, "common",
-        for os_name_obj in self.os_names_db_objs:
-            if os_name_obj.name in for_oses:
-                os_name_obj.active = True
-            else:
-                os_name_obj.active = False
-        self.session.commit()
+        for_oses = *for_oses, "common"
+        quoted_os_names = [utils.quoteme_double(os_name) for os_name in for_oses]
+        query_vars = ", ".join(quoted_os_names)
+        query_text = """
+            UPDATE IndexItemDetailOperatingSystem
+            SET active = CASE WHEN IndexItemDetailOperatingSystem.name IN ({0}) THEN
+                    1
+                ELSE
+                    0
+                END;
+        """.format(query_vars)
+        try:
+            exec_result = self.session.execute(query_text)
+            self.session.commit()
+        except SQLAlchemyError as ex:
+            print(ex)
+            raise
 
     def end_get_for_specific_os(self):
         """ removed the last added os name to the list of os that will influence all get functions

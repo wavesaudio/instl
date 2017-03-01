@@ -56,6 +56,7 @@ class InstlClient(InstlInstanceBase):
 
         main_input_file_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         self.read_yaml_file(main_input_file_path)
+        self.items_table.commit_changes()
 
         self.init_default_client_vars()
         active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
@@ -69,6 +70,7 @@ class InstlClient(InstlInstanceBase):
             self.items_table.add_require_guid_from_binaries()
         self.items_table.commit_changes()
         self.items_table.create_default_items()
+        self.items_table.commit_changes()
 
         self.resolve_defined_paths()
         self.batch_accum.set_current_section('begin')
