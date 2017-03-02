@@ -1,6 +1,7 @@
 2/3/2017 1.3.3.3
 
     programmer visible changes:
+    * Added DISTINCT to the SELECT statement in get_all_installed_iids_needing_update, not need for repeated items.
     * Changed implementation for begin_get_for_all_oses, begin_get_for_specific_oses to be sqlite code instead of sqlalchemy
     * Added much needed session.commit's to fix creation of offline installers
     * CREATE TRIGGER got IF NOT EXISTS

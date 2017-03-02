@@ -115,6 +115,7 @@ class IndexItemsTable(object):
         """
         self.session.execute(stmt)
 
+        # TODO: updated items should not have self-referenced require_by, this will fix the problem of GTR apps not removed after update
         # when changing the status of item to install, adjust item's require_XXX details
         trigger_text = """
             CREATE TRIGGER IF NOT EXISTS create_require_for_installed_iids_trigger
@@ -519,7 +520,7 @@ class IndexItemsTable(object):
         """
         retVal = list()
         query_text = """
-                SELECT require_version.owner_iid, require_version.detail_value AS require, remote_version.detail_value AS remote
+                SELECT DISTINCT require_version.owner_iid, require_version.detail_value AS require, remote_version.detail_value AS remote
                 FROM IndexItemDetailRow AS require_version
                 LEFT JOIN (
                     SELECT owner_iid, detail_value, min(generation)
@@ -531,6 +532,7 @@ class IndexItemsTable(object):
                 WHERE detail_name="require_version"
                       AND remote_version.owner_iid=require_version.owner_iid
                       AND require_version.detail_value!=remote_version.detail_value
+                      AND require_version.active = 1
             """
 
         try:
