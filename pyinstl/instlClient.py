@@ -228,7 +228,7 @@ class InstlClient(InstlInstanceBase):
             self.items_table.change_status_of_iids(0, ignored_iids)
             all_items_from_table_except_ignored = list(set(all_items_from_table) - set(ignored_iids))
             var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(all_items_from_table_except_ignored))
-
+        self.items_table.commit_changes()
 
         self.sort_all_items_by_target_folder()
         iids_and_names_from_db = self.items_table.name_and_version_report_for_active_iids()

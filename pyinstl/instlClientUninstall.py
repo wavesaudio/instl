@@ -77,6 +77,7 @@ class InstlClientUninstall(InstlClientRemove):
         all_uninstall_items = [iid for iid, count in how_many_require_by.items() if count == 0]
         if force_uninstall_of_main_items:
             all_uninstall_items = list(set(all_uninstall_items+iid_candidates_for_uninstall))
+        all_uninstall_items.sort()
         var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(all_uninstall_items))
 
         iids_that_should_not_be_uninstalled = list(set(iid_candidates_for_uninstall)-set(all_uninstall_items))

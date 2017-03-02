@@ -1,8 +1,12 @@
-1/3/2017 1.3.3.3
+2/3/2017 1.3.3.3
 
     programmer visible changes:
     * Changed implementation for begin_get_for_all_oses, begin_get_for_specific_oses to be sqlite code instead of sqlalchemy
     * Added much needed session.commit's to fix creation of offline installers
+    * CREATE TRIGGER got IF NOT EXISTS
+    * Some more session.commits
+    * get_all_iids implemented in SQL instead of sqlalchemy baked query
+    * all_uninstall_items is sorted
 
 28/2/2017 1.3.3.2
 

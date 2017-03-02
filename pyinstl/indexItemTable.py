@@ -117,7 +117,7 @@ class IndexItemsTable(object):
 
         # when changing the status of item to install, adjust item's require_XXX details
         trigger_text = """
-            CREATE TRIGGER create_require_for_installed_iids_trigger
+            CREATE TRIGGER IF NOT EXISTS create_require_for_installed_iids_trigger
             AFTER UPDATE OF status ON IndexItemRow
             WHEN NEW.status > 0
             BEGIN
@@ -169,7 +169,7 @@ class IndexItemsTable(object):
 
         # when changing the status of item to uninstall, remove item's require_XXX details
         trigger_text = """
-            CREATE TRIGGER remove_require_for_uninstalled_iids_trigger
+            CREATE TRIGGER IF NOT EXISTS remove_require_for_uninstalled_iids_trigger
             AFTER UPDATE OF status ON IndexItemRow
             WHEN NEW.status < 0
             BEGIN
@@ -186,7 +186,7 @@ class IndexItemsTable(object):
 
         # when an os becomes active/de-active set all details accordingly
         trigger_text = """
-            CREATE TRIGGER adjust_active_os_for_details
+            CREATE TRIGGER IF NOT EXISTS adjust_active_os_for_details
             AFTER UPDATE OF active ON IndexItemDetailOperatingSystem
             BEGIN
                 UPDATE IndexItemDetailRow
@@ -214,7 +214,7 @@ class IndexItemsTable(object):
             self.session.execute(table_text)
 
             trigger_text = """
-                CREATE TRIGGER log_adjust_active_os_for_details
+                CREATE TRIGGER IF NOT EXISTS log_adjust_active_os_for_details
                 AFTER UPDATE OF active ON IndexItemDetailRow
                 BEGIN
                     INSERT INTO ChangeLog (owner_iid, detail_name, detail_value, os_id, old_active, new_active)
@@ -265,6 +265,10 @@ class IndexItemsTable(object):
         self.session.execute(stmt)
         stmt = """
             DROP TRIGGER IF EXISTS add_iid_to_FoundOnDiskItemRow_guid_is_null;
+            """
+        self.session.execute(stmt)
+        stmt = """
+            DROP TRIGGER IF EXISTS log_adjust_active_os_for_details;
             """
         self.session.execute(stmt)
 
@@ -369,6 +373,7 @@ class IndexItemsTable(object):
          """
         try:
             exec_result = self.session.execute(query_text)
+            self.session.commit()
         except SQLAlchemyError as ex:
             print(ex)
             raise
@@ -429,7 +434,7 @@ class IndexItemsTable(object):
                 self.session.add_all(details)
             else:
                 print(iid, "found in require but not in index")
-        # self.session.commit()
+        self.session.commit()
 
     def get_all_require_translate_items(self):
         """
@@ -543,14 +548,16 @@ class IndexItemsTable(object):
         tested by: TestItemTable.test_06_get_all_iids
         :return: list of all iids in the db, empty list if none are found
         """
-        if "get_all_iids" not in self.baked_queries_map:
-            the_query = self.bakery(lambda q: q.query(IndexItemRow.iid))
-            the_query += lambda q: q.order_by(IndexItemRow.iid)
-            self.baked_queries_map["get_all_iids"] = the_query
-        else:
-            the_query = self.baked_queries_map["get_all_iids"]
-        retVal = the_query(self.session).all()
-        retVal = [m[0] for m in retVal]
+        retVal = list()
+        query_text = """SELECT iid FROM IndexItemRow"""
+        try:
+            exec_result = self.session.execute(query_text)
+            if exec_result.returns_rows:
+                retVal = exec_result.fetchall()
+                retVal = [mm[0] for mm in retVal]
+        except SQLAlchemyError as ex:
+            raise
+
         return retVal
 
     def create_default_index_items(self):
@@ -760,19 +767,20 @@ class IndexItemsTable(object):
             original_details.extend(original_item_details)
         self.session.add_all(index_items)
         self.session.add_all(original_details)
-        # self.session.commit()
+        self.session.commit()
 
     # @utils.timing
     def read_require_node(self, a_node):
         require_items = dict()
         if a_node.isMapping():
+            all_iids = self.get_all_iids()
             for IID in a_node:
-                require_details = self.read_item_details_from_require_node(IID, a_node[IID])
+                require_details = self.read_item_details_from_require_node(IID, a_node[IID], all_iids)
                 if require_details:
                     require_items[IID] = require_details
-            self.insert_require_to_db(require_items)
+        self.insert_require_to_db(require_items)
 
-    def read_item_details_from_require_node(self, the_iid, the_node):
+    def read_item_details_from_require_node(self, the_iid, the_node, all_iids):
         os_id=self.os_names['common']
         details = list()
         if the_node.isMapping():
@@ -787,11 +795,19 @@ class IndexItemsTable(object):
                         details.append(new_detail)
                 elif detail_name == "require_by":
                     for require_by in the_node["require_by"]:
-                        new_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=os_id, detail_name="require_by", detail_value=require_by.value)
+                        if require_by.value in all_iids:
+                            detail_name = "require_by"
+                        else:
+                            detail_name = "deprecated_require_by"
+                        new_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=os_id, detail_name=detail_name, detail_value=require_by.value)
                         details.append(new_detail)
         elif the_node.isSequence():
             for require_by in the_node:
-                details.append(IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=os_id, detail_name="require_by", detail_value=require_by.value))
+                if require_by.value in all_iids:
+                    detail_name = "require_by"
+                else:
+                    detail_name = "deprecated_require_by"
+                details.append(IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=os_id, detail_name=detail_name, detail_value=require_by.value))
         return details
 
     def repr_item_for_yaml(self, iid):
@@ -865,7 +881,7 @@ class IndexItemsTable(object):
             # add all guids to table IndexGuidToItemTranslate with iid field defaults to Null
             for a_guid in list(set(guid_list)):  # list(set()) will remove duplicates
                 self.session.add(IndexGuidToItemTranslate(guid=a_guid))
-            self.session.flush()
+            self.session.commit()
 
             # insert to table IndexGuidToItemTranslate guid, iid pairs.
             # a guid might yield 0, 1, or more iids
@@ -878,7 +894,7 @@ class IndexItemsTable(object):
                     AND IndexItemDetailRow.detail_value IN (SELECT guid FROM IndexGuidToItemTranslate WHERE iid IS NULL);
                 """
             self.session.execute(query_text)
-            self.session.flush()
+            self.session.commit()
 
             # return a list of guid, count pairs.
             # Guids with count of 0 are guid that could not be translated to iids
@@ -1040,7 +1056,7 @@ class IndexItemsTable(object):
         regular_iids_to_mark = set(iid_list) - set(special_build_in_iids)
         self.set_status_of_direct_dependencies(special_iids_to_mark, status_value=1)
         self.set_status_of_iids(regular_iids_to_mark, status_value=1)
-        self.session.flush()
+        self.session.commit()
         retVal = self.get_iids_by_status(1)
         return retVal
 
@@ -1207,7 +1223,7 @@ class IndexItemsTable(object):
     def create_default_items(self):
         self.create_default_index_items()
         self.create_default_require_items()
-        self.session.flush()
+        self.session.commit()
 
     def require_items_without_version_or_guid(self):
         retVal = list()
