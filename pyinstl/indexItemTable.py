@@ -22,6 +22,7 @@ import utils
 
 class IndexItemsTable(object):
     os_names = {'common': 0, 'Mac': 1, 'Mac32': 2, 'Mac64': 3, 'Win': 4, 'Win32': 5, 'Win64': 6}
+    install_status = {"none": 0, "main": 1, "update": 2, "depend": 3, "remove": -1}
     action_types = ('pre_copy', 'pre_copy_to_folder', 'pre_copy_item',
                     'post_copy_item', 'post_copy_to_folder', 'post_copy',
                     'pre_remove', 'pre_remove_from_folder', 'pre_remove_item',
@@ -116,11 +117,12 @@ class IndexItemsTable(object):
         self.session.execute(stmt)
 
         # TODO: updated items should not have self-referenced require_by, this will fix the problem of GTR apps not removed after update
-        # when changing the status of item to install, adjust item's require_XXX details
+        # when changing the install_status of item to install, adjust item's require_XXX details
         trigger_text = """
             CREATE TRIGGER IF NOT EXISTS create_require_for_installed_iids_trigger
-            AFTER UPDATE OF status ON IndexItemRow
-            WHEN NEW.status > 0
+            AFTER UPDATE OF install_status ON IndexItemRow
+            WHEN NEW.install_status > 0
+            AND NEW.ignore = 0
             BEGIN
 
             -- remove previous require_by NEW.iid
@@ -151,10 +153,10 @@ class IndexItemsTable(object):
             AND detail_name='guid'
             GROUP BY owner_iid;
 
-            -- self-referenced require_by for main install iids which are marked by status 1
+            -- self-referenced require_by for main install iids which are marked by install_status 1
             INSERT INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
             SELECT NEW.iid, NEW.iid, 0, 'require_by', NEW.iid, 0
-            WHERE NEW.status=1;
+            WHERE NEW.install_status=1;
 
             -- require_by for all install iids
             INSERT INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
@@ -171,8 +173,9 @@ class IndexItemsTable(object):
         # when changing the status of item to uninstall, remove item's require_XXX details
         trigger_text = """
             CREATE TRIGGER IF NOT EXISTS remove_require_for_uninstalled_iids_trigger
-            AFTER UPDATE OF status ON IndexItemRow
-            WHEN NEW.status < 0
+            AFTER UPDATE OF install_status ON IndexItemRow
+            WHEN NEW.install_status < 0
+            AND NEW.ignore = 0
             BEGIN
                 DELETE FROM IndexItemDetailRow
                 WHERE IndexItemDetailRow.owner_iid=NEW.iid
@@ -916,48 +919,6 @@ class IndexItemsTable(object):
 
         return returned_iids, orphaned_guids
 
-    def set_status_of_iids(self, iid_list, status_value=None):
-        """ update the status field of the iids in the list.
-            if status_value is not None this exact value will be used,
-            otherwise the status field will be incremented.
-        """
-        if iid_list:
-            status_set_value = "status+1"
-            if status_value is not None:
-                status_set_value=str(status_value)
-            query_vars = '("'+'","'.join(iid_list)+'")'
-            query_text = """
-                UPDATE IndexItemRow
-                SET status={0}
-                WHERE iid IN {1}
-            """.format(status_set_value, query_vars)
-
-            self.session.execute(query_text)
-
-    def set_status_of_direct_dependencies(self, depends_of_list, status_value=None):
-        """ update the status field of the iids who are direct dependants of the iids in the list.
-            if status_value is not None this exact value will be used,
-            otherwise the status field will be incremented.
-            used to mark dependents of the special build in iids such as __ALL_ITEMS_IID__
-        """
-        if depends_of_list:
-            status_set_value = "status+1"
-            if status_value is not None:
-                status_set_value=str(status_value)
-            query_vars = '("'+'","'.join(depends_of_list)+'")'
-            query_text = """
-                UPDATE IndexItemRow
-                SET status={0}
-                WHERE iid IN (
-                    SELECT detail_value
-                    FROM IndexItemDetailRow
-                    WHERE detail_name="depends"
-                    AND owner_iid in {1}
-                )
-            """.format(status_set_value, query_vars)
-
-            self.session.execute(query_text)
-
     # find which iids are in the database
     def iids_from_iids(self, iid_list):
         existing_iids = None
@@ -985,7 +946,8 @@ class IndexItemsTable(object):
         query_text = """
             WITH RECURSIVE find_dependants(_IID_) AS
             (
-            SELECT iid FROM IndexItemRow WHERE status={}
+            SELECT iid FROM IndexItemRow
+            WHERE install_status={} AND ignore = 0
             UNION
 
             SELECT IndexItemDetailRow.detail_value
@@ -1015,9 +977,10 @@ class IndexItemsTable(object):
             query_vars = '("' + '","'.join(iid_list) + '")'
             query_text = """
                 UPDATE IndexItemRow
-                SET status={new_status}
-                WHERE status={old_status}
+                SET install_status={new_status}
+                WHERE install_status={old_status}
                 AND iid IN {query_vars}
+                AND ignore = 0
               """.format(**locals())
             self.session.execute(query_text)
             #self.session.commit()  # not sure why but commit is a must here of all places for the update to be written
@@ -1027,18 +990,23 @@ class IndexItemsTable(object):
             query_vars = '("' + '","'.join(iid_list) + '")'
             query_text = """
                 UPDATE IndexItemRow
-                SET status={new_status}
+                SET install_status={new_status}
                 WHERE iid IN {query_vars}
+                AND ignore = 0
               """.format(**locals())
             self.session.execute(query_text)
             #self.session.commit()  # not sure why but commit is a must here of all places for the update to be written
 
-    def get_iids_by_status(self, status):
+    def get_iids_by_status(self, min_status, max_status=None):
+        if max_status is None:
+            max_status = min_status
         retVal = list()
         query_text = """
             SELECT iid
             FROM IndexItemRow
-            WHERE status={status}
+            WHERE install_status >= {min_status}
+            AND install_status <= {max_status}
+            AND ignore = 0
         """.format(**locals())
         try:
             exec_result = self.session.execute(query_text)
@@ -1049,25 +1017,13 @@ class IndexItemsTable(object):
             raise
         return retVal
 
-    def mark_main_install_iids(self, iid_list, special_build_in_iids):
-        special_iids_to_mark = set(iid_list) & set(special_build_in_iids)
-        if "__UPDATE_INSTALLED_ITEMS__" in special_iids_to_mark\
-            and "__REPAIR_INSTALLED_ITEMS__" in special_iids_to_mark:
-            special_iids_to_mark.remove("__UPDATE_INSTALLED_ITEMS__") # repair takes precedent over update
-
-        regular_iids_to_mark = set(iid_list) - set(special_build_in_iids)
-        self.set_status_of_direct_dependencies(special_iids_to_mark, status_value=1)
-        self.set_status_of_iids(regular_iids_to_mark, status_value=1)
-        self.session.commit()
-        retVal = self.get_iids_by_status(1)
-        return retVal
-
     def select_versions_for_installed_item(self):
         retVal = list()
         query_text = """
             SELECT IndexItemDetailRow.owner_iid, IndexItemDetailRow.detail_name, IndexItemDetailRow.detail_value, min(IndexItemDetailRow.generation)
             FROM IndexItemRow, IndexItemDetailRow
-            WHERE IndexItemRow.status > 0
+            WHERE IndexItemRow.install_status > 0
+            AND IndexItemRow.ignore = 0
             AND IndexItemRow.iid=IndexItemDetailRow.owner_iid
             AND IndexItemDetailRow.detail_name='version'
             GROUP BY IndexItemDetailRow.owner_iid
@@ -1087,7 +1043,8 @@ class IndexItemsTable(object):
             FROM IndexItemDetailRow, IndexItemRow
             WHERE IndexItemDetailRow.detail_name="install_folders"
                 AND IndexItemRow.iid=IndexItemDetailRow.owner_iid
-                AND IndexItemRow.status != 0
+                AND IndexItemRow.install_status != 0
+                AND IndexItemRow.ignore = 0
                 AND IndexItemDetailRow.active = 1
             ORDER BY IndexItemDetailRow.detail_value
             """
@@ -1109,13 +1066,15 @@ class IndexItemsTable(object):
                 FROM IndexItemDetailRow, IndexItemRow
                 WHERE IndexItemDetailRow.detail_name = "install_folders"
                       AND IndexItemRow.iid = IndexItemDetailRow.owner_iid
-                      AND IndexItemRow.status > 0
+                      AND IndexItemRow.install_status > 0
+                      AND IndexItemRow.ignore = 0
                       AND IndexItemDetailRow.active = 1
                 ORDER BY IndexItemDetailRow.owner_iid
             )
             AND IndexItemDetailRow.detail_name="install_sources"
                 AND IndexItemRow.iid = IndexItemDetailRow.owner_iid
-                AND IndexItemRow.status != 0
+                AND IndexItemRow.install_status != 0
+                AND IndexItemRow.ignore = 0
                 AND IndexItemDetailRow.active = 1
             """
         try:
@@ -1142,7 +1101,8 @@ class IndexItemsTable(object):
                     ON name_row.owner_iid=IndexItemRow.iid
                     AND name_row.detail_name='name'
                     AND name_row.active=1
-            WHERE status!=0
+            WHERE install_status!=0
+            AND ignore=0
             GROUP BY IndexItemRow.iid
             """
         fetched_results = self.session.execute(query_text).fetchall()
@@ -1161,7 +1121,8 @@ class IndexItemsTable(object):
             FROM IndexItemDetailRow
                 JOIN IndexItemRow
                     ON  IndexItemRow.iid=IndexItemDetailRow.owner_iid
-                    AND IndexItemRow.status!=0
+                    AND IndexItemRow.install_status!=0
+                    AND IndexItemRow.ignore = 0
             WHERE IndexItemDetailRow.detail_name="{detail_name}"
                 AND IndexItemDetailRow.active = 1
             {limit_to_iids_filter}
@@ -1190,7 +1151,8 @@ class IndexItemsTable(object):
             FROM IndexItemDetailRow
                 JOIN IndexItemRow
                     ON  IndexItemRow.iid=IndexItemDetailRow.owner_iid
-                    AND IndexItemRow.status!=0
+                    AND IndexItemRow.install_status!=0
+                    AND IndexItemRow.ignore = 0
             WHERE IndexItemDetailRow.detail_name="{1}"
                 AND IndexItemDetailRow.active = 1
                 {2}
@@ -1213,7 +1175,8 @@ class IndexItemsTable(object):
             FROM IndexItemDetailRow
                 JOIN IndexItemRow
                     ON  IndexItemRow.iid=IndexItemDetailRow.owner_iid
-                    AND IndexItemRow.status!=0
+                    AND IndexItemRow.install_status!=0
+                    AND IndexItemRow.ignore = 0
             WHERE IndexItemDetailRow.detail_name="{1}"
                 AND IndexItemDetailRow.active = 1
                 {2}
@@ -1302,3 +1265,16 @@ class IndexItemsTable(object):
         except SQLAlchemyError as ex:
             print(ex)
             raise
+
+    def set_ignore_iids(self, iid_list):
+        if iid_list:
+            query_vars = "".join((
+                '(',
+                ",".join(utils.quoteme_double_list(iid_list)),
+                ')'))
+            query_text = """
+                UPDATE IndexItemRow
+                SET ignore=1
+                WHERE iid IN {query_vars}
+              """.format(**locals())
+            self.session.execute(query_text)

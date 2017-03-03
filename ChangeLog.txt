@@ -1,6 +1,12 @@
 2/3/2017 1.3.3.3
 
     programmer visible changes:
+    * IndexItemRow.status renamed install_status
+    * Constants for IndexItemsTable.install_status in IndexItemsTable.install_status
+    * New column IndexItemRow.ignore - to ignore iids found in variables
+        DO_NOT_REMOVE_TARGETS, MAIN_IGNORED_TARGETS
+    * New function IndexItemsTable.set_ignore_iids to set IndexItemRow.ignore
+    * New utils functions quoteme_single_list, quoteme_double_list will quote all strings in a list
     * Added DISTINCT to the SELECT statement in get_all_installed_iids_needing_update, not need for repeated items.
     * Changed implementation for begin_get_for_all_oses, begin_get_for_specific_oses to be sqlite code instead of sqlalchemy
     * Added much needed session.commit's to fix creation of offline installers

@@ -211,24 +211,56 @@ class InstlClient(InstlInstanceBase):
         main_iids, main_guids = utils.separate_guids_from_iids(main_install_targets)
         iids_from_main_guids, orphaned_main_guids = self.items_table.iids_from_guids(main_guids)
         main_iids.extend(iids_from_main_guids)
-        main_iids = self.resolve_special_build_in_iids(main_iids)
+        main_iids, update_iids = self.resolve_special_build_in_iids(main_iids)
 
         main_iids, orphaned_main_iids = self.items_table.iids_from_iids(main_iids)
+        update_iids, orphaned_update_iids = self.items_table.iids_from_iids(update_iids)
 
         var_stack.set_var("__MAIN_INSTALL_IIDS__").extend(sorted(main_iids))
-        var_stack.set_var("__ORPHAN_INSTALL_TARGETS__").extend(sorted(orphaned_main_guids+orphaned_main_iids))
+        var_stack.set_var("__MAIN_UPDATE_IIDS__").extend(sorted(update_iids))
+        var_stack.set_var("__ORPHAN_INSTALL_TARGETS__").extend(sorted(orphaned_main_guids+orphaned_main_iids+orphaned_update_iids))
 
+    # install_status = {"none": 0, "main": 1, "update": 2, "depend": 3}
     def calculate_all_install_items(self):
-        self.items_table.change_status_of_iids_to_another_status(0, 1, var_stack.ResolveVarToList("__MAIN_INSTALL_IIDS__"))
-        all_items_from_table = self.items_table.get_recursive_dependencies(look_for_status=1)
-        var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(all_items_from_table))
-        self.items_table.change_status_of_iids_to_another_status(0, 2, all_items_from_table)
+        # marked ignored iids, all subsequent operations not act on these iids
         if "MAIN_IGNORED_TARGETS" in var_stack:
             ignored_iids = var_stack.ResolveVarToList("MAIN_IGNORED_TARGETS")
-            self.items_table.change_status_of_iids(0, ignored_iids)
-            all_items_from_table_except_ignored = list(set(all_items_from_table) - set(ignored_iids))
-            var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(all_items_from_table_except_ignored))
+            self.items_table.set_ignore_iids(ignored_iids)
+
+        # mark main install items
+        main_iids = var_stack.ResolveVarToList("__MAIN_INSTALL_IIDS__")
+        self.items_table.change_status_of_iids_to_another_status(
+                self.items_table.install_status["none"],
+                self.items_table.install_status["main"],
+                main_iids)
+        # find dependant of main install items
+        main_iids_and_dependents = self.items_table.get_recursive_dependencies(look_for_status=self.items_table.install_status["main"])
+        # mark dependants of main items, but only if they are not already in main items
+        self.items_table.change_status_of_iids_to_another_status(
+            self.items_table.install_status["none"],
+            self.items_table.install_status["depend"],
+            main_iids_and_dependents)
+
+        # mark update install items, but only those not already marked as main or depend
+        update_iids = var_stack.ResolveVarToList("__MAIN_UPDATE_IIDS__")
+        self.items_table.change_status_of_iids_to_another_status(
+                self.items_table.install_status["none"],
+                self.items_table.install_status["update"],
+                update_iids)
+        # find dependants of update iids items
+        update_iids_and_dependents = self.items_table.get_recursive_dependencies(look_for_status=self.items_table.install_status["update"])
+        # mark dependants of update items, but only if they are not already marked
+        self.items_table.change_status_of_iids_to_another_status(
+            self.items_table.install_status["none"],
+            self.items_table.install_status["depend"],
+            update_iids_and_dependents)
+
+        all_items_to_install = self.items_table.get_iids_by_status(
+            self.items_table.install_status["main"],
+            self.items_table.install_status["depend"])
         self.items_table.commit_changes()
+
+        var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(all_items_to_install))
 
         self.sort_all_items_by_target_folder()
         iids_and_names_from_db = self.items_table.name_and_version_report_for_active_iids()
@@ -237,17 +269,19 @@ class InstlClient(InstlInstanceBase):
 
     def resolve_special_build_in_iids(self, iids):
         iids_set = set(iids)
+        update_iids_set = set()
         special_build_in_iids = set(var_stack.ResolveVarToList("SPECIAL_BUILD_IN_IIDS"))
         found_special_build_in_iids = special_build_in_iids & set(iids)
         if len(found_special_build_in_iids) > 0:
             iids_set -= special_build_in_iids
-            if "__UPDATE_INSTALLED_ITEMS__" in found_special_build_in_iids\
-                and "__REPAIR_INSTALLED_ITEMS__" in found_special_build_in_iids:
-                found_special_build_in_iids.remove("__UPDATE_INSTALLED_ITEMS__") # repair takes precedent over update
-            for special_iid in found_special_build_in_iids:
-                more_iids = self.items_table.get_resolved_details_value(iid=special_iid, detail_name='depends')
+            # repair also does update so it takes precedent over update
+            if "__REPAIR_INSTALLED_ITEMS__" in found_special_build_in_iids:
+                more_iids = self.items_table.get_resolved_details_value(iid="__REPAIR_INSTALLED_ITEMS__", detail_name='depends')
                 iids_set.update(more_iids)
-        return list(iids_set)
+            elif "__UPDATE_INSTALLED_ITEMS__" in found_special_build_in_iids:
+                more_iids = self.items_table.get_resolved_details_value(iid="__UPDATE_INSTALLED_ITEMS__", detail_name='depends')
+                update_iids_set = set(more_iids)-iids_set
+        return list(iids_set), list(update_iids_set)
 
     def read_previous_requirements(self):
         require_file_path = var_stack.ResolveVarToStr("SITE_REQUIRE_FILE_PATH")

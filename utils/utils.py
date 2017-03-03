@@ -518,8 +518,16 @@ def quoteme_single(to_quote):
     return "".join( ("'", to_quote, "'") )
 
 
+def quoteme_single_list(to_quote_list, ):
+    return [quoteme_single(to_q) for to_q in to_quote_list]
+
+
 def quoteme_double(to_quote):
     return "".join(('"', to_quote, '"'))
+
+
+def quoteme_double_list(to_quote_list, ):
+    return [quoteme_double(to_q) for to_q in to_quote_list]
 
 detect_quotations = re.compile("(?P<prefix>[\"'])(?P<the_unquoted_text>.+)(?P=prefix)")
 
