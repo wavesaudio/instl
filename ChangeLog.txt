@@ -1,3 +1,7 @@
+6/3/2017 1.3.3.4
+    user visible changes client:
+    * new IID detail value "phantom_version" for cases where require_version does not exist and cannot be deduced from disk.
+
 2/3/2017 1.3.3.3
 
     programmer visible changes:

@@ -1227,13 +1227,17 @@ class IndexItemsTable(object):
         self.commit_changes()
 
     def add_require_version_from_binaries(self):
+        """ add require_version for iid that do not have this detail value (because previous index.yaml did not have it)
+        1st try version found on disk from table FoundOnDiskItemRow
+        2nd for iids still missing require_version try phantom_version detail value
+        """
         query_text = """
         INSERT OR REPLACE INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
         SELECT  FoundOnDiskItemRow.iid, -- original_iid
                 FoundOnDiskItemRow.iid, -- owner_iid
                 0,                      -- os_id
                 'require_version',      -- detail_name
-                FoundOnDiskItemRow.version, -- detail_value
+                FoundOnDiskItemRow.version, -- detail_value from disk
                 0                       -- generation
         FROM require_items_without_require_version_view
         JOIN FoundOnDiskItemRow
@@ -1242,6 +1246,27 @@ class IndexItemsTable(object):
         """
         try:
             exec_result = self.session.execute(query_text)
+            self.commit_changes()
+        except SQLAlchemyError as ex:
+            print(ex)
+            raise
+
+        query_text = """
+        INSERT OR REPLACE INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
+        SELECT  IndexItemDetailRow.owner_iid, -- original_iid
+                IndexItemDetailRow.owner_iid, -- owner_iid
+                0,                      -- os_id
+                'require_version',      -- detail_name
+                IndexItemDetailRow.detail_value, -- detail_value from phantom_version
+                0                       -- generation
+        FROM require_items_without_require_version_view
+        JOIN IndexItemDetailRow
+            ON IndexItemDetailRow.owner_iid=require_items_without_require_version_view.iid
+            AND IndexItemDetailRow.detail_name='phantom_version'
+        """
+        try:
+            exec_result = self.session.execute(query_text)
+            self.commit_changes()
         except SQLAlchemyError as ex:
             print(ex)
             raise
@@ -1262,6 +1287,7 @@ class IndexItemsTable(object):
         """
         try:
             exec_result = self.session.execute(query_text)
+            self.commit_changes()
         except SQLAlchemyError as ex:
             print(ex)
             raise
@@ -1278,3 +1304,4 @@ class IndexItemsTable(object):
                 WHERE iid IN {query_vars}
               """.format(**locals())
             self.session.execute(query_text)
+            self.commit_changes()
