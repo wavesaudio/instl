@@ -15,7 +15,8 @@ from .db_alchemy import create_session,\
     IndexItemDetailRow, \
     IndexGuidToItemTranslate, \
     IndexRequireTranslate, \
-    FoundOnDiskItemRow
+    FoundOnDiskItemRow, \
+    ConfigVar
 
 import utils
 
@@ -42,6 +43,9 @@ class IndexItemsTable(object):
         # print("Views:", inspector.get_view_names())
         self.baked_queries_map = self.bake_baked_queries()
         self.bakery = baked.bakery()
+
+    def get_db_url(self):
+        return self.session.bind.url
 
     def commit_changes(self):
         self.session.commit()
@@ -569,19 +573,28 @@ class IndexItemsTable(object):
         the_os_id = self.os_names['common']
         the_iid = "__ALL_ITEMS_IID__"
         all_items_item = IndexItemRow(iid=the_iid, inherit_resolved=True, from_index=False, from_require=False)
-        depends_details = [IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid,
-                                              detail_name='depends', detail_value=iid,
-                                              os_id=the_os_id, generation=0) for iid in self.get_all_iids()]
         self.session.add(all_items_item)
-        self.session.add_all(depends_details)
+        for iid in self.get_all_iids():
+            depends_details = IndexItemDetailRow(original_iid=the_iid,
+                                                 owner_iid=the_iid,
+                                                 detail_name='depends',
+                                                 detail_value=iid,
+                                                 os_id=the_os_id,
+                                                 generation=0)
+            self.session.add(depends_details)
 
         the_iid = "__ALL_GUIDS_IID__"
         all_guids_item = IndexItemRow(iid=the_iid, inherit_resolved=True, from_index=False, from_require=False)
-        depends_details = [IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid,
-                                              detail_name='depends', detail_value=iid,
-                                              os_id=the_os_id, generation=0) for iid in self.get_all_iids_with_guids()]
         self.session.add(all_guids_item)
-        self.session.add_all(depends_details)
+        all_iids_with_guids = self.get_all_iids_with_guids()
+        for iid in all_iids_with_guids:
+            depends_details = IndexItemDetailRow(original_iid=the_iid,
+                                                 owner_iid=the_iid,
+                                                 detail_name='depends',
+                                                 detail_value=iid,
+                                                 os_id=the_os_id,
+                                                 generation=0)
+            self.session.add(depends_details)
 
     def create_default_require_items(self):
         the_os_id = self.os_names['common']
@@ -1305,3 +1318,9 @@ class IndexItemsTable(object):
               """.format(**locals())
             self.session.execute(query_text)
             self.commit_changes()
+
+    def config_var_list_to_db(self, in_config_var_list):
+        for identifier in in_config_var_list:
+            raw_value = in_config_var_list.unresolved_var(identifier)
+            resolved_value = in_config_var_list.ResolveVarToStr(identifier, list_sep=" ", default="")
+            self.session.add(ConfigVar(name=identifier, raw_value=raw_value, resolved_value=resolved_value))

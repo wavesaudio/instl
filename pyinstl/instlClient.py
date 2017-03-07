@@ -10,6 +10,8 @@ from .installItem import InstallItem, guid_list
 import aYaml
 from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
+from svnTree import SVNTable
+from .indexItemTable import IndexItemsTable
 
 NameAndVersion = namedtuple('name_ver', ['name', 'version', 'name_and_version'])
 def NameAndVersionFromQueryResults(q_results_tuple):
@@ -25,6 +27,9 @@ def NameAndVersionFromQueryResults(q_results_tuple):
 class InstlClient(InstlInstanceBase):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
+        self.info_map_table = SVNTable()
+        self.items_table = IndexItemsTable()
+        var_stack.add_const_config_variable("__DATABASE_URL__", "", self.items_table.get_db_url())
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         self.action_type_to_progress_message = None
         self.__all_items_by_target_folder = defaultdict(utils.unique_list)
@@ -88,6 +93,7 @@ class InstlClient(InstlInstanceBase):
         do_command_func()
         self.create_instl_history_file()
         self.command_output()
+        self.items_table.config_var_list_to_db(var_stack)
         self.items_table.commit_changes()
 
     def command_output(self):
@@ -281,6 +287,14 @@ class InstlClient(InstlInstanceBase):
             elif "__UPDATE_INSTALLED_ITEMS__" in found_special_build_in_iids:
                 more_iids = self.items_table.get_resolved_details_value(iid="__UPDATE_INSTALLED_ITEMS__", detail_name='depends')
                 update_iids_set = set(more_iids)-iids_set
+
+            if "__ALL_GUIDS_IID__" in found_special_build_in_iids:
+                more_iids = self.items_table.get_resolved_details_value(iid="__ALL_GUIDS_IID__", detail_name='depends')
+                iids_set.update(more_iids)
+
+            if "__ALL_ITEMS_IID__" in found_special_build_in_iids:
+                more_iids = self.items_table.get_resolved_details_value(iid="__ALL_ITEMS_IID__", detail_name='depends')
+                iids_set.update(more_iids)
         return list(iids_set), list(update_iids_set)
 
     def read_previous_requirements(self):
@@ -435,6 +449,7 @@ class InstlClient(InstlInstanceBase):
                             if info is not None:
                                 retVal.append(info)
         return retVal
+
 
 def InstlClientFactory(initial_vars, command):
     retVal = None
