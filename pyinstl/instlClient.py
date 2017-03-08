@@ -383,7 +383,7 @@ class InstlClient(InstlInstanceBase):
         for require_detail in require_details:
             item_dict = retVal[require_detail.owner_iid]
             if require_detail.detail_name not in item_dict:
-                item_dict[translate_detail_name[require_detail.detail_name]] = list()
+                item_dict[translate_detail_name[require_detail.detail_name]] = utils.unique_list()
             item_dict[translate_detail_name[require_detail.detail_name]].append(require_detail.detail_value)
         for item in retVal.values():
             for sub_item in item.values():

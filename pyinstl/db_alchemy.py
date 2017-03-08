@@ -108,7 +108,7 @@ class IndexItemDetailRow(get_declarative_base()):
     generation   = Column(Integer, default=0)
     tag          = Column(String)
     active       = Column(Integer, default=0)
-
+    UniqueConstraint(original_iid, owner_iid, os_id, detail_name, detail_value, generation)
     #os = relationship("IndexItemDetailOperatingSystem")
     #item = relationship("IndexItemRow", back_populates="original_details")
 

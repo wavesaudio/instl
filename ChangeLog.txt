@@ -1,7 +1,9 @@
-
-7/5/2017 1.3.3.5
+8/5/2017 1.3.3.5
 
     programmer visible changes:
+    * Unique constraint on IndexItemDetailRow so to avoid duplicate rows
+    * rearranged th triggers that create require../ details in table IndexItemDetailRow
+    * repr_require_for_yaml avoids duplicate entries
     * info_map_table and items_table are now only initialized when needed
     * database can be configured to have a unique name in each run
     * database can be forced to be on disk even when instl runs compiled
@@ -10,6 +12,9 @@
     user visible changes client:
     * fixed issue where __ALL_ITEMS_IID__ & __ALL_GUIDS_IID__ would not be calculated correctly
     * new config var __DATABASE_URL__ to contain the url of the database
+
+    user visible changes admin:
+    * initialize self.items_table in InstlAdmin
 
 6/3/2017 1.3.3.4
     user visible changes client:

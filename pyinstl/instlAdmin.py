@@ -17,6 +17,7 @@ from .installItem import InstallItem
 from .batchAccumulator import BatchAccumulator
 from configVar import var_stack
 from svnTree import SVNTable
+from .indexItemTable import IndexItemsTable
 
 
 # noinspection PyPep8,PyPep8,PyPep8
@@ -24,6 +25,8 @@ class InstlAdmin(InstlInstanceBase):
 
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
+        self.items_table = IndexItemsTable()
+        var_stack.add_const_config_variable("__DATABASE_URL__", "", self.items_table.get_db_url())
         self.info_map_table = SVNTable()
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
 

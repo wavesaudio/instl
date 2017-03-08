@@ -120,19 +120,27 @@ class IndexItemsTable(object):
         """
         self.session.execute(stmt)
 
-        # TODO: updated items should not have self-referenced require_by, this will fix the problem of GTR apps not removed after update
-        # when changing the install_status of item to install, adjust item's require_XXX details
         trigger_text = """
-            CREATE TRIGGER IF NOT EXISTS create_require_for_installed_iids_trigger
+            CREATE TRIGGER IF NOT EXISTS create_require_by_for_main_iids_trigger
+            AFTER UPDATE OF install_status ON IndexItemRow
+            WHEN NEW.install_status = 1  -- 1 means iid requested explicitly by the user (not update or dependant)
+            AND NEW.ignore = 0
+            BEGIN
+
+            -- self-referenced require_by for main install iids
+            INSERT OR IGNORE INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
+            VALUES (NEW.iid, NEW.iid, 0, 'require_by', NEW.iid, 0);
+
+            END;
+        """
+        self.session.execute(trigger_text)
+
+        trigger_text = """
+            CREATE TRIGGER IF NOT EXISTS create_require_for_all_iids_trigger
             AFTER UPDATE OF install_status ON IndexItemRow
             WHEN NEW.install_status > 0
             AND NEW.ignore = 0
             BEGIN
-
-            -- remove previous require_by NEW.iid
-            DELETE FROM IndexItemDetailRow
-            WHERE detail_name = "require_by"
-            AND detail_value = NEW.iid;
 
             -- remove previous require_version, require_guid owned NEW.iid
             DELETE FROM IndexItemDetailRow
@@ -140,7 +148,7 @@ class IndexItemsTable(object):
             AND detail_name IN ("require_version", "require_guid");
 
             -- add require_version
-            INSERT INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
+            INSERT OR IGNORE INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
             SELECT original_iid, owner_iid, os_id, 'require_version', detail_value, min(generation)
             FROM IndexItemDetailRow
             WHERE owner_iid  = NEW.iid
@@ -149,7 +157,7 @@ class IndexItemsTable(object):
             GROUP BY owner_iid;
 
             -- add require_guid
-            INSERT INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
+            INSERT OR IGNORE INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
             SELECT original_iid, owner_iid, os_id, 'require_guid', detail_value, min(generation)
             FROM IndexItemDetailRow
             WHERE IndexItemDetailRow.owner_iid = NEW.iid
@@ -157,13 +165,8 @@ class IndexItemsTable(object):
             AND detail_name='guid'
             GROUP BY owner_iid;
 
-            -- self-referenced require_by for main install iids which are marked by install_status 1
-            INSERT INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
-            SELECT NEW.iid, NEW.iid, 0, 'require_by', NEW.iid, 0
-            WHERE NEW.install_status=1;
-
-            -- require_by for all install iids
-            INSERT INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
+            -- require_by for all dependant of new iid
+            INSERT OR IGNORE INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
             SELECT original_iid, detail_value, os_id, 'require_by', NEW.iid, generation
             FROM IndexItemDetailRow
             WHERE IndexItemDetailRow.owner_iid = NEW.iid
