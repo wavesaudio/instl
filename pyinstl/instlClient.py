@@ -500,6 +500,7 @@ class InstlClient(InstlInstanceBase):
                 else:
                     for item in items_for_file:
                         item.download_path = var_stack.ResolveStrToStr("/".join(("$(LOCAL_REPO_SYNC_DIR)", item.path)))
+        self.items_table.commit_changes()
 
 
 def InstlClientFactory(initial_vars, command):

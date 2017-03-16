@@ -684,6 +684,7 @@ class SVNTable(object):
                     .values(required=True)
             self.session.execute(update_statement)
             slice_begin += chunk_size
+        self.session.commit()
 
     def mark_need_download(self):
         ancestors = list()
@@ -708,6 +709,7 @@ class SVNTable(object):
                     .values(need_download=True)
             self.session.execute(update_statement)
             slice_begin += chunk_size
+        self.session.commit()
 
     def mark_required_for_revision(self, required_revision):
         """ mark all files and dirs as required if they are of specific revision
@@ -723,6 +725,7 @@ class SVNTable(object):
         update_statement = update(SVNRow)\
             .values(required=False)
         self.session.execute(update_statement)
+        self.session.commit()
 
     def get_unrequired_paths_where_parent_required(self, what="files"):
         """ Get all unrequired items that have a parent that is required.
@@ -787,3 +790,4 @@ class SVNTable(object):
         )
         """.format(source_prefix=source_prefix)
         exec_result = self.session.execute(query_text)
+        self.session.commit()
