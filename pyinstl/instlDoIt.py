@@ -8,6 +8,7 @@ import utils
 from .installItem import InstallItem, guid_list, iids_from_guids
 from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
+from .indexItemTable import IndexItemsTable
 
 
 # noinspection PyPep8Naming
@@ -53,6 +54,8 @@ class InstlDoIt(InstlInstanceBase):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
         # noinspection PyUnresolvedReferences
+        self.items_table = IndexItemsTable()
+        var_stack.add_const_config_variable("__DATABASE_URL__", "", self.items_table.get_db_url())
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
 
     def do_command(self):

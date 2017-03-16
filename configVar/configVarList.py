@@ -239,7 +239,7 @@ class ConfigVarList(object):
             return default
         else:
             retVal = list_sep.join(value_list)
-        return retVal
+            return retVal
 
     def ResolveVarToList(self, in_var, default=None):
         retVal = list()
