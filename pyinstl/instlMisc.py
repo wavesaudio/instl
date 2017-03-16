@@ -114,7 +114,6 @@ class InstlMisc(InstlInstanceBase):
                 destination_folder, _ = os.path.split(wtar_file_paths[0])
             with MultiFileReader("br", wtar_file_paths) as fd:
                 with tarfile.open(fileobj=fd) as tar:
-                    #print(wtar_file_paths[0]); tar.list(); print("...")
                     tar.extractall(destination_folder)
 
             if self.no_artifacts:

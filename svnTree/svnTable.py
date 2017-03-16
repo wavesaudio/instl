@@ -775,7 +775,7 @@ class SVNTable(object):
                 AND install_sources_t.active = 1
             JOIN IndexItemRow as active_items_t
                 ON install_sources_t.owner_iid=active_items_t.iid
-                AND active_items_t.status > 0
+                AND active_items_t.install_status > 0
             WHERE fileFlag=1
             AND path LIKE
                 CASE substr(install_sources_t.detail_value,1,1)

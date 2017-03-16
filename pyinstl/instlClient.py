@@ -34,6 +34,7 @@ class InstlClient(InstlInstanceBase):
         self.action_type_to_progress_message = None
         self.__all_items_by_target_folder = defaultdict(utils.unique_list)
         self.__no_copy_items_by_sync_folder = defaultdict(utils.unique_list)
+        self.auxiliary_iids = utils.unique_list()
 
     @property
     def all_items_by_target_folder(self):
@@ -81,7 +82,7 @@ class InstlClient(InstlInstanceBase):
             self.items_table.add_require_version_from_binaries()
             self.items_table.add_require_guid_from_binaries()
         self.items_table.commit_changes()
-        self.items_table.create_default_items()
+        self.items_table.create_default_items(iids_to_ignore=self.auxiliary_iids)
         self.items_table.commit_changes()
 
         self.resolve_defined_paths()
@@ -153,6 +154,7 @@ class InstlClient(InstlInstanceBase):
                 if "SYNC_BASE_URL" in var_stack:
                     p4_sync_dir = utils.P4GetPathFromDepotPath(var_stack.ResolveVarToStr("SYNC_BASE_URL"))
                     var_stack.set_var("P4_SYNC_DIR", "from SYNC_BASE_URL").append(p4_sync_dir)
+        self.auxiliary_iids.extend(var_stack.ResolveVarToList("AUXILIARY_IIDS", default=list()))
 
     def repr_for_yaml(self, what=None):
         """ Create representation of self suitable for printing as yaml.
@@ -260,7 +262,7 @@ class InstlClient(InstlInstanceBase):
                 self.items_table.install_status["none"],
                 self.items_table.install_status["update"],
                 update_iids)
-        # find dependants of update iids items
+        # find dependants of update install items
         update_iids_and_dependents = self.items_table.get_recursive_dependencies(look_for_status=self.items_table.install_status["update"])
         # mark dependants of update items, but only if they are not already marked
         self.items_table.change_status_of_iids_to_another_status(
@@ -450,7 +452,6 @@ class InstlClient(InstlInstanceBase):
                             if info is not None:
                                 retVal.append(info)
         return retVal
-
 
     def get_direct_sync_status_from_indicator(self, direct_sync_indicator):
         retVal = False

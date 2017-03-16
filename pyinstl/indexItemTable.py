@@ -353,7 +353,7 @@ class IndexItemsTable(object):
             WHERE
                 remote.detail_name = 'version'
                 AND remote.active=1
-           GROUP BY remote.owner_iid
+            GROUP BY remote.owner_iid
             """)
         self.session.execute(stmt)
 
@@ -374,7 +374,7 @@ class IndexItemsTable(object):
         FROM IndexItemDetailRow as install_sources_t
         JOIN IndexItemRow
             ON IndexItemRow.iid=install_sources_t.owner_iid
-            AND IndexItemRow.status > 0
+            AND IndexItemRow.install_status > 0
         LEFT JOIN IndexItemDetailRow AS existing_sync_folders_t
             ON existing_sync_folders_t.detail_name='direct_sync'
             AND existing_sync_folders_t.owner_iid=install_sources_t.owner_iid
@@ -536,8 +536,8 @@ class IndexItemsTable(object):
         try:
             exec_result = self.session.execute(query_text)
             if exec_result.returns_rows:
-                retVal = exec_result.fetchall()   # now retVal is a list of (IID, require_ver, remote_ver)
-                retVal = [mm[0] for mm in retVal] # need only the IID, but getting the versions is for debugging
+                retVal = exec_result.fetchall()
+                retVal = [mm[0] for mm in retVal]
         except SQLAlchemyError as ex:
             raise
 
@@ -605,51 +605,57 @@ class IndexItemsTable(object):
 
         return retVal
 
-    def create_default_index_items(self):
+    def create_default_index_items(self, iids_to_ignore):
         the_os_id = self.os_names['common']
         the_iid = "__ALL_ITEMS_IID__"
         all_items_item = IndexItemRow(iid=the_iid, inherit_resolved=True, from_index=False, from_require=False)
         self.session.add(all_items_item)
         for iid in self.get_all_iids():
-            depends_details = IndexItemDetailRow(original_iid=the_iid,
+            if iid not in iids_to_ignore:
+                depends_details = IndexItemDetailRow(original_iid=the_iid,
                                                  owner_iid=the_iid,
                                                  detail_name='depends',
                                                  detail_value=iid,
                                                  os_id=the_os_id,
                                                  generation=0)
-            self.session.add(depends_details)
+                self.session.add(depends_details)
 
         the_iid = "__ALL_GUIDS_IID__"
         all_guids_item = IndexItemRow(iid=the_iid, inherit_resolved=True, from_index=False, from_require=False)
         self.session.add(all_guids_item)
         all_iids_with_guids = self.get_all_iids_with_guids()
         for iid in all_iids_with_guids:
-            depends_details = IndexItemDetailRow(original_iid=the_iid,
+            if iid not in iids_to_ignore:
+                depends_details = IndexItemDetailRow(original_iid=the_iid,
                                                  owner_iid=the_iid,
                                                  detail_name='depends',
                                                  detail_value=iid,
                                                  os_id=the_os_id,
                                                  generation=0)
-            self.session.add(depends_details)
+                self.session.add(depends_details)
 
-    def create_default_require_items(self):
+    def create_default_require_items(self, iids_to_ignore):
         the_os_id = self.os_names['common']
         the_iid = "__REPAIR_INSTALLED_ITEMS__"
         repair_item = IndexItemRow(iid=the_iid, inherit_resolved=True, from_index=False, from_require=False)
-        repair_item_details = [IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid,
-                                                  detail_name='depends', detail_value=iid,
-                                                  os_id=the_os_id, generation=0) for iid in self.get_all_installed_iids()]
         self.session.add(repair_item)
-        self.session.add_all(repair_item_details)
+        for iid in self.get_all_installed_iids():
+            if iid not in iids_to_ignore:
+                repair_item_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid,
+                                                  detail_name='depends', detail_value=iid,
+                                                  os_id=the_os_id, generation=0)
+                self.session.add(repair_item_detail)
 
         the_iid = "__UPDATE_INSTALLED_ITEMS__"
         update_item = IndexItemRow(iid=the_iid, inherit_resolved=True, from_index=False, from_require=False)
-        iids_needing_update = self.get_all_installed_iids_needing_update()
-        update_item_details = [IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid,
-                                                  detail_name='depends', detail_value=iid,
-                                                  os_id=the_os_id, generation=0) for iid in iids_needing_update]
         self.session.add(update_item)
-        self.session.add_all(update_item_details)
+        iids_needing_update = self.get_all_installed_iids_needing_update()
+        for iid in iids_needing_update:
+            if iid not in iids_to_ignore:
+                update_item_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid,
+                                                  detail_name='depends', detail_value=iid,
+                                                  os_id=the_os_id, generation=0)
+                self.session.add(update_item_detail)
 
     def get_item_by_resolve_status(self, iid_to_get, resolve_status):  # tested by: TestItemTable.test_get_item_by_resolve_status
         # http://stackoverflow.com/questions/29161730/what-is-the-difference-between-one-and-first
@@ -1085,28 +1091,6 @@ class IndexItemsTable(object):
             raise
         return retVal
 
-    # from master
-    def target_folders_to_items(self):
-        retVal = list()
-        query_text = """
-            SELECT IndexItemDetailRow.detail_value, IndexItemDetailRow.owner_iid
-            FROM IndexItemDetailRow, IndexItemRow
-            WHERE IndexItemDetailRow.detail_name="install_folders"
-                AND IndexItemRow.iid=IndexItemDetailRow.owner_iid
-                AND IndexItemRow.install_status != 0
-                AND IndexItemRow.ignore = 0
-                AND IndexItemDetailRow.active = 1
-            ORDER BY IndexItemDetailRow.detail_value
-            """
-        try:
-            exec_result = self.session.execute(query_text)
-            if exec_result.returns_rows:
-                retVal.extend(exec_result.fetchall())
-        except SQLAlchemyError:
-            raise
-        return retVal
-
-    # from direct sync
     def target_folders_to_items(self):
         retVal = list()
         query_text = """
@@ -1118,7 +1102,8 @@ class IndexItemsTable(object):
                 AND direct_sync_t.active = 1
             WHERE IndexItemDetailRow.detail_name="install_folders"
                 AND IndexItemRow.iid=IndexItemDetailRow.owner_iid
-                AND IndexItemRow.status != 0
+                AND IndexItemRow.install_status != 0
+                AND IndexItemRow.ignore = 0
                 AND IndexItemDetailRow.active = 1
             ORDER BY IndexItemDetailRow.detail_value
             """
@@ -1259,9 +1244,9 @@ class IndexItemsTable(object):
         fetched_results = self.session.execute(query_text).fetchall()
         return fetched_results
 
-    def create_default_items(self):
-        self.create_default_index_items()
-        self.create_default_require_items()
+    def create_default_items(self, iids_to_ignore):
+        self.create_default_index_items(iids_to_ignore=iids_to_ignore)
+        self.create_default_require_items(iids_to_ignore=iids_to_ignore)
         self.session.commit()
 
     def require_items_without_version_or_guid(self):
@@ -1397,7 +1382,7 @@ class IndexItemsTable(object):
             FROM IndexItemDetailRow AS install_sources_t
                 JOIN IndexItemRow AS iid_t
                     ON iid_t.iid=install_sources_t.owner_iid
-                    AND iid_t.status > 0
+                    AND iid_t.install_status > 0
                 LEFT JOIN IndexItemDetailRow AS install_folders_t
                     ON install_folders_t.active=1
                     AND install_sources_t.owner_iid = install_folders_t.owner_iid
