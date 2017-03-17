@@ -112,7 +112,7 @@ class InstallItem(object):
                     'pre_remove', 'pre_remove_from_folder', 'pre_remove_item',
                     'remove_item', 'post_remove_item', 'post_remove_from_folder',
                     'post_remove', 'pre_doit', 'doit', 'post_doit')
-    file_types = ('!dir_cont', '!files', '!file', '!dir')
+    file_types = ('!dir_cont', '!file', '!dir')
     resolve_inheritance_stack = list()
     _get_for_os = [
         os_names[0]]  # _get_for_os is a class member since we usually want to get for same oses for all InstallItems

@@ -50,4 +50,4 @@ class InstlClientReport(InstlClient):
         return (("Looks like no product are installed, file not found", self.current_index_yaml_path),)
 
     def do_report_gal(self):
-        self.get_binaries_versions()
+        self.get_version_of_installed_binaries()

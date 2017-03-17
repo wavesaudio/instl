@@ -104,7 +104,7 @@ class InstlMisc(InstlInstanceBase):
                         self.unwtar_a_file(split_files, where_to_unwtar_the_file)
                     elif a_file_path.endswith(".wtar"):
                         self.unwtar_a_file([a_file_path], where_to_unwtar_the_file)
-                    
+
         else:
             raise FileNotFoundError(what_to_work_on)
 
@@ -114,7 +114,6 @@ class InstlMisc(InstlInstanceBase):
                 destination_folder, _ = os.path.split(wtar_file_paths[0])
             with MultiFileReader("br", wtar_file_paths) as fd:
                 with tarfile.open(fileobj=fd) as tar:
-                    #print(wtar_file_paths[0]); tar.list(); print("...")
                     tar.extractall(destination_folder)
 
             if self.no_artifacts:
@@ -152,13 +151,13 @@ class InstlMisc(InstlInstanceBase):
         bad_checksum_list = list()
         self.read_info_map_from_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
         for file_item in self.info_map_table.get_items(what="file"):
-            if os.path.isfile(file_item.path):
-                file_checksum = utils.get_file_checksum(file_item.path)
+            if os.path.isfile(file_item.download_path):
+                file_checksum = utils.get_file_checksum(file_item.download_path)
                 if not utils.compare_checksums(file_checksum, file_item.checksum):
-                    sigs = utils.create_file_signatures(file_item.path)
-                    bad_checksum_list.append( " ".join(("Bad checksum:", file_item.path, "expected", file_item.checksum, "found", sigs["sha1_checksum"])) )
+                    sigs = utils.create_file_signatures(file_item.download_path)
+                    bad_checksum_list.append( " ".join(("Bad checksum:", file_item.download_path, "expected", file_item.checksum, "found", sigs["sha1_checksum"])) )
             else:
-                bad_checksum_list.append(" ".join((file_item.path, "does not exist")))
+                bad_checksum_list.append(" ".join((file_item.download_path, "does not exist")))
             self.dynamic_progress("Check checksum {file_item.path}".format(**locals()))
         if bad_checksum_list:
             print("\n".join(bad_checksum_list))

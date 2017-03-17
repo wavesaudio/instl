@@ -362,7 +362,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         source_path, source_type = source[0], source[1]
         if source_type in ('!dir', '!file'):
             retVal = "/".join(source_path.split("/")[0:-1])
-        elif source_type in ('!dir_cont', '!files'):
+        elif source_type in ('!dir_cont', ):
             retVal = source_path
         else:
             raise ValueError("unknown tag for source " + source_path + ": " + source_type)
@@ -377,7 +377,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             adjusted_source_path = "$(SOURCE_PREFIX)/" + source_path
         if source_type in ('!dir', '!file'):
             retVal = "/".join(adjusted_source_path.split("/")[0:-1])
-        elif source_type in ('!dir_cont', '!files'):
+        elif source_type in ('!dir_cont', ):
             retVal = adjusted_source_path
         else:
             raise ValueError("unknown tag for source " + source_path + ": " + source_type)

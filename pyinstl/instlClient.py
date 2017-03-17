@@ -34,6 +34,7 @@ class InstlClient(InstlInstanceBase):
         self.action_type_to_progress_message = None
         self.__all_items_by_target_folder = defaultdict(utils.unique_list)
         self.__no_copy_items_by_sync_folder = defaultdict(utils.unique_list)
+        self.auxiliary_iids = utils.unique_list()
 
     @property
     def all_items_by_target_folder(self):
@@ -45,9 +46,14 @@ class InstlClient(InstlInstanceBase):
 
     def sort_all_items_by_target_folder(self):
         folder_to_iid_list = self.items_table.target_folders_to_items()
-        for folder, IID in folder_to_iid_list:
-            norm_folder = os.path.normpath(folder)
-            self.__all_items_by_target_folder[norm_folder].append(IID)
+        for IID, folder, tag, direct_sync_indicator in folder_to_iid_list:
+            direct_sync = self.get_direct_sync_status_from_indicator(direct_sync_indicator)
+            if not direct_sync:
+                norm_folder = os.path.normpath(folder)
+                self.__all_items_by_target_folder[norm_folder].append(IID)
+            else:
+                sync_folder = os.path.join(folder)
+                self.__no_copy_items_by_sync_folder[sync_folder].append(IID)
 
         folder_to_iid_list = self.items_table.source_folders_to_items_without_target_folders()
         for folder, IID, tag in folder_to_iid_list:
@@ -58,6 +64,8 @@ class InstlClient(InstlInstanceBase):
 
     def do_command(self):
         # print("client_commands", fixed_command_name)
+        active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
+        self.items_table.begin_get_for_specific_oses(*active_oses)
 
         main_input_file_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         self.read_yaml_file(main_input_file_path)
@@ -68,14 +76,11 @@ class InstlClient(InstlInstanceBase):
         self.items_table.begin_get_for_specific_oses(*active_oses)
 
         self.items_table.resolve_inheritance()
-        self.items_table.commit_changes()
         if self.should_check_for_binary_versions():
-            self.get_binaries_versions()
+            self.get_version_of_installed_binaries()
             self.items_table.add_require_version_from_binaries()
             self.items_table.add_require_guid_from_binaries()
-        self.items_table.commit_changes()
-        self.items_table.create_default_items()
-        self.items_table.commit_changes()
+        self.items_table.create_default_items(iids_to_ignore=self.auxiliary_iids)
 
         self.resolve_defined_paths()
         self.batch_accum.set_current_section('begin')
@@ -146,6 +151,7 @@ class InstlClient(InstlInstanceBase):
                 if "SYNC_BASE_URL" in var_stack:
                     p4_sync_dir = utils.P4GetPathFromDepotPath(var_stack.ResolveVarToStr("SYNC_BASE_URL"))
                     var_stack.set_var("P4_SYNC_DIR", "from SYNC_BASE_URL").append(p4_sync_dir)
+        self.auxiliary_iids.extend(var_stack.ResolveVarToList("AUXILIARY_IIDS", default=list()))
 
     def repr_for_yaml(self, what=None):
         """ Create representation of self suitable for printing as yaml.
@@ -253,7 +259,7 @@ class InstlClient(InstlInstanceBase):
                 self.items_table.install_status["none"],
                 self.items_table.install_status["update"],
                 update_iids)
-        # find dependants of update iids items
+        # find dependants of update install items
         update_iids_and_dependents = self.items_table.get_recursive_dependencies(look_for_status=self.items_table.install_status["update"])
         # mark dependants of update items, but only if they are not already marked
         self.items_table.change_status_of_iids_to_another_status(
@@ -325,21 +331,15 @@ class InstlClient(InstlInstanceBase):
 
     def accumulate_unique_actions_for_active_iids(self, action_type, limit_to_iids=None):
         """ accumulate action_type actions from iid_list, eliminating duplicates"""
+        retVal = 0  # return number of real actions added (i.e. excluding progress message)
         iid_and_action = self.items_table.get_iids_and_details_for_active_iids(action_type, unique_values=True, limit_to_iids=limit_to_iids)
-        prev_iid = None
         iid_and_action.sort(key=lambda tup: tup[0])
         for IID, an_action in iid_and_action:
-            if prev_iid != IID:
-                num_unique_actions_for_iid = 0
-                prev_iid = IID
-            else:
-                num_unique_actions_for_iid += 1
             self.batch_accum += an_action
             action_description = self.action_type_to_progress_message[action_type]
-            #if num_unique_actions_for_iid > 1:
-            #    action_description = " ".join((action_description, str(num_unique_actions_for_iid)))
             self.batch_accum += self.platform_helper.progress("{0} {1}".format(self.iid_to_name_and_version[IID].name, action_description))
-    # name_and_version
+            retVal += 1
+        return retVal
 
     def create_require_file_instructions(self):
         # write the require file as it should look after copy is done
@@ -401,7 +401,7 @@ class InstlClient(InstlInstanceBase):
         retVal = explicitly_asked_for_binaries_check or update_was_requested
         return retVal
 
-    def get_binaries_versions(self):
+    def get_version_of_installed_binaries(self):
         binaries_version_list = list()
         try:
             path_to_search = var_stack.ResolveVarToList('CHECK_BINARIES_VERSION_FOLDERS', default=[])
@@ -449,6 +449,55 @@ class InstlClient(InstlInstanceBase):
                             if info is not None:
                                 retVal.append(info)
         return retVal
+
+    def get_direct_sync_status_from_indicator(self, direct_sync_indicator):
+        retVal = False
+        if direct_sync_indicator is not None:
+            try:
+                retVal = utils.str_to_bool_int(var_stack.ResolveStrToStr(direct_sync_indicator))
+            except:
+                pass
+        return retVal
+
+    def set_sync_locations_for_active_items(self):
+        # get_sync_folders_and_sources_for_active_iids returns: [(iid, direct_sync_indicator, source, source_tag, install_folder),...]
+        # direct_sync_indicator will be None unless the items has "direct_sync" section in index.yaml
+        # install_folder will be None for those items that require only sync not copy (such as Icons)
+        sync_and_source = self.items_table.get_sync_folders_and_sources_for_active_iids()
+        for iid, direct_sync_indicator, source, source_tag, install_folder in sync_and_source:
+            direct_sync = self.get_direct_sync_status_from_indicator(direct_sync_indicator)
+
+            if source[0] == "/":
+                fixed_source = source[1:]
+            elif source[0] == "$":
+                fixed_source = source
+            else:
+                fixed_source = "/".join(("$(SOURCE_PREFIX)", source))
+            fixed_source = var_stack.ResolveStrToStr(fixed_source)
+
+            if source_tag in ('!dir', '!dir_cont'):
+                items = self.info_map_table.get_file_items_of_dir(dir_path=fixed_source)
+                if direct_sync:
+                    if  source_tag == '!dir':
+                        source_parent = "/".join(fixed_source.split("/")[:-1])
+                    else:  # !dir_cont
+                        source_parent = fixed_source
+                    assert install_folder is not None
+                    for item in items:
+                        item.download_path = var_stack.ResolveStrToStr("/".join((install_folder, item.path[len(source_parent)+1:])))
+                else:
+                    for item in items:
+                        item.download_path = var_stack.ResolveStrToStr("/".join(("$(LOCAL_REPO_SYNC_DIR)", item.path)))
+            elif source_tag == '!file':
+                items_for_file = self.info_map_table.get_required_for_file(fixed_source)
+                if direct_sync:
+                    assert install_folder is not None
+                    for item in items_for_file:
+                        item.download_path = var_stack.ResolveStrToStr("/".join((install_folder, item.path[len(source_parent)+1:])))
+                else:
+                    for item in items_for_file:
+                        item.download_path = var_stack.ResolveStrToStr("/".join(("$(LOCAL_REPO_SYNC_DIR)", item.path)))
+        self.items_table.commit_changes()
 
 
 def InstlClientFactory(initial_vars, command):

@@ -226,7 +226,7 @@ class InstlGui(InstlInstanceBase):
     def update_admin_state(self, *args):
         var_stack.set_var("ADMIN_GUI_CMD").append(self.admin_command_name_var.get())
         current_config_path = var_stack.ResolveVarToStr("ADMIN_GUI_CONFIG_FILE", default="")
-        
+
         new_config_path = self.admin_config_path_var.get()
         if current_config_path != new_config_path:
             self.admin_config_file_dirty = True
@@ -505,7 +505,7 @@ class InstlGui(InstlInstanceBase):
         except OSError:
             print("Cannot run:", command_line)
             return
-            
+
         unused_stdout, unused_stderr = check_yaml_process.communicate()
         return_code = check_yaml_process.returncode
         if return_code != 0:

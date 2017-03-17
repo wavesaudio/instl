@@ -247,6 +247,7 @@ class IndexItemsTable(object):
             END;
         """
         self.session.execute(trigger_text)
+        self.commit_changes()
 
     def drop_triggers(self):
         stmt = """
@@ -282,6 +283,7 @@ class IndexItemsTable(object):
             DROP TRIGGER IF EXISTS log_adjust_active_os_for_details;
             """
         self.session.execute(stmt)
+        self.commit_changes()
 
     def add_views(self):
         # view of items from require.yaml that do not have a require_version field
@@ -353,9 +355,38 @@ class IndexItemsTable(object):
             WHERE
                 remote.detail_name = 'version'
                 AND remote.active=1
-           GROUP BY remote.owner_iid
+            GROUP BY remote.owner_iid
             """)
         self.session.execute(stmt)
+
+        stmt = text("""
+        CREATE VIEW "active_sources_and_sync_folders_view" AS
+        SELECT install_sources_t.owner_iid,install_sources_t.tag,
+            install_sources_t.detail_value AS install_sources,
+            coalesce(existing_sync_folders_t.detail_value,
+                    CASE substr(install_sources_t.detail_value,1,1)
+                    WHEN "/" THEN -- absolute path
+                        substr(install_sources_t.detail_value, 2)
+                    WHEN "$" THEN -- relative to some variable
+                        install_sources_t.detail_value
+                    ELSE          -- relative to $(SOURCE_PREFIX): Mac or Win
+                        "$(SOURCE_PREFIX)/" || install_sources_t.detail_value
+                    END )
+                     AS sync_folders
+        FROM IndexItemDetailRow as install_sources_t
+        JOIN IndexItemRow
+            ON IndexItemRow.iid=install_sources_t.owner_iid
+            AND IndexItemRow.install_status > 0
+        LEFT JOIN IndexItemDetailRow AS existing_sync_folders_t
+            ON existing_sync_folders_t.detail_name='direct_sync'
+            AND existing_sync_folders_t.owner_iid=install_sources_t.owner_iid
+            AND existing_sync_folders_t.active=1
+        WHERE
+        install_sources_t.detail_name='install_sources'
+        AND install_sources_t.active=1
+        """)
+        self.session.execute(stmt)
+        self.commit_changes()
 
     def drop_views(self):
         stmt = text("""
@@ -370,6 +401,11 @@ class IndexItemsTable(object):
             DROP VIEW IF EXISTS "report_versions_view"
             """)
         self.session.execute(stmt)
+        stmt = text("""
+            DROP VIEW IF EXISTS "active_sources_and_sync_folders_view"
+            """)
+        self.session.execute(stmt)
+        self.commit_changes()
 
     def begin_get_for_all_oses(self):
         """ adds all known os names to the list of os that will influence all get functions
@@ -384,7 +420,7 @@ class IndexItemsTable(object):
          """
         try:
             exec_result = self.session.execute(query_text)
-            self.session.commit()
+            self.commit_changes()
         except SQLAlchemyError as ex:
             print(ex)
             raise
@@ -416,7 +452,7 @@ class IndexItemsTable(object):
         """.format(query_vars)
         try:
             exec_result = self.session.execute(query_text)
-            self.session.commit()
+            self.commit_changes()
         except SQLAlchemyError as ex:
             print(ex)
             raise
@@ -445,7 +481,7 @@ class IndexItemsTable(object):
                 self.session.add_all(details)
             else:
                 print(iid, "found in require but not in index")
-        self.session.commit()
+        self.commit_changes()
 
     def get_all_require_translate_items(self):
         """
@@ -503,8 +539,8 @@ class IndexItemsTable(object):
         try:
             exec_result = self.session.execute(query_text)
             if exec_result.returns_rows:
-                retVal = exec_result.fetchall()   # now retVal is a list of (IID, require_ver, remote_ver)
-                retVal = [mm[0] for mm in retVal] # need only the IID, but getting the versions is for debugging
+                retVal = exec_result.fetchall()
+                retVal = [mm[0] for mm in retVal]
         except SQLAlchemyError as ex:
             raise
 
@@ -572,51 +608,59 @@ class IndexItemsTable(object):
 
         return retVal
 
-    def create_default_index_items(self):
+    def create_default_index_items(self, iids_to_ignore):
         the_os_id = self.os_names['common']
         the_iid = "__ALL_ITEMS_IID__"
         all_items_item = IndexItemRow(iid=the_iid, inherit_resolved=True, from_index=False, from_require=False)
         self.session.add(all_items_item)
         for iid in self.get_all_iids():
-            depends_details = IndexItemDetailRow(original_iid=the_iid,
+            if iid not in iids_to_ignore:
+                depends_details = IndexItemDetailRow(original_iid=the_iid,
                                                  owner_iid=the_iid,
                                                  detail_name='depends',
                                                  detail_value=iid,
                                                  os_id=the_os_id,
                                                  generation=0)
-            self.session.add(depends_details)
+                self.session.add(depends_details)
 
         the_iid = "__ALL_GUIDS_IID__"
         all_guids_item = IndexItemRow(iid=the_iid, inherit_resolved=True, from_index=False, from_require=False)
         self.session.add(all_guids_item)
         all_iids_with_guids = self.get_all_iids_with_guids()
         for iid in all_iids_with_guids:
-            depends_details = IndexItemDetailRow(original_iid=the_iid,
+            if iid not in iids_to_ignore:
+                depends_details = IndexItemDetailRow(original_iid=the_iid,
                                                  owner_iid=the_iid,
                                                  detail_name='depends',
                                                  detail_value=iid,
                                                  os_id=the_os_id,
                                                  generation=0)
-            self.session.add(depends_details)
+                self.session.add(depends_details)
+        self.commit_changes()
 
-    def create_default_require_items(self):
+    def create_default_require_items(self, iids_to_ignore):
         the_os_id = self.os_names['common']
         the_iid = "__REPAIR_INSTALLED_ITEMS__"
         repair_item = IndexItemRow(iid=the_iid, inherit_resolved=True, from_index=False, from_require=False)
-        repair_item_details = [IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid,
-                                                  detail_name='depends', detail_value=iid,
-                                                  os_id=the_os_id, generation=0) for iid in self.get_all_installed_iids()]
         self.session.add(repair_item)
-        self.session.add_all(repair_item_details)
+        for iid in self.get_all_installed_iids():
+            if iid not in iids_to_ignore:
+                repair_item_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid,
+                                                  detail_name='depends', detail_value=iid,
+                                                  os_id=the_os_id, generation=0)
+                self.session.add(repair_item_detail)
 
         the_iid = "__UPDATE_INSTALLED_ITEMS__"
         update_item = IndexItemRow(iid=the_iid, inherit_resolved=True, from_index=False, from_require=False)
-        iids_needing_update = self.get_all_installed_iids_needing_update()
-        update_item_details = [IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid,
-                                                  detail_name='depends', detail_value=iid,
-                                                  os_id=the_os_id, generation=0) for iid in iids_needing_update]
         self.session.add(update_item)
-        self.session.add_all(update_item_details)
+        iids_needing_update = self.get_all_installed_iids_needing_update()
+        for iid in iids_needing_update:
+            if iid not in iids_to_ignore:
+                update_item_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid,
+                                                  detail_name='depends', detail_value=iid,
+                                                  os_id=the_os_id, generation=0)
+                self.session.add(update_item_detail)
+        self.commit_changes()
 
     def get_item_by_resolve_status(self, iid_to_get, resolve_status):  # tested by: TestItemTable.test_get_item_by_resolve_status
         # http://stackoverflow.com/questions/29161730/what-is-the-difference-between-one-and-first
@@ -752,6 +796,7 @@ class IndexItemsTable(object):
         for item in items:
             if not item.inherit_resolved:
                 self.resolve_item_inheritance(item)
+        self.commit_changes()
 
     def item_from_index_node(self, the_iid, the_node):
         item = IndexItemRow(iid=the_iid, inherit_resolved=False, from_index=True)
@@ -788,7 +833,7 @@ class IndexItemsTable(object):
             original_details.extend(original_item_details)
         self.session.add_all(index_items)
         self.session.add_all(original_details)
-        self.session.commit()
+        self.commit_changes()
 
     # @utils.timing
     def read_require_node(self, a_node):
@@ -902,7 +947,7 @@ class IndexItemsTable(object):
             # add all guids to table IndexGuidToItemTranslate with iid field defaults to Null
             for a_guid in list(set(guid_list)):  # list(set()) will remove duplicates
                 self.session.add(IndexGuidToItemTranslate(guid=a_guid))
-            self.session.commit()
+            self.commit_changes()
 
             # insert to table IndexGuidToItemTranslate guid, iid pairs.
             # a guid might yield 0, 1, or more iids
@@ -915,7 +960,7 @@ class IndexItemsTable(object):
                     AND IndexItemDetailRow.detail_value IN (SELECT guid FROM IndexGuidToItemTranslate WHERE iid IS NULL);
                 """
             self.session.execute(query_text)
-            self.session.commit()
+            self.commit_changes()
 
             # return a list of guid, count pairs.
             # Guids with count of 0 are guid that could not be translated to iids
@@ -999,7 +1044,7 @@ class IndexItemsTable(object):
                 AND ignore = 0
               """.format(**locals())
             self.session.execute(query_text)
-            #self.session.commit()  # not sure why but commit is a must here of all places for the update to be written
+            #self.commit_changes()  # not sure why but commit is a must here of all places for the update to be written
 
     def change_status_of_iids(self, new_status, iid_list):
         if iid_list:
@@ -1011,7 +1056,7 @@ class IndexItemsTable(object):
                 AND ignore = 0
               """.format(**locals())
             self.session.execute(query_text)
-            #self.session.commit()  # not sure why but commit is a must here of all places for the update to be written
+            #self.commit_changes()  # not sure why but commit is a must here of all places for the update to be written
 
     def get_iids_by_status(self, min_status, max_status=None):
         if max_status is None:
@@ -1055,8 +1100,12 @@ class IndexItemsTable(object):
     def target_folders_to_items(self):
         retVal = list()
         query_text = """
-            SELECT IndexItemDetailRow.detail_value, IndexItemDetailRow.owner_iid
+            SELECT IndexItemDetailRow.owner_iid, IndexItemDetailRow.detail_value, IndexItemDetailRow.tag, direct_sync_t.detail_value
             FROM IndexItemDetailRow, IndexItemRow
+            LEFT JOIN IndexItemDetailRow AS direct_sync_t
+              ON IndexItemRow.iid=direct_sync_t.owner_iid
+                AND direct_sync_t.detail_name = 'direct_sync'
+                AND direct_sync_t.active = 1
             WHERE IndexItemDetailRow.detail_name="install_folders"
                 AND IndexItemRow.iid=IndexItemDetailRow.owner_iid
                 AND IndexItemRow.install_status != 0
@@ -1201,10 +1250,9 @@ class IndexItemsTable(object):
         fetched_results = self.session.execute(query_text).fetchall()
         return fetched_results
 
-    def create_default_items(self):
-        self.create_default_index_items()
-        self.create_default_require_items()
-        self.session.commit()
+    def create_default_items(self, iids_to_ignore):
+        self.create_default_index_items(iids_to_ignore=iids_to_ignore)
+        self.create_default_require_items(iids_to_ignore=iids_to_ignore)
 
     def require_items_without_version_or_guid(self):
         retVal = list()
@@ -1327,3 +1375,37 @@ class IndexItemsTable(object):
             raw_value = in_config_var_list.unresolved_var(identifier)
             resolved_value = in_config_var_list.ResolveVarToStr(identifier, list_sep=" ", default="")
             self.session.add(ConfigVar(name=identifier, raw_value=raw_value, resolved_value=resolved_value))
+        self.commit_changes()
+
+    def get_sync_folders_and_sources_for_active_iids(self):
+        retVal = list()
+        query_text = """
+             SELECT install_sources_t.owner_iid AS iid,
+                    direct_sync_t.detail_value AS direct_sync_indicator,
+                    install_sources_t.detail_value AS source,
+                    install_sources_t.tag AS tag,
+                    install_folders_t.detail_value AS install_folder
+            FROM IndexItemDetailRow AS install_sources_t
+                JOIN IndexItemRow AS iid_t
+                    ON iid_t.iid=install_sources_t.owner_iid
+                    AND iid_t.install_status > 0
+                LEFT JOIN IndexItemDetailRow AS install_folders_t
+                    ON install_folders_t.active=1
+                    AND install_sources_t.owner_iid = install_folders_t.owner_iid
+                        AND install_folders_t.detail_name='install_folders'
+                LEFT JOIN IndexItemDetailRow AS direct_sync_t
+                    ON direct_sync_t.active=1
+                    AND install_sources_t.owner_iid = direct_sync_t.owner_iid
+                        AND direct_sync_t.detail_name='direct_sync'
+            WHERE
+                install_sources_t.active=1
+                AND install_sources_t.detail_name='install_sources'
+        """
+        try:
+            exec_result = self.session.execute(query_text)
+            if exec_result.returns_rows:
+                # returns [(iid, direct_sync_indicator, source, source_tag, install_folder),...]
+                retVal.extend(exec_result.fetchall())
+        except SQLAlchemyError as ex:
+            raise
+        return retVal
