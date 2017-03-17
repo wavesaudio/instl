@@ -247,6 +247,7 @@ class IndexItemsTable(object):
             END;
         """
         self.session.execute(trigger_text)
+        self.commit_changes()
 
     def drop_triggers(self):
         stmt = """
@@ -282,6 +283,7 @@ class IndexItemsTable(object):
             DROP TRIGGER IF EXISTS log_adjust_active_os_for_details;
             """
         self.session.execute(stmt)
+        self.commit_changes()
 
     def add_views(self):
         # view of items from require.yaml that do not have a require_version field
@@ -384,6 +386,7 @@ class IndexItemsTable(object):
         AND install_sources_t.active=1
         """)
         self.session.execute(stmt)
+        self.commit_changes()
 
     def drop_views(self):
         stmt = text("""
@@ -402,7 +405,7 @@ class IndexItemsTable(object):
             DROP VIEW IF EXISTS "active_sources_and_sync_folders_view"
             """)
         self.session.execute(stmt)
-
+        self.commit_changes()
 
     def begin_get_for_all_oses(self):
         """ adds all known os names to the list of os that will influence all get functions
@@ -417,7 +420,7 @@ class IndexItemsTable(object):
          """
         try:
             exec_result = self.session.execute(query_text)
-            self.session.commit()
+            self.commit_changes()
         except SQLAlchemyError as ex:
             print(ex)
             raise
@@ -449,7 +452,7 @@ class IndexItemsTable(object):
         """.format(query_vars)
         try:
             exec_result = self.session.execute(query_text)
-            self.session.commit()
+            self.commit_changes()
         except SQLAlchemyError as ex:
             print(ex)
             raise
@@ -478,7 +481,7 @@ class IndexItemsTable(object):
                 self.session.add_all(details)
             else:
                 print(iid, "found in require but not in index")
-        self.session.commit()
+        self.commit_changes()
 
     def get_all_require_translate_items(self):
         """
@@ -633,6 +636,7 @@ class IndexItemsTable(object):
                                                  os_id=the_os_id,
                                                  generation=0)
                 self.session.add(depends_details)
+        self.commit_changes()
 
     def create_default_require_items(self, iids_to_ignore):
         the_os_id = self.os_names['common']
@@ -656,6 +660,7 @@ class IndexItemsTable(object):
                                                   detail_name='depends', detail_value=iid,
                                                   os_id=the_os_id, generation=0)
                 self.session.add(update_item_detail)
+        self.commit_changes()
 
     def get_item_by_resolve_status(self, iid_to_get, resolve_status):  # tested by: TestItemTable.test_get_item_by_resolve_status
         # http://stackoverflow.com/questions/29161730/what-is-the-difference-between-one-and-first
@@ -791,6 +796,7 @@ class IndexItemsTable(object):
         for item in items:
             if not item.inherit_resolved:
                 self.resolve_item_inheritance(item)
+        self.commit_changes()
 
     def item_from_index_node(self, the_iid, the_node):
         item = IndexItemRow(iid=the_iid, inherit_resolved=False, from_index=True)
@@ -827,7 +833,7 @@ class IndexItemsTable(object):
             original_details.extend(original_item_details)
         self.session.add_all(index_items)
         self.session.add_all(original_details)
-        self.session.commit()
+        self.commit_changes()
 
     # @utils.timing
     def read_require_node(self, a_node):
@@ -941,7 +947,7 @@ class IndexItemsTable(object):
             # add all guids to table IndexGuidToItemTranslate with iid field defaults to Null
             for a_guid in list(set(guid_list)):  # list(set()) will remove duplicates
                 self.session.add(IndexGuidToItemTranslate(guid=a_guid))
-            self.session.commit()
+            self.commit_changes()
 
             # insert to table IndexGuidToItemTranslate guid, iid pairs.
             # a guid might yield 0, 1, or more iids
@@ -954,7 +960,7 @@ class IndexItemsTable(object):
                     AND IndexItemDetailRow.detail_value IN (SELECT guid FROM IndexGuidToItemTranslate WHERE iid IS NULL);
                 """
             self.session.execute(query_text)
-            self.session.commit()
+            self.commit_changes()
 
             # return a list of guid, count pairs.
             # Guids with count of 0 are guid that could not be translated to iids
@@ -1038,7 +1044,7 @@ class IndexItemsTable(object):
                 AND ignore = 0
               """.format(**locals())
             self.session.execute(query_text)
-            #self.session.commit()  # not sure why but commit is a must here of all places for the update to be written
+            #self.commit_changes()  # not sure why but commit is a must here of all places for the update to be written
 
     def change_status_of_iids(self, new_status, iid_list):
         if iid_list:
@@ -1050,7 +1056,7 @@ class IndexItemsTable(object):
                 AND ignore = 0
               """.format(**locals())
             self.session.execute(query_text)
-            #self.session.commit()  # not sure why but commit is a must here of all places for the update to be written
+            #self.commit_changes()  # not sure why but commit is a must here of all places for the update to be written
 
     def get_iids_by_status(self, min_status, max_status=None):
         if max_status is None:
@@ -1247,7 +1253,6 @@ class IndexItemsTable(object):
     def create_default_items(self, iids_to_ignore):
         self.create_default_index_items(iids_to_ignore=iids_to_ignore)
         self.create_default_require_items(iids_to_ignore=iids_to_ignore)
-        self.session.commit()
 
     def require_items_without_version_or_guid(self):
         retVal = list()
@@ -1370,6 +1375,7 @@ class IndexItemsTable(object):
             raw_value = in_config_var_list.unresolved_var(identifier)
             resolved_value = in_config_var_list.ResolveVarToStr(identifier, list_sep=" ", default="")
             self.session.add(ConfigVar(name=identifier, raw_value=raw_value, resolved_value=resolved_value))
+        self.commit_changes()
 
     def get_sync_folders_and_sources_for_active_iids(self):
         retVal = list()

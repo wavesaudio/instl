@@ -36,7 +36,7 @@ text_line_re = re.compile(r"""
             (,\s+
             (?P<size>[\d]+))?       # 356985
             (,\s+
-            (?P<url>(http(s)?|ftp)://.+))?    # http://....
+            (?P<url>(http(s)?|ftp)://[^,]+))?    # http://....
             (,\s+dl_path:'
             (?P<dl_path>([^',]+))')?
             """, re.X)
@@ -74,6 +74,9 @@ class SVNTable(object):
         self.comments = list()
         self.baked_queries_map = self.bake_baked_queries()
         self.bakery = baked.bakery()
+
+    def commit_changes(self):
+        self.session.commit()
 
     def bake_baked_queries(self):
         """ prepare baked queries for later use
@@ -122,6 +125,7 @@ class SVNTable(object):
 
         insert_dicts = sorted([item_dict for item_dict in self.iter_svn_info(rfd)], key=lambda x: x['path'].split('/'))
         self.session.bulk_insert_mappings(SVNRow, insert_dicts)
+        self.commit_changes()
 
     def read_from_text_to_dict(self, in_rfd):
         retVal = list()
@@ -138,7 +142,7 @@ class SVNTable(object):
 
     def insert_dicts_to_db(self, insert_dicts):
         self.session.bulk_insert_mappings(SVNRow, insert_dicts)
-        #self.engine.execute(SVNRow.__table__.insert(), insert_dicts)
+        self.commit_changes()
 
     def read_from_text(self, rfd):
         insert_dicts = self.read_from_text_to_dict(rfd)
@@ -334,11 +338,13 @@ class SVNTable(object):
 
     def clear_all(self):
         self.session.query(SVNRow).delete()
+        self.commit_changes()
         self.comments = list()
 
     def set_base_revision(self, base_revision):
         self.session.query(SVNRow).filter(SVNRow.revision < base_revision).\
                                     update({"revision": base_revision})
+        self.commit_changes()
 
     def read_file_sizes(self, rfd):
         update_dicts = list()
@@ -352,6 +358,7 @@ class SVNTable(object):
                     print(line, line_num)
                 update_dicts.append({"path": parts[0], "size": int(parts[1])})
         self.session.bulk_update_mappings(SVNRow, update_dicts)
+        self.commit_changes()
 
     def read_props(self, rfd):
         props_line_re = re.compile("""
@@ -660,6 +667,7 @@ class SVNTable(object):
             num_required_files = self.mark_required_for_dir(source_path)
         elif source_type == '!file':
             num_required_files = self.mark_required_for_file(source_path)
+        self.commit_changes()
         return num_required_files
 
     def mark_required_completion(self):
@@ -684,7 +692,7 @@ class SVNTable(object):
                     .values(required=True)
             self.session.execute(update_statement)
             slice_begin += chunk_size
-        self.session.commit()
+            self.commit_changes()
 
     def mark_need_download(self):
         ancestors = list()
@@ -709,7 +717,7 @@ class SVNTable(object):
                     .values(need_download=True)
             self.session.execute(update_statement)
             slice_begin += chunk_size
-        self.session.commit()
+        self.commit_changes()
 
     def mark_required_for_revision(self, required_revision):
         """ mark all files and dirs as required if they are of specific revision
@@ -719,13 +727,14 @@ class SVNTable(object):
             .where(SVNRow.revision == required_revision)\
             .values(required=True)
         self.session.execute(update_statement)
+        self.commit_changes()
         self.mark_required_completion()
 
     def clear_required(self):
         update_statement = update(SVNRow)\
             .values(required=False)
         self.session.execute(update_statement)
-        self.session.commit()
+        self.commit_changes()
 
     def get_unrequired_paths_where_parent_required(self, what="files"):
         """ Get all unrequired items that have a parent that is required.
@@ -773,21 +782,39 @@ class SVNTable(object):
         (
             SELECT svnitem._id
             FROM svnitem
-            JOIN IndexItemDetailRow as install_sources_t
-                ON install_sources_t.detail_name='install_sources'
-                AND install_sources_t.active = 1
             JOIN IndexItemRow as active_items_t
+                ON active_items_t.install_status > 0
+                AND active_items_t.ignore = 0
+            JOIN IndexItemDetailRow as install_sources_t
                 ON install_sources_t.owner_iid=active_items_t.iid
-                AND active_items_t.install_status > 0
+                AND install_sources_t.detail_name='install_sources'
+                AND install_sources_t.active = 1
             WHERE fileFlag=1
-            AND path LIKE
-                CASE substr(install_sources_t.detail_value,1,1)
-                WHEN "/" THEN -- absolute path
-                    substr(install_sources_t.detail_value, 2) || "%"
-                ELSE          -- relative to $(SOURCE_PREFIX): Mac or Win
-                    "{source_prefix}/" || install_sources_t.detail_value || "%"
+            AND (svnitem.path LIKE
+                CASE install_sources_t.tag
+                WHEN "!file" THEN
+                    CASE substr(install_sources_t.detail_value,1,1)
+                    WHEN "/" THEN -- absolute path
+                        substr(install_sources_t.detail_value, 2)
+                    ELSE          -- relative to $(SOURCE_PREFIX): Mac or Win
+                        "Mac/" || install_sources_t.detail_value
+                    END
+                ELSE -- !dir or !dir_cont
+                    CASE substr(install_sources_t.detail_value,1,1)
+                    WHEN "/" THEN -- absolute path
+                        substr(install_sources_t.detail_value, 2) || "/%"
+                    ELSE          -- relative to $(SOURCE_PREFIX): Mac or Win
+                        "Mac/" || install_sources_t.detail_value || "/%"
+                    END
                 END
+            OR svnitem.path LIKE
+                    CASE substr(install_sources_t.detail_value,1,1)
+                    WHEN "/" THEN -- absolute path
+                        substr(install_sources_t.detail_value, 2) || ".wtar%"
+                    ELSE          -- relative to $(SOURCE_PREFIX): Mac or Win
+                        "Mac/" || install_sources_t.detail_value|| ".wtar%"
+                    END)
         )
         """.format(source_prefix=source_prefix)
         exec_result = self.session.execute(query_text)
-        self.session.commit()
+        self.commit_changes()

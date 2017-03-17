@@ -76,14 +76,11 @@ class InstlClient(InstlInstanceBase):
         self.items_table.begin_get_for_specific_oses(*active_oses)
 
         self.items_table.resolve_inheritance()
-        self.items_table.commit_changes()
         if self.should_check_for_binary_versions():
-            self.get_binaries_versions()
+            self.get_version_of_installed_binaries()
             self.items_table.add_require_version_from_binaries()
             self.items_table.add_require_guid_from_binaries()
-        self.items_table.commit_changes()
         self.items_table.create_default_items(iids_to_ignore=self.auxiliary_iids)
-        self.items_table.commit_changes()
 
         self.resolve_defined_paths()
         self.batch_accum.set_current_section('begin')
@@ -404,7 +401,7 @@ class InstlClient(InstlInstanceBase):
         retVal = explicitly_asked_for_binaries_check or update_was_requested
         return retVal
 
-    def get_binaries_versions(self):
+    def get_version_of_installed_binaries(self):
         binaries_version_list = list()
         try:
             path_to_search = var_stack.ResolveVarToList('CHECK_BINARIES_VERSION_FOLDERS', default=[])
