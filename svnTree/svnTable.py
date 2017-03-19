@@ -797,14 +797,14 @@ class SVNTable(object):
                     WHEN "/" THEN -- absolute path
                         substr(install_sources_t.detail_value, 2)
                     ELSE          -- relative to $(SOURCE_PREFIX): Mac or Win
-                        "Mac/" || install_sources_t.detail_value
+                        "{source_prefix}/" || install_sources_t.detail_value
                     END
                 ELSE -- !dir or !dir_cont
                     CASE substr(install_sources_t.detail_value,1,1)
                     WHEN "/" THEN -- absolute path
                         substr(install_sources_t.detail_value, 2) || "/%"
                     ELSE          -- relative to $(SOURCE_PREFIX): Mac or Win
-                        "Mac/" || install_sources_t.detail_value || "/%"
+                        "{source_prefix}/" || install_sources_t.detail_value || "/%"
                     END
                 END
             OR svnitem.path LIKE
@@ -812,7 +812,7 @@ class SVNTable(object):
                     WHEN "/" THEN -- absolute path
                         substr(install_sources_t.detail_value, 2) || ".wtar%"
                     ELSE          -- relative to $(SOURCE_PREFIX): Mac or Win
-                        "Mac/" || install_sources_t.detail_value|| ".wtar%"
+                        "{source_prefix}/" || install_sources_t.detail_value|| ".wtar%"
                     END)
         )
         """.format(source_prefix=source_prefix)
