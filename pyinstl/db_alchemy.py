@@ -43,6 +43,7 @@ def get_engine():
             if unique_name_to_disk_db:
                 db_file_name = str(datetime.datetime.now().timestamp())+"."+db_file_name
             db_file = os.path.join(logs_dir, db_file_name)
+            # print("db_file:", db_file)
             utils.safe_remove_file(db_file)
             engine_path += db_file
         __db_engine = create_engine(engine_path, echo=False)

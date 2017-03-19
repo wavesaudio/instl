@@ -76,7 +76,8 @@ class InstlAdmin(InstlInstanceBase):
 
         if "__BASE_URL__" in var_stack:
             self.add_urls_to_info_map()
-        self.info_map_table.write_to_file(var_stack.ResolveVarToStr("__MAIN_OUT_FILE__"))
+        fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
+        self.info_map_table.write_to_file(var_stack.ResolveVarToStr("__MAIN_OUT_FILE__"), field_to_write=fields_relevant_to_info_map)
 
     def add_urls_to_info_map(self):
         base_url = var_stack.ResolveVarToStr("__BASE_URL__")

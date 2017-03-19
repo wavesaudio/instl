@@ -1,9 +1,20 @@
-???? 1.3.3.6
+19/3/2017 1.4.0.1
+
+    user visible changes admin:
+    * SVNTable.read_file_sizes: admin 'trans' command stopped working because bulk_update_mappings would not find the updated rows.
+        So rows are now updated one by one.
+    user visible changes client:
+    * Fixed creation of paths for download on windows
+
+18/3/2017 1.4.0.0
+
+    user visible changes client:
+    * Added support for direct sync
+
     programmer visible changes:
     * InstlClient.get_binaries_versions renamed get_version_of_installed_binaries
     * Fixed regex that reads InfoMaps to correctly identify dl_path fields
     * Fixed SVNTable.mark_required_files_for_active_items to correctly indentify files and folders that were wtared
-
 
 8/3/2017 1.3.3.5
 
