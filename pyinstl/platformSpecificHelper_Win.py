@@ -6,6 +6,7 @@ import sys
 import datetime
 import subprocess
 import re
+import pathlib
 
 import utils
 from .platformSpecificHelper_Base import PlatformSpecificHelperBase
@@ -579,8 +580,9 @@ class DownloadTool_win_curl(DownloadToolBase):
             wfd_cycler = itertools.cycle(wfd_list)
             url_num = 0
             for url, path in self.urls_to_download:
+                win_path = str(pathlib.PurePath(path)).replace("\\", "\\\\")
                 wfd = next(wfd_cycler)
-                wfd.write('''url = "{url}"\noutput = "{path}"\n\n'''.format(**locals()))
+                wfd.write('''url = "{url}"\noutput = "{win_path}"\n\n'''.format(**locals()))
                 url_num += 1
 
             for wfd in wfd_list:
