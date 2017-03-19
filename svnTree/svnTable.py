@@ -357,7 +357,13 @@ class SVNTable(object):
                 if len(parts) != 2:
                     print(line, line_num)
                 update_dicts.append({"path": parts[0], "size": int(parts[1])})
-        self.session.bulk_update_mappings(SVNRow, update_dicts)
+        # self.session.bulk_update_mappings(SVNRow, update_dicts)
+        # for unknown reason bulk_update_mappings stopped working in instl ver 1.4, so update one by one
+        for update_i in update_dicts:
+            update_statement = update(SVNRow)\
+                .where(SVNRow.path == update_i['path'])\
+                .values(size = update_i['size'])
+            self.session.execute(update_statement)
         self.commit_changes()
 
     def read_props(self, rfd):
@@ -401,6 +407,7 @@ class SVNTable(object):
                             self.session.execute(update_statement)
                 else:
                     ValueError("no match at file: " + rfd.name + ", line: " + str(line_num) + ": " + line)
+            self.commit_changes()
         except Exception as ex:
             print("Line:", line_num, ex)
             raise
