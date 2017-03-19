@@ -5,6 +5,7 @@
         So rows are now updated one by one.
     user visible changes client:
     * Fixed creation of paths for download on windows
+    * added 'direct_sync' to allowed_item_keys to avoid warnings
 
 18/3/2017 1.4.0.0
 
