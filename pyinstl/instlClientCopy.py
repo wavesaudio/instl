@@ -93,7 +93,6 @@ class InstlClientCopy(InstlClient):
         self.batch_accum.set_current_section('copy')
         self.batch_accum += self.platform_helper.progress("Starting copy from $(COPY_SOURCES_ROOT_DIR)")
 
-        #self.accumulate_unique_actions('pre_copy', var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
         self.accumulate_unique_actions_for_active_iids('pre_copy')
         self.batch_accum += self.platform_helper.new_line()
 

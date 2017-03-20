@@ -31,6 +31,7 @@ class InstlClientRemove(InstlClient):
         if not os.path.isfile(have_info_path):
             have_info_path = var_stack.ResolveVarToStr("SITE_HAVE_INFO_MAP_PATH")
         self.read_info_map_from_file(have_info_path)
+        self.calc_iid_to_name_and_version()
 
         self.batch_accum.set_current_section('remove')
         self.batch_accum += self.platform_helper.progress("Starting remove")
