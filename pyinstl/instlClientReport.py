@@ -17,9 +17,6 @@ class InstlClientReport(InstlClient):
         self.current_index_yaml_path = None
         self.current_require_yaml_path = None
         self.guids_to_ignore = None
-        self.report_only_items_with_guids = False
-        self.report_installed_items = False
-        self.report_remote_items = False
         self.output_data = []
 
     def command_output(self):
@@ -40,10 +37,7 @@ class InstlClientReport(InstlClient):
             wfd.write("\n")
 
     def do_report_versions(self):
-        self.report_only_items_with_guids = "REPORT_ONLY_ITEMS_WITH_GUIDS" in var_stack
-        self.report_installed_items = "REPORT_INSTALLED_ITEMS" in var_stack
-        self.report_remote_items = "REPORT_REMOTE_ITEMS" in var_stack
-        self.guids_to_ignore = set(var_stack.ResolveVarToList("IGNORED_GUIDS", []))
+        self.guids_to_ignore = set(var_stack.ResolveVarToList("MAIN_IGNORED_TARGETS", []))
 
         report_data = self.items_table.versions_report()
 
@@ -56,4 +50,4 @@ class InstlClientReport(InstlClient):
         return (("Looks like no product are installed, file not found", self.current_index_yaml_path),)
 
     def do_report_gal(self):
-        self.get_binaries_versions()
+        self.get_version_of_installed_binaries()

@@ -1,3 +1,109 @@
+19/3/2017 1.4.0.1
+
+    user visible changes admin:
+    * SVNTable.read_file_sizes: admin 'trans' command stopped working because bulk_update_mappings would not find the updated rows.
+        So rows are now updated one by one.
+    user visible changes client:
+    * Fixed creation of paths for download on windows
+    * added 'direct_sync' to allowed_item_keys to avoid warnings
+
+18/3/2017 1.4.0.0
+
+    user visible changes client:
+    * Added support for direct sync
+
+    programmer visible changes:
+    * InstlClient.get_binaries_versions renamed get_version_of_installed_binaries
+    * Fixed regex that reads InfoMaps to correctly identify dl_path fields
+    * Fixed SVNTable.mark_required_files_for_active_items to correctly indentify files and folders that were wtared
+
+8/3/2017 1.3.3.5
+
+    programmer visible changes:
+    * Unique constraint on IndexItemDetailRow so to avoid duplicate rows
+    * rearranged th triggers that create require../ details in table IndexItemDetailRow
+    * repr_require_for_yaml avoids duplicate entries
+    * info_map_table and items_table are now only initialized when needed
+    * database can be configured to have a unique name in each run
+    * database can be forced to be on disk even when instl runs compiled
+    * new table ConfigVar that will be populated with config variables values
+
+    user visible changes client:
+    * fixed issue where __ALL_ITEMS_IID__ & __ALL_GUIDS_IID__ would not be calculated correctly
+    * new config var __DATABASE_URL__ to contain the url of the database
+
+    user visible changes admin:
+    * initialize self.items_table in InstlAdmin
+
+6/3/2017 1.3.3.4
+    user visible changes client:
+    * new IID detail value "phantom_version" for cases where require_version does not exist and cannot be deduced from disk.
+
+2/3/2017 1.3.3.3
+
+    programmer visible changes:
+    * IndexItemRow.status renamed install_status
+    * Constants for IndexItemsTable.install_status in IndexItemsTable.install_status
+    * New column IndexItemRow.ignore - to ignore iids found in variables
+        DO_NOT_REMOVE_TARGETS, MAIN_IGNORED_TARGETS
+    * New function IndexItemsTable.set_ignore_iids to set IndexItemRow.ignore
+    * New utils functions quoteme_single_list, quoteme_double_list will quote all strings in a list
+    * Added DISTINCT to the SELECT statement in get_all_installed_iids_needing_update, not need for repeated items.
+    * Changed implementation for begin_get_for_all_oses, begin_get_for_specific_oses to be sqlite code instead of sqlalchemy
+    * Added much needed session.commit's to fix creation of offline installers
+    * CREATE TRIGGER got IF NOT EXISTS
+    * Some more session.commits
+    * get_all_iids implemented in SQL instead of sqlalchemy baked query
+    * all_uninstall_items is sorted
+
+28/2/2017 1.3.3.2
+
+    programmer visible changes:
+    * moved around some varible intialization to accommodate for creating offline installers for Mac on windows
+
+21/2/3017 1.3.3.1
+
+    user visible changes client:
+    * Fixed issues with updating require_version and require_guid when two products have the same guid.
+
+15/2/2017 1.3.3.0
+
+    programmer visible changes:
+    * Added '|' to characters that need escaping in dos branch files.
+    * Version updated to 1.3.3.0 so we can set INSTL_MINIMAL_VERSION in index.yaml to 1.3.3 if '|' is in some var
+
+15/2/2017 1.3.2.4
+
+    user visible changes client:
+    * CHECK_BINARIES_VERSION_FILE_EXCLUDE_REGEX will effect which files not to consider when doing version report
+    programmer visible changes:
+    * utils.compile_regex_list_ORed verbose default changed to False, because spaces in regexs should be consider
+    * Disabled usage of Mac_dylib in report-versions because otool is available only on systems where developer tools were installed, so usage of otool cannot be deployed to users
+
+8/2/2017 1.3.2.3
+
+    user visible changes client:
+    * fixed create_copy_instructions_for_file to correctly handle !file item that is wtar.
+    * fixed report-versions where version is different between Mac and Windows
+
+    programmer visible changes:
+    * Fixed the reading of environment varaibles under "__environment__":
+          - no more usage of regexs, just plain varaible names
+          - variables are read in bulk not one by one
+          - On windows seach for the variable is done case insensetive
+
+
+31/1/2017 1.3.2.2
+
+    user visible changes client:
+    * when writing variable to batch file, correctly write those with empty values.
+    * fixed unwtar: the output location was not correctly read from commnadline variable.
+    * fixed some crashes in gui mode
+    * unwtarring is done directly from the cache folder to the target.
+    programmer visible changes:
+    * ResolveVarToStr fixed handling of default return value.
+
+
 11/1/2017 1.3.2.1
 
 

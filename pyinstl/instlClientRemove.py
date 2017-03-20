@@ -39,15 +39,15 @@ class InstlClientRemove(InstlClient):
                                            key=lambda fold: var_stack.ResolveStrToStr(fold),
                                            reverse=True)
         # print(sorted_target_folder_list)
-        self.accumulate_unique_actions_for_active_iids('pre_remove')
+        self.accumulate_unique_actions('pre_remove', var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
 
         for folder_name in sorted_target_folder_list:
             self.batch_accum += self.platform_helper.progress("Removing from {0}".format(folder_name))
-            var_stack.set_var("__TARGET_DIR__", non_freeze=True).append(os.path.normpath(folder_name))
+            var_stack.set_var("__TARGET_DIR__").append(os.path.normpath(folder_name))
             items_in_folder = self.all_items_by_target_folder[folder_name]
             self.batch_accum += self.platform_helper.new_line()
 
-            self.accumulate_unique_actions_for_active_iids('pre_remove_from_folder', items_in_folder)
+            self.accumulate_unique_actions('pre_remove_from_folder', items_in_folder)
 
             for IID in items_in_folder:
                 with self.install_definitions_index[IID].push_var_stack_scope() as installi:
@@ -61,11 +61,10 @@ class InstlClientRemove(InstlClient):
                         self.batch_accum += self.platform_helper.progress("Remove {source[0]} done".format(**locals()))
                     self.batch_accum += self.platform_helper.progress("Remove {installi.name} done".format(**locals()))
 
-            self.accumulate_unique_actions_for_active_iids('post_remove_from_folder', items_in_folder)
-
+            self.accumulate_unique_actions('post_remove_from_folder', items_in_folder)
             self.batch_accum += self.platform_helper.progress("Remove from {0} done".format(folder_name))
 
-        self.accumulate_unique_actions_for_active_iids('post_remove')
+        self.accumulate_unique_actions('post_remove', var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
 
     # create_remove_instructions_for_source:
     # Create instructions to remove a specific source from a specific target folder.
@@ -75,7 +74,7 @@ class InstlClientRemove(InstlClient):
     # Specific remove_item action specified - so specific action should be done.
 
     def create_remove_instructions_for_source(self, folder, source):
-        """ source is a tuple (source_folder, tag), where tag is either !file, !files, !dir_cont or !dir """
+        """ source is a tuple (source_folder, tag), where tag is either !file, !dir_cont or !dir """
 
         source_path, source_type = source[0], source[1]
         base_, leaf = os.path.split(source_path)
@@ -96,14 +95,6 @@ class InstlClientRemove(InstlClient):
                     base_, leaf = os.path.split(remove_path)
                     remove_full_path = os.path.normpath(os.path.join(folder, leaf))
                     remove_action = self.platform_helper.rm_file_or_dir(remove_full_path)
-                    self.batch_accum += remove_action
-            elif source_type == '!files':    # # remove all source's files from a folder
-                remove_items = self.info_map_table.get_items_in_dir(dir_path=source_path, levels_deep=1)
-                remove_paths = self.original_names_from_wtars_names(item.path for item in remove_items)
-                for remove_path in remove_paths:
-                    base_, leaf = os.path.split(remove_path)
-                    remove_full_path = os.path.normpath(os.path.join(folder, leaf))
-                    remove_action = self.platform_helper.rmfile(remove_full_path)
                     self.batch_accum += remove_action
         else:
             remove_actions = [_f for _f in remove_actions if _f]  # filter out None values

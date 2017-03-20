@@ -145,7 +145,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
     def get_svn_folder_cleanup_instructions(self):
         return 'find . -maxdepth 1 -mindepth 1 -type d -print0 | xargs -0 "$(SVN_CLIENT_PATH)" cleanup --non-interactive'
 
-    def var_assign(self, identifier, value, comment=None):
+    def var_assign(self, identifier, value):
         quoter = '"'
         if '"' in value:
             quoter = "'"
@@ -154,8 +154,6 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
                 return ()
 
         retVal = "".join((identifier, '=', quoter, value, quoter))
-        if comment is not None:
-            retVal += ' ' + self.remark(str(comment))
         return retVal
 
     def setup_echo(self):
@@ -219,7 +217,10 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         return check_command
 
     def tar(self, to_tar_name):
-        wtar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "-c", "--use-compress-program bzip2", "-f", utils.quoteme_double(to_tar_name+'.wtar'), utils.quoteme_double(to_tar_name))
+        if to_tar_name.endswith(".zip"):
+            wtar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "-c", "-f", utils.quoteme_double(to_tar_name+'.wtar'), utils.quoteme_double(to_tar_name))
+        else:
+            wtar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "-c", "--use-compress-program bzip2", "-f", utils.quoteme_double(to_tar_name + '.wtar'), utils.quoteme_double(to_tar_name))
         wtar_command = " ".join(wtar_command_parts)
         return wtar_command
 

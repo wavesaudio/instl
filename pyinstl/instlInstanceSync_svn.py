@@ -53,7 +53,7 @@ class InstlInstanceSync_svn(InstlInstanceSync):
             source_url = '/'.join(source_url.split("/")[0:-1])  # skip the file name sync the whole folder
             target_path = '/'.join(target_path.split("/")[0:-1])  # skip the file name sync the whole folder
         command_parts = ['"$(SVN_CLIENT_PATH)"', "co", '"'+source_url+'"', '"'+target_path+'"', "--revision", "$(REPO_REV)"]
-        if source_type in ('!file', '!files'):
+        if source_type in ('!file', ):
             command_parts.extend(( "--depth", "files"))
         else:
             command_parts.extend(( "--depth", "infinity"))

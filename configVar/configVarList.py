@@ -132,18 +132,25 @@ class ConfigVarList(object):
         source_obj = self[source_name]
         self.set_var(target_name, source_obj.description).extend(source_obj)
 
-    def read_environment(self, regex=None):
+    def read_environment(self, vars_to_read_from_environ=None):
         """ Get values from environment. Get all values if regex is None.
             Get values matching regex otherwise """
-        if regex is None:
+        if vars_to_read_from_environ is None:
             for env_key, env_value in os.environ.items():
                 if env_key == "":  # not sure why, sometimes I get an empty string as env variable name
                     continue
                 self.set_var(env_key, "from environment").append(env_value)
         else:
-            for env_key, env_value in os.environ.items():
-                if re.match(regex, env_key):
-                    self.set_var(env_key, "from environment").append(env_value)
+            # windows environ variables are not case sensitive, but instl vars are
+            if 'Win' in self.ResolveVarToList("__CURRENT_OS_NAMES__"):
+                lower_case_environ = dict(zip(map(lambda z:z.lower(), os.environ.keys()), os.environ.values()))
+                for env_key_to_read in vars_to_read_from_environ:
+                    if env_key_to_read.lower() in lower_case_environ:
+                        self.set_var(env_key_to_read, "from environment").append(lower_case_environ[env_key_to_read.lower()])
+            else:
+                for env_key_to_read in vars_to_read_from_environ:
+                    if env_key_to_read in os.environ:
+                        self.set_var(env_key_to_read, "from environment").append(os.environ[env_key_to_read])
 
     def repr_for_yaml(self, which_vars=None, include_comments=True, ignore_unknown_vars=False):
         retVal = dict()
@@ -229,8 +236,11 @@ class ConfigVarList(object):
 
     def ResolveVarToStr(self, in_var, list_sep="", default=None):
         value_list = self.ResolveVarToList(in_var, default=[default])
-        retVal = list_sep.join(value_list)
-        return retVal
+        if all(x is None for x in value_list):
+            return default
+        else:
+            retVal = list_sep.join(value_list)
+            return retVal
 
     def ResolveVarToList(self, in_var, default=None):
         retVal = list()

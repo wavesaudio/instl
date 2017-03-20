@@ -5,6 +5,8 @@ import os
 import sys
 import datetime
 import subprocess
+import re
+import pathlib
 
 import utils
 from .platformSpecificHelper_Base import PlatformSpecificHelperBase
@@ -14,7 +16,7 @@ from configVar import var_stack
 
 
 def dos_escape(some_string):
-    escaped_string = some_string.replace("&", "^&")
+    escaped_string = some_string.replace("&", "^&").replace("|", "^|")
     return escaped_string
 
 
@@ -244,7 +246,9 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
                 win_paths = utils.unique_list()
                 # try to find the tool in the PATH variable
                 if "PATH" in os.environ:
-                    win_paths.extend(utils.unicodify(os.environ["PATH"]).split(";"))
+                    # remove newline characters that might lurk in the path (see tech support case 143589)
+                    adjusted_path = re.sub('[\r\n]',"?",utils.unicodify(os.environ["PATH"]))
+                    win_paths.extend(adjusted_path.split(";"))
                 else:
                     print("PATH was not found in environment variables")
                 # also add some known location in case user's PATH variable was altered
@@ -381,7 +385,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def get_svn_folder_cleanup_instructions(self):
         return ()
 
-    def var_assign(self, identifier, value, comment=None):
+    def var_assign(self, identifier, value):
         var_assignment = "SET " + identifier + '=' + dos_escape(value)
         return var_assignment
 
@@ -428,8 +432,8 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def tar(self, to_tar_name):
         raise NotImplementedError
 
-    def unwtar_something(self, what_to_unwtar, no_artifacts=False):
-        unwtar_command = super().unwtar_something(what_to_unwtar, no_artifacts)
+    def unwtar_something(self, what_to_unwtar, no_artifacts=False, where_to_unwtar=None):
+        unwtar_command = super().unwtar_something(what_to_unwtar, no_artifacts, where_to_unwtar)
         check_error_level_command = self.exit_if_error(error_threshold=1)
         return unwtar_command, check_error_level_command
 
@@ -576,8 +580,9 @@ class DownloadTool_win_curl(DownloadToolBase):
             wfd_cycler = itertools.cycle(wfd_list)
             url_num = 0
             for url, path in self.urls_to_download:
+                win_path = str(pathlib.PurePath(path)).replace("\\", "\\\\")
                 wfd = next(wfd_cycler)
-                wfd.write('''url = "{url}"\noutput = "{path}"\n\n'''.format(**locals()))
+                wfd.write('''url = "{url}"\noutput = "{win_path}"\n\n'''.format(**locals()))
                 url_num += 1
 
             for wfd in wfd_list:

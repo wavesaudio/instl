@@ -9,6 +9,7 @@
 import os
 import sys
 import argparse
+import re
 
 import tempfile
 import appdirs
@@ -150,7 +151,7 @@ def prepare_args_parser(in_command):
         'test-import':          {'mode': 'ds', 'options': (), 'help':  'test the import of required modules'},
         'trans':                {'mode': 'an', 'options': ('in', 'out',), 'help':  'translate svn map files from one format to another'},
         'translate_url':        {'mode': 'ds', 'options': ('in',  'cred'), 'help':  'translate a url to be compatible with current connection'},
-        'unwtar':               {'mode': 'ds', 'options': ('in_opt', 'prog',), 'help':  'uncompress .wtar files in current folder'},
+        'unwtar':               {'mode': 'ds', 'options': ('in_opt', 'prog', 'out'), 'help':  'uncompress .wtar files in current (or in the --out) folder'},
         'up-repo-rev':          {'mode': 'an', 'options': ('out', 'run', 'conf',), 'help':  'upload repository revision file to admin folder'},
         'up2s3':                {'mode': 'an', 'options': ( 'out', 'run', 'conf',), 'help':  'upload installation sources to S3'},
         'verify-index':         {'mode': 'an', 'options': ('in', 'cred'), 'help':  'Verify that index and info map are compatible'},
@@ -221,7 +222,7 @@ def prepare_args_parser(in_command):
                                     nargs=1,
                                     metavar='path-to-output-file',
                                     dest='output_file',
-                                    help="out put file")
+                                    help="output file")
 
     if 'run' in command_details['options']:
         run_option = command_parser.add_argument_group(description='run arguments:')
@@ -470,9 +471,13 @@ def main():
                     "__USER_HOME_DIR__": os.path.normpath(os.path.expanduser("~")),
                     "__USER_DESKTOP_DIR__": os.path.normpath("$(__USER_HOME_DIR__)/Desktop"),
                     "__USER_TEMP_DIR__": os.path.normpath(os.path.join(tempfile.gettempdir(), "$(SYNC_BASE_URL_MAIN_ITEM)/$(REPO_NAME)")),
-                    "__USER_PATH__": os.environ.get("PATH", "PATH environment variable undefined"),
                     "__PATH_SEP__": os.path.sep
                     }
+
+    # remove newline characters that might lurk in the path (see tech support case 143589)
+    adjusted_path = re.sub('[\r\n]',"?",utils.unicodify(os.environ.get("PATH", "PATH environment variable undefined")))
+    initial_vars["__USER_PATH__"] = adjusted_path
+
     if os_family_name != "Win":
         initial_vars.update(
                     {"__USER_ID__": str(os.getuid()),

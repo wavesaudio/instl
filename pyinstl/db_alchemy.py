@@ -9,6 +9,7 @@ session.commit() explicitly done when querying
 
 import os
 import sys
+import datetime
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -24,17 +25,25 @@ __db_session_maker = None
 __db_session = None
 __db_declarative_base = None
 
+force_disk_db = False
+unique_name_to_disk_db = False
+
 
 def get_engine():
     global __db_engine
     if __db_engine is None:
         engine_path = "sqlite:///"
-        if getattr(sys, 'frozen', False):
+        if getattr(sys, 'frozen', False) and not force_disk_db:
             engine_path += ":memory:"
         else:
             logs_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Logs")
             os.makedirs(logs_dir, exist_ok=True)
-            db_file = os.path.join(logs_dir, "instl.sqlite")
+            datetime.datetime.now().timestamp()
+            db_file_name = "instl.sqlite"
+            if unique_name_to_disk_db:
+                db_file_name = str(datetime.datetime.now().timestamp())+"."+db_file_name
+            db_file = os.path.join(logs_dir, db_file_name)
+            # print("db_file:", db_file)
             utils.safe_remove_file(db_file)
             engine_path += db_file
         __db_engine = create_engine(engine_path, echo=False)
@@ -73,7 +82,8 @@ class IndexItemRow(get_declarative_base()):
     inherit_resolved = Column(BOOLEAN, default=False)
     from_index = Column(BOOLEAN, default=False)
     from_require = Column(BOOLEAN, default=False)
-    status = Column(Integer, default=0)
+    install_status = Column(Integer, default=0)
+    ignore = Column(Integer, default=0)
 
     def __str__(self):
         resolved_str = "resolved" if self.inherit_resolved else "unresolved"
@@ -98,8 +108,8 @@ class IndexItemDetailRow(get_declarative_base()):
     detail_value = Column(String)
     generation   = Column(Integer, default=0)
     tag          = Column(String)
-    active       = Column(Integer, default=0)
-
+    active       = Column(Integer, default=0, index=True)
+    UniqueConstraint(original_iid, owner_iid, os_id, detail_name, detail_value, generation)
     #os = relationship("IndexItemDetailOperatingSystem")
     #item = relationship("IndexItemRow", back_populates="original_details")
 
@@ -155,6 +165,13 @@ class IndexRequireTranslate(get_declarative_base()):
         return retVal
 
 
+class ConfigVar(get_declarative_base()):
+    __tablename__ = "ConfigVar"
+    _id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String, unique=True)
+    raw_value = Column(String)
+    resolved_value = Column(String)
+
 #IndexItemDetailRow.resolved_details = relationship(IndexItemToDetailRelation, back_populates="detail")
 #IndexItemRow.original_details = relationship("IndexItemDetailRow", back_populates="item")
 #IndexItemRow.all_details = relationship("IndexItemToDetailRelation", back_populates="item")
@@ -165,3 +182,4 @@ IndexItemDetailRow.__table__.create(bind=get_engine(), checkfirst=True)
 IndexGuidToItemTranslate.__table__.create(bind=get_engine(), checkfirst=True)
 IndexRequireTranslate.__table__.create(bind=get_engine(), checkfirst=True)
 FoundOnDiskItemRow.__table__.create(bind=get_engine(), checkfirst=True)
+ConfigVar.__table__.create(bind=get_engine(), checkfirst=True)

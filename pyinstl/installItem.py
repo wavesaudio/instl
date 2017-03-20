@@ -105,14 +105,14 @@ class InstallItem(object):
                  '__install_for_os_stack', '__items', '__resolved_inherit',
                  '__var_list', '__user_data', '__last_require_repo_rev')
     os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
-    allowed_item_keys = ('name', 'guid','install_sources', 'install_folders', 'inherit', 'depends', 'actions', 'remark', 'version')
+    allowed_item_keys = ('name', 'guid','install_sources', 'install_folders', 'inherit', 'depends', 'actions', 'remark', 'version', 'phantom_version', 'direct_sync')
     allowed_top_level_keys = os_names[1:] + allowed_item_keys
     action_types = ('pre_copy', 'pre_copy_to_folder', 'pre_copy_item',
                     'post_copy_item', 'post_copy_to_folder', 'post_copy',
                     'pre_remove', 'pre_remove_from_folder', 'pre_remove_item',
                     'remove_item', 'post_remove_item', 'post_remove_from_folder',
                     'post_remove', 'pre_doit', 'doit', 'post_doit')
-    file_types = ('!dir_cont', '!files', '!file', '!dir')
+    file_types = ('!dir_cont', '!file', '!dir')
     resolve_inheritance_stack = list()
     _get_for_os = [
         os_names[0]]  # _get_for_os is a class member since we usually want to get for same oses for all InstallItems

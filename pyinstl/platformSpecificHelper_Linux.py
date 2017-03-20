@@ -74,10 +74,8 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
     def get_svn_folder_cleanup_instructions(self):
         return 'find . -maxdepth 1 -mindepth 1 -type d -print0 | xargs -0 "$(SVN_CLIENT_PATH)" cleanup --non-interactive'
 
-    def var_assign(self, identifier, value, comment=None):
+    def var_assign(self, identifier, value):
         retVal = identifier + '="' + value + '"'
-        if comment is not None:
-            retVal += ' ' + self.remark(str(comment))
         return retVal
 
     def echo(self, message):

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-
+import re
 import os
 import stat
 import sys
@@ -13,6 +13,7 @@ from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
 from . import connectionBase
 from utils.multi_file import MultiFileReader
+from svnTree import SVNTable
 
 
 # noinspection PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences
@@ -26,6 +27,7 @@ class InstlMisc(InstlInstanceBase):
         self.progress_staccato_command = False
         self.progress_staccato_period = 1
         self.progress_staccato_count = 0
+        self.commands_that_need_info_map_table = ("check_checksum", "set_exec", "create_folders")
 
     def do_command(self):
         self.curr_progress = int(var_stack.ResolveVarToStr("__START_DYNAMIC_PROGRESS__"))
@@ -34,6 +36,8 @@ class InstlMisc(InstlInstanceBase):
         self.progress_staccato_count = 0
         do_command_func = getattr(self, "do_" + self.fixed_command)
         before_time = time.clock()
+        if self.fixed_command in self.commands_that_need_info_map_table:
+            self.info_map_table = SVNTable()
         do_command_func()
         after_time = time.clock()
         if utils.str_to_bool_int(var_stack.unresolved_var("PRINT_COMMAND_TIME")):
@@ -70,18 +74,19 @@ class InstlMisc(InstlInstanceBase):
 
     def do_unwtar(self):
         self.no_artifacts = "__NO_WTAR_ARTIFACTS__" in var_stack
-
-        what_to_work_on = "."
-        if "__MAIN_INPUT_FILE__" in var_stack:
-            what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__", default='.')
+        where_to_unwtar = None
+        if "__MAIN_OUT_FILE__" in var_stack:
+            where_to_unwtar = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
 
         if os.path.isfile(what_to_work_on):
-            if what_to_work_on.endswith(".wtar.aa"):
+            if what_to_work_on.endswith(".wtar.aa"): # this case apparently is no longer relevant
                 what_to_work_on = self.find_split_files(what_to_work_on)
-                self.unwtar_a_file(what_to_work_on)
+                self.unwtar_a_file(what_to_work_on, where_to_unwtar)
             elif what_to_work_on.endswith(".wtar"):
-                self.unwtar_a_file([what_to_work_on])
+                self.unwtar_a_file([what_to_work_on], where_to_unwtar)
         elif os.path.isdir(what_to_work_on):
+            where_to_unwtar_the_file = None
             for root, dirs, files in os.walk(what_to_work_on, followlinks=False):
                 # a hack to prevent unwtarring of the sync folder. Copy command might copy something
                 # to the top level of the sync folder.
@@ -89,27 +94,27 @@ class InstlMisc(InstlInstanceBase):
                     dirs[:] = []
                     continue
 
-                files_to_unwtar = []
-
+                tail_folder = root[len(what_to_work_on):].strip("\\/")
+                if where_to_unwtar is not None:
+                    where_to_unwtar_the_file = os.path.join(where_to_unwtar, tail_folder)
                 for a_file in files:
                     a_file_path = os.path.join(root, a_file)
                     if a_file_path.endswith(".wtar.aa"):
                         split_files = self.find_split_files(a_file_path)
-                        files_to_unwtar.append(split_files)
+                        self.unwtar_a_file(split_files, where_to_unwtar_the_file)
                     elif a_file_path.endswith(".wtar"):
-                        files_to_unwtar.append([a_file_path])
+                        self.unwtar_a_file([a_file_path], where_to_unwtar_the_file)
 
-                for wtar_file_paths in files_to_unwtar:
-                    self.unwtar_a_file(wtar_file_paths)
         else:
             raise FileNotFoundError(what_to_work_on)
 
-    def unwtar_a_file(self, wtar_file_paths):
+    def unwtar_a_file(self, wtar_file_paths, destination_folder=None):
         try:
-            wtar_folder_path, _ = os.path.split(wtar_file_paths[0])
+            if destination_folder is None:
+                destination_folder, _ = os.path.split(wtar_file_paths[0])
             with MultiFileReader("br", wtar_file_paths) as fd:
                 with tarfile.open(fileobj=fd) as tar:
-                    tar.extractall(wtar_folder_path)
+                    tar.extractall(destination_folder)
 
             if self.no_artifacts:
                 for wtar_file in wtar_file_paths:
@@ -117,7 +122,7 @@ class InstlMisc(InstlInstanceBase):
             # self.dynamic_progress("Expanding {wtar_file_paths}".format(**locals()))
 
         except OSError as e:
-            print("Invalid stream on split file with {}".format(wtar_folder_path))
+            print("Invalid stream on split file with {}".format(wtar_file_paths[0]))
             raise e
 
         except tarfile.TarError:
@@ -146,13 +151,13 @@ class InstlMisc(InstlInstanceBase):
         bad_checksum_list = list()
         self.read_info_map_from_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
         for file_item in self.info_map_table.get_items(what="file"):
-            if os.path.isfile(file_item.path):
-                file_checksum = utils.get_file_checksum(file_item.path)
+            if os.path.isfile(file_item.download_path):
+                file_checksum = utils.get_file_checksum(file_item.download_path)
                 if not utils.compare_checksums(file_checksum, file_item.checksum):
-                    sigs = utils.create_file_signatures(file_item.path)
-                    bad_checksum_list.append( " ".join(("Bad checksum:", file_item.path, "expected", file_item.checksum, "found", sigs["sha1_checksum"])) )
+                    sigs = utils.create_file_signatures(file_item.download_path)
+                    bad_checksum_list.append( " ".join(("Bad checksum:", file_item.download_path, "expected", file_item.checksum, "found", sigs["sha1_checksum"])) )
             else:
-                bad_checksum_list.append(" ".join((file_item.path, "does not exist")))
+                bad_checksum_list.append(" ".join((file_item.download_path, "does not exist")))
             self.dynamic_progress("Check checksum {file_item.path}".format(**locals()))
         if bad_checksum_list:
             print("\n".join(bad_checksum_list))
