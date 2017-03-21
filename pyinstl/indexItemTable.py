@@ -1338,12 +1338,12 @@ class IndexItemsTable(object):
     def add_require_guid_from_binaries(self):
         query_text = """
         INSERT OR REPLACE INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
-        SELECT  FoundOnDiskItemRow.iid, -- original_iid
-                FoundOnDiskItemRow.iid, -- owner_iid
-                0,                      -- os_id
-                'require_guid',      -- detail_name
-                FoundOnDiskItemRow.version, -- detail_value
-                0                       -- generation
+        SELECT  FoundOnDiskItemRow.iid,  -- original_iid
+                FoundOnDiskItemRow.iid,  -- owner_iid
+                0,                       -- os_id
+                'require_guid',          -- detail_name
+                FoundOnDiskItemRow.guid, -- detail_value
+                0                        -- generation
         FROM require_items_without_require_guid_view
         JOIN FoundOnDiskItemRow
             ON FoundOnDiskItemRow.iid=require_items_without_require_guid_view.iid
