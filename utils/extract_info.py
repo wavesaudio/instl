@@ -35,8 +35,13 @@ def get_wfi_version(in_path):
     version = None
     with codecs.open(in_path, 'r', encoding='utf-8', errors='ignore') as f:
         raw = f.readlines()
+    version_str = 'comment version'
+    if 'SGS' in in_path:
+        version_str = 'version value'
     for line in raw:
-        if 'version value' in line:
+        #if 'version value' in line:
+        #if 'comment version' in line:
+        if version_str in line:
             version = line.split('"')[1]
             break
     if version:
