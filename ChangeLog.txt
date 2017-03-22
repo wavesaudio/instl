@@ -1,3 +1,11 @@
+22/3/2017 1.4.0.3
+
+    user visible changes client:
+    * report-versions command: added option ('--only-installed') to show only installed products
+
+    programmer visible changes:
+    * read_item_details_from_node: changed to handle cases of illegal yaml with maps the have keys with same name
+
 21/3/2017 1.4.0.2
 
     user visible changes client:

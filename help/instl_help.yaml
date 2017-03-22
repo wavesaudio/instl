@@ -159,6 +159,15 @@ command:
             instl's remove command will create a batch file containing instructions to remove files from their designated locations on disk. Said files were previously copied using the copy command. Definition of what items to remove from which destination is taken from the instl-config-yaml-file. Default remove action for installed item is to erase the files from disk, but other instructions can be given in the instl-config-yaml-file. All items and their dependecies are removed without considering if other items might depend on the removed items.
             Keep in mind that remove command does not actually copy anything, unless the --run flag is given. You will need to run the produced batch file in order to actually remove the files.
 
+    report-versions:
+        short: Report all IIDs with their guids, installed version and latest version form index. (client command)
+        long: |
+            Usage: instl report-versions --in instl-config-yaml-file [--out output-file] [--only-installed] [--output-format text|json]
+            instl's report-versions will read index.yaml and local require.yaml (if any) and will list for each IID (IID, guis, name, installed-version, index-version). Input file must contain __include__ statemets for the index.yaml and require.yaml.
+            Output is written to stdout unless --out is given.
+            Output is in plain text unless --output-format option is given with either text or json.
+            If --only-installed option is given only IIDs already installed will be listed.
+
     resolve:
         short: Read text from stdin, resolve $() style variables and print result to stdout (misc command)
         long: |
