@@ -102,6 +102,7 @@ class CommandLineOptions(object):
         self.fail_exit_code = None
         self.set_run_as_admin = None
         self.output_format = None
+        self.only_installed = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).items())])
@@ -139,9 +140,7 @@ def prepare_args_parser(in_command):
         'read-yaml':            {'mode': 'an', 'options': ('in', ), 'help':  "reads a yaml file to verify it's contents"},
         'remove-empty-folders': {'mode': 'ds', 'options': ('in', ), 'help':  'remove folders is they are empty'},
         'remove':               {'mode': 'ct', 'options': ('in', 'out', 'run',), 'help':  'remove items installed by copy'},
-        'report-installed-versions':     {'mode': 'ct', 'options': ('in', 'output_format'), 'help': 'report what is installed'},
-        'report-versions':        {'mode': 'ct', 'options': ('in', 'out', 'output_format'), 'help': 'report what is installed and what needs update'},
-        'report-gal':        {'mode': 'ct', 'options': ('in', 'out', 'output_format'), 'help': 'report what is actually installed'},
+        'report-versions':        {'mode': 'ct', 'options': ('in', 'out', 'output_format', 'only_installed'), 'help': 'report what is installed and what needs update'},
         'resolve':              {'mode': 'ds', 'options': ('in','out', 'conf'), 'help':  'read --in file resolve $() style variables and write result to --out, definitions are given in --config-file'},
         'set-exec':             {'mode': 'ds', 'options': ('in', 'prog',), 'help':  'set executable bit for appropriate files'},
         'stage2svn':            {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'add/remove files in staging to svn sync repository'},
@@ -418,6 +417,14 @@ def prepare_args_parser(in_command):
                                 metavar='exit-code-to-return',
                                 dest='fail_exit_code',
                                 help="exit code to return")
+    elif 'report-versions' == in_command:
+        report_versions_options = command_parser.add_argument_group(description=in_command+' arguments:')
+        report_versions_options.add_argument('--only-installed',
+                                required=False,
+                                default=False,
+                                action='store_true',
+                                dest='only_installed',
+                                help="report only installed products")
 
     elif 'help' == in_command:
         help_options = command_parser.add_argument_group(description='help subject:')
