@@ -1,3 +1,13 @@
+23/3/2017 1.4.1.0
+
+    user visible changes client:
+    * New index property: previous_sources where you can specified the previous names of the install_sources. These names will be used for 1) identifying  old versions that need update 2) files/folders that will be removed when the main IID is installed
+
+    programmer visible changes:
+    * create_remove_previous_sources_instructions_for_target_folder takes care of removing previous_sources
+    * InstlClient.no_copy_items_by_sync_folder renamed no_copy_iids_by_sync_folder, values are now pre-sorted
+    * InstlClient.all_items_by_target_folder renamed all_iids_by_target_folder, values are now pre-sorted
+
 21/3/2017 1.4.0.2
 
     user visible changes client:

@@ -105,7 +105,9 @@ class InstallItem(object):
                  '__install_for_os_stack', '__items', '__resolved_inherit',
                  '__var_list', '__user_data', '__last_require_repo_rev')
     os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
-    allowed_item_keys = ('name', 'guid','install_sources', 'install_folders', 'inherit', 'depends', 'actions', 'remark', 'version', 'phantom_version', 'direct_sync')
+    allowed_item_keys = ('name', 'guid','install_sources', 'install_folders', 'inherit',
+                         'depends', 'actions', 'remark', 'version', 'phantom_version',
+                         'direct_sync', 'previous_sources')
     allowed_top_level_keys = os_names[1:] + allowed_item_keys
     action_types = ('pre_copy', 'pre_copy_to_folder', 'pre_copy_item',
                     'post_copy_item', 'post_copy_to_folder', 'post_copy',
@@ -202,7 +204,7 @@ class InstallItem(object):
     def read_from_yaml(self, my_node):
         element_names = set([a_key for a_key in my_node])
         if not element_names.issubset(self.allowed_top_level_keys):
-            print("Warning: illegal keys {}; IID: {}, {}".format(list(element_names.difference(self.allowed_top_level_keys)), self.__iid, self.__description))
+            print("Warning: unknown keys {}; IID: {}, {}".format(list(element_names.difference(self.allowed_top_level_keys)), self.__iid, self.__description))
 
         if 'inherit' in my_node:
             self.__inherit_from.extend(inheritoree.value for inheritoree in my_node['inherit'])

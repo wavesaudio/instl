@@ -80,7 +80,9 @@ class IndexItemsTable(object):
                     SELECT name_item_t.owner_iid
                     FROM IndexItemDetailRow AS guid_item_t
                       JOIN IndexItemDetailRow AS name_item_t
-                        ON name_item_t.detail_name='install_sources'
+                        ON (name_item_t.detail_name = 'install_sources'
+                          OR
+                          name_item_t.detail_name = 'previous_sources')
                         AND name_item_t.detail_value LIKE '%' || NEW.name
                         AND name_item_t.owner_iid=guid_item_t.owner_iid
                     WHERE guid_item_t.detail_name='guid'
@@ -101,7 +103,7 @@ class IndexItemsTable(object):
                 SET iid  = (
                     SELECT IndexItemDetailRow.owner_iid
                     FROM IndexItemDetailRow
-                    WHERE detail_name='install_sources'
+                    WHERE (detail_name='install_sources' OR detail_name='previous_sources')
                     AND detail_value LIKE '%' || NEW.name)
                WHERE FoundOnDiskItemRow._id=NEW._id;
             END;
@@ -335,8 +337,8 @@ class IndexItemsTable(object):
                   coalesce(remote.owner_iid, "_") AS owner_iid,
                   coalesce(item_guid.detail_value, "_") AS guid,
                   coalesce(item_name.detail_value, "_") AS name,
-                  coalesce(require_version.detail_value, "_") AS 'require ver',
-                  coalesce(remote.detail_value, "_") AS 'remote ver',
+                  coalesce(require_version.detail_value, "_") AS 'require_version',
+                  coalesce(remote.detail_value, "_") AS 'remote_version',
                   min(remote.generation)
             FROM IndexItemDetailRow AS remote
 
@@ -579,8 +581,11 @@ class IndexItemsTable(object):
                       AND remote_version.owner_iid=require_version.owner_iid
                       AND require_version.detail_value!=remote_version.detail_value
                       AND require_version.active = 1
+                GROUP BY require_version.owner_iid
             """
-
+            # "GROUP BY" will make sure only one row is returned for an iid.
+            # multiple rows can be found if and IID has 2 previous_sources both were found
+            # on disk and their version identified.
         try:
             exec_result = self.session.execute(query_text)
             if exec_result.returns_rows:
@@ -816,7 +821,7 @@ class IndexItemsTable(object):
                 for details_line in the_node[detail_name]:
                     tag = details_line.tag if details_line.tag[0]=='!' else None
                     value = details_line.value
-                    if detail_name == "install_sources" and tag is None:
+                    if detail_name in ("install_sources", "previous_sources") and tag is None:
                         tag = '!dir'
                     elif detail_name == "guid":
                         value = value.lower()
