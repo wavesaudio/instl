@@ -921,6 +921,14 @@ def str_to_bool_int(the_str):
         raise ValueError("Cannot translate", the_str, "to bool-int")
     return retVal
 
+def str_to_bool(the_str, default=False):
+    retVal = default
+    if the_str.lower() in ("yes", "true", "y", 't'):
+        retVal = True
+    elif the_str.lower() in ("no", "false", "n", "f"):
+        retVal = False
+    return retVal
+
 
 def is_iterable_but_not_str(obj_to_check):
     retVal = hasattr(obj_to_check, '__iter__') and not isinstance(obj_to_check, str)

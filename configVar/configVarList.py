@@ -305,3 +305,12 @@ class ConfigVarList(object):
     def freeze_vars_on_first_resolve(self):
         for var_obj in self._ConfigVar_objs.values():
             var_obj.freeze_values_on_first_resolve = True
+
+    def ResolveVarToBool(self, in_var, default=False):
+        retVal = default
+        try:
+            resolved_var = self.ResolveVarToStr(in_var)
+            retVal = utils.str_to_bool(resolved_var, default)
+        except:
+            pass
+        return retVal

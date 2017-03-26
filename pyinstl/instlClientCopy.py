@@ -105,8 +105,10 @@ class InstlClientCopy(InstlClient):
         if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
             self.pre_copy_mac_handling()
 
+        remove_previous_sources = var_stack.ResolveVarToBool("REMOVE_PREVIOUS_SOURCES", default=True)
         for target_folder_path in sorted_target_folder_list:
-            self.create_remove_previous_sources_instructions_for_target_folder(target_folder_path)
+            if remove_previous_sources:
+                self.create_remove_previous_sources_instructions_for_target_folder(target_folder_path)
             self.create_copy_instructions_for_target_folder(target_folder_path)
 
         # actions instructions for sources that do not need copying, here folder_name is the sync folder
