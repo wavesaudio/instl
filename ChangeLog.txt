@@ -1,4 +1,4 @@
-???? 1.4.2.0
+26/3/2017 1.4.2.0
     user visible changes client:
     * Merge branch 'wfi_lev': better checking of 2 types of wfi files
     * platform_helper.rmdir, platform_helper.rmfile got new parameter check_exist that will preform the deletion
