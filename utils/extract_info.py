@@ -30,7 +30,6 @@ def get_guid(in_path):
 
 
 def get_wfi_version(in_path):
-    #print ('DEGUB: checking version for: %s' % os.path.basename(in_path))
     retVal = None
     version = None
     with codecs.open(in_path, 'r', encoding='utf-8', errors='ignore') as f:
@@ -39,8 +38,6 @@ def get_wfi_version(in_path):
     if 'SGS' in in_path:
         version_str = 'version value'
     for line in raw:
-        #if 'version value' in line:
-        #if 'comment version' in line:
         if version_str in line:
             version = line.split('"')[1]
             break

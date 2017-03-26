@@ -445,10 +445,10 @@ class InstlClientCopy(InstlClient):
         to_remove_path = os.path.normpath(os.path.join(folder, source_path))
 
         if source_type == '!dir':  # remove whole folder
-            remove_action = self.platform_helper.rmdir(to_remove_path, recursive=True)
+            remove_action = self.platform_helper.rmdir(to_remove_path, recursive=True, check_exist=True)
             self.batch_accum += remove_action
         elif source_type == '!file':  # remove single file
-            remove_action = self.platform_helper.rmfile(to_remove_path)
+            remove_action = self.platform_helper.rmfile(to_remove_path, check_exist=True)
             self.batch_accum += remove_action
         elif source_type == '!dir_cont':
             raise Exception("previous_sources cannot have tag !dir_cont")
