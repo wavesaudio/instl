@@ -16,6 +16,15 @@ from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
 
 
+tab_names = {
+    'ADMIN':   'Admin',
+    'CLIENT':  'Client'
+}
+
+if getattr(os, "setsid", None):
+    default_font_size = 17 # for Mac
+else:
+    default_font_size = 12 # for Windows
 
 admin_command_template_variables = {
     'svn2stage': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
@@ -171,8 +180,19 @@ class InstlGui(InstlInstanceBase):
                 limit_path = self.admin_limit_var.get()
                 if limit_path != "":
                     retVal.append("--limit")
-                    limit_paths = shlex.split(limit_path)  # there might be space separated paths
-                    retVal.extend(limit_paths)
+
+                    # there might be space separated paths, but -
+
+                    # ideally, the following line should be enough but by default quotes are not supported properly...
+                    #limit_paths = shlex.split(limit_path)
+
+                    # ... so we have to do it the long way
+                    limit_paths = shlex.shlex(limit_path)
+                    limit_paths.quotes = '"'
+                    limit_paths.whitespace_split = True
+                    limit_paths.commenters = '' # support the '#' char by setting commenters to ''
+                    limit_paths.wordchars += '"'
+                    retVal.extend(list(limit_paths))
 
             if self.run_admin_batch_file_var.get() == 1 and command_name in self.commands_with_run_option_list:
                 retVal.append("--run")
@@ -190,6 +210,7 @@ class InstlGui(InstlInstanceBase):
             items_in_dir = os.listdir(new_input_file_dir)
             dir_items = [os.path.join(new_input_file_dir, item) for item in items_in_dir if os.path.isfile(os.path.join(new_input_file_dir, item))]
             self.client_input_combobox.configure(values=dir_items)
+
         var_stack.set_var("CLIENT_GUI_IN_FILE").append(self.client_input_path_var.get())
 
     def update_client_state(self, *args):
@@ -210,8 +231,10 @@ class InstlGui(InstlInstanceBase):
             self.client_run_batch_file_checkbox.configure(state='disabled')
 
         command_line = " ".join(self.create_client_command_line())
+        self.T_client.configure(state='normal')
         self.T_client.delete(1.0, END)
         self.T_client.insert(END, var_stack.ResolveStrToStr(command_line))
+        self.T_client.configure(state='disabled')
 
     def read_admin_config_file(self):
         config_path = var_stack.ResolveVarToStr("ADMIN_GUI_CONFIG_FILE", default="")
@@ -226,8 +249,8 @@ class InstlGui(InstlInstanceBase):
     def update_admin_state(self, *args):
         var_stack.set_var("ADMIN_GUI_CMD").append(self.admin_command_name_var.get())
         current_config_path = var_stack.ResolveVarToStr("ADMIN_GUI_CONFIG_FILE", default="")
-
         new_config_path = self.admin_config_path_var.get()
+
         if current_config_path != new_config_path:
             self.admin_config_file_dirty = True
         var_stack.set_var("ADMIN_GUI_CONFIG_FILE").append(new_config_path)
@@ -260,8 +283,10 @@ class InstlGui(InstlInstanceBase):
 
         command_line = " ".join(self.create_admin_command_line())
 
+        self.T_admin.configure(state='normal')
         self.T_admin.delete(1.0, END)
         self.T_admin.insert(END, var_stack.ResolveStrToStr(command_line))
+        self.T_admin.configure(state='disabled')
 
     def run_client(self):
         self.update_client_state()
@@ -381,10 +406,26 @@ class InstlGui(InstlInstanceBase):
         # the combined command line text
         curr_row += 1
         Button(admin_frame, width=6, text="run:", command=self.run_admin).grid(row=curr_row, column=0, sticky=N)
-        self.T_admin = Text(admin_frame, height=7)
+        self.T_admin = Text(admin_frame, height=7, font=("Courier", default_font_size))
         self.T_admin.grid(row=curr_row, column=1, columnspan=2, sticky=W)
+        self.T_admin.configure(state='disabled')
+
+        curr_row += 1
+        Button(admin_frame, width=9, text="clipboard", command=self.copy_to_clipboard).grid(row=curr_row, column=1, sticky=W)
 
         return admin_frame
+
+    def copy_to_clipboard(self):
+        value = ""
+        if self.tab_name == tab_names['ADMIN']:
+            value = self.T_admin.get("1.0",END)
+        elif self.tab_name == tab_names['CLIENT']:
+            value = self.T_client.get("1.0",END)
+
+        if value not in ["", "\n"]:
+            self.master.clipboard_clear()
+            self.master.clipboard_append(value)
+            print("data was copied to clipboard!")
 
     def create_client_frame(self, master):
 
@@ -443,8 +484,12 @@ class InstlGui(InstlInstanceBase):
         # the combined command line text
         curr_row += 1
         Button(client_frame, width=6, text="run:", command=self.run_client).grid(row=curr_row, column=0, sticky=N)
-        self.T_client = Text(client_frame, height=7)
+        self.T_client = Text(client_frame, height=7, font=("Courier", default_font_size))
         self.T_client.grid(row=curr_row, column=1, columnspan=2, sticky=W)
+        self.T_client.configure(state='disabled')
+
+        curr_row += 1
+        Button(client_frame, width=9, text="clipboard", command=self.copy_to_clipboard).grid(row=curr_row, column=1, sticky=W)
 
         client_frame.grid_columnconfigure(0, minsize=80)
         client_frame.grid_columnconfigure(1, minsize=300)
@@ -454,13 +499,13 @@ class InstlGui(InstlInstanceBase):
 
     def tabChangedEvent(self, *args):
         tab_id = self.notebook.select()
-        tab_name = self.notebook.tab(tab_id, option='text')
-        if tab_name == "Admin":
+        self.tab_name = self.notebook.tab(tab_id, option='text')
+        if self.tab_name == tab_names['ADMIN']:
             self.update_admin_state()
-        elif tab_name == "Client":
+        elif self.tab_name == tab_names['CLIENT']:
             self.update_client_state()
         else:
-            print("Unknown tab", tab_name)
+            print("Unknown tab", self.tab_name)
 
     def create_gui(self):
 

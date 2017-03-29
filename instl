@@ -103,6 +103,7 @@ class CommandLineOptions(object):
         self.set_run_as_admin = None
         self.output_format = None
         self.only_installed = None
+        self.ls_format = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).items())])
@@ -409,6 +410,13 @@ def prepare_args_parser(in_command):
                                 dest='all_revisions',
                                 help="work on all revisions even if above repo-rev")
 
+    elif 'ls' == in_command:
+        ls_options = command_parser.add_argument_group(description='output_format arguments:')
+        ls_options.add_argument('--output-format',
+                                    required=False,
+                                    nargs=1,
+                                    dest='ls_format',
+                                    help="specify output format")
     elif 'fail' == in_command:
         mac_dock_options = command_parser.add_argument_group(description=in_command+' arguments:')
         mac_dock_options.add_argument('--exit-code',
