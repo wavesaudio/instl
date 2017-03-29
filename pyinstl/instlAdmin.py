@@ -773,7 +773,7 @@ class InstlAdmin(InstlInstanceBase):
                                 manifest_file_name = var_stack.ResolveVarToStr("TAR_MANIFEST_FILE_NAME")
 
                                 # CP stands for Checksum, Path
-                                self.batch_accum += self.platform_helper.ls(folder=item_to_tar, collect='CP', output_file=manifest_file_name)
+                                self.batch_accum += self.platform_helper.ls(folder=item_to_tar, format='CP', output_file=manifest_file_name)
                                 manifest_file_is_created = True
 
                                 # now, if item_to_tar is inside a .bundle,

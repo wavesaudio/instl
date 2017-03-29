@@ -228,7 +228,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         check_command = " ".join(check_command_parts)
         return check_command
 
-    def ls(self, collect='*', folder='.', output_file='None'):
+    def ls(self, format='*', folder='.', output_file='None'):
         if output_file is None:
             return # no output_file, no game
 
@@ -240,7 +240,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
                             "--in",
                             utils.quoteme_double(folder),
                             "--output-format",
-                            utils.quoteme_double(collect),
+                            utils.quoteme_double(format),
                             "--out",
                             utils.quoteme_double(os.path.join(folder, output_file)))
         return " ".join(ls_command_parts)

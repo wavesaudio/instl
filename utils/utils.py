@@ -761,56 +761,54 @@ def unix_permissions_to_str(the_mod):
     return retVal
 
 
-def unix_item_ls(the_path, collect):
+def unix_item_ls(the_path, ls_format):
     import grp
     import pwd
 
     the_parts = list()
     the_stats = os.lstat(the_path)
 
-    for collect_col in collect:
-        if collect_col == 'I':
+    for format_col in ls_format:
+        if format_col == 'I':
             the_parts.append(the_stats[stat.ST_INO])  # inode number
-        elif collect_col == 'R':
+        elif format_col == 'R':
             the_parts.append(unix_permissions_to_str(the_stats.st_mode)) # permissions
-        elif collect_col == 'L':
+        elif format_col == 'L':
             the_parts.append(the_stats[stat.ST_NLINK])  # num links
-        elif collect_col == 'U':
+        elif format_col == 'U':
             try:
                 the_parts.append(pwd.getpwuid(the_stats[stat.ST_UID])[0])  # user
             except KeyError:
                 the_parts.append(str(the_stats[stat.ST_UID])[0]) # unknown user name, get the number
             except Exception:
                 the_parts.append("no_uid")
-        elif collect_col == 'G':
+        elif format_col == 'G':
             try:
                 the_parts.append(grp.getgrgid(the_stats[stat.ST_GID])[0])  # group
             except KeyError:
                 the_parts.append(str(the_stats[stat.ST_GID])[0]) # unknown group name, get the number
             except Exception:
                 the_parts.append("no_gid")
-        elif collect_col == 'S':
+        elif format_col == 'S':
             the_parts.append(the_stats[stat.ST_SIZE])  # size in bytes
-        elif collect_col == 'T':
+        elif format_col == 'T':
             the_parts.append(time.strftime("%Y/%m/%d-%H:%M:%S", time.gmtime((the_stats[stat.ST_MTIME]))))  # modification time
-        elif collect_col == 'C':
+        elif format_col == 'C':
             if not (stat.S_ISLNK(the_stats.st_mode) or stat.S_ISDIR(the_stats.st_mode)):
                 the_parts.append(get_file_checksum(the_path))
             else:
                 the_parts.append("")
-        elif collect_col == 'P':
+        elif format_col == 'P':
             path_to_print = the_path
 
             # E will bring us Extra data (path postfix) but we want to know if it's DIR in any case
             if stat.S_ISDIR(the_stats.st_mode):
                 path_to_print += '/'
 
-            if 'E' in collect:
+            if 'E' in ls_format:
                 if stat.S_ISLNK(the_stats.st_mode):
                     path_to_print += '@'
-                elif stat.S_ISDIR(the_stats.st_mode):
-                    path_to_print += '/'
-                elif the_stats.st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH):
+                elif not stat.S_ISDIR(the_stats.st_mode) and (the_stats.st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)):
                     path_to_print += '*'
                 elif stat.S_ISSOCK(the_stats.st_mode):
                     path_to_print += '='
@@ -822,28 +820,28 @@ def unix_item_ls(the_path, collect):
     return the_parts
 
 
-def unix_folder_ls(the_path, collect='*'):
-    # collect tells us what to collect. '*' is everything we know: Inode, peRmissions, num Links, User, Group, Size, Time, Checksum, Path, Extra info
-    if collect == '*':
-        collect = 'IRLUGSTCPE' # order does matters!
+def unix_folder_ls(the_path, ls_format='*'):
+    # ls_format tells us how to ls_format a listing line. '*' is everything we know: Inode, peRmissions, num Links, User, Group, Size, Time, Checksum, Path, Extra info
+    if ls_format == '*':
+        ls_format = 'IRLUGSTCPE' # order does matters!
 
     listing_lines = list()
     for root_path, dirs, files in os.walk(the_path, followlinks=False):
         dirs = sorted(dirs, key=lambda s: s.lower())
-        listing_lines.append(unix_item_ls(root_path, collect=collect))
+        listing_lines.append(unix_item_ls(root_path, ls_format=ls_format))
         files_to_list = sorted(files + [slink for slink in dirs if os.path.islink(os.path.join(root_path, slink))], key=lambda s: s.lower())
         for file_to_list in files_to_list:
             full_path = os.path.join(root_path, file_to_list)
-            listing_lines.append(unix_item_ls(full_path, collect=collect))
+            listing_lines.append(unix_item_ls(full_path, ls_format=ls_format))
 
             # W (list content of .Wtar files) is a special case and must be specifically requested
-            if 'W' in collect:
-                listing_lines.extend(produce_tar_list(tar_file=full_path, collect=collect))
+            if 'W' in ls_format:
+                listing_lines.extend(produce_tar_list(tar_file=full_path, ls_format=ls_format))
 
     return listing_lines
 
 
-def produce_tar_list(tar_file, collect):
+def produce_tar_list(tar_file, ls_format):
     tar_list = list()
     if tar_file.endswith(".wtar.aa") or tar_file.endswith(".wtar"):  # only wtar
         if os.path.isfile(tar_file):
@@ -862,22 +860,22 @@ def produce_tar_list(tar_file, collect):
                     with tarfile.open(fileobj=fd) as tar:
                         for member in tar:
                             the_parts = list()
-                            for collect_col in collect:
-                                if collect_col == 'W':
+                            for format_col in ls_format:
+                                if format_col == 'W':
                                     continue # since W was the trigger to all that
-                                elif collect_col == 'R':
+                                elif format_col == 'R':
                                     the_parts.append(member.mode)
-                                elif collect_col == 'U':
+                                elif format_col == 'U':
                                     the_parts.append("--".join([member.uid, member.uname]))
-                                elif collect_col == 'G':
+                                elif format_col == 'G':
                                     the_parts.append("--".join([member.gid, member.gname]))
-                                elif collect_col == 'S':
+                                elif format_col == 'S':
                                     the_parts.append(member.size)
-                                elif collect_col == 'T':
+                                elif format_col == 'T':
                                     the_parts.append(member.mtime)
-                                elif collect_col == 'P':
+                                elif format_col == 'P':
                                     the_parts.append(member.name)
-                                elif collect_col == 'D':
+                                elif format_col == 'D':
                                     the_parts.append("<DIR>" if member.isdir() else "")
                                 else:
                                     # coming here means that we got a char we can't do anything with.
@@ -898,60 +896,60 @@ def produce_tar_list(tar_file, collect):
 
 
 # noinspection PyUnresolvedReferences
-def win_item_ls(the_path, collect):
+def win_item_ls(the_path, ls_format):
     import win32security
     the_parts = list()
     the_stats = os.lstat(the_path)
 
-    for collect_col in collect:
-        if collect_col == 'T':
+    for format_col in ls_format:
+        if format_col == 'T':
             the_parts.append(time.strftime("%Y/%m/%d %H:%M:%S", time.gmtime((the_stats[stat.ST_MTIME]))))  # modification time
-        elif collect_col == 'D':
+        elif format_col == 'D':
             if stat.S_ISDIR(the_stats.st_mode):
                 the_parts.append("<DIR>")
             else:
                 the_parts.append("")
-        elif collect_col == 'S':
+        elif format_col == 'S':
             the_parts.append(the_stats[stat.ST_SIZE])  # size in bytes
-        elif collect_col == 'U':
+        elif format_col == 'U':
             sd = win32security.GetFileSecurity (the_path, win32security.OWNER_SECURITY_INFORMATION)
             owner_sid = sd.GetSecurityDescriptorOwner()
             name, domain, __type = win32security.LookupAccountSid (None, owner_sid)
             the_parts.append(domain+"\\"+name)  # user
-        elif collect_col == 'G':
+        elif format_col == 'G':
             sd = win32security.GetFileSecurity (the_path, win32security.GROUP_SECURITY_INFORMATION)
             owner_sid = sd.GetSecurityDescriptorGroup()
             name, domain, __type = win32security.LookupAccountSid (None, owner_sid)
             the_parts.append(domain+"\\"+name)  # group
-        elif collect_col == 'C':
+        elif format_col == 'C':
             if not (stat.S_ISLNK(the_stats.st_mode) or stat.S_ISDIR(the_stats.st_mode)):
                 the_parts.append(get_file_checksum(the_path))
             else:
                 the_parts.append("")
-        elif collect_col == 'P':
+        elif format_col == 'P':
             path_to_print = the_path
             the_parts.append(path_to_print)
 
     return the_parts
 
 
-def win_folder_ls(the_path, collect='*'):
-    # collect tells us what to collect. '*' is everything: Time, is_Dir, Size, User, Group, Checksum, Path
-    if collect == '*':
-        collect = 'TDSUGCP' # order does matters!
+def win_folder_ls(the_path, ls_format='*'):
+    # ls_format tells us how to ls_format a line of listing. '*' is everything: Time, is_Dir, Size, User, Group, Checksum, Path
+    if ls_format == '*':
+        ls_format = 'TDSUGCP' # order does matters!
 
     listing_lines = list()
     for root_path, dirs, files in os.walk(the_path, followlinks=False):
         dirs = sorted(dirs, key=lambda s: s.lower())
-        listing_lines.append(win_item_ls(root_path, collect=collect))
+        listing_lines.append(win_item_ls(root_path, ls_format=ls_format))
         files_to_list = sorted(files + [slink for slink in dirs if os.path.islink(os.path.join(root_path, slink))], key=lambda s: s.lower())
         for file_to_list in files_to_list:
             full_path = os.path.join(root_path, file_to_list)
-            listing_lines.append(win_item_ls(full_path, collect=collect))
+            listing_lines.append(win_item_ls(full_path, ls_format=ls_format))
 
             # W (list content of .Wtar files) is a special case and must be specifically requested
-            if 'W' in collect:
-                listing_lines.extend(produce_tar_list(tar_file=full_path, collect=collect))
+            if 'W' in ls_format:
+                listing_lines.extend(produce_tar_list(tar_file=full_path, ls_format=ls_format))
 
     return listing_lines
 
@@ -974,7 +972,7 @@ def find_split_files(first_file):
         raise es
 
 
-def folder_listing(*folders_to_list, collect='*'):
+def folder_listing(*folders_to_list, ls_format='*'):
     os_names = get_current_os_names()
     listing_lines = list()
     folders_to_list = sorted(folders_to_list, key=lambda file: PurePath(file).parts)
@@ -982,7 +980,7 @@ def folder_listing(*folders_to_list, collect='*'):
         for folder_path in folders_to_list:
             listing_lines.append(" ".join(("#", datetime.datetime.today().isoformat(), "listing of", folder_path)))
             if os.path.isdir(folder_path):
-                listing_lines.extend(unix_folder_ls(folder_path, collect=collect))
+                listing_lines.extend(unix_folder_ls(folder_path, ls_format=ls_format))
             else:
                 listing_lines.append(" ".join(("#", "folder was not found", folder_path)))
 
@@ -990,7 +988,7 @@ def folder_listing(*folders_to_list, collect='*'):
         for folder_path in folders_to_list:
             listing_lines.append(" ".join(("#", datetime.datetime.today().isoformat(), "listing of", folder_path)))
             if os.path.isdir(folder_path):
-                listing_lines.extend(win_folder_ls(folder_path, collect=collect))
+                listing_lines.extend(win_folder_ls(folder_path, ls_format=ls_format))
             else:
                 listing_lines.append(" ".join(("#", "folder was not found:", folder_path)))
     # when calculating widths - avoid comment lines

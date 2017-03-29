@@ -291,8 +291,8 @@ class InstlMisc(InstlInstanceBase):
         else:
             folders_to_list.append(main_folder_to_list)
 
-        collect = var_stack.ResolveVarToStr("__OUTPUT_FORMAT__", default='*')
-        the_listing = utils.folder_listing(*folders_to_list, collect=collect)
+        ls_format = var_stack.ResolveVarToStr("LS_FORMAT", default='*')
+        the_listing = utils.folder_listing(*folders_to_list, ls_format=ls_format)
 
         try:
             with utils.write_to_file_or_stdout(out_file) as wfd:

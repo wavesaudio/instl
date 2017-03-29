@@ -25,12 +25,13 @@ class InstlClientReport(InstlClient):
         else:
             out_file = "stdout"
 
-        output_format = var_stack.ResolveVarToStr("__OUTPUT_FORMAT__")
-        if output_format == "text":
+        output_format = var_stack.ResolveVarToStr("OUTPUT_FORMAT", default='text')
+
+        if output_format == "json":
+            output_text = json.dumps(self.output_data, indent=1)
+        else:  # output_format == "text":  text is the default format
             lines = [", ".join(line_data) for line_data in self.output_data]
             output_text = "\n".join(lines)
-        elif output_format == "json":
-            output_text = json.dumps(self.output_data, indent=1)
 
         with utils.write_to_file_or_stdout(out_file) as wfd:
             wfd.write(output_text)
