@@ -251,12 +251,12 @@ class PlatformSpecificHelperBase(object):
         pass
 
     @abc.abstractmethod
-    def rmdir(self, directory, recursive=False):
+    def rmdir(self, directory, recursive=False, check_exist=False):
         """ platform specific rmdir """
         pass
 
     @abc.abstractmethod
-    def rmfile(self, a_file):
+    def rmfile(self, a_file, check_exist=False):
         """ platform specific rm file """
         pass
 

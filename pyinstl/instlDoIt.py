@@ -29,7 +29,7 @@ class DoItInstructionsState(object):
         retVal['orphan_doit_items'] = list(self.orphan_doit_items)
         retVal['doit_items_by_target_folder'] = {folder: list(self.doit_items_by_target_folder[folder]) for folder
                                                     in self.doit_items_by_target_folder}
-        retVal['no_copy_items_by_sync_folder'] = list(self.no_copy_items_by_sync_folder)
+        retVal['no_copy_iids_by_sync_folder'] = list(self.no_copy_items_by_sync_folder)
         return retVal
 
     def calculate_full_doit_items_set(self, instlObj):

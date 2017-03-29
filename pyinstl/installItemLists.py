@@ -73,7 +73,7 @@ class InstallItemLists(object):
         retVal['orphan_install_items'] = var_stack.ResolveVarToList("__ORPHAN_INSTALL_TARGETS__")
         retVal['install_items_by_target_folder'] = {folder: list(self.install_items_by_target_folder[folder]) for folder
                                                     in self.install_items_by_target_folder}
-        retVal['no_copy_items_by_sync_folder'] = list(self.no_copy_items_by_sync_folder)
+        retVal['no_copy_iids_by_sync_folder'] = list(self.no_copy_items_by_sync_folder)
         return retVal
 
     def sort_install_items_by_target_folder(self, instlObj):

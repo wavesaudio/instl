@@ -57,7 +57,8 @@ class BatchAccumulator(object):
                 if section == "assign":
                     section_lines.sort()
                 for section_line in section_lines:
-                    lines.extend(var_stack.ResolveStrToListIfSingleVar(section_line))
+                    resolved_line = var_stack.ResolveStrToListIfSingleVar(section_line)
+                    lines.extend(resolved_line)
                 lines.append("")  # empty string will cause to emit new line
         return lines
 

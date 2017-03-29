@@ -80,7 +80,9 @@ class IndexItemsTable(object):
                     SELECT name_item_t.owner_iid
                     FROM IndexItemDetailRow AS guid_item_t
                       JOIN IndexItemDetailRow AS name_item_t
-                        ON name_item_t.detail_name='install_sources'
+                        ON (name_item_t.detail_name = 'install_sources'
+                          OR
+                          name_item_t.detail_name = 'previous_sources')
                         AND name_item_t.detail_value LIKE '%' || NEW.name
                         AND name_item_t.owner_iid=guid_item_t.owner_iid
                     WHERE guid_item_t.detail_name='guid'
@@ -101,7 +103,7 @@ class IndexItemsTable(object):
                 SET iid  = (
                     SELECT IndexItemDetailRow.owner_iid
                     FROM IndexItemDetailRow
-                    WHERE detail_name='install_sources'
+                    WHERE (detail_name='install_sources' OR detail_name='previous_sources')
                     AND detail_value LIKE '%' || NEW.name)
                WHERE FoundOnDiskItemRow._id=NEW._id;
             END;
@@ -335,8 +337,8 @@ class IndexItemsTable(object):
                   coalesce(remote.owner_iid, "_") AS owner_iid,
                   coalesce(item_guid.detail_value, "_") AS guid,
                   coalesce(item_name.detail_value, "_") AS name,
-                  coalesce(require_version.detail_value, "_") AS 'require ver',
-                  coalesce(remote.detail_value, "_") AS 'remote ver',
+                  coalesce(require_version.detail_value, "_") AS 'require_version',
+                  coalesce(remote.detail_value, "_") AS 'remote_version',
                   min(remote.generation)
             FROM IndexItemDetailRow AS remote
 
@@ -579,8 +581,11 @@ class IndexItemsTable(object):
                       AND remote_version.owner_iid=require_version.owner_iid
                       AND require_version.detail_value!=remote_version.detail_value
                       AND require_version.active = 1
+                GROUP BY require_version.owner_iid
             """
-
+            # "GROUP BY" will make sure only one row is returned for an iid.
+            # multiple rows can be found if and IID has 2 previous_sources both were found
+            # on disk and their version identified.
         try:
             exec_result = self.session.execute(query_text)
             if exec_result.returns_rows:
@@ -805,18 +810,22 @@ class IndexItemsTable(object):
 
     def read_item_details_from_node(self, the_iid, the_node, the_os='common'):
         details = list()
-        for detail_name in the_node:
+        # go through the raw yaml nodes instead of doing "for detail_name in the_node".
+        # this is to overcome index.yaml with maps that have two keys with the same name.
+        # Although it's not valid yaml some index.yaml versions have this problem.
+        for detail_node in the_node.value:
+            detail_name = detail_node[0].value
             if detail_name in IndexItemsTable.os_names:
-                os_specific_details = self.read_item_details_from_node(the_iid, the_node[detail_name], the_os=detail_name)
+                os_specific_details = self.read_item_details_from_node(the_iid, detail_node[1], the_os=detail_name)
                 details.extend(os_specific_details)
             elif detail_name == 'actions':
-                actions_details = self.read_item_details_from_node(the_iid, the_node['actions'], the_os)
+                actions_details = self.read_item_details_from_node(the_iid, detail_node[1], the_os)
                 details.extend(actions_details)
             else:
-                for details_line in the_node[detail_name]:
+                for details_line in detail_node[1]:
                     tag = details_line.tag if details_line.tag[0]=='!' else None
                     value = details_line.value
-                    if detail_name == "install_sources" and tag is None:
+                    if detail_name in ("install_sources", "previous_sources") and tag is None:
                         tag = '!dir'
                     elif detail_name == "guid":
                         value = value.lower()
@@ -826,13 +835,13 @@ class IndexItemsTable(object):
 
     def read_index_node(self, a_node):
         index_items = list()
-        original_details = list()
+        items_details = list()
         for IID in a_node:
             item, original_item_details = self.item_from_index_node(IID, a_node[IID])
             index_items.append(item)
-            original_details.extend(original_item_details)
+            items_details.extend(original_item_details)
         self.session.add_all(index_items)
-        self.session.add_all(original_details)
+        self.session.add_all(items_details)
         self.commit_changes()
 
     # @utils.timing
@@ -905,12 +914,17 @@ class IndexItemsTable(object):
             retVal[item.iid] = self.repr_item_for_yaml(item.iid)
         return retVal
 
-    def versions_report(self):
+    def versions_report(self, report_only_installed=False):
         retVal = list()
         query_text = """
            SELECT *
           FROM 'report_versions_view'
         """
+        if report_only_installed:
+           query_text += """
+           WHERE require_version != '_'
+           AND remote_version != '_'
+           """
 
         try:
             exec_result = self.session.execute(query_text)
@@ -1338,12 +1352,12 @@ class IndexItemsTable(object):
     def add_require_guid_from_binaries(self):
         query_text = """
         INSERT OR REPLACE INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
-        SELECT  FoundOnDiskItemRow.iid, -- original_iid
-                FoundOnDiskItemRow.iid, -- owner_iid
-                0,                      -- os_id
-                'require_guid',      -- detail_name
-                FoundOnDiskItemRow.version, -- detail_value
-                0                       -- generation
+        SELECT  FoundOnDiskItemRow.iid,  -- original_iid
+                FoundOnDiskItemRow.iid,  -- owner_iid
+                0,                       -- os_id
+                'require_guid',          -- detail_name
+                FoundOnDiskItemRow.guid, -- detail_value
+                0                        -- generation
         FROM require_items_without_require_guid_view
         JOIN FoundOnDiskItemRow
             ON FoundOnDiskItemRow.iid=require_items_without_require_guid_view.iid

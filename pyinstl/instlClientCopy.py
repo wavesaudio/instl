@@ -96,7 +96,7 @@ class InstlClientCopy(InstlClient):
         self.accumulate_unique_actions_for_active_iids('pre_copy')
         self.batch_accum += self.platform_helper.new_line()
 
-        sorted_target_folder_list = sorted(self.all_items_by_target_folder,
+        sorted_target_folder_list = sorted(self.all_iids_by_target_folder,
                                            key=lambda fold: var_stack.ResolveStrToStr(fold))
 
         # first create all target folders so to avoid dependency order problems such as creating links between folders
@@ -105,11 +105,14 @@ class InstlClientCopy(InstlClient):
         if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
             self.pre_copy_mac_handling()
 
+        remove_previous_sources = var_stack.ResolveVarToBool("REMOVE_PREVIOUS_SOURCES", default=True)
         for target_folder_path in sorted_target_folder_list:
+            if remove_previous_sources:
+                self.create_remove_previous_sources_instructions_for_target_folder(target_folder_path)
             self.create_copy_instructions_for_target_folder(target_folder_path)
 
         # actions instructions for sources that do not need copying, here folder_name is the sync folder
-        for sync_folder_name in sorted(self.no_copy_items_by_sync_folder.keys()):
+        for sync_folder_name in sorted(self.no_copy_iids_by_sync_folder.keys()):
             self.create_copy_instructions_for_no_copy_folder(sync_folder_name)
 
         print(self.bytes_to_copy, "bytes to copy")
@@ -285,9 +288,8 @@ class InstlClientCopy(InstlClient):
             self.create_copy_instructions_for_file(source_path, name_for_progress_message)
 
     def create_copy_instructions_for_source(self, source, name_for_progress_message):
-        """ source is a tuple (source_path, tag), where tag is either !file or !dir
+        """ source is a tuple (source_path, tag), where tag is either !file or !dir or !dir_cont'
         """
-
         self.batch_accum += self.platform_helper.progress("Copy {0} ...".format(name_for_progress_message))
         if source[1] == '!file':  # get a single file
             self.create_copy_instructions_for_file(source[0], name_for_progress_message)
@@ -344,7 +346,7 @@ class InstlClientCopy(InstlClient):
 
     def create_copy_instructions_for_target_folder(self, target_folder_path):
             num_items_copied_to_folder = 0
-            items_in_folder = sorted(self.all_items_by_target_folder[target_folder_path])
+            items_in_folder = self.all_iids_by_target_folder[target_folder_path]
             self.batch_accum += self.platform_helper.new_line()
             self.batch_accum += self.platform_helper.remark("- Begin folder {0}".format(target_folder_path))
             self.batch_accum += self.platform_helper.cd(target_folder_path)
@@ -402,7 +404,7 @@ class InstlClientCopy(InstlClient):
 
         actual_instructions = 0  # num "real" instruction not including cd, newline, progress, echo etc...
 
-        items_in_folder = self.no_copy_items_by_sync_folder[sync_folder_name]
+        items_in_folder = self.no_copy_iids_by_sync_folder[sync_folder_name]
         self.batch_accum += self.platform_helper.new_line()
         self.batch_accum += self.platform_helper.cd(sync_folder_name)
         self.batch_accum += self.platform_helper.progress("Actions in {0} ...".format(sync_folder_name))
@@ -437,3 +439,35 @@ class InstlClientCopy(InstlClient):
             self.batch_accum.end_transaction()
         else:
             self.batch_accum.cancel_transaction()
+
+    def create_remove_previous_sources_instructions_for_source(self, folder, source):
+        """ source is a tuple (source_folder, tag), where tag is either !file, !dir_cont or !dir """
+
+        source_path, source_type = source[0], source[1]
+        to_remove_path = os.path.normpath(os.path.join(folder, source_path))
+
+        if source_type == '!dir':  # remove whole folder
+            remove_action = self.platform_helper.rmdir(to_remove_path, recursive=True, check_exist=True)
+            self.batch_accum += remove_action
+        elif source_type == '!file':  # remove single file
+            remove_action = self.platform_helper.rmfile(to_remove_path, check_exist=True)
+            self.batch_accum += remove_action
+        elif source_type == '!dir_cont':
+            raise Exception("previous_sources cannot have tag !dir_cont")
+
+    def create_remove_previous_sources_instructions_for_target_folder(self, target_folder_path):
+        iids_in_folder = self.all_iids_by_target_folder[target_folder_path]
+        assert list(self.all_iids_by_target_folder[target_folder_path]) == list(iids_in_folder)
+        previous_sources = self.items_table.get_details_and_tag_for_active_iids("previous_sources", unique_values=True, limit_to_iids=iids_in_folder)
+
+        if len(previous_sources) > 0:
+            self.batch_accum += self.platform_helper.new_line()
+            self.batch_accum += self.platform_helper.remark("- Begin folder {0}".format(target_folder_path))
+            self.batch_accum += self.platform_helper.cd(target_folder_path)
+            self.batch_accum += self.platform_helper.progress("remove previous versions {0} ...".format(target_folder_path))
+
+            for previous_source in previous_sources:
+                self.create_remove_previous_sources_instructions_for_source(target_folder_path, previous_source)
+
+            self.batch_accum += self.platform_helper.progress("remove previous versions {0} done".format(target_folder_path))
+            self.batch_accum += self.platform_helper.remark("- End folder {0}".format(target_folder_path))

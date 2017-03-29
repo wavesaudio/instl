@@ -32,17 +32,17 @@ class InstlClient(InstlInstanceBase):
         var_stack.add_const_config_variable("__DATABASE_URL__", "", self.items_table.get_db_url())
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         self.action_type_to_progress_message = None
-        self.__all_items_by_target_folder = defaultdict(utils.unique_list)
-        self.__no_copy_items_by_sync_folder = defaultdict(utils.unique_list)
+        self.__all_iids_by_target_folder = defaultdict(utils.unique_list)
+        self.__no_copy_iids_by_sync_folder = defaultdict(utils.unique_list)
         self.auxiliary_iids = utils.unique_list()
 
     @property
-    def all_items_by_target_folder(self):
-        return self.__all_items_by_target_folder
+    def all_iids_by_target_folder(self):
+        return self.__all_iids_by_target_folder
 
     @property
-    def no_copy_items_by_sync_folder(self):
-        return self.__no_copy_items_by_sync_folder
+    def no_copy_iids_by_sync_folder(self):
+        return self.__no_copy_iids_by_sync_folder
 
     def sort_all_items_by_target_folder(self):
         folder_to_iid_list = self.items_table.target_folders_to_items()
@@ -50,17 +50,23 @@ class InstlClient(InstlInstanceBase):
             direct_sync = self.get_direct_sync_status_from_indicator(direct_sync_indicator)
             if not direct_sync:
                 norm_folder = os.path.normpath(folder)
-                self.__all_items_by_target_folder[norm_folder].append(IID)
+                self.__all_iids_by_target_folder[norm_folder].append(IID)
             else:
                 sync_folder = os.path.join(folder)
-                self.__no_copy_items_by_sync_folder[sync_folder].append(IID)
+                self.__no_copy_iids_by_sync_folder[sync_folder].append(IID)
+
+        for folder_iids_list in self.__all_iids_by_target_folder.values():
+            folder_iids_list.sort()
+
+        for folder_copy_iids_list in self.__no_copy_iids_by_sync_folder.values():
+            folder_copy_iids_list.sort()
 
         folder_to_iid_list = self.items_table.source_folders_to_items_without_target_folders()
         for folder, IID, tag in folder_to_iid_list:
             source = folder # var_stack.ResolveVarToList(folder)
             relative_sync_folder = self.relative_sync_folder_for_source_table(source, tag)
             sync_folder = os.path.join("$(LOCAL_REPO_SYNC_DIR)", relative_sync_folder)
-            self.__no_copy_items_by_sync_folder[sync_folder].append(IID)
+            self.__no_copy_iids_by_sync_folder[sync_folder].append(IID)
 
     def do_command(self):
         # print("client_commands", fixed_command_name)
