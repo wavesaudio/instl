@@ -127,6 +127,7 @@ def prepare_args_parser(in_command):
         'create-rsa-keys':      {'mode': 'an', 'options': ('conf',), 'help':  'create private and public keys'},
         'depend':               {'mode': 'an', 'options': ('in', 'out',), 'help':  'output a dependencies map for an index file'},
         'doit':                 {'mode': 'di', 'options': ('in', 'out', 'run'), 'help':  'Do something'},
+        'exec':                 {'mode': 'ds', 'options': ('in', 'out'), 'help':  'Execute a python scrip'},
         'fail':                 {'mode': 'ds', 'options': (), 'help': "fail and return exit code"},
         'file-sizes':           {'mode': 'an', 'options': ('in', 'out'), 'help':  'Create a list of files and their sizes'},
         'fix-perm':             {'mode': 'an', 'options': ('out', 'run','conf', 'limit'), 'help':  'Fix Mac OS permissions'},

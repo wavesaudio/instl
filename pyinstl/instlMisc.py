@@ -451,3 +451,12 @@ class InstlMisc(InstlInstanceBase):
         except tarfile.TarError:
             print("tarfile error while opening file", os.path.abspath(wtar_file_paths[0]))
             raise
+
+    def do_exec(self):
+        try:
+            py_file_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+            with open(py_file_path, 'r') as rfd:
+                py_text = rfd.read()
+                exec(py_text)
+        except Exception as ex:
+            print("Exception while exec ", py_file_path, ex)
