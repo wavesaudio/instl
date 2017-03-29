@@ -4,13 +4,9 @@
 #import sys
 import re
 
-from sqlalchemy import Column, Integer, String, BOOLEAN
-#from sqlalchemy.ext.declarative import declarative_base
-
-#sys.path.append(os.path.realpath(os.path.join(__file__, ".." "..")))
-
+from sqlalchemy import Column, Integer, String, BOOLEAN, ForeignKey
 from pyinstl.db_alchemy import get_declarative_base, get_engine
-#alchemy_base = declarative_base()
+from configVar import var_stack
 
 wtar_file_re = re.compile(r"""^(?P<original_name>.+)\.wtar(\...)?$""")
 
@@ -21,18 +17,20 @@ fields_relevant_to_str = ('path', 'flags', 'revision', 'checksum', 'size', 'url'
 
 class SVNRow(get_declarative_base()):
     __tablename__ = 'svnitem'
-    path = Column(String, primary_key=True)
+    _id = Column(Integer, primary_key=True)
+    required = Column(BOOLEAN, default=False, index=True)
+    need_download = Column(BOOLEAN, default=False, index=True)
+    fileFlag = Column(BOOLEAN, default=False, index=True)
+    dirFlag = Column(BOOLEAN, default=False)
+    download_path = Column(String)
+    path = Column(String, index=True)
     parent = Column(String)  # todo: this should be in another table
-    level = Column(Integer)
     flags = Column(String)
     revision = Column(Integer, default=0)
-    fileFlag = Column(BOOLEAN, default=False)
-    dirFlag = Column(BOOLEAN, default=False)
     checksum = Column(String(40), default=None)
     size = Column(Integer, default=-1)
     url = Column(String, default=None)
-    required = Column(BOOLEAN, default=False)
-    need_download = Column(BOOLEAN, default=False)
+    level = Column(Integer)
     extra_props = Column(String,default="")
 
     def __repr__(self):
@@ -42,6 +40,7 @@ class SVNRow(get_declarative_base()):
                 ", url:{self.url}"
                 ", required:{self.required}, need_download:{self.need_download}"
                 ", extra_props:{self.extra_props}, parent:{self.parent}>"
+                ", download_path:{self.download_path}"
                 ).format(**locals())
 
     def __str__(self):
@@ -53,6 +52,8 @@ class SVNRow(get_declarative_base()):
             retVal = "{}, {}".format(retVal, self.size)
         if self.url:
             retVal = "{}, {}".format(retVal, self.url)
+        if self.download_path:
+            retVal = "{}, dl_path:'{}'".format(retVal, var_stack.ResolveStrToStr(self.download_path))
         return retVal
 
     def str_specific_fields(self, fields_to_repr):
@@ -143,4 +144,12 @@ class SVNRow(get_declarative_base()):
                 retVal = self.path[len(starting_dir):]
         return retVal
 
+class IIDToSVNItem(get_declarative_base()):
+    __tablename__ = 'IIDToSVNItem'
+    _id     = Column(Integer, primary_key=True, autoincrement=True)
+    iid     = Column(String, ForeignKey("IndexItemRow.iid"))
+    svn_id  = Column(Integer, ForeignKey("svnitem._id"))
+    download_path = Column(String)
+
 SVNRow.__table__.create(bind=get_engine(), checkfirst=True)
+IIDToSVNItem.__table__.create(bind=get_engine(), checkfirst=True)

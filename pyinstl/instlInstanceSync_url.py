@@ -35,7 +35,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
             source_url = file_item.url
             if source_url is None:
                 source_url = '/'.join(utils.make_one_list(self.sync_base_url, str(file_item.revision), file_item.path))
-            self.instlObj.platform_helper.dl_tool.add_download_url(source_url, file_item.path, verbatim=source_url==file_item.url)
+            resolved_download_path = var_stack.ResolveStrToStr(file_item.download_path)
+            self.instlObj.platform_helper.dl_tool.add_download_url(source_url, resolved_download_path, verbatim=source_url==file_item.url)
 
     def create_curl_download_instructions(self):
         curl_config_folder = var_stack.ResolveStrToStr("$(LOCAL_REPO_BOOKKEEPING_DIR)/curl")

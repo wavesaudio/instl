@@ -518,8 +518,16 @@ def quoteme_single(to_quote):
     return "".join( ("'", to_quote, "'") )
 
 
+def quoteme_single_list(to_quote_list, ):
+    return [quoteme_single(to_q) for to_q in to_quote_list]
+
+
 def quoteme_double(to_quote):
     return "".join(('"', to_quote, '"'))
+
+
+def quoteme_double_list(to_quote_list, ):
+    return [quoteme_double(to_q) for to_q in to_quote_list]
 
 detect_quotations = re.compile("(?P<prefix>[\"'])(?P<the_unquoted_text>.+)(?P=prefix)")
 
@@ -1028,6 +1036,14 @@ def str_to_bool_int(the_str):
         retVal = 0
     else:
         raise ValueError("Cannot translate", the_str, "to bool-int")
+    return retVal
+
+def str_to_bool(the_str, default=False):
+    retVal = default
+    if the_str.lower() in ("yes", "true", "y", 't'):
+        retVal = True
+    elif the_str.lower() in ("no", "false", "n", "f"):
+        retVal = False
     return retVal
 
 

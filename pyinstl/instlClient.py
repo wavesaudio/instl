@@ -10,6 +10,8 @@ from .installItem import InstallItem, guid_list
 import aYaml
 from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
+from svnTree import SVNTable
+from .indexItemTable import IndexItemsTable
 
 NameAndVersion = namedtuple('name_ver', ['name', 'version', 'name_and_version'])
 def NameAndVersionFromQueryResults(q_results_tuple):
@@ -25,31 +27,46 @@ def NameAndVersionFromQueryResults(q_results_tuple):
 class InstlClient(InstlInstanceBase):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
+        self.info_map_table = SVNTable()
+        self.items_table = IndexItemsTable()
+        var_stack.add_const_config_variable("__DATABASE_URL__", "", self.items_table.get_db_url())
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         self.action_type_to_progress_message = None
-        self.__all_items_by_target_folder = defaultdict(utils.unique_list)
-        self.__no_copy_items_by_sync_folder = defaultdict(utils.unique_list)
+        self.__all_iids_by_target_folder = defaultdict(utils.unique_list)
+        self.__no_copy_iids_by_sync_folder = defaultdict(utils.unique_list)
+        self.auxiliary_iids = utils.unique_list()
 
     @property
-    def all_items_by_target_folder(self):
-        return self.__all_items_by_target_folder
+    def all_iids_by_target_folder(self):
+        return self.__all_iids_by_target_folder
 
     @property
-    def no_copy_items_by_sync_folder(self):
-        return self.__no_copy_items_by_sync_folder
+    def no_copy_iids_by_sync_folder(self):
+        return self.__no_copy_iids_by_sync_folder
 
     def sort_all_items_by_target_folder(self):
         folder_to_iid_list = self.items_table.target_folders_to_items()
-        for folder, IID in folder_to_iid_list:
-            norm_folder = os.path.normpath(folder)
-            self.__all_items_by_target_folder[norm_folder].append(IID)
+        for IID, folder, tag, direct_sync_indicator in folder_to_iid_list:
+            direct_sync = self.get_direct_sync_status_from_indicator(direct_sync_indicator)
+            if not direct_sync:
+                norm_folder = os.path.normpath(folder)
+                self.__all_iids_by_target_folder[norm_folder].append(IID)
+            else:
+                sync_folder = os.path.join(folder)
+                self.__no_copy_iids_by_sync_folder[sync_folder].append(IID)
+
+        for folder_iids_list in self.__all_iids_by_target_folder.values():
+            folder_iids_list.sort()
+
+        for folder_copy_iids_list in self.__no_copy_iids_by_sync_folder.values():
+            folder_copy_iids_list.sort()
 
         folder_to_iid_list = self.items_table.source_folders_to_items_without_target_folders()
         for folder, IID, tag in folder_to_iid_list:
             source = folder # var_stack.ResolveVarToList(folder)
             relative_sync_folder = self.relative_sync_folder_for_source_table(source, tag)
             sync_folder = os.path.join("$(LOCAL_REPO_SYNC_DIR)", relative_sync_folder)
-            self.__no_copy_items_by_sync_folder[sync_folder].append(IID)
+            self.__no_copy_iids_by_sync_folder[sync_folder].append(IID)
 
     def do_command(self):
         # print("client_commands", fixed_command_name)
@@ -58,17 +75,19 @@ class InstlClient(InstlInstanceBase):
 
         main_input_file_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         self.read_yaml_file(main_input_file_path)
-
-        self.items_table.resolve_inheritance()
         self.items_table.commit_changes()
-        if self.should_check_for_binary_versions():
-            self.get_binaries_versions()
-            self.items_table.add_require_version_from_binaries()
-            self.items_table.add_require_guid_from_binaries()
-        self.items_table.commit_changes()
-        self.items_table.create_default_items()
 
         self.init_default_client_vars()
+        active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
+        self.items_table.begin_get_for_specific_oses(*active_oses)
+
+        self.items_table.resolve_inheritance()
+        if self.should_check_for_binary_versions():
+            self.get_version_of_installed_binaries()
+            self.items_table.add_require_version_from_binaries()
+            self.items_table.add_require_guid_from_binaries()
+        self.items_table.create_default_items(iids_to_ignore=self.auxiliary_iids)
+
         self.resolve_defined_paths()
         self.batch_accum.set_current_section('begin')
         self.batch_accum += self.platform_helper.setup_echo()
@@ -85,6 +104,7 @@ class InstlClient(InstlInstanceBase):
         do_command_func()
         self.create_instl_history_file()
         self.command_output()
+        self.items_table.config_var_list_to_db(var_stack)
         self.items_table.commit_changes()
 
     def command_output(self):
@@ -137,6 +157,7 @@ class InstlClient(InstlInstanceBase):
                 if "SYNC_BASE_URL" in var_stack:
                     p4_sync_dir = utils.P4GetPathFromDepotPath(var_stack.ResolveVarToStr("SYNC_BASE_URL"))
                     var_stack.set_var("P4_SYNC_DIR", "from SYNC_BASE_URL").append(p4_sync_dir)
+        self.auxiliary_iids.extend(var_stack.ResolveVarToList("AUXILIARY_IIDS", default=list()))
 
     def repr_for_yaml(self, what=None):
         """ Create representation of self suitable for printing as yaml.
@@ -208,43 +229,88 @@ class InstlClient(InstlInstanceBase):
         main_iids, main_guids = utils.separate_guids_from_iids(main_install_targets)
         iids_from_main_guids, orphaned_main_guids = self.items_table.iids_from_guids(main_guids)
         main_iids.extend(iids_from_main_guids)
-        main_iids = self.resolve_special_build_in_iids(main_iids)
+        main_iids, update_iids = self.resolve_special_build_in_iids(main_iids)
 
         main_iids, orphaned_main_iids = self.items_table.iids_from_iids(main_iids)
+        update_iids, orphaned_update_iids = self.items_table.iids_from_iids(update_iids)
 
         var_stack.set_var("__MAIN_INSTALL_IIDS__").extend(sorted(main_iids))
-        var_stack.set_var("__ORPHAN_INSTALL_TARGETS__").extend(sorted(orphaned_main_guids+orphaned_main_iids))
+        var_stack.set_var("__MAIN_UPDATE_IIDS__").extend(sorted(update_iids))
+        var_stack.set_var("__ORPHAN_INSTALL_TARGETS__").extend(sorted(orphaned_main_guids+orphaned_main_iids+orphaned_update_iids))
 
+    # install_status = {"none": 0, "main": 1, "update": 2, "depend": 3}
     def calculate_all_install_items(self):
-        self.items_table.change_status_of_iids_to_another_status(0, 1, var_stack.ResolveVarToList("__MAIN_INSTALL_IIDS__"))
-        all_items_from_table = self.items_table.get_recursive_dependencies(look_for_status=1)
-        var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(all_items_from_table))
-        self.items_table.change_status_of_iids_to_another_status(0, 2, all_items_from_table)
+        # marked ignored iids, all subsequent operations not act on these iids
         if "MAIN_IGNORED_TARGETS" in var_stack:
             ignored_iids = var_stack.ResolveVarToList("MAIN_IGNORED_TARGETS")
-            self.items_table.change_status_of_iids(0, ignored_iids)
-            all_items_from_table_except_ignored = list(set(all_items_from_table) - set(ignored_iids))
-            var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(all_items_from_table_except_ignored))
+            self.items_table.set_ignore_iids(ignored_iids)
 
+        # mark main install items
+        main_iids = var_stack.ResolveVarToList("__MAIN_INSTALL_IIDS__")
+        self.items_table.change_status_of_iids_to_another_status(
+                self.items_table.install_status["none"],
+                self.items_table.install_status["main"],
+                main_iids)
+        # find dependant of main install items
+        main_iids_and_dependents = self.items_table.get_recursive_dependencies(look_for_status=self.items_table.install_status["main"])
+        # mark dependants of main items, but only if they are not already in main items
+        self.items_table.change_status_of_iids_to_another_status(
+            self.items_table.install_status["none"],
+            self.items_table.install_status["depend"],
+            main_iids_and_dependents)
+
+        # mark update install items, but only those not already marked as main or depend
+        update_iids = var_stack.ResolveVarToList("__MAIN_UPDATE_IIDS__")
+        self.items_table.change_status_of_iids_to_another_status(
+                self.items_table.install_status["none"],
+                self.items_table.install_status["update"],
+                update_iids)
+        # find dependants of update install items
+        update_iids_and_dependents = self.items_table.get_recursive_dependencies(look_for_status=self.items_table.install_status["update"])
+        # mark dependants of update items, but only if they are not already marked
+        self.items_table.change_status_of_iids_to_another_status(
+            self.items_table.install_status["none"],
+            self.items_table.install_status["depend"],
+            update_iids_and_dependents)
+
+        all_items_to_install = self.items_table.get_iids_by_status(
+            self.items_table.install_status["main"],
+            self.items_table.install_status["depend"])
+        self.items_table.commit_changes()
+
+        var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(all_items_to_install))
 
         self.sort_all_items_by_target_folder()
+        self.calc_iid_to_name_and_version()
+
+    def calc_iid_to_name_and_version(self):
         iids_and_names_from_db = self.items_table.name_and_version_report_for_active_iids()
         for from_db in iids_and_names_from_db:
             self.iid_to_name_and_version[from_db[0]] = NameAndVersionFromQueryResults(from_db)
 
     def resolve_special_build_in_iids(self, iids):
         iids_set = set(iids)
+        update_iids_set = set()
         special_build_in_iids = set(var_stack.ResolveVarToList("SPECIAL_BUILD_IN_IIDS"))
         found_special_build_in_iids = special_build_in_iids & set(iids)
         if len(found_special_build_in_iids) > 0:
             iids_set -= special_build_in_iids
-            if "__UPDATE_INSTALLED_ITEMS__" in found_special_build_in_iids\
-                and "__REPAIR_INSTALLED_ITEMS__" in found_special_build_in_iids:
-                found_special_build_in_iids.remove("__UPDATE_INSTALLED_ITEMS__") # repair takes precedent over update
-            for special_iid in found_special_build_in_iids:
-                more_iids = self.items_table.get_resolved_details_value(iid=special_iid, detail_name='depends')
+            # repair also does update so it takes precedent over update
+            if "__REPAIR_INSTALLED_ITEMS__" in found_special_build_in_iids:
+                more_iids = self.items_table.get_resolved_details_value(iid="__REPAIR_INSTALLED_ITEMS__", detail_name='depends')
                 iids_set.update(more_iids)
-        return list(iids_set)
+            elif "__UPDATE_INSTALLED_ITEMS__" in found_special_build_in_iids:
+                more_iids = self.items_table.get_resolved_details_value(iid="__UPDATE_INSTALLED_ITEMS__", detail_name='depends')
+                update_iids_set = set(more_iids)-iids_set
+
+            if "__ALL_GUIDS_IID__" in found_special_build_in_iids:
+                more_iids = self.items_table.get_resolved_details_value(iid="__ALL_GUIDS_IID__", detail_name='depends')
+                iids_set.update(more_iids)
+
+            if "__ALL_ITEMS_IID__" in found_special_build_in_iids:
+                more_iids = self.items_table.get_resolved_details_value(iid="__ALL_ITEMS_IID__", detail_name='depends')
+                iids_set.update(more_iids)
+        return list(iids_set), list(update_iids_set)
 
     def read_previous_requirements(self):
         require_file_path = var_stack.ResolveVarToStr("SITE_REQUIRE_FILE_PATH")
@@ -274,21 +340,15 @@ class InstlClient(InstlInstanceBase):
 
     def accumulate_unique_actions_for_active_iids(self, action_type, limit_to_iids=None):
         """ accumulate action_type actions from iid_list, eliminating duplicates"""
+        retVal = 0  # return number of real actions added (i.e. excluding progress message)
         iid_and_action = self.items_table.get_iids_and_details_for_active_iids(action_type, unique_values=True, limit_to_iids=limit_to_iids)
-        prev_iid = None
         iid_and_action.sort(key=lambda tup: tup[0])
         for IID, an_action in iid_and_action:
-            if prev_iid != IID:
-                num_unique_actions_for_iid = 0
-                prev_iid = IID
-            else:
-                num_unique_actions_for_iid += 1
             self.batch_accum += an_action
             action_description = self.action_type_to_progress_message[action_type]
-            #if num_unique_actions_for_iid > 1:
-            #    action_description = " ".join((action_description, str(num_unique_actions_for_iid)))
             self.batch_accum += self.platform_helper.progress("{0} {1}".format(self.iid_to_name_and_version[IID].name, action_description))
-    # name_and_version
+            retVal += 1
+        return retVal
 
     def create_require_file_instructions(self):
         # write the require file as it should look after copy is done
@@ -332,7 +392,7 @@ class InstlClient(InstlInstanceBase):
         for require_detail in require_details:
             item_dict = retVal[require_detail.owner_iid]
             if require_detail.detail_name not in item_dict:
-                item_dict[translate_detail_name[require_detail.detail_name]] = list()
+                item_dict[translate_detail_name[require_detail.detail_name]] = utils.unique_list()
             item_dict[translate_detail_name[require_detail.detail_name]].append(require_detail.detail_value)
         for item in retVal.values():
             for sub_item in item.values():
@@ -350,7 +410,7 @@ class InstlClient(InstlInstanceBase):
         retVal = explicitly_asked_for_binaries_check or update_was_requested
         return retVal
 
-    def get_binaries_versions(self):
+    def get_version_of_installed_binaries(self):
         binaries_version_list = list()
         try:
             path_to_search = var_stack.ResolveVarToList('CHECK_BINARIES_VERSION_FOLDERS', default=[])
@@ -398,6 +458,56 @@ class InstlClient(InstlInstanceBase):
                             if info is not None:
                                 retVal.append(info)
         return retVal
+
+    def get_direct_sync_status_from_indicator(self, direct_sync_indicator):
+        retVal = False
+        if direct_sync_indicator is not None:
+            try:
+                retVal = utils.str_to_bool_int(var_stack.ResolveStrToStr(direct_sync_indicator))
+            except:
+                pass
+        return retVal
+
+    def set_sync_locations_for_active_items(self):
+        # get_sync_folders_and_sources_for_active_iids returns: [(iid, direct_sync_indicator, source, source_tag, install_folder),...]
+        # direct_sync_indicator will be None unless the items has "direct_sync" section in index.yaml
+        # install_folder will be None for those items that require only sync not copy (such as Icons)
+        sync_and_source = self.items_table.get_sync_folders_and_sources_for_active_iids()
+        for iid, direct_sync_indicator, source, source_tag, install_folder in sync_and_source:
+            direct_sync = self.get_direct_sync_status_from_indicator(direct_sync_indicator)
+
+            if source[0] == "/":
+                fixed_source = source[1:]
+            elif source[0] == "$":
+                fixed_source = source
+            else:
+                fixed_source = "/".join(("$(SOURCE_PREFIX)", source))
+            fixed_source = var_stack.ResolveStrToStr(fixed_source)
+
+            if source_tag in ('!dir', '!dir_cont'):
+                items = self.info_map_table.get_file_items_of_dir(dir_path=fixed_source)
+                if direct_sync:
+                    if  source_tag == '!dir':
+                        source_parent = "/".join(fixed_source.split("/")[:-1])
+                    else:  # !dir_cont
+                        source_parent = fixed_source
+                    assert install_folder is not None
+                    for item in items:
+                        item.download_path = var_stack.ResolveStrToStr("/".join((install_folder, item.path[len(source_parent)+1:])))
+                else:
+                    for item in items:
+                        item.download_path = var_stack.ResolveStrToStr("/".join(("$(LOCAL_REPO_SYNC_DIR)", item.path)))
+            elif source_tag == '!file':
+                items_for_file = self.info_map_table.get_required_for_file(fixed_source)
+                if direct_sync:
+                    assert install_folder is not None
+                    for item in items_for_file:
+                        item.download_path = var_stack.ResolveStrToStr("/".join((install_folder, item.path[len(source_parent)+1:])))
+                else:
+                    for item in items_for_file:
+                        item.download_path = var_stack.ResolveStrToStr("/".join(("$(LOCAL_REPO_SYNC_DIR)", item.path)))
+        self.items_table.commit_changes()
+
 
 def InstlClientFactory(initial_vars, command):
     retVal = None

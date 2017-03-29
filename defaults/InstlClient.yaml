@@ -68,3 +68,6 @@ SPECIAL_BUILD_IN_IIDS:
     - __ALL_GUIDS_IID__
     - __UPDATE_INSTALLED_ITEMS__
     - __REPAIR_INSTALLED_ITEMS__
+
+# should index items under "previous_sources" be removed?
+REMOVE_PREVIOUS_SOURCES: yes

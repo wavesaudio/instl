@@ -11,10 +11,12 @@ from sqlalchemy.ext import baked
 from sqlalchemy import bindparam
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 
 from .svnRow import SVNRow
 from pyinstl.db_alchemy import create_session
 import utils
+from configVar import var_stack
 
 comment_line_re = re.compile(r"""
             ^
@@ -34,7 +36,9 @@ text_line_re = re.compile(r"""
             (,\s+
             (?P<size>[\d]+))?       # 356985
             (,\s+
-            (?P<url>(http(s)?|ftp)://.+))?    # http://....
+            (?P<url>(http(s)?|ftp)://[^,]+))?    # http://....
+            (,\s+dl_path:'
+            (?P<dl_path>([^',]+))')?
             """, re.X)
 flags_and_revision_re = re.compile(r"""
                 ^
@@ -70,6 +74,9 @@ class SVNTable(object):
         self.comments = list()
         self.baked_queries_map = self.bake_baked_queries()
         self.bakery = baked.bakery()
+
+    def commit_changes(self):
+        self.session.commit()
 
     def bake_baked_queries(self):
         """ prepare baked queries for later use
@@ -118,6 +125,7 @@ class SVNTable(object):
 
         insert_dicts = sorted([item_dict for item_dict in self.iter_svn_info(rfd)], key=lambda x: x['path'].split('/'))
         self.session.bulk_insert_mappings(SVNRow, insert_dicts)
+        self.commit_changes()
 
     def read_from_text_to_dict(self, in_rfd):
         retVal = list()
@@ -134,7 +142,7 @@ class SVNTable(object):
 
     def insert_dicts_to_db(self, insert_dicts):
         self.session.bulk_insert_mappings(SVNRow, insert_dicts)
-        #self.engine.execute(SVNRow.__table__.insert(), insert_dicts)
+        self.commit_changes()
 
     def read_from_text(self, rfd):
         insert_dicts = self.read_from_text_to_dict(rfd)
@@ -157,20 +165,23 @@ class SVNTable(object):
         item_details = None
         match = text_line_re.match(the_str)
         if match:
+            the_matched_groups = match.groupdict()
             item_details = dict()
-            item_details['path'] = match.group('path')
+            item_details['path'] = the_matched_groups['path']
             item_details['parent'] = "/".join(item_details['path'].split("/")[:-1])
             item_details['level'] = len(item_details['path'].split("/"))
-            item_details['revision'] = int(match.group('revision'))
-            item_details['flags'] = match.group('flags')
-            item_details['fileFlag'] = 'f' in item_details['flags']
-            item_details['dirFlag'] = 'd' in item_details['flags']
-            item_details['checksum'] = match.group('checksum')
-            item_details['url'] = match.group('url')
-            item_details['size'] = int(match.group('size')) if match.group('size')  else 0
+            item_details['revision'] = int(the_matched_groups['revision'])
+            item_details['flags'] = the_matched_groups['flags']
+            item_details['fileFlag'] = 'f' in the_matched_groups['flags']
+            item_details['dirFlag'] = 'd' in the_matched_groups['flags']
+            item_details['checksum'] = the_matched_groups.get('checksum')
+            item_details['url'] = the_matched_groups.get('url')
+            the_size = the_matched_groups['size']
+            item_details['size'] = int(0 if the_size is None else the_size)
             item_details['required'] = False
             item_details['need_download'] = False
             item_details['extra_props'] = ""
+            item_details['download_path'] = the_matched_groups.get('dl_path')
         return item_details
 
     def valid_write_formats(self):
@@ -228,6 +239,7 @@ class SVNTable(object):
                     retVal['flags'] = "f"
                     retVal['fileFlag'] = True
                     retVal['dirFlag'] = False
+                    retVal['download_path'] = "/".join(("$(LOCAL_REPO_SYNC_DIR)", retVal['path']))
                 elif a_record["Node Kind"] == "directory":
                     retVal['flags'] = "d"
                     retVal['fileFlag'] = False
@@ -326,11 +338,13 @@ class SVNTable(object):
 
     def clear_all(self):
         self.session.query(SVNRow).delete()
+        self.commit_changes()
         self.comments = list()
 
     def set_base_revision(self, base_revision):
         self.session.query(SVNRow).filter(SVNRow.revision < base_revision).\
                                     update({"revision": base_revision})
+        self.commit_changes()
 
     def read_file_sizes(self, rfd):
         update_dicts = list()
@@ -343,7 +357,14 @@ class SVNTable(object):
                 if len(parts) != 2:
                     print(line, line_num)
                 update_dicts.append({"path": parts[0], "size": int(parts[1])})
-        self.session.bulk_update_mappings(SVNRow, update_dicts)
+        # self.session.bulk_update_mappings(SVNRow, update_dicts)
+        # for unknown reason bulk_update_mappings stopped working in instl ver 1.4, so update one by one
+        for update_i in update_dicts:
+            update_statement = update(SVNRow)\
+                .where(SVNRow.path == update_i['path'])\
+                .values(size = update_i['size'])
+            self.session.execute(update_statement)
+        self.commit_changes()
 
     def read_props(self, rfd):
         props_line_re = re.compile("""
@@ -386,6 +407,7 @@ class SVNTable(object):
                             self.session.execute(update_statement)
                 else:
                     ValueError("no match at file: " + rfd.name + ", line: " + str(line_num) + ": " + line)
+            self.commit_changes()
         except Exception as ex:
             print("Line:", line_num, ex)
             raise
@@ -560,6 +582,40 @@ class SVNTable(object):
 
         return retVal
 
+    def get_file_items_of_dir(self, dir_path):
+        """ get all file items in dir_path OR if the dir_path itself is wtarred - the wtarred file items.
+            results are recursive so files from sub folders are also returned
+        """
+        if "get_file_items_of_dir" not in self.baked_queries_map:
+            self.baked_queries_map["get_file_items_of_dir"] = self.bakery(lambda session: session.query(SVNRow))
+            self.baked_queries_map["get_file_items_of_dir"] += lambda q: q.filter(SVNRow.fileFlag == True)
+            self.baked_queries_map["get_file_items_of_dir"] += lambda q: q.filter(or_(SVNRow.path.like(bindparam('dir_path')+"/%"),
+                                                                                 SVNRow.path.like(bindparam('dir_path')+".wtar%")))
+
+        files_of_dir = self.baked_queries_map["get_file_items_of_dir"](self.session).params(dir_path=dir_path).all()
+        return files_of_dir
+
+    def count_wtar_items_of_dir(self, dir_path):
+        """ count all wtar items in dir_path OR if the dir_path itself is wtarred - count of wtarred file items.
+            results are recursive so count from sub folders are also accumulated
+        """
+        retVal = 0
+        query_text = """
+            SELECT COUNT(*)
+            FROM svnitem
+            WHERE
+              fileFlag = 1
+              AND
+              ( path LIKE "{dir_path}" || ".wtar%"
+                OR
+              path LIKE "{dir_path}" || "/%.wtar%" )
+             """.format(dir_path=dir_path)
+        try:
+            retVal = self.session.execute(query_text).first()[0]
+        except SQLAlchemyError:
+            raise
+        return retVal
+
     def get_items_in_dir(self, dir_path="", what="any", levels_deep=1024):
         """ get all files in dir_path.
             level_deep: how much to dig in. level_deep=1 will only get immediate files
@@ -618,8 +674,7 @@ class SVNTable(object):
             num_required_files = self.mark_required_for_dir(source_path)
         elif source_type == '!file':
             num_required_files = self.mark_required_for_file(source_path)
-        elif source_type == '!files':
-            num_required_files = self.mark_required_for_files(source_path)
+        self.commit_changes()
         return num_required_files
 
     def mark_required_completion(self):
@@ -644,13 +699,15 @@ class SVNTable(object):
                     .values(required=True)
             self.session.execute(update_statement)
             slice_begin += chunk_size
+            self.commit_changes()
 
-    def mark_need_download(self, local_sync_dir):
+    def mark_need_download(self):
         ancestors = list()
         required_file_items = self.get_required_items(what="file")
         for file_item in required_file_items:
-            local_path = os.path.join(local_sync_dir, file_item.path)
-            if utils.need_to_download_file(local_path, file_item.checksum):
+            local_path = var_stack.ResolveStrToStr(file_item.download_path)
+            assert local_path == file_item.download_path
+            if utils.need_to_download_file(file_item.download_path, file_item.checksum):
                 file_item.need_download = True
                 ancestors.extend(file_item.get_ancestry()[:-1])
         ancestors = sorted(list(set(ancestors)))
@@ -667,6 +724,7 @@ class SVNTable(object):
                     .values(need_download=True)
             self.session.execute(update_statement)
             slice_begin += chunk_size
+        self.commit_changes()
 
     def mark_required_for_revision(self, required_revision):
         """ mark all files and dirs as required if they are of specific revision
@@ -676,12 +734,14 @@ class SVNTable(object):
             .where(SVNRow.revision == required_revision)\
             .values(required=True)
         self.session.execute(update_statement)
+        self.commit_changes()
         self.mark_required_completion()
 
     def clear_required(self):
         update_statement = update(SVNRow)\
             .values(required=False)
         self.session.execute(update_statement)
+        self.commit_changes()
 
     def get_unrequired_paths_where_parent_required(self, what="files"):
         """ Get all unrequired items that have a parent that is required.
@@ -719,3 +779,49 @@ class SVNTable(object):
                                 .filter(SVNRow.path.like(source_path+"%"))\
                                 .scalar()
         return max_revision
+
+    def mark_required_files_for_active_items(self):
+        source_prefix = var_stack.ResolveVarToStr('SOURCE_PREFIX')
+        query_text = """
+        UPDATE svnitem
+        SET required=1
+        WHERE svnitem._id IN
+        (
+            SELECT svnitem._id
+            FROM svnitem
+            JOIN IndexItemRow as active_items_t
+                ON active_items_t.install_status > 0
+                AND active_items_t.ignore = 0
+            JOIN IndexItemDetailRow as install_sources_t
+                ON install_sources_t.owner_iid=active_items_t.iid
+                AND install_sources_t.detail_name='install_sources'
+                AND install_sources_t.active = 1
+            WHERE fileFlag=1
+            AND (svnitem.path LIKE
+                CASE install_sources_t.tag
+                WHEN "!file" THEN
+                    CASE substr(install_sources_t.detail_value,1,1)
+                    WHEN "/" THEN -- absolute path
+                        substr(install_sources_t.detail_value, 2)
+                    ELSE          -- relative to $(SOURCE_PREFIX): Mac or Win
+                        "{source_prefix}/" || install_sources_t.detail_value
+                    END
+                ELSE -- !dir or !dir_cont
+                    CASE substr(install_sources_t.detail_value,1,1)
+                    WHEN "/" THEN -- absolute path
+                        substr(install_sources_t.detail_value, 2) || "/%"
+                    ELSE          -- relative to $(SOURCE_PREFIX): Mac or Win
+                        "{source_prefix}/" || install_sources_t.detail_value || "/%"
+                    END
+                END
+            OR svnitem.path LIKE
+                    CASE substr(install_sources_t.detail_value,1,1)
+                    WHEN "/" THEN -- absolute path
+                        substr(install_sources_t.detail_value, 2) || ".wtar%"
+                    ELSE          -- relative to $(SOURCE_PREFIX): Mac or Win
+                        "{source_prefix}/" || install_sources_t.detail_value|| ".wtar%"
+                    END)
+        )
+        """.format(source_prefix=source_prefix)
+        exec_result = self.session.execute(query_text)
+        self.commit_changes()

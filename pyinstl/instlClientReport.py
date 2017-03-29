@@ -39,7 +39,8 @@ class InstlClientReport(InstlClient):
     def do_report_versions(self):
         self.guids_to_ignore = set(var_stack.ResolveVarToList("MAIN_IGNORED_TARGETS", []))
 
-        report_data = self.items_table.versions_report()
+        report_only_installed = "__REPORT_ONLY_INSTALLED__" in var_stack
+        report_data = self.items_table.versions_report(report_only_installed=report_only_installed)
 
         self.output_data.extend(report_data)
 
@@ -50,4 +51,4 @@ class InstlClientReport(InstlClient):
         return (("Looks like no product are installed, file not found", self.current_index_yaml_path),)
 
     def do_report_gal(self):
-        self.get_binaries_versions()
+        self.get_version_of_installed_binaries()

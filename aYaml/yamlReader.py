@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 
-""" YamlReader is a base class for writing specific classes that read yaml
+""" YamlReader is a base class for writing specific classes that read yaml.
     when reading a yaml file, one or more documents can be found, each optionally
-    tagged: --- !define. yamlReader will identify these documents and call the
+    tagged, e.g.: --- !define. yamlReader will identify these documents and call the
     appropriate function to parse the document. Classes inheriting from yamlReader
-    should supply these read functions by overriding init_specific_doc_readers.
-    Two meta tags are provided: "__no_tag__" for documents that have not tag,
-    "__unknown_tag__" for tags that were not assigned specific read functions.
+    should supply these document type specific read functions by overriding
+    YamlReader.init_specific_doc_readers.
+    Two meta tags are provided: "__no_tag__" for documents that have no tag,
+    "__unknown_tag__" for document tags that were not assigned specific read
+    functions.
     For readers that do not support either "__no_tag__", "__unknown_tag__" or both,
     delete these tags from self.specific_doc_readers when overriding init_specific_doc_readers.
 """

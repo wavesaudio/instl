@@ -125,16 +125,28 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         restore_dir_command = self.cd("$(" + var_name + ")")
         return restore_dir_command
 
-    def rmdir(self, directory, recursive=False):
+    def rmdir(self, directory, recursive=False, check_exist=False):
         """ If recursive==False, only empty directory will be removed """
+        rmdir_command_parts = list()
+        norm_directory = utils.quoteme_double(directory)
+        if check_exist:
+            rmdir_command_parts.extend(("[", "!", "-d", norm_directory, "]", "||"))
+
         if recursive:
-            rmdir_command = " ".join(("rm", "-fr", utils.quoteme_double(directory) ))
+            rmdir_command_parts.extend(("rm", "-fr", norm_directory))
         else:
-            rmdir_command = " ".join(("rmdir", utils.quoteme_double(directory) ))
+            rmdir_command_parts.extend(("rmdir", norm_directory))
+
+        rmdir_command = " ".join(rmdir_command_parts)
         return rmdir_command
 
-    def rmfile(self, a_file):
-        rmfile_command = " ".join(("rm", "-f", utils.quoteme_double(a_file) ))
+    def rmfile(self, a_file, check_exist=False):
+        rmfile_command_parts = list()
+        norm_file = utils.quoteme_double(a_file)
+        if check_exist:
+            rmfile_command_parts.extend(("[", "!", "-f", norm_file, "]", "||"))
+        rmfile_command_parts.extend(("rm", "-f", norm_file))
+        rmfile_command = " ".join(rmfile_command_parts)
         return rmfile_command
 
     def rm_file_or_dir(self, file_or_dir):

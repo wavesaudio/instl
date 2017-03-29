@@ -180,12 +180,12 @@ class InstlGui(InstlInstanceBase):
                 limit_path = self.admin_limit_var.get()
                 if limit_path != "":
                     retVal.append("--limit")
-                    
+
                     # there might be space separated paths, but -
-                    
+
                     # ideally, the following line should be enough but by default quotes are not supported properly...
                     #limit_paths = shlex.split(limit_path)
-                    
+
                     # ... so we have to do it the long way
                     limit_paths = shlex.shlex(limit_path)
                     limit_paths.quotes = '"'
@@ -210,7 +210,7 @@ class InstlGui(InstlInstanceBase):
             items_in_dir = os.listdir(new_input_file_dir)
             dir_items = [os.path.join(new_input_file_dir, item) for item in items_in_dir if os.path.isfile(os.path.join(new_input_file_dir, item))]
             self.client_input_combobox.configure(values=dir_items)
-            
+
         var_stack.set_var("CLIENT_GUI_IN_FILE").append(self.client_input_path_var.get())
 
     def update_client_state(self, *args):
@@ -250,7 +250,7 @@ class InstlGui(InstlInstanceBase):
         var_stack.set_var("ADMIN_GUI_CMD").append(self.admin_command_name_var.get())
         current_config_path = var_stack.ResolveVarToStr("ADMIN_GUI_CONFIG_FILE", default="")
         new_config_path = self.admin_config_path_var.get()
-        
+
         if current_config_path != new_config_path:
             self.admin_config_file_dirty = True
         var_stack.set_var("ADMIN_GUI_CONFIG_FILE").append(new_config_path)
@@ -490,7 +490,7 @@ class InstlGui(InstlInstanceBase):
 
         curr_row += 1
         Button(client_frame, width=9, text="clipboard", command=self.copy_to_clipboard).grid(row=curr_row, column=1, sticky=W)
-        
+
         client_frame.grid_columnconfigure(0, minsize=80)
         client_frame.grid_columnconfigure(1, minsize=300)
         client_frame.grid_columnconfigure(2, minsize=80)
@@ -550,7 +550,7 @@ class InstlGui(InstlInstanceBase):
         except OSError:
             print("Cannot run:", command_line)
             return
-            
+
         unused_stdout, unused_stderr = check_yaml_process.communicate()
         return_code = check_yaml_process.returncode
         if return_code != 0:

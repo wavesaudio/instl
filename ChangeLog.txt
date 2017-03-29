@@ -1,3 +1,100 @@
+26/3/2017 1.4.2.0
+    user visible changes client:
+    * New config variable: REMOVE_PREVIOUS_SOURCES set to True be default, If set to False will prevent previous_sources from being deleted.
+    * Merge branch 'wfi_lev': better checking of 2 types of wfi files
+    * platform_helper.rmdir, platform_helper.rmfile got new parameter check_exist that will preform the deletion
+        only if the file/folder exists. This is "for good measure" so we do not get redundant error messages during batch runs.
+
+    programmer visible changes:
+    * New function: ConfigVarList.ResolveVarToBool will resolve a variable from yes,no,true,false,y,n to True/False. Default value will be returned in case variable does not exist or cannot be converted to bool.
+    * New function: utils.str_to_bool a helper fro implementing ConfigVarList.ResolveVarToBool
+
+23/3/2017 1.4.1.0
+
+    user visible changes client:
+    * New index property: previous_sources where you can specified the previous names of the install_sources. These names will be used for 1) identifying  old versions that need update 2) files/folders that will be removed when the main IID is installed
+
+    programmer visible changes:
+    * create_remove_previous_sources_instructions_for_target_folder takes care of removing previous_sources
+    * InstlClient.no_copy_items_by_sync_folder renamed no_copy_iids_by_sync_folder, values are now pre-sorted
+    * InstlClient.all_items_by_target_folder renamed all_iids_by_target_folder, values are now pre-sorted
+
+22/3/2017 1.4.0.3
+
+    user visible changes client:
+    * report-versions command: added option ('--only-installed') to show only installed products
+
+    programmer visible changes:
+    * read_item_details_from_node: changed to handle cases of illegal yaml with maps the have keys with same name
+
+21/3/2017 1.4.0.2
+
+    user visible changes client:
+    * Fixed: the version would be written in the guid field of the require.yaml instead of the guid
+
+19/3/2017 1.4.0.1
+
+    user visible changes admin:
+    * SVNTable.read_file_sizes: admin 'trans' command stopped working because bulk_update_mappings would not find the updated rows.
+        So rows are now updated one by one.
+    user visible changes client:
+    * Fixed creation of paths for download on windows
+    * added 'direct_sync' to allowed_item_keys to avoid warnings
+
+18/3/2017 1.4.0.0
+
+    user visible changes client:
+    * Added support for direct sync
+
+    programmer visible changes:
+    * InstlClient.get_binaries_versions renamed get_version_of_installed_binaries
+    * Fixed regex that reads InfoMaps to correctly identify dl_path fields
+    * Fixed SVNTable.mark_required_files_for_active_items to correctly indentify files and folders that were wtared
+
+8/3/2017 1.3.3.5
+
+    programmer visible changes:
+    * Unique constraint on IndexItemDetailRow so to avoid duplicate rows
+    * rearranged th triggers that create require../ details in table IndexItemDetailRow
+    * repr_require_for_yaml avoids duplicate entries
+    * info_map_table and items_table are now only initialized when needed
+    * database can be configured to have a unique name in each run
+    * database can be forced to be on disk even when instl runs compiled
+    * new table ConfigVar that will be populated with config variables values
+
+    user visible changes client:
+    * fixed issue where __ALL_ITEMS_IID__ & __ALL_GUIDS_IID__ would not be calculated correctly
+    * new config var __DATABASE_URL__ to contain the url of the database
+
+    user visible changes admin:
+    * initialize self.items_table in InstlAdmin
+
+6/3/2017 1.3.3.4
+    user visible changes client:
+    * new IID detail value "phantom_version" for cases where require_version does not exist and cannot be deduced from disk.
+
+2/3/2017 1.3.3.3
+
+    programmer visible changes:
+    * IndexItemRow.status renamed install_status
+    * Constants for IndexItemsTable.install_status in IndexItemsTable.install_status
+    * New column IndexItemRow.ignore - to ignore iids found in variables
+        DO_NOT_REMOVE_TARGETS, MAIN_IGNORED_TARGETS
+    * New function IndexItemsTable.set_ignore_iids to set IndexItemRow.ignore
+    * New utils functions quoteme_single_list, quoteme_double_list will quote all strings in a list
+    * Added DISTINCT to the SELECT statement in get_all_installed_iids_needing_update, not need for repeated items.
+    * Changed implementation for begin_get_for_all_oses, begin_get_for_specific_oses to be sqlite code instead of sqlalchemy
+    * Added much needed session.commit's to fix creation of offline installers
+    * CREATE TRIGGER got IF NOT EXISTS
+    * Some more session.commits
+    * get_all_iids implemented in SQL instead of sqlalchemy baked query
+    * all_uninstall_items is sorted
+
+28/2/2017 1.3.3.2
+
+    programmer visible changes:
+    * moved around some varible intialization to accommodate for creating offline installers for Mac on windows
+
 21/2/3017 1.3.3.1
 
     user visible changes client:

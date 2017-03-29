@@ -6,6 +6,7 @@ import sys
 import datetime
 import subprocess
 import re
+import pathlib
 
 import utils
 from .platformSpecificHelper_Base import PlatformSpecificHelperBase
@@ -364,15 +365,25 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         restore_dir_command = self.cd("$(" + var_name + ")")
         return restore_dir_command
 
-    def rmdir(self, directory, recursive=False):
-        recurse_switch = '/S /Q' if recursive else ''
+    def rmdir(self, directory, recursive=False, check_exist=False):
+        rmdir_command_parts = list()
         norm_directory = utils.quoteme_double(os.path.normpath(directory))
-        rmdir_command = " ".join(("rmdir", recurse_switch, norm_directory))
+        if check_exist:
+            rmdir_command_parts.extend(("if", "exist", norm_directory))
+        rmdir_command_parts.append("rmdir")
+        if recursive:
+            rmdir_command_parts.extend(("/S", "/Q"))
+        rmdir_command_parts.append(norm_directory)
+        rmdir_command = " ".join(rmdir_command_parts)
         return rmdir_command
 
-    def rmfile(self, file_to_del):
+    def rmfile(self, file_to_del, check_exist=False):
+        rmfile_command_parts = list()
         norm_file = utils.quoteme_double(os.path.normpath(file_to_del))
-        rmfile_command = " ".join(("del", "/F", "/Q", norm_file))
+        if check_exist:
+            rmfile_command_parts.extend(("if", "exist", norm_file))
+        rmfile_command_parts.extend(("del", "/F", "/Q", norm_file))
+        rmfile_command = " ".join(rmfile_command_parts)
         return rmfile_command
 
     def rm_file_or_dir(self, file_or_dir):
@@ -582,8 +593,9 @@ class DownloadTool_win_curl(DownloadToolBase):
             wfd_cycler = itertools.cycle(wfd_list)
             url_num = 0
             for url, path in self.urls_to_download:
+                win_path = str(pathlib.PurePath(path)).replace("\\", "\\\\")
                 wfd = next(wfd_cycler)
-                wfd.write('''url = "{url}"\noutput = "{path}"\n\n'''.format(**locals()))
+                wfd.write('''url = "{url}"\noutput = "{win_path}"\n\n'''.format(**locals()))
                 url_num += 1
 
             for wfd in wfd_list:

@@ -31,10 +31,11 @@ class InstlClientRemove(InstlClient):
         if not os.path.isfile(have_info_path):
             have_info_path = var_stack.ResolveVarToStr("SITE_HAVE_INFO_MAP_PATH")
         self.read_info_map_from_file(have_info_path)
+        self.calc_iid_to_name_and_version()
 
         self.batch_accum.set_current_section('remove')
         self.batch_accum += self.platform_helper.progress("Starting remove")
-        sorted_target_folder_list = sorted(self.all_items_by_target_folder,
+        sorted_target_folder_list = sorted(self.all_iids_by_target_folder,
                                            key=lambda fold: var_stack.ResolveStrToStr(fold),
                                            reverse=True)
         # print(sorted_target_folder_list)
@@ -43,7 +44,7 @@ class InstlClientRemove(InstlClient):
         for folder_name in sorted_target_folder_list:
             self.batch_accum += self.platform_helper.progress("Removing from {0}".format(folder_name))
             var_stack.set_var("__TARGET_DIR__").append(os.path.normpath(folder_name))
-            items_in_folder = self.all_items_by_target_folder[folder_name]
+            items_in_folder = self.all_iids_by_target_folder[folder_name]
             self.batch_accum += self.platform_helper.new_line()
 
             self.accumulate_unique_actions('pre_remove_from_folder', items_in_folder)
@@ -73,7 +74,7 @@ class InstlClientRemove(InstlClient):
     # Specific remove_item action specified - so specific action should be done.
 
     def create_remove_instructions_for_source(self, folder, source):
-        """ source is a tuple (source_folder, tag), where tag is either !file, !files, !dir_cont or !dir """
+        """ source is a tuple (source_folder, tag), where tag is either !file, !dir_cont or !dir """
 
         source_path, source_type = source[0], source[1]
         base_, leaf = os.path.split(source_path)
@@ -94,14 +95,6 @@ class InstlClientRemove(InstlClient):
                     base_, leaf = os.path.split(remove_path)
                     remove_full_path = os.path.normpath(os.path.join(folder, leaf))
                     remove_action = self.platform_helper.rm_file_or_dir(remove_full_path)
-                    self.batch_accum += remove_action
-            elif source_type == '!files':    # # remove all source's files from a folder
-                remove_items = self.info_map_table.get_items_in_dir(dir_path=source_path, levels_deep=1)
-                remove_paths = self.original_names_from_wtars_names(item.path for item in remove_items)
-                for remove_path in remove_paths:
-                    base_, leaf = os.path.split(remove_path)
-                    remove_full_path = os.path.normpath(os.path.join(folder, leaf))
-                    remove_action = self.platform_helper.rmfile(remove_full_path)
                     self.batch_accum += remove_action
         else:
             remove_actions = [_f for _f in remove_actions if _f]  # filter out None values
