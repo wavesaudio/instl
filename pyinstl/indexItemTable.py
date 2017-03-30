@@ -374,7 +374,7 @@ class IndexItemsTable(object):
                     ELSE          -- relative to $(SOURCE_PREFIX): Mac or Win
                         "$(SOURCE_PREFIX)/" || install_sources_t.detail_value
                     END )
-                     AS sync_folders
+                     AS sync_targets
         FROM IndexItemDetailRow as install_sources_t
         JOIN IndexItemRow
             ON IndexItemRow.iid=install_sources_t.owner_iid
@@ -1242,6 +1242,7 @@ class IndexItemsTable(object):
         return retVal
 
     def get_details_and_tag_for_active_iids(self, detail_name, unique_values=False, limit_to_iids=None):
+        retVal = list()
         distinct = "DISTINCT" if unique_values else ""
         limit_to_iids_filter = ""
         if limit_to_iids:
@@ -1261,8 +1262,15 @@ class IndexItemsTable(object):
                 {2}
             ORDER BY IndexItemDetailRow._id
             """.format(distinct, detail_name, limit_to_iids_filter)
-        fetched_results = self.session.execute(query_text).fetchall()
-        return fetched_results
+        try:
+            exec_result = self.session.execute(query_text)
+            if exec_result.returns_rows:
+                fetched_results= exec_result.fetchall()
+                retVal = [(mm[0], mm[1]) for mm in fetched_results]
+        except SQLAlchemyError as ex:
+            raise
+        # returns: [(iid, index_version, require_version, index_guid, require_guid, generation), ...]
+        return retVal
 
     def create_default_items(self, iids_to_ignore):
         self.create_default_index_items(iids_to_ignore=iids_to_ignore)
@@ -1415,6 +1423,22 @@ class IndexItemsTable(object):
                 install_sources_t.active=1
                 AND install_sources_t.detail_name='install_sources'
         """
+        try:
+            exec_result = self.session.execute(query_text)
+            if exec_result.returns_rows:
+                # returns [(iid, direct_sync_indicator, source, source_tag, install_folder),...]
+                retVal.extend(exec_result.fetchall())
+        except SQLAlchemyError as ex:
+            raise
+        return retVal
+
+    def get_translated_sources_for_iid(self, the_iid):
+        retVal = list()
+        query_text = """
+            SELECT sync_targets, tag
+            FROM active_sources_and_sync_folders_view
+            WHERE active_sources_and_sync_folders_view.owner_iid='{the_iid}'
+        """.format(the_iid=the_iid)
         try:
             exec_result = self.session.execute(query_text)
             if exec_result.returns_rows:

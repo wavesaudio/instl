@@ -358,10 +358,12 @@ class InstlClientCopy(InstlClient):
             batch_accum_len_before = len(self.batch_accum)
             self.batch_accum += self.platform_helper.copy_tool.begin_copy_folder()
             for IID in items_in_folder:
+                sources_for_iid = list()
                 with self.install_definitions_index[IID].push_var_stack_scope() as installi:
                     self.batch_accum += self.platform_helper.remark("-- Begin iid {0}".format(installi.iid))
                     for source_var in sorted(var_stack.get_configVar_obj("iid_source_var_list")):
                         source = var_stack.ResolveVarToList(source_var)
+                        sources_for_iid.append(source[:-1])
                         need_to_copy_source = installi.last_require_repo_rev == 0 or installi.last_require_repo_rev < self.get_max_repo_rev_for_source(source)
                         if need_to_copy_source:
                             self.batch_accum += self.platform_helper.remark("--- Begin source {0}".format(source[0]))
@@ -371,6 +373,19 @@ class InstlClientCopy(InstlClient):
                             self.batch_accum += var_stack.ResolveVarToList("iid_action_list_post_copy_item", default=[])
                             self.batch_accum += self.platform_helper.remark("--- End source {0}".format(source[0]))
                     self.batch_accum += self.platform_helper.remark("-- End iid {0}".format(installi.iid))
+
+                    if True:
+                        table_sources_for_iid = self.items_table.get_translated_sources_for_iid(IID)
+                        for i, s in enumerate(table_sources_for_iid):
+                            table_sources_for_iid[i] = [var_stack.ResolveStrToStr(s[0]), s[1]]
+                        table_sources_for_iid.sort(key=lambda s: s[0])
+                        sources_for_iid.sort(key=lambda s: s[0])
+                        if sources_for_iid != table_sources_for_iid:
+                            print(IID)
+                            for s in sources_for_iid:
+                                print("   <", s)
+                            for s in table_sources_for_iid:
+                                print("   >", s)
             self.batch_accum += self.platform_helper.copy_tool.end_copy_folder()
 
             # only if items were actually copied there's need to (Mac only) resolve symlinks
