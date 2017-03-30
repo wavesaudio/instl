@@ -291,9 +291,15 @@ class InstlMisc(InstlInstanceBase):
         else:
             folders_to_list.append(main_folder_to_list)
 
-        the_listing = utils.folder_listing(*folders_to_list)
-        with utils.write_to_file_or_stdout(out_file) as wfd:
-            wfd.write(the_listing)
+        ls_format = var_stack.ResolveVarToStr("LS_FORMAT", default='*')
+        the_listing = utils.folder_listing(*folders_to_list, ls_format=ls_format)
+
+        try:
+            with utils.write_to_file_or_stdout(out_file) as wfd:
+                wfd.write(the_listing)
+
+        except NotADirectoryError:
+            print("Cannot output to {}".format(out_file))
 
     def do_fail(self):
         exit_code = int(var_stack.ResolveVarToStr("__FAIL_EXIT_CODE__", default="1") )
@@ -327,3 +333,130 @@ class InstlMisc(InstlInstanceBase):
         resolved_text = var_stack.ResolveStrToStr(text_to_resolve)
         with open(output_file, "w") as wfd:
             wfd.write(resolved_text)
+
+    def unconditional_unwtar_guy(self, my_tarfile, dest, manifest_file=None):
+        my_tarfile.extractall(dest)
+        if manifest_file:
+            if os.path.isfile(manifest_file):
+                # oops, we have extracted the manifest as well
+                os.remove(manifest_file)
+
+    def unwtar_a_file_guy(self, wtar_file_paths, destination_folder=None):
+        manifest_file_name = var_stack.ResolveVarToStr("TAR_MANIFEST_FILE_NAME")
+
+        if destination_folder is None:
+            destination_folder, full_file_name_to_unwtar = os.path.split(wtar_file_paths[0])
+        else:
+            stam, full_file_name_to_unwtar = os.path.split(wtar_file_paths[0])
+
+        # we need the root folder name within the .wtar file to map the exact location of the manifest
+        fname = full_file_name_to_unwtar # but...
+        if full_file_name_to_unwtar.endswith(".wtar.aa"):
+            fname = full_file_name_to_unwtar[:-8]
+        elif full_file_name_to_unwtar.endswith(".wtar"):
+            fname = full_file_name_to_unwtar[:-5]
+
+        local_manifest_file = os.path.join(destination_folder, fname, manifest_file_name)
+
+        try:
+            with MultiFileReader("br", wtar_file_paths) as fd:
+                with tarfile.open(fileobj=fd) as tar:
+                    # TODO: since conditional unwtar requires further research, code below is forced
+                    if True:
+                        self.unconditional_unwtar(tar, destination_folder)
+                    else:
+                        if not os.path.isdir(os.path.join(destination_folder, fname)) or not os.listdir(os.path.join(destination_folder, fname)):
+                            # dest folder is empty. there is nothing to compare to so unwtar everything
+                            self.unconditional_unwtar(tar, destination_folder, local_manifest_file)
+                        else:
+                            # let's try to read the manifest
+                            try:
+                                # per doc, extractall() is safer than extract().
+                                # nevertheless, since we just read the manifest from memory, we don't care.
+                                # we will care later with actual extract.
+                                manifest_raw_content = tar.extractfile(os.path.join(fname, manifest_file_name))
+
+                                # yeah, a manifest!
+                                tar_content_per_manifest = {}
+                                for line in manifest_raw_content.readlines():
+                                    line = line.decode('ascii').strip() # we know its ascii
+
+                                    # remarks are not needed nor are folders because we check
+                                    # against existing folder and not against the manifest
+                                    if line.startswith('#') or line.endswith(os.sep):
+                                        continue
+
+                                    # 1. that's what we want to have: Checksum, Path
+                                    # we don't need size because we have member.size, brought to us for free
+                                    # 2. this regex doesn't handle folders! (folders don't have checksum)
+                                    # but since we have excluded them up stairs, it's ok
+                                    m = re.search('(.*) ({}.*)'.format(fname), line)
+                                    if m:
+                                        tar_content_per_manifest[m.group(2)] = {
+                                            'checksum': m.group(1)  # but we need checksum
+                                        }
+
+                                # this will hold members that are different and thus need to be extracted
+                                member_collection = []
+                                for member in tar:
+                                    existing_file_full_path = os.path.join(destination_folder, member.name)
+                                    if member.name == os.path.join(fname, manifest_file_name):
+                                        # we don't want to extract the manifest again
+                                        continue
+                                    elif member.isdir():
+                                        if not os.path.isdir(os.path.join(destination_folder, member.name)):
+                                            member_collection.append(member)
+                                    elif not os.path.isfile(existing_file_full_path):
+                                        # file doesn't exist. manifest or not, just extract.
+                                        member_collection.append(member)
+
+                                    # at this point we have a file in the tar that exist on the file-system
+                                    elif member.size == os.stat(existing_file_full_path).st_size:
+                                        # damn! same size. we must compare checksum
+                                        if member.name in tar_content_per_manifest: # just to be on the safe side
+                                            cs_ratsui = tar_content_per_manifest[member.name]['checksum']
+                                            cs_matsui = utils.get_file_checksum(existing_file_full_path)
+                                            if cs_ratsui == cs_matsui:
+                                                # this is the only case we will skip a member
+                                                pass
+                                            else:
+                                                # not same cs? pile it up for extraction
+                                                member_collection.append(member)
+
+                                        else:
+                                            # did someone manually add a file to the tar?
+                                            # this is strange! a file exists in tar but it's not in the manifest!
+                                            member_collection.append(member)
+
+                                    else:
+                                        # different size? we want you
+                                        member_collection.append(member)
+
+                                # extracting only what we need
+                                tar.extractall(destination_folder, members=member_collection)
+
+                            except KeyError:
+                                # that's ok, a manifest is optional. we'll extract everything
+                                self.unconditional_unwtar(tar, destination_folder)
+
+            if self.no_artifacts:
+                for wtar_file in wtar_file_paths:
+                    os.remove(wtar_file)
+            # self.dynamic_progress("Expanding {wtar_file_paths}".format(**locals()))
+
+        except OSError as e:
+            print("Invalid stream on split file with {}".format(wtar_file_paths[0]))
+            raise e
+
+        except tarfile.TarError:
+            print("tarfile error while opening file", os.path.abspath(wtar_file_paths[0]))
+            raise
+
+    def do_exec(self):
+        try:
+            py_file_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+            with open(py_file_path, 'r') as rfd:
+                py_text = rfd.read()
+                exec(py_text)
+        except Exception as ex:
+            print("Exception while exec ", py_file_path, ex)

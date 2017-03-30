@@ -228,6 +228,23 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         check_command = " ".join(check_command_parts)
         return check_command
 
+    def ls(self, format='*', folder='.', output_file='None'):
+        if output_file is None:
+            return # no output_file, no game
+
+        if not var_stack.defined('__INSTL_LAUNCH_COMMAND__'):
+            return # we cannot do anything without __INSTL_LAUNCH_COMMAND__
+
+        ls_command_parts = (var_stack.ResolveVarToStr("__INSTL_LAUNCH_COMMAND__"),
+                            "ls",
+                            "--in",
+                            utils.quoteme_double(folder),
+                            "--output-format",
+                            utils.quoteme_double(format),
+                            "--out",
+                            utils.quoteme_double(os.path.join(folder, output_file)))
+        return " ".join(ls_command_parts)
+
     def tar(self, to_tar_name):
         if to_tar_name.endswith(".zip"):
             wtar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "-c", "-f", utils.quoteme_double(to_tar_name+'.wtar'), utils.quoteme_double(to_tar_name))

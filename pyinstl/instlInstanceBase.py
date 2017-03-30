@@ -156,7 +156,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             "credentials": ("__CREDENTIALS__", None),
             "base_url": ("__BASE_URL__", None),
             "file_sizes_file": ("__FILE_SIZES_FILE__", None),
-            "output_format": ("__OUTPUT_FORMAT__", "$(OUTPUT_FORMAT)")
+            "output_format": ("__OUTPUT_FORMAT__", None),
         }
 
         for attrib, var in const_attrib_to_var.items():
@@ -169,6 +169,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         non_const_attrib_to_var = {
             "target_repo_rev": "TARGET_REPO_REV",
             "base_repo_rev": "BASE_REPO_REV",
+            "ls_format": "LS_FORMAT"
         }
 
         for attrib, var in non_const_attrib_to_var.items():
@@ -214,6 +215,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             var_stack.add_const_config_variable("__RUN_AS_ADMIN__", "from command line options", "yes")
         if cmd_line_options_obj.only_installed:
             var_stack.add_const_config_variable("__REPORT_ONLY_INSTALLED__", "from command line options", "yes")
+
 
         if cmd_line_options_obj.define:
             individual_definitions = cmd_line_options_obj.define[0].split(",")
