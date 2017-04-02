@@ -103,6 +103,7 @@ class CommandLineOptions(object):
         self.set_run_as_admin = None
         self.output_format = None
         self.only_installed = None
+        self.ls_format = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).items())])
@@ -126,6 +127,7 @@ def prepare_args_parser(in_command):
         'create-rsa-keys':      {'mode': 'an', 'options': ('conf',), 'help':  'create private and public keys'},
         'depend':               {'mode': 'an', 'options': ('in', 'out',), 'help':  'output a dependencies map for an index file'},
         'doit':                 {'mode': 'di', 'options': ('in', 'out', 'run'), 'help':  'Do something'},
+        'exec':                 {'mode': 'ds', 'options': ('in', 'out', 'conf_opt'), 'help':  'Execute a python scrip'},
         'fail':                 {'mode': 'ds', 'options': (), 'help': "fail and return exit code"},
         'file-sizes':           {'mode': 'an', 'options': ('in', 'out'), 'help':  'Create a list of files and their sizes'},
         'fix-perm':             {'mode': 'an', 'options': ('out', 'run','conf', 'limit'), 'help':  'Fix Mac OS permissions'},
@@ -249,10 +251,11 @@ def prepare_args_parser(in_command):
                                     dest='credentials',
                                     help="credentials to file server")
 
-    if 'conf' in command_details['options']:
+    if ('conf' in command_details['options']) or ('conf_opt' in command_details['options']):
         config_file_options = command_parser.add_argument_group(description='admin arguments:')
+        is_required = 'conf' in command_details['options']
         config_file_options.add_argument('--config-file', '-s',
-                                    required=True,
+                                    required=is_required,
                                     nargs=1,
                                     metavar='path-to-config-file',
                                     dest='config_file',
@@ -409,6 +412,13 @@ def prepare_args_parser(in_command):
                                 dest='all_revisions',
                                 help="work on all revisions even if above repo-rev")
 
+    elif 'ls' == in_command:
+        ls_options = command_parser.add_argument_group(description='output_format arguments:')
+        ls_options.add_argument('--output-format',
+                                    required=False,
+                                    nargs=1,
+                                    dest='ls_format',
+                                    help="specify output format")
     elif 'fail' == in_command:
         mac_dock_options = command_parser.add_argument_group(description=in_command+' arguments:')
         mac_dock_options.add_argument('--exit-code',

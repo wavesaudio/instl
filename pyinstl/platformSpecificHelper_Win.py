@@ -439,6 +439,9 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         check_checksum_for_folder_command = super().check_checksum_for_folder(info_map_file)
         return check_checksum_for_folder_command, self.exit_if_error()
 
+    def ls(self, format='*', folder='.'):
+        raise NotImplementedError
+
     def tar(self, to_tar_name):
         raise NotImplementedError
 
