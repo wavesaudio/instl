@@ -372,19 +372,13 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             raise ValueError("unknown tag for source " + source_path + ": " + source_type)
         return retVal
 
-    def relative_sync_folder_for_source_table(self, source_path, source_type):
-        if source_path.startswith("/"):  # absolute path
-            adjusted_source_path = source_path[1:]
-        elif source_path.startswith("$("):  # explicitly relative to some variable
-            adjusted_source_path = source_path
-        else:  # implicitly relative to $(SOURCE_PREFIX)
-            adjusted_source_path = "$(SOURCE_PREFIX)/" + source_path
+    def relative_sync_folder_for_source_table(self, adjusted_source, source_type):
         if source_type in ('!dir', '!file'):
-            retVal = "/".join(adjusted_source_path.split("/")[0:-1])
+            retVal = "/".join(adjusted_source.split("/")[0:-1])
         elif source_type in ('!dir_cont', ):
-            retVal = adjusted_source_path
+            retVal = adjusted_source
         else:
-            raise ValueError("unknown tag for source " + source_path + ": " + source_type)
+            raise ValueError("unknown tag for source " + adjusted_source + ": " + source_type)
         return retVal
 
     def write_batch_file(self, in_batch_accum, file_name_post_fix=""):

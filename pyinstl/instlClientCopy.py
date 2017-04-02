@@ -375,16 +375,16 @@ class InstlClientCopy(InstlClient):
                     self.batch_accum += self.platform_helper.remark("-- End iid {0}".format(installi.iid))
 
                     if True:
-                        table_sources_for_iid = self.items_table.get_translated_sources_for_iid(IID)
-                        for i, s in enumerate(table_sources_for_iid):
-                            table_sources_for_iid[i] = [var_stack.ResolveStrToStr(s[0]), s[1]]
-                        table_sources_for_iid.sort(key=lambda s: s[0])
+                        adjusted_sources_for_iid_from_table = self.items_table.get_adjusted_sources_for_iid(IID)
+                        for i, s in enumerate(adjusted_sources_for_iid_from_table):
+                            adjusted_sources_for_iid_from_table[i] = [var_stack.ResolveStrToStr(s[0]), s[1]]
+                        adjusted_sources_for_iid_from_table.sort(key=lambda s: s[0])
                         sources_for_iid.sort(key=lambda s: s[0])
-                        if sources_for_iid != table_sources_for_iid:
+                        if sources_for_iid != adjusted_sources_for_iid_from_table:
                             print(IID)
                             for s in sources_for_iid:
                                 print("   <", s)
-                            for s in table_sources_for_iid:
+                            for s in adjusted_sources_for_iid_from_table:
                                 print("   >", s)
             self.batch_accum += self.platform_helper.copy_tool.end_copy_folder()
 
