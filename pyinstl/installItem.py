@@ -258,7 +258,7 @@ class InstallItem(object):
             source_vars_obj = self.__var_list.set_var("iid_source_var_list")
             source_list = sorted(self._source_list())
             for i, source in enumerate(source_list):
-                source_var = "iid_source_" + str(i)
+                source_var = "iid_source_{0:03d}".format(i)
                 source_vars_obj.append(source_var)
                 self.__var_list.set_var(source_var).extend(source)
         return self.__var_list
