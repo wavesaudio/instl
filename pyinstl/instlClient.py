@@ -62,9 +62,8 @@ class InstlClient(InstlInstanceBase):
             folder_copy_iids_list.sort()
 
         folder_to_iid_list = self.items_table.source_folders_to_items_without_target_folders()
-        for folder, IID, tag in folder_to_iid_list:
-            source = folder # var_stack.ResolveVarToList(folder)
-            relative_sync_folder = self.relative_sync_folder_for_source_table(source, tag)
+        for adjusted_source, IID, tag in folder_to_iid_list:
+            relative_sync_folder = self.relative_sync_folder_for_source_table(adjusted_source, tag)
             sync_folder = os.path.join("$(LOCAL_REPO_SYNC_DIR)", relative_sync_folder)
             self.__no_copy_iids_by_sync_folder[sync_folder].append(IID)
 
@@ -473,24 +472,17 @@ class InstlClient(InstlInstanceBase):
         # direct_sync_indicator will be None unless the items has "direct_sync" section in index.yaml
         # install_folder will be None for those items that require only sync not copy (such as Icons)
         sync_and_source = self.items_table.get_sync_folders_and_sources_for_active_iids()
-        for iid, direct_sync_indicator, source, source_tag, install_folder in sync_and_source:
+        for iid, direct_sync_indicator, source, adjusted_source, source_tag, install_folder in sync_and_source:
             direct_sync = self.get_direct_sync_status_from_indicator(direct_sync_indicator)
-
-            if source[0] == "/":
-                fixed_source = source[1:]
-            elif source[0] == "$":
-                fixed_source = source
-            else:
-                fixed_source = "/".join(("$(SOURCE_PREFIX)", source))
-            fixed_source = var_stack.ResolveStrToStr(fixed_source)
+            resolved_adjusted_source = var_stack.ResolveStrToStr(adjusted_source)
 
             if source_tag in ('!dir', '!dir_cont'):
-                items = self.info_map_table.get_file_items_of_dir(dir_path=fixed_source)
+                items = self.info_map_table.get_file_items_of_dir(dir_path=resolved_adjusted_source)
                 if direct_sync:
                     if  source_tag == '!dir':
-                        source_parent = "/".join(fixed_source.split("/")[:-1])
+                        source_parent = "/".join(resolved_adjusted_source.split("/")[:-1])
                     else:  # !dir_cont
-                        source_parent = fixed_source
+                        source_parent = resolved_adjusted_source
                     assert install_folder is not None
                     for item in items:
                         item.download_path = var_stack.ResolveStrToStr("/".join((install_folder, item.path[len(source_parent)+1:])))
@@ -498,7 +490,7 @@ class InstlClient(InstlInstanceBase):
                     for item in items:
                         item.download_path = var_stack.ResolveStrToStr("/".join(("$(LOCAL_REPO_SYNC_DIR)", item.path)))
             elif source_tag == '!file':
-                items_for_file = self.info_map_table.get_required_for_file(fixed_source)
+                items_for_file = self.info_map_table.get_required_for_file(resolved_adjusted_source)
                 if direct_sync:
                     assert install_folder is not None
                     for item in items_for_file:
