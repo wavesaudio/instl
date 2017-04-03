@@ -256,7 +256,7 @@ class InstallItem(object):
                 if len(action_list_for_type) > 0:
                     self.__var_list.set_var("iid_action_list_" + action_type).extend(action_list_for_type)
             source_vars_obj = self.__var_list.set_var("iid_source_var_list")
-            source_list = self._source_list()
+            source_list = sorted(self._source_list())
             for i, source in enumerate(source_list):
                 source_var = "iid_source_" + str(i)
                 source_vars_obj.append(source_var)
