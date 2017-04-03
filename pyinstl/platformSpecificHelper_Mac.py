@@ -344,7 +344,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
         download_command_parts.append(utils.quoteme_double(src_url))
         return " ".join(download_command_parts)
 
-    def create_config_files(self, curl_config_file_path, num_files):
+    def create_config_files(self, curl_config_file_path, num_config_files):
         import itertools
 
         num_urls_to_download = len(self.urls_to_download)
@@ -354,8 +354,8 @@ class DownloadTool_mac_curl(DownloadToolBase):
             retries = var_stack.ResolveVarToStr("CURL_RETRIES", "2")
             retry_delay = var_stack.ResolveVarToStr("CURL_RETRY_DELAY", "8")
 
-            actual_num_files = max(0, min(num_urls_to_download, num_files))
-            list_of_lines_for_files = [list() for i in range(actual_num_files)]
+            actual_num_config_files = max(0, min(num_urls_to_download, num_config_files))
+            list_of_lines_for_files = [list() for i in range(actual_num_config_files)]
             list_for_file_cycler = itertools.cycle(list_of_lines_for_files)
             url_num = 0
             for url, path in self.urls_to_download:
@@ -363,8 +363,8 @@ class DownloadTool_mac_curl(DownloadToolBase):
                 line_list.append('''url = "{url}"\noutput = "{path}"\n\n'''.format(**locals()))
                 url_num += 1
 
-            num_digits = len(str(actual_num_files))
-            file_name_list = ["-".join( (curl_config_file_path, str(file_i).zfill(num_digits)) ) for file_i in range(actual_num_files)]
+            num_digits = len(str(actual_num_config_files))
+            file_name_list = ["-".join( (curl_config_file_path, str(file_i).zfill(num_digits)) ) for file_i in range(actual_num_config_files)]
 
             lise_of_lines_iter = iter(list_of_lines_for_files)
             for file_name in file_name_list:
