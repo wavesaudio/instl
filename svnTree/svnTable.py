@@ -450,6 +450,7 @@ class SVNTable(object):
             self.baked_queries_map["get_all_items"] = self.bakery(lambda session: session.query(SVNRow))
             self.baked_queries_map["get_all_items"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.dirFlag == bindparam('dir')))
             self.baked_queries_map["get_all_items"] += lambda q: q.filter(SVNRow.level <= bindparam('levels_deep'))
+            self.baked_queries_map["get_all_items"] += lambda q: q.order_by(SVNRow.path)
 
         want_file = what in ("any", "file")
         want_dir = what in ("any", "dir")
@@ -470,6 +471,7 @@ class SVNTable(object):
             self.baked_queries_map["get_required_items"] = self.bakery(lambda session: session.query(SVNRow))
             self.baked_queries_map["get_required_items"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.dirFlag == bindparam('dir')))
             self.baked_queries_map["get_required_items"] += lambda q: q.filter(or_(SVNRow.required == bindparam('required')))
+            self.baked_queries_map["get_required_items"] += lambda q: q.order_by(SVNRow.path)
 
         want_file = what in ("any", "file")
         want_dir = what in ("any", "dir")
@@ -490,6 +492,7 @@ class SVNTable(object):
             self.baked_queries_map["get_exec_items"] = self.bakery(lambda session: session.query(SVNRow))
             self.baked_queries_map["get_exec_items"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.dirFlag == bindparam('dir')))
             self.baked_queries_map["get_exec_items"] += lambda q: q.filter(SVNRow.flags.contains('x'))
+            self.baked_queries_map["get_exec_items"] += lambda q: q.order_by(SVNRow.path)
 
         want_file = what in ("any", "file")
         want_dir = what in ("any", "dir")
@@ -508,6 +511,7 @@ class SVNTable(object):
             self.baked_queries_map["get_required_exec_items"] = self.bakery(lambda session: session.query(SVNRow))
             self.baked_queries_map["get_required_exec_items"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.dirFlag == bindparam('dir')))
             self.baked_queries_map["get_required_exec_items"] += lambda q: q.filter(SVNRow.required == True, SVNRow.flags.contains('x'))
+            self.baked_queries_map["get_required_exec_items"] += lambda q: q.order_by(SVNRow.path)
 
         want_file = what in ("any", "file")
         want_dir = what in ("any", "dir")
@@ -528,6 +532,7 @@ class SVNTable(object):
             self.baked_queries_map["get_download_items"] = self.bakery(lambda session: session.query(SVNRow))
             self.baked_queries_map["get_download_items"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.dirFlag == bindparam('dir')))
             self.baked_queries_map["get_download_items"] += lambda q: q.filter(SVNRow.need_download == True)
+            self.baked_queries_map["get_download_items"] += lambda q: q.order_by(SVNRow.path)
 
         want_file = what in ("any", "file")
         want_dir = what in ("any", "dir")
@@ -551,6 +556,7 @@ class SVNTable(object):
             self.baked_queries_map["required_items_for_file"] = self.bakery(lambda session: session.query(SVNRow))
             self.baked_queries_map["required_items_for_file"] += lambda q: q.filter(SVNRow.fileFlag==True)
             self.baked_queries_map["required_items_for_file"] += lambda q: q.filter(or_(SVNRow.path == bindparam('file_path'), SVNRow.path.like(bindparam('file_path') + ".wtar%")))
+            self.baked_queries_map["required_items_for_file"] += lambda q: q.order_by(SVNRow.path)
 
         retVal = self.baked_queries_map["required_items_for_file"](self.session).params(file_path=file_path).all()
         return retVal
@@ -591,6 +597,7 @@ class SVNTable(object):
             self.baked_queries_map["get_file_items_of_dir"] += lambda q: q.filter(SVNRow.fileFlag == True)
             self.baked_queries_map["get_file_items_of_dir"] += lambda q: q.filter(or_(SVNRow.path.like(bindparam('dir_path')+"/%"),
                                                                                  SVNRow.path.like(bindparam('dir_path')+".wtar%")))
+            self.baked_queries_map["get_file_items_of_dir"] += lambda q: q.order_by(SVNRow.path)
 
         files_of_dir = self.baked_queries_map["get_file_items_of_dir"](self.session).params(dir_path=dir_path).all()
         return files_of_dir
@@ -634,6 +641,7 @@ class SVNTable(object):
                     self.baked_queries_map["dir_items_recursive"] += lambda q: q.filter(SVNRow.level > bindparam('dir_level'))
                     self.baked_queries_map["dir_items_recursive"] += lambda q: q.filter(SVNRow.level <= bindparam('dir_level')+bindparam('levels_deep'))
                     self.baked_queries_map["dir_items_recursive"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.dirFlag == bindparam('dir')))
+                    self.baked_queries_map["dir_items_recursive"] += lambda q: q.order_by(SVNRow.path)
 
                 want_file = what in ("any", "file")
                 want_dir = what in ("any", "dir")
