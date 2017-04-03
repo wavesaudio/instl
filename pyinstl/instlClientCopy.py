@@ -346,7 +346,7 @@ class InstlClientCopy(InstlClient):
 
     def create_copy_instructions_for_target_folder(self, target_folder_path):
             num_items_copied_to_folder = 0
-            items_in_folder = self.all_iids_by_target_folder[target_folder_path]
+            items_in_folder = sorted(self.all_iids_by_target_folder[target_folder_path])
             self.batch_accum += self.platform_helper.new_line()
             self.batch_accum += self.platform_helper.remark("- Begin folder {0}".format(target_folder_path))
             self.batch_accum += self.platform_helper.cd(target_folder_path)
@@ -360,8 +360,10 @@ class InstlClientCopy(InstlClient):
             for IID in items_in_folder:
                 with self.install_definitions_index[IID].push_var_stack_scope() as installi:
                     self.batch_accum += self.platform_helper.remark("-- Begin iid {0}".format(installi.iid))
-                    for source_var in sorted(var_stack.get_configVar_obj("iid_source_var_list")):
-                        source = var_stack.ResolveVarToList(source_var)
+                    source_vars = sorted(var_stack.get_configVar_obj("iid_source_var_list"))
+                    source_vars_resolved = [var_stack.ResolveVarToList(source_var) for source_var in source_vars]
+                    #print(target_folder_path, IID, [s[0] for s in source_vars_resolved])
+                    for source in source_vars_resolved:
                         need_to_copy_source = installi.last_require_repo_rev == 0 or installi.last_require_repo_rev < self.get_max_repo_rev_for_source(source)
                         if need_to_copy_source:
                             self.batch_accum += self.platform_helper.remark("--- Begin source {0}".format(source[0]))
