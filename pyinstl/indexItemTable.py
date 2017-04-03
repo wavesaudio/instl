@@ -1453,6 +1453,7 @@ class IndexItemsTable(object):
             iid_t.install_status > 0
             AND
             iid_t.ignore=0
+        ORDER BY adjusted_sources_t.adjusted_source
         """.format(the_iid=the_iid)
         try:
             exec_result = self.session.execute(query_text)
