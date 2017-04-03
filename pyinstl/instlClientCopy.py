@@ -358,21 +358,19 @@ class InstlClientCopy(InstlClient):
             batch_accum_len_before = len(self.batch_accum)
             self.batch_accum += self.platform_helper.copy_tool.begin_copy_folder()
             for IID in items_in_folder:
-                with self.install_definitions_index[IID].push_var_stack_scope() as installi:
-                    self.batch_accum += self.platform_helper.remark("-- Begin iid {0}".format(installi.iid))
-                    source_vars = sorted(var_stack.get_configVar_obj("iid_source_var_list"))
-                    source_vars_resolved = [var_stack.ResolveVarToList(source_var) for source_var in source_vars]
-                    #print(target_folder_path, IID, [s[0] for s in source_vars_resolved])
-                    for source in source_vars_resolved:
-                        need_to_copy_source = installi.last_require_repo_rev == 0 or installi.last_require_repo_rev < self.get_max_repo_rev_for_source(source)
-                        if need_to_copy_source:
-                            self.batch_accum += self.platform_helper.remark("--- Begin source {0}".format(source[0]))
-                            num_items_copied_to_folder += 1
-                            self.batch_accum += var_stack.ResolveVarToList("iid_action_list_pre_copy_item", default=[])
-                            self.create_copy_instructions_for_source(source, installi.name_and_version)
-                            self.batch_accum += var_stack.ResolveVarToList("iid_action_list_post_copy_item", default=[])
-                            self.batch_accum += self.platform_helper.remark("--- End source {0}".format(source[0]))
-                    self.batch_accum += self.platform_helper.remark("-- End iid {0}".format(installi.iid))
+                self.batch_accum += self.platform_helper.remark("-- Begin iid {0}".format(IID))
+                adjusted_sources_for_iid = self.items_table.get_adjusted_sources_for_iid(IID)
+                adjusted_resolved_sources_for_iid = [(var_stack.ResolveStrToStr(s[0]), s[1]) for s in adjusted_sources_for_iid]
+                #print(target_folder_path, IID, [s[0] for s in adjusted_resolved_sources_for_iid])
+                for source in adjusted_resolved_sources_for_iid:
+                    self.batch_accum += self.platform_helper.remark("--- Begin source {0}".format(source[0]))
+                    num_items_copied_to_folder += 1
+                    self.batch_accum += var_stack.ResolveVarToList("iid_action_list_pre_copy_item", default=[])
+                    self.create_copy_instructions_for_source(source, self.iid_to_name_and_version[IID].name_and_version)
+                    self.batch_accum += var_stack.ResolveVarToList("iid_action_list_post_copy_item", default=[])
+                    self.batch_accum += self.platform_helper.remark("--- End source {0}".format(source[0]))
+                self.batch_accum += self.platform_helper.remark("-- End iid {0}".format(IID))
+
             self.batch_accum += self.platform_helper.copy_tool.end_copy_folder()
 
             # only if items were actually copied there's need to (Mac only) resolve symlinks

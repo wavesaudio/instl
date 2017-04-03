@@ -172,9 +172,12 @@ class ConfigVar(get_declarative_base()):
     raw_value = Column(String)
     resolved_value = Column(String)
 
-#IndexItemDetailRow.resolved_details = relationship(IndexItemToDetailRelation, back_populates="detail")
-#IndexItemRow.original_details = relationship("IndexItemDetailRow", back_populates="item")
-#IndexItemRow.all_details = relationship("IndexItemToDetailRelation", back_populates="item")
+
+class AdjustedSources(get_declarative_base()):
+    __tablename__ = "AdjustedSources"
+    _id = Column(Integer, primary_key=True, autoincrement=True)
+    detail_row_id        = Column(Integer, ForeignKey("IndexItemDetailRow._id"))
+    adjusted_source = Column(String)
 
 IndexItemDetailOperatingSystem.__table__.create(bind=get_engine(), checkfirst=True)
 IndexItemRow.__table__.create(bind=get_engine(), checkfirst=True)
@@ -183,3 +186,4 @@ IndexGuidToItemTranslate.__table__.create(bind=get_engine(), checkfirst=True)
 IndexRequireTranslate.__table__.create(bind=get_engine(), checkfirst=True)
 FoundOnDiskItemRow.__table__.create(bind=get_engine(), checkfirst=True)
 ConfigVar.__table__.create(bind=get_engine(), checkfirst=True)
+AdjustedSources.__table__.create(bind=get_engine(), checkfirst=True)

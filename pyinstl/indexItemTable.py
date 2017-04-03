@@ -249,8 +249,30 @@ class IndexItemsTable(object):
             END;
         """
         self.session.execute(trigger_text)
-        self.commit_changes()
 
+        # when adding new install_source calculate the adjusted source relative to sync folder
+        # If install_source starts with '/' - just remove the '/'
+        # If install_source starts with $ leave as is since it's variable dependant
+        # Otherwise add $(SOURCE_PREFIX)/ - which will later be resolved to Mac/Win
+        trigger_text = """
+            CREATE TRIGGER IF NOT EXISTS set_adjusted_source
+            AFTER INSERT ON IndexItemDetailRow
+            WHEN NEW.detail_name="install_sources"
+            BEGIN
+                 INSERT INTO AdjustedSources (detail_row_id, adjusted_source)
+                 VALUES(NEW._id,
+                    CASE substr(NEW.detail_value,1,1)
+                    WHEN "/" THEN -- absolute path
+                        substr(NEW.detail_value, 2)
+                    WHEN "$" THEN -- relative to some variable
+                        NEW.detail_value
+                    ELSE          -- relative to $(SOURCE_PREFIX): Mac or Win
+                        "$(SOURCE_PREFIX)/" || NEW.detail_value
+                    END);
+            END;
+        """
+        self.session.execute(trigger_text)
+        self.commit_changes()
     def drop_triggers(self):
         stmt = """
             DROP TRIGGER IF EXISTS translate_require_by_trigger;
@@ -283,6 +305,10 @@ class IndexItemsTable(object):
         self.session.execute(stmt)
         stmt = """
             DROP TRIGGER IF EXISTS log_adjust_active_os_for_details;
+            """
+        self.session.execute(stmt)
+        stmt = """
+            DROP TRIGGER IF EXISTS set_adjusted_source;
             """
         self.session.execute(stmt)
         self.commit_changes()
@@ -360,34 +386,6 @@ class IndexItemsTable(object):
             GROUP BY remote.owner_iid
             """)
         self.session.execute(stmt)
-
-        stmt = text("""
-        CREATE VIEW "active_sources_and_sync_folders_view" AS
-        SELECT install_sources_t.owner_iid,install_sources_t.tag,
-            install_sources_t.detail_value AS install_sources,
-            coalesce(existing_sync_folders_t.detail_value,
-                    CASE substr(install_sources_t.detail_value,1,1)
-                    WHEN "/" THEN -- absolute path
-                        substr(install_sources_t.detail_value, 2)
-                    WHEN "$" THEN -- relative to some variable
-                        install_sources_t.detail_value
-                    ELSE          -- relative to $(SOURCE_PREFIX): Mac or Win
-                        "$(SOURCE_PREFIX)/" || install_sources_t.detail_value
-                    END )
-                     AS sync_folders
-        FROM IndexItemDetailRow as install_sources_t
-        JOIN IndexItemRow
-            ON IndexItemRow.iid=install_sources_t.owner_iid
-            AND IndexItemRow.install_status > 0
-        LEFT JOIN IndexItemDetailRow AS existing_sync_folders_t
-            ON existing_sync_folders_t.detail_name='direct_sync'
-            AND existing_sync_folders_t.owner_iid=install_sources_t.owner_iid
-            AND existing_sync_folders_t.active=1
-        WHERE
-        install_sources_t.detail_name='install_sources'
-        AND install_sources_t.active=1
-        """)
-        self.session.execute(stmt)
         self.commit_changes()
 
     def drop_views(self):
@@ -401,10 +399,6 @@ class IndexItemsTable(object):
         self.session.execute(stmt)
         stmt = text("""
             DROP VIEW IF EXISTS "report_versions_view"
-            """)
-        self.session.execute(stmt)
-        stmt = text("""
-            DROP VIEW IF EXISTS "active_sources_and_sync_folders_view"
             """)
         self.session.execute(stmt)
         self.commit_changes()
@@ -1138,8 +1132,11 @@ class IndexItemsTable(object):
     def source_folders_to_items_without_target_folders(self):
         retVal = list()
         query_text = """
-            SELECT IndexItemDetailRow.detail_value, IndexItemDetailRow.owner_iid, IndexItemDetailRow.tag
-            FROM IndexItemDetailRow, IndexItemRow
+            SELECT
+              AdjustedSources.adjusted_source AS adjusted_source,
+              IndexItemDetailRow.owner_iid AS iid,
+              IndexItemDetailRow.tag AS tag
+            FROM IndexItemDetailRow, IndexItemRow, AdjustedSources
             WHERE IndexItemDetailRow.owner_iid NOT IN (
                 SELECT DISTINCT IndexItemDetailRow.owner_iid
                 FROM IndexItemDetailRow, IndexItemRow
@@ -1155,6 +1152,7 @@ class IndexItemsTable(object):
                 AND IndexItemRow.install_status != 0
                 AND IndexItemRow.ignore = 0
                 AND IndexItemDetailRow.active = 1
+                AND AdjustedSources.detail_row_id = IndexItemDetailRow._id
             """
         try:
             exec_result = self.session.execute(query_text)
@@ -1242,6 +1240,7 @@ class IndexItemsTable(object):
         return retVal
 
     def get_details_and_tag_for_active_iids(self, detail_name, unique_values=False, limit_to_iids=None):
+        retVal = list()
         distinct = "DISTINCT" if unique_values else ""
         limit_to_iids_filter = ""
         if limit_to_iids:
@@ -1261,8 +1260,15 @@ class IndexItemsTable(object):
                 {2}
             ORDER BY IndexItemDetailRow._id
             """.format(distinct, detail_name, limit_to_iids_filter)
-        fetched_results = self.session.execute(query_text).fetchall()
-        return fetched_results
+        try:
+            exec_result = self.session.execute(query_text)
+            if exec_result.returns_rows:
+                fetched_results= exec_result.fetchall()
+                retVal = [(mm[0], mm[1]) for mm in fetched_results]
+        except SQLAlchemyError as ex:
+            raise
+        # returns: [(iid, index_version, require_version, index_guid, require_guid, generation), ...]
+        return retVal
 
     def create_default_items(self, iids_to_ignore):
         self.create_default_index_items(iids_to_ignore=iids_to_ignore)
@@ -1397,12 +1403,15 @@ class IndexItemsTable(object):
              SELECT install_sources_t.owner_iid AS iid,
                     direct_sync_t.detail_value AS direct_sync_indicator,
                     install_sources_t.detail_value AS source,
+                    adjusted_sources_t.adjusted_source AS adjusted_source,
                     install_sources_t.tag AS tag,
                     install_folders_t.detail_value AS install_folder
             FROM IndexItemDetailRow AS install_sources_t
                 JOIN IndexItemRow AS iid_t
                     ON iid_t.iid=install_sources_t.owner_iid
                     AND iid_t.install_status > 0
+                JOIN AdjustedSources AS adjusted_sources_t
+                  ON install_sources_t._id = adjusted_sources_t.detail_row_id
                 LEFT JOIN IndexItemDetailRow AS install_folders_t
                     ON install_folders_t.active=1
                     AND install_sources_t.owner_iid = install_folders_t.owner_iid
@@ -1419,6 +1428,37 @@ class IndexItemsTable(object):
             exec_result = self.session.execute(query_text)
             if exec_result.returns_rows:
                 # returns [(iid, direct_sync_indicator, source, source_tag, install_folder),...]
+                retVal.extend(exec_result.fetchall())
+        except SQLAlchemyError as ex:
+            raise
+        return retVal
+
+    def get_adjusted_sources_for_iid(self, the_iid):
+        retVal = list()
+        query_text = """
+        SELECT
+            --iid_t.iid AS iid,
+            adjusted_sources_t.adjusted_source AS install_sources,
+            install_sources_t.tag as tag
+        FROM IndexItemRow AS iid_t
+        JOIN IndexItemDetailRow as install_sources_t
+            ON iid_t.iid=install_sources_t.owner_iid
+            AND install_sources_t.detail_name='install_sources'
+            AND install_sources_t.active=1
+        JOIN AdjustedSources AS adjusted_sources_t
+            ON adjusted_sources_t.detail_row_id=install_sources_t._id
+        WHERE
+            iid_t.iid='{the_iid}'
+            AND
+            iid_t.install_status > 0
+            AND
+            iid_t.ignore=0
+        ORDER BY adjusted_sources_t.adjusted_source
+        """.format(the_iid=the_iid)
+        try:
+            exec_result = self.session.execute(query_text)
+            if exec_result.returns_rows:
+                # returns [(adjusted_source, source_tag),...]
                 retVal.extend(exec_result.fetchall())
         except SQLAlchemyError as ex:
             raise
