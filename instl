@@ -127,7 +127,7 @@ def prepare_args_parser(in_command):
         'create-rsa-keys':      {'mode': 'an', 'options': ('conf',), 'help':  'create private and public keys'},
         'depend':               {'mode': 'an', 'options': ('in', 'out',), 'help':  'output a dependencies map for an index file'},
         'doit':                 {'mode': 'di', 'options': ('in', 'out', 'run'), 'help':  'Do something'},
-        'exec':                 {'mode': 'ds', 'options': ('in', 'out'), 'help':  'Execute a python scrip'},
+        'exec':                 {'mode': 'ds', 'options': ('in', 'out', 'conf_opt'), 'help':  'Execute a python scrip'},
         'fail':                 {'mode': 'ds', 'options': (), 'help': "fail and return exit code"},
         'file-sizes':           {'mode': 'an', 'options': ('in', 'out'), 'help':  'Create a list of files and their sizes'},
         'fix-perm':             {'mode': 'an', 'options': ('out', 'run','conf', 'limit'), 'help':  'Fix Mac OS permissions'},
@@ -251,10 +251,11 @@ def prepare_args_parser(in_command):
                                     dest='credentials',
                                     help="credentials to file server")
 
-    if 'conf' in command_details['options']:
+    if ('conf' in command_details['options']) or ('conf_opt' in command_details['options']):
         config_file_options = command_parser.add_argument_group(description='admin arguments:')
+        is_required = 'conf' in command_details['options']
         config_file_options.add_argument('--config-file', '-s',
-                                    required=True,
+                                    required=is_required,
                                     nargs=1,
                                     metavar='path-to-config-file',
                                     dest='config_file',
