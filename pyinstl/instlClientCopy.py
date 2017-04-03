@@ -361,20 +361,18 @@ class InstlClientCopy(InstlClient):
                 sources_for_iid = list()
                 with self.install_definitions_index[IID].push_var_stack_scope() as installi:
                     self.batch_accum += self.platform_helper.remark("-- Begin iid {0}".format(installi.iid))
-                    for source_var in sorted(var_stack.get_configVar_obj("iid_source_var_list")):
-                        source = var_stack.ResolveVarToList(source_var)
-                        sources_for_iid.append(source[:-1])
-                        need_to_copy_source = installi.last_require_repo_rev == 0 or installi.last_require_repo_rev < self.get_max_repo_rev_for_source(source)
-                        if need_to_copy_source:
-                            self.batch_accum += self.platform_helper.remark("--- Begin source {0}".format(source[0]))
-                            num_items_copied_to_folder += 1
-                            self.batch_accum += var_stack.ResolveVarToList("iid_action_list_pre_copy_item", default=[])
-                            self.create_copy_instructions_for_source(source, installi.name_and_version)
-                            self.batch_accum += var_stack.ResolveVarToList("iid_action_list_post_copy_item", default=[])
-                            self.batch_accum += self.platform_helper.remark("--- End source {0}".format(source[0]))
+                    adjusted_sources_for_iid = self.items_table.get_adjusted_sources_for_iid(IID)
+                    adjusted_resolved_sources_for_iid = [(var_stack.ResolveStrToStr(s[0]), s[1]) for s in adjusted_sources_for_iid]
+                    for source in adjusted_resolved_sources_for_iid:
+                        self.batch_accum += self.platform_helper.remark("--- Begin source {0}".format(source[0]))
+                        num_items_copied_to_folder += 1
+                        self.batch_accum += var_stack.ResolveVarToList("iid_action_list_pre_copy_item", default=[])
+                        self.create_copy_instructions_for_source(source, installi.name_and_version)
+                        self.batch_accum += var_stack.ResolveVarToList("iid_action_list_post_copy_item", default=[])
+                        self.batch_accum += self.platform_helper.remark("--- End source {0}".format(source[0]))
                     self.batch_accum += self.platform_helper.remark("-- End iid {0}".format(installi.iid))
 
-                    if True:
+                    if False:
                         adjusted_sources_for_iid_from_table = self.items_table.get_adjusted_sources_for_iid(IID)
                         for i, s in enumerate(adjusted_sources_for_iid_from_table):
                             adjusted_sources_for_iid_from_table[i] = [var_stack.ResolveStrToStr(s[0]), s[1]]
