@@ -19,65 +19,76 @@ def default_extract_info(in_path):
 # cross platform
 def get_guid(in_path):
     guid = None
-    xml_path = os.path.join(in_path, 'Contents', 'Resources', 'InfoXML', '1000.xml')
-    if os.path.exists(xml_path):
-        tree = ET.parse(xml_path)
-        xml = tree.getroot()
-        for child in xml.iter('LicenseGUID'):
-            guid = child.text.lower()
-
+    try:
+        xml_path = os.path.join(in_path, 'Contents', 'Resources', 'InfoXML', '1000.xml')
+        if os.path.exists(xml_path):
+            tree = ET.parse(xml_path)
+            xml = tree.getroot()
+            for child in xml.iter('LicenseGUID'):
+                guid = child.text.lower()
+    except:
+        pass
     return guid
 
 
 def get_wfi_version(in_path):
     retVal = None
-    version = None
-    with codecs.open(in_path, 'r', encoding='utf-8', errors='ignore') as f:
-        raw = f.readlines()
-    version_str = 'comment version'
-    if 'SGS' in in_path:
-        version_str = 'version value'
-    for line in raw:
-        if version_str in line:
-            version = line.split('"')[1]
-            break
-    if version:
-        retVal = (in_path, version, None)
+    try:
+        version = None
+        with codecs.open(in_path, 'r', encoding='utf-8', errors='ignore') as f:
+            raw = f.readlines()
+        version_str = 'comment version'
+        if 'SGS' in in_path:
+            version_str = 'version value'
+        for line in raw:
+            if version_str in line:
+                version = line.split('"')[1]
+                break
+        if version:
+            retVal = (in_path, version, None)
+    except:
+        pass
     return retVal
 
 
 # Mac
 def Mac_bundle(in_path):
     retVal = None
-    plist_path = os.path.join(in_path, 'Contents/Info.plist')
-    if os.path.exists(plist_path):
-        with open(plist_path, 'rb') as fp:
-            pl = plistlib.load(fp)
-            version = pl.get('CFBundleGetInfoString', "").split()
-            if len(version) > 0:
-                version = version[0]
-            else:
-                version = None
-            guid = get_guid(in_path)
+    try:
+        plist_path = os.path.join(in_path, 'Contents/Info.plist')
+        if os.path.exists(plist_path):
+            with open(plist_path, 'rb') as fp:
+                pl = plistlib.load(fp)
+                version = pl.get('CFBundleGetInfoString', "").split()
+                if len(version) > 0:
+                    version = version[0]
+                else:
+                    version = None
+                guid = get_guid(in_path)
 
-            if version or guid:
-                retVal = (in_path, version, guid)
+                if version or guid:
+                    retVal = (in_path, version, guid)
+    except:
+        pass
     return retVal
 
 
 def Mac_framework(in_path):
     retVal = None
-    plist_path = os.path.join(in_path, 'Versions/Current/Resources/Info.plist')
-    if os.path.exists(plist_path):
-        with open(plist_path, 'rb') as fp:
-            pl = plistlib.load(fp)
-            version = pl.get('CFBundleGetInfoString', "").split()
-            if len(version) > 0:
-                version = version[0]
-            else:
-                version = None
-            if version:
-                retVal = (in_path, version, None)
+    try:
+        plist_path = os.path.join(in_path, 'Versions/Current/Resources/Info.plist')
+        if os.path.exists(plist_path):
+            with open(plist_path, 'rb') as fp:
+                pl = plistlib.load(fp)
+                version = pl.get('CFBundleGetInfoString', "").split()
+                if len(version) > 0:
+                    version = version[0]
+                else:
+                    version = None
+                if version:
+                    retVal = (in_path, version, None)
+    except:
+        pass
     return retVal
 
 
@@ -86,72 +97,83 @@ def Mac_dylib(in_path):
         so usage of otool cannot be deployed to users
     """
     retVal = None
-    out = subprocess.Popen(['otool', '-L', in_path], stdout=subprocess.PIPE).stdout
-    lines = out.readlines()
-    out.close()
-    #print ('DEBUG: lines =', lines)
-    #lines = out_string.split('\n')
-    version = str(lines[1], 'utf-8)').strip('\n').strip(')').split(' ')[-1]
-    if version:
-        retVal = (in_path, version, None)
+    try:
+        out = subprocess.Popen(['otool', '-L', in_path], stdout=subprocess.PIPE).stdout
+        lines = out.readlines()
+        out.close()
+        #print ('DEBUG: lines =', lines)
+        #lines = out_string.split('\n')
+        version = str(lines[1], 'utf-8)').strip('\n').strip(')').split(' ')[-1]
+        if version:
+            retVal = (in_path, version, None)
+    except:
+        pass
     return retVal
 
 
 def Mac_pkg(in_path):
     retVal = None
+    try:
+        # define args
+        clr_tmp = 'rm -rf /tmp/forSGDriverVersion'
+        extract_pkg_to_tmp = 'pkgutil --expand %s /tmp/forSGDriverVersion' % in_path
+        # clear tmp from any remaining SGdriver version info
+        subprocess.call(clr_tmp.split(' '))
+        # extract pkg to tmp
+        subprocess.call(extract_pkg_to_tmp.split(' '))
+        dist_path = '/tmp/forSGDriverVersion/Distribution'
+        with open (dist_path, 'r') as fo:
+            lines = fo.readlines()
 
-    # define args
-    clr_tmp = 'rm -rf /tmp/forSGDriverVersion'
-    extract_pkg_to_tmp = 'pkgutil --expand %s /tmp/forSGDriverVersion' % in_path
-    # clear tmp from any remaining SGdriver version info
-    subprocess.call(clr_tmp.split(' '))
-    # extract pkg to tmp
-    subprocess.call(extract_pkg_to_tmp.split(' '))
-    dist_path = '/tmp/forSGDriverVersion/Distribution'
-    with open (dist_path, 'r') as fo:
-        lines = fo.readlines()
-
-    version = lines[-2].split('"')[1]
-    #clear tmp
-    subprocess.call(clr_tmp.split(' '))
-    retVal = (in_path, version, None)
+        version = lines[-2].split('"')[1]
+        #clear tmp
+        subprocess.call(clr_tmp.split(' '))
+        retVal = (in_path, version, None)
+    except:
+        pass
     return retVal
 
 
 # Windows
 def Win_bundle(in_path):
     retVal = None
-    dllname = os.path.basename(in_path).replace('bundle', 'dll')
-    dllpath = os.path.join(in_path, 'Contents', 'Win64', dllname)
-    if not os.path.exists(dllpath):
-        dllpath = os.path.join(in_path, 'Contents', 'Win32', dllname)
-    if not os.path.exists(dllpath):
-        version = None
-    else:
-        info = win32api.GetFileVersionInfo(dllpath, "\\")
-        ms = info['FileVersionMS']
-        ls = info['FileVersionLS']
-        version = '%d.%d.%d.%d' % (win32api.HIWORD(ms), win32api.LOWORD(ms), win32api.HIWORD(ls), win32api.LOWORD(ls))
-    if version:
-        guid = get_guid(in_path)
-        retVal = (in_path, version, guid)
+    try:
+        dllname = os.path.basename(in_path).replace('bundle', 'dll')
+        dllpath = os.path.join(in_path, 'Contents', 'Win64', dllname)
+        if not os.path.exists(dllpath):
+            dllpath = os.path.join(in_path, 'Contents', 'Win32', dllname)
+        if not os.path.exists(dllpath):
+            version = None
+        else:
+            info = win32api.GetFileVersionInfo(dllpath, "\\")
+            ms = info['FileVersionMS']
+            ls = info['FileVersionLS']
+            version = '%d.%d.%d.%d' % (win32api.HIWORD(ms), win32api.LOWORD(ms), win32api.HIWORD(ls), win32api.LOWORD(ls))
+        if version:
+            guid = get_guid(in_path)
+            retVal = (in_path, version, guid)
+    except:
+        pass
     return retVal
 
 
 def Win_aaxplugin(in_path):
     retVal = None
-    dllname = os.path.basename(in_path).replace('bundle', 'aaxplugin')
-    dllpath = os.path.join(in_path, 'Contents', 'x64', dllname)
     try:
-        info = win32api.GetFileVersionInfo(dllpath, "\\")
-        ms = info['FileVersionMS']
-        ls = info['FileVersionLS']
+        dllname = os.path.basename(in_path).replace('bundle', 'aaxplugin')
+        dllpath = os.path.join(in_path, 'Contents', 'x64', dllname)
+        try:
+            info = win32api.GetFileVersionInfo(dllpath, "\\")
+            ms = info['FileVersionMS']
+            ls = info['FileVersionLS']
+        except:
+            version = None
+        else:
+            version = '%d.%d.%d.%d' % (win32api.HIWORD(ms), win32api.LOWORD(ms), win32api.HIWORD(ls), win32api.LOWORD(ls))
+        if version:
+            retVal = (in_path, version, None)
     except:
-        version = None
-    else:
-        version = '%d.%d.%d.%d' % (win32api.HIWORD(ms), win32api.LOWORD(ms), win32api.HIWORD(ls), win32api.LOWORD(ls))
-    if version:
-        retVal = (in_path, version, None)
+        pass
     return retVal
 
 
