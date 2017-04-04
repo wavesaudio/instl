@@ -370,6 +370,22 @@ def safe_remove_folder(path_to_folder, ignore_errors=True):
     return path_to_folder
 
 
+def safe_remove_file_system_object(path_to_file_system_object, followlinks=False):
+    try:
+        if os.path.islink(path_to_file_system_object):
+            if followlinks:
+                real_path = os.path.realpath(path_to_file_system_object)
+                safe_remove_file_system_object(real_path)
+            else:
+                os.unlink(path_to_file_system_object)
+        elif os.path.isdir(path_to_file_system_object):
+            safe_remove_folder(path_to_file_system_object)
+        elif os.path.isfile(path_to_file_system_object):
+            safe_remove_file(path_to_file_system_object)
+    except Exception as ex:
+        pass
+
+
 def max_widths(list_of_lists):
     """ inputs is a list of lists. output is a list of maximum str length for each
         position. E.g (('a', 'ccc'), ('bb', a', 'fff')) will return: (2, 3, 3)

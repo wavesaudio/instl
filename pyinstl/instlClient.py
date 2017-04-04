@@ -425,7 +425,8 @@ class InstlClient(InstlInstanceBase):
                 compiled_ignore_file_regex = utils.compile_regex_list_ORed(ignore_file_regex_list)
 
             for a_path in path_to_search:
-                binaries_version_from_folder = self.check_binaries_versions_in_folder(a_path, compiled_ignore_folder_regex, compiled_ignore_file_regex)
+                current_os = var_stack.ResolveVarToStr("__CURRENT_OS__")
+                binaries_version_from_folder = utils.check_binaries_versions_in_folder(current_os, a_path, compiled_ignore_folder_regex, compiled_ignore_file_regex)
                 binaries_version_list.extend(binaries_version_from_folder)
 
             self.items_table.insert_binary_versions(binaries_version_list)
@@ -433,30 +434,6 @@ class InstlClient(InstlInstanceBase):
         except Exception as ex:
             print("not doing check_binaries_versions", ex)
         return binaries_version_list
-
-    def check_binaries_versions_in_folder(self, in_path, in_compiled_ignore_folder_regex, in_compiled_ignore_file_regex):
-        retVal = list()
-        current_os = var_stack.ResolveVarToStr("__CURRENT_OS__")
-        for root_path, dirs, files in os.walk(in_path, followlinks=False):
-            if in_compiled_ignore_folder_regex and in_compiled_ignore_folder_regex.search(root_path):
-                del dirs[:]  # skip root_path and it's siblings
-                del files[:]
-            else:
-                info = utils.extract_binary_info(current_os, root_path)
-                if info is not None:
-                    retVal.append(info)
-                    del dirs[:]  # info was found for root_path, no need to dig deeper
-                    del files[:]
-                else:
-                    for a_file in files:
-                        file_full_path = os.path.join(root_path, a_file)
-                        if in_compiled_ignore_file_regex and in_compiled_ignore_file_regex.search(file_full_path):
-                            continue
-                        if not os.path.islink(file_full_path):
-                            info = utils.extract_binary_info(current_os, file_full_path)
-                            if info is not None:
-                                retVal.append(info)
-        return retVal
 
     def get_direct_sync_status_from_indicator(self, direct_sync_indicator):
         retVal = False

@@ -44,6 +44,7 @@ only_one_value_ref_re = re.compile("""
                             $
                             """, re.X)
 
+
 class ConfigVarList(object):
     """ Keeps a list of named build config values.
         Help values resolve $() style references. """
@@ -78,7 +79,7 @@ class ConfigVarList(object):
         return retVal
 
     def __str__(self):
-        var_names = [''.join((name, ": ", self.resolve_var(name))) for name in list(self.keys())]
+        var_names = [''.join((name, ": ", self.ResolveVarToStr(name))) for name in sorted(list(self.keys()))]
         return '\n'.join(var_names)
 
     def __iter__(self):

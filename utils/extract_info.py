@@ -203,4 +203,28 @@ extract_info_funcs_by_extension = {
 }
 
 
+def check_binaries_versions_in_folder(current_os, in_path, in_compiled_ignore_folder_regex, in_compiled_ignore_file_regex):
+    retVal = list()
+    for root_path, dirs, files in os.walk(in_path, followlinks=False):
+        if in_compiled_ignore_folder_regex and in_compiled_ignore_folder_regex.search(root_path):
+            del dirs[:]  # skip root_path and it's siblings
+            del files[:]
+        else:
+            info = extract_binary_info(current_os, root_path)
+            if info is not None:
+                retVal.append(info)
+                del dirs[:]  # info was found for root_path, no need to dig deeper
+                del files[:]
+            else:
+                for a_file in files:
+                    file_full_path = os.path.join(root_path, a_file)
+                    if in_compiled_ignore_file_regex and in_compiled_ignore_file_regex.search(file_full_path):
+                        continue
+                    if not os.path.islink(file_full_path):
+                        info = extract_binary_info(current_os, file_full_path)
+                        if info is not None:
+                            retVal.append(info)
+    return retVal
+
+
 

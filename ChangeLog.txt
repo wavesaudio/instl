@@ -3,6 +3,9 @@
     user visible changes admin:
     * new command: exec to execute any python code
 
+    programmer visible changes:
+    * merged some changes form optimize-db to repalce usage of IntallItem with database queries
+
 26/3/2017 1.4.2.0
     user visible changes client:
     * New config variable: REMOVE_PREVIOUS_SOURCES set to True be default, If set to False will prevent previous_sources from being deleted.

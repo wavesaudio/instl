@@ -453,10 +453,14 @@ class InstlMisc(InstlInstanceBase):
             raise
 
     def do_exec(self):
+        py_file_path = "unknown file"
         try:
+            config_file = var_stack.ResolveVarToStr("__CONFIG_FILE__")
+            if os.path.isfile(config_file):
+                self.read_yaml_file(config_file)
             py_file_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
             with open(py_file_path, 'r') as rfd:
                 py_text = rfd.read()
-                exec(py_text)
+                exec(py_text, globals())
         except Exception as ex:
             print("Exception while exec ", py_file_path, ex)
