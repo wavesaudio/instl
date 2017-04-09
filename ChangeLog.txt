@@ -1,3 +1,8 @@
+9/4/2017 1.4.3.1
+
+    user visible changes admin:
+    * fixed problem in gui mode with handing --limit options that has multiple patha that have spaces in them.
+
 4/4/2017 1.4.3.0
 
     user visible changes admin:

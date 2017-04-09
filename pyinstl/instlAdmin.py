@@ -574,10 +574,6 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_stage2svn(self):
         self.batch_accum.set_current_section('admin')
-        if var_stack.defined("__LIMIT_COMMAND_TO__"):
-            print("stage2svn limited to ", "; ".join(var_stack.ResolveVarToList("__LIMIT_COMMAND_TO__")))
-        else:
-            print("stage2svn for the whole repository")
         stage_folder = var_stack.ResolveVarToStr("STAGING_FOLDER")
         svn_folder = var_stack.ResolveVarToStr("SVN_CHECKOUT_FOLDER")
 
@@ -590,10 +586,14 @@ class InstlAdmin(InstlInstanceBase):
         stage_folder_svn_folder_pairs = []
         if var_stack.defined("__LIMIT_COMMAND_TO__"):
             limit_list = var_stack.ResolveVarToList("__LIMIT_COMMAND_TO__")
+            print("stage2svn limited to ", limit_list)
             for limit in limit_list:
                 limit = utils.unquoteme(limit)
-                stage_folder_svn_folder_pairs.append( (os.path.join(stage_folder,limit) , os.path.join(svn_folder, limit) ) )
+                stage_path = os.path.join(stage_folder,limit)
+                svn_path = os.path.join(svn_folder, limit)
+                stage_folder_svn_folder_pairs.append((stage_path, svn_path))
         else:
+            print("stage2svn for the whole repository")
             stage_folder_svn_folder_pairs.append((stage_folder, svn_folder))
         for pair in stage_folder_svn_folder_pairs:
             if self.compiled_forbidden_folder_regex.search(pair[0]):
@@ -818,13 +818,6 @@ class InstlAdmin(InstlInstanceBase):
         svn_folder = var_stack.ResolveVarToStr("SVN_CHECKOUT_FOLDER")
 
         # --limit command line option might have been specified
-        if var_stack.defined("__LIMIT_COMMAND_TO__"):
-            limit_list = var_stack.ResolveVarToList("__LIMIT_COMMAND_TO__")
-            joined_limit_list = "; ".join(limit_list)
-            print("svn2stage limited to ", joined_limit_list)
-        else:
-            print("svn2stage for the whole repository")
-
         limit_info_list = []
         if var_stack.defined("__LIMIT_COMMAND_TO__"):
             limit_list = var_stack.ResolveVarToList("__LIMIT_COMMAND_TO__")
@@ -833,13 +826,16 @@ class InstlAdmin(InstlInstanceBase):
                 limit_info_list.append((limit, os.path.join(svn_folder, limit), os.path.join(stage_folder, limit) ))
         else:
             limit_info_list.append(("", svn_folder, stage_folder))
+
         for limit_info in limit_info_list:
             checkout_url = var_stack.ResolveVarToStr("SVN_REPO_URL")
             if limit_info[0] != "":
                 checkout_url += "/" + limit_info[0]
-            checkout_url = utils.quoteme_double(checkout_url)
-            svn_command_parts = ['"$(SVN_CLIENT_PATH)"', "checkout", checkout_url, '"'+limit_info[1]+'"', "--depth", "infinity"]
-            self.batch_accum += " ".join(svn_command_parts)
+            checkout_url_quoted = utils.quoteme_double(checkout_url)
+            limit_info_quoted = utils.quoteme_double(limit_info[1])
+            svn_command_parts = ['"$(SVN_CLIENT_PATH)"', "checkout", checkout_url_quoted, limit_info_quoted, "--depth", "infinity"]
+            svn_checkout_command = " ".join(svn_command_parts)
+            self.batch_accum += svn_checkout_command
             self.batch_accum += self.platform_helper.progress("Checkout {} to {}".format(checkout_url, limit_info[1]))
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(limit_info[1], limit_info[2], link_dest=False, ignore=(".svn", ".DS_Store"), preserve_dest_files=False)
             self.batch_accum += self.platform_helper.progress("rsync {} to {}".format(limit_info[1], limit_info[2]))
