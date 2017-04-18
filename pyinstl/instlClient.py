@@ -477,6 +477,38 @@ class InstlClient(InstlInstanceBase):
                         item.download_path = var_stack.ResolveStrToStr("/".join(("$(LOCAL_REPO_SYNC_DIR)", item.path)))
         self.items_table.commit_changes()
 
+    def create_remove_previous_sources_instructions_for_target_folder(self, target_folder_path):
+        iids_in_folder = self.all_iids_by_target_folder[target_folder_path]
+        assert list(self.all_iids_by_target_folder[target_folder_path]) == list(iids_in_folder)
+        previous_sources = self.items_table.get_details_and_tag_for_active_iids("previous_sources", unique_values=True, limit_to_iids=iids_in_folder)
+
+        if len(previous_sources) > 0:
+            self.batch_accum += self.platform_helper.new_line()
+            self.batch_accum += self.platform_helper.remark("- Begin folder {0}".format(target_folder_path))
+            self.batch_accum += self.platform_helper.cd(target_folder_path)
+            self.batch_accum += self.platform_helper.progress("remove previous versions {0} ...".format(target_folder_path))
+
+            for previous_source in previous_sources:
+                self.create_remove_previous_sources_instructions_for_source(target_folder_path, previous_source)
+
+            self.batch_accum += self.platform_helper.progress("remove previous versions {0} done".format(target_folder_path))
+            self.batch_accum += self.platform_helper.remark("- End folder {0}".format(target_folder_path))
+
+    def create_remove_previous_sources_instructions_for_source(self, folder, source):
+        """ source is a tuple (source_folder, tag), where tag is either !file, !dir_cont or !dir """
+
+        source_path, source_type = source[0], source[1]
+        to_remove_path = os.path.normpath(os.path.join(folder, source_path))
+
+        if source_type == '!dir':  # remove whole folder
+            remove_action = self.platform_helper.rmdir(to_remove_path, recursive=True, check_exist=True)
+            self.batch_accum += remove_action
+        elif source_type == '!file':  # remove single file
+            remove_action = self.platform_helper.rmfile(to_remove_path, check_exist=True)
+            self.batch_accum += remove_action
+        elif source_type == '!dir_cont':
+            raise Exception("previous_sources cannot have tag !dir_cont")
+
 
 def InstlClientFactory(initial_vars, command):
     retVal = None

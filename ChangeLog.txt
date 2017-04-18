@@ -1,3 +1,11 @@
+????? 1.4.3.2
+
+    user visible changes client:
+    * Added removing of previous sources when uninstalling
+
+    programmer visible changes:
+    * Move functions InstlClientCopy.create_remove_previous_sources_instructions_for_source, InstlClientCopy.create_remove_previous_sources_instructions_for_target_folder to InstlClient so they can be used by InstlClientRemove
+
 9/4/2017 1.4.3.1
 
     user visible changes admin:

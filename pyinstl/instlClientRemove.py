@@ -42,6 +42,7 @@ class InstlClientRemove(InstlClient):
         self.accumulate_unique_actions('pre_remove', var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
 
         for folder_name in sorted_target_folder_list:
+            self.create_remove_previous_sources_instructions_for_target_folder(folder_name)
             self.batch_accum += self.platform_helper.progress("Removing from {0}".format(folder_name))
             var_stack.set_var("__TARGET_DIR__").append(os.path.normpath(folder_name))
             items_in_folder = self.all_iids_by_target_folder[folder_name]
