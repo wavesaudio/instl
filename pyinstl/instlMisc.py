@@ -455,6 +455,7 @@ class InstlMisc(InstlInstanceBase):
     def do_exec(self):
         py_file_path = "unknown file"
         try:
+            self.read_yaml_file("InstlClient.yaml")  # temp hack, which additional config file to read should come from command line options
             config_file = var_stack.ResolveVarToStr("__CONFIG_FILE__")
             if os.path.isfile(config_file):
                 self.read_yaml_file(config_file)

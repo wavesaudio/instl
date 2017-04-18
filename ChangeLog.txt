@@ -2,9 +2,11 @@
 
     user visible changes client:
     * Added removing of previous sources when uninstalling
+    * Added reading of InstlClient.yaml in InstlMisc.do_exec. This is a temp hack, which additional config file to read should come from command line options.
 
     programmer visible changes:
     * Move functions InstlClientCopy.create_remove_previous_sources_instructions_for_source, InstlClientCopy.create_remove_previous_sources_instructions_for_target_folder to InstlClient so they can be used by InstlClientRemove
+    * InstlInstanceBase.read_require - calling self.items_table.read_require_node only if self.items_table was initialized
 
 9/4/2017 1.4.3.1
 

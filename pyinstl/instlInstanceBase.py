@@ -227,8 +227,11 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 #            raise ValueError(var_stack.resolve("Minimal instl version $(INSTL_MINIMAL_VERSION) > current version $(__INSTL_VERSION__); ")+var_stack.get_configVar_obj("INSTL_MINIMAL_VERSION").description)
 
     def read_require(self, a_node, *args, **kwargs):
-        del args
-        self.items_table.read_require_node(a_node)
+        if self.items_table is not None:
+            del args
+            self.items_table.read_require_node(a_node)
+        else:
+            print("warning: not reading require node because self.items_table was no initialized")
 
     def write_require_file(self, file_path, require_dict):
         with open(file_path, "w", encoding='utf-8') as wfd:

@@ -29,7 +29,7 @@ INSTL_HISTORY_TEMP_PATH: $(SITE_REPO_BOOKKEEPING_DIR)/instl_history.temp.txt
 XCOPY_EXCLUDE_FILE_NAME: xcopy-exclude.txt
 XCOPY_EXCLUDE_FILE_PATH: $(LOCAL_REPO_SYNC_DIR)/$(XCOPY_EXCLUDE_FILE_NAME)
 
-# VENDOR_DIR_NAME should be overriden by the index.yaml file to reflect the specific vendor that created the install
+# VENDOR_DIR_NAME should be overridden by the index.yaml file to reflect the specific vendor that created the install
 VENDOR_DIR_NAME: ACME
 SITE_BOOKKEEPING_DIR: $(__SITE_CONFIG_DIR__)
 SITE_VENDOR_BOOKKEEPING_DIR: $(SITE_BOOKKEEPING_DIR)/$(VENDOR_DIR_NAME)
@@ -51,11 +51,11 @@ RSYNC_PERM_OPTIONS: a+rw,+X
 
 WTAR_RATIO: 1.3
 
-# usually copy is done from the sync folder, but using a separate variabe
+# usually copy is done from the sync folder, but using a separate variable
 # allows us to specify a different folder
 COPY_SOURCES_ROOT_DIR: $(LOCAL_REPO_SYNC_DIR)
 
-# if require.yaml exists REQUIRE_REPO_REV will be overriden
+# if require.yaml exists REQUIRE_REPO_REV will be overridden
 REQUIRE_REPO_REV: 0
 
 # default version for iids that do not have explicity version
