@@ -3,6 +3,8 @@
 
 import os
 import pathlib
+from collections import defaultdict
+import shutil
 
 import utils
 from .instlInstanceSyncBase import InstlInstanceSync
@@ -100,10 +102,16 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         # notify user how many files and bytes to sync
         print(len(file_list), "files to sync")
-        print(bytes_to_sync, "bytes to sync")
-
         if len(file_list) == 0:
-             return
+            print(0, "bytes to sync")
+            return
+
+        mount_points_to_size = total_sizes_by_mount_point(file_list)
+
+        for m_p in sorted(mount_points_to_size):
+            free_bytes = shutil.disk_usage(m_p).free
+            print(mount_points_to_size[m_p], "bytes to sync to drive", "".join(("'", m_p, "'")), free_bytes-mount_points_to_size[m_p], "bytes will remain")
+
 
         self.create_sync_folders()
 
@@ -130,3 +138,11 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.popd()
         self.instlObj.create_sync_folder_manifest_command("after-sync")
+
+
+def total_sizes_by_mount_point(file_list):
+    mount_points_to_size = defaultdict(int)
+    for a_file in file_list:
+        mount_p = utils.find_mount_point(a_file.download_path)
+        mount_points_to_size[mount_p] += a_file.size
+    return mount_points_to_size

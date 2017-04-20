@@ -16,6 +16,7 @@ import stat
 import datetime
 from pathlib import PurePath
 import fnmatch
+import pathlib
 
 import rsa
 from functools import reduce
@@ -1086,3 +1087,10 @@ class DictDiffer(object):
         return set(o for o in self.intersect if sorted(self.past_dict[o]) != sorted(self.current_dict[o]))
     def unchanged(self):
         return set(o for o in self.intersect if sorted(self.past_dict[o]) == sorted(self.current_dict[o]))
+
+
+def find_mount_point(path):
+    mount_p = pathlib.PurePath(path)
+    while not os.path.ismount(str(mount_p)):
+        mount_p = mount_p.parent
+    return str(mount_p)

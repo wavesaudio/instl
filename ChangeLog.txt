@@ -1,3 +1,9 @@
+???? 1.4.3.3
+
+    user visible changes client:
+    * Calculation and reporting of number of bytes to sync by device/drive
+    * Fix an error in calculation of the number of bytes to copy
+
 19/4/2017 1.4.3.2
 
     user visible changes client:

@@ -169,7 +169,7 @@ class InstlClientCopy(InstlClient):
                             # by resolve_symlinks in the sync stage by instl version <= 1.0.
                         self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_file.name()))
 
-                self.bytes_to_copy += self.calc_size_of_file_item(source_file)
+            self.bytes_to_copy += self.calc_size_of_file_item(source_file)
 
             if source_file.is_first_wtar_file():
                 first_wtar_item = source_file
