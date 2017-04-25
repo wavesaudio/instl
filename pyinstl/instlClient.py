@@ -452,17 +452,19 @@ class InstlClient(InstlInstanceBase):
         for iid, direct_sync_indicator, source, adjusted_source, source_tag, install_folder in sync_and_source:
             direct_sync = self.get_direct_sync_status_from_indicator(direct_sync_indicator)
             resolved_adjusted_source = var_stack.ResolveStrToStr(adjusted_source)
+            resolved_adjusted_source_parts = resolved_adjusted_source.split("/")
 
             if source_tag in ('!dir', '!dir_cont'):
                 items = self.info_map_table.get_file_items_of_dir(dir_path=resolved_adjusted_source)
                 if direct_sync:
                     if  source_tag == '!dir':
-                        source_parent = "/".join(resolved_adjusted_source.split("/")[:-1])
+                        source_parent = "/".join(resolved_adjusted_source_parts[:-1])
                     else:  # !dir_cont
                         source_parent = resolved_adjusted_source
                     assert install_folder is not None
                     for item in items:
                         item.download_path = var_stack.ResolveStrToStr("/".join((install_folder, item.path[len(source_parent)+1:])))
+                        item.download_root  = var_stack.ResolveStrToStr("/".join((install_folder, resolved_adjusted_source_parts[-1])))
                 else:
                     for item in items:
                         item.download_path = var_stack.ResolveStrToStr("/".join(("$(LOCAL_REPO_SYNC_DIR)", item.path)))
@@ -472,6 +474,7 @@ class InstlClient(InstlInstanceBase):
                     assert install_folder is not None
                     for item in items_for_file:
                         item.download_path = var_stack.ResolveStrToStr("/".join((install_folder, item.path[len(source_parent)+1:])))
+                        item.download_root = var_stack.ResolveStrToStr(item.download_path)
                 else:
                     for item in items_for_file:
                         item.download_path = var_stack.ResolveStrToStr("/".join(("$(LOCAL_REPO_SYNC_DIR)", item.path)))

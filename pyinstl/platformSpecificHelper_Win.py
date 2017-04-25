@@ -486,6 +486,11 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         append_command = " ".join(("type", utils.quoteme_double(source_file), ">>", utils.quoteme_double(target_file)))
         return append_command
 
+    def chown(self, user_id, group_id, target_path, recursive=False):
+        chown_command_parts = list()
+        chown_command = " ".join(chown_command_parts)
+        return chown_command
+
 
 class DownloadTool_win_wget(DownloadToolBase):
     def __init__(self, platform_helper):

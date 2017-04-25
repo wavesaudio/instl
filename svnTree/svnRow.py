@@ -23,6 +23,7 @@ class SVNRow(get_declarative_base()):
     fileFlag = Column(BOOLEAN, default=False, index=True)
     dirFlag = Column(BOOLEAN, default=False)
     download_path = Column(String)
+    download_root = Column(String, default=None)
     path = Column(String, index=True)
     parent = Column(String)  # todo: this should be in another table
     flags = Column(String)

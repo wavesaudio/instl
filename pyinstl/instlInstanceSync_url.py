@@ -133,11 +133,22 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.create_remove_unwanted_files_in_sync_folder_instructions()
         self.create_download_instructions()
         self.instlObj.batch_accum.set_current_section('post-sync')
+        self.chown_for_synced_folders()
+
         self.instlObj.batch_accum += self.instlObj.platform_helper.copy_file_to_file("$(NEW_HAVE_INFO_MAP_PATH)",
                                                                                      "$(HAVE_INFO_MAP_PATH)")
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.popd()
         self.instlObj.create_sync_folder_manifest_command("after-sync")
+
+    def chown_for_synced_folders(self):
+        download_roots = self.instlObj.info_map_table.get_download_roots()
+        if download_roots:
+            self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Adjust ownership ...")
+            for dr in download_roots:
+                self.instlObj.batch_accum += self.instlObj.platform_helper.chown("$(__USER_ID__)", "$(__GROUP_ID__)", dr, recursive=True)
+            self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Adjust ownership done")
+            self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
 
 def total_sizes_by_mount_point(file_list):

@@ -833,3 +833,20 @@ class SVNTable(object):
         """.format(source_prefix=source_prefix)
         exec_result = self.session.execute(query_text)
         self.commit_changes()
+
+    def get_download_roots(self):
+        retVal = list()
+        query_text = """
+        SELECT DISTINCT
+            coalesce(download_root, "$(LOCAL_REPO_SYNC_DIR)")
+        FROM svnitem
+        WHERE need_download=1
+        """
+        try:
+            exec_result = self.session.execute(query_text)
+            if exec_result.returns_rows:
+                # returns [(download_root,),...]
+                retVal.extend([dr[0] for dr in exec_result.fetchall()])
+        except SQLAlchemyError as ex:
+            raise
+        return retVal

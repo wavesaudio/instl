@@ -1106,9 +1106,13 @@ class IndexItemsTable(object):
         return retVal
 
     def target_folders_to_items(self):
+        """ returns a list of (IID, install_folder, tag, direct_syc_indicator) """
         retVal = list()
         query_text = """
-            SELECT IndexItemDetailRow.owner_iid, IndexItemDetailRow.detail_value, IndexItemDetailRow.tag, direct_sync_t.detail_value
+            SELECT IndexItemDetailRow.owner_iid,
+                  IndexItemDetailRow.detail_value,
+                  IndexItemDetailRow.tag,
+                  direct_sync_t.detail_value
             FROM IndexItemDetailRow, IndexItemRow
             LEFT JOIN IndexItemDetailRow AS direct_sync_t
               ON IndexItemRow.iid=direct_sync_t.owner_iid
