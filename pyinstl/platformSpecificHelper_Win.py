@@ -488,6 +488,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
 
     def chown(self, user_id, group_id, target_path, recursive=False):
         chown_command_parts = list()
+        chown_command_parts.append(self.echo("chown "+user_id+":"+group_id+" "+target_path))
         chown_command = " ".join(chown_command_parts)
         return chown_command
 
