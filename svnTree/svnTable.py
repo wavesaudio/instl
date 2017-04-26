@@ -841,6 +841,7 @@ class SVNTable(object):
             coalesce(download_root, "$(LOCAL_REPO_SYNC_DIR)")
         FROM svnitem
         WHERE need_download=1
+        AND fileFlag=1
         """
         try:
             exec_result = self.session.execute(query_text)
