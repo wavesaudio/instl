@@ -450,7 +450,6 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         check_error_level_command = self.exit_if_error(error_threshold=1)
         return unwtar_command, check_error_level_command
 
-
     def wait_for_child_processes(self):
         return ("echo wait_for_child_processes not implemented yet for windows",)
 
@@ -488,7 +487,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
 
     def chown(self, user_id, group_id, target_path, recursive=False):
         chown_command_parts = list()
-        chown_command_parts.append(self.echo("chown "+user_id+":"+group_id+" "+target_path))
+        chown_command_parts.append(self.echo("chown not implemented yet for Windows, "+target_path))
         chown_command = " ".join(chown_command_parts)
         return chown_command
 
