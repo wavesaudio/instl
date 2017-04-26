@@ -174,6 +174,7 @@ class SVNTable(object):
             item_details['flags'] = the_matched_groups['flags']
             item_details['fileFlag'] = 'f' in the_matched_groups['flags']
             item_details['dirFlag'] = 'd' in the_matched_groups['flags']
+            item_details['wtarFlag'] = 1 if wtar_file_re.match(item_details['path']) else 0
             item_details['checksum'] = the_matched_groups.get('checksum')
             item_details['url'] = the_matched_groups.get('url')
             the_size = the_matched_groups['size']
@@ -239,6 +240,7 @@ class SVNTable(object):
                     retVal['flags'] = "f"
                     retVal['fileFlag'] = True
                     retVal['dirFlag'] = False
+                    retVal['wtarFlag'] = 1 if wtar_file_re.match(retVal['path']) else 0
                     retVal['download_path'] = "/".join(("$(LOCAL_REPO_SYNC_DIR)", retVal['path']))
                 elif a_record["Node Kind"] == "directory":
                     retVal['flags'] = "d"
@@ -298,6 +300,7 @@ class SVNTable(object):
         item_details['flags'] = flags
         item_details['fileFlag'] = 'f' in item_details['flags']
         item_details['dirFlag'] = 'd' in item_details['flags']
+        item_details['wtarFlag'] = 1 if wtar_file_re.match(item_details['path']) else 0
         item_details['checksum'] = None
         item_details['url'] = None
         item_details['size'] = 0
