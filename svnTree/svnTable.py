@@ -157,9 +157,6 @@ class SVNTable(object):
     @staticmethod
     def item_dict_from_str(the_str):
         """ create a new a sub-item from string description.
-            If create_folders is True, non existing intermediate folders
-            will be created, with the same revision. create_folders is False,
-            and some part of the path does not exist KeyError will be raised.
             This is the regular expression version.
         """
         item_details = None

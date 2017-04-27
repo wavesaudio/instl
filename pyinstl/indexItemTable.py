@@ -743,23 +743,22 @@ class IndexItemsTable(object):
         retVal = the_query(self.session).params(iid=iid, detail_name=params[0]).all()
         return retVal
 
-    def get_resolved_details_value(self, iid, detail_name=None):
-        if "get_resolved_details_value" not in self.baked_queries_map:
-            the_query = self.bakery(lambda session: session.query(IndexItemDetailRow.detail_value))
-            the_query += lambda q: q.filter(IndexItemDetailRow.owner_iid == bindparam('iid'))
-            the_query += lambda q: q.filter(IndexItemDetailRow.detail_name.like(bindparam('detail_name')))
-            the_query += lambda q: q.filter(IndexItemDetailRow.active == True)
-            the_query += lambda q: q.order_by(IndexItemDetailRow._id)
-            self.baked_queries_map["get_resolved_details_value"] = the_query
-        else:
-            the_query = self.baked_queries_map["get_resolved_details_value"]
-
-        # params with None are turned to '%'
-        params = [detail_name]
-        for iparam in range(len(params)):
-            if params[iparam] is None: params[iparam] = '%'
-        retVal = the_query(self.session).params(iid=iid, detail_name=params[0]).all()
-        retVal = [m[0] for m in retVal]
+    def get_resolved_details_value(self, iid, detail_name):
+        retVal = list()
+        query_text = """
+            SELECT detail_value
+            FROM IndexItemDetailRow
+            WHERE owner_iid = '{iid}'
+            AND detail_name = '{detail_name}'
+            AND active = 1
+        """.format(**locals())
+        try:
+            exec_result = self.session.execute(query_text)
+            if exec_result.returns_rows:
+                fetched_results = exec_result.fetchall()
+                retVal = [mm[0] for mm in fetched_results]
+        except SQLAlchemyError as ex:
+            raise
         return retVal
 
     def get_details_by_name_for_all_iids(self, detail_name):
