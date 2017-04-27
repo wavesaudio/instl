@@ -22,7 +22,9 @@ class SVNRow(get_declarative_base()):
     need_download = Column(BOOLEAN, default=False, index=True)
     fileFlag = Column(BOOLEAN, default=False, index=True)
     dirFlag = Column(BOOLEAN, default=False)
+    wtarFlag = Column(Integer, default=0)
     download_path = Column(String)
+    download_root = Column(String, default=None)
     path = Column(String, index=True)
     parent = Column(String)  # todo: this should be in another table
     flags = Column(String)
@@ -114,8 +116,7 @@ class SVNRow(get_declarative_base()):
         return retVal
 
     def is_wtar_file(self):
-        match = wtar_file_re.match(self.path)
-        retVal = match is not None
+        retVal = self.wtarFlag > 0
         return retVal
 
     def is_first_wtar_file(self):

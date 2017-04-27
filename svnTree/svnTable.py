@@ -157,9 +157,6 @@ class SVNTable(object):
     @staticmethod
     def item_dict_from_str(the_str):
         """ create a new a sub-item from string description.
-            If create_folders is True, non existing intermediate folders
-            will be created, with the same revision. create_folders is False,
-            and some part of the path does not exist KeyError will be raised.
             This is the regular expression version.
         """
         item_details = None
@@ -174,6 +171,7 @@ class SVNTable(object):
             item_details['flags'] = the_matched_groups['flags']
             item_details['fileFlag'] = 'f' in the_matched_groups['flags']
             item_details['dirFlag'] = 'd' in the_matched_groups['flags']
+            item_details['wtarFlag'] = 1 if wtar_file_re.match(item_details['path']) else 0
             item_details['checksum'] = the_matched_groups.get('checksum')
             item_details['url'] = the_matched_groups.get('url')
             the_size = the_matched_groups['size']
@@ -239,6 +237,7 @@ class SVNTable(object):
                     retVal['flags'] = "f"
                     retVal['fileFlag'] = True
                     retVal['dirFlag'] = False
+                    retVal['wtarFlag'] = 1 if wtar_file_re.match(retVal['path']) else 0
                     retVal['download_path'] = "/".join(("$(LOCAL_REPO_SYNC_DIR)", retVal['path']))
                 elif a_record["Node Kind"] == "directory":
                     retVal['flags'] = "d"
@@ -298,6 +297,7 @@ class SVNTable(object):
         item_details['flags'] = flags
         item_details['fileFlag'] = 'f' in item_details['flags']
         item_details['dirFlag'] = 'd' in item_details['flags']
+        item_details['wtarFlag'] = 1 if wtar_file_re.match(item_details['path']) else 0
         item_details['checksum'] = None
         item_details['url'] = None
         item_details['size'] = 0
@@ -833,3 +833,21 @@ class SVNTable(object):
         """.format(source_prefix=source_prefix)
         exec_result = self.session.execute(query_text)
         self.commit_changes()
+
+    def get_download_roots(self):
+        retVal = list()
+        query_text = """
+        SELECT DISTINCT
+            coalesce(download_root, "$(LOCAL_REPO_SYNC_DIR)")
+        FROM svnitem
+        WHERE need_download=1
+        AND fileFlag=1
+        """
+        try:
+            exec_result = self.session.execute(query_text)
+            if exec_result.returns_rows:
+                # returns [(download_root,),...]
+                retVal.extend([dr[0] for dr in exec_result.fetchall()])
+        except SQLAlchemyError as ex:
+            raise
+        return retVal

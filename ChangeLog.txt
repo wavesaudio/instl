@@ -4,6 +4,10 @@
     * Calculation and reporting of number of bytes to sync by device/drive
     * Fix an error in calculation of the number of bytes to copy
 
+    programmer visible changes:
+    * IndexItemsTable.get_resolved_details_value reimplemented with SQl instead of sqlalchemy query
+    * Optimized get_wfi_version to read only part of the file
+
 19/4/2017 1.4.3.2
 
     user visible changes client:

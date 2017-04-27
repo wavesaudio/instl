@@ -413,6 +413,9 @@ class PlatformSpecificHelperBase(object):
     def exit_if_any_error(self):
         return ()
 
+    @abc.abstractmethod
+    def chown(self, user_id, group_id, target_path, recursive=False):
+        pass
 
 def PlatformSpecificHelperFactory(in_os, instlObj):
     if in_os == "Mac":
