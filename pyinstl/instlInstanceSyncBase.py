@@ -43,6 +43,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
     # Overridden by InstlInstanceSync_url, or parallel sync classes
     def create_sync_instructions(self):
         self.instlObj.batch_accum.set_current_section('sync')
+        return 0
 
     def read_remote_info_map(self):
         """ Reads the info map of the static files available for syncing.

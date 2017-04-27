@@ -18,22 +18,22 @@ fields_relevant_to_str = ('path', 'flags', 'revision', 'checksum', 'size', 'url'
 class SVNRow(get_declarative_base()):
     __tablename__ = 'svnitem'
     _id = Column(Integer, primary_key=True)
-    required = Column(BOOLEAN, default=False, index=True)
+    required = Column(BOOLEAN, default=False, index=True)       # is required for install
     need_download = Column(BOOLEAN, default=False, index=True)
     fileFlag = Column(BOOLEAN, default=False, index=True)
     dirFlag = Column(BOOLEAN, default=False)
     wtarFlag = Column(Integer, default=0)
     download_path = Column(String)
-    download_root = Column(String, default=None)
+    download_root = Column(String, default=None)  # top folder for direct sync items not the same as parent
     path = Column(String, index=True)
     parent = Column(String)  # todo: this should be in another table
-    flags = Column(String)
-    revision = Column(Integer, default=0)
+    flags = Column(String)   # the flags in text format f,d,x
+    revision = Column(Integer, default=0)  # SVN revision
     checksum = Column(String(40), default=None)
     size = Column(Integer, default=-1)
     url = Column(String, default=None)
-    level = Column(Integer)
-    extra_props = Column(String,default="")
+    level = Column(Integer)     # levels deep in the folders hierarchy
+    extra_props = Column(String,default="")  # SVN properties
 
     def __repr__(self):
         return ("<{self.level}, {self.path}, '{self.flags}'"

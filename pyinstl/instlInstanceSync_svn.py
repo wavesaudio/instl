@@ -25,7 +25,7 @@ class InstlInstanceSync_svn(InstlInstanceSync):
         var_stack.set_var("REL_SRC_PATH", var_description).append(rel_sources)
 
     def create_sync_instructions(self):
-        super().create_sync_instructions()
+        retVal = super().create_sync_instructions()
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Starting sync from $(SYNC_BASE_URL)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir("$(LOCAL_SYNC_DIR)")
@@ -37,11 +37,12 @@ class InstlInstanceSync_svn(InstlInstanceSync):
                 for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
                     source = var_stack.ResolveVarToList(source_var)
                     self.instlObj.batch_accum += self.create_svn_sync_instructions_for_source(source)
+                    retVal += 1
                 self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Sync {}".format(var_stack.ResolveVarToStr("iid_name")))
         for iid in var_stack.ResolveVarToList("__ORPHAN_INSTALL_TARGETS__"):
             self.instlObj.batch_accum += self.instlObj.platform_helper.echo("Don't know how to sync " + iid)
         self.instlObj.batch_accum += self.instlObj.platform_helper.echo("from $(SYNC_BASE_URL)")
-
+        return retVal
 
     def create_svn_sync_instructions_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """

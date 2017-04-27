@@ -16,11 +16,13 @@ class InstlInstanceSync_p4(InstlInstanceSync):
         super().init_sync_vars()
 
     def create_sync_instructions(self):
-        super().create_sync_instructions()
-        self.create_download_instructions()
+        retVal = super().create_sync_instructions()
+        retVal += self.create_download_instructions()
         self.instlObj.batch_accum.set_current_section('post-sync')
+        return retVal
 
     def create_download_instructions(self):
+        retVal = 0
         self.instlObj.batch_accum.set_current_section('sync')
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Starting sync from $(SYNC_BASE_URL)")
         self.sync_base_url = var_stack.ResolveVarToStr("SYNC_BASE_URL")
@@ -32,6 +34,8 @@ class InstlInstanceSync_p4(InstlInstanceSync):
                 for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
                     source = var_stack.ResolveVarToList(source_var)
                     self.p4_sync_for_source(source)
+                    retVal += 1
+        return retVal
 
     def p4_sync_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """

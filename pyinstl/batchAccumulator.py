@@ -15,7 +15,7 @@ class BatchAccumulator(object):
     def __init__(self):
         self.__instruction_lines = defaultdict(list)
         self.current_section = None
-        self.__instruction_counter = 0
+        self.__instruction_counter = defaultdict(int)
         self.__transaction_stack = list()
 
     def set_current_section(self, section):
@@ -39,7 +39,7 @@ class BatchAccumulator(object):
         """ make sure only strings are added """
         if isinstance(single_line, str):
             self.__instruction_lines[self.current_section].append(single_line)
-            self.__instruction_counter += 1
+            self.__instruction_counter[self.current_section] += 1
         else:
             raise TypeError("Not a string", type(single_line), single_line)
 
@@ -75,15 +75,18 @@ class BatchAccumulator(object):
         return self.__instruction_counter
     
     def begin_transaction(self):
-        self.__transaction_stack.append(self.__instruction_counter)
+        self.__transaction_stack.append(self.__instruction_counter.copy())
         return self.__instruction_counter
 
     def end_transaction(self):
-        prev_counter = self.__transaction_stack.pop()
-        num_instructions_in_transaction = self.__instruction_counter - prev_counter
+        prev_counters = self.__transaction_stack.pop()
+        num_instructions_in_transaction = 0
+        for section_name, section_counter in self.__instruction_counter.items():
+            num_instructions_in_transaction += section_counter - prev_counters[section_name]
         return num_instructions_in_transaction
 
     def cancel_transaction(self):
-        num_instructions_in_transaction = self.end_transaction()
+        prev_counters = self.__transaction_stack.pop()
         # remove the instructions_ added since the beginning of the transaction
-        del self.__instruction_lines[self.current_section][-num_instructions_in_transaction:]
+        for section_name, section_counter in self.__instruction_counter.items():
+            del self.__instruction_lines[section_name][prev_counters[section_name]:]

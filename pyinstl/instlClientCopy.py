@@ -156,21 +156,19 @@ class InstlClientCopy(InstlClient):
 
         if num_wtars == 0:
             source_file = source_files[0]
-            source_file.sync_path = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_file.path)
+            source_file_full_path = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_file.path)
+
             # patterns_copy_should_ignore is passed for the sake of completeness but is not being used further down the road in copy_file_to_dir
-            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_file.sync_path, ".",
+            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(source_file_full_path, ".",
                                                                                 link_dest=True,
                                                                                 ignore=self.patterns_copy_should_ignore)
 
-            self.batch_accum += self.platform_helper.echo("copy {source_file.sync_path}".format(**locals()))
+            self.batch_accum += self.platform_helper.echo("copy {source_file_full_path}".format(**locals()))
 
             if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
                 if not source_file.path.endswith(".symlink"):
                     self.batch_accum += self.platform_helper.chmod(source_file.chmod_spec(), source_file.name())
                     self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_file.chmod_spec(), source_file.name()))
-                else:   # a hack to prevent chmod for symlink files because .symlink files might have been already handled
-                        # by resolve_symlinks in the sync stage by instl version <= 1.0.
-                    self.batch_accum += self.platform_helper.echo("Skip chmod for symlink {}".format(source_file.name()))
 
             self.bytes_to_copy += self.calc_size_of_file_item(source_file)
         else:  # one or more wtar files
@@ -180,8 +178,9 @@ class InstlClientCopy(InstlClient):
                 if source_wtar.is_first_wtar_file():
                     first_wtar_item = source_wtar
             assert first_wtar_item is not None
+            first_wtar_full_path = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + first_wtar_item.path)
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
-            self.batch_accum += self.platform_helper.unwtar_something(first_wtar_item.download_path, no_artifacts=False, where_to_unwtar='.')
+            self.batch_accum += self.platform_helper.unwtar_something(first_wtar_full_path, no_artifacts=False, where_to_unwtar='.')
             self.batch_accum += self.platform_helper.unlock(first_wtar_item.name_without_wtar_extension())
             self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
 

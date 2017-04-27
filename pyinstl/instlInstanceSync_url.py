@@ -97,14 +97,15 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.batch_accum.set_current_section('sync')
 
         file_list, bytes_to_sync = self.instlObj.info_map_table.get_to_download_files_and_size()
+        retVal = len(file_list)
         var_stack.add_const_config_variable("__NUM_FILES_TO_DOWNLOAD__", "create_download_instructions", len(file_list))
         var_stack.add_const_config_variable("__NUM_BYTES_TO_DOWNLOAD__", "create_download_instructions", bytes_to_sync)
 
         # notify user how many files and bytes to sync
-        print(len(file_list), "files to sync")
-        if len(file_list) == 0:
+        print(retVal, "files to sync")
+        if retVal == 0:
             print(0, "bytes to sync")
-            return
+            return retVal
 
         mount_points_to_size = total_sizes_by_mount_point(file_list)
 
@@ -119,10 +120,11 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         self.create_curl_download_instructions()
         self.create_check_checksum_instructions(file_list)
+        return retVal
 
     def create_sync_instructions(self):
         self.instlObj.create_sync_folder_manifest_command("before-sync")
-        super().create_sync_instructions()
+        retVal = super().create_sync_instructions()
         self.prepare_list_of_sync_items()
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Starting sync from $(SYNC_BASE_URL)")
@@ -131,7 +133,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
         self.create_remove_unwanted_files_in_sync_folder_instructions()
-        self.create_download_instructions()
+        retVal += self.create_download_instructions()
         self.instlObj.batch_accum.set_current_section('post-sync')
         self.chown_for_synced_folders()
 
@@ -140,6 +142,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.popd()
         self.instlObj.create_sync_folder_manifest_command("after-sync")
+        return retVal
 
     def chown_for_synced_folders(self):
         """ if sync is done under admin permissions owner of files and folders will be root
