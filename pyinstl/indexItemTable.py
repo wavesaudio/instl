@@ -1221,10 +1221,8 @@ class IndexItemsTable(object):
         distinct = "DISTINCT" if unique_values else ""
         limit_to_iids_filter = ""
         if limit_to_iids:
-            limit_to_iids_filter = 'AND IndexItemDetailRow.owner_iid IN ('
-            quoted_limit_to_iids = [utils.quoteme_single(iid) for iid in limit_to_iids_filter]
-            limit_to_iids_filter += ','.join(quoted_limit_to_iids)
-            limit_to_iids_filter += ')'
+            quoted_limit_to_iids = [utils.quoteme_single(iid) for iid in limit_to_iids]
+            limit_to_iids_filter = " ".join(('AND IndexItemDetailRow.owner_iid IN (', ",".join(quoted_limit_to_iids), ')'))
 
         query_text = """
             SELECT {0} IndexItemDetailRow.detail_value
@@ -1453,7 +1451,7 @@ class IndexItemsTable(object):
         WHERE
             iid_t.iid='{the_iid}'
             AND
-            iid_t.install_status > 0
+            iid_t.install_status != 0
             AND
             iid_t.ignore=0
         ORDER BY adjusted_sources_t.adjusted_source

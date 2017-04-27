@@ -51,16 +51,17 @@ class InstlClientRemove(InstlClient):
             self.accumulate_unique_actions('pre_remove_from_folder', items_in_folder)
 
             for IID in items_in_folder:
-                with self.install_definitions_index[IID].push_var_stack_scope() as installi:
-                    self.batch_accum += self.platform_helper.progress("Removing {installi.name}...".format(**locals()))
-                    for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
-                        source = var_stack.ResolveVarToList(source_var)
-                        self.batch_accum += self.platform_helper.progress("Removing {source[0]}...".format(**locals()))
-                        self.batch_accum += var_stack.ResolveVarToList("iid_action_list_pre_remove_item", default=[])
-                        self.create_remove_instructions_for_source(folder_name, source)
-                        self.batch_accum += var_stack.ResolveVarToList("iid_action_list_post_remove_item", default=[])
-                        self.batch_accum += self.platform_helper.progress("Remove {source[0]} done".format(**locals()))
-                    self.batch_accum += self.platform_helper.progress("Remove {installi.name} done".format(**locals()))
+                name_and_version = self.iid_to_name_and_version[IID].name_and_version
+                self.batch_accum += self.platform_helper.progress("Removing {name_and_version}...".format(**locals()))
+                adjusted_sources_for_iid = self.items_table.get_adjusted_sources_for_iid(IID)
+                adjusted_resolved_sources_for_iid = [(var_stack.ResolveStrToStr(s[0]), s[1]) for s in adjusted_sources_for_iid]
+                for source in adjusted_resolved_sources_for_iid:
+                    self.batch_accum += self.platform_helper.progress("Removing {source[0]}...".format(**locals()))
+                    self.batch_accum += var_stack.ResolveVarToList("iid_action_list_pre_remove_item", default=[])
+                    self.create_remove_instructions_for_source(IID, folder_name, source)
+                    self.batch_accum += var_stack.ResolveVarToList("iid_action_list_post_remove_item", default=[])
+                    self.batch_accum += self.platform_helper.progress("Remove {source[0]} done".format(**locals()))
+                self.batch_accum += self.platform_helper.progress("Remove {name_and_version} done".format(**locals()))
 
             self.accumulate_unique_actions('post_remove_from_folder', items_in_folder)
             self.batch_accum += self.platform_helper.progress("Remove from {0} done".format(folder_name))
@@ -74,15 +75,16 @@ class InstlClientRemove(InstlClient):
     # Null remove_item was specified (remove_item: ~) - so nothing should be done.
     # Specific remove_item action specified - so specific action should be done.
 
-    def create_remove_instructions_for_source(self, folder, source):
+    def create_remove_instructions_for_source(self, IID, folder, source):
         """ source is a tuple (source_folder, tag), where tag is either !file, !dir_cont or !dir """
 
         source_path, source_type = source[0], source[1]
         base_, leaf = os.path.split(source_path)
         to_remove_path = os.path.normpath(os.path.join(folder, leaf))
 
-        remove_actions = var_stack.ResolveVarToList("iid_action_list_remove_item", default=[])
-        if len(remove_actions) == 0:  # no specific actions were specified, so just remove the files
+        specific_remove_actions = self.items_table.get_details_for_active_iids('remove_item', unique_values=False, limit_to_iids=(IID,))
+
+        if len(specific_remove_actions) == 0:  # no specific actions were specified, so just remove the files
             if source_type == '!dir':  # remove whole folder
                 remove_action = self.platform_helper.rmdir(to_remove_path, recursive=True)
                 self.batch_accum += remove_action
@@ -96,7 +98,12 @@ class InstlClientRemove(InstlClient):
                     base_, leaf = os.path.split(remove_path)
                     remove_full_path = os.path.normpath(os.path.join(folder, leaf))
                     remove_action = self.platform_helper.rm_file_or_dir(remove_full_path)
+                    remove_action = self.platform_helper.rm_file_or_dir(remove_full_path)
                     self.batch_accum += remove_action
         else:
-            remove_actions = [_f for _f in remove_actions if _f]  # filter out None values
-            self.batch_accum += remove_actions
+            # when an item should not be removed it will get such a detail:
+            # remove_item: ~
+            # this will cause specific_remove_actions list to be [None].
+            # after filtering None values the list will be empty and remove actions will not be created
+            specific_remove_actions = [_f for _f in specific_remove_actions if _f]  # filter out None values
+            self.batch_accum += specific_remove_actions
