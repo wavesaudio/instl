@@ -487,6 +487,12 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
 
     def chown(self, user_id, group_id, target_path, recursive=False):
         chown_command_parts = list()
+        # icacls is actually somewhat between chmod and chown
+        #chown_command_parts.append("icacls")
+        #chown_command_parts.append(utils.quoteme_double(target_path))
+        #chown_command_parts.append("/grant")
+        #chown_command_parts.append("Users: (OI)(CI)F")
+        #chown_command_parts.append("/T")
         chown_command_parts.append(self.echo("chown not implemented yet for Windows, "+target_path))
         chown_command = " ".join(chown_command_parts)
         return chown_command

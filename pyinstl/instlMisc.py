@@ -209,7 +209,8 @@ class InstlMisc(InstlInstanceBase):
                 if len(file_names) == len(ignored_files):
                     # only remove the ignored files if the folder is to be removed
                     for filename in ignored_files:
-                        os.remove(os.path.join(root_path, filename))
+                        file_to_remove_full_path = os.path.join(root_path, filename)
+                        os.remove(file_to_remove_full_path)
                     os.rmdir(root_path)
 
     def do_win_shortcut(self):
