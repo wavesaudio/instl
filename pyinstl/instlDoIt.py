@@ -120,20 +120,24 @@ class InstlDoIt(InstlInstanceBase):
                 self.installState.orphan_doit_items.append(IID)
 
     def doit_for_item(self, IID, action):
-        with self.install_definitions_index[IID].push_var_stack_scope() as doit_item:
-            action_list = var_stack.ResolveVarToList("iid_action_list_"+action, default=[])
-            if len(action_list) > 0:
-                self.batch_accum += self.platform_helper.remark("--- Begin "+doit_item.name)
-                self.batch_accum += self.platform_helper.progress(doit_item.name+"...")
-            num_actions = len(action_list)
-            for i in range(num_actions):
-                self.batch_accum += action_list[i]
-                if i != num_actions - 1:
-                    self.batch_accum += self.platform_helper.progress(doit_item.name + " "+str(i+1))
-            if len(action_list) > 0:
-                self.batch_accum += self.platform_helper.progress(doit_item.name + ". done")
-                self.batch_accum += self.platform_helper.remark("--- End "+doit_item.name+"\n")
-            doit_item.user_data = True
+        action_list = self.items_table.get_resolved_details_value(IID, action)
+        try:
+            name = self.items_table.get_resolved_details_value(IID, "name")[0]
+        except:
+            name = IID
+
+        if len(action_list) > 0:
+            self.batch_accum += self.platform_helper.remark("--- Begin "+name)
+            self.batch_accum += self.platform_helper.progress(name+"...")
+        num_actions = len(action_list)
+        for i in range(num_actions):
+            self.batch_accum += action_list[i]
+            if i != num_actions - 1:
+                self.batch_accum += self.platform_helper.progress(name + " "+str(i+1))
+        if len(action_list) > 0:
+            self.batch_accum += self.platform_helper.progress(name + ". done")
+            self.batch_accum += self.platform_helper.remark("--- End "+name+"\n")
+        self.install_definitions_index[IID].user_data = True
 
     def add_default_items(self):
         all_items_item = InstallItem("__ALL_ITEMS_IID__")
@@ -153,7 +157,7 @@ class InstlDoIt(InstlInstanceBase):
         if "MAIN_DOIT_ITEMS" not in var_stack:
             raise ValueError("'MAIN_DOIT_ITEMS' was not defined")
         active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
-        self.items_table.begin_get_for_specific_oses(active_oses)
+        self.items_table.begin_get_for_specific_oses(*active_oses)
 
         for os_name in active_oses:
             InstallItem.begin_get_for_specific_os(os_name)
@@ -163,24 +167,3 @@ class InstlDoIt(InstlInstanceBase):
         self.installState.calculate_full_doit_items_set(self)
         var_stack.set_var("__FULL_LIST_OF_DOIT_TARGETS__").extend(self.installState.full_doit_items)
         var_stack.set_var("__ORPHAN_DOIT_TARGETS__").extend(self.installState.orphan_doit_items)
-
-    def accumulate_unique_actions(self, action_type, iid_list):
-        """ accumulate action_type actions from iid_list, eliminating duplicates"""
-        unique_actions = utils.unique_list()  # unique_list will eliminate identical actions while keeping the order
-        for IID in iid_list:
-            with self.install_definitions_index[IID].push_var_stack_scope() as installi:
-                action_var_name = "iid_action_list_" + action_type
-                item_actions = var_stack.ResolveVarToList(action_var_name, default=[])
-                num_unique_actions = 0
-                for an_action in item_actions:
-                    len_before = len(unique_actions)
-                    unique_actions.append(an_action)
-                    len_after = len(unique_actions)
-                    if len_before < len_after:  # add progress only for the first same action
-                        num_unique_actions += 1
-                        action_description = self.action_type_to_progress_message[action_type]
-                        if num_unique_actions > 1:
-                            action_description = " ".join((action_description, str(num_unique_actions)))
-                        unique_actions.append(
-                            self.platform_helper.progress("{installi.name} {action_description}".format(**locals())))
-        self.batch_accum += unique_actions
