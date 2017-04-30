@@ -9,6 +9,8 @@
 """
 
 import os
+import pathlib
+
 
 # noinspection PyPep8Naming
 class SearchPaths(object):
@@ -63,21 +65,24 @@ class SearchPaths(object):
         """
         retVal = None
         if os.path.isfile(in_file):
-            real_file = os.path.realpath(in_file)
-            real_folder = os.path.dirname(real_file)
-            self.add_search_path(real_folder)
-            retVal = real_file
+            real_file = pathlib.Path(in_file).resolve()
+            real_folder = real_file.parent
+            self.add_search_path(str(real_folder))
+            retVal = str(real_file)
         else:
             for try_path in self.search_paths_var:
-                real_file = os.path.join(try_path, in_file)
-                if os.path.isfile(real_file):
-                    real_file = os.path.realpath(real_file)
-                    # in_file might be a relative path so must add the file's
-                    # real folder so it's in the list.
-                    real_folder = os.path.dirname(real_file)
-                    self.add_search_path(real_folder)
-                    retVal = real_file
-                    break
+                try:
+                    real_file = pathlib.Path(try_path, in_file).resolve()
+                    if os.path.isfile(str(real_file)):
+                        # in_file might be a relative path so must add the file's
+                        # real folder so it's in the list.
+                        real_folder = real_file.parent
+                        self.add_search_path(str(real_folder))
+                        retVal = str(real_file)
+                        break
+                except  FileNotFoundError:
+                    pass  # file was not found at try_path
+
             else:  # nobreak, retVal is None:
                 if return_original_if_not_found:
                     retVal = in_file
