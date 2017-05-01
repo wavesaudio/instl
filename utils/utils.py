@@ -203,10 +203,10 @@ class unique_list(list):
     """
     unique_list implements a list where all items are unique.
     Functionality can also be described as set with order.
-    unique_list should behave as a python list except Exception:
-        Adding items the end of the list (by append, extend) will do nothing if the
+    unique_list should behave as a python list except:
+        - Adding items the end of the list (by append, extend) will do nothing if the
             item is already in the list.
-        Adding to the middle of the list (insert, __setitem__)
+        - Adding to the middle of the list (insert, __setitem__)
             will remove previous item with the same value - if any.
     """
     __slots__ = ('__attendance',)

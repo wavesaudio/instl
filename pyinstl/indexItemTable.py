@@ -751,6 +751,7 @@ class IndexItemsTable(object):
             WHERE owner_iid = '{iid}'
             AND detail_name = '{detail_name}'
             AND active = 1
+            ORDER BY _id
         """.format(**locals())
         try:
             exec_result = self.session.execute(query_text)

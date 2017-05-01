@@ -1,3 +1,6 @@
 --- !define
 
 MAIN_INSTALL_TARGETS: $(MAIN_DOIT_ITEMS)
+
+# default description for messages
+CURRENT_DOIT_DESCRIPTION: Doing it
