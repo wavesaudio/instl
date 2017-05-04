@@ -436,6 +436,30 @@ class SVNTable(object):
             pass
         return retVal
 
+    def get_item_insensitive(self, item_path, what="any"):
+        """ Get specific item or return None if not found
+        :param item_path: path to the item
+        :param what: either "any" (will return file or dir), "file", "dir
+        :return: item found or None
+        """
+        if what not in ("any", "file", "dir"):
+            raise ValueError(what+" not a valid filter for get_item")
+
+        # get_one_item query: return specific item which could be a dir or a file, used by get_item()
+        if "get_one_item" not in self.baked_queries_map:
+            self.baked_queries_map["get_one_item"] = self.bakery(lambda session: session.query(SVNRow))
+            self.baked_queries_map["get_one_item"] += lambda q: q.filter(SVNRow.path.ilike(bindparam('item_path')))
+            self.baked_queries_map["get_one_item"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.dirFlag == bindparam('dir')))
+
+        retVal = None
+        try:
+            want_file = what in ("any", "file")
+            want_dir = what in ("any", "dir")
+            retVal = self.baked_queries_map["get_one_item"](self.session).params(item_path=item_path, file=want_file, dir=want_dir).one()
+        except NoResultFound:
+            pass
+        return retVal
+
     def get_items(self, what="any", levels_deep=1024):
         """
         get_items applies a filter and return all items
