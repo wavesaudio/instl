@@ -436,7 +436,7 @@ class SVNTable(object):
             pass
         return retVal
 
-    def get_item_insensitive(self, item_path, what="any"):
+    def get_item_lowercase(self, item_path, what="any"):
         """ Get specific item or return None if not found
         :param item_path: path to the item
         :param what: either "any" (will return file or dir), "file", "dir
@@ -448,7 +448,7 @@ class SVNTable(object):
         # get_one_item query: return specific item which could be a dir or a file, used by get_item()
         if "get_one_item" not in self.baked_queries_map:
             self.baked_queries_map["get_one_item"] = self.bakery(lambda session: session.query(SVNRow))
-            self.baked_queries_map["get_one_item"] += lambda q: q.filter(SVNRow.path.ilike(bindparam('item_path')))
+            self.baked_queries_map["get_one_item"] += lambda q: q.filter(func.lower(SVNRow.path) == func.lower(bindparam('item_path')))
             self.baked_queries_map["get_one_item"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.dirFlag == bindparam('dir')))
 
         retVal = None

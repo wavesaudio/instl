@@ -86,7 +86,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 files_checked += 1
                 item_full_path = pathlib.PurePath(root, disk_item)
                 item_partial_path = item_full_path.relative_to(pure_local_sync_dir).as_posix()
-                file_item = self.instlObj.info_map_table.get_item_insensitive(item_path=item_partial_path, what="file")
+                file_item = self.instlObj.info_map_table.get_item_lowercase(item_path=item_partial_path, what="file")
                 if file_item is None:  # file was not found in info_map
                     self.instlObj.batch_accum += self.instlObj.platform_helper.rmfile(str(item_full_path))
                     self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Removed redundant file "+str(item_full_path))
@@ -146,7 +146,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
     def chown_for_synced_folders(self):
         """ if sync is done under admin permissions owner of files and folders will be root
-            chown_for_synced_folders will change owner to the user that created the batch file. 
+            chown_for_synced_folders will change owner to the user that created the batch file.
             Currenly this was found to be relevant for Mac only.
         """
         if var_stack.ResolveVarToStr("__CURRENT_OS__") != "Mac":
