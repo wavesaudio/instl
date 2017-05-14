@@ -436,8 +436,10 @@ class SVNTable(object):
             pass
         return retVal
 
-    def get_item_lowercase(self, item_path, what="any"):
+    def get_item_case_insensitive(self, item_path, what="any"):
         """ Get specific item or return None if not found
+        search is done case insensitive. This is needed in case where we look for
+        a file that exist on disk in the database.
         :param item_path: path to the item
         :param what: either "any" (will return file or dir), "file", "dir
         :return: item found or None
