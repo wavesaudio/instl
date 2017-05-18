@@ -1,10 +1,14 @@
-???? 1.4.4.2
+18/5/2017 1.4.4.2
 
     user visible changes client:
     * New variable CURRENT_DOIT_DESCRIPTION to allow meaningfull messages from doit actions
     programmer visible changes:
     * Reimplemented doit command using only database
     * IndexItemsTable.get_resolved_details_value results sorted by order they were inserted (IndexItemDetailRow._id)
+
+    programmer visible changes:
+    * Added , errors='namereplace' where ever text files are written. This will cause unicode characters that cannot be written
+            (e.g. 'surrogates not allowed' error) to be replaced by their name (e.g. '\ud9fe')
 
 30/4/2017 1.4.4.1
 

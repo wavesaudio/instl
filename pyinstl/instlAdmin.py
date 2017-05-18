@@ -438,7 +438,7 @@ class InstlAdmin(InstlInstanceBase):
                                               '!define', "", explicit_start=True, sort_mappings=True)
         os.makedirs(var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER)/admin"), exist_ok=True)
         local_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
-        with open(local_file, "w", encoding='utf-8') as wfd:
+        with open(local_file, "w", encoding='utf-8', errors='namereplace') as wfd:
             aYaml.writeAsYaml(repo_rev_yaml, out_stream=wfd, indentor=None, sort=True)
             print("created", local_file)
 
@@ -482,7 +482,7 @@ class InstlAdmin(InstlInstanceBase):
         if proc.returncode != 0 or my_stderr != "":
             raise ValueError("Could not read info from svn: " + my_stderr)
         # write svn info to file for debugging and reference. But go one folder up so not to be in the svn repo.
-        with open("../svn-info-for-fix-props.txt", "w", encoding='utf-8') as wfd:
+        with open("../svn-info-for-fix-props.txt", "w", encoding='utf-8', errors='namereplace') as wfd:
             wfd.write(my_stdout)
         self.info_map_table.read_from_file("../svn-info-for-fix-props.txt", a_format="info")
 
@@ -490,7 +490,7 @@ class InstlAdmin(InstlInstanceBase):
         svn_props_command = [var_stack.ResolveVarToStr("SVN_CLIENT_PATH"), "proplist", "--depth", "infinity"]
         proc = subprocess.Popen(svn_props_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         my_stdout, my_stderr = proc.communicate()
-        with open("../svn-proplist-for-fix-props.txt", "w", encoding='utf-8') as wfd:
+        with open("../svn-proplist-for-fix-props.txt", "w", encoding='utf-8', errors='namereplace') as wfd:
             wfd.write(my_stdout)
         self.info_map_table.read_from_file(var_stack.ResolveStrToStr("../svn-proplist-for-fix-props.txt"), a_format="props")
 

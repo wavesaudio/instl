@@ -121,7 +121,7 @@ class InstlClient(InstlInstanceBase):
         instl_temp_history_file_path = var_stack.ResolveVarToStr("INSTL_HISTORY_TEMP_PATH")
         instl_temp_history_folder, instl_temp_history_file_name = os.path.split(instl_temp_history_file_path)
         if os.path.isdir(instl_temp_history_folder):
-            with open(instl_temp_history_file_path, "w", encoding='utf-8') as wfd:
+            with open(instl_temp_history_file_path, "w", encoding='utf-8', errors='namereplace') as wfd:
                 utils.make_open_file_read_write_for_all(wfd)
                 aYaml.writeAsYaml(yaml_of_defines, wfd)
             self.batch_accum += self.platform_helper.append_file_to_file("$(INSTL_HISTORY_TEMP_PATH)",

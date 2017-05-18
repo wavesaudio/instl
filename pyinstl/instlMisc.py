@@ -332,7 +332,7 @@ class InstlMisc(InstlInstanceBase):
         with open(input_file, "r") as rfd:
             text_to_resolve = rfd.read()
         resolved_text = var_stack.ResolveStrToStr(text_to_resolve)
-        with open(output_file, "w") as wfd:
+        with open(output_file, "w", errors='namereplace') as wfd:
             wfd.write(resolved_text)
 
     def unconditional_unwtar_guy(self, my_tarfile, dest, manifest_file=None):
