@@ -447,17 +447,18 @@ class SVNTable(object):
         if what not in ("any", "file", "dir"):
             raise ValueError(what+" not a valid filter for get_item")
 
+        item_path = item_path.lower()
         # get_one_item query: return specific item which could be a dir or a file, used by get_item()
-        if "get_one_item" not in self.baked_queries_map:
-            self.baked_queries_map["get_one_item"] = self.bakery(lambda session: session.query(SVNRow))
-            self.baked_queries_map["get_one_item"] += lambda q: q.filter(func.lower(SVNRow.path) == func.lower(bindparam('item_path')))
-            self.baked_queries_map["get_one_item"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.dirFlag == bindparam('dir')))
+        if "get_item_case_insensitive" not in self.baked_queries_map:
+            self.baked_queries_map["get_item_case_insensitive"] = self.bakery(lambda session: session.query(SVNRow))
+            self.baked_queries_map["get_item_case_insensitive"] += lambda q: q.filter(func.lower(SVNRow.path) == bindparam('item_path'))
+            self.baked_queries_map["get_item_case_insensitive"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.dirFlag == bindparam('dir')))
 
         retVal = None
         try:
             want_file = what in ("any", "file")
             want_dir = what in ("any", "dir")
-            retVal = self.baked_queries_map["get_one_item"](self.session).params(item_path=item_path, file=want_file, dir=want_dir).one()
+            retVal = self.baked_queries_map["get_item_case_insensitive"](self.session).params(item_path=item_path, file=want_file, dir=want_dir).one()
         except NoResultFound:
             pass
         return retVal
