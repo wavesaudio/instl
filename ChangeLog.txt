@@ -5,6 +5,7 @@
     programmer visible changes:
     * Reimplemented doit command using only database
     * IndexItemsTable.get_resolved_details_value results sorted by order they were inserted (IndexItemDetailRow._id)
+    * New function SVNTable.get_item_case_insensitive implemented by Lev. Good for looking in the db for files that exist on disk.
 
     programmer visible changes:
     * Added , errors='namereplace' where ever text files are written. This will cause unicode characters that cannot be written
