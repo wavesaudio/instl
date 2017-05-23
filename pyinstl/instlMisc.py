@@ -298,7 +298,7 @@ class InstlMisc(InstlInstanceBase):
         else:
             folders_to_list.append(main_folder_to_list)
 
-        ls_format = var_stack.ResolveVarToStr("LS_FORMAT", default='*')
+        ls_format = var_stack.ResolveVarToStr("LS_FORMAT_FOR_WTAR", default='SCpf')
         the_listing = utils.disk_item_listing(*folders_to_list, ls_format=ls_format)
 
         try:

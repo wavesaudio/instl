@@ -11,17 +11,20 @@ import utils
 
 def disk_item_listing(*files_or_folders_to_list, ls_format='*'):
     """ Create a manifest of one or more folders or files
-        Format is a sequence of characters specifying what details to include 
-        and in what order. Options are:
+        Format is a sequence of characters each specifying what details to include.
+        Details are listed in the order they appear in, unless specified as non-positional.
+    Options are:
     'C': sha1 checksum (files only)
-    'D': if 'P' or 'p' is given "/" is appended to the path if item is a directory (Mac), <DIR> if item is directory empty string otherwise (Win only)
-        note that for Mac the position of 'D' in ls_format is not relevant.
+    'D': Mac: if 'P' or 'p' is given "/" is appended to the path if item is a directory, non-positional
+         Win: <DIR> if item is directory empty string otherwise
+    'd': list only directories not files, non-positional. 
     'E': if 'P' or 'p' is given extra character is appended to the path, '@' for link, '*' for executable, '=' for socket, '|' for FIFO
+    'f': list only files not directories, non-positional. 
     'G': Group name or gid if name not found (Mac), domain+"\\"+group name (Win)
     'I': inode number (Mac only)
     'L': number of links (Mac only)
     'M': a remark beginning in '#' and containing the data & time when the listing was done and the path to the item listed
-        note that the position of 'M' in ls_format is not relevant. The remark appears before each item.
+        non-positional. The remark appears before each top level item.
         If the item was not found a remark will be written any way
     'P': full path to the item
     'p': partial path to the item - relative to the top folder listed, or if top item is a file - the file name without the path
@@ -33,20 +36,24 @@ def disk_item_listing(*files_or_folders_to_list, ls_format='*'):
     '*' if ls_format contains only '*' it is and alias to the default and means: 
         MIRLUGSTCPE (Mac)
         MTDSUGCP (Win)
+    Note: if both 'd' and 'f' are not in ls_format disk_item_listing will act as if both are in ls_format
+            so 'SCp' actually means 'SCpfd'
     """
     os_names = utils.get_current_os_names()
     listing_lines = list()
     add_remarks = ls_format=='*' or 'M' in ls_format
-    files_or_folders_to_list = sorted(*files_or_folders_to_list, key=lambda file: PurePath(file).parts)
+    files_or_folders_to_list = sorted(files_or_folders_to_list, key=lambda file: PurePath(file).parts)
     if "Mac" in os_names:
         if ls_format == '*':
             ls_format = 'MIRLUGSTCPE'
+        if 'f' not in ls_format and 'd' not in ls_format:
+            ls_format += 'fd'
         for root_file_or_folder_path in files_or_folders_to_list:
             if add_remarks:
                 listing_lines.append(" ".join(("#", datetime.datetime.today().isoformat(), "listing of", root_file_or_folder_path)))
             if os.path.isdir(root_file_or_folder_path):
                 listing_lines.extend(unix_folder_ls(root_file_or_folder_path, ls_format=ls_format, root_folder=root_file_or_folder_path))
-            elif os.path.isfile(root_file_or_folder_path):
+            elif os.path.isfile(root_file_or_folder_path) and 'f' in ls_format:
                 root_folder, _ = os.path.split(root_file_or_folder_path)
                 listing_lines.append(unix_item_ls(root_file_or_folder_path, ls_format=ls_format, root_folder=root_folder))
             else:
@@ -54,13 +61,15 @@ def disk_item_listing(*files_or_folders_to_list, ls_format='*'):
 
     elif "Win" in os_names:
         if ls_format == '*':
-            ls_format = 'MTDSUGCP' # order does matters!
+            ls_format = 'MTDSUGCP'
+        if 'f' not in ls_format and 'd' not in ls_format:
+            ls_format += 'fd'
         for root_file_or_folder_path in files_or_folders_to_list:
             if add_remarks:
                 listing_lines.append(" ".join(("#", datetime.datetime.today().isoformat(), "listing of", root_file_or_folder_path)))
             if os.path.isdir(root_file_or_folder_path):
                 listing_lines.extend(win_folder_ls(root_file_or_folder_path, ls_format=ls_format, root_folder=root_file_or_folder_path))
-            elif os.path.isdir(root_file_or_folder_path):
+            elif os.path.isdir(root_file_or_folder_path) and 'f' in ls_format:
                 root_folder, _ = os.path.split(root_file_or_folder_path)
                 listing_lines.append(win_item_ls(root_file_or_folder_path, ls_format=ls_format, root_folder=root_folder))
             else:
@@ -85,15 +94,17 @@ def disk_item_listing(*files_or_folders_to_list, ls_format='*'):
     return retVal
 
 
-def unix_folder_ls(the_path, ls_format='*', root_folder=None):
+def unix_folder_ls(the_path, ls_format, root_folder=None):
     listing_lines = list()
     for root_path, dirs, files in os.walk(the_path, followlinks=False):
         dirs = sorted(dirs, key=lambda s: s.lower())
-        listing_lines.append(unix_item_ls(root_path, ls_format=ls_format, root_folder=root_folder))
-        files_to_list = sorted(files + [slink for slink in dirs if os.path.islink(os.path.join(root_path, slink))], key=lambda s: s.lower())
-        for file_to_list in files_to_list:
-            full_path = os.path.join(root_path, file_to_list)
-            listing_lines.append(unix_item_ls(full_path, ls_format=ls_format, root_folder=root_folder))
+        if 'd' in ls_format:
+            listing_lines.append(unix_item_ls(root_path, ls_format=ls_format, root_folder=root_folder))
+        if 'f' in ls_format:
+            files_to_list = sorted(files + [slink for slink in dirs if os.path.islink(os.path.join(root_path, slink))], key=lambda s: s.lower())
+            for file_to_list in files_to_list:
+                full_path = os.path.join(root_path, file_to_list)
+                listing_lines.append(unix_item_ls(full_path, ls_format=ls_format, root_folder=root_folder))
 
             # W (list content of .Wtar files) is a special case and must be specifically requested
             #if 'W' in ls_format:
@@ -163,15 +174,17 @@ def unix_item_ls(the_path, ls_format, root_folder=None):
     return the_parts
 
 
-def win_folder_ls(the_path, ls_format='*', root_folder=None):
+def win_folder_ls(the_path, ls_format, root_folder=None):
     listing_lines = list()
     for root_path, dirs, files in os.walk(the_path, followlinks=False):
         dirs = sorted(dirs, key=lambda s: s.lower())
-        listing_lines.append(win_item_ls(root_path, ls_format=ls_format, root_folder=root_folder))
-        files_to_list = sorted(files + [slink for slink in dirs if os.path.islink(os.path.join(root_path, slink))], key=lambda s: s.lower())
-        for file_to_list in files_to_list:
-            full_path = os.path.join(root_path, file_to_list)
-            listing_lines.append(win_item_ls(full_path, ls_format=ls_format, root_folder=root_folder))
+        if 'd' in ls_format:
+            listing_lines.append(win_item_ls(root_path, ls_format=ls_format, root_folder=root_folder))
+        if 'f' in ls_format:
+            files_to_list = sorted(files + [slink for slink in dirs if os.path.islink(os.path.join(root_path, slink))], key=lambda s: s.lower())
+            for file_to_list in files_to_list:
+                full_path = os.path.join(root_path, file_to_list)
+                listing_lines.append(win_item_ls(full_path, ls_format=ls_format, root_folder=root_folder))
 
             # W (list content of .Wtar files) is a special case and must be specifically requested
             #if 'W' in ls_format:
@@ -209,7 +222,7 @@ def win_item_ls(the_path, ls_format, root_folder=None):
             the_parts.append(domain+"\\"+name)  # group
         elif format_col == 'C':
             if not (stat.S_ISLNK(the_stats.st_mode) or stat.S_ISDIR(the_stats.st_mode)):
-                the_parts.append(get_file_checksum(the_path))
+                the_parts.append(utils.get_file_checksum(the_path))
             else:
                 the_parts.append("")
         elif format_col == 'P':
