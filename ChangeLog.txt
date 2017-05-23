@@ -1,3 +1,10 @@
+????? 1.4.4.3
+
+    programmer visible changes:
+    * utils.folder_listing renamed utils.disk_item_listing and moved to new file ls.py together with all ls helper functions.
+        Added option to list a single file, report partial path instead of full path, and thorough documentation of the format options.
+
+
 18/5/2017 1.4.4.2
 
     user visible changes client:

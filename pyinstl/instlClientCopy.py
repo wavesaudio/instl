@@ -47,7 +47,7 @@ class InstlClientCopy(InstlClient):
                 log_folder, log_file = os.path.split(log_file_path)
                 with open(os.path.join(log_folder, "sync-folder-manifest.txt"), "w", encoding='utf-8', errors='namereplace') as wfd:
                     repo_sync_dir = var_stack.ResolveVarToStr("COPY_SOURCES_ROOT_DIR")
-                    wfd.write(utils.folder_listing(repo_sync_dir))
+                    wfd.write(utils.disk_item_listing(repo_sync_dir))
         except Exception:
             pass # if it did not work - forget it
 

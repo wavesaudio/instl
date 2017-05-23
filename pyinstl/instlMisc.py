@@ -119,7 +119,7 @@ class InstlMisc(InstlInstanceBase):
                         with tarfile.open(fileobj=fd) as tar:
                             tar.extractall(destination_folder)
                     with timer_cm.child('manifest'):
-                        the_listing = utils.folder_listing(destination_folder)
+                        the_listing = utils.disk_item_listing(destination_folder)
             print(the_listing)
 
             if self.no_artifacts:
@@ -299,7 +299,7 @@ class InstlMisc(InstlInstanceBase):
             folders_to_list.append(main_folder_to_list)
 
         ls_format = var_stack.ResolveVarToStr("LS_FORMAT", default='*')
-        the_listing = utils.folder_listing(*folders_to_list, ls_format=ls_format)
+        the_listing = utils.disk_item_listing(*folders_to_list, ls_format=ls_format)
 
         try:
             with utils.write_to_file_or_stdout(out_file) as wfd:
