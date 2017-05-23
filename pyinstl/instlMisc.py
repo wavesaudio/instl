@@ -112,9 +112,15 @@ class InstlMisc(InstlInstanceBase):
         try:
             if destination_folder is None:
                 destination_folder, _ = os.path.split(wtar_file_paths[0])
-            with MultiFileReader("br", wtar_file_paths) as fd:
-                with tarfile.open(fileobj=fd) as tar:
-                    tar.extractall(destination_folder)
+
+            with utils.Timer_CM('unwtar_a_file') as timer_cm:
+                with MultiFileReader("br", wtar_file_paths) as fd:
+                    with timer_cm.child('tar.extractall'):
+                        with tarfile.open(fileobj=fd) as tar:
+                            tar.extractall(destination_folder)
+                    with timer_cm.child('manifest'):
+                        the_listing = utils.folder_listing(destination_folder)
+            print(the_listing)
 
             if self.no_artifacts:
                 for wtar_file in wtar_file_paths:
