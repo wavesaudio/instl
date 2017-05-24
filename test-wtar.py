@@ -7,6 +7,10 @@ import tarfile
 import fnmatch
 import time
 import re
+import shutil
+
+from functools import reduce
+
 import utils
 from configVar import var_stack
 from utils.multi_file import MultiFileReader
@@ -101,6 +105,111 @@ def unwtar_a_file(wtar_file_paths, destination_folder=None):
         raise
 
 
+def dir_walk(path):
+    for item in os.scandir(path):
+        yield item
+        if item.is_dir(follow_symlinks=False):
+            yield from dir_walk(item.path)
+
+
+def unwtar_no_checks(tar_file, target_folder):
+    with utils.Timer_CM("unwtar_no_checks") as utc:
+        with tarfile.open(tar_file, "r") as tar:
+            tar.extractall(target_folder)
+
+
+def unwtar_with_checks(tar_file, target_folder, tar_real_name):
+
+    with utils.Timer_CM("unwtar_with_checks") as utc:
+        ok_files = 0
+        to_untar_files = 0
+        with tarfile.open(tar_file, "r") as tar:
+            the_pax_headers = tar.pax_headers
+            for item in tar.getmembers():
+                checksum_good = utils.check_file_checksum(os.path.join(target_folder, item.path), the_pax_headers[item.path])
+                if not checksum_good:
+                    to_untar_files += 1
+                    tar.extract(item, target_folder)
+                else:
+                    ok_files += 1
+    print("   ", "unwtar_with_checks:", tar_file, to_untar_files, "files unwtarred,", ok_files, "not unwtarred")
+
+def unwtar_one_check(tar_file, target_folder, tar_real_name):
+    messages = list()
+    with utils.Timer_CM("unwtar_one_check: "+target_folder) as utc:
+        checksum_of_checksums_from_disk = "XXXX"
+        tar_folder = os.path.join(target_folder, tar_real_name)
+        with utc.child("disk checksum"):
+            if os.path.isdir(tar_folder):
+                checksum_of_checksums_from_disk = checksum_a_folder(tar_folder)
+                messages.append('reading DISK, checksum_of_checksums: '+ str(checksum_of_checksums_from_disk))
+        with utc.child("untarring"):
+            with tarfile.open(tar_file, "r") as tar:
+                the_pax_headers = tar.pax_headers
+                checksum_of_checksums_from_pax = tar.pax_headers['checksum_of_checksums']
+                messages.append('reading tar, checksum_of_checksums: ' + str(checksum_of_checksums_from_pax))
+                if checksum_of_checksums_from_pax != checksum_of_checksums_from_disk:
+                    tar.extractall(target_folder)
+                    messages.append('checksum_of_checksums DIFF doing complete unwtar')
+                else:
+                    messages.append('checksum_of_checksums OK no need to unwtar')
+    for message in messages:
+        print("   ", message)
+
+
+def checksum_a_folder(folder_path):
+    checksum_of_checksums = 0
+    checksum_list = list()
+    for item in dir_walk(path=folder_path):
+        if item.is_file():
+            checksum_list.append(utils.get_file_checksum(item.path))
+    checksum_list.sort()
+    string_of_checksums = "".join(checksum_list)
+    checksum_of_checksums = utils.get_buffer_checksum(string_of_checksums.encode())
+    return checksum_of_checksums
+
 if __name__ == "__main__":
-    the_wtar = "C:\\Users\\shai\\Desktop\\CODEX.bundle\\Contents\\Resources.wtar.aa"
-    do_unwtar(the_wtar)
+    #the_wtar = "C:\\Users\\shai\\Desktop\\CODEX.bundle\\Contents\\Resources.wtar.aa"
+    the_wtar = "/p4client/dev_main/ProAudio/Products/Release/Plugins/CODEX.bundle/Contents/Resources.wtar.aa"
+    the_folder = "/p4client/dev_main/ProAudio/Products/Release/Plugins/CODEX.bundle/Contents"
+    os.chdir(the_folder)
+    test_create = False
+    test_unwtar = True
+
+    tar_file_name = "sample.tar.PAX_FORMAT.bz2"
+    if test_create:
+        pax_headers = dict()
+        all_checksums = ""
+        checksum_list = list()
+        for item in dir_walk(path="Resources"):
+            if item.is_file():
+                pax_headers[item.path] = utils.get_file_checksum(item.path)
+        pax_headers['checksum_of_checksums'] = checksum_a_folder("Resources")
+
+        with tarfile.open(tar_file_name, "w|bz2", format= tarfile.PAX_FORMAT, pax_headers=pax_headers) as tar:
+            for item in dir_walk(path="Resources"):
+                if item.is_file():
+                    tar.add(item.path)
+
+        print('creating tar, pax_headers:', tar.pax_headers)
+        print('creating tar, checksum_of_checksums:', tar.pax_headers['checksum_of_checksums'])
+
+    if test_unwtar:
+        #utils.safe_remove_folder(os.path.join(the_folder, "unwtarred_no_checks", "Resources"))
+        unwtar_no_checks(tar_file_name, "unwtarred_no_checks")
+        #utils.safe_remove_folder(os.path.join(the_folder, "unwtarred_with_checks", "Resources"))
+        unwtar_with_checks(tar_file_name, "unwtarred_with_checks", "Resources")
+
+        utils.safe_remove_folder(os.path.join(the_folder, "unwtar_one_check_empty", "Resources"))
+        unwtar_one_check(tar_file_name, "unwtar_one_check_empty", "Resources")
+
+        unwtar_one_check(tar_file_name, "unwtar_one_check_no_change", "Resources")
+
+        shutil.copyfile(os.path.join("unwtar_one_check_extra_files", "Resources", "AlgXML", "1001.xml"),
+                        os.path.join("unwtar_one_check_extra_files", "Resources", "AlgXML", "1002.xml"))
+        unwtar_one_check(tar_file_name, "unwtar_one_check_extra_files", "Resources")
+
+        utils.safe_remove_file(os.path.join("unwtar_one_check_missing_files", "Resources", "AlgXML", "1001.xml"))
+        unwtar_one_check(tar_file_name, "unwtar_one_check_missing_files", "Resources")
+
+# handle symlinks, .DS_Store, etc..

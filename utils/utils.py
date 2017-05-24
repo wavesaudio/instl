@@ -507,8 +507,12 @@ def check_file_signature_or_checksum(file_path, public_key=None, textual_sig=Non
 
 
 def check_file_checksum(file_path, expected_checksum):
-    with open(file_path, "rb") as rfd:
-        retVal = check_buffer_checksum(rfd.read(), expected_checksum)
+    retVal = False  # if file does not exist return False
+    try:
+        with open(file_path, "rb") as rfd:
+            retVal = check_buffer_checksum(rfd.read(), expected_checksum)
+    except:
+        pass
     return retVal
 
 
