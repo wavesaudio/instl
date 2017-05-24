@@ -170,9 +170,9 @@ def checksum_a_folder(folder_path):
 
 if __name__ == "__main__":
     #the_wtar = "C:\\Users\\shai\\Desktop\\CODEX.bundle\\Contents\\Resources.wtar.aa"
-    the_wtar = "/p4client/dev_main/ProAudio/Products/Release/Plugins/CODEX.bundle/Contents/Resources.wtar.aa"
-    the_folder = "/p4client/dev_main/ProAudio/Products/Release/Plugins/CODEX.bundle/Contents"
-    os.chdir(the_folder)
+    #the_wtar = "/p4client/dev_main/ProAudio/Products/Release/Plugins/CODEX.bundle/Contents/Resources.wtar.aa"
+    #the_folder = "/p4client/dev_main/ProAudio/Products/Release/Plugins/CODEX.bundle/Contents"
+    the_folder = os.curdir
     test_create = False
     test_unwtar = True
 
@@ -205,7 +205,7 @@ if __name__ == "__main__":
 
         unwtar_one_check(tar_file_name, "unwtar_one_check_no_change", "Resources")
 
-        shutil.copyfile(os.path.join("unwtar_one_check_extra_files", "Resources", "AlgXML", "1001.xml"),
+        utils.smart_copy_file(os.path.join("unwtar_one_check_extra_files", "Resources", "AlgXML", "1001.xml"),
                         os.path.join("unwtar_one_check_extra_files", "Resources", "AlgXML", "1002.xml"))
         unwtar_one_check(tar_file_name, "unwtar_one_check_extra_files", "Resources")
 
