@@ -40,7 +40,7 @@ class VarParseImpContext(object):
                                     array_index_int=None)
     # Unfortunately '(', ')' are also acceptable in variable name on Windows, these will get special attention in the code
     # However, '(', ')' in a variable name must be balanced
-    variable_name_acceptable_characters = set((c for c in string.ascii_letters + string.digits + '_'))
+    variable_name_acceptable_characters = set((c for c in string.ascii_letters + string.digits + '_' + '-'))
 
     def __init__(self):
         (self.literal_text,

@@ -278,6 +278,12 @@ class ConfigVarList(object):
                 raise ValueError("Variable {} was not found and default given {} is not a list".format(in_var, default))
         return retVal
 
+    def ResolveListToList(self, strs_to_resolve_list, default=None):
+        retVal = list()
+        for a_str in strs_to_resolve_list:
+            retVal.extend(self.ResolveStrToListIfSingleVar(a_str))
+        return retVal
+
     def ResolveVarWithParamsToList(self, parser_retVal):
         with self.push_scope_context():
             evaluated_params = {}
