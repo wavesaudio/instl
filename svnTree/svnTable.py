@@ -50,8 +50,6 @@ flags_and_revision_re = re.compile(r"""
                 (?P<checksum>[\da-f]+))? # 5985e53ba61348d78a067b944f1e57c67f865162
                 $
                 """, re.X)
-wtar_file_re = re.compile(r""".+\.wtar(\...)?$""")
-wtar_first_file_re = re.compile(r""".+\.wtar(\.aa)?$""")
 
 map_info_extension_to_format = {"txt": "text", "text": "text",
                                 "inf": "info", "info": "info",
@@ -150,8 +148,8 @@ class SVNTable(object):
 
     @staticmethod
     def get_wtar_file_status(file_name):
-        is_wtar_file = wtar_file_re.match(file_name) is not None
-        is_wtar_first_file = is_wtar_file and wtar_first_file_re.match(file_name) is not None
+        is_wtar_file = utils.is_wtar_file(file_name)
+        is_wtar_first_file = utils.is_first_wtar_file(file_name)
         return is_wtar_file, is_wtar_first_file
 
     @staticmethod
@@ -171,7 +169,7 @@ class SVNTable(object):
             item_details['flags'] = the_matched_groups['flags']
             item_details['fileFlag'] = 'f' in the_matched_groups['flags']
             item_details['dirFlag'] = 'd' in the_matched_groups['flags']
-            item_details['wtarFlag'] = 1 if wtar_file_re.match(item_details['path']) else 0
+            item_details['wtarFlag'] = 1 if utils.wtar_file_re.match(item_details['path']) else 0
             item_details['checksum'] = the_matched_groups.get('checksum')
             item_details['url'] = the_matched_groups.get('url')
             the_size = the_matched_groups['size']
@@ -237,7 +235,7 @@ class SVNTable(object):
                     retVal['flags'] = "f"
                     retVal['fileFlag'] = True
                     retVal['dirFlag'] = False
-                    retVal['wtarFlag'] = 1 if wtar_file_re.match(retVal['path']) else 0
+                    retVal['wtarFlag'] = 1 if utils.wtar_file_re.match(retVal['path']) else 0
                     retVal['download_path'] = "/".join(("$(LOCAL_REPO_SYNC_DIR)", retVal['path']))
                 elif a_record["Node Kind"] == "directory":
                     retVal['flags'] = "d"
@@ -297,7 +295,7 @@ class SVNTable(object):
         item_details['flags'] = flags
         item_details['fileFlag'] = 'f' in item_details['flags']
         item_details['dirFlag'] = 'd' in item_details['flags']
-        item_details['wtarFlag'] = 1 if wtar_file_re.match(item_details['path']) else 0
+        item_details['wtarFlag'] = 1 if utils.wtar_file_re.match(item_details['path']) else 0
         item_details['checksum'] = None
         item_details['url'] = None
         item_details['size'] = 0

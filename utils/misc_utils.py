@@ -17,7 +17,8 @@ import datetime
 from pathlib import PurePath
 import fnmatch
 import pathlib
-
+from timeit  import default_timer
+from decimal import Decimal
 import rsa
 from functools import reduce
 from itertools import repeat
@@ -567,6 +568,7 @@ guid_re = re.compile("""
                 $
                 """, re.VERBOSE)
 
+
 def separate_guids_from_iids(items_list):
     reVal_non_guids = list()
     retVal_guids = list()
@@ -872,8 +874,7 @@ def find_mount_point(path):
         mount_p = mount_p.parent
     return str(mount_p)
 
-from timeit  import default_timer
-from decimal import Decimal
+
 class Timer_CM(object):
     def __init__(self, name, print_results=True):
         self.elapsed = Decimal()
@@ -913,3 +914,14 @@ class Timer_CM(object):
         return result
     def _get_time(self):
         return Decimal(default_timer())
+
+
+wtar_file_re = re.compile(r""".+\.wtar(\...)?$""")
+def is_wtar_file(in_possible_wtar):
+    retVal = wtar_file_re.match(in_possible_wtar) is not None
+    return retVal
+
+wtar_first_file_re = re.compile(r""".+\.wtar(\.aa)?$""")
+def is_first_wtar_file(in_possible_wtar):
+    retVal = wtar_first_file_re.match(in_possible_wtar) is not None
+    return retVal

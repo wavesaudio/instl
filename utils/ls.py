@@ -6,6 +6,7 @@ import datetime
 from pathlib import PurePath
 import stat
 import json
+import tarfile
 
 import utils
 
@@ -22,6 +23,8 @@ def disk_item_listing(*files_or_folders_to_list, ls_format='*', output_format='t
     'E': Mac: if 'P' or 'p' is given extra character is appended to the path, '@' for link, '*' for executable, '=' for socket, '|' for FIFO
          Win: Not applicable
     'f': list only files not directories, non-positional. 
+    'g': Mac: gid
+         Win: Not applicable
     'G': Mac: Group name or gid if name not found
          Win: domain+"\\"+group name
     'I': inode number (Mac only)
@@ -36,6 +39,8 @@ def disk_item_listing(*files_or_folders_to_list, ls_format='*', output_format='t
          Win: Not applicable
     'S': size in bytes
     'T': modification time, format is "%Y/%m/%d-%H:%M:%S" as used by time.strftime
+    'u': Mac: uid
+         Win: Not applicable
     'U': Mac: User name or uid if name not found
          Win: domain+"\\"+user name
     'W': Not implemented yet. List contents of wtar files
@@ -68,7 +73,10 @@ def disk_item_listing(*files_or_folders_to_list, ls_format='*', output_format='t
         remarks = list()
         if add_remarks:
             remarks.append(" ".join(('#', datetime.datetime.today().isoformat(), "listing of", root_file_or_folder_path)))
-        if os.path.isdir(root_file_or_folder_path):
+
+        if 'W' in ls_format and utils.is_first_wtar_file(root_file_or_folder_path):
+            listing_items.extend(wtar_ls_func(root_file_or_folder_path, ls_format=ls_format))
+        elif os.path.isdir(root_file_or_folder_path):
             listing_items.extend(folder_ls_func(root_file_or_folder_path, ls_format=ls_format, root_folder=root_file_or_folder_path))
         elif os.path.isfile(root_file_or_folder_path) and 'f' in ls_format:
             root_folder, _ = os.path.split(root_file_or_folder_path)
@@ -130,6 +138,7 @@ def list_of_dicts_describing_disk_items_to_text_lines(items_list, ls_format):
 format_char_to_json_key = {
     'C': 'checksum',
     'D': 'DIR',
+    'g': 'gid',
     'G': 'group',
     'I': 'inode',
     'L': 'num links',
@@ -138,6 +147,7 @@ format_char_to_json_key = {
     'R': 'permissions',
     'S': 'size',
     'T': 'modification time',
+    'u': 'uid',
     'U': 'user'
  }
 def translate_json_key_names(items_list):
@@ -179,6 +189,11 @@ def unix_item_ls(the_path, ls_format, root_folder=None):
             the_parts[format_char] = utils.unix_permissions_to_str(the_stats.st_mode) # permissions
         elif format_char == 'L':
             the_parts[format_char] = the_stats[stat.ST_NLINK]  # num links
+        elif format_char == 'u':
+            try:
+                the_parts[format_char] = str(the_stats[stat.ST_UID])[0] # unknown user name, get the number
+            except Exception:
+                the_parts[format_char] = "no_uid"
         elif format_char == 'U':
             try:
                 the_parts[format_char] = pwd.getpwuid(the_stats[stat.ST_UID])[0]  # user
@@ -186,6 +201,11 @@ def unix_item_ls(the_path, ls_format, root_folder=None):
                 the_parts[format_char] = str(the_stats[stat.ST_UID])[0] # unknown user name, get the number
             except Exception:
                 the_parts[format_char] = "no_uid"
+        elif format_char == 'g':
+            try:
+                the_parts[format_char] = str(the_stats[stat.ST_GID])[0] # unknown group name, get the number
+            except Exception:
+                the_parts[format_char] = "no_gid"
         elif format_char == 'G':
             try:
                 the_parts[format_char] = grp.getgrgid(the_stats[stat.ST_GID])[0]  # group
@@ -203,25 +223,25 @@ def unix_item_ls(the_path, ls_format, root_folder=None):
             else:
                 the_parts[format_char] = ""
         elif format_char == 'P' or format_char == 'p':
-            path_to_print = the_path
+            path_to_return = the_path
             if format_char == 'p' and root_folder is not None:
-                path_to_print = os.path.relpath(the_path, start=root_folder)
+                path_to_return = os.path.relpath(the_path, start=root_folder)
 
             # E will bring us Extra data (path postfix) but we want to know if it's DIR in any case
             if stat.S_ISDIR(the_stats.st_mode) and 'D' in ls_format:
-                path_to_print += '/'
+                path_to_return += '/'
 
             if 'E' in ls_format:
                 if stat.S_ISLNK(the_stats.st_mode):
-                    path_to_print += '@'
+                    path_to_return += '@'
                 elif not stat.S_ISDIR(the_stats.st_mode) and (the_stats.st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)):
-                    path_to_print += '*'
+                    path_to_return += '*'
                 elif stat.S_ISSOCK(the_stats.st_mode):
-                    path_to_print += '='
+                    path_to_return += '='
                 elif stat.S_ISFIFO(the_stats.st_mode):
-                    path_to_print += '|'
+                    path_to_return += '|'
 
-            the_parts[format_char] = path_to_print
+            the_parts[format_char] = path_to_return
 
     return the_parts
 
@@ -278,73 +298,67 @@ def win_item_ls(the_path, ls_format, root_folder=None):
             else:
                 the_parts[format_char] = ""
         elif format_char == 'P':
-            path_to_print = the_path
-            the_parts[format_char] = path_to_print
+            path_to_return = the_path
+            the_parts[format_char] = path_to_return
         elif format_char == 'p' and root_folder is not None:
-            path_to_print = os.path.relpath(the_path, start=root_folder)
-            the_parts[format_char] = path_to_print
+            path_to_return = os.path.relpath(the_path, start=root_folder)
+            the_parts[format_char] = path_to_return
 
     return the_parts
 
 
-# not fully implemented and checked. Will be used to implement the 'W' option
-def wtar_list(tar_file, ls_format):
-    tar_list = list()
-    if tar_file.endswith(".wtar.aa") or tar_file.endswith(".wtar"):  # only wtar
-        if os.path.isfile(tar_file):
-            from utils.multi_file import MultiFileReader
-            import tarfile
+def wtar_ls_func(root_file_or_folder_path, ls_format):
+    listing_lines = list()
+    what_to_work_on = utils.find_split_files(root_file_or_folder_path)
+    with utils.MultiFileReader("br", what_to_work_on) as fd:
+        with tarfile.open(fileobj=fd) as tar:
+            pax_headers = tar.pax_headers
+            for item in tar:
+                listing_lines.append(wtar_item_ls_func(item, ls_format, tar.pax_headers))
 
-            what_to_work_on = None
-            if tar_file.endswith(".wtar.aa"):
-                what_to_work_on = utils.find_split_files(tar_file)
-            elif tar_file.endswith(".wtar"):
-                what_to_work_on = [tar_file]
+    return listing_lines
 
-            try:
-                tar_list.append('# Start of .wtar content')
-                with MultiFileReader("br", what_to_work_on) as fd:
-                    with tarfile.open(fileobj=fd) as tar:
-                        for member in tar:
-                            the_parts = list()
-                            for format_char in ls_format:
-                                if format_char == 'W':
-                                    continue # since W was the trigger to all that
-                                elif format_char == 'R':
-                                    the_parts[format_char] = member.mode
-                                elif format_char == 'U':
-                                    the_parts[format_char] = "--".join([member.uid, member.uname])
-                                elif format_char == 'G':
-                                    the_parts[format_char] = "--".join([member.gid, member.gname])
-                                elif format_char == 'S':
-                                    the_parts[format_char] = member.size
-                                elif format_char == 'T':
-                                    the_parts[format_char] = member.mtime
-                                elif format_char == 'P':
-                                    the_parts[format_char] = member.name
-                                elif format_char == 'D':
-                                    the_parts[format_char] = "<DIR>" if member.isdir() else ""
-                                else:
-                                    # coming here means that we got a char we can't do anything with.
-                                    # still, we must allocate a place it
-                                    the_parts[format_char] = ""
 
-                            tar_list.append(the_parts)
-                tar_list.append('# End of .wtar content')
+def wtar_item_ls_func(item, ls_format, global_pax_headers):
+    the_parts = dict()
+    for format_char in ls_format:
+        if format_char == 'R':
+            the_parts[format_char] = utils.unix_permissions_to_str(item.mode) # permissions
+        elif format_char == 'u':
+            the_parts[format_char] = item.uid
+        elif format_char == 'U':
+            the_parts[format_char] = item.uname
+        elif format_char == 'g':
+             the_parts[format_char] = item.gid
+        elif format_char == 'G':
+             the_parts[format_char] = item.gname
+        elif format_char == 'S':
+            the_parts[format_char] = item.size
+        elif format_char == 'T':
+            the_parts[format_char] = time.strftime("%Y/%m/%d-%H:%M:%S", time.gmtime((item.mtime)))  # modification time
+        elif format_char == 'C':
+            if global_pax_headers and item.name in global_pax_headers:
+                the_parts[format_char] = global_pax_headers[item.name]
+        elif format_char == 'P' or format_char == 'p':
+            path_to_return = item.name
+            if item.isdir() and 'D' in ls_format:
+                path_to_return += '/'
 
-            except OSError as e:
-                print("Invalid stream on split file with {}".format(what_to_work_on[0]))
-                raise e
+            if 'E' in ls_format:
+                if item.issym():
+                    path_to_return += '@'
+                elif item.isfifo():
+                    path_to_return += '|'
 
-            except tarfile.TarError:
-                print("tarfile error while opening file", os.path.abspath(what_to_work_on[0]))
-                raise
-    return tar_list
+            the_parts[format_char] = path_to_return
+    return the_parts
+
 
 if __name__ == "__main__":
 
-    path_list = ['/Users/shai/Desktop/wlc.app', '/Users/shai/Desktop/info_map.info']
-    ls_format = "MIRLUGSTCpE"  # 'MIRLUGSTCPE'
+    path_list = ['/Users/shai/Desktop/wlc.app',
+                 '/p4client/dev_main/ProAudio/Products/Release/Plugins/CODEX.bundle/Contents/sample.tar.PAX_FORMAT.wtar.aa']
+    ls_format = "WMIRLUGSTCpE"  # 'MIRLUGSTCPE'
     for out_format in ('text', 'dicts', 'json'):
         listing = disk_item_listing(*path_list, ls_format=ls_format, output_format=out_format)
         with open("ls."+out_format, "w") as wfd:
