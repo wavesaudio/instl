@@ -5,7 +5,7 @@ import sys
 import os
 import unittest
 
-from utils import utils
+from utils import misc_utils
 
 
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
@@ -26,7 +26,7 @@ class TestUtils(unittest.TestCase):
         the_source_list = [1, 2, 3]
         the_target_list = []
         num_iterations = 6
-        for i in utils.ContinuationIter(the_source_list, 0):
+        for i in misc_utils.ContinuationIter(the_source_list, 0):
             the_target_list.append(i)
             num_iterations -= 1
             if not num_iterations:
@@ -38,7 +38,7 @@ class TestUtils(unittest.TestCase):
         list_a = ["a", "b", "c"]
         list_None = []
         result_list = []
-        for i in utils.ParallelContinuationIter(list_1, list_a, list_None):
+        for i in misc_utils.ParallelContinuationIter(list_1, list_a, list_None):
             result_list.extend(i)
         self.assertEqual(result_list, [1, 'a', None, 2, 'b', None, 3, 'c', None, 4, None, None, 5, None, None])
 

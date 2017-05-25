@@ -925,3 +925,25 @@ wtar_first_file_re = re.compile(r""".+\.wtar(\.aa)?$""")
 def is_first_wtar_file(in_possible_wtar):
     retVal = wtar_first_file_re.match(in_possible_wtar) is not None
     return retVal
+
+
+def scandir_walk(path, report_files=True, report_dirs=True, follow_symlinks=False):
+    """
+    
+    :param path: 
+    :param include_files: 
+    :param include_dirs: 
+    :param follow_symlinks: if False symlinks will be reported as files
+    :return: 
+    """
+    for item in os.scandir(path):
+        if not follow_symlinks and item.is_symlink():
+            if report_files:
+                yield item
+        elif item.is_file(follow_symlinks=follow_symlinks):
+            if report_files:
+                yield item
+        elif item.is_dir(follow_symlinks=follow_symlinks):
+            if report_dirs:
+                yield item
+            yield from scandir_walk(item.path, report_files=report_files, report_dirs=report_dirs, follow_symlinks=follow_symlinks)

@@ -54,12 +54,12 @@ def disk_item_listing(*files_or_folders_to_list, ls_format='*', output_format='t
     files_or_folders_to_list = sorted(files_or_folders_to_list, key=lambda file: PurePath(file).parts)
     if "Mac" in os_names:
         if ls_format == '*':
-            ls_format = 'MIRLUGSTCPE'
+            ls_format = 'WMIRLUGSTCPE'
         folder_ls_func = unix_folder_ls
         item_ls_func = unix_item_ls
     elif "Win" in os_names:
         if ls_format == '*':
-            ls_format = 'MTDSUGCP'
+            ls_format = 'WMTDSUGCP'
         folder_ls_func = win_folder_ls
         item_ls_func = win_item_ls
 

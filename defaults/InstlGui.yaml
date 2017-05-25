@@ -2,6 +2,9 @@
 
 INSTL_GUI_CONFIG_FILE_NAME: instl-gui.yaml
 
+# some commands have different name from wht is displayed in the menu
+command_actual_name_wtar: wtar-staging-folder
+
 __CLIENT_GUI_CMD_LIST__:
   - sync
   - copy
@@ -42,7 +45,7 @@ __COMMANDS_WITH_LIMIT_OPTION__:
 
 __ADMIN_CALL_INSTL_STANDARD_TEMPLATE__:
   - $(__INSTL_EXE_PATH__)
-  - $(ADMIN_GUI_CMD)
+  - $(command_actual_name_$(ADMIN_GUI_CMD))
   - --config-file
   - $(ADMIN_GUI_CONFIG_FILE)
   - --out
@@ -50,7 +53,7 @@ __ADMIN_CALL_INSTL_STANDARD_TEMPLATE__:
 
 __ADMIN_CALL_INSTL_DEPEND_TEMPLATE__:
   - $(__INSTL_EXE_PATH__)
-  - $(ADMIN_GUI_CMD)
+  - $(command_actual_name_$(ADMIN_GUI_CMD))
   - --in
   - $(__STAGING_INDEX_FILE__)
   - --out
@@ -58,7 +61,7 @@ __ADMIN_CALL_INSTL_DEPEND_TEMPLATE__:
 
 __ADMIN_CALL_INSTL_ONLY_CONFIG_FILE_TEMPLATE__:
   - $(__INSTL_EXE_PATH__)
-  - $(ADMIN_GUI_CMD)
+  - $(command_actual_name_$(ADMIN_GUI_CMD))
   - --config-file
   - $(ADMIN_GUI_CONFIG_FILE)
 

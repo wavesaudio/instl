@@ -171,7 +171,41 @@ def checksum_a_folder(folder_path):
     checksum_of_checksums = utils.get_buffer_checksum(string_of_checksums.encode())
     return checksum_of_checksums
 
+
+def scandir_walk(path):
+    for item in os.scandir(path):
+        if item.is_file() and not item.is_symlink():
+            yield item
+        elif item.is_dir(follow_symlinks=False):
+            yield from scandir_walk(item.path)
+
 if __name__ == "__main__":
+    big_folder = "/Users/shai/Desktop"
+    f_count = 0
+    os_walk_files = list()
+    with utils.Timer_CM("os.walk"):
+        for root, dirs, files in os.walk(big_folder, followlinks=False):
+            for f in files:
+                #print(f)
+                full_path = os.path.join(root, f)
+                if not os.path.islink(full_path):
+                    os_walk_files.append(f)
+                    f_count += 1
+                #else:
+                #    print("found a mountain", full_path)
+    print("os.walk", f_count, "files\n")
+    f_count = 0
+    scandir_walk_files = list()
+    with utils.Timer_CM("scandir_walk"):
+        for f in scandir_walk(big_folder):
+            scandir_walk_files.append(f.name)
+            f_count += 1
+    print("scandir_walk", f_count, "files")
+
+    print(os_walk_files[:10])
+    print(scandir_walk_files[:10])
+    sys.exit(0)
+
     #the_wtar = "C:\\Users\\shai\\Desktop\\CODEX.bundle\\Contents\\Resources.wtar.aa"
     #the_wtar = "/p4client/dev_main/ProAudio/Products/Release/Plugins/CODEX.bundle/Contents/Resources.wtar.aa"
     #the_folder = "/p4client/dev_main/ProAudio/Products/Release/Plugins/CODEX.bundle/Contents"

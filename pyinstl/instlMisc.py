@@ -72,6 +72,66 @@ class InstlMisc(InstlInstanceBase):
                     commands.append(args)
         utils.run_processes_in_parallel(commands)
 
+    def do_wtar(self):
+        """ Create a wtar archive for a file or a folder provided in '--in' command line option
+            
+            If --out is not supplied on the command line the wtar file will be created
+            next to the input with extension '.wtar', e.g.
+            the command:
+                    instl wtar --in /a/b/c
+            will create the wtar file at path:
+                    /a/b/c.wtar
+            If '--out' is suppied and it's an existing the wtar will override this file,
+            wtar extension will NOT be added, e.g.
+            assuming /d/e/f.txt is an existing file, the command:
+                    instl wtar --in /a/b/c --out /d/e/f.txt
+            will create the wtar file at path:
+                    /d/e/f.txt
+            if '--out' is supplied and is and existing folder the wtar file will be created
+            inside this folder with extension '.wtar', e.g.
+            assuming /g/h/i is an existing folder, the command:
+                    instl wtar --in /a/b/c --out /g/h/i
+            will create the wtar file at path:
+                    /g/h/i/c.wtar
+            if '--out' is supplied and does not exists, the folder will be created and the wtar file will be created
+            inside the new folder with extension '.wtar', e.g.
+            assuming /j/k/l is a non existing folder, the command:
+                    instl wtar --in /a/b/c --out /j/k/l
+            will create the wtar file at path:
+                    /j/k/l/c.wtar
+            
+        """
+        what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        what_to_work_on_dir, what_to_work_on_leaf = os.path.split(what_to_work_on)
+
+        where_to_unwtar = None
+        if "__MAIN_OUT_FILE__" in var_stack:
+            where_to_unwtar = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
+        else:
+            where_to_unwtar = what_to_work_on_dir
+
+        if os.path.isfile(where_to_unwtar):
+            target_wtar_file = where_to_unwtar
+        else:  # assuming it's a folder
+            os.makedirs(where_to_unwtar, exist_ok=True)
+            target_wtar_file = os.path.join(where_to_unwtar, what_to_work_on_leaf+".wtar")
+        print(what_to_work_on, "\n", target_wtar_file, sep="")
+        ignore=(".svn", ".DS_Store")
+
+        pax_headers = dict()
+        if os.path.isfile(what_to_work_on):
+            pax_headers['total_checksum'] = pax_headers[what_to_work_on_leaf] = utils.get_file_checksum(what_to_work_on)
+        elif os.path.isdir(what_to_work_on):
+            for item in os.scandir(path):
+                yield item
+                if item.is_dir(follow_symlinks=False):
+                    yield from dir_walk(item.path)
+
+        with utils.ChangeDirIfExists(what_to_work_on_dir):
+            with tarfile.open(target_wtar_file, "w|bz2", format=tarfile.PAX_FORMAT, pax_headers=pax_headers) as tar:
+                tar.add(what_to_work_on_leaf)
+        print(utils.disk_item_listing(target_wtar_file, ls_format='*', output_format='text'))
+
     def do_unwtar(self):
         self.no_artifacts = "__NO_WTAR_ARTIFACTS__" in var_stack
         what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__", default='.')
@@ -120,7 +180,6 @@ class InstlMisc(InstlInstanceBase):
                             tar.extractall(destination_folder)
                     with timer_cm.child('manifest'):
                         the_listing = utils.disk_item_listing(destination_folder)
-            print(the_listing)
 
             if self.no_artifacts:
                 for wtar_file in wtar_file_paths:
