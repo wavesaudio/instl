@@ -484,22 +484,6 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             retVal = inst_ver >= required_ver
         return retVal
 
-    wtar_file_re = re.compile("""(?P<base_name>.+?)(\.wtar(\.[a-z]{2})?)?$""")
-
-    # Given a name remove the trailing wtar or wtar.?? if any
-    # E.g. "a" => "a", "a.wtar" => "a", "a.wtar.aa" => "a"
-    def original_name_from_wtar_name(self, wtar_name):
-        original_name = self.wtar_file_re.match(wtar_name).group('base_name')
-        return original_name
-
-    # Given a list of file/folder names, replace those which are wtarred with the original file name.
-    # E.g. ['a', 'b.wtar', 'c.wtar.aa', 'c.wtar.ab'] => ['a', 'b', 'c']
-    # We must work on the whole list since several wtar file names might merge to a single original file name.
-    def original_names_from_wtars_names(self, original_list):
-        replaced_list = utils.unique_list()
-        replaced_list.extend([self.original_name_from_wtar_name(file_name) for file_name in original_list])
-        return replaced_list
-
     def needs(self, iid, out_list):
         """ return iids of all items that a specific iid depends on"""
         if iid not in self.install_definitions_index:

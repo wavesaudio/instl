@@ -22,7 +22,7 @@ from decimal import Decimal
 import rsa
 from functools import reduce
 from itertools import repeat
-
+import tarfile
 
 def Is64Windows():
     return 'PROGRAMFILES(X86)' in os.environ
@@ -925,16 +925,45 @@ class Timer_CM(object):
         return Decimal(default_timer())
 
 
-wtar_file_re = re.compile(r""".+\.wtar(\...)?$""")
+wtar_file_re = re.compile("""
+    (?P<base_name>.+?)
+    (?P<wtar_extension>\.wtar)
+    (?P<split_numerator>\.[a-z]{2})?$""",
+                          re.VERBOSE)
+
+
 def is_wtar_file(in_possible_wtar):
-    retVal = wtar_file_re.match(in_possible_wtar) is not None
+    match = wtar_file_re.match(in_possible_wtar)
+    retVal =  match is not None
     return retVal
 
-wtar_first_file_re = re.compile(r""".+\.wtar(\.aa)?$""")
+
 def is_first_wtar_file(in_possible_wtar):
-    retVal = wtar_first_file_re.match(in_possible_wtar) is not None
+    retVal = False
+    match = wtar_file_re.match(in_possible_wtar)
+    if match:
+        split_numerator = match.groupdict().get('split_numerator', "0987654321")
+        retVal = split_numerator == ".aa"
     return retVal
 
+
+# Given a name remove the trailing wtar or wtar.?? if any
+# E.g. "a" => "a", "a.wtar" => "a", "a.wtar.aa" => "a"
+def original_name_from_wtar_name(wtar_name):
+    retVal = wtar_name
+    match = wtar_file_re.match(wtar_name)
+    if match:
+        retVal = match.group('base_name')
+    return retVal
+
+
+# Given a list of file/folder names, replace those which are wtarred with the original file name.
+# E.g. ['a', 'b.wtar', 'c.wtar.aa', 'c.wtar.ab'] => ['a', 'b', 'c']
+# We must work on the whole list since several wtar file names might merge to a single original file name.
+def original_names_from_wtars_names(original_list):
+    replaced_list = unique_list()
+    replaced_list.extend([original_name_from_wtar_name(file_name) for file_name in original_list])
+    return replaced_list
 
 def scandir_walk(top_path, report_files=True, report_dirs=True, follow_symlinks=False):
     """ Walk a folder hierarchy using the new and fast os.scandir, yielding 
@@ -992,3 +1021,37 @@ def get_recursive_checksums(some_path):
     string_of_checksums = "".join(checksum_list)
     retVal['total_checksum'] = get_buffer_checksum(string_of_checksums.encode())
     return retVal
+
+from .multi_file import MultiFileReader
+
+
+def unwtar_a_file(wtar_file_paths, destination_folder=None, no_artifacts=False):
+    try:
+        if destination_folder is None:
+            destination_folder, _ = os.path.split(wtar_file_paths[0])
+        first_wtar_file_dir, first_wtar_file_name = os.path.split(wtar_file_paths[0])
+        destination_leaf_name = original_name_from_wtar_name(first_wtar_file_name)
+        do_the_unwtarring = True
+        with MultiFileReader("br", wtar_file_paths) as fd:
+            with tarfile.open(fileobj=fd) as tar:
+                tar_total_checksum = tar.pax_headers.get("total_checksum")
+                if tar_total_checksum is not None:
+                    destination_item = os.path.join(destination_folder, destination_leaf_name)
+                    if os.path.exists(destination_item):
+                        checksums_dict = get_recursive_checksums(destination_item)
+                        if checksums_dict.get("total_checksum", "XYZ") == tar_total_checksum:
+                            do_the_unwtarring = False
+                if do_the_unwtarring:
+                    tar.extractall(destination_folder)
+
+        if no_artifacts:
+            for wtar_file in wtar_file_paths:
+                os.remove(wtar_file)
+
+    except OSError as e:
+        print("Invalid stream on split file with {}".format(wtar_file_paths[0]))
+        raise e
+
+    except tarfile.TarError:
+        print("tarfile error while opening file", os.path.abspath(wtar_file_paths[0]))
+        raise
