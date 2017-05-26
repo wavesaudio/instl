@@ -517,9 +517,18 @@ def check_file_checksum(file_path, expected_checksum):
     return retVal
 
 
-def get_file_checksum(file_path):
-    with open(file_path, "rb") as rfd:
-        retVal = get_buffer_checksum(rfd.read())
+def get_file_checksum(file_path, follow_symlinks=True):
+    """ return the sha1 checksum of the contents of a file.
+        If file_path is a symbolic link and follow_symlinks is True
+            the file pointed by the symlink is checksumed.
+        If file_path is a symbolic link and follow_symlinks is False
+            the contents of the symlink is checksumed - by calling os.readlink.
+    """
+    if os.path.islink(file_path) and not follow_symlinks:
+        retVal = get_buffer_checksum(os.readlink(file_path).encode())
+    else:
+        with open(file_path, "rb") as rfd:
+            retVal = get_buffer_checksum(rfd.read())
     return retVal
 
 
@@ -927,16 +936,16 @@ def is_first_wtar_file(in_possible_wtar):
     return retVal
 
 
-def scandir_walk(path, report_files=True, report_dirs=True, follow_symlinks=False):
-    """
+def scandir_walk(top_path, report_files=True, report_dirs=True, follow_symlinks=False):
+    """ Walk a folder hierarchy using the new and fast os.scandir, yielding 
     
-    :param path: 
-    :param include_files: 
-    :param include_dirs: 
+    :param top_path: where to start the walk, top_path itself will NOT be yielded
+    :param report_files: If True: files will be yielded
+    :param report_dirs: If True: folders will be yielded
     :param follow_symlinks: if False symlinks will be reported as files
-    :return: 
+    :return: this function yields so not return
     """
-    for item in os.scandir(path):
+    for item in os.scandir(top_path):
         if not follow_symlinks and item.is_symlink():
             if report_files:
                 yield item
@@ -947,3 +956,39 @@ def scandir_walk(path, report_files=True, report_dirs=True, follow_symlinks=Fals
             if report_dirs:
                 yield item
             yield from scandir_walk(item.path, report_files=report_files, report_dirs=report_dirs, follow_symlinks=follow_symlinks)
+
+
+def get_recursive_checksums(some_path):
+    """ If some_path is a file return a dict mapping the file's path to it's sha1 checksum
+        and mapping "total_checksum" to the files checksum, e.g.
+        assuming /a/b/c.txt is a file
+            get_recursive_checksums("/a/b/c.txt")
+        will return: {c.txt: 1bc...aed, total_checksum: ed4...f4e}
+        
+        If some_path is a folder recursively walk the folder and return a dict mapping each file to it's sha1 checksum.
+        and mapping "total_checksum" to a checksum of all the files checksums. 
+        
+        total_checksum is calculated by concatenating two lists:
+         - list of all the individual file checksums
+         - list of all individual paths paths
+        The combined list is sorted and all members are concatenated into one string.
+        The sha1 checksum of that string is the total_checksum
+        Sorting is done to ensure same total_checksum is returned regardless the order
+        in which os.scandir returned the files, but that a different checksum will be
+        returned if a file changed it's name without changing contents.
+        Note:
+            - If you have a file called total_checksum your'e f**d.
+            - Symlinks are not followed and are checksum as regular files (by calling readlink).
+    """
+    retVal = dict()
+    if os.path.isfile(some_path):
+        some_path_dir, some_path_leaf = os.path.split(some_path)
+        retVal[some_path_leaf] = get_file_checksum(some_path, follow_symlinks=False)
+    elif os.path.isdir(some_path):
+        for item in scandir_walk(some_path, report_dirs=False):
+            retVal[item.path] = get_file_checksum(item.path, follow_symlinks=False)
+
+    checksum_list = sorted(list(retVal.keys()) + list(retVal.values()))
+    string_of_checksums = "".join(checksum_list)
+    retVal['total_checksum'] = get_buffer_checksum(string_of_checksums.encode())
+    return retVal

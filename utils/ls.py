@@ -149,12 +149,15 @@ format_char_to_json_key = {
     'T': 'modification time',
     'u': 'uid',
     'U': 'user'
- }
+}
+
+
 def translate_json_key_names(items_list):
     retVal = list()
     for item in items_list:
         retVal.append({format_char_to_json_key[k]: v for k, v in item.items()})
     return retVal
+
 
 def unix_folder_ls(the_path, ls_format, root_folder=None):
     listing_lines = list()

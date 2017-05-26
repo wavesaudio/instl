@@ -1,8 +1,14 @@
 ????? 1.4.4.3
 
+    user visible changes client:
+
     programmer visible changes:
     * utils.folder_listing renamed utils.disk_item_listing and moved to new file ls.py together with all ls helper functions.
         Added option to list a single file, report partial path instead of full path, and thorough documentation of the format options.
+    * new function utils.get_recursive_checksums returns a dict with checksums for each file and a total checksum
+    * do_wtar implemented based on utils.get_recursive_checksums
+    * do_checksum implemented based on utils.get_recursive_checksums
+    * utils.get_file_checksum now has follow_symlinks parameter and if False will checksum the contents of the symlink by calling readlink.
 
 
 18/5/2017 1.4.4.2

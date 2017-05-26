@@ -73,32 +73,39 @@ class InstlMisc(InstlInstanceBase):
         utils.run_processes_in_parallel(commands)
 
     def do_wtar(self):
-        """ Create a wtar archive for a file or a folder provided in '--in' command line option
+        """ Create a new wtar archive for a file or folder provided in '--in' command line option
             
-            If --out is not supplied on the command line the wtar file will be created
-            next to the input with extension '.wtar', e.g.
-            the command:
+            If --out is not supplied on the command line the new wtar file will be created
+                next to the input with extension '.wtar'.
+                e.g. the command:
                     instl wtar --in /a/b/c
-            will create the wtar file at path:
+                will create the wtar file at path:
                     /a/b/c.wtar
-            If '--out' is suppied and it's an existing the wtar will override this file,
-            wtar extension will NOT be added, e.g.
-            assuming /d/e/f.txt is an existing file, the command:
+                    
+            If '--out' is supplied and it's an existing file, the new wtar will overwrite
+                this existing file, wtar extension will NOT be added.
+                e.g. assuming /d/e/f.txt is an existing file, the command:
                     instl wtar --in /a/b/c --out /d/e/f.txt
-            will create the wtar file at path:
+                will create the wtar file at path:
                     /d/e/f.txt
+                    
             if '--out' is supplied and is and existing folder the wtar file will be created
-            inside this folder with extension '.wtar', e.g.
-            assuming /g/h/i is an existing folder, the command:
+                inside this folder with extension '.wtar'.
+                e.g. assuming /g/h/i is an existing folder, the command:
                     instl wtar --in /a/b/c --out /g/h/i
-            will create the wtar file at path:
+                will create the wtar file at path:
                     /g/h/i/c.wtar
-            if '--out' is supplied and does not exists, the folder will be created and the wtar file will be created
-            inside the new folder with extension '.wtar', e.g.
-            assuming /j/k/l is a non existing folder, the command:
+                    
+            if '--out' is supplied and does not exists, the folder will be created
+                and the wtar file will be created inside the new folder with extension
+                 '.wtar'.
+                e.g. assuming /j/k/l is a non existing folder, the command:
                     instl wtar --in /a/b/c --out /j/k/l
-            will create the wtar file at path:
+                will create the wtar file at path:
                     /j/k/l/c.wtar
+                    
+            Format of the tar is PAX_FORMAT.
+            Compression is bzip2.
             
         """
         what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
@@ -118,16 +125,9 @@ class InstlMisc(InstlInstanceBase):
         print(what_to_work_on, "\n", target_wtar_file, sep="")
         ignore=(".svn", ".DS_Store")
 
-        pax_headers = dict()
-        if os.path.isfile(what_to_work_on):
-            pax_headers['total_checksum'] = pax_headers[what_to_work_on_leaf] = utils.get_file_checksum(what_to_work_on)
-        elif os.path.isdir(what_to_work_on):
-            for item in os.scandir(path):
-                yield item
-                if item.is_dir(follow_symlinks=False):
-                    yield from dir_walk(item.path)
-
         with utils.ChangeDirIfExists(what_to_work_on_dir):
+            pax_headers = utils.get_recursive_checksums(what_to_work_on_leaf)
+
             with tarfile.open(target_wtar_file, "w|bz2", format=tarfile.PAX_FORMAT, pax_headers=pax_headers) as tar:
                 tar.add(what_to_work_on_leaf)
         print(utils.disk_item_listing(target_wtar_file, ls_format='*', output_format='text'))
@@ -357,7 +357,7 @@ class InstlMisc(InstlInstanceBase):
         else:
             folders_to_list.append(main_folder_to_list)
 
-        ls_format = var_stack.ResolveVarToStr("LS_FORMAT_FOR_WTAR", default='SCpf')
+        ls_format = var_stack.ResolveVarToStr("LS_FORMAT_FOR_WTAR", default='WSCpf')
         the_listing = utils.disk_item_listing(*folders_to_list, ls_format=ls_format)
 
         try:
@@ -374,15 +374,15 @@ class InstlMisc(InstlInstanceBase):
 
     def do_checksum(self):
         path_to_checksum = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
-        if os.path.isfile(path_to_checksum):
-            the_checksum = utils.get_file_checksum(path_to_checksum)
-            print(": ".join((path_to_checksum, the_checksum)))
-        elif os.path.isdir(path_to_checksum):
-            for root, dirs, files in os.walk(path_to_checksum):
-                for a_file in files:
-                    a_file_path = os.path.join(root, a_file)
-                    the_checksum = utils.get_file_checksum(a_file_path)
-                    print(": ".join((a_file_path, the_checksum)))
+        checksums_dict = utils.get_recursive_checksums(path_to_checksum)
+        total_checksum = checksums_dict.pop('total_checksum', "Unknown total checksum")
+        path_and_checksum_list = [(path, checksum) for path, checksum in sorted(checksums_dict.items())]
+        width_list, align_list = utils.max_widths(path_and_checksum_list)
+        col_formats = utils.gen_col_format(width_list, align_list)
+        for p_and_c in path_and_checksum_list:
+            print(col_formats[len(p_and_c)].format(*p_and_c))
+        print()
+        print(col_formats[len(p_and_c)].format("total checksum", total_checksum))
 
     def do_resolve(self):
         var_stack.set_var("PRINT_COMMAND_TIME").append("no") # do not print time report

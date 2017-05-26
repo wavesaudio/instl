@@ -1,8 +1,8 @@
 --- !define
 
-# deafult format for the ls command
+# default format for the ls command
 LS_FORMAT: '*'
-LS_FORMAT_FOR_WTAR: 'SCpf'
+LS_FORMAT_FOR_WTAR: 'WSCpf'
 
 --- !define_Mac
 REMOVE_EMPTY_FOLDERS_IGNORE_FILES:
