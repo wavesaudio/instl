@@ -9,7 +9,15 @@
     * do_wtar implemented based on utils.get_recursive_checksums
     * do_checksum implemented based on utils.get_recursive_checksums
     * utils.get_file_checksum now has follow_symlinks parameter and if False will checksum the contents of the symlink by calling readlink.
-
+    * YamlReader: better tracking of __include__ files to provide accurate error messages
+    * YamlReader.read_yaml_file: exceptions from recursive calls will appear only once
+    * new default variable in InstlMisc.yaml: WTAR_IGNORE_FILES, those files which will be ignored when wtar/unwtar is called
+    * platformHelper_XXX: new parameter preserve_dest_files to copy_dir_to_dir (before the default was not to preserve destination files
+    * new function platformHelper_Base.tar_with_instl will do tar by calling instl command wtar
+    * do_wtar_staging_folder usees new function tar_with_instl
+    * utils.is_first_wtar_file now finds split files - no need to pass it a list
+    * new property utils.open_for_read_file_or_url.actual_path, is the path/url after it has been resolved
+    * utils.find_split_files is more independant and will return a list even when there is ponly one file
 
 18/5/2017 1.4.4.2
 

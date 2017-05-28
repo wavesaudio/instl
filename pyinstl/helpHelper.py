@@ -36,8 +36,8 @@ class HelpHelper(object):
         self.instlObj = instlObj
 
     def read_help_file(self, help_file_path):
-        with utils.open_for_read_file_or_url(help_file_path) as file_fd:
-            for a_node in yaml.compose_all(file_fd):
+        with utils.open_for_read_file_or_url(help_file_path) as open_file:
+            for a_node in yaml.compose_all(open_file.fd):
                 if a_node.isMapping():
                     for topic_name, topic_items_node in a_node.items():
                         for item_name, item_value_node in topic_items_node.items():

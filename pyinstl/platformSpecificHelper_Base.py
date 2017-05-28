@@ -32,7 +32,7 @@ class CopyToolBase(object, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
+    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None, preserve_dest_files=True):
         """ Copy src_dir as a folder into trg_dir.
             Example: copy_dir_to_dir("a", "/d/c/b") creates the folder:
             "/d/c/b/a"
@@ -101,15 +101,17 @@ class CopyToolRsync(CopyToolBase):
             retVal = " ".join(["--exclude=" + utils.quoteme_single(ignoree) for ignoree in ignore])
         return retVal
 
-    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
+    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None, preserve_dest_files=True):
         if src_dir.endswith("/"):
             src_dir.rstrip("/")
         ignore_spec = self.create_ignore_spec(ignore)
+        if not preserve_dest_files:
+            delete_spec = "--delete"
         if link_dest:
             the_link_dest = os.path.join(src_dir, "..")
-            sync_command = """rsync -l -r -E --delete {ignore_spec} --link-dest="{the_link_dest}" "{src_dir}" "{trg_dir}" """.format(**locals())
+            sync_command = """rsync -l -r -E {delete_spec} {ignore_spec} --link-dest="{the_link_dest}" "{src_dir}" "{trg_dir}" """.format(**locals())
         else:
-            sync_command = """rsync -l -r -E --delete {ignore_spec} "{src_dir}" "{trg_dir}" """.format(**locals())
+            sync_command = """rsync -l -r -E {delete_spec} {ignore_spec} "{src_dir}" "{trg_dir}" """.format(**locals())
 
         return sync_command
 

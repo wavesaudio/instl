@@ -104,47 +104,58 @@ class InstlMisc(InstlInstanceBase):
                 will create the wtar file at path:
                     /j/k/l/c.wtar
                     
+            "total_checksum" field is added to the pax_headers. This checksum is a checksum of all individual
+                file checksums as calculated by utils.get_recursive_checksums. See utils.get_recursive_checksums 
+                doc string for details on how checksums are calculated. Individual file checksums are not added
+                to the pax_headers because during unwtarring tarfile code goes over all the pax_headers for each file
+                making the process exponential slow for large archived.
+            
             Format of the tar is PAX_FORMAT.
             Compression is bzip2.
             
         """
         what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        if not os.path.exists(what_to_work_on):
+            print(what_to_work_on, "does not exists")
+            return
+
         what_to_work_on_dir, what_to_work_on_leaf = os.path.split(what_to_work_on)
 
-        where_to_unwtar = None
+        where_to_put_wtar = None
         if "__MAIN_OUT_FILE__" in var_stack:
-            where_to_unwtar = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
+            where_to_put_wtar = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
         else:
-            where_to_unwtar = what_to_work_on_dir
+            where_to_put_wtar = what_to_work_on_dir
+            if not where_to_put_wtar:
+                where_to_put_wtar = "."
 
-        if os.path.isfile(where_to_unwtar):
-            target_wtar_file = where_to_unwtar
+        if os.path.isfile(where_to_put_wtar):
+            target_wtar_file = where_to_put_wtar
         else:  # assuming it's a folder
-            os.makedirs(where_to_unwtar, exist_ok=True)
-            target_wtar_file = os.path.join(where_to_unwtar, what_to_work_on_leaf+".wtar")
-        print(what_to_work_on, "\n", target_wtar_file, sep="")
-        ignore=(".svn", ".DS_Store")
+            os.makedirs(where_to_put_wtar, exist_ok=True)
+            target_wtar_file = os.path.join(where_to_put_wtar, what_to_work_on_leaf+".wtar")
+        #print(what_to_work_on, "\n", target_wtar_file, sep="")
+
+        ignore_files = var_stack.ResolveVarToList("WTAR_IGNORE_FILES", default=list())
 
         with utils.ChangeDirIfExists(what_to_work_on_dir):
-            pax_headers = utils.get_recursive_checksums(what_to_work_on_leaf)
+            pax_headers = {"total_checksum": utils.get_recursive_checksums(what_to_work_on_leaf, ignore=ignore_files)["total_checksum"]}
 
             with tarfile.open(target_wtar_file, "w|bz2", format=tarfile.PAX_FORMAT, pax_headers=pax_headers) as tar:
                 tar.add(what_to_work_on_leaf)
-        print(utils.disk_item_listing(target_wtar_file, ls_format='*', output_format='text'))
 
     def do_unwtar(self):
         self.no_artifacts = "__NO_WTAR_ARTIFACTS__" in var_stack
         what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__", default='.')
+        what_to_work_on_dir, what_to_work_on_leaf = os.path.split(what_to_work_on)
         where_to_unwtar = None
         if "__MAIN_OUT_FILE__" in var_stack:
             where_to_unwtar = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
+        ignore_files = var_stack.ResolveVarToList("WTAR_IGNORE_FILES", default=list())
 
         if os.path.isfile(what_to_work_on):
-            if what_to_work_on.endswith(".wtar.aa"): # this case apparently is no longer relevant
-                what_to_work_on = utils.find_split_files(what_to_work_on)
-                self.unwtar_a_file(what_to_work_on, where_to_unwtar, no_artifacts=self.no_artifacts)
-            elif what_to_work_on.endswith(".wtar"):
-                self.unwtar_a_file([what_to_work_on], where_to_unwtar, no_artifacts=self.no_artifacts)
+            if utils.is_first_wtar_file(what_to_work_on):
+                utils.unwtar_a_file(what_to_work_on, where_to_unwtar, no_artifacts=self.no_artifacts, ignore=ignore_files)
         elif os.path.isdir(what_to_work_on):
             where_to_unwtar_the_file = None
             for root, dirs, files in os.walk(what_to_work_on, followlinks=False):
@@ -152,6 +163,7 @@ class InstlMisc(InstlInstanceBase):
                 # to the top level of the sync folder.
                 if "bookkeeping" in dirs:
                     dirs[:] = []
+                    print("skipping", root, "because bookkeeping folder was found")
                     continue
 
                 tail_folder = root[len(what_to_work_on):].strip("\\/")
@@ -159,11 +171,8 @@ class InstlMisc(InstlInstanceBase):
                     where_to_unwtar_the_file = os.path.join(where_to_unwtar, tail_folder)
                 for a_file in files:
                     a_file_path = os.path.join(root, a_file)
-                    if a_file_path.endswith(".wtar.aa"):
-                        split_files = utils.find_split_files(a_file_path)
-                        self.unwtar_a_file(split_files, where_to_unwtar_the_file, no_artifacts=self.no_artifacts)
-                    elif a_file_path.endswith(".wtar"):
-                        self.unwtar_a_file([a_file_path], where_to_unwtar_the_file, no_artifacts=self.no_artifacts)
+                    if utils.is_first_wtar_file(a_file_path):
+                        utils.unwtar_a_file(a_file_path, where_to_unwtar_the_file, no_artifacts=self.no_artifacts, ignore=ignore_files)
 
         else:
             raise FileNotFoundError(what_to_work_on)
@@ -331,7 +340,8 @@ class InstlMisc(InstlInstanceBase):
 
     def do_checksum(self):
         path_to_checksum = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
-        checksums_dict = utils.get_recursive_checksums(path_to_checksum)
+        ignore_files = var_stack.ResolveVarToList("WTAR_IGNORE_FILES", default=list())
+        checksums_dict = utils.get_recursive_checksums(path_to_checksum, ignore=ignore_files)
         total_checksum = checksums_dict.pop('total_checksum', "Unknown total checksum")
         path_and_checksum_list = [(path, checksum) for path, checksum in sorted(checksums_dict.items())]
         width_list, align_list = utils.max_widths(path_and_checksum_list)

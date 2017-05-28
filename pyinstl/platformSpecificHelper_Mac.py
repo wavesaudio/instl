@@ -253,6 +253,16 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         wtar_command = " ".join(wtar_command_parts)
         return wtar_command
 
+    def tar_with_instl(self, to_tar_name):
+        if not var_stack.defined('__INSTL_LAUNCH_COMMAND__'):
+            return # we cannot do anything without __INSTL_LAUNCH_COMMAND__
+
+        tar_with_instl_command_parts = (var_stack.ResolveVarToStr("__INSTL_LAUNCH_COMMAND__"),
+                            "wtar",
+                            "--in",
+                            utils.quoteme_double(to_tar_name))
+        return " ".join(tar_with_instl_command_parts)
+
     def split_func(self):
         the_split_func = ("""
 split_file()

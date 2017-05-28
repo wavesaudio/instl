@@ -52,7 +52,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         # retVal = " /LOG:{log_file}".format(**locals())
         return retVal
 
-    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
+    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None, preserve_dest_files=True):
         retVal = list()
         _, dir_to_copy = os.path.split(src_dir)
         trg_dir = "/".join((trg_dir, dir_to_copy))
@@ -60,7 +60,9 @@ class CopyTool_win_robocopy(CopyToolBase):
         log_file_spec = self.create_log_spec()
         norm_src_dir = os.path.normpath(src_dir)
         norm_trg_dir = os.path.normpath(trg_dir)
-        copy_command = """"$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" {ignore_spec} /E /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS /PURGE {log_file_spec}""".format(**locals())
+        if not preserve_dest_files:
+            delete_spec = "/PURGE"
+        copy_command = """"$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" {ignore_spec} /E /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS {delete_spec} {log_file_spec}""".format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
         return retVal
@@ -147,14 +149,14 @@ class CopyTool_win_xcopy(CopyToolBase):
         """
         return self.platform_helper.rmfile("$(XCOPY_EXCLUDE_FILE_NAME)")
 
-    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
+    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None, preserve_dest_files=True):
         retVal = list()
         norm_src_dir = os.path.normpath(src_dir)
         norm_trg_dir = os.path.normpath(trg_dir)
         _, dir_to_copy = os.path.split(norm_src_dir)
         norm_trg_dir = "/".join((norm_trg_dir, dir_to_copy))
         retVal.append(self.platform_helper.mkdir(norm_trg_dir))
-        retVal.extend(self.copy_dir_contents_to_dir(norm_src_dir, norm_trg_dir, ignore=ignore))
+        retVal.extend(self.copy_dir_contents_to_dir(norm_src_dir, norm_trg_dir, ignore=ignore, preserve_dest_files=preserve_dest_files))
         return retVal
 
     def copy_file_to_dir(self, src_file, trg_dir, link_dest=False, ignore=None):

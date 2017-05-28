@@ -103,6 +103,7 @@ class open_for_read_file_or_url(object):
         self.custom_headers = None
         self.encoding = encoding
         self.fd = None
+        self._actual_path = in_file_or_url
         match = self.protocol_header_re.match(in_file_or_url)
         if not match:  # it's a local file
             self.local_file_path = in_file_or_url
@@ -115,10 +116,12 @@ class open_for_read_file_or_url(object):
                     self.local_file_path = os.path.realpath(self.local_file_path)
             else:
                 raise FileNotFoundError("Could not locate local file", self.local_file_path)
+            self._actual_path = self.local_file_path
         else:
             self.url = in_file_or_url
             if translate_url_callback is not None:
                 self.url, self.custom_headers = translate_url_callback(self.url)
+            self._actual_path = self.url
 
     def __enter__(self):
         try:
@@ -138,10 +141,15 @@ class open_for_read_file_or_url(object):
             raise
         if "name" not in dir(self.fd) and "url" in dir(self.fd):
             self.fd.name = self.fd.url # so we can get the url with the same attribute as file object
-        return self.fd
+        return self
 
     def __exit__(self, unused_type, unused_value, unused_traceback):
         self.fd.close()
+
+    @property
+    def actual_path(self):
+        """ return the path or url after all translations and search paths searches"""
+        return self._actual_path
 
 
 def read_from_file_or_url(in_url, translate_url_callback=None, public_key=None, textual_sig=None, expected_checksum=None, encoding='utf-8'):
@@ -149,8 +157,8 @@ def read_from_file_or_url(in_url, translate_url_callback=None, public_key=None, 
         If test against either sig or checksum fails - raise IOError.
         Return: file contents.
     """
-    with open_for_read_file_or_url(in_url, translate_url_callback, encoding=encoding) as rfd:
-        contents_buffer = rfd.read()
+    with open_for_read_file_or_url(in_url, translate_url_callback, encoding=encoding) as open_file:
+        contents_buffer = open_file.fd.read()
         if encoding is not None: # when reading from url we're not sure what the encoding is
             contents_buffer = unicodify(contents_buffer, encoding=encoding)
         # check sig or checksum only if they were given
@@ -343,6 +351,7 @@ class ChangeDirIfExists(object):
         if os.path.isdir(newPath):
             self.newPath = newPath
         else:
+            print("no such dir", newPath)
             self.newPath = None
 
     def __enter__(self):
@@ -795,16 +804,19 @@ def unix_permissions_to_str(the_mod):
 
 def find_split_files(first_file):
     try:
+        retVal = list()
         norm_first_file = os.path.normpath(first_file)  # remove trailing . if any
-        base_folder, base_name = os.path.split(norm_first_file)
-        if not base_folder: base_folder = "."
-        filter_pattern = base_name[:-2] + "??"  # with ?? instead of aa
-        matching_files = sorted(fnmatch.filter((f.name for f in os.scandir(base_folder)), filter_pattern))
-        files_to_read = []
-        for a_file in matching_files:
-            files_to_read.append(os.path.join(base_folder, a_file))
 
-        return files_to_read
+        if norm_first_file.endswith(".aa"):
+            base_folder, base_name = os.path.split(norm_first_file)
+            if not base_folder: base_folder = "."
+            filter_pattern = base_name[:-2] + "??"  # with ?? instead of aa
+            matching_files = sorted(fnmatch.filter((f.name for f in os.scandir(base_folder)), filter_pattern))
+            for a_file in matching_files:
+                retVal.append(os.path.join(base_folder, a_file))
+        else:
+            retVal.append(norm_first_file)
+        return retVal
 
     except Exception as es:
         print("exception while find_split_files", first_file)
@@ -942,8 +954,8 @@ def is_first_wtar_file(in_possible_wtar):
     retVal = False
     match = wtar_file_re.match(in_possible_wtar)
     if match:
-        split_numerator = match.groupdict().get('split_numerator', "0987654321")
-        retVal = split_numerator == ".aa"
+        split_numerator = match.group('split_numerator')
+        retVal = split_numerator is None or split_numerator == ".aa"
     return retVal
 
 
@@ -987,7 +999,7 @@ def scandir_walk(top_path, report_files=True, report_dirs=True, follow_symlinks=
             yield from scandir_walk(item.path, report_files=report_files, report_dirs=report_dirs, follow_symlinks=follow_symlinks)
 
 
-def get_recursive_checksums(some_path):
+def get_recursive_checksums(some_path, ignore=None):
     """ If some_path is a file return a dict mapping the file's path to it's sha1 checksum
         and mapping "total_checksum" to the files checksum, e.g.
         assuming /a/b/c.txt is a file
@@ -1009,39 +1021,54 @@ def get_recursive_checksums(some_path):
             - If you have a file called total_checksum your'e f**d.
             - Symlinks are not followed and are checksum as regular files (by calling readlink).
     """
+    if ignore is None: ignore = ()
     retVal = dict()
-    if os.path.isfile(some_path):
-        some_path_dir, some_path_leaf = os.path.split(some_path)
-        retVal[some_path_leaf] = get_file_checksum(some_path, follow_symlinks=False)
-    elif os.path.isdir(some_path):
-        for item in scandir_walk(some_path, report_dirs=False):
-            retVal[item.path] = get_file_checksum(item.path, follow_symlinks=False)
+    some_path_dir, some_path_leaf = os.path.split(some_path)
+    if some_path_leaf not in ignore:
+        if os.path.isfile(some_path):
+                retVal[some_path_leaf] = get_file_checksum(some_path, follow_symlinks=False)
+        elif os.path.isdir(some_path):
+            for item in scandir_walk(some_path, report_dirs=False):
+                item_path_dir, item_path_leaf = os.path.split(item.path)
+                if item_path_leaf not in ignore:
+                    retVal[item.path] = get_file_checksum(item.path, follow_symlinks=False)
 
-    checksum_list = sorted(list(retVal.keys()) + list(retVal.values()))
-    string_of_checksums = "".join(checksum_list)
-    retVal['total_checksum'] = get_buffer_checksum(string_of_checksums.encode())
+        checksum_list = sorted(list(retVal.keys()) + list(retVal.values()))
+        string_of_checksums = "".join(checksum_list)
+        retVal['total_checksum'] = get_buffer_checksum(string_of_checksums.encode())
     return retVal
 
 from .multi_file import MultiFileReader
 
 
-def unwtar_a_file(wtar_file_paths, destination_folder=None, no_artifacts=False):
+def unwtar_a_file(wtar_file_path, destination_folder=None, no_artifacts=False, ignore=None):
     try:
+        #print("unwtar_a_file(", wtar_file_path, ", ", destination_folder, ")")
+        wtar_file_paths = find_split_files(wtar_file_path)
+
         if destination_folder is None:
             destination_folder, _ = os.path.split(wtar_file_paths[0])
+        if ignore is None: ignore = ()
+
         first_wtar_file_dir, first_wtar_file_name = os.path.split(wtar_file_paths[0])
         destination_leaf_name = original_name_from_wtar_name(first_wtar_file_name)
+        destination_path = os.path.join(destination_folder, destination_leaf_name)
+
+        disk_total_checksum = "disk_total_checksum_was_not_found"
+        if os.path.exists(destination_path):
+            with ChangeDirIfExists(destination_folder):
+                disk_total_checksum = get_recursive_checksums(destination_leaf_name, ignore=ignore).get("total_checksum", "disk_total_checksum_was_not_found")
+
         do_the_unwtarring = True
         with MultiFileReader("br", wtar_file_paths) as fd:
             with tarfile.open(fileobj=fd) as tar:
-                tar_total_checksum = tar.pax_headers.get("total_checksum")
-                if tar_total_checksum is not None:
-                    destination_item = os.path.join(destination_folder, destination_leaf_name)
-                    if os.path.exists(destination_item):
-                        checksums_dict = get_recursive_checksums(destination_item)
-                        if checksums_dict.get("total_checksum", "XYZ") == tar_total_checksum:
-                            do_the_unwtarring = False
+                tar_total_checksum = tar.pax_headers.get("total_checksum", "tar_total_checksum_was_not_found")
+                #print("    tar_total_checksum", tar_total_checksum)
+                if disk_total_checksum == tar_total_checksum:
+                    do_the_unwtarring = False
+                    print("unwtar_a_file(", wtar_file_paths[0], ") skipping unwtarring because item exists and is identical to archive")
                 if do_the_unwtarring:
+                    safe_remove_file_system_object(destination_path)
                     tar.extractall(destination_folder)
 
         if no_artifacts:

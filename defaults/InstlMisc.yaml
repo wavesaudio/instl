@@ -4,6 +4,10 @@
 LS_FORMAT: '*'
 LS_FORMAT_FOR_WTAR: 'WSCpf'
 
+WTAR_IGNORE_FILES:
+    -  .svn
+    - .DS_Store
+
 --- !define_Mac
 REMOVE_EMPTY_FOLDERS_IGNORE_FILES:
     - .DS_Store
