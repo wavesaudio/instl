@@ -62,6 +62,8 @@ class CopyTool_win_robocopy(CopyToolBase):
         norm_trg_dir = os.path.normpath(trg_dir)
         if not preserve_dest_files:
             delete_spec = "/PURGE"
+        else:
+            delete_spec = ""
         copy_command = """"$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" {ignore_spec} /E /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS {delete_spec} {log_file_spec}""".format(**locals())
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
@@ -83,6 +85,8 @@ class CopyTool_win_robocopy(CopyToolBase):
         delete_spec = ""
         if not preserve_dest_files:
             delete_spec = "/PURGE"
+        else:
+            delete_spec = ""
         log_file_spec = self.create_log_spec()
         norm_src_dir = os.path.normpath(src_dir)
         norm_trg_dir = os.path.normpath(trg_dir)

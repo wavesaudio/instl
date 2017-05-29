@@ -107,6 +107,8 @@ class CopyToolRsync(CopyToolBase):
         ignore_spec = self.create_ignore_spec(ignore)
         if not preserve_dest_files:
             delete_spec = "--delete"
+        else:
+            delete_spec = ""
         if link_dest:
             the_link_dest = os.path.join(src_dir, "..")
             sync_command = """rsync -l -r -E {delete_spec} {ignore_spec} --link-dest="{the_link_dest}" "{src_dir}" "{trg_dir}" """.format(**locals())
@@ -148,6 +150,8 @@ class CopyToolRsync(CopyToolBase):
         delete_spec = ""
         if not preserve_dest_files:
             delete_spec = "--delete"
+        else:
+            delete_spec = ""
         if link_dest:
             relative_link_dest = os.path.relpath(src_dir, trg_dir)
             sync_command = """rsync -l -r -E {delete_spec} {ignore_spec} --link-dest="{relative_link_dest}" "{src_dir}" "{trg_dir}" """.format(**locals())

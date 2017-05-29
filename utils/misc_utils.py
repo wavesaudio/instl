@@ -351,7 +351,6 @@ class ChangeDirIfExists(object):
         if os.path.isdir(newPath):
             self.newPath = newPath
         else:
-            print("no such dir", newPath)
             self.newPath = None
 
     def __enter__(self):
