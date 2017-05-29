@@ -145,6 +145,8 @@ class InstlMisc(InstlInstanceBase):
                         return None
                 tarinfo.uid = tarinfo.gid = 0
                 tarinfo.uname = tarinfo.gname = "waves"
+                if os.path.isfile(tarinfo.path):
+                    tarinfo.pax_headers = {"checksum": utils.get_file_checksum(tarinfo.path)}
                 return tarinfo
 
             with tarfile.open(target_wtar_file, "w|bz2", format=tarfile.PAX_FORMAT, pax_headers=pax_headers) as tar:

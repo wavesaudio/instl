@@ -173,10 +173,6 @@ def unix_folder_ls(the_path, ls_format, root_folder=None):
                 full_path = os.path.join(root_path, file_to_list)
                 listing_lines.append(unix_item_ls(full_path, ls_format=ls_format, root_folder=root_folder))
 
-            # W (list content of .Wtar files) is a special case and must be specifically requested
-            #if 'W' in ls_format:
-            #    listing_lines.extend(produce_tar_list(tar_file=full_path, ls_format=ls_format))
-
     return listing_lines
 
 
@@ -263,10 +259,6 @@ def win_folder_ls(the_path, ls_format, root_folder=None):
                 full_path = os.path.join(root_path, file_to_list)
                 listing_lines.append(win_item_ls(full_path, ls_format=ls_format, root_folder=root_folder))
 
-            # W (list content of .Wtar files) is a special case and must be specifically requested
-            #if 'W' in ls_format:
-            #    listing_lines.extend(produce_tar_list(tar_file=full_path, ls_format=ls_format))
-
     return listing_lines
 
 
@@ -319,14 +311,14 @@ def wtar_ls_func(root_file_or_folder_path, ls_format):
         with tarfile.open(fileobj=fd) as tar:
             pax_headers = tar.pax_headers
             for item in tar:
-                listing_lines.append(wtar_item_ls_func(item, ls_format, tar.pax_headers))
+                listing_lines.append(wtar_item_ls_func(item, ls_format))
 
-            listing_lines.append({'W': pax_headers.get("total_checksum", "no total checksum")})
+            listing_lines.append({'W': pax_headers.get("total_checksum", "no-total-checksum")})
 
     return listing_lines
 
 
-def wtar_item_ls_func(item, ls_format, global_pax_headers):
+def wtar_item_ls_func(item, ls_format):
     the_parts = dict()
     for format_char in ls_format:
         if format_char == 'R':
@@ -344,8 +336,7 @@ def wtar_item_ls_func(item, ls_format, global_pax_headers):
         elif format_char == 'T':
             the_parts[format_char] = time.strftime("%Y/%m/%d-%H:%M:%S", time.gmtime((item.mtime)))  # modification time
         elif format_char == 'C':
-            if global_pax_headers and item.name in global_pax_headers:
-                the_parts[format_char] = global_pax_headers[item.name]
+            the_parts[format_char] = item.pax_headers.get("checksum", "")
         elif format_char == 'P' or format_char == 'p':
             path_to_return = item.name
             if item.isdir() and 'D' in ls_format:
