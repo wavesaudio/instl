@@ -320,7 +320,8 @@ def wtar_ls_func(root_file_or_folder_path, ls_format):
             pax_headers = tar.pax_headers
             for item in tar:
                 listing_lines.append(wtar_item_ls_func(item, ls_format, tar.pax_headers))
-            listing_lines.append({'W': pax_headers["total_checksum"]})
+
+            listing_lines.append({'W': pax_headers.get("total_checksum", "no total checksum")})
 
     return listing_lines
 
