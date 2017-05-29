@@ -3,10 +3,10 @@
 import os
 import time
 import datetime
-from pathlib import PurePath
 import stat
 import json
 import tarfile
+import pathlib
 
 import utils
 
@@ -51,7 +51,7 @@ def disk_item_listing(*files_or_folders_to_list, ls_format='*', output_format='t
             so 'SCp' actually means 'SCpfd'
     """
     os_names = utils.get_current_os_names()
-    files_or_folders_to_list = sorted(files_or_folders_to_list, key=lambda file: PurePath(file).parts)
+    files_or_folders_to_list = sorted(files_or_folders_to_list, key=lambda file: pathlib.PurePath(file).parts)
     if "Mac" in os_names:
         if ls_format == '*':
             ls_format = 'WMIRLUGSTCPE'
@@ -119,6 +119,7 @@ def translate_item_dict_to_be_keyed_by_path(item_dict):
         item_dict_without_path = {k: v for k, v in item_dict.items() if k.lower() != 'p'}
         retVal = {path: item_dict_without_path}
     return retVal
+
 
 def list_of_dicts_describing_disk_items_to_text_lines(items_list, ls_format):
     # when calculating widths - avoid comment lines
@@ -272,7 +273,7 @@ def win_folder_ls(the_path, ls_format, root_folder=None):
 # noinspection PyUnresolvedReferences
 def win_item_ls(the_path, ls_format, root_folder=None):
     import win32security
-    the_parts = list()
+    the_parts = dict()
     the_stats = os.lstat(the_path)
 
     for format_char in ls_format:
@@ -302,11 +303,11 @@ def win_item_ls(the_path, ls_format, root_folder=None):
             else:
                 the_parts[format_char] = ""
         elif format_char == 'P':
-            path_to_return = the_path
-            the_parts[format_char] = path_to_return
+            as_posix = pathlib.PurePath(the_path).as_posix()
+            the_parts[format_char] = str(as_posix)
         elif format_char == 'p' and root_folder is not None:
-            path_to_return = os.path.relpath(the_path, start=root_folder)
-            the_parts[format_char] = path_to_return
+            relative_path = pathlib.PurePath(the_path).relative_to(pathlib.PurePath(root_folder))
+            the_parts[format_char] = str(relative_path.as_posix())
 
     return the_parts
 

@@ -1031,7 +1031,9 @@ def get_recursive_checksums(some_path, ignore=None):
             for item in scandir_walk(some_path, report_dirs=False):
                 item_path_dir, item_path_leaf = os.path.split(item.path)
                 if item_path_leaf not in ignore:
-                    retVal[item.path] = get_file_checksum(item.path, follow_symlinks=False)
+                    the_checksum = get_file_checksum(item.path, follow_symlinks=False)
+                    normalized_path = pathlib.PurePath(item.path).as_posix()
+                    retVal[normalized_path] = the_checksum
 
         checksum_list = sorted(list(retVal.keys()) + list(retVal.values()))
         string_of_checksums = "".join(checksum_list)
