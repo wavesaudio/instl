@@ -140,12 +140,12 @@ class InstlMisc(InstlInstanceBase):
             pax_headers = {"total_checksum": utils.get_recursive_checksums(what_to_work_on_leaf, ignore=ignore_files)["total_checksum"]}
 
             def check_tarinfo(tarinfo):
-                retVal = tarinfo
                 for ig in ignore_files:
                     if tarinfo.name.endswith(ig):
-                        retVal = None
-                        break
-                return retVal
+                        return None
+                tarinfo.uid = tarinfo.gid = 0
+                tarinfo.uname = tarinfo.gname = "waves"
+                return tarinfo
 
             with tarfile.open(target_wtar_file, "w|bz2", format=tarfile.PAX_FORMAT, pax_headers=pax_headers) as tar:
                 tar.add(what_to_work_on_leaf, filter=check_tarinfo)
@@ -329,7 +329,7 @@ class InstlMisc(InstlInstanceBase):
         else:
             folders_to_list.append(main_folder_to_list)
 
-        ls_format = var_stack.ResolveVarToStr("LS_FORMAT_FOR_WTAR", default='WSCpf')
+        ls_format = var_stack.ResolveVarToStr("LS_FORMAT", default='*')
         the_listing = utils.disk_item_listing(*folders_to_list, ls_format=ls_format)
 
         try:

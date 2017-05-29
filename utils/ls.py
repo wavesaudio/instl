@@ -74,7 +74,7 @@ def disk_item_listing(*files_or_folders_to_list, ls_format='*', output_format='t
         if add_remarks:
             opening_remarks.append(" ".join(('#', datetime.datetime.today().isoformat(), "listing of", root_file_or_folder_path)))
 
-        if 'W' in ls_format and utils.is_first_wtar_file(root_file_or_folder_path):
+        if utils.is_first_wtar_file(root_file_or_folder_path):
             listing_items.extend(wtar_ls_func(root_file_or_folder_path, ls_format=ls_format))
         elif os.path.isdir(root_file_or_folder_path):
             listing_items.extend(folder_ls_func(root_file_or_folder_path, ls_format=ls_format, root_folder=root_file_or_folder_path))
