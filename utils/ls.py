@@ -70,9 +70,9 @@ def disk_item_listing(*files_or_folders_to_list, ls_format='*', output_format='t
     total_list = list()
     for root_file_or_folder_path in files_or_folders_to_list:
         listing_items = list()
-        remarks = list()
+        opening_remarks = list()
         if add_remarks:
-            remarks.append(" ".join(('#', datetime.datetime.today().isoformat(), "listing of", root_file_or_folder_path)))
+            opening_remarks.append(" ".join(('#', datetime.datetime.today().isoformat(), "listing of", root_file_or_folder_path)))
 
         if 'W' in ls_format and utils.is_first_wtar_file(root_file_or_folder_path):
             listing_items.extend(wtar_ls_func(root_file_or_folder_path, ls_format=ls_format))
@@ -82,10 +82,10 @@ def disk_item_listing(*files_or_folders_to_list, ls_format='*', output_format='t
             root_folder, _ = os.path.split(root_file_or_folder_path)
             listing_items.append(item_ls_func(root_file_or_folder_path, ls_format=ls_format, root_folder=root_folder))
         else:
-            remarks.append(" ".join(('#', "folder was not found", root_file_or_folder_path)))
+            opening_remarks.append(" ".join(('#', "folder was not found", root_file_or_folder_path)))
 
         if output_format == 'text':
-            total_list.extend(remarks)
+            total_list.extend(opening_remarks)
             total_list.extend(list_of_dicts_describing_disk_items_to_text_lines(listing_items, ls_format))
             total_list.append("")  # line break at the end so not to be joined with the next line when printing to Terminal
         elif output_format == 'dicts':
@@ -147,6 +147,7 @@ format_char_to_json_key = {
     'R': 'permissions',
     'S': 'size',
     'T': 'modification time',
+    'W': 'total_checksum',
     'u': 'uid',
     'U': 'user'
 }
@@ -318,6 +319,7 @@ def wtar_ls_func(root_file_or_folder_path, ls_format):
             pax_headers = tar.pax_headers
             for item in tar:
                 listing_lines.append(wtar_item_ls_func(item, ls_format, tar.pax_headers))
+            listing_lines.append({'W': pax_headers["total_checksum"]})
 
     return listing_lines
 
