@@ -134,15 +134,21 @@ class InstlMisc(InstlInstanceBase):
         else:  # assuming it's a folder
             os.makedirs(where_to_put_wtar, exist_ok=True)
             target_wtar_file = os.path.join(where_to_put_wtar, what_to_work_on_leaf+".wtar")
-        #print(what_to_work_on, "\n", target_wtar_file, sep="")
 
         ignore_files = var_stack.ResolveVarToList("WTAR_IGNORE_FILES", default=list())
-
         with utils.ChangeDirIfExists(what_to_work_on_dir):
             pax_headers = {"total_checksum": utils.get_recursive_checksums(what_to_work_on_leaf, ignore=ignore_files)["total_checksum"]}
 
+            def check_tarinfo(tarinfo):
+                retVal = tarinfo
+                for ig in ignore_files:
+                    if tarinfo.name.endswith(ig):
+                        retVal = None
+                        break
+                return retVal
+
             with tarfile.open(target_wtar_file, "w|bz2", format=tarfile.PAX_FORMAT, pax_headers=pax_headers) as tar:
-                tar.add(what_to_work_on_leaf)
+                tar.add(what_to_work_on_leaf, filter=check_tarinfo)
 
     def do_unwtar(self):
         self.no_artifacts = "__NO_WTAR_ARTIFACTS__" in var_stack
