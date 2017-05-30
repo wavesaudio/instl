@@ -1,6 +1,8 @@
-????? 1.4.4.3
+????? 1.5.0.0
 
     user visible changes client:
+    * new command: batch, will read instl commands form a file and execute them. Currently limited to do_something mode of commands.
+y
 
     programmer visible changes:
     * utils.folder_listing renamed utils.disk_item_listing and moved to new file ls.py together with all ls helper functions.
@@ -18,6 +20,7 @@
     * utils.is_first_wtar_file now finds split files - no need to pass it a list
     * new property utils.open_for_read_file_or_url.actual_path, is the path/url after it has been resolved
     * utils.find_split_files is more independant and will return a list even when there is ponly one file
+    * class CommandLineOptions and functions prepare_args_parser read_command_line_options moved to new file cmdOptions.pt
 
 18/5/2017 1.4.4.2
 

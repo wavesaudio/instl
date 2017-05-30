@@ -1044,11 +1044,11 @@ from .multi_file import MultiFileReader
 
 def unwtar_a_file(wtar_file_path, destination_folder=None, no_artifacts=False, ignore=None):
     try:
-        #print("unwtar_a_file(", wtar_file_path, ", ", destination_folder, ")")
         wtar_file_paths = find_split_files(wtar_file_path)
 
         if destination_folder is None:
             destination_folder, _ = os.path.split(wtar_file_paths[0])
+        print("unwtar", wtar_file_path, " to ", destination_folder)
         if ignore is None: ignore = ()
 
         first_wtar_file_dir, first_wtar_file_name = os.path.split(wtar_file_paths[0])
