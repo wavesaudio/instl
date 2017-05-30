@@ -289,6 +289,10 @@ class PlatformSpecificHelperBase(object):
             retVal = self.progress(msg)
         return retVal
 
+    def increment_progress(self, num_items=1):
+        self.num_items_for_progress_report += num_items
+        return self.num_items_for_progress_report
+
     @abc.abstractmethod
     def get_svn_folder_cleanup_instructions(self):
         """ platform specific cleanup of svn locks """
@@ -384,6 +388,16 @@ class PlatformSpecificHelperBase(object):
     def unwtar_current_folder(self, no_artifacts=False, where_to_unwtar=None):
         unwtar_command = self.unwtar_something(".", no_artifacts, where_to_unwtar)
         return unwtar_command
+
+    def run_instl_batch_file(self, batch_file_path):
+        command_parts = [self.instlObj.platform_helper.run_instl(),
+                         "batch",
+                         "--config-file",
+                         utils.quoteme_double(batch_file_path),
+                         "--total-progress",
+                         "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)"]
+        instl_batch_command = " ".join(command_parts)
+        return instl_batch_command
 
     @abc.abstractmethod
     def wait_for_child_processes(self):

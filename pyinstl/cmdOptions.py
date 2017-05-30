@@ -54,7 +54,7 @@ def prepare_args_parser(in_command):
 
     mode_codes = {'ct': 'client', 'an': 'admin', 'ds': 'do_something', 'gi': 'gui', 'di': 'doit', 'bt': 'batch'}
     commands_details = {
-        'batch':                {'mode': 'bt', 'options': ('conf',), 'help': 'do a list of commands'},
+        'batch':                {'mode': 'bt', 'options': ('conf', 'prog'), 'help': 'do a list of commands'},
         'check-checksum':       {'mode': 'ds', 'options': ('in', 'prog',), 'help':  'check checksum for a list of files from info_map file'},
         'check-sig':            {'mode': 'an', 'options': ('in', 'conf',), 'help':  'check sha1 checksum and/or rsa signature for a file'},
         'checksum':             {'mode': 'ds', 'options': ('in',), 'help':  'calculate checksum for a file or folder'},

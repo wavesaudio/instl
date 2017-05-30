@@ -147,8 +147,6 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             "config_file": ("__CONFIG_FILE__", None),
             "sh1_checksum": ("__SHA1_CHECKSUM__", None),
             "rsa_signature": ("__RSA_SIGNATURE__", None),
-            "start_progress": ("__START_DYNAMIC_PROGRESS__", "0"),
-            "total_progress": ("__TOTAL_DYNAMIC_PROGRESS__", "0"),
             "just_with_number": ("__JUST_WITH_NUMBER__", "0"),
             "limit_command_to": ("__LIMIT_COMMAND_TO__", None),
             "shortcut_path": ("__SHORTCUT_PATH__", None),
@@ -169,7 +167,9 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         non_const_attrib_to_var = {
             "target_repo_rev": "TARGET_REPO_REV",
             "base_repo_rev": "BASE_REPO_REV",
-            "ls_format": "LS_FORMAT"
+            "ls_format": "LS_FORMAT",
+            "start_progress": "__START_DYNAMIC_PROGRESS__",
+            "total_progress": "__TOTAL_DYNAMIC_PROGRESS__",
         }
 
         for attrib, var in non_const_attrib_to_var.items():
@@ -222,6 +222,10 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             for definition in individual_definitions:
                 name, value = definition.split("=")
                 var_stack.set_var(name, "from command line define option").append(value)
+
+        if "__MAIN_OUT_FILE__" not in var_stack and "__MAIN_INPUT_FILE__" in var_stack:
+            var_stack.add_const_config_variable("__MAIN_OUT_FILE__", "from write_batch_file",
+                                                "$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)")
 
 #        if not self.check_version_compatibility():
 #            raise ValueError(var_stack.resolve("Minimal instl version $(INSTL_MINIMAL_VERSION) > current version $(__INSTL_VERSION__); ")+var_stack.get_configVar_obj("INSTL_MINIMAL_VERSION").description)

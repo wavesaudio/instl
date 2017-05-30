@@ -30,8 +30,9 @@ class InstlMisc(InstlInstanceBase):
         self.commands_that_need_info_map_table = ("check_checksum", "set_exec", "create_folders")
 
     def do_command(self):
-        self.curr_progress = int(var_stack.ResolveVarToStr("__START_DYNAMIC_PROGRESS__"))
-        self.total_progress = int(var_stack.ResolveVarToStr("__TOTAL_DYNAMIC_PROGRESS__")) # if var does not exist default is 0, meaning not to display dynamic progress
+        # if var does not exist default is 0, meaning not to display dynamic progress
+        self.curr_progress = int(var_stack.ResolveVarToStr("__START_DYNAMIC_PROGRESS__", default="0"))
+        self.total_progress = int(var_stack.ResolveVarToStr("__TOTAL_DYNAMIC_PROGRESS__", default="0"))
         self.progress_staccato_period = int(var_stack.ResolveVarToStr("PROGRESS_STACCATO_PERIOD"))
         self.progress_staccato_count = 0
         do_command_func = getattr(self, "do_" + self.fixed_command)
@@ -184,6 +185,7 @@ class InstlMisc(InstlInstanceBase):
 
         else:
             raise FileNotFoundError(what_to_work_on)
+        self.dynamic_progress("Expand {}".format(utils.original_name_from_wtar_name(what_to_work_on)))
 
     def do_check_checksum(self):
         self.progress_staccato_command = True
