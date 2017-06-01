@@ -97,9 +97,9 @@ def main():
                     {"__USER_ID__": str(os.getuid()),
                      "__GROUP_ID__": str(os.getgid())})
 
-    if options.mode == "batch":
-        from pyinstl.instlBatch import do_batch_file
-        do_batch_file(initial_vars, options)
+    if options.command == "command-list":
+        from pyinstl.instlCommandList import run_commands_from_file
+        run_commands_from_file(initial_vars, options)
     elif options.mode == "client":
         from pyinstl.instlClient import InstlClientFactory
         instance = InstlClientFactory(initial_vars, options.command)

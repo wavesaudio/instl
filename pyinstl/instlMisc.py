@@ -50,6 +50,7 @@ class InstlMisc(InstlInstanceBase):
             self.curr_progress += 1
             if not self.progress_staccato_command or self.progress_staccato_count == 0:
                 print("Progress: {self.curr_progress} of {self.total_progress}; {msg}".format(**locals()))
+                #print("Progress: ... of ...; {msg}".format(**locals()))
 
     def do_version(self):
         var_stack.set_var("PRINT_COMMAND_TIME").append("no") # do not print time report

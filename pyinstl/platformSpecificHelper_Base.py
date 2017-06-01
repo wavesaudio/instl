@@ -389,13 +389,15 @@ class PlatformSpecificHelperBase(object):
         unwtar_command = self.unwtar_something(".", no_artifacts, where_to_unwtar)
         return unwtar_command
 
-    def run_instl_batch_file(self, batch_file_path):
+    def run_instl_command_list(self, command_file_path, parallel=False):
         command_parts = [self.instlObj.platform_helper.run_instl(),
-                         "batch",
+                         "command-list",
                          "--config-file",
-                         utils.quoteme_double(batch_file_path),
+                         utils.quoteme_double(command_file_path),
                          "--total-progress",
                          "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)"]
+        if parallel:
+            command_parts.append("--parallel")
         instl_batch_command = " ".join(command_parts)
         return instl_batch_command
 

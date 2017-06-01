@@ -215,6 +215,9 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             var_stack.add_const_config_variable("__RUN_AS_ADMIN__", "from command line options", "yes")
         if cmd_line_options_obj.only_installed:
             var_stack.add_const_config_variable("__REPORT_ONLY_INSTALLED__", "from command line options", "yes")
+        if var_stack.ResolveVarToStr("__CURRENT_OS__") == "Mac":
+            if cmd_line_options_obj.parallel:
+                var_stack.add_const_config_variable("__RUN_COMMAND_LIST_IN_PARALLEL__", "from command line options", "yes")
 
 
         if cmd_line_options_obj.define:

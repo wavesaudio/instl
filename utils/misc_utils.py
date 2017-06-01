@@ -1067,7 +1067,7 @@ def unwtar_a_file(wtar_file_path, destination_folder=None, no_artifacts=False, i
                 #print("    tar_total_checksum", tar_total_checksum)
                 if disk_total_checksum == tar_total_checksum:
                     do_the_unwtarring = False
-                    print("unwtar_a_file(", wtar_file_paths[0], ") skipping unwtarring because item exists and is identical to archive")
+                    print(wtar_file_paths[0], "skipping unwtarring because item exists and is identical to archive")
                 if do_the_unwtarring:
                     safe_remove_file_system_object(destination_path)
                     tar.extractall(destination_folder)

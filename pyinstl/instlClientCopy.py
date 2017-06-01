@@ -424,5 +424,5 @@ class InstlClientCopy(InstlClient):
                     progress = self.platform_helper.increment_progress()
                     unwtar_line += " --start-progress {} --total-progress $(__TOTAL_DYNAMIC_PROGRESS__)\n""".format(progress)
                     wfd.write(unwtar_line)
-            self.batch_accum += self.platform_helper.run_instl_batch_file(batch_file_path)
+            self.batch_accum += self.platform_helper.run_instl_command_list(batch_file_path, parallel=True)
             self.batch_accum += self.platform_helper.progress("Expand files in {} done".format(name_for_progress))

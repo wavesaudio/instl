@@ -42,6 +42,7 @@ class CommandLineOptions(object):
         self.output_format = None
         self.only_installed = None
         self.ls_format = None
+        self.parallel = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).items())])
@@ -52,12 +53,12 @@ def prepare_args_parser(in_command):
     Prepare the parser for command line arguments
     """
 
-    mode_codes = {'ct': 'client', 'an': 'admin', 'ds': 'do_something', 'gi': 'gui', 'di': 'doit', 'bt': 'batch'}
+    mode_codes = {'ct': 'client', 'an': 'admin', 'ds': 'do_something', 'gi': 'gui', 'di': 'doit'}
     commands_details = {
-        'batch':                {'mode': 'bt', 'options': ('conf', 'prog'), 'help': 'do a list of commands'},
         'check-checksum':       {'mode': 'ds', 'options': ('in', 'prog',), 'help':  'check checksum for a list of files from info_map file'},
         'check-sig':            {'mode': 'an', 'options': ('in', 'conf',), 'help':  'check sha1 checksum and/or rsa signature for a file'},
         'checksum':             {'mode': 'ds', 'options': ('in',), 'help':  'calculate checksum for a file or folder'},
+        'command-list':         {'mode': 'ds', 'options': ('conf', 'prog', 'parallel'), 'help': 'do a list of commands from a file'},
         'copy':                 {'mode': 'ct', 'options': ('in', 'out', 'run', 'cred'), 'help':  'copy files to target paths'},
         'create-folders':       {'mode': 'ds', 'options': ('in',  'prog',), 'help':  'create folders from info_map file'},
         'create-infomap':       {'mode': 'an', 'options': ('conf', 'out', 'run'), 'help': 'create infomap file for repository'},
@@ -224,6 +225,15 @@ def prepare_args_parser(in_command):
                                     metavar='limit-command-to',
                                     dest='limit_command_to',
                                     help="list of command to limit the action to")
+
+    if 'parallel' in command_details['options']:
+        parallel_option = command_parser.add_argument_group(description='parallel execution')
+        parallel_option.add_argument('--parallel', '-p',
+                                    required=False,
+                                    default=False,
+                                    action='store_true',
+                                    dest='',
+                                    help="run the command-list in parallel")
 
     # the following option groups each belong only to a single command
     if 'trans' == in_command:
