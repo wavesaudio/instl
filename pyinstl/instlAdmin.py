@@ -628,7 +628,7 @@ class InstlAdmin(InstlInstanceBase):
                             raise utils.InstlException(os.path.join(root, item)+" has forbidden characters should not be committed to svn")
 
 
-                self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(item_path, comparator.right, link_dest=False, ignore=".svn")
+                self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(item_path, comparator.right, link_dest=False, ignore=".svn", preserve_dest_files=False)
             else:
                 raise utils.InstlException(item_path+" not a file, dir or symlink, an abomination!")
             self.batch_accum += self.platform_helper.progress(item_path)
@@ -701,7 +701,7 @@ class InstlAdmin(InstlInstanceBase):
             pass
         return retVal, already_tarred
 
-    def do_wtar(self):
+    def do_wtar_staging_folder(self):
         self.batch_accum.set_current_section('admin')
         self.prepare_conditions_for_wtar()
         self.batch_accum += self.platform_helper.split_func()
@@ -761,38 +761,7 @@ class InstlAdmin(InstlInstanceBase):
                                 self.batch_accum += self.platform_helper.rmfile(delete_file)
                                 self.batch_accum += self.platform_helper.progress("removed file {}".format(delete_file))
 
-                        # Calling ls() to create a manifest tar content.
-                        # Only in case of a folder; No sense otherwise.
-
-                        # TODO: since conditional unwtar requires further research
-                        # thus we don't need the manifest - code below will not run
-                        if False:
-                            manifest_file_is_created = False
-                            if os.path.isdir(item_to_tar_full_path):
-                                # We then tar it as well and delete it from the stage
-                                manifest_file_name = var_stack.ResolveVarToStr("TAR_MANIFEST_FILE_NAME")
-
-                                # CP stands for Checksum, Path
-                                self.batch_accum += self.platform_helper.ls(folder=item_to_tar, format='CP', output_file=manifest_file_name)
-                                manifest_file_is_created = True
-
-                                # now, if item_to_tar is inside a .bundle,
-                                # it would be wise to create another file with the version of it.
-                                # then we can read it in unwtar, compare and if different,
-                                # unwtar the file without further checks
-
-                                # ONLY IF WE ARE INSIDE A .bundle
-                                # plugin_name = ...
-                                #self.batch_accum += self.platform_helper.create_bundle_version_file(item_to_tar, plugin_name)
-
-                        # tar with or without the manifest
-                        self.batch_accum += self.platform_helper.tar(item_to_tar)
-
-                        # delete the manifest file in case one was created
-                        # TODO: further conditional unwtar is needed. code below will not run for now
-                        if False:
-                            if manifest_file_is_created:
-                                self.batch_accum += self.platform_helper.rmfile(os.path.join(item_to_tar, manifest_file_name))
+                        self.batch_accum += self.platform_helper.tar_with_instl(item_to_tar)
 
                         self.batch_accum += self.platform_helper.progress("tar file {}".format(item_to_tar))
                         self.batch_accum += self.platform_helper.split(item_to_tar + ".wtar")

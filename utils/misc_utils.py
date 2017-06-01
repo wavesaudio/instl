@@ -17,11 +17,12 @@ import datetime
 from pathlib import PurePath
 import fnmatch
 import pathlib
-
+from timeit  import default_timer
+from decimal import Decimal
 import rsa
 from functools import reduce
 from itertools import repeat
-
+import tarfile
 
 def Is64Windows():
     return 'PROGRAMFILES(X86)' in os.environ
@@ -102,6 +103,7 @@ class open_for_read_file_or_url(object):
         self.custom_headers = None
         self.encoding = encoding
         self.fd = None
+        self._actual_path = in_file_or_url
         match = self.protocol_header_re.match(in_file_or_url)
         if not match:  # it's a local file
             self.local_file_path = in_file_or_url
@@ -114,10 +116,12 @@ class open_for_read_file_or_url(object):
                     self.local_file_path = os.path.realpath(self.local_file_path)
             else:
                 raise FileNotFoundError("Could not locate local file", self.local_file_path)
+            self._actual_path = self.local_file_path
         else:
             self.url = in_file_or_url
             if translate_url_callback is not None:
                 self.url, self.custom_headers = translate_url_callback(self.url)
+            self._actual_path = self.url
 
     def __enter__(self):
         try:
@@ -137,10 +141,15 @@ class open_for_read_file_or_url(object):
             raise
         if "name" not in dir(self.fd) and "url" in dir(self.fd):
             self.fd.name = self.fd.url # so we can get the url with the same attribute as file object
-        return self.fd
+        return self
 
     def __exit__(self, unused_type, unused_value, unused_traceback):
         self.fd.close()
+
+    @property
+    def actual_path(self):
+        """ return the path or url after all translations and search paths searches"""
+        return self._actual_path
 
 
 def read_from_file_or_url(in_url, translate_url_callback=None, public_key=None, textual_sig=None, expected_checksum=None, encoding='utf-8'):
@@ -148,8 +157,8 @@ def read_from_file_or_url(in_url, translate_url_callback=None, public_key=None, 
         If test against either sig or checksum fails - raise IOError.
         Return: file contents.
     """
-    with open_for_read_file_or_url(in_url, translate_url_callback, encoding=encoding) as rfd:
-        contents_buffer = rfd.read()
+    with open_for_read_file_or_url(in_url, translate_url_callback, encoding=encoding) as open_file:
+        contents_buffer = open_file.fd.read()
         if encoding is not None: # when reading from url we're not sure what the encoding is
             contents_buffer = unicodify(contents_buffer, encoding=encoding)
         # check sig or checksum only if they were given
@@ -507,14 +516,27 @@ def check_file_signature_or_checksum(file_path, public_key=None, textual_sig=Non
 
 
 def check_file_checksum(file_path, expected_checksum):
-    with open(file_path, "rb") as rfd:
-        retVal = check_buffer_checksum(rfd.read(), expected_checksum)
+    retVal = False  # if file does not exist return False
+    try:
+        with open(file_path, "rb") as rfd:
+            retVal = check_buffer_checksum(rfd.read(), expected_checksum)
+    except:
+        pass
     return retVal
 
 
-def get_file_checksum(file_path):
-    with open(file_path, "rb") as rfd:
-        retVal = get_buffer_checksum(rfd.read())
+def get_file_checksum(file_path, follow_symlinks=True):
+    """ return the sha1 checksum of the contents of a file.
+        If file_path is a symbolic link and follow_symlinks is True
+            the file pointed by the symlink is checksumed.
+        If file_path is a symbolic link and follow_symlinks is False
+            the contents of the symlink is checksumed - by calling os.readlink.
+    """
+    if os.path.islink(file_path) and not follow_symlinks:
+        retVal = get_buffer_checksum(os.readlink(file_path).encode())
+    else:
+        with open(file_path, "rb") as rfd:
+            retVal = get_buffer_checksum(rfd.read())
     return retVal
 
 
@@ -562,6 +584,7 @@ guid_re = re.compile("""
                 -[a-f0-9]{12}
                 $
                 """, re.VERBOSE)
+
 
 def separate_guids_from_iids(items_list):
     reVal_non_guids = list()
@@ -778,249 +801,25 @@ def unix_permissions_to_str(the_mod):
     return retVal
 
 
-def unix_item_ls(the_path, ls_format):
-    import grp
-    import pwd
-
-    the_parts = list()
-    the_stats = os.lstat(the_path)
-
-    for format_col in ls_format:
-        if format_col == 'I':
-            the_parts.append(the_stats[stat.ST_INO])  # inode number
-        elif format_col == 'R':
-            the_parts.append(unix_permissions_to_str(the_stats.st_mode)) # permissions
-        elif format_col == 'L':
-            the_parts.append(the_stats[stat.ST_NLINK])  # num links
-        elif format_col == 'U':
-            try:
-                the_parts.append(pwd.getpwuid(the_stats[stat.ST_UID])[0])  # user
-            except KeyError:
-                the_parts.append(str(the_stats[stat.ST_UID])[0]) # unknown user name, get the number
-            except Exception:
-                the_parts.append("no_uid")
-        elif format_col == 'G':
-            try:
-                the_parts.append(grp.getgrgid(the_stats[stat.ST_GID])[0])  # group
-            except KeyError:
-                the_parts.append(str(the_stats[stat.ST_GID])[0]) # unknown group name, get the number
-            except Exception:
-                the_parts.append("no_gid")
-        elif format_col == 'S':
-            the_parts.append(the_stats[stat.ST_SIZE])  # size in bytes
-        elif format_col == 'T':
-            the_parts.append(time.strftime("%Y/%m/%d-%H:%M:%S", time.gmtime((the_stats[stat.ST_MTIME]))))  # modification time
-        elif format_col == 'C':
-            if not (stat.S_ISLNK(the_stats.st_mode) or stat.S_ISDIR(the_stats.st_mode)):
-                the_parts.append(get_file_checksum(the_path))
-            else:
-                the_parts.append("")
-        elif format_col == 'P':
-            path_to_print = the_path
-
-            # E will bring us Extra data (path postfix) but we want to know if it's DIR in any case
-            if stat.S_ISDIR(the_stats.st_mode):
-                path_to_print += '/'
-
-            if 'E' in ls_format:
-                if stat.S_ISLNK(the_stats.st_mode):
-                    path_to_print += '@'
-                elif not stat.S_ISDIR(the_stats.st_mode) and (the_stats.st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)):
-                    path_to_print += '*'
-                elif stat.S_ISSOCK(the_stats.st_mode):
-                    path_to_print += '='
-                elif stat.S_ISFIFO(the_stats.st_mode):
-                    path_to_print += '|'
-
-            the_parts.append(path_to_print)
-
-    return the_parts
-
-
-def unix_folder_ls(the_path, ls_format='*'):
-    # ls_format tells us how to ls_format a listing line. '*' is everything we know: Inode, peRmissions, num Links, User, Group, Size, Time, Checksum, Path, Extra info
-    if ls_format == '*':
-        ls_format = 'IRLUGSTCPE' # order does matters!
-
-    listing_lines = list()
-    for root_path, dirs, files in os.walk(the_path, followlinks=False):
-        dirs = sorted(dirs, key=lambda s: s.lower())
-        listing_lines.append(unix_item_ls(root_path, ls_format=ls_format))
-        files_to_list = sorted(files + [slink for slink in dirs if os.path.islink(os.path.join(root_path, slink))], key=lambda s: s.lower())
-        for file_to_list in files_to_list:
-            full_path = os.path.join(root_path, file_to_list)
-            listing_lines.append(unix_item_ls(full_path, ls_format=ls_format))
-
-            # W (list content of .Wtar files) is a special case and must be specifically requested
-            if 'W' in ls_format:
-                listing_lines.extend(produce_tar_list(tar_file=full_path, ls_format=ls_format))
-
-    return listing_lines
-
-
-def produce_tar_list(tar_file, ls_format):
-    tar_list = list()
-    if tar_file.endswith(".wtar.aa") or tar_file.endswith(".wtar"):  # only wtar
-        if os.path.isfile(tar_file):
-            from utils.multi_file import MultiFileReader
-            import tarfile
-
-            what_to_work_on = None
-            if tar_file.endswith(".wtar.aa"):
-                what_to_work_on = find_split_files(tar_file)
-            elif tar_file.endswith(".wtar"):
-                what_to_work_on = [tar_file]
-
-            try:
-                tar_list.append('# Start of .wtar content')
-                with MultiFileReader("br", what_to_work_on) as fd:
-                    with tarfile.open(fileobj=fd) as tar:
-                        for member in tar:
-                            the_parts = list()
-                            for format_col in ls_format:
-                                if format_col == 'W':
-                                    continue # since W was the trigger to all that
-                                elif format_col == 'R':
-                                    the_parts.append(member.mode)
-                                elif format_col == 'U':
-                                    the_parts.append("--".join([member.uid, member.uname]))
-                                elif format_col == 'G':
-                                    the_parts.append("--".join([member.gid, member.gname]))
-                                elif format_col == 'S':
-                                    the_parts.append(member.size)
-                                elif format_col == 'T':
-                                    the_parts.append(member.mtime)
-                                elif format_col == 'P':
-                                    the_parts.append(member.name)
-                                elif format_col == 'D':
-                                    the_parts.append("<DIR>" if member.isdir() else "")
-                                else:
-                                    # coming here means that we got a char we can't do anything with.
-                                    # still, we must allocate a place it
-                                    the_parts.append("")
-
-                            tar_list.append(the_parts)
-                tar_list.append('# End of .wtar content')
-
-            except OSError as e:
-                print("Invalid stream on split file with {}".format(what_to_work_on[0]))
-                raise e
-
-            except tarfile.TarError:
-                print("tarfile error while opening file", os.path.abspath(what_to_work_on[0]))
-                raise
-    return tar_list
-
-
-# noinspection PyUnresolvedReferences
-def win_item_ls(the_path, ls_format):
-    import win32security
-    the_parts = list()
-    the_stats = os.lstat(the_path)
-
-    for format_col in ls_format:
-        if format_col == 'T':
-            the_parts.append(time.strftime("%Y/%m/%d %H:%M:%S", time.gmtime((the_stats[stat.ST_MTIME]))))  # modification time
-        elif format_col == 'D':
-            if stat.S_ISDIR(the_stats.st_mode):
-                the_parts.append("<DIR>")
-            else:
-                the_parts.append("")
-        elif format_col == 'S':
-            the_parts.append(the_stats[stat.ST_SIZE])  # size in bytes
-        elif format_col == 'U':
-            sd = win32security.GetFileSecurity (the_path, win32security.OWNER_SECURITY_INFORMATION)
-            owner_sid = sd.GetSecurityDescriptorOwner()
-            name, domain, __type = win32security.LookupAccountSid (None, owner_sid)
-            the_parts.append(domain+"\\"+name)  # user
-        elif format_col == 'G':
-            sd = win32security.GetFileSecurity (the_path, win32security.GROUP_SECURITY_INFORMATION)
-            owner_sid = sd.GetSecurityDescriptorGroup()
-            name, domain, __type = win32security.LookupAccountSid (None, owner_sid)
-            the_parts.append(domain+"\\"+name)  # group
-        elif format_col == 'C':
-            if not (stat.S_ISLNK(the_stats.st_mode) or stat.S_ISDIR(the_stats.st_mode)):
-                the_parts.append(get_file_checksum(the_path))
-            else:
-                the_parts.append("")
-        elif format_col == 'P':
-            path_to_print = the_path
-            the_parts.append(path_to_print)
-
-    return the_parts
-
-
-def win_folder_ls(the_path, ls_format='*'):
-    # ls_format tells us how to ls_format a line of listing. '*' is everything: Time, is_Dir, Size, User, Group, Checksum, Path
-    if ls_format == '*':
-        ls_format = 'TDSUGCP' # order does matters!
-
-    listing_lines = list()
-    for root_path, dirs, files in os.walk(the_path, followlinks=False):
-        dirs = sorted(dirs, key=lambda s: s.lower())
-        listing_lines.append(win_item_ls(root_path, ls_format=ls_format))
-        files_to_list = sorted(files + [slink for slink in dirs if os.path.islink(os.path.join(root_path, slink))], key=lambda s: s.lower())
-        for file_to_list in files_to_list:
-            full_path = os.path.join(root_path, file_to_list)
-            listing_lines.append(win_item_ls(full_path, ls_format=ls_format))
-
-            # W (list content of .Wtar files) is a special case and must be specifically requested
-            if 'W' in ls_format:
-                listing_lines.extend(produce_tar_list(tar_file=full_path, ls_format=ls_format))
-
-    return listing_lines
-
-
 def find_split_files(first_file):
     try:
+        retVal = list()
         norm_first_file = os.path.normpath(first_file)  # remove trailing . if any
-        base_folder, base_name = os.path.split(norm_first_file)
-        if not base_folder: base_folder = "."
-        filter_pattern = base_name[:-2] + "??"  # with ?? instead of aa
-        matching_files = sorted(fnmatch.filter((f.name for f in os.scandir(base_folder)), filter_pattern))
-        files_to_read = []
-        for a_file in matching_files:
-            files_to_read.append(os.path.join(base_folder, a_file))
 
-        return files_to_read
+        if norm_first_file.endswith(".aa"):
+            base_folder, base_name = os.path.split(norm_first_file)
+            if not base_folder: base_folder = "."
+            filter_pattern = base_name[:-2] + "??"  # with ?? instead of aa
+            matching_files = sorted(fnmatch.filter((f.name for f in os.scandir(base_folder)), filter_pattern))
+            for a_file in matching_files:
+                retVal.append(os.path.join(base_folder, a_file))
+        else:
+            retVal.append(norm_first_file)
+        return retVal
 
     except Exception as es:
         print("exception while find_split_files", first_file)
         raise es
-
-
-def folder_listing(*folders_to_list, ls_format='*'):
-    os_names = get_current_os_names()
-    listing_lines = list()
-    folders_to_list = sorted(folders_to_list, key=lambda file: PurePath(file).parts)
-    if "Mac" in os_names:
-        for folder_path in folders_to_list:
-            listing_lines.append(" ".join(("#", datetime.datetime.today().isoformat(), "listing of", folder_path)))
-            if os.path.isdir(folder_path):
-                listing_lines.extend(unix_folder_ls(folder_path, ls_format=ls_format))
-            else:
-                listing_lines.append(" ".join(("#", "folder was not found", folder_path)))
-
-    elif "Win" in os_names:
-        for folder_path in folders_to_list:
-            listing_lines.append(" ".join(("#", datetime.datetime.today().isoformat(), "listing of", folder_path)))
-            if os.path.isdir(folder_path):
-                listing_lines.extend(win_folder_ls(folder_path, ls_format=ls_format))
-            else:
-                listing_lines.append(" ".join(("#", "folder was not found:", folder_path)))
-    # when calculating widths - avoid comment lines
-    width_list, align_list = max_widths([line for line in listing_lines if not str(line[0]).startswith('#')])
-    col_formats = gen_col_format(width_list, align_list)
-    formatted_lines_lines = list()
-    for ls_line in listing_lines:
-        # when printing - avoid formatting of comment lines
-        if str(ls_line[0]).startswith('#'):
-            formatted_lines_lines.append(ls_line)
-        else:
-            formatted_lines_lines.append(col_formats[len(ls_line)].format(*ls_line))
-    formatted_lines_lines.append("")  # line break at the end so not to be joined with the next line when printing to Terminal
-    retVal = "\n".join(formatted_lines_lines)
-    return retVal
 
 
 def unicodify(in_something, encoding='utf-8'):
@@ -1094,3 +893,193 @@ def find_mount_point(path):
     while not os.path.ismount(str(mount_p)):
         mount_p = mount_p.parent
     return str(mount_p)
+
+
+class Timer_CM(object):
+    def __init__(self, name, print_results=True):
+        self.elapsed = Decimal()
+        self._name = name
+        self._print_results = print_results
+        self._start_time = None
+        self._children = {}
+    def __enter__(self):
+        self.start()
+        return self
+    def __exit__(self, *_):
+        self.stop()
+        if self._print_results:
+            self.print_results()
+    def child(self, name):
+        try:
+            return self._children[name]
+        except KeyError:
+            result = Timer_CM(name, print_results=False)
+            self._children[name] = result
+            return result
+    def start(self):
+        self._start_time = self._get_time()
+    def stop(self):
+        self.elapsed += self._get_time() - self._start_time
+    def print_results(self):
+        print(self._format_results())
+    def _format_results(self, indent='  '):
+        result = '%s: %.3fs' % (self._name, self.elapsed)
+        children = self._children.values()
+        for child in sorted(children, key=lambda c: c.elapsed, reverse=True):
+            child_lines = child._format_results(indent).split('\n')
+            child_percent = child.elapsed / self.elapsed * 100
+            child_lines[0] += ' (%d%%)' % child_percent
+            for line in child_lines:
+                result += '\n' + indent + line
+        return result
+    def _get_time(self):
+        return Decimal(default_timer())
+
+
+wtar_file_re = re.compile("""
+    (?P<base_name>.+?)
+    (?P<wtar_extension>\.wtar)
+    (?P<split_numerator>\.[a-z]{2})?$""",
+                          re.VERBOSE)
+
+
+def is_wtar_file(in_possible_wtar):
+    match = wtar_file_re.match(in_possible_wtar)
+    retVal =  match is not None
+    return retVal
+
+
+def is_first_wtar_file(in_possible_wtar):
+    retVal = False
+    match = wtar_file_re.match(in_possible_wtar)
+    if match:
+        split_numerator = match.group('split_numerator')
+        retVal = split_numerator is None or split_numerator == ".aa"
+    return retVal
+
+
+# Given a name remove the trailing wtar or wtar.?? if any
+# E.g. "a" => "a", "a.wtar" => "a", "a.wtar.aa" => "a"
+def original_name_from_wtar_name(wtar_name):
+    retVal = wtar_name
+    match = wtar_file_re.match(wtar_name)
+    if match:
+        retVal = match.group('base_name')
+    return retVal
+
+
+# Given a list of file/folder names, replace those which are wtarred with the original file name.
+# E.g. ['a', 'b.wtar', 'c.wtar.aa', 'c.wtar.ab'] => ['a', 'b', 'c']
+# We must work on the whole list since several wtar file names might merge to a single original file name.
+def original_names_from_wtars_names(original_list):
+    replaced_list = unique_list()
+    replaced_list.extend([original_name_from_wtar_name(file_name) for file_name in original_list])
+    return replaced_list
+
+def scandir_walk(top_path, report_files=True, report_dirs=True, follow_symlinks=False):
+    """ Walk a folder hierarchy using the new and fast os.scandir, yielding 
+    
+    :param top_path: where to start the walk, top_path itself will NOT be yielded
+    :param report_files: If True: files will be yielded
+    :param report_dirs: If True: folders will be yielded
+    :param follow_symlinks: if False symlinks will be reported as files
+    :return: this function yields so not return
+    """
+    for item in os.scandir(top_path):
+        if not follow_symlinks and item.is_symlink():
+            if report_files:
+                yield item
+        elif item.is_file(follow_symlinks=follow_symlinks):
+            if report_files:
+                yield item
+        elif item.is_dir(follow_symlinks=follow_symlinks):
+            if report_dirs:
+                yield item
+            yield from scandir_walk(item.path, report_files=report_files, report_dirs=report_dirs, follow_symlinks=follow_symlinks)
+
+
+def get_recursive_checksums(some_path, ignore=None):
+    """ If some_path is a file return a dict mapping the file's path to it's sha1 checksum
+        and mapping "total_checksum" to the files checksum, e.g.
+        assuming /a/b/c.txt is a file
+            get_recursive_checksums("/a/b/c.txt")
+        will return: {c.txt: 1bc...aed, total_checksum: ed4...f4e}
+        
+        If some_path is a folder recursively walk the folder and return a dict mapping each file to it's sha1 checksum.
+        and mapping "total_checksum" to a checksum of all the files checksums. 
+        
+        total_checksum is calculated by concatenating two lists:
+         - list of all the individual file checksums
+         - list of all individual paths paths
+        The combined list is sorted and all members are concatenated into one string.
+        The sha1 checksum of that string is the total_checksum
+        Sorting is done to ensure same total_checksum is returned regardless the order
+        in which os.scandir returned the files, but that a different checksum will be
+        returned if a file changed it's name without changing contents.
+        Note:
+            - If you have a file called total_checksum your'e f**d.
+            - Symlinks are not followed and are checksum as regular files (by calling readlink).
+    """
+    if ignore is None: ignore = ()
+    retVal = dict()
+    some_path_dir, some_path_leaf = os.path.split(some_path)
+    if some_path_leaf not in ignore:
+        if os.path.isfile(some_path):
+                retVal[some_path_leaf] = get_file_checksum(some_path, follow_symlinks=False)
+        elif os.path.isdir(some_path):
+            for item in scandir_walk(some_path, report_dirs=False):
+                item_path_dir, item_path_leaf = os.path.split(item.path)
+                if item_path_leaf not in ignore:
+                    the_checksum = get_file_checksum(item.path, follow_symlinks=False)
+                    normalized_path = pathlib.PurePath(item.path).as_posix()
+                    retVal[normalized_path] = the_checksum
+
+        checksum_list = sorted(list(retVal.keys()) + list(retVal.values()))
+        string_of_checksums = "".join(checksum_list)
+        retVal['total_checksum'] = get_buffer_checksum(string_of_checksums.encode())
+    return retVal
+
+from .multi_file import MultiFileReader
+
+
+def unwtar_a_file(wtar_file_path, destination_folder=None, no_artifacts=False, ignore=None):
+    try:
+        wtar_file_paths = find_split_files(wtar_file_path)
+
+        if destination_folder is None:
+            destination_folder, _ = os.path.split(wtar_file_paths[0])
+        print("unwtar", wtar_file_path, " to ", destination_folder)
+        if ignore is None: ignore = ()
+
+        first_wtar_file_dir, first_wtar_file_name = os.path.split(wtar_file_paths[0])
+        destination_leaf_name = original_name_from_wtar_name(first_wtar_file_name)
+        destination_path = os.path.join(destination_folder, destination_leaf_name)
+
+        disk_total_checksum = "disk_total_checksum_was_not_found"
+        if os.path.exists(destination_path):
+            with ChangeDirIfExists(destination_folder):
+                disk_total_checksum = get_recursive_checksums(destination_leaf_name, ignore=ignore).get("total_checksum", "disk_total_checksum_was_not_found")
+
+        do_the_unwtarring = True
+        with MultiFileReader("br", wtar_file_paths) as fd:
+            with tarfile.open(fileobj=fd) as tar:
+                tar_total_checksum = tar.pax_headers.get("total_checksum", "tar_total_checksum_was_not_found")
+                #print("    tar_total_checksum", tar_total_checksum)
+                if disk_total_checksum == tar_total_checksum:
+                    do_the_unwtarring = False
+                    print("unwtar_a_file(", wtar_file_paths[0], ") skipping unwtarring because item exists and is identical to archive")
+                if do_the_unwtarring:
+                    safe_remove_file_system_object(destination_path)
+                    tar.extractall(destination_folder)
+
+        if no_artifacts:
+            for wtar_file in wtar_file_paths:
+                os.remove(wtar_file)
+
+    except OSError as e:
+        print("Invalid stream on split file with {}".format(wtar_file_paths[0]))
+        raise e
+
+    except tarfile.TarError:
+        print("tarfile error while opening file", os.path.abspath(wtar_file_paths[0]))
+        raise

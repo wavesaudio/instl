@@ -147,8 +147,6 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             "config_file": ("__CONFIG_FILE__", None),
             "sh1_checksum": ("__SHA1_CHECKSUM__", None),
             "rsa_signature": ("__RSA_SIGNATURE__", None),
-            "start_progress": ("__START_DYNAMIC_PROGRESS__", "0"),
-            "total_progress": ("__TOTAL_DYNAMIC_PROGRESS__", "0"),
             "just_with_number": ("__JUST_WITH_NUMBER__", "0"),
             "limit_command_to": ("__LIMIT_COMMAND_TO__", None),
             "shortcut_path": ("__SHORTCUT_PATH__", None),
@@ -169,7 +167,9 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         non_const_attrib_to_var = {
             "target_repo_rev": "TARGET_REPO_REV",
             "base_repo_rev": "BASE_REPO_REV",
-            "ls_format": "LS_FORMAT"
+            "ls_format": "LS_FORMAT",
+            "start_progress": "__START_DYNAMIC_PROGRESS__",
+            "total_progress": "__TOTAL_DYNAMIC_PROGRESS__",
         }
 
         for attrib, var in non_const_attrib_to_var.items():
@@ -223,6 +223,10 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 name, value = definition.split("=")
                 var_stack.set_var(name, "from command line define option").append(value)
 
+        if "__MAIN_OUT_FILE__" not in var_stack and "__MAIN_INPUT_FILE__" in var_stack:
+            var_stack.add_const_config_variable("__MAIN_OUT_FILE__", "from write_batch_file",
+                                                "$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)")
+
 #        if not self.check_version_compatibility():
 #            raise ValueError(var_stack.resolve("Minimal instl version $(INSTL_MINIMAL_VERSION) > current version $(__INSTL_VERSION__); ")+var_stack.get_configVar_obj("INSTL_MINIMAL_VERSION").description)
 
@@ -263,8 +267,8 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         if "PUBLIC_KEY" not in var_stack:
             if "PUBLIC_KEY_FILE" in var_stack:
                 public_key_file = var_stack.ResolveVarToStr("PUBLIC_KEY_FILE")
-                with utils.open_for_read_file_or_url(public_key_file, connectionBase.translate_url, self.path_searcher) as file_fd:
-                    public_key_text = file_fd.read()
+                with utils.open_for_read_file_or_url(public_key_file, connectionBase.translate_url, self.path_searcher) as open_file:
+                    public_key_text = open_file.fd.read()
                     var_stack.set_var("PUBLIC_KEY", "from " + public_key_file).append(public_key_text)
             else:
                 raise ValueError("No public key, variables PUBLIC_KEY & PUBLIC_KEY_FILE are not defined")
@@ -483,22 +487,6 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             required_ver = list(map(int, var_stack.ResolveVarToList("INSTL_MINIMAL_VERSION")))
             retVal = inst_ver >= required_ver
         return retVal
-
-    wtar_file_re = re.compile("""(?P<base_name>.+?)(\.wtar(\.[a-z]{2})?)?$""")
-
-    # Given a name remove the trailing wtar or wtar.?? if any
-    # E.g. "a" => "a", "a.wtar" => "a", "a.wtar.aa" => "a"
-    def original_name_from_wtar_name(self, wtar_name):
-        original_name = self.wtar_file_re.match(wtar_name).group('base_name')
-        return original_name
-
-    # Given a list of file/folder names, replace those which are wtarred with the original file name.
-    # E.g. ['a', 'b.wtar', 'c.wtar.aa', 'c.wtar.ab'] => ['a', 'b', 'c']
-    # We must work on the whole list since several wtar file names might merge to a single original file name.
-    def original_names_from_wtars_names(self, original_list):
-        replaced_list = utils.unique_list()
-        replaced_list.extend([self.original_name_from_wtar_name(file_name) for file_name in original_list])
-        return replaced_list
 
     def needs(self, iid, out_list):
         """ return iids of all items that a specific iid depends on"""

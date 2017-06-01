@@ -25,6 +25,8 @@ class YamlReader(object):
         self.path_searcher = None
         self.url_translator = None
         self.specific_doc_readers = dict()
+        self.file_read_stack = list()
+        self.exception_printed = False
 
     def init_specific_doc_readers(self): # this function must be overridden
         self.specific_doc_readers["__no_tag__"] = self.do_nothing_node_reader
@@ -44,22 +46,32 @@ class YamlReader(object):
 
     def read_yaml_file(self, file_path, *args, **kwargs):
         try:
-            with utils.open_for_read_file_or_url(file_path, self.url_translator, self.path_searcher) as file_fd:
-                buffer = file_fd.read()
+            self.file_read_stack.append(file_path)
+            with utils.open_for_read_file_or_url(file_path, self.url_translator, self.path_searcher) as open_file:
+                self.file_read_stack[-1] = open_file.actual_path
+                buffer = open_file.fd.read()
                 buffer = utils.unicodify(buffer) # make sure text is unicode
                 buffer = io.StringIO(buffer)     # turn text to a stream
-                buffer.name = file_path          # this will help identify the file for debugging and messages
-                kwargs['path-to-file'] = file_path
+                buffer.name = open_file.actual_path          # this will help identify the file for debugging and messages
+                kwargs['path-to-file'] = open_file.actual_path
                 self.read_yaml_from_stream(buffer, *args, **kwargs)
+            self.file_read_stack.pop()
         except (FileNotFoundError, urllib.error.URLError) as ex:
             ignore = kwargs.get('ignore_if_not_exist', False)
             if ignore:
-                print("'ignore_if_not_exist' specified, ignoring FileNotFoundError for", file_path)
+                print("'ignore_if_not_exist' specified, ignoring FileNotFoundError for", self.file_read_stack[-1])
+                self.file_read_stack.pop()
             else:
-                print("Exception reading file:", file_path, ex)
+                if not self.exception_printed:  # avoid recursive printing of error message
+                    read_file_history = "\n->\n".join(self.file_read_stack+[file_path])
+                    print("FileNotFoundError/URLError reading file:\n", read_file_history)
+                    self.exception_printed = True
                 raise
         except Exception as ex:
-            print("Exception reading file:", file_path, ex)
+            if not self.exception_printed:      # avoid recursive printing of error message
+                read_file_history = "\n->\n".join(self.file_read_stack)
+                print("Exception reading file:", read_file_history)
+                self.exception_printed = True
             raise
 
     def read_yaml_from_stream(self, the_stream, *args, **kwargs):

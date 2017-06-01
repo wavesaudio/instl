@@ -35,8 +35,8 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         if "PUBLIC_KEY" not in var_stack:
             if "PUBLIC_KEY_FILE" in var_stack:
                 public_key_file = var_stack.ResolveVarToStr("PUBLIC_KEY_FILE")
-                with utils.open_for_read_file_or_url(public_key_file, connectionBase.translate_url, self.instlObj.path_searcher) as file_fd:
-                    public_key_text = file_fd.read()
+                with utils.open_for_read_file_or_url(public_key_file, connectionBase.translate_url, self.instlObj.path_searcher) as open_file:
+                    public_key_text = open_file.fd.read()
                     var_stack.set_var("PUBLIC_KEY", "from " + public_key_file).append(public_key_text)
         self.instlObj.calc_user_cache_dir_var() # this will set USER_CACHE_DIR if it was not explicitly defined
 

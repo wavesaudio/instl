@@ -1,3 +1,27 @@
+????? 1.5.0.0
+
+    user visible changes client:
+    * new command: batch, will read instl commands form a file and execute them. Currently limited to do_something mode of commands.
+y
+
+    programmer visible changes:
+    * utils.folder_listing renamed utils.disk_item_listing and moved to new file ls.py together with all ls helper functions.
+        Added option to list a single file, report partial path instead of full path, and thorough documentation of the format options.
+    * new function utils.get_recursive_checksums returns a dict with checksums for each file and a total checksum
+    * do_wtar implemented based on utils.get_recursive_checksums
+    * do_checksum implemented based on utils.get_recursive_checksums
+    * utils.get_file_checksum now has follow_symlinks parameter and if False will checksum the contents of the symlink by calling readlink.
+    * YamlReader: better tracking of __include__ files to provide accurate error messages
+    * YamlReader.read_yaml_file: exceptions from recursive calls will appear only once
+    * new default variable in InstlMisc.yaml: WTAR_IGNORE_FILES, those files which will be ignored when wtar/unwtar is called
+    * platformHelper_XXX: new parameter preserve_dest_files to copy_dir_to_dir (before the default was not to preserve destination files
+    * new function platformHelper_Base.tar_with_instl will do tar by calling instl command wtar
+    * do_wtar_staging_folder usees new function tar_with_instl
+    * utils.is_first_wtar_file now finds split files - no need to pass it a list
+    * new property utils.open_for_read_file_or_url.actual_path, is the path/url after it has been resolved
+    * utils.find_split_files is more independant and will return a list even when there is ponly one file
+    * class CommandLineOptions and functions prepare_args_parser read_command_line_options moved to new file cmdOptions.pt
+
 18/5/2017 1.4.4.2
 
     user visible changes client:

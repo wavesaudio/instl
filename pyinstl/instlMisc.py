@@ -30,8 +30,9 @@ class InstlMisc(InstlInstanceBase):
         self.commands_that_need_info_map_table = ("check_checksum", "set_exec", "create_folders")
 
     def do_command(self):
-        self.curr_progress = int(var_stack.ResolveVarToStr("__START_DYNAMIC_PROGRESS__"))
-        self.total_progress = int(var_stack.ResolveVarToStr("__TOTAL_DYNAMIC_PROGRESS__")) # if var does not exist default is 0, meaning not to display dynamic progress
+        # if var does not exist default is 0, meaning not to display dynamic progress
+        self.curr_progress = int(var_stack.ResolveVarToStr("__START_DYNAMIC_PROGRESS__", default="0"))
+        self.total_progress = int(var_stack.ResolveVarToStr("__TOTAL_DYNAMIC_PROGRESS__", default="0"))
         self.progress_staccato_period = int(var_stack.ResolveVarToStr("PROGRESS_STACCATO_PERIOD"))
         self.progress_staccato_count = 0
         do_command_func = getattr(self, "do_" + self.fixed_command)
@@ -72,19 +73,98 @@ class InstlMisc(InstlInstanceBase):
                     commands.append(args)
         utils.run_processes_in_parallel(commands)
 
+    def do_wtar(self):
+        """ Create a new wtar archive for a file or folder provided in '--in' command line option
+            
+            If --out is not supplied on the command line the new wtar file will be created
+                next to the input with extension '.wtar'.
+                e.g. the command:
+                    instl wtar --in /a/b/c
+                will create the wtar file at path:
+                    /a/b/c.wtar
+                    
+            If '--out' is supplied and it's an existing file, the new wtar will overwrite
+                this existing file, wtar extension will NOT be added.
+                e.g. assuming /d/e/f.txt is an existing file, the command:
+                    instl wtar --in /a/b/c --out /d/e/f.txt
+                will create the wtar file at path:
+                    /d/e/f.txt
+                    
+            if '--out' is supplied and is and existing folder the wtar file will be created
+                inside this folder with extension '.wtar'.
+                e.g. assuming /g/h/i is an existing folder, the command:
+                    instl wtar --in /a/b/c --out /g/h/i
+                will create the wtar file at path:
+                    /g/h/i/c.wtar
+                    
+            if '--out' is supplied and does not exists, the folder will be created
+                and the wtar file will be created inside the new folder with extension
+                 '.wtar'.
+                e.g. assuming /j/k/l is a non existing folder, the command:
+                    instl wtar --in /a/b/c --out /j/k/l
+                will create the wtar file at path:
+                    /j/k/l/c.wtar
+                    
+            "total_checksum" field is added to the pax_headers. This checksum is a checksum of all individual
+                file checksums as calculated by utils.get_recursive_checksums. See utils.get_recursive_checksums 
+                doc string for details on how checksums are calculated. Individual file checksums are not added
+                to the pax_headers because during unwtarring tarfile code goes over all the pax_headers for each file
+                making the process exponential slow for large archived.
+            
+            Format of the tar is PAX_FORMAT.
+            Compression is bzip2.
+            
+        """
+        what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        if not os.path.exists(what_to_work_on):
+            print(what_to_work_on, "does not exists")
+            return
+
+        what_to_work_on_dir, what_to_work_on_leaf = os.path.split(what_to_work_on)
+
+        where_to_put_wtar = None
+        if "__MAIN_OUT_FILE__" in var_stack:
+            where_to_put_wtar = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
+        else:
+            where_to_put_wtar = what_to_work_on_dir
+            if not where_to_put_wtar:
+                where_to_put_wtar = "."
+
+        if os.path.isfile(where_to_put_wtar):
+            target_wtar_file = where_to_put_wtar
+        else:  # assuming it's a folder
+            os.makedirs(where_to_put_wtar, exist_ok=True)
+            target_wtar_file = os.path.join(where_to_put_wtar, what_to_work_on_leaf+".wtar")
+
+        ignore_files = var_stack.ResolveVarToList("WTAR_IGNORE_FILES", default=list())
+        with utils.ChangeDirIfExists(what_to_work_on_dir):
+            pax_headers = {"total_checksum": utils.get_recursive_checksums(what_to_work_on_leaf, ignore=ignore_files)["total_checksum"]}
+
+            def check_tarinfo(tarinfo):
+                for ig in ignore_files:
+                    if tarinfo.name.endswith(ig):
+                        return None
+                tarinfo.uid = tarinfo.gid = 0
+                tarinfo.uname = tarinfo.gname = "waves"
+                if os.path.isfile(tarinfo.path):
+                    tarinfo.pax_headers = {"checksum": utils.get_file_checksum(tarinfo.path)}
+                return tarinfo
+
+            with tarfile.open(target_wtar_file, "w|bz2", format=tarfile.PAX_FORMAT, pax_headers=pax_headers) as tar:
+                tar.add(what_to_work_on_leaf, filter=check_tarinfo)
+
     def do_unwtar(self):
         self.no_artifacts = "__NO_WTAR_ARTIFACTS__" in var_stack
         what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__", default='.')
+        what_to_work_on_dir, what_to_work_on_leaf = os.path.split(what_to_work_on)
         where_to_unwtar = None
         if "__MAIN_OUT_FILE__" in var_stack:
             where_to_unwtar = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
+        ignore_files = var_stack.ResolveVarToList("WTAR_IGNORE_FILES", default=list())
 
         if os.path.isfile(what_to_work_on):
-            if what_to_work_on.endswith(".wtar.aa"): # this case apparently is no longer relevant
-                what_to_work_on = self.find_split_files(what_to_work_on)
-                self.unwtar_a_file(what_to_work_on, where_to_unwtar)
-            elif what_to_work_on.endswith(".wtar"):
-                self.unwtar_a_file([what_to_work_on], where_to_unwtar)
+            if utils.is_first_wtar_file(what_to_work_on):
+                utils.unwtar_a_file(what_to_work_on, where_to_unwtar, no_artifacts=self.no_artifacts, ignore=ignore_files)
         elif os.path.isdir(what_to_work_on):
             where_to_unwtar_the_file = None
             for root, dirs, files in os.walk(what_to_work_on, followlinks=False):
@@ -92,6 +172,7 @@ class InstlMisc(InstlInstanceBase):
                 # to the top level of the sync folder.
                 if "bookkeeping" in dirs:
                     dirs[:] = []
+                    print("skipping", root, "because bookkeeping folder was found")
                     continue
 
                 tail_folder = root[len(what_to_work_on):].strip("\\/")
@@ -99,52 +180,12 @@ class InstlMisc(InstlInstanceBase):
                     where_to_unwtar_the_file = os.path.join(where_to_unwtar, tail_folder)
                 for a_file in files:
                     a_file_path = os.path.join(root, a_file)
-                    if a_file_path.endswith(".wtar.aa"):
-                        split_files = self.find_split_files(a_file_path)
-                        self.unwtar_a_file(split_files, where_to_unwtar_the_file)
-                    elif a_file_path.endswith(".wtar"):
-                        self.unwtar_a_file([a_file_path], where_to_unwtar_the_file)
+                    if utils.is_first_wtar_file(a_file_path):
+                        utils.unwtar_a_file(a_file_path, where_to_unwtar_the_file, no_artifacts=self.no_artifacts, ignore=ignore_files)
 
         else:
             raise FileNotFoundError(what_to_work_on)
-
-    def unwtar_a_file(self, wtar_file_paths, destination_folder=None):
-        try:
-            if destination_folder is None:
-                destination_folder, _ = os.path.split(wtar_file_paths[0])
-            with MultiFileReader("br", wtar_file_paths) as fd:
-                with tarfile.open(fileobj=fd) as tar:
-                    tar.extractall(destination_folder)
-
-            if self.no_artifacts:
-                for wtar_file in wtar_file_paths:
-                    os.remove(wtar_file)
-            # self.dynamic_progress("Expanding {wtar_file_paths}".format(**locals()))
-
-        except OSError as e:
-            print("Invalid stream on split file with {}".format(wtar_file_paths[0]))
-            raise e
-
-        except tarfile.TarError:
-            print("tarfile error while opening file", os.path.abspath(wtar_file_paths[0]))
-            raise
-
-    def find_split_files(self, first_file):
-        try:
-            norm_first_file = os.path.normpath(first_file) # remove trialing . if any
-            base_folder, base_name = os.path.split(norm_first_file)
-            if not base_folder: base_folder = "."
-            filter_pattern = base_name[:-2] + "??"  # with ?? instead of aa
-            matching_files = sorted(fnmatch.filter((f.name for f in os.scandir(base_folder)), filter_pattern))
-            files_to_read = []
-            for a_file in matching_files:
-                files_to_read.append(os.path.join(base_folder, a_file))
-
-            return files_to_read
-
-        except Exception as es:
-            print("exception while find_split_files", first_file)
-            raise es
+        self.dynamic_progress("Expand {}".format(utils.original_name_from_wtar_name(what_to_work_on)))
 
     def do_check_checksum(self):
         self.progress_staccato_command = True
@@ -293,7 +334,7 @@ class InstlMisc(InstlInstanceBase):
             folders_to_list.append(main_folder_to_list)
 
         ls_format = var_stack.ResolveVarToStr("LS_FORMAT", default='*')
-        the_listing = utils.folder_listing(*folders_to_list, ls_format=ls_format)
+        the_listing = utils.disk_item_listing(*folders_to_list, ls_format=ls_format)
 
         try:
             with utils.write_to_file_or_stdout(out_file) as wfd:
@@ -309,15 +350,16 @@ class InstlMisc(InstlInstanceBase):
 
     def do_checksum(self):
         path_to_checksum = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
-        if os.path.isfile(path_to_checksum):
-            the_checksum = utils.get_file_checksum(path_to_checksum)
-            print(": ".join((path_to_checksum, the_checksum)))
-        elif os.path.isdir(path_to_checksum):
-            for root, dirs, files in os.walk(path_to_checksum):
-                for a_file in files:
-                    a_file_path = os.path.join(root, a_file)
-                    the_checksum = utils.get_file_checksum(a_file_path)
-                    print(": ".join((a_file_path, the_checksum)))
+        ignore_files = var_stack.ResolveVarToList("WTAR_IGNORE_FILES", default=list())
+        checksums_dict = utils.get_recursive_checksums(path_to_checksum, ignore=ignore_files)
+        total_checksum = checksums_dict.pop('total_checksum', "Unknown total checksum")
+        path_and_checksum_list = [(path, checksum) for path, checksum in sorted(checksums_dict.items())]
+        width_list, align_list = utils.max_widths(path_and_checksum_list)
+        col_formats = utils.gen_col_format(width_list, align_list)
+        for p_and_c in path_and_checksum_list:
+            print(col_formats[len(p_and_c)].format(*p_and_c))
+        print()
+        print(col_formats[len(p_and_c)].format("total checksum", total_checksum))
 
     def do_resolve(self):
         var_stack.set_var("PRINT_COMMAND_TIME").append("no") # do not print time report
@@ -334,124 +376,6 @@ class InstlMisc(InstlInstanceBase):
         resolved_text = var_stack.ResolveStrToStr(text_to_resolve)
         with open(output_file, "w", errors='namereplace') as wfd:
             wfd.write(resolved_text)
-
-    def unconditional_unwtar_guy(self, my_tarfile, dest, manifest_file=None):
-        my_tarfile.extractall(dest)
-        if manifest_file:
-            if os.path.isfile(manifest_file):
-                # oops, we have extracted the manifest as well
-                os.remove(manifest_file)
-
-    def unwtar_a_file_guy(self, wtar_file_paths, destination_folder=None):
-        manifest_file_name = var_stack.ResolveVarToStr("TAR_MANIFEST_FILE_NAME")
-
-        if destination_folder is None:
-            destination_folder, full_file_name_to_unwtar = os.path.split(wtar_file_paths[0])
-        else:
-            stam, full_file_name_to_unwtar = os.path.split(wtar_file_paths[0])
-
-        # we need the root folder name within the .wtar file to map the exact location of the manifest
-        fname = full_file_name_to_unwtar # but...
-        if full_file_name_to_unwtar.endswith(".wtar.aa"):
-            fname = full_file_name_to_unwtar[:-8]
-        elif full_file_name_to_unwtar.endswith(".wtar"):
-            fname = full_file_name_to_unwtar[:-5]
-
-        local_manifest_file = os.path.join(destination_folder, fname, manifest_file_name)
-
-        try:
-            with MultiFileReader("br", wtar_file_paths) as fd:
-                with tarfile.open(fileobj=fd) as tar:
-                    # TODO: since conditional unwtar requires further research, code below is forced
-                    if True:
-                        self.unconditional_unwtar(tar, destination_folder)
-                    else:
-                        if not os.path.isdir(os.path.join(destination_folder, fname)) or not os.listdir(os.path.join(destination_folder, fname)):
-                            # dest folder is empty. there is nothing to compare to so unwtar everything
-                            self.unconditional_unwtar(tar, destination_folder, local_manifest_file)
-                        else:
-                            # let's try to read the manifest
-                            try:
-                                # per doc, extractall() is safer than extract().
-                                # nevertheless, since we just read the manifest from memory, we don't care.
-                                # we will care later with actual extract.
-                                manifest_raw_content = tar.extractfile(os.path.join(fname, manifest_file_name))
-
-                                # yeah, a manifest!
-                                tar_content_per_manifest = {}
-                                for line in manifest_raw_content.readlines():
-                                    line = line.decode('ascii').strip() # we know its ascii
-
-                                    # remarks are not needed nor are folders because we check
-                                    # against existing folder and not against the manifest
-                                    if line.startswith('#') or line.endswith(os.sep):
-                                        continue
-
-                                    # 1. that's what we want to have: Checksum, Path
-                                    # we don't need size because we have member.size, brought to us for free
-                                    # 2. this regex doesn't handle folders! (folders don't have checksum)
-                                    # but since we have excluded them up stairs, it's ok
-                                    m = re.search('(.*) ({}.*)'.format(fname), line)
-                                    if m:
-                                        tar_content_per_manifest[m.group(2)] = {
-                                            'checksum': m.group(1)  # but we need checksum
-                                        }
-
-                                # this will hold members that are different and thus need to be extracted
-                                member_collection = []
-                                for member in tar:
-                                    existing_file_full_path = os.path.join(destination_folder, member.name)
-                                    if member.name == os.path.join(fname, manifest_file_name):
-                                        # we don't want to extract the manifest again
-                                        continue
-                                    elif member.isdir():
-                                        if not os.path.isdir(os.path.join(destination_folder, member.name)):
-                                            member_collection.append(member)
-                                    elif not os.path.isfile(existing_file_full_path):
-                                        # file doesn't exist. manifest or not, just extract.
-                                        member_collection.append(member)
-
-                                    # at this point we have a file in the tar that exist on the file-system
-                                    elif member.size == os.stat(existing_file_full_path).st_size:
-                                        # damn! same size. we must compare checksum
-                                        if member.name in tar_content_per_manifest: # just to be on the safe side
-                                            cs_ratsui = tar_content_per_manifest[member.name]['checksum']
-                                            cs_matsui = utils.get_file_checksum(existing_file_full_path)
-                                            if cs_ratsui == cs_matsui:
-                                                # this is the only case we will skip a member
-                                                pass
-                                            else:
-                                                # not same cs? pile it up for extraction
-                                                member_collection.append(member)
-
-                                        else:
-                                            # did someone manually add a file to the tar?
-                                            # this is strange! a file exists in tar but it's not in the manifest!
-                                            member_collection.append(member)
-
-                                    else:
-                                        # different size? we want you
-                                        member_collection.append(member)
-
-                                # extracting only what we need
-                                tar.extractall(destination_folder, members=member_collection)
-
-                            except KeyError:
-                                # that's ok, a manifest is optional. we'll extract everything
-                                self.unconditional_unwtar(tar, destination_folder)
-
-            if self.no_artifacts:
-                for wtar_file in wtar_file_paths:
-                    os.remove(wtar_file)
-            # self.dynamic_progress("Expanding {wtar_file_paths}".format(**locals()))
-
-        except OSError as e:
-            print("Invalid stream on split file with {}".format(wtar_file_paths[0]))
-            raise e
-
-        except tarfile.TarError:
-            print("tarfile error while opening file", os.path.abspath(wtar_file_paths[0]))
-            raise
 
     def do_exec(self):
         py_file_path = "unknown file"

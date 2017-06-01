@@ -27,6 +27,7 @@ import tarfile
                 buff = fd.read(20)
 """
 
+
 class MultiFileReader(io.RawIOBase):
     class OpenFileData(object):
         def __init__(self, path_to_file):

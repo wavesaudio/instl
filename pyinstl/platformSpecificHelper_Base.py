@@ -32,7 +32,7 @@ class CopyToolBase(object, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
+    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None, preserve_dest_files=True):
         """ Copy src_dir as a folder into trg_dir.
             Example: copy_dir_to_dir("a", "/d/c/b") creates the folder:
             "/d/c/b/a"
@@ -101,15 +101,19 @@ class CopyToolRsync(CopyToolBase):
             retVal = " ".join(["--exclude=" + utils.quoteme_single(ignoree) for ignoree in ignore])
         return retVal
 
-    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
+    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None, preserve_dest_files=True):
         if src_dir.endswith("/"):
             src_dir.rstrip("/")
         ignore_spec = self.create_ignore_spec(ignore)
+        if not preserve_dest_files:
+            delete_spec = "--delete"
+        else:
+            delete_spec = ""
         if link_dest:
             the_link_dest = os.path.join(src_dir, "..")
-            sync_command = """rsync -l -r -E --delete {ignore_spec} --link-dest="{the_link_dest}" "{src_dir}" "{trg_dir}" """.format(**locals())
+            sync_command = """rsync -l -r -E {delete_spec} {ignore_spec} --link-dest="{the_link_dest}" "{src_dir}" "{trg_dir}" """.format(**locals())
         else:
-            sync_command = """rsync -l -r -E --delete {ignore_spec} "{src_dir}" "{trg_dir}" """.format(**locals())
+            sync_command = """rsync -l -r -E {delete_spec} {ignore_spec} "{src_dir}" "{trg_dir}" """.format(**locals())
 
         return sync_command
 
@@ -146,6 +150,8 @@ class CopyToolRsync(CopyToolBase):
         delete_spec = ""
         if not preserve_dest_files:
             delete_spec = "--delete"
+        else:
+            delete_spec = ""
         if link_dest:
             relative_link_dest = os.path.relpath(src_dir, trg_dir)
             sync_command = """rsync -l -r -E {delete_spec} {ignore_spec} --link-dest="{relative_link_dest}" "{src_dir}" "{trg_dir}" """.format(**locals())
@@ -283,6 +289,10 @@ class PlatformSpecificHelperBase(object):
             retVal = self.progress(msg)
         return retVal
 
+    def increment_progress(self, num_items=1):
+        self.num_items_for_progress_report += num_items
+        return self.num_items_for_progress_report
+
     @abc.abstractmethod
     def get_svn_folder_cleanup_instructions(self):
         """ platform specific cleanup of svn locks """
@@ -378,6 +388,16 @@ class PlatformSpecificHelperBase(object):
     def unwtar_current_folder(self, no_artifacts=False, where_to_unwtar=None):
         unwtar_command = self.unwtar_something(".", no_artifacts, where_to_unwtar)
         return unwtar_command
+
+    def run_instl_batch_file(self, batch_file_path):
+        command_parts = [self.instlObj.platform_helper.run_instl(),
+                         "batch",
+                         "--config-file",
+                         utils.quoteme_double(batch_file_path),
+                         "--total-progress",
+                         "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)"]
+        instl_batch_command = " ".join(command_parts)
+        return instl_batch_command
 
     @abc.abstractmethod
     def wait_for_child_processes(self):

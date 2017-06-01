@@ -81,6 +81,15 @@ class InstlGui(InstlInstanceBase):
         var_stack.set_var("ADMIN_GUI_CMD").append(admin_command_list[0])
         self.commands_with_run_option_list = var_stack.ResolveVarToList("__COMMANDS_WITH_RUN_OPTION__")
 
+        # create   - $(command_actual_name_$(...)) variables for commands that do not have them in InstlGui.yaml
+        for command in var_stack.ResolveVarToList("__CLIENT_GUI_CMD_LIST__"):
+            actual_command_var = "command_actual_name_"+command
+            if actual_command_var not in var_stack:
+                var_stack.set_var(actual_command_var).append(command)
+        for command in var_stack.ResolveVarToList("__ADMIN_GUI_CMD_LIST__"):
+            actual_command_var = "command_actual_name_"+command
+            if actual_command_var not in var_stack:
+                var_stack.set_var(actual_command_var).append(command)
 
     def do_command(self):
         self.set_default_variables()
@@ -92,7 +101,6 @@ class InstlGui(InstlInstanceBase):
             self.read_yaml_file(var_stack.ResolveVarToStr("INSTL_GUI_CONFIG_FILE_NAME"))
         except Exception:
             pass
-
 
     def write_history(self):
         selected_tab = self.notebook.tab(self.notebook.select(), option='text')
@@ -285,29 +293,31 @@ class InstlGui(InstlInstanceBase):
 
     def run_client(self):
         self.update_client_state()
-        command_line = self.create_client_command_line()
+        command_line_parts = self.create_client_command_line()
+        resolved_command_line_parts = var_stack.ResolveListToList(command_line_parts)
 
         if getattr(os, "setsid", None):
-            client_process = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid)  # Unix
+            client_process = subprocess.Popen(resolved_command_line_parts, executable=resolved_command_line_parts[0], shell=False, preexec_fn=os.setsid)  # Unix
         else:
-            client_process = subprocess.Popen(command_line, executable=command_line[0], shell=False)  # Windows
+            client_process = subprocess.Popen(resolved_command_line_parts, executable=resolved_command_line_parts[0], shell=False)  # Windows
         unused_stdout, unused_stderr = client_process.communicate()
         return_code = client_process.returncode
         if return_code != 0:
-            print(" ".join(command_line) + " returned exit code " + str(return_code))
+            print(" ".join(resolved_command_line_parts) + " returned exit code " + str(return_code))
 
     def run_admin(self):
         self.update_admin_state()
-        command_line = self.create_admin_command_line()
+        command_line_parts = self.create_admin_command_line()
+        resolved_command_line_parts = var_stack.ResolveListToList(command_line_parts)
 
         if getattr(os, "setsid", None):
-            admin_process = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid)  # Unix
+            admin_process = subprocess.Popen(resolved_command_line_parts, executable=resolved_command_line_parts[0], shell=False, preexec_fn=os.setsid)  # Unix
         else:
-            admin_process = subprocess.Popen(command_line, executable=command_line[0], shell=False)  # Windows
+            admin_process = subprocess.Popen(resolved_command_line_parts, executable=resolved_command_line_parts[0], shell=False)  # Windows
         unused_stdout, unused_stderr = admin_process.communicate()
         return_code = admin_process.returncode
         if return_code != 0:
-            print(" ".join(command_line) + " returned exit code " + str(return_code))
+            print(" ".join(resolved_command_line_parts) + " returned exit code " + str(return_code))
 
     def create_admin_frame(self, master):
 
