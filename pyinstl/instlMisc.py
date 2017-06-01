@@ -185,7 +185,7 @@ class InstlMisc(InstlInstanceBase):
 
         else:
             raise FileNotFoundError(what_to_work_on)
-        self.dynamic_progress("Expand {}".format(utils.original_name_from_wtar_name(what_to_work_on)))
+        self.dynamic_progress("Expand {}".format(utils.original_name_from_wtar_name(what_to_work_on_leaf)))
 
     def do_check_checksum(self):
         self.progress_staccato_command = True

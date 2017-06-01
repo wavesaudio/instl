@@ -341,6 +341,7 @@ class InstlClientCopy(InstlClient):
 
         target_folder_path_parent, target_folder_name = os.path.split(var_stack.ResolveStrToStr(target_folder_path))
         self.create_unwtar_batch_file(self.unwtar_instructions, target_folder_name)
+        self.unwtar_instructions = None
         self.batch_accum += self.platform_helper.copy_tool.end_copy_folder()
 
         # only if items were actually copied there's need to (Mac only) resolve symlinks
@@ -412,7 +413,10 @@ class InstlClientCopy(InstlClient):
 
     def create_unwtar_batch_file(self, wtar_instructions, name_for_progress):
         if wtar_instructions:
-            batch_file_path = """$(__MAIN_OUT_FILE__).{}.unwtar""".format(name_for_progress)
+            main_out_file_dir, main_out_file_leaf = os.path.split(var_stack.ResolveVarToStr("__MAIN_OUT_FILE__"))
+            unwtar_batch_files_dir = os.path.join(main_out_file_dir, "unwtar")
+            os.makedirs(unwtar_batch_files_dir, exist_ok=True)
+            batch_file_path = os.path.join(unwtar_batch_files_dir, name_for_progress+".unwtar")
             batch_file_path = var_stack.ResolveStrToStr(batch_file_path)
             with open(batch_file_path, "w") as wfd:
                 for wtar_inst in self.unwtar_instructions:
@@ -421,5 +425,4 @@ class InstlClientCopy(InstlClient):
                     unwtar_line += " --start-progress {} --total-progress $(__TOTAL_DYNAMIC_PROGRESS__)\n""".format(progress)
                     wfd.write(unwtar_line)
             self.batch_accum += self.platform_helper.run_instl_batch_file(batch_file_path)
-            self.batch_accum += self.platform_helper.progress("Expand files in {} done".format(name_for_progress), num_items=len(wtar_instructions))
-            self.unwtar_instructions = None
+            self.batch_accum += self.platform_helper.progress("Expand files in {} done".format(name_for_progress))

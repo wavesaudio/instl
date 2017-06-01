@@ -27,7 +27,6 @@ def do_batch_file(initial_vars, batch_options):
 
     command_list = prepare_command_list_from_batch_file(batch_options)
     from pyinstl.instlMisc import InstlMisc
-    instance = InstlMisc(initial_vars)
     for argv in command_list:
         options = CommandLineOptions()
         read_command_line_options(options, argv)

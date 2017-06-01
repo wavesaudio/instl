@@ -43,7 +43,7 @@ class InstlClientRemove(InstlClient):
 
         for folder_name in sorted_target_folder_list:
             self.create_remove_previous_sources_instructions_for_target_folder(folder_name)
-            self.batch_accum += self.platform_helper.progress("Removing from {0}".format(folder_name))
+            self.batch_accum += self.platform_helper.progress("Remove from {0}".format(folder_name))
             var_stack.set_var("__TARGET_DIR__").append(os.path.normpath(folder_name))
             items_in_folder = self.all_iids_by_target_folder[folder_name]
             self.batch_accum += self.platform_helper.new_line()
@@ -52,11 +52,11 @@ class InstlClientRemove(InstlClient):
 
             for IID in items_in_folder:
                 name_and_version = self.iid_to_name_and_version[IID].name_and_version
-                self.batch_accum += self.platform_helper.progress("Removing {name_and_version}...".format(**locals()))
+                self.batch_accum += self.platform_helper.progress("Remove {name_and_version}...".format(**locals()))
                 adjusted_sources_for_iid = self.items_table.get_adjusted_sources_for_iid(IID)
                 adjusted_resolved_sources_for_iid = [(var_stack.ResolveStrToStr(s[0]), s[1]) for s in adjusted_sources_for_iid]
                 for source in adjusted_resolved_sources_for_iid:
-                    self.batch_accum += self.platform_helper.progress("Removing {source[0]}...".format(**locals()))
+                    self.batch_accum += self.platform_helper.progress("Remove {source[0]}...".format(**locals()))
                     self.batch_accum += var_stack.ResolveVarToList("iid_action_list_pre_remove_item", default=[])
                     self.create_remove_instructions_for_source(IID, folder_name, source)
                     self.batch_accum += var_stack.ResolveVarToList("iid_action_list_post_remove_item", default=[])

@@ -1,8 +1,13 @@
-????? 1.5.0.0
+1/6/2017 1.5.0.0
 
     user visible changes client:
     * new command: batch, will read instl commands form a file and execute them. Currently limited to do_something mode of commands.
 y
+    * new PAX wtars are not untarred if all files ar ein place and checksums in wtar file agree with disk checksums
+    * faster copy preformance because of batch-ign of unwtar and checksum checkking
+
+    admin visible changes client:
+    * new wtar format PAX and checksum is added to each file, and for all files, in the PAX_HEADER
 
     programmer visible changes:
     * utils.folder_listing renamed utils.disk_item_listing and moved to new file ls.py together with all ls helper functions.
