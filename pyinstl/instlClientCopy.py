@@ -420,9 +420,8 @@ class InstlClientCopy(InstlClient):
             batch_file_path = var_stack.ResolveStrToStr(batch_file_path)
             with open(batch_file_path, "w") as wfd:
                 for wtar_inst in self.unwtar_instructions:
-                    unwtar_line = var_stack.ResolveStrToStr("""unwtar --in "{}" --out "{}\"""".format(*wtar_inst))
+                    unwtar_line = var_stack.ResolveStrToStr("""unwtar --in "{}" --out "{}" --no-numbers-progress\n""".format(*wtar_inst))
                     progress = self.platform_helper.increment_progress()
-                    unwtar_line += " --start-progress {} --total-progress $(__TOTAL_DYNAMIC_PROGRESS__)\n""".format(progress)
                     wfd.write(unwtar_line)
             self.batch_accum += self.platform_helper.run_instl_command_list(batch_file_path, parallel=True)
             self.batch_accum += self.platform_helper.progress("Expand files in {} done".format(name_for_progress))

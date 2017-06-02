@@ -218,6 +218,8 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         if var_stack.ResolveVarToStr("__CURRENT_OS__") == "Mac":
             if cmd_line_options_obj.parallel:
                 var_stack.add_const_config_variable("__RUN_COMMAND_LIST_IN_PARALLEL__", "from command line options", "yes")
+        if cmd_line_options_obj.no_numbers_progress:
+            var_stack.add_const_config_variable("__NO_NUMBERS_PROGRESS__", "from command line options", "yes")
 
 
         if cmd_line_options_obj.define:

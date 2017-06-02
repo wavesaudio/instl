@@ -23,6 +23,7 @@ class CommandLineOptions(object):
         self.rsa_signature = None
         self.start_progress = None
         self.total_progress = None
+        self.no_numbers_progress = None
         self.just_with_number = None
         self.limit_command_to = None
         self.target_path = None
@@ -202,6 +203,7 @@ def prepare_args_parser(in_command):
                                     dest='config_file',
                                     help="path to config-file")
 
+
     if 'prog' in command_details['options']:
         progress_options = command_parser.add_argument_group(description='dynamic progress report')
         progress_options.add_argument('--start-progress',
@@ -216,6 +218,13 @@ def prepare_args_parser(in_command):
                                     metavar='total-progress-number',
                                     dest='total_progress',
                                     help="num total progress items")
+        progress_options.add_argument('--no-numbers-progress',
+                                    required=False,
+                                    default=False,
+                                    action='store_true',
+                                    #metavar='no-numbers-progress',
+                                    dest='no_numbers_progress',
+                                    help="display progress but without specific numbers")
 
     if 'limit' in command_details['options']:
         limit_options = command_parser.add_argument_group(description='limit command to specific folder')
@@ -409,7 +418,7 @@ def read_command_line_options(name_space_obj, arglist=None):
     parser, command_names = prepare_args_parser(command_name)
     if parser:
         # Command line options were given or auto run file was found
-        parser.parse_args(arglist, namespace=name_space_obj)
+        options = parser.parse_args(arglist, namespace=name_space_obj)
     else:
         # No command line options were given
         name_space_obj.mode = "interactive"

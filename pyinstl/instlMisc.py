@@ -30,6 +30,7 @@ class InstlMisc(InstlInstanceBase):
         self.commands_that_need_info_map_table = ("check_checksum", "set_exec", "create_folders")
 
     def do_command(self):
+        self.no_numbers_progress = "__NO_NUMBERS_PROGRESS__" in var_stack
         # if var does not exist default is 0, meaning not to display dynamic progress
         self.curr_progress = int(var_stack.ResolveVarToStr("__START_DYNAMIC_PROGRESS__", default="0"))
         self.total_progress = int(var_stack.ResolveVarToStr("__TOTAL_DYNAMIC_PROGRESS__", default="0"))
@@ -50,7 +51,8 @@ class InstlMisc(InstlInstanceBase):
             self.curr_progress += 1
             if not self.progress_staccato_command or self.progress_staccato_count == 0:
                 print("Progress: {self.curr_progress} of {self.total_progress}; {msg}".format(**locals()))
-                #print("Progress: ... of ...; {msg}".format(**locals()))
+        elif self.no_numbers_progress:
+            print("Progress: ... of ...; {msg}".format(**locals()))
 
     def do_version(self):
         var_stack.set_var("PRINT_COMMAND_TIME").append("no") # do not print time report

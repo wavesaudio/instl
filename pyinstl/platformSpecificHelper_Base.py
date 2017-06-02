@@ -393,9 +393,7 @@ class PlatformSpecificHelperBase(object):
         command_parts = [self.instlObj.platform_helper.run_instl(),
                          "command-list",
                          "--config-file",
-                         utils.quoteme_double(command_file_path),
-                         "--total-progress",
-                         "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)"]
+                         utils.quoteme_double(command_file_path)]
         if parallel:
             command_parts.append("--parallel")
         instl_batch_command = " ".join(command_parts)
