@@ -209,15 +209,13 @@ class InstlClientCopy(InstlClient):
 
         num_wtars = functools.reduce(lambda total, item: total + item.wtarFlag, source_items, 0)
         if num_wtars > 0:
-            #self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
             self.unwtar_instructions.append((source_path_abs, '.'))
-            #self.batch_accum += self.platform_helper.unwtar_something(source_path_abs, no_artifacts=False, where_to_unwtar='.')
-            #self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
             self.batch_accum += self.platform_helper.unlock('.', recursive=True)
 
             # fix permissions for any items that were unwtarred
-            if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
-                self.batch_accum += self.platform_helper.chmod("-R -f a+rwX", ".")
+            # unwtar moved be done with "command-list"
+            #if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
+            #    self.batch_accum += self.platform_helper.chmod("-R -f a+rwX", ".")
 
     def create_copy_instructions_for_dir(self, source_path, name_for_progress_message):
         dir_item = self.info_map_table.get_item(source_path, what="dir")
@@ -242,15 +240,13 @@ class InstlClientCopy(InstlClient):
 
             num_wtars = functools.reduce(lambda total, item: total + item.wtarFlag, source_items, 0)
             if num_wtars > 0:
-                #self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
                 self.unwtar_instructions.append((source_path_abs, source_path_name))
-                #self.batch_accum += self.platform_helper.unwtar_something(source_path_abs, no_artifacts=False, where_to_unwtar=source_path_name)
-                #self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
                 self.batch_accum += self.platform_helper.unlock(".", recursive=True)
 
                 # fix permissions for any items that were unwtarred
-                if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
-                    self.batch_accum += self.platform_helper.chmod("-R -f a+rwX", source_path_name)
+                # unwtar moved be done with "command-list"
+                #if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
+                #    self.batch_accum += self.platform_helper.chmod("-R -f a+rwX", source_path_name)
         else:
             # it might be a dir that was wtarred
             self.create_copy_instructions_for_file(source_path, name_for_progress_message)
