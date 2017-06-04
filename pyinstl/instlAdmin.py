@@ -30,13 +30,17 @@ class InstlAdmin(InstlInstanceBase):
         self.info_map_table = SVNTable()
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
 
+    def get_default_out_file(self):
+        retVal = None
+        if "__MAIN_INPUT_FILE__" in var_stack:
+            retVal = "$(__CONFIG_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)"
+        return retVal
+
     def set_default_variables(self):
         if "__CONFIG_FILE__" in var_stack:
             config_file_resolved = self.path_searcher.find_file(var_stack.ResolveVarToStr("__CONFIG_FILE__"), return_original_if_not_found=True)
             var_stack.set_var("__CONFIG_FILE_PATH__").append(config_file_resolved)
-            if "__MAIN_OUT_FILE__" not in var_stack:
-                var_stack.add_const_config_variable("__MAIN_OUT_FILE__", "from command line options",
-                                                    "$(__CONFIG_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)")
+
             self.read_yaml_file(config_file_resolved)
             self.resolve_defined_paths()
         if "PUBLIC_KEY" not in var_stack:

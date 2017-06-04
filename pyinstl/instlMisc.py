@@ -29,6 +29,12 @@ class InstlMisc(InstlInstanceBase):
         self.progress_staccato_count = 0
         self.commands_that_need_info_map_table = ("check_checksum", "set_exec", "create_folders")
 
+    def get_default_out_file(self):
+        retVal = None
+        if self.fixed_command in ("ls", "resolve"):
+            retVal = "stdout"
+        return retVal
+
     def do_command(self):
         self.no_numbers_progress = "__NO_NUMBERS_PROGRESS__" in var_stack
         # if var does not exist default is 0, meaning not to display dynamic progress
@@ -321,11 +327,6 @@ class InstlMisc(InstlInstanceBase):
         utils.dock_util(dock_util_command)
 
     def do_ls(self):
-        if "__MAIN_OUT_FILE__" in var_stack:
-            out_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
-        else:
-            out_file = "stdout"
-
         main_folder_to_list = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         folders_to_list = []
         if var_stack.defined("__LIMIT_COMMAND_TO__"):
@@ -340,6 +341,7 @@ class InstlMisc(InstlInstanceBase):
         the_listing = utils.disk_item_listing(*folders_to_list, ls_format=ls_format)
 
         try:
+            out_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
             with utils.write_to_file_or_stdout(out_file) as wfd:
                 wfd.write(the_listing)
 

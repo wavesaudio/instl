@@ -19,11 +19,12 @@ class InstlClientReport(InstlClient):
         self.guids_to_ignore = None
         self.output_data = []
 
+    def get_default_out_file(self):
+        retVal = "stdout"
+        return retVal
+
     def command_output(self):
-        if "__MAIN_OUT_FILE__" in var_stack:
-            out_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
-        else:
-            out_file = "stdout"
+        out_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
 
         output_format = var_stack.ResolveVarToStr("OUTPUT_FORMAT", default='text')
 
