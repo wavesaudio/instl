@@ -1,3 +1,9 @@
+???? 1.5.0.1
+
+    programmer visible changes:
+    * new function SVNTable.count_file_by_path_case_insensitive, replacing inefficient get_item_case_insensitive
+    * in utils.unwtar_a_file moved checking of disk checksum only if total_checksum is present in pax_headers so unwtarring old archives that do not have pax_headers and/or total_checksum will be unarchived faster
+
 1/6/2017 1.5.0.0
 
     user visible changes client:

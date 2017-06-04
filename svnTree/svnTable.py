@@ -434,6 +434,23 @@ class SVNTable(object):
             pass
         return retVal
 
+    def count_file_by_path_case_insensitive(self, file_path):
+        """ count items with the given path without regard to case
+            result should be 0 or 1
+        """
+        retVal = 0
+        query_text = """
+            SELECT count(path)
+            FROM svnitem
+            WHERE path = "{file_path}"
+            COLLATE NOCASE
+             """.format(file_path=file_path)
+        try:
+            retVal = self.session.execute(query_text).first()[0]
+        except SQLAlchemyError:
+            raise
+        return retVal
+
     def get_item_case_insensitive(self, item_path, what="any"):
         """ Get specific item or return None if not found
         search is done case insensitive. This is needed in case where we look for
