@@ -1055,19 +1055,19 @@ def unwtar_a_file(wtar_file_path, destination_folder=None, no_artifacts=False, i
         destination_leaf_name = original_name_from_wtar_name(first_wtar_file_name)
         destination_path = os.path.join(destination_folder, destination_leaf_name)
 
-        disk_total_checksum = "disk_total_checksum_was_not_found"
-        if os.path.exists(destination_path):
-            with ChangeDirIfExists(destination_folder):
-                disk_total_checksum = get_recursive_checksums(destination_leaf_name, ignore=ignore).get("total_checksum", "disk_total_checksum_was_not_found")
-
         do_the_unwtarring = True
         with MultiFileReader("br", wtar_file_paths) as fd:
             with tarfile.open(fileobj=fd) as tar:
-                tar_total_checksum = tar.pax_headers.get("total_checksum", "tar_total_checksum_was_not_found")
-                #print("    tar_total_checksum", tar_total_checksum)
-                if disk_total_checksum == tar_total_checksum:
-                    do_the_unwtarring = False
-                    print("unwtar_a_file(", wtar_file_paths[0], ") skipping unwtarring because item exists and is identical to archive")
+                tar_total_checksum = tar.pax_headers.get("total_checksum")
+                if tar_total_checksum:
+                    if os.path.exists(destination_path):
+                        disk_total_checksum = "disk_total_checksum_was_not_found"
+                        with ChangeDirIfExists(destination_folder):
+                            disk_total_checksum = get_recursive_checksums(destination_leaf_name, ignore=ignore).get("total_checksum", "disk_total_checksum_was_not_found")
+
+                        if disk_total_checksum == tar_total_checksum:
+                            do_the_unwtarring = False
+                            print(wtar_file_paths[0], "skipping unwtarring because item exists and is identical to archive")
                 if do_the_unwtarring:
                     safe_remove_file_system_object(destination_path)
                     tar.extractall(destination_folder)

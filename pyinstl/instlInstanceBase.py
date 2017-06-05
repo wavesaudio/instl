@@ -215,6 +215,11 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             var_stack.add_const_config_variable("__RUN_AS_ADMIN__", "from command line options", "yes")
         if cmd_line_options_obj.only_installed:
             var_stack.add_const_config_variable("__REPORT_ONLY_INSTALLED__", "from command line options", "yes")
+        if var_stack.ResolveVarToStr("__CURRENT_OS__") == "Mac":
+            if cmd_line_options_obj.parallel:
+                var_stack.add_const_config_variable("__RUN_COMMAND_LIST_IN_PARALLEL__", "from command line options", "yes")
+        if cmd_line_options_obj.no_numbers_progress:
+            var_stack.add_const_config_variable("__NO_NUMBERS_PROGRESS__", "from command line options", "yes")
 
 
         if cmd_line_options_obj.define:
@@ -223,12 +228,17 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 name, value = definition.split("=")
                 var_stack.set_var(name, "from command line define option").append(value)
 
-        if "__MAIN_OUT_FILE__" not in var_stack and "__MAIN_INPUT_FILE__" in var_stack:
-            var_stack.add_const_config_variable("__MAIN_OUT_FILE__", "from write_batch_file",
-                                                "$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)")
+        if "__MAIN_OUT_FILE__" not in var_stack:
+            default_out_file = self.get_default_out_file()
+            if default_out_file:
+                var_stack.add_const_config_variable("__MAIN_OUT_FILE__", "from write_batch_file",
+                                                default_out_file)
 
-#        if not self.check_version_compatibility():
-#            raise ValueError(var_stack.resolve("Minimal instl version $(INSTL_MINIMAL_VERSION) > current version $(__INSTL_VERSION__); ")+var_stack.get_configVar_obj("INSTL_MINIMAL_VERSION").description)
+    def get_default_out_file(self):
+        retVal = None
+        if "__MAIN_INPUT_FILE__" in var_stack:
+            retVal = "$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)"
+        return retVal
 
     def read_require(self, a_node, *args, **kwargs):
         if self.items_table is not None:
@@ -389,9 +399,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         return retVal
 
     def write_batch_file(self, in_batch_accum, file_name_post_fix=""):
-        if "__MAIN_OUT_FILE__" not in var_stack and "__MAIN_INPUT_FILE__" in var_stack:
-            var_stack.add_const_config_variable("__MAIN_OUT_FILE__", "from write_batch_file",
-                                                "$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)")
+        assert "__MAIN_OUT_FILE__" in var_stack
 
         var_stack.set_var("TOTAL_ITEMS_FOR_PROGRESS_REPORT").append(
             str(self.platform_helper.num_items_for_progress_report))

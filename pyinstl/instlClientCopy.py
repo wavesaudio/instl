@@ -83,7 +83,7 @@ class InstlClientCopy(InstlClient):
             self.batch_accum += self.platform_helper.progress("Create folders done")
 
     def create_copy_instructions(self):
-        self.create_sync_folder_manifest_command("before-copy")
+        self.create_sync_folder_manifest_command("before-copy", back_ground=True)
         # If we got here while in synccopy command, there is no need to read the info map again.
         # If we got here while in copy command, read HAVE_INFO_MAP_FOR_COPY which defaults to HAVE_INFO_MAP_PATH.
         # Copy might be called after the sync batch file was created
@@ -209,15 +209,13 @@ class InstlClientCopy(InstlClient):
 
         num_wtars = functools.reduce(lambda total, item: total + item.wtarFlag, source_items, 0)
         if num_wtars > 0:
-            #self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
             self.unwtar_instructions.append((source_path_abs, '.'))
-            #self.batch_accum += self.platform_helper.unwtar_something(source_path_abs, no_artifacts=False, where_to_unwtar='.')
-            #self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
             self.batch_accum += self.platform_helper.unlock('.', recursive=True)
 
             # fix permissions for any items that were unwtarred
-            if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
-                self.batch_accum += self.platform_helper.chmod("-R -f a+rwX", ".")
+            # unwtar moved be done with "command-list"
+            #if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
+            #    self.batch_accum += self.platform_helper.chmod("-R -f a+rwX", ".")
 
     def create_copy_instructions_for_dir(self, source_path, name_for_progress_message):
         dir_item = self.info_map_table.get_item(source_path, what="dir")
@@ -242,15 +240,13 @@ class InstlClientCopy(InstlClient):
 
             num_wtars = functools.reduce(lambda total, item: total + item.wtarFlag, source_items, 0)
             if num_wtars > 0:
-                #self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
                 self.unwtar_instructions.append((source_path_abs, source_path_name))
-                #self.batch_accum += self.platform_helper.unwtar_something(source_path_abs, no_artifacts=False, where_to_unwtar=source_path_name)
-                #self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
                 self.batch_accum += self.platform_helper.unlock(".", recursive=True)
 
                 # fix permissions for any items that were unwtarred
-                if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
-                    self.batch_accum += self.platform_helper.chmod("-R -f a+rwX", source_path_name)
+                # unwtar moved be done with "command-list"
+                #if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
+                #    self.batch_accum += self.platform_helper.chmod("-R -f a+rwX", source_path_name)
         else:
             # it might be a dir that was wtarred
             self.create_copy_instructions_for_file(source_path, name_for_progress_message)
@@ -420,9 +416,8 @@ class InstlClientCopy(InstlClient):
             batch_file_path = var_stack.ResolveStrToStr(batch_file_path)
             with open(batch_file_path, "w") as wfd:
                 for wtar_inst in self.unwtar_instructions:
-                    unwtar_line = var_stack.ResolveStrToStr("""unwtar --in "{}" --out "{}\"""".format(*wtar_inst))
+                    unwtar_line = var_stack.ResolveStrToStr("""unwtar --in "{}" --out "{}" --no-numbers-progress\n""".format(*wtar_inst))
                     progress = self.platform_helper.increment_progress()
-                    unwtar_line += " --start-progress {} --total-progress $(__TOTAL_DYNAMIC_PROGRESS__)\n""".format(progress)
                     wfd.write(unwtar_line)
-            self.batch_accum += self.platform_helper.run_instl_batch_file(batch_file_path)
+            self.batch_accum += self.platform_helper.run_instl_command_list(batch_file_path, parallel=True)
             self.batch_accum += self.platform_helper.progress("Expand files in {} done".format(name_for_progress))

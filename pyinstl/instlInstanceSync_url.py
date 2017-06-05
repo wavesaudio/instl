@@ -87,8 +87,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 item_full_path = pathlib.PurePath(root, disk_item)
                 item_partial_path = item_full_path.relative_to(pure_local_sync_dir).as_posix()
                 # when looking in the db for a file that already exists search should be case insensitive
-                file_item = self.instlObj.info_map_table.get_item_case_insensitive(item_path=item_partial_path, what="file")
-                if file_item is None:  # file was not found in info_map
+                file_item_count = self.instlObj.info_map_table.count_file_by_path_case_insensitive(item_partial_path)
+                if file_item_count == 0:  # file was not found in info_map
                     self.instlObj.batch_accum += self.instlObj.platform_helper.rmfile(str(item_full_path))
                     self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Removed redundant file "+str(item_full_path))
 
@@ -124,7 +124,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         return retVal
 
     def create_sync_instructions(self):
-        self.instlObj.create_sync_folder_manifest_command("before-sync")
+        self.instlObj.create_sync_folder_manifest_command("before-sync", back_ground=False)
         retVal = super().create_sync_instructions()
         self.prepare_list_of_sync_items()
 
@@ -142,7 +142,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
                                                                                      "$(HAVE_INFO_MAP_PATH)")
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.popd()
-        self.instlObj.create_sync_folder_manifest_command("after-sync")
+        self.instlObj.create_sync_folder_manifest_command("after-sync", back_ground=True)
         return retVal
 
     def chown_for_synced_folders(self):

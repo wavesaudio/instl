@@ -11,6 +11,7 @@ import sys
 import re
 import tempfile
 import appdirs
+import datetime
 
 from pyinstl.cmdOptions import CommandLineOptions, read_command_line_options
 from utils import InstlException
@@ -62,7 +63,6 @@ def get_data_folder():
         data_folder = os.path.dirname(os.path.realpath(__file__))
     return data_folder
 
-
 def main():
     """ Main instl entry point. Reads command line options and decides if to go into interactive or client mode.
     """
@@ -97,9 +97,16 @@ def main():
                     {"__USER_ID__": str(os.getuid()),
                      "__GROUP_ID__": str(os.getgid())})
 
-    if options.mode == "batch":
-        from pyinstl.instlBatch import do_batch_file
-        do_batch_file(initial_vars, options)
+    with open("/Users/shai/Desktop/Logs/invocations.txt", "a") as wfd:
+        wfd.write(str(datetime.datetime.now()))
+        wfd.write("\n")
+        wfd.write(str(sys.argv[1:]))
+        wfd.write("\n")
+        wfd.write(str(dict(filter(lambda x:x[1], options.__dict__.items()))))
+        wfd.write("\n===\n")
+    if options.command == "command-list":
+        from pyinstl.instlCommandList import run_commands_from_file
+        run_commands_from_file(initial_vars, options)
     elif options.mode == "client":
         from pyinstl.instlClient import InstlClientFactory
         instance = InstlClientFactory(initial_vars, options.command)
@@ -142,5 +149,35 @@ def main():
     else:
         raise InstlException("incomprehensible command line options:\n", options)
 
+from configVar import var_stack
+class InvocationReporter(object):
+    def __init__(self):
+        self.wfd = None
+        self.start_time = datetime.datetime.now()
+
+    def __enter__(self):
+        try:
+
+            user_folder = os.path.expanduser("~")
+            # create the invocations file if the user has instl_config.yaml
+            if os.path.isfile(os.path.join(user_folder, "instl_config.yaml")):
+                invocations_file_path = os.path.join(user_folder, "instl_invocations.txt")
+                self.wfd = open(invocations_file_path, "a")
+                print(self.start_time, file=self.wfd)
+                print("argv:", sys.argv, file=self.wfd)
+                self.wfd.flush()
+        except:
+            # this is just a report so if something went wrong just forget it
+            pass
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.wfd:
+            self.end_time = datetime.datetime.now()
+            print("run time:", self.end_time-self.start_time, file=self.wfd)
+            print(self.end_time, file=self.wfd)
+            print("===", file=self.wfd)
+            self.wfd.close()
+
 if __name__ == "__main__":
-    main()
+    with InvocationReporter():
+        main()
