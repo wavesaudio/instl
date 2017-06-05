@@ -97,13 +97,6 @@ def main():
                     {"__USER_ID__": str(os.getuid()),
                      "__GROUP_ID__": str(os.getgid())})
 
-    with open("/Users/shai/Desktop/Logs/invocations.txt", "a") as wfd:
-        wfd.write(str(datetime.datetime.now()))
-        wfd.write("\n")
-        wfd.write(str(sys.argv[1:]))
-        wfd.write("\n")
-        wfd.write(str(dict(filter(lambda x:x[1], options.__dict__.items()))))
-        wfd.write("\n===\n")
     if options.command == "command-list":
         from pyinstl.instlCommandList import run_commands_from_file
         run_commands_from_file(initial_vars, options)

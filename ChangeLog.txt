@@ -1,10 +1,20 @@
-???? 1.5.0.1
+5/6/2017 1.5.0.1
+
+    user visible changes client:
+    * InstlClient.create_sync_folder_manifest_command now has option to run in back ground - Mac only
+    * 'command-list': new option --parallel to run commands from list in parallel - Mac only
+    * 'batch' command renamed 'command-list' as the word batch is confusing with the batch file produced by many commands
+    * new option for do_something commands: --no-numbers-progress, will output "Progress ... of ...", useful for commands running in parallel
+
+    admin visible changes client:
+    * log-analyzer.py - utility for analyzing instl logs - not finished yet
 
     programmer visible changes:
-    * new function SVNTable.count_file_by_path_case_insensitive, replacing inefficient get_item_case_insensitive
-    * in utils.unwtar_a_file moved checking of disk checksum only if total_checksum is present in pax_headers so unwtarring old archives that do not have pax_headers and/or total_checksum will be unarchived faster
+    * new function SVNTable.count_file_by_path_case_insensitive, replacing inefficient SVNTable.get_item_case_insensitive
+    * in utils.unwtar_a_file moved checking of disk checksum only if total_checksum is present in pax_headers so unwtarring old archives that do not have pax_headers and/or total_checksum will be faster
     * commented out some redundant chmods during copy now that unwtar is done once per install folder
     * InvocationReporter wraps main() and reports argv and run time for instl invocation. Enabled if ~/instl_config.yaml is present
+    * .get_default_out_file: function for deciding the output file, to be overriden by child classes (InstlClient, InstlMisc, ect...)
 
 1/6/2017 1.5.0.0
 
