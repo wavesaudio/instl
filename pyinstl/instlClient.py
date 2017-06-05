@@ -359,7 +359,7 @@ class InstlClient(InstlInstanceBase):
         self.batch_accum += self.platform_helper.copy_file_to_file("$(NEW_SITE_REQUIRE_FILE_PATH)",
                                                                    "$(SITE_REQUIRE_FILE_PATH)")
 
-    def create_folder_manifest_command(self, which_folder_to_manifest, output_folder, output_file_name):
+    def create_folder_manifest_command(self, which_folder_to_manifest, output_folder, output_file_name, back_ground=False):
         """ create batch commands to write a manifest of specific folder to a file """
         self.batch_accum += self.platform_helper.mkdir(output_folder)
         ls_output_file = os.path.join(output_folder, output_file_name)
@@ -367,10 +367,13 @@ class InstlClient(InstlInstanceBase):
                                       "--in",  utils.quoteme_double(which_folder_to_manifest),
                                       "--out", utils.quoteme_double(ls_output_file)]
         if var_stack.ResolveVarToStr("__CURRENT_OS__") == "Mac":
-            create_folder_ls_command_parts.extend(("||", "true"))
+            if back_ground:
+                create_folder_ls_command_parts.extend("&")
+            else:
+                create_folder_ls_command_parts.extend(("||", "true"))
         self.batch_accum += " ".join(create_folder_ls_command_parts)
 
-    def create_sync_folder_manifest_command(self, manifest_file_name_prefix):
+    def create_sync_folder_manifest_command(self, manifest_file_name_prefix, back_ground=False):
         """ create batch commands to write a manifest of the sync folder to a file """
         which_folder_to_manifest = "$(COPY_SOURCES_ROOT_DIR)"
         output_file_name = manifest_file_name_prefix+"-sync-folder-manifest.txt"
@@ -382,7 +385,7 @@ class InstlClient(InstlInstanceBase):
                     break
                 output_folder = None
         if output_folder is not None:
-            self.create_folder_manifest_command(which_folder_to_manifest, output_folder, output_file_name)
+            self.create_folder_manifest_command(which_folder_to_manifest, output_folder, output_file_name, back_ground=back_ground)
 
     def repr_require_for_yaml(self):
         translate_detail_name = {'require_version': 'version', 'require_guid': 'guid', 'require_by': 'require_by'}

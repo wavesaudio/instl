@@ -124,7 +124,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         return retVal
 
     def create_sync_instructions(self):
-        self.instlObj.create_sync_folder_manifest_command("before-sync")
+        self.instlObj.create_sync_folder_manifest_command("before-sync", back_ground=False)
         retVal = super().create_sync_instructions()
         self.prepare_list_of_sync_items()
 
@@ -142,7 +142,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
                                                                                      "$(HAVE_INFO_MAP_PATH)")
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.popd()
-        self.instlObj.create_sync_folder_manifest_command("after-sync")
+        self.instlObj.create_sync_folder_manifest_command("after-sync", back_ground=True)
         return retVal
 
     def chown_for_synced_folders(self):
