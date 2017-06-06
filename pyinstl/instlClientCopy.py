@@ -15,6 +15,7 @@ class InstlClientCopy(InstlClient):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
+        self.unwtar_batch_file_counter = 0
 
     def do_copy(self):
         self.init_copy_vars()
@@ -179,12 +180,7 @@ class InstlClientCopy(InstlClient):
                     first_wtar_item = source_wtar
             assert first_wtar_item is not None
             first_wtar_full_path = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + first_wtar_item.path)
-            #self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} ...".format(**locals()))
             self.unwtar_instructions.append((first_wtar_full_path, '.'))
-
-            #self.batch_accum += self.platform_helper.unwtar_something(first_wtar_full_path, no_artifacts=False, where_to_unwtar='.')
-            #self.batch_accum += self.platform_helper.unlock(first_wtar_item.name_without_wtar_extension())
-            self.batch_accum += self.platform_helper.progress("Expand {name_for_progress_message} done".format(**locals()))
 
     def create_copy_instructions_for_dir_cont(self, source_path, name_for_progress_message):
         source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
@@ -412,7 +408,8 @@ class InstlClientCopy(InstlClient):
             main_out_file_dir, main_out_file_leaf = os.path.split(var_stack.ResolveVarToStr("__MAIN_OUT_FILE__"))
             unwtar_batch_files_dir = os.path.join(main_out_file_dir, "unwtar")
             os.makedirs(unwtar_batch_files_dir, exist_ok=True)
-            batch_file_path = os.path.join(unwtar_batch_files_dir, name_for_progress+".unwtar")
+            batch_file_path = os.path.join(unwtar_batch_files_dir, name_for_progress+"_"+str(self.unwtar_batch_file_counter)+".unwtar")
+            self.unwtar_batch_file_counter += 1
             batch_file_path = var_stack.ResolveStrToStr(batch_file_path)
             with open(batch_file_path, "w") as wfd:
                 for wtar_inst in self.unwtar_instructions:

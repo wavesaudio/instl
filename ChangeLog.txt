@@ -1,3 +1,9 @@
+5/6/2017 1.5.0.2
+
+    user visible changes client:
+    * names of files of command-list of unwtar are appended with a sequetial number to avoid these files stepping on each other
+    * removed redundant Expand messages
+
 5/6/2017 1.5.0.1
 
     user visible changes client:
