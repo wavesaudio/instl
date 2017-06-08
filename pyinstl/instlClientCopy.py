@@ -94,6 +94,7 @@ class InstlClientCopy(InstlClient):
 
         # copy and actions instructions for sources
         self.batch_accum.set_current_section('copy')
+        self.batch_accum += self.platform_helper.progress("Start copy")
         self.batch_accum += self.platform_helper.progress("Starting copy from $(COPY_SOURCES_ROOT_DIR)")
 
         self.accumulate_unique_actions_for_active_iids('pre_copy')

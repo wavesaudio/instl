@@ -36,7 +36,6 @@ class InstlClientSync(InstlClient):
         self.batch_accum.begin_transaction()
         num_file_to_sync = syncer.create_sync_instructions()
         if num_file_to_sync > 0:
-            self.batch_accum += self.platform_helper.progress("Done sync")
             self.batch_accum.end_transaction()
         else:
             self.batch_accum.cancel_transaction()

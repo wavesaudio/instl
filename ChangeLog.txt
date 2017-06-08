@@ -1,4 +1,7 @@
-???? 1.5.0.1
+???? 1.5.0.3
+
+    user visible changes client:
+    * Added Start sync, Start copy progress messages
 
     programmer visible changes:
     * new function SVNTable.count_file_by_path_case_insensitive, replacing inefficient get_item_case_insensitive
@@ -10,7 +13,7 @@
 
     user visible changes client:
     * new command: batch, will read instl commands form a file and execute them. Currently limited to do_something mode of commands.
-y
+
     * new PAX wtars are not untarred if all files ar ein place and checksums in wtar file agree with disk checksums
     * faster copy preformance because of batch-ign of unwtar and checksum checkking
 

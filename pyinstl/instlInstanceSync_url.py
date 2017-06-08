@@ -125,6 +125,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
     def create_sync_instructions(self):
         self.instlObj.create_sync_folder_manifest_command("before-sync", back_ground=False)
+        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Start sync")
         retVal = super().create_sync_instructions()
         self.prepare_list_of_sync_items()
 
@@ -143,6 +144,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.popd()
         self.instlObj.create_sync_folder_manifest_command("after-sync", back_ground=True)
+        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Done sync")
         return retVal
 
     def chown_for_synced_folders(self):
