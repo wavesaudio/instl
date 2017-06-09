@@ -6,13 +6,12 @@ import stat
 import sys
 import shlex
 import tarfile
-import fnmatch
 import time
 import utils
+from collections import OrderedDict
 from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
 from . import connectionBase
-from utils.multi_file import MultiFileReader
 from svnTree import SVNTable
 
 
@@ -156,7 +155,18 @@ class InstlMisc(InstlInstanceBase):
                 tarinfo.uid = tarinfo.gid = 0
                 tarinfo.uname = tarinfo.gname = "waves"
                 if os.path.isfile(tarinfo.path):
-                    tarinfo.pax_headers = {"checksum": utils.get_file_checksum(tarinfo.path)}
+                    # wtar should to be idempotent. tarfile code adds "mtime" to
+                    # each file's pax_headers. We add "checksum" to pax_headers.
+                    # The result is that these two values are written to the tar
+                    # file in no particular order and taring the same file twice
+                    # might produce different results. By supplying the mtime
+                    # ourselves AND passing an OrderedDict as the pax_headers
+                    # hopefully the tar files will be the same each time.
+                    file_pax_headers = OrderedDict()
+                    file_pax_headers["checksum"] = utils.get_file_checksum(tarinfo.path)
+                    mode_time = str(float(os.lstat(tarinfo.path)[stat.ST_MTIME]))
+                    file_pax_headers["mtime"] = mode_time
+                    tarinfo.pax_headers = file_pax_headers
                 return tarinfo
 
             with tarfile.open(target_wtar_file, "w|bz2", format=tarfile.PAX_FORMAT, pax_headers=pax_headers) as tar:

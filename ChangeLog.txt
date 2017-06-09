@@ -1,23 +1,27 @@
-???? 1.5.0.3
+19/6/2017 1.5.0.3
+    Some reformating to the change log file
 
-    user visible changes client:
+    user visible changes:
     * Added Start sync, Start copy progress messages
+
+    admin visible changes:
+    * Changes to do_wtar to make the result idempotent
 
 5/6/2017 1.5.0.2
 
-    user visible changes client:
+    user visible changes:
     * names of files of command-list of unwtar are appended with a sequetial number to avoid these files stepping on each other
     * removed redundant Expand messages
 
 5/6/2017 1.5.0.1
 
-    user visible changes client:
+    user visible changes:
     * InstlClient.create_sync_folder_manifest_command now has option to run in back ground - Mac only
     * 'command-list': new option --parallel to run commands from list in parallel - Mac only
     * 'batch' command renamed 'command-list' as the word batch is confusing with the batch file produced by many commands
     * new option for do_something commands: --no-numbers-progress, will output "Progress ... of ...", useful for commands running in parallel
 
-    admin visible changes client:
+    admin visible changes:
     * log-analyzer.py - utility for analyzing instl logs - not finished yet
 
     programmer visible changes:
@@ -29,13 +33,13 @@
 
 1/6/2017 1.5.0.0
 
-    user visible changes client:
+    user visible changes:
     * new command: batch, will read instl commands form a file and execute them. Currently limited to do_something mode of commands.
 
     * new PAX wtars are not untarred if all files ar ein place and checksums in wtar file agree with disk checksums
     * faster copy preformance because of batch-ign of unwtar and checksum checkking
 
-    admin visible changes client:
+    admin visible changes:
     * new wtar format PAX and checksum is added to each file, and for all files, in the PAX_HEADER
 
     programmer visible changes:
@@ -58,7 +62,7 @@
 
 18/5/2017 1.4.4.2
 
-    user visible changes client:
+    user visible changes:
     * New variable CURRENT_DOIT_DESCRIPTION to allow meaningfull messages from doit actions
     programmer visible changes:
     * Reimplemented doit command using only database
@@ -77,7 +81,7 @@
 
 27/4/2017 1.4.4.0
 
-    user visible changes client:
+    user visible changes:
     * Calculation and reporting of number of bytes to sync by device/drive
     * Fix an error in calculation of the number of bytes to copy
     * Refactored InstlClientCopy.create_copy_instructions_for_file/dir_cont/dir, to reduce the amount of instructions created
@@ -98,7 +102,7 @@
 
 19/4/2017 1.4.3.2
 
-    user visible changes client:
+    user visible changes:
     * Added removing of previous sources when uninstalling
     * Added reading of InstlClient.yaml in InstlMisc.do_exec. This is a temp hack, which additional config file to read should come from command line options.
 
@@ -120,7 +124,7 @@
     * merged some changes form optimize-db to repalce usage of IntallItem with database queries
 
 26/3/2017 1.4.2.0
-    user visible changes client:
+    user visible changes:
     * New config variable: REMOVE_PREVIOUS_SOURCES set to True be default, If set to False will prevent previous_sources from being deleted.
     * Merge branch 'wfi_lev': better checking of 2 types of wfi files
     * platform_helper.rmdir, platform_helper.rmfile got new parameter check_exist that will preform the deletion
@@ -132,7 +136,7 @@
 
 23/3/2017 1.4.1.0
 
-    user visible changes client:
+    user visible changes:
     * New index property: previous_sources where you can specified the previous names of the install_sources. These names will be used for 1) identifying  old versions that need update 2) files/folders that will be removed when the main IID is installed
 
     programmer visible changes:
@@ -142,7 +146,7 @@
 
 22/3/2017 1.4.0.3
 
-    user visible changes client:
+    user visible changes:
     * report-versions command: added option ('--only-installed') to show only installed products
 
     programmer visible changes:
@@ -150,7 +154,7 @@
 
 21/3/2017 1.4.0.2
 
-    user visible changes client:
+    user visible changes:
     * Fixed: the version would be written in the guid field of the require.yaml instead of the guid
 
 19/3/2017 1.4.0.1
@@ -158,13 +162,13 @@
     user visible changes admin:
     * SVNTable.read_file_sizes: admin 'trans' command stopped working because bulk_update_mappings would not find the updated rows.
         So rows are now updated one by one.
-    user visible changes client:
+    user visible changes:
     * Fixed creation of paths for download on windows
     * added 'direct_sync' to allowed_item_keys to avoid warnings
 
 18/3/2017 1.4.0.0
 
-    user visible changes client:
+    user visible changes:
     * Added support for direct sync
 
     programmer visible changes:
@@ -183,7 +187,7 @@
     * database can be forced to be on disk even when instl runs compiled
     * new table ConfigVar that will be populated with config variables values
 
-    user visible changes client:
+    user visible changes:
     * fixed issue where __ALL_ITEMS_IID__ & __ALL_GUIDS_IID__ would not be calculated correctly
     * new config var __DATABASE_URL__ to contain the url of the database
 
@@ -191,7 +195,7 @@
     * initialize self.items_table in InstlAdmin
 
 6/3/2017 1.3.3.4
-    user visible changes client:
+    user visible changes:
     * new IID detail value "phantom_version" for cases where require_version does not exist and cannot be deduced from disk.
 
 2/3/2017 1.3.3.3
@@ -218,7 +222,7 @@
 
 21/2/3017 1.3.3.1
 
-    user visible changes client:
+    user visible changes:
     * Fixed issues with updating require_version and require_guid when two products have the same guid.
 
 15/2/2017 1.3.3.0
@@ -229,7 +233,7 @@
 
 15/2/2017 1.3.2.4
 
-    user visible changes client:
+    user visible changes:
     * CHECK_BINARIES_VERSION_FILE_EXCLUDE_REGEX will effect which files not to consider when doing version report
     programmer visible changes:
     * utils.compile_regex_list_ORed verbose default changed to False, because spaces in regexs should be consider
@@ -237,7 +241,7 @@
 
 8/2/2017 1.3.2.3
 
-    user visible changes client:
+    user visible changes:
     * fixed create_copy_instructions_for_file to correctly handle !file item that is wtar.
     * fixed report-versions where version is different between Mac and Windows
 
@@ -250,7 +254,7 @@
 
 31/1/2017 1.3.2.2
 
-    user visible changes client:
+    user visible changes:
     * when writing variable to batch file, correctly write those with empty values.
     * fixed unwtar: the output location was not correctly read from commnadline variable.
     * fixed some crashes in gui mode
@@ -262,7 +266,7 @@
 11/1/2017 1.3.2.1
 
 
-    user visible changes client:
+    user visible changes:
     * default for HAVE_INFO_MAP_FOR_COPY is now $(NEW_HAVE_INFO_MAP_PATH), to allow creating copy batch file after creating sync batch file but before running the sync batch file
 
     programmer visible changes:
@@ -277,7 +281,7 @@
 
 8/1/2017 1.3.1.0
 
-    user visible changes client:
+    user visible changes:
     * report-versions works with extracting binary version when they are missing from require.yaml:
     * more human readable json output to report-versions, with indents and line breaks
 
@@ -294,7 +298,7 @@
 
 15/12/2016 1.3.0.12
 
-    user visible changes client:
+    user visible changes:
     * report-versions command not reports items that have no guid or name.
 
 8/12/2016 1.3.0.11
@@ -323,7 +327,7 @@
 
 1/11/2016 1.3.0.7
 
-    user visible changes client:
+    user visible changes:
     * Add to report-versions command reporting of product name as it appears in index.yaml
 
 ???? 1.3.0.730/10/2016 1.3.0.6
@@ -332,7 +336,7 @@
     * fixed IndexItemsTable.read_require_node to handle empty !require sections
     * fixed reading of require files from include sections
 
-    user visible changes client:
+    user visible changes:
     * fixed handling of __UPDATE_INSTALLED_ITEMS__ & __REPAIR_INSTALLED_ITEMS__ in InstallInstructionsState.__translate_root_items
     * fixed InstlClient.create_sync_folder_manifest_command, to try getting the output folder from params 'ECHO_LOG_FILE', '__MAIN_INPUT_FILE__', '__MAIN_OUT_FILE__'
 i
@@ -348,7 +352,7 @@ i
 
 25/10/2016 1.3.0.4
 
-    user visible changes client:
+    user visible changes:
     * reading of require.yaml is done with __include_if_exists__ instead from code
     programmer visible changes:
     * new class IndexItemDetailOperatingSystem
@@ -358,7 +362,7 @@ i
 
 16/10/2016 1.3.0.3
 
-    user visible changes client:
+    user visible changes:
     * InstlClient.create_sync_folder_manifest_command looks for the folder where to put the manifest in __MAIN_INPUT_FILE__ instead of __MAIN_OUT_FILE__. This was done because in some situations __MAIN_OUT_FILE__ is not defined yet.
     * new include: __include_if_exist__, so non existing files can be ignored
     * Default value for __OUTPUT_FORMAT__ is now OUTPUT_FORMAT so the format can be specified in !define sections
@@ -373,14 +377,14 @@ i
 19/9/2016 1.3.0.2
 
 
-    user visible changes client:
+    user visible changes:
     * Fixed bug in the calculation of uninstall items
     * Added option to "explain" uninstall calculations
     * Fixed a bug in the creation of variable __MAIN_OUT_FILE__ in InstlInstanceBase.write_batch_file - it was done too late so the varaible was not printed to the batch file
 
 18/9/2016 1.3.0.1
 
-    user visible changes client:
+    user visible changes:
     * New defaults for curl parameters, and passing the --retry_delay option wchi was not passed before
     * Changed (a little the meaning of __UPDATE_INSTALLED_ITEMS__ & __REPAIR_INSTALLED_ITEMS__ to always copy all updated items (until we figure out how to consider versions)
     * report_versions command improved - but not operational yet
@@ -393,7 +397,7 @@ i
 
 13/9/2016 1.3.0.0
 
-    user visible changes client:
+    user visible changes:
     * InstallItem new member: version, and item variable iid_version, default comes from
     * New commands 'report-installed', 'report-update' to report currently installed items and what's available to install
 
@@ -401,7 +405,7 @@ i
     * Improved configVar parsing and added array reference resolution: $(A[3])
 
 15/8/2016 1.2.3.1
-    user visible changes client:
+    user visible changes:
     * Some check for value of REPO_REV were redundant and failed commands such as remove.
     * chmod -R -f a+xwX after copy dir to dir on Mac. Should solve permission problems when in stalling on Mac form installer created on Windows.
 
@@ -410,7 +414,7 @@ i
 
 9/8/2016 1.2.3.0
 
-    user visible changes client:
+    user visible changes:
     * New command resolve, to resolve $() variables in arbitrary text
     * New variable, PRINT_COMMAND_TIME, to control if a command displays time information when it's done. Default set to yes.
     * New document tag for yamls: "!define_if_not_exist" will read the values only if they do not exists, implemented in ConfigVarYamlReader.read_defines_if_not_exist
@@ -436,7 +440,7 @@ i
 
 2/6/2016 1.2.2.0
 
-    user visible changes client:
+    user visible changes:
     * Fixed the progress count when creating sync sub-folders
     * sync command batch file creates sync folder manifest before and after it does it's work
     * copy command batch file creates sync folder manifest before it does it's work
@@ -454,7 +458,7 @@ i
 
 3/1/2016 1.1.1.0
 
-    user visible changes client:
+    user visible changes:
     * sync-folder-manifest.txt is created if ECHO_LOG_FILE is supplied and in the same folder.
     * Weird variable name __USRER_ID__ renamed __USER_ID__
     * Mac: add -m a+rwx to all mkdir commands, mkdir_with_owner is now 'mkdir -p -m a+rwx "$1"' & 'chown $(__USER_ID__): "$1"'
@@ -463,7 +467,7 @@ i
     * Added progress steps after cd and mkdir operations
     * Mac: New command: mac-dock to add, remove items to the dock and to restart the dock.
 
-    user visible changes, admin:
+    admin visible changes::
     * Check that admin commands run only under Mac or Linux
     * Adjusted InstlAdmin.create_links_for_revision to work on Mac
 
@@ -472,38 +476,38 @@ i
 
 28/12/2015 1.1.0.2
 
-    user visible changes client:
+    user visible changes:
     * Mac: Separated changing of permission from rsync, because it prevented rsync
         from created hardlinks.
     * Removed ".svn" from COPY_IGNORE_PATTERNS, it's no longer relevant.
 
 20/12/2015 1.1.0.1
 
-    user visible changes client:
+    user visible changes:
     * Windows: Some cmd tools are located if they are not in one of the PATH folders.
         The list of such tools is in "CMD_TOOLS_TO_FIND" & "CMD_TOOLS_TO_FIND_INTERNAL" variabless.
 
 31/11/2015 1.1.0.0
 
-    user visible changes client:
+    user visible changes:
     * new doit command for fast and easy actions that do not require sync/copy
 
 26/11/2015 1.0.1.5
 
-    user visible changes client:
+    user visible changes:
     * Added sorting to some lists that use to create the install instaructions.
         This will make the produced batch files more consitant from run to run and enable comparing before/after changes
 
 17/11/2015 1.0.1.4
 
-    user visible changes client:
+    user visible changes:
     * --out option is now optional and defaults to "$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)"
         if not explicitly supplied
     * Number of curl configuration files is calculated to reach the max possible even if
         number of files to download is smaller than the max config files allowed
     * removed rsa and boto from the modules tested in test-imports
 
-    user visible changes, client & admin:
+    user visible changes: & admin:
     * new command line option -define, allows to add variable definitions from the command line.
     * __CREDENTIALS__ is now resolved in connection_factory to allow it to include references to other variables
 
@@ -512,12 +516,12 @@ i
 
 4/11/2015 1.0.1.3
 
-    user visible changes, admin:
+    admin visible changes::
     * add "--base-repo-rev" trans command that was missing in previous commits.
 
 3/11/2015 1.0.1.2
 
-    user visible changes, admin:
+    admin visible changes::
     * New command create-infomap, to create info_map.txt from a repository.
     * create-links command re-implemened new create-infomap command.
     * Indexes for Mac or Windows only are no longer created by create-links, they were never used.
@@ -527,7 +531,7 @@ i
 
 28/10/2015 1.0.1.1
 
-    user visible changes, client:
+    user visible changes::
     * unwtarring is done specifically to each .wtar file. No more unwtarring whole folders.
 
     programmer visible changes:
@@ -537,33 +541,33 @@ i
 
 26/10/2015 1.0.1.0
 
-    user visible changes, client:
+    user visible changes::
     * Improved unwtar, no more done files, more robust algorithm, better catching and reporting of errors
     * Interactive mode: better help for depend
 
 23/10/2015 1.0.0.9
 
-    user visible changes, admin:
+    admin visible changes::
     * New interactive command: 'apropos' searches for index items, guids and params.
     * New interactive command: 'common' lists all common needs/needed-by index items for a given list of items.
 
 22/10/2015 1.0.0.8
 
-    user visible changes, client:
+    user visible changes::
     * Print all running processes when batch file exits on non zero
 
     programmer visible changes:
     * normpath for the following variables to avoid bad slashes on windows"__SITE_DATA_DIR__, __SITE_CONFIG_DIR__, __USER_DATA_DIR__, __USER_CONFIG_DIR__, __USER_HOME_DIR__
 
 20/10/2015 1.0.0.7
-    user visible changes, client:
+    user visible changes::
     * Fixed const variables ending with ("_PATH", "_DIR", "_DIR_NAME", "_FILE_NAME", "_PATH__", "_DIR__", "_DIR_NAME__", "_FILE_NAME__")
         were not normalized (Win)
 
 
 19/10/2015 1.0.0.6
 
-    user visible changes, client:
+    user visible changes::
     * Added check after mkdir and cd on Windows
     * Check checksum for already synced files, to overcome possible file corruption.
     * Added messages for already synced files that need sync or unsynced file that do not need sync
@@ -575,23 +579,23 @@ i
 
 18/10/2015 1.0.0.5
 
-    user visible changes, client:
+    user visible changes::
     * Finding cookie for url by domain is now case insensitive
 
 14/10/2015 1.0.0.4
 
- user visible changes, client:
+ user visible changes::
  * Support for cookies per domain with variable COOKIE_JAR
  * Better error for exception from join_split_files
 
 12/10/2015 1.0.0.3
 
-    user visible changes, client:
+    user visible changes::
     * Moved the folder creation during copy to after the pre_copy step so that uninstalls from pre_copy will not erase important folders.
 
 12/10/2015 1.0.0.2
 
-    user visible changes, admin:
+    admin visible changes::
     * Added Mac unlocking (chflags -R nouchg) to fix-perm command, after imports from Windows machine brought locked files.
 
 8/10/2015 1.0.0.1
@@ -601,18 +605,18 @@ i
 
 6/10/2015 1.0.0.0
 
-    user visible changes, admin:
+    admin visible changes::
     * New option --all-revisions to commands create-links and up2s3
 
 1/10/2015 0.12.0.2
 
-    user visible changes, admin:
+    admin visible changes::
     * Fixed missing import stat
 
 
 1/10/2015 0.12.0.1
 
-    user visible changes, client:
+    user visible changes::
     * Fixed file-size related str/int confusion
 
     programmer visible changes:
@@ -620,7 +624,7 @@ i
 
 1/10/2015 0.12.0.0
 
-    user visible changes, client:
+    user visible changes::
     * Added help for test-import command.
     * Added new packages (utils, svnTree, configVar) to test-import.
 
@@ -629,7 +633,7 @@ i
 
 21/9/2015 0.11.0.5
 
-    user visible changes, client:
+    user visible changes::
     * Better default definition of LOCAL_SYNC_DIR based on USER_CACHE_DIR.
 
     programmer visible changes:
@@ -637,7 +641,7 @@ i
 
 20/9/2015 0.11.0.4
 
-    user visible changes, client:
+    user visible changes::
     * When reading __include__ statements, if a file does not have a checksum specification it will not be cached.
 
     programmer visible changes:
@@ -646,24 +650,24 @@ i
 
 17/9/2015 0.11.0.3
 
-    user visible changes, client:
+    user visible changes::
     * fix to join_split_files when workong on local dir
 
 16/9/2015 0.11.0.2
 
-    user visible changes, client:
+    user visible changes::
     * Minor changes to handle relative paths for certine _DIR variables
     * mkdir SITE_REPO_BOOKKEEPING_DIR before copying the have_info_map file.
     * New const variable: __CURR_WORKING_DIR__, the working directory when instl was launched.
 
 9/9/2015 0.11.0.1
 
-    user visible changes, client:
+    user visible changes::
     * Fixed error when trying to remove items that were not installed. could happen because install dependencies are not always the same as remove dependencies
 
 9/9/2015 0.11.0.0
 
-    user visible changes, admin:
+    admin visible changes::
     * New command verify-repo checks local files against index.
     * Added verify-repo to gui mode.
     * Gui mode: the run checkbox is disabled for commands that do not accept --run.
@@ -691,7 +695,7 @@ i
     * New function utils.get_disk_free_space
     * New function InstlInstanceBase.calc_user_cache_dir_var calculates new variable USER_CACHE_DIR. This variable is not the base for LOCAL_SYNC_DIR (if LOCAL_SYNC_DIR is not explicitly supplied).
 
-    user visible changes, client:
+    user visible changes::
     * New interactive command 'which': prints the path to currently running instl
     * During copy, on Mac OS, rsync will set permissions according to variable RSYNC_PERM_OPTIONS.  Default value is --perms --chmod=a+rw,+X.
     * Var assignments and remarks for DOS batch files will escape the '&' character.
@@ -717,7 +721,7 @@ i
     * New function PlatformSpecificHelperBase.unwtar_something for unwtarring a specific item not just the current directory.
         PlatformSpecificHelperBase.unwtar_current_folder is now implemented by calling PlatformSpecificHelperBase.unwtar_something(".")
 
-    user visible changes, client:
+    user visible changes::
     * check-checksum command was defined by mistake to require --out command line option. Now removed.
     * A hack to prevent unwtaring of the sync folder. Copy command might copy something to the top level of the sync folder.
         So sync folder is avoided by detecting the bookkeeping folder inside.
@@ -725,7 +729,7 @@ i
         Previously if SYNC_BASE_URL was not found an exception was raised. Help to create remove without needing URLs.
     * Fixed the unwtar for non-copied object so that only what's needed will be unwtarred, not the whole sync folder.
 
-    user visible changes, admin:
+    admin visible changes::
     * depend command: added a message at the end so we know output was created OK.
     * stage2svn command: added check to prevent adding files or folder with character ','.
     * Improved the unwtar command. Added --in option to allow to specify a file or folder that is not the current directory.
@@ -733,7 +737,7 @@ i
     * Added --credentials to verify-index to allow access to secure s3.
 
 15/3/2015 0.10.0.4
-    user visible changes, client:
+    user visible changes::
     * Better, more meaningful progress messages.
     * GUIDs that have upper case characters are converted to lower case.
     * HAVE_INFO_MAP_PATH file is copied to the SITE_HAVE_INFO_MAP_PATH for possible usage by remove command.
@@ -744,7 +748,7 @@ i
     * Sync command: When no dirs to create no prgress items will be created.
     * Sync using info_map with prepared URLs.
         if variable FILES_AND_URLS_INFO_MAP_URL is available this file will be read instead of the one in INFO_MAP_FILE_URL.
-    user visible changes, admin:
+    admin visible changes::
     * Admin variable MAX_FILE_SIZE renamed MIN_FILE_SIZE_TO_WTAR.
     * New admin variable: WTAR_BY_FILE_SIZE_EXCLUDE_REGEX. Files names passing this regex will not be wtarred. This was done mainly to disable wtarring of instl itself when updating it.
     * Variable WTAR_REGEX split in to twp: FOLDER_WTAR_REGEX, FILE_WTAR_REGEX to allow separation between files and folders when choosing what to wtar.
@@ -772,14 +776,14 @@ i
     * SVNItem new property: __url
 
 15/2/2015 0.10.0.2
-    user visible changes, admin:
+    admin visible changes::
     * removed --acl when uploading to S3.
 
     programmer visible changes:
     * Re-added missing line in upload code
 
 15/2/2015 0.10.0.0
-    user visible changes, client:
+    user visible changes::
     * Support for S3 secure downloads.
     * New command translate_url for testing the creation of secure s3 urls.
 
@@ -788,7 +792,7 @@ i
     * ConnectionBase class and derived classes ConnectionHTTP and ConnectionS3 handle secure connection issues.
 
 28/1/2015 0.9.19.4
-    user visible changes, client:
+    user visible changes::
     * When writing echo's to log the log file is created in the begin sections and permissions are set to 666 so later launches of instl can append to log.
     * For many files that are created during instl run permissions are set to 666.
     * Moved  the curl config file to a local directory instead of being in the bookkeeping directory.
@@ -807,7 +811,7 @@ i
     * ConfigVarList.__resolve_stack is now a class member.
     * ConfigVarList.resolve, when joining values will not join None values.
 
-    user visible changes, admin:
+    admin visible changes::
     * When taring bzip2 is used instead of zip (--use-compress-program bzip2 instead of -z). Using zip
         created a different tar file every time something was re-tarred. This caused redundant uploads
         SVN and S3 of files that were not really different.
@@ -818,11 +822,11 @@ i
 
 4/12/2014 0.9.19.2
 
-    user visible changes, client:
+    user visible changes::
     * In gui mode: fixed saving state on Quit which failed to work after removing the Quit button.
     * copy_dir_files_to_dir with rsync fixed to really copy only files.
 
-    user visible changes, admin:
+    admin visible changes::
     * New variable __INSTL_LAUNCH_COMMAND__ based on new function get_instl_launch_command.
         Will enable running instl from batch file if instl was compiled and if it was not.
     * New variable __USER_DESKTOP_DIR__
@@ -838,13 +842,13 @@ i
 
 30/11/2014 0.9.19.0
 
-    user visible changes, client:
+    user visible changes::
     * New command gui client mode.
     * disabled gui command when instl is compiled, since PyInstaller cannot find the frameworks required by Tkinter.
     * added Edit button besides all file fields in gui mode
     * implemented uninstall command by filtering the !require file and creating remove instaructions.
 
-    user visible changes, admin:
+    admin visible changes::
     * Implemented --limit option to svn2stage
     * Added quoted string handling to --limit options of svn2stage and stage2svn
     * Mac OS mkdir_with_owner batch file function now sets only user id for new directory not group id.    programmer visible changes:
@@ -869,7 +873,7 @@ i
 
 5/11/2014 0.9.18.6
 
-    user visible changes, client:
+    user visible changes::
     * New optional variable INSTL_MINIMAL_VERSION will be compared to current instl version,
         raise exception if INSTL_MINIMAL_VERSION > __INSTL_VERSION__. Can be used to check
         compatibility between input file and instl reading it.
@@ -877,7 +881,7 @@ i
 
 4/11/2014 0.9.18.4
 
-    user visible changes, client:
+    user visible changes::
     * Enabled the removal of !dir_cont and !files sources.
     * Reading a user config file if such file exists. User config file named
         instl_config.yaml can be placed in the home folder,
@@ -893,23 +897,23 @@ i
     * It's possible now to install sources from any folder regardless of OS. This mainly enables the uses
         of Common folder in the same level of Win and Mac.
 
-    user visible changes, client:
+    user visible changes::
     * Moved the curl files to $(LOCAL_REPO_BOOKKEEPING_DIR)/curl instead of $(LOCAL_REPO_SYNC_DIR)/curl
     * LOCAL_REPO_SOURCES_DIR varaible is no longer used, use $(LOCAL_REPO_SYNC_DIR) instead.
     * new internal variable: __USER_HOME_DIR__ will point to the local home folder of the user.
 
-    user visible changes, admin:
+    admin visible changes::
     * Install sources starting with '/' are absolute.
     * Install sources starting with '$(' are explicitly relative to that prefix variable.
     * Other install source remain relative to $(SOURCE_PREFIX).
 
 30/10/2014 0.9.17.1
 
-    user visible changes, client:
+    user visible changes::
     * Better messages when exception is raised in case a file/folder is specified as source
         but does not exist in repository.
 
-    user visible changes, admin:
+    admin visible changes::
     * Fixed a "lacuna" where fiels or folders that were wtared could not be downloaded as
         a stand alone item, only their parent folder could be. Now they can.
     * If a file/folder is missing for the map look for .wtar files with the same name and download them instead.
@@ -945,7 +949,7 @@ i
 
 17/9/2014 0.9.15   Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
     * remove command fully implemented.
     * Fixed handling of pre_copy_item when no items to copy to folder.
     * Added __TARGET_DIR__ var on remove folder loop - still need to add in other loops
@@ -959,7 +963,7 @@ i
     * New command remove-empty-folders: removes empty folders or folders containing only ignired files.
         List of ignored files are specified in REMOVE_EMPTY_FOLDERS_IGNORE_FILES variable.
 
-    user visible changes, admin:
+    admin visible changes::
 
     programmer visible changes:
     * Removed redundant imports using snakefood
@@ -969,19 +973,19 @@ i
 
  24/6/2014 0.9.14   Shai Shasag <shai@waves.com>
 
-     user visible changes, client:
+     user visible changes::
      * Names of curl config files have same legth due to 0 padding the number. This will creaet more stable
        progress report in a progress dialog.
 
 
 22/6/2014 0.9.14   Shai Shasag <shai@waves.com>
 
-     user visible changes, client:
+     user visible changes::
      * new command test-import to force loading of all required modules provoking error if any import fails.
 
 
 20/6/2014 0.9.13.1   Shai Shasag <shai@waves.com>
-    user visible changes, client & admin:
+    user visible changes: & admin:
     * Fixed exceptions in interactive mode - no functionality change.
 
 16/6/2014 0.9.13   Shai Shasag <shai@waves.com>
@@ -994,10 +998,10 @@ i
 
 9/6/2014 0.9.12   Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
     * new variable __PYTHON_VERSION__ to record the version of python instl was compiled with
 
-    user visible changes, admin:
+    admin visible changes::
     * Added option to limit stage2svn to specific folders, to save time.
     * up-repo-rev now creates a batch file like all other commands.
     * up-repo-rev does not use boto - depends on aws command line tools.
@@ -1012,7 +1016,7 @@ i
     * up2s3 calls up-repo-rev with --out parameter
 
 28/5/2014 0.9.11   Shai Shasag <shai@waves.com>
-    user visible changes, client:
+    user visible changes::
     * Fixed a problem where index.yaml would not be copied to bookkeeping when syncing to DOK.
 
     programmer visible changes:
@@ -1020,22 +1024,22 @@ i
 
 27/5/2014 0.9.10   Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
     * Removed redundant echo during copy.
     * Fixed: set-exec was not called or caled using the wrong have-info-map file if command was synccopy.
 
-    user visible changes, admin:
+    admin visible changes::
     * wtar command: removed previously wtar files if tarring should be preformed.
 
 13/5/2014 0.9.9   Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
     * New line after each folder in copy operations.
     * No redundant cd to folder that has not actions for non copying items.
     * When unwtaring, if .done exists it's date compared to the target file.
     * Compilation time and compiling machine displayed as part of version
 
-    user visible changes, admin:
+    admin visible changes::
     * wtar command checks if tared files should be executable and adjust. it's permissions.
     * stage2svn & wtar commands use chflags -R nouchg to remove the Lock flag that might be on files copied from smb server.
     * Changed options for fix-symlinks command, instead of --folder, the folder will be taken from the STAGING_FOLDER given in the --config-file option. Also --svn was deleted as it was never used.
@@ -1051,7 +1055,7 @@ i
 
 11/5/2014 0.9.8   Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
     * Made progress messages more suitable for display in Central.
     * actions output messages changed to "pre-install step" "post-install step",  "pre-copy step", "post-copy step"
     * Improved help texts.
@@ -1059,7 +1063,7 @@ i
     * Copy instructions are performed from top folder down.
     * During copy all target folders are created before any other action, so to avoid dependency order problems such as creating links between folders
 
-    user visible changes, admin:
+    admin visible changes::
     Added variables PUBLIC_KEY_FILE, PRIVATE_KEY_FILE to defaults file InstlAdmin.yaml.
 
     programmer visible changes:
@@ -1067,10 +1071,10 @@ i
 
 4/5/2014 0.9.7   Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
     * Display if checksum fails for a file, output expected and found checksums.
 
-    user visible changes, admin:
+    admin visible changes::
     * Fixed a problem where softlinks would be followed during wtar.
     * Added progress report to fix-symlinks
     * Added progress report to stage2svn
@@ -1083,7 +1087,7 @@ i
 29/4/2014 0.9.6   Shai Shasag <shai@waves.com>
 
 
-    user visible changes, client:
+    user visible changes::
     * new initial vars defined in main: __USRER_ID__, __GROUP_ID__ record the user and group when instl was called. Useful for usaing in the produced script, when called as sudo, to set permissions to the original owner.
     * New variable from main.yaml: MKDIR_CMD to be able to call from index and mkdir command defined by instl. In this case on Mac MKDIR_CMD expands to mkdir_with_owner.
     * Copy now calls mkdir_with_owner on Mac so to properly set owner and permissions for created folders.
@@ -1093,7 +1097,7 @@ i
 
 27/4/2014 0.9.5  Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
     * Improved support for syncing from perforce.
     * Logging of echo messages from batch files by using new variable ECHO_LOG_FILE. (Mac)
     * added --group --owner to rsync commands - should preserve user/group when copying under sudo.
@@ -1102,12 +1106,12 @@ i
     * New type of defaults file by repo type, i.e. P4.yaml, URL.yaml. Currently added P4.yaml to defaults folder.
     * New utility function: P4GetPathFromDepotPath to get the local disk path from p4 depot path.
     * Usage of $(LOCAL_REPO_SOURCES_DIR) instead of $(LOCAL_REPO_SYNC_DIR)/$(SOURCE_PREFIX) - because p4 does not need SOURCE_PREFIX.
-    * new variable: ECHO_LOG_FILE. If defined all echos from batch file will be teeed to this file. (Mac).    user visible changes, admin:
+    * new variable: ECHO_LOG_FILE. If defined all echos from batch file will be teeed to this file. (Mac).    admin visible changes::
     * new method  configVarList.defined returns true if a value is defined and has none empty value. So calling with a variable name who's value consists of an empty string will return False.
 
 16/4/2014 0.9.4  Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
     * Added new actions types for install items: copy_in, copy_out.
     * Added  copy_in actions for Au regi utility
 
@@ -1117,11 +1121,11 @@ i
 
 8/4/2014 0.9.3 Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
     * Streamlined logging. Removed many redundant messages added some useful others.
     * Fixed: Executable files on Mac would not get executable bit.
 
-    user visible changes, admin:
+    admin visible changes::
     * New command set_exec, sets executable bit for files marked as fx in info_map.txt
 
     programmer visible changes:
@@ -1129,21 +1133,21 @@ i
 
 6/4/2014 0.9.2  Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
     * Fix --run where path to batch has spaces in name (Windows).
 
 3/4/2014 0.9.1  Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
     * Fixed exception when trying to read public key file.
 
 30/3/2014 0.9.0  Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
     * interactive command eval renamed python.
     * New interactive command: resolve, will resolve variables in a string.
 
-    user visible changes, admin:
+    admin visible changes::
 
     programmer visible changes:
     * Removed variable __CHECKOUT_FOLDER__, it is totaly replaced by $(ROOT_LINKS_FOLDER_REPO)/Base.
@@ -1152,7 +1156,7 @@ i
 
 13/3/2014 0.8.10  Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
     * Main feature: support for Windows XP.
     * Fixed: COPY_TOOL set to xcopy was ignored (WinXP).
     * Solved weird problems with xcopy. The /EXCLUDE option of xcopy cannot except a file with space it's path,
@@ -1165,7 +1169,7 @@ i
         to be redownloaded if some situations.
     * PARALLEL_SYNC: 32 - new default
 
-    user visible changes, admin:
+    admin visible changes::
     * More concise messages for create-links and up2s3
 
     programmer visible changes:
@@ -1186,7 +1190,7 @@ i
 
 5/3/2014 0.8.9 Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
     * create-folders, unwtar and check-checksum are now done as internal instl commands instead of relying on external utilities.
     * During unwtar if .wtar.aa file is joined, .wtar.done file is removed.
     * New command create-folders will create folders for sync according to the to_sync_info_map.txt.
@@ -1195,7 +1199,7 @@ i
     * Windows: robocopy copy_dir_to_dir has /PURGE parameter so that redundant files in the target will be removed.
     * Mac: rsync copy_dir_to_dir has --delete parameter so that redundant files in the target will be removed.
 
-    user visible changes, admin:
+    admin visible changes::
     * Creation of .txt files for all files in instl directory was moved from up2s3 command to create-links command.
     * up2s3 will upload up to the latest repo revision and not up to BASE_REPO_REV.
     * Options --start-progress and --total-progress become optional (for commands that accept them). Not supplying means there will be no progress report.
@@ -1213,7 +1217,7 @@ i
 
 4/3/2014 0.8.8 Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
     * Fixed a problem where files created when instl runs under sudo,
         could not be re-written under regular user.
     * unwtar command added - replaced individual batch file unwtar commands with inst unwtar.
@@ -1229,7 +1233,7 @@ i
 
 26/2/2014 0.8.7 Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
     * When using --run and script fails, exit code is passed correctly.
     * Proper downloading for all possible required items when target_os != current_os (offline sync).
     * Fixed: When running compiled instl in interactive mode exception was raised when instlClient and instlAdmin
@@ -1244,12 +1248,12 @@ i
 
 24/2/2014 0.8.6 Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
     * ACCEPTABLE_YAML_DOC_TAGS from main.yaml was missing from th ecompiled version.
     * version command will add "(not compiled)" if instl is running though python interpreter.
     * New var: __INSTL_COMPILED__ set to True is instl was compiled and False is running though python interpreter.
 
-    user visible changes, admin:
+    admin visible changes::
     * fix props:    write svn info to file for debugging and reference. But go one folder up so not to be in the svn repo.
 
     programmer visible changes:
@@ -1262,7 +1266,7 @@ i
 
 19/2/2014 0.8.5 Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
     * Fixed many sync bugs especialy on Windows.
     * New automatic installation items:
         __ALL_ITEMS_IID__:  all the iids from the index
@@ -1318,11 +1322,11 @@ i
 
 13/2/2015 0.8.4 Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
     * Fixed: on windows files with '&' in name would not pass checksum check.
     * All curl downloads are performed though instl own parallel-run command.
 
-    user visible changes, admin:
+    admin visible changes::
     * platfotmSpecificHelper methods svn_add_item, svn_remove_item use $(SVN_CLIENT_PATH) instead of plain svn.
     * overhual to do_up2s3, loop on relavent revisions instead of exiating folders.
     * overhual to do_fix_props, make it less verbose and better messages.
@@ -1333,7 +1337,7 @@ i
 
 11/2/2014 0.8.3 Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
     * curl connect-timeout = 3 instead of 60
     * improved reporting on config file curl downloads.
     * Fixed: empty config files were created if the number of files to download was smaller than the number of config files. Now each config file will have at least 4 urls.
@@ -1347,7 +1351,7 @@ i
     * Windows: errorlevel checking on 7za untaring.
     * Windows: 7za untaring redirect stderr to NUL, because 7za trash-talks no error messages to stderr.
 
-    user visible changes, admin:
+    admin visible changes::
     * New command: verify-index, helps admin find problems in index and info map.
 
     programmer visible changes:
@@ -1357,7 +1361,7 @@ i
 
 10/2/2014 0.8.2  Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
     * Fixed wrong relative path created for create-links command.
     * Added time measurements to batch file produces for windows.
     * Removed redundant quotes from echo messages on windows.
@@ -1366,7 +1370,7 @@ i
     * Windows: Added checking of 7za return value and goto exit if > 0
     * Windows: Divert 7za stderr message to NUL since non-error messages are directed to stderr by 7za.
 
-    user visible changes, admin:
+    admin visible changes::
     * usage of $(SVN_CLIENT_PATH) instead of svn in all adming commands.
     * Fixed: fix-props output batch file was not written to the current folder.
     * Fixed wrong relative path created for create-links command.
@@ -1376,12 +1380,12 @@ i
 
 3/2/2014 0.8.1 Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
     * Little faster sync/copy/syncopy due to optimiztions in SVNItem.
     * Fixed copy_dir_to_dir on Mac that did not create hard links
     * Fixed new_item_at_path that did not create the have map correctly
 
-    user visible changes, admin:
+    admin visible changes::
     * New command: create-repo-rev-file, to separate repo rev file creation and uploading.
     * command up-repo-rev only uploads the already created repo rev file.
     * type fixed REPO_REV_FILE_VARS instead of REPO_REV_FILE_VARAIBLES
@@ -1404,16 +1408,16 @@ i
     Main 0.8.0 features:
     * Create and check signature for info_map.txt file
 
-    user visible changes, client:
+    user visible changes::
     * using STAGING_FOLDER, SVN_CHECKOUT_FOLDER, SVN_CLIENT_PATH, DOWNLOAD_TOOL_PATH, CHECKSUM_TOOL_PATH instead of __STAGING_FOLDER__ , __SVN_FOLDER__, __RESOLVED_SVN_CLIENT_PATH__, __RESOLVED_DOWNLOAD_TOOL_PATH__, __RESOLVED_CHECKSUM_TOOL_PATH__
     * wtar files are expanded during sync not during copy
     * Fixed unwtar for Windows
     * InstlInstanceSync_url.read_remote_info_map checks signature against public key.
-    * If file to download is already present, no not check checksum in batch file.    user visible changes, client:
+    * If file to download is already present, no not check checksum in batch file.    user visible changes::
     * option --config_file renamed --config-file, for easy typing experience
     * added some missing command help text.
 
-    user visible changes, admin:
+    admin visible changes::
     * New command svn2stage, to prepare folders for entering changes
     * New command wtar, to proparly tar what needs to be tared
     * New command createkeys
@@ -1450,13 +1454,13 @@ i
 
 26/1/2014 0.7.2  Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
      * Fixed exception handling and output to stderr.
         Now all "bad" output should go to stderr. Errorlevel should be proearly set.
 
 23/1/2014 0.7.1 Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
     * progress report for folder actions
     * SET_ICON_TOOL_PATH instead of SET_ICON_PATH
     * better progress report for svn sync
@@ -1467,7 +1471,7 @@ i
     * Check checksum of files after download.
     * Conditional document tags in yaml (see below)
 
-    user visible changes, client:
+    user visible changes::
     * Windows: wget gets --quite option
     * Windows: Running mkdir only if path does not exist
     * Removed the --state option, it was not working.
@@ -1501,7 +1505,7 @@ i
     * Mac:Setting of .framewoks to be bundles is now done by a new version of setIcon.
     * CURRENT_OS_NAMES renamed __CURRENT_OS_NAMES__
 
-    user visible changes, admin:
+    admin visible changes::
     * New command stage2svn
     * Exception is thrown if unknown admin command is called
     * up_repo_rev now accepts only one option: --config_file, repo_rev file to upload is
@@ -1540,12 +1544,12 @@ i
 
 9/1/2014 0.6.5  Shai Shasag <shai@waves.com>
 
-    user visible changes, client:
+    user visible changes::
     * Windows: improved batch file creation: @echo off
     * create_variables_assignment now always writes all internal variables, even in debug mode.
     * Output files on Linux and Mac get "set -e" so the fail if any sub-commands fails.
 
-    user visible changes, admin:
+    admin visible changes::
     * added fix_symlinks command to replace symlinks with .symlink files. Worls only on Mac.
     * changed behaviour of create_links and up2s3 to be responsible for the whole links folder
         and to figure out want needs to be copied and what needs to be uploaded.
@@ -1568,7 +1572,7 @@ i
     * added props member to SVNItem to hold properties that are not executable or special (symlink)
     * Rearranged instlAdmin.py to deduce the name of the method to run from the command name
         ("fix_symlinks" -> do_fix_symlinks()))
-    * fixed typos and redundant lines in progress report.     user visible changes:
+    * fixed typos and redundant lines in progress report.
 
 2/1/2014 0.6.4  Shai Shasag <shai@waves.com>
     user visible changes:
