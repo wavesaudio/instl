@@ -4,6 +4,7 @@
 
 import os
 
+import utils
 from configVar import var_stack
 from .instlClient import InstlClient
 
