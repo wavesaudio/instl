@@ -84,6 +84,7 @@ class InstlClientCopy(InstlClient):
             self.batch_accum += self.platform_helper.progress("Create folders done")
 
     def create_copy_instructions(self):
+        self.progress("create copy instructions ...")
         self.create_sync_folder_manifest_command("before-copy", back_ground=True)
         # If we got here while in synccopy command, there is no need to read the info map again.
         # If we got here while in copy command, read HAVE_INFO_MAP_FOR_COPY which defaults to HAVE_INFO_MAP_PATH.
@@ -142,6 +143,7 @@ class InstlClientCopy(InstlClient):
         for iid in sorted(var_stack.ResolveVarToList("__ORPHAN_INSTALL_TARGETS__")):
             self.batch_accum += self.platform_helper.echo("Don't know how to install " + iid)
         self.batch_accum += self.platform_helper.progress("Done copy")
+        self.progress("create copy instructions done")
 
     def calc_size_of_file_item(self, a_file_item):
         """ for use with builtin function reduce to calculate the unwtarred size of a file """

@@ -1,3 +1,8 @@
+???? 1.5.0.4
+
+    user visible changes:
+    * Added progress messages when preparing installer, currently only 4 dummy messages are produced
+
 19/6/2017 1.5.0.3
     Some reformating to the change log file
 
