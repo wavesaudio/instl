@@ -27,14 +27,16 @@
     * InstlClient.create_sync_folder_manifest_command now has option to run in back ground - Mac only
     * 'command-list': new option --parallel to run commands from list in parallel - Mac only
     * 'batch' command renamed 'command-list' as the word batch is confusing with the batch file produced by many commands
-    * new option for do_something commands: --no-numbers-progress, will output "Progress ... of ...", useful for commands running in parallel
+    * new option for do_something commands: --no-numbers-progress, will output "Progress ... of ...", useful for commands
+        running in parallel
 
     admin visible changes:
     * log-analyzer.py - utility for analyzing instl logs - not finished yet
 
     programmer visible changes:
     * new function SVNTable.count_file_by_path_case_insensitive, replacing inefficient SVNTable.get_item_case_insensitive
-    * in utils.unwtar_a_file moved checking of disk checksum only if total_checksum is present in pax_headers so unwtarring old archives that do not have pax_headers and/or total_checksum will be faster
+    * in utils.unwtar_a_file moved checking of disk checksum only if total_checksum is present in pax_headers so unwtarring
+        old archives that do not have pax_headers and/or total_checksum will be faster
     * commented out some redundant chmods during copy now that unwtar is done once per install folder
     * InvocationReporter wraps main() and reports argv and run time for instl invocation. Enabled if ~/instl_config.yaml is present
     * .get_default_out_file: function for deciding the output file, to be overriden by child classes (InstlClient, InstlMisc, ect...)
@@ -43,7 +45,6 @@
 
     user visible changes:
     * new command: batch, will read instl commands form a file and execute them. Currently limited to do_something mode of commands.
-
     * new PAX wtars are not untarred if all files ar ein place and checksums in wtar file agree with disk checksums
     * faster copy preformance because of batch-ign of unwtar and checksum checkking
 
@@ -56,17 +57,19 @@
     * new function utils.get_recursive_checksums returns a dict with checksums for each file and a total checksum
     * do_wtar implemented based on utils.get_recursive_checksums
     * do_checksum implemented based on utils.get_recursive_checksums
-    * utils.get_file_checksum now has follow_symlinks parameter and if False will checksum the contents of the symlink by calling readlink.
+    * utils.get_file_checksum now has follow_symlinks parameter and if False will checksum the contents of the symlink
+        by calling readlink.
     * YamlReader: better tracking of __include__ files to provide accurate error messages
     * YamlReader.read_yaml_file: exceptions from recursive calls will appear only once
     * new default variable in InstlMisc.yaml: WTAR_IGNORE_FILES, those files which will be ignored when wtar/unwtar is called
-    * platformHelper_XXX: new parameter preserve_dest_files to copy_dir_to_dir (before the default was not to preserve destination files
+    * platformHelper_XXX: new parameter preserve_dest_files to copy_dir_to_dir (before the default was not to preserve
+        destination files
     * new function platformHelper_Base.tar_with_instl will do tar by calling instl command wtar
-    * do_wtar_staging_folder usees new function tar_with_instl
+    * do_wtar_staging_folder uses new function tar_with_instl
     * utils.is_first_wtar_file now finds split files - no need to pass it a list
     * new property utils.open_for_read_file_or_url.actual_path, is the path/url after it has been resolved
-    * utils.find_split_files is more independant and will return a list even when there is ponly one file
-    * class CommandLineOptions and functions prepare_args_parser read_command_line_options moved to new file cmdOptions.pt
+    * utils.find_split_files is more independant and will return a list even when there is only one file
+    * class CommandLineOptions and functions prepare_args_parser read_command_line_options moved to new file cmdOptions.py
 
 18/5/2017 1.4.4.2
 
@@ -106,16 +109,20 @@
     * New SVNRow columns wtarFlag, download_root and new function get_download_roots
     * BatchAccumulator transactions can now span over multiple sections
     * Fixed wrong path calculation in create_copy_instructions_for_file
-    * All create_sync_instructions return the number of files/sources to be synced so the whole sycn section can be removed if there are not files to sync
+    * All create_sync_instructions return the number of files/sources to be synced so the whole sycn section can be removed
+        if there are not files to sync
 
 19/4/2017 1.4.3.2
 
     user visible changes:
     * Added removing of previous sources when uninstalling
-    * Added reading of InstlClient.yaml in InstlMisc.do_exec. This is a temp hack, which additional config file to read should come from command line options.
+    * Added reading of InstlClient.yaml in InstlMisc.do_exec. This is a temp hack, which additional config file to read
+        should come from command line options.
 
     programmer visible changes:
-    * Move functions InstlClientCopy.create_remove_previous_sources_instructions_for_source, InstlClientCopy.create_remove_previous_sources_instructions_for_target_folder to InstlClient so they can be used by InstlClientRemove
+    * Move functions InstlClientCopy.create_remove_previous_sources_instructions_for_source,
+        InstlClientCopy.create_remove_previous_sources_instructions_for_target_folder to InstlClient
+        so they can be used byInstlClientRemove
     * InstlInstanceBase.read_require - calling self.items_table.read_require_node only if self.items_table was initialized
 
 9/4/2017 1.4.3.1
@@ -133,19 +140,23 @@
 
 26/3/2017 1.4.2.0
     user visible changes:
-    * New config variable: REMOVE_PREVIOUS_SOURCES set to True be default, If set to False will prevent previous_sources from being deleted.
+    * New config variable: REMOVE_PREVIOUS_SOURCES set to True be default, If set to False will prevent previous_sources
+        from being deleted.
     * Merge branch 'wfi_lev': better checking of 2 types of wfi files
     * platform_helper.rmdir, platform_helper.rmfile got new parameter check_exist that will preform the deletion
         only if the file/folder exists. This is "for good measure" so we do not get redundant error messages during batch runs.
 
     programmer visible changes:
-    * New function: ConfigVarList.ResolveVarToBool will resolve a variable from yes,no,true,false,y,n to True/False. Default value will be returned in case variable does not exist or cannot be converted to bool.
+    * New function: ConfigVarList.ResolveVarToBool will resolve a variable from yes,no,true,false,y,n to True/False.
+        Default value will be returned in case variable does not exist or cannot be converted to bool.
     * New function: utils.str_to_bool a helper fro implementing ConfigVarList.ResolveVarToBool
 
 23/3/2017 1.4.1.0
 
     user visible changes:
-    * New index property: previous_sources where you can specified the previous names of the install_sources. These names will be used for 1) identifying  old versions that need update 2) files/folders that will be removed when the main IID is installed
+    * New index property: previous_sources where you can specified the previous names of the install_sources.
+        These names will be used for 1) identifying  old versions that need update 2) files/folders that will be
+        removed when the main IID is installed
 
     programmer visible changes:
     * create_remove_previous_sources_instructions_for_target_folder takes care of removing previous_sources
@@ -245,7 +256,8 @@
     * CHECK_BINARIES_VERSION_FILE_EXCLUDE_REGEX will effect which files not to consider when doing version report
     programmer visible changes:
     * utils.compile_regex_list_ORed verbose default changed to False, because spaces in regexs should be consider
-    * Disabled usage of Mac_dylib in report-versions because otool is available only on systems where developer tools were installed, so usage of otool cannot be deployed to users
+    * Disabled usage of Mac_dylib in report-versions because otool is available only on systems where developer tools
+        were installed, so usage of otool cannot be deployed to users
 
 8/2/2017 1.3.2.3
 
@@ -275,10 +287,12 @@
 
 
     user visible changes:
-    * default for HAVE_INFO_MAP_FOR_COPY is now $(NEW_HAVE_INFO_MAP_PATH), to allow creating copy batch file after creating sync batch file but before running the sync batch file
+    * default for HAVE_INFO_MAP_FOR_COPY is now $(NEW_HAVE_INFO_MAP_PATH), to allow creating copy batch file after creating
+        sync batch file but before running the sync batch file
 
     programmer visible changes:
-    * create_variables_assignment moved to inside write_batch_file, as they were always done one after another. This will allow for several variables to be written to the batch file which were not written before.
+    * create_variables_assignment moved to inside write_batch_file, as they were always done one after another.
+        This will allow for several variables to be written to the batch file which were not written before.
 
 
 11/1/2017 1.3.2.0
@@ -294,7 +308,8 @@
     * more human readable json output to report-versions, with indents and line breaks
 
     programmer visible changes:
-    * replaced previous views with views to reflect those items that did not have guid or version in require.yaml and such guid/version was found in binaries
+    * replaced previous views with views to reflect those items that did not have guid or version in require.yaml
+        and such guid/version was found in binaries
     * Mac_bundle, Mac_framework: look for CFBundleVersion not CFBundleGetInfoString
     * new function utils.safe_remove_folder
     * new row to table IndexItemDetailRow: active. Will be automaticaly set to 0/1 according to current OS
@@ -315,7 +330,8 @@
     * get_all_iids_with_guids text instead of sqlalchemy query
     * added try/except for many slqalchemy code
     * removed some commits that (hopefully) were redundant
-    * Moved create_default_require_items & create_default_require_items to new function: create_default_items that will be called after index and require were read
+    * Moved create_default_require_items & create_default_require_items to new function: create_default_items that
+        will be called after index and require were read
 
 23/11/2016 1.3.0.10
 
@@ -346,7 +362,8 @@
 
     user visible changes:
     * fixed handling of __UPDATE_INSTALLED_ITEMS__ & __REPAIR_INSTALLED_ITEMS__ in InstallInstructionsState.__translate_root_items
-    * fixed InstlClient.create_sync_folder_manifest_command, to try getting the output folder from params 'ECHO_LOG_FILE', '__MAIN_INPUT_FILE__', '__MAIN_OUT_FILE__'
+    * fixed InstlClient.create_sync_folder_manifest_command, to try getting the output folder from params
+        'ECHO_LOG_FILE', '__MAIN_INPUT_FILE__', '__MAIN_OUT_FILE__'
 i
 
 26/10/2016 1.3.0.5
@@ -354,7 +371,8 @@ i
     programmer visible changes:
     * fixed IndexItemTable.iids_from_guids for cases where not guids are supplied
     * fixed IndexItemTable.get_recursive_dependencies for cases where no main_install_targets are supplied
-    * fixed IndexItemTable.create_default_require_items, IndexItemTable.create_default_index_items that where not producing the correct items
+    * fixed IndexItemTable.create_default_require_items, IndexItemTable.create_default_index_items that where
+        not producing the correct items
     * sqlalchemy: use a single session instead of separate ones for SVNTable and IndexTables,
         solves a problem when working with admin commands
 
@@ -371,7 +389,9 @@ i
 16/10/2016 1.3.0.3
 
     user visible changes:
-    * InstlClient.create_sync_folder_manifest_command looks for the folder where to put the manifest in __MAIN_INPUT_FILE__ instead of __MAIN_OUT_FILE__. This was done because in some situations __MAIN_OUT_FILE__ is not defined yet.
+    * InstlClient.create_sync_folder_manifest_command looks for the folder where to put the manifest in
+        __MAIN_INPUT_FILE__ instead of __MAIN_OUT_FILE__. This was done because in some situations __MAIN_OUT_FILE__
+        is not defined yet.
     * new include: __include_if_exist__, so non existing files can be ignored
     * Default value for __OUTPUT_FORMAT__ is now OUTPUT_FORMAT so the format can be specified in !define sections
     * added option --out to report-versions command
@@ -388,13 +408,15 @@ i
     user visible changes:
     * Fixed bug in the calculation of uninstall items
     * Added option to "explain" uninstall calculations
-    * Fixed a bug in the creation of variable __MAIN_OUT_FILE__ in InstlInstanceBase.write_batch_file - it was done too late so the varaible was not printed to the batch file
+    * Fixed a bug in the creation of variable __MAIN_OUT_FILE__ in InstlInstanceBase.write_batch_file - it was done
+        too late so the varaible was not printed to the batch file
 
 18/9/2016 1.3.0.1
 
     user visible changes:
     * New defaults for curl parameters, and passing the --retry_delay option wchi was not passed before
-    * Changed (a little the meaning of __UPDATE_INSTALLED_ITEMS__ & __REPAIR_INSTALLED_ITEMS__ to always copy all updated items (until we figure out how to consider versions)
+    * Changed (a little the meaning of __UPDATE_INSTALLED_ITEMS__ & __REPAIR_INSTALLED_ITEMS__ to always copy
+        all updated items (until we figure out how to consider versions)
     * report_versions command improved - but not operational yet
 
     programmer visible changes:
@@ -415,7 +437,8 @@ i
 15/8/2016 1.2.3.1
     user visible changes:
     * Some check for value of REPO_REV were redundant and failed commands such as remove.
-    * chmod -R -f a+xwX after copy dir to dir on Mac. Should solve permission problems when in stalling on Mac form installer created on Windows.
+    * chmod -R -f a+xwX after copy dir to dir on Mac. Should solve permission problems when installing on Mac
+        from offline installer created on Windows.
 
     programmer visible changes:
     * Added packaging.requirements to hiddenimports in instl.spec to overcome compilation issue on Windows
@@ -425,7 +448,8 @@ i
     user visible changes:
     * New command resolve, to resolve $() variables in arbitrary text
     * New variable, PRINT_COMMAND_TIME, to control if a command displays time information when it's done. Default set to yes.
-    * New document tag for yamls: "!define_if_not_exist" will read the values only if they do not exists, implemented in ConfigVarYamlReader.read_defines_if_not_exist
+    * New document tag for yamls: "!define_if_not_exist" will read the values only if they do not exists, implemented
+        in ConfigVarYamlReader.read_defines_if_not_exist
     * resolve command accepts --config-file, --in, --out instead of read/write to stdin/stdout. SO it can change the file inplace
     * Progress messages added to doit
 
@@ -440,7 +464,9 @@ i
     * InstlInstanceBase.write_batch_file now creates the directory for the batch file
     * New base class for reading yaml files: aYaml.YamlReader
     * New class ConfigVarYamlReader inherits from aYaml.YamlReader
-    * New parser for variables resolution. Old function were renamed *_deprecated. New functions for resolving: ResolveVarToStr, ResolveVarToList, etc    * _DIR & _PATH variables are resolved as path instead of read as such. This will allow for better resolution becuase more information is known.
+    * New parser for variables resolution. Old function were renamed *_deprecated. New functions for resolving:
+        ResolveVarToStr, ResolveVarToList, etc    * _DIR & _PATH variables are resolved as path instead of read as such.
+        This will allow for better resolution becuase more information is known.
     * BatchAccumulator better handling of list of lines and single lines
     * New function: utils.is_iterable_but_not_str
     * Removed code to indent batch files - it was not working anyway.
@@ -454,12 +480,14 @@ i
     * copy command batch file creates sync folder manifest before it does it's work
     * Allow multiple guids per IID
     * New options for Robocopy to reduce verbosity
-    * PlatformSpecificHelperMac.unlock will print its output to /dev/null because we do not care for the error message if the items being unlocked do not exists
+    * PlatformSpecificHelperMac.unlock will print its output to /dev/null because we do not care for the error message
+        if the items being unlocked do not exists
     * utils.folder_listing adds comments with date the manifest was created and the folder(s) being manifested
     * Fixed ls command to properly handle missing folder and report them in the output
 
     programmer visible changes:
-    * removed readline and colorama from test_import - they are needed only for interactive mode and should not create an error on compilation.
+    * removed readline and colorama from test_import - they are needed only for interactive mode and should not
+        create an error on compilation.
     * New functions InstlClient.create_folder_manifest_command  InstlClient.create_sync_folder_manifest_command
     * Fixed InstlMisc to properly count progress and not display a message about "curr_progress != actual_progress" which was wrong
     * Fixed utils.max_widths to handle empty lists
@@ -565,12 +593,13 @@ i
     * Print all running processes when batch file exits on non zero
 
     programmer visible changes:
-    * normpath for the following variables to avoid bad slashes on windows"__SITE_DATA_DIR__, __SITE_CONFIG_DIR__, __USER_DATA_DIR__, __USER_CONFIG_DIR__, __USER_HOME_DIR__
+    * normpath for the following variables to avoid bad slashes on windows"__SITE_DATA_DIR__, __SITE_CONFIG_DIR__,
+        __USER_DATA_DIR__, __USER_CONFIG_DIR__, __USER_HOME_DIR__
 
 20/10/2015 1.0.0.7
     user visible changes::
-    * Fixed const variables ending with ("_PATH", "_DIR", "_DIR_NAME", "_FILE_NAME", "_PATH__", "_DIR__", "_DIR_NAME__", "_FILE_NAME__")
-        were not normalized (Win)
+    * Fixed const variables ending with ("_PATH", "_DIR", "_DIR_NAME", "_FILE_NAME", "_PATH__", "_DIR__",
+        "_DIR_NAME__", "_FILE_NAME__") were not normalized (Win)
 
 
 19/10/2015 1.0.0.6
@@ -599,7 +628,8 @@ i
 12/10/2015 1.0.0.3
 
     user visible changes::
-    * Moved the folder creation during copy to after the pre_copy step so that uninstalls from pre_copy will not erase important folders.
+    * Moved the folder creation during copy to after the pre_copy step so that uninstalls from pre_copy will not erase
+        important folders.
 
 12/10/2015 1.0.0.2
 
@@ -671,7 +701,8 @@ i
 9/9/2015 0.11.0.1
 
     user visible changes::
-    * Fixed error when trying to remove items that were not installed. could happen because install dependencies are not always the same as remove dependencies
+    * Fixed error when trying to remove items that were not installed. could happen because install dependencies
+        are not always the same as remove dependencies
 
 9/9/2015 0.11.0.0
 
@@ -689,23 +720,28 @@ i
     * Added file-sizes option to the trans command so the sizes of files will be added to the final info_map.txt.
 
     programmer visible changes:
-    * Extended the number of variable name endings that, when read, call os.path.normpath on the value:  "_PATH", "_DIR", "_DIR_NAME", "_FILE_NAME", "_PATH__", "_DIR__", "_DIR_NAME__", "_FILE_NAME__".
+    * Extended the number of variable name endings that, when read, call os.path.normpath on the value:  "_PATH", "_DIR",
+        "_DIR_NAME", "_FILE_NAME", "_PATH__", "_DIR__", "_DIR_NAME__", "_FILE_NAME__".
     * Added  validate=False to some boto function calls to better handle certificate problems.
     * Added empty certificate to opening a URL in function open_for_read_file_or_url to better handle certificate problems.
-    * When reading the local instl_config file, reading of internal variables is now allowed, to allow for simulating various situations.
-    * Removed some time measuring code where it was not needed. In some places replaced time.time() with time.clock() which is (supposedly)
-        more accurate on Windows.
+    * When reading the local instl_config file, reading of internal variables is now allowed, to allow for simulating
+        various situations.
+    * Removed some time measuring code where it was not needed. In some places replaced time.time() with time.clock()
+        which is (supposedly) more accurate on Windows.
     * Added boto to the list of maodules in import-check and in pyinstaller compilation.
     * In function InstlAdmin.should_wtar, regex self.already_wtarred_regex was change to search instead of match.
-    * New function InstlAdmin.compile_exclude_regexi to consolidate the reading of FOLDER_EXCLUDE_REGEX & FILE_EXCLUDE_REGEX in one place.
+    * New function InstlAdmin.compile_exclude_regexi to consolidate the reading of FOLDER_EXCLUDE_REGEX & FILE_EXCLUDE_REGEX
+        in one place.
     * New propery SVNItem.size, implemented with member __size.
     * New function SVNItem.safe_size will return the recursive size of an item or -1 if not available.
     * New function utils.get_disk_free_space
-    * New function InstlInstanceBase.calc_user_cache_dir_var calculates new variable USER_CACHE_DIR. This variable is not the base for LOCAL_SYNC_DIR (if LOCAL_SYNC_DIR is not explicitly supplied).
+    * New function InstlInstanceBase.calc_user_cache_dir_var calculates new variable USER_CACHE_DIR.
+        This variable is not the base for LOCAL_SYNC_DIR (if LOCAL_SYNC_DIR is not explicitly supplied).
 
     user visible changes::
     * New interactive command 'which': prints the path to currently running instl
-    * During copy, on Mac OS, rsync will set permissions according to variable RSYNC_PERM_OPTIONS.  Default value is --perms --chmod=a+rw,+X.
+    * During copy, on Mac OS, rsync will set permissions according to variable RSYNC_PERM_OPTIONS.
+        Default value is --perms --chmod=a+rw,+X.
     * Var assignments and remarks for DOS batch files will escape the '&' character.
     * Sync command will report the number of bytes to be downloaded.
     * Added message if sync folder is not big enough
@@ -720,7 +756,8 @@ i
     * Moved the curl config folder to be created in the bookkeeping folder so curls files for two version
         will not step on each other.
     * Better ConnectionHTTP.translate_url acts only on the path part.
-    * DownloadToolBase.add_download_url in InstlInstanceSync_url.create_download_instructions_for_item: translate_url applied only to URLs created by instl.
+    * DownloadToolBase.add_download_url in InstlInstanceSync_url.create_download_instructions_for_item: translate_url applied
+        only to URLs created by instl.
     * Reading of info map file checks only checksum not sig.
     * Case insensitive checksum checks.
     * Checks with multi regexes are combined with new function compile_regex_list_ORed, used in conjuction with followingparams:
@@ -749,7 +786,9 @@ i
     * Better, more meaningful progress messages.
     * GUIDs that have upper case characters are converted to lower case.
     * HAVE_INFO_MAP_PATH file is copied to the SITE_HAVE_INFO_MAP_PATH for possible usage by remove command.
-    * SITE SITE_HAVE_INFO_MAP_PATH is used by remove if HAVE_INFO_MAP_PATH was not found. This was done because when removing installation that was done from offline folder, Central will not pass LOCAL_REPO_SYNC_DIR to instl. HAVE_INFO_MAP_PATH depends on LOCAL_REPO_SYNC_DIR.
+    * SITE SITE_HAVE_INFO_MAP_PATH is used by remove if HAVE_INFO_MAP_PATH was not found. This was done because when
+        removing installation that was done from offline folder, Central will not pass LOCAL_REPO_SYNC_DIR to instl.
+        HAVE_INFO_MAP_PATH depends on LOCAL_REPO_SYNC_DIR.
     * New variable HAVE_INFO_MAP_FILE_NAME, used by HAVE_INFO_MAP_PATH, NEW_HAVE_INFO_MAP_PATH, SITE_HAVE_INFO_MAP_PATH.
     * Added time measurements to create urls
     * Sync command: When no files to sync created batch file will have one progress item: "Done Sync".
@@ -758,8 +797,10 @@ i
         if variable FILES_AND_URLS_INFO_MAP_URL is available this file will be read instead of the one in INFO_MAP_FILE_URL.
     admin visible changes::
     * Admin variable MAX_FILE_SIZE renamed MIN_FILE_SIZE_TO_WTAR.
-    * New admin variable: WTAR_BY_FILE_SIZE_EXCLUDE_REGEX. Files names passing this regex will not be wtarred. This was done mainly to disable wtarring of instl itself when updating it.
-    * Variable WTAR_REGEX split in to twp: FOLDER_WTAR_REGEX, FILE_WTAR_REGEX to allow separation between files and folders when choosing what to wtar.
+    * New admin variable: WTAR_BY_FILE_SIZE_EXCLUDE_REGEX. Files names passing this regex will not be wtarred.
+        This was done mainly to disable wtarring of instl itself when updating it.
+    * Variable WTAR_REGEX split in to twp: FOLDER_WTAR_REGEX, FILE_WTAR_REGEX to allow separation between files and folders
+        when choosing what to wtar.
     * repo rev file has new variable INDEX_URL_RELATIVE_PATH, for the convenience of the secure URL creating code.
     * improved the help for unwtar command
     * New command read-yaml, just reads a yaml file, can be used to check file's syntax and structure. (admin)
@@ -801,7 +842,8 @@ i
 
 28/1/2015 0.9.19.4
     user visible changes::
-    * When writing echo's to log the log file is created in the begin sections and permissions are set to 666 so later launches of instl can append to log.
+    * When writing echo's to log the log file is created in the begin sections and permissions are set to 666 so later
+        launches of instl can append to log.
     * For many files that are created during instl run permissions are set to 666.
     * Moved  the curl config file to a local directory instead of being in the bookkeeping directory.
     * Fixed echo function on Mac - it was missing quotes.
@@ -859,7 +901,9 @@ i
     admin visible changes::
     * Implemented --limit option to svn2stage
     * Added quoted string handling to --limit options of svn2stage and stage2svn
-    * Mac OS mkdir_with_owner batch file function now sets only user id for new directory not group id.    programmer visible changes:
+    * Mac OS mkdir_with_owner batch file function now sets only user id for new directory not group id.
+
+    programmer visible changes:
     * New util function unquoteme sister to quoteme_single & quoteme_double
     * Added --run to some admin commands
     * Fixed Admin commands create_links and svn2stage to remove target files that are not in source using the new
@@ -1050,13 +1094,16 @@ i
     admin visible changes::
     * wtar command checks if tared files should be executable and adjust. it's permissions.
     * stage2svn & wtar commands use chflags -R nouchg to remove the Lock flag that might be on files copied from smb server.
-    * Changed options for fix-symlinks command, instead of --folder, the folder will be taken from the STAGING_FOLDER given in the --config-file option. Also --svn was deleted as it was never used.
+    * Changed options for fix-symlinks command, instead of --folder, the folder will be taken from the STAGING_FOLDER
+        given in the --config-file option. Also --svn was deleted as it was never used.
     * wtar command: before wtaring, check and fix permissions for all that is being tarred.
 
     programmer visible changes:
-    * New method InstlItem.all_action_list, returns a list of all actions for an item (before, after, folder_in, folder_out, copy_in, copy_out) intended so the total number of actions for item can be known.
+    * New method InstlItem.all_action_list, returns a list of all actions for an item (before, after, folder_in, folder_out,
+        copy_in, copy_out) intended so the total number of actions for item can be known.
     * New methods for InstlAdmin: is_file_exec, should_file_be_exec to deal with executable bits in the staging folder.
-    * Removed unused methods of InstlInstanceSync_url: create_unwtar_instructions_for_item, create_checksum_instructions_for_item, these already have their own instl command.
+    * Removed unused methods of InstlInstanceSync_url: create_unwtar_instructions_for_item, create_checksum_instructions_for_item,
+        these already have their own instl command.
     * New platformHelper method chmod: implemented for Linux and Mac only. make_executable is now implemented using chmod.
     * New platfromHelper method: unlock, Remove the system's read-only flag, implemented for Mac only.
     * New internal variables, created during compilation: __COMPILATION_TIME__, __SOCKET_HOSTNAME__, __PLATFORM_NODE__
@@ -1069,7 +1116,8 @@ i
     * Improved help texts.
     * New help topic 'defaults' will display default variables and their values.
     * Copy instructions are performed from top folder down.
-    * During copy all target folders are created before any other action, so to avoid dependency order problems such as creating links between folders
+    * During copy all target folders are created before any other action, so to avoid dependency order problems such as creating
+        links between folders
 
     admin visible changes::
     Added variables PUBLIC_KEY_FILE, PRIVATE_KEY_FILE to defaults file InstlAdmin.yaml.
@@ -1086,7 +1134,8 @@ i
     * Fixed a problem where softlinks would be followed during wtar.
     * Added progress report to fix-symlinks
     * Added progress report to stage2svn
-    * Command up-repo-rev: added the option to up load only the repo rev file with the number at it's tail, not the official one. The option in called --just-with-number.
+    * Command up-repo-rev: added the option to up load only the repo rev file with the number at it's tail, not the official one.
+        The option in called --just-with-number.
     * Command up2s3: Now uploads the numbers repo-rev file using the new option --just-with-num of command up-repo-rev.
     * Command file-props:
           - The command did not actually work until now, just printed what should have been done - now it works.
@@ -1096,11 +1145,14 @@ i
 
 
     user visible changes::
-    * new initial vars defined in main: __USRER_ID__, __GROUP_ID__ record the user and group when instl was called. Useful for usaing in the produced script, when called as sudo, to set permissions to the original owner.
-    * New variable from main.yaml: MKDIR_CMD to be able to call from index and mkdir command defined by instl. In this case on Mac MKDIR_CMD expands to mkdir_with_owner.
+    * new initial vars defined in main: __USRER_ID__, __GROUP_ID__ record the user and group when instl was called.
+        Useful for usaing in the produced script, when called as sudo, to set permissions to the original owner.
+    * New variable from main.yaml: MKDIR_CMD to be able to call from index and mkdir command defined by instl.
+        In this case on Mac MKDIR_CMD expands to mkdir_with_owner.
     * Copy now calls mkdir_with_owner on Mac so to properly set owner and permissions for created folders.
     * Copy scripts on Mac get a function mkdir_with_owner so to properly set owner and permissions for created folders.
-    * new method PlatformSpecificHelperBase.mkdir_with_owner defaults to PlatformSpecificHelperBase.mkdir, implemented on Mac to call locally defined mkdir_with_owner.
+    * new method PlatformSpecificHelperBase.mkdir_with_owner defaults to PlatformSpecificHelperBase.mkdir,
+        implemented on Mac to call locally defined mkdir_with_owner.
 
 
 27/4/2014 0.9.5  Shai Shasag <shai@waves.com>
@@ -1114,8 +1166,11 @@ i
     * New type of defaults file by repo type, i.e. P4.yaml, URL.yaml. Currently added P4.yaml to defaults folder.
     * New utility function: P4GetPathFromDepotPath to get the local disk path from p4 depot path.
     * Usage of $(LOCAL_REPO_SOURCES_DIR) instead of $(LOCAL_REPO_SYNC_DIR)/$(SOURCE_PREFIX) - because p4 does not need SOURCE_PREFIX.
-    * new variable: ECHO_LOG_FILE. If defined all echos from batch file will be teeed to this file. (Mac).    admin visible changes::
-    * new method  configVarList.defined returns true if a value is defined and has none empty value. So calling with a variable name who's value consists of an empty string will return False.
+    * new variable: ECHO_LOG_FILE. If defined all echos from batch file will be teeed to this file. (Mac).
+
+    admin visible changes::
+    * new method  configVarList.defined returns true if a value is defined and has none empty value.
+        So calling with a variable name who's value consists of an empty string will return False.
 
 16/4/2014 0.9.4  Shai Shasag <shai@waves.com>
 
@@ -1137,7 +1192,8 @@ i
     * New command set_exec, sets executable bit for files marked as fx in info_map.txt
 
     programmer visible changes:
-    * SVNItem.num_subs_in_tree has new parameter: predicate this can be used to filter the number of files, defaults to True so previous behaviour remains.
+    * SVNItem.num_subs_in_tree has new parameter: predicate this can be used to filter the number of files,
+        defaults to True so previous behaviour remains.
 
 6/4/2014 0.9.2  Shai Shasag <shai@waves.com>
 
@@ -1160,7 +1216,8 @@ i
     programmer visible changes:
     * Removed variable __CHECKOUT_FOLDER__, it is totaly replaced by $(ROOT_LINKS_FOLDER_REPO)/Base.
     * Moved pyinstaller build scripts to inside the instl repository
-    * PUBLIC_KEY is read from  PUBLIC_KEY_FILE and PUBLIC_KEY_FILE is searched with search paths in read_include_node and in init_sync_vars.
+    * PUBLIC_KEY is read from  PUBLIC_KEY_FILE and PUBLIC_KEY_FILE is searched with search paths in read_include_node
+        and in init_sync_vars.
 
 13/3/2014 0.8.10  Shai Shasag <shai@waves.com>
 
@@ -1187,7 +1244,8 @@ i
     * New copy tools methods begin_copy_folder, end_copy_folder  to overcome xcopy limitations.
     * Changes to variable names:
          LOCAL_SYNC_DIR now always refers to the to top level sync dirs - above repo sync dir.
-         LOCAL_REPO_SYNC_DIR - new - defaults to $(LOCAL_SYNC_DIR)/$(REPO_NAME), e.g. /Users/shai/Library/Caches/Waves Audio/instl/instl.waves.com/V9_test
+         LOCAL_REPO_SYNC_DIR - new - defaults to $(LOCAL_SYNC_DIR)/$(REPO_NAME), e.g.
+            /Users/shai/Library/Caches/Waves Audio/instl/instl.waves.com/V9_test
          SOURCE_PREFIX - new - defaults to $(TARGET_OS)
          LOCAL_BOOKKEEPING_PATH - renamed LOCAL_REPO_BOOKKEEPING_DIR
          REPO_REV_LOCAL_BOOKKEEPING_PATH - renamed LOCAL_REPO_REV_BOOKKEEPING_DIR
@@ -1210,7 +1268,8 @@ i
     admin visible changes::
     * Creation of .txt files for all files in instl directory was moved from up2s3 command to create-links command.
     * up2s3 will upload up to the latest repo revision and not up to BASE_REPO_REV.
-    * Options --start-progress and --total-progress become optional (for commands that accept them). Not supplying means there will be no progress report.
+    * Options --start-progress and --total-progress become optional (for commands that accept them).
+        Not supplying means there will be no progress report.
     * InstlMisc commands can report progress, some do it with staccato.
 
     programmer visible changes:
@@ -1308,7 +1367,8 @@ i
     * New utils function: safe_remove_file, removes a file and does not complain if file does not exist.
     * New utils function: make_one_list, takes a bunch of things and returns them as a long flat list.
     * New PlatformSpecificHelperBase function progress_staccato, issues a progress message only after a predefined number of requests.
-    * New param to PlatformSpecificHelperBase function progress, num_items, can be used to increase the number of total progress items not just by one.
+    * New param to PlatformSpecificHelperBase function progress, num_items, can be used to increase the number of
+        total progress items not just by one.
     * New PlatformSpecificHelperBase functions: pushd, popd. They do same as they do on the command line.
     * New PlatformSpecificHelperBase function: touch. Does same as it does on the command line.
     * Mac: exit is done by a function that catches the EXIT trap os that all final instructions are performed even on error.
@@ -1348,7 +1408,8 @@ i
     user visible changes::
     * curl connect-timeout = 3 instead of 60
     * improved reporting on config file curl downloads.
-    * Fixed: empty config files were created if the number of files to download was smaller than the number of config files. Now each config file will have at least 4 urls.
+    * Fixed: empty config files were created if the number of files to download was smaller than the number of config files.
+        Now each config file will have at least 4 urls.
     * curl: shorter connect-time - 3 sec.
     * curl: shorter max-time - 60sec.
     * curl: three retries
@@ -1417,7 +1478,9 @@ i
     * Create and check signature for info_map.txt file
 
     user visible changes::
-    * using STAGING_FOLDER, SVN_CHECKOUT_FOLDER, SVN_CLIENT_PATH, DOWNLOAD_TOOL_PATH, CHECKSUM_TOOL_PATH instead of __STAGING_FOLDER__ , __SVN_FOLDER__, __RESOLVED_SVN_CLIENT_PATH__, __RESOLVED_DOWNLOAD_TOOL_PATH__, __RESOLVED_CHECKSUM_TOOL_PATH__
+    * using STAGING_FOLDER, SVN_CHECKOUT_FOLDER, SVN_CLIENT_PATH, DOWNLOAD_TOOL_PATH, CHECKSUM_TOOL_PATH instead of
+        __STAGING_FOLDER__ , __SVN_FOLDER__, __RESOLVED_SVN_CLIENT_PATH__, __RESOLVED_DOWNLOAD_TOOL_PATH__,
+        __RESOLVED_CHECKSUM_TOOL_PATH__
     * wtar files are expanded during sync not during copy
     * Fixed unwtar for Windows
     * InstlInstanceSync_url.read_remote_info_map checks signature against public key.
@@ -1492,7 +1555,8 @@ i
     * All Mac & Linux rm commands generated by code were added the -f flags
     * Check for existance of file and it's checksum before issuing a sync command.
         Should be useful if sync was stopped half-way
-    * Conditional document tags in yaml. Variable ACCEPTABLE_YAML_DOC_TAGS can specify additional doc tags that should start with index or define.
+    * Conditional document tags in yaml. Variable ACCEPTABLE_YAML_DOC_TAGS can specify additional doc tags that should start
+        with index or define.
         Example:
             ACCEPTABLE_YAML_DOC_TAGS: define_$(TARGET_OS)
             Would later read sections starting with !define_Win - if Win is the target os.
