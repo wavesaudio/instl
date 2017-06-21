@@ -1,3 +1,9 @@
+???? 1.5.05
+
+    user visible changes:
+    * flush progress messages that are printed during instl run (not during batch file run),
+        so they appear in correct timing in teh log
+
 11/6/2017 1.5.0.4
 
     user visible changes:

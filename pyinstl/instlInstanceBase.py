@@ -62,7 +62,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def progress(self, message):
         self.internal_progress += 1
-        print("""Progress {} of {}; {}""".format(self.internal_progress, 100, message))
+        print("""Progress {} of {}; {}""".format(self.internal_progress, 100, message), flush=True)
 
     def init_specific_doc_readers(self):
         ConfigVarYamlReader.init_specific_doc_readers(self)
