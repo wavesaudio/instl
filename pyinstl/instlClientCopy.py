@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 
-
+import sys
 import os
 import pathlib
 import utils
@@ -35,10 +35,10 @@ class InstlClientCopy(InstlClient):
                                                 'pre_copy_to_folder': "pre-copy step",
                                                 'post_copy_to_folder': "post-copy step"}
         self.bytes_to_copy = 0
-        self.wtar_ratio = 1.3 # ratio between wtar file and it's uncompressed contents
+        self.wtar_ratio = 1.3  # ratio between wtar file and it's uncompressed contents
         if "WTAR_RATIO" in var_stack:
             self.wtar_ratio = float(var_stack.ResolveVarToStr("WTAR_RATIO"))
-        self.calc_user_cache_dir_var() # this will set USER_CACHE_DIR if it was not explicitly defined
+        self.calc_user_cache_dir_var()  # this will set USER_CACHE_DIR if it was not explicitly defined
         self.patterns_copy_should_ignore = var_stack.ResolveVarToList("COPY_IGNORE_PATTERNS")
 
     def write_copy_debug_info(self):
@@ -46,11 +46,11 @@ class InstlClientCopy(InstlClient):
             if var_stack.defined('ECHO_LOG_FILE'):
                 log_file_path = var_stack.ResolveVarToStr("ECHO_LOG_FILE")
                 log_folder, log_file = os.path.split(log_file_path)
-                with open(os.path.join(log_folder, "sync-folder-manifest.txt"), "w", encoding='utf-8', errors='namereplace') as wfd:
+                with utils.utf8_open(os.path.join(log_folder, "sync-folder-manifest.txt"), "w") as wfd:
                     repo_sync_dir = var_stack.ResolveVarToStr("COPY_SOURCES_ROOT_DIR")
                     wfd.write(utils.disk_item_listing(repo_sync_dir))
         except Exception:
-            pass # if it did not work - forget it
+            pass  # if it did not work - forget it
 
     def write_copy_to_folder_debug_info(self, folder_path):
         try:
@@ -66,7 +66,7 @@ class InstlClientCopy(InstlClient):
                                               "--out", utils.quoteme_double(ls_output_file)]
                 self.batch_accum += " ".join(create_folder_ls_command_parts)
         except Exception:
-            pass # if it did not work - forget it
+            pass  # if it did not work - forget it
 
     def create_create_folders_instructions(self, folder_list):
         if len(folder_list) > 0:
@@ -205,7 +205,6 @@ class InstlClientCopy(InstlClient):
                     if source_item.isExecutable():
                         self.batch_accum += self.platform_helper.chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)
 
-
         num_wtars = functools.reduce(lambda total, item: total + item.wtarFlag, source_items, 0)
         if num_wtars > 0:
             self.unwtar_instructions.append((source_path_abs, '.'))
@@ -213,7 +212,7 @@ class InstlClientCopy(InstlClient):
 
             # fix permissions for any items that were unwtarred
             # unwtar moved be done with "command-list"
-            #if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
+            # if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
             #    self.batch_accum += self.platform_helper.chmod("-R -f a+rwX", ".")
 
     def create_copy_instructions_for_dir(self, source_path, name_for_progress_message):
@@ -236,7 +235,6 @@ class InstlClientCopy(InstlClient):
                         # executable files should also get exec bit
                         self.batch_accum += self.platform_helper.chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)
 
-
             num_wtars = functools.reduce(lambda total, item: total + item.wtarFlag, source_items, 0)
             if num_wtars > 0:
                 self.unwtar_instructions.append((source_path_abs, source_path_name))
@@ -244,7 +242,7 @@ class InstlClientCopy(InstlClient):
 
                 # fix permissions for any items that were unwtarred
                 # unwtar moved be done with "command-list"
-                #if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
+                # if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
                 #    self.batch_accum += self.platform_helper.chmod("-R -f a+rwX", source_path_name)
         else:
             # it might be a dir that was wtarred
@@ -383,7 +381,7 @@ class InstlClientCopy(InstlClient):
             with self.install_definitions_index[IID].push_var_stack_scope():
                 for source_var in sorted(var_stack.ResolveVarToList("iid_source_var_list", default=[])):
                     source = var_stack.ResolveVarToList(source_var)
-                    num_wtars = self.info_map_table.count_wtar_items_of_dir(source[0]);
+                    num_wtars = self.info_map_table.count_wtar_items_of_dir(source[0])
                 self.batch_accum.begin_transaction()
                 self.batch_accum += var_stack.ResolveVarToList("iid_action_list_pre_copy_item", default=[])
                 self.batch_accum += var_stack.ResolveVarToList("iid_action_list_post_copy_item", default=[])
@@ -414,10 +412,10 @@ class InstlClientCopy(InstlClient):
             batch_file_path = os.path.join(unwtar_batch_files_dir, name_for_progress+"_"+str(self.unwtar_batch_file_counter)+".unwtar")
             self.unwtar_batch_file_counter += 1
             batch_file_path = var_stack.ResolveStrToStr(batch_file_path)
-            with open(batch_file_path, "w") as wfd:
+            with utils.utf8_open(batch_file_path, "w") as wfd:
                 for wtar_inst in self.unwtar_instructions:
                     unwtar_line = var_stack.ResolveStrToStr("""unwtar --in "{}" --out "{}" --no-numbers-progress\n""".format(*wtar_inst))
-                    progress = self.platform_helper.increment_progress()
+                    self.platform_helper.increment_progress()
                     wfd.write(unwtar_line)
             self.batch_accum += self.platform_helper.run_instl_command_list(batch_file_path, parallel=True)
             self.batch_accum += self.platform_helper.progress("Expand files in {} done".format(name_for_progress))

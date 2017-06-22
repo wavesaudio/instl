@@ -207,7 +207,7 @@ class CopyTool_win_xcopy(CopyToolBase):
 
     def create_excludes_file(self):
         if self.excludes_set:
-            with open(var_stack.ResolveVarToStr("XCOPY_EXCLUDE_FILE_PATH"), "w", errors='namereplace') as wfd:
+            with utils.utf8_open(var_stack.ResolveVarToStr("XCOPY_EXCLUDE_FILE_PATH"), "w") as wfd:
                 utils.make_open_file_read_write_for_all(wfd)
                 wfd.write("\n".join(self.excludes_set))
 
@@ -587,7 +587,7 @@ class DownloadTool_win_curl(DownloadToolBase):
             file_name_list = ["-".join((curl_config_file_path, str(file_i).zfill(num_digits))) for file_i in range(actual_num_files)]
             wfd_list = list()
             for file_name in file_name_list:
-                wfd = open(file_name, "w", encoding='utf-8', errors='namereplace')
+                wfd = utils.utf8_open(file_name, "w")
                 utils.make_open_file_read_write_for_all(wfd)
                 wfd_list.append(wfd)
 
@@ -623,7 +623,7 @@ class DownloadTool_win_curl(DownloadToolBase):
 
     def download_from_config_files(self, parallel_run_config_file_path, config_files):
         import win32api
-        with open(parallel_run_config_file_path, "w", encoding='utf-8', errors='namereplace') as wfd:
+        with utils.utf8_open(parallel_run_config_file_path, "w") as wfd:
             utils.make_open_file_read_write_for_all(wfd)
             for config_file in config_files:
                 # curl on windows has problem with path to config files that have unicode characters

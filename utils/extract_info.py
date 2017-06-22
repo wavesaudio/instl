@@ -5,8 +5,8 @@ import sys
 import plistlib
 import subprocess
 import xml.etree.ElementTree as ET
-import re
 import codecs
+import utils
 
 if sys.platform == 'win32':
     import win32api
@@ -100,8 +100,6 @@ def Mac_dylib(in_path):
         out = subprocess.Popen(['otool', '-L', in_path], stdout=subprocess.PIPE).stdout
         lines = out.readlines()
         out.close()
-        #print ('DEBUG: lines =', lines)
-        #lines = out_string.split('\n')
         version = str(lines[1], 'utf-8)').strip('\n').strip(')').split(' ')[-1]
         if version:
             retVal = (in_path, version, None)
@@ -116,16 +114,15 @@ def Mac_pkg(in_path):
         # define args
         clr_tmp = 'rm -rf /tmp/forSGDriverVersion'
         extract_pkg_to_tmp = 'pkgutil --expand %s /tmp/forSGDriverVersion' % in_path
-        # clear tmp from any remaining SGdriver version info
+        # clear tmp from any remaining SG driver version info
         subprocess.call(clr_tmp.split(' '))
         # extract pkg to tmp
         subprocess.call(extract_pkg_to_tmp.split(' '))
         dist_path = '/tmp/forSGDriverVersion/Distribution'
-        with open (dist_path, 'r') as fo:
+        with open(dist_path, 'r') as fo:
             lines = fo.readlines()
 
         version = lines[-2].split('"')[1]
-        #clear tmp
         subprocess.call(clr_tmp.split(' '))
         retVal = (in_path, version, None)
     except:
@@ -137,14 +134,14 @@ def Mac_pkg(in_path):
 def Win_bundle(in_path):
     retVal = None
     try:
-        dllname = os.path.basename(in_path).replace('bundle', 'dll')
-        dllpath = os.path.join(in_path, 'Contents', 'Win64', dllname)
-        if not os.path.exists(dllpath):
-            dllpath = os.path.join(in_path, 'Contents', 'Win32', dllname)
-        if not os.path.exists(dllpath):
+        dll_name = os.path.basename(in_path).replace('bundle', 'dll')
+        dll_path = os.path.join(in_path, 'Contents', 'Win64', dll_name)
+        if not os.path.exists(dll_path):
+            dll_path = os.path.join(in_path, 'Contents', 'Win32', dll_name)
+        if not os.path.exists(dll_path):
             version = None
         else:
-            info = win32api.GetFileVersionInfo(dllpath, "\\")
+            info = win32api.GetFileVersionInfo(dll_path, "\\")
             ms = info['FileVersionMS']
             ls = info['FileVersionLS']
             version = '%d.%d.%d.%d' % (win32api.HIWORD(ms), win32api.LOWORD(ms), win32api.HIWORD(ls), win32api.LOWORD(ls))
@@ -159,10 +156,10 @@ def Win_bundle(in_path):
 def Win_aaxplugin(in_path):
     retVal = None
     try:
-        dllname = os.path.basename(in_path).replace('bundle', 'aaxplugin')
-        dllpath = os.path.join(in_path, 'Contents', 'x64', dllname)
+        dll_name = os.path.basename(in_path).replace('bundle', 'aaxplugin')
+        dll_path = os.path.join(in_path, 'Contents', 'x64', dll_name)
         try:
-            info = win32api.GetFileVersionInfo(dllpath, "\\")
+            info = win32api.GetFileVersionInfo(dll_path, "\\")
             ms = info['FileVersionMS']
             ls = info['FileVersionLS']
         except:
@@ -246,6 +243,3 @@ def check_binaries_versions_in_folder(current_os, in_path, in_compiled_ignore_fo
                         if info is not None:
                             retVal.append(info)
     return retVal
-
-
-

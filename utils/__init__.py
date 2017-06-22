@@ -1,3 +1,4 @@
+from .files import *
 from .misc_utils import *
 from .searchPaths import SearchPaths
 from .instlException import InstlException, InstlFatalException

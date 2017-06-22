@@ -7,9 +7,10 @@ class InstlException(Exception):
         self.original_exception = in_original_exception
 
 
-def InstlFatalException(Exception):
+class InstlFatalException(Exception):
     def __init__(self, *messages):
         super().__init__()
         self.message = " ".join([str(mess) for mess in messages])
+
     def __str__(self):
         return self.message

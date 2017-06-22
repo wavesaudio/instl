@@ -35,11 +35,11 @@ default_logging_started = False
 debug_logging_started = False
 
 
-def setup_logging(in_appname, in_appauthor):
+def setup_logging(in_app_name, in_app_author):
     top_logger = logging.getLogger()
     top_logger.setLevel(default_logging_level)
     # setup INFO level logger
-    log_file_path = get_log_file_path(in_appname, in_appauthor, debug=False)
+    log_file_path = get_log_file_path(in_app_name, in_app_author, debug=False)
     rotatingHandler = logging.handlers.RotatingFileHandler(
         log_file_path, maxBytes=200000, backupCount=5)
     rotatingHandler.set_name("instl_log_handler")
@@ -51,7 +51,7 @@ def setup_logging(in_appname, in_appauthor):
     global default_logging_started
     default_logging_started = True
     # if debug log file exists, setup another handler for it
-    debug_log_file_path = get_log_file_path(in_appname, in_appauthor, debug=True)
+    debug_log_file_path = get_log_file_path(in_app_name, in_app_author, debug=True)
     if os.path.isfile(debug_log_file_path):
         setup_file_logging(debug_log_file_path, debug_logging_level)
         global debug_logging_started
@@ -106,7 +106,7 @@ def func_log_wrapper(logged_func):
     """
     returned_func = logged_func
     if func_log_wrapper_threshold_level >= logging.getLogger().getEffectiveLevel():
-        def logged_func_wrapper(*args, **kargs):
+        def logged_func_wrapper(*args, **kwargs):
             """ Does tricks around deficiencies in logging API.
                 The problem is that when logging a decorated function, the funcName
                 format variable returns the decorator name not the decorated.
@@ -127,7 +127,7 @@ def func_log_wrapper(logged_func):
             the_logger.debug("{")
             logging.Logger.findCaller = save_findCaller_func
 
-            retVal = logged_func(*args, **kargs)
+            retVal = logged_func(*args, **kwargs)
 
             logging.Logger.findCaller = findCaller_override
             the_logger.debug("}")

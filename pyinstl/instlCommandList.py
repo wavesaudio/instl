@@ -5,7 +5,7 @@ import shlex
 from pyinstl.instlMisc import InstlMisc
 from configVar import var_stack
 from pyinstl.cmdOptions import CommandLineOptions, read_command_line_options
-
+import utils
 
 class CommandListRunner(object):
     def __init__(self, initial_vars, options):
@@ -36,7 +36,7 @@ class CommandListRunner(object):
 
     def prepare_command_list_from_file(self):
         command_list = list()
-        with open(self.options.config_file[0], "r") as rfd:
+        with utils.utf8_open(self.options.config_file[0], "r") as rfd:
             command_lines = rfd.readlines()
 
         for command_line in command_lines:

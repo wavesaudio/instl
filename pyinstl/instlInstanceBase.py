@@ -253,7 +253,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             print("warning: not reading require node because self.items_table was no initialized")
 
     def write_require_file(self, file_path, require_dict):
-        with open(file_path, "w", encoding='utf-8', errors='namereplace') as wfd:
+        with utils.utf8_open(file_path, "w") as wfd:
             utils.make_open_file_read_write_for_all(wfd)
 
             define_dict = aYaml.YamlDumpDocWrap({"REQUIRE_REPO_REV": var_stack.ResolveVarToStr("MAX_REPO_REV")},

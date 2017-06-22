@@ -52,6 +52,8 @@ def disk_item_listing(*files_or_folders_to_list, ls_format='*', output_format='t
     """
     os_names = utils.get_current_os_names()
     files_or_folders_to_list = sorted(files_or_folders_to_list, key=lambda file: pathlib.PurePath(file).parts)
+    folder_ls_func = None
+    item_ls_func = None
     if "Mac" in os_names:
         if ls_format == '*':
             ls_format = 'WMIRLUGSTCPE'
@@ -92,7 +94,7 @@ def disk_item_listing(*files_or_folders_to_list, ls_format='*', output_format='t
             for item in listing_items:
                 total_list.append(translate_item_dict_to_be_keyed_by_path(item))
         elif output_format == 'json':
-           total_list.append({root_file_or_folder_path: translate_json_key_names(listing_items)})
+            total_list.append({root_file_or_folder_path: translate_json_key_names(listing_items)})
 
     if output_format == 'text':
         retVal = "\n".join(total_list)
@@ -187,31 +189,31 @@ def unix_item_ls(the_path, ls_format, root_folder=None):
         if format_char == 'I':
             the_parts[format_char] = the_stats[stat.ST_INO]  # inode number
         elif format_char == 'R':
-            the_parts[format_char] = utils.unix_permissions_to_str(the_stats.st_mode) # permissions
+            the_parts[format_char] = utils.unix_permissions_to_str(the_stats.st_mode)  # permissions
         elif format_char == 'L':
             the_parts[format_char] = the_stats[stat.ST_NLINK]  # num links
         elif format_char == 'u':
             try:
-                the_parts[format_char] = str(the_stats[stat.ST_UID])[0] # unknown user name, get the number
+                the_parts[format_char] = str(the_stats[stat.ST_UID])[0]  # unknown user name, get the number
             except Exception:
                 the_parts[format_char] = "no_uid"
         elif format_char == 'U':
             try:
                 the_parts[format_char] = pwd.getpwuid(the_stats[stat.ST_UID])[0]  # user
             except KeyError:
-                the_parts[format_char] = str(the_stats[stat.ST_UID])[0] # unknown user name, get the number
+                the_parts[format_char] = str(the_stats[stat.ST_UID])[0]  # unknown user name, get the number
             except Exception:
                 the_parts[format_char] = "no_uid"
         elif format_char == 'g':
             try:
-                the_parts[format_char] = str(the_stats[stat.ST_GID])[0] # unknown group name, get the number
+                the_parts[format_char] = str(the_stats[stat.ST_GID])[0]  # unknown group name, get the number
             except Exception:
                 the_parts[format_char] = "no_gid"
         elif format_char == 'G':
             try:
                 the_parts[format_char] = grp.getgrgid(the_stats[stat.ST_GID])[0]  # group
             except KeyError:
-                the_parts[format_char] = str(the_stats[stat.ST_GID])[0] # unknown group name, get the number
+                the_parts[format_char] = str(the_stats[stat.ST_GID])[0]  # unknown group name, get the number
             except Exception:
                 the_parts[format_char] = "no_gid"
         elif format_char == 'S':
@@ -280,14 +282,14 @@ def win_item_ls(the_path, ls_format, root_folder=None):
         elif format_char == 'S':
             the_parts[format_char] = the_stats[stat.ST_SIZE]  # size in bytes
         elif format_char == 'U':
-            sd = win32security.GetFileSecurity (the_path, win32security.OWNER_SECURITY_INFORMATION)
+            sd = win32security.GetFileSecurity(the_path, win32security.OWNER_SECURITY_INFORMATION)
             owner_sid = sd.GetSecurityDescriptorOwner()
-            name, domain, __type = win32security.LookupAccountSid (None, owner_sid)
+            name, domain, __type = win32security.LookupAccountSid(None, owner_sid)
             the_parts[format_char] = domain+"\\"+name  # user
         elif format_char == 'G':
-            sd = win32security.GetFileSecurity (the_path, win32security.GROUP_SECURITY_INFORMATION)
+            sd = win32security.GetFileSecurity(the_path, win32security.GROUP_SECURITY_INFORMATION)
             owner_sid = sd.GetSecurityDescriptorGroup()
-            name, domain, __type = win32security.LookupAccountSid (None, owner_sid)
+            name, domain, __type = win32security.LookupAccountSid(None, owner_sid)
             the_parts[format_char] = domain+"\\"+name  # group
         elif format_char == 'C':
             if not (stat.S_ISLNK(the_stats.st_mode) or stat.S_ISDIR(the_stats.st_mode)):
@@ -322,19 +324,19 @@ def wtar_item_ls_func(item, ls_format):
     the_parts = dict()
     for format_char in ls_format:
         if format_char == 'R':
-            the_parts[format_char] = utils.unix_permissions_to_str(item.mode) # permissions
+            the_parts[format_char] = utils.unix_permissions_to_str(item.mode)  # permissions
         elif format_char == 'u':
             the_parts[format_char] = item.uid
         elif format_char == 'U':
             the_parts[format_char] = item.uname
         elif format_char == 'g':
-             the_parts[format_char] = item.gid
+            the_parts[format_char] = item.gid
         elif format_char == 'G':
-             the_parts[format_char] = item.gname
+            the_parts[format_char] = item.gname
         elif format_char == 'S':
             the_parts[format_char] = item.size
         elif format_char == 'T':
-            the_parts[format_char] = time.strftime("%Y/%m/%d-%H:%M:%S", time.gmtime((item.mtime)))  # modification time
+            the_parts[format_char] = time.strftime("%Y/%m/%d-%H:%M:%S", time.gmtime(item.mtime))  # modification time
         elif format_char == 'C':
             the_parts[format_char] = item.pax_headers.get("checksum", "")
         elif format_char == 'P' or format_char == 'p':
@@ -359,6 +361,6 @@ if __name__ == "__main__":
     ls_format = "WMIRLUGSTCpE"  # 'MIRLUGSTCPE'
     for out_format in ('text', 'dicts', 'json'):
         listing = disk_item_listing(*path_list, ls_format=ls_format, output_format=out_format)
-        with open("ls."+out_format, "w") as wfd:
+        with utils.utf8_open("ls."+out_format, "w") as wfd:
             print(listing, file=wfd)
             print(os.path.realpath(wfd.name))

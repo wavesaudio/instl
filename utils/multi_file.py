@@ -2,7 +2,6 @@
 
 import io
 import os
-import sys
 import stat
 import tarfile
 
@@ -49,6 +48,7 @@ class MultiFileReader(io.RawIOBase):
             self.starting_pos = 0
 
     def __init__(self, mode, paths):
+        super().__init__()
         self.mode = mode
         self.the_files = [MultiFileReader.OpenFileData(path) for path in paths]
         self.num_files = len(self.the_files)
@@ -159,8 +159,10 @@ class MultiFileReader(io.RawIOBase):
         buff = self.read(size=-1)
         return buff
 
+
 if __name__ == "__main__":
     files_to_read = ["1.txt", "2.txt", "1.txt"]
+
     def read_some_files(in_files_to_read):
         mfd = MultiFileReader("r", in_files_to_read)
         mfd.open()
@@ -180,14 +182,12 @@ if __name__ == "__main__":
             raise
         mfd.close()
 
-    #read_some_files(files_to_read)
-
     files_to_read = ["/repositories/betainstl/stage/Mac/Plugins/NX.bundle/Contents/Resources.wtar.xx",
 "/repositories/betainstl/stage/Mac/Plugins/NX.bundle/Contents/Resources.wtar.xx",
                      "/repositories/betainstl/stage/Mac/Plugins/NX.bundle/Contents/Resources.wtar.aa",
                       "/repositories/betainstl/stage/Mac/Plugins/NX.bundle/Contents/Resources.wtar.xx",
                      "/repositories/betainstl/stage/Mac/Plugins/NX.bundle/Contents/Resources.wtar.ab",
-                     "/repositories/betainstl/stage/Mac/Plugins/NX.bundle/Contents/Resources.wtar.xx",]
+                     "/repositories/betainstl/stage/Mac/Plugins/NX.bundle/Contents/Resources.wtar.xx"]
 
     def unwtar_some_files(in_files_to_unwtar):
         wtar_folder_path = "/Users/shai/Desktop"

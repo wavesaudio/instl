@@ -71,9 +71,9 @@ def prepare_args_parser(in_command):
         'exec':                 {'mode': 'ds', 'options': ('in', 'out', 'conf_opt'), 'help':  'Execute a python scrip'},
         'fail':                 {'mode': 'ds', 'options': (), 'help': "fail and return exit code"},
         'file-sizes':           {'mode': 'an', 'options': ('in', 'out'), 'help':  'Create a list of files and their sizes'},
-        'fix-perm':             {'mode': 'an', 'options': ('out', 'run','conf', 'limit'), 'help':  'Fix Mac OS permissions'},
-        'fix-props':            {'mode': 'an', 'options': ('out', 'run','conf'), 'help':  'create svn commands to remove redundant properties such as executable bit from files that should not be marked executable'},
-        'fix-symlinks':         {'mode': 'an', 'options': ('out', 'run','conf', 'limit'), 'help':  'replace symlinks with .symlinks files'},
+        'fix-perm':             {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'Fix Mac OS permissions'},
+        'fix-props':            {'mode': 'an', 'options': ('out', 'run', 'conf'), 'help':  'create svn commands to remove redundant properties such as executable bit from files that should not be marked executable'},
+        'fix-symlinks':         {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'replace symlinks with .symlinks files'},
         'gui':                  {'mode': 'gi', 'options': (), 'help':  'graphical user interface'},
         'help':                 {'mode': 'ds', 'options': (), 'help':  'help'},
         'ls':                   {'mode': 'ds', 'options': ('in', 'out', 'limit'), 'help':  'create a directory listing'},
@@ -84,7 +84,7 @@ def prepare_args_parser(in_command):
         'remove-empty-folders': {'mode': 'ds', 'options': ('in', ), 'help':  'remove folders is they are empty'},
         'remove':               {'mode': 'ct', 'options': ('in', 'out', 'run',), 'help':  'remove items installed by copy'},
         'report-versions':      {'mode': 'ct', 'options': ('in', 'out', 'output_format', 'only_installed'), 'help': 'report what is installed and what needs update'},
-        'resolve':              {'mode': 'ds', 'options': ('in','out', 'conf'), 'help':  'read --in file resolve $() style variables and write result to --out, definitions are given in --config-file'},
+        'resolve':              {'mode': 'ds', 'options': ('in', 'out', 'conf'), 'help':  'read --in file resolve $() style variables and write result to --out, definitions are given in --config-file'},
         'set-exec':             {'mode': 'ds', 'options': ('in', 'prog',), 'help':  'set executable bit for appropriate files'},
         'stage2svn':            {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'add/remove files in staging to svn sync repository'},
         'svn2stage':            {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'svn sync repository and copy to staging folder'},
@@ -95,7 +95,7 @@ def prepare_args_parser(in_command):
         'translate_url':        {'mode': 'ds', 'options': ('in',  'cred'), 'help':  'translate a url to be compatible with current connection'},
         'unwtar':               {'mode': 'ds', 'options': ('in_opt', 'prog', 'out'), 'help':  'uncompress .wtar files in current (or in the --out) folder'},
         'up-repo-rev':          {'mode': 'an', 'options': ('out', 'run', 'conf',), 'help':  'upload repository revision file to admin folder'},
-        'up2s3':                {'mode': 'an', 'options': ( 'out', 'run', 'conf',), 'help':  'upload installation sources to S3'},
+        'up2s3':                {'mode': 'an', 'options': ('out', 'run', 'conf',), 'help':  'upload installation sources to S3'},
         'verify-index':         {'mode': 'an', 'options': ('in', 'cred'), 'help':  'Verify that index and info map are compatible'},
         'verify-repo':          {'mode': 'an', 'options': ('conf',), 'help':  'Verify a local repository against its index'},
         'version':              {'mode': 'ds', 'options': (), 'help':  'display instl version'},
@@ -203,7 +203,6 @@ def prepare_args_parser(in_command):
                                     dest='config_file',
                                     help="path to config-file")
 
-
     if 'prog' in command_details['options']:
         progress_options = command_parser.add_argument_group(description='dynamic progress report')
         progress_options.add_argument('--start-progress',
@@ -222,7 +221,6 @@ def prepare_args_parser(in_command):
                                     required=False,
                                     default=False,
                                     action='store_true',
-                                    #metavar='no-numbers-progress',
                                     dest='no_numbers_progress',
                                     help="display progress but without specific numbers")
 
@@ -411,14 +409,14 @@ def prepare_args_parser(in_command):
     return parser, command_names
 
 
-def read_command_line_options(name_space_obj, arglist=None):
+def read_command_line_options(name_space_obj, arg_list=None):
     """ parse command line options """
 
-    command_name = arglist[0] if arglist else None
+    command_name = arg_list[0] if arg_list else None
     parser, command_names = prepare_args_parser(command_name)
     if parser:
         # Command line options were given or auto run file was found
-        options = parser.parse_args(arglist, namespace=name_space_obj)
+        options = parser.parse_args(arg_list, namespace=name_space_obj)
     else:
         # No command line options were given
         name_space_obj.mode = "interactive"

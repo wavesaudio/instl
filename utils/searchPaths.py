@@ -44,7 +44,7 @@ class SearchPaths(object):
 
     def add_search_path_recursive(self, *paths):
         """ Add folders to the list of search paths
-            and also all subfolders """
+            and also all sub folders """
         pass  # to do...
 
     def find_file(self, in_file, return_original_if_not_found=False):
@@ -80,7 +80,7 @@ class SearchPaths(object):
                         self.add_search_path(str(real_folder))
                         retVal = str(real_file)
                         break
-                except  FileNotFoundError:
+                except FileNotFoundError:
                     pass  # file was not found at try_path
 
             else:  # nobreak, retVal is None:

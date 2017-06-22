@@ -389,7 +389,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
 
             lise_of_lines_iter = iter(list_of_lines_for_files)
             for file_name in file_name_list:
-                with open(file_name, "w", encoding='utf-8', errors='namereplace') as wfd:
+                with utils.utf8_open(file_name, "w") as wfd:
                     utils.make_open_file_read_write_for_all(wfd)
                     wfd.write("insecure\n")
                     wfd.write("raw\n")
@@ -415,7 +415,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
 
     def download_from_config_files(self, parallel_run_config_file_path, config_files):
 
-        with open(parallel_run_config_file_path, "w", encoding='utf-8', errors='namereplace') as wfd:
+        with utils.utf8_open(parallel_run_config_file_path, "w") as wfd:
             utils.make_open_file_read_write_for_all(wfd)
             for config_file in config_files:
                 wfd.write(var_stack.ResolveStrToStr('"$(DOWNLOAD_TOOL_PATH)" --config "{config_file}"\n'.format(**locals())))

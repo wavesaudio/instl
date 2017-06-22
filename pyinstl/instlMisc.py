@@ -73,7 +73,7 @@ class InstlMisc(InstlInstanceBase):
     def do_parallel_run(self):
         processes_list_file = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         commands = list()
-        with open(processes_list_file, "r", encoding='utf-8') as rfd:
+        with utf8_open(processes_list_file, "r") as rfd:
             for line in rfd:
                 line = line.strip()
                 if line and line[0] != "#":
@@ -386,10 +386,10 @@ class InstlMisc(InstlInstanceBase):
             raise FileNotFoundError(input_file, var_stack.unresolved_var("__MAIN_INPUT_FILE__"))
         output_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
         self.read_yaml_file(config_file)
-        with open(input_file, "r") as rfd:
+        with utils.utf8_open(input_file, "r") as rfd:
             text_to_resolve = rfd.read()
         resolved_text = var_stack.ResolveStrToStr(text_to_resolve)
-        with open(output_file, "w", errors='namereplace') as wfd:
+        with utils.utf8_open(output_file, "w") as wfd:
             wfd.write(resolved_text)
 
     def do_exec(self):
@@ -400,7 +400,7 @@ class InstlMisc(InstlInstanceBase):
             if os.path.isfile(config_file):
                 self.read_yaml_file(config_file)
             py_file_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
-            with open(py_file_path, 'r') as rfd:
+            with utils.utf8_open(py_file_path, 'r') as rfd:
                 py_text = rfd.read()
                 exec(py_text, globals())
         except Exception as ex:
