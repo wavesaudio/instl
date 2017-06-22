@@ -7,7 +7,7 @@ import sys
 # force stdout to be utf-8. Sometimes it opens in ascii encoding
 sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)
 import os
-if "utf8" != os.environ.get("PYTHONIOENCODING", "not found"):
+if "utf8" != os.environ.get("PYTHONIOENCODING", "not found").lower():
     print("PYTHONIOENCODING:", os.environ.get("PYTHONIOENCODING", "not found"))
 
 import re

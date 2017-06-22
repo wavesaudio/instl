@@ -1,9 +1,9 @@
-???? 1.5.0.5
+22/6/2017 1.5.1.0
 
     user visible changes:
     * flush progress messages that are printed during instl run (not during batch file run),
         so they appear in correct timing in teh log
-    * many changed to acomodate to installing on chinese systems
+    * many changes to acomodate installing on chinese systems
 
     programmer visible changes:
     * fixed many inspection warnings
