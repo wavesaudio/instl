@@ -1,3 +1,8 @@
+28/6/2017 1.5.1.1
+
+    user visible changes:
+    * improved printing PYTHONIOENCODING in case it's not utf8 or utf-8
+
 22/6/2017 1.5.1.0
 
     user visible changes:
