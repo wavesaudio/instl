@@ -1,3 +1,13 @@
+29/6/2017 1.5.1.2
+
+    user visible changes:
+    * removed printing of PYTHONIOENCODING which would come our in inappropriate occasions
+
+    programmer visible changes:
+    * requirements file: added future>=0.16.0 and updated versions to latest
+    * do_parallel_run fixed call to utf8_open
+
+
 28/6/2017 1.5.1.1
 
     user visible changes:

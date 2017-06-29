@@ -73,7 +73,7 @@ class InstlMisc(InstlInstanceBase):
     def do_parallel_run(self):
         processes_list_file = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         commands = list()
-        with utf8_open(processes_list_file, "r") as rfd:
+        with utils.utf8_open(processes_list_file, "r") as rfd:
             for line in rfd:
                 line = line.strip()
                 if line and line[0] != "#":
