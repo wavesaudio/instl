@@ -1,3 +1,9 @@
+23/7/2017 1.5.2.0
+
+    user visible changes:
+    * report-versions, when checking a .bundle folder will first try to use the new Contents/Info.xml file before falling back to reading the Info.plist
+
+
 29/6/2017 1.5.1.2
 
     user visible changes:

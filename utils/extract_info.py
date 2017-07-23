@@ -6,18 +6,49 @@ import plistlib
 import subprocess
 import xml.etree.ElementTree as ET
 import codecs
+import re
+
 import utils
 
 if sys.platform == 'win32':
     import win32api
 
 
-def default_extract_info(in_path):
+def default_extract_info(in_os, in_path):
     return None
+
+plugin_version_and_guid_re = re.compile("""
+    .+?
+    <LicenseGUID>\s*
+    (?P<guid>[a-fA-F0-9-]{36})
+    \s*</LicenseGUID>
+    .+
+    <PluginExternalVersion>\s*
+    (?P<version>\d+\.\d+\.\d+)
+    (\.\d+)?
+    \s*
+    </PluginExternalVersion>""", re.MULTILINE | re.DOTALL | re.VERBOSE)
 
 
 # cross platform
-def get_guid(in_path):
+def plugin_bundle(in_os, in_path):
+    retVal = None
+    xml_path = os.path.join(in_path, 'Contents', 'Info.xml')
+    if os.path.exists(xml_path):
+        with utils.utf8_open(xml_path, "r") as rfd:
+            info_xml = rfd.read()
+            match = plugin_version_and_guid_re.match(info_xml)
+            if match:
+                retVal = (in_path, match.group('version'), match.group('guid'))
+    else:
+        if in_os == 'Mac':
+            retVal = Mac_bundle(in_os, in_path)
+        elif in_os == 'Win':
+            retVal = Win_bundle(in_os, in_path)
+    return retVal
+
+
+def get_guid(in_os, in_path):
     guid = None
     try:
         xml_path = os.path.join(in_path, 'Contents', 'Resources', 'InfoXML', '1000.xml')
@@ -31,7 +62,7 @@ def get_guid(in_path):
     return guid
 
 
-def get_wfi_version(in_path):
+def get_wfi_version(in_os, in_path):
     retVal = None
     try:
         version = None
@@ -51,7 +82,7 @@ def get_wfi_version(in_path):
 
 
 # Mac
-def Mac_bundle(in_path):
+def Mac_bundle(in_os, in_path):
     retVal = None
     try:
         plist_path = os.path.join(in_path, 'Contents/Info.plist')
@@ -63,16 +94,16 @@ def Mac_bundle(in_path):
                     version = version[0]
                 else:
                     version = None
-                guid = get_guid(in_path)
+                guid = get_guid(in_os, in_path)
 
                 if version or guid:
                     retVal = (in_path, version, guid)
-    except:
+    except Exception as ex:
         pass
     return retVal
 
 
-def Mac_framework(in_path):
+def Mac_framework(in_os, in_path):
     retVal = None
     try:
         plist_path = os.path.join(in_path, 'Versions/Current/Resources/Info.plist')
@@ -91,7 +122,7 @@ def Mac_framework(in_path):
     return retVal
 
 
-def Mac_dylib(in_path):
+def Mac_dylib(in_os, in_path):
     """ otool is available only on systems where developer tools were installed,
         so usage of otool cannot be deployed to users
     """
@@ -108,7 +139,7 @@ def Mac_dylib(in_path):
     return retVal
 
 
-def Mac_pkg(in_path):
+def Mac_pkg(in_os, in_path):
     retVal = None
     try:
         # define args
@@ -131,7 +162,7 @@ def Mac_pkg(in_path):
 
 
 # Windows
-def Win_bundle(in_path):
+def Win_bundle(in_os, in_path):
     retVal = None
     try:
         dll_name = os.path.basename(in_path).replace('bundle', 'dll')
@@ -146,14 +177,14 @@ def Win_bundle(in_path):
             ls = info['FileVersionLS']
             version = '%d.%d.%d.%d' % (win32api.HIWORD(ms), win32api.LOWORD(ms), win32api.HIWORD(ls), win32api.LOWORD(ls))
         if version:
-            guid = get_guid(in_path)
+            guid = get_guid(in_os, in_path)
             retVal = (in_path, version, guid)
     except:
         pass
     return retVal
 
 
-def Win_aaxplugin(in_path):
+def Win_aaxplugin(in_os, in_path):
     retVal = None
     try:
         dll_name = os.path.basename(in_path).replace('bundle', 'aaxplugin')
@@ -173,7 +204,7 @@ def Win_aaxplugin(in_path):
     return retVal
 
 
-def Win_file(in_path):
+def Win_file(in_os, in_path):
     retVal = None
     try:
         info = win32api.GetFileVersionInfo(in_path, "\\")
@@ -191,13 +222,13 @@ def Win_file(in_path):
 def extract_binary_info(in_os, in_path):
     filename, file_extension = os.path.splitext(in_path)
     func = extract_info_funcs_by_extension[in_os].get(file_extension, default_extract_info)
-    retVal = func(in_path)
+    retVal = func(in_os, in_path)
     return retVal
 
 
 extract_info_funcs_by_extension = {
     'Mac': {
-        '.bundle': Mac_bundle,
+        '.bundle': plugin_bundle,
         '.dpm': Mac_bundle,
         '.vst': Mac_bundle,
         '.vst3': Mac_bundle,
@@ -210,7 +241,7 @@ extract_info_funcs_by_extension = {
         '.wfi': get_wfi_version
         },
     'Win': {
-        '.bundle': Win_bundle,
+        '.bundle': plugin_bundle,
         '.aaxplugin': Win_aaxplugin,
         '.exe': Win_file,
         '.dll': Win_file,
