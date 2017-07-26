@@ -1,3 +1,11 @@
+26/7/2017 1.5.2.1
+
+    user visible changes:
+    * changed messages created during create_download_instructions to include total num files and total sizes
+    * added progress items for already synced items so progress baar will start form the middle
+    programmer visible changes:
+    * new function SVNTable.get_not_to_download_num_files_and_size: will report the number and total sizes of the files that are already synced in cache
+
 23/7/2017 1.5.2.0
 
     user visible changes:

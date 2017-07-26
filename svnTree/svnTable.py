@@ -581,6 +581,22 @@ class SVNTable(object):
         retVal = self.baked_queries_map["get_download_items"](self.session).params(file=want_file, dir=want_dir).all()
         return retVal
 
+    def get_not_to_download_num_files_and_size(self):
+        """ return the count and total size of the files that are already synced"""
+        query_text = """
+            SELECT COUNT(path) as num_files, SUM(size) as total_size
+            FROM svnitem
+            WHERE required=1
+            AND need_download=0
+            AND fileFlag=1
+            """
+        try:
+            retVal = self.session.execute(query_text).first()
+        except SQLAlchemyError:
+            raise
+        return retVal
+
+
     def get_to_download_files_and_size(self):
         """
         :return: a tuple: (a list of fies marked for download, their total size)
