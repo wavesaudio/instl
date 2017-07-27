@@ -2,9 +2,11 @@
 
     user visible changes:
     * changed messages created during create_download_instructions to include total num files and total sizes
-    * added progress items for already synced items so progress baar will start form the middle
+    * added progress items for already synced items so progress bar will start form the middle
     programmer visible changes:
     * new function SVNTable.get_not_to_download_num_files_and_size: will report the number and total sizes of the files that are already synced in cache
+    * SVNTable.get_not_to_download_num_files_and_size: when all files need downloading the num total bytes would be None instead of 0.
+            because sqlite's SUM function returns None. Changed to using TOTAL which return 0 in such a case.
 
 23/7/2017 1.5.2.0
 

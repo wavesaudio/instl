@@ -582,9 +582,9 @@ class SVNTable(object):
         return retVal
 
     def get_not_to_download_num_files_and_size(self):
-        """ return the count and total size of the files that are already synced"""
+        """ return the count and total size of the files that are already synced """
         query_text = """
-            SELECT COUNT(path) as num_files, SUM(size) as total_size
+            SELECT COUNT(*) as num_files, TOTAL(size) as total_size
             FROM svnitem
             WHERE required=1
             AND need_download=0
@@ -594,8 +594,7 @@ class SVNTable(object):
             retVal = self.session.execute(query_text).first()
         except SQLAlchemyError:
             raise
-        return retVal
-
+        return retVal[0], int(retVal[1])  # sqlite's TOTAL returns float
 
     def get_to_download_files_and_size(self):
         """
