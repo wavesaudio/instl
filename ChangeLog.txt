@@ -1,3 +1,10 @@
+30/7/2017 1.5.2.2
+
+    programmer visible changes:
+    * Added option to disable ssl verification when downloading URLs with open_for_read_file_or_url.
+        Default set to not verify, just like with curl configuration. Should help with some clients
+        that do not have proper ceritifates installed.
+
 26/7/2017 1.5.2.1
 
     user visible changes:

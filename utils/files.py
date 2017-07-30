@@ -7,6 +7,8 @@ import shutil
 import time
 import stat
 import fnmatch
+from contextlib import contextmanager
+import ssl
 
 import urllib.request, urllib.error, urllib.parse
 
@@ -60,17 +62,31 @@ class write_to_file_or_stdout(object):
             self.fd.close()
 
 
+@contextmanager
+def patch_verify_ssl(verify_ssl):
+    """ if verify_ssl is False, patch ssl._create_default_https_context to be
+        ssl._create_unverified_context and un-patch after it was used
+    """
+    if not verify_ssl:
+        original_create_default_https_context = ssl._create_default_https_context
+        ssl._create_default_https_context = ssl._create_unverified_context
+    yield
+    if not verify_ssl:
+        ssl._create_default_https_context = original_create_default_https_context
+
+
 class open_for_read_file_or_url(object):
     protocol_header_re = re.compile("""
                         \w+
                         ://
                         """, re.VERBOSE)
 
-    def __init__(self, in_file_or_url, translate_url_callback=None, path_searcher=None, encoding='utf-8'):
+    def __init__(self, in_file_or_url, translate_url_callback=None, path_searcher=None, encoding='utf-8', verify_ssl=False):
         self.local_file_path = None
         self.url = None
         self.custom_headers = None
         self.encoding = encoding
+        self.verify_ssl = verify_ssl
         self.fd = None
         self._actual_path = in_file_or_url
         match = self.protocol_header_re.match(in_file_or_url)
@@ -99,7 +115,8 @@ class open_for_read_file_or_url(object):
                 if self.custom_headers:
                     for custom_header in self.custom_headers:
                         opener.addheaders.append(custom_header)
-                self.fd = opener.open(self.url)
+                with patch_verify_ssl(self.verify_ssl):  # if self.verify_ssl is False this will disable SSL verifications
+                    self.fd = opener.open(self.url)
             elif self.local_file_path:
                 if self.encoding is None:
                     self.fd = open(self.local_file_path, "rb")
