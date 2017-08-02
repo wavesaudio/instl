@@ -1,3 +1,12 @@
+2/8/2017 1.5.2.3
+
+    programmer visible changes:
+    * aYaml.writeAsYaml now write '~' in case value is an empty list or empty string
+
+    admin visible changes:
+    * instlGui (admin): better handling of --limit values when reading/writing to/from history file and when and passing to sub process
+    * instlGui (admin): Stave state button to force writing of the history file
+
 30/7/2017 1.5.2.2
 
     programmer visible changes:

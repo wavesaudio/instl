@@ -185,12 +185,13 @@ class InstlGui(InstlInstanceBase):
         # some special handling of command line parameters cannot yet be expressed in the command template
         if command_name != 'depend':
             if self.admin_command_name_var.get() in self.commands_that_accept_limit_option:
-                limit_path = self.admin_limit_var.get()
-                if limit_path != "":
+                limit_paths = self.admin_limit_var.get()
+                if limit_paths != "":
                     retVal.append("--limit")
-                    limit_paths = shlex.split(limit_path)
-                    retVal.extend(limit_paths)
-
+                    try:
+                        retVal.extend(shlex.split(limit_paths))
+                    except ValueError:
+                        retVal.append(limit_paths)
             if self.run_admin_batch_file_var.get() == 1 and command_name in self.commands_with_run_option_list:
                 retVal.append("--run")
 
@@ -262,11 +263,14 @@ class InstlGui(InstlInstanceBase):
         var_stack.set_var("ADMIN_GUI_RUN_BATCH").append(utils.bool_int_to_str(self.run_admin_batch_file_var.get()))
 
         limit_line = self.admin_limit_var.get()
-        if '"' in limit_line:
-            limit_line = utils.quoteme_single(limit_line)
-        elif "'" in limit_line:
-            limit_line = utils.quoteme_double(limit_line)
-        var_stack.set_var("ADMIN_GUI_LIMIT").append(limit_line)
+        try:
+            limit_lines = shlex.split(limit_line)
+        except ValueError:
+            limit_lines = [limit_line]
+        if limit_lines:
+            var_stack.set_var("ADMIN_GUI_LIMIT").extend(limit_lines)
+        else:
+            var_stack.set_var("ADMIN_GUI_LIMIT")
 
         self.admin_stage_index_var.set(var_stack.ResolveVarToStr("__STAGING_INDEX_FILE__"))
         self.admin_svn_repo_var.set(var_stack.ResolveStrToStr("$(SVN_REPO_URL), REPO_REV: $(REPO_REV)"))
@@ -284,7 +288,7 @@ class InstlGui(InstlInstanceBase):
         else:
             self.admin_run_batch_file_checkbox.configure(state='disabled')
 
-        command_line = " ".join(self.create_admin_command_line())
+        command_line = " ".join([shlex.quote(p) for p in self.create_admin_command_line()])
 
         self.T_admin.configure(state='normal')
         self.T_admin.delete(1.0, END)
@@ -308,7 +312,7 @@ class InstlGui(InstlInstanceBase):
     def run_admin(self):
         self.update_admin_state()
         command_line_parts = self.create_admin_command_line()
-        resolved_command_line_parts = var_stack.ResolveListToList(command_line_parts)
+        resolved_command_line_parts = [shlex.quote(p) for p in var_stack.ResolveListToList(command_line_parts)]
 
         if getattr(os, "setsid", None):
             admin_process = subprocess.Popen(resolved_command_line_parts, executable=resolved_command_line_parts[0], shell=False, preexec_fn=os.setsid)  # Unix
@@ -403,7 +407,14 @@ class InstlGui(InstlInstanceBase):
         # relative path to limit folder
         curr_row += 1
         Label(admin_frame, text="Limit to:").grid(row=curr_row, column=0, sticky=E)
-        self.admin_limit_var.set(var_stack.unresolved_var("ADMIN_GUI_LIMIT"))
+        ADMIN_GUI_LIMIT_values = var_stack.unresolved_var_to_list("ADMIN_GUI_LIMIT", default=list())
+        ADMIN_GUI_LIMIT_values = list(filter(None, ADMIN_GUI_LIMIT_values))
+        if ADMIN_GUI_LIMIT_values:
+            print("ADMIN_GUI_LIMIT_values:", ADMIN_GUI_LIMIT_values)
+            self.admin_limit_var.set(" ".join([shlex.quote(p) for p in ADMIN_GUI_LIMIT_values]))
+        else:
+            print("ADMIN_GUI_LIMIT_values:", "no values")
+            self.admin_limit_var.set("")
         self.limit_path_entry_widget = Entry(admin_frame, textvariable=self.admin_limit_var)
         self.limit_path_entry_widget.grid(row=curr_row, column=1, columnspan=2, sticky=W + E)
         self.admin_limit_var.trace('w', self.update_admin_state)
@@ -417,6 +428,7 @@ class InstlGui(InstlInstanceBase):
 
         curr_row += 1
         Button(admin_frame, width=9, text="clipboard", command=self.copy_to_clipboard).grid(row=curr_row, column=1, sticky=W)
+        Button(admin_frame, width=9, text="Save state", command=self.write_history).grid(row=curr_row, column=2, sticky=E)
 
         return admin_frame
 

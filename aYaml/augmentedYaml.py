@@ -311,18 +311,21 @@ def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False):
     if pyObj is None:
         out_stream.write("~")
     elif isinstance(pyObj, (list, tuple)):
-        indentor.push('l')
-        for item in pyObj:
-            if isinstance(item, YamlDumpDocWrap):
-                indentor.push(None)  # doc should have no parent
-                writeAsYaml(item, out_stream, indentor, sort)
-                indentor.pop()
-            else:
-                indentor.lineSepAndIndent(out_stream)
-                indentor.write_extra_chars(out_stream, "- ")
-                indentor += 1
-                writeAsYaml(item, out_stream, indentor, sort)
-                indentor -= 1
+        if not pyObj:
+            out_stream.write("~")
+        else:
+            indentor.push('l')
+            for item in pyObj:
+                if isinstance(item, YamlDumpDocWrap):
+                    indentor.push(None)  # doc should have no parent
+                    writeAsYaml(item, out_stream, indentor, sort)
+                    indentor.pop()
+                else:
+                    indentor.lineSepAndIndent(out_stream)
+                    indentor.write_extra_chars(out_stream, "- ")
+                    indentor += 1
+                    writeAsYaml(item, out_stream, indentor, sort)
+                    indentor -= 1
         indentor.pop()
     elif isinstance(pyObj, (dict, OrderedDict)):
         parent_item = indentor.top()
@@ -349,12 +352,10 @@ def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False):
         if hasattr(pyObj, "repr_for_yaml"):
             writeAsYaml(pyObj.repr_for_yaml(), out_stream, indentor, sort)
         else:
-            if pyObj is None:
+            if not pyObj:
                 pyObj_as_string = '~'
             else:
                 pyObj_as_string = str(pyObj)
-                if not pyObj_as_string: # it's a string but an empty one
-                    pyObj_as_string = '""'
             out_stream.write(pyObj_as_string)
     # add the final end-of-line. But if writeAsYaml is recursed from outside writeAsYaml
     # this will not work.
