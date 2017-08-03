@@ -208,6 +208,7 @@ class InstlAdmin(InstlInstanceBase):
                 msg = " ".join(("Links already created for revisions:", no_need_links_str))
                 print(msg)
             yes_need_links_str = utils.find_sequences(yes_need_link_nums)
+            var_stack.set_var("__NEED_UPLOAD_REPO_REV_LIST__").extend(yes_need_link_nums)
             msg = " ".join(("Need to create links for revisions:", yes_need_links_str))
             print(msg)
         else:
