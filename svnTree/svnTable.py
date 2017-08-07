@@ -153,6 +153,11 @@ class SVNTable(object):
         return is_wtar_file, is_wtar_first_file
 
     @staticmethod
+    def level_parent_and_leaf_from_path(in_path):
+        path_parts = in_path.split("/")
+        return len(path_parts), "/".join(path_parts[:-1]), path_parts[-1]
+
+    @staticmethod
     def item_dict_from_str(the_str):
         """ create a new a sub-item from string description.
             This is the regular expression version.
@@ -163,8 +168,7 @@ class SVNTable(object):
             the_matched_groups = match.groupdict()
             item_details = dict()
             item_details['path'] = the_matched_groups['path']
-            item_details['parent'] = "/".join(item_details['path'].split("/")[:-1])
-            item_details['level'] = len(item_details['path'].split("/"))
+            item_details['level'], item_details['parent'], item_details['leaf'] = SVNTable.level_parent_and_leaf_from_path(item_details['path'])
             item_details['revision'] = int(the_matched_groups['revision'])
             item_details['flags'] = the_matched_groups['flags']
             item_details['fileFlag'] = 'f' in the_matched_groups['flags']
@@ -229,8 +233,8 @@ class SVNTable(object):
                 """
                 retVal = dict()
                 retVal['path'] = a_record["Path"]
-                retVal['parent'] = "/".join(retVal['path'].split("/")[:-1])
-                retVal['level'] = len(retVal['path'].split("/"))
+                path_parts = retVal['path'].split("/")
+                retVal['level'], retVal['parent'], retVal['leaf'] = SVNTable.level_parent_and_leaf_from_path(retVal['path'])
                 if a_record["Node Kind"] == "file":
                     retVal['flags'] = "f"
                     retVal['fileFlag'] = True
@@ -279,9 +283,7 @@ class SVNTable(object):
         relative_path = full_path[prefix_len:]
         item_details = dict()
         item_details['path'] = relative_path
-        split_path = item_details['path'].split("/")
-        item_details['parent'] = "/".join(split_path[:-1])
-        item_details['level'] = len(split_path)
+        item_details['level'], item_details['parent'], item_details['leaf'] = SVNTable.level_parent_and_leaf_from_path(item_details['path'])
         item_details['revision'] = 0
         if os.path.islink(full_path): # check for link first: os.path.isdir returns True for a link to dir
             flags = "fs"

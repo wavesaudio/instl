@@ -1,3 +1,15 @@
+7/8/2017 1.5.2.4
+
+    user visible changes:
+    * Disabled background launch for create_folder_manifest_command, it would cause confusion with DB creating when running instl uncompiled
+
+    programmer visible changes:
+    * Some fixes to set_sync_locations_for_active_items to allow for !dir, !dir_cont, !file in direct-sync mode
+    * InstlMisc: from svnTree import SVNTable only when needed
+    * New column in SVNRow: leaf will be the last element of the path - useful in set_sync_locations_for_active_items
+    * New function: SVNTable.level_parent_and_leaf_from_path to calculate the leaf, parent and number of levels for SVNRow record
+
+
 2/8/2017 1.5.2.3
 
     programmer visible changes:

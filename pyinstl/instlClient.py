@@ -367,7 +367,7 @@ class InstlClient(InstlInstanceBase):
                                       "--in",  utils.quoteme_double(which_folder_to_manifest),
                                       "--out", utils.quoteme_double(ls_output_file)]
         if var_stack.ResolveVarToStr("__CURRENT_OS__") == "Mac":
-            if back_ground:
+            if False:  # back_ground: temporary disabled background, it causes DB conflicts when two "ls" command happen in parallel
                 create_folder_ls_command_parts.extend("&")
             else:
                 create_folder_ls_command_parts.extend(("||", "true"))
@@ -450,8 +450,16 @@ class InstlClient(InstlInstanceBase):
     def set_sync_locations_for_active_items(self):
         # get_sync_folders_and_sources_for_active_iids returns: [(iid, direct_sync_indicator, source, source_tag, install_folder),...]
         # direct_sync_indicator will be None unless the items has "direct_sync" section in index.yaml
+        # source is the relative path as it appears in index.yaml
+        # adjusted source is the source prefixed with $(SOURCE_PREFIX) -- it needed
+        # source_tag is one of  '!dir', '!dir_cont', '!file'
+        # install_folder is where the sources should be copied to OR, in case of direct syn where they should be synced to
         # install_folder will be None for those items that require only sync not copy (such as Icons)
+        #
+        # for each file item in the source this function will set the full path where to download the file: item.download_path
+        # and the top folder common to all items in a single source: item.download_root
         sync_and_source = self.items_table.get_sync_folders_and_sources_for_active_iids()
+
         for iid, direct_sync_indicator, source, adjusted_source, source_tag, install_folder in sync_and_source:
             direct_sync = self.get_direct_sync_status_from_indicator(direct_sync_indicator)
             resolved_adjusted_source = var_stack.ResolveStrToStr(adjusted_source)
@@ -462,25 +470,29 @@ class InstlClient(InstlInstanceBase):
                 if direct_sync:
                     if  source_tag == '!dir':
                         source_parent = "/".join(resolved_adjusted_source_parts[:-1])
+                        for item in items:
+                            item.download_path = var_stack.ResolveStrToStr("/".join((install_folder, item.path[len(source_parent)+1:])))
+                            item.download_root = var_stack.ResolveStrToStr("/".join((install_folder, resolved_adjusted_source_parts[-1])))
                     else:  # !dir_cont
                         source_parent = resolved_adjusted_source
-                    assert install_folder is not None
-                    for item in items:
-                        item.download_path = var_stack.ResolveStrToStr("/".join((install_folder, item.path[len(source_parent)+1:])))
-                        item.download_root  = var_stack.ResolveStrToStr("/".join((install_folder, resolved_adjusted_source_parts[-1])))
+                        for item in items:
+                            item.download_path = var_stack.ResolveStrToStr("/".join((install_folder, item.path[len(source_parent)+1:])))
+                            item.download_root = var_stack.ResolveStrToStr(install_folder)
                 else:
                     for item in items:
                         item.download_path = var_stack.ResolveStrToStr("/".join(("$(LOCAL_REPO_SYNC_DIR)", item.path)))
             elif source_tag == '!file':
+                # if the file was wtarred and split it would have multiple items
                 items_for_file = self.info_map_table.get_required_for_file(resolved_adjusted_source)
                 if direct_sync:
                     assert install_folder is not None
                     for item in items_for_file:
-                        item.download_path = var_stack.ResolveStrToStr("/".join((install_folder, item.path[len(source_parent)+1:])))
+                        item.download_path = var_stack.ResolveStrToStr("/".join((install_folder, item.leaf)))
                         item.download_root = var_stack.ResolveStrToStr(item.download_path)
                 else:
                     for item in items_for_file:
                         item.download_path = var_stack.ResolveStrToStr("/".join(("$(LOCAL_REPO_SYNC_DIR)", item.path)))
+                        # no need to set item.download_root here - it will not be used
         self.items_table.commit_changes()
 
     def create_remove_previous_sources_instructions_for_target_folder(self, target_folder_path):

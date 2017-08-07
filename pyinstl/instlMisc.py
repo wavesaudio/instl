@@ -12,7 +12,6 @@ from collections import OrderedDict
 from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
 from . import connectionBase
-from svnTree import SVNTable
 
 
 # noinspection PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences
@@ -44,6 +43,7 @@ class InstlMisc(InstlInstanceBase):
         do_command_func = getattr(self, "do_" + self.fixed_command)
         before_time = time.clock()
         if self.fixed_command in self.commands_that_need_info_map_table:
+            from svnTree import SVNTable
             self.info_map_table = SVNTable()
         do_command_func()
         after_time = time.clock()

@@ -26,6 +26,7 @@ class SVNRow(get_declarative_base()):
     download_path = Column(String)
     download_root = Column(String, default=None)  # top folder for direct sync items not the same as parent
     path = Column(String, index=True)
+    leaf = Column(String)
     parent = Column(String)  # todo: this should be in another table
     flags = Column(String)   # the flags in text format f,d,x
     revision = Column(Integer, default=0)  # SVN revision
