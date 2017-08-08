@@ -1,3 +1,10 @@
+8/8/2017 1.5.2.5
+
+    user visible changes:
+    * Moved creation of "after-sync" create_sync_folder_manifest_command to be doen right after sync and before check-checksum
+    * do_check_checksum: separate reporting for bad checksum and for missing files
+
+
 7/8/2017 1.5.2.4
 
     user visible changes:

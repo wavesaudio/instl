@@ -125,6 +125,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.create_sync_urls(file_list)
 
         self.create_curl_download_instructions()
+        self.instlObj.create_sync_folder_manifest_command("after-sync", back_ground=True)
         self.create_check_checksum_instructions(file_list)
         return to_sync_num_files
 
@@ -149,7 +150,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
                                                                                      "$(HAVE_INFO_MAP_PATH)")
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.popd()
-        self.instlObj.create_sync_folder_manifest_command("after-sync", back_ground=True)
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Done sync")
         self.instlObj.progress("create sync instructions done")
         return retVal

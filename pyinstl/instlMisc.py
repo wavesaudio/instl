@@ -209,6 +209,7 @@ class InstlMisc(InstlInstanceBase):
     def do_check_checksum(self):
         self.progress_staccato_command = True
         bad_checksum_list = list()
+        missing_files_list = list()
         self.read_info_map_from_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
         for file_item in self.info_map_table.get_items(what="file"):
             if os.path.isfile(file_item.download_path):
@@ -217,11 +218,20 @@ class InstlMisc(InstlInstanceBase):
                     sigs = utils.create_file_signatures(file_item.download_path)
                     bad_checksum_list.append( " ".join(("Bad checksum:", file_item.download_path, "expected", file_item.checksum, "found", sigs["sha1_checksum"])) )
             else:
-                bad_checksum_list.append(" ".join((file_item.download_path, "does not exist")))
+                missing_files_list.append(" ".join((file_item.download_path, "was not found")))
             self.dynamic_progress("Check checksum {file_item.path}".format(**locals()))
-        if bad_checksum_list:
-            print("\n".join(bad_checksum_list))
-            raise ValueError("Bad checksum for " + str(len(bad_checksum_list)) + " files")
+        if bad_checksum_list or missing_files_list:
+            bad_checksum_list_exception_message = ""
+            missing_files_exception_message = ""
+            if bad_checksum_list:
+                print("\n".join(bad_checksum_list))
+                bad_checksum_list_exception_message += "Bad checksum for {} files".format(len(bad_checksum_list))
+                print(bad_checksum_list_exception_message)
+            if missing_files_list:
+                print("\n".join(missing_files_list))
+                missing_files_exception_message += "Missing {} files".format(len(missing_files_list))
+                print(missing_files_exception_message)
+            raise ValueError("\n".join((bad_checksum_list_exception_message, missing_files_exception_message)))
 
     def do_set_exec(self):
         self.progress_staccato_command = True
