@@ -125,12 +125,6 @@ class ConfigVar(object):
 
     def append(self, value):
         normed_value = self.norm_values(value)[0]
-        if normed_value is not None and not self.__non_freeze:
-            if "$(" in normed_value:
-                self.__values_are_frozen = False
-            else:
-                if len(self.__values) == 0:
-                    self.__values_are_frozen = True
         self.__values.append(normed_value)
 
     def extend(self, values):

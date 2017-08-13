@@ -1,3 +1,9 @@
+13/8/2017 1.5.2.6
+
+    programmer visible changes:
+    * config vars were being forzen before first resolve. T
+        his prevented var ending with _DIR from being properly fixed to replace '/'s with '\' on windows
+
 8/8/2017 1.5.2.5
 
     user visible changes:
