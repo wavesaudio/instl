@@ -252,10 +252,34 @@ extract_info_funcs_by_extension = {
 }
 
 
-def check_binaries_versions_in_folder(current_os, in_path, in_compiled_ignore_folder_regex, in_compiled_ignore_file_regex):
+class check_binaries_versions_filter_with_ignore_regexes(object):
+    def __init__(self, ignore_file_regexes=[".^"], ignore_folder_regexes=[".^"]):
+        self.compiled_ignore_file_regex = None
+        self.compiled_ignore_folder_regex = None
+        self.set_file_ignore_regexes(ignore_file_regexes)
+        self.set_folder_ignore_regexes(ignore_folder_regexes)
+
+    def set_file_ignore_regexes(self, file_ignore_regex_list):
+        self.compiled_ignore_file_regex  = utils.compile_regex_list_ORed(file_ignore_regex_list)
+
+    def set_folder_ignore_regexes(self, folder_ignore_regex_list):
+        self.compiled_ignore_folder_regex  = utils.compile_regex_list_ORed(folder_ignore_regex_list)
+
+    def __call__(self, in_path):
+        retVal = True
+        if os.path.isfile(in_path):
+            if self.compiled_ignore_file_regex.search(in_path):
+                retVal = False
+        elif os.path.isdir(in_path):
+            if self.compiled_ignore_folder_regex.search(in_path):
+                retVal = False
+        return retVal
+
+
+def check_binaries_versions_in_folder(current_os, in_path, in_filter=lambda p: True):
     retVal = list()
     for root_path, dirs, files in os.walk(in_path, followlinks=False):
-        if in_compiled_ignore_folder_regex and in_compiled_ignore_folder_regex.search(root_path):
+        if not in_filter(root_path):
             del dirs[:]  # skip root_path and it's siblings
             del files[:]
         else:
@@ -267,7 +291,7 @@ def check_binaries_versions_in_folder(current_os, in_path, in_compiled_ignore_fo
             else:
                 for a_file in files:
                     file_full_path = os.path.join(root_path, a_file)
-                    if in_compiled_ignore_file_regex and in_compiled_ignore_file_regex.search(file_full_path):
+                    if not in_filter(file_full_path):
                         continue
                     if not os.path.islink(file_full_path):
                         info = extract_binary_info(current_os, file_full_path)

@@ -417,19 +417,19 @@ class InstlClient(InstlInstanceBase):
         try:
             path_to_search = var_stack.ResolveVarToList('CHECK_BINARIES_VERSION_FOLDERS', default=[])
 
-            compiled_ignore_folder_regex = None
+            ignore_regexes_filter = utils.check_binaries_versions_filter_with_ignore_regexes()
+
             if "CHECK_BINARIES_VERSION_FOLDER_EXCLUDE_REGEX" in var_stack:
                 ignore_folder_regex_list = var_stack.ResolveVarToList("CHECK_BINARIES_VERSION_FOLDER_EXCLUDE_REGEX")
-                compiled_ignore_folder_regex = utils.compile_regex_list_ORed(ignore_folder_regex_list)
+                ignore_regexes_filter.set_folder_ignore_regexes(ignore_folder_regex_list)
 
-            compiled_ignore_file_regex = None
             if "CHECK_BINARIES_VERSION_FILE_EXCLUDE_REGEX" in var_stack:
-                ignore_file_regex_list = var_stack.ResolveVarToList("CHECK_BINARIES_VERSION_FILE_EXCLUDE_REGEX")
-                compiled_ignore_file_regex = utils.compile_regex_list_ORed(ignore_file_regex_list)
+                ignore_file_regex_list = var_stack.ResolveVarToList("CHECK_BINARIES_VERSION_FILE_EXCLUDE_REGEX", )
+                ignore_regexes_filter.set_file_ignore_regexes(ignore_file_regex_list)
 
             for a_path in path_to_search:
                 current_os = var_stack.ResolveVarToStr("__CURRENT_OS__")
-                binaries_version_from_folder = utils.check_binaries_versions_in_folder(current_os, a_path, compiled_ignore_folder_regex, compiled_ignore_file_regex)
+                binaries_version_from_folder = utils.check_binaries_versions_in_folder(current_os, a_path, ignore_regexes_filter)
                 binaries_version_list.extend(binaries_version_from_folder)
 
             self.items_table.insert_binary_versions(binaries_version_list)

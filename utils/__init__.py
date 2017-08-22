@@ -4,7 +4,7 @@ from .searchPaths import SearchPaths
 from .instlException import InstlException, InstlFatalException
 from .parallel_run import run_processes_in_parallel
 from .multi_file import MultiFileReader
-from .extract_info import extract_binary_info, check_binaries_versions_in_folder
+from .extract_info import extract_binary_info, check_binaries_versions_in_folder, check_binaries_versions_filter_with_ignore_regexes
 from .ls import disk_item_listing
 import platform
 current_os = platform.system()

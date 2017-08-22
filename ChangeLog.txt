@@ -1,3 +1,8 @@
+22/8/2017 1.5.2.7
+
+    programmer visible changes:
+    * check_binaries_versions_in_folder filtering is done with a function instead of directly with regexes
+
 13/8/2017 1.5.2.6
 
     programmer visible changes:
@@ -427,7 +432,7 @@
 6/11/2016 1.3.0.9
 
     * Integrated from version-check branch. All dependencies and require calculations are done through database.
-    
+
 1/11/2016 1.3.0.8
 
     programmer visible changes:
