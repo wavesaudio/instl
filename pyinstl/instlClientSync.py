@@ -39,3 +39,4 @@ class InstlClientSync(InstlClient):
             self.batch_accum.end_transaction()
         else:
             self.batch_accum.cancel_transaction()
+            syncer.create_no_sync_instructions()

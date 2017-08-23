@@ -45,6 +45,10 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         self.instlObj.batch_accum.set_current_section('sync')
         return 0
 
+    def create_no_sync_instructions(self):
+        """ an inheriting syncer can override this function to do something incase no files needed syncing """
+        pass
+
     def read_remote_info_map(self):
         """ Reads the info map of the static files available for syncing.
             Writes the map to local sync folder for reference and debugging.

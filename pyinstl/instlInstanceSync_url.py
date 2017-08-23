@@ -154,6 +154,13 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.progress("create sync instructions done")
         return retVal
 
+    def create_no_sync_instructions(self):
+        """ in case no files needed syncing """
+        self.instlObj.batch_accum.set_current_section('post-sync')
+        self.instlObj.batch_accum += self.instlObj.platform_helper.copy_file_to_file("$(NEW_HAVE_INFO_MAP_PATH)",
+                                                                                     "$(HAVE_INFO_MAP_PATH)")
+        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Done sync")
+
     def chown_for_synced_folders(self):
         """ if sync is done under admin permissions owner of files and folders will be root
             chown_for_synced_folders will change owner to the user that created the batch file.

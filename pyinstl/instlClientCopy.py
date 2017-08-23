@@ -87,9 +87,8 @@ class InstlClientCopy(InstlClient):
         self.progress("create copy instructions ...")
         self.create_sync_folder_manifest_command("before-copy", back_ground=True)
         # If we got here while in synccopy command, there is no need to read the info map again.
-        # If we got here while in copy command, read HAVE_INFO_MAP_FOR_COPY which defaults to HAVE_INFO_MAP_PATH.
-        # Copy might be called after the sync batch file was created
-        # but before it was executed in which case HAVE_INFO_MAP_FOR_COPY will be defined to NEW_HAVE_INFO_MAP_PATH.
+        # If we got here while in copy command, read HAVE_INFO_MAP_FOR_COPY which defaults to NEW_HAVE_INFO_MAP_PATH.
+        # Copy might be called after the sync batch file was created but before it was executed
         if len(self.info_map_table.files_read_list) == 0:
             have_info_path = var_stack.ResolveVarToStr("HAVE_INFO_MAP_FOR_COPY")
             self.read_info_map_from_file(have_info_path)

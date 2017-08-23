@@ -1,3 +1,9 @@
+23/8/2017 1.5.2.8
+
+    user visible changes:
+    * Fixed: "have_info_map.txt: No such file or directory" - while in chimera automated testing
+    * InstlClientSync.do_sync will call create_no_sync_instructions in case no files needed syncing. This will make sure have_info_map.txt.txt is created even if everything is synced.
+
 22/8/2017 1.5.2.7
 
     programmer visible changes:
