@@ -83,28 +83,28 @@ class InstlMisc(InstlInstanceBase):
 
     def do_wtar(self):
         """ Create a new wtar archive for a file or folder provided in '--in' command line option
-            
+
             If --out is not supplied on the command line the new wtar file will be created
                 next to the input with extension '.wtar'.
                 e.g. the command:
                     instl wtar --in /a/b/c
                 will create the wtar file at path:
                     /a/b/c.wtar
-                    
+
             If '--out' is supplied and it's an existing file, the new wtar will overwrite
                 this existing file, wtar extension will NOT be added.
                 e.g. assuming /d/e/f.txt is an existing file, the command:
                     instl wtar --in /a/b/c --out /d/e/f.txt
                 will create the wtar file at path:
                     /d/e/f.txt
-                    
+
             if '--out' is supplied and is and existing folder the wtar file will be created
                 inside this folder with extension '.wtar'.
                 e.g. assuming /g/h/i is an existing folder, the command:
                     instl wtar --in /a/b/c --out /g/h/i
                 will create the wtar file at path:
                     /g/h/i/c.wtar
-                    
+
             if '--out' is supplied and does not exists, the folder will be created
                 and the wtar file will be created inside the new folder with extension
                  '.wtar'.
@@ -112,16 +112,23 @@ class InstlMisc(InstlInstanceBase):
                     instl wtar --in /a/b/c --out /j/k/l
                 will create the wtar file at path:
                     /j/k/l/c.wtar
-                    
+
             "total_checksum" field is added to the pax_headers. This checksum is a checksum of all individual
-                file checksums as calculated by utils.get_recursive_checksums. See utils.get_recursive_checksums 
+                file checksums as calculated by utils.get_recursive_checksums. See utils.get_recursive_checksums
                 doc string for details on how checksums are calculated. Individual file checksums are not added
                 to the pax_headers because during unwtarring tarfile code goes over all the pax_headers for each file
                 making the process exponential slow for large archived.
-            
+
+            if wtar file(s) with the same base name as the --in file/folder, the total_checksum of the existing wtar
+                will be checked against the total_checksum of the --in file/folder.
+                If total_checksums are identical, the wtar
+                will not be created. This will protect against new wtar being created when only the modification date of files
+                in the --in file/folder has changed.
+                If total_checksums are no identical the old wtar files wil be removed and a new war created. Removing the old wtars
+                ensures that if the number of new wtar split files is smaller than the number of old split files, not extra files wil remain. E.g. if before [a.wtar.aa, a.wtar.ab, a.wtar.ac] and after  [a.wtar.aa, a.wtar.ab] a.wtar.ac will be removed.
             Format of the tar is PAX_FORMAT.
             Compression is bzip2.
-            
+
         """
         what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         if not os.path.exists(what_to_work_on):
@@ -144,6 +151,7 @@ class InstlMisc(InstlInstanceBase):
             os.makedirs(where_to_put_wtar, exist_ok=True)
             target_wtar_file = os.path.join(where_to_put_wtar, what_to_work_on_leaf+".wtar")
 
+        tar_total_checksum = utils.get_wtar_total_checksum(target_wtar_file)
         ignore_files = var_stack.ResolveVarToList("WTAR_IGNORE_FILES", default=list())
         with utils.ChangeDirIfExists(what_to_work_on_dir):
             pax_headers = {"total_checksum": utils.get_recursive_checksums(what_to_work_on_leaf, ignore=ignore_files)["total_checksum"]}
@@ -169,8 +177,13 @@ class InstlMisc(InstlInstanceBase):
                     tarinfo.pax_headers = file_pax_headers
                 return tarinfo
 
-            with tarfile.open(target_wtar_file, "w|bz2", format=tarfile.PAX_FORMAT, pax_headers=pax_headers) as tar:
-                tar.add(what_to_work_on_leaf, filter=check_tarinfo)
+            if pax_headers["total_checksum"] != tar_total_checksum:
+                existing_wtar_parts = utils.find_split_files_from_base_file(what_to_work_on_leaf)
+                [utils.safe_remove_file(f) for f in existing_wtar_parts]
+                with tarfile.open(target_wtar_file, "w|bz2", format=tarfile.PAX_FORMAT, pax_headers=pax_headers) as tar:
+                    tar.add(what_to_work_on_leaf, filter=check_tarinfo)
+            else:
+                print("{0} skipped since {0}.wtar already exists and has the same contents".format(what_to_work_on))
 
     def do_unwtar(self):
         self.no_artifacts = "__NO_WTAR_ARTIFACTS__" in var_stack

@@ -26,7 +26,7 @@ error handling:
     - better handling and reporting of unknown command names, missing files, missing parameters, etc...
 
 Admin:
-    - convert all commands that use --limit to work with prepare_limit_list
+    - convert all commands that use --limit to work with prepare_list_of_dirs_to_work_on
     - remove .DS_Store before wtar
 
 Put order in syncer classes: boto, p4, svn, url

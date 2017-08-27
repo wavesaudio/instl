@@ -267,12 +267,17 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         the_split_func = ("""
 split_file()
 {
-    file_size=$(stat -f %z "$1")
-    if [ "$(MIN_FILE_SIZE_TO_WTAR)" -lt "$file_size" ]
+    if [ -f "$1" ]
     then
-        let "part_size=($file_size / (($file_size / $(MIN_FILE_SIZE_TO_WTAR)) + ($file_size % $(MIN_FILE_SIZE_TO_WTAR) > 0 ? 1 : 0)))+1"
-        split -a 2 -b $part_size "$1" "$1."
-        rm -fr "$1"
+        file_size=$(stat -f %z "$1")
+        if [ "$(MIN_FILE_SIZE_TO_WTAR)" -lt "$file_size" ]
+        then
+            let "part_size=($file_size / (($file_size / $(MIN_FILE_SIZE_TO_WTAR)) + ($file_size % $(MIN_FILE_SIZE_TO_WTAR) > 0 ? 1 : 0)))+1"
+            split -a 2 -b $part_size "$1" "$1."
+            rm -fr "$1"
+        else
+            mv "$1" "$1.aa"
+        fi
     fi
 }
 """)

@@ -670,10 +670,10 @@ def get_recursive_checksums(some_path, ignore=None):
         assuming /a/b/c.txt is a file
             get_recursive_checksums("/a/b/c.txt")
         will return: {c.txt: 1bc...aed, total_checksum: ed4...f4e}
-        
+
         If some_path is a folder recursively walk the folder and return a dict mapping each file to it's sha1 checksum.
-        and mapping "total_checksum" to a checksum of all the files checksums. 
-        
+        and mapping "total_checksum" to a checksum of all the files checksums.
+
         total_checksum is calculated by concatenating two lists:
          - list of all the individual file checksums
          - list of all individual paths paths
@@ -749,3 +749,18 @@ def unwtar_a_file(wtar_file_path, destination_folder=None, no_artifacts=False, i
     except tarfile.TarError:
         print("tarfile error while opening file", os.path.abspath(wtar_file_paths[0]))
         raise
+
+
+def get_wtar_total_checksum(wtar_file_path):
+    tar_total_checksum = None
+    try:
+        if not os.path.isfile(wtar_file_path):
+            wtar_file_path += ".aa"
+        if os.path.isfile(wtar_file_path):
+            wtar_file_paths = utils.find_split_files(wtar_file_path)
+            with utils.MultiFileReader("br", wtar_file_paths) as fd:
+                with tarfile.open(fileobj=fd) as tar:
+                    tar_total_checksum = tar.pax_headers.get("total_checksum")
+    except Exception as ex:
+        pass  # return None if there was exception from any reason
+    return tar_total_checksum

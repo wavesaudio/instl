@@ -1,8 +1,14 @@
-???? 1.5.2.9
+27/8/2017 1.5.3.0
 
     admin visible changes:
     * do_up2s3: better variable names
     * upload_to_s3_aws_for_revision: prepared command to remove uploaded folders, currently only echoed not executed
+    * wtar is created as .wtar.aa even if not big enough to be split
+    * wtars are not created if there is an existing wtar and contents are identical, if they are created do_wtar will erase previous .wtar files
+    * InstlAdmin.stage2svn_for_folder: wtars are not copied or added during stage2svn if there is an existing wtar and contents are identical.
+    * above rule applies even when new file is .wtar.aa and old is .wtar
+    * InstlAdmin.prepare_limit_list renamed prepare_list_of_dirs_to_work_on
+    * new function misc_utils.get_wtar_total_checksum
 
 23/8/2017 1.5.2.8
 

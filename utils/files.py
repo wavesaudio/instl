@@ -355,9 +355,22 @@ def find_split_files(first_file):
         raise es
 
 
+def find_split_files_from_base_file(base_file):
+    split_files = list()
+    try:
+        wtar_first_file = base_file+".wtar"
+        if not os.path.isfile(wtar_first_file):
+            wtar_first_file += ".aa"
+        if os.path.isfile(wtar_first_file):
+            split_files = find_split_files(wtar_first_file)
+    except:
+        pass  # no split files
+    return split_files
+
+
 def scandir_walk(top_path, report_files=True, report_dirs=True, follow_symlinks=False):
-    """ Walk a folder hierarchy using the new and fast os.scandir, yielding 
-    
+    """ Walk a folder hierarchy using the new and fast os.scandir, yielding
+
     :param top_path: where to start the walk, top_path itself will NOT be yielded
     :param report_files: If True: files will be yielded
     :param report_dirs: If True: folders will be yielded
