@@ -286,9 +286,9 @@ class InstlAdmin(InstlInstanceBase):
             return retVal
 
     def do_up2s3(self):
-        # call svn info and to find out the last repo revision
         base_repo_rev = int(var_stack.ResolveVarToStr("BASE_REPO_REV"))
         curr_repo_rev = int(var_stack.ResolveVarToStr("REPO_REV"))
+        # call svn info to find out the last repo revision
         last_repo_rev = self.get_last_repo_rev()
         if base_repo_rev > curr_repo_rev:
             raise ValueError("base_repo_rev "+str(base_repo_rev)+" > curr_repo_rev "+str(curr_repo_rev))
@@ -299,15 +299,14 @@ class InstlAdmin(InstlInstanceBase):
         if "__ALL_REVISIONS__" in var_stack:
             max_repo_rev_to_work_on = last_repo_rev
         revision_list = list(range(base_repo_rev, max_repo_rev_to_work_on+1))
-        dirs_to_upload = list()
-        no_need_upload_nums = list()
-        yes_need_upload_nums = list()
-        error_need_upload_num = list()
+        dirs_that_dont_need_upload = list()
+        dirs_that_need_upload = list()
+        dirs_missing = list()
         for dir_as_int in revision_list:
             dir_name = str(dir_as_int)
             if not os.path.isdir(var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/" + dir_name)):
                 print("revision dir", dir_name, "is missing, run create-links to create this folder")
-                error_need_upload_num.append(dir_name)
+                dirs_missing.append(dir_name)
             else:
                 create_links_done_stamp_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/"+dir_name+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
                 if not os.path.isfile(create_links_done_stamp_file):
@@ -315,29 +314,28 @@ class InstlAdmin(InstlInstanceBase):
                 else:
                     up_2_s3_done_stamp_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/"+dir_name+"/$(UP_2_S3_STAMP_FILE_NAME)")
                     if os.path.isfile(up_2_s3_done_stamp_file):
-                        no_need_upload_nums.append(dir_name)
+                        dirs_that_dont_need_upload.append(dir_name)
                     else:
-                        yes_need_upload_nums.append(dir_name)
-                        dirs_to_upload.append(dir_name)
-        if error_need_upload_num:
-            error_need_upload__str = utils.find_sequences(error_need_upload_num)
-            msg = " ".join( ("Revisions cannot be uploaded to S3:", error_need_upload__str) )
+                        dirs_that_need_upload.append(dir_name)
+        if dirs_missing:
+            sequences_of_dirs_missing = utils.find_sequences(dirs_missing)
+            msg = " ".join( ("Revisions cannot be uploaded to S3:", sequences_of_dirs_missing) )
             print(msg)
-            dirs_to_upload = []
-        elif yes_need_upload_nums:
-            if no_need_upload_nums:
-                no_need_upload__str = utils.find_sequences(no_need_upload_nums)
-                msg = " ".join(("Revisions already uploaded to S3:", no_need_upload__str))
+            dirs_that_need_upload = []
+        elif dirs_that_need_upload:
+            if dirs_that_dont_need_upload:
+                sequences_of_dirs_that_dont_need_upload = utils.find_sequences(dirs_that_dont_need_upload)
+                msg = " ".join(("Revisions already uploaded to S3:", sequences_of_dirs_that_dont_need_upload))
                 print(msg)
-            yes_need_upload_str = utils.find_sequences(yes_need_upload_nums)
-            msg = " ".join(("Revisions will be uploaded to S3:", yes_need_upload_str))
+            sequences_of_dirs_that_need_upload = utils.find_sequences(dirs_that_need_upload)
+            msg = " ".join(("Revisions will be uploaded to S3:", sequences_of_dirs_that_need_upload))
             print(msg)
         else:
             msg = " ".join( ("All revisions already uploaded to S3:", str(base_repo_rev), "...", str(max_repo_rev_to_work_on)) )
             print(msg)
 
         self.batch_accum.set_current_section('upload')
-        for dir_name in dirs_to_upload:
+        for dir_name in dirs_that_need_upload:
             accum = BatchAccumulator()  # sub-accumulator serves as a template for each version
             accum.set_current_section('upload')
             save_dir_var = "REV_" + dir_name + "_SAVE_DIR"
@@ -403,6 +401,7 @@ class InstlAdmin(InstlInstanceBase):
 
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(UP_2_S3_STAMP_FILE_NAME)"])
         accum += self.platform_helper.progress("Uploaded $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
+        accum += " ".join(("echo", "find", ".", "-mindepth",  "1", "-maxdepth", "1", "-type", "d", "-not", "-name", "instl"))  #, "-print0", "|", "xargs", "-0", "rm", "-fr"
         accum += self.platform_helper.echo("done up2s3 revision $(__CURR_REPO_REV__)")
 
     def create_sig_for_file(self, file_to_sig):

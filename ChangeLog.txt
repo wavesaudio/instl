@@ -1,3 +1,9 @@
+???? 1.5.2.9
+
+    admin visible changes:
+    * do_up2s3: better variable names
+    * upload_to_s3_aws_for_revision: prepared command to remove uploaded folders, currently only echoed not executed
+
 23/8/2017 1.5.2.8
 
     user visible changes:
