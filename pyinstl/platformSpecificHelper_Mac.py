@@ -380,6 +380,8 @@ class DownloadTool_mac_curl(DownloadToolBase):
             retries = var_stack.ResolveVarToStr("CURL_RETRIES", "2")
             retry_delay = var_stack.ResolveVarToStr("CURL_RETRY_DELAY", "8")
 
+            sync_urls_cookie = var_stack.ResolveVarToStr("COOKIE_FOR_SYNC_URLS", default=None)
+
             actual_num_config_files = max(0, min(num_urls_to_download, num_config_files))
             list_of_lines_for_files = [list() for i in range(actual_num_config_files)]
             list_for_file_cycler = itertools.cycle(list_of_lines_for_files)
@@ -407,6 +409,8 @@ class DownloadTool_mac_curl(DownloadToolBase):
                     wfd.write("max-time = {max_time}\n".format(**locals()))
                     wfd.write("retry = {retries}\n".format(**locals()))
                     wfd.write("retry-delay = {retry_delay}\n".format(**locals()))
+                    if sync_urls_cookie:
+                        wfd.write("cookie = {sync_urls_cookie}\n".format(**locals()))
                     wfd.write("write-out = \"Progress: ... of ...; " + os.path.basename(wfd.name) + ": " + DownloadToolBase.curl_write_out_str + "\"\n")
                     wfd.write("\n")
                     wfd.write("\n")

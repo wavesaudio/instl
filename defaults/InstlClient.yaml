@@ -11,7 +11,7 @@ CURL_RETRIES: 3          # If a transient error is returned when curl tries to p
 CURL_RETRY_DELAY: 30     # Make curl sleep this amount of time before each retry when a transfer has failed with a transient error (it changes the default backoff time algorithm between retries).
 
 
-LOCAL_SYNC_DIR: $(USER_CACHE_DIR)/$(SYNC_BASE_URL_MAIN_ITEM)
+LOCAL_SYNC_DIR: $(USER_CACHE_DIR)/$(S3_BUCKET_NAME)
 LOCAL_REPO_SYNC_DIR: $(LOCAL_SYNC_DIR)/$(REPO_NAME)
 LOCAL_REPO_BOOKKEEPING_DIR: $(LOCAL_REPO_SYNC_DIR)/bookkeeping
 HAVE_INFO_MAP_FILE_NAME: have_info_map.txt

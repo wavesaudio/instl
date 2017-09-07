@@ -5,10 +5,12 @@ import os
 import pathlib
 from collections import defaultdict
 import shutil
+import urllib
 
 import utils
 from .instlInstanceSyncBase import InstlInstanceSync
 from configVar import var_stack
+from . import connectionBase
 
 
 class InstlInstanceSync_url(InstlInstanceSync):
@@ -31,8 +33,15 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Create folders done")
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
+    def get_cookie_for_sync_urls(self, sync_base_url):
+        net_loc = urllib.parse.urlparse(sync_base_url).netloc
+        the_cookie = connectionBase.connection_factory().get_cookie(net_loc)
+        if the_cookie:  # this is actually a tuple ('Cookie', cookie_text)
+            var_stack.set_var("COOKIE_FOR_SYNC_URLS").append(the_cookie[1])
+
     def create_sync_urls(self, in_file_list):
         self.sync_base_url = var_stack.ResolveVarToStr("SYNC_BASE_URL")
+        self.get_cookie_for_sync_urls(self.sync_base_url)
         for file_item in in_file_list:
             source_url = file_item.url
             if source_url is None:
