@@ -1166,6 +1166,9 @@ class InstlAdmin(InstlInstanceBase):
         self.read_yaml_file(index_yaml_path)
         self.info_map_table.set_infomap_file_names()
         infomap_file_names = self.info_map_table.get_infomap_file_names()
+        if len(infomap_file_names) == 1 and infomap_file_names[0] == "info_map.txt":
+            print("skip splitting of {} since only one default split is specified in index.yaml".format(info_map_from_file_path))
+            return
         for infomap_file_name in infomap_file_names:
             specific_infomap_file_items_list = self.info_map_table.get_items_by_infomap(infomap_file_name)
             infomap_file_name_path = os.path.join(instl_folder, infomap_file_name)
