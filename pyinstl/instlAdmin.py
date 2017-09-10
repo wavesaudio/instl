@@ -29,6 +29,7 @@ class InstlAdmin(InstlInstanceBase):
         var_stack.add_const_config_variable("__DATABASE_URL__", "", self.items_table.get_db_url())
         self.info_map_table = SVNTable()
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
+        self.fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
 
     def get_default_out_file(self):
         retVal = None
@@ -80,8 +81,7 @@ class InstlAdmin(InstlInstanceBase):
 
         if "__BASE_URL__" in var_stack:
             self.add_urls_to_info_map()
-        fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
-        self.info_map_table.write_to_file(var_stack.ResolveVarToStr("__MAIN_OUT_FILE__"), field_to_write=fields_relevant_to_info_map)
+        self.info_map_table.write_to_file(var_stack.ResolveVarToStr("__MAIN_OUT_FILE__"), field_to_write=self.fields_relevant_to_info_map)
 
     def add_urls_to_info_map(self):
         base_url = var_stack.ResolveVarToStr("__BASE_URL__")
@@ -1123,7 +1123,7 @@ class InstlAdmin(InstlInstanceBase):
                                     "--in", svn_folder,
                                     "--out", info_map_file_sizes_path]
         accum += " ".join(file_sizes_command_parts)
-        accum += self.platform_helper.progress("Get file-sizes from disk to"+os.path.join(results_folder, "info_map.file-sizes"))
+        accum += self.platform_helper.progress("Get file-sizes from disk to "+os.path.join(results_folder, "info_map.file-sizes"))
 
         trans_command_parts = [self.platform_helper.run_instl(), "trans",
                                    "--in", info_map_info_path,
@@ -1133,6 +1133,12 @@ class InstlAdmin(InstlInstanceBase):
                                    "--out ", info_map_file_results_path]
         accum += " ".join(trans_command_parts)
         accum += self.platform_helper.progress("Created"+info_map_file_results_path)
+
+        # split info_map.txt according to info_map fields in index.yaml
+        split_info_map_command_parts = [self.platform_helper.run_instl(), "filter-infomap",
+                                        "--in", results_folder]
+        accum += " ".join(split_info_map_command_parts)
+        accum += self.platform_helper.progress("Split info_map.txt")
 
         accum += self.platform_helper.popd()
 
@@ -1148,3 +1154,17 @@ class InstlAdmin(InstlInstanceBase):
         self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
+
+    def do_filter_infomap(self):
+        instl_folder = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        info_map_from_file_path = os.path.join(instl_folder, "info_map.txt")
+        index_yaml_path = os.path.join(instl_folder, "index.yaml")
+        self.info_map_table.read_from_file(info_map_from_file_path, a_format="text")
+        self.read_yaml_file(index_yaml_path)
+        self.info_map_table.set_infomap_file_names()
+        infomap_file_names = self.info_map_table.get_infomap_file_names()
+        for infomap_file_name in infomap_file_names:
+            print(infomap_file_name)
+            write_to_file_required_items_list = self.info_map_table.get_items_by_infomap(infomap_name=infomap_file_name)
+            fixed_file_name = "fixed_"+infomap_file_name
+            self.info_map_table.write_to_file(in_file=fixed_file_name, items_list=write_to_file_required_items_list, field_to_write=self.fields_relevant_to_info_map)
