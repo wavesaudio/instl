@@ -9,6 +9,7 @@ import stat
 import fnmatch
 from contextlib import contextmanager
 import ssl
+import socket
 
 import urllib.request, urllib.error, urllib.parse
 
@@ -116,7 +117,7 @@ class open_for_read_file_or_url(object):
                     for custom_header in self.custom_headers:
                         opener.addheaders.append(custom_header)
                 with patch_verify_ssl(self.verify_ssl):  # if self.verify_ssl is False this will disable SSL verifications
-                    self.fd = opener.open(self.url)
+                    self.fd = opener.open(self.url, timeout=300)
             elif self.local_file_path:
                 if self.encoding is None:
                     self.fd = open(self.local_file_path, "rb")

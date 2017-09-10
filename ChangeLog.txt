@@ -2,6 +2,7 @@
 
     user visible changes:
     * sync will work with non signed urls and cloud front cookies
+    * default timeout of 300 seconds (hardcoded) when instl internaly reads urls (not the synced urls which use CURL_MAX_TIME)
 
     admin visible changes:
     * support separate info_map.txt files for specific iid
