@@ -248,10 +248,11 @@ class InstlAdmin(InstlInstanceBase):
         accum += self.platform_helper.progress("Create dependencies file")
 
         # create repo-rev file
+        accum += self.platform_helper.progress("Create repo-rev file ...")
         create_repo_rev_file_command_parts = [self.platform_helper.run_instl(), "create-repo-rev-file",
                                               "--config-file", '"$(__CONFIG_FILE_PATH__)"', "--rev", "$(__CURR_REPO_REV__)"]
         accum += " ".join(create_repo_rev_file_command_parts)
-        accum += self.platform_helper.progress("Create repo-rev file")
+        accum += self.platform_helper.progress("Create repo-rev file done")
 
         # create text versions of info and yaml files, so they can be displayed in browser
         if var_stack.ResolveVarToStr("__CURRENT_OS__") == "Linux":
@@ -1125,6 +1126,7 @@ class InstlAdmin(InstlInstanceBase):
         accum += " ".join(file_sizes_command_parts)
         accum += self.platform_helper.progress("Get file-sizes from disk to "+os.path.join(results_folder, "info_map.file-sizes"))
 
+        accum += self.platform_helper.progress("Create {} ...".format(info_map_file_results_path))
         trans_command_parts = [self.platform_helper.run_instl(), "trans",
                                    "--in", info_map_info_path,
                                    "--props ", info_map_props_path,
@@ -1132,13 +1134,14 @@ class InstlAdmin(InstlInstanceBase):
                                    "--base-repo-rev", "$(BASE_REPO_REV)",
                                    "--out ", info_map_file_results_path]
         accum += " ".join(trans_command_parts)
-        accum += self.platform_helper.progress("Created"+info_map_file_results_path)
+        accum += self.platform_helper.progress("Create {} done".format(info_map_file_results_path))
 
         # split info_map.txt according to info_map fields in index.yaml
+        accum += self.platform_helper.progress("Split {} ...".format(info_map_file_results_path))
         split_info_map_command_parts = [self.platform_helper.run_instl(), "filter-infomap",
                                         "--in", results_folder]
         accum += " ".join(split_info_map_command_parts)
-        accum += self.platform_helper.progress("Split info_map.txt")
+        accum += self.platform_helper.progress("Split {} done".format(info_map_file_results_path))
 
         accum += self.platform_helper.popd()
 
@@ -1164,7 +1167,7 @@ class InstlAdmin(InstlInstanceBase):
         self.info_map_table.set_infomap_file_names()
         infomap_file_names = self.info_map_table.get_infomap_file_names()
         for infomap_file_name in infomap_file_names:
-            print(infomap_file_name)
-            write_to_file_required_items_list = self.info_map_table.get_items_by_infomap(infomap_name=infomap_file_name)
-            fixed_file_name = "fixed_"+infomap_file_name
-            self.info_map_table.write_to_file(in_file=fixed_file_name, items_list=write_to_file_required_items_list, field_to_write=self.fields_relevant_to_info_map)
+            specific_infomap_file_items_list = self.info_map_table.get_items_by_infomap(infomap_file_name)
+            infomap_file_name_path = os.path.join(instl_folder, infomap_file_name)
+            self.info_map_table.write_to_file(in_file=infomap_file_name_path, items_list=specific_infomap_file_items_list, field_to_write=self.fields_relevant_to_info_map)
+            print("Created", infomap_file_name_path)
