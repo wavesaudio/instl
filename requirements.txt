@@ -5,6 +5,7 @@ future>=0.16.0
 networkx>=1.11
 packaging>=16.8
 PyYAML>=3.12
+requests>=2.18.4
 rsa>=3.4.2
 six>=1.10.0
 SQLAlchemy>=1.1.11

@@ -66,9 +66,17 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
                                       expected_checksum=var_stack.ResolveVarToStr("INFO_MAP_FILE_URL_CHECKSUM"))
 
             self.instlObj.read_info_map_from_file(local_copy_of_info_map)
+            self.instlObj.progress("read info_map {}".format(info_map_file_url))
+
+            additional_info_maps = self.instlObj.items_table.get_details_for_active_iids("info_map")
+            for additional_info_map in additional_info_maps:
+                info_map_file_url = var_stack.ResolveStrToStr("$(INFO_MAP_FILES_URL_PREFIX)/{}".format(additional_info_map))
+                local_copy_of_info_map = var_stack.ResolveStrToStr("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)/{}".format(additional_info_map))
+                utils.read_file_or_url(info_map_file_url, save_to_path=local_copy_of_info_map)
+                self.instlObj.read_info_map_from_file(local_copy_of_info_map)
+                self.instlObj.progress("read info_map {}".format(info_map_file_url))
+
             self.instlObj.info_map_table.write_to_file(var_stack.ResolveVarToStr("NEW_HAVE_INFO_MAP_PATH"), field_to_write=('path', 'flags', 'revision', 'checksum', 'size'))
-            #utils.smart_copy_file(local_copy_of_info_map,
-            #                      var_stack.ResolveVarToStr("NEW_HAVE_INFO_MAP_PATH"))
         except Exception:
             print("Exception reading info_map:", info_map_file_url)
             raise
@@ -83,6 +91,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         required_file_path = var_stack.ResolveVarToStr("REQUIRED_INFO_MAP_PATH")
         required_items_list = self.instlObj.info_map_table.get_required_items()
         self.instlObj.info_map_table.write_to_file(in_file=required_file_path, items_list=required_items_list)
+        self.instlObj.progress("{} files required for installation".format(len(required_items_list)))
 
     def mark_download_items(self):
         """" Mark those files that need to be downloaded.
@@ -94,6 +103,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         need_download_file_path = var_stack.ResolveVarToStr("TO_SYNC_INFO_MAP_PATH")
         need_download_items_list = self.instlObj.info_map_table.get_download_items()
         self.instlObj.info_map_table.write_to_file(in_file=need_download_file_path, items_list=need_download_items_list)
+        self.instlObj.progress("{} files to download".format(len(need_download_items_list)))
 
     # syncers that download from urls (url, boto) need to prepare a list of all the individual files that need updating.
     # syncers that use configuration management tools (p4, svn) do not need since the tools takes care of that.

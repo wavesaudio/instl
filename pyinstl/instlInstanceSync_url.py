@@ -32,6 +32,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.platform_helper.num_items_for_progress_report += len(need_download_dirs_list)
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Create folders done")
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
+        self.instlObj.progress("{} folders to create".format(len(need_download_dirs_list)))
 
     def get_cookie_for_sync_urls(self, sync_base_url):
         """ get the cookie for sync_base_url and set config var
@@ -62,6 +63,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 source_url = '/'.join(utils.make_one_list(self.sync_base_url, str(file_item.revision), file_item.path))
             resolved_download_path = var_stack.ResolveStrToStr(file_item.download_path)
             self.instlObj.platform_helper.dl_tool.add_download_url(source_url, resolved_download_path, verbatim=source_url==file_item.url)
+        self.instlObj.progress("created sync urls for {} files".format(len(in_file_list)))
 
     def create_curl_download_instructions(self):
         """ Download is done be creating files with instructions for curl - curl config files.
@@ -105,6 +107,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.platform_helper.num_items_for_progress_report += len(in_file_list)
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Check checksum done")
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
+        self.instlObj.progress("created checksum checks {} files".format(len(in_file_list)))
 
     def create_remove_unwanted_files_in_sync_folder_instructions(self):
         """ Remove files in the sync folder that are not in info_map

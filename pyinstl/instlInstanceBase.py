@@ -340,11 +340,13 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                             checksums_match = utils.check_file_checksum(file_path=destination_file_resolved_path, expected_checksum=expected_checksum)
                             need_to_copy = not checksums_match
                         if need_to_copy:
-                            destination_folder, destination_file_name = os.path.split(copy_destination.value)
+                            destination_path = var_stack.ResolveStrToStr(copy_destination.value)
+                            destination_folder, destination_file_name = os.path.split(destination_path)
                             self.batch_accum += self.platform_helper.mkdir(destination_folder)
                             self.batch_accum += self.platform_helper.copy_tool.copy_file_to_file(cached_file_path,
-                                                                                                 var_stack.ResolveStrToStr(copy_destination.value),
+                                                                                                 destination_path,
                                                                                                  link_dest=True)
+                            self.platform_helper.progress("copy cached file to {}".format(destination_path))
 
     def create_variables_assignment(self, in_batch_accum):
         in_batch_accum.set_current_section("assign")

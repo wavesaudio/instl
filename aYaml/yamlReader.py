@@ -47,14 +47,19 @@ class YamlReader(object):
     def read_yaml_file(self, file_path, *args, **kwargs):
         try:
             self.file_read_stack.append(file_path)
-            with utils.open_for_read_file_or_url(file_path, self.url_translator, self.path_searcher) as open_file:
-                self.file_read_stack[-1] = open_file.actual_path
-                buffer = open_file.fd.read()
-                buffer = utils.unicodify(buffer) # make sure text is unicode
-                buffer = io.StringIO(buffer)     # turn text to a stream
-                buffer.name = open_file.actual_path          # this will help identify the file for debugging and messages
-                kwargs['path-to-file'] = open_file.actual_path
-                self.read_yaml_from_stream(buffer, *args, **kwargs)
+            buffer = utils.read_file_or_url(file_path, path_searcher=self.path_searcher)
+            buffer = io.StringIO(buffer)     # turn text to a stream
+            kwargs['path-to-file'] = file_path
+            self.read_yaml_from_stream(buffer, *args, **kwargs)
+            if False:
+                with utils.open_for_read_file_or_url(file_path, self.url_translator, self.path_searcher) as open_file:
+                    self.file_read_stack[-1] = open_file.actual_path
+                    buffer = open_file.fd.read()
+                    buffer = utils.unicodify(buffer) # make sure text is unicode
+                    buffer = io.StringIO(buffer)     # turn text to a stream
+                    buffer.name = open_file.actual_path          # this will help identify the file for debugging and messages
+                    kwargs['path-to-file'] = open_file.actual_path
+                    self.read_yaml_from_stream(buffer, *args, **kwargs)
             self.file_read_stack.pop()
         except (FileNotFoundError, urllib.error.URLError) as ex:
             ignore = kwargs.get('ignore_if_not_exist', False)

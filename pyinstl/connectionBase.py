@@ -4,9 +4,12 @@
 import abc
 import urllib.request, urllib.parse, urllib.error
 import urllib.parse
+import requests
 import json
+import urllib3
+urllib3.disable_warnings()
 
-from configVar import var_stack
+import configVar
 
 have_boto = True
 try:
@@ -22,7 +25,7 @@ class ConnectionBase(object):
 
     def get_cookie(self, net_loc):
         retVal = None
-        cookie_list = var_stack.ResolveVarToList("COOKIE_JAR", default=[])
+        cookie_list = configVar.var_stack.ResolveVarToList("COOKIE_JAR", default=[])
         if cookie_list:
             for cookie_line in cookie_list:
                 cred_split = cookie_line.split(":", 2)
@@ -37,7 +40,7 @@ class ConnectionBase(object):
         cookie = self.get_cookie(net_loc)
         if cookie is not None:
             retVal.append(cookie)
-        custom_headers = var_stack.ResolveVarToList("CUSTOM_HEADERS", default=[])
+        custom_headers = configVar.var_stack.ResolveVarToList("CUSTOM_HEADERS", default=[])
         if custom_headers:
             for custom_header in custom_headers:
                 custom_header_split = custom_header.split(":", 1)
@@ -63,6 +66,7 @@ class ConnectionBase(object):
 class ConnectionHTTP(ConnectionBase):
     def __init__(self):
         super().__init__()
+        self.sessions = dict()
 
     def open_connection(self, credentials):
         pass
@@ -74,13 +78,25 @@ class ConnectionHTTP(ConnectionBase):
         retVal = urllib.parse.urlunparse(quoted_results)
         return retVal
 
+    def get_session(self, url):
+        netloc = urllib.parse.urlparse(url).netloc
+        session = self.sessions.get(netloc, None)
+        if session is None:
+            session = requests.Session()
+            session.verify=False
+            self.sessions[netloc] = session
+            headers = self.get_custom_headers(netloc)
+            session.headers.update(headers)
+        return session
+
+
 if have_boto:
     class ConnectionS3(ConnectionHTTP):
         def __init__(self, credentials):
             super().__init__()
             self.boto_conn = None
             self.open_bucket = None
-            default_expiration_str = var_stack.ResolveVarToStr("S3_SECURE_URL_EXPIRATION", default=str(60*60*24))
+            default_expiration_str = configVar.var_stack.ResolveVarToStr("S3_SECURE_URL_EXPIRATION", default=str(60*60*24))
             self.default_expiration =  int(default_expiration_str)  # in seconds
             self.open_connection(credentials)
 
@@ -88,7 +104,7 @@ if have_boto:
             in_access_key, in_secret_key, in_bucket = credentials
             self.boto_conn = boto.connect_s3(in_access_key, in_secret_key)
             self.open_bucket = self.boto_conn.get_bucket(in_bucket, validate=False)
-            var_stack.set_var("S3_BUCKET_NAME", "from command line options").append(in_bucket)
+            configVar.var_stack.set_var("S3_BUCKET_NAME", "from command line options").append(in_bucket)
 
         def translate_url(self, in_bare_url):
             parseResult = urllib.parse.urlparse(in_bare_url)
@@ -102,8 +118,8 @@ if have_boto:
 
 def connection_factory():
     if ConnectionBase.repo_connection is None:
-        if "__CREDENTIALS__" in var_stack and have_boto:
-            credentials = var_stack.ResolveVarToStr("__CREDENTIALS__")
+        if "__CREDENTIALS__" in configVar.var_stack and have_boto:
+            credentials = configVar.var_stack.ResolveVarToStr("__CREDENTIALS__")
             cred_split = credentials.split(":")
             if cred_split[0].lower() == "s3":
                 ConnectionBase.repo_connection = ConnectionS3(cred_split[1:])

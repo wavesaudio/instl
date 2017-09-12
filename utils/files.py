@@ -9,6 +9,7 @@ import stat
 import fnmatch
 from contextlib import contextmanager
 import ssl
+import pyinstl.connectionBase
 
 import urllib.request, urllib.error, urllib.parse
 
@@ -75,11 +76,43 @@ def patch_verify_ssl(verify_ssl):
         ssl._create_default_https_context = original_create_default_https_context
 
 
-class open_for_read_file_or_url(object):
-    protocol_header_re = re.compile("""
+protocol_header_re = re.compile("""
                         \w+
                         ://
                         """, re.VERBOSE)
+
+
+def read_file_or_url(in_file_or_url, path_searcher=None, encoding='utf-8', save_to_path=None):
+    match = protocol_header_re.match(in_file_or_url)
+    if not match:  # it's a local file
+        local_file_path = in_file_or_url
+        if path_searcher is not None:
+            local_file_path = path_searcher.find_file(local_file_path)
+        if local_file_path:
+            if 'Win' in utils.get_current_os_names():
+                local_file_path = os.path.abspath(local_file_path)
+            else:
+                local_file_path = os.path.realpath(local_file_path)
+        else:
+            raise FileNotFoundError("Could not locate local file", local_file_path)
+        if encoding is None:
+            fd = open(local_file_path, "rb")
+        else:
+            fd = open(local_file_path, "r", encoding=encoding)
+        buffer = fd.read()
+    else:
+        session = pyinstl.connectionBase.connection_factory().get_session(in_file_or_url)
+        response = session.get(in_file_or_url, timeout=(18.05, 300))
+        response.raise_for_status()
+        buffer = response.text
+    buffer = utils.unicodify(buffer) # make sure text is unicode
+    if save_to_path and in_file_or_url != save_to_path:
+        with open(save_to_path, "w") as wfd:
+            wfd.write(buffer)
+    return buffer
+
+
+class open_for_read_file_or_url(object):
 
     def __init__(self, in_file_or_url, translate_url_callback=None, path_searcher=None, encoding='utf-8', verify_ssl=False):
         self.local_file_path = None
@@ -89,7 +122,7 @@ class open_for_read_file_or_url(object):
         self.verify_ssl = verify_ssl
         self.fd = None
         self._actual_path = in_file_or_url
-        match = self.protocol_header_re.match(in_file_or_url)
+        match = protocol_header_re.match(in_file_or_url)
         if not match:  # it's a local file
             self.local_file_path = in_file_or_url
             if path_searcher is not None:
@@ -116,7 +149,7 @@ class open_for_read_file_or_url(object):
                     for custom_header in self.custom_headers:
                         opener.addheaders.append(custom_header)
                 with patch_verify_ssl(self.verify_ssl):  # if self.verify_ssl is False this will disable SSL verifications
-                    self.fd = opener.open(self.url)
+                    self.fd = opener.open(self.url, timeout=300)
             elif self.local_file_path:
                 if self.encoding is None:
                     self.fd = open(self.local_file_path, "rb")
@@ -388,3 +421,77 @@ def scandir_walk(top_path, report_files=True, report_dirs=True, follow_symlinks=
             if report_dirs:
                 yield item
             yield from scandir_walk(item.path, report_files=report_files, report_dirs=report_dirs, follow_symlinks=follow_symlinks)
+
+
+def translate_cookies_from_GetInstlUrlComboCollection(in_cookies):
+    netloc = in_cookies['ResourceRootUrl']
+    cookies_list = list()
+    for k,v in in_cookies.items():
+        if isinstance(v, dict):
+            if 'Value' in v and 'Key' in v:
+                cookies_list.append("=".join((v['Key'], v['Value'])))
+
+    retVal = "{}:{}".format(netloc, ";".join(cookies_list))
+    return retVal
+
+
+class WavesCentralRequester(object):
+    def __init__(self, domain):
+        self.domain = domain
+        self.namespace = "Central/Central.svc"
+        self.url_template = 'https://{self.domain}/{self.namespace}/{func}'
+        self.standard_headers = {"Content-Type": "application/json"}
+        self.time_token = None
+        self.user_guid = None
+
+    def request(self, func, data={}):
+        import json
+        import requests
+        url = self.url_template.format(**locals())
+        the_data = dict(data)
+        if self.time_token:
+            the_data['TimeToken'] = self.time_token
+        if self.user_guid:
+            the_data['UserGuid'] = self.user_guid
+        data_string = json.dumps(the_data)
+        response = requests.post(url, data=data_string, headers=self.standard_headers)
+        response.raise_for_status()
+        reply_data = response.json()
+        IsSuccess = reply_data.get('IsSuccess', False)
+        if IsSuccess:
+            self.time_token = reply_data.get('TimeToken', self.time_token)
+            #print("time_token:", self.time_token)
+            if 'oResult' in reply_data and isinstance(reply_data['oResult'], dict):
+                self.user_guid = reply_data.get('oResult', {}).get('UserGuid', self.user_guid)
+                #print("new user guid:", self.user_guid)
+            return reply_data
+
+if __name__ == "__main__":
+    import re
+    from configVar import var_stack
+    repo_rev_re = re.compile("^(REPO_REV:\s+\d+)", re.MULTILINE)
+    index_yaml_re = re.compile("^(NUMBER_OF_BITS:\s+.+)", re.MULTILINE)
+
+    domain = "betanlb.waves.com"
+    reqs = WavesCentralRequester(domain)
+    login_data = reqs.request("Login", {"Password": "ShaiShasag1", "Username": "ShaiShasag"})
+
+    # GetInstlUrlComboCollection
+    combo_data = reqs.request("GetInstlUrlComboCollection", {'repositoryRevision': '-1', "repositoryVersions":[9]})
+    #print("combo_data:\n", combo_data)
+    InstlUrlAccessParameters = combo_data['oResult'][0]['InstlUrlAccessParameters']
+    repo_rev_yaml_url = "https://" + InstlUrlAccessParameters['ResourceRootUrl'] + "/admin/V9_repo_rev.yaml"
+    index_yaml_url = "https://" + InstlUrlAccessParameters['ResourceRootUrl'] + "/V9/795/instl/index.yaml"
+
+    netloc_and_cookies = translate_cookies_from_GetInstlUrlComboCollection(InstlUrlAccessParameters)
+    var_stack.set_var("COOKIE_JAR").append(netloc_and_cookies)
+
+    the_text = utils.read_file_or_url(repo_rev_yaml_url)
+    print(the_text.name, repo_rev_re.search(the_text).groups(1)[0])
+
+    the_text = utils.read_file_or_url(index_yaml_url)
+    print("index.yaml:", index_yaml_re.search(the_text).groups(1)[0])
+
+    local_index = "/Volumes/BonaFide/installers/betainstl/V9/svn/instl/index.yaml"
+    the_text = utils.read_file_or_url(local_index)
+    print("local index.yaml:", index_yaml_re.search(the_text).groups(1)[0])
