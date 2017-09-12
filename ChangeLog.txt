@@ -7,6 +7,15 @@
     * SVNTable.read_from_file will not clear the database by calling clear_all() this will allow to read additional info_maps in InstlInstanceSync.read_remote_info_map
     * new function utils.read_file_or_url will gradually replace class open_for_read_file_or_url - opens urls using requests modules, for better compatibility with CloudFront
 
+10/9/2017 1.6.0.0
+
+    user visible changes:
+    * sync will work with non signed urls and cloud front cookies
+    * default timeout of 300 seconds (hardcoded) when instl internaly reads urls (not the synced urls which use CURL_MAX_TIME)
+
+    admin visible changes:
+    * support separate info_map.txt files for specific iid
+
 27/8/2017 1.5.3.0
 
     admin visible changes:

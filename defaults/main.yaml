@@ -2,8 +2,8 @@
 
 __INSTL_VERSION__:
     - 1
-    - 5
-    - 3
+    - 6
+    - 0
     - 0
 
 __USER_CONFIG_FILE_NAME__: instl_config.yaml

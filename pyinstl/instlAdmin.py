@@ -631,9 +631,9 @@ class InstlAdmin(InstlInstanceBase):
                     if os.path.isfile(right_item_path_without_aa):
                         left_checksum = utils.get_wtar_total_checksum(left_item_path)
                         right_checksum = utils.get_wtar_total_checksum(right_item_path_without_aa)
-                    if left_checksum == right_checksum:
-                        copy_and_add_file = False
-                        do_not_remove_items.append(os.path.basename(right_item_path_without_aa))
+                        if left_checksum == right_checksum:
+                            copy_and_add_file = False
+                            do_not_remove_items.append(os.path.basename(right_item_path_without_aa))
 
                 if copy_and_add_file:
                     self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(left_item_path, comparator.right, link_dest=False, ignore=".svn")
