@@ -1,3 +1,8 @@
+14/9/2017 1.5.3.1
+
+    programmer visible changes:
+    * get_info_from_plugin get the path,LicenseGUID,PluginExternalVersion,WaveShellsBaseName,DynamicPluginLibName plugin info as a dictionary
+
 27/8/2017 1.5.3.0
 
     admin visible changes:
