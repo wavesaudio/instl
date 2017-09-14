@@ -5,7 +5,7 @@ import os
 import filecmp
 import io
 import re
-import fnmatch
+import shutil
 import subprocess
 from collections import defaultdict
 import stat
@@ -921,7 +921,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_verify_index(self):
         self.read_yaml_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
-        self.info_map_table.read_from_file(var_stack.ResolveVarToStr("INFO_MAP_FILE_URL"))
+        self.info_map_table.read_from_file(var_stack.ResolveVarToStr("FULL_INFO_MAP_FILE_PATH"))
 
         self.verify_index_to_repo()
 
@@ -1106,7 +1106,7 @@ class InstlAdmin(InstlInstanceBase):
         info_map_info_path = os.path.join(results_folder, "info_map.info")
         info_map_props_path = os.path.join(results_folder, "info_map.props")
         info_map_file_sizes_path = os.path.join(results_folder, "info_map.file-sizes")
-        info_map_file_results_path = os.path.join(results_folder, "info_map.txt")
+        full_info_map_file_path = var_stack.ResolveStrToStr(os.path.join(results_folder, "$(FULL_INFO_MAP_FILE_NAME)"))
 
         accum += self.platform_helper.pushd(svn_folder)
 
@@ -1126,22 +1126,22 @@ class InstlAdmin(InstlInstanceBase):
         accum += " ".join(file_sizes_command_parts)
         accum += self.platform_helper.progress("Get file-sizes from disk to "+os.path.join(results_folder, "info_map.file-sizes"))
 
-        accum += self.platform_helper.progress("Create {} ...".format(info_map_file_results_path))
+        accum += self.platform_helper.progress("Create {} ...".format(full_info_map_file_path))
         trans_command_parts = [self.platform_helper.run_instl(), "trans",
                                    "--in", info_map_info_path,
                                    "--props ", info_map_props_path,
                                    "--file-sizes", info_map_file_sizes_path,
                                    "--base-repo-rev", "$(BASE_REPO_REV)",
-                                   "--out ", info_map_file_results_path]
+                                   "--out ", full_info_map_file_path]
         accum += " ".join(trans_command_parts)
-        accum += self.platform_helper.progress("Create {} done".format(info_map_file_results_path))
+        accum += self.platform_helper.progress("Create {} done".format(full_info_map_file_path))
 
         # split info_map.txt according to info_map fields in index.yaml
-        accum += self.platform_helper.progress("Split {} ...".format(info_map_file_results_path))
+        accum += self.platform_helper.progress("Split {} ...".format(full_info_map_file_path))
         split_info_map_command_parts = [self.platform_helper.run_instl(), "filter-infomap",
                                         "--in", results_folder]
         accum += " ".join(split_info_map_command_parts)
-        accum += self.platform_helper.progress("Split {} done".format(info_map_file_results_path))
+        accum += self.platform_helper.progress("Split {} done".format(full_info_map_file_path))
 
         accum += self.platform_helper.popd()
 
@@ -1159,22 +1159,37 @@ class InstlAdmin(InstlInstanceBase):
             self.run_batch_file()
 
     def do_filter_infomap(self):
+        """ filter the full infomap file according to info_map fields in the index """
+        # __MAIN_INPUT_FILE__ is the folder where to find index.yaml, full_info_map.txt and where to create info_map files
         instl_folder = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
-        info_map_from_file_path = os.path.join(instl_folder, "info_map.txt")
+        full_info_map_file_path = var_stack.ResolveStrToStr(os.path.join(instl_folder, "$(FULL_INFO_MAP_FILE_NAME)"))
         index_yaml_path = os.path.join(instl_folder, "index.yaml")
-        self.info_map_table.read_from_file(info_map_from_file_path, a_format="text")
+
+        # read the index
         self.read_yaml_file(index_yaml_path)
-        self.info_map_table.set_infomap_file_names()
-        infomap_file_names = self.info_map_table.get_infomap_file_names()
-        if len(infomap_file_names) == 1 and infomap_file_names[0] == "info_map.txt":
-            print("skip splitting of {} since only one default split is specified in index.yaml".format(info_map_from_file_path))
-            return
-        for infomap_file_name in infomap_file_names:
-            specific_infomap_file_items_list = self.info_map_table.get_items_by_infomap(infomap_file_name)
-            infomap_file_name_path = os.path.join(instl_folder, infomap_file_name)
-            self.info_map_table.write_to_file(in_file=infomap_file_name_path, items_list=specific_infomap_file_items_list, field_to_write=self.fields_relevant_to_info_map)
-            info_map_checksum = utils.get_file_checksum(infomap_file_name_path)
-            info_map_size = os.path.getsize(infomap_file_name_path)
-            line_for_main_info_map = "instl/{infomap_file_name}, f, $(__CURR_REPO_REV__), {info_map_checksum}, {info_map_size}".format(**locals())
-            line_for_main_info_map = var_stack.ResolveStrToStr(line_for_main_info_map)
-            print(line_for_main_info_map)
+        # read the full info map
+        self.info_map_table.read_from_file(full_info_map_file_path, a_format="text")
+        # fill the IIDToSVNItem table
+        self.info_map_table.populate_IIDToSVNItem()
+
+        # get the list of info map file names
+        all_info_maps = self.items_table.get_unique_detail_values('info_map')
+
+        lines_for_main_info_map = list()  # each additional info map is written into the main info map
+        # write each info map to file
+        for infomap_file_name in all_info_maps:
+            info_map_items = self.info_map_table.get_items_by_infomap(infomap_file_name)
+            if info_map_items:  # could be that no items are linked to the info map file
+                info_map_file_path = os.path.join(instl_folder, infomap_file_name)
+                self.info_map_table.write_to_file(in_file=info_map_file_path, items_list=info_map_items, field_to_write=self.fields_relevant_to_info_map)
+                info_map_checksum = utils.get_file_checksum(info_map_file_path)
+                info_map_size = os.path.getsize(info_map_file_path)
+                line_for_main_info_map = "instl/{infomap_file_name}, f, $(REPO_REV), {info_map_checksum}, {info_map_size}".format(**locals())
+                lines_for_main_info_map.append(var_stack.ResolveStrToStr(line_for_main_info_map))
+
+        # write default info map to file
+        items_for_default_info_map = self.info_map_table.get_items_for_default_infomap()
+        self.info_map_table.write_to_file(in_file=info_map_file_path, items_list=info_map_items, field_to_write=self.fields_relevant_to_info_map)
+
+        with open(info_map_file_path, "a") as wfd:
+            wfd.write("\n".join(lines_for_main_info_map))

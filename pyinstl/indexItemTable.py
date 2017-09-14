@@ -16,9 +16,10 @@ from .db_alchemy import create_session,\
     IndexGuidToItemTranslate, \
     IndexRequireTranslate, \
     FoundOnDiskItemRow, \
-    ConfigVar
+    ConfigVar, get_engine
 
 import utils
+from configVar import var_stack
 
 
 class IndexItemsTable(object):
@@ -67,341 +68,29 @@ class IndexItemsTable(object):
             self.os_names_db_objs.append(new_item)
         self.session.add_all(self.os_names_db_objs)
 
+    def execute_script(self, script_text):
+        db_conn = get_engine().raw_connection()
+        db_curs = db_conn.cursor()
+        db_curs.executescript(script_text)
+        db_curs.close()
+        db_conn.close()
+
+    def execute_script_from_defaults(self, script_file_name):
+        script_file_path = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults", script_file_name)
+        with open(script_file_path, "r") as rfd:
+            self.execute_script(rfd.read())
+
     def add_triggers(self):
-        # item found on disk that has a guid. This trigger will find the IID
-        # for that guid in IndexItemDetailRow and update the FoundOnDiskItemRow row
-        stmt = """
-            CREATE TRIGGER IF NOT EXISTS add_iid_to_FoundOnDiskItemRow_guid_not_null
-            AFTER INSERT ON FoundOnDiskItemRow
-                WHEN(NEW.guid IS NOT NULL)
-            BEGIN
-                UPDATE FoundOnDiskItemRow
-                SET iid  = (
-                    SELECT name_item_t.owner_iid
-                    FROM IndexItemDetailRow AS guid_item_t
-                      JOIN IndexItemDetailRow AS name_item_t
-                        ON (name_item_t.detail_name = 'install_sources'
-                          OR
-                          name_item_t.detail_name = 'previous_sources')
-                        AND name_item_t.detail_value LIKE '%' || NEW.name
-                        AND name_item_t.owner_iid=guid_item_t.owner_iid
-                    WHERE guid_item_t.detail_name='guid'
-                      AND guid_item_t.detail_value=NEW.guid)
-               WHERE FoundOnDiskItemRow._id=NEW._id;
-            END;
-        """
-        self.session.execute(stmt)
+        self.execute_script_from_defaults("create-triggers.sql")
 
-        # item found on disk that has no guid. This trigger will find the IID
-        # for that  in IndexItemDetailRow by comparing the file's name and update the FoundOnDiskItemRow row
-        stmt = """
-            CREATE TRIGGER IF NOT EXISTS add_iid_to_FoundOnDiskItemRow_guid_is_null
-            AFTER INSERT ON FoundOnDiskItemRow
-                WHEN NEW.guid IS NULL
-            BEGIN
-                UPDATE OR IGNORE FoundOnDiskItemRow
-                SET iid  = (
-                    SELECT IndexItemDetailRow.owner_iid
-                    FROM IndexItemDetailRow
-                    WHERE (detail_name='install_sources' OR detail_name='previous_sources')
-                    AND detail_value LIKE '%' || NEW.name)
-               WHERE FoundOnDiskItemRow._id=NEW._id;
-            END;
-        """
-        self.session.execute(stmt)
-
-        # when reading "require_by" detail, add to IndexRequireTranslate table
-        stmt = """
-            CREATE TRIGGER IF NOT EXISTS translate_require_by_trigger
-                AFTER INSERT ON IndexItemDetailRow
-                WHEN NEW.detail_name="require_by"
-            BEGIN
-                INSERT OR IGNORE INTO IndexRequireTranslate (iid, require_by, status)
-                VALUES (NEW.owner_iid,  NEW.detail_value, 0);
-            END;
-        """
-        self.session.execute(stmt)
-
-        trigger_text = """
-            CREATE TRIGGER IF NOT EXISTS create_require_by_for_main_iids_trigger
-            AFTER UPDATE OF install_status ON IndexItemRow
-            WHEN NEW.install_status = 1  -- 1 means iid requested explicitly by the user (not update or dependant)
-            AND NEW.ignore = 0
-            BEGIN
-
-            -- self-referenced require_by for main install iids
-            INSERT OR IGNORE INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
-            VALUES (NEW.iid, NEW.iid, 0, 'require_by', NEW.iid, 0);
-
-            END;
-        """
-        self.session.execute(trigger_text)
-
-        trigger_text = """
-            CREATE TRIGGER IF NOT EXISTS create_require_for_all_iids_trigger
-            AFTER UPDATE OF install_status ON IndexItemRow
-            WHEN NEW.install_status > 0
-            AND NEW.ignore = 0
-            BEGIN
-
-            -- remove previous require_version, require_guid owned NEW.iid
-            DELETE FROM IndexItemDetailRow
-            WHERE owner_iid = NEW.iid
-            AND detail_name IN ("require_version", "require_guid");
-
-            -- add require_version
-            INSERT OR IGNORE INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
-            SELECT original_iid, owner_iid, os_id, 'require_version', detail_value, min(generation)
-            FROM IndexItemDetailRow
-            WHERE owner_iid  = NEW.iid
-            AND active = 1
-            AND detail_name='version'
-            GROUP BY owner_iid;
-
-            -- add require_guid
-            INSERT OR IGNORE INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
-            SELECT original_iid, owner_iid, os_id, 'require_guid', detail_value, min(generation)
-            FROM IndexItemDetailRow
-            WHERE IndexItemDetailRow.owner_iid = NEW.iid
-            AND active = 1
-            AND detail_name='guid'
-            GROUP BY owner_iid;
-
-            -- require_by for all dependant of new iid
-            INSERT OR IGNORE INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
-            SELECT original_iid, detail_value, os_id, 'require_by', NEW.iid, generation
-            FROM IndexItemDetailRow
-            WHERE IndexItemDetailRow.owner_iid = NEW.iid
-            AND active = 1
-            AND detail_name='depends';
-
-            END;
-        """
-        self.session.execute(trigger_text)
-
-        # when changing the status of item to uninstall, remove item's require_XXX details
-        trigger_text = """
-            CREATE TRIGGER IF NOT EXISTS remove_require_for_uninstalled_iids_trigger
-            AFTER UPDATE OF install_status ON IndexItemRow
-            WHEN NEW.install_status < 0
-            AND NEW.ignore = 0
-            BEGIN
-                DELETE FROM IndexItemDetailRow
-                WHERE IndexItemDetailRow.owner_iid=NEW.iid
-                AND IndexItemDetailRow.detail_name LIKE "req%";
-
-                DELETE FROM IndexItemDetailRow
-                WHERE IndexItemDetailRow.detail_value=NEW.iid
-                AND IndexItemDetailRow.detail_name = "require_by";
-            END;
-        """
-        self.session.execute(trigger_text)
-
-        # when an os becomes active/de-active set all details accordingly
-        trigger_text = """
-            CREATE TRIGGER IF NOT EXISTS adjust_active_os_for_details
-            AFTER UPDATE OF active ON IndexItemDetailOperatingSystem
-            BEGIN
-                UPDATE IndexItemDetailRow
-                SET    active =  NEW.active
-                WHERE  IndexItemDetailRow.os_id = NEW._id;
-            END;
-        """
-        self.session.execute(trigger_text)
-
-        if False:  # debugging table and trigger
-            table_text = """
-                CREATE TABLE ChangeLog
-                (
-                _id INTEGER PRIMARY KEY NOT NULL,
-                time DATETIME default (datetime('now','localtime')),
-                owner_iid TEXT,
-                detail_name TEXT,
-                detail_value TEXT,
-                os_id INTEGER,
-                old_active INTEGER,
-                new_active INTEGER,
-                log_text TEXT
-                );
-            """
-            self.session.execute(table_text)
-
-            trigger_text = """
-                CREATE TRIGGER IF NOT EXISTS log_adjust_active_os_for_details
-                AFTER UPDATE OF active ON IndexItemDetailRow
-                BEGIN
-                    INSERT INTO ChangeLog (owner_iid, detail_name, detail_value, os_id, old_active, new_active)
-                    VALUES (OLD.owner_iid, OLD.detail_name, OLD.detail_value, OLD.os_id,  OLD.active,  NEW.active);
-                END;
-            """
-            self.session.execute(trigger_text)
-
-        # when adding new detail set it's active state according to os
-        trigger_text = """
-            CREATE TRIGGER set_active_os_for_details
-            AFTER INSERT ON IndexItemDetailRow
-            BEGIN
-                 UPDATE IndexItemDetailRow
-                 SET active = (SELECT IndexItemDetailOperatingSystem.active
-                                FROM IndexItemDetailOperatingSystem
-                                WHERE IndexItemDetailOperatingSystem._id=NEW.os_id)
-                 WHERE IndexItemDetailRow._id = NEW._id;
-            END;
-        """
-        self.session.execute(trigger_text)
-
-        # when adding new install_source calculate the adjusted source relative to sync folder
-        # If install_source starts with '/' - just remove the '/'
-        # If install_source starts with $ leave as is since it's variable dependant
-        # Otherwise add $(SOURCE_PREFIX)/ - which will later be resolved to Mac/Win
-        trigger_text = """
-            CREATE TRIGGER IF NOT EXISTS set_adjusted_source
-            AFTER INSERT ON IndexItemDetailRow
-            WHEN NEW.detail_name="install_sources"
-            BEGIN
-                 INSERT INTO AdjustedSources (detail_row_id, adjusted_source)
-                 VALUES(NEW._id,
-                    CASE substr(NEW.detail_value,1,1)
-                    WHEN "/" THEN -- absolute path
-                        substr(NEW.detail_value, 2)
-                    WHEN "$" THEN -- relative to some variable
-                        NEW.detail_value
-                    ELSE          -- relative to $(SOURCE_PREFIX): Mac or Win
-                        "$(SOURCE_PREFIX)/" || NEW.detail_value
-                    END);
-            END;
-        """
-        self.session.execute(trigger_text)
-        self.commit_changes()
     def drop_triggers(self):
-        stmt = """
-            DROP TRIGGER IF EXISTS translate_require_by_trigger;
-            """
-        self.session.execute(stmt)
-        stmt = """
-            DROP TRIGGER IF EXISTS create_require_for_installed_iids_trigger;
-            """
-        self.session.execute(stmt)
-        stmt = """
-            DROP TRIGGER IF EXISTS remove_require_for_uninstalled_iids_trigger;
-            """
-        self.session.execute(stmt)
-        stmt = """
-            DROP TRIGGER IF EXISTS adjust_active_os_for_details;
-            """
-        self.session.execute(stmt)
-        stmt = """
-            DROP TRIGGER IF EXISTS set_active_os_for_details;
-            """
-        self.session.execute(stmt)
-
-        stmt = """
-            DROP TRIGGER IF EXISTS add_iid_to_FoundOnDiskItemRow_guid_not_null;
-            """
-        self.session.execute(stmt)
-        stmt = """
-            DROP TRIGGER IF EXISTS add_iid_to_FoundOnDiskItemRow_guid_is_null;
-            """
-        self.session.execute(stmt)
-        stmt = """
-            DROP TRIGGER IF EXISTS log_adjust_active_os_for_details;
-            """
-        self.session.execute(stmt)
-        stmt = """
-            DROP TRIGGER IF EXISTS set_adjusted_source;
-            """
-        self.session.execute(stmt)
-        self.commit_changes()
+        self.execute_script_from_defaults("drop-triggers.sql")
 
     def add_views(self):
-        # view of items from require.yaml that do not have a require_version field
-        stmt = text("""
-        -- iid, index_version, generation
-        CREATE VIEW "require_items_without_require_version_view" AS
-        SELECT main_details_t.owner_iid AS iid,
-            main_details_t.detail_value AS index_version,
-            min(main_details_t.generation) AS generation
-        FROM IndexItemDetailRow AS main_details_t
-            JOIN IndexItemRow AS main_item_t
-            ON main_item_t.iid=main_details_t.owner_iid
-            AND main_item_t.from_require=1
-            LEFT JOIN IndexItemDetailRow AS no_require_version_t
-            ON no_require_version_t.detail_name='require_version'
-            AND main_details_t.owner_iid=no_require_version_t.owner_iid
-        WHERE main_details_t.detail_name='version'
-            AND no_require_version_t.detail_value ISNULL
-            AND main_details_t.active=1
-        GROUP BY (main_details_t.owner_iid)
-        """)
-        self.session.execute(stmt)
-
-        # view of items from require.yaml that do not have a require_guid field
-        stmt = text("""
-        CREATE VIEW "require_items_without_require_guid_view" AS
-        SELECT
-            main_details_t.owner_iid       AS iid,
-            main_details_t.detail_value    AS index_guid,
-            min(main_details_t.generation) AS generation
-        FROM IndexItemDetailRow AS main_details_t
-            JOIN IndexItemRow AS main_item_t
-                ON main_item_t.iid = main_details_t.owner_iid
-                   AND main_item_t.from_require = 1
-            LEFT JOIN IndexItemDetailRow AS no_guid_version_t
-                ON no_guid_version_t.detail_name = 'require_guid'
-                AND main_details_t.owner_iid=no_guid_version_t.owner_iid
-        WHERE main_details_t.detail_name='guid'
-        AND no_guid_version_t.detail_value ISNULL
-        AND main_details_t.active=1
-        GROUP BY (main_details_t.owner_iid)
-         """)
-        self.session.execute(stmt)
-
-        # the final report-versions view
-        stmt = text("""
-        CREATE VIEW "report_versions_view" AS
-            SELECT
-                  coalesce(remote.owner_iid, "_") AS owner_iid,
-                  coalesce(item_guid.detail_value, "_") AS guid,
-                  coalesce(item_name.detail_value, "_") AS name,
-                  coalesce(require_version.detail_value, "_") AS 'require_version',
-                  coalesce(remote.detail_value, "_") AS 'remote_version',
-                  min(remote.generation)
-            FROM IndexItemDetailRow AS remote
-
-            LEFT  JOIN IndexItemDetailRow as require_version
-                ON  require_version.detail_name = 'require_version'
-                AND require_version.owner_iid=remote.owner_iid
-                AND require_version.active=1
-            LEFT JOIN IndexItemDetailRow as item_guid
-                ON  item_guid.detail_name = 'guid'
-                AND item_guid.owner_iid=remote.owner_iid
-                AND item_guid.active=1
-            LEFT JOIN IndexItemDetailRow as item_name
-                ON  item_name.detail_name = 'name'
-                AND item_name.owner_iid=remote.owner_iid
-                AND item_name.active=1
-            WHERE
-                remote.detail_name = 'version'
-                AND remote.active=1
-            GROUP BY remote.owner_iid
-            """)
-        self.session.execute(stmt)
-        self.commit_changes()
+        self.execute_script_from_defaults("create-views.sql")
 
     def drop_views(self):
-        stmt = text("""
-            DROP VIEW IF EXISTS "require_items_without_require_version_view"
-            """)
-        self.session.execute(stmt)
-        stmt = text("""
-            DROP VIEW IF EXISTS "require_items_without_require_guid_view"
-            """)
-        self.session.execute(stmt)
-        stmt = text("""
-            DROP VIEW IF EXISTS "report_versions_view"
-            """)
-        self.session.execute(stmt)
-        self.commit_changes()
+        self.execute_script_from_defaults("drop-views.sql")
 
     def begin_get_for_all_oses(self):
         """ adds all known os names to the list of os that will influence all get functions
@@ -1462,6 +1151,22 @@ class IndexItemsTable(object):
             if exec_result.returns_rows:
                 # returns [(adjusted_source, source_tag),...]
                 retVal.extend(exec_result.fetchall())
+        except SQLAlchemyError as ex:
+            raise
+        return retVal
+
+    def get_unique_detail_values(self, detail_name):
+        retVal = list()
+        query_text = """
+          SELECT DISTINCT IndexItemDetailRow.detail_value
+          FROM IndexItemDetailRow
+          WHERE detail_name = :detail_name
+          ORDER BY IndexItemDetailRow.detail_value
+        """
+        try:
+            exec_result = self.session.execute(query_text, {'detail_name': detail_name})
+            if exec_result.returns_rows:
+                retVal.extend([mm[0] for mm in exec_result.fetchall()])
         except SQLAlchemyError as ex:
             raise
         return retVal

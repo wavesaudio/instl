@@ -200,7 +200,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def chown_for_synced_folders(self):
         """ if sync is done under admin permissions owner of files and folders will be root
             chown_for_synced_folders will change owner to the user that created the batch file.
-            Currenly this was found to be relevant for Mac only.
+            Currently this was found to be relevant for Mac only.
         """
         if var_stack.ResolveVarToStr("__CURRENT_OS__") != "Mac":
             return  # owner issue only relevant on Mac

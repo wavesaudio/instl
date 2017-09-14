@@ -20,6 +20,9 @@ from sqlalchemy.sql import default_comparator  # needed for PyInstaller
 
 import utils
 
+import svnTree
+
+
 __db_engine = None
 __db_session_maker = None
 __db_session = None
@@ -185,6 +188,7 @@ class AdjustedSources(get_declarative_base()):
     _id = Column(Integer, primary_key=True, autoincrement=True)
     detail_row_id        = Column(Integer, ForeignKey("IndexItemDetailRow._id"))
     adjusted_source = Column(String)
+
 
 IndexItemDetailOperatingSystem.__table__.create(bind=get_engine(), checkfirst=True)
 IndexItemRow.__table__.create(bind=get_engine(), checkfirst=True)

@@ -60,3 +60,9 @@ CREATE VIEW "report_versions_view" AS
         remote.detail_name = 'version'
         AND remote.active=1
     GROUP BY remote.owner_iid;
+
+CREATE VIEW "iids_to_install_sources_view" AS
+SELECT IIDToSVNItem.iid, svnitem.path
+FROM IIDToSVNItem, svnitem
+WHERE
+    IIDToSVNItem.svn_id=svnitem._id;

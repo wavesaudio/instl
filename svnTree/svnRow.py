@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-#import os
-#import sys
 import re
 
 from sqlalchemy import Column, Integer, String, BOOLEAN, ForeignKey
@@ -146,12 +144,12 @@ class SVNRow(get_declarative_base()):
                 retVal = self.path[len(starting_dir):]
         return retVal
 
+
 class IIDToSVNItem(get_declarative_base()):
     __tablename__ = 'IIDToSVNItem'
     _id     = Column(Integer, primary_key=True, autoincrement=True)
     iid     = Column(String, ForeignKey("IndexItemRow.iid"))
     svn_id  = Column(Integer, ForeignKey("svnitem._id"))
-    download_path = Column(String)
 
 SVNRow.__table__.create(bind=get_engine(), checkfirst=True)
 IIDToSVNItem.__table__.create(bind=get_engine(), checkfirst=True)

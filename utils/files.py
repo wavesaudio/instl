@@ -82,7 +82,12 @@ protocol_header_re = re.compile("""
                         """, re.VERBOSE)
 
 
-def read_file_or_url(in_file_or_url, path_searcher=None, encoding='utf-8', save_to_path=None):
+def read_file_or_url(in_file_or_url, path_searcher=None, encoding='utf-8', save_to_path=None, checksum=None):
+    need_to_download = not utils.check_file_checksum(save_to_path, checksum)
+    if not need_to_download:
+        # if save_to_path contains the correct data just read it by recursively
+        # calling read_file_or_url
+        return read_file_or_url(save_to_path, encoding=encoding)
     match = protocol_header_re.match(in_file_or_url)
     if not match:  # it's a local file
         local_file_path = in_file_or_url

@@ -68,11 +68,16 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
             self.instlObj.read_info_map_from_file(local_copy_of_info_map)
             self.instlObj.progress("read info_map {}".format(info_map_file_url))
 
-            additional_info_maps = self.instlObj.items_table.get_details_for_active_iids("info_map")
+            additional_info_maps = self.instlObj.items_table.get_details_for_active_iids("info_map", unique_values=True)
             for additional_info_map in additional_info_maps:
                 info_map_file_url = var_stack.ResolveStrToStr("$(INFO_MAP_FILES_URL_PREFIX)/{}".format(additional_info_map))
                 local_copy_of_info_map = var_stack.ResolveStrToStr("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)/{}".format(additional_info_map))
-                utils.read_file_or_url(info_map_file_url, save_to_path=local_copy_of_info_map)
+
+                partial_path = "instl/{}".format(additional_info_map)
+                additional_info_map_item = self.instlObj.info_map_table.get_item(partial_path, what="file")
+                checksum = additional_info_map_item.checksum if additional_info_map_item else None
+
+                utils.read_file_or_url(info_map_file_url, save_to_path=local_copy_of_info_map, checksum=checksum)
                 self.instlObj.read_info_map_from_file(local_copy_of_info_map)
                 self.instlObj.progress("read info_map {}".format(info_map_file_url))
 

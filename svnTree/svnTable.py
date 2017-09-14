@@ -13,8 +13,9 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 
-from .svnRow import SVNRow
-from pyinstl.db_alchemy import create_session
+from .svnRow import SVNRow, IIDToSVNItem
+
+from pyinstl.db_alchemy import create_session, IndexItemDetailRow
 import utils
 from configVar import var_stack
 
@@ -941,11 +942,12 @@ class SVNTable(object):
         query_text = """
           SELECT DISTINCT extra_props
           FROM svnitem
+          ORDER BY extra_props
         """
         try:
             exec_result = self.session.execute(query_text)
             if exec_result.returns_rows:
-                retVal.extend([file_name[0] for file_name in exec_result.fetchall()])
+                retVal.extend([infomap_file_name[0] for infomap_file_name in exec_result.fetchall()])
         except SQLAlchemyError as ex:
             raise
         return retVal
@@ -956,11 +958,74 @@ class SVNTable(object):
         infomap file names were stored in extra_props column by set_infomap_file_names
         :param infomap_name: e.g. GrandRhapsody_SD_Sample_Library_info_map.txt
         """
-        # get_required_items: return all required (or unrequired) items either files dirs or both, used by get_required_items()
+        retVal = list()
         if "get_items_by_infomap" not in self.baked_queries_map:
             self.baked_queries_map["get_items_by_infomap"] = self.bakery(lambda session: session.query(SVNRow))
-            self.baked_queries_map["get_items_by_infomap"] += lambda q: q.filter(SVNRow.extra_props == bindparam('infomap_name'))
+            self.baked_queries_map["get_items_by_infomap"] += lambda q: q.filter(SVNRow._id == IIDToSVNItem.svn_id)
+            self.baked_queries_map["get_items_by_infomap"] += lambda q: q.filter(IndexItemDetailRow.owner_iid == IIDToSVNItem.iid)
+            self.baked_queries_map["get_items_by_infomap"] += lambda q: q.filter(IndexItemDetailRow.detail_name == 'info_map')
+            self.baked_queries_map["get_items_by_infomap"] += lambda q: q.filter(IndexItemDetailRow.detail_value == bindparam('infomap_name'))
             self.baked_queries_map["get_items_by_infomap"] += lambda q: q.order_by(SVNRow._id)
 
         retVal = self.baked_queries_map["get_items_by_infomap"](self.session).params(infomap_name=infomap_name).all()
         return retVal
+
+    def get_items_for_default_infomap(self):
+        select_all_q = self.session.query(SVNRow)
+
+        select_non_default_info_map_items = self.session.query(SVNRow) \
+                                            .filter(SVNRow._id == IIDToSVNItem.svn_id) \
+                                            .filter(IIDToSVNItem.iid == IndexItemDetailRow.owner_iid) \
+                                            .filter(IndexItemDetailRow.detail_name == 'info_map')
+
+        select_default_info_map_items = select_all_q.except_(select_non_default_info_map_items)
+        retVal = select_default_info_map_items.all()
+        return retVal
+
+    def populate_IIDToSVNItem(self):
+        query_text = """
+            INSERT INTO IIDToSVNItem (iid, svn_id)
+            SELECT install_sources_t.owner_iid, svnitem._id
+            FROM IndexItemDetailRow AS install_sources_t, svnitem
+            WHERE
+                install_sources_t.detail_name = 'install_sources'
+                    AND
+                CASE substr(install_sources_t.detail_value, 1, 1)
+                WHEN "/"
+                    THEN -- absolute path
+                        (svnitem.path = substr(install_sources_t.detail_value, 2)
+                         OR
+                         svnitem.path LIKE substr(install_sources_t.detail_value, 2) || "%")
+                ELSE -- relative to Mac or Win
+                    (
+                        svnitem.path = "Mac/" || install_sources_t.detail_value
+                        OR
+                        svnitem.path LIKE "Mac/" || install_sources_t.detail_value || "%"
+                        OR
+                        svnitem.path = "Win/" || install_sources_t.detail_value
+                        OR
+                        svnitem.path LIKE "Win/" || install_sources_t.detail_value || "%"
+                    )
+                END
+            """
+        self.session.execute(query_text)
+        self.commit_changes()
+
+    def set_info_map_file(self, info_map_file_name):
+        query_text = """
+            UPDATE svnitem
+            SET extra_props = :info_map_file_name
+            WHERE svnitem._id In (
+            SELECT svnitem._id
+            FROM svnitem, IIDToSVNItem, IndexItemDetailRow
+            WHERE
+                svnitem._id = IIDToSVNItem.svn_id
+            AND
+                IIDToSVNItem.iid = IndexItemDetailRow.owner_iid
+            AND
+                IndexItemDetailRow.detail_name = 'info_map'
+            AND
+                IndexItemDetailRow.detail_value = :info_map_file_name)
+            """
+        self.session.execute(query_text, {"info_map_file_name": info_map_file_name})
+        self.commit_changes()
