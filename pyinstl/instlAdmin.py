@@ -1139,7 +1139,7 @@ class InstlAdmin(InstlInstanceBase):
         # split info_map.txt according to info_map fields in index.yaml
         accum += self.platform_helper.progress("Split {} ...".format(full_info_map_file_path))
         split_info_map_command_parts = [self.platform_helper.run_instl(), "filter-infomap",
-                                        "--in", results_folder]
+                                        "--in", results_folder, "--define", var_stack.ResolveStrToStr("REPO_REV=$(REPO_REV)")]
         accum += " ".join(split_info_map_command_parts)
         accum += self.platform_helper.progress("Split {} done".format(full_info_map_file_path))
 
@@ -1188,8 +1188,9 @@ class InstlAdmin(InstlInstanceBase):
                 lines_for_main_info_map.append(var_stack.ResolveStrToStr(line_for_main_info_map))
 
         # write default info map to file
+        default_info_map_file_path = var_stack.ResolveStrToStr(os.path.join(instl_folder, "$(MAIN_INFO_MAP_FILE_NAME)"))
         items_for_default_info_map = self.info_map_table.get_items_for_default_infomap()
-        self.info_map_table.write_to_file(in_file=info_map_file_path, items_list=info_map_items, field_to_write=self.fields_relevant_to_info_map)
+        self.info_map_table.write_to_file(in_file=default_info_map_file_path, items_list=items_for_default_info_map, field_to_write=self.fields_relevant_to_info_map)
 
-        with open(info_map_file_path, "a") as wfd:
+        with open(default_info_map_file_path, "a") as wfd:
             wfd.write("\n".join(lines_for_main_info_map))
