@@ -27,9 +27,9 @@ def run_parallels(commands):
     for command in commands:
         try:
             if getattr(os, "setsid", None):
-                a_process = subprocess.Popen(command, executable=command[0], shell=False, preexec_fn=os.setsid)  # Unix
+                a_process = subprocess.Popen(command, executable=command[0], shell=False, bufsize=0, preexec_fn=os.setsid)  # Unix
             else:
-                a_process = subprocess.Popen(command, executable=command[0], shell=False)  # Windows
+                a_process = subprocess.Popen(command, executable=command[0], shell=False, bufsize=0)  # Windows
             process_list.append(a_process)
         except Exception:
             print("failed to start", command, file=sys.stderr)

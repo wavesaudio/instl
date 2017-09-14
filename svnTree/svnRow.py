@@ -3,7 +3,7 @@
 import re
 
 from sqlalchemy import Column, Integer, String, BOOLEAN, ForeignKey
-from pyinstl.db_alchemy import get_declarative_base, get_engine
+from pyinstl import db_alchemy
 from configVar import var_stack
 
 wtar_file_re = re.compile(r"""^(?P<original_name>.+)\.wtar(\...)?$""")
@@ -13,7 +13,7 @@ fields_relevant_to_dirs = ('path', 'parent', 'level', 'flags', 'revision', 'requ
 fields_relevant_to_str = ('path', 'flags', 'revision', 'checksum', 'size', 'url')
 
 
-class SVNRow(get_declarative_base()):
+class SVNRow(db_alchemy.get_declarative_base()):
     __tablename__ = 'svnitem'
     _id = Column(Integer, primary_key=True)
     required = Column(BOOLEAN, default=False, index=True)       # is required for install
@@ -145,11 +145,11 @@ class SVNRow(get_declarative_base()):
         return retVal
 
 
-class IIDToSVNItem(get_declarative_base()):
+class IIDToSVNItem(db_alchemy.get_declarative_base()):
     __tablename__ = 'IIDToSVNItem'
     _id     = Column(Integer, primary_key=True, autoincrement=True)
     iid     = Column(String, ForeignKey("IndexItemRow.iid"))
     svn_id  = Column(Integer, ForeignKey("svnitem._id"))
 
-SVNRow.__table__.create(bind=get_engine(), checkfirst=True)
-IIDToSVNItem.__table__.create(bind=get_engine(), checkfirst=True)
+SVNRow.__table__.create(bind=db_alchemy.get_engine(), checkfirst=True)
+IIDToSVNItem.__table__.create(bind=db_alchemy.get_engine(), checkfirst=True)

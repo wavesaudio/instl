@@ -13,6 +13,9 @@
     * reimplemented InstlAdmin.do_filter_infomap with new database tables and columns
     * utils.read_file_or_url does some caching if give url, local file and checksum
     * utils.check_file_checksum: prevent reading the file if file_path or expected_checksum is None
+    * changed some import order so instl will run properly when compiled
+    * parallel_run start subprocesses with bufsize=0, maybe this will improve log messages output rate
+    * intl.spec: add *.sql to defaults folder
 
 10/9/2017 1.6.0.0
 

@@ -20,9 +20,6 @@ from sqlalchemy.sql import default_comparator  # needed for PyInstaller
 
 import utils
 
-import svnTree
-
-
 __db_engine = None
 __db_session_maker = None
 __db_session = None

@@ -31,7 +31,7 @@ a = Analysis(['instl'],
 
 instl_defaults_path = os.path.join("defaults")
 for defaults_file in os.listdir(instl_defaults_path):
-    if fnmatch.fnmatch(defaults_file, '*.yaml'):
+    if fnmatch.fnmatch(defaults_file, '*.yaml') or fnmatch.fnmatch(defaults_file, '*.sql'):
         a.datas += [("defaults/"+defaults_file, os.path.join(instl_defaults_path, defaults_file), "DATA")]
 
 

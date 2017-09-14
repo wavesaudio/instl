@@ -18,6 +18,7 @@ from .db_alchemy import create_session,\
     FoundOnDiskItemRow, \
     ConfigVar, get_engine
 
+import svnTree  # do not remove must be here before IndexItemsTable.execute_script is called
 import utils
 from configVar import var_stack
 

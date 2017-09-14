@@ -13,9 +13,9 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 
+from pyinstl.db_alchemy import create_session, IndexItemDetailRow
 from .svnRow import SVNRow, IIDToSVNItem
 
-from pyinstl.db_alchemy import create_session, IndexItemDetailRow
 import utils
 from configVar import var_stack
 
