@@ -1139,7 +1139,7 @@ class InstlAdmin(InstlInstanceBase):
         # split info_map.txt according to info_map fields in index.yaml
         accum += self.platform_helper.progress("Split {} ...".format(full_info_map_file_path))
         split_info_map_command_parts = [self.platform_helper.run_instl(), "filter-infomap",
-                                        "--in", results_folder, "--define", var_stack.ResolveStrToStr("REPO_REV=$(REPO_REV)")]
+                                        "--in", results_folder, "--define", var_stack.ResolveStrToStr("REPO_REV=$(__CURR_REPO_REV__)")]
         accum += " ".join(split_info_map_command_parts)
         accum += self.platform_helper.progress("Split {} done".format(full_info_map_file_path))
 
