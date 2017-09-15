@@ -33,7 +33,7 @@ class InstlClientUninstall(InstlClientRemove):
         force_uninstall_of_main_items = "FORCE_UNINSTALL_OF_MAIN_ITEMS" in var_stack
         if "DO_NOT_REMOVE_TARGETS" in var_stack:
             do_not_remove_iids = var_stack.ResolveVarToList("DO_NOT_REMOVE_TARGETS")
-            self.items_table.ignore_iids(do_not_remove_iids)
+            self.items_table.set_ignore_iids(do_not_remove_iids)
 
         iid_candidates_for_uninstall = var_stack.ResolveVarToList("__MAIN_INSTALL_IIDS__")
         req_trans_items = self.items_table.get_all_require_translate_items()
