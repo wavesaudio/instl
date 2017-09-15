@@ -507,14 +507,29 @@ class IndexItemsTable(object):
                 details.extend(actions_details)
             else:
                 for details_line in detail_node[1]:
-                    tag = details_line.tag if details_line.tag[0]=='!' else None
+                    tag = details_line.tag if details_line.tag[0] == '!' else None
                     value = details_line.value
                     if detail_name in ("install_sources", "previous_sources") and tag is None:
                         tag = '!dir'
                     elif detail_name == "guid":
                         value = value.lower()
-                    new_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=self.os_names[the_os], detail_name=detail_name, detail_value=value, generation=0, tag=tag)
-                    details.append(new_detail)
+
+                    if detail_name == "install_sources":
+                        if value.startswith('/'):  # absolute path
+                            new_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=self.os_names[the_os], detail_name=detail_name, detail_value=value[1:], generation=0, tag=tag)
+                            details.append(new_detail)
+                        else:  # relative path
+                            # because 'common' is in both groups this will create 2 IndexItemDetailRow
+                            # if OS is 'common', and 1 otherwise
+                            for os_group in (('common', 'Mac', 'Mac32', 'Mac64'),
+                                             ('common', 'Win', 'Win32', 'Win64')):
+                                if the_os in os_group:
+                                    effective_os ={'Mac32': 'Mac32', 'Mac64': 'Mac64', 'Win32': 'Win32', 'Win64': 'Win64'}.get(the_os, os_group[1])
+                                    new_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=self.os_names[effective_os], detail_name=detail_name, detail_value="/".join((effective_os, value)), generation=0, tag=tag)
+                                    details.append(new_detail)
+                    else:
+                        new_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=self.os_names[the_os], detail_name=detail_name, detail_value=value, generation=0, tag=tag)
+                        details.append(new_detail)
         return details
 
     def read_index_node(self, a_node):

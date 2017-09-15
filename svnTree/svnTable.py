@@ -864,30 +864,14 @@ class SVNTable(object):
                 AND install_sources_t.detail_name='install_sources'
                 AND install_sources_t.active = 1
             WHERE fileFlag=1
-            AND (svnitem.path LIKE
-                CASE install_sources_t.tag
-                WHEN "!file" THEN
-                    CASE substr(install_sources_t.detail_value,1,1)
-                    WHEN "/" THEN -- absolute path
-                        substr(install_sources_t.detail_value, 2)
-                    ELSE          -- relative to $(SOURCE_PREFIX): Mac or Win
-                        "{source_prefix}/" || install_sources_t.detail_value
-                    END
-                ELSE -- !dir or !dir_cont
-                    CASE substr(install_sources_t.detail_value,1,1)
-                    WHEN "/" THEN -- absolute path
-                        substr(install_sources_t.detail_value, 2) || "/%"
-                    ELSE          -- relative to $(SOURCE_PREFIX): Mac or Win
-                        "{source_prefix}/" || install_sources_t.detail_value || "/%"
-                    END
-                END
-            OR svnitem.path LIKE
-                    CASE substr(install_sources_t.detail_value,1,1)
-                    WHEN "/" THEN -- absolute path
-                        substr(install_sources_t.detail_value, 2) || ".wtar%"
-                    ELSE          -- relative to $(SOURCE_PREFIX): Mac or Win
-                        "{source_prefix}/" || install_sources_t.detail_value|| ".wtar%"
-                    END)
+            AND
+                (
+                  svnitem.path = install_sources_t.detail_value
+                    OR
+                  svnitem.path LIKE install_sources_t.detail_value || "/%"
+                    OR
+                  svnitem.path LIKE install_sources_t.detail_value || ".wtar%"
+                )
         )
         """.format(source_prefix=source_prefix)
         exec_result = self.session.execute(query_text)
@@ -927,9 +911,9 @@ class SVNTable(object):
             AND
                 info_map_t.owner_iid = install_sources_t.owner_iid
             AND
-                (svnitem.path LIKE substr(install_sources_t.detail_value, 2) || '/%'
+                (svnitem.path LIKE install_sources_t.detail_value || '/%'
                     OR
-                svnitem.path  = substr(install_sources_t.detail_value, 2))
+                svnitem.path  = install_sources_t.detail_value))
             ), "info_map.txt")
         """
         exec_result = self.session.execute(query_text)
@@ -990,23 +974,13 @@ class SVNTable(object):
             WHERE
                 install_sources_t.detail_name = 'install_sources'
                     AND
-                CASE substr(install_sources_t.detail_value, 1, 1)
-                WHEN "/"
-                    THEN -- absolute path
-                        (svnitem.path = substr(install_sources_t.detail_value, 2)
-                         OR
-                         svnitem.path LIKE substr(install_sources_t.detail_value, 2) || "%")
-                ELSE -- relative to Mac or Win
-                    (
-                        svnitem.path = "Mac/" || install_sources_t.detail_value
-                        OR
-                        svnitem.path LIKE "Mac/" || install_sources_t.detail_value || "%"
-                        OR
-                        svnitem.path = "Win/" || install_sources_t.detail_value
-                        OR
-                        svnitem.path LIKE "Win/" || install_sources_t.detail_value || "%"
-                    )
-                END
+                (
+                  svnitem.path = install_sources_t.detail_value 
+                    OR
+                  svnitem.path LIKE install_sources_t.detail_value || "/%"
+                    OR
+                  svnitem.path LIKE install_sources_t.detail_value || ".wtar%"
+                )
             """
         self.session.execute(query_text)
         self.commit_changes()

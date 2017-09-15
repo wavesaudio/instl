@@ -1,3 +1,5 @@
+-- noinspection SqlNoDataSourceInspectionForFile
+
 -- item found on disk that has a guid. This trigger will find the IID
 -- for that guid in IndexItemDetailRow and update the FoundOnDiskItemRow row
 CREATE TRIGGER IF NOT EXISTS add_iid_to_FoundOnDiskItemRow_guid_not_null
@@ -133,13 +135,5 @@ AFTER INSERT ON IndexItemDetailRow
 WHEN NEW.detail_name="install_sources"
 BEGIN
      INSERT INTO AdjustedSources (detail_row_id, adjusted_source)
-     VALUES(NEW._id,
-        CASE substr(NEW.detail_value,1,1)
-        WHEN "/" THEN -- absolute path
-            substr(NEW.detail_value, 2)
-        WHEN "$" THEN -- relative to some variable
-            NEW.detail_value
-        ELSE          -- relative to $(SOURCE_PREFIX): Mac or Win
-            "$(SOURCE_PREFIX)/" || NEW.detail_value
-        END);
+     VALUES(NEW._id, NEW.detail_value);
 END;

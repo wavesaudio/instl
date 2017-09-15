@@ -1,4 +1,5 @@
 ????? 1.6.0.1
+    * install_sources are now duplicated for Mac/Win and initial '/' is removed from common items
     * YamlReader.read_yaml_file uses new function utils.read_file_or_url
     * new config var INFO_MAP_FILES_URL_PREFIX to better define INFO_MAP_FILE_URL
     * info_map files split from the main info_map.txt will be added to the main info_map.txt so size and checksum are known

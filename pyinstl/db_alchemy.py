@@ -70,6 +70,7 @@ class IndexItemDetailOperatingSystem(get_declarative_base()):
     _id = Column(Integer, primary_key=True)
     name = Column(String, unique=True)
     active = Column(BOOLEAN, default=False)
+
     def __str__(self):
         retVal = "self._id) {self.name} active: {self.active}".format(**locals())
         return retVal
@@ -110,8 +111,6 @@ class IndexItemDetailRow(get_declarative_base()):
     tag          = Column(String)
     active       = Column(Integer, default=0, index=True)
     UniqueConstraint(original_iid, owner_iid, os_id, detail_name, detail_value, generation)
-    #os = relationship("IndexItemDetailOperatingSystem")
-    #item = relationship("IndexItemRow", back_populates="original_details")
 
     def __str__(self):
         retVal = ("{self._id}) owner: {self.owner_iid}, "
