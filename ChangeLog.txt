@@ -1,3 +1,8 @@
+???? 1.6.0.1
+
+    programmer visible changes:
+    * check_version_compatibility moved to be a free function instead of InstlInstanceBase member
+
 10/9/2017 1.6.0.0
 
     user visible changes:
