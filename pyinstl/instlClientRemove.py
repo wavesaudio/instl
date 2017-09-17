@@ -40,7 +40,7 @@ class InstlClientRemove(InstlClient):
                                            key=lambda fold: var_stack.ResolveStrToStr(fold),
                                            reverse=True)
         # print(sorted_target_folder_list)
-        self.accumulate_unique_actions('pre_remove', var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
+        self.accumulate_unique_actions_for_active_iids('pre_remove', var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
 
         for folder_name in sorted_target_folder_list:
             self.create_remove_previous_sources_instructions_for_target_folder(folder_name)
@@ -49,7 +49,7 @@ class InstlClientRemove(InstlClient):
             items_in_folder = self.all_iids_by_target_folder[folder_name]
             self.batch_accum += self.platform_helper.new_line()
 
-            self.accumulate_unique_actions('pre_remove_from_folder', items_in_folder)
+            self.accumulate_unique_actions_for_active_iids('pre_remove_from_folder', items_in_folder)
 
             for IID in items_in_folder:
                 name_and_version = self.iid_to_name_and_version[IID].name_and_version
@@ -64,10 +64,10 @@ class InstlClientRemove(InstlClient):
                     self.batch_accum += self.platform_helper.progress("Remove {source[0]} done".format(**locals()))
                 self.batch_accum += self.platform_helper.progress("Remove {name_and_version} done".format(**locals()))
 
-            self.accumulate_unique_actions('post_remove_from_folder', items_in_folder)
+            self.accumulate_unique_actions_for_active_iids('post_remove_from_folder', items_in_folder)
             self.batch_accum += self.platform_helper.progress("Remove from {0} done".format(folder_name))
 
-        self.accumulate_unique_actions('post_remove', var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
+        self.accumulate_unique_actions_for_active_iids('post_remove', var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
 
     # create_remove_instructions_for_source:
     # Create instructions to remove a specific source from a specific target folder.
