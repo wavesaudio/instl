@@ -24,6 +24,15 @@ from .installItem import InstallItem
 from . import connectionBase
 
 
+def check_version_compatibility():
+    retVal = True
+    if "INSTL_MINIMAL_VERSION" in var_stack:
+        inst_ver = list(map(int, var_stack.ResolveVarToList("__INSTL_VERSION__")))
+        required_ver = list(map(int, var_stack.ResolveVarToList("INSTL_MINIMAL_VERSION")))
+        retVal = inst_ver >= required_ver
+    return retVal
+
+
 # noinspection PyPep8Naming
 class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
     """ Main object of instl. Keeps the state of variables and install index
@@ -494,14 +503,6 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                         print("inherit cycle:", " -> ".join(cy))
             except ImportError:  # no installItemGraph, no worry
                 print("Could not load installItemGraph")
-
-    def check_version_compatibility(self):
-        retVal = True
-        if "INSTL_MINIMAL_VERSION" in var_stack:
-            inst_ver = list(map(int, var_stack.ResolveVarToList("__INSTL_VERSION__")))
-            required_ver = list(map(int, var_stack.ResolveVarToList("INSTL_MINIMAL_VERSION")))
-            retVal = inst_ver >= required_ver
-        return retVal
 
     def needs(self, iid, out_list):
         """ return iids of all items that a specific iid depends on"""

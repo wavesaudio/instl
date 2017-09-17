@@ -48,6 +48,31 @@ def plugin_bundle(in_os, in_path):
     return retVal
 
 
+def get_info_from_plugin(in_os, in_path):
+    retVal = dict()
+    try:
+        xml_path = os.path.join(in_path, 'Contents', 'Info.xml')
+        if not os.path.exists(xml_path):
+            xml_path = os.path.join(in_path, 'Contents', 'Resources', 'InfoXML', '1000.xml')
+        tree = ET.parse(xml_path)
+        xml = tree.getroot()
+        retVal['path'] = os.path.realpath(in_path)
+        for child in xml.iter('LicenseGUID'):
+            retVal['LicenseGUID'] = child.text.lower()
+            break
+        for child in xml.iter('PluginExternalVersion'):
+            retVal['PluginExternalVersion'] = child.text
+            break
+        for child in xml.iter('WaveShellsBaseName'):
+            retVal['WaveShellsBaseName'] = child.text
+            break
+        retVal['DynamicPluginLibName'] = list()
+        for child in xml.iter('DynamicPluginLibName'):
+            retVal['DynamicPluginLibName'].append(child.text)
+    except:
+        pass
+    return retVal
+
 def get_guid(in_os, in_path):
     guid = None
     try:

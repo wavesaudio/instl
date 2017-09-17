@@ -19,7 +19,10 @@
     * intl.spec: add *.sql to defaults folder
     * replaced .format(...) with :arguments for many sqlite queries
     * utils.read_file_or_url default timeout is now 18.05sec for connection, 120.05dec for the whole download
-        
+
+    * get_info_from_plugin get the path,LicenseGUID,PluginExternalVersion,WaveShellsBaseName,DynamicPluginLibName plugin info as a dictionary
+    * check_version_compatibility moved to be a free function instead of InstlInstanceBase member
+
 10/9/2017 1.6.0.0
 
     user visible changes:
