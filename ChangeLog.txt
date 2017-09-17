@@ -6,6 +6,9 @@
 
     admin visible changes:
     * support separate info_map.txt files for specific iid
+    
+    programmer visible changes:
+    * get_info_from_plugin get the path,LicenseGUID,PluginExternalVersion,WaveShellsBaseName,DynamicPluginLibName plugin info as a dictionary
 
 27/8/2017 1.5.3.0
 
@@ -1805,14 +1808,4 @@ i
     * trans command now reads BASE_REV from config file, has new option --config
     * up2s3 command implemented using aws and writes a batch file like all other commands
     * up2s3 command can be used on a range of versions
-    * * fixed bad handling of \r\n in info_map files on Windows 
-
-    programmer visible changes:
-    * new function SVNItem.walk_items_depth_first, and tests for this function
-    * platformSpecificHelper_XXX new functions: rmfile, rmdir, not implemented for windows yet
-    * variable BASE_REPO_REV default set to 1 for all commands
-    * CONFIG_FILE variable instead to S3_CONFIG_FILE and used by all instlAdmin commands
-
-2013-12-29  0.6.1  Shai Shasag <shai@waves.com>
-    * fixed wrong depends calculation.
-    * special characters in urls given to curl are now escaped using the %xx convention
+    * * fixed bad handling of \r\n in info_map files on Windows
