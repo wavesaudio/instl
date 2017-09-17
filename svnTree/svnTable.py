@@ -211,7 +211,6 @@ class SVNTable(object):
             wfd.write("\n")
         for item in items_list:
             wfd.write(item.str_specific_fields(field_to_write) + "\n")
-#            wfd.write(str(item) + "\n")
 
     def iter_svn_info(self, long_info_fd):
         """ Go over the lines of the output of svn info command
@@ -909,4 +908,59 @@ class SVNTable(object):
                 retVal.extend([dr[0] for dr in exec_result.fetchall()])
         except SQLAlchemyError as ex:
             raise
+        return retVal
+
+    def set_infomap_file_names(self):
+        """ set svnitem.extra_props to the name of the info_map file
+            index items that have explicitly set the info_map field in index.yaml
+            will get that value, all other will get info_map.txt by default
+        """
+        query_text = """
+            UPDATE svnitem
+            SET extra_props = coalesce((SELECT info_map_t.detail_value
+            FROM IndexItemDetailRow AS info_map_t, IndexItemDetailRow AS install_sources_t
+            WHERE
+                info_map_t.detail_name='info_map'
+            AND
+                install_sources_t.detail_name='install_sources'
+            AND
+                info_map_t.owner_iid = install_sources_t.owner_iid
+            AND
+                (svnitem.path LIKE substr(install_sources_t.detail_value, 2) || '/%'
+                    OR
+                svnitem.path  = substr(install_sources_t.detail_value, 2))
+            ), "info_map.txt")
+        """
+        exec_result = self.session.execute(query_text)
+        self.commit_changes()
+
+    def get_infomap_file_names(self):
+        """ infomap file names are stored in extra_props column by set_infomap_file_names
+        """
+        retVal = list()
+        query_text = """
+          SELECT DISTINCT extra_props
+          FROM svnitem
+        """
+        try:
+            exec_result = self.session.execute(query_text)
+            if exec_result.returns_rows:
+                retVal.extend([file_name[0] for file_name in exec_result.fetchall()])
+        except SQLAlchemyError as ex:
+            raise
+        return retVal
+
+    def get_items_by_infomap(self, infomap_name):
+        """
+        get_items_by_infomap returns all items that should be written to a specific infomap file
+        infomap file names were stored in extra_props column by set_infomap_file_names
+        :param infomap_name: e.g. GrandRhapsody_SD_Sample_Library_info_map.txt
+        """
+        # get_required_items: return all required (or unrequired) items either files dirs or both, used by get_required_items()
+        if "get_items_by_infomap" not in self.baked_queries_map:
+            self.baked_queries_map["get_items_by_infomap"] = self.bakery(lambda session: session.query(SVNRow))
+            self.baked_queries_map["get_items_by_infomap"] += lambda q: q.filter(SVNRow.extra_props == bindparam('infomap_name'))
+            self.baked_queries_map["get_items_by_infomap"] += lambda q: q.order_by(SVNRow._id)
+
+        retVal = self.baked_queries_map["get_items_by_infomap"](self.session).params(infomap_name=infomap_name).all()
         return retVal

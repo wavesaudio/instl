@@ -29,6 +29,7 @@ class InstlAdmin(InstlInstanceBase):
         var_stack.add_const_config_variable("__DATABASE_URL__", "", self.items_table.get_db_url())
         self.info_map_table = SVNTable()
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
+        self.fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
 
     def get_default_out_file(self):
         retVal = None
@@ -80,8 +81,7 @@ class InstlAdmin(InstlInstanceBase):
 
         if "__BASE_URL__" in var_stack:
             self.add_urls_to_info_map()
-        fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
-        self.info_map_table.write_to_file(var_stack.ResolveVarToStr("__MAIN_OUT_FILE__"), field_to_write=fields_relevant_to_info_map)
+        self.info_map_table.write_to_file(var_stack.ResolveVarToStr("__MAIN_OUT_FILE__"), field_to_write=self.fields_relevant_to_info_map)
 
     def add_urls_to_info_map(self):
         base_url = var_stack.ResolveVarToStr("__BASE_URL__")
@@ -248,10 +248,11 @@ class InstlAdmin(InstlInstanceBase):
         accum += self.platform_helper.progress("Create dependencies file")
 
         # create repo-rev file
+        accum += self.platform_helper.progress("Create repo-rev file ...")
         create_repo_rev_file_command_parts = [self.platform_helper.run_instl(), "create-repo-rev-file",
                                               "--config-file", '"$(__CONFIG_FILE_PATH__)"', "--rev", "$(__CURR_REPO_REV__)"]
         accum += " ".join(create_repo_rev_file_command_parts)
-        accum += self.platform_helper.progress("Create repo-rev file")
+        accum += self.platform_helper.progress("Create repo-rev file done")
 
         # create text versions of info and yaml files, so they can be displayed in browser
         if var_stack.ResolveVarToStr("__CURRENT_OS__") == "Linux":
@@ -630,9 +631,9 @@ class InstlAdmin(InstlInstanceBase):
                     if os.path.isfile(right_item_path_without_aa):
                         left_checksum = utils.get_wtar_total_checksum(left_item_path)
                         right_checksum = utils.get_wtar_total_checksum(right_item_path_without_aa)
-                    if left_checksum == right_checksum:
-                        copy_and_add_file = False
-                        do_not_remove_items.append(os.path.basename(right_item_path_without_aa))
+                        if left_checksum == right_checksum:
+                            copy_and_add_file = False
+                            do_not_remove_items.append(os.path.basename(right_item_path_without_aa))
 
                 if copy_and_add_file:
                     self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(left_item_path, comparator.right, link_dest=False, ignore=".svn")
@@ -1123,8 +1124,9 @@ class InstlAdmin(InstlInstanceBase):
                                     "--in", svn_folder,
                                     "--out", info_map_file_sizes_path]
         accum += " ".join(file_sizes_command_parts)
-        accum += self.platform_helper.progress("Get file-sizes from disk to"+os.path.join(results_folder, "info_map.file-sizes"))
+        accum += self.platform_helper.progress("Get file-sizes from disk to "+os.path.join(results_folder, "info_map.file-sizes"))
 
+        accum += self.platform_helper.progress("Create {} ...".format(info_map_file_results_path))
         trans_command_parts = [self.platform_helper.run_instl(), "trans",
                                    "--in", info_map_info_path,
                                    "--props ", info_map_props_path,
@@ -1132,7 +1134,14 @@ class InstlAdmin(InstlInstanceBase):
                                    "--base-repo-rev", "$(BASE_REPO_REV)",
                                    "--out ", info_map_file_results_path]
         accum += " ".join(trans_command_parts)
-        accum += self.platform_helper.progress("Created"+info_map_file_results_path)
+        accum += self.platform_helper.progress("Create {} done".format(info_map_file_results_path))
+
+        # split info_map.txt according to info_map fields in index.yaml
+        accum += self.platform_helper.progress("Split {} ...".format(info_map_file_results_path))
+        split_info_map_command_parts = [self.platform_helper.run_instl(), "filter-infomap",
+                                        "--in", results_folder]
+        accum += " ".join(split_info_map_command_parts)
+        accum += self.platform_helper.progress("Split {} done".format(info_map_file_results_path))
 
         accum += self.platform_helper.popd()
 
@@ -1148,3 +1157,20 @@ class InstlAdmin(InstlInstanceBase):
         self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
+
+    def do_filter_infomap(self):
+        instl_folder = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        info_map_from_file_path = os.path.join(instl_folder, "info_map.txt")
+        index_yaml_path = os.path.join(instl_folder, "index.yaml")
+        self.info_map_table.read_from_file(info_map_from_file_path, a_format="text")
+        self.read_yaml_file(index_yaml_path)
+        self.info_map_table.set_infomap_file_names()
+        infomap_file_names = self.info_map_table.get_infomap_file_names()
+        if len(infomap_file_names) == 1 and infomap_file_names[0] == "info_map.txt":
+            print("skip splitting of {} since only one default split is specified in index.yaml".format(info_map_from_file_path))
+            return
+        for infomap_file_name in infomap_file_names:
+            specific_infomap_file_items_list = self.info_map_table.get_items_by_infomap(infomap_file_name)
+            infomap_file_name_path = os.path.join(instl_folder, infomap_file_name)
+            self.info_map_table.write_to_file(in_file=infomap_file_name_path, items_list=specific_infomap_file_items_list, field_to_write=self.fields_relevant_to_info_map)
+            print("Created", infomap_file_name_path)

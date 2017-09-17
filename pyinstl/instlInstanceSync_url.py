@@ -5,10 +5,12 @@ import os
 import pathlib
 from collections import defaultdict
 import shutil
+import urllib
 
 import utils
 from .instlInstanceSyncBase import InstlInstanceSync
 from configVar import var_stack
+from . import connectionBase
 
 
 class InstlInstanceSync_url(InstlInstanceSync):
@@ -31,8 +33,29 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Create folders done")
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
+    def get_cookie_for_sync_urls(self, sync_base_url):
+        """ get the cookie for sync_base_url and set config var
+            COOKIE_FOR_SYNC_URLS to the text of the cookie
+        """
+        net_loc = urllib.parse.urlparse(sync_base_url).netloc
+        the_cookie = connectionBase.connection_factory().get_cookie(net_loc)
+        if the_cookie:
+            # the_cookie is actually a tuple ('Cookie', cookie_text)
+            # we only need the second part
+            var_stack.set_var("COOKIE_FOR_SYNC_URLS").append(the_cookie[1])
+
     def create_sync_urls(self, in_file_list):
+        """ Create urls and local download paths for a list of file items.
+            in_file_list is a list of SVNRow objects
+            A url for a file can come from two sources:
+            - If the file item has a predefined url it will be used, otherwise
+            - the url is a concatenation of the base url, the file's repo-rev
+            and the partial path. E.g.:
+            "http://some.base.url/" + "727/" + "path/to/file"
+            The download path is the resolved file item's download_path
+        """
         self.sync_base_url = var_stack.ResolveVarToStr("SYNC_BASE_URL")
+        self.get_cookie_for_sync_urls(self.sync_base_url)
         for file_item in in_file_list:
             source_url = file_item.url
             if source_url is None:
@@ -41,6 +64,14 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.instlObj.platform_helper.dl_tool.add_download_url(source_url, resolved_download_path, verbatim=source_url==file_item.url)
 
     def create_curl_download_instructions(self):
+        """ Download is done be creating files with instructions for curl - curl config files.
+            Another file is created containing invocations of curl with each of the config files
+            - the parallel run file.
+            curl_config_folder: the folder where curl config files and parallel run file will be placed.
+            num_config_files: the maximum number of curl config files.
+            actual_num_config_files: actual number of curl config files created. Might be smaller
+            than num_config_files, or might be 0 if downloading is not required.
+        """
         curl_config_folder = var_stack.ResolveStrToStr("$(LOCAL_REPO_BOOKKEEPING_DIR)/curl")
         os.makedirs(curl_config_folder, exist_ok=True)
         curl_config_file_path = var_stack.ResolveStrToStr(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"))
@@ -49,9 +80,11 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         actual_num_config_files = len(config_file_list)
         if actual_num_config_files > 0:
-            dl_start_message = "Downloading with {actual_num_config_files} process{dl_start_message_plural}"
-            dl_start_message_plural = "es in parallel" if actual_num_config_files > 1 else ""
-            self.instlObj.batch_accum += self.instlObj.platform_helper.progress(dl_start_message.format(**locals()))
+            if actual_num_config_files > 1:
+                dl_start_message = "Downloading with {} processes in parallel".format(actual_num_config_files)
+            else:
+                dl_start_message = "Downloading with 1 process"
+            self.instlObj.batch_accum += self.instlObj.platform_helper.progress(dl_start_message)
 
             parallel_run_config_file_path = var_stack.ResolveStrToStr(
                 os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME).parallel-run"))
@@ -59,10 +92,11 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 parallel_run_config_file_path, config_file_list)
 
             num_files_to_download = int(var_stack.ResolveVarToStr("__NUM_FILES_TO_DOWNLOAD__"))
-            dl_end_message = "Downloading {num_files_to_download} file{dl_end_message_plural} done"
-            dl_end_message_plural = "s" if num_files_to_download > 1 else ""
-            self.instlObj.batch_accum += self.instlObj.platform_helper.progress(
-                dl_end_message.format(**locals()), self.files_to_download)
+            if num_files_to_download > 1:
+                dl_end_message = "Downloading {} files done".format(num_files_to_download)
+            else:
+                dl_end_message = "Downloading 1 file done"
+            self.instlObj.batch_accum += self.instlObj.platform_helper.progress(dl_end_message, self.files_to_download)
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
     def create_check_checksum_instructions(self, in_file_list):
@@ -118,7 +152,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
         for m_p in sorted(mount_points_to_size):
             free_bytes = shutil.disk_usage(m_p).free
             print(mount_points_to_size[m_p], "bytes to sync to drive", "".join(("'", m_p, "'")), free_bytes-mount_points_to_size[m_p], "bytes will remain")
-
 
         self.create_sync_folders()
 

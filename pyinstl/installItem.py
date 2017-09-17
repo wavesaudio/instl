@@ -107,7 +107,7 @@ class InstallItem(object):
     os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
     allowed_item_keys = ('name', 'guid','install_sources', 'install_folders', 'inherit',
                          'depends', 'actions', 'remark', 'version', 'phantom_version',
-                         'direct_sync', 'previous_sources')
+                         'direct_sync', 'previous_sources', 'info_map')
     allowed_top_level_keys = os_names[1:] + allowed_item_keys
     action_types = ('pre_copy', 'pre_copy_to_folder', 'pre_copy_item',
                     'post_copy_item', 'post_copy_to_folder', 'post_copy',

@@ -71,6 +71,7 @@ def prepare_args_parser(in_command):
         'exec':                 {'mode': 'ds', 'options': ('in', 'out', 'conf_opt'), 'help':  'Execute a python scrip'},
         'fail':                 {'mode': 'ds', 'options': (), 'help': "fail and return exit code"},
         'file-sizes':           {'mode': 'an', 'options': ('in', 'out'), 'help':  'Create a list of files and their sizes'},
+        'filter-infomap':        {'mode': 'an', 'options': ('in',), 'help':  'filter infomap.txt to sub files according to index.yaml'},
         'fix-perm':             {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'Fix Mac OS permissions'},
         'fix-props':            {'mode': 'an', 'options': ('out', 'run', 'conf'), 'help':  'create svn commands to remove redundant properties such as executable bit from files that should not be marked executable'},
         'fix-symlinks':         {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'replace symlinks with .symlinks files'},
