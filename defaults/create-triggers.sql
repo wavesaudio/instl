@@ -125,15 +125,3 @@ BEGIN
                     WHERE IndexItemDetailOperatingSystem._id=NEW.os_id)
      WHERE IndexItemDetailRow._id = NEW._id;
 END;
-
--- when adding new install_source calculate the adjusted source relative to sync folder
--- If install_source starts with '/' - just remove the '/'
--- If install_source starts with $ leave as is since it's variable dependant
--- Otherwise add $(SOURCE_PREFIX)/ - which will later be resolved to Mac/Win
-CREATE TRIGGER IF NOT EXISTS set_adjusted_source
-AFTER INSERT ON IndexItemDetailRow
-WHEN NEW.detail_name="install_sources"
-BEGIN
-     INSERT INTO AdjustedSources (detail_row_id, adjusted_source)
-     VALUES(NEW._id, NEW.detail_value);
-END;

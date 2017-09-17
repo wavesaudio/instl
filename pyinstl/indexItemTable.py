@@ -841,27 +841,26 @@ class IndexItemsTable(object):
     def source_folders_to_items_without_target_folders(self):
         retVal = list()
         query_text = """
-            SELECT
-              AdjustedSources.adjusted_source AS adjusted_source,
-              IndexItemDetailRow.owner_iid AS iid,
-              IndexItemDetailRow.tag AS tag
-            FROM IndexItemDetailRow, IndexItemRow, AdjustedSources
-            WHERE IndexItemDetailRow.owner_iid NOT IN (
-                SELECT DISTINCT IndexItemDetailRow.owner_iid
-                FROM IndexItemDetailRow, IndexItemRow
-                WHERE IndexItemDetailRow.detail_name = "install_folders"
-                      AND IndexItemRow.iid = IndexItemDetailRow.owner_iid
+           SELECT
+              install_sources_t.detail_value source,
+              install_sources_t.owner_iid AS iid,
+              install_sources_t.tag AS tag
+            FROM IndexItemDetailRow AS install_sources_t, IndexItemRow
+            WHERE install_sources_t.owner_iid NOT IN (
+                SELECT DISTINCT install_folders_t.owner_iid
+                FROM IndexItemDetailRow AS install_folders_t, IndexItemRow
+                WHERE install_folders_t.detail_name = "install_folders"
+                      AND IndexItemRow.iid = install_folders_t.owner_iid
                       AND IndexItemRow.install_status > 0
                       AND IndexItemRow.ignore = 0
-                      AND IndexItemDetailRow.active = 1
-                ORDER BY IndexItemDetailRow.owner_iid
+                      AND install_folders_t.active = 1
+                ORDER BY install_folders_t.owner_iid
             )
-            AND IndexItemDetailRow.detail_name="install_sources"
-                AND IndexItemRow.iid = IndexItemDetailRow.owner_iid
+            AND install_sources_t.detail_name="install_sources"
+                AND IndexItemRow.iid = install_sources_t.owner_iid
                 AND IndexItemRow.install_status != 0
                 AND IndexItemRow.ignore = 0
-                AND IndexItemDetailRow.active = 1
-                AND AdjustedSources.detail_row_id = IndexItemDetailRow._id
+                AND install_sources_t.active = 1
             """
         try:
             exec_result = self.session.execute(query_text)
@@ -1110,15 +1109,12 @@ class IndexItemsTable(object):
              SELECT install_sources_t.owner_iid AS iid,
                     direct_sync_t.detail_value AS direct_sync_indicator,
                     install_sources_t.detail_value AS source,
-                    adjusted_sources_t.adjusted_source AS adjusted_source,
                     install_sources_t.tag AS tag,
                     install_folders_t.detail_value AS install_folder
             FROM IndexItemDetailRow AS install_sources_t
                 JOIN IndexItemRow AS iid_t
                     ON iid_t.iid=install_sources_t.owner_iid
                     AND iid_t.install_status > 0
-                JOIN AdjustedSources AS adjusted_sources_t
-                  ON install_sources_t._id = adjusted_sources_t.detail_row_id
                 LEFT JOIN IndexItemDetailRow AS install_folders_t
                     ON install_folders_t.active=1
                     AND install_sources_t.owner_iid = install_folders_t.owner_iid
@@ -1143,24 +1139,23 @@ class IndexItemsTable(object):
     def get_adjusted_sources_for_iid(self, the_iid):
         retVal = list()
         query_text = """
-        SELECT
-            --iid_t.iid AS iid,
-            adjusted_sources_t.adjusted_source AS install_sources,
+         SELECT
+            install_sources_t.detail_value AS install_sources,
             install_sources_t.tag as tag
-        FROM IndexItemRow AS iid_t
-        JOIN IndexItemDetailRow as install_sources_t
-            ON iid_t.iid=install_sources_t.owner_iid
-            AND install_sources_t.detail_name='install_sources'
-            AND install_sources_t.active=1
-        JOIN AdjustedSources AS adjusted_sources_t
-            ON adjusted_sources_t.detail_row_id=install_sources_t._id
+        FROM IndexItemRow AS iid_t, IndexItemDetailRow as install_sources_t
         WHERE
+            iid_t.iid=install_sources_t.owner_iid
+                AND
+            install_sources_t.detail_name='install_sources'
+                AND
+            install_sources_t.active=1
+                AND
             iid_t.iid='{the_iid}'
-            AND
+                AND
             iid_t.install_status != 0
-            AND
+                AND
             iid_t.ignore=0
-        ORDER BY adjusted_sources_t.adjusted_source
+        ORDER BY install_sources_t.detail_value
         """.format(the_iid=the_iid)
         try:
             exec_result = self.session.execute(query_text)

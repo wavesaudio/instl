@@ -172,20 +172,6 @@ class ConfigVar(get_declarative_base()):
     resolved_value = Column(String)
 
 
-class AdjustedSources(get_declarative_base()):
-    """These are the path to the install source files that were adjusted to include
-        the appropriate prefix - relative to the top sync folder
-
-        source in index.xml                         adjusted source
-        Plugins/Electric88.bundle                   $(SOURCE_PREFIX)/Plugins/Electric88.bundle
-        /Common/Data/Instrument Data/Electric88     Common/Data/Instrument Data/Electric88
-    """
-    __tablename__ = "AdjustedSources"
-    _id = Column(Integer, primary_key=True, autoincrement=True)
-    detail_row_id        = Column(Integer, ForeignKey("IndexItemDetailRow._id"))
-    adjusted_source = Column(String)
-
-
 IndexItemDetailOperatingSystem.__table__.create(bind=get_engine(), checkfirst=True)
 IndexItemRow.__table__.create(bind=get_engine(), checkfirst=True)
 IndexItemDetailRow.__table__.create(bind=get_engine(), checkfirst=True)
@@ -193,4 +179,3 @@ IndexGuidToItemTranslate.__table__.create(bind=get_engine(), checkfirst=True)
 IndexRequireTranslate.__table__.create(bind=get_engine(), checkfirst=True)
 FoundOnDiskItemRow.__table__.create(bind=get_engine(), checkfirst=True)
 ConfigVar.__table__.create(bind=get_engine(), checkfirst=True)
-AdjustedSources.__table__.create(bind=get_engine(), checkfirst=True)
