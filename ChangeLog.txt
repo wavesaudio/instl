@@ -17,7 +17,9 @@
     * changed some import order so instl will run properly when compiled
     * parallel_run start subprocesses with bufsize=0, maybe this will improve log messages output rate
     * intl.spec: add *.sql to defaults folder
-
+    * replaced .format(...) with :arguments for many sqlite queries
+    * utils.read_file_or_url default timeout is now 18.05sec for connection, 120.05dec for the whole download
+        
 10/9/2017 1.6.0.0
 
     user visible changes:

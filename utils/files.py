@@ -107,7 +107,7 @@ def read_file_or_url(in_file_or_url, path_searcher=None, encoding='utf-8', save_
         buffer = fd.read()
     else:
         session = pyinstl.connectionBase.connection_factory().get_session(in_file_or_url)
-        response = session.get(in_file_or_url, timeout=(18.05, 300))
+        response = session.get(in_file_or_url, timeout=(18.05, 120.05))
         response.raise_for_status()
         buffer = response.text
     buffer = utils.unicodify(buffer) # make sure text is unicode

@@ -438,13 +438,13 @@ class IndexItemsTable(object):
         query_text = """
             SELECT detail_value
             FROM IndexItemDetailRow
-            WHERE owner_iid = '{iid}'
-            AND detail_name = '{detail_name}'
+            WHERE owner_iid = :iid
+            AND detail_name = :detail_name
             AND active = 1
             ORDER BY _id
-        """.format(**locals())
+        """
         try:
-            exec_result = self.session.execute(query_text)
+            exec_result = self.session.execute(query_text, {'iid': iid, 'detail_name': detail_name})
             if exec_result.returns_rows:
                 fetched_results = exec_result.fetchall()
                 retVal = [mm[0] for mm in fetched_results]
@@ -635,22 +635,14 @@ class IndexItemsTable(object):
 
         return retVal
 
-    select_details_for_IID_with_full_details_view = \
-    "SELECT iid, detail_name, detail_value FROM full_details_view \
-    WHERE detail_name = :d_n AND iid = :iid"
-
-    # !
-    select_details_for_IID = \
-    "SELECT IndexItemRow.iid, IndexItemDetailRow.detail_name, IndexItemDetailRow.detail_value, IndexItemToDetailRelation.generation FROM IndexItemRow \
-     INNER JOIN IndexItemToDetailRelation ON IndexItemToDetailRelation.item_id = IndexItemRow._id \
-     INNER JOIN IndexItemDetailRow \
-       ON IndexItemToDetailRelation.detail_id = IndexItemDetailRow._id \
-         AND   IndexItemDetailRow.detail_name = :d_n \
-     WHERE IndexItemRow.iid = :iid"
-
     # @utils.timing
     def get_resolved_details_for_iid(self, iid, detail_name):
-        retVal = self.session.execute(IndexItemsTable.select_details_for_IID_with_full_details_view, {'d_n': detail_name, 'iid': iid}).fetchall()
+        query_text = """SELECT iid, detail_name, detail_value
+           FROM full_details_view
+            WHERE detail_name = :d_n AND iid = :iid
+        """
+
+        retVal = self.session.execute(query_text, {'d_n': detail_name, 'iid': iid}).fetchall()
         return retVal
 
     def iids_from_guids(self, guid_list):
@@ -778,12 +770,12 @@ class IndexItemsTable(object):
         query_text = """
             SELECT iid
             FROM IndexItemRow
-            WHERE install_status >= {min_status}
-            AND install_status <= {max_status}
+            WHERE install_status >= :min_status
+            AND install_status <= :max_status
             AND ignore = 0
-        """.format(**locals())
+        """
         try:
-            exec_result = self.session.execute(query_text)
+            exec_result = self.session.execute(query_text, {'min_status': min_status, 'max_status': max_status})
             if exec_result.returns_rows:
                 fetched_results = exec_result.fetchall()
                 retVal = [mm[0] for mm in fetched_results]
@@ -908,14 +900,14 @@ class IndexItemsTable(object):
                     ON  IndexItemRow.iid=IndexItemDetailRow.owner_iid
                     AND IndexItemRow.install_status!=0
                     AND IndexItemRow.ignore = 0
-            WHERE IndexItemDetailRow.detail_name="{detail_name}"
+            WHERE IndexItemDetailRow.detail_name=:detail_name
                 AND IndexItemDetailRow.active = 1
             {limit_to_iids_filter}
             {group_by_values_filter}
             ORDER BY IndexItemDetailRow._id
             """.format(**locals())
         try:
-            exec_result = self.session.execute(query_text)
+            exec_result = self.session.execute(query_text, {'detail_name': detail_name})
             if exec_result.returns_rows:
                 retVal.extend(exec_result.fetchall())
         except SQLAlchemyError as ex:
@@ -930,18 +922,18 @@ class IndexItemsTable(object):
             limit_to_iids_filter = " ".join(('AND IndexItemDetailRow.owner_iid IN (', ",".join(quoted_limit_to_iids), ')'))
 
         query_text = """
-            SELECT {0} IndexItemDetailRow.detail_value
+            SELECT {distinct} IndexItemDetailRow.detail_value
             FROM IndexItemDetailRow
                 JOIN IndexItemRow
                     ON  IndexItemRow.iid=IndexItemDetailRow.owner_iid
                     AND IndexItemRow.install_status!=0
                     AND IndexItemRow.ignore = 0
-            WHERE IndexItemDetailRow.detail_name="{1}"
+            WHERE IndexItemDetailRow.detail_name=:detail_name
                 AND IndexItemDetailRow.active = 1
-                {2}
+                {limit_to_iids_filter}
             ORDER BY IndexItemDetailRow._id
-            """.format(distinct, detail_name, limit_to_iids_filter)
-        fetched_results = self.session.execute(query_text).fetchall()
+            """.format(**locals())
+        fetched_results = self.session.execute(query_text, {'detail_name': detail_name}).fetchall()
         retVal = [mm[0] for mm in fetched_results]
         return retVal
 
@@ -955,19 +947,19 @@ class IndexItemsTable(object):
             limit_to_iids_filter += '")'
 
         query_text = """
-            SELECT {0} IndexItemDetailRow.detail_value, IndexItemDetailRow.tag
+            SELECT {distinct} IndexItemDetailRow.detail_value, IndexItemDetailRow.tag
             FROM IndexItemDetailRow
                 JOIN IndexItemRow
                     ON  IndexItemRow.iid=IndexItemDetailRow.owner_iid
                     AND IndexItemRow.install_status!=0
                     AND IndexItemRow.ignore = 0
-            WHERE IndexItemDetailRow.detail_name="{1}"
+            WHERE IndexItemDetailRow.detail_name=:detail_name
                 AND IndexItemDetailRow.active = 1
-                {2}
+                {limit_to_iids_filter}
             ORDER BY IndexItemDetailRow._id
-            """.format(distinct, detail_name, limit_to_iids_filter)
+            """.format(**locals())
         try:
-            exec_result = self.session.execute(query_text)
+            exec_result = self.session.execute(query_text, {'detail_name': detail_name})
             if exec_result.returns_rows:
                 fetched_results= exec_result.fetchall()
                 retVal = [(mm[0], mm[1]) for mm in fetched_results]
@@ -1136,7 +1128,7 @@ class IndexItemsTable(object):
             raise
         return retVal
 
-    def get_adjusted_sources_for_iid(self, the_iid):
+    def get_sources_for_iid(self, the_iid):
         retVal = list()
         query_text = """
          SELECT
@@ -1150,17 +1142,17 @@ class IndexItemsTable(object):
                 AND
             install_sources_t.active=1
                 AND
-            iid_t.iid='{the_iid}'
+            iid_t.iid=:the_iid
                 AND
             iid_t.install_status != 0
                 AND
             iid_t.ignore=0
         ORDER BY install_sources_t.detail_value
-        """.format(the_iid=the_iid)
+        """
         try:
-            exec_result = self.session.execute(query_text)
+            exec_result = self.session.execute(query_text, {'the_iid': the_iid})
             if exec_result.returns_rows:
-                # returns [(adjusted_source, source_tag),...]
+                # returns [(source, source_tag),...]
                 retVal.extend(exec_result.fetchall())
         except SQLAlchemyError as ex:
             raise
