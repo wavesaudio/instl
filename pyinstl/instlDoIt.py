@@ -10,7 +10,7 @@ from .indexItemTable import IndexItemsTable
 class InstlDoIt(InstlInstanceBase):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
-        self.items_table = IndexItemsTable()
+        self.init_items_table()
         var_stack.add_const_config_variable("__DATABASE_URL__", "", self.items_table.get_db_url())
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         self.full_doit_order = utils.unique_list()
@@ -62,9 +62,9 @@ class InstlDoIt(InstlInstanceBase):
         self.batch_accum += self.platform_helper.echo("Done $(CURRENT_DOIT_DESCRIPTION)")
 
     def doit_for_iid(self, IID, action):
-        action_list = self.items_table.get_resolved_details_value(IID, action)
+        action_list = self.items_table.get_resolved_details_value_for_active_iid(IID, action)
         try:
-            name = self.items_table.get_resolved_details_value(IID, "name")[0]
+            name = self.items_table.get_resolved_details_value_for_active_iid(IID, "name")[0]
         except:
             name = IID
 
@@ -102,7 +102,7 @@ class InstlDoIt(InstlInstanceBase):
         var_stack.set_var("__FULL_LIST_OF_DOIT_TARGETS__").extend(self.full_doit_order)
 
     def resolve_dependencies_for_iid(self, iid):
-        depends_for_iid = self.items_table.get_resolved_details_value(iid, "depends")
+        depends_for_iid = self.items_table.get_resolved_details_value_for_active_iid(iid, "depends")
         for d_iid in depends_for_iid:
             self.resolve_dependencies_for_iid(d_iid)
         self.full_doit_order.append(iid)

@@ -25,7 +25,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
-        self.items_table = IndexItemsTable()
+        self.init_items_table()
         var_stack.add_const_config_variable("__DATABASE_URL__", "", self.items_table.get_db_url())
         self.info_map_table = SVNTable()
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
@@ -904,7 +904,7 @@ class InstlAdmin(InstlInstanceBase):
         retVal = defaultdict(utils.unique_list)
         InstallItem.begin_get_for_all_oses()
         for iid in sorted(self.install_definitions_index):
-            with self.install_definitions_index[iid].push_var_stack_scope():
+            with self.install_definitions_index[iid].push_var_stack_scope():  # todo: replace push_var_stack_scope with db
                 for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
                     source_var_obj = var_stack.get_configVar_obj(source_var)
                     source, source_type, target_os = source_var_obj
@@ -967,7 +967,7 @@ class InstlAdmin(InstlInstanceBase):
         """
         iid_to_sources = self.sources_from_iids()
         for iid in sorted(iid_to_sources):
-            with self.install_definitions_index[iid].push_var_stack_scope():
+            with self.install_definitions_index[iid].push_var_stack_scope():  # todo: replace push_var_stack_scope with db
                 iid_problem_messages = list()
                 # check inherits
                 for inheritee in var_stack.ResolveVarToList("iid_inherit", default=[]):

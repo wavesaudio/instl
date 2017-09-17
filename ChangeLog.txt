@@ -8,6 +8,7 @@
     * SVNTable.read_from_file will not clear the database by calling clear_all() this will allow to read additional info_maps in InstlInstanceSync.read_remote_info_map
     * new function utils.read_file_or_url will gradually replace class open_for_read_file_or_url - opens urls using requests modules, for better compatibility with CloudFront
     * creation of sql views & triggers from a text file
+    * all tables views and triggers now created with 'IF NOT EXISTS' so that in interactive mode we can init both client and admin classes
     * better config var definitions for admin
     * full info_map.txt is not called full_info_map.txt
     * new func IndexItemsTable.get_unique_detail_values
@@ -19,10 +20,19 @@
     * intl.spec: add *.sql to defaults folder
     * replaced .format(...) with :arguments for many sqlite queries
     * utils.read_file_or_url default timeout is now 18.05sec for connection, 120.05dec for the whole download
-
     * get_info_from_plugin get the path,LicenseGUID,PluginExternalVersion,WaveShellsBaseName,DynamicPluginLibName plugin info as a dictionary
     * check_version_compatibility moved to be a free function instead of InstlInstanceBase member
-
+    * db IndexItemDetailRow.active and .active renamed os_is_active to avoid confusion as to what active means
+    * renewed interactive mode that was neglected where some features did not work, mainly do_depend
+    * removed some more usage of push_var_stack_scope in effort to some day get rid of it and use only db
+    * InstlInstanceBase.init_items_table will make sure only one instance of items_table exists
+    * check_version_compatibility() moved out of InstlInstanceBase to be a free function
+    * InstlClient.accumulate_unique_actions was no longer used and removed
+    * IndexItemTable.get_resolved_details_value renamed get_resolved_details_value_for_active_iid
+    * IndexItemTable.get_resolved_details renamed get_resolved_details_for_active_iid
+    * new method IndexItemTable.get_active_oses mainly for debugging
+    * new method IndexItemTable.get_resolved_details_value_for_iid
+    * IndexItemsTable.__init__ will commit changes after initializing the db
 10/9/2017 1.6.0.0
 
     user visible changes:

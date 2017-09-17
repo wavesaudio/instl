@@ -69,7 +69,7 @@ BEGIN
   SELECT original_iid, owner_iid, os_id, 'require_version', detail_value, min(generation)
   FROM IndexItemDetailRow
   WHERE owner_iid  = NEW.iid
-  AND active = 1
+  AND os_is_active = 1
   AND detail_name='version'
   GROUP BY owner_iid;
 
@@ -78,7 +78,7 @@ BEGIN
   SELECT original_iid, owner_iid, os_id, 'require_guid', detail_value, min(generation)
   FROM IndexItemDetailRow
   WHERE IndexItemDetailRow.owner_iid = NEW.iid
-  AND active = 1
+  AND os_is_active = 1
   AND detail_name='guid'
   GROUP BY owner_iid;
 
@@ -87,7 +87,7 @@ BEGIN
   SELECT original_iid, detail_value, os_id, 'require_by', NEW.iid, generation
   FROM IndexItemDetailRow
   WHERE IndexItemDetailRow.owner_iid = NEW.iid
-  AND active = 1
+  AND os_is_active = 1
   AND detail_name='depends';
 END;
 
@@ -108,19 +108,19 @@ END;
 
 -- when an os becomes active/de-active set all details accordingly
 CREATE TRIGGER IF NOT EXISTS adjust_active_os_for_details
-AFTER UPDATE OF active ON IndexItemDetailOperatingSystem
+AFTER UPDATE OF os_is_active ON IndexItemDetailOperatingSystem
 BEGIN
     UPDATE IndexItemDetailRow
-    SET    active =  NEW.active
+    SET    os_is_active =  NEW.os_is_active
     WHERE  IndexItemDetailRow.os_id = NEW._id;
 END;
 
 -- when adding new detail set it's active state according to os
-CREATE TRIGGER set_active_os_for_details
+CREATE TRIGGER IF NOT EXISTS set_active_os_for_details
 AFTER INSERT ON IndexItemDetailRow
 BEGIN
      UPDATE IndexItemDetailRow
-     SET active = (SELECT IndexItemDetailOperatingSystem.active
+     SET os_is_active = (SELECT IndexItemDetailOperatingSystem.os_is_active
                     FROM IndexItemDetailOperatingSystem
                     WHERE IndexItemDetailOperatingSystem._id=NEW.os_id)
      WHERE IndexItemDetailRow._id = NEW._id;

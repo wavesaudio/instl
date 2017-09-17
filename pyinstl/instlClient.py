@@ -28,7 +28,7 @@ class InstlClient(InstlInstanceBase):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
         self.info_map_table = SVNTable()
-        self.items_table = IndexItemsTable()
+        self.init_items_table()
         var_stack.add_const_config_variable("__DATABASE_URL__", "", self.items_table.get_db_url())
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         self.action_type_to_progress_message = None
@@ -296,18 +296,18 @@ class InstlClient(InstlInstanceBase):
             iids_set -= special_build_in_iids
             # repair also does update so it takes precedent over update
             if "__REPAIR_INSTALLED_ITEMS__" in found_special_build_in_iids:
-                more_iids = self.items_table.get_resolved_details_value(iid="__REPAIR_INSTALLED_ITEMS__", detail_name='depends')
+                more_iids = self.items_table.get_resolved_details_value_for_active_iid(iid="__REPAIR_INSTALLED_ITEMS__", detail_name='depends')
                 iids_set.update(more_iids)
             elif "__UPDATE_INSTALLED_ITEMS__" in found_special_build_in_iids:
-                more_iids = self.items_table.get_resolved_details_value(iid="__UPDATE_INSTALLED_ITEMS__", detail_name='depends')
+                more_iids = self.items_table.get_resolved_details_value_for_active_iid(iid="__UPDATE_INSTALLED_ITEMS__", detail_name='depends')
                 update_iids_set = set(more_iids)-iids_set
 
             if "__ALL_GUIDS_IID__" in found_special_build_in_iids:
-                more_iids = self.items_table.get_resolved_details_value(iid="__ALL_GUIDS_IID__", detail_name='depends')
+                more_iids = self.items_table.get_resolved_details_value_for_active_iid(iid="__ALL_GUIDS_IID__", detail_name='depends')
                 iids_set.update(more_iids)
 
             if "__ALL_ITEMS_IID__" in found_special_build_in_iids:
-                more_iids = self.items_table.get_resolved_details_value(iid="__ALL_ITEMS_IID__", detail_name='depends')
+                more_iids = self.items_table.get_resolved_details_value_for_active_iid(iid="__ALL_ITEMS_IID__", detail_name='depends')
                 iids_set.update(more_iids)
         return list(iids_set), list(update_iids_set)
 
@@ -315,27 +315,6 @@ class InstlClient(InstlInstanceBase):
         require_file_path = var_stack.ResolveVarToStr("SITE_REQUIRE_FILE_PATH")
         if os.path.isfile(require_file_path):
             self.read_yaml_file(require_file_path)
-
-    def accumulate_unique_actions(self, action_type, iid_list):
-        """ accumulate action_type actions from iid_list, eliminating duplicates"""
-        unique_actions = utils.unique_list()  # unique_list will eliminate identical actions while keeping the order
-        for IID in sorted(iid_list):
-            with self.install_definitions_index[IID].push_var_stack_scope() as installi:
-                action_var_name = "iid_action_list_" + action_type
-                item_actions = var_stack.ResolveVarToList(action_var_name, default=[])
-                num_unique_actions = 0
-                for an_action in item_actions:
-                    len_before = len(unique_actions)
-                    unique_actions.append(an_action)
-                    len_after = len(unique_actions)
-                    if len_before < len_after:  # add progress only for the first same action
-                        num_unique_actions += 1
-                        action_description = self.action_type_to_progress_message[action_type]
-                        if num_unique_actions > 1:
-                            action_description = " ".join((action_description, str(num_unique_actions)))
-                        unique_actions.append(
-                            self.platform_helper.progress("{installi.name} {action_description}".format(**locals())))
-        self.batch_accum += unique_actions
 
     def accumulate_unique_actions_for_active_iids(self, action_type, limit_to_iids=None):
         """ accumulate action_type actions from iid_list, eliminating duplicates"""

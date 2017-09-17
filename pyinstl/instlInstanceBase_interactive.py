@@ -11,7 +11,7 @@ import re
 import appdirs
 
 import utils
-from .installItem import guid_list, iids_from_guids
+from .installItem import guid_list, iids_from_guids, InstallItem
 from configVar import var_stack
 
 
@@ -375,6 +375,7 @@ class CMDObj(cmd.Cmd, object):
 
     def do_read(self, params):
         if params:
+            self.client_prog_inst.items_table.begin_get_for_all_oses()
             for a_file in shlex.split(params):
                 try:
                     self.client_prog_inst.read_yaml_file(a_file)
@@ -382,6 +383,8 @@ class CMDObj(cmd.Cmd, object):
                 except Exception as ex:
                     print("read", a_file, ex)
             self.client_prog_inst.resolve_index_inheritance()
+            self.client_prog_inst.items_table.resolve_inheritance()
+            self.client_prog_inst.items_table.reset_get_for_all_oses()
         else:
             self.help_read()
         return False
@@ -500,6 +503,8 @@ class CMDObj(cmd.Cmd, object):
 
     def do_depend(self, params):
         if params:
+            self.client_prog_inst.items_table.begin_get_for_all_oses()
+            InstallItem.begin_get_for_all_oses()
             for param in shlex.split(params):
                 if param not in self.client_prog_inst.install_definitions_index:
                     print(text_with_color(param, 'green'), "not in index")
@@ -514,7 +519,7 @@ class CMDObj(cmd.Cmd, object):
                         depend_text_list.append(text_with_color(depend, 'red'))
                     else:
                         depend_text_list.append(text_with_color(depend, 'yellow'))
-                print(text_with_color(param, 'green'), "needs:\n    ", ", ".join(depend_text_list))
+                print(text_with_color(param, 'green'), "needs:\n    ", ", ".join(sorted(depend_text_list)))
                 needed_by_list = self.client_prog_inst.needed_by(param)
                 if needed_by_list is None:
                     print("could not get needed by list for", text_with_color(param, 'green'))
@@ -522,7 +527,9 @@ class CMDObj(cmd.Cmd, object):
                     if not needed_by_list:
                         needed_by_list = ("no one",)
                     needed_by_list = [text_with_color(needed_by, 'yellow') for needed_by in needed_by_list]
-                    print(text_with_color(param, 'green'), "needed by:\n    ", ", ".join(needed_by_list))
+                    print(text_with_color(param, 'green'), "needed by:\n    ", ", ".join(sorted(needed_by_list)))
+        InstallItem.reset_get_for_all_oses()
+        self.client_prog_inst.items_table.reset_get_for_all_oses()
         return False
 
     def complete_depend(self, text, line, begidx, endidx):

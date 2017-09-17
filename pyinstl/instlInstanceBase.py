@@ -22,6 +22,7 @@ from configVar import ConfigVarYamlReader
 
 from .installItem import InstallItem
 from . import connectionBase
+from .indexItemTable import IndexItemsTable
 
 
 def check_version_compatibility():
@@ -40,10 +41,10 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         must be inherited by platform specific implementations, such as InstlInstance_mac
         or InstlInstance_win.
     """
+    items_table = None
 
     def __init__(self, initial_vars=None):
         self.info_map_table = None  # initialized in InstlClient InstlAdmin and InstlMisc
-        self.items_table = None  # initialized in InstlClient and InstlDoIt
 
         ConfigVarYamlReader.__init__(self)
 
@@ -68,6 +69,14 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.out_file_realpath = None
         self.iid_to_name_and_version = dict()
         self.internal_progress = 0  # progress of preparing installer NOT of the installation
+
+    def init_items_table(self):
+        """ sometime two instances of InstlInstanceBase exist side by side
+            e.g. during interactive mode InstlClient & InstlAdmin
+            this function makes sure only one instance of items_table exists
+        """
+        if InstlInstanceBase.items_table is None:
+            InstlInstanceBase.items_table = IndexItemsTable()
 
     def progress(self, message):
         self.internal_progress += 1
@@ -508,25 +517,21 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         """ return iids of all items that a specific iid depends on"""
         if iid not in self.install_definitions_index:
             raise KeyError(iid + " is not in index")
-        InstallItem.begin_get_for_all_oses()
-        with self.install_definitions_index[iid].push_var_stack_scope():
-            for dep in var_stack.ResolveVarToList("iid_depend_list"):
-                if dep in self.install_definitions_index:
-                    out_list.append(dep)
-                    self.needs(dep, out_list)
-                else:
-                    out_list.append(dep + "(missing)")
-        InstallItem.reset_get_for_all_oses()
+        depends_from_db = sorted(self.items_table.get_resolved_details_value_for_iid(iid, 'depends',unique_values=True))
+        for dep in depends_from_db:
+            if dep in self.install_definitions_index:
+                out_list.append(dep)
+                self.needs(dep, out_list)
+            else:
+                out_list.append(dep + "(missing)")
 
     def needed_by(self, iid):
         try:
             from . import installItemGraph
 
-            InstallItem.begin_get_for_all_oses()
             graph = installItemGraph.create_dependencies_graph(self.install_definitions_index)
             needed_by_list = installItemGraph.find_needed_by(graph, iid)
-            InstallItem.reset_get_for_all_oses()
-            return needed_by_list
+            return sorted(needed_by_list)
         except ImportError:  # no installItemGraph, no worry
             print("Could not load installItemGraph")
             return None

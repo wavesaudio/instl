@@ -360,7 +360,7 @@ class InstlClientCopy(InstlClient):
 
     def create_copy_instructions_for_no_copy_folder(self, sync_folder_name):
         """ Instructions for sources that do not need copying
-            These are sources that do not have 'install_folder' section OR those with active
+            These are sources that do not have 'install_folder' section OR those with os_is_active
             'direct_sync' section.
         """
         self.batch_accum.begin_transaction()
@@ -377,7 +377,7 @@ class InstlClientCopy(InstlClient):
 
         num_wtars = 0
         for IID in sorted(items_in_folder):
-            with self.install_definitions_index[IID].push_var_stack_scope():
+            with self.install_definitions_index[IID].push_var_stack_scope():  # todo: replace push_var_stack_scope with db
                 for source_var in sorted(var_stack.ResolveVarToList("iid_source_var_list", default=[])):
                     source = var_stack.ResolveVarToList(source_var)
                     num_wtars = self.info_map_table.count_wtar_items_of_dir(source[0])

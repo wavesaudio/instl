@@ -78,7 +78,7 @@ class InstallItemLists(object):
 
     def sort_install_items_by_target_folder(self, instlObj):
         for IID in self.full_install_items:
-            with instlObj.install_definitions_index[IID].push_var_stack_scope():
+            with instlObj.install_definitions_index[IID].push_var_stack_scope():  # todo: replace push_var_stack_scope with db
                 folder_list_for_idd = [folder for folder in var_stack["iid_folder_list"]]
                 if folder_list_for_idd:
                     for folder in folder_list_for_idd:

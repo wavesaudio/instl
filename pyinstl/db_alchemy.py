@@ -43,7 +43,7 @@ def get_engine():
             if unique_name_to_disk_db:
                 db_file_name = str(datetime.datetime.now().timestamp())+"."+db_file_name
             db_file = os.path.join(logs_dir, db_file_name)
-            # print("db_file:", db_file)
+            #print("db_file:", db_file)
             utils.safe_remove_file(db_file)
             engine_path += db_file
         __db_engine = create_engine(engine_path, echo=False)
@@ -69,10 +69,10 @@ class IndexItemDetailOperatingSystem(get_declarative_base()):
     __tablename__ = 'IndexItemDetailOperatingSystem'
     _id = Column(Integer, primary_key=True)
     name = Column(String, unique=True)
-    active = Column(BOOLEAN, default=False)
+    os_is_active = Column(BOOLEAN, default=False)
 
     def __str__(self):
-        retVal = "self._id) {self.name} active: {self.active}".format(**locals())
+        retVal = "self._id) {self.name} os_is_active: {self.os_is_active}".format(**locals())
         return retVal
 
 
@@ -109,7 +109,7 @@ class IndexItemDetailRow(get_declarative_base()):
     detail_value = Column(String)
     generation   = Column(Integer, default=0)
     tag          = Column(String)
-    active       = Column(Integer, default=0, index=True)
+    os_is_active       = Column(Integer, default=0, index=True)
     UniqueConstraint(original_iid, owner_iid, os_id, detail_name, detail_value, generation)
 
     def __str__(self):
@@ -118,7 +118,7 @@ class IndexItemDetailRow(get_declarative_base()):
                     "os: {self.os_id}, "
                     "gen: {self.generation}, "
                     "tag: {self.tag}, "
-                    "active: {self.active}, "
+                    "os_is_active: {self.os_is_active}, "
                     "{self.detail_name}: {self.detail_value}").format(**locals())
         return retVal
 

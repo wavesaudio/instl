@@ -12,7 +12,7 @@ except ImportError as IE:
 def create_dependencies_graph(item_map):
     retVal = nx.DiGraph()
     for item in item_map:
-        with item_map[item].push_var_stack_scope():
+        with item_map[item].push_var_stack_scope():  # todo: replace push_var_stack_scope with db
             for dependant in var_stack.ResolveVarToList("iid_depend_list"):
                 retVal.add_edge(var_stack.ResolveVarToStr("iid_iid"), dependant)
     return retVal
@@ -21,7 +21,7 @@ def create_dependencies_graph(item_map):
 def create_inheritItem_graph(item_map):
     retVal = nx.DiGraph()
     for item in item_map:
-        with item_map[item].push_var_stack_scope():
+        with item_map[item].push_var_stack_scope():  # todo: replace push_var_stack_scope with db
             for dependant in var_stack.ResolveVarToList("iid_inherit"):
                 retVal.add_edge(var_stack.ResolveVarToStr("iid_iid"), dependant)
     return retVal

@@ -79,7 +79,7 @@ if False:
 
         all_resolved_details = list()
         for iid in self.it.get_all_iids():
-            iid_resolved_details = self.it.get_resolved_details(iid)
+            iid_resolved_details = self.it.get_resolved_details_for_active_iid(iid)
             all_resolved_details.extend(iid_resolved_details)
 
     def test_write(self):

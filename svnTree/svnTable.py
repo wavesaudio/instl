@@ -862,7 +862,7 @@ class SVNTable(object):
             JOIN IndexItemDetailRow as install_sources_t
                 ON install_sources_t.owner_iid=active_items_t.iid
                 AND install_sources_t.detail_name='install_sources'
-                AND install_sources_t.active = 1
+                AND install_sources_t.os_is_active = 1
             WHERE fileFlag=1
             AND
                 (

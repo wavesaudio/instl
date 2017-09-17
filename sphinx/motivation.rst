@@ -1,4 +1,4 @@
-Moivation
+Motivation
 ##########
 
 The motivation for creating **instl** grow out of frustration with existing installer builder tools for wide spread desktop operating systems such as Mac OS or Windows.
@@ -9,7 +9,7 @@ What's wrong with existing installer builders?
 #. **File formats:** Each installer builder has different format for defining an installer and many times these are not text based formats. Compering Mac and Windows definitions or even to previous versions in the same platform is usually impossible.
 #. **Version control:** Developers are accustomed to using version control for all sources required to build a software product. However, the build products (which are the installation sources) themselves also have versions that need to be tracked.
 #. **Scalability:** While creating a small installer with conventional tools is easy, managing large or complicated installers is exponentially harder. Other scalability needs are to easily create variations on existing installers or partial installers and propagating changes done in the main installer to it's derivatives.
-#. **Discoverability:** INstallation builder that create a closed-box binary installers are hard to understand and debug. If something is not working at the use's end, it's virtually impossible to understand what went wrong.
+#. **Discoverability:** Installation builder that create a closed-box binary installers are hard to understand and debug. If something is not working at the use's end, it's virtually impossible to understand what went wrong.
 #. **Programming languages:** Installer builders usually provide a programming language. Such languages are never cross-platform and usually are limited in their functionality and are not well documented.
 
 How does **instl** improves the situation?
