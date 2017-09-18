@@ -3,6 +3,8 @@
 
 import os
 import abc
+import itertools
+import pathlib
 
 import utils
 from configVar import var_stack
@@ -473,12 +475,12 @@ class DownloadToolBase(object, metaclass=abc.ABCMeta):
     def download_url_to_file(self, src_url, trg_file):
         pass
 
-    def add_download_url(self, url, path, verbatim=False):
+    def add_download_url(self, url, path, verbatim=False, size=0):
         if verbatim:
             translated_url = url
         else:
             translated_url = connectionBase.connection_factory().translate_url(url)
-        self.urls_to_download.append((translated_url, path))
+        self.urls_to_download.append((translated_url, path, size))
 
     def get_num_urls_to_download(self):
         return len(self.urls_to_download)
@@ -490,3 +492,65 @@ class DownloadToolBase(object, metaclass=abc.ABCMeta):
     def download_from_config_files(self, parallel_run_config_file_path, config_files):
         pass
 
+    def create_config_files(self, curl_config_file_path, num_config_files):
+        file_name_list = list()
+        num_urls_to_download = len(self.urls_to_download)
+        if num_urls_to_download > 0:
+            connect_time_out = var_stack.ResolveVarToStr("CURL_CONNECT_TIMEOUT", "16")
+            max_time = var_stack.ResolveVarToStr("CURL_MAX_TIME", "180")
+            retries = var_stack.ResolveVarToStr("CURL_RETRIES", "2")
+            retry_delay = var_stack.ResolveVarToStr("CURL_RETRY_DELAY", "8")
+
+            sync_urls_cookie = var_stack.ResolveVarToStr("COOKIE_FOR_SYNC_URLS", default=None)
+
+            actual_num_config_files = int(max(0, min(num_urls_to_download, num_config_files)))
+            num_digits = len(str(actual_num_config_files))
+            file_name_list = ["-".join((curl_config_file_path, str(file_i).zfill(num_digits))) for file_i in range(actual_num_config_files)]
+
+            # open the files make sure they have r/w permissions and are utf-8
+            wfd_list = list()
+            for file_name in file_name_list:
+                wfd = utils.utf8_open(file_name, "w")
+                utils.make_open_file_read_write_for_all(wfd)
+                wfd_list.append(wfd)
+
+            # write the header in each file
+            for wfd in wfd_list:
+                basename = os.path.basename(wfd.name)
+                if sync_urls_cookie:
+                    cookie_text = "cookie = {sync_urls_cookie}\n".format(**locals())
+                else:
+                    cookie_text = ""
+                curl_write_out_str = DownloadToolBase.curl_write_out_str
+                file_header_text = """
+insecure
+raw
+fail
+silent
+show-error
+compressed
+create-dirs
+connect-timeout = {connect_time_out}
+max-time = {max_time}
+retry = {retries}
+retry-delay = {retry_delay}
+{cookie_text}
+write-out = "Progress: ... of ...; {basename}: {curl_write_out_str}
+
+
+""".format(**locals())
+                wfd.write(file_header_text)
+
+            wfd_cycler = itertools.cycle(wfd_list)
+            url_num = 0
+            sorted_by_size = sorted(self.urls_to_download, key=lambda dl_item: dl_item[2])
+            for url, path, size in sorted_by_size:
+                fixed_path = str(pathlib.PurePath(path)).replace("\\", "\\\\")  # for windows
+                wfd = next(wfd_cycler)
+                wfd.write('''url = "{url}"\noutput = "{fixed_path}"\n\n'''.format(**locals()))
+                url_num += 1
+
+            for wfd in wfd_list:
+                wfd.close()
+
+        return file_name_list

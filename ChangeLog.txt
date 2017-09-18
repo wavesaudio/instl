@@ -4,6 +4,7 @@
     * some more progress message during copy snd sync batch file creation
     * utils.read_file_or_url does some caching if given url, local file and checksum
     * utils.read_file_or_url default timeout is now 18.05sec for connection, 120.05dec for the whole download
+    * files to download are sorted by size so smaller files will download first and show progress earlier
 
     admin visible changes:
     * info_map files split from the main info_map.txt will be added to the main info_map.txt so size and checksum are known
@@ -36,7 +37,8 @@
     * new method IndexItemTable.get_active_oses mainly for debugging
     * new method IndexItemTable.get_resolved_details_value_for_iid
     * IndexItemsTable.__init__ will commit changes after initializing the db
-
+    * unified DownloadTool_mac_curl.create_config_files and DownloadTool_win_curl.create_config_files to DownloadToolBase.create_config_files
+    * utils.read_file_or_url a little more timeout: timeout=(33.05, 180.05)
 
 10/9/2017 1.6.0.0
 

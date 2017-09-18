@@ -370,58 +370,6 @@ class DownloadTool_mac_curl(DownloadToolBase):
         download_command_parts.append(utils.quoteme_double(src_url))
         return " ".join(download_command_parts)
 
-    def create_config_files(self, curl_config_file_path, num_config_files):
-        import itertools
-
-        num_urls_to_download = len(self.urls_to_download)
-        if num_urls_to_download > 0:
-            connect_time_out = var_stack.ResolveVarToStr("CURL_CONNECT_TIMEOUT", "16")
-            max_time = var_stack.ResolveVarToStr("CURL_MAX_TIME", "180")
-            retries = var_stack.ResolveVarToStr("CURL_RETRIES", "2")
-            retry_delay = var_stack.ResolveVarToStr("CURL_RETRY_DELAY", "8")
-
-            sync_urls_cookie = var_stack.ResolveVarToStr("COOKIE_FOR_SYNC_URLS", default=None)
-
-            actual_num_config_files = max(0, min(num_urls_to_download, num_config_files))
-            list_of_lines_for_files = [list() for i in range(actual_num_config_files)]
-            list_for_file_cycler = itertools.cycle(list_of_lines_for_files)
-            url_num = 0
-            for url, path in self.urls_to_download:
-                line_list = next(list_for_file_cycler)
-                line_list.append('''url = "{url}"\noutput = "{path}"\n\n'''.format(**locals()))
-                url_num += 1
-
-            num_digits = len(str(actual_num_config_files))
-            file_name_list = ["-".join( (curl_config_file_path, str(file_i).zfill(num_digits)) ) for file_i in range(actual_num_config_files)]
-
-            lise_of_lines_iter = iter(list_of_lines_for_files)
-            for file_name in file_name_list:
-                with utils.utf8_open(file_name, "w") as wfd:
-                    utils.make_open_file_read_write_for_all(wfd)
-                    wfd.write("insecure\n")
-                    wfd.write("raw\n")
-                    wfd.write("fail\n")
-                    wfd.write("silent\n")
-                    wfd.write("show-error\n")
-                    wfd.write("compressed\n")
-                    wfd.write("create-dirs\n")
-                    wfd.write("connect-timeout = {connect_time_out}\n".format(**locals()))
-                    wfd.write("max-time = {max_time}\n".format(**locals()))
-                    wfd.write("retry = {retries}\n".format(**locals()))
-                    wfd.write("retry-delay = {retry_delay}\n".format(**locals()))
-                    if sync_urls_cookie:
-                        wfd.write("cookie = {sync_urls_cookie}\n".format(**locals()))
-                    wfd.write("write-out = \"Progress: ... of ...; " + os.path.basename(wfd.name) + ": " + DownloadToolBase.curl_write_out_str + "\"\n")
-                    wfd.write("\n")
-                    wfd.write("\n")
-                    list_of_lines = next(lise_of_lines_iter)
-                    for line in list_of_lines:
-                        wfd.write(line)
-
-            return file_name_list
-        else:
-            return ()
-
     def download_from_config_files(self, parallel_run_config_file_path, config_files):
 
         with utils.utf8_open(parallel_run_config_file_path, "w") as wfd:
@@ -429,5 +377,5 @@ class DownloadTool_mac_curl(DownloadToolBase):
             for config_file in config_files:
                 wfd.write(var_stack.ResolveStrToStr('"$(DOWNLOAD_TOOL_PATH)" --config "{config_file}"\n'.format(**locals())))
 
-        download_command = " ".join( (self.platform_helper.run_instl(),  "parallel-run", "--in", utils.quoteme_double(parallel_run_config_file_path)) )
+        download_command = " ".join((self.platform_helper.run_instl(),  "parallel-run", "--in", utils.quoteme_double(parallel_run_config_file_path)))
         return download_command
