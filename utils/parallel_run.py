@@ -43,6 +43,7 @@ def run_parallels(commands):
             status = a_process.poll()
             if status is None:  # None means it's still alive
                 active_process_list.append(a_process)
+                sys.stdout.flush()
             else:
                 if status != 0:
                     exit_val = status

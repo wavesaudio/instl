@@ -5,6 +5,7 @@
     * utils.read_file_or_url does some caching if given url, local file and checksum
     * utils.read_file_or_url default timeout is now 18.05sec for connection, 120.05dec for the whole download
     * files to download are sorted by size so smaller files will download first and show progress earlier
+    * run_parallels: flush stdout after each process in the loop, maybe will give better progress reports
 
     admin visible changes:
     * info_map files split from the main info_map.txt will be added to the main info_map.txt so size and checksum are known
