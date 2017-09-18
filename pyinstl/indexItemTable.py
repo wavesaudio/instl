@@ -24,7 +24,7 @@ from configVar import var_stack
 
 
 class IndexItemsTable(object):
-    os_names = {'common': 0, 'Mac': 1, 'Mac32': 2, 'Mac64': 3, 'Win': 4, 'Win32': 5, 'Win64': 6}
+    os_names_to_num = {'common': 0, 'Mac': 1, 'Mac32': 2, 'Mac64': 3, 'Win': 4, 'Win32': 5, 'Win64': 6}
     install_status = {"none": 0, "main": 1, "update": 2, "depend": 3, "remove": -1}
     action_types = ('pre_copy', 'pre_copy_to_folder', 'pre_copy_item',
                     'post_copy_item', 'post_copy_to_folder', 'post_copy',
@@ -65,7 +65,7 @@ class IndexItemsTable(object):
 
     def add_default_values(self):
 
-        for os_name, _id in IndexItemsTable.os_names.items():
+        for os_name, _id in IndexItemsTable.os_names_to_num.items():
             new_item = IndexItemDetailOperatingSystem(_id=_id, name=os_name, os_is_active=False)
             self.os_names_db_objs.append(new_item)
         self.session.add_all(self.os_names_db_objs)
@@ -316,7 +316,7 @@ class IndexItemsTable(object):
         return retVal
 
     def create_default_index_items(self, iids_to_ignore):
-        the_os_id = self.os_names['common']
+        the_os_id = self.os_names_to_num['common']
         the_iid = "__ALL_ITEMS_IID__"
         all_items_item = IndexItemRow(iid=the_iid, inherit_resolved=True, from_index=False, from_require=False)
         self.session.add(all_items_item)
@@ -346,7 +346,7 @@ class IndexItemsTable(object):
         self.commit_changes()
 
     def create_default_require_items(self, iids_to_ignore):
-        the_os_id = self.os_names['common']
+        the_os_id = self.os_names_to_num['common']
         the_iid = "__REPAIR_INSTALLED_ITEMS__"
         repair_item = IndexItemRow(iid=the_iid, inherit_resolved=True, from_index=False, from_require=False)
         self.session.add(repair_item)
@@ -574,7 +574,7 @@ class IndexItemsTable(object):
         # Although it's not valid yaml some index.yaml versions have this problem.
         for detail_node in the_node.value:
             detail_name = detail_node[0].value
-            if detail_name in IndexItemsTable.os_names:
+            if detail_name in IndexItemsTable.os_names_to_num:
                 os_specific_details = self.read_item_details_from_node(the_iid, detail_node[1], the_os=detail_name)
                 details.extend(os_specific_details)
             elif detail_name == 'actions':
@@ -591,19 +591,27 @@ class IndexItemsTable(object):
 
                     if detail_name == "install_sources":
                         if value.startswith('/'):  # absolute path
-                            new_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=self.os_names[the_os], detail_name=detail_name, detail_value=value[1:], generation=0, tag=tag)
+                            new_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=self.os_names_to_num[the_os], \
+                                                            detail_name=detail_name, detail_value=value[1:], generation=0, tag=tag)
                             details.append(new_detail)
                         else:  # relative path
                             # because 'common' is in both groups this will create 2 IndexItemDetailRow
                             # if OS is 'common', and 1 otherwise
+                            count_insertions = 0
                             for os_group in (('common', 'Mac', 'Mac32', 'Mac64'),
                                              ('common', 'Win', 'Win32', 'Win64')):
                                 if the_os in os_group:
-                                    effective_os ={'Mac32': 'Mac32', 'Mac64': 'Mac64', 'Win32': 'Win32', 'Win64': 'Win64'}.get(the_os, os_group[1])
-                                    new_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=self.os_names[effective_os], detail_name=detail_name, detail_value="/".join((effective_os, value)), generation=0, tag=tag)
+                                    item_detail_os = {'Mac32': 'Mac32', 'Mac64': 'Mac64', 'Win32': 'Win32', 'Win64': 'Win64'}.get(the_os, os_group[1])
+                                    path_prefix_os = {'Mac32': 'Mac', 'Mac64': 'Mac', 'Win32': 'Win', 'Win64': 'Win'}.get(the_os, os_group[1])
+                                    assert path_prefix_os == "Mac" or path_prefix_os == "Win", "path_prefix_os: {}".format(path_prefix_os)
+                                    new_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=self.os_names_to_num[item_detail_os], \
+                                                                    detail_name=detail_name, detail_value="/".join((path_prefix_os, value)), generation=0, tag=tag)
                                     details.append(new_detail)
+                                    count_insertions += 1
+                            assert count_insertions < 3, "count_insertions: {}".format(count_insertions)
                     else:
-                        new_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=self.os_names[the_os], detail_name=detail_name, detail_value=value, generation=0, tag=tag)
+                        new_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid, os_id=self.os_names_to_num[the_os], \
+                                                        detail_name=detail_name, detail_value=value, generation=0, tag=tag)
                         details.append(new_detail)
         return details
 
@@ -630,7 +638,7 @@ class IndexItemsTable(object):
         self.insert_require_to_db(require_items)
 
     def read_item_details_from_require_node(self, the_iid, the_node, all_iids):
-        os_id=self.os_names['common']
+        os_id=self.os_names_to_num['common']
         details = list()
         if the_node.isMapping():
             for detail_name in the_node:
@@ -661,7 +669,7 @@ class IndexItemsTable(object):
 
     def repr_item_for_yaml(self, iid):
         item_details = OrderedDict()
-        for os_name in self.os_names:
+        for os_name in self.os_names_to_num:
             details_rows = self.get_original_details(iid=iid, in_os=os_name)
             if len(details_rows) > 0:
                 if os_name == "common":
