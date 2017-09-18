@@ -496,14 +496,14 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             try:
                 from . import installItemGraph
 
-                depend_graph = installItemGraph.create_dependencies_graph(self.install_definitions_index)
+                depend_graph = installItemGraph.create_dependencies_graph(self.items_table)
                 depend_cycles = installItemGraph.find_cycles(depend_graph)
                 if not depend_cycles:
                     print("No depend cycles found")
                 else:
                     for cy in depend_cycles:
                         print("depend cycle:", " -> ".join(cy))
-                inherit_graph = installItemGraph.create_inheritItem_graph(self.install_definitions_index)
+                inherit_graph = installItemGraph.create_inheritItem_graph(self.items_table)
                 inherit_cycles = installItemGraph.find_cycles(inherit_graph)
                 if not inherit_cycles:
                     print("No inherit cycles found")
@@ -529,7 +529,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         try:
             from . import installItemGraph
 
-            graph = installItemGraph.create_dependencies_graph(self.install_definitions_index)
+            graph = installItemGraph.create_dependencies_graph(self.items_table)
             needed_by_list = installItemGraph.find_needed_by(graph, iid)
             return sorted(needed_by_list)
         except ImportError:  # no installItemGraph, no worry

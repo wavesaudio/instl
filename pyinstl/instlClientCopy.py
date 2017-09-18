@@ -377,14 +377,16 @@ class InstlClientCopy(InstlClient):
 
         num_wtars = 0
         for IID in sorted(items_in_folder):
-            with self.install_definitions_index[IID].push_var_stack_scope():  # todo: replace push_var_stack_scope with db
-                for source_var in sorted(var_stack.ResolveVarToList("iid_source_var_list", default=[])):
-                    source = var_stack.ResolveVarToList(source_var)
-                    num_wtars = self.info_map_table.count_wtar_items_of_dir(source[0])
-                self.batch_accum.begin_transaction()
-                self.batch_accum += var_stack.ResolveVarToList("iid_action_list_pre_copy_item", default=[])
-                self.batch_accum += var_stack.ResolveVarToList("iid_action_list_post_copy_item", default=[])
-                actual_instructions += self.batch_accum.end_transaction()
+            sources_from_db = sorted(self.items_table.get_sources_for_iid(IID))
+            for source_from_db in sources_from_db:
+                source = source_from_db[0]
+                num_wtars += self.info_map_table.count_wtar_items_of_dir(source[0])
+            self.batch_accum.begin_transaction()
+            pre_copy_item_from_db = var_stack.ResolveListToList(self.items_table.get_resolved_details_for_active_iid(IID, "pre_copy_item"))
+            self.batch_accum += pre_copy_item_from_db
+            post_copy_item_from_db = var_stack.ResolveListToList(self.items_table.get_resolved_details_for_active_iid(IID, "post_copy_item"))
+            self.batch_accum += post_copy_item_from_db
+            actual_instructions += self.batch_accum.end_transaction()
 
         if num_wtars > 0:
             source_folder, source_name = os.path.split(source[0])

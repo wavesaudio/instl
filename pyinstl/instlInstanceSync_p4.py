@@ -30,11 +30,10 @@ class InstlInstanceSync_p4(InstlInstanceSync):
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
         for iid in var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"):
-            with self.install_definitions_index[iid].push_var_stack_scope():  # todo: replace push_var_stack_scope with db
-                for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
-                    source = var_stack.ResolveVarToList(source_var)
-                    self.p4_sync_for_source(source)
-                    retVal += 1
+            sources_for_iid = var_stack.ResolveListToList(self.items_table.get_sources_for_iid(iid))
+            for source in sources_for_iid:
+                self.p4_sync_for_source(source)
+                retVal += 1
         return retVal
 
     def p4_sync_for_source(self, source):
