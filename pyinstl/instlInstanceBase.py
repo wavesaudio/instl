@@ -264,11 +264,8 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         return retVal
 
     def read_require(self, a_node, *args, **kwargs):
-        if self.items_table is not None:
-            del args
-            self.items_table.read_require_node(a_node)
-        else:
-            print("warning: not reading require node because self.items_table was no initialized")
+        del args
+        self.items_table.read_require_node(a_node)
 
     def write_require_file(self, file_path, require_dict):
         with utils.utf8_open(file_path, "w") as wfd:
@@ -486,42 +483,38 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
     def read_index(self, a_node, *args, **kwargs):
         index_dict = kwargs.get('index_dict', self.install_definitions_index)
         index_dict.update(read_index_from_yaml(a_node))
-        if self.items_table:
-            self.items_table.read_index_node(a_node)
+        self.items_table.read_index_node(a_node)
 
     def find_cycles(self):
-        if not self.install_definitions_index:
-            print("index empty - nothing to check")
-        else:
-            try:
-                from . import installItemGraph
+        try:
+            from . import installItemGraph
 
-                depend_graph = installItemGraph.create_dependencies_graph(self.items_table)
-                depend_cycles = installItemGraph.find_cycles(depend_graph)
-                if not depend_cycles:
-                    print("No depend cycles found")
-                else:
-                    for cy in depend_cycles:
-                        print("depend cycle:", " -> ".join(cy))
-                inherit_graph = installItemGraph.create_inheritItem_graph(self.items_table)
-                inherit_cycles = installItemGraph.find_cycles(inherit_graph)
-                if not inherit_cycles:
-                    print("No inherit cycles found")
-                else:
-                    for cy in inherit_cycles:
-                        print("inherit cycle:", " -> ".join(cy))
-            except ImportError:  # no installItemGraph, no worry
+            depend_graph = installItemGraph.create_dependencies_graph(self.items_table)
+            depend_cycles = installItemGraph.find_cycles(depend_graph)
+            if not depend_cycles:
+                print("No depend cycles found")
+            else:
+                for cy in depend_cycles:
+                    print("depend cycle:", " -> ".join(cy))
+            inherit_graph = installItemGraph.create_inheritItem_graph(self.items_table)
+            inherit_cycles = installItemGraph.find_cycles(inherit_graph)
+            if not inherit_cycles:
+                print("No inherit cycles found")
+            else:
+                for cy in inherit_cycles:
+                    print("inherit cycle:", " -> ".join(cy))
+        except ImportError:  # no installItemGraph, no worry
                 print("Could not load installItemGraph")
 
-    def needs(self, iid, out_list):
+    def needs(self, iid, out_list, all_iids_set=None):
         """ return iids of all items that a specific iid depends on"""
-        if iid not in self.install_definitions_index:
-            raise KeyError(iid + " is not in index")
+        if all_iids_set is None:
+            all_iids_set = set(self.items_table.get_all_iids())
         depends_from_db = sorted(self.items_table.get_resolved_details_value_for_iid(iid, 'depends',unique_values=True))
         for dep in depends_from_db:
-            if dep in self.install_definitions_index:
+            if dep in all_iids_set:
                 out_list.append(dep)
-                self.needs(dep, out_list)
+                self.needs(dep, out_list, all_iids_set)
             else:
                 out_list.append(dep + "(missing)")
 

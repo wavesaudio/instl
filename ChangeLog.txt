@@ -7,6 +7,11 @@
     * removed unused file test_InstallItems.py
     * InstlAdmin.do_depend replaced self.install_definitions_index with self.items_table.get_all_iids()
     * removed some redundant imports and functions
+    * IndexItemTable.get_all_iids will return iids sorted
+    * new method: IndexItemTable.iid_to_yaml intended to replace replace InstallItem.repr_for_yaml (not done yet)
+    * removed "if self.items_table" from a few places as self.items_table is always initialized now
+    * InstlInstanceBase.needs implemented with items_table instead of install_definitions_index
+    * CMDObj.emptyline override to avoid a bug in PyCharm
 
 18/9/2017 1.6.1.0
     user visible changes:

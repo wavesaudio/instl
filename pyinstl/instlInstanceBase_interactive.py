@@ -150,6 +150,13 @@ class CMDObj(cmd.Cmd, object):
         if self.restart:
             restart_program()
 
+    def emptyline(self):
+        """ override just to overcome a bug while running in under PyCharm
+            PyCharm is entering a blank line after each input(...) and CMD.emptyline
+            therefor repeats the last command, resulting in each command preformed twice.
+        """
+        return False
+
     def onecmd(self, line):
         retVal = False
         try:

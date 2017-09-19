@@ -2,7 +2,7 @@
 
 
 import os
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 from sqlalchemy.ext import baked
 from sqlalchemy import bindparam
@@ -304,7 +304,10 @@ class IndexItemsTable(object):
         :return: list of all iids in the db, empty list if none are found
         """
         retVal = list()
-        query_text = """SELECT iid FROM IndexItemRow"""
+        query_text = """
+          SELECT iid FROM IndexItemRow
+          ORDER BY iid
+        """
         try:
             exec_result = self.session.execute(query_text)
             if exec_result.returns_rows:
@@ -1252,3 +1255,44 @@ class IndexItemsTable(object):
         except SQLAlchemyError as ex:
             raise
         return retVal
+
+    def iid_to_yaml(self, iid):
+        """ this function should replace InstallItem.repr_for_yaml
+            to do:
+            - add OSs use names from IndexItemDetailOperatingSystem
+            - move allowed_item_keys, action_types, file_types, os_names from InstallItem and use here
+            - add !dir_cont', '!file where needed
+        """
+        retVal = OrderedDict()
+        details_for_iid = self.get_resolved_details_for_iid(iid)
+        t_d = defaultdict(list)
+        for a_d in details_for_iid:
+            t_d[a_d.detail_name].append(a_d.detail_value)
+        for detail_name in ("name", "version", "remark", "phantom_version", "guid", "depends", "inherit", "install_sources", "direct_sync", "previous_sources", "install_folders", "info_map"):
+            if detail_name in t_d:
+                if len(t_d[detail_name]) == 1:
+                    retVal[detail_name] = t_d[detail_name][0]
+                else:
+                    retVal[detail_name] = t_d[detail_name]
+        actions = OrderedDict()
+        for action_name in ("pre_copy", "pre_copy_to_folder", "pre_copy_item", "post_copy_item", "post_copy_to_folder", "post_copy", "pre_remove", "pre_remove_from_folder", "pre_remove_item", "remove_item", "post_remove_item", "post_remove_from_folder", "post_remove"):
+            if action_name in t_d:
+                actions[action_name] = t_d[action_name]
+        if actions:
+            retVal["actions"] = actions
+        return retVal
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

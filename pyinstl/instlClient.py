@@ -180,6 +180,7 @@ class InstlClient(InstlInstanceBase):
                 if identifier in var_stack:
                     defines.append(var_stack.repr_for_yaml(identifier))
                 elif identifier in self.install_definitions_index:
+                    #indexes.append({identifier: self.items_table.iid_to_yaml(identifier)})
                     indexes.append({identifier: self.install_definitions_index[identifier].repr_for_yaml()})
                 else:
                     unknowns.append(aYaml.YamlDumpWrap(value="UNKNOWN VARIABLE",
