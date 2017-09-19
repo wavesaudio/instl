@@ -9,13 +9,6 @@ from . import connectionBase
 from configVar import var_stack
 
 
-def is_user_data_false_or_dir_empty(svn_item):
-    retVal = not svn_item.user_data
-    if svn_item.isDir():
-        retVal = len(svn_item.subs) == 0
-    return retVal
-
-
 class InstlInstanceSync(object, metaclass=abc.ABCMeta):
     """  Base class for sync object .
     """

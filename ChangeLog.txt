@@ -4,6 +4,9 @@
     * removed usage of InstallItem.push_var_stack_scope & InstlAdmin.sources_from_iids from all admin commands, effect mainly InstlAdmin.verify_index_to_repo
     * new method IndexItemsTable.change_status_of_all_iids to globally set all item status
     * removed unused file InstallItemLists.py
+    * removed unused file test_InstallItems.py
+    * InstlAdmin.do_depend replaced self.install_definitions_index with self.items_table.get_all_iids()
+    * removed some redundant imports and functions
 
 18/9/2017 1.6.1.0
     user visible changes:

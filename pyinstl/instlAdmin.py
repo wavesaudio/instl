@@ -912,7 +912,7 @@ class InstlAdmin(InstlInstanceBase):
         self.read_yaml_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
         self.resolve_index_inheritance()
         depend_result = defaultdict(dict)
-        for IID in sorted(self.install_definitions_index):
+        for IID in sorted(self.items_table.get_all_iids()):
             needs_list = utils.unique_list()
             self.needs(IID, needs_list)
             if not needs_list:

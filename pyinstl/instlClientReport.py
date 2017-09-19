@@ -6,7 +6,6 @@ import os
 import json
 from configVar import var_stack
 from .instlClient import InstlClient
-from .installItem import read_index_from_yaml
 import utils
 
 
