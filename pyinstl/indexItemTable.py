@@ -718,16 +718,6 @@ class IndexItemsTable(object):
 
         return retVal
 
-    # @utils.timing
-    def get_resolved_details_for_iid(self, iid, detail_name):
-        query_text = """SELECT iid, detail_name, detail_value
-           FROM full_details_view
-            WHERE detail_name = :d_n AND iid = :iid
-        """
-
-        retVal = self.session.execute(query_text, {'d_n': detail_name, 'iid': iid}).fetchall()
-        return retVal
-
     def iids_from_guids(self, guid_list):
         returned_iids = list()
         orphaned_guids = list()
@@ -832,7 +822,6 @@ class IndexItemsTable(object):
                 AND ignore = 0
               """.format(**locals())
             self.session.execute(query_text)
-            #self.commit_changes()  # not sure why but commit is a must here of all places for the update to be written
 
     def change_status_of_iids(self, new_status, iid_list):
         if iid_list:
@@ -844,7 +833,14 @@ class IndexItemsTable(object):
                 AND ignore = 0
               """.format(**locals())
             self.session.execute(query_text)
-            #self.commit_changes()  # not sure why but commit is a must here of all places for the update to be written
+
+    def change_status_of_all_iids(self, new_status):
+        query_text = """
+            UPDATE IndexItemRow
+            SET install_status=:new_status
+        """
+        self.session.execute(query_text, {'new_status': new_status})
+        self.commit_changes()
 
     def get_iids_by_status(self, min_status, max_status=None):
         if max_status is None:

@@ -899,26 +899,6 @@ class InstlAdmin(InstlInstanceBase):
                 else:
                     print("Bad Signature")
 
-    def sources_from_iids(self):
-        # for each iid get full paths to it's sources
-        retVal = defaultdict(utils.unique_list)
-        InstallItem.begin_get_for_all_oses()
-        for iid in sorted(self.install_definitions_index):
-            with self.install_definitions_index[iid].push_var_stack_scope():  # todo: replace push_var_stack_scope with db
-                for source_var in var_stack.get_configVar_obj("iid_source_var_list"):
-                    source_var_obj = var_stack.get_configVar_obj(source_var)
-                    source, source_type, target_os = source_var_obj
-                    target_oses = list()
-                    if target_os in ("common", "Mac"):
-                        target_oses.append("Mac")
-                    if target_os in ("common", "Win", "Win32", "Win64"):
-                        target_oses.append("Win")
-                    for target_os in target_oses:
-                        var_stack.set_var("SOURCE_PREFIX").append(target_os)
-                        resolved_source = var_stack.ResolveStrToStr(source)
-                        retVal[iid].append((resolved_source, source_type))
-        return retVal
-
     def do_verify_index(self):
         self.read_yaml_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
         self.info_map_table.read_from_file(var_stack.ResolveVarToStr("FULL_INFO_MAP_FILE_PATH"))
@@ -957,6 +937,8 @@ class InstlAdmin(InstlInstanceBase):
 
         the_folder = var_stack.ResolveVarToStr("STAGING_FOLDER")
         self.info_map_table.initialize_from_folder(the_folder)
+        self.items_table.begin_get_for_all_oses()
+        self.items_table.resolve_inheritance()
 
         self.verify_index_to_repo()
 
@@ -965,39 +947,50 @@ class InstlAdmin(InstlInstanceBase):
             Assuming the index and info-map have already been read
             check the expect files from the index appear in the info-map
         """
-        iid_to_sources = self.sources_from_iids()
-        for iid in sorted(iid_to_sources):
-            with self.install_definitions_index[iid].push_var_stack_scope():  # todo: replace push_var_stack_scope with db
-                iid_problem_messages = list()
-                # check inherits
-                for inheritee in var_stack.ResolveVarToList("iid_inherit", default=[]):
-                    if inheritee not in self.install_definitions_index:
-                        err_message = " ".join(("inherits from non existing", inheritee ))
-                        iid_problem_messages.append(err_message)
-                # check depends
-                for dependee in var_stack.ResolveVarToList("iid_depend_list", default=[]):
-                    if dependee not in self.install_definitions_index:
-                        err_message = " ".join(("depends on non existing", dependee ))
-                        iid_problem_messages.append(err_message)
-                # check sources
-                for source in iid_to_sources[iid]:
-                    num_files_for_source = self.info_map_table.mark_required_for_source(source)
-                    if num_files_for_source == 0:
-                        err_message = " ".join(("source", utils.quoteme_single(str(source)),"required by", iid, "does not have files"))
-                        iid_problem_messages.append(err_message)
-                # check targets
-                if len(iid_to_sources[iid]) > 0:
-                    target_folders = var_stack.ResolveVarToList("iid_folder_list", default=[])
-                    if len(target_folders) == 0:
-                        err_message = " ".join(("iid", iid, "does not have target folder"))
-                        iid_problem_messages.append(err_message)
-                if iid_problem_messages:
-                    print(iid+":")
-                    for problem_message in sorted(iid_problem_messages):
-                        print("   ", problem_message)
+        all_iids = set(self.items_table.get_all_iids())
+        self.items_table.change_status_of_all_iids(1)
+
+        for iid in sorted(all_iids):
+            # todo: some of these tests can be replaced with a db query
+            iid_problem_messages = list()
+            # check inherits
+            inherits_from = set(self.items_table.get_resolved_details_value_for_active_iid(iid, "inherit", unique_values=True))
+            missing_inheritees = inherits_from - all_iids
+            for missing_inheritee in sorted(missing_inheritees):
+                err_message = " ".join(("inherits from non existing", missing_inheritee))
+                iid_problem_messages.append(err_message)
+
+            # check depends
+            depends_on = set(self.items_table.get_resolved_details_value_for_active_iid(iid, "depends", unique_values=True))
+            missing_dependees = depends_on - all_iids
+            for missing_dependee in sorted(missing_dependees):
+                err_message = " ".join(("depends on non existing", missing_dependee ))
+                iid_problem_messages.append(err_message)
+
+            # check sources
+            source_and_tag_list = self.items_table.get_details_and_tag_for_active_iids("install_sources", unique_values=True, limit_to_iids=(iid,))
+
+            for source in source_and_tag_list:
+                num_files_for_source = self.info_map_table.mark_required_for_source(source)
+                if num_files_for_source == 0:
+                    err_message = " ".join(("source", utils.quoteme_single(str(source)),"required by", iid, "does not have files"))
+                    iid_problem_messages.append(err_message)
+
+            # check targets
+            if len(source_and_tag_list) > 0:
+                target_folders = set(self.items_table.get_resolved_details_value_for_active_iid(iid, "install_folders", unique_values=True))
+                if len(target_folders) == 0:
+                    err_message = " ".join(("iid", iid, "does not have target folder"))
+                    iid_problem_messages.append(err_message)
+
+            if iid_problem_messages:
+                print(iid+":")
+                for problem_message in sorted(iid_problem_messages):
+                    print("   ", problem_message)
+
         self.info_map_table.mark_required_completion()
         self.find_cycles()
-        print("index:", len(self.install_definitions_index), "iids")
+        print("index:", len(all_iids), "iids")
         num_files = self.info_map_table.num_items("all-files")
         num_dirs = self.info_map_table.num_items("all-dirs")
         num_required_files = self.info_map_table.num_items("required-files")
