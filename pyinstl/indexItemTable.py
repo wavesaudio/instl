@@ -543,6 +543,9 @@ class IndexItemsTable(object):
         return retVal
 
     def get_details_by_name_for_all_iids(self, detail_name):
+        """ get all IndexItemDetailRow objects with detail_name.
+            detail_name can contain wildcards e.g. require_%
+        """
         if "get_details_by_name_for_all_iids" not in self.baked_queries_map:
             the_query = self.bakery(lambda session: session.query(IndexItemDetailRow))
             the_query += lambda q: q.filter(IndexItemDetailRow.detail_name.like(bindparam('detail_name')))
@@ -553,6 +556,26 @@ class IndexItemsTable(object):
             the_query = self.baked_queries_map["get_details_by_name_for_all_iids"]
 
         retVal = the_query(self.session).params(detail_name=detail_name).all()
+        return retVal
+
+    def get_detail_values_by_name_for_all_iids(self, detail_name):
+        """ get values of specific detail for all iids
+        """
+        retVal = list()
+        query_text = """
+            SELECT DISTINCT detail_value
+            FROM IndexItemDetailRow
+            WHERE detail_name LIKE :detail_name
+            AND os_is_active = 1
+            ORDER BY _id
+        """
+        try:
+            exec_result = self.session.execute(query_text, {'detail_name': detail_name})
+            if exec_result.returns_rows:
+                fetched_results = exec_result.fetchall()
+                retVal = [mm[0] for mm in fetched_results]
+        except SQLAlchemyError as ex:
+            raise
         return retVal
 
     def resolve_item_inheritance(self, item_to_resolve, generation=0):
@@ -1268,9 +1291,27 @@ class IndexItemsTable(object):
             raise
         return retVal
 
-
-
-
+    def get_iids_with_specific_detail_values(self, detail_name, detail_value):
+        """ get all iids that have detail_name with specific detail_value
+            detail_name, detail_value can contain wild cards, e.g.:
+            get_iids_with_specific_detail_values("require_%", "%banana%")
+        """
+        retVal = list()
+        query_text = """
+            SELECT DISTINCT original_iid
+            FROM IndexItemDetailRow
+            WHERE
+                detail_name LIKE :detail_name
+            AND
+                detail_value LIKE :detail_value
+            """
+        try:
+            exec_result = self.session.execute(query_text, {'detail_name': detail_name, 'detail_value': detail_value})
+            if exec_result.returns_rows:
+                retVal.extend([mm[0] for mm in exec_result.fetchall()])
+        except SQLAlchemyError as ex:
+            raise
+        return retVal
 
 
 

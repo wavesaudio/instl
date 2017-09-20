@@ -17,7 +17,11 @@
     * Fixed IndexItemsTable.get_original_details
     * Fixed IndexItemsTable.repr_item_for_yaml and removed IndexItemsTable.iid_to_yaml which didi the same thing
     * InstlClient.repr_for_yaml rewritten with IndexItemsTable.repr_item_for_yaml
-
+    * new method: IndexItemsTable.get_detail_values_by_name_for_all_iids, get values of specific detail for all iids
+    * new method: IndexItemsTable.get_iids_with_specific_detail_values, get all iids that have detail_name with specific detail_value
+    * refactored CMDObj.do_apropos to use only items_table not install_definitions_index
+    * removed CMDObj methods do_listindex, do_common as they did almost the same as do_list, do_depend
+    
 18/9/2017 1.6.1.0
     user visible changes:
     * new config var INFO_MAP_FILES_URL_PREFIX to better define INFO_MAP_FILE_URL

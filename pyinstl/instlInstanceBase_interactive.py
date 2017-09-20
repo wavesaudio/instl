@@ -264,17 +264,13 @@ class CMDObj(cmd.Cmd, object):
         print ("index items:")
         if index_results:
             for iid in index_results:
-                guid_of_iid = self.client_prog_inst.install_definitions_index[iid].guid
-                if guid_of_iid:
-                    print ("   ", iid, "(guid:", guid_of_iid, ")")
-                else:
-                    print ("   ", iid, "(no guid)")
+                print ("   ", iid)
         else:
             print ("    no matching iids were found")
         print ("guids:")
         if guids_results:
             for guid in guids_results:
-                iids_of_guids = [iid for iid in self.client_prog_inst.install_definitions_index if self.client_prog_inst.install_definitions_index[iid].guid == guid]
+                iids_of_guids = self.client_prog_inst.items_table.get_iids_with_specific_detail_values("guid", guid)
                 print ("   ", guid, iids_of_guids)
         else:
             print ("    no matching guids were found")
@@ -326,20 +322,6 @@ class CMDObj(cmd.Cmd, object):
         print("    lists all guid entries")
         print("list")
         print("    lists all definitions, index & guid entries")
-
-    def do_listindex(self, params):
-        if params:
-            params = shlex.split(params)
-            params_not_in_index = list()
-            for param in params:
-                if param in self.client_prog_inst.install_definitions_index:
-                    self.client_prog_inst.install_definitions_index[param].resolve_inheritance(self.client_prog_inst.install_definitions_index)
-                    aYaml.writeAsYaml({param: self.client_prog_inst.install_definitions_index[param].repr_for_yaml()})
-                else:
-                    params_not_in_index.append(param)
-            if params_not_in_index:
-                print("Not found in index:\n    ", "\n    ".join(params_not_in_index))
-
 
     def do_statistics(self, unused_params):
         num_files = self.admin_prog_inst.info_map_table.num_items("all-files")
@@ -481,39 +463,12 @@ class CMDObj(cmd.Cmd, object):
     def help_cycles(self):
         print("cycles:", "check index dependencies for cycles")
 
-    def do_common(self, params):
-        iids = shlex.split(params)
-        missing_iids = utils.unique_list() # [iid in iids if iid not in ]
-        for iid in iids:
-            if iid not in self.client_prog_inst.install_definitions_index:
-                missing_iids.append(iid)
-        if missing_iids:
-            print("Could not find in index:", ", ".join(missing_iids))
-        else:
-            all_needs = list()
-            all_needed_by = list()
-            for iid in iids:
-                needs_list = utils.unique_list()
-                self.client_prog_inst.needs(iid, needs_list)
-                all_needs.append(needs_list)
-                all_needed_by.append(self.client_prog_inst.needed_by(iid))
-            needs_result = set(all_needs[0]).intersection(*all_needs)
-            needed_by_result = set(all_needed_by[0]).intersection(*all_needed_by)
-            if "__ALL_ITEMS_IID__" in needed_by_result:
-                needed_by_result.remove("__ALL_ITEMS_IID__")
-            if not needs_result:
-                needs_result.add("no one")
-            print("common needs:\n   ", ", ".join(needs_result))
-            if not needed_by_result:
-                needed_by_result.add("no one")
-            print("common needed by:\n   ", ", ".join(needed_by_result))
-
     def do_depend(self, params):
         if params:
             self.client_prog_inst.items_table.begin_get_for_all_oses()
-            InstallItem.begin_get_for_all_oses()
+            all_iids = self.client_prog_inst.items_table.get_all_iids()
             for param in shlex.split(params):
-                if param not in self.client_prog_inst.install_definitions_index:
+                if param not in all_iids:
                     print(text_with_color(param, 'green'), "not in index")
                     continue
                 needs_list = utils.unique_list()
@@ -535,7 +490,6 @@ class CMDObj(cmd.Cmd, object):
                         needed_by_list = ("no one",)
                     needed_by_list = [text_with_color(needed_by, 'yellow') for needed_by in needed_by_list]
                     print(text_with_color(param, 'green'), "needed by:\n    ", ", ".join(sorted(needed_by_list)))
-        InstallItem.reset_get_for_all_oses()
         self.client_prog_inst.items_table.reset_get_for_all_oses()
         return False
 
@@ -697,11 +651,11 @@ def create_completion_list_imp(self, for_what="all"):
     retVal = list()
     try:
         if for_what in ("all", "index"):
-            retVal.extend(list(self.install_definitions_index.keys()))
+            retVal.extend(list(self.items_table.get_all_iids()))
         if for_what in ("all", "define"):
             retVal.extend(list(var_stack.keys()))
         if for_what in ("all", "guid"):
-            retVal.extend(guid_list(self.install_definitions_index))
+            retVal.extend(self.items_table.get_detail_values_by_name_for_all_iids("guid"))
     except Exception as ex:
         print("create_completion_list:", ex)
     return retVal
