@@ -2,8 +2,7 @@
 
 import os
 import time
-from collections import defaultdict, namedtuple
-
+from collections import defaultdict, namedtuple, OrderedDict
 
 import utils
 from .installItem import InstallItem, guid_list
@@ -166,36 +165,33 @@ class InstlClient(InstlInstanceBase):
             one for define (tagged !define), one for the index (tagged !index).
         """
         retVal = list()
+        all_keys = self.items_table.get_all_iids()
+        all_vars = sorted(var_stack.keys())
         if what is None:  # None is all
-            retVal.append(aYaml.YamlDumpDocWrap(var_stack, '!define', "Definitions",
+            what = all_vars + all_keys
+
+        defines = OrderedDict()
+        indexes = OrderedDict()
+        unknowns = list()
+        for identifier in what:
+            if identifier in all_vars:
+                defines.update({identifier: var_stack.repr_var_for_yaml(identifier)})
+            elif identifier in all_keys:
+                indexes.update({identifier: self.items_table.repr_item_for_yaml(identifier)})
+            else:
+                unknowns.append(aYaml.YamlDumpWrap(value="UNKNOWN VARIABLE",
+                                                   comment=identifier + " is not in variable list"))
+        if defines:
+            retVal.append(aYaml.YamlDumpDocWrap(defines, '!define', "Definitions",
                                                 explicit_start=True, sort_mappings=True))
-            retVal.append(aYaml.YamlDumpDocWrap(self.install_definitions_index,
-                                                '!index', "Installation index",
-                                                explicit_start=True, sort_mappings=True))
-        else:
-            defines = list()
-            indexes = list()
-            unknowns = list()
-            for identifier in what:
-                if identifier in var_stack:
-                    defines.append(var_stack.repr_for_yaml(identifier))
-                elif identifier in self.install_definitions_index:
-                    #indexes.append({identifier: self.items_table.iid_to_yaml(identifier)})
-                    indexes.append({identifier: self.install_definitions_index[identifier].repr_for_yaml()})
-                else:
-                    unknowns.append(aYaml.YamlDumpWrap(value="UNKNOWN VARIABLE",
-                                                       comment=identifier + " is not in variable list"))
-            if defines:
-                retVal.append(aYaml.YamlDumpDocWrap(defines, '!define', "Definitions",
-                                                    explicit_start=True, sort_mappings=True))
-            if indexes:
-                retVal.append(
-                    aYaml.YamlDumpDocWrap(indexes, '!index', "Installation index",
-                                          explicit_start=True, sort_mappings=True))
-            if unknowns:
-                retVal.append(
-                    aYaml.YamlDumpDocWrap(unknowns, '!unknowns', "Installation index",
-                                          explicit_start=True, sort_mappings=True))
+        if indexes:
+            retVal.append(
+                aYaml.YamlDumpDocWrap(indexes, '!index', "Installation index",
+                                      explicit_start=True, sort_mappings=True))
+        if unknowns:
+            retVal.append(
+                aYaml.YamlDumpDocWrap(unknowns, '!unknowns', "Installation index",
+                                      explicit_start=True, sort_mappings=True))
 
         return retVal
 

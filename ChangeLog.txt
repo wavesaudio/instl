@@ -12,6 +12,11 @@
     * removed "if self.items_table" from a few places as self.items_table is always initialized now
     * InstlInstanceBase.needs implemented with items_table instead of install_definitions_index
     * CMDObj.emptyline override to avoid a bug in PyCharm
+    * new method: ConfigVarStack.repr_var_for_yaml represents 1 config var for yaml
+    * ConfigVarStack.repr_for_yaml refactored to use ConfigVarStack.repr_var_for_yaml
+    * Fixed IndexItemsTable.get_original_details
+    * Fixed IndexItemsTable.repr_item_for_yaml and removed IndexItemsTable.iid_to_yaml which didi the same thing
+    * InstlClient.repr_for_yaml rewritten with IndexItemsTable.repr_item_for_yaml
 
 18/9/2017 1.6.1.0
     user visible changes:

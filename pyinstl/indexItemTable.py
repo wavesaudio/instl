@@ -2,7 +2,7 @@
 
 
 import os
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict
 
 from sqlalchemy.ext import baked
 from sqlalchemy import bindparam
@@ -22,9 +22,22 @@ import svnTree  # do not remove must be here before IndexItemsTable.execute_scri
 import utils
 from configVar import var_stack
 
+# todo: these were copied from InstallItem and should find a better home
+os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
+allowed_item_keys = ('name', 'guid','install_sources', 'install_folders', 'inherit',
+                     'depends', 'actions', 'remark', 'version', 'phantom_version',
+                     'direct_sync', 'previous_sources', 'info_map')
+allowed_top_level_keys = os_names[1:] + allowed_item_keys
+action_types = ('pre_copy', 'pre_copy_to_folder', 'pre_copy_item',
+                'post_copy_item', 'post_copy_to_folder', 'post_copy',
+                'pre_remove', 'pre_remove_from_folder', 'pre_remove_item',
+                'remove_item', 'post_remove_item', 'post_remove_from_folder',
+                'post_remove', 'pre_doit', 'doit', 'post_doit')
+file_types = ('!dir_cont', '!file', '!dir')
+
 
 class IndexItemsTable(object):
-    os_names_to_num = {'common': 0, 'Mac': 1, 'Mac32': 2, 'Mac64': 3, 'Win': 4, 'Win32': 5, 'Win64': 6}
+    os_names_to_num = OrderedDict([('common', 0), ('Mac', 1), ('Mac32', 2), ('Mac64', 3), ('Win', 4), ('Win32', 5), ('Win64', 6)])
     install_status = {"none": 0, "main": 1, "update": 2, "depend": 3, "remove": -1}
     action_types = ('pre_copy', 'pre_copy_to_folder', 'pre_copy_item',
                     'post_copy_item', 'post_copy_to_folder', 'post_copy',
@@ -428,8 +441,7 @@ class IndexItemsTable(object):
         """
         if "get_original_details" not in self.baked_queries_map:
             the_query = self.bakery(lambda session: session.query(IndexItemDetailRow))
-            the_query += lambda q: q.join(IndexItemRow)
-            the_query += lambda q: q.filter(IndexItemRow.iid.like(bindparam('iid')))
+            the_query += lambda q: q.filter(IndexItemDetailRow.original_iid.like(bindparam('iid')))
             the_query += lambda q: q.filter(IndexItemDetailRow.detail_name.like(bindparam('detail_name')))
             the_query += lambda q: q.filter(IndexItemDetailRow.os_id.like(bindparam('in_os')))
             the_query += lambda q: q.order_by(IndexItemDetailRow._id)
@@ -441,7 +453,7 @@ class IndexItemsTable(object):
         params = [iid, detail_name, in_os]
         for iparam in range(len(params)):
             if params[iparam] is None: params[iparam] = '%'
-        retVal = the_query(self.session).params(iid=params[0], detail_name=params[1], os=params[2]).all()
+        retVal = the_query(self.session).params(iid=params[0], detail_name=params[1], in_os=params[2]).all()
         return retVal
 
     def get_resolved_details_for_active_iid(self, iid, detail_name=None):
@@ -672,8 +684,8 @@ class IndexItemsTable(object):
 
     def repr_item_for_yaml(self, iid):
         item_details = OrderedDict()
-        for os_name in self.os_names_to_num:
-            details_rows = self.get_original_details(iid=iid, in_os=os_name)
+        for os_name, os_num in self.os_names_to_num.items():
+            details_rows = self.get_original_details(iid=iid, in_os=os_num)
             if len(details_rows) > 0:
                 if os_name == "common":
                     work_on_dict = item_details
@@ -684,8 +696,8 @@ class IndexItemsTable(object):
                         if 'actions' not in work_on_dict:
                             work_on_dict['actions'] = OrderedDict()
                         if details_row.detail_name not in work_on_dict['actions']:
-                            work_on_dict[details_row.detail_name]['actions'] = list()
-                        work_on_dict[details_row.detail_name]['actions'].append(details_row.detail_value)
+                            work_on_dict['actions'][details_row.detail_name] = list()
+                        work_on_dict['actions'][details_row.detail_name].append(details_row.detail_value)
                     else:
                         if details_row.detail_name not in work_on_dict:
                             work_on_dict[details_row.detail_name] = list()
@@ -1254,32 +1266,6 @@ class IndexItemsTable(object):
                 retVal.extend([mm[0] for mm in exec_result.fetchall()])
         except SQLAlchemyError as ex:
             raise
-        return retVal
-
-    def iid_to_yaml(self, iid):
-        """ this function should replace InstallItem.repr_for_yaml
-            to do:
-            - add OSs use names from IndexItemDetailOperatingSystem
-            - move allowed_item_keys, action_types, file_types, os_names from InstallItem and use here
-            - add !dir_cont', '!file where needed
-        """
-        retVal = OrderedDict()
-        details_for_iid = self.get_resolved_details_for_iid(iid)
-        t_d = defaultdict(list)
-        for a_d in details_for_iid:
-            t_d[a_d.detail_name].append(a_d.detail_value)
-        for detail_name in ("name", "version", "remark", "phantom_version", "guid", "depends", "inherit", "install_sources", "direct_sync", "previous_sources", "install_folders", "info_map"):
-            if detail_name in t_d:
-                if len(t_d[detail_name]) == 1:
-                    retVal[detail_name] = t_d[detail_name][0]
-                else:
-                    retVal[detail_name] = t_d[detail_name]
-        actions = OrderedDict()
-        for action_name in ("pre_copy", "pre_copy_to_folder", "pre_copy_item", "post_copy_item", "post_copy_to_folder", "post_copy", "pre_remove", "pre_remove_from_folder", "pre_remove_item", "remove_item", "post_remove_item", "post_remove_from_folder", "post_remove"):
-            if action_name in t_d:
-                actions[action_name] = t_d[action_name]
-        if actions:
-            retVal["actions"] = actions
         return retVal
 
 
