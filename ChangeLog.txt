@@ -21,7 +21,10 @@
     * new method: IndexItemsTable.get_iids_with_specific_detail_values, get all iids that have detail_name with specific detail_value
     * refactored CMDObj.do_apropos to use only items_table not install_definitions_index
     * removed CMDObj methods do_listindex, do_common as they did almost the same as do_list, do_depend
-    
+    * import traceback properly
+    * r in shortcut to restart in interactive mode
+    * do_stam a function to try out things in interactive mode
+
 18/9/2017 1.6.1.0
     user visible changes:
     * new config var INFO_MAP_FILES_URL_PREFIX to better define INFO_MAP_FILE_URL

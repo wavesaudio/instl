@@ -7,6 +7,7 @@ import time
 import shlex
 import platform
 import re
+import traceback
 
 import appdirs
 
@@ -85,8 +86,6 @@ def go_interactive(client, admin):
         with CMDObj(client, admin) as icmd:
             icmd.cmdloop()
     except Exception as es:
-        import traceback
-
         tb = traceback.format_exc()
         print("go_interactive", es, tb)
 
@@ -166,8 +165,6 @@ class CMDObj(cmd.Cmd, object):
             traceback.print_exception(type(ie.original_exception), ie.original_exception, sys.exc_info()[2])
         except Exception:
             print("unhandled exception")
-            import traceback
-
             traceback.print_exc()
         return retVal
 
@@ -535,8 +532,12 @@ class CMDObj(cmd.Cmd, object):
         print("version: print", self.this_program_name, "version")
 
     def do_restart(self, unused_params):
+        print("restarting...")
         self.restart = True
         return True  # stops cmdloop
+
+    def do_r(self, unused_params):
+        return self.do_restart(unused_params)
 
     def help_restart(self):
         print("restart:", "reloads", self.this_program_name)
@@ -604,6 +605,9 @@ class CMDObj(cmd.Cmd, object):
     def help_which(self):
         print("print full path to currently running instl")
 
+    def do_stam(self, params):
+        params = [param for param in shlex.split(params)]
+        self.client_prog_inst.items_table.iids_from_guids2(params)
 
 def compact_history():
     if hasattr(readline, "replace_history_item"):
