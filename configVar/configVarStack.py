@@ -100,6 +100,7 @@ class ConfigVarStack(configVarList.ConfigVarList):
             self._ConfigVarList_objs[-1].add_const_config_variable(var_name, description, *values_as_strs)
 
     def repr_var_for_yaml(self, var_name, include_comments=True, resolve=True):
+        the_comment = None
         if include_comments:
             the_comment = self[var_name].description
         if resolve:
