@@ -1,6 +1,8 @@
-???? 1.6.2.0
+24/9/2017 1.6.2.0
 
     programmer visible changes:
+    * removed usage of install_definitions_index from instlInstanceBase_interactive.py
+    * removed file installItem.py and all it's usage - finally only db operations are done
     * removed usage of InstallItem.push_var_stack_scope & InstlAdmin.sources_from_iids from all admin commands, effect mainly InstlAdmin.verify_index_to_repo
     * new method IndexItemsTable.change_status_of_all_iids to globally set all item status
     * removed unused file InstallItemLists.py
@@ -27,8 +29,6 @@
     * removed table IndexGuidToItemTranslate replaced with TEMP table guid_to_iid_temp_t
     * IndexItemTable.iids_from_guids refactored using guid_to_iid_temp_t
     * added IndexItemsTable.lock_table and unlock_table. Locking a table is helpful when debugging to know when a table is being written.
-    * removed usage of install_definitions_index from instlInstanceBase_interactive.py
-    * removed file installItem.py and all it's usage - finally only db operations are done
     * as result of installItem.py removal also removed functions InstlClient.add_default_items. InstalInstanceBase.resolve_index_inheritance and other related code
 
 18/9/2017 1.6.1.0
