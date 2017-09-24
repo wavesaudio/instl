@@ -7,6 +7,29 @@
     * removed unused file test_InstallItems.py
     * InstlAdmin.do_depend replaced self.install_definitions_index with self.items_table.get_all_iids()
     * removed some redundant imports and functions
+    * IndexItemTable.get_all_iids will return iids sorted
+    * new method: IndexItemTable.iid_to_yaml intended to replace replace InstallItem.repr_for_yaml (not done yet)
+    * removed "if self.items_table" from a few places as self.items_table is always initialized now
+    * InstlInstanceBase.needs implemented with items_table instead of install_definitions_index
+    * CMDObj.emptyline override to avoid a bug in PyCharm
+    * new method: ConfigVarStack.repr_var_for_yaml represents 1 config var for yaml
+    * ConfigVarStack.repr_for_yaml refactored to use ConfigVarStack.repr_var_for_yaml
+    * Fixed IndexItemsTable.get_original_details
+    * Fixed IndexItemsTable.repr_item_for_yaml and removed IndexItemsTable.iid_to_yaml which didi the same thing
+    * InstlClient.repr_for_yaml rewritten with IndexItemsTable.repr_item_for_yaml
+    * new method: IndexItemsTable.get_detail_values_by_name_for_all_iids, get values of specific detail for all iids
+    * new method: IndexItemsTable.get_iids_with_specific_detail_values, get all iids that have detail_name with specific detail_value
+    * refactored CMDObj.do_apropos to use only items_table not install_definitions_index
+    * removed CMDObj methods do_listindex, do_common as they did almost the same as do_list, do_depend
+    * import traceback properly
+    * r in shortcut to restart in interactive mode
+    * do_stam a function to try out things in interactive mode
+    * removed table IndexGuidToItemTranslate replaced with TEMP table guid_to_iid_temp_t
+    * IndexItemTable.iids_from_guids refactored using guid_to_iid_temp_t
+    * added IndexItemsTable.lock_table and unlock_table. Locking a table is helpful when debugging to know when a table is being written.
+    * removed usage of install_definitions_index from instlInstanceBase_interactive.py
+    * removed file installItem.py and all it's usage - finally only db operations are done
+    * as result of installItem.py removal also removed functions InstlClient.add_default_items. InstalInstanceBase.resolve_index_inheritance and other related code
 
 18/9/2017 1.6.1.0
     user visible changes:

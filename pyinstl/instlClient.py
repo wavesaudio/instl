@@ -2,11 +2,9 @@
 
 import os
 import time
-from collections import defaultdict, namedtuple
-
+from collections import defaultdict, namedtuple, OrderedDict
 
 import utils
-from .installItem import InstallItem, guid_list
 import aYaml
 from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
@@ -93,8 +91,6 @@ class InstlClient(InstlInstanceBase):
         self.platform_helper.init_platform_tools()
         # after reading variable COPY_TOOL from yaml, we might need to re-init the copy tool.
         self.platform_helper.init_copy_tool()
-        self.resolve_index_inheritance()
-        self.add_default_items()
         self.calculate_install_items()
         self.platform_helper.num_items_for_progress_report = int(var_stack.ResolveVarToStr("LAST_PROGRESS"))
         self.platform_helper.no_progress_messages = "NO_PROGRESS_MESSAGES" in var_stack
@@ -166,52 +162,41 @@ class InstlClient(InstlInstanceBase):
             one for define (tagged !define), one for the index (tagged !index).
         """
         retVal = list()
+        all_iids = self.items_table.get_all_iids()
+        all_vars = sorted(var_stack.keys())
         if what is None:  # None is all
-            retVal.append(aYaml.YamlDumpDocWrap(var_stack, '!define', "Definitions",
+            what = all_vars + all_iids
+
+        defines = OrderedDict()
+        indexes = OrderedDict()
+        unknowns = list()
+        for identifier in what:
+            if identifier in all_vars:
+                defines.update({identifier: var_stack.repr_var_for_yaml(identifier)})
+            elif identifier in all_iids:
+                indexes.update({identifier: self.items_table.repr_item_for_yaml(identifier)})
+            else:
+                unknowns.append(aYaml.YamlDumpWrap(value="UNKNOWN VARIABLE",
+                                                   comment=identifier + " is not in variable list"))
+        if defines:
+            retVal.append(aYaml.YamlDumpDocWrap(defines, '!define', "Definitions",
                                                 explicit_start=True, sort_mappings=True))
-            retVal.append(aYaml.YamlDumpDocWrap(self.install_definitions_index,
-                                                '!index', "Installation index",
-                                                explicit_start=True, sort_mappings=True))
-        else:
-            defines = list()
-            indexes = list()
-            unknowns = list()
-            for identifier in what:
-                if identifier in var_stack:
-                    defines.append(var_stack.repr_for_yaml(identifier))
-                elif identifier in self.install_definitions_index:
-                    indexes.append({identifier: self.install_definitions_index[identifier].repr_for_yaml()})
-                else:
-                    unknowns.append(aYaml.YamlDumpWrap(value="UNKNOWN VARIABLE",
-                                                       comment=identifier + " is not in variable list"))
-            if defines:
-                retVal.append(aYaml.YamlDumpDocWrap(defines, '!define', "Definitions",
-                                                    explicit_start=True, sort_mappings=True))
-            if indexes:
-                retVal.append(
-                    aYaml.YamlDumpDocWrap(indexes, '!index', "Installation index",
-                                          explicit_start=True, sort_mappings=True))
-            if unknowns:
-                retVal.append(
-                    aYaml.YamlDumpDocWrap(unknowns, '!unknowns', "Installation index",
-                                          explicit_start=True, sort_mappings=True))
+        if indexes:
+            retVal.append(
+                aYaml.YamlDumpDocWrap(indexes, '!index', "Installation index",
+                                      explicit_start=True, sort_mappings=True))
+        if unknowns:
+            retVal.append(
+                aYaml.YamlDumpDocWrap(unknowns, '!unknowns', "Installation index",
+                                      explicit_start=True, sort_mappings=True))
 
         return retVal
-
-    def add_default_items(self):
-        all_items_item = InstallItem("__ALL_ITEMS_IID__")
-        all_items_item.name = "All IIDs"
-        all_items_item.add_depends(*self.install_definitions_index.keys())
-        self.install_definitions_index["__ALL_ITEMS_IID__"] = all_items_item
-
-        all_guids_item = InstallItem("__ALL_GUIDS_IID__")
-        all_guids_item.name = "All GUIDs"
-        all_guids_item.add_depends(*guid_list(self.install_definitions_index))
-        self.install_definitions_index["__ALL_GUIDS_IID__"] = all_guids_item
 
     def calculate_install_items(self):
         self.calculate_main_install_items()
         self.calculate_all_install_items()
+        self.items_table.lock_table("IndexItemRow")
+        self.items_table.lock_table("IndexItemDetailRow")
 
     def calculate_main_install_items(self):
         """ calculate the set of iids to install from the "MAIN_INSTALL_TARGETS" variable.
@@ -219,10 +204,6 @@ class InstlClient(InstlInstanceBase):
         """
         if "MAIN_INSTALL_TARGETS" not in var_stack:
             raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
-        # legacy, to be removed when InstallItem is no longer in use
-        active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
-        for os_name in active_oses:
-            InstallItem.begin_get_for_specific_os(os_name)
 
         main_install_targets = var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS")
         main_iids, main_guids = utils.separate_guids_from_iids(main_install_targets)

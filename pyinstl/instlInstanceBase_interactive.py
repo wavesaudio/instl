@@ -7,11 +7,11 @@ import time
 import shlex
 import platform
 import re
+import traceback
 
 import appdirs
 
 import utils
-from .installItem import guid_list, iids_from_guids, InstallItem
 from configVar import var_stack
 
 
@@ -85,8 +85,6 @@ def go_interactive(client, admin):
         with CMDObj(client, admin) as icmd:
             icmd.cmdloop()
     except Exception as es:
-        import traceback
-
         tb = traceback.format_exc()
         print("go_interactive", es, tb)
 
@@ -150,6 +148,13 @@ class CMDObj(cmd.Cmd, object):
         if self.restart:
             restart_program()
 
+    def emptyline(self):
+        """ override just to overcome a bug while running in under PyCharm
+            PyCharm is entering a blank line after each input(...) and CMD.emptyline
+            therefor repeats the last command, resulting in each command preformed twice.
+        """
+        return False
+
     def onecmd(self, line):
         retVal = False
         try:
@@ -159,8 +164,6 @@ class CMDObj(cmd.Cmd, object):
             traceback.print_exception(type(ie.original_exception), ie.original_exception, sys.exc_info()[2])
         except Exception:
             print("unhandled exception")
-            import traceback
-
             traceback.print_exc()
         return retVal
 
@@ -257,17 +260,13 @@ class CMDObj(cmd.Cmd, object):
         print ("index items:")
         if index_results:
             for iid in index_results:
-                guid_of_iid = self.client_prog_inst.install_definitions_index[iid].guid
-                if guid_of_iid:
-                    print ("   ", iid, "(guid:", guid_of_iid, ")")
-                else:
-                    print ("   ", iid, "(no guid)")
+                print ("   ", iid)
         else:
             print ("    no matching iids were found")
         print ("guids:")
         if guids_results:
             for guid in guids_results:
-                iids_of_guids = [iid for iid in self.client_prog_inst.install_definitions_index if self.client_prog_inst.install_definitions_index[iid].guid == guid]
+                iids_of_guids = self.client_prog_inst.items_table.get_iids_with_specific_detail_values("guid", guid)
                 print ("   ", guid, iids_of_guids)
         else:
             print ("    no matching guids were found")
@@ -320,20 +319,6 @@ class CMDObj(cmd.Cmd, object):
         print("list")
         print("    lists all definitions, index & guid entries")
 
-    def do_listindex(self, params):
-        if params:
-            params = shlex.split(params)
-            params_not_in_index = list()
-            for param in params:
-                if param in self.client_prog_inst.install_definitions_index:
-                    self.client_prog_inst.install_definitions_index[param].resolve_inheritance(self.client_prog_inst.install_definitions_index)
-                    aYaml.writeAsYaml({param: self.client_prog_inst.install_definitions_index[param].repr_for_yaml()})
-                else:
-                    params_not_in_index.append(param)
-            if params_not_in_index:
-                print("Not found in index:\n    ", "\n    ".join(params_not_in_index))
-
-
     def do_statistics(self, unused_params):
         num_files = self.admin_prog_inst.info_map_table.num_items("all-files")
         num_dirs =  self.admin_prog_inst.info_map_table.num_items("all-dirs")
@@ -379,10 +364,9 @@ class CMDObj(cmd.Cmd, object):
             for a_file in shlex.split(params):
                 try:
                     self.client_prog_inst.read_yaml_file(a_file)
-                    self.client_prog_inst.add_default_items()
+                    self.client_prog_inst.items_table.create_default_index_items()
                 except Exception as ex:
                     print("read", a_file, ex)
-            self.client_prog_inst.resolve_index_inheritance()
             self.client_prog_inst.items_table.resolve_inheritance()
             self.client_prog_inst.items_table.reset_get_for_all_oses()
         else:
@@ -474,39 +458,12 @@ class CMDObj(cmd.Cmd, object):
     def help_cycles(self):
         print("cycles:", "check index dependencies for cycles")
 
-    def do_common(self, params):
-        iids = shlex.split(params)
-        missing_iids = utils.unique_list() # [iid in iids if iid not in ]
-        for iid in iids:
-            if iid not in self.client_prog_inst.install_definitions_index:
-                missing_iids.append(iid)
-        if missing_iids:
-            print("Could not find in index:", ", ".join(missing_iids))
-        else:
-            all_needs = list()
-            all_needed_by = list()
-            for iid in iids:
-                needs_list = utils.unique_list()
-                self.client_prog_inst.needs(iid, needs_list)
-                all_needs.append(needs_list)
-                all_needed_by.append(self.client_prog_inst.needed_by(iid))
-            needs_result = set(all_needs[0]).intersection(*all_needs)
-            needed_by_result = set(all_needed_by[0]).intersection(*all_needed_by)
-            if "__ALL_ITEMS_IID__" in needed_by_result:
-                needed_by_result.remove("__ALL_ITEMS_IID__")
-            if not needs_result:
-                needs_result.add("no one")
-            print("common needs:\n   ", ", ".join(needs_result))
-            if not needed_by_result:
-                needed_by_result.add("no one")
-            print("common needed by:\n   ", ", ".join(needed_by_result))
-
     def do_depend(self, params):
         if params:
             self.client_prog_inst.items_table.begin_get_for_all_oses()
-            InstallItem.begin_get_for_all_oses()
+            all_iids = self.client_prog_inst.items_table.get_all_iids()
             for param in shlex.split(params):
-                if param not in self.client_prog_inst.install_definitions_index:
+                if param not in all_iids:
                     print(text_with_color(param, 'green'), "not in index")
                     continue
                 needs_list = utils.unique_list()
@@ -528,7 +485,6 @@ class CMDObj(cmd.Cmd, object):
                         needed_by_list = ("no one",)
                     needed_by_list = [text_with_color(needed_by, 'yellow') for needed_by in needed_by_list]
                     print(text_with_color(param, 'green'), "needed by:\n    ", ", ".join(sorted(needed_by_list)))
-        InstallItem.reset_get_for_all_oses()
         self.client_prog_inst.items_table.reset_get_for_all_oses()
         return False
 
@@ -574,8 +530,12 @@ class CMDObj(cmd.Cmd, object):
         print("version: print", self.this_program_name, "version")
 
     def do_restart(self, unused_params):
+        print("restarting...")
         self.restart = True
         return True  # stops cmdloop
+
+    def do_r(self, unused_params):
+        return self.do_restart(unused_params)
 
     def help_restart(self):
         print("restart:", "reloads", self.this_program_name)
@@ -643,6 +603,9 @@ class CMDObj(cmd.Cmd, object):
     def help_which(self):
         print("print full path to currently running instl")
 
+    def do_stam(self, params):
+        params = [param for param in shlex.split(params)]
+        self.client_prog_inst.items_table.iids_from_guids2(params)
 
 def compact_history():
     if hasattr(readline, "replace_history_item"):
@@ -670,15 +633,18 @@ def do_list_imp(self, what=None, stream=sys.stdout):
     individual_items_to_write = list()
     for item_to_do in list_to_do:
         if utils.guid_re.match(item_to_do):
-            whole_sections_to_write.append({item_to_do: sorted(iids_from_guids(self.install_definitions_index, item_to_do))})
+            translated_iids, orphaned_guids = self.items_table.iids_from_guids([item_to_do])
+            whole_sections_to_write.append({item_to_do: translated_iids})
         elif item_to_do == "define":
             whole_sections_to_write.append(aYaml.YamlDumpDocWrap(var_stack, '!define', "Definitions", explicit_start=True, sort_mappings=True))
         elif item_to_do == "index":
-            whole_sections_to_write.append(aYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True))
+            whole_sections_to_write.append(aYaml.YamlDumpDocWrap(self.items_table.repr_for_yaml(), '!index', "Installation index", explicit_start=True, sort_mappings=True))
         elif item_to_do == "guid":
             guid_dict = dict()
-            for lic in guid_list(self.install_definitions_index):
-                guid_dict[lic] = sorted(iids_from_guids(self.install_definitions_index, lic))
+            all_guids = self.items_table.get_detail_values_by_name_for_all_iids("guid")
+            for a_guid in all_guids:
+                translated_iids, orphaned_guids = self.items_table.iids_from_guids([a_guid])
+                guid_dict[a_guid] = translated_iids
             whole_sections_to_write.append(aYaml.YamlDumpDocWrap(guid_dict, '!guid', "guid to IID", explicit_start=True, sort_mappings=True))
         else:
             individual_items_to_write.append(item_to_do)
@@ -690,11 +656,11 @@ def create_completion_list_imp(self, for_what="all"):
     retVal = list()
     try:
         if for_what in ("all", "index"):
-            retVal.extend(list(self.install_definitions_index.keys()))
+            retVal.extend(list(self.items_table.get_all_iids()))
         if for_what in ("all", "define"):
             retVal.extend(list(var_stack.keys()))
         if for_what in ("all", "guid"):
-            retVal.extend(guid_list(self.install_definitions_index))
+            retVal.extend(self.items_table.get_detail_values_by_name_for_all_iids("guid"))
     except Exception as ex:
         print("create_completion_list:", ex)
     return retVal

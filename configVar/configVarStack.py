@@ -99,6 +99,18 @@ class ConfigVarStack(configVarList.ConfigVarList):
             # noinspection PyUnboundLocalVariable
             self._ConfigVarList_objs[-1].add_const_config_variable(var_name, description, *values_as_strs)
 
+    def repr_var_for_yaml(self, var_name, include_comments=True, resolve=True):
+        if include_comments:
+            the_comment = self[var_name].description
+        if resolve:
+            var_value = self.ResolveVarToList(var_name)
+        else:
+            var_value = self.unresolved_var_to_list(var_name)
+        if len(var_value) == 1:
+            var_value = var_value[0]
+        retVal = aYaml.YamlDumpWrap(var_value, comment=the_comment)
+        return retVal
+
     def repr_for_yaml(self, which_vars=None, include_comments=True, resolve=True, ignore_unknown_vars=False):
         retVal = dict()
         vars_list = list()
@@ -113,15 +125,7 @@ class ConfigVarStack(configVarList.ConfigVarList):
         theComment = ""
         for var_name in vars_list:
             if var_name in self:
-                if include_comments:
-                    theComment = self[var_name].description
-                if resolve:
-                    var_value = self.ResolveVarToList(var_name)
-                else:
-                    var_value = self.unresolved_var_to_list(var_name)
-                if len(var_value) == 1:
-                    var_value = var_value[0]
-                retVal[var_name] = aYaml.YamlDumpWrap(var_value, comment=theComment)
+                 retVal[var_name] = self.repr_var_for_yaml(var_name, include_comments=include_comments, resolve=resolve)
             elif not ignore_unknown_vars:
                 retVal[var_name] = aYaml.YamlDumpWrap(value="UNKNOWN VARIABLE", comment=var_name+" is not in variable list")
         return retVal

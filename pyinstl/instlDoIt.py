@@ -27,7 +27,7 @@ class InstlDoIt(InstlInstanceBase):
         self.batch_accum += self.platform_helper.setup_echo()
         # after reading variable COPY_TOOL from yaml, we might need to re-init the copy tool.
         self.platform_helper.init_copy_tool()
-        self.resolve_index_inheritance()
+        self.items_table.resolve_inheritance()
         self.calculate_full_doit_order()
         self.platform_helper.num_items_for_progress_report = int(var_stack.ResolveVarToStr("LAST_PROGRESS"))
 

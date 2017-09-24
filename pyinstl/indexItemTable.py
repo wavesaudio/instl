@@ -13,7 +13,6 @@ from .db_alchemy import create_session,\
     IndexItemDetailOperatingSystem, \
     IndexItemRow, \
     IndexItemDetailRow, \
-    IndexGuidToItemTranslate, \
     IndexRequireTranslate, \
     FoundOnDiskItemRow, \
     ConfigVar, get_engine
@@ -22,9 +21,22 @@ import svnTree  # do not remove must be here before IndexItemsTable.execute_scri
 import utils
 from configVar import var_stack
 
+# todo: these were copied from the late Instal lItem.py and should find a better home
+os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
+allowed_item_keys = ('name', 'guid','install_sources', 'install_folders', 'inherit',
+                     'depends', 'actions', 'remark', 'version', 'phantom_version',
+                     'direct_sync', 'previous_sources', 'info_map')
+allowed_top_level_keys = os_names[1:] + allowed_item_keys
+action_types = ('pre_copy', 'pre_copy_to_folder', 'pre_copy_item',
+                'post_copy_item', 'post_copy_to_folder', 'post_copy',
+                'pre_remove', 'pre_remove_from_folder', 'pre_remove_item',
+                'remove_item', 'post_remove_item', 'post_remove_from_folder',
+                'post_remove', 'pre_doit', 'doit', 'post_doit')
+file_types = ('!dir_cont', '!file', '!dir')
+
 
 class IndexItemsTable(object):
-    os_names_to_num = {'common': 0, 'Mac': 1, 'Mac32': 2, 'Mac64': 3, 'Win': 4, 'Win32': 5, 'Win64': 6}
+    os_names_to_num = OrderedDict([('common', 0), ('Mac', 1), ('Mac32', 2), ('Mac64', 3), ('Win', 4), ('Win32', 5), ('Win64', 6)])
     install_status = {"none": 0, "main": 1, "update": 2, "depend": 3, "remove": -1}
     action_types = ('pre_copy', 'pre_copy_to_folder', 'pre_copy_item',
                     'post_copy_item', 'post_copy_to_folder', 'post_copy',
@@ -46,6 +58,7 @@ class IndexItemsTable(object):
         # print("Views:", inspector.get_view_names())
         self.baked_queries_map = self.bake_baked_queries()
         self.bakery = baked.bakery()
+        self.locked_tables = set()
 
     def get_db_url(self):
         return self.session.bind.url
@@ -94,10 +107,41 @@ class IndexItemsTable(object):
     def drop_views(self):
         self.execute_script_from_defaults("drop-views.sql")
 
+    def lock_table(self, table_name):
+        query_text = """
+            CREATE TRIGGER IF NOT EXISTS lock_INSERT_{table_name}
+            BEFORE INSERT ON {table_name}
+            BEGIN
+                SELECT raise(abort, '{table_name} is locked no INSERTs');
+            END;
+            CREATE TRIGGER IF NOT EXISTS lock_UPDATE_{table_name}
+            BEFORE UPDATE ON {table_name}
+            BEGIN
+                SELECT raise(abort, '{table_name} is locked no UPDATEs');
+            END;
+            CREATE TRIGGER IF NOT EXISTS lock_DELETE_{table_name}
+            BEFORE DELETE ON {table_name}
+            BEGIN
+                SELECT raise(abort, '{table_name} is locked no DELETEs');
+            END;
+        """.format(table_name=table_name)
+        self.execute_script(query_text)
+        self.commit_changes()
+        self.locked_tables.add(table_name)
+
+    def unlock_table(self, table_name):
+        query_text = """
+            DROP TRIGGER IF EXISTS lock_INSERT_{table_name};
+            DROP TRIGGER IF EXISTS lock_UPDATE_{table_name};
+            DROP TRIGGER IF EXISTS lock_DELETE_{table_name};
+        """.format(table_name=table_name)
+        self.execute_script(query_text)
+        self.commit_changes()
+        self.locked_tables.remove(table_name)
+
     def begin_get_for_all_oses(self):
         """ adds all known os names to the list of os that will influence all get functions
             such as depend_list, source_list etc.
-            This is a static method so it will influence all InstallItem objects.
             This method is useful in code that does reporting or analyzing, where
             there is need to have access to all oses not just the current or target os.
         """
@@ -115,7 +159,6 @@ class IndexItemsTable(object):
     def reset_get_for_all_oses(self):
         """ resets the list of os that will influence all get functions
             such as depend_list, source_list etc.
-            This is a static method so it will influence all InstallItem objects.
             This method is useful in code that does reporting or analyzing, where
             there is need to have access to all oses not just the current or target os.
         """
@@ -124,7 +167,6 @@ class IndexItemsTable(object):
     def begin_get_for_specific_oses(self, *for_oses):
         """ adds another os name to the list of os that will influence all get functions
             such as depend_list, source_list etc.
-            This is a static method so it will influence all InstallItem objects.
         """
         for_oses = *for_oses, "common"
         quoted_os_names = [utils.quoteme_double(os_name) for os_name in for_oses]
@@ -147,7 +189,6 @@ class IndexItemsTable(object):
     def end_get_for_specific_os(self):
         """ removed the last added os name to the list of os that will influence all get functions
             such as depend_list, source_list etc.
-             This is a static method so it will influence all InstallItem objects.
         """
         self.reset_get_for_all_oses()
 
@@ -304,7 +345,10 @@ class IndexItemsTable(object):
         :return: list of all iids in the db, empty list if none are found
         """
         retVal = list()
-        query_text = """SELECT iid FROM IndexItemRow"""
+        query_text = """
+          SELECT iid FROM IndexItemRow
+          ORDER BY iid
+        """
         try:
             exec_result = self.session.execute(query_text)
             if exec_result.returns_rows:
@@ -312,7 +356,6 @@ class IndexItemsTable(object):
                 retVal = [mm[0] for mm in retVal]
         except SQLAlchemyError as ex:
             raise
-
         return retVal
 
     def create_default_index_items(self, iids_to_ignore):
@@ -425,8 +468,7 @@ class IndexItemsTable(object):
         """
         if "get_original_details" not in self.baked_queries_map:
             the_query = self.bakery(lambda session: session.query(IndexItemDetailRow))
-            the_query += lambda q: q.join(IndexItemRow)
-            the_query += lambda q: q.filter(IndexItemRow.iid.like(bindparam('iid')))
+            the_query += lambda q: q.filter(IndexItemDetailRow.original_iid.like(bindparam('iid')))
             the_query += lambda q: q.filter(IndexItemDetailRow.detail_name.like(bindparam('detail_name')))
             the_query += lambda q: q.filter(IndexItemDetailRow.os_id.like(bindparam('in_os')))
             the_query += lambda q: q.order_by(IndexItemDetailRow._id)
@@ -438,7 +480,7 @@ class IndexItemsTable(object):
         params = [iid, detail_name, in_os]
         for iparam in range(len(params)):
             if params[iparam] is None: params[iparam] = '%'
-        retVal = the_query(self.session).params(iid=params[0], detail_name=params[1], os=params[2]).all()
+        retVal = the_query(self.session).params(iid=params[0], detail_name=params[1], in_os=params[2]).all()
         return retVal
 
     def get_resolved_details_for_active_iid(self, iid, detail_name=None):
@@ -528,6 +570,9 @@ class IndexItemsTable(object):
         return retVal
 
     def get_details_by_name_for_all_iids(self, detail_name):
+        """ get all IndexItemDetailRow objects with detail_name.
+            detail_name can contain wildcards e.g. require_%
+        """
         if "get_details_by_name_for_all_iids" not in self.baked_queries_map:
             the_query = self.bakery(lambda session: session.query(IndexItemDetailRow))
             the_query += lambda q: q.filter(IndexItemDetailRow.detail_name.like(bindparam('detail_name')))
@@ -538,6 +583,26 @@ class IndexItemsTable(object):
             the_query = self.baked_queries_map["get_details_by_name_for_all_iids"]
 
         retVal = the_query(self.session).params(detail_name=detail_name).all()
+        return retVal
+
+    def get_detail_values_by_name_for_all_iids(self, detail_name):
+        """ get values of specific detail for all iids
+        """
+        retVal = list()
+        query_text = """
+            SELECT DISTINCT detail_value
+            FROM IndexItemDetailRow
+            WHERE detail_name LIKE :detail_name
+            AND os_is_active = 1
+            ORDER BY _id
+        """
+        try:
+            exec_result = self.session.execute(query_text, {'detail_name': detail_name})
+            if exec_result.returns_rows:
+                fetched_results = exec_result.fetchall()
+                retVal = [mm[0] for mm in fetched_results]
+        except SQLAlchemyError as ex:
+            raise
         return retVal
 
     def resolve_item_inheritance(self, item_to_resolve, generation=0):
@@ -669,8 +734,8 @@ class IndexItemsTable(object):
 
     def repr_item_for_yaml(self, iid):
         item_details = OrderedDict()
-        for os_name in self.os_names_to_num:
-            details_rows = self.get_original_details(iid=iid, in_os=os_name)
+        for os_name, os_num in self.os_names_to_num.items():
+            details_rows = self.get_original_details(iid=iid, in_os=os_num)
             if len(details_rows) > 0:
                 if os_name == "common":
                     work_on_dict = item_details
@@ -681,8 +746,8 @@ class IndexItemsTable(object):
                         if 'actions' not in work_on_dict:
                             work_on_dict['actions'] = OrderedDict()
                         if details_row.detail_name not in work_on_dict['actions']:
-                            work_on_dict[details_row.detail_name]['actions'] = list()
-                        work_on_dict[details_row.detail_name]['actions'].append(details_row.detail_value)
+                            work_on_dict['actions'][details_row.detail_name] = list()
+                        work_on_dict['actions'][details_row.detail_name].append(details_row.detail_value)
                     else:
                         if details_row.detail_name not in work_on_dict:
                             work_on_dict[details_row.detail_name] = list()
@@ -719,44 +784,47 @@ class IndexItemsTable(object):
         return retVal
 
     def iids_from_guids(self, guid_list):
-        returned_iids = list()
+        translated_iids = list()
         orphaned_guids = list()
         if guid_list:
-            # add all guids to table IndexGuidToItemTranslate with iid field defaults to Null
+            self.session.execute("""
+            CREATE TEMP TABLE guid_to_iid_temp_t
+            (
+                _id  INTEGER PRIMARY KEY,
+                guid VARCHAR,
+                iid  VARCHAR
+            );
+            """)
+            # add all guids to table guid_to_iid_temp_t with iid field defaults to Null
             for a_guid in list(set(guid_list)):  # list(set()) will remove duplicates
-                self.session.add(IndexGuidToItemTranslate(guid=a_guid))
-            self.commit_changes()
+                self.session.execute("""INSERT INTO guid_to_iid_temp_t (guid) VALUES (:guid)""", {"guid": a_guid})
 
-            # insert to table IndexGuidToItemTranslate guid, iid pairs.
+            # insert to table guid_to_iid_temp_t guid, iid pairs.
             # a guid might yield 0, 1, or more iids
             query_text = """
-                INSERT INTO IndexGuidToItemTranslate(guid, iid)
+                INSERT INTO guid_to_iid_temp_t(guid, iid)
                 SELECT IndexItemDetailRow.detail_value, IndexItemDetailRow.owner_iid
                 FROM IndexItemDetailRow
                 WHERE
                     IndexItemDetailRow.detail_name='guid'
-                    AND IndexItemDetailRow.detail_value IN (SELECT guid FROM IndexGuidToItemTranslate WHERE iid IS NULL);
+                    AND IndexItemDetailRow.detail_value IN (SELECT guid FROM guid_to_iid_temp_t WHERE iid IS NULL);
                 """
             self.session.execute(query_text)
-            self.commit_changes()
 
-            # return a list of guid, count pairs.
-            # Guids with count of 0 are guid that could not be translated to iids
+            # return a list of guids with count of 1 which are guids that could not be translated to iids
             query_text = """
-                SELECT guid, count(guid) FROM IndexGuidToItemTranslate
-                GROUP BY guid;
+                SELECT guid FROM guid_to_iid_temp_t
+                GROUP BY guid
+                HAVING count(guid) < 2;
                 """
-            count_guids = self.session.execute(query_text).fetchall()
-            for guid, count in count_guids:
-                if count < 2:
-                    orphaned_guids.append(guid)
-            all_iids = self.session.query(IndexGuidToItemTranslate.iid)\
-                    .distinct(IndexGuidToItemTranslate.iid)\
-                    .filter(IndexGuidToItemTranslate.iid != None)\
-                    .order_by('iid').all()
-            returned_iids = [iid[0] for iid in all_iids]
+            counted_orphaned_guids = self.session.execute(query_text).fetchall()
+            orphaned_guids.extend([iid[0] for iid in counted_orphaned_guids])
 
-        return returned_iids, orphaned_guids
+            not_null_iids = self.session.execute("""SELECT DISTINCT iid FROM guid_to_iid_temp_t WHERE iid NOTNULL ORDER BY iid""").fetchall()
+            translated_iids.extend([iid[0] for iid in not_null_iids])
+
+            self.session.execute("""DROP TABLE guid_to_iid_temp_t;""")
+        return translated_iids, orphaned_guids
 
     # find which iids are in the database
     def iids_from_iids(self, iid_list):
@@ -1252,3 +1320,36 @@ class IndexItemsTable(object):
         except SQLAlchemyError as ex:
             raise
         return retVal
+
+    def get_iids_with_specific_detail_values(self, detail_name, detail_value):
+        """ get all iids that have detail_name with specific detail_value
+            detail_name, detail_value can contain wild cards, e.g.:
+            get_iids_with_specific_detail_values("require_%", "%banana%")
+        """
+        retVal = list()
+        query_text = """
+            SELECT DISTINCT original_iid
+            FROM IndexItemDetailRow
+            WHERE
+                detail_name LIKE :detail_name
+            AND
+                detail_value LIKE :detail_value
+            """
+        try:
+            exec_result = self.session.execute(query_text, {'detail_name': detail_name, 'detail_value': detail_value})
+            if exec_result.returns_rows:
+                retVal.extend([mm[0] for mm in exec_result.fetchall()])
+        except SQLAlchemyError as ex:
+            raise
+        return retVal
+
+
+
+
+
+
+
+
+
+
+

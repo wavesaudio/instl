@@ -141,16 +141,6 @@ class FoundOnDiskItemRow(get_declarative_base()):
         return retVal
 
 
-class IndexGuidToItemTranslate(get_declarative_base()):
-    __tablename__ = 'IndexGuidToItemTranslate'
-    _id = Column(Integer, primary_key=True, autoincrement=True)
-    guid  = Column(String)
-    iid = Column(String, default=None)
-    def __str__(self):
-        retVal = "{self.guid} {self.iid}".format(**locals())
-        return retVal
-
-
 class IndexRequireTranslate(get_declarative_base()):
     __tablename__ = 'IndexRequireTranslate'
     _id = Column(Integer, primary_key=True, autoincrement=True)
@@ -175,7 +165,6 @@ class ConfigVar(get_declarative_base()):
 IndexItemDetailOperatingSystem.__table__.create(bind=get_engine(), checkfirst=True)
 IndexItemRow.__table__.create(bind=get_engine(), checkfirst=True)
 IndexItemDetailRow.__table__.create(bind=get_engine(), checkfirst=True)
-IndexGuidToItemTranslate.__table__.create(bind=get_engine(), checkfirst=True)
 IndexRequireTranslate.__table__.create(bind=get_engine(), checkfirst=True)
 FoundOnDiskItemRow.__table__.create(bind=get_engine(), checkfirst=True)
 ConfigVar.__table__.create(bind=get_engine(), checkfirst=True)
