@@ -7,3 +7,5 @@ ignore-paths:
   - build
   - misc
   - sphinx
+python-targets:
+  - 3
