@@ -635,15 +635,18 @@ def do_list_imp(self, what=None, stream=sys.stdout):
     individual_items_to_write = list()
     for item_to_do in list_to_do:
         if utils.guid_re.match(item_to_do):
-            whole_sections_to_write.append({item_to_do: sorted(iids_from_guids(self.install_definitions_index, item_to_do))})
+            translated_iids, orphaned_guids = self.items_table.iids_from_guids([item_to_do])
+            whole_sections_to_write.append({item_to_do: translated_iids})
         elif item_to_do == "define":
             whole_sections_to_write.append(aYaml.YamlDumpDocWrap(var_stack, '!define', "Definitions", explicit_start=True, sort_mappings=True))
         elif item_to_do == "index":
-            whole_sections_to_write.append(aYaml.YamlDumpDocWrap(self.install_definitions_index, '!index', "Installation index", explicit_start=True, sort_mappings=True))
+            whole_sections_to_write.append(aYaml.YamlDumpDocWrap(self.items_table.repr_for_yaml(), '!index', "Installation index", explicit_start=True, sort_mappings=True))
         elif item_to_do == "guid":
             guid_dict = dict()
-            for lic in guid_list(self.install_definitions_index):
-                guid_dict[lic] = sorted(iids_from_guids(self.install_definitions_index, lic))
+            all_guids = self.items_table.get_detail_values_by_name_for_all_iids("guid")
+            for a_guid in all_guids:
+                translated_iids, orphaned_guids = self.items_table.iids_from_guids([a_guid])
+                guid_dict[a_guid] = translated_iids
             whole_sections_to_write.append(aYaml.YamlDumpDocWrap(guid_dict, '!guid', "guid to IID", explicit_start=True, sort_mappings=True))
         else:
             individual_items_to_write.append(item_to_do)

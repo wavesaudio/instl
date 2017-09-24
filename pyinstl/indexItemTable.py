@@ -13,7 +13,6 @@ from .db_alchemy import create_session,\
     IndexItemDetailOperatingSystem, \
     IndexItemRow, \
     IndexItemDetailRow, \
-    IndexGuidToItemTranslate, \
     IndexRequireTranslate, \
     FoundOnDiskItemRow, \
     ConfigVar, get_engine
@@ -59,6 +58,7 @@ class IndexItemsTable(object):
         # print("Views:", inspector.get_view_names())
         self.baked_queries_map = self.bake_baked_queries()
         self.bakery = baked.bakery()
+        self.locked_tables = set()
 
     def get_db_url(self):
         return self.session.bind.url
@@ -106,6 +106,38 @@ class IndexItemsTable(object):
 
     def drop_views(self):
         self.execute_script_from_defaults("drop-views.sql")
+
+    def lock_table(self, table_name):
+        query_text = """
+            CREATE TRIGGER IF NOT EXISTS lock_INSERT_{table_name}
+            BEFORE INSERT ON {table_name}
+            BEGIN
+                SELECT raise(abort, '{table_name} is locked no INSERTs');
+            END;
+            CREATE TRIGGER IF NOT EXISTS lock_UPDATE_{table_name}
+            BEFORE UPDATE ON {table_name}
+            BEGIN
+                SELECT raise(abort, '{table_name} is locked no UPDATEs');
+            END;
+            CREATE TRIGGER IF NOT EXISTS lock_DELETE_{table_name}
+            BEFORE DELETE ON {table_name}
+            BEGIN
+                SELECT raise(abort, '{table_name} is locked no DELETEs');
+            END;
+        """.format(table_name=table_name)
+        self.execute_script(query_text)
+        self.commit_changes()
+        self.locked_tables.add(table_name)
+
+    def unlock_table(self, table_name):
+        query_text = """
+            DROP TRIGGER IF EXISTS lock_INSERT_{table_name};
+            DROP TRIGGER IF EXISTS lock_UPDATE_{table_name};
+            DROP TRIGGER IF EXISTS lock_DELETE_{table_name};
+        """.format(table_name=table_name)
+        self.execute_script(query_text)
+        self.commit_changes()
+        self.locked_tables.remove(table_name)
 
     def begin_get_for_all_oses(self):
         """ adds all known os names to the list of os that will influence all get functions
@@ -328,7 +360,6 @@ class IndexItemsTable(object):
                 retVal = [mm[0] for mm in retVal]
         except SQLAlchemyError as ex:
             raise
-
         return retVal
 
     def create_default_index_items(self, iids_to_ignore):
@@ -757,44 +788,47 @@ class IndexItemsTable(object):
         return retVal
 
     def iids_from_guids(self, guid_list):
-        returned_iids = list()
+        translated_iids = list()
         orphaned_guids = list()
         if guid_list:
-            # add all guids to table IndexGuidToItemTranslate with iid field defaults to Null
+            self.session.execute("""
+            CREATE TEMP TABLE guid_to_iid_temp_t
+            (
+                _id  INTEGER PRIMARY KEY,
+                guid VARCHAR,
+                iid  VARCHAR
+            );
+            """)
+            # add all guids to table guid_to_iid_temp_t with iid field defaults to Null
             for a_guid in list(set(guid_list)):  # list(set()) will remove duplicates
-                self.session.add(IndexGuidToItemTranslate(guid=a_guid))
-            self.commit_changes()
+                self.session.execute("""INSERT INTO guid_to_iid_temp_t (guid) VALUES (:guid)""", {"guid": a_guid})
 
-            # insert to table IndexGuidToItemTranslate guid, iid pairs.
+            # insert to table guid_to_iid_temp_t guid, iid pairs.
             # a guid might yield 0, 1, or more iids
             query_text = """
-                INSERT INTO IndexGuidToItemTranslate(guid, iid)
+                INSERT INTO guid_to_iid_temp_t(guid, iid)
                 SELECT IndexItemDetailRow.detail_value, IndexItemDetailRow.owner_iid
                 FROM IndexItemDetailRow
                 WHERE
                     IndexItemDetailRow.detail_name='guid'
-                    AND IndexItemDetailRow.detail_value IN (SELECT guid FROM IndexGuidToItemTranslate WHERE iid IS NULL);
+                    AND IndexItemDetailRow.detail_value IN (SELECT guid FROM guid_to_iid_temp_t WHERE iid IS NULL);
                 """
             self.session.execute(query_text)
-            self.commit_changes()
 
-            # return a list of guid, count pairs.
-            # Guids with count of 0 are guid that could not be translated to iids
+            # return a list of guids with count of 1 which are guids that could not be translated to iids
             query_text = """
-                SELECT guid, count(guid) FROM IndexGuidToItemTranslate
-                GROUP BY guid;
+                SELECT guid FROM guid_to_iid_temp_t
+                GROUP BY guid
+                HAVING count(guid) < 2;
                 """
-            count_guids = self.session.execute(query_text).fetchall()
-            for guid, count in count_guids:
-                if count < 2:
-                    orphaned_guids.append(guid)
-            all_iids = self.session.query(IndexGuidToItemTranslate.iid)\
-                    .distinct(IndexGuidToItemTranslate.iid)\
-                    .filter(IndexGuidToItemTranslate.iid != None)\
-                    .order_by('iid').all()
-            returned_iids = [iid[0] for iid in all_iids]
+            counted_orphaned_guids = self.session.execute(query_text).fetchall()
+            orphaned_guids.extend([iid[0] for iid in counted_orphaned_guids])
 
-        return returned_iids, orphaned_guids
+            not_null_iids = self.session.execute("""SELECT DISTINCT iid FROM guid_to_iid_temp_t WHERE iid NOTNULL ORDER BY iid""").fetchall()
+            translated_iids.extend([iid[0] for iid in not_null_iids])
+
+            self.session.execute("""DROP TABLE guid_to_iid_temp_t;""")
+        return translated_iids, orphaned_guids
 
     # find which iids are in the database
     def iids_from_iids(self, iid_list):

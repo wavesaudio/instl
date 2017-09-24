@@ -24,6 +24,10 @@
     * import traceback properly
     * r in shortcut to restart in interactive mode
     * do_stam a function to try out things in interactive mode
+    * removed table IndexGuidToItemTranslate replaced with TEMP table guid_to_iid_temp_t
+    * IndexItemTable.iids_from_guids refactored using guid_to_iid_temp_t
+    * added IndexItemsTable.lock_table and unlock_table. Locking a table is helpful when debugging to know when a table is being written.
+    * removed usage of install_definitions_index from instlInstanceBase_interactive.py
 
 18/9/2017 1.6.1.0
     user visible changes:

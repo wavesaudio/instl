@@ -165,10 +165,10 @@ class InstlClient(InstlInstanceBase):
             one for define (tagged !define), one for the index (tagged !index).
         """
         retVal = list()
-        all_keys = self.items_table.get_all_iids()
+        all_iids = self.items_table.get_all_iids()
         all_vars = sorted(var_stack.keys())
         if what is None:  # None is all
-            what = all_vars + all_keys
+            what = all_vars + all_iids
 
         defines = OrderedDict()
         indexes = OrderedDict()
@@ -176,7 +176,7 @@ class InstlClient(InstlInstanceBase):
         for identifier in what:
             if identifier in all_vars:
                 defines.update({identifier: var_stack.repr_var_for_yaml(identifier)})
-            elif identifier in all_keys:
+            elif identifier in all_iids:
                 indexes.update({identifier: self.items_table.repr_item_for_yaml(identifier)})
             else:
                 unknowns.append(aYaml.YamlDumpWrap(value="UNKNOWN VARIABLE",
@@ -209,6 +209,8 @@ class InstlClient(InstlInstanceBase):
     def calculate_install_items(self):
         self.calculate_main_install_items()
         self.calculate_all_install_items()
+        self.items_table.lock_table("IndexItemRow")
+        self.items_table.lock_table("IndexItemDetailRow")
 
     def calculate_main_install_items(self):
         """ calculate the set of iids to install from the "MAIN_INSTALL_TARGETS" variable.
