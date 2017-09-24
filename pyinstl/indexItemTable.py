@@ -21,7 +21,7 @@ import svnTree  # do not remove must be here before IndexItemsTable.execute_scri
 import utils
 from configVar import var_stack
 
-# todo: these were copied from InstallItem and should find a better home
+# todo: these were copied from the late Instal lItem.py and should find a better home
 os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
 allowed_item_keys = ('name', 'guid','install_sources', 'install_folders', 'inherit',
                      'depends', 'actions', 'remark', 'version', 'phantom_version',
@@ -142,7 +142,6 @@ class IndexItemsTable(object):
     def begin_get_for_all_oses(self):
         """ adds all known os names to the list of os that will influence all get functions
             such as depend_list, source_list etc.
-            This is a static method so it will influence all InstallItem objects.
             This method is useful in code that does reporting or analyzing, where
             there is need to have access to all oses not just the current or target os.
         """
@@ -160,7 +159,6 @@ class IndexItemsTable(object):
     def reset_get_for_all_oses(self):
         """ resets the list of os that will influence all get functions
             such as depend_list, source_list etc.
-            This is a static method so it will influence all InstallItem objects.
             This method is useful in code that does reporting or analyzing, where
             there is need to have access to all oses not just the current or target os.
         """
@@ -169,7 +167,6 @@ class IndexItemsTable(object):
     def begin_get_for_specific_oses(self, *for_oses):
         """ adds another os name to the list of os that will influence all get functions
             such as depend_list, source_list etc.
-            This is a static method so it will influence all InstallItem objects.
         """
         for_oses = *for_oses, "common"
         quoted_os_names = [utils.quoteme_double(os_name) for os_name in for_oses]
@@ -192,7 +189,6 @@ class IndexItemsTable(object):
     def end_get_for_specific_os(self):
         """ removed the last added os name to the list of os that will influence all get functions
             such as depend_list, source_list etc.
-             This is a static method so it will influence all InstallItem objects.
         """
         self.reset_get_for_all_oses()
 

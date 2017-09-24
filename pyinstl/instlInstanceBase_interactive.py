@@ -12,7 +12,6 @@ import traceback
 import appdirs
 
 import utils
-from .installItem import guid_list, iids_from_guids, InstallItem
 from configVar import var_stack
 
 
@@ -365,10 +364,9 @@ class CMDObj(cmd.Cmd, object):
             for a_file in shlex.split(params):
                 try:
                     self.client_prog_inst.read_yaml_file(a_file)
-                    self.client_prog_inst.add_default_items()
+                    self.client_prog_inst.items_table.create_default_index_items()
                 except Exception as ex:
                     print("read", a_file, ex)
-            self.client_prog_inst.resolve_index_inheritance()
             self.client_prog_inst.items_table.resolve_inheritance()
             self.client_prog_inst.items_table.reset_get_for_all_oses()
         else:

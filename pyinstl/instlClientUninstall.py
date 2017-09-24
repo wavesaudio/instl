@@ -6,7 +6,6 @@ import sys
 from collections import deque, defaultdict
 from configVar import var_stack
 
-from .installItem import InstallItem
 from .instlClientRemove import InstlClientRemove
 
 

@@ -13,11 +13,9 @@ import stat
 import utils
 import aYaml
 from .instlInstanceBase import InstlInstanceBase
-from .installItem import InstallItem
 from .batchAccumulator import BatchAccumulator
 from configVar import var_stack
 from svnTree import SVNTable
-from .indexItemTable import IndexItemsTable
 
 
 # noinspection PyPep8,PyPep8,PyPep8
@@ -910,7 +908,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_depend(self):
         self.read_yaml_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
-        self.resolve_index_inheritance()
+        self.items_table.resolve_inheritance()
         depend_result = defaultdict(dict)
         for IID in self.items_table.get_all_iids():
             needs_list = utils.unique_list()
@@ -933,7 +931,6 @@ class InstlAdmin(InstlInstanceBase):
     def do_verify_repo(self):
         self.read_yaml_file(var_stack.ResolveVarToStr("__CONFIG_FILE__"))
         self.read_yaml_file(var_stack.ResolveVarToStr("STAGING_FOLDER_INDEX"))
-        self.resolve_index_inheritance()
 
         the_folder = var_stack.ResolveVarToStr("STAGING_FOLDER")
         self.info_map_table.initialize_from_folder(the_folder)

@@ -5,7 +5,6 @@ import time
 from collections import defaultdict, namedtuple, OrderedDict
 
 import utils
-from .installItem import InstallItem, guid_list
 import aYaml
 from .instlInstanceBase import InstlInstanceBase
 from configVar import var_stack
@@ -92,8 +91,6 @@ class InstlClient(InstlInstanceBase):
         self.platform_helper.init_platform_tools()
         # after reading variable COPY_TOOL from yaml, we might need to re-init the copy tool.
         self.platform_helper.init_copy_tool()
-        self.resolve_index_inheritance()
-        self.add_default_items()
         self.calculate_install_items()
         self.platform_helper.num_items_for_progress_report = int(var_stack.ResolveVarToStr("LAST_PROGRESS"))
         self.platform_helper.no_progress_messages = "NO_PROGRESS_MESSAGES" in var_stack
@@ -195,17 +192,6 @@ class InstlClient(InstlInstanceBase):
 
         return retVal
 
-    def add_default_items(self):
-        all_items_item = InstallItem("__ALL_ITEMS_IID__")
-        all_items_item.name = "All IIDs"
-        all_items_item.add_depends(*self.install_definitions_index.keys())
-        self.install_definitions_index["__ALL_ITEMS_IID__"] = all_items_item
-
-        all_guids_item = InstallItem("__ALL_GUIDS_IID__")
-        all_guids_item.name = "All GUIDs"
-        all_guids_item.add_depends(*guid_list(self.install_definitions_index))
-        self.install_definitions_index["__ALL_GUIDS_IID__"] = all_guids_item
-
     def calculate_install_items(self):
         self.calculate_main_install_items()
         self.calculate_all_install_items()
@@ -218,10 +204,6 @@ class InstlClient(InstlInstanceBase):
         """
         if "MAIN_INSTALL_TARGETS" not in var_stack:
             raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
-        # legacy, to be removed when InstallItem is no longer in use
-        active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
-        for os_name in active_oses:
-            InstallItem.begin_get_for_specific_os(os_name)
 
         main_install_targets = var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS")
         main_iids, main_guids = utils.separate_guids_from_iids(main_install_targets)

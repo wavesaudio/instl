@@ -13,14 +13,12 @@ import urllib.error
 import aYaml
 import utils
 from .batchAccumulator import BatchAccumulator
-from .installItem import read_index_from_yaml
 from .platformSpecificHelper_Base import PlatformSpecificHelperFactory
 
 from configVar import value_ref_re
 from configVar import var_stack
 from configVar import ConfigVarYamlReader
 
-from .installItem import InstallItem
 from . import connectionBase
 from .indexItemTable import IndexItemsTable
 
@@ -63,7 +61,6 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         # init initial copy tool, tool might be later overridden after reading variable COPY_TOOL from yaml.
         self.platform_helper.init_copy_tool()
 
-        self.install_definitions_index = dict()
         self.batch_accum = BatchAccumulator()
         self.do_not_write_vars = ("INFO_MAP_SIG", "INDEX_SIG", "PUBLIC_KEY", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "__CREDENTIALS__")
         self.out_file_realpath = None
@@ -481,8 +478,6 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             aYaml.writeAsYaml(self, fd)
 
     def read_index(self, a_node, *args, **kwargs):
-        index_dict = kwargs.get('index_dict', self.install_definitions_index)
-        index_dict.update(read_index_from_yaml(a_node))
         self.items_table.read_index_node(a_node)
 
     def find_cycles(self):
@@ -528,12 +523,6 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         except ImportError:  # no installItemGraph, no worry
             print("Could not load installItemGraph")
             return None
-
-    def resolve_index_inheritance(self, index_dict=None):
-        if index_dict is None:
-            index_dict = self.install_definitions_index
-        for iid, install_def in sorted(index_dict.items()):
-            install_def.resolve_inheritance(index_dict)
 
     def read_info_map_from_file(self, info_map_from_file_path):
         self.info_map_table.read_from_file(info_map_from_file_path, a_format="text")
