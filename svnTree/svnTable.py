@@ -71,20 +71,11 @@ class SVNTable(object):
         self.files_read_list = list()
         self.files_written_list = list()
         self.comments = list()
-        self.baked_queries_map = self.bake_baked_queries()
+        self.baked_queries_map = dict()
         self.bakery = baked.bakery()
 
     def commit_changes(self):
         self.session.commit()
-
-    def bake_baked_queries(self):
-        """ prepare baked queries for later use
-        """
-        retVal = dict()
-
-        # all queries are now baked just-in-time
-
-        return retVal
 
     def __repr__(self):
         return "\n".join([item.__repr__() for item in self.get_items()])
@@ -631,22 +622,6 @@ class SVNTable(object):
         results = self.session.execute(update_statement)
         return results.rowcount
 
-    def mark_required_for_files(self, parent_path):
-        """ mark all files in parent_path as required.
-        """
-        retVal = 0
-        parent_item = self.get_item(item_path=parent_path, what="dir")
-        if parent_item is not None:
-            update_statement = update(SVNRow)\
-                .where(SVNRow.level == parent_item.level+1)\
-                .where(SVNRow.fileFlag == True)\
-                .where(SVNRow.path.like(parent_item.path+"/%"))\
-                .values(required=True)
-            results = self.session.execute(update_statement)
-            retVal = results.rowcount
-
-        return retVal
-
     def get_file_items_of_dir(self, dir_path):
         """ get all file items in dir_path OR if the dir_path itself is wtarred - the wtarred file items.
             results are recursive so files from sub folders are also returned
@@ -848,7 +823,6 @@ class SVNTable(object):
         return max_revision
 
     def mark_required_files_for_active_items(self):
-        source_prefix = var_stack.ResolveVarToStr('SOURCE_PREFIX')
         query_text = """
         UPDATE svnitem
         SET required=1
@@ -873,7 +847,7 @@ class SVNTable(object):
                   svnitem.path LIKE install_sources_t.detail_value || ".wtar%"
                 )
         )
-        """.format(source_prefix=source_prefix)
+        """
         exec_result = self.session.execute(query_text)
         self.commit_changes()
 

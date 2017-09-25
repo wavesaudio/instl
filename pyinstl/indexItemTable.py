@@ -21,7 +21,7 @@ import svnTree  # do not remove must be here before IndexItemsTable.execute_scri
 import utils
 from configVar import var_stack
 
-# todo: these were copied from the late Instal lItem.py and should find a better home
+# todo: these were copied from the late Install Item.py and should find a better home
 os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
 allowed_item_keys = ('name', 'guid','install_sources', 'install_folders', 'inherit',
                      'depends', 'actions', 'remark', 'version', 'phantom_version',
@@ -56,9 +56,12 @@ class IndexItemsTable(object):
         # inspector = reflection.Inspector.from_engine(get_engine())
         # print("Tables:", inspector.get_table_names())
         # print("Views:", inspector.get_view_names())
-        self.baked_queries_map = self.bake_baked_queries()
+        self.baked_queries_map = dict()
         self.bakery = baked.bakery()
         self.locked_tables = set()
+
+    def __del__(self):
+        self.unlock_all_tables()
 
     def get_db_url(self):
         return self.session.bind.url
@@ -138,8 +141,13 @@ class IndexItemsTable(object):
         self.execute_script(query_text)
         self.commit_changes()
         self.locked_tables.remove(table_name)
+        print("unlocked", table_name)
 
-    def begin_get_for_all_oses(self):
+    def unlock_all_tables(self):
+        for table_name in list(self.locked_tables):
+            self.unlock_table(table_name)
+
+    def activate_all_oses(self):
         """ adds all known os names to the list of os that will influence all get functions
             such as depend_list, source_list etc.
             This method is useful in code that does reporting or analyzing, where
@@ -156,15 +164,15 @@ class IndexItemsTable(object):
             print(ex)
             raise
 
-    def reset_get_for_all_oses(self):
+    def reset_active_oses(self):
         """ resets the list of os that will influence all get functions
             such as depend_list, source_list etc.
             This method is useful in code that does reporting or analyzing, where
             there is need to have access to all oses not just the current or target os.
         """
-        self.begin_get_for_specific_oses()
+        self.activate_specific_oses()
 
-    def begin_get_for_specific_oses(self, *for_oses):
+    def activate_specific_oses(self, *for_oses):
         """ adds another os name to the list of os that will influence all get functions
             such as depend_list, source_list etc.
         """
@@ -186,12 +194,6 @@ class IndexItemsTable(object):
             print(ex)
             raise
 
-    def end_get_for_specific_os(self):
-        """ removed the last added os name to the list of os that will influence all get functions
-            such as depend_list, source_list etc.
-        """
-        self.reset_get_for_all_oses()
-
     def get_active_oses(self):
         retVal = list()
         query_text = """
@@ -199,23 +201,12 @@ class IndexItemsTable(object):
         FROM IndexItemDetailOperatingSystem
         ORDER BY _id
         """
-         #WHERE os_is_active=1
         try:
             exec_result = self.session.execute(query_text)
             if exec_result.returns_rows:
                 retVal.extend(exec_result.fetchall())
-                #retVal = [mm[0] for mm in retVal]
         except SQLAlchemyError as ex:
             raise
-        return retVal
-
-    def bake_baked_queries(self):
-        """ prepare baked queries for later use
-        """
-        retVal = dict()
-
-        # all queries are now baked just-in-time
-
         return retVal
 
     def insert_require_to_db(self, require_items):
@@ -610,13 +601,16 @@ class IndexItemsTable(object):
         iids_to_inherit_from = self.get_original_details_values_for_active_iid(item_to_resolve.iid, 'inherit')
         for original_iid in iids_to_inherit_from:
             sub_item = self.get_index_item(original_iid)
-            if not sub_item.inherit_resolved:
-                self.resolve_item_inheritance(sub_item, 0)
-            details_of_inherited_item = self.get_resolved_details_for_active_iid(sub_item.iid)
-            for d_of_ii in details_of_inherited_item:
-                if d_of_ii.detail_name not in self.not_inherit_details:
-                    inherited_detail = IndexItemDetailRow(original_iid=d_of_ii.original_iid, owner_iid=item_to_resolve.iid, os_id=d_of_ii.os_id, detail_name=d_of_ii.detail_name, detail_value=d_of_ii.detail_value, generation=d_of_ii.generation+1)
-                    self.session.add(inherited_detail)
+            if sub_item:
+                if not sub_item.inherit_resolved:
+                    self.resolve_item_inheritance(sub_item, 0)
+                details_of_inherited_item = self.get_resolved_details_for_active_iid(sub_item.iid)
+                for d_of_ii in details_of_inherited_item:
+                    if d_of_ii.detail_name not in self.not_inherit_details:
+                        inherited_detail = IndexItemDetailRow(original_iid=d_of_ii.original_iid, owner_iid=item_to_resolve.iid, os_id=d_of_ii.os_id, detail_name=d_of_ii.detail_name, detail_value=d_of_ii.detail_value, generation=d_of_ii.generation+1)
+                        self.session.add(inherited_detail)
+            else:
+                print(item_to_resolve.iid, "inherit from non existing", original_iid)
         item_to_resolve.inherit_resolved = True
 
     # @utils.timing
@@ -1343,6 +1337,27 @@ class IndexItemsTable(object):
             raise
         return retVal
 
+    def get_missing_iids_from_details(self, detail_name):
+        """ some details' values should be existing iids
+            this function will return the original iid and the orphan iids in named details
+        """
+        retVal = list()
+        query_text = """
+            SELECT DISTINCT original_iid, detail_value
+            FROM IndexItemDetailRow
+            WHERE
+                detail_name = :detail_name
+                    AND
+                detail_value NOT IN (SELECT iid FROM IndexItemRow)
+            ORDER BY detail_value
+            """
+        try:
+            exec_result = self.session.execute(query_text, {'detail_name': detail_name})
+            if exec_result.returns_rows:
+                retVal.extend(exec_result.fetchall())
+        except SQLAlchemyError as ex:
+            raise
+        return retVal
 
 
 

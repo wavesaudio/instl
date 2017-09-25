@@ -100,6 +100,7 @@ def main():
                     {"__USER_ID__": str(os.getuid()),
                      "__GROUP_ID__": str(os.getgid())})
 
+    instance = None
     if options.command == "command-list":
         from pyinstl.instlCommandList import run_commands_from_file
         run_commands_from_file(initial_vars, options)
@@ -144,6 +145,10 @@ def main():
             instance.do_command()
     else:
         raise InstlException("incomprehensible command line options:\n", options)
+
+    # make sure instance's dispose functions are called
+    if instance is not None:
+        del instance
 
 
 class InvocationReporter(object):

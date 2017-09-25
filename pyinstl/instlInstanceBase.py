@@ -67,6 +67,9 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.iid_to_name_and_version = dict()
         self.internal_progress = 0  # progress of preparing installer NOT of the installation
 
+    def __del__(self):
+        self.del_items_table()
+
     def init_items_table(self):
         """ sometime two instances of InstlInstanceBase exist side by side
             e.g. during interactive mode InstlClient & InstlAdmin
@@ -74,6 +77,11 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         """
         if InstlInstanceBase.items_table is None:
             InstlInstanceBase.items_table = IndexItemsTable()
+
+    def del_items_table(self):
+        if InstlInstanceBase.items_table is not None:
+            del InstlInstanceBase.items_table
+            InstlInstanceBase.items_table = None
 
     def progress(self, message):
         self.internal_progress += 1

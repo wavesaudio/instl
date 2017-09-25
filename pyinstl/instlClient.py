@@ -68,7 +68,7 @@ class InstlClient(InstlInstanceBase):
     def do_command(self):
         # print("client_commands", fixed_command_name)
         active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
-        self.items_table.begin_get_for_specific_oses(*active_oses)
+        self.items_table.activate_specific_oses(*active_oses)
 
         main_input_file_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         self.read_yaml_file(main_input_file_path)
@@ -76,7 +76,7 @@ class InstlClient(InstlInstanceBase):
 
         self.init_default_client_vars()
         active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
-        self.items_table.begin_get_for_specific_oses(*active_oses)
+        self.items_table.activate_specific_oses(*active_oses)
 
         self.items_table.resolve_inheritance()
         if self.should_check_for_binary_versions():

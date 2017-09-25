@@ -1,3 +1,15 @@
+???? 1.6.2.1
+
+    programmer visible changes:
+    * methods IndexItemsTable.bake_baked_queries, SVNTable.bake_baked_queries were not used and removed
+    * new method IndexItemsTable.__del__ will make sure all tables are unlocked before quiting
+    * new methods InstlInstanceBase.__del__, InstlInstanceBase.del_items_table will make sure all IndexItemsTable.__del__ is called
+    * renamed methods in IndexItemsTable: begin_get_for_all_oses -> activate_all_oses, reset_get_for_all_oses -> reset_active_oses, begin_get_for_specific_oses -> activate_specific_oses
+    * removed method IndexItemsTable.end_get_for_specific_os
+    * IndexItemsTable.resolve_item_inheritance error message instead of crash - if iid to inherit does not exist
+    * new method IndexItemsTable.get_missing_iids_from_details for checking validity of 'inherit' and 'depends' fields in iids
+    * InstlAdmin.verify_index_to_repo changed to use IndexItemsTable.get_missing_iids_from_details
+
 24/9/2017 1.6.2.0
 
     programmer visible changes:

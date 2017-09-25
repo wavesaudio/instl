@@ -20,7 +20,7 @@ class InstlDoIt(InstlInstanceBase):
         main_input_file_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         self.read_yaml_file(main_input_file_path)
         active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
-        self.items_table.begin_get_for_specific_oses(*active_oses)
+        self.items_table.activate_specific_oses(*active_oses)
         self.init_default_doit_vars()
         self.resolve_defined_paths()
         self.batch_accum.set_current_section('begin')
