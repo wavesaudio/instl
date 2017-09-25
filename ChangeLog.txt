@@ -9,6 +9,9 @@
     * IndexItemsTable.resolve_item_inheritance error message instead of crash - if iid to inherit does not exist
     * new method IndexItemsTable.get_missing_iids_from_details for checking validity of 'inherit' and 'depends' fields in iids
     * InstlAdmin.verify_index_to_repo changed to use IndexItemsTable.get_missing_iids_from_details
+    * removed method .IndexItemTable.name_and_version_report_for_active_iids and replaced with set_name_and_version_for_active_iids which writes the name and version to the db
+    * therefor no more need for NameAndVersionFromQueryResults and InstlClient..iid_to_name_and_version
+    * InstlCopy.create_copy_instructions_for_target_folder & InstlClientRemove.create_remove_instructions: replaced some usage of the old installItem config variables (iid_action_list_pre_copy_item,...) with db query
 
 24/9/2017 1.6.2.0
 

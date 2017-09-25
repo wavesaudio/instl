@@ -64,7 +64,6 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.batch_accum = BatchAccumulator()
         self.do_not_write_vars = ("INFO_MAP_SIG", "INDEX_SIG", "PUBLIC_KEY", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "__CREDENTIALS__")
         self.out_file_realpath = None
-        self.iid_to_name_and_version = dict()
         self.internal_progress = 0  # progress of preparing installer NOT of the installation
 
     def __del__(self):

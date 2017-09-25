@@ -322,12 +322,13 @@ class InstlClientCopy(InstlClient):
             self.batch_accum += self.platform_helper.remark("-- Begin iid {0}".format(IID))
             sources_for_iid = self.items_table.get_sources_for_iid(IID)
             resolved_sources_for_iid = [(var_stack.ResolveStrToStr(s[0]), s[1]) for s in sources_for_iid]
+            name_and_version = self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="name_and_version")[0]
             for source in resolved_sources_for_iid:
                 self.batch_accum += self.platform_helper.remark("--- Begin source {0}".format(source[0]))
                 num_items_copied_to_folder += 1
-                self.batch_accum += var_stack.ResolveVarToList("iid_action_list_pre_copy_item", default=[])
-                self.create_copy_instructions_for_source(source, self.iid_to_name_and_version[IID].name_and_version)
-                self.batch_accum += var_stack.ResolveVarToList("iid_action_list_post_copy_item", default=[])
+                self.batch_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="pre_copy_item")
+                self.create_copy_instructions_for_source(source, name_and_version)
+                self.batch_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="post_copy_item")
                 self.batch_accum += self.platform_helper.remark("--- End source {0}".format(source[0]))
             self.batch_accum += self.platform_helper.remark("-- End iid {0}".format(IID))
 

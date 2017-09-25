@@ -141,7 +141,6 @@ class IndexItemsTable(object):
         self.execute_script(query_text)
         self.commit_changes()
         self.locked_tables.remove(table_name)
-        print("unlocked", table_name)
 
     def unlock_all_tables(self):
         for table_name in list(self.locked_tables):
@@ -1003,28 +1002,47 @@ class IndexItemsTable(object):
             raise
         return retVal
 
-    def name_and_version_report_for_active_iids(self):
+    def set_name_and_version_for_active_iids(self):
+        """ Add detail named "name_and_version" to IndexItemDetailRow
+            value is in the format 'name vVersion', or if no version is found, just 'name'.
+            If no name if found for an iid the iid itself is used as a name
+            Implementation note: sqlite's create_function can nly be called from the raw connection not from SQLAlchemy
+            using the function in a query can only be done with the connection that called create_function.
+        """
+        def _name_and_version(iid, name, version):
+            if not name:
+                name = iid
+            if version:
+                return name + " v" + version
+            else:
+                return name
+        conn = self.session.bind.connect()
+        conn.connection.create_function("name_and_version", 3, _name_and_version)
+
         query_text = """
-            SELECT IndexItemRow.iid,
-                    coalesce(name_row.detail_value, "")       AS name,
-                    coalesce(version_row.detail_value, "")    AS version,
-                    min(version_row.generation) AS ver_gen,
-                    min(name_row.generation)    AS name_gen
-            FROM IndexItemRow
-                LEFT JOIN IndexItemDetailRow AS version_row
-                    ON version_row.owner_iid=IndexItemRow.iid
-                    AND version_row.detail_name='version'
-                    AND version_row.os_is_active=1
-                LEFT JOIN IndexItemDetailRow AS name_row
-                    ON name_row.owner_iid=IndexItemRow.iid
-                    AND name_row.detail_name='name'
-                    AND name_row.os_is_active=1
-            WHERE install_status!=0
-            AND ignore=0
-            GROUP BY IndexItemRow.iid
-            """
-        fetched_results = self.session.execute(query_text).fetchall()
-        return fetched_results
+        INSERT INTO IndexItemDetailRow
+        (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
+        SELECT
+            name_row.original_iid,
+            coalesce(version_row.owner_iid,name_row.owner_iid),
+            name_row.os_id,
+            "name_and_version",
+            name_and_version(name_row.original_iid, name_row.detail_value, version_row.detail_value),
+            name_row.generation
+        FROM IndexItemRow
+        LEFT JOIN IndexItemDetailRow AS version_row
+            ON version_row.owner_iid=IndexItemRow.iid
+            AND version_row.detail_name='version'
+            AND version_row.os_is_active=1
+        LEFT JOIN IndexItemDetailRow AS name_row
+            ON name_row.owner_iid=IndexItemRow.iid
+            AND name_row.detail_name='name'
+            AND name_row.os_is_active=1
+        WHERE install_status!=0
+        AND ignore=0
+        """
+        conn.execute(query_text)
+        conn.connection.commit()
 
     def get_iids_and_details_for_active_iids(self, detail_name, unique_values=False, limit_to_iids=None):
         retVal = list()
