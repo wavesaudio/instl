@@ -1,4 +1,4 @@
-???? 1.6.2.1
+25/9/2017 1.6.2.1
 
     programmer visible changes:
     * methods IndexItemsTable.bake_baked_queries, SVNTable.bake_baked_queries were not used and removed
@@ -12,6 +12,9 @@
     * removed method .IndexItemTable.name_and_version_report_for_active_iids and replaced with set_name_and_version_for_active_iids which writes the name and version to the db
     * therefor no more need for NameAndVersionFromQueryResults and InstlClient..iid_to_name_and_version
     * InstlCopy.create_copy_instructions_for_target_folder & InstlClientRemove.create_remove_instructions: replaced some usage of the old installItem config variables (iid_action_list_pre_copy_item,...) with db query
+    * IndexItemTable.get_all_installed_iids converted from sqlalchemy to to plain sql
+    * IndexItemTable.get_all_installed_iids_needing_update, get_all_iids, iids_from_guids streamlined
+    * removed redundant IndexItemTable methods: get_item_by_resolve_status, get_items_by_resolve_status
 
 24/9/2017 1.6.2.0
 

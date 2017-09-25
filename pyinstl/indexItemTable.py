@@ -282,18 +282,25 @@ class IndexItemsTable(object):
         return retVal
 
     def get_all_installed_iids(self):
+        """ get all iids that are marked as required by them selves
+            which indicates they were a primary install target
         """
-        :return: list of all iids in the db that have guids, empty list if none are found
-        """
-        if "get_all_installed_iids" not in self.baked_queries_map:
-            the_query = self.bakery(lambda q: q.query(IndexItemDetailRow.original_iid))
-            the_query += lambda q: q.filter(IndexItemDetailRow.detail_name == "require_by",
-                                            IndexItemDetailRow.detail_value == IndexItemDetailRow.original_iid, IndexItemDetailRow.os_is_active == True)
-            self.baked_queries_map["get_all_installed_iids"] = the_query
-        else:
-            the_query = self.baked_queries_map["get_all_installed_iids"]
-        retVal = the_query(self.session).all()
-        retVal = [m[0] for m in retVal]
+        retVal = list()
+        query_text = """
+            SELECT original_iid
+            from IndexItemDetailRow
+            WHERE IndexItemDetailRow.detail_name="require_by"
+            AND detail_value=original_iid
+            AND os_is_active = 1
+            ORDER BY owner_iid
+            """
+        try:
+            exec_result = self.session.execute(query_text)
+            if exec_result.returns_rows:
+                retVal.extend([mm[0] for mm in exec_result.fetchall()])
+        except SQLAlchemyError as ex:
+            raise
+
         return retVal
 
     def get_all_installed_iids_needing_update(self):
@@ -322,8 +329,7 @@ class IndexItemsTable(object):
         try:
             exec_result = self.session.execute(query_text)
             if exec_result.returns_rows:
-                retVal = exec_result.fetchall()   # now retVal is a list of (IID, require_ver, remote_ver)
-                retVal = [mm[0] for mm in retVal] # need only the IID, but getting the versions is for debugging
+                retVal.extend([mm[0] for mm in exec_result.fetchall()])
         except SQLAlchemyError as ex:
             raise
 
@@ -342,8 +348,7 @@ class IndexItemsTable(object):
         try:
             exec_result = self.session.execute(query_text)
             if exec_result.returns_rows:
-                retVal = exec_result.fetchall()
-                retVal = [mm[0] for mm in retVal]
+                retVal.extend([mm[0] for mm in exec_result.fetchall()])
         except SQLAlchemyError as ex:
             raise
         return retVal
@@ -401,29 +406,6 @@ class IndexItemsTable(object):
                                                   os_id=the_os_id, generation=0)
                 self.session.add(update_item_detail)
         self.commit_changes()
-
-    def get_item_by_resolve_status(self, iid_to_get, resolve_status):  # tested by: TestItemTable.test_get_item_by_resolve_status
-        # http://stackoverflow.com/questions/29161730/what-is-the-difference-between-one-and-first
-        if "get_item_by_resolve_status" not in self.baked_queries_map:
-            the_query = self.bakery(lambda q: q.query(IndexItemRow))
-            the_query += lambda  q: q.filter(IndexItemRow.iid == bindparam("_iid"),
-                                             IndexItemRow.inherit_resolved == bindparam("_resolved"))
-            self.baked_queries_map["get_item_by_resolve_status"] = the_query
-        else:
-            the_query = self.baked_queries_map["get_item_by_resolve_status"]
-        retVal = the_query(self.session).params(_iid=iid_to_get, _resolved=resolve_status).first()
-        return retVal
-
-    def get_items_by_resolve_status(self, resolve_status):  # tested by: TestItemTable.test_get_items_by_resolve_status
-        if "get_items_by_resolve_status" not in self.baked_queries_map:
-            the_query = self.bakery(lambda q: q.query(IndexItemRow))
-            the_query += lambda  q: q.filter(IndexItemRow.inherit_resolved == bindparam("_resolved"))
-            the_query += lambda q: q.order_by(IndexItemRow.iid)
-            self.baked_queries_map["get_items_by_resolve_status"] = the_query
-        else:
-            the_query = self.baked_queries_map["get_items_by_resolve_status"]
-        retVal = the_query(self.session).params(_resolved=resolve_status).all()
-        return retVal
 
     def get_original_details_values_for_active_iid(self, iid, detail_name, unique_values=False):
         """ get the items's original (e.g. not inherited) values for a specific detail
@@ -789,8 +771,8 @@ class IndexItemsTable(object):
             );
             """)
             # add all guids to table guid_to_iid_temp_t with iid field defaults to Null
-            for a_guid in list(set(guid_list)):  # list(set()) will remove duplicates
-                self.session.execute("""INSERT INTO guid_to_iid_temp_t (guid) VALUES (:guid)""", {"guid": a_guid})
+            guid_dict_list = [{"guid": a_guid} for a_guid in set(guid_list)]
+            self.session.execute("""INSERT INTO guid_to_iid_temp_t (guid) VALUES (:guid)""", guid_dict_list)
 
             # insert to table guid_to_iid_temp_t guid, iid pairs.
             # a guid might yield 0, 1, or more iids
