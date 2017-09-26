@@ -1,3 +1,8 @@
+26/9/2017 1.6.2.3
+    * added ondelete="CASCADE" to IndexItemDetailRow.original_iid, IndexItemDetailRow.owner_iid
+    * IndexItemTable.create_default_index_items, IndexItemTable.create_default_require_items refactored as sqlite script instead of sqlalchemy code
+    * new function utils.quoteme_double_list_for_sql to help prepare IN arguments for sql queries
+
 26/9/2017 1.6.2.2
 
     programmer visible changes:
@@ -5,6 +10,9 @@
     * new DB view versions_view just a list of IIDs and their versions
     * refactored InstlItemTable.set_name_and_version_for_active_iids to SELECT from report_versions_view
     * new function InstlClient.name_and_version_for_iid reads name_andVersion from DB but returns IID id not value was found
+    * added ondelete="CASCADE" to IndexItemDetailRow.original_iid, IndexItemDetailRow.owner_iid
+    * IndexItemTable.create_default_index_items, IndexItemTable.create_default_require_items refactored as sqlite script instead of sqlalchemy code
+    * new function utils.quoteme_double_list_for_sql to help prepare IN arguments for sql queries
 
 25/9/2017 1.6.2.1
 

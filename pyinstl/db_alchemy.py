@@ -102,9 +102,9 @@ class IndexItemRow(get_declarative_base()):
 class IndexItemDetailRow(get_declarative_base()):
     __tablename__ = 'IndexItemDetailRow'
     _id = Column(Integer, primary_key=True, autoincrement=True)
-    original_iid = Column(String, ForeignKey("IndexItemRow.iid"), index=True)
-    owner_iid    = Column(String, ForeignKey("IndexItemRow.iid"), index=True)
-    os_id        = Column(Integer, ForeignKey("IndexItemDetailOperatingSystem._id"))
+    original_iid = Column(String, ForeignKey(IndexItemRow.iid, ondelete="CASCADE"), index=True)
+    owner_iid    = Column(String, ForeignKey(IndexItemRow.iid, ondelete="CASCADE"), index=True)
+    os_id        = Column(Integer, ForeignKey(IndexItemDetailOperatingSystem._id))
     detail_name  = Column(String, index=True)
     detail_value = Column(String)
     generation   = Column(Integer, default=0)

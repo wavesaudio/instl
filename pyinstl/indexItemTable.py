@@ -354,58 +354,73 @@ class IndexItemsTable(object):
         return retVal
 
     def create_default_index_items(self, iids_to_ignore):
-        the_os_id = self.os_names_to_num['common']
-        the_iid = "__ALL_ITEMS_IID__"
-        all_items_item = IndexItemRow(iid=the_iid, inherit_resolved=True, from_index=False, from_require=False)
-        self.session.add(all_items_item)
-        for iid in self.get_all_iids():
-            if iid not in iids_to_ignore:
-                depends_details = IndexItemDetailRow(original_iid=the_iid,
-                                                 owner_iid=the_iid,
-                                                 detail_name='depends',
-                                                 detail_value=iid,
-                                                 os_id=the_os_id,
-                                                 generation=0)
-                self.session.add(depends_details)
-
-        the_iid = "__ALL_GUIDS_IID__"
-        all_guids_item = IndexItemRow(iid=the_iid, inherit_resolved=True, from_index=False, from_require=False)
-        self.session.add(all_guids_item)
-        all_iids_with_guids = self.get_all_iids_with_guids()
-        for iid in all_iids_with_guids:
-            if iid not in iids_to_ignore:
-                depends_details = IndexItemDetailRow(original_iid=the_iid,
-                                                 owner_iid=the_iid,
-                                                 detail_name='depends',
-                                                 detail_value=iid,
-                                                 os_id=the_os_id,
-                                                 generation=0)
-                self.session.add(depends_details)
-        self.commit_changes()
+        iids_to_ignore_str = utils.quoteme_double_list_for_sql(iids_to_ignore)
+        query_text = """
+        BEGIN TRANSACTION;
+        INSERT INTO IndexItemRow (iid, inherit_resolved, from_index, from_require, install_status, ignore)
+        VALUES ("__ALL_ITEMS_IID__", 1, 0, 0, 0, 0);
+        
+        INSERT INTO IndexItemDetailRow(original_iid, owner_iid, detail_name, detail_value, os_id, generation)
+            SELECT "__ALL_ITEMS_IID__", "__ALL_ITEMS_IID__", "depends", IndexItemRow.iid, 0, 0
+            FROM IndexItemRow
+            WHERE iid NOT IN {iids_to_ignore};
+        
+        INSERT INTO IndexItemRow (iid, inherit_resolved, from_index, from_require)
+        VALUES ("__ALL_GUIDS_IID__", 1, 0, 0);
+        
+        INSERT INTO IndexItemDetailRow(original_iid, owner_iid, detail_name, detail_value, os_id, generation)
+            SELECT "__ALL_GUIDS_IID__", "__ALL_GUIDS_IID__", "depends", IndexItemDetailRow.owner_iid, 0, 0
+            FROM IndexItemDetailRow
+            WHERE IndexItemDetailRow.detail_name="guid"
+            AND IndexItemDetailRow.owner_iid=IndexItemDetailRow.original_iid
+            AND IndexItemDetailRow.owner_iid NOT IN {iids_to_ignore};
+        COMMIT TRANSACTION; 
+        """.format(iids_to_ignore=iids_to_ignore_str)
+        try:
+            self.execute_script(query_text)
+        except SQLAlchemyError as ex:
+            raise
 
     def create_default_require_items(self, iids_to_ignore):
-        the_os_id = self.os_names_to_num['common']
-        the_iid = "__REPAIR_INSTALLED_ITEMS__"
-        repair_item = IndexItemRow(iid=the_iid, inherit_resolved=True, from_index=False, from_require=False)
-        self.session.add(repair_item)
-        for iid in self.get_all_installed_iids():
-            if iid not in iids_to_ignore:
-                repair_item_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid,
-                                                  detail_name='depends', detail_value=iid,
-                                                  os_id=the_os_id, generation=0)
-                self.session.add(repair_item_detail)
-
-        the_iid = "__UPDATE_INSTALLED_ITEMS__"
-        update_item = IndexItemRow(iid=the_iid, inherit_resolved=True, from_index=False, from_require=False)
-        self.session.add(update_item)
-        iids_needing_update = self.get_all_installed_iids_needing_update()
-        for iid in iids_needing_update:
-            if iid not in iids_to_ignore:
-                update_item_detail = IndexItemDetailRow(original_iid=the_iid, owner_iid=the_iid,
-                                                  detail_name='depends', detail_value=iid,
-                                                  os_id=the_os_id, generation=0)
-                self.session.add(update_item_detail)
-        self.commit_changes()
+        iids_to_ignore_str = utils.quoteme_double_list_for_sql(iids_to_ignore)
+        query_text = """
+        BEGIN TRANSACTION;
+        INSERT INTO IndexItemRow (iid, inherit_resolved, from_index, from_require, install_status, ignore)
+        VALUES ("__REPAIR_INSTALLED_ITEMS__", 1, 0, 0, 0, 0);
+        
+        INSERT INTO IndexItemDetailRow(original_iid, owner_iid, detail_name, detail_value, os_id, generation)
+            SELECT "__REPAIR_INSTALLED_ITEMS__", "__REPAIR_INSTALLED_ITEMS__", "depends", IndexItemDetailRow.original_iid, 0, 0
+            FROM IndexItemDetailRow
+            WHERE IndexItemDetailRow.detail_name="require_by"
+            AND IndexItemDetailRow.detail_value=IndexItemDetailRow.original_iid
+            AND IndexItemDetailRow.detail_value=IndexItemDetailRow.owner_iid
+            AND IndexItemDetailRow.os_is_active = 1
+            AND IndexItemDetailRow.original_iid NOT IN {iids_to_ignore};
+        
+        INSERT INTO IndexItemRow (iid, inherit_resolved, from_index, from_require)
+        VALUES ("__UPDATE_INSTALLED_ITEMS__", 1, 0, 0);
+        
+        INSERT INTO IndexItemDetailRow(original_iid, owner_iid, detail_name, detail_value, os_id, generation)
+            SELECT "__UPDATE_INSTALLED_ITEMS__", "__UPDATE_INSTALLED_ITEMS__", "depends", require_version.owner_iid, 0, 0
+            FROM IndexItemDetailRow AS require_version
+            LEFT JOIN (
+                SELECT owner_iid, detail_value, min(generation)
+                from IndexItemDetailRow AS remote_version
+                WHERE detail_name="version"
+                AND os_is_active = 1
+                GROUP BY owner_iid
+                ) remote_version
+            WHERE detail_name="require_version"
+                  AND remote_version.owner_iid=require_version.owner_iid
+                  AND require_version.detail_value!=remote_version.detail_value
+                  AND require_version.os_is_active = 1
+            GROUP BY require_version.owner_iid;
+            COMMIT TRANSACTION; 
+        """.format(iids_to_ignore=iids_to_ignore_str)
+        try:
+            self.execute_script(query_text)
+        except SQLAlchemyError as ex:
+            raise
 
     def get_original_details_values_for_active_iid(self, iid, detail_name, unique_values=False):
         """ get the items's original (e.g. not inherited) values for a specific detail
@@ -805,7 +820,7 @@ class IndexItemsTable(object):
     def iids_from_iids(self, iid_list):
         existing_iids = None
         orphan_iids = None
-        query_vars = '("'+'","'.join(iid_list)+'")'
+        query_vars = utils.quoteme_double_list_for_sql(iid_list)
         query_text = """
             SELECT iid
             FROM IndexItemRow
