@@ -41,7 +41,7 @@ CREATE VIEW IF NOT EXISTS "report_versions_view" AS
           coalesce(item_name.detail_value, "_") AS name,
           coalesce(require_version.detail_value, "_") AS 'require_version',
           coalesce(remote.detail_value, "_") AS 'remote_version',
-          min(remote.generation)
+          min(remote.generation) AS generation
     FROM IndexItemDetailRow AS remote
 
     LEFT  JOIN IndexItemDetailRow as require_version
@@ -66,3 +66,9 @@ SELECT IIDToSVNItem.iid, svnitem.path
 FROM IIDToSVNItem, svnitem
 WHERE
     IIDToSVNItem.svn_id=svnitem._id;
+
+CREATE VIEW IF NOT EXISTS "versions_view" AS
+SELECT version_t.owner_iid AS iid, version_t.detail_value AS version, min(version_t.generation) AS generation
+FROM IndexItemDetailRow AS version_t
+WHERE version_t.detail_name='version'
+GROUP BY version_t.owner_iid;

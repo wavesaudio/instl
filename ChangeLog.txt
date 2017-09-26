@@ -1,3 +1,11 @@
+26/9/2017 1.6.2.2
+
+    programmer visible changes:
+    * DB view report_versions_view: gave name to min(remote.generation) SELECT field
+    * new DB view versions_view just a list of IIDs and their versions
+    * refactored InstlItemTable.set_name_and_version_for_active_iids to SELECT from report_versions_view
+    * new function InstlClient.name_and_version_for_iid reads name_andVersion from DB but returns IID id not value was found
+
 25/9/2017 1.6.2.1
 
     programmer visible changes:

@@ -141,6 +141,7 @@ class InstlClient(InstlInstanceBase):
                 if "SYNC_BASE_URL" in var_stack:
                     p4_sync_dir = utils.P4GetPathFromDepotPath(var_stack.ResolveVarToStr("SYNC_BASE_URL"))
                     var_stack.set_var("P4_SYNC_DIR", "from SYNC_BASE_URL").append(p4_sync_dir)
+        # AUXILIARY_IIDS are iids that are not real products such as UNINSTALL_AS_... iids
         self.auxiliary_iids.extend(var_stack.ResolveVarToList("AUXILIARY_IIDS", default=list()))
 
     def repr_for_yaml(self, what=None):
@@ -290,7 +291,7 @@ class InstlClient(InstlInstanceBase):
         iid_and_action = self.items_table.get_iids_and_details_for_active_iids(action_type, unique_values=True, limit_to_iids=limit_to_iids)
         iid_and_action.sort(key=lambda tup: tup[0])
         for IID, an_action in iid_and_action:
-            name_and_version = self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="name_and_version")[0]
+            name_and_version = self.name_and_version_for_iid(iid=IID)
             self.batch_accum += an_action
             action_description = self.action_type_to_progress_message[action_type]
             self.batch_accum += self.platform_helper.progress("{0} {1}".format(name_and_version, action_description))
@@ -474,6 +475,11 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum += remove_action
         elif source_type == '!dir_cont':
             raise Exception("previous_sources cannot have tag !dir_cont")
+
+    def name_and_version_for_iid(self, iid):
+        name_and_version_list = self.items_table.get_resolved_details_value_for_active_iid(iid=iid, detail_name="name_and_version")
+        retVal = next(iter(name_and_version_list), iid)  # trick to get the first element in a list or default if list is empty
+        return retVal
 
 
 def InstlClientFactory(initial_vars, command):

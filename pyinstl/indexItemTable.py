@@ -992,12 +992,12 @@ class IndexItemsTable(object):
             using the function in a query can only be done with the connection that called create_function.
         """
         def _name_and_version(iid, name, version):
-            if not name:
+            if not name or name == '_':
                 name = iid
-            if version:
-                return name + " v" + version
-            else:
+            if not version or version == '_':
                 return name
+            else:
+                return name + " v" + version
         conn = self.session.bind.connect()
         conn.connection.create_function("name_and_version", 3, _name_and_version)
 
@@ -1005,25 +1005,19 @@ class IndexItemsTable(object):
         INSERT INTO IndexItemDetailRow
         (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
         SELECT
-            name_row.original_iid,
-            coalesce(version_row.owner_iid,name_row.owner_iid),
-            name_row.os_id,
+            report_versions_view.owner_iid,
+            report_versions_view.owner_iid,
+            0,
             "name_and_version",
-            name_and_version(name_row.original_iid, name_row.detail_value, version_row.detail_value),
-            name_row.generation
-        FROM IndexItemRow
-        LEFT JOIN IndexItemDetailRow AS version_row
-            ON version_row.owner_iid=IndexItemRow.iid
-            AND version_row.detail_name='version'
-            AND version_row.os_is_active=1
-        LEFT JOIN IndexItemDetailRow AS name_row
-            ON name_row.owner_iid=IndexItemRow.iid
-            AND name_row.detail_name='name'
-            AND name_row.os_is_active=1
-        WHERE install_status!=0
-        AND ignore=0
+            name_and_version(report_versions_view.owner_iid, report_versions_view.name, report_versions_view.remote_version),
+            report_versions_view.generation
+        FROM report_versions_view
+        JOIN IndexItemRow
+            ON  IndexItemRow.iid=owner_iid
+            AND IndexItemRow.install_status!=0
+            AND IndexItemRow.ignore=0
         """
-        conn.execute(query_text)
+        exec_result = conn.execute(query_text)
         conn.connection.commit()
 
     def get_iids_and_details_for_active_iids(self, detail_name, unique_values=False, limit_to_iids=None):

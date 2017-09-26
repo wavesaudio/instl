@@ -322,7 +322,7 @@ class InstlClientCopy(InstlClient):
             self.batch_accum += self.platform_helper.remark("-- Begin iid {0}".format(IID))
             sources_for_iid = self.items_table.get_sources_for_iid(IID)
             resolved_sources_for_iid = [(var_stack.ResolveStrToStr(s[0]), s[1]) for s in sources_for_iid]
-            name_and_version = self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="name_and_version")[0]
+            name_and_version = self.name_and_version_for_iid(iid=IID)
             for source in resolved_sources_for_iid:
                 self.batch_accum += self.platform_helper.remark("--- Begin source {0}".format(source[0]))
                 num_items_copied_to_folder += 1
