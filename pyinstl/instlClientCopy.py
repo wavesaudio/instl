@@ -387,7 +387,7 @@ class InstlClientCopy(InstlClient):
             self.batch_accum += pre_copy_item_from_db
             post_copy_item_from_db = var_stack.ResolveListToList(self.items_table.get_resolved_details_for_active_iid(IID, "post_copy_item"))
             self.batch_accum += post_copy_item_from_db
-            actual_instructions += self.batch_accum.end_transaction()
+            actual_instructions += self.batch_accum.commit_transaction()
 
         if num_wtars > 0:
             source_folder, source_name = os.path.split(source[0])
@@ -401,10 +401,7 @@ class InstlClientCopy(InstlClient):
         self.batch_accum += self.platform_helper.progress("{sync_folder_name}".format(**locals()))
         self.batch_accum += self.platform_helper.progress("Actions in {0} done".format(sync_folder_name))
 
-        if actual_instructions > 0:
-            self.batch_accum.end_transaction()
-        else:
-            self.batch_accum.cancel_transaction()
+        self.batch_accum.commit_transaction_if(actual_instructions)
 
     def create_unwtar_batch_file(self, wtar_instructions, name_for_progress):
         if wtar_instructions:

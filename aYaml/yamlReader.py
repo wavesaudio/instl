@@ -81,8 +81,19 @@ class YamlReader(object):
 
     def read_yaml_from_stream(self, the_stream, *args, **kwargs):
         for a_node in yaml.compose_all(the_stream):
+            YamlReader.convert_standard_tags(a_node)
             self.init_specific_doc_readers()  # in case previous reading changed the assigned readers (ACCEPTABLE_YAML_DOC_TAGS)
             read_func = self.get_read_function_for_doc(a_node)
             if read_func is not None:
                 read_func(a_node, *args, **kwargs)
 
+    @staticmethod
+    def convert_standard_tags(a_node):
+        if a_node.tag in ("tag:yaml.org,2002:null", "tag:yaml.org,2002:python/none"):
+            a_node.value = None
+        elif a_node.isSequence():
+             for item in a_node.value:
+                YamlReader.convert_standard_tags(item)
+        elif a_node.isMapping():
+            for (_key, _val) in a_node.value:
+                YamlReader.convert_standard_tags(_val)

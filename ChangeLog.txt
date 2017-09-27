@@ -1,4 +1,15 @@
+27/9/2017 1.6.2.4
+
+    programmer visible changes:
+    * new BatchAccumulatorTransaction - a context manager class for batch accumulator transactions
+    * BatchAccumulator.end_transaction renamed commit_transaction
+    * new method BatchAccumulator.commit_transaction_if will call either commit_transaction or cancel_transaction according to parameter
+    * new class method YamlReader.convert_standard_tags will remove null values from yaml according to tags "tag:yaml.org,2002:null", "tag:yaml.org,2002:python/none", this will prevent '~' from being assigned as value when read form yaml
+
+
 26/9/2017 1.6.2.3
+
+    programmer visible changes:
     * added ondelete="CASCADE" to IndexItemDetailRow.original_iid, IndexItemDetailRow.owner_iid
     * IndexItemTable.create_default_index_items, IndexItemTable.create_default_require_items refactored as sqlite script instead of sqlalchemy code
     * new function utils.quoteme_double_list_for_sql to help prepare IN arguments for sql queries

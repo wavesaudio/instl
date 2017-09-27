@@ -26,6 +26,7 @@ class BatchAccumulator(object):
 
     def add(self, instructions):
         if isinstance(instructions, str):
+            assert instructions != '~', "~ in instructions previous instruction: "+self.__instruction_lines[self.current_section][-1]
             self.__add_single_line__(instructions)
         else:
             for instruction in instructions:
@@ -73,12 +74,12 @@ class BatchAccumulator(object):
     @property
     def instruction_counter(self):
         return self.__instruction_counter
-    
+
     def begin_transaction(self):
         self.__transaction_stack.append(self.__instruction_counter.copy())
         return self.__instruction_counter
 
-    def end_transaction(self):
+    def commit_transaction(self):
         prev_counters = self.__transaction_stack.pop()
         num_instructions_in_transaction = 0
         for section_name, section_counter in self.__instruction_counter.items():
@@ -90,3 +91,28 @@ class BatchAccumulator(object):
         # remove the instructions_ added since the beginning of the transaction
         for section_name, section_counter in self.__instruction_counter.items():
             del self.__instruction_lines[section_name][prev_counters[section_name]:]
+        return 0
+
+    def commit_transaction_if(self, condition):
+        if condition:
+            retVal = self.commit_transaction()
+        else:
+            retVal = self.cancel_transaction()
+        return retVal
+
+
+class BatchAccumulatorTransaction(object):
+    def __init__(self, batchAccum):
+        self.batchAccum = batchAccum
+        self.essential_action_counter = 0
+
+    def __enter__(self):
+        self.batchAccum.begin_transaction()
+        return self
+
+    def __exit__(self, *_):
+        self.batchAccum.commit_transaction_if(self.essential_action_counter)
+
+    def __iadd__(self, inc):
+        self.essential_action_counter += inc
+        return self
