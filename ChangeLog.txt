@@ -1,3 +1,8 @@
+???? 1.6.2.5
+
+    * new method InstlClient.name_for_iid to get either the name or if missing the iid. Used for progress messages in remove instead of name_and_version_for_iid where the version from index is not relevant.
+    * replaced batch_accum.begin_transaction()/commit_transaction() with BatchAccumulatorTransaction in InstlClientCopy.create_copy_instructions_for_no_copy_folder and InstlClientSync.do_sync
+
 27/9/2017 1.6.2.4
 
     programmer visible changes:

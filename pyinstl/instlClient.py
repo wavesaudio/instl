@@ -481,6 +481,11 @@ class InstlClient(InstlInstanceBase):
         retVal = next(iter(name_and_version_list), iid)  # trick to get the first element in a list or default if list is empty
         return retVal
 
+    def name_for_iid(self, iid):
+        name_list = self.items_table.get_resolved_details_value_for_active_iid(iid=iid, detail_name="name")
+        retVal = next(iter(name_list), iid)  # trick to get the first element in a list or default if list is empty
+        return retVal
+
 
 def InstlClientFactory(initial_vars, command):
     retVal = None

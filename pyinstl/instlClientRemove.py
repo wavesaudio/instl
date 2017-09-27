@@ -54,8 +54,8 @@ class InstlClientRemove(InstlClient):
             with BatchAccumulatorTransaction(self.batch_accum) as folder_accum:
                 for IID in items_in_folder:
                     with BatchAccumulatorTransaction(self.batch_accum) as iid_accum:
-                        name_and_version = self.name_and_version_for_iid(iid=IID)
-                        self.batch_accum += self.platform_helper.progress("Remove {name_and_version}...".format(**locals()))
+                        name_for_iid = self.name_for_iid(iid=IID)
+                        self.batch_accum += self.platform_helper.progress("Remove {name_for_iid}...".format(**locals()))
                         sources_for_iid = self.items_table.get_sources_for_iid(IID)
                         resolved_sources_for_iid = [(var_stack.ResolveStrToStr(s[0]), s[1]) for s in sources_for_iid]
                         for source in resolved_sources_for_iid:
@@ -67,7 +67,7 @@ class InstlClientRemove(InstlClient):
                                 folder_accum += source_accum.essential_action_counter
                                 self.batch_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="post_remove_item")
                                 self.batch_accum += self.platform_helper.progress("Remove {source[0]} done".format(**locals()))
-                        self.batch_accum += self.platform_helper.progress("Remove {name_and_version} done".format(**locals()))
+                        self.batch_accum += self.platform_helper.progress("Remove {name_for_iid} done".format(**locals()))
 
                 self.accumulate_unique_actions_for_active_iids('post_remove_from_folder', items_in_folder)
                 self.batch_accum += self.platform_helper.progress("Remove from {0} done".format(folder_name))

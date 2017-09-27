@@ -3,6 +3,7 @@
 
 from configVar import var_stack
 from .instlClient import InstlClient
+from .batchAccumulator import BatchAccumulatorTransaction
 
 
 class InstlClientSync(InstlClient):
@@ -33,10 +34,8 @@ class InstlClientSync(InstlClient):
 
         self.read_name_specific_defaults_file(type(syncer).__name__)
         syncer.init_sync_vars()
-        self.batch_accum.begin_transaction()
-        num_file_to_sync = syncer.create_sync_instructions()
-        if num_file_to_sync > 0:
-            self.batch_accum.commit_transaction()
-        else:
-            self.batch_accum.cancel_transaction()
+        with BatchAccumulatorTransaction(self.batch_accum) as sync_accum:
+            sync_accum += syncer.create_sync_instructions()
+
+        if sync_accum.essential_action_counter == 0:
             syncer.create_no_sync_instructions()
