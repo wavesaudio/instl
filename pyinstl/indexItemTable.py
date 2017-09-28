@@ -609,7 +609,6 @@ class IndexItemsTable(object):
                 print(item_to_resolve.iid, "inherit from non existing", original_iid)
         item_to_resolve.inherit_resolved = True
 
-    # @utils.timing
     def resolve_inheritance(self):
         items = self.get_all_index_items()
         for item in items:

@@ -13,7 +13,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 
-from pyinstl.db_alchemy import create_session, IndexItemDetailRow
+from pyinstl.db_alchemy import create_session, IndexItemDetailRow, get_engine
 from .svnRow import SVNRow, IIDToSVNItem
 
 import utils
@@ -427,22 +427,66 @@ class SVNTable(object):
             pass
         return retVal
 
-    def count_file_by_path_case_insensitive(self, file_path):
-        """ count items with the given path without regard to case
-            result should be 0 or 1
+    def get_files_that_should_be_removed_from_sync_folder(self, files_to_check):
         """
-        retVal = 0
-        query_text = """
-            SELECT count(path)
-            FROM svnitem
-            WHERE path = "{file_path}"
-            COLLATE NOCASE
-             """.format(file_path=file_path)
+        :param files_to_check: a list of tuples [(partial_path, full_path), ...]
+        :return: list of indexes into files_to_check who's partial path is not in info_map
+        """
+        retVal = list()
+        db_conn = get_engine().raw_connection()
+        self.cursor = db_conn.cursor()
+        db_curs = self.cursor
+        script_text = """
+        CREATE TABLE paths_from_disk_t
+        (
+          item_num INTEGER,
+          path VARCHAR
+        );
+        """
+        # each partial path is inserted with it's index in the list
+        list_of_inserts = ["""INSERT INTO paths_from_disk_t (item_num, path) VALUES ({}, "{}");""".format(i, path_pair[0]) for i, path_pair in enumerate(files_to_check)]
+        script_text += "\n".join(list_of_inserts)
         try:
-            retVal = self.session.execute(query_text).first()[0]
-        except SQLAlchemyError:
+            script_results = db_curs.executescript(script_text)
+
+            # this query will select all files found in the sync folder that are not in the info_map
+            # database, BUT will exclude those files in folders that have their own info_map for
+            # items that are not currently being installed.
+            query_text = """
+            SELECT file_index
+            FROM
+            (SELECT  paths_from_disk_t.item_num AS file_index
+              FROM paths_from_disk_t
+              WHERE UPPER(paths_from_disk_t.path) NOT IN (SELECT UPPER(path) FROM svnitem))
+            
+            WHERE file_index NOT IN (
+                SELECT paths_from_disk_t.item_num
+                FROM paths_from_disk_t
+                JOIN IndexItemDetailRow AS sources_t
+                    ON sources_t.detail_name = 'install_sources'
+                    AND paths_from_disk_t.path LIKE sources_t.detail_value || "/%"
+                JOIN IndexItemRow ON
+                    IndexItemRow.install_status = 0
+                    AND IndexItemRow.iid = sources_t.owner_iid
+                JOIN IndexItemDetailRow AS info_map_t ON
+                    info_map_t.detail_name = 'info_map'
+                    AND IndexItemRow.iid = info_map_t.owner_iid
+)            """
+            exec_result = db_curs.execute(query_text)
+            retVal.extend([fr[0] for fr in exec_result.fetchall()])
+            db_curs.close()
+            db_conn.close()
+        except SQLAlchemyError as ex:
             raise
         return retVal
+
+    def execute_script(self, script_text):
+        db_conn = get_engine().raw_connection()
+        db_curs = db_conn.cursor()
+        script_results = db_curs.executescript(script_text)
+        db_curs.close()
+        db_conn.close()
+        return script_results
 
     def get_item_case_insensitive(self, item_path, what="any"):
         """ Get specific item or return None if not found

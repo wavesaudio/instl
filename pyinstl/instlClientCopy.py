@@ -365,7 +365,7 @@ class InstlClientCopy(InstlClient):
             These are sources that do not have 'install_folder' section OR those with os_is_active
             'direct_sync' section.
         """
-        with BatchAccumulatorTransaction(self.batch_accum) as folder_accum:
+        with BatchAccumulatorTransaction(self.batch_accum) as folder_accum_transaction:
 
             items_in_folder = self.no_copy_iids_by_sync_folder[sync_folder_name]
             self.batch_accum += self.platform_helper.new_line()
@@ -373,7 +373,7 @@ class InstlClientCopy(InstlClient):
             self.batch_accum += self.platform_helper.progress("Actions in {0} ...".format(sync_folder_name))
 
             # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
-            folder_accum += self.accumulate_unique_actions_for_active_iids('pre_copy_to_folder', items_in_folder)
+            folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('pre_copy_to_folder', items_in_folder)
 
             num_wtars = 0
             for IID in sorted(items_in_folder):
@@ -383,19 +383,19 @@ class InstlClientCopy(InstlClient):
                     num_wtars += self.info_map_table.count_wtar_items_of_dir(source[0])
                 pre_copy_item_from_db = var_stack.ResolveListToList(self.items_table.get_resolved_details_for_active_iid(IID, "pre_copy_item"))
                 self.batch_accum += pre_copy_item_from_db
-                folder_accum += len(pre_copy_item_from_db)
+                folder_accum_transaction += len(pre_copy_item_from_db)
                 post_copy_item_from_db = var_stack.ResolveListToList(self.items_table.get_resolved_details_for_active_iid(IID, "post_copy_item"))
                 self.batch_accum += post_copy_item_from_db
-                folder_accum += len(post_copy_item_from_db)
+                folder_accum_transaction += len(post_copy_item_from_db)
 
             if num_wtars > 0:
                 source_folder, source_name = os.path.split(source[0])
                 # to_unwtar = os.path.join(sync_folder_name, source_name)
                 self.batch_accum += self.platform_helper.unwtar_something(sync_folder_name, no_artifacts=False, where_to_unwtar='.')
-                folder_accum += 1
+                folder_accum_transaction += 1
 
             # accumulate post_copy_to_folder actions from all items, eliminating duplicates
-            folder_accum += self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)
+            folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)
 
             self.batch_accum += self.platform_helper.progress("{sync_folder_name}".format(**locals()))
             self.batch_accum += self.platform_helper.progress("Actions in {0} done".format(sync_folder_name))

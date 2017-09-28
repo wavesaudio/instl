@@ -1,7 +1,11 @@
-???? 1.6.2.5
+28/7/2017 1.6.2.5
 
+    programmer visible changes:
     * new method InstlClient.name_for_iid to get either the name or if missing the iid. Used for progress messages in remove instead of name_and_version_for_iid where the version from index is not relevant.
     * replaced batch_accum.begin_transaction()/commit_transaction() with BatchAccumulatorTransaction in InstlClientCopy.create_copy_instructions_for_no_copy_folder and InstlClientSync.do_sync
+    * some variable names for BatchAccumulatorTransaction changed to reflect they are transaction not the actual accumulator
+    * create_remove_unwanted_files_in_sync_folder_instructions renamed create_instructions_to_remove_redundant_files_in_sync_folder and refactored to work with SVNTable.get_files_that_should_be_removed_from_sync_folder instead of count_file_by_path_case_insensitive. Result 19% shorter synccopy prepare instructions stage.
+    * SVNTable.get_files_that_should_be_removed_from_sync_folder replaces count_file_by_path_case_insensitive, implemented as one sql script for all files instead of accessing the db one by one.
 
 27/9/2017 1.6.2.4
 
