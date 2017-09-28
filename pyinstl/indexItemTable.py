@@ -1244,6 +1244,37 @@ class IndexItemsTable(object):
             self.session.add(ConfigVar(name=identifier, raw_value=raw_value, resolved_value=resolved_value))
         self.commit_changes()
 
+    def mark_direct_sync_items(self):
+        def _get_direct_sync_status_from_indicator(direct_sync_indicator):
+            retVal = False
+            if direct_sync_indicator is not None:
+                try:
+                    retVal = utils.str_to_bool_int(var_stack.ResolveStrToStr(direct_sync_indicator))
+                except:
+                    pass
+            return retVal
+        conn = self.session.bind.connect()
+        conn.connection.create_function("get_direct_sync_status_from_indicator", 1, _get_direct_sync_status_from_indicator)
+
+        query_text = """
+        INSERT INTO IndexItemDetailRow
+        (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
+        SELECT
+            report_versions_view.owner_iid,
+            report_versions_view.owner_iid,
+            0,
+            "name_and_version",
+            name_and_version(report_versions_view.owner_iid, report_versions_view.name, report_versions_view.remote_version),
+            report_versions_view.generation
+        FROM report_versions_view
+        JOIN IndexItemRow
+            ON  IndexItemRow.iid=owner_iid
+            AND IndexItemRow.install_status!=0
+            AND IndexItemRow.ignore=0
+        """
+        exec_result = conn.execute(query_text)
+        conn.connection.commit()
+
     def get_sync_folders_and_sources_for_active_iids(self):
         retVal = list()
         query_text = """

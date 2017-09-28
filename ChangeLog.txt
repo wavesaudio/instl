@@ -1,3 +1,9 @@
+???? 1.6.2.6
+
+* new field IndexItemRow.direct_sync will help for faster calculation of sync folders
+* new method IndexItemTable.mark_direct_sync_items will set IndexItemRow.direct_sync - not finished!
+* in InstlClient.set_sync_locations_for_active_items removed var_stack.ResolveStrToStr(source) because all sources are already resolved
+
 28/7/2017 1.6.2.5
 
     programmer visible changes:

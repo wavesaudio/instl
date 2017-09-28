@@ -85,6 +85,7 @@ class IndexItemRow(get_declarative_base()):
     from_require = Column(BOOLEAN, default=False)
     install_status = Column(Integer, default=0)
     ignore = Column(Integer, default=0)
+    direct_sync = Column(Integer, default=0)
 
     def __str__(self):
         resolved_str = "resolved" if self.inherit_resolved else "unresolved"
@@ -95,6 +96,7 @@ class IndexItemRow(get_declarative_base()):
                 "from index: {from_index_str}, "
                 "from require: {from_require_str},"
                 "status: {self.status}"
+                "direct_sync: {self.direct_sync}"
                 ).format(**locals())
         return retVal
 

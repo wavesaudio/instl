@@ -411,11 +411,10 @@ class InstlClient(InstlInstanceBase):
 
         for iid, direct_sync_indicator, source, source_tag, install_folder in sync_and_source:
             direct_sync = self.get_direct_sync_status_from_indicator(direct_sync_indicator)
-            resolved_source = var_stack.ResolveStrToStr(source)
-            resolved_source_parts = resolved_source.split("/")
+            resolved_source_parts = source.split("/")
 
             if source_tag in ('!dir', '!dir_cont'):
-                items = self.info_map_table.get_file_items_of_dir(dir_path=resolved_source)
+                items = self.info_map_table.get_file_items_of_dir(dir_path=source)
                 if direct_sync:
                     if  source_tag == '!dir':
                         source_parent = "/".join(resolved_source_parts[:-1])
@@ -423,7 +422,7 @@ class InstlClient(InstlInstanceBase):
                             item.download_path = var_stack.ResolveStrToStr("/".join((install_folder, item.path[len(source_parent)+1:])))
                             item.download_root = var_stack.ResolveStrToStr("/".join((install_folder, resolved_source_parts[-1])))
                     else:  # !dir_cont
-                        source_parent = resolved_source
+                        source_parent = source
                         for item in items:
                             item.download_path = var_stack.ResolveStrToStr("/".join((install_folder, item.path[len(source_parent)+1:])))
                             item.download_root = var_stack.ResolveStrToStr(install_folder)
@@ -432,7 +431,7 @@ class InstlClient(InstlInstanceBase):
                         item.download_path = var_stack.ResolveStrToStr("/".join(("$(LOCAL_REPO_SYNC_DIR)", item.path)))
             elif source_tag == '!file':
                 # if the file was wtarred and split it would have multiple items
-                items_for_file = self.info_map_table.get_required_for_file(resolved_source)
+                items_for_file = self.info_map_table.get_required_for_file(source)
                 if direct_sync:
                     assert install_folder is not None
                     for item in items_for_file:
