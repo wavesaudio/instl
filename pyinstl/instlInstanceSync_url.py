@@ -133,8 +133,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
         return len(redundant_files_indexes)
 
     def create_download_instructions(self):
-        """ remove files in sync folder that do not appear in the info map table
-        """
         self.instlObj.batch_accum.set_current_section('sync')
 
         already_synced_num_files, already_synced_num_bytes = self.instlObj.info_map_table.get_not_to_download_num_files_and_size()
