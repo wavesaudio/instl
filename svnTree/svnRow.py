@@ -2,7 +2,7 @@
 
 import re
 
-from sqlalchemy import Column, Integer, String, BOOLEAN, ForeignKey
+from sqlalchemy import Column, Integer, String, BOOLEAN, ForeignKey, Index
 from pyinstl import db_alchemy
 from configVar import var_stack
 
@@ -16,14 +16,14 @@ fields_relevant_to_str = ('path', 'flags', 'revision', 'checksum', 'size', 'url'
 class SVNRow(db_alchemy.get_declarative_base()):
     __tablename__ = 'svnitem'
     _id = Column(Integer, primary_key=True)
-    required = Column(BOOLEAN, default=False, index=True)       # is required for install
-    need_download = Column(BOOLEAN, default=False, index=True)
-    fileFlag = Column(BOOLEAN, default=False, index=True)
-    dirFlag = Column(BOOLEAN, default=False)
+    required = Column(BOOLEAN, default=False, index=False)       # is required for install
+    need_download = Column(BOOLEAN, default=False, index=False)
+    fileFlag = Column(BOOLEAN, default=False, index=False)  # 1/True->file, 0/False->dir
+    #dirFlag = Column(BOOLEAN, default=False)
     wtarFlag = Column(Integer, default=0)
     download_path = Column(String)
     download_root = Column(String, default=None)  # top folder for direct sync items not the same as parent
-    path = Column(String, index=True)
+    path = Column(String, index=False)
     leaf = Column(String)
     parent = Column(String)  # todo: this should be in another table
     flags = Column(String)   # the flags in text format f,d,x
@@ -35,8 +35,9 @@ class SVNRow(db_alchemy.get_declarative_base()):
     extra_props = Column(String,default="")  # SVN properties
 
     def __repr__(self):
+        isDir = not self.fileFlag
         return ("<{self.level}, {self.path}, '{self.flags}'"
-                ", rev-remote:{self.revision}, f:{self.fileFlag}, d:{self.dirFlag}"
+                ", rev-remote:{self.revision}, f:{self.fileFlag}, d:{isDir}"
                 ", checksum:{self.checksum}, size:{self.size}"
                 ", url:{self.url}"
                 ", required:{self.required}, need_download:{self.need_download}"
@@ -89,7 +90,7 @@ class SVNRow(db_alchemy.get_declarative_base()):
         return ancestry
 
     def isDir(self):
-        return self.dirFlag
+        return not self.fileFlag
 
     def isFile(self):
         return self.fileFlag

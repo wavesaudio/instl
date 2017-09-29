@@ -1184,3 +1184,6 @@ class InstlAdmin(InstlInstanceBase):
 
         with open(default_info_map_file_path, "a") as wfd:
             wfd.write("\n".join(lines_for_main_info_map))
+
+    def do_read_info_map(self):
+        self.read_info_map_from_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
