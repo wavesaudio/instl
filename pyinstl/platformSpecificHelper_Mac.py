@@ -72,22 +72,24 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         return retVal
 
     def get_install_instructions_invocation_report_funcs(self):
+        self.random_invocation_id = ''.join(random.choice(string.ascii_lowercase) for i in range(16))
+        self.invocations_file_path = var_stack.ResolveVarToStr("__INVOCATIONS_FILE_PATH__")
         retVal = """
 report_invocation_start() {{
-    invocations_file=$( dirname "${{BASH_SOURCE[0]}}" )/instl_invocations.txt
-    echo "--- {0}" >> "${{invocations_file}}"
+    echo "--- {0}" >> "{1}"
     start_date=`date +%Y/%m/%d-%H:%M:%S`
-    echo "start: $start_date" >> "${{invocations_file}}"
-    echo "batch: ${{BASH_SOURCE[0]}}" >> "${{invocations_file}}"
+    echo "start: $start_date" >> "{1}"
+    echo "batch file: ${{BASH_SOURCE[0]}}" >> "{1}"
 }}
 
 report_invocation_end() {{
-    echo "run time: $(convertsecs $Time_Measure_Diff)" >> "${{invocations_file}}"
+    echo "run time: $(convertsecs $Time_Measure_Diff)" >> "{1}"
     end_date=`date +%Y/%m/%d-%H:%M:%S`
-    echo "end: $end_date" >> "${{invocations_file}}"
-    echo "---  {0}" >> "${{invocations_file}}"
+    echo "end: $end_date" >> "{1}"
+    echo "exit code: $1" >> "{1}"
+    echo "---  {0}" >> "{1}"
 }}
-    """.format(''.join(random.choice(string.ascii_lowercase) for i in range(16)))
+    """.format(self.random_invocation_id, self.invocations_file_path)
         return retVal
 
     def get_resolve_symlinks_func(self):
