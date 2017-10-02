@@ -1,3 +1,8 @@
+2/10/2017 1.6.2.7
+    user visible changes:
+    * improved instl_invocations.txt: location is in Logs folder is exists, otherwise in user folder,
+        batch files created by instl also write to this file, exit code report
+
 1/10/2017 1.6.2.6
 
     * new field IndexItemRow.direct_sync will help for faster calculation of sync folders
