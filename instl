@@ -173,7 +173,8 @@ class InvocationReporter(object):
             with utils.utf8_open(self.invocations_file_path, "a") as wfd:
                 print("===", self.random_invocation_name, file=wfd, flush=True)
                 print("start:", self.start_time, file=wfd, flush=True)
-                print("argv:", sys.argv, file=wfd, flush=True)
+                print("instl:", sys.argv[0], file=wfd, flush=True)
+                print("argv:", " ".join(sys.argv[1:]), file=wfd, flush=True)
         except:
             # this is a report so if something went wrong just forget it
             pass
