@@ -4,6 +4,7 @@
 import os
 import re
 from functools import reduce
+import csv
 
 from sqlalchemy import update, Index
 from sqlalchemy import or_
@@ -100,8 +101,6 @@ class SVNTable(object):
         self.comments.append("Original file " + in_file)
         if a_format in list(self.read_func_by_format.keys()):
             with utils.open_for_read_file_or_url(in_file) as open_file:
-                #if a_format not in ("props", "file-sizes"):
-                #    self.clear_all()
                 self.read_func_by_format[a_format](open_file.fd)
                 self.files_read_list.append(in_file)
         else:
@@ -117,26 +116,33 @@ class SVNTable(object):
         self.session.bulk_insert_mappings(SVNRow, insert_dicts)
         self.commit_changes()
 
-    def read_from_text_to_dict(self, in_rfd):
-        retVal = list()
-        for line in in_rfd:
-            line = line.strip()
-            item_dict = SVNTable.item_dict_from_str(line)
-            if item_dict:
-                retVal.append(item_dict)
-            else:
-                match = comment_line_re.match(line)
-                if match:
-                    self.comments.append(match.group("the_comment"))
-        return retVal
-
-    def insert_dicts_to_db(self, insert_dicts):
-        self.session.bulk_insert_mappings(SVNRow, insert_dicts)
-        self.commit_changes()
-
     def read_from_text(self, rfd):
-        insert_dicts = self.read_from_text_to_dict(rfd)
-        self.insert_dicts_to_db(insert_dicts)
+        def yield_row(_rfd_):
+            reader = csv.reader(_rfd_, skipinitialspace=True)
+            for row in reader:
+                if row[0][0] != '#':
+                    info_map_line_defaults = ('!path!', '!flags!', '!repo-rev!', None, 0, None)
+                    row_data = list(utils.iter_complete_to_longest(row, info_map_line_defaults))  # path, flags, revision, checksum, size, url
+                    row_data.extend(self.level_parent_and_leaf_from_path(row_data[0]))  # level, parent, leaf
+                    row_data.append(1 if 'f' in row_data[1] else 0)  # fileFlag
+                    row_data.append(1 if utils.wtar_file_re.match(row_data[1]) else 0)  # wtarFlag
+                    row_data.extend((0, 0))  # required, need_download
+                    yield row_data
+
+        db_conn = get_engine().raw_connection()
+        db_curs = db_conn.cursor()
+        insert_q = """
+        INSERT INTO svnitem (path, flags, revision,
+                              checksum, size, url,
+                              level, parent, leaf,
+                              fileFlag, wtarFlag,
+                              required, need_download)
+         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?);
+        """
+        db_curs.executemany(insert_q, yield_row(rfd))
+        db_conn.commit()
+        db_curs.close()
+        db_conn.close()
 
     @staticmethod
     def get_wtar_file_status(file_name):
@@ -148,32 +154,6 @@ class SVNTable(object):
     def level_parent_and_leaf_from_path(in_path):
         path_parts = in_path.split("/")
         return len(path_parts), "/".join(path_parts[:-1]), path_parts[-1]
-
-    @staticmethod
-    def item_dict_from_str(the_str):
-        """ create a new a sub-item from string description.
-            This is the regular expression version.
-        """
-        item_details = None
-        match = text_line_re.match(the_str)
-        if match:
-            the_matched_groups = match.groupdict()
-            item_details = dict()
-            item_details['path'] = the_matched_groups['path']
-            item_details['level'], item_details['parent'], item_details['leaf'] = SVNTable.level_parent_and_leaf_from_path(item_details['path'])
-            item_details['revision'] = int(the_matched_groups['revision'])
-            item_details['flags'] = the_matched_groups['flags']
-            item_details['fileFlag'] = 'f' in the_matched_groups['flags']
-            item_details['wtarFlag'] = 1 if utils.wtar_file_re.match(item_details['path']) else 0
-            item_details['checksum'] = the_matched_groups.get('checksum')
-            item_details['url'] = the_matched_groups.get('url')
-            the_size = the_matched_groups['size']
-            item_details['size'] = int(0 if the_size is None else the_size)
-            item_details['required'] = False
-            item_details['need_download'] = False
-            item_details['extra_props'] = ""
-            item_details['download_path'] = the_matched_groups.get('dl_path')
-        return item_details
 
     def valid_write_formats(self):
         return list(self.write_func_by_format.keys())
@@ -266,40 +246,46 @@ class SVNTable(object):
             print("Error:", "line:", line_num, "record:", record)
             raise
 
-    def item_dict_from_disk_item(self, in_base_folder, full_path):
-        prefix_len = len(in_base_folder)+1
-        relative_path = full_path[prefix_len:]
-        item_details = dict()
-        item_details['path'] = relative_path
-        item_details['level'], item_details['parent'], item_details['leaf'] = SVNTable.level_parent_and_leaf_from_path(item_details['path'])
-        item_details['revision'] = 0
-        if os.path.islink(full_path): # check for link first: os.path.isdir returns True for a link to dir
-            flags = "fs"
-        elif os.path.isfile(full_path):
-            if os.access(full_path, os.X_OK):
-                flags = "fx"
-            else:
-                flags = "f"
-        else:
-            flags = "d"
-        item_details['flags'] = flags
-        item_details['fileFlag'] = 'f' in item_details['flags']
-        item_details['wtarFlag'] = 1 if utils.wtar_file_re.match(item_details['path']) else 0
-        item_details['checksum'] = None
-        item_details['url'] = None
-        item_details['size'] = 0
-        item_details['required'] = False
-        item_details['need_download'] = False
-        item_details['extra_props'] = ""
-        return item_details
-
     def initialize_from_folder(self, in_folder):
-        insert_dicts = list()
-        for root, dirs, files in os.walk(in_folder, followlinks=False):
-            for item in sorted(files + dirs):
-                if item != ".DS_Store": # temp hack, list of ignored files should be moved to a variable
-                    insert_dicts.append(self.item_dict_from_disk_item(in_folder, os.path.join(root, item)))
-        self.insert_dicts_to_db(insert_dicts)
+        def yield_row(_in_folder_):
+            base_folder_len = len(_in_folder_)+1
+            for root, dirs, files in os.walk(_in_folder_, followlinks=False):
+                for item in sorted(files + dirs):
+                    if item == ".DS_Store": # temp hack, list of ignored files should be moved to a variable
+                        continue
+                    row_data = list()
+                    full_path  = os.path.join(root, item)
+                    relative_path = full_path[base_folder_len:]
+                    row_data.append(relative_path)  # path
+                    # check for link first: os.path.isdir returns True for a link to dir
+                    if os.path.islink(full_path):
+                        flags = "fs"
+                    elif os.path.isfile(full_path):
+                        if os.access(full_path, os.X_OK):
+                            flags = "fx"
+                        else:
+                            flags = "f"
+                    else:
+                        flags = "d"
+                    row_data.append(flags)  # flags
+                    row_data.append(0)      # revision
+                    row_data.extend(self.level_parent_and_leaf_from_path(relative_path))  # level, parent, leaf
+                    row_data.append(1 if 'f' in flags else 0)  # fileFlag
+                    row_data.append(1 if utils.wtar_file_re.match(relative_path) else 0)  # wtarFlag
+                    yield row_data
+
+        db_conn = get_engine().raw_connection()
+        db_curs = db_conn.cursor()
+        insert_q = """
+        INSERT INTO svnitem (path, flags, revision,
+                              level, parent, leaf,
+                              fileFlag, wtarFlag)
+         VALUES(?,?,?,?,?,?,?,?);
+        """
+        db_curs.executemany(insert_q, yield_row(in_folder))
+        db_conn.commit()
+        db_curs.close()
+        db_conn.close()
 
     def num_items(self, item_filter="all-items"):
         retVal = 0

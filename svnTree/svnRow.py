@@ -16,22 +16,21 @@ fields_relevant_to_str = ('path', 'flags', 'revision', 'checksum', 'size', 'url'
 class SVNRow(db_alchemy.get_declarative_base()):
     __tablename__ = 'svnitem'
     _id = Column(Integer, primary_key=True)
-    required = Column(BOOLEAN, default=False, index=False)       # is required for install
-    need_download = Column(BOOLEAN, default=False, index=False)
-    fileFlag = Column(BOOLEAN, default=False, index=False)  # 1/True->file, 0/False->dir
-    #dirFlag = Column(BOOLEAN, default=False)
-    wtarFlag = Column(Integer, default=0)
-    download_path = Column(String)
-    download_root = Column(String, default=None)  # top folder for direct sync items not the same as parent
-    path = Column(String, index=False)
-    leaf = Column(String)
-    parent = Column(String)  # todo: this should be in another table
+    path = Column(String)
     flags = Column(String)   # the flags in text format f,d,x
     revision = Column(Integer, default=0)  # SVN revision
     checksum = Column(String(40), default=None)
     size = Column(Integer, default=-1)
     url = Column(String, default=None)
+    fileFlag = Column(BOOLEAN, default=False)  # 1/True->file, 0/False->dir
+    wtarFlag = Column(Integer, default=0)
+    leaf = Column(String)
+    parent = Column(String)  # todo: this should be in another table
     level = Column(Integer)     # levels deep in the folders hierarchy
+    required = Column(BOOLEAN, default=False)       # is required for install
+    need_download = Column(BOOLEAN, default=False)
+    download_path = Column(String)
+    download_root = Column(String, default=None)  # top folder for direct sync items not the same as parent
     extra_props = Column(String,default="")  # SVN properties
 
     def __repr__(self):

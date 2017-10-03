@@ -780,3 +780,14 @@ def get_invocations_file_path():
         folder_to_write_in = logs_dir
     invocations_file_path = os.path.join(folder_to_write_in, "instl_invocations.txt")
     return invocations_file_path
+
+
+def iter_complete_to_longest(*list_of_lists):
+    """ yield all values from first list complementing with the next
+        until longest is exhausted. e.g. iter_complete_to_longest((1,), ('a', 2), ('b', 'c', 3)) would yield:
+        1, 2, 3
+    """
+    start_from = 0
+    for a_list in list_of_lists:
+        yield from a_list[start_from:]
+        start_from = max(len(a_list), start_from)
