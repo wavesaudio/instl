@@ -26,6 +26,7 @@ class InstlMisc(InstlInstanceBase):
         self.progress_staccato_period = 1
         self.progress_staccato_count = 0
         self.commands_that_need_info_map_table = ("check_checksum", "set_exec", "create_folders")
+        self.commands_that_need_items_table = ("exec")
 
     def get_default_out_file(self):
         retVal = None
@@ -45,6 +46,8 @@ class InstlMisc(InstlInstanceBase):
         if self.fixed_command in self.commands_that_need_info_map_table:
             from svnTree import SVNTable
             self.info_map_table = SVNTable()
+        if self.fixed_command in self.commands_that_need_items_table:
+            self.init_items_table()
         do_command_func()
         after_time = time.clock()
         if utils.str_to_bool_int(var_stack.unresolved_var("PRINT_COMMAND_TIME")):

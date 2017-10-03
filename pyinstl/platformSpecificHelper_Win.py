@@ -6,7 +6,8 @@ import sys
 import datetime
 import subprocess
 import re
-import pathlib
+import random
+import string
 
 import utils
 from .platformSpecificHelper_Base import PlatformSpecificHelperBase
@@ -284,10 +285,16 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
             self.find_cmd_tool(find_tool_var)
 
     def get_install_instructions_prefix(self):
+        self.random_invocation_id = ''.join(random.choice(string.ascii_lowercase) for i in range(16))
+        self.invocations_file_path = var_stack.ResolveVarToStr("__INVOCATIONS_FILE_PATH__")
         retVal = (
             "@echo off",
             "chcp 65001",
             "setlocal enableextensions enabledelayedexpansion",
+            # write to instl_invocations.txt
+                'echo --- {0} >> "{1}"'.format(self.random_invocation_id, self.invocations_file_path),
+                'echo start: %date%-%time% >> "{0}"'.format(self.invocations_file_path),
+                'echo batch file: %0 >> "{0}"'.format(self.invocations_file_path),
             self.remark(self.instlObj.get_version_str()),
             self.remark(datetime.datetime.today().isoformat()),
             self.start_time_measure(),
@@ -299,6 +306,11 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         retVal = (
             self.restore_dir("TOP_SAVE_DIR"),
             self.end_time_measure(),
+            # write to instl_invocations.txt
+                'echo run time: %Time_Measure_Diff% seconds >> "{0}"'.format(self.invocations_file_path),
+                'echo end: %date%-%time% >> "{0}"'.format(self.invocations_file_path),
+                'echo exit code: 0 >> "{0}"'.format(self.invocations_file_path),
+                'echo --- {0} >> "{1}"'.format(self.random_invocation_id, self.invocations_file_path),
             "exit /b 0",
             "",
             ":EXIT_ON_ERROR",
@@ -307,6 +319,11 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
             "$(TASKLIST_PATH)",
             self.restore_dir("TOP_SAVE_DIR"),
             self.end_time_measure(),
+            # write to instl_invocations.txt
+                'echo run time: %Time_Measure_Diff% seconds >> "{0}"'.format(self.invocations_file_path),
+                'echo end: %date%-%time% >> "{0}"'.format(self.invocations_file_path),
+                'echo exit code: %CATCH_EXIT_VALUE% >> "{0}"'.format(self.invocations_file_path),
+                'echo --- {0} >> "{1}"'.format(self.random_invocation_id, self.invocations_file_path),
             'echo Exit on error %CATCH_EXIT_VALUE% 1>&2',
             "exit /b %CATCH_EXIT_VALUE%"
         )

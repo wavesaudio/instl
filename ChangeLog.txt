@@ -1,8 +1,15 @@
-???? 1.6.2.6
+2/10/2017 1.6.2.7
+    user visible changes:
+    * improved instl_invocations.txt: location is in Logs folder is exists, otherwise in user folder,
+        batch files created by instl also write to this file, exit code report
+
+1/10/2017 1.6.2.6
 
     * new field IndexItemRow.direct_sync will help for faster calculation of sync folders
     * new method IndexItemTable.mark_direct_sync_items will set IndexItemRow.direct_sync - not finished!
     * in InstlClient.set_sync_locations_for_active_items removed var_stack.ResolveStrToStr(source) because all sources are already resolved
+    * fixed and issue with exec command that did not initialize items_table
+    * removed sme redundant code from YamlReader.read_yaml_file
     * new command read-info-map to test read and info man file
     * new method SVNTable.info_map_table.create_indexes() to create the indices after read
     * removed SVNRow.dirFlag so fileFlag index will be more effective for both file and dir searches

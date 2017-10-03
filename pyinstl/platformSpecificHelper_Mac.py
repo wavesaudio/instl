@@ -3,6 +3,8 @@
 
 import os
 import datetime
+import random
+import string
 
 import utils
 from configVar import var_stack
@@ -35,11 +37,13 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
             self.remark(datetime.datetime.today().isoformat()),
             "set -e",
             "umask 0000",
+            self.get_install_instructions_invocation_report_funcs(),
             self.get_install_instructions_exit_func(),
             self.get_install_instructions_mkdir_with_owner_func(),
             self.get_resolve_symlinks_func(),
             self.save_dir("TOP_SAVE_DIR"),
-            self.start_time_measure())
+            self.start_time_measure(),
+            "report_invocation_start")
         return retVal
 
     def get_install_instructions_exit_func(self):
@@ -49,6 +53,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
             "if [ ${CATCH_EXIT_VALUE} -ne 0 ]; then case $__MAIN_COMMAND__ in sync|copy|synccopy) ps -ax ;; esac; fi",
             self.restore_dir("TOP_SAVE_DIR"),
             self.end_time_measure(),
+            'report_invocation_end "${CATCH_EXIT_VALUE}"',
             self.echo("exit code ${CATCH_EXIT_VALUE}"),
             "exit ${CATCH_EXIT_VALUE}",
             "}",
@@ -64,6 +69,27 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
             'mkdir -p -m a+rwx "$1"',               # -m will set the perm even if the dir exists
             'chown $(__USER_ID__): "$1" || true',    # ignore error if owner cannot be changed
             '}')
+        return retVal
+
+    def get_install_instructions_invocation_report_funcs(self):
+        self.random_invocation_id = ''.join(random.choice(string.ascii_lowercase) for i in range(16))
+        self.invocations_file_path = var_stack.ResolveVarToStr("__INVOCATIONS_FILE_PATH__")
+        retVal = """
+report_invocation_start() {{
+    echo "--- {0}" >> "{1}"
+    start_date=`date +%Y/%m/%d-%H:%M:%S`
+    echo "start: $start_date" >> "{1}"
+    echo "batch file: ${{BASH_SOURCE[0]}}" >> "{1}"
+}}
+
+report_invocation_end() {{
+    echo "run time: $(convertsecs $Time_Measure_Diff)" >> "{1}"
+    end_date=`date +%Y/%m/%d-%H:%M:%S`
+    echo "end: $end_date" >> "{1}"
+    echo "exit code: $1" >> "{1}"
+    echo "---  {0}" >> "{1}"
+}}
+    """.format(self.random_invocation_id, self.invocations_file_path)
         return retVal
 
     def get_resolve_symlinks_func(self):

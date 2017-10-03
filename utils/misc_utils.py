@@ -770,3 +770,13 @@ def get_wtar_total_checksum(wtar_file_path):
     except Exception as ex:
         pass  # return None if there was exception from any reason
     return tar_total_checksum
+
+
+def get_invocations_file_path():
+    # if Desktop/Logs exists put the file there, otherwise in the user's folder
+    folder_to_write_in = os.path.expanduser("~")
+    logs_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Logs")
+    if os.path.isdir(logs_dir):
+        folder_to_write_in = logs_dir
+    invocations_file_path = os.path.join(folder_to_write_in, "instl_invocations.txt")
+    return invocations_file_path
