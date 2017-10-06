@@ -908,22 +908,23 @@ class InstlAdmin(InstlInstanceBase):
         self.read_yaml_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
 
     def do_depend(self):
+        from . import installItemGraph
+
         self.read_yaml_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
         self.items_table.activate_all_oses()
         self.items_table.resolve_inheritance()
         depend_result = defaultdict(dict)
-        for IID in self.items_table.get_all_iids():
-            needs_list = utils.unique_list()
-            self.needs(IID, needs_list)
-            if not needs_list:
-                depend_result[IID]['depends'] = None
-            else:
-                depend_result[IID]['depends'] = sorted(needs_list)
-            needed_by_list = self.needed_by(IID)
-            if not needed_by_list:
-                depend_result[IID]['needed_by'] = None
-            else:
-                depend_result[IID]['needed_by'] = sorted(needed_by_list)
+        graph = installItemGraph.create_dependencies_graph(self.items_table)
+        all_iids = self.items_table.get_all_iids()
+        cache_for_needs = dict()
+        for IID in all_iids:
+            depend_result[IID]['depends'] = self.needs(IID, set(all_iids), cache_for_needs)
+            if not depend_result[IID]['depends']:
+                depend_result[IID]['depends'] = None   # so '~' is displayed instead of []
+
+            depend_result[IID]['needed_by'] = self.needed_by(IID, graph)
+            if not depend_result[IID]['needed_by']:
+                depend_result[IID]['needed_by'] = None # so '~' is displayed instead of []
 
         out_file_path = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
         with utils.write_to_file_or_stdout(out_file_path) as out_file:

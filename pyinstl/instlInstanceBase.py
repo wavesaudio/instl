@@ -508,23 +508,30 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         except ImportError:  # no installItemGraph, no worry
                 print("Could not load installItemGraph")
 
-    def needs(self, iid, out_list, all_iids_set=None):
-        """ return iids of all items that a specific iid depends on"""
+    def needs(self, iid, all_iids_set=None, cache=None):
+        if cache is None:
+            cache = dict()
+        if iid in cache:
+            return list(sorted(cache[iid]))
         if all_iids_set is None:
             all_iids_set = set(self.items_table.get_all_iids())
+
+        retVal = set()
         depends_from_db = sorted(self.items_table.get_resolved_details_value_for_iid(iid, 'depends',unique_values=True))
         for dep in depends_from_db:
             if dep in all_iids_set:
-                out_list.append(dep)
-                self.needs(dep, out_list, all_iids_set)
+                retVal.add(dep)
+                retVal.update(self.needs(dep, all_iids_set, cache))
             else:
-                out_list.append(dep + "(missing)")
+                retVal.append(dep + "(missing)")
+        cache[iid] = retVal
+        return list(sorted(retVal))
 
-    def needed_by(self, iid):
+    def needed_by(self, iid, graph=None):
         try:
             from . import installItemGraph
-
-            graph = installItemGraph.create_dependencies_graph(self.items_table)
+            if not graph:
+                graph = installItemGraph.create_dependencies_graph(self.items_table)
             needed_by_list = installItemGraph.find_needed_by(graph, iid)
             return sorted(needed_by_list)
         except ImportError:  # no installItemGraph, no worry
