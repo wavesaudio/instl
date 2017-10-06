@@ -1,7 +1,7 @@
 ???? 1.6.2.8
     admin vidible changes:
     * added better progress messages around "depends" in InstlAdmin.create_links_for_revision
-    
+
     programmer visible changes:
     * reorder fields in SVNRow
     * reimplemented SVNTable.read_from_text, SVNTable.initialize_from_folder using sqlite.executemany
