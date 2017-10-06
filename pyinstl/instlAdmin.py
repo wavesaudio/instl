@@ -240,10 +240,11 @@ class InstlAdmin(InstlInstanceBase):
 
         accum += self.platform_helper.pushd(revision_folder_path)
         # create depend file
+        accum += self.platform_helper.progress("Create dependencies file ...")
         create_depend_file_command_parts = [self.platform_helper.run_instl(), "depend", "--in", "instl/index.yaml",
                                             "--out", "instl/index-dependencies.yaml"]
         accum += " ".join(create_depend_file_command_parts)
-        accum += self.platform_helper.progress("Create dependencies file")
+        accum += self.platform_helper.progress("Create dependencies file done")
 
         # create repo-rev file
         accum += self.platform_helper.progress("Create repo-rev file ...")
