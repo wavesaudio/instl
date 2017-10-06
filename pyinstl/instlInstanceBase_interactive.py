@@ -466,8 +466,7 @@ class CMDObj(cmd.Cmd, object):
                 if param not in all_iids:
                     print(text_with_color(param, 'green'), "not in index")
                     continue
-                needs_list = utils.unique_list()
-                self.client_prog_inst.needs(param, needs_list)
+                needs_list = self.client_prog_inst.needs(param, all_iids_set=set(all_iids))
                 if not needs_list:
                     needs_list = ("no one",)
                 depend_text_list = list()

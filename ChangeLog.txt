@@ -1,6 +1,7 @@
 6/10/2017 1.6.2.8
     admin vidible changes:
     * added better progress messages around "depends" in InstlAdmin.create_links_for_revision
+    * reduced InstlAdmin.do_depend time from 80 to 26 seconds by reducing complexity of InstlInstanceBase.needs & needed_by
 
     programmer visible changes:
     * reorder fields in SVNRow
