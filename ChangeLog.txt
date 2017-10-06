@@ -1,4 +1,4 @@
-???? 1.6.2.8
+6/10/2017 1.6.2.8
     admin vidible changes:
     * added better progress messages around "depends" in InstlAdmin.create_links_for_revision
 
