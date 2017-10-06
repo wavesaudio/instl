@@ -111,16 +111,82 @@ class SVNTable(object):
             items are inserted in lexicographic directory order, so '/'
             sorts before other characters: key=lambda x: x['path'].split('/')
         """
+        svn_info_line_re = re.compile("""
+                    ^
+                    (?P<key>Path|Last\ Changed\ Rev|Node\ Kind|Revision|Checksum|Tree\ conflict)
+                    :\s*
+                    (?P<rest_of_line>.*)
+                    $
+                    """, re.VERBOSE)
 
-        insert_dicts = sorted([item_dict for item_dict in self.iter_svn_info(rfd)], key=lambda x: x['path'].split('/'))
-        self.session.bulk_insert_mappings(SVNRow, insert_dicts)
-        self.commit_changes()
+        def yield_row(_rfd_):
+            def create_list_from_record(a_record):
+                try:
+                    row_data = list()
+                    row_data.append(a_record["Path"])
+                    if "Last Changed Rev" in a_record:
+                        row_data.append(int(a_record["Last Changed Rev"]))
+                    elif "Revision" in a_record:
+                        row_data.append(int(a_record["Revision"]))
+                    else:
+                        row_data.append(-1)
+                    row_data.append(a_record.get("Checksum", None))
+                    row_data.extend(self.level_parent_and_leaf_from_path(a_record["Path"]))  # level, parent, leaf
+                    if a_record["Node Kind"] == "file":
+                        row_data.append('f')        # flags
+                        row_data.append(1)          # fileFlag
+                        row_data.append(1 if utils.wtar_file_re.match(a_record["Path"]) else 0)                     # wtarFlag
+                    elif a_record["Node Kind"] == "directory":
+                        row_data.append('d')
+                        row_data.append(0)         # fileFlag
+                        row_data.append(0)         # wtarFlag
+
+                    row_data.extend((0, 0, ""))  # required, need_download, extra_props
+                    return row_data
+                except KeyError as unused_ke:
+                    print(unused_ke)
+                    print("Error:", "line:", line_num, "record:", record)
+                    raise
+
+            record = dict()
+            line_num = 0
+            for line in _rfd_:
+                line_num += 1
+                if line != "\n":
+                    the_match = svn_info_line_re.match(line)
+                    if the_match:
+                        if the_match.group('key') == "Tree conflict":
+                            raise ValueError(
+                                " ".join(("Tree conflict at line", str(line_num), "Path:", record['Path'])))
+                        record[the_match.group('key')] = the_match.group('rest_of_line')
+                else:
+                    if record and record["Path"] != ".":  # in case there were several empty lines between blocks
+                        yield create_list_from_record(record)
+                    record.clear()
+            if record and record["Path"] != ".":  # in case there was no extra line at the end of file
+                yield create_list_from_record(record)
+
+        db_conn = get_engine().raw_connection()
+        db_curs = db_conn.cursor()
+        insert_q = """
+        INSERT INTO svnitem (path, revision,
+                              checksum,
+                              level, parent, leaf,
+                              flags, fileFlag, wtarFlag,
+                              required, need_download, extra_props)
+         VALUES(?,?,?,?,?,?,?,?,?,?,?,?);
+        """
+        db_curs.executemany(insert_q, yield_row(rfd))
+        db_conn.commit()
+        db_curs.close()
+        db_conn.close()
+        SVNTable.create_indexes()
 
     def read_from_text(self, rfd):
         def yield_row(_rfd_):
             reader = csv.reader(_rfd_, skipinitialspace=True)
             for row in reader:
-                if row[0][0] != '#':
+                if row and row[0][0] != '#':
                     info_map_line_defaults = ('!path!', '!flags!', '!repo-rev!', None, 0, None)
                     row_data = list(utils.iter_complete_to_longest(row, info_map_line_defaults))  # path, flags, revision, checksum, size, url
                     row_data.extend(self.level_parent_and_leaf_from_path(row_data[0]))  # level, parent, leaf
@@ -182,69 +248,6 @@ class SVNTable(object):
             wfd.write("\n")
         for item in items_list:
             wfd.write(item.str_specific_fields(field_to_write) + "\n")
-
-    def iter_svn_info(self, long_info_fd):
-        """ Go over the lines of the output of svn info command
-            for each block describing a file or directory, yield
-            a tuple formatted as (path, type, last changed revision).
-            Where type is 'f' for file or 'd' for directory. """
-        try:
-            svn_info_line_re = re.compile("""
-                        ^
-                        (?P<key>Path|Last\ Changed\ Rev|Node\ Kind|Revision|Checksum|Tree\ conflict)
-                        :\s*
-                        (?P<rest_of_line>.*)
-                        $
-                        """, re.VERBOSE)
-
-            def create_info_dict_from_record(a_record):
-                """ On rare occasions there is no 'Last Changed Rev' field, just 'Revision'.
-                    So we use 'Revision' as 'Last Changed Rev'.
-                """
-                retVal = dict()
-                retVal['path'] = a_record["Path"]
-                path_parts = retVal['path'].split("/")
-                retVal['level'], retVal['parent'], retVal['leaf'] = SVNTable.level_parent_and_leaf_from_path(retVal['path'])
-                if a_record["Node Kind"] == "file":
-                    retVal['flags'] = "f"
-                    retVal['fileFlag'] = True
-                    retVal['wtarFlag'] = 1 if utils.wtar_file_re.match(retVal['path']) else 0
-                    retVal['download_path'] = "/".join(("$(LOCAL_REPO_SYNC_DIR)", retVal['path']))
-                elif a_record["Node Kind"] == "directory":
-                    retVal['flags'] = "d"
-                    retVal['fileFlag'] = False
-                if "Last Changed Rev" in a_record:
-                    retVal['revision'] = int(a_record["Last Changed Rev"])
-                elif "Revision" in a_record:
-                    retVal['revision'] = int(a_record["Revision"])
-                else:
-                    retVal['revision'] = -1
-                retVal['checksum'] = a_record.get("Checksum", None)
-                retVal['extra_props'] = ""
-
-                return retVal
-
-            record = dict()
-            line_num = 0
-            for line in long_info_fd:
-                line_num += 1
-                if line != "\n":
-                    the_match = svn_info_line_re.match(line)
-                    if the_match:
-                        if the_match.group('key') == "Tree conflict":
-                            raise ValueError(
-                                " ".join(("Tree conflict at line", str(line_num), "Path:", record['Path'])))
-                        record[the_match.group('key')] = the_match.group('rest_of_line')
-                else:
-                    if record and record["Path"] != ".":  # in case there were several empty lines between blocks
-                        yield create_info_dict_from_record(record)
-                    record.clear()
-            if record and record["Path"] != ".":  # in case there was no extra line at the end of file
-                yield create_info_dict_from_record(record)
-        except KeyError as unused_ke:
-            print(unused_ke)
-            print("Error:", "line:", line_num, "record:", record)
-            raise
 
     def initialize_from_folder(self, in_folder):
         def yield_row(_in_folder_):
@@ -315,11 +318,41 @@ class SVNTable(object):
         self.comments = list()
 
     def set_base_revision(self, base_revision):
-        self.session.query(SVNRow).filter(SVNRow.revision < base_revision).\
-                                    update({"revision": base_revision})
+        update_q = """
+            UPDATE  svnitem
+            SET revision = :base_revision
+            WHERE revision < :base_revision
+        """
+        self.session.execute(update_q, {"base_revision": base_revision})
         self.commit_changes()
 
+    @utils.timing
     def read_file_sizes(self, rfd):
+        def yield_row(_rfd_):
+            line_num = 0
+            for line in rfd:
+                line_num += 1
+                match = comment_line_re.match(line)
+                if not match:
+                    parts = line.rstrip().split(", ", 2)
+                    if len(parts) != 2:
+                        print("weird line:", line, line_num)
+                    yield {"old_path": parts[0], "new_size": int(parts[1])}  # path, size
+
+        db_conn = get_engine().raw_connection()
+        db_curs = db_conn.cursor()
+        update_q = """
+            UPDATE  svnitem
+            SET size = :new_size
+            WHERE path = :old_path
+            """
+        db_curs.executemany(update_q, yield_row(rfd))
+        db_conn.commit()
+        db_curs.close()
+        db_conn.close()
+
+    @utils.timing
+    def read_file_sizes_original(self, rfd):
         update_dicts = list()
         line_num = 0
         for line in rfd:
@@ -339,6 +372,7 @@ class SVNTable(object):
             self.session.execute(update_statement)
         self.commit_changes()
 
+    @utils.timing
     def read_props(self, rfd):
         props_line_re = re.compile("""
                     ^
@@ -358,7 +392,9 @@ class SVNTable(object):
                     """, re.X)
         line_num = 0
         try:
+            update_queries_list = list()
             prop_name_to_flag = {'executable': 'x', 'special': 's'}
+            props_to_ignore = ['mime-type']
             path = None
             for line in rfd:
                 line_num += 1
@@ -370,14 +406,21 @@ class SVNTable(object):
                         if path is not None:
                             prop_name = match.group('prop_name')
                             if prop_name in prop_name_to_flag:
-                                update_statement = update(SVNRow)\
-                                    .where(SVNRow.path == path)\
-                                    .values(flags = SVNRow.flags + prop_name_to_flag[prop_name])
-                            else:
-                                update_statement = update(SVNRow)\
-                                    .where(SVNRow.path == path)\
-                                    .values(extra_props = SVNRow.extra_props + (prop_name+";"))
-                            self.session.execute(update_statement)
+                                update_query = """
+                                    UPDATE svnitem
+                                    SET flags = flags || "{new_prop}"
+                                    WHERE path = "{old_path}";
+                                """.format(new_prop=prop_name_to_flag[prop_name],
+                                           old_path=path)
+                                self.session.execute(update_query)
+                            elif prop_name not in props_to_ignore:
+                                update_query = """
+                                    UPDATE svnitem
+                                    SET extra_props = extra_props || "{prop_name}" || ";"
+                                    WHERE path = "{old_path}";
+                                """.format(prop_name=prop_name,
+                                           old_path=path)
+                                self.session.execute(update_query)
                 else:
                     ValueError("no match at file: " + rfd.name + ", line: " + str(line_num) + ": " + line)
             self.commit_changes()

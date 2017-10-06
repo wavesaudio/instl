@@ -81,7 +81,7 @@ def prepare_args_parser(in_command):
         'mac-dock':             {'mode': 'ds', 'options': (), 'help': "add or remove to Mac OS's Dock"},
         'make-sig':             {'mode': 'an', 'options': ('in', 'conf',), 'help':  'create sha1 checksum and rsa signature for a file'},
         'parallel-run':         {'mode': 'ds', 'options': ('in', ), 'help':  'Run processes in parallel'},
-        'read-info-map':        {'mode': 'an', 'options': ('in', ), 'help':  "reads an info-map file to verify it's contents"},
+        'read-info-map':        {'mode': 'an', 'options': ('in+', ), 'help':  "reads an info-map file to verify it's contents"},
         'read-yaml':            {'mode': 'an', 'options': ('in', ), 'help':  "reads a yaml file to verify it's contents"},
         'remove-empty-folders': {'mode': 'ds', 'options': ('in', ), 'help':  'remove folders is they are empty'},
         'remove':               {'mode': 'ct', 'options': ('in', 'out', 'run',), 'help':  'remove items installed by copy'},
@@ -158,6 +158,16 @@ def prepare_args_parser(in_command):
                                     metavar='path-to-input-folder',
                                     dest='input_file',
                                     help="file or folder to act upon")
+
+    # required multi --in
+    if 'in+' in command_details['options']:
+        input_options = command_parser.add_argument_group(description='input arguments:')
+        input_options.add_argument('--in', '-i',
+                                    required=True,
+                                    nargs='+',
+                                    metavar='path-to-input-folder',
+                                    dest='input_file',
+                                    help="files or folders to act upon")
 
     # optional --out
     if 'out' in command_details['options']:

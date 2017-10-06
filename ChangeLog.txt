@@ -4,6 +4,12 @@
     * reimplemented SVNTable.read_from_text, SVNTable.initialize_from_folder using sqlite.executemany
     * new function utils.iter_complete_to_longest to help with implementing SVNTable.read_from_text, SVNTable.initialize_from_folder
     * removed some redundant SVNRow methods
+    * new option 'in+' to define --in command line option with one or more values
+    * read-info-map command uses the new 'in+' to accept multiple input files
+    * SVNTable.read_from_svn_info refactored to use plain sql instead of sqlalchemy
+    * SVNTable.set_base_revision refactored to use plain sql instead of sqlalchemy
+    * SVNTable.read_file_sizes refactored to use plain sql instead of sqlalchemy
+    * SVNTable.read_props refactored to use plain sql instead of sqlalchemy
 
 2/10/2017 1.6.2.7
     user visible changes:

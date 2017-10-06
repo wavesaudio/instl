@@ -1186,4 +1186,6 @@ class InstlAdmin(InstlInstanceBase):
             wfd.write("\n".join(lines_for_main_info_map))
 
     def do_read_info_map(self):
-        self.read_info_map_from_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
+        files_to_read = var_stack.ResolveVarToList("__MAIN_INPUT_FILE__")
+        for f2r in files_to_read:
+            self.info_map_table.read_from_file(f2r)
