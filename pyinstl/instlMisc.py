@@ -252,11 +252,11 @@ class InstlMisc(InstlInstanceBase):
     def do_set_exec(self):
         self.progress_staccato_command = True
         self.read_info_map_from_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
-        for file_item in self.info_map_table.get_exec_items(what="file"):
-            if os.path.isfile(file_item.path):
-                file_stat = os.stat(file_item.path)
-                os.chmod(file_item.path, file_stat.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-            self.dynamic_progress("Set exec {file_item.path}".format(**locals()))
+        for file_item_path in self.info_map_table.get_exec_file_paths():
+            if os.path.isfile(file_item_path):
+                file_stat = os.stat(file_item_path)
+                os.chmod(file_item_path, file_stat.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+            self.dynamic_progress("Set exec {file_item_path}".format(**locals()))
 
     def do_create_folders(self):
         self.progress_staccato_command = True

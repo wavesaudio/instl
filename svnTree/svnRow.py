@@ -54,7 +54,7 @@ class SVNRow(db_alchemy.get_declarative_base()):
         if self.url:
             retVal = "{}, {}".format(retVal, self.url)
         if self.download_path:
-            retVal = "{}, dl_path:'{}'".format(retVal, var_stack.ResolveStrToStr(self.download_path))
+            retVal = "{}, dl_path:'{}'".format(retVal, self.download_path)
         return retVal
 
     def str_specific_fields(self, fields_to_repr):

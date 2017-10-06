@@ -1,21 +1,17 @@
 todo:
 
 ConfigVars:
-    - reduce the number of resolves, by caching values
 
 wtar:
     - avoid compression when wtarring zip files
 
 unwtar:
-    - directly from sync folder
 
 copy:
     - unwtar stay out of sync folder not just bookkeeping
     - resolvesymlink stay out of sync folder not just bookkeeping
-    - add a 'remove_previous_version' field to index that will be done before pre_copy or pre_copy_to_folder
 
 Cloud storage wish list:
-    Be able to avoid creating the urls on server - maybe use some time limited token? CloudFront?
     Be able to download whole folders???
 
 installer:
@@ -27,7 +23,6 @@ error handling:
 
 Admin:
     - convert all commands that use --limit to work with prepare_list_of_dirs_to_work_on
-    - remove .DS_Store before wtar
 
 Put order in syncer classes: boto, p4, svn, url
     - decide which are not useful and remove them
@@ -39,7 +34,6 @@ documentation:
 
 database:
     - get rid of sqlalchemy use plain sqlite
-    - read schema, views, triggers from file
     - move SELECT(*)'s to be views
 
 done:
@@ -48,3 +42,9 @@ done:
     - resolve implementation - state machine
     - unwtar join and untar in the same operation - saving multiple reads
     - unwtar commands for whole copied folders, not for individual wtars
+    - ConfigVars: reduce the number of resolves, by caching values
+    - unwtar: directly from sync folder
+    - copy: add a 'remove_previous_version' field to index that will be done before pre_copy or pre_copy_to_folder
+    - CloudFront! no more URLs file
+    - wtar: remove .DS_Store before wtar
+    - database: read views, triggers from file

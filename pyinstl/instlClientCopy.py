@@ -275,10 +275,6 @@ class InstlClientCopy(InstlClient):
             self.batch_accum += self.platform_helper.new_line()
             self.batch_accum += self.platform_helper.popd()
 
-    def get_max_repo_rev_for_source(self, source):
-        retVal = self.info_map_table.get_max_repo_rev_for_source(source)
-        return retVal
-
     # Todo: move function to a better location
     def pre_resolve_path(self, path_to_resolve):
         """ for some paths we cannot wait for resolution in the batch file"""

@@ -350,26 +350,6 @@ class SVNTable(object):
         db_curs.close()
         db_conn.close()
 
-    def read_file_sizes_original(self, rfd):
-        update_dicts = list()
-        line_num = 0
-        for line in rfd:
-            line_num += 1
-            match = comment_line_re.match(line)
-            if not match:
-                parts = line.rstrip().split(", ", 2)
-                if len(parts) != 2:
-                    print(line, line_num)
-                update_dicts.append({"path": parts[0], "size": int(parts[1])})
-        # self.session.bulk_update_mappings(SVNRow, update_dicts)
-        # for unknown reason bulk_update_mappings stopped working in instl ver 1.4, so update one by one
-        for update_i in update_dicts:
-            update_statement = update(SVNRow)\
-                .where(SVNRow.path == update_i['path'])\
-                .values(size = update_i['size'])
-            self.session.execute(update_statement)
-        self.commit_changes()
-
     def read_props(self, rfd):
         props_line_re = re.compile("""
                     ^
@@ -510,6 +490,23 @@ class SVNTable(object):
         db_conn.close()
         return script_results
 
+    def select_single_value(self, query_text, query_params=None):
+        """
+            execute a select statement and convert the returned list
+            of tuples to a list of values.
+            return empty list of no values were found.
+        """
+        retVal = list()
+        try:
+            if query_params is None:
+                query_params = {}
+            exec_result = self.session.execute(query_text, query_params)
+            if exec_result.returns_rows:
+                retVal.extend([res[0] for res in exec_result.fetchall()])
+        except SQLAlchemyError as ex:
+            raise
+        return retVal
+
     def get_item_case_insensitive(self, item_path, what="any"):
         """ Get specific item or return None if not found
         search is done case insensitive. This is needed in case where we look for
@@ -579,25 +576,13 @@ class SVNTable(object):
         retVal = self.baked_queries_map["get_required_items"](self.session).params(required=not get_unrequired, file=want_file, dir=not want_dir).all()
         return retVal
 
-    def get_exec_items(self, what="any"):
+    def get_exec_file_paths(self):
+        query_text = """
+          SELECT path
+          FROM svnitem
+          WHERE flags == 'fx' 
         """
-        get_items applies a filter and return all items
-        :param filter_name: one of predefined baked queries, e.g.: "all-files", "all-dirs", "all-items"
-        :return: all items returned by applying the filter called filter_name
-        """
-        if what not in ("any", "file", "dir"):
-            raise ValueError(what+" not a valid filter for get_item")
-
-        # get_exec_items: return all exec items either files dirs or both, used by get_exec_items()
-        if "get_exec_items" not in self.baked_queries_map:
-            self.baked_queries_map["get_exec_items"] = self.bakery(lambda session: session.query(SVNRow))
-            self.baked_queries_map["get_exec_items"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.fileFlag == bindparam('dir')))
-            self.baked_queries_map["get_exec_items"] += lambda q: q.filter(SVNRow.flags.contains('x'))
-            self.baked_queries_map["get_exec_items"] += lambda q: q.order_by(SVNRow.path)
-
-        want_file = what in ("any", "file")
-        want_dir = what in ("any", "dir")
-        retVal = self.baked_queries_map["get_exec_items"](self.session).params(file=want_file, dir=not want_dir).all()
+        retVal = self.select_single_value(query_text)
         return retVal
 
     def get_required_exec_items(self, what="any"):
@@ -813,8 +798,6 @@ class SVNTable(object):
         ancestors = list()
         required_file_items = self.get_required_items(what="file")
         for file_item in required_file_items:
-            local_path = var_stack.ResolveStrToStr(file_item.download_path)
-            assert local_path == file_item.download_path
             if utils.need_to_download_file(file_item.download_path, file_item.checksum):
                 file_item.need_download = True
                 ancestors.extend(file_item.get_ancestry()[:-1])
@@ -856,7 +839,6 @@ class SVNTable(object):
             This is a  trick to leave as on disk only folders that have siblings that are required.
             used in InstlAdmin.do_upload_to_s3_aws_for_revision
         """
-        retVal = list()
         if what not in ("file", "dir"):
             raise ValueError(what+" not a valid filter for get_item")
 
@@ -871,26 +853,13 @@ class SVNTable(object):
                 WHERE required==1
                 AND fileFlag==0)
             """
-        try:
-            exec_result = self.session.execute(query_text, {"get_files": {"file": 1, "dir": 0}[what]})
-            if exec_result.returns_rows:
-                retVal.extend([dr[0] for dr in exec_result.fetchall()])
-        except SQLAlchemyError as ex:
-            raise
+        retVal = self.select_single_value(query_text, query_params={"get_files": {"file": 1, "dir": 0}[what]})
         return retVal
 
     def min_max_revision(self):
         min_revision = self.session.query(SVNRow, func.min(SVNRow.revision)).scalar()
         max_revision = self.session.query(SVNRow, func.max(SVNRow.revision)).scalar()
         return min_revision.revision, max_revision.revision
-
-    def get_max_repo_rev_for_source(self, source):
-        source_path, source_type = source[0], source[1]
-        max_revision = self.session.query(func.max(SVNRow.revision))\
-                                .filter(SVNRow.fileFlag == True)\
-                                .filter(SVNRow.path.like(source_path+"%"))\
-                                .scalar()
-        return max_revision
 
     def mark_required_files_for_active_items(self):
         query_text = """
@@ -922,7 +891,6 @@ class SVNTable(object):
         self.commit_changes()
 
     def get_download_roots(self):
-        retVal = list()
         query_text = """
         SELECT DISTINCT
             coalesce(download_root, "$(LOCAL_REPO_SYNC_DIR)")
@@ -930,54 +898,18 @@ class SVNTable(object):
         WHERE need_download=1
         AND fileFlag=1
         """
-        try:
-            exec_result = self.session.execute(query_text)
-            if exec_result.returns_rows:
-                # returns [(download_root,),...]
-                retVal.extend([dr[0] for dr in exec_result.fetchall()])
-        except SQLAlchemyError as ex:
-            raise
+        retVal = self.select_single_value(query_text)
         return retVal
-
-    def set_infomap_file_names(self):
-        """ set svnitem.extra_props to the name of the info_map file
-            index items that have explicitly set the info_map field in index.yaml
-            will get that value, all other will get info_map.txt by default
-        """
-        query_text = """
-            UPDATE svnitem
-            SET extra_props = coalesce((SELECT info_map_t.detail_value
-            FROM IndexItemDetailRow AS info_map_t, IndexItemDetailRow AS install_sources_t
-            WHERE
-                info_map_t.detail_name='info_map'
-            AND
-                install_sources_t.detail_name='install_sources'
-            AND
-                info_map_t.owner_iid = install_sources_t.owner_iid
-            AND
-                (svnitem.path LIKE install_sources_t.detail_value || '/%'
-                    OR
-                svnitem.path  = install_sources_t.detail_value))
-            ), "info_map.txt")
-        """
-        exec_result = self.session.execute(query_text)
-        self.commit_changes()
 
     def get_infomap_file_names(self):
         """ infomap file names are stored in extra_props column by set_infomap_file_names
         """
-        retVal = list()
         query_text = """
           SELECT DISTINCT extra_props
           FROM svnitem
           ORDER BY extra_props
         """
-        try:
-            exec_result = self.session.execute(query_text)
-            if exec_result.returns_rows:
-                retVal.extend([infomap_file_name[0] for infomap_file_name in exec_result.fetchall()])
-        except SQLAlchemyError as ex:
-            raise
+        retVal = self.select_single_value(query_text)
         return retVal
 
     def get_items_by_infomap(self, infomap_name):
