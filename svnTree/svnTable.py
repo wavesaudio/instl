@@ -326,7 +326,6 @@ class SVNTable(object):
         self.session.execute(update_q, {"base_revision": base_revision})
         self.commit_changes()
 
-    @utils.timing
     def read_file_sizes(self, rfd):
         def yield_row(_rfd_):
             line_num = 0
@@ -351,7 +350,6 @@ class SVNTable(object):
         db_curs.close()
         db_conn.close()
 
-    @utils.timing
     def read_file_sizes_original(self, rfd):
         update_dicts = list()
         line_num = 0
@@ -372,7 +370,6 @@ class SVNTable(object):
             self.session.execute(update_statement)
         self.commit_changes()
 
-    @utils.timing
     def read_props(self, rfd):
         props_line_re = re.compile("""
                     ^
