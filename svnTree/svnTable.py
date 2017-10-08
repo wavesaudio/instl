@@ -191,7 +191,7 @@ class SVNTable(object):
                     row_data = list(utils.iter_complete_to_longest(row, info_map_line_defaults))  # path, flags, revision, checksum, size, url
                     row_data.extend(self.level_parent_and_leaf_from_path(row_data[0]))  # level, parent, leaf
                     row_data.append(1 if 'f' in row_data[1] else 0)  # fileFlag
-                    row_data.append(1 if utils.wtar_file_re.match(row_data[1]) else 0)  # wtarFlag
+                    row_data.append(1 if utils.wtar_file_re.match(row_data[0]) else 0)  # wtarFlag
                     row_data.extend((0, 0))  # required, need_download
                     yield row_data
 
