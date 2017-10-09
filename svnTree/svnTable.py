@@ -180,12 +180,22 @@ class SVNTable(TableBase):
         SVNTable.create_indexes()
 
     def read_from_text(self, rfd):
+        dl_path_re = re.compile("dl_path:'(?P<ld_path>.+)'")
         def yield_row(_rfd_):
             reader = csv.reader(_rfd_, skipinitialspace=True)
             for row in reader:
                 if row and row[0][0] != '#':
-                    info_map_line_defaults = ('!path!', '!flags!', '!repo-rev!', None, 0, None)
-                    row_data = list(utils.iter_complete_to_longest(row, info_map_line_defaults))  # path, flags, revision, checksum, size, url
+                    # when there are 6 items in row the last might be url or dl_path
+                    # so if row is (path, flags, repo-rev, checksum, size, dl_path) insert a None for url so row will be:
+                    # (path, flags, repo-rev, checksum, size, url, dl_path)
+                    if len(row) == 6 and row[5].startswith("dl_path:"):
+                        row.insert(5, None)
+                    info_map_line_defaults = ('!path!', '!flags!', '!repo-rev!', None, 0, None, None)
+                    row_data = list(utils.iter_complete_to_longest(row, info_map_line_defaults))  # path, flags, revision, checksum, size, url, dl_path
+                    if row_data[6] is not None:
+                        match = dl_path_re.match(row_data[6])
+                        if match:
+                            row_data[6] = match.group('ld_path')
                     row_data.extend(self.level_parent_and_leaf_from_path(row_data[0]))  # level, parent, leaf
                     row_data.append(1 if 'f' in row_data[1] else 0)  # fileFlag
                     row_data.append(1 if utils.wtar_file_re.match(row_data[0]) else 0)  # wtarFlag
@@ -196,11 +206,11 @@ class SVNTable(TableBase):
         db_curs = db_conn.cursor()
         insert_q = """
         INSERT INTO svnitem (path, flags, revision,
-                              checksum, size, url,
+                              checksum, size, url, download_path,
                               level, parent, leaf,
                               fileFlag, wtarFlag,
                               required, need_download)
-         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?);
+         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?);
         """
         db_curs.executemany(insert_q, yield_row(rfd))
         db_conn.commit()

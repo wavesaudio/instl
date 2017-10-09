@@ -1,7 +1,10 @@
-???? 1.6.2.10
+9/10/2017 1.6.2.10
     programmer visible changes:
     * new class TableBase to be a common base for InstlItemsTable, SVNTable
     * refactored many db queries to use TableBase.select_and_fetchall
+
+    user visible changes:
+    * fixed s3/CF incompatibilities when reading local info_map files
 
 8/10/2017 1.6.2.9
     user visible changes:
