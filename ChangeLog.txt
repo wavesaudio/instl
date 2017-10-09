@@ -6,6 +6,11 @@
     user visible changes:
     * fixed s3/CF incompatibilities when reading local info_map files
 
+    admin vidible changes:
+    * InstlAdmin.upload_to_s3_aws_for_revision few fixes: read instl/full_info_map.txt instead of instl/info_map.txt, changed how redundant files and folders are removed before uploading - now removing all unrequired files and then removing empty folders
+    * InstlMisc.do_remove_empty_folders if REMOVE_EMPTY_FOLDERS_IGNORE_FILES is not found default to empty list
+    * new method SVNTree.get_unrequired_file_paths
+
 8/10/2017 1.6.2.9
     user visible changes:
     * fixed: .wtar items were not marked with wtarFlag in SVNTable

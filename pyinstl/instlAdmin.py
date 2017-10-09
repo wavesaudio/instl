@@ -352,7 +352,7 @@ class InstlAdmin(InstlInstanceBase):
             self.run_batch_file()
 
     def upload_to_s3_aws_for_revision(self, accum):
-        map_file_path = 'instl/info_map.txt'
+        map_file_path = 'instl/full_info_map.txt'
         info_map_path = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/" + map_file_path)
         repo_rev = int(var_stack.ResolveVarToStr("__CURR_REPO_REV__"))
         self.info_map_table.clear_all()
@@ -366,20 +366,21 @@ class InstlAdmin(InstlInstanceBase):
         # Files a folders that do not belong to __CURR_REPO_REV__ should not be uploaded.
         # Since aws sync command uploads the whole folder, we delete from disk all files
         # and folders that should not be uploaded.
-        # To save delete instructions for every file, we first delete those folders where
-        # all files are not __CURR_REPO_REV__. Then the remaining files  are removed
         self.info_map_table.mark_required_for_dir('instl') # never remove the instl folder
         self.info_map_table.mark_required_for_revision(repo_rev)
 
-        unrequired_dirs = self.info_map_table.get_unrequired_paths_where_parent_required(what="dir")
-        for unrequired_dir in unrequired_dirs:
-            accum += self.platform_helper.rmdir(unrequired_dir, recursive=True)
-            accum += self.platform_helper.progress("rmdir " + unrequired_dir)
-
-        unrequired_files = self.info_map_table.get_unrequired_paths_where_parent_required(what="file")
-        for unrequired_file in unrequired_files:
+        # remove all unrequired files
+        unrequired_files = self.info_map_table.get_unrequired_file_paths()
+        for i, unrequired_file in enumerate(unrequired_files):
             accum += self.platform_helper.rmfile(unrequired_file)
-            accum += self.platform_helper.progress("rmfile " + unrequired_file)
+            if i % 1000 == 0:  # only report every 1000'th file
+                accum += self.platform_helper.progress("rmfile " + unrequired_file +" & 999 more")
+
+        # now remove all empty folders, the files that are left should be uploaded
+        remove_empty_folders_command_parts = [self.platform_helper.run_instl(), "remove-empty-folders", "--in", "."]
+        accum += self.platform_helper.progress("remove-empty-folders ...")
+        accum += " ".join(remove_empty_folders_command_parts)
+        accum += self.platform_helper.progress("remove-empty-folders done")
 
         # remove broken links, aws cannot handle them
         accum += " ".join( ("find", ".", "-type", "l", "!", "-exec", "test", "-e", "{}", "\;", "-exec", "rm", "-f", "{}", "\;") )

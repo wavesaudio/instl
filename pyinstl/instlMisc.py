@@ -280,7 +280,7 @@ class InstlMisc(InstlInstanceBase):
 
     def do_remove_empty_folders(self):
         folder_to_remove = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
-        files_to_ignore = var_stack.ResolveVarToList("REMOVE_EMPTY_FOLDERS_IGNORE_FILES")
+        files_to_ignore = var_stack.ResolveVarToList("REMOVE_EMPTY_FOLDERS_IGNORE_FILES", default=[])
         for root_path, dir_names, file_names in os.walk(folder_to_remove, topdown=False, onerror=None, followlinks=False):
             # when topdown=False os.walk creates dir_names for each root_path at the beginning and has
             # no knowledge if a directory has already been deleted.

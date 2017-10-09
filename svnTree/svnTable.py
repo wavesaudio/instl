@@ -968,3 +968,15 @@ class SVNTable(TableBase):
         Index('need_download_idx', SVNRow.need_download).create(bind=get_engine())
         Index('fileFlag_idx', SVNRow.fileFlag).create(bind=get_engine())
         Index('path_idx', SVNRow.path).create(bind=get_engine())
+
+    def get_unrequired_file_paths(self):
+        """ get paths for all unrequired files
+        """
+        query_text = """
+            SELECT path
+            FROM svnitem
+            WHERE required==0
+            AND fileFlag==1
+            """
+        retVal = self.select_and_fetchall(query_text)
+        return retVal
