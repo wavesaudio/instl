@@ -15,7 +15,8 @@ from .db_alchemy import create_session,\
     IndexItemDetailRow, \
     IndexRequireTranslate, \
     FoundOnDiskItemRow, \
-    ConfigVar, get_engine
+    ConfigVar, get_engine, TableBase
+
 
 import svnTree  # do not remove must be here before IndexItemsTable.execute_script is called
 import utils
@@ -35,7 +36,7 @@ action_types = ('pre_copy', 'pre_copy_to_folder', 'pre_copy_item',
 file_types = ('!dir_cont', '!file', '!dir')
 
 
-class IndexItemsTable(object):
+class IndexItemsTable(TableBase):
     os_names_to_num = OrderedDict([('common', 0), ('Mac', 1), ('Mac32', 2), ('Mac64', 3), ('Win', 4), ('Win32', 5), ('Win64', 6)])
     install_status = {"none": 0, "main": 1, "update": 2, "depend": 3, "remove": -1}
     action_types = ('pre_copy', 'pre_copy_to_folder', 'pre_copy_item',
@@ -46,7 +47,7 @@ class IndexItemsTable(object):
     not_inherit_details = ("name", "inherit")
 
     def __init__(self):
-        self.session = create_session()
+        super().__init__()
         self.clear_tables()
         self.os_names_db_objs = list()
         self.add_default_values()
@@ -58,16 +59,12 @@ class IndexItemsTable(object):
         # print("Views:", inspector.get_view_names())
         self.baked_queries_map = dict()
         self.bakery = baked.bakery()
-        self.locked_tables = set()
 
     def __del__(self):
         self.unlock_all_tables()
 
     def get_db_url(self):
         return self.session.bind.url
-
-    def commit_changes(self):
-        self.session.commit()
 
     def clear_tables(self):
         # print(get_engine().table_names())
@@ -86,13 +83,6 @@ class IndexItemsTable(object):
             self.os_names_db_objs.append(new_item)
         self.session.add_all(self.os_names_db_objs)
 
-    def execute_script(self, script_text):
-        db_conn = get_engine().raw_connection()
-        db_curs = db_conn.cursor()
-        db_curs.executescript(script_text)
-        db_curs.close()
-        db_conn.close()
-
     def execute_script_from_defaults(self, script_file_name):
         script_file_path = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults", script_file_name)
         with open(script_file_path, "r") as rfd:
@@ -109,42 +99,6 @@ class IndexItemsTable(object):
 
     def drop_views(self):
         self.execute_script_from_defaults("drop-views.sql")
-
-    def lock_table(self, table_name):
-        query_text = """
-            CREATE TRIGGER IF NOT EXISTS lock_INSERT_{table_name}
-            BEFORE INSERT ON {table_name}
-            BEGIN
-                SELECT raise(abort, '{table_name} is locked no INSERTs');
-            END;
-            CREATE TRIGGER IF NOT EXISTS lock_UPDATE_{table_name}
-            BEFORE UPDATE ON {table_name}
-            BEGIN
-                SELECT raise(abort, '{table_name} is locked no UPDATEs');
-            END;
-            CREATE TRIGGER IF NOT EXISTS lock_DELETE_{table_name}
-            BEFORE DELETE ON {table_name}
-            BEGIN
-                SELECT raise(abort, '{table_name} is locked no DELETEs');
-            END;
-        """.format(table_name=table_name)
-        self.execute_script(query_text)
-        self.commit_changes()
-        self.locked_tables.add(table_name)
-
-    def unlock_table(self, table_name):
-        query_text = """
-            DROP TRIGGER IF EXISTS lock_INSERT_{table_name};
-            DROP TRIGGER IF EXISTS lock_UPDATE_{table_name};
-            DROP TRIGGER IF EXISTS lock_DELETE_{table_name};
-        """.format(table_name=table_name)
-        self.execute_script(query_text)
-        self.commit_changes()
-        self.locked_tables.remove(table_name)
-
-    def unlock_all_tables(self):
-        for table_name in list(self.locked_tables):
-            self.unlock_table(table_name)
 
     def activate_all_oses(self):
         """ adds all known os names to the list of os that will influence all get functions
@@ -200,12 +154,7 @@ class IndexItemsTable(object):
         FROM IndexItemDetailOperatingSystem
         ORDER BY _id
         """
-        try:
-            exec_result = self.session.execute(query_text)
-            if exec_result.returns_rows:
-                retVal.extend(exec_result.fetchall())
-        except SQLAlchemyError as ex:
-            raise
+        retVal = self.select_and_fetchall(query_text, query_params={})
         return retVal
 
     def insert_require_to_db(self, require_items):
@@ -262,7 +211,6 @@ class IndexItemsTable(object):
         """
         :return: list of all iids in the db that have guids, empty list if none are found
         """
-        retVal = list()
         query_text = """
             SELECT owner_iid
             from IndexItemDetailRow
@@ -270,22 +218,13 @@ class IndexItemsTable(object):
             AND owner_iid=original_iid
             ORDER BY owner_iid
             """
-
-        try:
-            exec_result = self.session.execute(query_text)
-            if exec_result.returns_rows:
-                retVal = exec_result.fetchall()
-                retVal = [mm[0] for mm in retVal]
-        except SQLAlchemyError as ex:
-            raise
-
+        retVal = self.select_and_fetchall(query_text, query_params={})
         return retVal
 
     def get_all_installed_iids(self):
         """ get all iids that are marked as required by them selves
             which indicates they were a primary install target
         """
-        retVal = list()
         query_text = """
             SELECT original_iid
             from IndexItemDetailRow
@@ -294,19 +233,12 @@ class IndexItemsTable(object):
             AND os_is_active = 1
             ORDER BY owner_iid
             """
-        try:
-            exec_result = self.session.execute(query_text)
-            if exec_result.returns_rows:
-                retVal.extend([mm[0] for mm in exec_result.fetchall()])
-        except SQLAlchemyError as ex:
-            raise
-
+        retVal = self.select_and_fetchall(query_text, query_params={})
         return retVal
 
     def get_all_installed_iids_needing_update(self):
         """ Return all iids that were installed, have a version, and that version is different from the version in the index
         """
-        retVal = list()
         query_text = """
                 SELECT DISTINCT require_version.owner_iid, require_version.detail_value AS require, remote_version.detail_value AS remote
                 FROM IndexItemDetailRow AS require_version
@@ -326,13 +258,7 @@ class IndexItemsTable(object):
             # "GROUP BY" will make sure only one row is returned for an iid.
             # multiple rows can be found if and IID has 2 previous_sources both were found
             # on disk and their version identified.
-        try:
-            exec_result = self.session.execute(query_text)
-            if exec_result.returns_rows:
-                retVal.extend([mm[0] for mm in exec_result.fetchall()])
-        except SQLAlchemyError as ex:
-            raise
-
+        retVal = self.select_and_fetchall(query_text, query_params={})
         return retVal
 
     def get_all_iids(self):
@@ -345,12 +271,7 @@ class IndexItemsTable(object):
           SELECT iid FROM IndexItemRow
           ORDER BY iid
         """
-        try:
-            exec_result = self.session.execute(query_text)
-            if exec_result.returns_rows:
-                retVal.extend([mm[0] for mm in exec_result.fetchall()])
-        except SQLAlchemyError as ex:
-            raise
+        retVal = self.select_and_fetchall(query_text, query_params={})
         return retVal
 
     def create_default_index_items(self, iids_to_ignore):
@@ -426,7 +347,6 @@ class IndexItemsTable(object):
         """ get the items's original (e.g. not inherited) values for a specific detail
             for specific iid - but only if detail is in active os
         """
-        retVal = list()
         distinct = "DISTINCT" if unique_values else ""
         query_text = """
             SELECT {distinct} detail_value
@@ -436,13 +356,7 @@ class IndexItemsTable(object):
             AND os_is_active = 1
             ORDER BY _id
         """.format(distinct=distinct)
-        try:
-            exec_result = self.session.execute(query_text, {'iid': iid, 'detail_name': detail_name})
-            if exec_result.returns_rows:
-                fetched_results = exec_result.fetchall()
-                retVal = [mm[0] for mm in fetched_results]
-        except SQLAlchemyError as ex:
-            raise
+        retVal = self.select_and_fetchall(query_text, query_params={'iid': iid, 'detail_name': detail_name})
         return retVal
 
     def get_original_details(self, iid=None, detail_name=None, in_os=None):
@@ -515,7 +429,6 @@ class IndexItemsTable(object):
         """ get the original and inherited values for a specific detail
             for specific iid - but only if iid is os_is_active
         """
-        retVal = list()
         distinct = "DISTINCT" if unique_values else ""
         query_text = """
             SELECT {distinct} detail_value
@@ -525,13 +438,7 @@ class IndexItemsTable(object):
             AND os_is_active = 1
             ORDER BY _id
         """.format(distinct=distinct)
-        try:
-            exec_result = self.session.execute(query_text, {'iid': iid, 'detail_name': detail_name})
-            if exec_result.returns_rows:
-                fetched_results = exec_result.fetchall()
-                retVal = [mm[0] for mm in fetched_results]
-        except SQLAlchemyError as ex:
-            raise
+        retVal = self.select_and_fetchall(query_text, query_params={'iid': iid, 'detail_name': detail_name})
         return retVal
 
     def get_resolved_details_value_for_iid(self, iid, detail_name, unique_values=False):
@@ -539,7 +446,6 @@ class IndexItemsTable(object):
             for specific iid - regardless if detail is in active os
         """
         distinct = "DISTINCT" if unique_values else ""
-        retVal = list()
         query_text = """
             SELECT {distinct} detail_value
             FROM IndexItemDetailRow
@@ -547,13 +453,7 @@ class IndexItemsTable(object):
             AND detail_name = :detail_name
             ORDER BY _id
         """.format(distinct=distinct)
-        try:
-            exec_result = self.session.execute(query_text, {'iid': iid, 'detail_name': detail_name})
-            if exec_result.returns_rows:
-                fetched_results = exec_result.fetchall()
-                retVal = [mm[0] for mm in fetched_results]
-        except SQLAlchemyError as ex:
-            raise
+        retVal = self.select_and_fetchall(query_text, query_params={'iid': iid, 'detail_name': detail_name})
         return retVal
 
     def get_details_by_name_for_all_iids(self, detail_name):
@@ -575,7 +475,6 @@ class IndexItemsTable(object):
     def get_detail_values_by_name_for_all_iids(self, detail_name):
         """ get values of specific detail for all iids
         """
-        retVal = list()
         query_text = """
             SELECT DISTINCT detail_value
             FROM IndexItemDetailRow
@@ -583,13 +482,7 @@ class IndexItemsTable(object):
             AND os_is_active = 1
             ORDER BY _id
         """
-        try:
-            exec_result = self.session.execute(query_text, {'detail_name': detail_name})
-            if exec_result.returns_rows:
-                fetched_results = exec_result.fetchall()
-                retVal = [mm[0] for mm in fetched_results]
-        except SQLAlchemyError as ex:
-            raise
+        retVal = self.select_and_fetchall(query_text, query_params={'detail_name': detail_name})
         return retVal
 
     def resolve_item_inheritance(self, item_to_resolve, generation=0):
@@ -751,7 +644,6 @@ class IndexItemsTable(object):
         return retVal
 
     def versions_report(self, report_only_installed=False):
-        retVal = list()
         query_text = """
            SELECT *
           FROM 'report_versions_view'
@@ -761,14 +653,9 @@ class IndexItemsTable(object):
            WHERE require_version != '_'
            AND remote_version != '_'
            """
-
-        try:
-            exec_result = self.session.execute(query_text)
-            if exec_result.returns_rows:
-                fetched_results = exec_result.fetchall()
-                retVal.extend([mm[:5] for mm in fetched_results])
-        except SQLAlchemyError as ex:
-            raise
+        results = self.select_and_fetchall(query_text, query_params={})
+        retVal = [[mm[:5] for mm in results]]
+        return retVal
 
         return retVal
 
@@ -825,25 +712,17 @@ class IndexItemsTable(object):
             FROM IndexItemRow
             WHERE iid IN {0}
         """.format(query_vars)
-
-        try:
-            exec_result = self.session.execute(query_text)
-            if exec_result.returns_rows:
-                fetched_results = exec_result.fetchall()
-                existing_iids = [mm[0] for mm in fetched_results]
-                # query will return list those iid in iid_list that were found in the index
-                orphan_iids = list(set(iid_list)-set(existing_iids))
-        except SQLAlchemyError as ex:
-            raise
+        existing_iids = self.select_and_fetchall(query_text, query_params={})
+        # query will return list those iid in iid_list that were found in the index
+        orphan_iids = list(set(iid_list)-set(existing_iids))
         return existing_iids, orphan_iids
 
     def get_recursive_dependencies(self, look_for_status=1):
-        retVal = list()
         query_text = """
             WITH RECURSIVE find_dependants(_IID_) AS
             (
             SELECT iid FROM IndexItemRow
-            WHERE install_status={} AND ignore = 0
+            WHERE install_status=:look_for_status AND ignore = 0
             UNION
 
             SELECT IndexItemDetailRow.detail_value
@@ -856,16 +735,8 @@ class IndexItemsTable(object):
                 IndexItemDetailRow.os_is_active = 1
             )
             SELECT _IID_ FROM find_dependants
-        """.format(look_for_status)
-
-        try:
-            exec_result = self.session.execute(query_text)
-            if exec_result.returns_rows:
-                fetched_results = exec_result.fetchall()
-                retVal = [mm[0] for mm in fetched_results]
-        except SQLAlchemyError as ex:
-            raise
-
+        """
+        retVal = self.select_and_fetchall(query_text, query_params={'look_for_status': look_for_status})
         return retVal
 
     def change_status_of_iids_to_another_status(self, old_status, new_status, iid_list):
@@ -902,7 +773,7 @@ class IndexItemsTable(object):
     def get_iids_by_status(self, min_status, max_status=None):
         if max_status is None:
             max_status = min_status
-        retVal = list()
+
         query_text = """
             SELECT iid
             FROM IndexItemRow
@@ -910,17 +781,10 @@ class IndexItemsTable(object):
             AND install_status <= :max_status
             AND ignore = 0
         """
-        try:
-            exec_result = self.session.execute(query_text, {'min_status': min_status, 'max_status': max_status})
-            if exec_result.returns_rows:
-                fetched_results = exec_result.fetchall()
-                retVal = [mm[0] for mm in fetched_results]
-        except SQLAlchemyError as ex:
-            raise
+        retVal = self.select_and_fetchall(query_text, query_params={'min_status': min_status, 'max_status': max_status})
         return retVal
 
     def select_versions_for_installed_item(self):
-        retVal = list()
         query_text = """
             SELECT IndexItemDetailRow.owner_iid, IndexItemDetailRow.detail_name, IndexItemDetailRow.detail_value, min(IndexItemDetailRow.generation)
             FROM IndexItemRow, IndexItemDetailRow
@@ -930,17 +794,11 @@ class IndexItemsTable(object):
             AND IndexItemDetailRow.detail_name='version'
             GROUP BY IndexItemDetailRow.owner_iid
             """
-        try:
-            exec_result = self.session.execute(query_text)
-            if exec_result.returns_rows:
-                retVal.extend(exec_result.fetchall())
-        except SQLAlchemyError as ex:
-            raise
+        retVal = self.select_and_fetchall(query_text, query_params={})
         return retVal
 
     def target_folders_to_items(self):
         """ returns a list of (IID, install_folder, tag, direct_syc_indicator) """
-        retVal = list()
         query_text = """
             SELECT IndexItemDetailRow.owner_iid,
                   IndexItemDetailRow.detail_value,
@@ -958,16 +816,10 @@ class IndexItemsTable(object):
                 AND IndexItemDetailRow.os_is_active = 1
             ORDER BY IndexItemDetailRow.detail_value
             """
-        try:
-            exec_result = self.session.execute(query_text)
-            if exec_result.returns_rows:
-                retVal.extend(exec_result.fetchall())
-        except SQLAlchemyError:
-            raise
+        retVal = self.select_and_fetchall(query_text, query_params={})
         return retVal
 
     def source_folders_to_items_without_target_folders(self):
-        retVal = list()
         query_text = """
            SELECT
               install_sources_t.detail_value source,
@@ -990,12 +842,7 @@ class IndexItemsTable(object):
                 AND IndexItemRow.ignore = 0
                 AND install_sources_t.os_is_active = 1
             """
-        try:
-            exec_result = self.session.execute(query_text)
-            if exec_result.returns_rows:
-                retVal.extend(exec_result.fetchall())
-        except SQLAlchemyError as ex:
-            raise
+        retVal = self.select_and_fetchall(query_text, query_params={})
         return retVal
 
     def set_name_and_version_for_active_iids(self):
@@ -1055,12 +902,7 @@ class IndexItemsTable(object):
             {group_by_values_filter}
             ORDER BY IndexItemDetailRow._id
             """.format(**locals())
-        try:
-            exec_result = self.session.execute(query_text, {'detail_name': detail_name})
-            if exec_result.returns_rows:
-                retVal.extend(exec_result.fetchall())
-        except SQLAlchemyError as ex:
-            raise
+        retVal = self.select_and_fetchall(query_text, query_params={'detail_name': detail_name})
         return retVal
 
     def get_details_for_active_iids(self, detail_name, unique_values=False, limit_to_iids=None):
@@ -1082,8 +924,7 @@ class IndexItemsTable(object):
                 {limit_to_iids_filter}
             ORDER BY IndexItemDetailRow._id
             """.format(**locals())
-        fetched_results = self.session.execute(query_text, {'detail_name': detail_name}).fetchall()
-        retVal = [mm[0] for mm in fetched_results]
+        retVal = self.select_and_fetchall(query_text, query_params={'detail_name': detail_name})
         return retVal
 
     def get_details_and_tag_for_active_iids(self, detail_name, unique_values=False, limit_to_iids=None):
@@ -1107,14 +948,8 @@ class IndexItemsTable(object):
                 {limit_to_iids_filter}
             ORDER BY IndexItemDetailRow._id
             """.format(**locals())
-        try:
-            exec_result = self.session.execute(query_text, {'detail_name': detail_name})
-            if exec_result.returns_rows:
-                fetched_results= exec_result.fetchall()
-                retVal = [(mm[0], mm[1]) for mm in fetched_results]
-        except SQLAlchemyError as ex:
-            raise
         # returns: [(iid, index_version, require_version, index_guid, require_guid, generation), ...]
+        retVal = self.select_and_fetchall(query_text, query_params={'detail_name': detail_name})
         return retVal
 
     def create_default_items(self, iids_to_ignore):
@@ -1122,7 +957,6 @@ class IndexItemsTable(object):
         self.create_default_require_items(iids_to_ignore=iids_to_ignore)
 
     def require_items_without_version_or_guid(self):
-        retVal = list()
         query_text = """
           SELECT IndexItemRow.iid,
                 index_ver_t.detail_value AS index_version,
@@ -1142,13 +976,8 @@ class IndexItemsTable(object):
             WHERE from_require=1 AND (require_ver_t.detail_value ISNULL OR require_guid_t.detail_value ISNULL)
             GROUP BY IndexItemRow.iid
           """
-        try:
-            exec_result = self.session.execute(query_text)
-            if exec_result.returns_rows:
-                retVal.extend(exec_result.fetchall())
-        except SQLAlchemyError as ex:
-            raise
         # returns: [(iid, index_version, require_version, index_guid, require_guid, generation), ...]
+        retVal = self.select_and_fetchall(query_text, query_params={})
         return retVal
 
     def insert_binary_versions(self, binaries_version_list):
@@ -1276,7 +1105,6 @@ class IndexItemsTable(object):
         conn.connection.commit()
 
     def get_sync_folders_and_sources_for_active_iids(self):
-        retVal = list()
         query_text = """
              SELECT install_sources_t.owner_iid AS iid,
                     direct_sync_t.detail_value AS direct_sync_indicator,
@@ -1299,17 +1127,11 @@ class IndexItemsTable(object):
                 install_sources_t.os_is_active=1
                 AND install_sources_t.detail_name='install_sources'
         """
-        try:
-            exec_result = self.session.execute(query_text)
-            if exec_result.returns_rows:
-                # returns [(iid, direct_sync_indicator, source, source_tag, install_folder),...]
-                retVal.extend(exec_result.fetchall())
-        except SQLAlchemyError as ex:
-            raise
+        # returns [(iid, direct_sync_indicator, source, source_tag, install_folder),...]
+        retVal = self.select_and_fetchall(query_text, query_params={})
         return retVal
 
     def get_sources_for_iid(self, the_iid):
-        retVal = list()
         query_text = """
          SELECT
             install_sources_t.detail_value AS install_sources,
@@ -1329,29 +1151,17 @@ class IndexItemsTable(object):
             iid_t.ignore=0
         ORDER BY install_sources_t.detail_value
         """
-        try:
-            exec_result = self.session.execute(query_text, {'the_iid': the_iid})
-            if exec_result.returns_rows:
-                # returns [(source, source_tag),...]
-                retVal.extend(exec_result.fetchall())
-        except SQLAlchemyError as ex:
-            raise
+        retVal = self.select_and_fetchall(query_text, query_params={'the_iid': the_iid})
         return retVal
 
     def get_unique_detail_values(self, detail_name):
-        retVal = list()
         query_text = """
           SELECT DISTINCT IndexItemDetailRow.detail_value
           FROM IndexItemDetailRow
           WHERE detail_name = :detail_name
           ORDER BY IndexItemDetailRow.detail_value
         """
-        try:
-            exec_result = self.session.execute(query_text, {'detail_name': detail_name})
-            if exec_result.returns_rows:
-                retVal.extend([mm[0] for mm in exec_result.fetchall()])
-        except SQLAlchemyError as ex:
-            raise
+        retVal = self.select_and_fetchall(query_text, query_params={'detail_name': detail_name})
         return retVal
 
     def get_iids_with_specific_detail_values(self, detail_name, detail_value):
@@ -1368,19 +1178,13 @@ class IndexItemsTable(object):
             AND
                 detail_value LIKE :detail_value
             """
-        try:
-            exec_result = self.session.execute(query_text, {'detail_name': detail_name, 'detail_value': detail_value})
-            if exec_result.returns_rows:
-                retVal.extend([mm[0] for mm in exec_result.fetchall()])
-        except SQLAlchemyError as ex:
-            raise
+        retVal = self.select_and_fetchall(query_text, query_params={'detail_name': detail_name, 'detail_value': detail_value})
         return retVal
 
     def get_missing_iids_from_details(self, detail_name):
         """ some details' values should be existing iids
             this function will return the original iid and the orphan iids in named details
         """
-        retVal = list()
         query_text = """
             SELECT DISTINCT original_iid, detail_value
             FROM IndexItemDetailRow
@@ -1390,12 +1194,7 @@ class IndexItemsTable(object):
                 detail_value NOT IN (SELECT iid FROM IndexItemRow)
             ORDER BY detail_value
             """
-        try:
-            exec_result = self.session.execute(query_text, {'detail_name': detail_name})
-            if exec_result.returns_rows:
-                retVal.extend(exec_result.fetchall())
-        except SQLAlchemyError as ex:
-            raise
+        retVal = self.select_and_fetchall(query_text, query_params={'detail_name': detail_name})
         return retVal
 
 

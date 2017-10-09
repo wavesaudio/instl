@@ -14,7 +14,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 
-from pyinstl.db_alchemy import create_session, IndexItemDetailRow, get_engine
+from pyinstl.db_alchemy import create_session, IndexItemDetailRow, get_engine, TableBase
 from .svnRow import SVNRow, IIDToSVNItem
 
 import utils
@@ -59,9 +59,9 @@ map_info_extension_to_format = {"txt": "text", "text": "text",
                                 "file-sizes": "file-sizes"}
 
 
-class SVNTable(object):
+class SVNTable(TableBase):
     def __init__(self):
-        self.session = create_session()
+        super().__init__()
         self.read_func_by_format = {"info": self.read_from_svn_info,
                                     "text": self.read_from_text,
                                     "props": self.read_props,
@@ -74,9 +74,6 @@ class SVNTable(object):
         self.comments = list()
         self.baked_queries_map = dict()
         self.bakery = baked.bakery()
-
-    def commit_changes(self):
-        self.session.commit()
 
     def __repr__(self):
         return "\n".join([item.__repr__() for item in self.get_items()])
@@ -482,31 +479,6 @@ class SVNTable(object):
             raise
         return retVal
 
-    def execute_script(self, script_text):
-        db_conn = get_engine().raw_connection()
-        db_curs = db_conn.cursor()
-        script_results = db_curs.executescript(script_text)
-        db_curs.close()
-        db_conn.close()
-        return script_results
-
-    def select_single_value(self, query_text, query_params=None):
-        """
-            execute a select statement and convert the returned list
-            of tuples to a list of values.
-            return empty list of no values were found.
-        """
-        retVal = list()
-        try:
-            if query_params is None:
-                query_params = {}
-            exec_result = self.session.execute(query_text, query_params)
-            if exec_result.returns_rows:
-                retVal.extend([res[0] for res in exec_result.fetchall()])
-        except SQLAlchemyError as ex:
-            raise
-        return retVal
-
     def get_item_case_insensitive(self, item_path, what="any"):
         """ Get specific item or return None if not found
         search is done case insensitive. This is needed in case where we look for
@@ -582,7 +554,7 @@ class SVNTable(object):
           FROM svnitem
           WHERE flags == 'fx' 
         """
-        retVal = self.select_single_value(query_text)
+        retVal = self.select_and_fetchall(query_text)
         return retVal
 
     def get_required_exec_items(self, what="any"):
@@ -853,7 +825,7 @@ class SVNTable(object):
                 WHERE required==1
                 AND fileFlag==0)
             """
-        retVal = self.select_single_value(query_text, query_params={"get_files": {"file": 1, "dir": 0}[what]})
+        retVal = self.select_and_fetchall(query_text, query_params={"get_files": {"file": 1, "dir": 0}[what]})
         return retVal
 
     def min_max_revision(self):
@@ -898,7 +870,7 @@ class SVNTable(object):
         WHERE need_download=1
         AND fileFlag=1
         """
-        retVal = self.select_single_value(query_text)
+        retVal = self.select_and_fetchall(query_text)
         return retVal
 
     def get_infomap_file_names(self):
@@ -909,7 +881,7 @@ class SVNTable(object):
           FROM svnitem
           ORDER BY extra_props
         """
-        retVal = self.select_single_value(query_text)
+        retVal = self.select_and_fetchall(query_text)
         return retVal
 
     def get_items_by_infomap(self, infomap_name):

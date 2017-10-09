@@ -17,6 +17,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, BOOLEAN, ForeignKey
 from sqlalchemy import UniqueConstraint
 from sqlalchemy.sql import default_comparator  # needed for PyInstaller
+from sqlalchemy.exc import SQLAlchemyError
 
 import utils
 
@@ -63,6 +64,81 @@ def get_declarative_base():
     if __db_declarative_base is None:
         __db_declarative_base = declarative_base()
     return __db_declarative_base
+
+
+class TableBase(object):
+    def __init__(self):
+        self.session = create_session()
+        self.locked_tables = set()
+
+    def commit_changes(self):
+        self.session.commit()
+
+    def execute_script(self, script_text):
+        db_conn = get_engine().raw_connection()
+        db_curs = db_conn.cursor()
+        script_results = db_curs.executescript(script_text)
+        db_curs.close()
+        db_conn.close()
+        return script_results
+
+    def lock_table(self, table_name):
+        query_text = """
+            CREATE TRIGGER IF NOT EXISTS lock_INSERT_{table_name}
+            BEFORE INSERT ON {table_name}
+            BEGIN
+                SELECT raise(abort, '{table_name} is locked no INSERTs');
+            END;
+            CREATE TRIGGER IF NOT EXISTS lock_UPDATE_{table_name}
+            BEFORE UPDATE ON {table_name}
+            BEGIN
+                SELECT raise(abort, '{table_name} is locked no UPDATEs');
+            END;
+            CREATE TRIGGER IF NOT EXISTS lock_DELETE_{table_name}
+            BEFORE DELETE ON {table_name}
+            BEGIN
+                SELECT raise(abort, '{table_name} is locked no DELETEs');
+            END;
+        """.format(table_name=table_name)
+        self.execute_script(query_text)
+        self.commit_changes()
+        self.locked_tables.add(table_name)
+
+    def unlock_table(self, table_name):
+        query_text = """
+            DROP TRIGGER IF EXISTS lock_INSERT_{table_name};
+            DROP TRIGGER IF EXISTS lock_UPDATE_{table_name};
+            DROP TRIGGER IF EXISTS lock_DELETE_{table_name};
+        """.format(table_name=table_name)
+        self.execute_script(query_text)
+        self.commit_changes()
+        self.locked_tables.remove(table_name)
+
+    def unlock_all_tables(self):
+        for table_name in list(self.locked_tables):
+            self.unlock_table(table_name)
+
+    def select_and_fetchall(self, query_text, query_params=None):
+        """
+            execute a select statement and convert the returned list
+            of tuples to a list of values.
+            return empty list of no values were found.
+        """
+        retVal = list()
+        try:
+            if query_params is None:
+                query_params = {}
+            exec_result = self.session.execute(query_text, query_params)
+            if exec_result.returns_rows:
+                all_results = exec_result.fetchall()
+                if all_results:
+                    if len(all_results[0]) == 1:
+                        retVal.extend([res[0] for res in all_results])
+                    else:
+                        retVal.extend(all_results)
+        except SQLAlchemyError as ex:
+            raise
+        return retVal
 
 
 class IndexItemDetailOperatingSystem(get_declarative_base()):
