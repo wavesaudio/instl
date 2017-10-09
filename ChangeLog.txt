@@ -1,3 +1,8 @@
+???? 1.6.2.10
+    programmer visible changes:
+    * new class TableBase to be a common base for InstlItemsTable, SVNTable
+    * refactored many db queries to use TableBase.select_and_fetchall
+
 8/10/2017 1.6.2.9
     user visible changes:
     * fixed: .wtar items were not marked with wtarFlag in SVNTable
@@ -21,7 +26,7 @@
     * removed redundant methods InstlClientCopy.get_max_repo_rev_for_source, read_file_sizes_original, set_infomap_file_names
     * no need to ResolveStrToStr on svnitem.download_path because it's inserted already resolved
     * SVNTable.get_exec_items renamed get_exec_file_paths and refactored with splain sqlite instead of sqlalchemy
-    * new method SVNItem.select_single_value does common part of calling sqlite for getting a single value
+    * new method SVNItem.select_and_fetchall does common part of calling sqlite for getting a single value
 
 2/10/2017 1.6.2.7
     user visible changes:
