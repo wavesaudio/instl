@@ -645,16 +645,16 @@ class IndexItemsTable(TableBase):
 
     def versions_report(self, report_only_installed=False):
         query_text = """
-           SELECT *
-          FROM 'report_versions_view'
-        """
+            SELECT *
+            FROM 'report_versions_view'
+            """
         if report_only_installed:
-           query_text += """
-           WHERE require_version != '_'
-           AND remote_version != '_'
-           """
+            query_text += """
+            WHERE require_version != '_'
+            AND remote_version != '_'
+            """
         results = self.select_and_fetchall(query_text, query_params={})
-        retVal = [[mm[:5] for mm in results]]
+        retVal = [mm[:5] for mm in results]
         return retVal
 
         return retVal

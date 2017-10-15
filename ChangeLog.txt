@@ -1,3 +1,8 @@
+15/101/2017 1.6.2.11
+
+    user visible changes:
+    * fixed a bug in IndexItemsTable.versions_report where the produced list was wraped in an extra, redundant list
+
 9/10/2017 1.6.2.10
     programmer visible changes:
     * new class TableBase to be a common base for InstlItemsTable, SVNTable
