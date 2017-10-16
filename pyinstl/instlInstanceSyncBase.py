@@ -99,6 +99,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
              the files that exists and have correct checksum.
         """
         self.instlObj.set_sync_locations_for_active_items()
+        self.instlObj.progress("check checksum of existing required files ...")
         self.instlObj.info_map_table.mark_need_download()
         need_download_file_path = var_stack.ResolveVarToStr("TO_SYNC_INFO_MAP_PATH")
         need_download_items_list = self.instlObj.info_map_table.get_download_items()

@@ -279,7 +279,18 @@ class PlatformSpecificHelperBase(object):
     def progress(self, msg, num_items=0):
         self.num_items_for_progress_report += num_items + 1
         if not self.no_progress_messages:
-            prog_msg = "Progress: {} of $(TOTAL_ITEMS_FOR_PROGRESS_REPORT); ".format(str(self.num_items_for_progress_report)) + msg
+            prog_msg = "Progress: {} of $(TOTAL_ITEMS_FOR_PROGRESS_REPORT); {}".format(self.num_items_for_progress_report, msg)
+            return self.echo(prog_msg)
+        else:
+            return ()
+
+    def progress_percent(self, msg, percent):
+        """ create progress message and increase progress items by a percentage
+        """
+        inc_by = max(1, int(self.num_items_for_progress_report / 100) * int(percent))
+        self.num_items_for_progress_report += inc_by
+        if not self.no_progress_messages:
+            prog_msg = "Progress: {} of $(TOTAL_ITEMS_FOR_PROGRESS_REPORT); {}".format(self.num_items_for_progress_report, msg)
             return self.echo(prog_msg)
         else:
             return ()

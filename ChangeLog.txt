@@ -1,3 +1,11 @@
+16/101/2017 1.6.2.12
+
+    user visible changes:
+    * new progress message when prepering installer: "check checksum of existing required files ..., so this stage can be properly timed
+    * PlatformSpecificHelperBase.progress_percent is used in InstlClientCopy.create_copy_instructions so that progress bar does not go 100% when sync stage has many items but copy stage has few.
+    programmer visible changes:
+    * new method PlatformSpecificHelperBase.progress_percent to increase progress by a percentage of the current total.
+
 15/101/2017 1.6.2.11
 
     user visible changes:

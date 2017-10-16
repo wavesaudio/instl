@@ -142,7 +142,7 @@ class InstlClientCopy(InstlClient):
         # messages about orphan iids
         for iid in sorted(var_stack.ResolveVarToList("__ORPHAN_INSTALL_TARGETS__")):
             self.batch_accum += self.platform_helper.echo("Don't know how to install " + iid)
-        self.batch_accum += self.platform_helper.progress("Done copy")
+        self.batch_accum += self.platform_helper.progress_percent("Done copy", 10)
         self.progress("create copy instructions done")
 
     def calc_size_of_file_item(self, a_file_item):
