@@ -17,6 +17,10 @@ import rsa
 from functools import reduce
 from itertools import repeat
 import tarfile
+import types
+import asyncio
+import json
+
 
 import utils
 
@@ -181,18 +185,18 @@ def deprecated(deprecated_func):
     return raise_deprecation
 
 
-def max_widths(list_of_lists):
+def max_widths(list_of_lists, string_align='<', numbers_align='>'):
     """ inputs is a list of lists. output is a list of maximum str length for each
         position. E.g (('a', 'ccc'), ('bb', a', 'fff')) will return: (2, 3, 3)
     """
     longest_list_len = reduce(max, [len(a_list) for a_list in list_of_lists], 0)
     width_list = [0] * longest_list_len  # pre allocate the max list length
-    align_list = ['<'] * longest_list_len  # default is align to left
+    align_list = [string_align] * longest_list_len  # default is align to left
     for a_list in list_of_lists:
-        for item in enumerate(a_list):
-            width_list[item[0]] = max(width_list[item[0]], len(str(item[1])))
-            if isinstance(item[1], numbers.Number):
-                align_list[item[0]] = '>'
+        for item_i, item in enumerate(a_list):
+            width_list[item_i] = max(width_list[item_i], len(str(item)))
+            if isinstance(item, numbers.Number):
+                align_list[item_i] = numbers_align
     return width_list, align_list
 
 
@@ -214,6 +218,19 @@ def gen_col_format(width_list, align_list=None, sep=' '):
     for i in range(1, len(format_list)+1):
         retVal.append(sep.join(format_list[0:i]))
     return retVal
+
+
+def format_by_width(list_of_lists, string_align='<', numbers_align='>'):
+    """ accept a list containing lists of text
+        calculate the best width for each position
+        and yield the lines one by one formatted
+    """
+    width_list, align_list = max_widths(list_of_lists, string_align=string_align, numbers_align=numbers_align)
+    col_formats = gen_col_format(width_list, align_list)
+    for a_line in list_of_lists:
+        clean_line = [a if a is not None else "" for a in a_line]  # replace None values with empty str, since Nones cannot have alignment format
+        formatted_str = col_formats[len(clean_line)].format(*[str(item) for item in clean_line])
+        yield formatted_str
 
 
 def ContinuationIter(the_iter, continuation_value=None):
@@ -757,6 +774,30 @@ def unwtar_a_file(wtar_file_path, destination_folder=None, no_artifacts=False, i
         raise
 
 
+def obj_memory_size(obj, seen=None):
+    """Recursively finds size of objects"""
+    size = 0
+    try:
+        if seen is None:
+            seen = set()
+        obj_id = id(obj)
+        if obj_id in seen:
+            return 0
+        seen.add(obj_id)
+        size = sys.getsizeof(obj)
+        if isinstance(obj, (types.ModuleType, asyncio.Future)):
+            pass  # these types cause endless recursion
+        elif isinstance(obj, dict):
+            size += sum([obj_memory_size(k, seen) + obj_memory_size(v, seen) for k, v in obj.items()])
+        elif hasattr(obj, '__dict__'):
+            size += obj_memory_size(obj.__dict__, seen)
+        elif hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes, bytearray)):
+            size += sum([obj_memory_size(i, seen) for i in obj])
+    except Exception as ex:
+        print("obj_memory_size", ex)
+    return size
+
+
 def get_wtar_total_checksum(wtar_file_path):
     tar_total_checksum = None
     try:
@@ -770,6 +811,22 @@ def get_wtar_total_checksum(wtar_file_path):
     except Exception as ex:
         pass  # return None if there was exception from any reason
     return tar_total_checksum
+
+
+class JsonExtraTypesEncoder(json.JSONEncoder):
+    """ json module does not know to encode deque """
+    def default(self, obj):
+        if isinstance(obj, (collections.deque,)):
+            return list(obj)
+        return json.JSONEncoder.default(self, obj)
+
+
+class JsonExtraTypesDecoder(json.JSONDecoder):
+    """ json module does not know to decode deque """
+    def default(self, obj):
+        if isinstance(obj, (collections.deque,)):
+            return list(obj)
+        return json.JSONEncoder.default(self, obj)
 
 
 def get_invocations_file_path():

@@ -303,7 +303,17 @@ def isScalar(item):
     return retVal
 
 
-def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False):
+def alias_for_dict(pyObj, alias_indicator):
+    retVal = None
+    for k, v in pyObj.items():
+        if k == alias_indicator:
+            retVal = v
+            pyObj.pop(k)
+            break
+    return retVal
+
+
+def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False, alias_indicator=None):
     if out_stream is None:
         out_stream = sys.stdout
     if indentor is None:
@@ -318,44 +328,49 @@ def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False):
             for item in pyObj:
                 if isinstance(item, YamlDumpDocWrap):
                     indentor.push(None)  # doc should have no parent
-                    writeAsYaml(item, out_stream, indentor, sort)
+                    writeAsYaml(item, out_stream, indentor, sort, alias_indicator)
                     indentor.pop()
                 else:
                     indentor.lineSepAndIndent(out_stream)
                     indentor.write_extra_chars(out_stream, "- ")
                     indentor += 1
-                    writeAsYaml(item, out_stream, indentor, sort)
+                    writeAsYaml(item, out_stream, indentor, sort, alias_indicator)
                     indentor -= 1
         indentor.pop()
     elif isinstance(pyObj, (dict, OrderedDict)):
+        alias = alias_indicator and alias_for_dict(pyObj, alias_indicator)
         parent_item = indentor.top()
         indentor.push('m')
         if sort and not isinstance(pyObj, OrderedDict):
             theKeys = sorted(pyObj.keys())
         else:
             theKeys = list(pyObj.keys())
+        if alias:
+            out_stream.write("&"+alias)
         for item in theKeys:
             nl_before_key = (parent_item != 'l')
             if nl_before_key:
                 indentor.lineSepAndIndent(out_stream)
-            writeAsYaml(item, out_stream, indentor, sort)
+            writeAsYaml(item, out_stream, indentor, sort, alias_indicator)
             indentor.write_extra_chars(out_stream, ": ")
             indentor += 1
-            writeAsYaml(pyObj[item], out_stream, indentor, sort)
+            writeAsYaml(pyObj[item], out_stream, indentor, sort, alias_indicator)
             indentor -= 1
         indentor.pop()
     elif isinstance(pyObj, YamlDumpWrap):
         pyObj.writePrefix(out_stream, indentor)
-        writeAsYaml(pyObj.value, out_stream, indentor, sort or pyObj.sort_mappings)
+        writeAsYaml(pyObj.value, out_stream, indentor, sort or pyObj.sort_mappings, alias_indicator)
         pyObj.writePostfix(out_stream, indentor)
     else:
         if hasattr(pyObj, "repr_for_yaml"):
-            writeAsYaml(pyObj.repr_for_yaml(), out_stream, indentor, sort)
+            writeAsYaml(pyObj.repr_for_yaml(), out_stream, indentor, sort, alias_indicator)
         else:
-            if not pyObj:
+            if pyObj is None:
                 pyObj_as_string = '~'
             else:
                 pyObj_as_string = str(pyObj)
+                if not pyObj_as_string: # it's a string but an empty one
+                    pyObj_as_string = '""'
             out_stream.write(pyObj_as_string)
     # add the final end-of-line. But if writeAsYaml is recursed from outside writeAsYaml
     # this will not work.

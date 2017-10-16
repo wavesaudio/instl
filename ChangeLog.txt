@@ -5,6 +5,9 @@
     * PlatformSpecificHelperBase.progress_percent is used in InstlClientCopy.create_copy_instructions so that progress bar does not go 100% when sync stage has many items but copy stage has few.
     programmer visible changes:
     * new method PlatformSpecificHelperBase.progress_percent to increase progress by a percentage of the current total.
+    * merged yaml writing improvements from scanilic project
+    * merged format_by_width improvements from scanilic project
+    * merged json encoding/decoding improvements from scanilic project
 
 15/101/2017 1.6.2.11
 
