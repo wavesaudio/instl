@@ -1,4 +1,10 @@
-16/101/2017 1.6.2.12
+29/10/2017 1.6.2.13
+
+    user visible changes:
+    * Mac OS: call chown after copy because offline installers created on Windows might have weird permissions.
+    * rsync: --owner --group on each call hopefull to help with the same permissions issue
+
+16/10/2017 1.6.2.12
 
     user visible changes:
     * new progress message when prepering installer: "check checksum of existing required files ..., so this stage can be properly timed
@@ -9,7 +15,7 @@
     * merged format_by_width improvements from scanilic project
     * merged json encoding/decoding improvements from scanilic project
 
-15/101/2017 1.6.2.11
+15/10/2017 1.6.2.11
 
     user visible changes:
     * fixed a bug in IndexItemsTable.versions_report where the produced list was wraped in an extra, redundant list

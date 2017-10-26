@@ -171,6 +171,7 @@ class InstlClientCopy(InstlClient):
 
             if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
                 if not source_file.path.endswith(".symlink"):
+                    self.batch_accum += self.platform_helper.chown("$(__USER_ID__)", "", source_file.leaf, recursive=False)
                     self.batch_accum += self.platform_helper.chmod(source_file.chmod_spec(), source_file.name())
                     self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_file.chmod_spec(), source_file.name()))
 
@@ -201,6 +202,7 @@ class InstlClientCopy(InstlClient):
             for source_item in source_items:
                 if source_item.wtarFlag == 0:
                     source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path)
+                    self.batch_accum += self.platform_helper.chown("$(__USER_ID__)", "", ".", recursive=True)
                     self.batch_accum += self.platform_helper.chmod("-R -f a+rw", source_path_relative_to_current_dir)  # all copied files and folders should be rw
                     if source_item.isExecutable():
                         self.batch_accum += self.platform_helper.chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)
@@ -228,6 +230,7 @@ class InstlClientCopy(InstlClient):
             source_path_dir, source_path_name = os.path.split(source_path)
 
             if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
+                self.batch_accum += self.platform_helper.chown("$(__USER_ID__)", "", source_path_name, recursive=True)
                 self.batch_accum += self.platform_helper.chmod("-R -f a+rw", source_path_name)  # all copied files should be rw
                 for source_item in source_items:
                     if source_item.wtarFlag == 0 and source_item.isExecutable():
