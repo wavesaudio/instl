@@ -1,3 +1,9 @@
+30/10/2017 1.6.2.14
+
+    user visible changes:
+    * PlatformSpecificHelperWin.mkdir added (a little) better check if the folder created is actually a folder
+        and not a file, so if it is installation will fail earlier
+
 29/10/2017 1.6.2.13
 
     user visible changes:

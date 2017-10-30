@@ -355,9 +355,11 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return " ".join(retVal)
 
     def mkdir(self, directory):
-        norm_directory = utils.quoteme_double(os.path.normpath(directory))
-        mk_command = " ".join(("if not exist", norm_directory, "mkdir", norm_directory))
-        check_mk_command = " ".join(("if not exist", norm_directory, "(", "echo Error: failed to create ", norm_directory, "1>&2",
+        norm_directory = os.path.normpath(directory)
+        quoted_norm_directory = utils.quoteme_double(norm_directory)
+        quoted_norm_directory_slash = utils.quoteme_double(norm_directory+"\\")
+        mk_command = " ".join(("if not exist", quoted_norm_directory, "mkdir", quoted_norm_directory))
+        check_mk_command = " ".join(("if not exist", quoted_norm_directory_slash, "(", "echo Error: failed to create ", quoted_norm_directory, "1>&2",
                                     "&", "GOTO", "EXIT_ON_ERROR", ")"))
         return mk_command, check_mk_command
 
