@@ -1,3 +1,8 @@
+31/10/2017 1.6.2.15
+
+    user visible changes:
+    * better escaping of characters that cause problems in windows batch "SET=..." assignments
+
 30/10/2017 1.6.2.14
 
     user visible changes:

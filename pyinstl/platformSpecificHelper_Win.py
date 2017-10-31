@@ -16,9 +16,20 @@ from .platformSpecificHelper_Base import DownloadToolBase
 from configVar import var_stack
 
 
+def escape_me_dos_callback(match_obj):
+    replacement = "^"+match_obj.group(1)
+    return replacement
+
+# regex to find some characters that should be escaped in dos, but are not
+dos_escape_regex = re.compile("""(?<!\^)([<|&>])""", re.MULTILINE)
 def dos_escape(some_string):
-    escaped_string = some_string.replace("&", "^&").replace("|", "^|")
-    return escaped_string
+    # 1. remove ^><|'s from end of string - they cause CMD to ask for 'More?' or 'The syntax of the command is incorrect.'
+    retVal = some_string.rstrip("^><|")
+    # 2. replace some chars with ?
+    retVal = re.sub("""[\r\n]""", "?", retVal)
+    # 3. escape some chars, but only of they are not already escaped
+    retVal = dos_escape_regex.sub(escape_me_dos_callback, retVal)
+    return retVal
 
 
 class CopyTool_win_robocopy(CopyToolBase):
