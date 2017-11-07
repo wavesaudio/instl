@@ -73,7 +73,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
             actual_num_config_files: actual number of curl config files created. Might be smaller
             than num_config_files, or might be 0 if downloading is not required.
         """
-        curl_config_folder = var_stack.ResolveStrToStr("$(LOCAL_REPO_BOOKKEEPING_DIR)/curl")
+        main_out_file_dir, main_out_file_leaf = os.path.split(var_stack.ResolveVarToStr("__MAIN_OUT_FILE__"))
+        curl_config_folder = os.path.join(main_out_file_dir, "curl")
         os.makedirs(curl_config_folder, exist_ok=True)
         curl_config_file_path = var_stack.ResolveStrToStr(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"))
         num_config_files = int(var_stack.ResolveVarToStr("PARALLEL_SYNC"))
