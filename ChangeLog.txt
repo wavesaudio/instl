@@ -3,6 +3,7 @@
 
     user visible changes:
     * Moved the curl folder from bookkeeping to besides the output file, just like the unwtar folder
+    * if no logs folder on Desktop invocations file will be written to /Users/USER_NAME/Library/Logs (Mac), 'C:\Users\USER_NAME\AppData\Local\Logs (Win)
 
 31/10/2017 1.6.2.15
 

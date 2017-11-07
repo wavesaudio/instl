@@ -20,7 +20,7 @@ import tarfile
 import types
 import asyncio
 import json
-
+import appdirs
 
 import utils
 
@@ -835,6 +835,8 @@ def get_invocations_file_path():
     logs_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Logs")
     if os.path.isdir(logs_dir):
         folder_to_write_in = logs_dir
+    else:
+        folder_to_write_in = appdirs.user_log_dir("")
     invocations_file_path = os.path.join(folder_to_write_in, "instl_invocations.txt")
     return invocations_file_path
 
