@@ -64,7 +64,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         # retVal = " /LOG:{log_file}".format(**locals())
         return retVal
 
-    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None, preserve_dest_files=True):
+    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None, preserve_dest_files=False):
         retVal = list()
         _, dir_to_copy = os.path.split(src_dir)
         trg_dir = "/".join((trg_dir, dir_to_copy))
