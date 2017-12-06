@@ -34,7 +34,7 @@ class CopyToolBase(object, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None, preserve_dest_files=True):
+    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None, preserve_dest_files=False):
         """ Copy src_dir as a folder into trg_dir.
             Example: copy_dir_to_dir("a", "/d/c/b") creates the folder:
             "/d/c/b/a"
@@ -103,7 +103,7 @@ class CopyToolRsync(CopyToolBase):
             retVal = " ".join(["--exclude=" + utils.quoteme_single(ignoree) for ignoree in ignore])
         return retVal
 
-    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None, preserve_dest_files=True):
+    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None, preserve_dest_files=False):
         if src_dir.endswith("/"):
             src_dir.rstrip("/")
         ignore_spec = self.create_ignore_spec(ignore)

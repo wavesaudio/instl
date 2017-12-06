@@ -165,7 +165,7 @@ class CopyTool_win_xcopy(CopyToolBase):
         """
         return self.platform_helper.rmfile("$(XCOPY_EXCLUDE_FILE_NAME)")
 
-    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None, preserve_dest_files=True):
+    def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None, preserve_dest_files=False):
         retVal = list()
         norm_src_dir = os.path.normpath(src_dir)
         norm_trg_dir = os.path.normpath(trg_dir)
