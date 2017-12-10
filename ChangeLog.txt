@@ -1,3 +1,7 @@
+10/12/2017 1.6.2.17
+
+    user visible changes:
+    * default of copy_dir_to_dir is to delete old files on the target
 
 7/11/2017 1.6.2.16
 
