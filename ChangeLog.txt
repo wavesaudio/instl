@@ -1,3 +1,8 @@
+31/12/2017 1.6.2.18
+
+    programmer visible changes:
+    * functions IndexItemsTable.config_var_list_to_db added try/except because config vars are written to db for reference so we can continue even if exception ware raised
+
 10/12/2017 1.6.2.17
 
     user visible changes:

@@ -1067,11 +1067,14 @@ class IndexItemsTable(TableBase):
             self.commit_changes()
 
     def config_var_list_to_db(self, in_config_var_list):
-        for identifier in in_config_var_list:
-            raw_value = in_config_var_list.unresolved_var(identifier)
-            resolved_value = in_config_var_list.ResolveVarToStr(identifier, list_sep=" ", default="")
-            self.session.add(ConfigVar(name=identifier, raw_value=raw_value, resolved_value=resolved_value))
-        self.commit_changes()
+        try:
+            for identifier in in_config_var_list:
+                raw_value = in_config_var_list.unresolved_var(identifier)
+                resolved_value = in_config_var_list.ResolveVarToStr(identifier, list_sep=" ", default="")
+                self.session.add(ConfigVar(name=identifier, raw_value=raw_value, resolved_value=resolved_value))
+            self.commit_changes()
+        except Exception as ex:  # config vars are written to db for reference so we can continue even if exception ware raised
+            print(ex)
 
     def mark_direct_sync_items(self):
         def _get_direct_sync_status_from_indicator(direct_sync_indicator):
