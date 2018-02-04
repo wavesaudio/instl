@@ -303,7 +303,11 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
             "chcp 65001",
             "setlocal enableextensions enabledelayedexpansion",
             # write to instl_invocations.txt
-                'echo --- {0} >> "{1}"'.format(self.random_invocation_id, self.invocations_file_path),
+                'if exist "{1}" ('.format(self.random_invocation_id, self.invocations_file_path),
+                '   echo --- {0} >> "{1}"'.format(self.random_invocation_id, self.invocations_file_path),
+                ') else (',
+                '   echo --- {0} > "{1}"'.format(self.random_invocation_id, self.invocations_file_path),
+                ')',
                 'echo start: %date%-%time% >> "{0}"'.format(self.invocations_file_path),
                 'echo batch file: %0 >> "{0}"'.format(self.invocations_file_path),
             self.remark(self.instlObj.get_version_str()),
