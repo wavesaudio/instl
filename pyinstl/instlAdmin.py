@@ -425,8 +425,8 @@ class InstlAdmin(InstlInstanceBase):
 
         info_map_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(TARGET_REPO_REV)/instl/info_map.txt")
         info_map_sigs = self.create_sig_for_file(info_map_file)
-        var_stack.set_var("INFO_MAP_SIG").append(info_map_sigs["SHA-512_rsa_sig"])
         var_stack.set_var("INFO_MAP_CHECKSUM").append(info_map_sigs["sha1_checksum"])
+        var_stack.set_var("INFO_MAP_FILE_URL_CHECKSUM").append("$(INFO_MAP_CHECKSUM)")
 
         var_stack.set_var("INDEX_URL_RELATIVE_PATH").append("$(REPO_NAME)/$(REPO_REV)/instl/index.yaml")
         var_stack.set_var("INDEX_URL").append("$(S3_BUCKET_BASE_URL)/$(INDEX_URL_RELATIVE_PATH)")
