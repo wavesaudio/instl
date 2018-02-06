@@ -52,10 +52,10 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
             os.makedirs(var_stack.ResolveVarToStr("LOCAL_REPO_REV_BOOKKEEPING_DIR"), exist_ok=True)
             info_map_file_url = var_stack.ResolveVarToStr("INFO_MAP_FILE_URL")
             info_map_file_expected_checksum = None
-            if "INFO_MAP_CHECKSUM" in var_stack:
-                info_map_file_expected_checksum = var_stack.ResolveVarToStr("INFO_MAP_CHECKSUM")
-            elif "INFO_MAP_FILE_URL_CHECKSUM" in var_stack:
+            if "INFO_MAP_FILE_URL_CHECKSUM" in var_stack:
                 info_map_file_expected_checksum = var_stack.ResolveVarToStr("INFO_MAP_FILE_URL_CHECKSUM")
+            elif "INFO_MAP_CHECKSUM" in var_stack:
+                info_map_file_expected_checksum = var_stack.ResolveVarToStr("INFO_MAP_CHECKSUM")
             local_copy_of_info_map = var_stack.ResolveVarToStr("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH")
             utils.download_from_file_or_url(info_map_file_url,
                                       local_copy_of_info_map,
