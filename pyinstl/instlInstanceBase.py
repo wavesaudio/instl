@@ -184,10 +184,11 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             "output_format": ("__OUTPUT_FORMAT__", None),
         }
 
+        default_remark = "from command line options"
         for attrib, var in const_attrib_to_var.items():
             attrib_value = getattr(cmd_line_options_obj, attrib)
             if attrib_value:
-                var_stack.add_const_config_variable(var[0], "from command line options", *attrib_value)
+                var_stack.add_const_config_variable(var[0], default_remark, *attrib_value)
             elif var[1] is not None:  # there's a default
                 var_stack.add_const_config_variable(var[0], "from default", var[1])
 
@@ -202,51 +203,52 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         for attrib, var in non_const_attrib_to_var.items():
             attrib_value = getattr(cmd_line_options_obj, attrib)
             if attrib_value:
-                var_stack.set_var(var, "from command line options").append(attrib_value[0])
+                var_stack.set_var(var, default_remark).append(attrib_value[0])
 
         if cmd_line_options_obj.command:
             self.the_command = cmd_line_options_obj.command
             self.fixed_command = self.the_command.replace('-', '_')
-            var_stack.set_var("__MAIN_COMMAND__", "from command line options").append(cmd_line_options_obj.command)
+            var_stack.set_var("__MAIN_COMMAND__", default_remark).append(cmd_line_options_obj.command)
 
         if hasattr(cmd_line_options_obj, "subject") and cmd_line_options_obj.subject is not None:
-            var_stack.add_const_config_variable("__HELP_SUBJECT__", "from command line options",
+            var_stack.add_const_config_variable("__HELP_SUBJECT__", default_remark,
                                                 cmd_line_options_obj.subject)
         else:
-            var_stack.add_const_config_variable("__HELP_SUBJECT__", "from command line options", "")
+            var_stack.add_const_config_variable("__HELP_SUBJECT__", default_remark, "")
 
         if cmd_line_options_obj.state_file:
-            var_stack.add_const_config_variable("__MAIN_STATE_FILE__", "from command line options",
+            var_stack.add_const_config_variable("__MAIN_STATE_FILE__", default_remark,
                                                 cmd_line_options_obj.state_file)
 
         if cmd_line_options_obj.run:
-            var_stack.add_const_config_variable("__RUN_BATCH__", "from command line options", "yes")
+            var_stack.add_const_config_variable("__RUN_BATCH__", default_remark, "yes")
 
         if cmd_line_options_obj.no_wtar_artifacts:
-            var_stack.add_const_config_variable("__NO_WTAR_ARTIFACTS__", "from command line options", "yes")
+            var_stack.add_const_config_variable("__NO_WTAR_ARTIFACTS__", default_remark, "yes")
 
         if cmd_line_options_obj.which_revision:
-            var_stack.add_const_config_variable("__WHICH_REVISION__", "from command line options", cmd_line_options_obj.which_revision[0])
+            print("cmd_line_options_obj.which_revision", cmd_line_options_obj.which_revision)
+            var_stack.add_const_config_variable("__WHICH_REVISION__", default_remark, cmd_line_options_obj.which_revision[0])
 
         if cmd_line_options_obj.dock_item_path:
-            var_stack.add_const_config_variable("__DOCK_ITEM_PATH__", "from command line options", *cmd_line_options_obj.dock_item_path)
+            var_stack.add_const_config_variable("__DOCK_ITEM_PATH__", default_remark, *cmd_line_options_obj.dock_item_path)
         if cmd_line_options_obj.dock_item_label:
-            var_stack.add_const_config_variable("__DOCK_ITEM_LABEL__", "from command line options", *cmd_line_options_obj.dock_item_label)
+            var_stack.add_const_config_variable("__DOCK_ITEM_LABEL__", default_remark, *cmd_line_options_obj.dock_item_label)
         if cmd_line_options_obj.remove_from_dock:
-            var_stack.add_const_config_variable("__REMOVE_FROM_DOCK__", "from command line options", "yes")
+            var_stack.add_const_config_variable("__REMOVE_FROM_DOCK__", default_remark, "yes")
         if cmd_line_options_obj.restart_the_dock:
-            var_stack.add_const_config_variable("__RESTART_THE_DOCK__", "from command line options", "yes")
+            var_stack.add_const_config_variable("__RESTART_THE_DOCK__", default_remark, "yes")
         if cmd_line_options_obj.fail_exit_code:
-            var_stack.add_const_config_variable("__FAIL_EXIT_CODE__", "from command line options", *cmd_line_options_obj.fail_exit_code)
+            var_stack.add_const_config_variable("__FAIL_EXIT_CODE__", default_remark, *cmd_line_options_obj.fail_exit_code)
         if cmd_line_options_obj.set_run_as_admin:
-            var_stack.add_const_config_variable("__RUN_AS_ADMIN__", "from command line options", "yes")
+            var_stack.add_const_config_variable("__RUN_AS_ADMIN__", default_remark, "yes")
         if cmd_line_options_obj.only_installed:
-            var_stack.add_const_config_variable("__REPORT_ONLY_INSTALLED__", "from command line options", "yes")
+            var_stack.add_const_config_variable("__REPORT_ONLY_INSTALLED__", default_remark, "yes")
         if var_stack.ResolveVarToStr("__CURRENT_OS__") == "Mac":
             if cmd_line_options_obj.parallel:
-                var_stack.add_const_config_variable("__RUN_COMMAND_LIST_IN_PARALLEL__", "from command line options", "yes")
+                var_stack.add_const_config_variable("__RUN_COMMAND_LIST_IN_PARALLEL__", default_remark, "yes")
         if cmd_line_options_obj.no_numbers_progress:
-            var_stack.add_const_config_variable("__NO_NUMBERS_PROGRESS__", "from command line options", "yes")
+            var_stack.add_const_config_variable("__NO_NUMBERS_PROGRESS__", default_remark, "yes")
 
 
         if cmd_line_options_obj.define:
