@@ -52,7 +52,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             - If the file item has a predefined url it will be used, otherwise
             - the url is a concatenation of the base url, the file's repo-rev
             and the partial path. E.g.:
-            "http://some.base.url/" + "727/" + "path/to/file"
+            "http://some.base.url/" + "0/7/2/7/" + "path/to/file"
             The download path is the resolved file item's download_path
         """
         self.sync_base_url = var_stack.ResolveVarToStr("SYNC_BASE_URL")
@@ -60,7 +60,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
         for file_item in in_file_list:
             source_url = file_item.url
             if source_url is None:
-                source_url = '/'.join(utils.make_one_list(self.sync_base_url, str(file_item.revision), file_item.path))
+                repo_rev_folder_hierarchy = self.repo_rev_to_folder_hierarchy(file_item.revision)
+                source_url = '/'.join(utils.make_one_list(self.sync_base_url, repo_rev_folder_hierarchy, file_item.path))
             self.instlObj.platform_helper.dl_tool.add_download_url(source_url, file_item.download_path, verbatim=source_url==file_item.url, size=file_item.size)
         self.instlObj.progress("created sync urls for {} files".format(len(in_file_list)))
 

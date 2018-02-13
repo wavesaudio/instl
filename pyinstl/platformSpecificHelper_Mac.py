@@ -166,9 +166,9 @@ report_invocation_end() {{
         rmdir_command = " ".join(rmdir_command_parts)
         return rmdir_command
 
-    def rmfile(self, a_file, check_exist=False):
+    def rmfile(self, a_file, quote_char='"', check_exist=False):
         rmfile_command_parts = list()
-        norm_file = utils.quoteme_double(a_file)
+        norm_file = utils.quoteme(a_file, quote_char)
         if check_exist:
             rmfile_command_parts.extend(("[", "!", "-f", norm_file, "]", "||"))
         rmfile_command_parts.extend(("rm", "-f", norm_file))

@@ -217,15 +217,10 @@ class InstlAdmin(InstlInstanceBase):
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
 
-    def repo_rev_to_folder_hierarchy(self, repo_rev, num_digits):
-        repo_rev_str = str(repo_rev)
-        retVal = "/".join(repo_rev_str.zfill(num_digits))
-        return retVal
-
     def create_links_for_revision(self, accum):
         base_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/Base"
         curr_repo_rev = var_stack.ResolveVarToStr("__CURR_REPO_REV__")
-        curr_repo_rev_folder_hierarchy = self.repo_rev_to_folder_hierarchy(curr_repo_rev, 4)  # 123 -> 0/1/2/3
+        curr_repo_rev_folder_hierarchy = self.repo_rev_to_folder_hierarchy(curr_repo_rev)  # 123 -> 0/1/2/3
 
         revision_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/"+curr_repo_rev_folder_hierarchy
         revision_instl_folder_path = revision_folder_path + "/instl"
@@ -311,7 +306,7 @@ class InstlAdmin(InstlInstanceBase):
         dirs_that_need_upload = list()
         dirs_missing = list()
         for dir_as_int in revision_list:
-            dir_as_int_folder_hierarchy = self.repo_rev_to_folder_hierarchy(curr_repo_rev, 4)
+            dir_as_int_folder_hierarchy = self.repo_rev_to_folder_hierarchy(curr_repo_rev)
             dir_name = str(dir_as_int)
             if not os.path.isdir(var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/" + dir_as_int_folder_hierarchy)):
                 print("revision dir", dir_as_int_folder_hierarchy, "is missing, run create-links to create this folder")
@@ -363,13 +358,13 @@ class InstlAdmin(InstlInstanceBase):
     def upload_to_s3_aws_for_revision(self, accum):
         map_file_path = 'instl/full_info_map.txt'
         curr_repo_rev = var_stack.ResolveVarToStr("__CURR_REPO_REV__")
-        curr_repo_rev_folder_hierarchy = self.repo_rev_to_folder_hierarchy(curr_repo_rev, 4)
+        curr_repo_rev_folder_hierarchy = self.repo_rev_to_folder_hierarchy(curr_repo_rev)
         info_map_path = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/"+curr_repo_rev_folder_hierarchy+"/" + map_file_path)
         repo_rev = int(var_stack.ResolveVarToStr("__CURR_REPO_REV__"))
         self.info_map_table.clear_all()
         self.info_map_table.read_from_file(info_map_path)
 
-        accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
+        accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)/"+curr_repo_rev_folder_hierarchy)
 
         if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
             accum += "find . -name .DS_Store -delete"
@@ -383,7 +378,7 @@ class InstlAdmin(InstlInstanceBase):
         # remove all unrequired files
         unrequired_files = self.info_map_table.get_unrequired_file_paths()
         for i, unrequired_file in enumerate(unrequired_files):
-            accum += self.platform_helper.rmfile(unrequired_file)
+            accum += self.platform_helper.rmfile(unrequired_file, "'")
             if i % 1000 == 0:  # only report every 1000'th file
                 accum += self.platform_helper.progress("rmfile " + unrequired_file +" & 999 more")
 
@@ -397,7 +392,7 @@ class InstlAdmin(InstlInstanceBase):
         accum += " ".join( ("find", ".", "-type", "l", "!", "-exec", "test", "-e", "{}", "\;", "-exec", "rm", "-f", "{}", "\;") )
 
         accum += " ".join(["aws", "s3", "sync",
-                           ".", "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_REV__)",
+                           ".", "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/"+curr_repo_rev_folder_hierarchy,
                            "--exclude", '"*.DS_Store"',
                            "--exclude", '"$(UP_2_S3_STAMP_FILE_NAME)"',
                            "--exclude", '"$(CREATE_LINKS_STAMP_FILE_NAME)"'
@@ -412,7 +407,7 @@ class InstlAdmin(InstlInstanceBase):
         accum += self.platform_helper.progress("up-repo-rev file - just with number")
 
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(UP_2_S3_STAMP_FILE_NAME)"])
-        accum += self.platform_helper.progress("Uploaded $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
+        accum += self.platform_helper.progress("Uploaded $(ROOT_LINKS_FOLDER_REPO)/"+curr_repo_rev_folder_hierarchy)
         accum += " ".join(("echo", "find", ".", "-mindepth",  "1", "-maxdepth", "1", "-type", "d", "-not", "-name", "instl"))  #, "-print0", "|", "xargs", "-0", "rm", "-fr"
         accum += self.platform_helper.echo("done up2s3 revision $(__CURR_REPO_REV__)")
 
@@ -574,7 +569,7 @@ class InstlAdmin(InstlInstanceBase):
             for symlink_file, link_value in valid_symlinks:
                 symlink_text_path = symlink_file + ".symlink"
                 self.batch_accum += " ".join(("echo", "-n", "'" + link_value + "'", ">", "'" + symlink_text_path + "'"))
-                self.batch_accum += self.platform_helper.rmfile(symlink_file)
+                self.batch_accum += self.platform_helper.rmfile(symlink_file,)
                 self.batch_accum += self.platform_helper.progress(symlink_text_path)
                 self.batch_accum += self.platform_helper.new_line()
 

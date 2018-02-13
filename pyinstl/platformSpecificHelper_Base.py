@@ -264,8 +264,10 @@ class PlatformSpecificHelperBase(object):
         pass
 
     @abc.abstractmethod
-    def rmfile(self, a_file, check_exist=False):
-        """ platform specific rm file """
+    def rmfile(self, a_file, quote_char='"', check_exist=False):
+        """ platform specific rm file
+        :param quote_char:
+        """
         pass
 
     @abc.abstractmethod

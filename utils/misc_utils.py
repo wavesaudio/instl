@@ -356,20 +356,28 @@ def need_to_download_file(file_path, file_checksum):
     return retVal
 
 
+def quoteme(to_quote, quote_char):
+    return "".join((quote_char, to_quote, quote_char))
+
+
+def quoteme_list(to_quote_list, quote_char):
+    return [quoteme(to_q, quote_char) for to_q in to_quote_list]
+
+
 def quoteme_single(to_quote):
-    return "".join(("'", to_quote, "'"))
+    return quoteme(to_quote, "'")
 
 
 def quoteme_single_list(to_quote_list, ):
-    return [quoteme_single(to_q) for to_q in to_quote_list]
+    return quoteme_list(to_quote_list, "'")
 
 
 def quoteme_double(to_quote):
-    return "".join(('"', to_quote, '"'))
+    return quoteme(to_quote, '"')
 
 
 def quoteme_double_list(to_quote_list):
-    return [quoteme_double(to_q) for to_q in to_quote_list]
+    return quoteme_list(to_quote_list, '"')
 
 
 def quoteme_double_list_for_sql(to_quote_list):

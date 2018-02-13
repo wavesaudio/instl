@@ -60,3 +60,6 @@ TASKLIST_PATH: tasklist.exe
 CMD_TOOLS_TO_FIND_INTERNAL:
   - XCOPY_PATH
   - TASKLIST_PATH
+
+# e.g. 4 means repo-rev 123 becomes a folder hierarchy with 0 padding: 0/1/2/3
+NUM_DIGITS_REPO_REV_HIERARCHY: 4

@@ -67,8 +67,8 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
             rmdir_command = " ".join(("rmdir", utils.quoteme_double(directory) ))
         return rmdir_command
 
-    def rmfile(self, a_file):
-        rmfile_command = " ".join(("rm", "-f", utils.quoteme_double(a_file) ))
+    def rmfile(self, a_file, quote_char='"', check_exist=False):
+        rmfile_command = " ".join(("rm", "-f", utils.quoteme(a_file, quote_char) ))
         return rmfile_command
 
     def get_svn_folder_cleanup_instructions(self):

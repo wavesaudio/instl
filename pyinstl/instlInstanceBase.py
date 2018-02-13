@@ -543,3 +543,8 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         min_revision, max_revision = self.info_map_table.min_max_revision()
         var_stack.set_var("MIN_REPO_REV", "from " + info_map_from_file_path).append(min_revision)
         var_stack.set_var("MAX_REPO_REV", "from " + info_map_from_file_path).append(max_revision)
+
+    def repo_rev_to_folder_hierarchy(self, repo_rev):
+        num_digits_repo_rev_hierarchy=int(var_stack.ResolveVarToStr("NUM_DIGITS_REPO_REV_HIERARCHY"))
+        retVal = "/".join(str(repo_rev).zfill(num_digits_repo_rev_hierarchy))
+        return retVal
