@@ -46,8 +46,10 @@ PRINT_COMMAND_TIME: yes
 
 TAR_MANIFEST_FILE_NAME: __TAR_CONTENT__.txt
 
-# e.g. 4 means repo-rev 123 becomes a folder hierarchy with 0 padding: 0/1/2/3
+# e.g. 4&2 means repo-rev 123 becomes a folder hierarchy with 0 padding: 01/23
+# NUM_DIGITS_REPO_REV_HIERARCHY should be multiple of NUM_DIGITS_PER_FOLDER_REPO_REV_HIERARCHY
 NUM_DIGITS_REPO_REV_HIERARCHY: 4
+NUM_DIGITS_PER_FOLDER_REPO_REV_HIERARCHY: 2
 
 --- !define_Mac
 MKDIR_CMD: mkdir_with_owner

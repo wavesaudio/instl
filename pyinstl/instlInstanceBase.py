@@ -547,5 +547,8 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def repo_rev_to_folder_hierarchy(self, repo_rev):
         num_digits_repo_rev_hierarchy=int(var_stack.ResolveVarToStr("NUM_DIGITS_REPO_REV_HIERARCHY"))
-        retVal = "/".join(str(repo_rev).zfill(num_digits_repo_rev_hierarchy))
+        num_digits_per_folder_repo_rev_hierarchy=int(var_stack.ResolveVarToStr("NUM_DIGITS_PER_FOLDER_REPO_REV_HIERARCHY"))
+        zero_pad_repo_rev = str(repo_rev).zfill(num_digits_repo_rev_hierarchy)
+        by_groups = [zero_pad_repo_rev[i:i+num_digits_per_folder_repo_rev_hierarchy] for i in range(0, len(zero_pad_repo_rev), num_digits_per_folder_repo_rev_hierarchy)]
+        retVal = "/".join(by_groups)
         return retVal

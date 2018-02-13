@@ -224,9 +224,11 @@ class InstlAdmin(InstlInstanceBase):
             self.run_batch_file()
 
     def create_links_for_revision(self, accum):
+        print(var_stack.ResolveVarToStr("__CURR_REPO_REV__"))
+        print(var_stack.ResolveVarToStr("__CURR_REPO_FOLDER_HIERARCHY__"))
+        assert var_stack.ResolveVarToStr("__CURR_REPO_REV__") == "".join(var_stack.ResolveVarToStr("__CURR_REPO_FOLDER_HIERARCHY__").split("/")).lstrip("0")
         base_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/Base"
         curr_repo_rev = var_stack.ResolveVarToStr("__CURR_REPO_REV__")
-
         revision_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)"
         revision_instl_folder_path = revision_folder_path + "/instl"
 
@@ -239,7 +241,8 @@ class InstlAdmin(InstlInstanceBase):
 
         # copy Base folder to revision folder
         accum += self.platform_helper.mkdir(revision_folder_path)
-        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(base_folder_path, revision_folder_path,
+        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(var_stack.ResolveStrToStr(base_folder_path),
+                                                                         var_stack.ResolveStrToStr(revision_folder_path),
                                                                          link_dest=True, ignore=".svn", preserve_dest_files=False)
         accum += self.platform_helper.progress("Copy revision $(__CURR_REPO_REV__) to "+revision_folder_path)
 
@@ -304,14 +307,20 @@ class InstlAdmin(InstlInstanceBase):
             raise ValueError("base_repo_rev "+str(base_repo_rev)+" > last_repo_rev "+str(last_repo_rev))
 
         max_repo_rev_to_work_on = curr_repo_rev
-        if "__ALL_REVISIONS__" in var_stack:
-            max_repo_rev_to_work_on = last_repo_rev
+        if "__WHICH_REVISION__" in var_stack:
+            which_revision = var_stack.ResolveVarToStr("__WHICH_REVISION__")
+            if which_revision == "all":
+                max_repo_rev_to_work_on = last_repo_rev
+            else:  # force one specific revision
+                base_repo_rev = int(which_revision)
+                max_repo_rev_to_work_on = base_repo_rev
+
         revision_list = list(range(base_repo_rev, max_repo_rev_to_work_on+1))
         dirs_that_dont_need_upload = list()
         dirs_that_need_upload = list()
         dirs_missing = list()
         for dir_as_int in revision_list:
-            dir_as_int_folder_hierarchy = self.repo_rev_to_folder_hierarchy(curr_repo_rev)
+            dir_as_int_folder_hierarchy = self.repo_rev_to_folder_hierarchy(dir_as_int)
             dir_name = str(dir_as_int)
             if not os.path.isdir(var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/" + dir_as_int_folder_hierarchy)):
                 print("revision dir", dir_as_int_folder_hierarchy, "is missing, run create-links to create this folder")
@@ -362,6 +371,7 @@ class InstlAdmin(InstlInstanceBase):
             self.run_batch_file()
 
     def upload_to_s3_aws_for_revision(self, accum):
+        assert var_stack.ResolveVarToStr("__CURR_REPO_REV__") == "".join(var_stack.ResolveVarToStr("__CURR_REPO_FOLDER_HIERARCHY__").split("/")).lstrip("0")
         map_file_path = 'instl/full_info_map.txt'
         curr_repo_rev = var_stack.ResolveVarToStr("__CURR_REPO_REV__")
         info_map_path = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/" + map_file_path)
@@ -428,7 +438,7 @@ class InstlAdmin(InstlInstanceBase):
             raise ValueError("REPO_REV_FILE_VARS must be defined")
         repo_rev_vars = var_stack.ResolveVarToList("REPO_REV_FILE_VARS")
         var_stack.set_var("REPO_REV").append("$(TARGET_REPO_REV)")  # override the repo rev from the config file
-        var_stack.set_var("__CURR_REPO_FOLDER_HIERARCHY__").append(self.repo_rev_to_folder_hierarchy(revision))
+        var_stack.set_var("__CURR_REPO_FOLDER_HIERARCHY__").append(self.repo_rev_to_folder_hierarchy(var_stack.ResolveVarToStr("TARGET_REPO_REV")))
 
         dangerous_intersection = set(repo_rev_vars).intersection(
             {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "PRIVATE_KEY", "PRIVATE_KEY_FILE"})
