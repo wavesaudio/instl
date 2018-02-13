@@ -217,9 +217,17 @@ class InstlAdmin(InstlInstanceBase):
         if "__RUN_BATCH__" in var_stack:
             self.run_batch_file()
 
+    def repo_rev_to_folder_hierarchy(self, repo_rev, num_digits):
+        repo_rev_str = str(repo_rev)
+        retVal = "/".join(repo_rev_str.zfill(num_digits))
+        return retVal
+
     def create_links_for_revision(self, accum):
         base_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/Base"
-        revision_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)"
+        curr_repo_rev = var_stack.ResolveVarToStr("__CURR_REPO_REV__")
+        curr_repo_rev_folder_hierarchy = self.repo_rev_to_folder_hierarchy(curr_repo_rev, 4)  # 123 -> 0/1/2/3
+
+        revision_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/"+curr_repo_rev_folder_hierarchy
         revision_instl_folder_path = revision_folder_path + "/instl"
 
         # sync revision __CURR_REPO_REV__ from SVN to Base folder
@@ -303,16 +311,17 @@ class InstlAdmin(InstlInstanceBase):
         dirs_that_need_upload = list()
         dirs_missing = list()
         for dir_as_int in revision_list:
+            dir_as_int_folder_hierarchy = self.repo_rev_to_folder_hierarchy(curr_repo_rev, 4)
             dir_name = str(dir_as_int)
-            if not os.path.isdir(var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/" + dir_name)):
-                print("revision dir", dir_name, "is missing, run create-links to create this folder")
+            if not os.path.isdir(var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/" + dir_as_int_folder_hierarchy)):
+                print("revision dir", dir_as_int_folder_hierarchy, "is missing, run create-links to create this folder")
                 dirs_missing.append(dir_name)
             else:
-                create_links_done_stamp_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/"+dir_name+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
+                create_links_done_stamp_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/"+dir_as_int_folder_hierarchy+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
                 if not os.path.isfile(create_links_done_stamp_file):
-                    print("revision dir", dir_name, "does not have create-links stamp file:", create_links_done_stamp_file)
+                    print("revision dir", dir_as_int_folder_hierarchy, "does not have create-links stamp file:", create_links_done_stamp_file)
                 else:
-                    up_2_s3_done_stamp_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/"+dir_name+"/$(UP_2_S3_STAMP_FILE_NAME)")
+                    up_2_s3_done_stamp_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/"+dir_as_int_folder_hierarchy+"/$(UP_2_S3_STAMP_FILE_NAME)")
                     if os.path.isfile(up_2_s3_done_stamp_file):
                         dirs_that_dont_need_upload.append(dir_name)
                     else:
@@ -353,7 +362,9 @@ class InstlAdmin(InstlInstanceBase):
 
     def upload_to_s3_aws_for_revision(self, accum):
         map_file_path = 'instl/full_info_map.txt'
-        info_map_path = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/" + map_file_path)
+        curr_repo_rev = var_stack.ResolveVarToStr("__CURR_REPO_REV__")
+        curr_repo_rev_folder_hierarchy = self.repo_rev_to_folder_hierarchy(curr_repo_rev, 4)
+        info_map_path = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/"+curr_repo_rev_folder_hierarchy+"/" + map_file_path)
         repo_rev = int(var_stack.ResolveVarToStr("__CURR_REPO_REV__"))
         self.info_map_table.clear_all()
         self.info_map_table.read_from_file(info_map_path)
