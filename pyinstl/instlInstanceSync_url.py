@@ -60,7 +60,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         for file_item in in_file_list:
             source_url = file_item.url
             if source_url is None:
-                repo_rev_folder_hierarchy = self.repo_rev_to_folder_hierarchy(file_item.revision)
+                repo_rev_folder_hierarchy = self.instlObj.repo_rev_to_folder_hierarchy(file_item.revision)
                 source_url = '/'.join(utils.make_one_list(self.sync_base_url, repo_rev_folder_hierarchy, file_item.path))
             self.instlObj.platform_helper.dl_tool.add_download_url(source_url, file_item.download_path, verbatim=source_url==file_item.url, size=file_item.size)
         self.instlObj.progress("created sync urls for {} files".format(len(in_file_list)))
