@@ -1,3 +1,15 @@
 python 3.6 warning: pathlib.Path.resolve() works differently in 3.6
 resolving file name to current directory.
 So variable_name_endings_to_normpath create wrong paths and should be replaced.
+
+Nir Arad says:
+I think this issue is already fixed
+This was entered in 3.6.0
+bpo-19717: Makes Path.resolve() succeed on paths that do not exist. Patch by Vajrasky Kok
+
+This entered in 3.6.1
+bpo-29079: Prevent infinite loop in pathlib.resolve() on Windows
+
+This entered in 3.6.2
+bpo-30177: path.resolve(strict=False) no longer cuts the path after the first element not present in the filesystem. Patch by Antoine Pietri.
+
