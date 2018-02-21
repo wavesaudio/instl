@@ -448,8 +448,9 @@ class InstlAdmin(InstlInstanceBase):
         var_stack.set_var("INFO_MAP_CHECKSUM").append(info_map_sigs["sha1_checksum"])
         #var_stack.set_var("INFO_MAP_FILE_URL_CHECKSUM").append("$(INFO_MAP_CHECKSUM)")
 
-        var_stack.set_var("INDEX_URL_RELATIVE_PATH").append("$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml")
-        var_stack.set_var("INDEX_URL").append("$(S3_BUCKET_BASE_URL)/$(INDEX_URL_RELATIVE_PATH)")
+        the_var = var_stack.set_var("RELATIVE_INDEX_URL").append("$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml")
+        var_stack.set_var("INDEX_URL").append("$(BASE_LINKS_URL)/$(RELATIVE_INDEX_URL)")
+
         index_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml")
         index_file_sigs = self.create_sig_for_file(index_file)
         var_stack.set_var("INDEX_CHECKSUM").append(index_file_sigs["sha1_checksum"])
