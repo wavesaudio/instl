@@ -266,11 +266,6 @@ def create_file_signatures(file_path, private_key_text=None):
         sha1ner.update(file_contents)
         checksum = sha1ner.hexdigest()
         retVal["sha1_checksum"] = checksum
-        if private_key_text is not None:
-            private_key_obj = rsa.PrivateKey.load_pkcs1(private_key_text, format='PEM')
-            binary_sig = rsa.sign(file_contents, private_key_obj, 'SHA-512')
-            text_sig = base64.b64encode(binary_sig)
-            retVal["SHA-512_rsa_sig"] = text_sig
     return retVal
 
 
