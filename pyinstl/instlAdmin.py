@@ -427,10 +427,7 @@ class InstlAdmin(InstlInstanceBase):
         accum += self.platform_helper.echo("done up2s3 revision $(__CURR_REPO_REV__)")
 
     def create_sig_for_file(self, file_to_sig):
-        config_dir, _ = os.path.split(var_stack.ResolveVarToStr("__CONFIG_FILE_PATH__"))
-        private_key_file = os.path.join(config_dir, var_stack.ResolveVarToStr("REPO_NAME") + ".private_key")
-        with open(private_key_file, "rb") as private_key_fd:
-            retVal = utils.create_file_signatures(file_to_sig, private_key_fd.read())
+        retVal = utils.create_file_signatures(file_to_sig, None)
         return retVal
 
     def do_create_repo_rev_file(self):
@@ -451,11 +448,10 @@ class InstlAdmin(InstlInstanceBase):
         var_stack.set_var("INFO_MAP_CHECKSUM").append(info_map_sigs["sha1_checksum"])
         #var_stack.set_var("INFO_MAP_FILE_URL_CHECKSUM").append("$(INFO_MAP_CHECKSUM)")
 
-        var_stack.set_var("INDEX_URL_RELATIVE_PATH").append("$(REPO_NAME)/$(REPO_REV)/instl/index.yaml")
+        var_stack.set_var("INDEX_URL_RELATIVE_PATH").append("$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml")
         var_stack.set_var("INDEX_URL").append("$(S3_BUCKET_BASE_URL)/$(INDEX_URL_RELATIVE_PATH)")
         index_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml")
         index_file_sigs = self.create_sig_for_file(index_file)
-        var_stack.set_var("INDEX_SIG").append(index_file_sigs["SHA-512_rsa_sig"])
         var_stack.set_var("INDEX_CHECKSUM").append(index_file_sigs["sha1_checksum"])
 
         for var in repo_rev_vars:
