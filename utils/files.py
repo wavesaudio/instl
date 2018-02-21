@@ -485,8 +485,8 @@ if __name__ == "__main__":
     combo_data = reqs.request("GetInstlUrlComboCollection", {'repositoryRevision': '-1', "repositoryVersions":[9]})
     #print("combo_data:\n", combo_data)
     InstlUrlAccessParameters = combo_data['oResult'][0]['InstlUrlAccessParameters']
-    repo_rev_yaml_url = "https://" + InstlUrlAccessParameters['ResourceRootUrl'] + "/admin/V9_repo_rev.yaml"
-    index_yaml_url = "https://" + InstlUrlAccessParameters['ResourceRootUrl'] + "/V9/795/instl/index.yaml"
+    repo_rev_yaml_url = "https://" + InstlUrlAccessParameters['ResourceRootUrl'] + "/admin/V10_repo_rev.yaml"
+    index_yaml_url = "https://" + InstlUrlAccessParameters['ResourceRootUrl'] + "/V10/795/instl/index.yaml"
 
     netloc_and_cookies = translate_cookies_from_GetInstlUrlComboCollection(InstlUrlAccessParameters)
     var_stack.set_var("COOKIE_JAR").append(netloc_and_cookies)
@@ -497,6 +497,6 @@ if __name__ == "__main__":
     the_text = utils.read_file_or_url(index_yaml_url)
     print("index.yaml:", index_yaml_re.search(the_text).groups(1)[0])
 
-    local_index = "/Volumes/BonaFide/installers/betainstl/V9/svn/instl/index.yaml"
+    local_index = "/Volumes/BonaFide/installers/betainstl/V10/svn/instl/index.yaml"
     the_text = utils.read_file_or_url(local_index)
     print("local index.yaml:", index_yaml_re.search(the_text).groups(1)[0])

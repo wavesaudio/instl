@@ -224,8 +224,6 @@ class InstlAdmin(InstlInstanceBase):
             self.run_batch_file()
 
     def create_links_for_revision(self, accum):
-        print(var_stack.ResolveVarToStr("__CURR_REPO_REV__"))
-        print(var_stack.ResolveVarToStr("__CURR_REPO_FOLDER_HIERARCHY__"))
         assert var_stack.ResolveVarToStr("__CURR_REPO_REV__") == "".join(var_stack.ResolveVarToStr("__CURR_REPO_FOLDER_HIERARCHY__").split("/")).lstrip("0")
         base_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/Base"
         curr_repo_rev = var_stack.ResolveVarToStr("__CURR_REPO_REV__")
