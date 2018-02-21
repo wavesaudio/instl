@@ -326,6 +326,11 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 if "checksum" in i_node:
                     expected_checksum = var_stack.ResolveStrToStr(i_node["checksum"].value)
                     cached_file_path = os.path.join(cached_files_dir, expected_checksum)
+                else:
+                    last_path_part = utils.last_url_item(resolved_file_url)
+                    cached_file_path = os.path.join(cached_files_dir, last_path_part)
+                    # since there is no checksum, remove the file from cache so it will be read downloaded again
+                    utils.safe_remove_file(cached_file_path)
 
                 expected_signature = None
                 public_key_text = None
@@ -333,23 +338,19 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                     expected_signature = var_stack.ResolveStrToStr(i_node["sig"].value)
                     public_key_text = self.provision_public_key_text()
 
-                if expected_checksum is None:
-                    self.read_yaml_file(resolved_file_url, *args, **kwargs)
-                    cached_file_path = resolved_file_url
-                else:
-                    try:
-                        utils.download_from_file_or_url(resolved_file_url,cached_file_path,
-                                                  connectionBase.translate_url, cache=True,
-                                                  public_key=public_key_text,
-                                                  textual_sig=expected_signature,
-                                                  expected_checksum=expected_checksum)
-                        self.read_yaml_file(cached_file_path, *args, **kwargs)
-                    except (FileNotFoundError, urllib.error.URLError):
-                        ignore = kwargs.get('ignore_if_not_exist', False)
-                        if ignore:
-                            print("'ignore_if_not_exist' specified, ignoring FileNotFoundError for", resolved_file_url)
-                        else:
-                            raise
+                try:
+                    utils.download_from_file_or_url(resolved_file_url,cached_file_path,
+                                              connectionBase.translate_url, cache=True,
+                                              public_key=public_key_text,
+                                              textual_sig=expected_signature,
+                                              expected_checksum=expected_checksum)
+                    self.read_yaml_file(cached_file_path, *args, **kwargs)
+                except (FileNotFoundError, urllib.error.URLError):
+                    ignore = kwargs.get('ignore_if_not_exist', False)
+                    if ignore:
+                        print("'ignore_if_not_exist' specified, ignoring FileNotFoundError for", resolved_file_url)
+                    else:
+                        raise
 
                 if "copy" in i_node:
                     self.batch_accum.set_current_section('post')
