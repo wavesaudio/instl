@@ -224,8 +224,6 @@ class InstlAdmin(InstlInstanceBase):
             self.run_batch_file()
 
     def create_links_for_revision(self, accum):
-        print(var_stack.ResolveVarToStr("__CURR_REPO_REV__"))
-        print(var_stack.ResolveVarToStr("__CURR_REPO_FOLDER_HIERARCHY__"))
         assert var_stack.ResolveVarToStr("__CURR_REPO_REV__") == "".join(var_stack.ResolveVarToStr("__CURR_REPO_FOLDER_HIERARCHY__").split("/")).lstrip("0")
         base_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/Base"
         curr_repo_rev = var_stack.ResolveVarToStr("__CURR_REPO_REV__")
@@ -451,7 +449,7 @@ class InstlAdmin(InstlInstanceBase):
         var_stack.set_var("INFO_MAP_CHECKSUM").append(info_map_sigs["sha1_checksum"])
         #var_stack.set_var("INFO_MAP_FILE_URL_CHECKSUM").append("$(INFO_MAP_CHECKSUM)")
 
-        var_stack.set_var("INDEX_URL_RELATIVE_PATH").append("$(REPO_NAME)/$(REPO_REV)/instl/index.yaml")
+        var_stack.set_var("INDEX_URL_RELATIVE_PATH").append("$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml")
         var_stack.set_var("INDEX_URL").append("$(S3_BUCKET_BASE_URL)/$(INDEX_URL_RELATIVE_PATH)")
         index_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml")
         index_file_sigs = self.create_sig_for_file(index_file)
