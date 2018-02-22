@@ -1222,9 +1222,9 @@ class InstlAdmin(InstlInstanceBase):
         with open(default_info_map_file_path, "a") as wfd:
             wfd.write("\n".join(lines_for_main_info_map))
 
-        zip_info_map_file_path = default_info_map_file_path+".wzlib"
-        with open(zip_info_map_file_path, "wb") as wfd:
-            wfd.write(zlib.compress(open(info_map_file_path, "rb").read(), zlib_compression_level))
+        zip_default_info_map_file_path = default_info_map_file_path+".wzlib"
+        with open(zip_default_info_map_file_path, "wb") as wfd:
+            wfd.write(zlib.compress(open(default_info_map_file_path, "rb").read(), zlib_compression_level))
 
     def do_read_info_map(self):
         files_to_read = var_stack.ResolveVarToList("__MAIN_INPUT_FILE__")
