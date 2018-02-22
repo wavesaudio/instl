@@ -9,6 +9,7 @@ import shutil
 import subprocess
 from collections import defaultdict
 import stat
+import zlib
 
 import utils
 import aYaml
@@ -1178,6 +1179,7 @@ class InstlAdmin(InstlInstanceBase):
         instl_folder = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         full_info_map_file_path = var_stack.ResolveStrToStr(os.path.join(instl_folder, "$(FULL_INFO_MAP_FILE_NAME)"))
         index_yaml_path = os.path.join(instl_folder, "index.yaml")
+        zlib_compression_level = int(var_stack.ResolveVarToStr("ZLIB_COMPRESSION_LEVEL"))
 
         # read the index
         self.read_yaml_file(index_yaml_path)
@@ -1196,6 +1198,11 @@ class InstlAdmin(InstlInstanceBase):
             if info_map_items:  # could be that no items are linked to the info map file
                 info_map_file_path = os.path.join(instl_folder, infomap_file_name)
                 self.info_map_table.write_to_file(in_file=info_map_file_path, items_list=info_map_items, field_to_write=self.fields_relevant_to_info_map)
+
+                zip_info_map_file_path = info_map_file_path+".wzlib"
+                with open(zip_info_map_file_path, "wb") as wfd:
+                    wfd.write(zlib.compress(open(info_map_file_path, "rb").read(), zlib_compression_level))
+
                 info_map_checksum = utils.get_file_checksum(info_map_file_path)
                 info_map_size = os.path.getsize(info_map_file_path)
                 line_for_main_info_map = "instl/{infomap_file_name}, f, $(REPO_REV), {info_map_checksum}, {info_map_size}".format(**locals())
@@ -1209,7 +1216,13 @@ class InstlAdmin(InstlInstanceBase):
         with open(default_info_map_file_path, "a") as wfd:
             wfd.write("\n".join(lines_for_main_info_map))
 
+        zip_info_map_file_path = default_info_map_file_path+".wzlib"
+        with open(zip_info_map_file_path, "wb") as wfd:
+            wfd.write(zlib.compress(open(info_map_file_path, "rb").read(), zlib_compression_level))
+
     def do_read_info_map(self):
         files_to_read = var_stack.ResolveVarToList("__MAIN_INPUT_FILE__")
         for f2r in files_to_read:
             self.info_map_table.read_from_file(f2r)
+
+
