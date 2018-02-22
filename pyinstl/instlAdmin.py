@@ -434,6 +434,9 @@ class InstlAdmin(InstlInstanceBase):
         repo_rev_vars = var_stack.ResolveVarToList("REPO_REV_FILE_VARS")
         var_stack.set_var("REPO_REV").append("$(TARGET_REPO_REV)")  # override the repo rev from the config file
         var_stack.set_var("__CURR_REPO_FOLDER_HIERARCHY__").append(self.repo_rev_to_folder_hierarchy(var_stack.ResolveVarToStr("TARGET_REPO_REV")))
+        var_stack.set_var("REPO_REV_FOLDER_HIERARCHY").append("$(__CURR_REPO_FOLDER_HIERARCHY__)")
+
+        var_stack.set_var("INSTL_FOLDER_BASE_URL").append("$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl")
 
         dangerous_intersection = set(repo_rev_vars).intersection(
             {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "PRIVATE_KEY", "PRIVATE_KEY_FILE"})
@@ -441,14 +444,14 @@ class InstlAdmin(InstlInstanceBase):
             print("found", str(dangerous_intersection), "in REPO_REV_FILE_VARS, aborting")
             raise ValueError("file REPO_REV_FILE_VARS "+str(dangerous_intersection)+" and so is forbidden to upload")
 
+        var_stack.set_var("RELATIVE_INFO_MAP_URL").append("$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt")
+        var_stack.set_var("INFO_MAP_FILE_URL").append("$(BASE_LINKS_URL)/$(RELATIVE_INFO_MAP_URL)")
         info_map_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt")
         info_map_sigs = self.create_sig_for_file(info_map_file)
         var_stack.set_var("INFO_MAP_CHECKSUM").append(info_map_sigs["sha1_checksum"])
-        #var_stack.set_var("INFO_MAP_FILE_URL_CHECKSUM").append("$(INFO_MAP_CHECKSUM)")
 
-        the_var = var_stack.set_var("RELATIVE_INDEX_URL").append("$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml")
+        var_stack.set_var("RELATIVE_INDEX_URL").append("$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml")
         var_stack.set_var("INDEX_URL").append("$(BASE_LINKS_URL)/$(RELATIVE_INDEX_URL)")
-
         index_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml")
         index_file_sigs = self.create_sig_for_file(index_file)
         var_stack.set_var("INDEX_CHECKSUM").append(index_file_sigs["sha1_checksum"])
