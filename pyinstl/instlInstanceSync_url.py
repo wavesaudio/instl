@@ -52,7 +52,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             - If the file item has a predefined url it will be used, otherwise
             - the url is a concatenation of the base url, the file's repo-rev
             and the partial path. E.g.:
-            "http://some.base.url/" + "0/7/2/7/" + "path/to/file"
+            "http://some.base.url/" + "07/27" + "/path/to/file"
             The download path is the resolved file item's download_path
         """
         self.sync_base_url = var_stack.ResolveVarToStr("SYNC_BASE_URL")

@@ -1,9 +1,5 @@
 --- !define
 
-BOOKKEEPING_DIR_URL: $(SYNC_BASE_URL)/instl
-INFO_MAP_FILES_URL_PREFIX: $(SYNC_BASE_URL)/$(REPO_REV)/instl
-INFO_MAP_FILE_URL: $(INFO_MAP_FILES_URL_PREFIX)/info_map.txt
-
 PARALLEL_SYNC: 32
 CURL_CONFIG_FILE_NAME: Download-Thread
 CURL_CONNECT_TIMEOUT: 16 # Maximum time in seconds that you allow curl's connection to take. This only limits the connection phase, so if curl connects within the given period it will continue - if not it will exit.

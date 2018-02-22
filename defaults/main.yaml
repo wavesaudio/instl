@@ -48,6 +48,7 @@ TAR_MANIFEST_FILE_NAME: __TAR_CONTENT__.txt
 
 # e.g. 4&2 means repo-rev 123 becomes a folder hierarchy with 0 padding: 01/23
 # NUM_DIGITS_REPO_REV_HIERARCHY should be multiple of NUM_DIGITS_PER_FOLDER_REPO_REV_HIERARCHY
+# these values are default nd allow for 9999 repo-revs. Actual value should come from repository configuration
 NUM_DIGITS_REPO_REV_HIERARCHY: 4
 NUM_DIGITS_PER_FOLDER_REPO_REV_HIERARCHY: 2
 
