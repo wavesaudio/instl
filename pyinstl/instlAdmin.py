@@ -1199,13 +1199,19 @@ class InstlAdmin(InstlInstanceBase):
                 info_map_file_path = os.path.join(instl_folder, infomap_file_name)
                 self.info_map_table.write_to_file(in_file=info_map_file_path, items_list=info_map_items, field_to_write=self.fields_relevant_to_info_map)
 
-                zip_info_map_file_path = info_map_file_path+".wzlib"
-                with open(zip_info_map_file_path, "wb") as wfd:
-                    wfd.write(zlib.compress(open(info_map_file_path, "rb").read(), zlib_compression_level))
-
                 info_map_checksum = utils.get_file_checksum(info_map_file_path)
                 info_map_size = os.path.getsize(info_map_file_path)
                 line_for_main_info_map = "instl/{infomap_file_name}, f, $(REPO_REV), {info_map_checksum}, {info_map_size}".format(**locals())
+                lines_for_main_info_map.append(var_stack.ResolveStrToStr(line_for_main_info_map))
+
+                zip_infomap_file_name = infomap_file_name+".wzlib"
+                zip_info_map_file_path = os.path.join(instl_folder, zip_infomap_file_name)
+                with open(zip_info_map_file_path, "wb") as wfd:
+                    wfd.write(zlib.compress(open(info_map_file_path, "rb").read(), zlib_compression_level))
+
+                zip_info_map_checksum = utils.get_file_checksum(zip_info_map_file_path)
+                zip_info_map_size = os.path.getsize(zip_info_map_file_path)
+                line_for_main_info_map = "instl/{zip_infomap_file_name}, f, $(REPO_REV), {zip_info_map_checksum}, {zip_info_map_size}".format(**locals())
                 lines_for_main_info_map.append(var_stack.ResolveStrToStr(line_for_main_info_map))
 
         # write default info map to file
