@@ -409,10 +409,6 @@ class InstlAdmin(InstlInstanceBase):
         accum += " ".join(("echo", "find", ".", "-mindepth",  "1", "-maxdepth", "1", "-type", "d", "-not", "-name", "instl"))  #, "-print0", "|", "xargs", "-0", "rm", "-fr"
         accum += self.platform_helper.echo("done up2s3 revision $(__CURR_REPO_REV__)")
 
-    def create_sig_for_file(self, file_to_sig):
-        retVal = utils.create_file_signatures(file_to_sig, None)
-        return retVal
-
     def do_create_repo_rev_file(self):
         if "REPO_REV_FILE_VARS" not in var_stack:
             raise ValueError("REPO_REV_FILE_VARS must be defined")
@@ -432,7 +428,7 @@ class InstlAdmin(InstlInstanceBase):
         var_stack.set_var("RELATIVE_INFO_MAP_URL").append("$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt$(WZLIB_EXTENSION)")
         var_stack.set_var("INFO_MAP_FILE_URL").append("$(BASE_LINKS_URL)/$(RELATIVE_INFO_MAP_URL)")
         info_map_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt$(WZLIB_EXTENSION)")
-        info_map_checksum = self.create_checksum_for_file(info_map_file)
+        info_map_checksum = utils.get_file_checksum(info_map_file)
         var_stack.set_var("INFO_MAP_CHECKSUM").append(info_map_checksum)
 
         # zip the index file
@@ -444,7 +440,7 @@ class InstlAdmin(InstlInstanceBase):
 
         var_stack.set_var("RELATIVE_INDEX_URL").append("$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml$(WZLIB_EXTENSION)")
         var_stack.set_var("INDEX_URL").append("$(BASE_LINKS_URL)/$(RELATIVE_INDEX_URL)")
-        index_file_checksum = self.create_checksum_for_file(zip_local_index_file)
+        index_file_checksum = self.utils.get_file_checksum(zip_local_index_file)
         var_stack.set_var("INDEX_CHECKSUM").append(index_file_checksum)
 
         for var in repo_rev_vars:
