@@ -5,7 +5,7 @@ import os
 import filecmp
 import io
 import re
-import shutil
+import rsa
 import subprocess
 from collections import defaultdict
 import stat
@@ -43,22 +43,6 @@ class InstlAdmin(InstlInstanceBase):
 
             self.read_yaml_file(config_file_resolved)
             self.resolve_defined_paths()
-        if "PUBLIC_KEY" not in var_stack:
-            if "PUBLIC_KEY_FILE" in var_stack:
-                try:
-                    public_key_file = var_stack.ResolveVarToStr("PUBLIC_KEY_FILE")
-                    public_key_text = open(public_key_file, "rb").read()
-                    var_stack.set_var("PUBLIC_KEY", "from " + public_key_file).append(public_key_text)
-                except Exception:
-                    pass  # lo nora
-        if "PRIVATE_KEY" not in var_stack:
-            if "PRIVATE_KEY_FILE" in var_stack:
-                try:
-                    private_key_file = var_stack.ResolveVarToStr("PRIVATE_KEY_FILE")
-                    private_key_text = open(private_key_file, "rb").read()
-                    var_stack.set_var("PUBLIC_KEY", "from " + private_key_file).append(private_key_text)
-                except Exception:
-                    pass  # lo nora
 
     def do_command(self):
         self.set_default_variables()

@@ -10,6 +10,7 @@ import fnmatch
 from contextlib import contextmanager
 import ssl
 import pyinstl.connectionBase
+import zlib
 
 import urllib.request, urllib.error, urllib.parse
 
@@ -176,8 +177,8 @@ class open_for_read_file_or_url(object):
         return self._actual_path
 
 
-def read_from_file_or_url(in_url, translate_url_callback=None, public_key=None, textual_sig=None, expected_checksum=None, encoding='utf-8'):
-    """ Read a file from local disk or url. Check signature or checksum if given.
+def read_from_file_or_url(in_url, translate_url_callback=None, expected_checksum=None, encoding='utf-8'):
+    """ Read a file from local disk or url. Check checksum if given.
         If test against either sig or checksum fails - raise IOError.
         Return: file contents.
     """
@@ -186,46 +187,64 @@ def read_from_file_or_url(in_url, translate_url_callback=None, public_key=None, 
         if encoding is not None:  # when reading from url we're not sure what the encoding is
             contents_buffer = utils.unicodify(contents_buffer, encoding=encoding)
         # check sig or checksum only if they were given
-        if (public_key, textual_sig, expected_checksum) != (None, None, None):
+        if expected_checksum is not None:
             if len(contents_buffer) == 0:
                 raise IOError("Empty contents returned from", in_url, "; expected checksum: ", expected_checksum, "; encoding:", encoding)
             if encoding is not None:
                 raise IOError("Checksum check requested for", in_url, "but encoding is not None, encoding:", encoding, "; expected checksum: ", expected_checksum)
-            buffer_ok = utils.check_buffer_signature_or_checksum(contents_buffer, public_key, textual_sig, expected_checksum)
+            buffer_ok = utils.check_buffer_checksum(contents_buffer, expected_checksum)
             if not buffer_ok:
                 actual_checksum = utils.get_buffer_checksum(contents_buffer)
-                raise IOError("Checksum or Signature mismatch", in_url, "expected checksum: ", expected_checksum,
+                raise IOError("Checksum mismatch", in_url, "expected checksum: ", expected_checksum,
                               "actual checksum:", actual_checksum, "encoding:", encoding)
     return contents_buffer
 
 
-def download_from_file_or_url(in_url, in_local_path, translate_url_callback=None, cache=False, public_key=None, textual_sig=None, expected_checksum=None):
+def download_from_file_or_url(in_url, in_local_path, translate_url_callback=None, cache=False, expected_checksum=None):
     """ Copy a file or download it from a URL to in_local_path.
         If cache flag is True, the file will only be copied/downloaded if it does not already exist.
-        If cache flag is True and signature or checksum is given they will be checked. If such check fails, copy/download
+        If cache flag is True and checksum is given they will be checked. If such check fails, copy/download
         will be done.
+        If in_url name ends with .wzlib, but in_local_path does not, the downloaded file will be decompressed,
+        the checksum always refers to the in_url
     """
+    _, url_extension = os.path.splitext(in_url)
+    _, local_extension = os.path.splitext(in_local_path)
+    need_decompress = url_extension == ".wzlib" and local_extension != ".wzlib"
+    if need_decompress:
+        target_file = in_local_path+".wzlib"
+    else:
+        target_file = in_local_path
+
     fileExists = False
-    if cache and os.path.isfile(in_local_path):
+    if cache and os.path.isfile(target_file):
         # cache=True means: if local file already exists, there is no need to download.
-        # if public_key, textual_sig, expected_checksum are given, check local file signature or checksum.
+        # if expected_checksum is given, check local file checksum.
         # If these do not match erase the file so it will be downloaded again.
         fileOK = True
-        if (public_key, textual_sig, expected_checksum) != (None, None, None):
-            fileOK = utils.check_file_signature_or_checksum(in_local_path, public_key, textual_sig, expected_checksum)
+        if expected_checksum is not None:
+            fileOK = utils.check_file_checksum(target_file, expected_checksum)
         if not fileOK:
-            print("File will be downloaded because check checksum failed for", in_url, "cached at local path", in_local_path, "expected_checksum:", expected_checksum)
-            os.remove(in_local_path)
+            print("File will be downloaded because check checksum failed for", in_url, "cached at local path", target_file, "expected_checksum:", expected_checksum)
+            os.remove(target_file)
         fileExists = fileOK
 
     if not fileExists:
-        contents_buffer = read_from_file_or_url(in_url, translate_url_callback, public_key, textual_sig, expected_checksum, encoding=None)
+        contents_buffer = read_from_file_or_url(in_url, translate_url_callback, expected_checksum, encoding=None)
         if contents_buffer:
-            with open(in_local_path, "wb") as wfd:
+            with open(target_file, "wb") as wfd:
                 make_open_file_read_write_for_all(wfd)
                 wfd.write(contents_buffer)
+            if need_decompress:  # avoid another read of the file and decompress form memory
+                with open(in_local_path, "wb") as wfd:
+                    wfd.write(utils.unicodify(zlib.decompress(contents_buffer)))
+                need_decompress = False
         else:
             print("no content_buffer after reading", in_url, file=sys.stderr)
+
+    if need_decompress:
+        with open(in_local_path, "wb") as wfd:
+            wfd.write(utils.unicodify(zlib.decompress(open(target_file, "rb").read())))
 
 
 class ChangeDirIfExists(object):

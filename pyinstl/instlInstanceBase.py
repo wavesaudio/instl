@@ -335,14 +335,13 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 expected_signature = None
                 public_key_text = None
                 if "sig" in i_node:
+                    pass  # RSA signature check is disabled
                     expected_signature = var_stack.ResolveStrToStr(i_node["sig"].value)
                     public_key_text = self.provision_public_key_text()
 
                 try:
                     utils.download_from_file_or_url(resolved_file_url,cached_file_path,
                                               connectionBase.translate_url, cache=True,
-                                              public_key=public_key_text,
-                                              textual_sig=expected_signature,
                                               expected_checksum=expected_checksum)
                     self.read_yaml_file(cached_file_path, *args, **kwargs)
                 except (FileNotFoundError, urllib.error.URLError):

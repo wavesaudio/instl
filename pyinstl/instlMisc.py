@@ -231,8 +231,8 @@ class InstlMisc(InstlInstanceBase):
             if os.path.isfile(file_item.download_path):
                 file_checksum = utils.get_file_checksum(file_item.download_path)
                 if not utils.compare_checksums(file_checksum, file_item.checksum):
-                    sigs = utils.create_file_signatures(file_item.download_path)
-                    bad_checksum_list.append( " ".join(("Bad checksum:", file_item.download_path, "expected", file_item.checksum, "found", sigs["sha1_checksum"])) )
+                    sha1_checksum = utils.create_file_checksum(file_item.download_path)
+                    bad_checksum_list.append( " ".join(("Bad checksum:", file_item.download_path, "expected", file_item.checksum, "found", sha1_checksum)) )
             else:
                 missing_files_list.append(" ".join((file_item.download_path, "was not found")))
             self.dynamic_progress("Check checksum {file_item.path}".format(**locals()))

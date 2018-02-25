@@ -24,13 +24,6 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         """
         prerequisite_vars = var_stack.ResolveVarToList("__SYNC_PREREQUISITE_VARIABLES__")
         self.instlObj.check_prerequisite_var_existence(prerequisite_vars)
-
-        if "PUBLIC_KEY" not in var_stack:
-            if "PUBLIC_KEY_FILE" in var_stack:
-                public_key_file = var_stack.ResolveVarToStr("PUBLIC_KEY_FILE")
-                with utils.open_for_read_file_or_url(public_key_file, connectionBase.translate_url, self.instlObj.path_searcher) as open_file:
-                    public_key_text = open_file.fd.read()
-                    var_stack.set_var("PUBLIC_KEY", "from " + public_key_file).append(public_key_text)
         self.instlObj.calc_user_cache_dir_var() # this will set USER_CACHE_DIR if it was not explicitly defined
 
     # Overridden by InstlInstanceSync_url, or parallel sync classes
@@ -66,12 +59,17 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
 
             additional_info_maps = self.instlObj.items_table.get_details_for_active_iids("info_map", unique_values=True)
             for additional_info_map in additional_info_maps:
+                # try to get the zipped info_map
+                partial_path = var_stack.ResolveStrToStr("instl/{}$(WZLIB_EXTENSION)".format(additional_info_map))
+                additional_info_map_item = self.instlObj.info_map_table.get_item(partial_path, what="file")
+                if not additional_info_map_item:  # zipped not found try the unzipped inf_map
+                    partial_path = var_stack.ResolveStrToStr("instl/{}".format(additional_info_map))
+                    additional_info_map_item = self.instlObj.info_map_table.get_item(partial_path, what="file")
+
+                checksum = additional_info_map_item.checksum if additional_info_map_item else None
+
                 info_map_file_url = var_stack.ResolveStrToStr("$(INSTL_FOLDER_BASE_URL)/{}".format(additional_info_map))
                 local_copy_of_info_map = var_stack.ResolveStrToStr("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)/{}".format(additional_info_map))
-
-                partial_path = "instl/{}".format(additional_info_map)
-                additional_info_map_item = self.instlObj.info_map_table.get_item(partial_path, what="file")
-                checksum = additional_info_map_item.checksum if additional_info_map_item else None
 
                 utils.read_file_or_url(info_map_file_url, save_to_path=local_copy_of_info_map, checksum=checksum)
                 self.instlObj.read_info_map_from_file(local_copy_of_info_map)
