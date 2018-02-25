@@ -440,7 +440,7 @@ class InstlAdmin(InstlInstanceBase):
 
         var_stack.set_var("RELATIVE_INDEX_URL").append("$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml$(WZLIB_EXTENSION)")
         var_stack.set_var("INDEX_URL").append("$(BASE_LINKS_URL)/$(RELATIVE_INDEX_URL)")
-        index_file_checksum = self.utils.get_file_checksum(zip_local_index_file)
+        index_file_checksum = utils.get_file_checksum(zip_local_index_file)
         var_stack.set_var("INDEX_CHECKSUM").append(index_file_checksum)
 
         for var in repo_rev_vars:
