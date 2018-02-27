@@ -535,6 +535,17 @@ def unicodify(in_something, encoding='utf-8'):
     return retVal
 
 
+def bytetify(in_something):
+    if in_something is not None:
+        if not isinstance(in_something, bytes):
+            retVal = str(in_something).encode()
+        else:
+            retVal = in_something
+    else:
+        retVal = None
+    return retVal
+
+
 def bool_int_to_str(in_bool_int):
     if in_bool_int == 0:
         retVal = "no"

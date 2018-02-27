@@ -200,51 +200,68 @@ def read_from_file_or_url(in_url, translate_url_callback=None, expected_checksum
     return contents_buffer
 
 
-def download_from_file_or_url(in_url, in_local_path, translate_url_callback=None, cache=False, expected_checksum=None):
-    """ Copy a file or download it from a URL to in_local_path.
-        If cache flag is True, the file will only be copied/downloaded if it does not already exist.
-        If cache flag is True and checksum is given they will be checked. If such check fails, copy/download
-        will be done.
-        If in_url name ends with .wzlib, but in_local_path does not, the downloaded file will be decompressed,
-        the checksum always refers to the in_url
+def download_and_cache_file_or_url(in_url, cache_folder, translate_url_callback=None, expected_checksum=None):
+    """ download file to given cache folder
+        if checksum is supplied and the a file with that checksum exists in cache folder - download can be avoided
+        otherwise download the file
+        :return: path of the downloaded file
     """
-    _, url_extension = os.path.splitext(in_url)
-    _, local_extension = os.path.splitext(in_local_path)
-    need_decompress = url_extension == ".wzlib" and local_extension != ".wzlib"
-    if need_decompress:
-        target_file = in_local_path+".wzlib"
-    else:
-        target_file = in_local_path
+    assert os.path.isdir(cache_folder), cache_folder+" folder not found"
+    url_file_name = last_url_item(in_url)
+    cached_file_name = expected_checksum if expected_checksum else url_file_name
+    cached_file_path = os.path.join(cache_folder, cached_file_name)
+    if expected_checksum is None:  # no checksum -> force download
+        safe_remove_file(cached_file_path)
 
-    fileExists = False
-    if cache and os.path.isfile(target_file):
-        # cache=True means: if local file already exists, there is no need to download.
-        # if expected_checksum is given, check local file checksum.
-        # If these do not match erase the file so it will be downloaded again.
-        fileOK = True
-        if expected_checksum is not None:
-            fileOK = utils.check_file_checksum(target_file, expected_checksum)
-        if not fileOK:
-            print("File will be downloaded because check checksum failed for", in_url, "cached at local path", target_file, "expected_checksum:", expected_checksum)
-            os.remove(target_file)
-        fileExists = fileOK
-
-    if not fileExists:
+    if not os.path.isfile(cached_file_path):
         contents_buffer = read_from_file_or_url(in_url, translate_url_callback, expected_checksum, encoding=None)
         if contents_buffer:
-            with open(target_file, "wb") as wfd:
+            with open(cached_file_path, "wb") as wfd:
                 make_open_file_read_write_for_all(wfd)
                 wfd.write(contents_buffer)
-            if need_decompress:  # avoid another read of the file and decompress form memory
-                with open(in_local_path, "wb") as wfd:
-                    wfd.write(utils.unicodify(zlib.decompress(contents_buffer)))
-                need_decompress = False
-        else:
-            print("no content_buffer after reading", in_url, file=sys.stderr)
+    else:
+        assert expected_checksum is not None, "file "+cached_file_path+" found but checksum is None"
+        assert utils.check_file_checksum(cached_file_path, expected_checksum), "file "+cached_file_path+" found but checksum does not match"
+    return cached_file_path
 
-    if need_decompress:
-        with open(in_local_path, "wb") as wfd:
-            wfd.write(utils.unicodify(zlib.decompress(open(target_file, "rb").read())))
+
+def download_from_file_or_url(in_url, in_target_path=None, translate_url_callback=None, cache_folder=None, expected_checksum=None):
+    """
+        download a file from url and place it on a local path.
+        The file could have a checksum in which case the local file will be checksumed and if match local version will be used instead of downloading.
+        If checksum is supplied the file could also be cached in which case the cached version will be used instead of downloading.
+        If the file to download have the extension .wzlib and the local path has not, it means the file should be decompressed.
+        :param in_url: url to download or a local file to copy
+        :param in_target_path: where to download or copy the file
+        :param translate_url_callback: a helper func to adjust the url, possibly with cookies - could be None
+        :param cache: a folder where to place the cache - could be None
+        :param expected_checksum: the checksum of the downloaded file - could be None
+        :return:
+        """
+
+    cached_file_path = download_and_cache_file_or_url(in_url=in_url, translate_url_callback=translate_url_callback, cache_folder=cache_folder, expected_checksum=expected_checksum)
+    if in_target_path:
+        url_file_name = last_url_item(in_url)
+        url_base_file_name, url_extension = os.path.splitext(url_file_name)
+        need_decompress = url_extension == ".wzlib"
+        if os.path.isdir(in_target_path):
+            target_file_name = url_base_file_name if need_decompress else url_file_name
+            final_file_path = os.path.join(in_target_path, target_file_name)
+        else:
+            final_file_path = in_target_path
+            _, target_extension = os.path.splitext(final_file_path)
+            if need_decompress and target_extension == ".wzlib":
+                need_decompress = False  # no need to decompress if target is expected to be compressed
+
+        if need_decompress:
+            decompressed = zlib.decompress(open(cached_file_path, "rb").read())
+            with open(final_file_path, "wb") as wfd:
+                wfd.write(decompressed)
+        else:
+            smart_copy_file(cached_file_path, final_file_path)
+    else:
+        final_file_path = cached_file_path
+    return final_file_path
 
 
 class ChangeDirIfExists(object):

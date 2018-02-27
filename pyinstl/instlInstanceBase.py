@@ -319,31 +319,26 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 self.read_include_node(sub_i_node, *args, **kwargs)
         elif i_node.isMapping():
             if "url" in i_node:
-                cached_files_dir = self.get_default_sync_dir(continue_dir="cache", make_dir=True)
                 resolved_file_url = var_stack.ResolveStrToStr(i_node["url"].value)
-                cached_file_path = None
                 expected_checksum = None
                 if "checksum" in i_node:
                     expected_checksum = var_stack.ResolveStrToStr(i_node["checksum"].value)
-                    cached_file_path = os.path.join(cached_files_dir, expected_checksum)
-                else:
-                    last_path_part = utils.last_url_item(resolved_file_url)
-                    cached_file_path = os.path.join(cached_files_dir, last_path_part)
-                    # since there is no checksum, remove the file from cache so it will be read downloaded again
-                    utils.safe_remove_file(cached_file_path)
 
-                expected_signature = None
-                public_key_text = None
-                if "sig" in i_node:
-                    pass  # RSA signature check is disabled
-                    expected_signature = var_stack.ResolveStrToStr(i_node["sig"].value)
-                    public_key_text = self.provision_public_key_text()
+                file_destination = None
+                if "destination" in i_node:
+                    file_destination = var_stack.ResolveStrToStr(i_node["destination"].value)
 
                 try:
-                    utils.download_from_file_or_url(resolved_file_url,cached_file_path,
-                                              connectionBase.translate_url, cache=True,
-                                              expected_checksum=expected_checksum)
-                    self.read_yaml_file(cached_file_path, *args, **kwargs)
+                    file_path = utils.download_from_file_or_url(in_url=resolved_file_url,
+                                                                in_target_path=file_destination,
+                                                                translate_url_callback=connectionBase.translate_url,
+                                                                cache_folder=self.get_default_sync_dir(continue_dir="cache", make_dir=True),
+                                                                expected_checksum=expected_checksum)
+                    self.read_yaml_file(file_path, *args, **kwargs)
+                    if not file_destination:
+                        file_name = utils.last_url_item(resolved_file_url)
+                        destination = var_stack.ResolveStrToStr("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)/{}".format(file_name))
+                        utils.smart_copy_file(file_path, destination)
                 except (FileNotFoundError, urllib.error.URLError):
                     ignore = kwargs.get('ignore_if_not_exist', False)
                     if ignore:
@@ -363,7 +358,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                             destination_path = var_stack.ResolveStrToStr(copy_destination.value)
                             destination_folder, destination_file_name = os.path.split(destination_path)
                             self.batch_accum += self.platform_helper.mkdir(destination_folder)
-                            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_file(cached_file_path,
+                            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_file(file_path,
                                                                                                  destination_path,
                                                                                                  link_dest=True)
                             self.platform_helper.progress("copy cached file to {}".format(destination_path))

@@ -436,7 +436,7 @@ class InstlAdmin(InstlInstanceBase):
         zip_local_index_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml$(WZLIB_EXTENSION)")
         zlib_compression_level = int(var_stack.ResolveVarToStr("ZLIB_COMPRESSION_LEVEL"))
         with open(zip_local_index_file, "wb") as wfd:
-            wfd.write(zlib.compress(open(local_index_file, "rb").read(), zlib_compression_level))
+            wfd.write(zlib.compress(open(local_index_file, "r").read().encode(), zlib_compression_level))
 
         var_stack.set_var("RELATIVE_INDEX_URL").append("$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml$(WZLIB_EXTENSION)")
         var_stack.set_var("INDEX_URL").append("$(BASE_LINKS_URL)/$(RELATIVE_INDEX_URL)")
@@ -1193,7 +1193,7 @@ class InstlAdmin(InstlInstanceBase):
                 zip_infomap_file_name = var_stack.ResolveStrToStr(infomap_file_name+"$(WZLIB_EXTENSION)")
                 zip_info_map_file_path = os.path.join(instl_folder, zip_infomap_file_name)
                 with open(zip_info_map_file_path, "wb") as wfd:
-                    wfd.write(zlib.compress(open(info_map_file_path, "rb").read(), zlib_compression_level))
+                    wfd.write(zlib.compress(open(info_map_file_path, "r").read().encode(), zlib_compression_level))
 
                 zip_info_map_checksum = utils.get_file_checksum(zip_info_map_file_path)
                 zip_info_map_size = os.path.getsize(zip_info_map_file_path)
@@ -1210,7 +1210,7 @@ class InstlAdmin(InstlInstanceBase):
 
         zip_default_info_map_file_path = var_stack.ResolveStrToStr(default_info_map_file_path+"$(WZLIB_EXTENSION)")
         with open(zip_default_info_map_file_path, "wb") as wfd:
-            wfd.write(zlib.compress(open(default_info_map_file_path, "rb").read(), zlib_compression_level))
+            wfd.write(zlib.compress(open(default_info_map_file_path, "r").read().encode(), zlib_compression_level))
 
     def do_read_info_map(self):
         files_to_read = var_stack.ResolveVarToList("__MAIN_INPUT_FILE__")
