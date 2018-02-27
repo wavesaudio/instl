@@ -227,16 +227,7 @@ def download_and_cache_file_or_url(in_url, cache_folder, translate_url_callback=
 
 def download_from_file_or_url(in_url, in_target_path=None, translate_url_callback=None, cache_folder=None, expected_checksum=None):
     """
-        download a file from url and place it on a local path.
-        The file could have a checksum in which case the local file will be checksumed and if match local version will be used instead of downloading.
-        If checksum is supplied the file could also be cached in which case the cached version will be used instead of downloading.
-        If the file to download have the extension .wzlib and the local path has not, it means the file should be decompressed.
-        :param in_url: url to download or a local file to copy
-        :param in_target_path: where to download or copy the file
-        :param translate_url_callback: a helper func to adjust the url, possibly with cookies - could be None
-        :param cache: a folder where to place the cache - could be None
-        :param expected_checksum: the checksum of the downloaded file - could be None
-        :return:
+        download a file from url and place it on a target path. Possibly also decompressed wzlib files.
         """
 
     cached_file_path = download_and_cache_file_or_url(in_url=in_url, translate_url_callback=translate_url_callback, cache_folder=cache_folder, expected_checksum=expected_checksum)
