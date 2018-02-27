@@ -413,9 +413,9 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         rmdir_command = " ".join(rmdir_command_parts)
         return rmdir_command
 
-    def rmfile(self, file_to_del, check_exist=False):
+    def rmfile(self, a_file, quote_char='"', check_exist=False):
         rmfile_command_parts = list()
-        norm_file = utils.quoteme_double(os.path.normpath(file_to_del))
+        norm_file = utils.quoteme(os.path.normpath(a_file), quote_char)
         if check_exist:
             rmfile_command_parts.extend(("if", "exist", norm_file))
         rmfile_command_parts.extend(("del", "/F", "/Q", norm_file))

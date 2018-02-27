@@ -184,10 +184,11 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             "output_format": ("__OUTPUT_FORMAT__", None),
         }
 
+        default_remark = "from command line options"
         for attrib, var in const_attrib_to_var.items():
             attrib_value = getattr(cmd_line_options_obj, attrib)
             if attrib_value:
-                var_stack.add_const_config_variable(var[0], "from command line options", *attrib_value)
+                var_stack.add_const_config_variable(var[0], default_remark, *attrib_value)
             elif var[1] is not None:  # there's a default
                 var_stack.add_const_config_variable(var[0], "from default", var[1])
 
@@ -202,51 +203,51 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         for attrib, var in non_const_attrib_to_var.items():
             attrib_value = getattr(cmd_line_options_obj, attrib)
             if attrib_value:
-                var_stack.set_var(var, "from command line options").append(attrib_value[0])
+                var_stack.set_var(var, default_remark).append(attrib_value[0])
 
         if cmd_line_options_obj.command:
             self.the_command = cmd_line_options_obj.command
             self.fixed_command = self.the_command.replace('-', '_')
-            var_stack.set_var("__MAIN_COMMAND__", "from command line options").append(cmd_line_options_obj.command)
+            var_stack.set_var("__MAIN_COMMAND__", default_remark).append(cmd_line_options_obj.command)
 
         if hasattr(cmd_line_options_obj, "subject") and cmd_line_options_obj.subject is not None:
-            var_stack.add_const_config_variable("__HELP_SUBJECT__", "from command line options",
+            var_stack.add_const_config_variable("__HELP_SUBJECT__", default_remark,
                                                 cmd_line_options_obj.subject)
         else:
-            var_stack.add_const_config_variable("__HELP_SUBJECT__", "from command line options", "")
+            var_stack.add_const_config_variable("__HELP_SUBJECT__", default_remark, "")
 
         if cmd_line_options_obj.state_file:
-            var_stack.add_const_config_variable("__MAIN_STATE_FILE__", "from command line options",
+            var_stack.add_const_config_variable("__MAIN_STATE_FILE__", default_remark,
                                                 cmd_line_options_obj.state_file)
 
         if cmd_line_options_obj.run:
-            var_stack.add_const_config_variable("__RUN_BATCH__", "from command line options", "yes")
+            var_stack.add_const_config_variable("__RUN_BATCH__", default_remark, "yes")
 
         if cmd_line_options_obj.no_wtar_artifacts:
-            var_stack.add_const_config_variable("__NO_WTAR_ARTIFACTS__", "from command line options", "yes")
+            var_stack.add_const_config_variable("__NO_WTAR_ARTIFACTS__", default_remark, "yes")
 
-        if cmd_line_options_obj.all_revisions:
-            var_stack.add_const_config_variable("__ALL_REVISIONS__", "from command line options", "yes")
+        if cmd_line_options_obj.which_revision:
+            var_stack.add_const_config_variable("__WHICH_REVISION__", default_remark, cmd_line_options_obj.which_revision[0])
 
         if cmd_line_options_obj.dock_item_path:
-            var_stack.add_const_config_variable("__DOCK_ITEM_PATH__", "from command line options", *cmd_line_options_obj.dock_item_path)
+            var_stack.add_const_config_variable("__DOCK_ITEM_PATH__", default_remark, *cmd_line_options_obj.dock_item_path)
         if cmd_line_options_obj.dock_item_label:
-            var_stack.add_const_config_variable("__DOCK_ITEM_LABEL__", "from command line options", *cmd_line_options_obj.dock_item_label)
+            var_stack.add_const_config_variable("__DOCK_ITEM_LABEL__", default_remark, *cmd_line_options_obj.dock_item_label)
         if cmd_line_options_obj.remove_from_dock:
-            var_stack.add_const_config_variable("__REMOVE_FROM_DOCK__", "from command line options", "yes")
+            var_stack.add_const_config_variable("__REMOVE_FROM_DOCK__", default_remark, "yes")
         if cmd_line_options_obj.restart_the_dock:
-            var_stack.add_const_config_variable("__RESTART_THE_DOCK__", "from command line options", "yes")
+            var_stack.add_const_config_variable("__RESTART_THE_DOCK__", default_remark, "yes")
         if cmd_line_options_obj.fail_exit_code:
-            var_stack.add_const_config_variable("__FAIL_EXIT_CODE__", "from command line options", *cmd_line_options_obj.fail_exit_code)
+            var_stack.add_const_config_variable("__FAIL_EXIT_CODE__", default_remark, *cmd_line_options_obj.fail_exit_code)
         if cmd_line_options_obj.set_run_as_admin:
-            var_stack.add_const_config_variable("__RUN_AS_ADMIN__", "from command line options", "yes")
+            var_stack.add_const_config_variable("__RUN_AS_ADMIN__", default_remark, "yes")
         if cmd_line_options_obj.only_installed:
-            var_stack.add_const_config_variable("__REPORT_ONLY_INSTALLED__", "from command line options", "yes")
+            var_stack.add_const_config_variable("__REPORT_ONLY_INSTALLED__", default_remark, "yes")
         if var_stack.ResolveVarToStr("__CURRENT_OS__") == "Mac":
             if cmd_line_options_obj.parallel:
-                var_stack.add_const_config_variable("__RUN_COMMAND_LIST_IN_PARALLEL__", "from command line options", "yes")
+                var_stack.add_const_config_variable("__RUN_COMMAND_LIST_IN_PARALLEL__", default_remark, "yes")
         if cmd_line_options_obj.no_numbers_progress:
-            var_stack.add_const_config_variable("__NO_NUMBERS_PROGRESS__", "from command line options", "yes")
+            var_stack.add_const_config_variable("__NO_NUMBERS_PROGRESS__", default_remark, "yes")
 
 
         if cmd_line_options_obj.define:
@@ -318,37 +319,32 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 self.read_include_node(sub_i_node, *args, **kwargs)
         elif i_node.isMapping():
             if "url" in i_node:
-                cached_files_dir = self.get_default_sync_dir(continue_dir="cache", make_dir=True)
                 resolved_file_url = var_stack.ResolveStrToStr(i_node["url"].value)
-                cached_file_path = None
                 expected_checksum = None
                 if "checksum" in i_node:
                     expected_checksum = var_stack.ResolveStrToStr(i_node["checksum"].value)
-                    cached_file_path = os.path.join(cached_files_dir, expected_checksum)
 
-                expected_signature = None
-                public_key_text = None
-                if "sig" in i_node:
-                    expected_signature = var_stack.ResolveStrToStr(i_node["sig"].value)
-                    public_key_text = self.provision_public_key_text()
+                file_destination = None
+                if "destination" in i_node:
+                    file_destination = var_stack.ResolveStrToStr(i_node["destination"].value)
 
-                if expected_checksum is None:
-                    self.read_yaml_file(resolved_file_url, *args, **kwargs)
-                    cached_file_path = resolved_file_url
-                else:
-                    try:
-                        utils.download_from_file_or_url(resolved_file_url,cached_file_path,
-                                                  connectionBase.translate_url, cache=True,
-                                                  public_key=public_key_text,
-                                                  textual_sig=expected_signature,
-                                                  expected_checksum=expected_checksum)
-                        self.read_yaml_file(cached_file_path, *args, **kwargs)
-                    except (FileNotFoundError, urllib.error.URLError):
-                        ignore = kwargs.get('ignore_if_not_exist', False)
-                        if ignore:
-                            print("'ignore_if_not_exist' specified, ignoring FileNotFoundError for", resolved_file_url)
-                        else:
-                            raise
+                try:
+                    file_path = utils.download_from_file_or_url(in_url=resolved_file_url,
+                                                                in_target_path=file_destination,
+                                                                translate_url_callback=connectionBase.translate_url,
+                                                                cache_folder=self.get_default_sync_dir(continue_dir="cache", make_dir=True),
+                                                                expected_checksum=expected_checksum)
+                    self.read_yaml_file(file_path, *args, **kwargs)
+                    if not file_destination:
+                        file_name = utils.last_url_item(resolved_file_url)
+                        destination = var_stack.ResolveStrToStr("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)/{}".format(file_name))
+                        utils.smart_copy_file(file_path, destination)
+                except (FileNotFoundError, urllib.error.URLError):
+                    ignore = kwargs.get('ignore_if_not_exist', False)
+                    if ignore:
+                        print("'ignore_if_not_exist' specified, ignoring FileNotFoundError for", resolved_file_url)
+                    else:
+                        raise
 
                 if "copy" in i_node:
                     self.batch_accum.set_current_section('post')
@@ -362,7 +358,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                             destination_path = var_stack.ResolveStrToStr(copy_destination.value)
                             destination_folder, destination_file_name = os.path.split(destination_path)
                             self.batch_accum += self.platform_helper.mkdir(destination_folder)
-                            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_file(cached_file_path,
+                            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_file(file_path,
                                                                                                  destination_path,
                                                                                                  link_dest=True)
                             self.platform_helper.progress("copy cached file to {}".format(destination_path))
@@ -543,3 +539,11 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         min_revision, max_revision = self.info_map_table.min_max_revision()
         var_stack.set_var("MIN_REPO_REV", "from " + info_map_from_file_path).append(min_revision)
         var_stack.set_var("MAX_REPO_REV", "from " + info_map_from_file_path).append(max_revision)
+
+    def repo_rev_to_folder_hierarchy(self, repo_rev):
+        num_digits_repo_rev_hierarchy=int(var_stack.ResolveVarToStr("NUM_DIGITS_REPO_REV_HIERARCHY"))
+        num_digits_per_folder_repo_rev_hierarchy=int(var_stack.ResolveVarToStr("NUM_DIGITS_PER_FOLDER_REPO_REV_HIERARCHY"))
+        zero_pad_repo_rev = str(repo_rev).zfill(num_digits_repo_rev_hierarchy)
+        by_groups = [zero_pad_repo_rev[i:i+num_digits_per_folder_repo_rev_hierarchy] for i in range(0, len(zero_pad_repo_rev), num_digits_per_folder_repo_rev_hierarchy)]
+        retVal = "/".join(by_groups)
+        return retVal

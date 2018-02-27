@@ -5,10 +5,11 @@ import os
 import filecmp
 import io
 import re
-import shutil
+import rsa
 import subprocess
 from collections import defaultdict
 import stat
+import zlib
 
 import utils
 import aYaml
@@ -42,22 +43,6 @@ class InstlAdmin(InstlInstanceBase):
 
             self.read_yaml_file(config_file_resolved)
             self.resolve_defined_paths()
-        if "PUBLIC_KEY" not in var_stack:
-            if "PUBLIC_KEY_FILE" in var_stack:
-                try:
-                    public_key_file = var_stack.ResolveVarToStr("PUBLIC_KEY_FILE")
-                    public_key_text = open(public_key_file, "rb").read()
-                    var_stack.set_var("PUBLIC_KEY", "from " + public_key_file).append(public_key_text)
-                except Exception:
-                    pass  # lo nora
-        if "PRIVATE_KEY" not in var_stack:
-            if "PRIVATE_KEY_FILE" in var_stack:
-                try:
-                    private_key_file = var_stack.ResolveVarToStr("PRIVATE_KEY_FILE")
-                    private_key_text = open(private_key_file, "rb").read()
-                    var_stack.set_var("PUBLIC_KEY", "from " + private_key_file).append(private_key_text)
-                except Exception:
-                    pass  # lo nora
 
     def do_command(self):
         self.set_default_variables()
@@ -115,7 +100,8 @@ class InstlAdmin(InstlInstanceBase):
         """
         current_base_repo_rev = int(var_stack.ResolveVarToStr("BASE_REPO_REV"))
         retVal = True
-        revision_links_folder = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/" + str(revision))
+        revision_folder_hierarchy = self.repo_rev_to_folder_hierarchy(revision)
+        revision_links_folder = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/" + revision_folder_hierarchy)
         create_links_done_stamp_file = var_stack.ResolveStrToStr(revision_links_folder + "/$(CREATE_LINKS_STAMP_FILE_NAME)")
         if os.path.isfile(create_links_done_stamp_file):
             if revision == current_base_repo_rev:  # revision is the new base_repo_rev
@@ -128,7 +114,7 @@ class InstlAdmin(InstlInstanceBase):
                         self.batch_accum += self.platform_helper.echo(msg)
                         print(msg)
                         # if we need to create links, remove the upload stems in order to force upload
-                        try: os.remove(var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/"+str(revision)+"/$(UP_2_S3_STAMP_FILE_NAME)"))
+                        try: os.remove(var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/"+revision_folder_hierarchy+"/$(UP_2_S3_STAMP_FILE_NAME)"))
                         except Exception: pass
                 except Exception:
                     pass  # no previous base repo rev indication was found so return True to re-create the links
@@ -177,22 +163,27 @@ class InstlAdmin(InstlInstanceBase):
 
         self.batch_accum += self.platform_helper.mkdir("$(ROOT_LINKS_FOLDER_REPO)/Base")
 
-        accum = BatchAccumulator()  # sub-accumulator serves as a template for each version
-        accum.set_current_section('links')
-        self.create_links_for_revision(accum)
-
         self.batch_accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)")
         no_need_link_nums = list()
         yes_need_link_nums = list()
         max_repo_rev_to_work_on = curr_repo_rev
-        if "__ALL_REVISIONS__" in var_stack:
-            max_repo_rev_to_work_on = last_repo_rev
+        if "__WHICH_REVISION__" in var_stack:
+            which_revision = var_stack.ResolveVarToStr("__WHICH_REVISION__")
+            if which_revision == "all":
+                max_repo_rev_to_work_on = last_repo_rev
+            else:  # force one specific revision
+                base_repo_rev = int(which_revision)
+                max_repo_rev_to_work_on = base_repo_rev
         for revision in range(base_repo_rev, max_repo_rev_to_work_on+1):
             if self.needToCreatelinksForRevision(revision):
                 yes_need_link_nums.append(str(revision))
                 save_dir_var = "REV_" + str(revision) + "_SAVE_DIR"
                 self.batch_accum += self.platform_helper.save_dir(save_dir_var)
                 var_stack.set_var("__CURR_REPO_REV__").append(str(revision))
+                var_stack.set_var("__CURR_REPO_FOLDER_HIERARCHY__").append(self.repo_rev_to_folder_hierarchy(revision))
+                accum = BatchAccumulator()
+                accum.set_current_section('links')
+                self.create_links_for_revision(accum)
                 revision_lines = accum.finalize_list_of_lines()  # will resolve with current  __CURR_REPO_REV__
                 self.batch_accum += revision_lines
                 self.batch_accum += self.platform_helper.restore_dir(save_dir_var)
@@ -218,8 +209,10 @@ class InstlAdmin(InstlInstanceBase):
             self.run_batch_file()
 
     def create_links_for_revision(self, accum):
+        assert var_stack.ResolveVarToStr("__CURR_REPO_REV__") == "".join(var_stack.ResolveVarToStr("__CURR_REPO_FOLDER_HIERARCHY__").split("/")).lstrip("0")
         base_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/Base"
-        revision_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)"
+        curr_repo_rev = var_stack.ResolveVarToStr("__CURR_REPO_REV__")
+        revision_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)"
         revision_instl_folder_path = revision_folder_path + "/instl"
 
         # sync revision __CURR_REPO_REV__ from SVN to Base folder
@@ -231,7 +224,8 @@ class InstlAdmin(InstlInstanceBase):
 
         # copy Base folder to revision folder
         accum += self.platform_helper.mkdir(revision_folder_path)
-        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(base_folder_path, revision_folder_path,
+        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(var_stack.ResolveStrToStr(base_folder_path),
+                                                                         var_stack.ResolveStrToStr(revision_folder_path),
                                                                          link_dest=True, ignore=".svn", preserve_dest_files=False)
         accum += self.platform_helper.progress("Copy revision $(__CURR_REPO_REV__) to "+revision_folder_path)
 
@@ -296,23 +290,30 @@ class InstlAdmin(InstlInstanceBase):
             raise ValueError("base_repo_rev "+str(base_repo_rev)+" > last_repo_rev "+str(last_repo_rev))
 
         max_repo_rev_to_work_on = curr_repo_rev
-        if "__ALL_REVISIONS__" in var_stack:
-            max_repo_rev_to_work_on = last_repo_rev
+        if "__WHICH_REVISION__" in var_stack:
+            which_revision = var_stack.ResolveVarToStr("__WHICH_REVISION__")
+            if which_revision == "all":
+                max_repo_rev_to_work_on = last_repo_rev
+            else:  # force one specific revision
+                base_repo_rev = int(which_revision)
+                max_repo_rev_to_work_on = base_repo_rev
+
         revision_list = list(range(base_repo_rev, max_repo_rev_to_work_on+1))
         dirs_that_dont_need_upload = list()
         dirs_that_need_upload = list()
         dirs_missing = list()
         for dir_as_int in revision_list:
+            dir_as_int_folder_hierarchy = self.repo_rev_to_folder_hierarchy(dir_as_int)
             dir_name = str(dir_as_int)
-            if not os.path.isdir(var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/" + dir_name)):
-                print("revision dir", dir_name, "is missing, run create-links to create this folder")
+            if not os.path.isdir(var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/" + dir_as_int_folder_hierarchy)):
+                print("revision dir", dir_as_int_folder_hierarchy, "is missing, run create-links to create this folder")
                 dirs_missing.append(dir_name)
             else:
-                create_links_done_stamp_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/"+dir_name+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
+                create_links_done_stamp_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/"+dir_as_int_folder_hierarchy+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
                 if not os.path.isfile(create_links_done_stamp_file):
-                    print("revision dir", dir_name, "does not have create-links stamp file:", create_links_done_stamp_file)
+                    print("revision dir", dir_as_int_folder_hierarchy, "does not have create-links stamp file:", create_links_done_stamp_file)
                 else:
-                    up_2_s3_done_stamp_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/"+dir_name+"/$(UP_2_S3_STAMP_FILE_NAME)")
+                    up_2_s3_done_stamp_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/"+dir_as_int_folder_hierarchy+"/$(UP_2_S3_STAMP_FILE_NAME)")
                     if os.path.isfile(up_2_s3_done_stamp_file):
                         dirs_that_dont_need_upload.append(dir_name)
                     else:
@@ -341,6 +342,7 @@ class InstlAdmin(InstlInstanceBase):
             save_dir_var = "REV_" + dir_name + "_SAVE_DIR"
             self.batch_accum += self.platform_helper.save_dir(save_dir_var)
             var_stack.set_var("__CURR_REPO_REV__").append(dir_name)
+            var_stack.set_var("__CURR_REPO_FOLDER_HIERARCHY__").append(self.repo_rev_to_folder_hierarchy(dir_name))
             self.upload_to_s3_aws_for_revision(accum)
             revision_lines = accum.finalize_list_of_lines()  # will resolve with current  __CURR_REPO_REV__
             self.batch_accum += revision_lines
@@ -352,13 +354,15 @@ class InstlAdmin(InstlInstanceBase):
             self.run_batch_file()
 
     def upload_to_s3_aws_for_revision(self, accum):
+        assert var_stack.ResolveVarToStr("__CURR_REPO_REV__") == "".join(var_stack.ResolveVarToStr("__CURR_REPO_FOLDER_HIERARCHY__").split("/")).lstrip("0")
         map_file_path = 'instl/full_info_map.txt'
-        info_map_path = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)/" + map_file_path)
+        curr_repo_rev = var_stack.ResolveVarToStr("__CURR_REPO_REV__")
+        info_map_path = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/" + map_file_path)
         repo_rev = int(var_stack.ResolveVarToStr("__CURR_REPO_REV__"))
         self.info_map_table.clear_all()
         self.info_map_table.read_from_file(info_map_path)
 
-        accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
+        accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)")
 
         if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
             accum += "find . -name .DS_Store -delete"
@@ -372,7 +376,7 @@ class InstlAdmin(InstlInstanceBase):
         # remove all unrequired files
         unrequired_files = self.info_map_table.get_unrequired_file_paths()
         for i, unrequired_file in enumerate(unrequired_files):
-            accum += self.platform_helper.rmfile(unrequired_file)
+            accum += self.platform_helper.rmfile(unrequired_file, "'")
             if i % 1000 == 0:  # only report every 1000'th file
                 accum += self.platform_helper.progress("rmfile " + unrequired_file +" & 999 more")
 
@@ -386,7 +390,7 @@ class InstlAdmin(InstlInstanceBase):
         accum += " ".join( ("find", ".", "-type", "l", "!", "-exec", "test", "-e", "{}", "\;", "-exec", "rm", "-f", "{}", "\;") )
 
         accum += " ".join(["aws", "s3", "sync",
-                           ".", "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_REV__)",
+                           ".", "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)",
                            "--exclude", '"*.DS_Store"',
                            "--exclude", '"$(UP_2_S3_STAMP_FILE_NAME)"',
                            "--exclude", '"$(CREATE_LINKS_STAMP_FILE_NAME)"'
@@ -401,39 +405,43 @@ class InstlAdmin(InstlInstanceBase):
         accum += self.platform_helper.progress("up-repo-rev file - just with number")
 
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(UP_2_S3_STAMP_FILE_NAME)"])
-        accum += self.platform_helper.progress("Uploaded $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_REV__)")
+        accum += self.platform_helper.progress("Uploaded $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)")
         accum += " ".join(("echo", "find", ".", "-mindepth",  "1", "-maxdepth", "1", "-type", "d", "-not", "-name", "instl"))  #, "-print0", "|", "xargs", "-0", "rm", "-fr"
         accum += self.platform_helper.echo("done up2s3 revision $(__CURR_REPO_REV__)")
-
-    def create_sig_for_file(self, file_to_sig):
-        config_dir, _ = os.path.split(var_stack.ResolveVarToStr("__CONFIG_FILE_PATH__"))
-        private_key_file = os.path.join(config_dir, var_stack.ResolveVarToStr("REPO_NAME") + ".private_key")
-        with open(private_key_file, "rb") as private_key_fd:
-            retVal = utils.create_file_signatures(file_to_sig, private_key_fd.read())
-        return retVal
 
     def do_create_repo_rev_file(self):
         if "REPO_REV_FILE_VARS" not in var_stack:
             raise ValueError("REPO_REV_FILE_VARS must be defined")
         repo_rev_vars = var_stack.ResolveVarToList("REPO_REV_FILE_VARS")
         var_stack.set_var("REPO_REV").append("$(TARGET_REPO_REV)")  # override the repo rev from the config file
+        var_stack.set_var("__CURR_REPO_FOLDER_HIERARCHY__").append(self.repo_rev_to_folder_hierarchy(var_stack.ResolveVarToStr("TARGET_REPO_REV")))
+        var_stack.set_var("REPO_REV_FOLDER_HIERARCHY").append("$(__CURR_REPO_FOLDER_HIERARCHY__)")
+
+        var_stack.set_var("INSTL_FOLDER_BASE_URL").append("$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl")
+
         dangerous_intersection = set(repo_rev_vars).intersection(
             {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "PRIVATE_KEY", "PRIVATE_KEY_FILE"})
         if dangerous_intersection:
             print("found", str(dangerous_intersection), "in REPO_REV_FILE_VARS, aborting")
             raise ValueError("file REPO_REV_FILE_VARS "+str(dangerous_intersection)+" and so is forbidden to upload")
 
-        info_map_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(TARGET_REPO_REV)/instl/info_map.txt")
-        info_map_sigs = self.create_sig_for_file(info_map_file)
-        var_stack.set_var("INFO_MAP_CHECKSUM").append(info_map_sigs["sha1_checksum"])
-        #var_stack.set_var("INFO_MAP_FILE_URL_CHECKSUM").append("$(INFO_MAP_CHECKSUM)")
+        var_stack.set_var("RELATIVE_INFO_MAP_URL").append("$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt$(WZLIB_EXTENSION)")
+        var_stack.set_var("INFO_MAP_FILE_URL").append("$(BASE_LINKS_URL)/$(RELATIVE_INFO_MAP_URL)")
+        info_map_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt$(WZLIB_EXTENSION)")
+        info_map_checksum = utils.get_file_checksum(info_map_file)
+        var_stack.set_var("INFO_MAP_CHECKSUM").append(info_map_checksum)
 
-        var_stack.set_var("INDEX_URL_RELATIVE_PATH").append("$(REPO_NAME)/$(REPO_REV)/instl/index.yaml")
-        var_stack.set_var("INDEX_URL").append("$(S3_BUCKET_BASE_URL)/$(INDEX_URL_RELATIVE_PATH)")
-        index_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(TARGET_REPO_REV)/instl/index.yaml")
-        index_file_sigs = self.create_sig_for_file(index_file)
-        var_stack.set_var("INDEX_SIG").append(index_file_sigs["SHA-512_rsa_sig"])
-        var_stack.set_var("INDEX_CHECKSUM").append(index_file_sigs["sha1_checksum"])
+        # zip the index file
+        local_index_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml")
+        zip_local_index_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml$(WZLIB_EXTENSION)")
+        zlib_compression_level = int(var_stack.ResolveVarToStr("ZLIB_COMPRESSION_LEVEL"))
+        with open(zip_local_index_file, "wb") as wfd:
+            wfd.write(zlib.compress(open(local_index_file, "r").read().encode(), zlib_compression_level))
+
+        var_stack.set_var("RELATIVE_INDEX_URL").append("$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml$(WZLIB_EXTENSION)")
+        var_stack.set_var("INDEX_URL").append("$(BASE_LINKS_URL)/$(RELATIVE_INDEX_URL)")
+        index_file_checksum = utils.get_file_checksum(zip_local_index_file)
+        var_stack.set_var("INDEX_CHECKSUM").append(index_file_checksum)
 
         for var in repo_rev_vars:
             if var not in var_stack:
@@ -563,7 +571,7 @@ class InstlAdmin(InstlInstanceBase):
             for symlink_file, link_value in valid_symlinks:
                 symlink_text_path = symlink_file + ".symlink"
                 self.batch_accum += " ".join(("echo", "-n", "'" + link_value + "'", ">", "'" + symlink_text_path + "'"))
-                self.batch_accum += self.platform_helper.rmfile(symlink_file)
+                self.batch_accum += self.platform_helper.rmfile(symlink_file,)
                 self.batch_accum += self.platform_helper.progress(symlink_text_path)
                 self.batch_accum += self.platform_helper.new_line()
 
@@ -1157,6 +1165,7 @@ class InstlAdmin(InstlInstanceBase):
         instl_folder = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         full_info_map_file_path = var_stack.ResolveStrToStr(os.path.join(instl_folder, "$(FULL_INFO_MAP_FILE_NAME)"))
         index_yaml_path = os.path.join(instl_folder, "index.yaml")
+        zlib_compression_level = int(var_stack.ResolveVarToStr("ZLIB_COMPRESSION_LEVEL"))
 
         # read the index
         self.read_yaml_file(index_yaml_path)
@@ -1175,9 +1184,20 @@ class InstlAdmin(InstlInstanceBase):
             if info_map_items:  # could be that no items are linked to the info map file
                 info_map_file_path = os.path.join(instl_folder, infomap_file_name)
                 self.info_map_table.write_to_file(in_file=info_map_file_path, items_list=info_map_items, field_to_write=self.fields_relevant_to_info_map)
+
                 info_map_checksum = utils.get_file_checksum(info_map_file_path)
                 info_map_size = os.path.getsize(info_map_file_path)
                 line_for_main_info_map = "instl/{infomap_file_name}, f, $(REPO_REV), {info_map_checksum}, {info_map_size}".format(**locals())
+                lines_for_main_info_map.append(var_stack.ResolveStrToStr(line_for_main_info_map))
+
+                zip_infomap_file_name = var_stack.ResolveStrToStr(infomap_file_name+"$(WZLIB_EXTENSION)")
+                zip_info_map_file_path = os.path.join(instl_folder, zip_infomap_file_name)
+                with open(zip_info_map_file_path, "wb") as wfd:
+                    wfd.write(zlib.compress(open(info_map_file_path, "r").read().encode(), zlib_compression_level))
+
+                zip_info_map_checksum = utils.get_file_checksum(zip_info_map_file_path)
+                zip_info_map_size = os.path.getsize(zip_info_map_file_path)
+                line_for_main_info_map = "instl/{zip_infomap_file_name}, f, $(REPO_REV), {zip_info_map_checksum}, {zip_info_map_size}".format(**locals())
                 lines_for_main_info_map.append(var_stack.ResolveStrToStr(line_for_main_info_map))
 
         # write default info map to file
@@ -1188,7 +1208,13 @@ class InstlAdmin(InstlInstanceBase):
         with open(default_info_map_file_path, "a") as wfd:
             wfd.write("\n".join(lines_for_main_info_map))
 
+        zip_default_info_map_file_path = var_stack.ResolveStrToStr(default_info_map_file_path+"$(WZLIB_EXTENSION)")
+        with open(zip_default_info_map_file_path, "wb") as wfd:
+            wfd.write(zlib.compress(open(default_info_map_file_path, "r").read().encode(), zlib_compression_level))
+
     def do_read_info_map(self):
         files_to_read = var_stack.ResolveVarToList("__MAIN_INPUT_FILE__")
         for f2r in files_to_read:
             self.info_map_table.read_from_file(f2r)
+
+

@@ -81,7 +81,7 @@ command:
             Private key is written to a file named in variable PRIVATE_KEY_FILE which defaults to "$(REPO_NAME).private_key".
             Public key is written to a file named in variable PUBLIC_KEY_FILE which defaults to "$(REPO_NAME).public_key".
             Variables PRIVATE_KEY_FILE, PUBLIC_KEY_FILE, REPO_NAME are read from path_to_config_file.
-            Key size is 4096. Keys are produced in PEM format. 
+            Key size is 4096. Keys are produced in PEM format.
     depend:
         short: Create a full dependencies list from index.yaml (admin command)
         long: |
@@ -194,7 +194,7 @@ command:
         short: Update svn from a staging folder. (admin command)
         long: |
            Usage: instl stage2svn --config-file  path-to-config-file --out stage2svn.sh [--run]
-           Making changes to the svn repository cannot be done on the svn checkout folder directly, mainly because svn finds it difficult to handle deleted files. 
+           Making changes to the svn repository cannot be done on the svn checkout folder directly, mainly because svn finds it difficult to handle deleted files.
            When the staging folder (created by the svn2stage command) is ready, stage2svn can be called to create the svn command to add/delete files. Existing files that were changed will be discovered by svn itself. Before calling stage2svn it is advisable to call fix-symlinks, stage2svn will not accept new symlinks.
            Keep in mind that stage2svn command does not actually do anything, unless the --run flag is given. You will need to run the produced batch file in order to actually run the svn commands and then manually commit the changes to svn.
 

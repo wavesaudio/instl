@@ -10,6 +10,7 @@ import fnmatch
 from contextlib import contextmanager
 import ssl
 import pyinstl.connectionBase
+import zlib
 
 import urllib.request, urllib.error, urllib.parse
 
@@ -176,8 +177,8 @@ class open_for_read_file_or_url(object):
         return self._actual_path
 
 
-def read_from_file_or_url(in_url, translate_url_callback=None, public_key=None, textual_sig=None, expected_checksum=None, encoding='utf-8'):
-    """ Read a file from local disk or url. Check signature or checksum if given.
+def read_from_file_or_url(in_url, translate_url_callback=None, expected_checksum=None, encoding='utf-8'):
+    """ Read a file from local disk or url. Check checksum if given.
         If test against either sig or checksum fails - raise IOError.
         Return: file contents.
     """
@@ -186,46 +187,72 @@ def read_from_file_or_url(in_url, translate_url_callback=None, public_key=None, 
         if encoding is not None:  # when reading from url we're not sure what the encoding is
             contents_buffer = utils.unicodify(contents_buffer, encoding=encoding)
         # check sig or checksum only if they were given
-        if (public_key, textual_sig, expected_checksum) != (None, None, None):
+        if expected_checksum is not None:
             if len(contents_buffer) == 0:
                 raise IOError("Empty contents returned from", in_url, "; expected checksum: ", expected_checksum, "; encoding:", encoding)
             if encoding is not None:
                 raise IOError("Checksum check requested for", in_url, "but encoding is not None, encoding:", encoding, "; expected checksum: ", expected_checksum)
-            buffer_ok = utils.check_buffer_signature_or_checksum(contents_buffer, public_key, textual_sig, expected_checksum)
+            buffer_ok = utils.check_buffer_checksum(contents_buffer, expected_checksum)
             if not buffer_ok:
                 actual_checksum = utils.get_buffer_checksum(contents_buffer)
-                raise IOError("Checksum or Signature mismatch", in_url, "expected checksum: ", expected_checksum,
+                raise IOError("Checksum mismatch", in_url, "expected checksum: ", expected_checksum,
                               "actual checksum:", actual_checksum, "encoding:", encoding)
     return contents_buffer
 
 
-def download_from_file_or_url(in_url, in_local_path, translate_url_callback=None, cache=False, public_key=None, textual_sig=None, expected_checksum=None):
-    """ Copy a file or download it from a URL to in_local_path.
-        If cache flag is True, the file will only be copied/downloaded if it does not already exist.
-        If cache flag is True and signature or checksum is given they will be checked. If such check fails, copy/download
-        will be done.
+def download_and_cache_file_or_url(in_url, cache_folder, translate_url_callback=None, expected_checksum=None):
+    """ download file to given cache folder
+        if checksum is supplied and the a file with that checksum exists in cache folder - download can be avoided
+        otherwise download the file
+        :return: path of the downloaded file
     """
-    fileExists = False
-    if cache and os.path.isfile(in_local_path):
-        # cache=True means: if local file already exists, there is no need to download.
-        # if public_key, textual_sig, expected_checksum are given, check local file signature or checksum.
-        # If these do not match erase the file so it will be downloaded again.
-        fileOK = True
-        if (public_key, textual_sig, expected_checksum) != (None, None, None):
-            fileOK = utils.check_file_signature_or_checksum(in_local_path, public_key, textual_sig, expected_checksum)
-        if not fileOK:
-            print("File will be downloaded because check checksum failed for", in_url, "cached at local path", in_local_path, "expected_checksum:", expected_checksum)
-            os.remove(in_local_path)
-        fileExists = fileOK
+    assert os.path.isdir(cache_folder), cache_folder+" folder not found"
+    url_file_name = last_url_item(in_url)
+    cached_file_name = expected_checksum if expected_checksum else url_file_name
+    cached_file_path = os.path.join(cache_folder, cached_file_name)
+    if expected_checksum is None:  # no checksum -> force download
+        safe_remove_file(cached_file_path)
 
-    if not fileExists:
-        contents_buffer = read_from_file_or_url(in_url, translate_url_callback, public_key, textual_sig, expected_checksum, encoding=None)
+    if not os.path.isfile(cached_file_path):
+        contents_buffer = read_from_file_or_url(in_url, translate_url_callback, expected_checksum, encoding=None)
         if contents_buffer:
-            with open(in_local_path, "wb") as wfd:
+            with open(cached_file_path, "wb") as wfd:
                 make_open_file_read_write_for_all(wfd)
                 wfd.write(contents_buffer)
+    else:
+        assert expected_checksum is not None, "file "+cached_file_path+" found but checksum is None"
+        assert utils.check_file_checksum(cached_file_path, expected_checksum), "file "+cached_file_path+" found but checksum does not match"
+    return cached_file_path
+
+
+def download_from_file_or_url(in_url, in_target_path=None, translate_url_callback=None, cache_folder=None, expected_checksum=None):
+    """
+        download a file from url and place it on a target path. Possibly also decompressed wzlib files.
+        """
+
+    cached_file_path = download_and_cache_file_or_url(in_url=in_url, translate_url_callback=translate_url_callback, cache_folder=cache_folder, expected_checksum=expected_checksum)
+    if in_target_path:
+        url_file_name = last_url_item(in_url)
+        url_base_file_name, url_extension = os.path.splitext(url_file_name)
+        need_decompress = url_extension == ".wzlib"
+        if os.path.isdir(in_target_path):
+            target_file_name = url_base_file_name if need_decompress else url_file_name
+            final_file_path = os.path.join(in_target_path, target_file_name)
         else:
-            print("no content_buffer after reading", in_url, file=sys.stderr)
+            final_file_path = in_target_path
+            _, target_extension = os.path.splitext(final_file_path)
+            if need_decompress and target_extension == ".wzlib":
+                need_decompress = False  # no need to decompress if target is expected to be compressed
+
+        if need_decompress:
+            decompressed = zlib.decompress(open(cached_file_path, "rb").read())
+            with open(final_file_path, "wb") as wfd:
+                wfd.write(decompressed)
+        else:
+            smart_copy_file(cached_file_path, final_file_path)
+    else:
+        final_file_path = cached_file_path
+    return final_file_path
 
 
 class ChangeDirIfExists(object):
@@ -485,8 +512,8 @@ if __name__ == "__main__":
     combo_data = reqs.request("GetInstlUrlComboCollection", {'repositoryRevision': '-1', "repositoryVersions":[9]})
     #print("combo_data:\n", combo_data)
     InstlUrlAccessParameters = combo_data['oResult'][0]['InstlUrlAccessParameters']
-    repo_rev_yaml_url = "https://" + InstlUrlAccessParameters['ResourceRootUrl'] + "/admin/V9_repo_rev.yaml"
-    index_yaml_url = "https://" + InstlUrlAccessParameters['ResourceRootUrl'] + "/V9/795/instl/index.yaml"
+    repo_rev_yaml_url = "https://" + InstlUrlAccessParameters['ResourceRootUrl'] + "/admin/V10_repo_rev.yaml"
+    index_yaml_url = "https://" + InstlUrlAccessParameters['ResourceRootUrl'] + "/V10/795/instl/index.yaml"
 
     netloc_and_cookies = translate_cookies_from_GetInstlUrlComboCollection(InstlUrlAccessParameters)
     var_stack.set_var("COOKIE_JAR").append(netloc_and_cookies)
@@ -497,6 +524,6 @@ if __name__ == "__main__":
     the_text = utils.read_file_or_url(index_yaml_url)
     print("index.yaml:", index_yaml_re.search(the_text).groups(1)[0])
 
-    local_index = "/Volumes/BonaFide/installers/betainstl/V9/svn/instl/index.yaml"
+    local_index = "/Volumes/BonaFide/installers/betainstl/V10/svn/instl/index.yaml"
     the_text = utils.read_file_or_url(local_index)
     print("local index.yaml:", index_yaml_re.search(the_text).groups(1)[0])
