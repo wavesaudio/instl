@@ -156,12 +156,8 @@ class CopyToolRsync(CopyToolBase):
             delete_spec = ""
         if link_dest:
             relative_link_dest = os.path.relpath(src_dir, trg_dir)
-            print("src_dir", src_dir)
-            print("trg_dir", trg_dir)
-            print("relative_link_dest", relative_link_dest)
             sync_command = """rsync --owner --group -l -r -E {delete_spec} {ignore_spec} --link-dest="{relative_link_dest}" "{src_dir}" "{trg_dir}" """.format(**locals())
         else:
-            print("relative_link_dest", "nada")
             sync_command = """rsync --owner --group -l -r -E {delete_spec} {ignore_spec} "{src_dir}" "{trg_dir}" """.format(**locals())
 
         return sync_command

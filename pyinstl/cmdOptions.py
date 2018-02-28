@@ -82,7 +82,7 @@ def prepare_args_parser(in_command):
         'make-sig':             {'mode': 'an', 'options': ('in', 'conf',), 'help':  'create sha1 checksum and rsa signature for a file'},
         'parallel-run':         {'mode': 'ds', 'options': ('in', ), 'help':  'Run processes in parallel'},
         'read-info-map':        {'mode': 'an', 'options': ('in+', ), 'help':  "reads an info-map file to verify it's contents"},
-        'read-yaml':            {'mode': 'an', 'options': ('in', ), 'help':  "reads a yaml file to verify it's contents"},
+        'read-yaml':            {'mode': 'an', 'options': ('in', 'out'), 'help':  "reads a yaml file to verify it's contents"},
         'remove-empty-folders': {'mode': 'ds', 'options': ('in', ), 'help':  'remove folders is they are empty'},
         'remove':               {'mode': 'ct', 'options': ('in', 'out', 'run',), 'help':  'remove items installed by copy'},
         'report-versions':      {'mode': 'ct', 'options': ('in', 'out', 'output_format', 'only_installed'), 'help': 'report what is installed and what needs update'},

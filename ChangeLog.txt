@@ -1,3 +1,18 @@
+27/2/2018 1.7.0.0
+
+    user visible changes:
+    * __include__ can not have the attribute 'destination' to specify a folder where to place the included file
+    admin vidible changes:
+    * new folder hierarchy on S3: repo-rev is devided to pairs: e.g. repo-rev 123 would be under 01/23
+    * support for compressing info_map and index files with zlib, such files will have anew extension .wzlib
+    * commands create-links up2s3: option --all-revisions replaced with --revision [all|number]
+    * removed usage of RSA signatures and key files which were not used for a long time
+    * command read-yaml added option to output the read yaml
+    * InstlAdmin.create_links_for_revision disabled the creation of .txt version of the files in instl folder - to save upload time - since they were not useful anyway
+    programmer visible changes:
+    * utils.download_from_file_or_url was refactored for simplicity and for support of .wzlib files
+    * augmentedYaml - added option to not print comments
+
 31/12/2017 1.6.2.18
 
     programmer visible changes:

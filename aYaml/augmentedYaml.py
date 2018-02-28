@@ -151,11 +151,12 @@ class YamlDumpWrap(object):
         Overcomes some of PyYaml limitations, by adding the option to
         have comments and tags. Sorting mapping by key is also optional.
     """
-    def __init__(self, value=None, tag="", comment="", sort_mappings=False):
+    def __init__(self, value=None, tag="", comment="", sort_mappings=False, include_comments=True):
         self.tag = tag
         self.comment = comment
         self.value = value
         self.sort_mappings = sort_mappings
+        self.include_comments = include_comments
 
     def __lt__(self, other):
         return self.value < other.value
@@ -171,17 +172,20 @@ class YamlDumpWrap(object):
 
     def writePrefix(self, out_stream, indentor):
         if isinstance(self.value, (list, tuple, dict)):
-            if self.tag or self.comment:
+            if self.tag or (self.comment and self.include_comments):
                 indentor.lineSepAndIndent(out_stream)
-                commentSep = ifTrueOrFalse(self.comment, "#", "")
-                out_stream.write(" ".join((self.tag, commentSep, self.comment)))
+                if self.tag:
+                    out_stream.write(self.tag)
+                if self.comment and self.include_comments:
+                    out_stream.write(" # ")
+                    out_stream.write(self.comment)
         elif self.tag:
             out_stream.write(self.tag)
             out_stream.write(" ")
 
     def writePostfix(self, out_stream, indentor):
         if not isinstance(self.value, (list, tuple, dict)):
-            if self.comment:
+            if self.comment and self.include_comments:
                 out_stream.write(" # ")
                 out_stream.write(self.comment)
 
@@ -202,19 +206,25 @@ class YamlDumpDocWrap(YamlDumpWrap):
     def __init__(
         self, value=None, tag="", comment="",
             explicit_start=True, explicit_end=False,
-            sort_mappings=False):
+            sort_mappings=False, include_comments=True):
         super().__init__(tag=tag, comment=comment,
                         value=value,
-                        sort_mappings=sort_mappings)
+                        sort_mappings=sort_mappings,
+                        include_comments=include_comments)
         self.explicit_start = explicit_start
         self.explicit_end = explicit_end
 
     def writePrefix(self, out_stream, indentor):
         indentor.reset()
-        if self.tag or self.comment or self.explicit_start:
-            commentSep = ifTrueOrFalse(self.comment, "#", "")
-            out_stream.write(" ".join(("---", self.tag, commentSep, self.comment)))
-            indentor.lineSepAndIndent(out_stream)
+        if self.explicit_start or self.tag:
+            out_stream.write("---")
+            if self.tag:
+                out_stream.write(" ")
+                out_stream.write(self.tag)
+        if self.comment and self.include_comments:
+            out_stream.write(" # ")
+            out_stream.write(self.comment)
+        indentor.lineSepAndIndent(out_stream)
 
     def writePostfix(self, out_stream, indentor):
         if self.explicit_end:
