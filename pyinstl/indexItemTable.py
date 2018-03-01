@@ -89,13 +89,13 @@ class IndexItemsTable(TableBase):
             self.execute_script(rfd.read())
 
     def add_triggers(self):
-        self.execute_script_from_defaults("create-triggers.sql")
+        self.execute_script_from_defaults("create-triggers.ddl")
 
     def drop_triggers(self):
-        self.execute_script_from_defaults("drop-triggers.sql")
+        self.execute_script_from_defaults("drop-triggers.ddl")
 
     def add_views(self):
-        self.execute_script_from_defaults("create-views.sql")
+        self.execute_script_from_defaults("create-views.ddl")
 
     def drop_views(self):
         self.execute_script_from_defaults("drop-views.sql")
