@@ -1,12 +1,12 @@
 -- noinspection SqlNoDataSourceInspectionForFile
 
 -- item found on disk that has a guid. This trigger will find the IID
--- for that guid in IndexItemDetailRow and update the FoundOnDiskItemRow row
+-- for that guid in IndexItemDetailRow and update the found_installed_binaries_t row
 CREATE TRIGGER IF NOT EXISTS add_iid_to_FoundOnDiskItemRow_guid_not_null
-AFTER INSERT ON FoundOnDiskItemRow
+AFTER INSERT ON found_installed_binaries_t
     WHEN(NEW.guid IS NOT NULL)
 BEGIN
-    UPDATE FoundOnDiskItemRow
+    UPDATE found_installed_binaries_t
     SET iid  = (
         SELECT name_item_t.owner_iid
         FROM IndexItemDetailRow AS guid_item_t
@@ -18,29 +18,29 @@ BEGIN
             AND name_item_t.owner_iid=guid_item_t.owner_iid
         WHERE guid_item_t.detail_name='guid'
           AND guid_item_t.detail_value=NEW.guid)
-   WHERE FoundOnDiskItemRow._id=NEW._id;
+   WHERE found_installed_binaries_t._id=NEW._id;
 END;
 
 -- item found on disk that has no guid. This trigger will find the IID
--- for that  in IndexItemDetailRow by comparing the file's name and update the FoundOnDiskItemRow row
+-- for that  in IndexItemDetailRow by comparing the file's name and update the found_installed_binaries_t row
 CREATE TRIGGER IF NOT EXISTS add_iid_to_FoundOnDiskItemRow_guid_is_null
-AFTER INSERT ON FoundOnDiskItemRow
+AFTER INSERT ON found_installed_binaries_t
     WHEN NEW.guid IS NULL
 BEGIN
-    UPDATE OR IGNORE FoundOnDiskItemRow
+    UPDATE OR IGNORE found_installed_binaries_t
     SET iid  = (
         SELECT IndexItemDetailRow.owner_iid
         FROM IndexItemDetailRow
         WHERE (detail_name='install_sources' OR detail_name='previous_sources')
         AND detail_value LIKE '%' || NEW.name)
-   WHERE FoundOnDiskItemRow._id=NEW._id;
+   WHERE found_installed_binaries_t._id=NEW._id;
 END;
--- when reading "require_by" detail, add to IndexRequireTranslate table
+-- when reading "require_by" detail, add to require_translate_t table
 CREATE TRIGGER IF NOT EXISTS translate_require_by_trigger
     AFTER INSERT ON IndexItemDetailRow
     WHEN NEW.detail_name="require_by"
 BEGIN
-    INSERT OR IGNORE INTO IndexRequireTranslate (iid, require_by, status)
+    INSERT OR IGNORE INTO require_translate_t (iid, require_by, status)
     VALUES (NEW.owner_iid,  NEW.detail_value, 0);
 END;
 
@@ -108,7 +108,7 @@ END;
 
 -- when an os becomes active/de-active set all details accordingly
 CREATE TRIGGER IF NOT EXISTS adjust_active_os_for_details
-AFTER UPDATE OF os_is_active ON IndexItemDetailOperatingSystem
+AFTER UPDATE OF os_is_active ON active_operating_systems_t
 BEGIN
     UPDATE IndexItemDetailRow
     SET    os_is_active =  NEW.os_is_active
@@ -120,8 +120,8 @@ CREATE TRIGGER IF NOT EXISTS set_active_os_for_details
 AFTER INSERT ON IndexItemDetailRow
 BEGIN
      UPDATE IndexItemDetailRow
-     SET os_is_active = (SELECT IndexItemDetailOperatingSystem.os_is_active
-                    FROM IndexItemDetailOperatingSystem
-                    WHERE IndexItemDetailOperatingSystem._id=NEW.os_id)
+     SET os_is_active = (SELECT active_operating_systems_t.os_is_active
+                    FROM active_operating_systems_t
+                    WHERE active_operating_systems_t._id=NEW.os_id)
      WHERE IndexItemDetailRow._id = NEW._id;
 END;

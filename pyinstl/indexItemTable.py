@@ -9,13 +9,10 @@ from sqlalchemy import bindparam
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-    #IndexItemDetailOperatingSystem, \
 from .db_alchemy import create_session,\
     IndexItemRow, \
     IndexItemDetailRow, \
-    IndexRequireTranslate, \
-    FoundOnDiskItemRow, \
-    ConfigVar, get_engine, TableBase
+    get_engine, TableBase
 
 
 import svnTree  # do not remove must be here before IndexItemsTable.execute_script is called
@@ -75,11 +72,8 @@ class IndexItemsTable(TableBase):
         return self.session.bind.url
 
     def clear_tables(self):
-        # print(get_engine().table_names())
         self.drop_triggers()
         self.drop_views()
-        self.session.query(IndexRequireTranslate).delete()
-        #self.session.query(IndexItemDetailOperatingSystem).delete()
         self.session.query(IndexItemDetailRow).delete()
         self.session.query(IndexItemRow).delete()
         self.commit_changes()
@@ -140,18 +134,6 @@ class IndexItemsTable(TableBase):
             else:
                 print(iid, "found in require but not in index")
         self.commit_changes()
-
-    def get_all_require_translate_items(self):
-        """
-        """
-        if "get_all_require_translate_items" not in self.baked_queries_map:
-            the_query = self.bakery(lambda session: session.query(IndexRequireTranslate))
-            the_query += lambda q: q.order_by(IndexRequireTranslate.iid)
-            self.baked_queries_map["get_all_require_translate_items"] = the_query
-        else:
-            the_query = self.baked_queries_map["get_all_require_translate_items"]
-        retVal = the_query(self.session).all()
-        return retVal
 
     def get_all_index_items(self):
         """
@@ -955,28 +937,29 @@ class IndexItemsTable(TableBase):
         return retVal
 
     def insert_binary_versions(self, binaries_version_list):
+        binaries_version_to_insert = list()
         for binary_details in binaries_version_list:
             folder, name = os.path.split(binary_details[0])
-            self.session.add(FoundOnDiskItemRow(name=name, path=binary_details[0], version=binary_details[1], guid=binary_details[2]))
-        self.commit_changes()
+            binaries_version_to_insert.append((name, *binary_details))
+        self.db_master.add_binary_versions()
 
     def add_require_version_from_binaries(self):
         """ add require_version for iid that do not have this detail value (because previous index.yaml did not have it)
-        1st try version found on disk from table FoundOnDiskItemRow
+        1st try version found on disk from table found_installed_binaries_t
         2nd for iids still missing require_version try phantom_version detail value
         """
         query_text = """
         INSERT OR REPLACE INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
-        SELECT  FoundOnDiskItemRow.iid, -- original_iid
-                FoundOnDiskItemRow.iid, -- owner_iid
+        SELECT  found_installed_binaries_t.iid, -- original_iid
+                found_installed_binaries_t.iid, -- owner_iid
                 0,                      -- os_id
                 'require_version',      -- detail_name
-                FoundOnDiskItemRow.version, -- detail_value from disk
+                found_installed_binaries_t.version, -- detail_value from disk
                 0                       -- generation
         FROM require_items_without_require_version_view
-        JOIN FoundOnDiskItemRow
-            ON FoundOnDiskItemRow.iid=require_items_without_require_version_view.iid
-            AND FoundOnDiskItemRow.version NOTNULL
+        JOIN found_installed_binaries_t
+            ON found_installed_binaries_t.iid=require_items_without_require_version_view.iid
+            AND found_installed_binaries_t.version NOTNULL
         """
         try:
             exec_result = self.session.execute(query_text)
@@ -1008,16 +991,16 @@ class IndexItemsTable(TableBase):
     def add_require_guid_from_binaries(self):
         query_text = """
         INSERT OR REPLACE INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
-        SELECT  FoundOnDiskItemRow.iid,  -- original_iid
-                FoundOnDiskItemRow.iid,  -- owner_iid
+        SELECT  found_installed_binaries_t.iid,  -- original_iid
+                found_installed_binaries_t.iid,  -- owner_iid
                 0,                       -- os_id
                 'require_guid',          -- detail_name
-                FoundOnDiskItemRow.guid, -- detail_value
+                found_installed_binaries_t.guid, -- detail_value
                 0                        -- generation
         FROM require_items_without_require_guid_view
-        JOIN FoundOnDiskItemRow
-            ON FoundOnDiskItemRow.iid=require_items_without_require_guid_view.iid
-            AND FoundOnDiskItemRow.guid NOTNULL
+        JOIN found_installed_binaries_t
+            ON found_installed_binaries_t.iid=require_items_without_require_guid_view.iid
+            AND found_installed_binaries_t.guid NOTNULL
         """
         try:
             exec_result = self.session.execute(query_text)
@@ -1042,11 +1025,12 @@ class IndexItemsTable(TableBase):
 
     def config_var_list_to_db(self, in_config_var_list):
         try:
+            config_var_insert_list = list()
             for identifier in in_config_var_list:
                 raw_value = in_config_var_list.unresolved_var(identifier)
                 resolved_value = in_config_var_list.ResolveVarToStr(identifier, list_sep=" ", default="")
-                self.session.add(ConfigVar(name=identifier, raw_value=raw_value, resolved_value=resolved_value))
-            self.commit_changes()
+                config_var_insert_list.append((identifier, raw_value, resolved_value))
+            self.db_master.add_config_vars(config_var_insert_list)
         except Exception as ex:  # config vars are written to db for reference so we can continue even if exception ware raised
             print(ex)
 

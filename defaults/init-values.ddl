@@ -1,4 +1,4 @@
-INSERT INTO IndexItemDetailOperatingSystem(_id, name)
+INSERT INTO active_operating_systems_t(_id, name)
 VALUES (0, 'common'),
         (1, 'Mac'),
         (2, 'Mac32'),

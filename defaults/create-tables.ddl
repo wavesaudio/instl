@@ -1,13 +1,12 @@
 
-CREATE TABLE IndexItemDetailOperatingSystem
+CREATE TABLE active_operating_systems_t
 (
   _id INTEGER PRIMARY KEY,
 	name TEXT UNIQUE,
 	os_is_active BOOLEAN DEFAULT 0
 );
 
-/*
-CREATE TABLE ConfigVar
+CREATE TABLE config_var_t
 (
   _id INTEGER PRIMARY KEY AUTOINCREMENT,
 	name TEXT UNIQUE,
@@ -15,7 +14,16 @@ CREATE TABLE ConfigVar
 	resolved_value TEXT
 );
 
-CREATE TABLE FoundOnDiskItemRow
+CREATE TABLE require_translate_t
+(
+  _id INTEGER PRIMARY KEY AUTOINCREMENT,
+	iid TEXT,
+	require_by TEXT,
+	status INTEGER,
+	UNIQUE (iid, require_by)
+);
+
+CREATE TABLE found_installed_binaries_t
 (
   _id INTEGER PRIMARY KEY AUTOINCREMENT,
 	path TEXT,
@@ -24,6 +32,7 @@ CREATE TABLE FoundOnDiskItemRow
 	guid TEXT,
 	iid TEXT
 );
+/*
 
 CREATE TABLE svnitem
 (
@@ -80,15 +89,6 @@ CREATE TABLE IndexItemDetailRow
 	os_is_active INTEGER,
 	UNIQUE (original_iid, owner_iid, os_id, detail_name, detail_value, generation),
   FOREIGN KEY(original_iid) REFERENCES IndexItemRow(iid) ON DELETE CASCADE,
-  FOREIGN KEY(os_id) REFERENCES IndexItemDetailOperatingSystem(_id)
-);
-
-CREATE TABLE IndexRequireTranslate
-(
-  _id INTEGER PRIMARY KEY AUTOINCREMENT,
-	iid TEXT,
-	require_by TEXT,
-	status INTEGER,
-	UNIQUE (iid, require_by)
+  FOREIGN KEY(os_id) REFERENCES active_operating_systems_t(_id)
 );
 */

@@ -95,16 +95,22 @@ class DBMaster(object):
         except sqlite3.Error as ex:
             raise
 
+    def executemany(self, query_text, value_list):
+        try:
+            self.__curs.executemany(query_text, value_list)
+        except sqlite3.Error as ex:
+            raise
+
     def get_ids_and_oses(self):
-        return self.select_and_fetchall("SELECT _id, name FROM IndexItemDetailOperatingSystem")
+        return self.select_and_fetchall("SELECT _id, name FROM active_operating_systems_t")
 
     def get_ids_oses_active(self):
-        return self.select_and_fetchall("SELECT _id, name, os_is_active FROM IndexItemDetailOperatingSystem")
+        return self.select_and_fetchall("SELECT _id, name, os_is_active FROM active_operating_systems_t")
 
     def get_oses_and_active(self):
         query_text = """
         SELECT name, os_is_active
-        FROM IndexItemDetailOperatingSystem
+        FROM active_operating_systems_t
         ORDER BY _id
         """
         return self.select_and_fetchall(query_text)
@@ -116,7 +122,7 @@ class DBMaster(object):
             there is need to have access to all oses not just the current or target os.
         """
         query_text = """
-            UPDATE IndexItemDetailOperatingSystem
+            UPDATE active_operating_systems_t
             SET os_is_active = 1
          """
         try:
@@ -142,8 +148,8 @@ class DBMaster(object):
         quoted_os_names = [utils.quoteme_double(os_name) for os_name in for_oses]
         query_vars = ", ".join(quoted_os_names)
         query_text = """
-            UPDATE IndexItemDetailOperatingSystem
-            SET os_is_active = CASE WHEN IndexItemDetailOperatingSystem.name IN ({0}) THEN
+            UPDATE active_operating_systems_t
+            SET os_is_active = CASE WHEN active_operating_systems_t.name IN ({0}) THEN
                     1
                 ELSE
                     0
@@ -156,6 +162,38 @@ class DBMaster(object):
             print(ex)
             raise
 
+    def add_config_vars(self, list_of_config_var_values):
+        query_text = """INSERT INTO config_var_t(name, raw_value, resolved_value) 
+                        VALUES (?, ?, ?)
+                     """
+        try:
+            self.executemany(query_text, list_of_config_var_values)
+            self.commit()
+        except sqlite3.Error as ex:
+            print(ex)
+            raise
+
+    def get_all_require_translate_items(self):
+        query_text = """
+                      SELECT * FROM require_translate_t
+                      ORDER BY require_translate_t.iid
+                     """
+        try:
+            self.select_and_fetchall(query_text)
+        except sqlite3.Error as ex:
+            print(ex)
+            raise
+
+    def add_binary_versions(self, binaries_version_list):
+         query_text = """INSERT INTO found_installed_binaries_t(name, path, version, guid) 
+                        VALUES (?, ?, ?, ?)
+                     """
+         try:
+            self.executemany(query_text, binaries_version_list)
+            self.commit()
+         except sqlite3.Error as ex:
+            print(ex)
+            raise
 
 if __name__ == "__main__":
     ddl_path = "/p4client/ProAudio/dev_central/ProAudio/XPlatform/CopyProtect/instl/defaults"
