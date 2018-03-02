@@ -1,3 +1,12 @@
+
+CREATE TABLE IndexItemDetailOperatingSystem
+(
+  _id INTEGER PRIMARY KEY,
+	name TEXT UNIQUE,
+	os_is_active BOOLEAN DEFAULT 0
+);
+
+/*
 CREATE TABLE ConfigVar
 (
   _id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,13 +55,6 @@ CREATE TABLE IIDToSVNItem
  FOREIGN KEY(svn_id) REFERENCES svnitem(_id)
 );
 
-CREATE TABLE IndexItemDetailOperatingSystem
-(
-  _id INTEGER PRIMARY KEY AUTOINCREMENT,
-	name TEXT UNIQUE,
-	os_is_active BOOLEAN
-);
-
 CREATE TABLE IndexItemRow
 (
   _id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -89,3 +91,4 @@ CREATE TABLE IndexRequireTranslate
 	status INTEGER,
 	UNIQUE (iid, require_by)
 );
+*/

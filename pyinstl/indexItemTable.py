@@ -9,8 +9,8 @@ from sqlalchemy import bindparam
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+    #IndexItemDetailOperatingSystem, \
 from .db_alchemy import create_session,\
-    IndexItemDetailOperatingSystem, \
     IndexItemRow, \
     IndexItemDetailRow, \
     IndexRequireTranslate, \
@@ -21,6 +21,7 @@ from .db_alchemy import create_session,\
 import svnTree  # do not remove must be here before IndexItemsTable.execute_script is called
 import utils
 from configVar import var_stack
+import db
 
 # todo: these were copied from the late Install Item.py and should find a better home
 os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
@@ -48,6 +49,16 @@ class IndexItemsTable(TableBase):
 
     def __init__(self):
         super().__init__()
+
+        self.db_master = db.DBMaster()
+        db_conn = get_engine().raw_connection()
+        db_curs = db_conn.cursor()
+        self.db_master.ddl_files_dir = var_stack.ResolveStrToStr(os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults"))
+        self.db_master.init_from_existing_db(db_conn, db_curs)
+        self.db_master.exec_script_file("create-tables.ddl")
+
+        self.active_oses_t = db.ActiveOperatingSystem(self.db_master)
+
         self.clear_tables()
         self.os_names_db_objs = list()
         self.add_default_values()
@@ -71,17 +82,14 @@ class IndexItemsTable(TableBase):
         self.drop_triggers()
         self.drop_views()
         self.session.query(IndexRequireTranslate).delete()
-        self.session.query(IndexItemDetailOperatingSystem).delete()
+        #self.session.query(IndexItemDetailOperatingSystem).delete()
         self.session.query(IndexItemDetailRow).delete()
         self.session.query(IndexItemRow).delete()
         self.commit_changes()
 
     def add_default_values(self):
-
-        for os_name, _id in IndexItemsTable.os_names_to_num.items():
-            new_item = IndexItemDetailOperatingSystem(_id=_id, name=os_name, os_is_active=False)
-            self.os_names_db_objs.append(new_item)
-        self.session.add_all(self.os_names_db_objs)
+        ids_and_oses = self.active_oses_t.get_ids_and_oses()
+        IndexItemsTable.os_names_to_num.update(ids_and_oses)
 
     def execute_script_from_defaults(self, script_file_name):
         script_file_path = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults", script_file_name)
@@ -106,16 +114,7 @@ class IndexItemsTable(TableBase):
             This method is useful in code that does reporting or analyzing, where
             there is need to have access to all oses not just the current or target os.
         """
-        query_text = """
-            UPDATE IndexItemDetailOperatingSystem
-            SET os_is_active = 1
-         """
-        try:
-            exec_result = self.session.execute(query_text)
-            self.commit_changes()
-        except SQLAlchemyError as ex:
-            print(ex)
-            raise
+        self.active_oses_t.activate_all_oses()
 
     def reset_active_oses(self):
         """ resets the list of os that will influence all get functions
@@ -123,38 +122,16 @@ class IndexItemsTable(TableBase):
             This method is useful in code that does reporting or analyzing, where
             there is need to have access to all oses not just the current or target os.
         """
-        self.activate_specific_oses()
+        self.active_oses_t.activate_specific_oses()
 
     def activate_specific_oses(self, *for_oses):
         """ adds another os name to the list of os that will influence all get functions
             such as depend_list, source_list etc.
         """
-        for_oses = *for_oses, "common"
-        quoted_os_names = [utils.quoteme_double(os_name) for os_name in for_oses]
-        query_vars = ", ".join(quoted_os_names)
-        query_text = """
-            UPDATE IndexItemDetailOperatingSystem
-            SET os_is_active = CASE WHEN IndexItemDetailOperatingSystem.name IN ({0}) THEN
-                    1
-                ELSE
-                    0
-                END;
-        """.format(query_vars)
-        try:
-            exec_result = self.session.execute(query_text)
-            self.commit_changes()
-        except SQLAlchemyError as ex:
-            print(ex)
-            raise
+        self.active_oses_t.activate_specific_oses(*for_oses)
 
     def get_active_oses(self):
-        retVal = list()
-        query_text = """
-        SELECT name, os_is_active
-        FROM IndexItemDetailOperatingSystem
-        ORDER BY _id
-        """
-        retVal = self.select_and_fetchall(query_text, query_params={})
+        retVal = self.active_oses_t.get_oses_and_active()
         return retVal
 
     def insert_require_to_db(self, require_items):

@@ -141,15 +141,16 @@ class TableBase(object):
         return retVal
 
 
-class IndexItemDetailOperatingSystem(get_declarative_base()):
-    __tablename__ = 'IndexItemDetailOperatingSystem'
-    _id = Column(Integer, primary_key=True)
-    name = Column(String, unique=True)
-    os_is_active = Column(BOOLEAN, default=False)
+if False:
+    class IndexItemDetailOperatingSystem(get_declarative_base()):
+        __tablename__ = 'IndexItemDetailOperatingSystem'
+        _id = Column(Integer, primary_key=True)
+        name = Column(String, unique=True)
+        os_is_active = Column(BOOLEAN, default=False)
 
-    def __str__(self):
-        retVal = "self._id) {self.name} os_is_active: {self.os_is_active}".format(**locals())
-        return retVal
+        def __str__(self):
+            retVal = "self._id) {self.name} os_is_active: {self.os_is_active}".format(**locals())
+            return retVal
 
 
 class IndexItemRow(get_declarative_base()):
@@ -182,7 +183,7 @@ class IndexItemDetailRow(get_declarative_base()):
     _id = Column(Integer, primary_key=True, autoincrement=True)
     original_iid = Column(String, ForeignKey(IndexItemRow.iid, ondelete="CASCADE"), index=True)
     owner_iid    = Column(String, ForeignKey(IndexItemRow.iid, ondelete="CASCADE"), index=True)
-    os_id        = Column(Integer, ForeignKey(IndexItemDetailOperatingSystem._id))
+    os_id        = Column(Integer, ) #ForeignKey(IndexItemDetailOperatingSystem._id)
     detail_name  = Column(String, index=True)
     detail_value = Column(String)
     generation   = Column(Integer, default=0)
@@ -240,7 +241,7 @@ class ConfigVar(get_declarative_base()):
     resolved_value = Column(String)
 
 
-IndexItemDetailOperatingSystem.__table__.create(bind=get_engine(), checkfirst=True)
+#IndexItemDetailOperatingSystem.__table__.create(bind=get_engine(), checkfirst=True)
 IndexItemRow.__table__.create(bind=get_engine(), checkfirst=True)
 IndexItemDetailRow.__table__.create(bind=get_engine(), checkfirst=True)
 IndexRequireTranslate.__table__.create(bind=get_engine(), checkfirst=True)
