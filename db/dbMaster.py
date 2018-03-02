@@ -17,16 +17,19 @@ class DBMaster(object):
         self.db_file_path = db_file_path
         self.open()
 
-    def init_from_existing_db(self, conn, curs):
+    def init_from_existing_connection(self, conn, curs):
         self.__conn = conn
         self.__curs = curs
         self.set_db_pragma("foreign_keys", "ON")
+        self.exec_script_file("create-tables.ddl")
+        self.exec_script_file("init-values.ddl")
 
     def open(self):
         self.__conn = sqlite3.connect(self.db_file_path)
         self.__curs = self.__conn.cursor()
         self.set_db_pragma("foreign_keys", "ON")
         self.exec_script_file("create-tables.ddl")
+        self.exec_script_file("init-values.ddl")
         self.set_db_pragma("user_version", self.top_user_version)
 
     def close(self):
@@ -92,16 +95,11 @@ class DBMaster(object):
         except sqlite3.Error as ex:
             raise
 
-
-class ActiveOperatingSystem(object):
-    def __init__(self, db_master):
-        self.db_master = db_master
-
     def get_ids_and_oses(self):
-        return self.db_master.select_and_fetchall("SELECT _id, name FROM IndexItemDetailOperatingSystem")
+        return self.select_and_fetchall("SELECT _id, name FROM IndexItemDetailOperatingSystem")
 
     def get_ids_oses_active(self):
-        return self.db_master.select_and_fetchall("SELECT _id, name, os_is_active FROM IndexItemDetailOperatingSystem")
+        return self.select_and_fetchall("SELECT _id, name, os_is_active FROM IndexItemDetailOperatingSystem")
 
     def get_oses_and_active(self):
         query_text = """
@@ -109,7 +107,7 @@ class ActiveOperatingSystem(object):
         FROM IndexItemDetailOperatingSystem
         ORDER BY _id
         """
-        return self.db_master.select_and_fetchall(query_text)
+        return self.select_and_fetchall(query_text)
 
     def activate_all_oses(self):
         """ adds all known os names to the list of os that will influence all get functions
@@ -122,8 +120,8 @@ class ActiveOperatingSystem(object):
             SET os_is_active = 1
          """
         try:
-            self.db_master.execute_no_fetch(query_text)
-            self.db_master.commit()
+            self.execute_no_fetch(query_text)
+            self.commit()
         except sqlite3.Error as ex:
             print(ex)
             raise
@@ -152,8 +150,8 @@ class ActiveOperatingSystem(object):
                 END;
         """.format(query_vars)
         try:
-            self.db_master.execute_no_fetch(query_text)
-            self.db_master.commit()
+            self.execute_no_fetch(query_text)
+            self.commit()
         except sqlite3.Error as ex:
             print(ex)
             raise
@@ -165,19 +163,17 @@ if __name__ == "__main__":
     utils.safe_remove_file(db_path)
     db = DBMaster()
     db.init_from_ddl(ddl_path, db_path)
-    db.exec_script_file("init-values.ddl")
 
-    oses_t = ActiveOperatingSystem(db)
-    print("creation:", oses_t.get_ids_oses_active())
+    print("creation:", db.get_ids_oses_active())
 
-    oses_t.activate_specific_oses("Mac64", "Win32")
-    print("Mac64:", oses_t.get_ids_oses_active())
+    db.activate_specific_oses("Mac64", "Win32")
+    print("Mac64:", db.get_ids_oses_active())
 
-    oses_t.reset_active_oses()
-    print("reset_active_oses:", oses_t.get_ids_oses_active())
+    db.reset_active_oses()
+    print("reset_active_oses:", db.get_ids_oses_active())
 
-    oses_t.activate_all_oses()
-    print("activate_all_oses:", oses_t.get_ids_oses_active())
+    db.activate_all_oses()
+    print("activate_all_oses:", db.get_ids_oses_active())
 
     #db.exec_script_file("create-indexes.ddl")
     #db.exec_script_file("create-triggers.ddl")

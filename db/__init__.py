@@ -1,1 +1,1 @@
-from .dbMaster import DBMaster, ActiveOperatingSystem
+from .dbMaster import DBMaster

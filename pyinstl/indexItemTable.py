@@ -54,10 +54,7 @@ class IndexItemsTable(TableBase):
         db_conn = get_engine().raw_connection()
         db_curs = db_conn.cursor()
         self.db_master.ddl_files_dir = var_stack.ResolveStrToStr(os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults"))
-        self.db_master.init_from_existing_db(db_conn, db_curs)
-        self.db_master.exec_script_file("create-tables.ddl")
-
-        self.active_oses_t = db.ActiveOperatingSystem(self.db_master)
+        self.db_master.init_from_existing_connection(db_conn, db_curs)
 
         self.clear_tables()
         self.os_names_db_objs = list()
@@ -88,7 +85,7 @@ class IndexItemsTable(TableBase):
         self.commit_changes()
 
     def add_default_values(self):
-        ids_and_oses = self.active_oses_t.get_ids_and_oses()
+        ids_and_oses = self.db_master.get_ids_and_oses()
         IndexItemsTable.os_names_to_num.update(ids_and_oses)
 
     def execute_script_from_defaults(self, script_file_name):
@@ -114,7 +111,7 @@ class IndexItemsTable(TableBase):
             This method is useful in code that does reporting or analyzing, where
             there is need to have access to all oses not just the current or target os.
         """
-        self.active_oses_t.activate_all_oses()
+        self.db_master.activate_all_oses()
 
     def reset_active_oses(self):
         """ resets the list of os that will influence all get functions
@@ -122,16 +119,16 @@ class IndexItemsTable(TableBase):
             This method is useful in code that does reporting or analyzing, where
             there is need to have access to all oses not just the current or target os.
         """
-        self.active_oses_t.activate_specific_oses()
+        self.db_master.activate_specific_oses()
 
     def activate_specific_oses(self, *for_oses):
         """ adds another os name to the list of os that will influence all get functions
             such as depend_list, source_list etc.
         """
-        self.active_oses_t.activate_specific_oses(*for_oses)
+        self.db_master.activate_specific_oses(*for_oses)
 
     def get_active_oses(self):
-        retVal = self.active_oses_t.get_oses_and_active()
+        retVal = self.db_master.get_oses_and_active()
         return retVal
 
     def insert_require_to_db(self, require_items):
