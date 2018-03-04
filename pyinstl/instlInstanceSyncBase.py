@@ -60,15 +60,17 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
             additional_info_maps = self.instlObj.items_table.get_details_for_active_iids("info_map", unique_values=True)
             for additional_info_map in additional_info_maps:
                 # try to get the zipped info_map
-                partial_path = var_stack.ResolveStrToStr("instl/{}$(WZLIB_EXTENSION)".format(additional_info_map))
-                additional_info_map_item = self.instlObj.info_map_table.get_item(partial_path, what="file")
+                additional_info_map_file_name = var_stack.ResolveStrToStr("{}$(WZLIB_EXTENSION)".format(additional_info_map))
+                path_in_main_info_map = var_stack.ResolveStrToStr("instl/{}".format(additional_info_map_file_name))
+                additional_info_map_item = self.instlObj.info_map_table.get_item(path_in_main_info_map, what="file")
                 if not additional_info_map_item:  # zipped not found try the unzipped inf_map
-                    partial_path = var_stack.ResolveStrToStr("instl/{}".format(additional_info_map))
-                    additional_info_map_item = self.instlObj.info_map_table.get_item(partial_path, what="file")
+                    additional_info_map_file_name = additional_info_map
+                    path_in_main_info_map = var_stack.ResolveStrToStr("instl/{}".format(additional_info_map))
+                    additional_info_map_item = self.instlObj.info_map_table.get_item(path_in_main_info_map, what="file")
 
                 checksum = additional_info_map_item.checksum if additional_info_map_item else None
 
-                info_map_file_url = var_stack.ResolveStrToStr("$(INSTL_FOLDER_BASE_URL)/{}".format(additional_info_map))
+                info_map_file_url = var_stack.ResolveStrToStr("$(INSTL_FOLDER_BASE_URL)/{}".format(additional_info_map_file_name))
                 local_copy_of_info_map_in = var_stack.ResolveStrToStr("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)/{}".format(additional_info_map))
                 local_copy_of_info_map_out = utils.download_from_file_or_url(in_url=info_map_file_url,
                                             in_target_path=local_copy_of_info_map_in,
