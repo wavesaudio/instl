@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import re
+import sqlite3
 
 from sqlalchemy import Column, Integer, String, BOOLEAN, ForeignKey, Index
 from pyinstl import db_alchemy
@@ -144,6 +145,49 @@ class SVNRow(db_alchemy.get_declarative_base()):
                 retVal = self.path[len(starting_dir):]
         return retVal
 
+    def __eq__(self, other):
+        """Overrides the default implementation"""
+        retVal = False
+        if isinstance(self, other.__class__):
+            retVal = self.__dict__ == other.__dict__
+        elif isinstance(other, sqlite3.Row): \
+            retVal= (other['_id'] == self._id
+            and     other['path'] == self.path
+            and     other['flags'] == self.flags
+            and     other['revision'] == self.revision
+            and     other['checksum'] == self.checksum
+            and     other['size'] == self.size
+            and     other['url'] == self.url
+            and     other['fileFlag'] == self.fileFlag
+            and     other['wtarFlag'] == self.wtarFlag
+            and     other['leaf'] == self.leaf
+            and     other['parent'] == self.parent
+            and     other['level'] == self.level
+            and     other['required'] == self.required
+            and     other['need_download'] == self.need_download
+            and     other['download_path'] == self.download_path
+            and     other['download_root'] == self.download_root
+                    )
+        elif isinstance(other, tuple): \
+            retVal= (other[0] == self._id
+            and     other[1] == self.path
+            and     other[2] == self.flags
+            and     other[3] == self.revision
+            and     other[4] == self.checksum
+            and     other[5] == self.size
+            and     other[6] == self.url
+            and     other[7] == self.fileFlag
+            and     other[8] == self.wtarFlag
+            and     other[9] == self.leaf
+            and     other[10] == self.parent
+            and     other[11] == self.level
+            and     other[12] == self.required
+            and     other[13] == self.need_download
+            and     other[14] == self.download_path
+            and     other[15] == self.download_root
+            and     other[16] == self.extra_props
+                    )
+        return retVal
 
 class IIDToSVNItem(db_alchemy.get_declarative_base()):
     __tablename__ = 'IIDToSVNItem'
