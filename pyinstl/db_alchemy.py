@@ -141,17 +141,6 @@ class TableBase(object):
         return retVal
 
 
-class IndexItemDetailOperatingSystem(get_declarative_base()):
-    __tablename__ = 'IndexItemDetailOperatingSystem'
-    _id = Column(Integer, primary_key=True)
-    name = Column(String, unique=True)
-    os_is_active = Column(BOOLEAN, default=False)
-
-    def __str__(self):
-        retVal = "self._id) {self.name} os_is_active: {self.os_is_active}".format(**locals())
-        return retVal
-
-
 class IndexItemRow(get_declarative_base()):
     __tablename__ = 'IndexItemRow'
     _id = Column(Integer, primary_key=True, autoincrement=True)
@@ -182,7 +171,7 @@ class IndexItemDetailRow(get_declarative_base()):
     _id = Column(Integer, primary_key=True, autoincrement=True)
     original_iid = Column(String, ForeignKey(IndexItemRow.iid, ondelete="CASCADE"), index=True)
     owner_iid    = Column(String, ForeignKey(IndexItemRow.iid, ondelete="CASCADE"), index=True)
-    os_id        = Column(Integer, ForeignKey(IndexItemDetailOperatingSystem._id))
+    os_id        = Column(Integer, ) #ForeignKey(active_operating_systems_t._id)
     detail_name  = Column(String, index=True)
     detail_value = Column(String)
     generation   = Column(Integer, default=0)
@@ -201,48 +190,5 @@ class IndexItemDetailRow(get_declarative_base()):
         return retVal
 
 
-class FoundOnDiskItemRow(get_declarative_base()):
-    __tablename__ = 'FoundOnDiskItemRow'
-    _id = Column(Integer, primary_key=True, autoincrement=True)
-    path = Column(String)
-    name = Column(String)
-    version = Column(String)
-    guid = Column(String)
-    iid = Column(String)
-
-    def __str__(self):
-        retVal = ("{self._id}) name: {self.name}, "
-                    "iid: {self.iid}, "
-                    "version: {self.version}, "
-                    "guid: {self.guid}, "
-                    "path: {self.path}").format(**locals())
-        return retVal
-
-
-class IndexRequireTranslate(get_declarative_base()):
-    __tablename__ = 'IndexRequireTranslate'
-    _id = Column(Integer, primary_key=True, autoincrement=True)
-    iid = Column(String)
-    require_by = Column(String)
-    status = Column(Integer, default=0)
-    __table_args__ = (UniqueConstraint('iid', 'require_by'),)
-
-    def __str__(self):
-        retVal = "{self.iid} required by {self.require_by}, status: {self.status}".format(**locals())
-        return retVal
-
-
-class ConfigVar(get_declarative_base()):
-    __tablename__ = "ConfigVar"
-    _id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String, unique=True)
-    raw_value = Column(String)
-    resolved_value = Column(String)
-
-
-IndexItemDetailOperatingSystem.__table__.create(bind=get_engine(), checkfirst=True)
 IndexItemRow.__table__.create(bind=get_engine(), checkfirst=True)
 IndexItemDetailRow.__table__.create(bind=get_engine(), checkfirst=True)
-IndexRequireTranslate.__table__.create(bind=get_engine(), checkfirst=True)
-FoundOnDiskItemRow.__table__.create(bind=get_engine(), checkfirst=True)
-ConfigVar.__table__.create(bind=get_engine(), checkfirst=True)

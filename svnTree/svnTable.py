@@ -5,6 +5,8 @@ import os
 import re
 from functools import reduce
 import csv
+import sqlite3
+from contextlib import contextmanager
 
 from sqlalchemy import update, Index
 from sqlalchemy import or_
@@ -57,6 +59,13 @@ map_info_extension_to_format = {"txt": "text", "text": "text",
                                 "inf": "info", "info": "info",
                                 "props": "props", "prop": "props",
                                 "file-sizes": "file-sizes"}
+@contextmanager
+def native_sql():
+    db_conn = get_engine().raw_connection()
+    db_curs = db_conn.cursor()
+    yield db_curs
+    db_curs.close()
+    db_conn.close()
 
 
 class SVNTable(TableBase):
@@ -432,6 +441,14 @@ class SVNTable(TableBase):
             want_file = what in ("any", "file")
             want_dir = what in ("any", "dir")
             retVal = self.baked_queries_map["get_one_item"](self.session).params(item_path=item_path, file=want_file, dir=not want_dir).one()
+            with native_sql() as db_curs:
+                db_curs.execute("""
+                        SELECT * FROM svnitem
+                        WHERE path = :item_path
+                        AND (fileFlag = :file OR fileFlag = :dir)
+                        """, {"item_path": item_path, "file": want_file, "dir": not want_dir})
+                alternative_retVal = db_curs.fetchone()
+                assert retVal == alternative_retVal, str(retVal) +"!="+ str(alternative_retVal)
         except NoResultFound:
             pass
         return retVal
@@ -489,33 +506,6 @@ class SVNTable(TableBase):
             raise
         return retVal
 
-    def get_item_case_insensitive(self, item_path, what="any"):
-        """ Get specific item or return None if not found
-        search is done case insensitive. This is needed in case where we look for
-        a file that exist on disk in the database.
-        :param item_path: path to the item
-        :param what: either "any" (will return file or dir), "file", "dir
-        :return: item found or None
-        """
-        if what not in ("any", "file", "dir"):
-            raise ValueError(what+" not a valid filter for get_item")
-
-        item_path = item_path.lower()
-        # get_one_item query: return specific item which could be a dir or a file, used by get_item()
-        if "get_item_case_insensitive" not in self.baked_queries_map:
-            self.baked_queries_map["get_item_case_insensitive"] = self.bakery(lambda session: session.query(SVNRow))
-            self.baked_queries_map["get_item_case_insensitive"] += lambda q: q.filter(func.lower(SVNRow.path) == bindparam('item_path'))
-            self.baked_queries_map["get_item_case_insensitive"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.fileFlag == bindparam('dir')))
-
-        retVal = None
-        try:
-            want_file = what in ("any", "file")
-            want_dir = what in ("any", "dir")
-            retVal = self.baked_queries_map["get_item_case_insensitive"](self.session).params(item_path=item_path, file=want_file, dir=not want_dir).one()
-        except NoResultFound:
-            pass
-        return retVal
-
     def get_items(self, what="any", levels_deep=1024):
         """
         get_items applies a filter and return all items
@@ -534,7 +524,18 @@ class SVNTable(TableBase):
 
         want_file = what in ("any", "file")
         want_dir = what in ("any", "dir")
-        retVal = self.baked_queries_map["get_all_items"](self.session).params(file=want_file, dir=not want_dir, levels_deep=levels_deep).all()
+        with utils.time_it("get_all_items sqlalchemy"):
+            retVal = self.baked_queries_map["get_all_items"](self.session).params(file=want_file, dir=not want_dir, levels_deep=levels_deep).all()
+        with native_sql() as db_curs:
+            db_curs.execute("""
+                    SELECT * FROM svnitem
+                    WHERE level <= :levels_deep
+                    AND (fileFlag = :file OR fileFlag = :dir)
+                    ORDER BY path
+                    """, {"levels_deep": levels_deep, "file": want_file, "dir": not want_dir})
+            with utils.time_it("get_all_items sqlite"):
+                alternative_retVal = db_curs.fetchall()
+            assert retVal == alternative_retVal, str(retVal) +"!="+ str(alternative_retVal)
         return retVal
 
     def get_required_items(self, what="any", get_unrequired=False):
@@ -555,7 +556,18 @@ class SVNTable(TableBase):
 
         want_file = what in ("any", "file")
         want_dir = what in ("any", "dir")
-        retVal = self.baked_queries_map["get_required_items"](self.session).params(required=not get_unrequired, file=want_file, dir=not want_dir).all()
+        with utils.time_it("get_required_items sqlalchemy"):
+            retVal = self.baked_queries_map["get_required_items"](self.session).params(required=not get_unrequired, file=want_file, dir=not want_dir).all()
+        with native_sql() as db_curs:
+            db_curs.execute("""
+                    SELECT * FROM svnitem
+                    WHERE required == :required
+                    AND (fileFlag = :file OR fileFlag = :dir)
+                    ORDER BY path
+                    """, {"required": not get_unrequired, "file": want_file, "dir": not want_dir})
+            with utils.time_it("get_required_items sqlite"):
+                alternative_retVal = db_curs.fetchall()
+            assert retVal == alternative_retVal, str(retVal) +"!="+ str(alternative_retVal)
         return retVal
 
     def get_exec_file_paths(self):
@@ -583,7 +595,19 @@ class SVNTable(TableBase):
 
         want_file = what in ("any", "file")
         want_dir = what in ("any", "dir")
-        retVal = self.baked_queries_map["get_required_exec_items"](self.session).params(file=want_file, dir=not want_dir).all()
+        with utils.time_it("get_required_exec_items sqlalchemy"):
+            retVal = self.baked_queries_map["get_required_exec_items"](self.session).params(file=want_file, dir=not want_dir).all()
+        with native_sql() as db_curs:
+            db_curs.execute("""
+                    SELECT * FROM svnitem
+                    WHERE required == 1
+                    AND instr(flags, 'x') != 0
+                    AND (fileFlag = :file OR fileFlag = :dir)
+                    ORDER BY path
+                    """, {"file": want_file, "dir": not want_dir})
+            with utils.time_it("get_required_exec_items sqlite"):
+                alternative_retVal = db_curs.fetchall()
+            assert retVal == alternative_retVal, str(retVal) +"!="+ str(alternative_retVal)
         return retVal
 
     def get_download_items(self, what="any"):
@@ -604,7 +628,18 @@ class SVNTable(TableBase):
 
         want_file = what in ("any", "file")
         want_dir = what in ("any", "dir")
-        retVal = self.baked_queries_map["get_download_items"](self.session).params(file=want_file, dir=not want_dir).all()
+        with utils.time_it("get_download_items sqlalchemy"):
+            retVal = self.baked_queries_map["get_download_items"](self.session).params(file=want_file, dir=not want_dir).all()
+        with native_sql() as db_curs:
+            db_curs.execute("""
+                    SELECT * FROM svnitem
+                    WHERE need_download == 1
+                    AND (fileFlag = :file OR fileFlag = :dir)
+                    ORDER BY path
+                    """, {"file": want_file, "dir": not want_dir})
+            with utils.time_it("get_download_items sqlite"):
+                alternative_retVal = db_curs.fetchall()
+            assert retVal == alternative_retVal, str(retVal) +"!="+ str(alternative_retVal)
         return retVal
 
     def get_not_to_download_num_files_and_size(self):
@@ -641,7 +676,18 @@ class SVNTable(TableBase):
             self.baked_queries_map["required_items_for_file"] += lambda q: q.filter(or_(SVNRow.path == bindparam('file_path'), SVNRow.path.like(bindparam('file_path') + ".wtar%")))
             self.baked_queries_map["required_items_for_file"] += lambda q: q.order_by(SVNRow.path)
 
-        retVal = self.baked_queries_map["required_items_for_file"](self.session).params(file_path=file_path).all()
+        with utils.time_it("required_items_for_file sqlalchemy"):
+            retVal = self.baked_queries_map["required_items_for_file"](self.session).params(file_path=file_path).all()
+        with native_sql() as db_curs:
+            db_curs.execute("""
+                    SELECT * FROM svnitem
+                    WHERE fileFlag = 1
+                    AND (path==:file_path OR path LIKE :wtar_file_path)
+                    ORDER BY path
+                    """, {"file_path": file_path, "wtar_file_path": file_path+".wtar%"})
+            with utils.time_it("required_items_for_file sqlite"):
+                alternative_retVal = db_curs.fetchall()
+            assert retVal == alternative_retVal, str(retVal) +"!="+ str(alternative_retVal)
         return retVal
 
     def mark_required_for_file(self, file_path):
@@ -662,12 +708,24 @@ class SVNTable(TableBase):
         if "get_file_items_of_dir" not in self.baked_queries_map:
             self.baked_queries_map["get_file_items_of_dir"] = self.bakery(lambda session: session.query(SVNRow))
             self.baked_queries_map["get_file_items_of_dir"] += lambda q: q.filter(SVNRow.fileFlag == True)
-            self.baked_queries_map["get_file_items_of_dir"] += lambda q: q.filter(or_(SVNRow.path.like(bindparam('dir_path')+"/%"),
-                                                                                 SVNRow.path.like(bindparam('dir_path')+".wtar%")))
+            self.baked_queries_map["get_file_items_of_dir"] += lambda q: q.filter(or_(SVNRow.path.like(bindparam('dir_path')+"/%"), SVNRow.path.like(bindparam('dir_path')+".wtar%")))
             self.baked_queries_map["get_file_items_of_dir"] += lambda q: q.order_by(SVNRow.path)
 
-        files_of_dir = self.baked_queries_map["get_file_items_of_dir"](self.session).params(dir_path=dir_path).all()
-        return files_of_dir
+        self.session.commit()
+
+        with utils.time_it("get_file_items_of_dir sqlalchemy"):
+            retVal = self.baked_queries_map["get_file_items_of_dir"](self.session).params(dir_path=dir_path).all()
+        with native_sql() as db_curs:
+            db_curs.execute("""
+                    SELECT * FROM svnitem
+                    WHERE fileFlag = 1
+                    AND (path LIKE :dir_path OR path LIKE :wtar_dir_path)
+                    ORDER BY path
+                    """, {"dir_path": dir_path+"/%", "wtar_dir_path": dir_path+".wtar%"})
+            with utils.time_it("get_file_items_of_dir sqlite"):
+                alternative_retVal = db_curs.fetchall()
+            assert retVal == alternative_retVal, str(retVal) +"!="+ str(alternative_retVal)
+        return retVal
 
     def count_wtar_items_of_dir(self, dir_path):
         """ count all wtar items in dir_path OR if the dir_path itself is wtarred - count of wtarred file items.
@@ -696,9 +754,9 @@ class SVNTable(TableBase):
             :return: list of items in dir or empty list (if there aren't any) or None
             if dir_path is not a dir
         """
-        dir_items = []
+        retVal = []
         if dir_path == "":
-            dir_items = self.get_items(what=what, levels_deep=levels_deep)
+            retVal = self.get_items(what=what, levels_deep=levels_deep)
         else:
             root_dir_item = self.get_item(item_path=dir_path, what="dir")
             if root_dir_item is not None:
@@ -712,13 +770,27 @@ class SVNTable(TableBase):
 
                 want_file = what in ("any", "file")
                 want_dir = what in ("any", "dir")
-                dir_items = self.baked_queries_map["dir_items_recursive"](self.session)\
+                with utils.time_it("dir_items_recursive sqlalchemy"):
+                    retVal = self.baked_queries_map["dir_items_recursive"](self.session)\
                     .params(dir_path=dir_path, dir_level=root_dir_item.level, levels_deep=levels_deep,\
-                            file=want_file, dir=not want_dir)\
-                    .all()
+                            file=want_file, dir=not want_dir).all()
+                with native_sql() as db_curs:
+                    db_curs.execute("""
+                            SELECT * FROM svnitem
+                            WHERE (fileFlag = :file OR fileFlag = :dir)
+                            AND level > :dir_level
+                            AND level <= :bottom_level
+                            AND path LIKE :dir_path
+                            ORDER BY path
+                            """, {"file": want_file, "dir": not want_dir,
+                                  "dir_path": dir_path+"/%", "dir_level": root_dir_item.level,
+                                  "bottom_level": root_dir_item.level+levels_deep})
+                    with utils.time_it("dir_items_recursive sqlite"):
+                        alternative_retVal = db_curs.fetchall()
+                    assert retVal == alternative_retVal, str(retVal) +"!="+ str(alternative_retVal)
             else:
                 print(dir_path, "was not found")
-        return dir_items
+        return retVal
 
     def mark_required_for_dir(self, dir_path):
         """ mark all files & dirs in dir_path as required.
@@ -978,5 +1050,10 @@ class SVNTable(TableBase):
             WHERE required==0
             AND fileFlag==1
             """
-        retVal = self.select_and_fetchall(query_text)
+        with utils.time_it("get_unrequired_file_paths sqlalchemy"):
+            retVal = self.select_and_fetchall(query_text)
+        with native_sql() as db_curs:
+            with utils.time_it("get_unrequired_file_paths sqlite"):
+                alternative_retVal = db_curs.fetchall()
+        assert retVal == alternative_retVal, str(retVal) +"!="+ str(alternative_retVal)
         return retVal

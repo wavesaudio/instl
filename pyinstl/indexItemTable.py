@@ -10,17 +10,15 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from .db_alchemy import create_session,\
-    IndexItemDetailOperatingSystem, \
     IndexItemRow, \
     IndexItemDetailRow, \
-    IndexRequireTranslate, \
-    FoundOnDiskItemRow, \
-    ConfigVar, get_engine, TableBase
+    get_engine, TableBase
 
 
 import svnTree  # do not remove must be here before IndexItemsTable.execute_script is called
 import utils
 from configVar import var_stack
+import db
 
 # todo: these were copied from the late Install Item.py and should find a better home
 os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
@@ -48,6 +46,13 @@ class IndexItemsTable(TableBase):
 
     def __init__(self):
         super().__init__()
+
+        self.db_master = db.DBMaster()
+        db_conn = get_engine().raw_connection()
+        db_curs = db_conn.cursor()
+        self.db_master.ddl_files_dir = var_stack.ResolveStrToStr(os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults"))
+        self.db_master.init_from_existing_connection(db_conn, db_curs)
+
         self.clear_tables()
         self.os_names_db_objs = list()
         self.add_default_values()
@@ -67,21 +72,15 @@ class IndexItemsTable(TableBase):
         return self.session.bind.url
 
     def clear_tables(self):
-        # print(get_engine().table_names())
         self.drop_triggers()
         self.drop_views()
-        self.session.query(IndexRequireTranslate).delete()
-        self.session.query(IndexItemDetailOperatingSystem).delete()
         self.session.query(IndexItemDetailRow).delete()
         self.session.query(IndexItemRow).delete()
         self.commit_changes()
 
     def add_default_values(self):
-
-        for os_name, _id in IndexItemsTable.os_names_to_num.items():
-            new_item = IndexItemDetailOperatingSystem(_id=_id, name=os_name, os_is_active=False)
-            self.os_names_db_objs.append(new_item)
-        self.session.add_all(self.os_names_db_objs)
+        ids_and_oses = self.db_master.get_ids_and_oses()
+        IndexItemsTable.os_names_to_num.update(ids_and_oses)
 
     def execute_script_from_defaults(self, script_file_name):
         script_file_path = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults", script_file_name)
@@ -89,13 +88,13 @@ class IndexItemsTable(TableBase):
             self.execute_script(rfd.read())
 
     def add_triggers(self):
-        self.execute_script_from_defaults("create-triggers.sql")
+        self.execute_script_from_defaults("create-triggers.ddl")
 
     def drop_triggers(self):
-        self.execute_script_from_defaults("drop-triggers.sql")
+        self.execute_script_from_defaults("drop-triggers.ddl")
 
     def add_views(self):
-        self.execute_script_from_defaults("create-views.sql")
+        self.execute_script_from_defaults("create-views.ddl")
 
     def drop_views(self):
         self.execute_script_from_defaults("drop-views.sql")
@@ -106,16 +105,7 @@ class IndexItemsTable(TableBase):
             This method is useful in code that does reporting or analyzing, where
             there is need to have access to all oses not just the current or target os.
         """
-        query_text = """
-            UPDATE IndexItemDetailOperatingSystem
-            SET os_is_active = 1
-         """
-        try:
-            exec_result = self.session.execute(query_text)
-            self.commit_changes()
-        except SQLAlchemyError as ex:
-            print(ex)
-            raise
+        self.db_master.activate_all_oses()
 
     def reset_active_oses(self):
         """ resets the list of os that will influence all get functions
@@ -123,38 +113,16 @@ class IndexItemsTable(TableBase):
             This method is useful in code that does reporting or analyzing, where
             there is need to have access to all oses not just the current or target os.
         """
-        self.activate_specific_oses()
+        self.db_master.activate_specific_oses()
 
     def activate_specific_oses(self, *for_oses):
         """ adds another os name to the list of os that will influence all get functions
             such as depend_list, source_list etc.
         """
-        for_oses = *for_oses, "common"
-        quoted_os_names = [utils.quoteme_double(os_name) for os_name in for_oses]
-        query_vars = ", ".join(quoted_os_names)
-        query_text = """
-            UPDATE IndexItemDetailOperatingSystem
-            SET os_is_active = CASE WHEN IndexItemDetailOperatingSystem.name IN ({0}) THEN
-                    1
-                ELSE
-                    0
-                END;
-        """.format(query_vars)
-        try:
-            exec_result = self.session.execute(query_text)
-            self.commit_changes()
-        except SQLAlchemyError as ex:
-            print(ex)
-            raise
+        self.db_master.activate_specific_oses(*for_oses)
 
     def get_active_oses(self):
-        retVal = list()
-        query_text = """
-        SELECT name, os_is_active
-        FROM IndexItemDetailOperatingSystem
-        ORDER BY _id
-        """
-        retVal = self.select_and_fetchall(query_text, query_params={})
+        retVal = self.db_master.get_oses_and_active()
         return retVal
 
     def insert_require_to_db(self, require_items):
@@ -166,18 +134,6 @@ class IndexItemsTable(TableBase):
             else:
                 print(iid, "found in require but not in index")
         self.commit_changes()
-
-    def get_all_require_translate_items(self):
-        """
-        """
-        if "get_all_require_translate_items" not in self.baked_queries_map:
-            the_query = self.bakery(lambda session: session.query(IndexRequireTranslate))
-            the_query += lambda q: q.order_by(IndexRequireTranslate.iid)
-            self.baked_queries_map["get_all_require_translate_items"] = the_query
-        else:
-            the_query = self.baked_queries_map["get_all_require_translate_items"]
-        retVal = the_query(self.session).all()
-        return retVal
 
     def get_all_index_items(self):
         """
@@ -981,28 +937,29 @@ class IndexItemsTable(TableBase):
         return retVal
 
     def insert_binary_versions(self, binaries_version_list):
+        binaries_version_to_insert = list()
         for binary_details in binaries_version_list:
             folder, name = os.path.split(binary_details[0])
-            self.session.add(FoundOnDiskItemRow(name=name, path=binary_details[0], version=binary_details[1], guid=binary_details[2]))
-        self.commit_changes()
+            binaries_version_to_insert.append((name, *binary_details))
+        self.db_master.add_binary_versions()
 
     def add_require_version_from_binaries(self):
         """ add require_version for iid that do not have this detail value (because previous index.yaml did not have it)
-        1st try version found on disk from table FoundOnDiskItemRow
+        1st try version found on disk from table found_installed_binaries_t
         2nd for iids still missing require_version try phantom_version detail value
         """
         query_text = """
         INSERT OR REPLACE INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
-        SELECT  FoundOnDiskItemRow.iid, -- original_iid
-                FoundOnDiskItemRow.iid, -- owner_iid
+        SELECT  found_installed_binaries_t.iid, -- original_iid
+                found_installed_binaries_t.iid, -- owner_iid
                 0,                      -- os_id
                 'require_version',      -- detail_name
-                FoundOnDiskItemRow.version, -- detail_value from disk
+                found_installed_binaries_t.version, -- detail_value from disk
                 0                       -- generation
         FROM require_items_without_require_version_view
-        JOIN FoundOnDiskItemRow
-            ON FoundOnDiskItemRow.iid=require_items_without_require_version_view.iid
-            AND FoundOnDiskItemRow.version NOTNULL
+        JOIN found_installed_binaries_t
+            ON found_installed_binaries_t.iid=require_items_without_require_version_view.iid
+            AND found_installed_binaries_t.version NOTNULL
         """
         try:
             exec_result = self.session.execute(query_text)
@@ -1034,16 +991,16 @@ class IndexItemsTable(TableBase):
     def add_require_guid_from_binaries(self):
         query_text = """
         INSERT OR REPLACE INTO IndexItemDetailRow (original_iid, owner_iid, os_id, detail_name, detail_value, generation)
-        SELECT  FoundOnDiskItemRow.iid,  -- original_iid
-                FoundOnDiskItemRow.iid,  -- owner_iid
+        SELECT  found_installed_binaries_t.iid,  -- original_iid
+                found_installed_binaries_t.iid,  -- owner_iid
                 0,                       -- os_id
                 'require_guid',          -- detail_name
-                FoundOnDiskItemRow.guid, -- detail_value
+                found_installed_binaries_t.guid, -- detail_value
                 0                        -- generation
         FROM require_items_without_require_guid_view
-        JOIN FoundOnDiskItemRow
-            ON FoundOnDiskItemRow.iid=require_items_without_require_guid_view.iid
-            AND FoundOnDiskItemRow.guid NOTNULL
+        JOIN found_installed_binaries_t
+            ON found_installed_binaries_t.iid=require_items_without_require_guid_view.iid
+            AND found_installed_binaries_t.guid NOTNULL
         """
         try:
             exec_result = self.session.execute(query_text)
@@ -1068,11 +1025,12 @@ class IndexItemsTable(TableBase):
 
     def config_var_list_to_db(self, in_config_var_list):
         try:
+            config_var_insert_list = list()
             for identifier in in_config_var_list:
                 raw_value = in_config_var_list.unresolved_var(identifier)
                 resolved_value = in_config_var_list.ResolveVarToStr(identifier, list_sep=" ", default="")
-                self.session.add(ConfigVar(name=identifier, raw_value=raw_value, resolved_value=resolved_value))
-            self.commit_changes()
+                config_var_insert_list.append((identifier, raw_value, resolved_value))
+            self.db_master.add_config_vars(config_var_insert_list)
         except Exception as ex:  # config vars are written to db for reference so we can continue even if exception ware raised
             print(ex)
 
