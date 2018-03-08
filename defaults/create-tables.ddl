@@ -54,6 +54,7 @@ CREATE TABLE svnitem
 	download_root TEXT,
 	extra_props TEXT
 );
+*/
 
 CREATE TABLE IIDToSVNItem
 (
@@ -64,19 +65,19 @@ CREATE TABLE IIDToSVNItem
  FOREIGN KEY(svn_id) REFERENCES svnitem(_id)
 );
 
-CREATE TABLE IndexItemRow
+CREATE TABLE index_item_t
 (
   _id INTEGER PRIMARY KEY AUTOINCREMENT,
 	iid TEXT UNIQUE,
-	inherit_resolved BOOLEAN,
-	from_index BOOLEAN,
-	from_require BOOLEAN,
-	install_status INTEGER,
-	ignore INTEGER,
-	direct_sync INTEGER
+	inherit_resolved  BOOLEAN DEFAULT 0,
+	from_index        BOOLEAN DEFAULT 0,
+	from_require      BOOLEAN DEFAULT 0,
+	install_status    INTEGER DEFAULT 0,
+	ignore            INTEGER DEFAULT 0,
+	direct_sync       INTEGER DEFAULT 0
 );
 
-CREATE TABLE IndexItemDetailRow
+CREATE TABLE index_item_detail_t
 (
   _id INTEGER PRIMARY KEY AUTOINCREMENT,
 	original_iid TEXT,
@@ -84,11 +85,11 @@ CREATE TABLE IndexItemDetailRow
 	os_id INTEGER,
 	detail_name TEXT,
 	detail_value TEXT,
-	generation INTEGER,
+	generation INTEGER DEFAULT 0,
 	tag TEXT,
-	os_is_active INTEGER,
+	os_is_active INTEGER DEFAULT 0,
 	UNIQUE (original_iid, owner_iid, os_id, detail_name, detail_value, generation),
-  FOREIGN KEY(original_iid) REFERENCES IndexItemRow(iid) ON DELETE CASCADE,
+  FOREIGN KEY(original_iid) REFERENCES index_item_t(iid) ON DELETE CASCADE,
+  FOREIGN KEY(owner_iid) REFERENCES index_item_t(iid) ON DELETE CASCADE,
   FOREIGN KEY(os_id) REFERENCES active_operating_systems_t(_id)
 );
-*/

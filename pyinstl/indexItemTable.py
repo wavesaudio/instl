@@ -4,21 +4,15 @@
 import os
 from collections import OrderedDict
 
-from sqlalchemy.ext import baked
 from sqlalchemy import bindparam
-from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext import baked
 
-from .db_alchemy import create_session,\
-    IndexItemRow, \
-    IndexItemDetailRow, \
-    get_engine, TableBase
-
-
-import svnTree  # do not remove must be here before IndexItemsTable.execute_script is called
 import utils
 from configVar import var_stack
-import db
+from .db_alchemy import IndexItemRow, \
+    IndexItemDetailRow, \
+    get_engine, TableBase
 
 # todo: these were copied from the late Install Item.py and should find a better home
 os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
@@ -44,14 +38,14 @@ class IndexItemsTable(TableBase):
                     'post_remove', 'pre_doit', 'doit', 'post_doit')
     not_inherit_details = ("name", "inherit")
 
-    def __init__(self):
+    def __init__(self, db_master):
         super().__init__()
 
-        self.db_master = db.DBMaster()
+        self.db = db_master
         db_conn = get_engine().raw_connection()
         db_curs = db_conn.cursor()
-        self.db_master.ddl_files_dir = var_stack.ResolveStrToStr(os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults"))
-        self.db_master.init_from_existing_connection(db_conn, db_curs)
+        self.db.ddl_files_dir = var_stack.ResolveStrToStr(os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults"))
+        self.db.init_from_existing_connection(db_conn, db_curs)
 
         self.clear_tables()
         self.os_names_db_objs = list()
@@ -79,7 +73,7 @@ class IndexItemsTable(TableBase):
         self.commit_changes()
 
     def add_default_values(self):
-        ids_and_oses = self.db_master.get_ids_and_oses()
+        ids_and_oses = self.get_ids_and_oses()
         IndexItemsTable.os_names_to_num.update(ids_and_oses)
 
     def execute_script_from_defaults(self, script_file_name):
@@ -105,7 +99,16 @@ class IndexItemsTable(TableBase):
             This method is useful in code that does reporting or analyzing, where
             there is need to have access to all oses not just the current or target os.
         """
-        self.db_master.activate_all_oses()
+        query_text = """
+            UPDATE active_operating_systems_t
+            SET os_is_active = 1
+         """
+        try:
+            self.db.execute_no_fetch(query_text)
+            self.commit()
+        except sqlite3.Error as ex:
+            print(ex)
+            raise
 
     def reset_active_oses(self):
         """ resets the list of os that will influence all get functions
@@ -113,17 +116,37 @@ class IndexItemsTable(TableBase):
             This method is useful in code that does reporting or analyzing, where
             there is need to have access to all oses not just the current or target os.
         """
-        self.db_master.activate_specific_oses()
+        self.activate_specific_oses()
 
     def activate_specific_oses(self, *for_oses):
         """ adds another os name to the list of os that will influence all get functions
             such as depend_list, source_list etc.
         """
-        self.db_master.activate_specific_oses(*for_oses)
+        for_oses = *for_oses, "common"
+        quoted_os_names = [utils.quoteme_double(os_name) for os_name in for_oses]
+        query_vars = ", ".join(quoted_os_names)
+        query_text = """
+            UPDATE active_operating_systems_t
+            SET os_is_active = CASE WHEN active_operating_systems_t.name IN ({0}) THEN
+                    1
+                ELSE
+                    0
+                END;
+        """.format(query_vars)
+        try:
+            self.db.execute_no_fetch(query_text)
+            self.db.commit()
+        except sqlite3.Error as ex:
+            print(ex)
+            raise
 
     def get_active_oses(self):
-        retVal = self.db_master.get_oses_and_active()
-        return retVal
+        query_text = """
+        SELECT name, os_is_active
+        FROM active_operating_systems_t
+        ORDER BY _id
+        """
+        return self.db.select_and_fetchall(query_text)
 
     def insert_require_to_db(self, require_items):
         for iid, details in require_items.items():
@@ -134,6 +157,18 @@ class IndexItemsTable(TableBase):
             else:
                 print(iid, "found in require but not in index")
         self.commit_changes()
+
+    def get_all_require_translate_items(self):
+        """
+        """
+        if "get_all_require_translate_items" not in self.baked_queries_map:
+            the_query = self.bakery(lambda session: session.query(IndexRequireTranslate))
+            the_query += lambda q: q.order_by(IndexRequireTranslate.iid)
+            self.baked_queries_map["get_all_require_translate_items"] = the_query
+        else:
+            the_query = self.baked_queries_map["get_all_require_translate_items"]
+        retVal = the_query(self.session).all()
+        return retVal
 
     def get_all_index_items(self):
         """
@@ -519,26 +554,96 @@ class IndexItemsTable(TableBase):
         return details
 
     def read_index_node(self, a_node):
-        index_items = list()
-        items_details = list()
-        for IID in a_node:
-            item, original_item_details = self.item_from_index_node(IID, a_node[IID])
-            index_items.append(item)
-            items_details.extend(original_item_details)
-        self.session.add_all(index_items)
-        self.session.add_all(items_details)
-        self.commit_changes()
+        with utils.time_it(">>> read_index_node sqlalchemy"):
+            index_items = list()
+            items_details = list()
+            for IID in a_node:
+                item, original_item_details = self.item_from_index_node(IID, a_node[IID])
+                index_items.append(item)
+                items_details.extend(original_item_details)
+            self.session.add_all(index_items)
+            self.session.add_all(items_details)
+            self.commit_changes()
+
+    def read_item_details_from_node2(self, the_iid, the_node, the_os='common'):
+        details = list()
+        # go through the raw yaml nodes instead of doing "for detail_name in the_node".
+        # this is to overcome index.yaml with maps that have two keys with the same name.
+        # Although it's not valid yaml some index.yaml versions have this problem.
+        for detail_node in the_node.value:
+            detail_name = detail_node[0].value
+            if detail_name in IndexItemsTable.os_names_to_num:
+                os_specific_details = self.read_item_details_from_node2(the_iid, detail_node[1], the_os=detail_name)
+                details.extend(os_specific_details)
+            elif detail_name == 'actions':
+                actions_details = self.read_item_details_from_node2(the_iid, detail_node[1], the_os)
+                details.extend(actions_details)
+            else:
+                for details_line in detail_node[1]:
+                    tag = details_line.tag if details_line.tag[0] == '!' else None
+                    value = details_line.value
+                    if detail_name in ("install_sources", "previous_sources") and tag is None:
+                        tag = '!dir'
+                    elif detail_name == "guid":
+                        value = value.lower()
+
+                    if detail_name == "install_sources":
+                        if value.startswith('/'):  # absolute path
+                            new_detail = (the_iid, the_iid, self.os_names_to_num[the_os],
+                                            detail_name, value[1:],tag)
+                            details.append(new_detail)
+                        else:  # relative path
+                            # because 'common' is in both groups this will create 2 IndexItemDetailRow
+                            # if OS is 'common', and 1 otherwise
+                            count_insertions = 0
+                            for os_group in (('common', 'Mac', 'Mac32', 'Mac64'),
+                                             ('common', 'Win', 'Win32', 'Win64')):
+                                if the_os in os_group:
+                                    item_detail_os = {'Mac32': 'Mac32', 'Mac64': 'Mac64', 'Win32': 'Win32', 'Win64': 'Win64'}.get(the_os, os_group[1])
+                                    path_prefix_os = {'Mac32': 'Mac', 'Mac64': 'Mac', 'Win32': 'Win', 'Win64': 'Win'}.get(the_os, os_group[1])
+                                    assert path_prefix_os == "Mac" or path_prefix_os == "Win", "path_prefix_os: {}".format(path_prefix_os)
+                                    new_detail = (the_iid, the_iid, self.os_names_to_num[item_detail_os],
+                                                    detail_name, "/".join((path_prefix_os, value)), tag)
+                                    details.append(new_detail)
+                                    count_insertions += 1
+                            assert count_insertions < 3, "count_insertions: {}".format(count_insertions)
+                    else:
+                        new_detail = (the_iid, the_iid, self.os_names_to_num[the_os], detail_name, value, tag)
+                        details.append(new_detail)
+        return details
+
+    def item_from_index_node2(self, the_iid, the_node):
+        item = (the_iid, True)
+        original_details = self.read_item_details_from_node2(the_iid, the_node)
+        return item, original_details
+
+    def read_index_node2(self, a_node):
+        with utils.time_it(">>> read_index_node2 sqlite"):
+            index_items = list()
+            items_details = list()
+            for IID in a_node:
+                item, original_item_details = self.item_from_index_node2(IID, a_node[IID])
+                index_items.append(item)
+                items_details.extend(original_item_details)
+
+            insert_item_q =        """INSERT INTO IndexItemRow2(iid, from_index) VALUES(?, ?)"""
+            insert_item_detail_q = """INSERT INTO index_item_t(original_iid, owner_iid, os_id, detail_name, detail_value, tag)
+                                                                      VALUES(?,?,?,?,?,?)"""
+            self.db.executemany(insert_item_q, index_items)
+            self.db.executemany(insert_item_detail_q, items_details)
+            self.db.commit()
 
     # @utils.timing
     def read_require_node(self, a_node):
-        require_items = dict()
-        if a_node.isMapping():
-            all_iids = self.get_all_iids()
-            for IID in a_node:
-                require_details = self.read_item_details_from_require_node(IID, a_node[IID], all_iids)
-                if require_details:
-                    require_items[IID] = require_details
-        self.insert_require_to_db(require_items)
+        with utils.time_it("read_require_node"):
+            require_items = dict()
+            if a_node.isMapping():
+                all_iids = self.get_all_iids()
+                for IID in a_node:
+                    require_details = self.read_item_details_from_require_node(IID, a_node[IID], all_iids)
+                    if require_details:
+                        require_items[IID] = require_details
+            self.insert_require_to_db(require_items)
 
     def read_item_details_from_require_node(self, the_iid, the_node, all_iids):
         os_id=self.os_names_to_num['common']
@@ -941,7 +1046,18 @@ class IndexItemsTable(TableBase):
         for binary_details in binaries_version_list:
             folder, name = os.path.split(binary_details[0])
             binaries_version_to_insert.append((name, *binary_details))
-        self.db_master.add_binary_versions()
+        self.add_binary_versions()
+
+    def add_binary_versions(self, binaries_version_list):
+         query_text = """INSERT INTO found_installed_binaries_t(name, path, version, guid) 
+                        VALUES (?, ?, ?, ?)
+                     """
+         try:
+            self.db.executemany(query_text, binaries_version_list)
+            self.db.commit()
+         except sqlite3.Error as ex:
+            print(ex)
+            raise
 
     def add_require_version_from_binaries(self):
         """ add require_version for iid that do not have this detail value (because previous index.yaml did not have it)
@@ -1030,9 +1146,20 @@ class IndexItemsTable(TableBase):
                 raw_value = in_config_var_list.unresolved_var(identifier)
                 resolved_value = in_config_var_list.ResolveVarToStr(identifier, list_sep=" ", default="")
                 config_var_insert_list.append((identifier, raw_value, resolved_value))
-            self.db_master.add_config_vars(config_var_insert_list)
+            self.add_config_vars(config_var_insert_list)
         except Exception as ex:  # config vars are written to db for reference so we can continue even if exception ware raised
             print(ex)
+
+    def add_config_vars(self, list_of_config_var_values):
+        query_text = """INSERT INTO config_var_t(name, raw_value, resolved_value) 
+                            VALUES (?, ?, ?)
+                         """
+        try:
+            self.db.executemany(query_text, list_of_config_var_values)
+            self.db.commit()
+        except sqlite3.Error as ex:
+            print(ex)
+            raise
 
     def mark_direct_sync_items(self):
         def _get_direct_sync_status_from_indicator(direct_sync_indicator):
@@ -1158,6 +1285,11 @@ class IndexItemsTable(TableBase):
         retVal = self.select_and_fetchall(query_text, query_params={'detail_name': detail_name})
         return retVal
 
+    def get_ids_and_oses(self):
+        return self.select_and_fetchall("SELECT _id, name FROM active_operating_systems_t")
+
+    def get_ids_oses_active(self):
+        return self.select_and_fetchall("SELECT _id, name, os_is_active FROM active_operating_systems_t")
 
 
 

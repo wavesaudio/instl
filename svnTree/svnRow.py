@@ -33,6 +33,7 @@ class SVNRow(db_alchemy.get_declarative_base()):
     download_path = Column(String)
     download_root = Column(String, default=None)  # top folder for direct sync items not the same as parent
     extra_props = Column(String,default="")  # SVN properties
+    alternative_required = Column(BOOLEAN, default=False)
 
     def __repr__(self):
         isDir = not self.fileFlag
@@ -167,6 +168,7 @@ class SVNRow(db_alchemy.get_declarative_base()):
             and     other['need_download'] == self.need_download
             and     other['download_path'] == self.download_path
             and     other['download_root'] == self.download_root
+            and     other['alternative_required'] == self.alternative_required
                     )
         elif isinstance(other, tuple): \
             retVal= (other[0] == self._id
@@ -186,14 +188,8 @@ class SVNRow(db_alchemy.get_declarative_base()):
             and     other[14] == self.download_path
             and     other[15] == self.download_root
             and     other[16] == self.extra_props
+            and     other[17] == self.alternative_required
                     )
         return retVal
 
-class IIDToSVNItem(db_alchemy.get_declarative_base()):
-    __tablename__ = 'IIDToSVNItem'
-    _id     = Column(Integer, primary_key=True, autoincrement=True)
-    iid     = Column(String, ForeignKey("IndexItemRow.iid"))
-    svn_id  = Column(Integer, ForeignKey("svnitem._id"))
-
 SVNRow.__table__.create(bind=db_alchemy.get_engine(), checkfirst=True)
-IIDToSVNItem.__table__.create(bind=db_alchemy.get_engine(), checkfirst=True)

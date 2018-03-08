@@ -3,6 +3,14 @@ import sqlite3
 
 import utils
 
+"""
+    todo:
+        - replace iids with IndexItemRow._id
+        - normalize detail_name with _id ???
+        - review indexes, do they really improve performance
+        - lower case table names
+"""
+
 
 class DBMaster(object):
     def __init__(self):
@@ -11,6 +19,12 @@ class DBMaster(object):
         self.db_file_path = None
         self.__conn = None
         self.__curs = None
+
+    def read_ddl_file(self, ddl_file_name):
+        ddl_path = os.path.join(self.internal_data_folder, "db", ddl_file_name)
+        with open(ddl_path, "r") as rfd:
+            ddl_text = rfd.read()
+        return ddl_text
 
     def init_from_ddl(self, ddl_files_dir, db_file_path):
         self.ddl_files_dir = ddl_files_dir
@@ -36,6 +50,10 @@ class DBMaster(object):
         if self.__conn:
             self.__conn.close()
 
+    def erase_db(self):
+        self.close()
+        utils.safe_remove_file(self.db_file_path)
+
     def set_db_pragma(self, pragma_name, pragma_value):
         set_pragma_q = """PRAGMA {pragma_name} = {pragma_value};""".format(**locals())
         self.__curs.execute(set_pragma_q)
@@ -50,8 +68,14 @@ class DBMaster(object):
             pass
         return pragma_value
 
+    def begin(self):
+        self.__conn.execute("begin")
+
     def commit(self):
         self.__conn.commit()
+
+    def rollback(self):
+        self.__conn.rollback()
 
     @property
     def curs(self):
@@ -99,100 +123,6 @@ class DBMaster(object):
         try:
             self.__curs.executemany(query_text, value_list)
         except sqlite3.Error as ex:
-            raise
-
-    def get_ids_and_oses(self):
-        return self.select_and_fetchall("SELECT _id, name FROM active_operating_systems_t")
-
-    def get_ids_oses_active(self):
-        return self.select_and_fetchall("SELECT _id, name, os_is_active FROM active_operating_systems_t")
-
-    def get_oses_and_active(self):
-        query_text = """
-        SELECT name, os_is_active
-        FROM active_operating_systems_t
-        ORDER BY _id
-        """
-        return self.select_and_fetchall(query_text)
-
-    def activate_all_oses(self):
-        """ adds all known os names to the list of os that will influence all get functions
-            such as depend_list, source_list etc.
-            This method is useful in code that does reporting or analyzing, where
-            there is need to have access to all oses not just the current or target os.
-        """
-        query_text = """
-            UPDATE active_operating_systems_t
-            SET os_is_active = 1
-         """
-        try:
-            self.execute_no_fetch(query_text)
-            self.commit()
-        except sqlite3.Error as ex:
-            print(ex)
-            raise
-
-    def reset_active_oses(self):
-        """ resets the list of os that will influence all get functions
-            such as depend_list, source_list etc.
-            This method is useful in code that does reporting or analyzing, where
-            there is need to have access to all oses not just the current or target os.
-        """
-        self.activate_specific_oses()
-
-    def activate_specific_oses(self, *for_oses):
-        """ adds another os name to the list of os that will influence all get functions
-            such as depend_list, source_list etc.
-        """
-        for_oses = *for_oses, "common"
-        quoted_os_names = [utils.quoteme_double(os_name) for os_name in for_oses]
-        query_vars = ", ".join(quoted_os_names)
-        query_text = """
-            UPDATE active_operating_systems_t
-            SET os_is_active = CASE WHEN active_operating_systems_t.name IN ({0}) THEN
-                    1
-                ELSE
-                    0
-                END;
-        """.format(query_vars)
-        try:
-            self.execute_no_fetch(query_text)
-            self.commit()
-        except sqlite3.Error as ex:
-            print(ex)
-            raise
-
-    def add_config_vars(self, list_of_config_var_values):
-        query_text = """INSERT INTO config_var_t(name, raw_value, resolved_value) 
-                        VALUES (?, ?, ?)
-                     """
-        try:
-            self.executemany(query_text, list_of_config_var_values)
-            self.commit()
-        except sqlite3.Error as ex:
-            print(ex)
-            raise
-
-    def get_all_require_translate_items(self):
-        query_text = """
-                      SELECT * FROM require_translate_t
-                      ORDER BY require_translate_t.iid
-                     """
-        try:
-            self.select_and_fetchall(query_text)
-        except sqlite3.Error as ex:
-            print(ex)
-            raise
-
-    def add_binary_versions(self, binaries_version_list):
-         query_text = """INSERT INTO found_installed_binaries_t(name, path, version, guid) 
-                        VALUES (?, ?, ?, ?)
-                     """
-         try:
-            self.executemany(query_text, binaries_version_list)
-            self.commit()
-         except sqlite3.Error as ex:
-            print(ex)
             raise
 
 if __name__ == "__main__":

@@ -21,7 +21,7 @@ from configVar import ConfigVarYamlReader
 
 from . import connectionBase
 from .indexItemTable import IndexItemsTable
-
+from db import DBMaster
 
 def check_version_compatibility():
     retVal = True
@@ -40,6 +40,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         or InstlInstance_win.
     """
     items_table = None
+    db = None
 
     def __init__(self, initial_vars=None):
         self.info_map_table = None  # initialized in InstlClient InstlAdmin and InstlMisc
@@ -75,12 +76,15 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             this function makes sure only one instance of items_table exists
         """
         if InstlInstanceBase.items_table is None:
-            InstlInstanceBase.items_table = IndexItemsTable()
+            InstlInstanceBase.db = DBMaster()
+            InstlInstanceBase.items_table = IndexItemsTable(db_master=InstlInstanceBase.db)
 
     def del_items_table(self):
         if InstlInstanceBase.items_table is not None:
             del InstlInstanceBase.items_table
             InstlInstanceBase.items_table = None
+            InstlInstanceBase.db.close()
+            del InstlInstanceBase.db;
 
     def progress(self, message):
         self.internal_progress += 1
@@ -482,6 +486,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def read_index(self, a_node, *args, **kwargs):
         self.items_table.read_index_node(a_node)
+        self.items_table.read_index_node2(a_node)
 
     def find_cycles(self):
         try:
