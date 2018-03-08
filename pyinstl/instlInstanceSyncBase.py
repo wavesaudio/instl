@@ -32,7 +32,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         return 0
 
     def create_no_sync_instructions(self):
-        """ an inheriting syncer can override this function to do something incase no files needed syncing """
+        """ an inheriting syncer can override this function to do something in case no files needed syncing """
         pass
 
     def read_remote_info_map(self):

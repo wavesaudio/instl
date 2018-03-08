@@ -155,6 +155,9 @@ class InstlClientCopy(InstlClient):
 
     def create_copy_instructions_for_file(self, source_path, name_for_progress_message):
         source_files = self.info_map_table.get_required_for_file(source_path)
+        if not source_files:
+            print("no source files for "+source_path)
+            return
         num_wtars = functools.reduce(lambda total, item: total + item.wtarFlag, source_files, 0)
         assert (len(source_files) == 1 and num_wtars == 0) or num_wtars == len(source_files)
 

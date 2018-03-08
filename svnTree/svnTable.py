@@ -59,6 +59,7 @@ map_info_extension_to_format = {"txt": "text", "text": "text",
                                 "inf": "info", "info": "info",
                                 "props": "props", "prop": "props",
                                 "file-sizes": "file-sizes"}
+
 @contextmanager
 def native_sql():
     db_conn = get_engine().raw_connection()
@@ -679,13 +680,13 @@ class SVNTable(TableBase):
         with utils.time_it("required_items_for_file sqlalchemy"):
             retVal = self.baked_queries_map["required_items_for_file"](self.session).params(file_path=file_path).all()
         with native_sql() as db_curs:
-            db_curs.execute("""
+            with utils.time_it("required_items_for_file sqlite"):
+                db_curs.execute("""
                     SELECT * FROM svnitem
                     WHERE fileFlag = 1
                     AND (path==:file_path OR path LIKE :wtar_file_path)
                     ORDER BY path
                     """, {"file_path": file_path, "wtar_file_path": file_path+".wtar%"})
-            with utils.time_it("required_items_for_file sqlite"):
                 alternative_retVal = db_curs.fetchall()
             assert retVal == alternative_retVal, str(retVal) +"!="+ str(alternative_retVal)
         return retVal
@@ -698,7 +699,16 @@ class SVNTable(TableBase):
                 .where(SVNRow.fileFlag == True)\
                 .where(or_(SVNRow.path == file_path, SVNRow.path.like(file_path + ".wtar%")))\
                 .values(required=True)
-        results = self.session.execute(update_statement)
+        with utils.time_it("mark_required_for_file sqlalchemy"):
+            results = self.session.execute(update_statement)
+        with native_sql() as db_curs:
+            with utils.time_it("mark_required_for_file sqlite"):
+                alternative_results = db_curs.execute("""
+                    UPDATE svnitem
+                    SET alternative_required=1
+                    WHERE fileFlag = 1
+                    AND (path==:file_path OR path LIKE :wtar_file_path)
+                    """, {"file_path": file_path, "wtar_file_path": file_path+".wtar%"})
         return results.rowcount
 
     def get_file_items_of_dir(self, dir_path):
@@ -874,18 +884,16 @@ class SVNTable(TableBase):
     def mark_required_for_revision(self, required_revision):
         """ mark all files and dirs as required if they are of specific revision
         """
-        update_statement = update(SVNRow)\
-            .where(SVNRow.fileFlag == True)\
-            .where(SVNRow.revision == required_revision)\
-            .values(required=True)
-        self.session.execute(update_statement)
+        with native_sql("mark_required_for_revision sqlite") as db_curs:
+            db_curs.execute("""UPDATE svnitem SET required=0
+                                WHERE fileFlag==1 AND revision==:required_revision
+                                """, {"required_revision": required_revision})
         self.commit_changes()
         self.mark_required_completion()
 
     def clear_required(self):
-        update_statement = update(SVNRow)\
-            .values(required=False)
-        self.session.execute(update_statement)
+        with native_sql("clear_required sqlite") as db_curs:
+            db_curs.execute("""UPDATE svnitem SET required=0""")
         self.commit_changes()
 
     def get_unrequired_paths_where_parent_required(self, what="file"):
@@ -911,9 +919,10 @@ class SVNTable(TableBase):
         return retVal
 
     def min_max_revision(self):
-        min_revision = self.session.query(SVNRow, func.min(SVNRow.revision)).scalar()
-        max_revision = self.session.query(SVNRow, func.max(SVNRow.revision)).scalar()
-        return min_revision.revision, max_revision.revision
+        with native_sql() as db_curs:
+            db_curs.execute(""" SELECT MIN(svnitem.revision), MAX(svnitem.revision) FROM svnitem""")
+            min_revision, max_revision = db_curs.fetchone()
+        return min_revision, max_revision
 
     def mark_required_files_for_active_items(self):
         query_text = """
@@ -981,19 +990,50 @@ class SVNTable(TableBase):
             self.baked_queries_map["get_items_by_infomap"] += lambda q: q.filter(IndexItemDetailRow.detail_value == bindparam('infomap_name'))
             self.baked_queries_map["get_items_by_infomap"] += lambda q: q.order_by(SVNRow._id)
 
-        retVal = self.baked_queries_map["get_items_by_infomap"](self.session).params(infomap_name=infomap_name).all()
+        with utils.time_it("get_items_by_infomap sqlalchemy"):
+            retVal = self.baked_queries_map["get_items_by_infomap"](self.session).params(infomap_name=infomap_name).all()
+        with native_sql() as db_curs:
+            db_curs.execute("""
+                    SELECT * FROM svnitem
+                    JOIN IIDToSVNItem, IndexItemDetailRow
+                      ON svnitem._id == IIDToSVNItem.svn_id
+                      AND IIDToSVNItem.iid == IndexItemDetailRow.owner_iid
+                      AND IndexItemDetailRow.detail_name == 'info_map'
+                      AND IndexItemDetailRow.detail_value == :infomap_name')
+                    ORDER BY _id
+                    """, {"infomap_name": infomap_name})
+            with utils.time_it("get_items_by_infomap sqlite"):
+                alternative_retVal = db_curs.fetchall()
+            assert retVal == alternative_retVal, str(retVal) +"!="+ str(alternative_retVal)
         return retVal
 
     def get_items_for_default_infomap(self):
         select_all_q = self.session.query(SVNRow)
 
-        select_non_default_info_map_items = self.session.query(SVNRow) \
+        select_non_default_info_map_items_q = self.session.query(SVNRow) \
                                             .filter(SVNRow._id == IIDToSVNItem.svn_id) \
                                             .filter(IIDToSVNItem.iid == IndexItemDetailRow.owner_iid) \
                                             .filter(IndexItemDetailRow.detail_name == 'info_map')
 
-        select_default_info_map_items = select_all_q.except_(select_non_default_info_map_items)
-        retVal = select_default_info_map_items.all()
+
+        select_default_info_map_items = select_all_q.except_(select_non_default_info_map_items_q).order_by(SVNRow.path)
+        with utils.time_it("get_items_for_default_infomap sqlalchemy"):
+            retVal = select_default_info_map_items.all()
+
+        with native_sql() as db_curs:
+            db_curs.execute("""
+                    SELECT * FROM svnitem
+                    WHERE svnitem._id NOT IN (
+                    SELECT svnitem_with_non_default_info_map._id FROM svnitem AS svnitem_with_non_default_info_map
+                    JOIN IIDToSVNItem, IndexItemDetailRow
+                      ON svnitem_with_non_default_info_map._id == IIDToSVNItem.svn_id
+                      AND IIDToSVNItem.iid == IndexItemDetailRow.owner_iid
+                      AND IndexItemDetailRow.detail_name == 'info_map')
+                    ORDER BY path
+                    """)
+            with utils.time_it("get_items_for_default_infomap sqlite"):
+                alternative_retVal = db_curs.fetchall()
+            assert retVal == alternative_retVal, str(retVal) +"!="+ str(alternative_retVal)
         return retVal
 
     def populate_IIDToSVNItem(self):

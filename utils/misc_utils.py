@@ -496,13 +496,31 @@ def timing(f):
         return ret
     return wrap
 
+if False:
+    @contextmanager
+    def time_it(message):
+        time1 = time.time()
+        yield
+        time2 = time.time()
+        print('%s took %0.3f ms' % (message, (time2 - time1) * 1000.0))
+
+
+sqlalchemy_time = 0.0
+native_sqlite_time = 0.0
 
 @contextmanager
 def time_it(message):
+    global sqlalchemy_time
+    global native_sqlite_time
     time1 = time.time()
     yield
     time2 = time.time()
     print('%s took %0.3f ms' % (message, (time2 - time1) * 1000.0))
+    if message.endswith("sqlalchemy"):
+        sqlalchemy_time += (time2 - time1) * 1000.0
+    elif message.endswith("sqlite"):
+        native_sqlite_time += (time2 - time1) * 1000.0
+    print("total sqlalcehmy  %0.3f ms, sqlite  %0.3f ms" % (sqlalchemy_time, native_sqlite_time))
 
 
 # compile a list of regexs to one regex. regexs are ORed
