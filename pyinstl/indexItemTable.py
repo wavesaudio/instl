@@ -516,8 +516,10 @@ class IndexItemsTable(TableBase):
     @utils.timing
     def resolve_inheritance2(self):
         inherit_order, inherit_dict = self.prepare_inherit_order()
+        resolve_items_script = ""
         for iid in inherit_order:
-            self.resolve_item_inheritance2(iid, inherit_dict[iid])
+            resolve_items_script += self.get_resolve_item_query_for_iid(iid, inherit_dict[iid])
+        self.db.execute_script(resolve_items_script)
         self.commit_changes()
 
     def prepare_inherit_order(self):
@@ -557,7 +559,7 @@ class IndexItemsTable(TableBase):
         check_inherit_order()
         return inherit_order, inherit_dict
 
-    def resolve_item_inheritance2(self, iid_to_resolve, inherit_from_iids, generation=0):
+    def get_resolve_item_query_for_iid(self, iid_to_resolve, inherit_from_iids, generation=0):
         # print("-"*generation, " ", item_to_resolve.iid)
         query_text = """
             INSERT INTO index_item_detail_t(original_iid,
@@ -570,23 +572,24 @@ class IndexItemsTable(TableBase):
                                             os_is_active)
             SELECT  
               inherited_details_t.original_iid,
-              {inheritor_iid},
+              {inheritor_iid} AS owner_id,
               inherited_details_t.os_id,
               inherited_details_t.detail_name,
               inherited_details_t.detail_value,
               inherited_details_t.generation+1,
               inherited_details_t.tag,
               inherited_details_t.os_is_active
-             FROM index_item_detail_t AS inherited_details_t
+            FROM index_item_detail_t AS inherited_details_t
               JOIN active_operating_systems_t
                 ON active_operating_systems_t._id=inherited_details_t.os_id
                 AND active_operating_systems_t.os_is_active = 1
-              WHERE inherited_details_t.owner_iid IN {inherit_from_iids}
-              AND inherited_details_t.detail_name not in {not_inherit_details}
-            """.format(**{"inheritor_iid": utils.quoteme_double(iid_to_resolve),
-                      "inherit_from_iids": utils.quoteme_double_list_for_sql(inherit_from_iids),
-                      "not_inherit_details": utils.quoteme_double_list_for_sql(self.not_inherit_details)})
-        self.db.execute_no_fetch(query_text)
+            WHERE inherited_details_t.owner_iid IN {inherit_from_iids}
+            AND inherited_details_t.detail_name NOT IN {not_inherit_details};
+            
+            """.format(**{"inheritor_iid": utils.quoteme_single(iid_to_resolve),
+                      "inherit_from_iids": utils.quoteme_single_list_for_sql(inherit_from_iids),
+                      "not_inherit_details": utils.quoteme_single_list_for_sql(self.not_inherit_details)})
+        return query_text
 
     def item_from_index_node(self, the_iid, the_node):
         item = IndexItemRow(iid=the_iid, inherit_resolved=False, from_index=True)

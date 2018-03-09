@@ -125,6 +125,12 @@ class DBMaster(object):
         except sqlite3.Error as ex:
             raise
 
+    def execute_script(self, script_text):
+        try:
+            self.__curs.executescript(script_text)
+        except sqlite3.Error as ex:
+            raise
+
 if __name__ == "__main__":
     ddl_path = "/p4client/ProAudio/dev_central/ProAudio/XPlatform/CopyProtect/instl/defaults"
     db_path = "/p4client/ProAudio/dev_central/ProAudio/XPlatform/CopyProtect/instl/defaults/instl.sqlite"
