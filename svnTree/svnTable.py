@@ -17,7 +17,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 
 from pyinstl.db_alchemy import create_session, IndexItemDetailRow, get_engine, TableBase
-from .svnRow import SVNRow, IIDToSVNItem
+from .svnRow import SVNRow
 
 import utils
 from configVar import var_stack

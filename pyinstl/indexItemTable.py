@@ -2,7 +2,9 @@
 
 
 import os
+import sys
 from collections import OrderedDict
+from collections import defaultdict
 
 from sqlalchemy import bindparam
 from sqlalchemy.exc import SQLAlchemyError
@@ -265,6 +267,16 @@ class IndexItemsTable(TableBase):
         retVal = self.select_and_fetchall(query_text, query_params={})
         return retVal
 
+    def get_all_iids2(self):
+        """
+        tested by: TestItemTable.test_06_get_all_iids
+        :return: list of all iids in the db, empty list if none are found
+        """
+        retVal = list()
+        query_text = """SELECT iid FROM index_item_t ORDER BY iid"""
+        retVal.extend(self.db.select_and_fetchall(query_text))
+        return retVal
+
     def create_default_index_items(self, iids_to_ignore):
         iids_to_ignore_str = utils.quoteme_double_list_for_sql(iids_to_ignore)
         query_text = """
@@ -493,12 +505,88 @@ class IndexItemsTable(TableBase):
                 print(item_to_resolve.iid, "inherit from non existing", original_iid)
         item_to_resolve.inherit_resolved = True
 
+    @utils.timing
     def resolve_inheritance(self):
         items = self.get_all_index_items()
         for item in items:
             if not item.inherit_resolved:
                 self.resolve_item_inheritance(item)
         self.commit_changes()
+
+    @utils.timing
+    def resolve_inheritance2(self):
+        inherit_order, inherit_dict = self.prepare_inherit_order()
+        for iid in inherit_order:
+            self.resolve_item_inheritance2(iid, inherit_dict[iid])
+        self.commit_changes()
+
+    def prepare_inherit_order(self):
+        inherit_order = utils.unique_list()
+        inherit_dict = defaultdict(list)
+        query_text = """
+            SELECT original_iid, detail_value
+            FROM index_item_detail_t
+            JOIN active_operating_systems_t
+            ON active_operating_systems_t._id=os_id
+            AND active_operating_systems_t.os_is_active = 1
+            WHERE detail_name = 'inherit'
+            """
+        inherit_pairs = self.db.select_and_fetchall(query_text)
+        for pair in inherit_pairs:
+            inherit_dict[pair[0]].append(pair[1])
+
+        def resolve_iid(iid):
+            iis = inherit_dict.get(iid,[])
+            if iis:
+                for ii in iis:
+                    resolve_iid(ii)
+                inherit_order.append(iid)
+
+        def check_inherit_order():
+            assert len(inherit_order) == len(set(inherit_order)), "retVal has duplicates"
+            assert not set(inherit_order) ^ set(inherit_dict.keys()), "retVal and inherit_dict different"
+            for i in range(len(inherit_order)):
+                iis = inherit_dict[inherit_order[i]]
+                for ii in iis:
+                    if ii in inherit_dict:
+                        ii_index = inherit_order.index(ii)
+                        assert ii_index < i, "{0} inherit from {1} but {1} does not come before {0}".format(inherit_order[i], ii)
+
+        for iid in sorted(inherit_dict):
+            resolve_iid(iid)
+        check_inherit_order()
+        return inherit_order, inherit_dict
+
+    def resolve_item_inheritance2(self, iid_to_resolve, inherit_from_iids, generation=0):
+        # print("-"*generation, " ", item_to_resolve.iid)
+        query_text = """
+            INSERT INTO index_item_detail_t(original_iid,
+                                            owner_iid,
+                                            os_id,
+                                            detail_name,
+                                            detail_value,
+                                            generation,
+                                            tag,
+                                            os_is_active)
+            SELECT  
+              inherited_details_t.original_iid,
+              {inheritor_iid},
+              inherited_details_t.os_id,
+              inherited_details_t.detail_name,
+              inherited_details_t.detail_value,
+              inherited_details_t.generation+1,
+              inherited_details_t.tag,
+              inherited_details_t.os_is_active
+             FROM index_item_detail_t AS inherited_details_t
+              JOIN active_operating_systems_t
+                ON active_operating_systems_t._id=inherited_details_t.os_id
+                AND active_operating_systems_t.os_is_active = 1
+              WHERE inherited_details_t.owner_iid IN {inherit_from_iids}
+              AND inherited_details_t.detail_name not in {not_inherit_details}
+            """.format(**{"inheritor_iid": utils.quoteme_double(iid_to_resolve),
+                      "inherit_from_iids": utils.quoteme_double_list_for_sql(inherit_from_iids),
+                      "not_inherit_details": utils.quoteme_double_list_for_sql(self.not_inherit_details)})
+        self.db.execute_no_fetch(query_text)
 
     def item_from_index_node(self, the_iid, the_node):
         item = IndexItemRow(iid=the_iid, inherit_resolved=False, from_index=True)
@@ -626,8 +714,9 @@ class IndexItemsTable(TableBase):
                 index_items.append(item)
                 items_details.extend(original_item_details)
 
-            insert_item_q =        """INSERT INTO IndexItemRow2(iid, from_index) VALUES(?, ?)"""
-            insert_item_detail_q = """INSERT INTO index_item_t(original_iid, owner_iid, os_id, detail_name, detail_value, tag)
+            insert_item_q =        """INSERT INTO index_item_t(iid, from_index) VALUES(?, ?)"""
+            insert_item_detail_q = """INSERT INTO index_item_detail_t(original_iid, owner_iid, os_id,
+                                                                      detail_name, detail_value, tag)
                                                                       VALUES(?,?,?,?,?,?)"""
             self.db.executemany(insert_item_q, index_items)
             self.db.executemany(insert_item_detail_q, items_details)

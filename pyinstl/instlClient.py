@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import sys
 import time
 from collections import defaultdict, namedtuple, OrderedDict
 
@@ -68,6 +69,8 @@ class InstlClient(InstlInstanceBase):
         self.items_table.activate_specific_oses(*active_oses)
 
         self.items_table.resolve_inheritance()
+        self.items_table.resolve_inheritance2()
+        sys.exit(0)
         if self.should_check_for_binary_versions():
             self.get_version_of_installed_binaries()
             self.items_table.add_require_version_from_binaries()
