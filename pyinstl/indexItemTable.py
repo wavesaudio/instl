@@ -85,9 +85,11 @@ class IndexItemsTable(TableBase):
 
     def add_triggers(self):
         self.execute_script_from_defaults("create-triggers.ddl")
+        self.execute_script_from_defaults("create-triggers2.ddl")
 
     def drop_triggers(self):
         self.execute_script_from_defaults("drop-triggers.ddl")
+        self.execute_script_from_defaults("drop-triggers2.ddl")
 
     def add_views(self):
         self.execute_script_from_defaults("create-views.ddl")

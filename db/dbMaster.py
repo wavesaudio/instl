@@ -1,14 +1,17 @@
 import os
 import sqlite3
+from contextlib import contextmanager
+import time
 
 import utils
 
 """
     todo:
-        - replace iids with IndexItemRow._id
-        - normalize detail_name with _id ???
+        - replace iids in index_item_detail_t with index_item_t._id ?
+        - normalize detail_name with table of names?
         - review indexes, do they really improve performance
         - lower case table names
+        - svnitem - review whole parent/child relationship
 """
 
 
@@ -34,17 +37,37 @@ class DBMaster(object):
     def init_from_existing_connection(self, conn, curs):
         self.__conn = conn
         self.__curs = curs
-        self.set_db_pragma("foreign_keys", "ON")
+        self.configure_db()
         self.exec_script_file("create-tables.ddl")
         self.exec_script_file("init-values.ddl")
 
     def open(self):
         self.__conn = sqlite3.connect(self.db_file_path)
+        self.configure_db()
         self.__curs = self.__conn.cursor()
-        self.set_db_pragma("foreign_keys", "ON")
         self.exec_script_file("create-tables.ddl")
         self.exec_script_file("init-values.ddl")
-        self.set_db_pragma("user_version", self.top_user_version)
+
+    def configure_db(self):
+        self.set_db_pragma("foreign_keys", "ON")
+        #self.__conn.set_authorizer(self.authorizer)
+        #self.__conn.set_progress_handler(self.progress, 8)
+        self.__conn.set_trace_callback(self.tracer)
+
+    def authorizer(self, *args, **kwargs):
+        """ callback for sqlite3.connection.set_authorizer"""
+        return sqlite3.SQLITE_OK
+
+    def progress(self):
+        """ callback for sqlite3.connection.set_progress_handler"""
+        self.logger.debug('DB progress')
+
+    def tracer(self, statement):
+        """ callback for sqlite3.connection.set_trace_callback"""
+        self.logger.debug('DB statement %s' % (statement))
+
+    def create_function(self, func_name, num_params, func_ptr):
+        self.__conn.create_function(func_name, num_params, func_ptr)
 
     def close(self):
         if self.__conn:
@@ -80,6 +103,45 @@ class DBMaster(object):
     @property
     def curs(self):
         return self.__curs
+
+    @contextmanager
+    def transaction(self, description=""):
+        try:
+            time1 = time.clock()
+            self.begin()
+            yield self.__curs
+            self.commit()
+            time2 = time.clock()
+            print('DB transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
+        except:
+            self.rollback()
+            raise
+
+    @contextmanager
+    def selection(self, description=""):
+        """ returns a cursor for SELECT queries.
+            no commit is done
+        """
+        try:
+            time1 = time.clock()
+            yield self.__conn.cursor()
+            time2 = time.clock()
+            print('DB selection %s took %0.3f ms' % (description, (time2-time1)*1000.0))
+        except Exception as ex:
+            raise
+
+    @contextmanager
+    def temp_transaction(self, description=""):
+        """ returns a cursor for working with CREATE TEMP TABLE.
+            no commit is done
+        """
+        try:
+            time1 = time.clock()
+            yield self.__conn.cursor()
+            time2 = time.clock()
+            print('DB temporary transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
+        except Exception as ex:
+            raise
 
     def exec_script_file(self, file_name):
         if os.path.isfile(file_name):

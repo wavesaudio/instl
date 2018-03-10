@@ -32,6 +32,7 @@ def check_version_compatibility():
     return retVal
 
 
+
 # noinspection PyPep8Naming
 class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
     """ Main object of instl. Keeps the state of variables and install index

@@ -26,7 +26,7 @@ class InstlAdmin(InstlInstanceBase):
         super().__init__(initial_vars)
         self.init_items_table()
         var_stack.add_const_config_variable("__DATABASE_URL__", "", self.items_table.get_db_url())
-        self.info_map_table = SVNTable()
+        self.info_map_table = SVNTable(InstlInstanceBase.db)
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         self.fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
 
@@ -274,9 +274,9 @@ class InstlAdmin(InstlInstanceBase):
 
         def __call__(self, svn_item):
             retVal = None
-            if svn_item.isFile():
+            if isFile(svn_item):
                 retVal = svn_item.revision != self.version_not_to_remove
-            elif svn_item.isDir():
+            elif isDir(svn_item):
                 retVal = len(svn_item.subs) == 0
             return retVal
 
@@ -519,11 +519,11 @@ class InstlAdmin(InstlInstanceBase):
                 # print("remove prop", extra_prop, "from", item.path)
                 self.batch_accum += " ".join( (var_stack.ResolveVarToStr("SVN_CLIENT_PATH"), "propdel", "svn:"+extra_prop, '"'+item.path+'"') )
                 self.batch_accum += self.platform_helper.progress(" ".join(("remove prop", extra_prop, "from", item.path)) )
-            if item.isExecutable() and not shouldBeExec:
+            if isExecutable(item) and not shouldBeExec:
                 # print("remove prop", "executable", "from", item.path)
                 self.batch_accum += " ".join( (var_stack.ResolveVarToStr("SVN_CLIENT_PATH"), "propdel", 'svn:executable', '"'+item.path+'"') )
                 self.batch_accum += self.platform_helper.progress(" ".join(("remove prop", "executable", "from", item.path)) )
-            elif not item.isExecutable() and shouldBeExec:
+            elif not isExecutable(item) and shouldBeExec:
                 # print("add prop", "executable", "to", item.path)
                 self.batch_accum += " ".join( (var_stack.ResolveVarToStr("SVN_CLIENT_PATH"), "propset", 'svn:executable', 'yes', '"'+item.path+'"') )
                 self.batch_accum += self.platform_helper.progress(" ".join(("add prop", "executable", "from", item.path)) )
@@ -1026,7 +1026,7 @@ class InstlAdmin(InstlInstanceBase):
         return retVal is not None
 
     def should_be_exec(self, item):
-        retVal = item.isFile() and self.should_file_be_exec(item.path)
+        retVal = isFile(item) and self.should_file_be_exec(item.path)
         return retVal
 
     def prepare_list_of_dirs_to_work_on(self, top_folder):

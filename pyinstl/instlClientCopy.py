@@ -10,7 +10,7 @@ import functools
 from configVar import var_stack
 from .instlClient import InstlClient
 from .batchAccumulator import BatchAccumulatorTransaction
-
+import svnTree
 
 class InstlClientCopy(InstlClient):
     def __init__(self, initial_vars):
@@ -203,7 +203,7 @@ class InstlClientCopy(InstlClient):
 
         if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
             for source_item in source_items:
-                if source_item.wtarFlag == 0:
+                if source_item['wtarFlag'] == 0:
                     source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path)
                     self.batch_accum += self.platform_helper.chown("$(__USER_ID__)", "", ".", recursive=True)
                     self.batch_accum += self.platform_helper.chmod("-R -f a+rw", source_path_relative_to_current_dir)  # all copied files and folders should be rw
@@ -236,7 +236,7 @@ class InstlClientCopy(InstlClient):
                 self.batch_accum += self.platform_helper.chown("$(__USER_ID__)", "", source_path_name, recursive=True)
                 self.batch_accum += self.platform_helper.chmod("-R -f a+rw", source_path_name)  # all copied files should be rw
                 for source_item in source_items:
-                    if source_item.wtarFlag == 0 and source_item.isExecutable():
+                    if not source_item.is_wtar_file() == 0 and source_item.isExecutable():
                         source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path_dir)
                         # executable files should also get exec bit
                         self.batch_accum += self.platform_helper.chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)

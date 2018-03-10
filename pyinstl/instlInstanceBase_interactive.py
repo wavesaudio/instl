@@ -406,7 +406,7 @@ class CMDObj(cmd.Cmd, object):
                 item = self.admin_prog_inst.info_map_table.get_item(param.rstrip("/"), what="any")
                 if item:
                     items_to_list.append(item)
-                    if item.isDir():
+                    if isDir(item):
                         items_to_list.extend(self.admin_prog_inst.info_map_table.get_items_in_dir(dir_path=item.path))
                 else:
                     print("No item named:", param)

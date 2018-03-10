@@ -15,8 +15,8 @@ from svnTree import SVNTable
 class InstlClient(InstlInstanceBase):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
-        self.info_map_table = SVNTable()
         self.init_items_table()
+        self.info_map_table = SVNTable(InstlInstanceBase.db)
         var_stack.add_const_config_variable("__DATABASE_URL__", "", self.items_table.get_db_url())
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         self.action_type_to_progress_message = None
@@ -70,7 +70,7 @@ class InstlClient(InstlInstanceBase):
 
         self.items_table.resolve_inheritance()
         self.items_table.resolve_inheritance2()
-        sys.exit(0)
+
         if self.should_check_for_binary_versions():
             self.get_version_of_installed_binaries()
             self.items_table.add_require_version_from_binaries()
@@ -412,6 +412,7 @@ class InstlClient(InstlInstanceBase):
         # and the top folder common to all items in a single source: item.download_root
         sync_and_source = self.items_table.get_sync_folders_and_sources_for_active_iids()
 
+        items_to_update = list()
         for iid, direct_sync_indicator, source, source_tag, install_folder in sync_and_source:
             direct_sync = self.get_direct_sync_status_from_indicator(direct_sync_indicator)
             resolved_source_parts = source.split("/")
@@ -432,6 +433,7 @@ class InstlClient(InstlInstanceBase):
                 else:
                     for item in items:
                         item.download_path = var_stack.ResolveStrToStr("/".join(("$(LOCAL_REPO_SYNC_DIR)", item.path)))
+                items_to_update.extend(items)
             elif source_tag == '!file':
                 # if the file was wtarred and split it would have multiple items
                 items_for_file = self.info_map_table.get_required_for_file(source)
@@ -444,7 +446,8 @@ class InstlClient(InstlInstanceBase):
                     for item in items_for_file:
                         item.download_path = var_stack.ResolveStrToStr("/".join(("$(LOCAL_REPO_SYNC_DIR)", item.path)))
                         # no need to set item.download_root here - it will not be used
-        self.items_table.commit_changes()
+                items_to_update.extend(items_for_file)
+        self.info_map_table.update_downloads(items_to_update)
 
     def create_remove_previous_sources_instructions_for_target_folder(self, target_folder_path):
         iids_in_folder = self.all_iids_by_target_folder[target_folder_path]

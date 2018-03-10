@@ -43,11 +43,11 @@ class InstlMisc(InstlInstanceBase):
         self.progress_staccato_count = 0
         do_command_func = getattr(self, "do_" + self.fixed_command)
         before_time = time.clock()
-        if self.fixed_command in self.commands_that_need_info_map_table:
-            from svnTree import SVNTable
-            self.info_map_table = SVNTable()
         if self.fixed_command in self.commands_that_need_items_table:
             self.init_items_table()
+        if self.fixed_command in self.commands_that_need_info_map_table:
+            from svnTree import SVNTable
+            self.info_map_table = SVNTable(InstlInstanceBase.db)
         do_command_func()
         after_time = time.clock()
         if utils.str_to_bool_int(var_stack.unresolved_var("PRINT_COMMAND_TIME")):
