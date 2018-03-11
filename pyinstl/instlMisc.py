@@ -16,7 +16,7 @@ from . import connectionBase
 
 # noinspection PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences
 class InstlMisc(InstlInstanceBase):
-    def __init__(self, initial_vars):
+    def __init__(self, initial_vars, command):
         super().__init__(initial_vars)
         # noinspection PyUnresolvedReferences
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
@@ -25,8 +25,11 @@ class InstlMisc(InstlInstanceBase):
         self.progress_staccato_command = False
         self.progress_staccato_period = 1
         self.progress_staccato_count = 0
-        self.commands_that_need_info_map_table = ("check_checksum", "set_exec", "create_folders")
-        self.commands_that_need_items_table = ("exec")
+
+        if command in ("exec",):
+            self.need_items_table = True
+        if command in ("check_checksum", "set_exec", "create_folders"):
+            self.need_info_map_table = True
 
     def get_default_out_file(self):
         retVal = None
@@ -43,11 +46,6 @@ class InstlMisc(InstlInstanceBase):
         self.progress_staccato_count = 0
         do_command_func = getattr(self, "do_" + self.fixed_command)
         before_time = time.clock()
-        if self.fixed_command in self.commands_that_need_items_table:
-            self.init_items_table()
-        if self.fixed_command in self.commands_that_need_info_map_table:
-            from svnTree import SVNTable
-            self.info_map_table = SVNTable(InstlInstanceBase.db)
         do_command_func()
         after_time = time.clock()
         if utils.str_to_bool_int(var_stack.unresolved_var("PRINT_COMMAND_TIME")):

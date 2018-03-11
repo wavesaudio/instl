@@ -20,8 +20,9 @@ from configVar import var_stack
 from configVar import ConfigVarYamlReader
 
 from . import connectionBase
+from db import DBMaster, get_db_url
 from .indexItemTable import IndexItemsTable
-from db import DBMaster
+from svnTree import SVNTable
 
 def check_version_compatibility():
     retVal = True
@@ -32,7 +33,6 @@ def check_version_compatibility():
     return retVal
 
 
-
 # noinspection PyPep8Naming
 class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
     """ Main object of instl. Keeps the state of variables and install index
@@ -40,11 +40,13 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         must be inherited by platform specific implementations, such as InstlInstance_mac
         or InstlInstance_win.
     """
-    items_table = None
     db = None
+    items_table = None
+    info_map_table = None
 
     def __init__(self, initial_vars=None):
-        self.info_map_table = None  # initialized in InstlClient InstlAdmin and InstlMisc
+        self.need_items_table = False
+        self.need_info_map_table = False
 
         ConfigVarYamlReader.__init__(self)
 
@@ -67,25 +69,6 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.do_not_write_vars = ("INFO_MAP_SIG", "INDEX_SIG", "PUBLIC_KEY", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "__CREDENTIALS__")
         self.out_file_realpath = None
         self.internal_progress = 0  # progress of preparing installer NOT of the installation
-
-    def __del__(self):
-        self.del_items_table()
-
-    def init_items_table(self):
-        """ sometime two instances of InstlInstanceBase exist side by side
-            e.g. during interactive mode InstlClient & InstlAdmin
-            this function makes sure only one instance of items_table exists
-        """
-        if InstlInstanceBase.items_table is None:
-            InstlInstanceBase.db = DBMaster()
-            InstlInstanceBase.items_table = IndexItemsTable(db_master=InstlInstanceBase.db)
-
-    def del_items_table(self):
-        if InstlInstanceBase.items_table is not None:
-            del InstlInstanceBase.items_table
-            InstlInstanceBase.items_table = None
-            InstlInstanceBase.db.close()
-            del InstlInstanceBase.db;
 
     def progress(self, message):
         self.internal_progress += 1
@@ -254,7 +237,6 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         if cmd_line_options_obj.no_numbers_progress:
             var_stack.add_const_config_variable("__NO_NUMBERS_PROGRESS__", default_remark, "yes")
 
-
         if cmd_line_options_obj.define:
             individual_definitions = cmd_line_options_obj.define[0].split(",")
             for definition in individual_definitions:
@@ -266,6 +248,21 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             if default_out_file:
                 var_stack.add_const_config_variable("__MAIN_OUT_FILE__", "from write_batch_file",
                                                 default_out_file)
+        self.init_db()
+
+    def init_db(self):
+        if self.need_items_table or self.need_info_map_table:
+            if not InstlInstanceBase.db:
+                db_url = get_db_url(self.the_command)
+                ddls_folder = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults")
+                if db_url != ":memory:":
+                    utils.safe_remove_file(db_url)
+                InstlInstanceBase.db = DBMaster(db_url, ddls_folder)
+                var_stack.add_const_config_variable("__DATABASE_URL__", "", db_url)
+            if self.need_items_table and not InstlInstanceBase.items_table:
+                InstlInstanceBase.items_table = IndexItemsTable(InstlInstanceBase.db)
+            if self.need_info_map_table and not InstlInstanceBase.info_map_table:
+                InstlInstanceBase.info_map_table = SVNTable(InstlInstanceBase.db)
 
     def get_default_out_file(self):
         retVal = None
@@ -487,7 +484,6 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def read_index(self, a_node, *args, **kwargs):
         self.items_table.read_index_node(a_node)
-        self.items_table.read_index_node2(a_node)
 
     def find_cycles(self):
         try:

@@ -1,13 +1,13 @@
 -- iid, index_version, generation
-CREATE VIEW IF NOT EXISTS "require_items_without_require_version_view" AS
+CREATE VIEW IF NOT EXISTS "require_items_without_require_version_view2" AS
 SELECT main_details_t.owner_iid AS iid,
     main_details_t.detail_value AS index_version,
     min(main_details_t.generation) AS generation
-FROM IndexItemDetailRow AS main_details_t
-    JOIN IndexItemRow AS main_item_t
+FROM index_item_detail_t AS main_details_t
+    JOIN index_item_t AS main_item_t
     ON main_item_t.iid=main_details_t.owner_iid
     AND main_item_t.from_require=1
-    LEFT JOIN IndexItemDetailRow AS no_require_version_t
+    LEFT JOIN index_item_detail_t AS no_require_version_t
     ON no_require_version_t.detail_name='require_version'
     AND main_details_t.owner_iid=no_require_version_t.owner_iid
 WHERE main_details_t.detail_name='version'
@@ -16,16 +16,16 @@ WHERE main_details_t.detail_name='version'
 GROUP BY (main_details_t.owner_iid);
 
 -- view of items from require.yaml that do not have a require_guid field
-CREATE VIEW IF NOT EXISTS "require_items_without_require_guid_view" AS
+CREATE VIEW IF NOT EXISTS "require_items_without_require_guid_view2" AS
 SELECT
     main_details_t.owner_iid       AS iid,
     main_details_t.detail_value    AS index_guid,
     min(main_details_t.generation) AS generation
-FROM IndexItemDetailRow AS main_details_t
-    JOIN IndexItemRow AS main_item_t
+FROM index_item_detail_t AS main_details_t
+    JOIN index_item_t AS main_item_t
         ON main_item_t.iid = main_details_t.owner_iid
            AND main_item_t.from_require = 1
-    LEFT JOIN IndexItemDetailRow AS no_guid_version_t
+    LEFT JOIN index_item_detail_t AS no_guid_version_t
         ON no_guid_version_t.detail_name = 'require_guid'
         AND main_details_t.owner_iid=no_guid_version_t.owner_iid
 WHERE main_details_t.detail_name='guid'
@@ -42,17 +42,17 @@ CREATE VIEW IF NOT EXISTS "report_versions_view" AS
           coalesce(require_version.detail_value, "_") AS 'require_version',
           coalesce(remote.detail_value, "_") AS 'remote_version',
           min(remote.generation) AS generation
-    FROM IndexItemDetailRow AS remote
+    FROM index_item_detail_t AS remote
 
-    LEFT  JOIN IndexItemDetailRow as require_version
+    LEFT  JOIN index_item_detail_t as require_version
         ON  require_version.detail_name = 'require_version'
         AND require_version.owner_iid=remote.owner_iid
         AND require_version.os_is_active=1
-    LEFT JOIN IndexItemDetailRow as item_guid
+    LEFT JOIN index_item_detail_t as item_guid
         ON  item_guid.detail_name = 'guid'
         AND item_guid.owner_iid=remote.owner_iid
         AND item_guid.os_is_active=1
-    LEFT JOIN IndexItemDetailRow as item_name
+    LEFT JOIN index_item_detail_t as item_name
         ON  item_name.detail_name = 'name'
         AND item_name.owner_iid=remote.owner_iid
         AND item_name.os_is_active=1
@@ -61,14 +61,14 @@ CREATE VIEW IF NOT EXISTS "report_versions_view" AS
         AND remote.os_is_active=1
     GROUP BY remote.owner_iid;
 
-CREATE VIEW IF NOT EXISTS "iids_to_install_sources_view" AS
-SELECT IIDToSVNItem.iid, svnitem.path
-FROM IIDToSVNItem, svnitem
+CREATE VIEW IF NOT EXISTS "iids_to_install_sources_view2" AS
+SELECT iid_to_svn_item_t.iid, svn_item_t.path
+FROM iid_to_svn_item_t, svn_item_t
 WHERE
-    IIDToSVNItem.svn_id=svnitem._id;
+    iid_to_svn_item_t.svn_id=svn_item_t._id;
 
-CREATE VIEW IF NOT EXISTS "versions_view" AS
+CREATE VIEW IF NOT EXISTS "versions_view2" AS
 SELECT version_t.owner_iid AS iid, version_t.detail_value AS version, min(version_t.generation) AS generation
-FROM IndexItemDetailRow AS version_t
+FROM index_item_detail_t AS version_t
 WHERE version_t.detail_name='version'
 GROUP BY version_t.owner_iid;

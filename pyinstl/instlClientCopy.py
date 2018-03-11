@@ -12,6 +12,7 @@ from .instlClient import InstlClient
 from .batchAccumulator import BatchAccumulatorTransaction
 import svnTree
 
+
 class InstlClientCopy(InstlClient):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)

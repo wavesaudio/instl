@@ -32,9 +32,9 @@ CREATE TABLE found_installed_binaries_t
 	guid TEXT,
 	iid TEXT
 );
-/*
 
-CREATE TABLE svnitem
+
+CREATE TABLE svn_item_t
 (
   _id INTEGER PRIMARY KEY AUTOINCREMENT,
 	path TEXT,
@@ -54,15 +54,15 @@ CREATE TABLE svnitem
 	download_root TEXT,
 	extra_props TEXT
 );
-*/
 
-CREATE TABLE IIDToSVNItem
+
+CREATE TABLE iid_to_svn_item_t
 (
   _id INTEGER PRIMARY KEY AUTOINCREMENT,
 	iid TEXT,
 	svn_id INTEGER,
- FOREIGN KEY(iid) REFERENCES IndexItemRow(iid) ON DELETE CASCADE,
- FOREIGN KEY(svn_id) REFERENCES svnitem(_id)
+ FOREIGN KEY(iid) REFERENCES index_item_t(iid) ON DELETE CASCADE,
+ FOREIGN KEY(svn_id) REFERENCES svn_item_t(_id)
 );
 
 CREATE TABLE index_item_t

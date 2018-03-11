@@ -15,9 +15,8 @@ from svnTree import SVNTable
 class InstlClient(InstlInstanceBase):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
-        self.init_items_table()
-        self.info_map_table = SVNTable(InstlInstanceBase.db)
-        var_stack.add_const_config_variable("__DATABASE_URL__", "", self.items_table.get_db_url())
+        self.need_items_table = True
+        self.need_info_map_table = True
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         self.action_type_to_progress_message = None
         self.__all_iids_by_target_folder = defaultdict(utils.unique_list)
@@ -62,14 +61,12 @@ class InstlClient(InstlInstanceBase):
 
         main_input_file_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         self.read_yaml_file(main_input_file_path)
-        self.items_table.commit_changes()
 
         self.init_default_client_vars()
         active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
         self.items_table.activate_specific_oses(*active_oses)
 
         self.items_table.resolve_inheritance()
-        self.items_table.resolve_inheritance2()
 
         if self.should_check_for_binary_versions():
             self.get_version_of_installed_binaries()
@@ -188,8 +185,8 @@ class InstlClient(InstlInstanceBase):
     def calculate_install_items(self):
         self.calculate_main_install_items()
         self.calculate_all_install_items()
-        self.items_table.lock_table("IndexItemRow")
-        self.items_table.lock_table("IndexItemDetailRow")
+        self.items_table.db.lock_table("index_item_t")
+        self.items_table.db.lock_table("index_item_detail_t")
 
     def calculate_main_install_items(self):
         """ calculate the set of iids to install from the "MAIN_INSTALL_TARGETS" variable.
@@ -249,7 +246,6 @@ class InstlClient(InstlInstanceBase):
         all_items_to_install = self.items_table.get_iids_by_status(
             self.items_table.install_status["main"],
             self.items_table.install_status["depend"])
-        self.items_table.commit_changes()
 
         var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(all_items_to_install))
 

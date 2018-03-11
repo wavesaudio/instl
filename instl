@@ -133,7 +133,7 @@ def main():
         go_interactive(client, admin)
     elif options.mode == "do_something":
         from pyinstl.instlMisc import InstlMisc
-        instance = InstlMisc(initial_vars)
+        instance = InstlMisc(initial_vars, options.command)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "gui":

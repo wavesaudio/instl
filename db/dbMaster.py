@@ -1,7 +1,10 @@
 import os
+import sys
 import sqlite3
 from contextlib import contextmanager
 import time
+import datetime
+import inspect
 
 import utils
 
@@ -14,14 +17,35 @@ import utils
         - svnitem - review whole parent/child relationship
 """
 
+force_disk_db = False
+unique_name_to_disk_db = False
+
+
+def get_db_url(name_extra=None):
+    if getattr(sys, 'frozen', False) and not force_disk_db:
+        db_url = ":memory:"
+    else:
+        logs_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Logs")
+        os.makedirs(logs_dir, exist_ok=True)
+        db_file_name = "instl.sqlite"
+        if name_extra:
+            db_file_name = name_extra+"."+db_file_name
+        if unique_name_to_disk_db:
+            db_file_name = str(datetime.datetime.now().timestamp())+"."+db_file_name
+        db_file = os.path.join(logs_dir, db_file_name)
+        #print("db_file:", db_file)
+        db_url = db_file
+    return db_url
+
 
 class DBMaster(object):
-    def __init__(self):
+    def __init__(self, db_url, ddl_folder):
         self.top_user_version = 1  # user_version is a standard pragma tha defaults to 0
-        self.ddl_files_dir = None
-        self.db_file_path = None
+        self.db_file_path = db_url
+        self.ddl_files_dir = ddl_folder
         self.__conn = None
         self.__curs = None
+        self.locked_tables = set()
 
     def read_ddl_file(self, ddl_file_name):
         ddl_path = os.path.join(self.internal_data_folder, "db", ddl_file_name)
@@ -42,11 +66,12 @@ class DBMaster(object):
         self.exec_script_file("init-values.ddl")
 
     def open(self):
-        self.__conn = sqlite3.connect(self.db_file_path)
-        self.configure_db()
-        self.__curs = self.__conn.cursor()
-        self.exec_script_file("create-tables.ddl")
-        self.exec_script_file("init-values.ddl")
+        if not self.__conn:
+            self.__conn = sqlite3.connect(self.db_file_path)
+            self.__curs = self.__conn.cursor()
+            self.configure_db()
+            self.exec_script_file("create-tables.ddl")
+            self.exec_script_file("init-values.ddl")
 
     def configure_db(self):
         self.set_db_pragma("foreign_keys", "ON")
@@ -105,20 +130,22 @@ class DBMaster(object):
         return self.__curs
 
     @contextmanager
-    def transaction(self, description=""):
+    def transaction(self, description=None):
         try:
             time1 = time.clock()
             self.begin()
             yield self.__curs
             self.commit()
             time2 = time.clock()
+            if not description:
+                description = inspect.stack()[2][3]
             print('DB transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
         except:
             self.rollback()
             raise
 
     @contextmanager
-    def selection(self, description=""):
+    def selection(self, description=None):
         """ returns a cursor for SELECT queries.
             no commit is done
         """
@@ -126,12 +153,14 @@ class DBMaster(object):
             time1 = time.clock()
             yield self.__conn.cursor()
             time2 = time.clock()
+            if not description:
+                description = inspect.stack()[2][3]
             print('DB selection %s took %0.3f ms' % (description, (time2-time1)*1000.0))
         except Exception as ex:
             raise
 
     @contextmanager
-    def temp_transaction(self, description=""):
+    def temp_transaction(self, description=None):
         """ returns a cursor for working with CREATE TEMP TABLE.
             no commit is done
         """
@@ -139,18 +168,42 @@ class DBMaster(object):
             time1 = time.clock()
             yield self.__conn.cursor()
             time2 = time.clock()
+            if not description:
+                description = inspect.stack()[2][3]
             print('DB temporary transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
         except Exception as ex:
             raise
 
     def exec_script_file(self, file_name):
-        if os.path.isfile(file_name):
-            script_file_path = file_name
-        else:
-            script_file_path = os.path.join(self.ddl_files_dir, file_name)
-        ddl_text = open(script_file_path, "r").read()
-        self.__curs.executescript(ddl_text)
-        self.commit()
+        with self.transaction("exec_script_file "+file_name) as curs:
+            if os.path.isfile(file_name):
+                script_file_path = file_name
+            else:
+                script_file_path = os.path.join(self.ddl_files_dir, file_name)
+            ddl_text = open(script_file_path, "r").read()
+            curs.executescript(ddl_text)
+
+    def select_and_fetchone(self, query_text, query_params=None):
+        """
+            execute a select statement and convert the returned list
+            of tuples to a list of values.
+            return empty list of no values were found.
+        """
+        retVal = None
+        try:
+            if query_params is None:
+                query_params = {}
+            with self.selection(inspect.stack()[1][3]) as curs:
+                curs.execute(query_text, query_params)
+                one_result = curs.fetchone()
+                if one_result:
+                    if isinstance(one_result, (tuple, list)):
+                        retVal = one_result[0]
+                    else:
+                        retVal = one_result
+        except sqlite3.Error as ex:
+            raise
+        return retVal
 
     def select_and_fetchall(self, query_text, query_params=None):
         """
@@ -162,36 +215,53 @@ class DBMaster(object):
         try:
             if query_params is None:
                 query_params = {}
-            self.__curs.execute(query_text, query_params)
-            all_results = self.__curs.fetchall()
-            if all_results:
-                if len(all_results[0]) == 1:
-                    retVal.extend([res[0] for res in all_results])
-                else:
-                    retVal.extend(all_results)
+            with self.selection(inspect.stack()[1][3]) as curs:
+                curs.execute(query_text, query_params)
+                all_results = curs.fetchall()
+                if all_results:
+                    if len(all_results[0]) == 1:
+                        retVal.extend([res[0] for res in all_results])
+                    else:
+                        retVal.extend(all_results)
         except sqlite3.Error as ex:
             raise
         return retVal
 
-    def execute_no_fetch(self, query_text, query_params=None):
-        try:
-            if query_params is None:
-                query_params = {}
-            self.__curs.execute(query_text, query_params)
-        except sqlite3.Error as ex:
-            raise
+    def lock_table(self, table_name):
+        query_text = """
+            CREATE TRIGGER IF NOT EXISTS lock_INSERT_{table_name}
+            BEFORE INSERT ON {table_name}
+            BEGIN
+                SELECT raise(abort, '{table_name} is locked no INSERTs');
+            END;
+            CREATE TRIGGER IF NOT EXISTS lock_UPDATE_{table_name}
+            BEFORE UPDATE ON {table_name}
+            BEGIN
+                SELECT raise(abort, '{table_name} is locked no UPDATEs');
+            END;
+            CREATE TRIGGER IF NOT EXISTS lock_DELETE_{table_name}
+            BEFORE DELETE ON {table_name}
+            BEGIN
+                SELECT raise(abort, '{table_name} is locked no DELETEs');
+            END;
+        """.format(table_name=table_name)
+        with self.transaction("lock_table "+table_name) as curs:
+            curs.executescript(query_text)
+        self.locked_tables.add(table_name)
 
-    def executemany(self, query_text, value_list):
-        try:
-            self.__curs.executemany(query_text, value_list)
-        except sqlite3.Error as ex:
-            raise
+    def unlock_table(self, table_name):
+        query_text = """
+            DROP TRIGGER IF EXISTS lock_INSERT_{table_name};
+            DROP TRIGGER IF EXISTS lock_UPDATE_{table_name};
+            DROP TRIGGER IF EXISTS lock_DELETE_{table_name};
+        """.format(table_name=table_name)
+        with self.transaction("unlock_table "+table_name) as curs:
+            curs.executescript(query_text)
+        self.locked_tables.remove(table_name)
 
-    def execute_script(self, script_text):
-        try:
-            self.__curs.executescript(script_text)
-        except sqlite3.Error as ex:
-            raise
+    def unlock_all_tables(self):
+        for table_name in list(self.locked_tables):
+            self.unlock_table(table_name)
 
 if __name__ == "__main__":
     ddl_path = "/p4client/ProAudio/dev_central/ProAudio/XPlatform/CopyProtect/instl/defaults"

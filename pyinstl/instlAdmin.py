@@ -24,9 +24,8 @@ class InstlAdmin(InstlInstanceBase):
 
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
-        self.init_items_table()
-        var_stack.add_const_config_variable("__DATABASE_URL__", "", self.items_table.get_db_url())
-        self.info_map_table = SVNTable(InstlInstanceBase.db)
+        self.need_items_table = True
+        self.need_info_map_table = True
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         self.fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
 
@@ -1179,7 +1178,7 @@ class InstlAdmin(InstlInstanceBase):
         self.read_yaml_file(index_yaml_path)
         # read the full info map
         self.info_map_table.read_from_file(full_info_map_file_path, a_format="text")
-        # fill the IIDToSVNItem table
+        # fill the iid_to_svn_item_t table
         self.info_map_table.populate_IIDToSVNItem()
 
         # get the list of info map file names
