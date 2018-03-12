@@ -89,7 +89,6 @@ class InstlClient(InstlInstanceBase):
         self.create_instl_history_file()
         self.command_output()
         self.items_table.config_var_list_to_db(var_stack)
-        self.items_table.commit_changes()
 
     def command_output(self):
         self.write_batch_file(self.batch_accum)
@@ -340,10 +339,10 @@ class InstlClient(InstlInstanceBase):
         retVal = defaultdict(dict)
         require_details = self.items_table.get_details_by_name_for_all_iids("require_%")
         for require_detail in require_details:
-            item_dict = retVal[require_detail.owner_iid]
-            if require_detail.detail_name not in item_dict:
-                item_dict[translate_detail_name[require_detail.detail_name]] = utils.unique_list()
-            item_dict[translate_detail_name[require_detail.detail_name]].append(require_detail.detail_value)
+            item_dict = retVal[require_detail['owner_iid']]
+            if require_detail['detail_name'] not in item_dict:
+                item_dict[translate_detail_name[require_detail['detail_name']]] = utils.unique_list()
+            item_dict[translate_detail_name[require_detail['detail_name']]].append(require_detail['detail_value'])
         for item in retVal.values():
             for sub_item in item.values():
                 sub_item.sort()

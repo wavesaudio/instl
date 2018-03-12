@@ -305,7 +305,7 @@ class IndexItemsTable(object):
         retVal = self.db.select_and_fetchall(query_text, query_params={'iid': iid, 'detail_name': detail_name})
         return retVal
 
-    def get_original_details(self, iid=None, detail_name=None, in_os=None):
+    def get_original_details(self, iid, detail_name=None, in_os=None):
         """
         tested by: TestItemTable.test_get_original_details_* functions
         :param iid: get detail for specific iid or all if None
@@ -313,62 +313,48 @@ class IndexItemsTable(object):
         :param in_os: get detail for os name or for all oses if None
         :return: list original details in the order they were inserted
         """
-        if "get_original_details" not in self.baked_queries_map:
-            the_query = self.bakery(lambda session: session.query(index_item_detail_t))
-            the_query += lambda q: q.filter(index_item_detail_t.original_iid.like(bindparam('iid')))
-            the_query += lambda q: q.filter(index_item_detail_t.detail_name.like(bindparam('detail_name')))
-            the_query += lambda q: q.filter(index_item_detail_t.os_id.like(bindparam('in_os')))
-            the_query += lambda q: q.order_by(index_item_detail_t._id)
-            self.baked_queries_map["get_original_details"] = the_query
-        else:
-            the_query = self.baked_queries_map["get_original_details"]
 
         # params with None are turned to '%'
         params = [iid, detail_name, in_os]
         for iparam in range(len(params)):
             if params[iparam] is None: params[iparam] = '%'
-        retVal = the_query(self.session).params(iid=params[0], detail_name=params[1], in_os=params[2]).all()
+
+        query_text = """
+                    SELECT * FROM index_item_detail_t
+                    WHERE original_iid==:iid
+                    AND detail_name LIKE :detail_name
+                    AND os_id LIKE :in_os
+                    ORDER BY _id
+                    """
+        retVal = self.db.select_and_fetchall(query_text, query_params={'iid': params[0], 'detail_name': params[1], "in_os": params[2]})
         return retVal
 
-    def get_resolved_details_for_active_iid(self, iid, detail_name=None):
+    def get_resolved_details_for_active_iid(self, iid, detail_name):
         """ get the original and inherited index_item_detail_t's for a specific detail
             for specific iid - but only if detail is in active os
         """
-        if "get_resolved_details_for_active_iid" not in self.baked_queries_map:
-            the_query = self.bakery(lambda session: session.query(index_item_detail_t))
-            the_query += lambda q: q.filter(index_item_detail_t.owner_iid == bindparam('iid'))
-            the_query += lambda q: q.filter(index_item_detail_t.detail_name.like(bindparam('detail_name')))
-            the_query += lambda q: q.filter(index_item_detail_t.os_is_active == True)
-            the_query += lambda q: q.order_by(index_item_detail_t._id)
-            self.baked_queries_map["get_resolved_details_for_active_iid"] = the_query
-        else:
-            the_query = self.baked_queries_map["get_resolved_details_for_active_iid"]
 
-        # params with None are turned to '%'
-        params = [iid, detail_name]
-        for iparam in range(len(params)):
-            if params[iparam] is None: params[iparam] = '%'
-        retVal = the_query(self.session).params(iid=params[0], detail_name=params[1]).all()
+        query_text = """
+                    SELECT * FROM index_item_detail_t
+                    WHERE original_iid==:iid
+                    AND detail_name == :detail_name
+                    AND os_is_active == 1
+                    ORDER BY _id
+                    """
+        retVal = self.db.select_and_fetchall(query_text, query_params={'iid': iid, 'detail_name': detail_name})
         return retVal
 
-    def get_resolved_details_for_iid(self, iid, detail_name=None):
+    def get_resolved_details_for_iid(self, iid, detail_name):
         """ get the original and inherited index_item_detail_t's for a specific detail
             for specific iid - regardless if detail is in active os
         """
-        if "get_resolved_details_for_iid" not in self.baked_queries_map:
-            the_query = self.bakery(lambda session: session.query(index_item_detail_t))
-            the_query += lambda q: q.filter(index_item_detail_t.owner_iid == bindparam('iid'))
-            the_query += lambda q: q.filter(index_item_detail_t.detail_name.like(bindparam('detail_name')))
-            the_query += lambda q: q.order_by(index_item_detail_t._id)
-            self.baked_queries_map["get_resolved_details_for_iid"] = the_query
-        else:
-            the_query = self.baked_queries_map["get_resolved_details_for_iid"]
-
-        # params with None are turned to '%'
-        params = [iid, detail_name]
-        for iparam in range(len(params)):
-            if params[iparam] is None: params[iparam] = '%'
-        retVal = the_query(self.session).params(iid=params[0], detail_name=params[1]).all()
+        query_text = """
+                    SELECT * FROM index_item_detail_t
+                    WHERE original_iid==:iid
+                    AND detail_name == :detail_name
+                    ORDER BY _id
+                    """
+        retVal = self.db.select_and_fetchall(query_text, query_params={'iid': iid, 'detail_name': detail_name})
         return retVal
 
     def get_resolved_details_value_for_active_iid(self, iid, detail_name, unique_values=False):
@@ -406,16 +392,13 @@ class IndexItemsTable(object):
         """ get all index_item_detail_t objects with detail_name.
             detail_name can contain wildcards e.g. require_%
         """
-        if "get_details_by_name_for_all_iids" not in self.baked_queries_map:
-            the_query = self.bakery(lambda session: session.query(index_item_detail_t))
-            the_query += lambda q: q.filter(index_item_detail_t.detail_name.like(bindparam('detail_name')))
-            the_query += lambda q: q.filter(index_item_detail_t.os_is_active == True)
-            the_query += lambda q: q.order_by(index_item_detail_t.owner_iid)
-            self.baked_queries_map["get_details_by_name_for_all_iids"] = the_query
-        else:
-            the_query = self.baked_queries_map["get_details_by_name_for_all_iids"]
-
-        retVal = the_query(self.session).params(detail_name=detail_name).all()
+        query_text = """
+                    SELECT * FROM index_item_detail_t
+                    WHERE detail_name LIKE :detail_name
+                    AND os_is_active == 1
+                    ORDER BY owner_iid
+                    """
+        retVal = self.db.select_and_fetchall(query_text, query_params={'detail_name': detail_name})
         return retVal
 
     def get_detail_values_by_name_for_all_iids(self, detail_name):
@@ -691,16 +674,16 @@ class IndexItemsTable(object):
                 else:
                     work_on_dict = item_details[os_name] = OrderedDict()
                 for details_row in details_rows:
-                    if details_row.detail_name in self.action_types:
+                    if details_row['detail_name'] in self.action_types:
                         if 'actions' not in work_on_dict:
                             work_on_dict['actions'] = OrderedDict()
-                        if details_row.detail_name not in work_on_dict['actions']:
-                            work_on_dict['actions'][details_row.detail_name] = list()
-                        work_on_dict['actions'][details_row.detail_name].append(details_row.detail_value)
+                        if details_row['detail_name'] not in work_on_dict['actions']:
+                            work_on_dict['actions'][details_row['detail_name']] = list()
+                        work_on_dict['actions'][details_row['detail_name']].append(details_row['detail_value'])
                     else:
-                        if details_row.detail_name not in work_on_dict:
-                            work_on_dict[details_row.detail_name] = list()
-                        work_on_dict[details_row.detail_name].append(details_row.detail_value)
+                        if details_row['detail_name'] not in work_on_dict:
+                            work_on_dict[details_row['detail_name']] = list()
+                        work_on_dict[details_row['detail_name']].append(details_row['detail_value'])
         return item_details
 
     def repr_for_yaml(self):
@@ -919,7 +902,6 @@ class IndexItemsTable(object):
         """ Add detail named "name_and_version" to index_item_detail_t
             value is in the format 'name vVersion', or if no version is found, just 'name'.
             If no name if found for an iid the iid itself is used as a name
-            Implementation note: sqlite's create_function can nly be called from the raw connection not from SQLAlchemy
             using the function in a query can only be done with the connection that called create_function.
         """
         def _name_and_version(iid, name, version):

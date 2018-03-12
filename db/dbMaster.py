@@ -77,6 +77,7 @@ class DBMaster(object):
         self.set_db_pragma("foreign_keys", "ON")
         #self.__conn.set_authorizer(self.authorizer)
         #self.__conn.set_progress_handler(self.progress, 8)
+        self.__conn.row_factory = sqlite3.Row
         self.__conn.set_trace_callback(self.tracer)
 
     def authorizer(self, *args, **kwargs):

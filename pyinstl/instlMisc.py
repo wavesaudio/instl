@@ -28,7 +28,7 @@ class InstlMisc(InstlInstanceBase):
 
         if command in ("exec",):
             self.need_items_table = True
-        if command in ("check_checksum", "set_exec", "create_folders"):
+        if command in ("check-checksum", "set-exec", "create-folders"):
             self.need_info_map_table = True
 
     def get_default_out_file(self):
