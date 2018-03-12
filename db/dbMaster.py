@@ -5,6 +5,7 @@ from contextlib import contextmanager
 import time
 import datetime
 import inspect
+from _collections import defaultdict
 
 import utils
 
@@ -38,6 +39,16 @@ def get_db_url(name_extra=None):
     return db_url
 
 
+class Statistic():
+    def __init__(self):
+        self.count = 0
+        self.time = 0.0
+
+    def add_instance(self, time):
+        self.count += 1
+        self.time += time
+
+
 class DBMaster(object):
     def __init__(self, db_url, ddl_folder):
         self.top_user_version = 1  # user_version is a standard pragma tha defaults to 0
@@ -46,6 +57,12 @@ class DBMaster(object):
         self.__conn = None
         self.__curs = None
         self.locked_tables = set()
+        self.statistics = defaultdict(Statistic)
+
+    def __del__(self):
+        self.close()
+        for name, stats in sorted(self.statistics):
+            print(name, stats.count, stats.time, "ms", stats.time/stats.count, "ms per instance")
 
     def read_ddl_file(self, ddl_file_name):
         ddl_path = os.path.join(self.internal_data_folder, "db", ddl_file_name)
@@ -72,6 +89,7 @@ class DBMaster(object):
             self.configure_db()
             self.exec_script_file("create-tables.ddl")
             self.exec_script_file("init-values.ddl")
+            self.exec_script_file("create-indexes.ddl")
 
     def configure_db(self):
         self.set_db_pragma("foreign_keys", "ON")
@@ -141,6 +159,7 @@ class DBMaster(object):
             if not description:
                 description = inspect.stack()[2][3]
             print('DB transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
+            self.statistics[description].add_instance((time2-time1)*1000.0)
         except:
             self.rollback()
             raise
@@ -157,6 +176,7 @@ class DBMaster(object):
             if not description:
                 description = inspect.stack()[2][3]
             print('DB selection %s took %0.3f ms' % (description, (time2-time1)*1000.0))
+            self.statistics[description].add_instance((time2-time1)*1000.0)
         except Exception as ex:
             raise
 
@@ -172,6 +192,7 @@ class DBMaster(object):
             if not description:
                 description = inspect.stack()[2][3]
             print('DB temporary transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
+            self.statistics[description].add_instance((time2-time1)*1000.0)
         except Exception as ex:
             raise
 

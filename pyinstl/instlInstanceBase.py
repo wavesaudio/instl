@@ -264,6 +264,10 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             if self.need_info_map_table and not InstlInstanceBase.info_map_table:
                 InstlInstanceBase.info_map_table = SVNTable(InstlInstanceBase.db)
 
+    def __del__(self):
+        if InstlInstanceBase.db:
+            del InstlInstanceBase.db
+
     def get_default_out_file(self):
         retVal = None
         if "__MAIN_INPUT_FILE__" in var_stack:

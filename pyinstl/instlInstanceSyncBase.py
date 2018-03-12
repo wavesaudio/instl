@@ -82,7 +82,6 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
                 self.instlObj.progress("read info_map {}".format(info_map_file_url))
 
             new_have_info_map_path = var_stack.ResolveVarToStr("NEW_HAVE_INFO_MAP_PATH")
-            self.instlObj.info_map_table.create_indexes()
             self.instlObj.info_map_table.write_to_file(new_have_info_map_path, field_to_write=('path', 'flags', 'revision', 'checksum', 'size'))
         except Exception:
             print("Exception reading info_map:", info_map_file_url)

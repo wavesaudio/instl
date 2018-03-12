@@ -79,6 +79,17 @@ class SVNRow2(object):
         self.download_root =    svn_item_tuple[15]
         self.extra_props =      svn_item_tuple[16]
 
+    def __repr__(self):
+        isDir = not self.fileFlag
+        return ("<{self.level}, {self.path}, '{self.flags}'"
+                ", rev-remote:{self.revision}, f:{self.fileFlag}, d:{isDir}"
+                ", checksum:{self.checksum}, size:{self.size}"
+                ", url:{self.url}"
+                ", required:{self.required}, need_download:{self.need_download}"
+                ", extra_props:{self.extra_props}, parent:{self.parent}>"
+                ", download_path:{self.download_path}"
+                ).format(**locals())
+
     def __str__(self):
         """ __str__ representation - this is what will be written to info_map.txt files"""
         retVal = "{}, {}, {}".format(self.path, self.flags, self.revision)
@@ -90,6 +101,26 @@ class SVNRow2(object):
             retVal = "{}, {}".format(retVal, self.url)
         if self.download_path:
             retVal = "{}, dl_path:'{}'".format(retVal, self.download_path)
+        return retVal
+
+    def str_specific_fields(self, fields_to_repr):
+        """ represent self as a string and limiting the fields written to those in fields_to_repr.
+        :param fields_to_repr: only fields whose name is on this list will be written.
+                if list is empty or None, fall back to __str__
+        :return: string of comma separated values
+        """
+        if fields_to_repr is None or len(fields_to_repr) == 0:
+            retVal = self.__str__()
+        else:
+            value_list = list()
+            if self.isDir():
+                for name in fields_to_repr:
+                    if name in SVNRow2.fields_relevant_to_dirs:
+                        value_list.append(str(getattr(self, name, "no member named "+name)))
+            else:
+                for name in fields_to_repr:
+                    value_list.append(str(getattr(self, name, "no member named "+name)))
+            retVal = ", ".join(value_list)
         return retVal
 
     def get_ancestry(self):
@@ -115,32 +146,6 @@ class SVNRow2(object):
     def isSymlink(self):
         return 's' in self.flags
 
-    def chmod_spec(self):
-        retVal = "a+rw"
-        if self.isExecutable() or self.isDir():
-            retVal += "x"
-        return retVal
-
-    def str_specific_fields(self, fields_to_repr):
-        """ represent self as a string and limiting the fields written to those in fields_to_repr.
-        :param fields_to_repr: only fields whose name is on this list will be written.
-                if list is empty or None, fall back to __str__
-        :return: string of comma separated values
-        """
-        if fields_to_repr is None or len(fields_to_repr) == 0:
-            retVal = self.__str__()
-        else:
-            value_list = list()
-            if self.isDir():
-                for name in fields_to_repr:
-                    if name in SVNRow2.fields_relevant_to_dirs:
-                        value_list.append(str(getattr(self, name, "no member named "+name)))
-            else:
-                for name in fields_to_repr:
-                    value_list.append(str(getattr(self, name, "no member named "+name)))
-            retVal = ", ".join(value_list)
-        return retVal
-
     def is_wtar_file(self):
         retVal = self.wtarFlag > 0
         return retVal
@@ -158,6 +163,17 @@ class SVNRow2(object):
         retVal = "a+rw"
         if self.isExecutable() or self.isDir():
             retVal += "x"
+        return retVal
+
+    def path_starting_from_dir(self, starting_dir):
+        retVal = None
+        if starting_dir == "":
+            retVal = self.path
+        else:
+            if not starting_dir.endswith("/"):
+                starting_dir += "/"
+            if self.path.startswith(starting_dir):
+                retVal = self.path[len(starting_dir):]
         return retVal
 
     def __eq__(self, other):
@@ -203,6 +219,7 @@ class SVNRow2(object):
             and     other[16] == self.extra_props
                     )
         return retVal
+
 
 class SVNTable(object):
     def __init__(self, db_master):
@@ -318,7 +335,6 @@ class SVNTable(object):
                  VALUES(?,?,?,?,?,?,?,?,?,?,?,?);
                 """
             curs.executemany(insert_q, yield_row(rfd))
-        SVNTable.create_indexes()
 
     def read_from_text(self, rfd):
         dl_path_re = re.compile("dl_path:'(?P<ld_path>.+)'")
@@ -562,7 +578,9 @@ class SVNTable(object):
                     WHERE path = :item_path
                     AND (fileFlag = :file OR fileFlag = :dir)
                     """, {"item_path": item_path, "file": want_file, "dir": not want_dir})
-            retVal = SVNRow2(curs.fetchone())
+            the_item = curs.fetchone()
+            if the_item:
+                retVal = SVNRow2(the_item)
         return retVal
 
     def get_files_that_should_be_removed_from_sync_folder(self, files_to_check):
@@ -627,7 +645,7 @@ class SVNTable(object):
                     ORDER BY path
                     """, {"levels_deep": levels_deep, "file": want_file, "dir": not want_dir})
             retVal = curs.fetchall()
-        return [SVNRow2(item) for item in retVal]
+        return self.SVNRowListToObjects(retVal)
 
     def get_required_items(self, what="any", get_unrequired=False):
         """
@@ -648,7 +666,7 @@ class SVNTable(object):
                     ORDER BY path
                     """, {"required": not get_unrequired, "file": want_file, "dir": not want_dir})
             retVal = curs.fetchall()
-        return [SVNRow2(item) for item in retVal]
+        return self.SVNRowListToObjects(retVal)
 
     def get_exec_file_paths(self):
         query_text = """
@@ -676,7 +694,7 @@ class SVNTable(object):
                     ORDER BY path
                     """, {"file": want_file, "dir": not want_dir})
             retVal = curs.fetchall()
-        return [SVNRow2(item) for item in retVal]
+        return self.SVNRowListToObjects(retVal)
 
     def get_download_items(self, what="any"):
         """
@@ -698,7 +716,7 @@ class SVNTable(object):
                     ORDER BY path
                     """, {"file": want_file, "dir": not want_dir})
             retVal = curs.fetchall()
-        return [SVNRow2(item) for item in retVal]
+        return self.SVNRowListToObjects(retVal)
 
     def get_not_to_download_num_files_and_size(self):
         """ return the count and total size of the files that are already synced """
@@ -734,7 +752,7 @@ class SVNTable(object):
                     ORDER BY path
                     """, {"file_path": file_path, "wtar_file_path": file_path+".wtar%"})
             retVal = curs.fetchall()
-        return [SVNRow2(item) for item in retVal]
+        return self.SVNRowListToObjects(retVal)
 
     def mark_required_for_file(self, file_path):
         """ mark a file as required or if file was wtarred
@@ -764,7 +782,7 @@ class SVNTable(object):
                     ORDER BY path
                     """, {"dir_path": dir_path+"/%", "wtar_dir_path": dir_path+".wtar%"})
             retVal = curs.fetchall()
-        return [SVNRow2(item) for item in retVal]
+        return self.SVNRowListToObjects(retVal)
 
     def count_wtar_items_of_dir(self, dir_path):
         """ count all wtar items in dir_path OR if the dir_path itself is wtarred - count of wtarred file items.
@@ -813,7 +831,7 @@ class SVNTable(object):
                                   "dir_level": root_dir_item.level,
                                   "bottom_level": root_dir_item.level+levels_deep})
                     retVal = curs.fetchall()
-                    retVal = [SVNRow2(item) for item in retVal]
+                    retVal = self.SVNRowListToObjects(retVal)
             else:
                 print(dir_path, "was not found")
         return retVal
@@ -1024,7 +1042,7 @@ class SVNTable(object):
                     ORDER BY _id
                     """, {"infomap_name": infomap_name})
             retVal = curs.fetchall()
-        return [SVNRow2(item) for item in retVal]
+        return self.SVNRowListToObjects(retVal)
 
     def get_items_for_default_infomap(self):
         with self.db.selection() as curs:
@@ -1079,9 +1097,6 @@ class SVNTable(object):
         with self.db.transaction() as curs:
             curs.execute(query_text, {"info_map_file_name": info_map_file_name})
 
-    def create_indexes(self):
-        self.db.exec_script_file("create-indexes.ddl")
-
     def get_unrequired_file_paths(self):
         """ get paths for all unrequired files
         """
@@ -1109,3 +1124,8 @@ class SVNTable(object):
         query_params = [{'download_root': item.download_root, 'download_path': item.download_path, '_id': item._id} for item in items_to_update]
         with self.db.transaction() as curs:
             curs.executemany(query_text, query_params)
+
+    def SVNRowListToObjects(self, svn_row_list):
+        with utils.time_it("SVNRowListToObjects("+str(len(svn_row_list))+")"):
+            retVal = [SVNRow2(item) for item in svn_row_list]
+        return retVal

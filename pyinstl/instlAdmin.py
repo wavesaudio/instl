@@ -518,11 +518,11 @@ class InstlAdmin(InstlInstanceBase):
                 # print("remove prop", extra_prop, "from", item.path)
                 self.batch_accum += " ".join( (var_stack.ResolveVarToStr("SVN_CLIENT_PATH"), "propdel", "svn:"+extra_prop, '"'+item.path+'"') )
                 self.batch_accum += self.platform_helper.progress(" ".join(("remove prop", extra_prop, "from", item.path)) )
-            if isExecutable(item) and not shouldBeExec:
+            if item.isExecutable() and not shouldBeExec:
                 # print("remove prop", "executable", "from", item.path)
                 self.batch_accum += " ".join( (var_stack.ResolveVarToStr("SVN_CLIENT_PATH"), "propdel", 'svn:executable', '"'+item.path+'"') )
                 self.batch_accum += self.platform_helper.progress(" ".join(("remove prop", "executable", "from", item.path)) )
-            elif not isExecutable(item) and shouldBeExec:
+            elif not item.isExecutable() and shouldBeExec:
                 # print("add prop", "executable", "to", item.path)
                 self.batch_accum += " ".join( (var_stack.ResolveVarToStr("SVN_CLIENT_PATH"), "propset", 'svn:executable', 'yes', '"'+item.path+'"') )
                 self.batch_accum += self.platform_helper.progress(" ".join(("add prop", "executable", "from", item.path)) )

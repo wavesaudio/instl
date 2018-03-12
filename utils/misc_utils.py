@@ -345,11 +345,21 @@ def check_file_signature(file_path, textual_sig, public_key):
         retVal = check_buffer_signature(rfd.read(), textual_sig, public_key)
     return retVal
 
-
+need_to_download_file_num_calls = 0
+need_to_download_file_total_time = 0.0
 def need_to_download_file(file_path, file_checksum):
+    before = time.time()
     retVal = True
     if os.path.isfile(file_path):
         retVal = not check_file_checksum(file_path, file_checksum)
+    after = time.time()
+    global need_to_download_file_num_calls
+    need_to_download_file_num_calls +=1
+    global need_to_download_file_total_time
+    need_to_download_file_total_time += (after-before)*1000
+    #print("need_to_download_file", need_to_download_file_num_calls, "calls",
+    #      need_to_download_file_total_time, "ms",
+    #      need_to_download_file_total_time/need_to_download_file_num_calls, "ms/call")
     return retVal
 
 
@@ -515,7 +525,6 @@ def time_it(message):
     yield
     time2 = time.time()
     print('%s took %0.3f ms' % (message, (time2 - time1) * 1000.0))
-    print("total sqlalcehmy  %0.3f ms, sqlite  %0.3f ms" % (sqlalchemy_time, native_sqlite_time))
 
 
 # compile a list of regexs to one regex. regexs are ORed

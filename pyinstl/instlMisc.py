@@ -28,7 +28,7 @@ class InstlMisc(InstlInstanceBase):
 
         if command in ("exec",):
             self.need_items_table = True
-        if command in ("check-checksum", "set-exec", "create-folders"):
+        if command in ("check-checksum", "set-exec", "create-folders", "command-list"):
             self.need_info_map_table = True
 
     def get_default_out_file(self):
@@ -229,8 +229,7 @@ class InstlMisc(InstlInstanceBase):
             if os.path.isfile(file_item.download_path):
                 file_checksum = utils.get_file_checksum(file_item.download_path)
                 if not utils.compare_checksums(file_checksum, file_item.checksum):
-                    sha1_checksum = utils.create_file_checksum(file_item.download_path)
-                    bad_checksum_list.append( " ".join(("Bad checksum:", file_item.download_path, "expected", file_item.checksum, "found", sha1_checksum)) )
+                    bad_checksum_list.append(" ".join(("Bad checksum:", file_item.download_path, "expected", file_item.checksum, "found", file_checksum)) )
             else:
                 missing_files_list.append(" ".join((file_item.download_path, "was not found")))
             self.dynamic_progress("Check checksum {file_item.path}".format(**locals()))

@@ -790,7 +790,7 @@ class IndexItemsTable(object):
         retVal = self.db.select_and_fetchall(query_text, query_params={'look_for_status': look_for_status})
         return retVal
 
-    def change_status_of_iids_to_another_status(self, old_status, new_status, iid_list):
+    def change_status_of_iids_to_another_status__(self, old_status, new_status, iid_list):
         if iid_list:
             query_vars = '("' + '","'.join(iid_list) + '")'
             query_text = """
@@ -802,6 +802,19 @@ class IndexItemsTable(object):
               """.format(**locals())
             with self.db.transaction() as curs:
                 curs.execute(query_text)
+
+    def change_status_of_iids_to_another_status(self, old_status, new_status, iid_list):
+        if iid_list:
+            query_vars = ((iid,) for iid in iid_list)
+            query_text = """
+                UPDATE index_item_t
+                SET install_status={new_status}
+                WHERE iid == ?
+                AND install_status={old_status}
+                AND ignore = 0
+              """.format(**locals())
+            with self.db.transaction() as curs:
+                curs.executemany(query_text, query_vars)
 
     def change_status_of_iids(self, new_status, iid_list):
         if iid_list:
