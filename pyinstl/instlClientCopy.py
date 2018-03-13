@@ -93,7 +93,8 @@ class InstlClientCopy(InstlClient):
         # Copy might be called after the sync batch file was created but before it was executed
         if len(self.info_map_table.files_read_list) == 0:
             have_info_path = var_stack.ResolveVarToStr("HAVE_INFO_MAP_FOR_COPY")
-            self.read_info_map_from_file(have_info_path)
+            with self.info_map_table.reading_files_context():
+                self.read_info_map_from_file(have_info_path)
 
         # copy and actions instructions for sources
         self.batch_accum.set_current_section('copy')

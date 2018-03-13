@@ -1221,7 +1221,8 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_read_info_map(self):
         files_to_read = var_stack.ResolveVarToList("__MAIN_INPUT_FILE__")
-        for f2r in files_to_read:
-            self.info_map_table.read_from_file(f2r)
+        with self.info_map_table.reading_files_context():
+            for f2r in files_to_read:
+                self.info_map_table.read_from_file(f2r)
 
 

@@ -127,8 +127,10 @@ class DBMaster(object):
 
         max_count = max(self.statistics.items(), key=lambda S: S[1].count)
         max_time = max(self.statistics.items(), key=lambda S: S[1].time)
+        total_DB_time = sum(stat.time for stat in self.statistics.values())
         print("max count:", max_count[0], max_count[1])
         print("max time:", max_time[0], max_time[1])
+        print("total DB time:", total_DB_time)
 
     def erase_db(self):
         self.close()

@@ -421,6 +421,7 @@ class IndexItemsTable(object):
             resolve_items_script += self.get_resolve_item_query_for_iid(iid, inherit_dict[iid])
         with self.db.transaction() as curs:
             curs.executescript(resolve_items_script)
+            curs.execute("""CREATE INDEX IF NOT EXISTS ix_svn_index_item_detail_t_owner_iid ON index_item_detail_t(owner_iid)""")
 
     def prepare_inherit_order(self):
         inherit_order = utils.unique_list()
@@ -515,54 +516,6 @@ class IndexItemsTable(object):
 
                     if detail_name == "install_sources":
                         if value.startswith('/'):  # absolute path
-                            new_detail = index_item_detail_t(original_iid=the_iid, owner_iid=the_iid, os_id=self.os_names_to_num[the_os], \
-                                                            detail_name=detail_name, detail_value=value[1:], generation=0, tag=tag)
-                            details.append(new_detail)
-                        else:  # relative path
-                            # because 'common' is in both groups this will create 2 index_item_detail_t
-                            # if OS is 'common', and 1 otherwise
-                            count_insertions = 0
-                            for os_group in (('common', 'Mac', 'Mac32', 'Mac64'),
-                                             ('common', 'Win', 'Win32', 'Win64')):
-                                if the_os in os_group:
-                                    item_detail_os = {'Mac32': 'Mac32', 'Mac64': 'Mac64', 'Win32': 'Win32', 'Win64': 'Win64'}.get(the_os, os_group[1])
-                                    path_prefix_os = {'Mac32': 'Mac', 'Mac64': 'Mac', 'Win32': 'Win', 'Win64': 'Win'}.get(the_os, os_group[1])
-                                    assert path_prefix_os == "Mac" or path_prefix_os == "Win", "path_prefix_os: {}".format(path_prefix_os)
-                                    new_detail = index_item_detail_t(original_iid=the_iid, owner_iid=the_iid, os_id=self.os_names_to_num[item_detail_os], \
-                                                                    detail_name=detail_name, detail_value="/".join((path_prefix_os, value)), generation=0, tag=tag)
-                                    details.append(new_detail)
-                                    count_insertions += 1
-                            assert count_insertions < 3, "count_insertions: {}".format(count_insertions)
-                    else:
-                        new_detail = index_item_detail_t(original_iid=the_iid, owner_iid=the_iid, os_id=self.os_names_to_num[the_os], \
-                                                        detail_name=detail_name, detail_value=value, generation=0, tag=tag)
-                        details.append(new_detail)
-        return details
-
-    def read_item_details_from_node(self, the_iid, the_node, the_os='common'):
-        details = list()
-        # go through the raw yaml nodes instead of doing "for detail_name in the_node".
-        # this is to overcome index.yaml with maps that have two keys with the same name.
-        # Although it's not valid yaml some index.yaml versions have this problem.
-        for detail_node in the_node.value:
-            detail_name = detail_node[0].value
-            if detail_name in IndexItemsTable.os_names_to_num:
-                os_specific_details = self.read_item_details_from_node(the_iid, detail_node[1], the_os=detail_name)
-                details.extend(os_specific_details)
-            elif detail_name == 'actions':
-                actions_details = self.read_item_details_from_node(the_iid, detail_node[1], the_os)
-                details.extend(actions_details)
-            else:
-                for details_line in detail_node[1]:
-                    tag = details_line.tag if details_line.tag[0] == '!' else None
-                    value = details_line.value
-                    if detail_name in ("install_sources", "previous_sources") and tag is None:
-                        tag = '!dir'
-                    elif detail_name == "guid":
-                        value = value.lower()
-
-                    if detail_name == "install_sources":
-                        if value.startswith('/'):  # absolute path
                             new_detail = (the_iid, the_iid, self.os_names_to_num[the_os],
                                             detail_name, value[1:],tag)
                             details.append(new_detail)
@@ -606,6 +559,7 @@ class IndexItemsTable(object):
         with self.db.transaction() as curs:
             curs.executemany(insert_item_q, index_items)
             curs.executemany(insert_item_detail_q, items_details)
+            curs.execute("""CREATE UNIQUE INDEX IF NOT EXISTS ix_svn_index_item_t_iid ON index_item_t(iid)""")
 
     def read_require_node(self, a_node):
         require_items = dict()

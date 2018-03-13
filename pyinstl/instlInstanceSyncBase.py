@@ -41,48 +41,49 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         """
         info_map_file_url = None
         try:
-            os.makedirs(var_stack.ResolveVarToStr("LOCAL_REPO_BOOKKEEPING_DIR"), exist_ok=True)
-            os.makedirs(var_stack.ResolveVarToStr("LOCAL_REPO_REV_BOOKKEEPING_DIR"), exist_ok=True)
-            info_map_file_url = var_stack.ResolveVarToStr("INFO_MAP_FILE_URL")
-            info_map_file_expected_checksum = None
-            if "INFO_MAP_CHECKSUM" in var_stack:
-                info_map_file_expected_checksum = var_stack.ResolveVarToStr("INFO_MAP_CHECKSUM")
-            local_copy_of_info_map_in = var_stack.ResolveVarToStr("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH")
-            local_copy_of_info_map_out = utils.download_from_file_or_url(in_url=info_map_file_url,
-                                            in_target_path=local_copy_of_info_map_in,
-                                            translate_url_callback=connectionBase.translate_url,
-                                            cache_folder=self.instlObj.get_default_sync_dir(continue_dir="cache", make_dir=True),
-                                            expected_checksum=info_map_file_expected_checksum)
-            assert local_copy_of_info_map_in == local_copy_of_info_map_out, local_copy_of_info_map_in +" != "+ local_copy_of_info_map_out
-            self.instlObj.read_info_map_from_file(local_copy_of_info_map_out)
-            self.instlObj.progress("read info_map {}".format(info_map_file_url))
-
-            additional_info_maps = self.instlObj.items_table.get_details_for_active_iids("info_map", unique_values=True)
-            for additional_info_map in additional_info_maps:
-                # try to get the zipped info_map
-                additional_info_map_file_name = var_stack.ResolveStrToStr("{}$(WZLIB_EXTENSION)".format(additional_info_map))
-                path_in_main_info_map = var_stack.ResolveStrToStr("instl/{}".format(additional_info_map_file_name))
-                additional_info_map_item = self.instlObj.info_map_table.get_file_item(path_in_main_info_map)
-                if not additional_info_map_item:  # zipped not found try the unzipped inf_map
-                    additional_info_map_file_name = additional_info_map
-                    path_in_main_info_map = var_stack.ResolveStrToStr("instl/{}".format(additional_info_map))
-                    additional_info_map_item = self.instlObj.info_map_table.get_file_item(path_in_main_info_map)
-
-                checksum = additional_info_map_item.checksum if additional_info_map_item else None
-
-                info_map_file_url = var_stack.ResolveStrToStr("$(INSTL_FOLDER_BASE_URL)/{}".format(additional_info_map_file_name))
-                local_copy_of_info_map_in = var_stack.ResolveStrToStr("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)/{}".format(additional_info_map))
+            with self.instlObj.info_map_table.reading_files_context():
+                os.makedirs(var_stack.ResolveVarToStr("LOCAL_REPO_BOOKKEEPING_DIR"), exist_ok=True)
+                os.makedirs(var_stack.ResolveVarToStr("LOCAL_REPO_REV_BOOKKEEPING_DIR"), exist_ok=True)
+                info_map_file_url = var_stack.ResolveVarToStr("INFO_MAP_FILE_URL")
+                info_map_file_expected_checksum = None
+                if "INFO_MAP_CHECKSUM" in var_stack:
+                    info_map_file_expected_checksum = var_stack.ResolveVarToStr("INFO_MAP_CHECKSUM")
+                local_copy_of_info_map_in = var_stack.ResolveVarToStr("LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH")
                 local_copy_of_info_map_out = utils.download_from_file_or_url(in_url=info_map_file_url,
-                                            in_target_path=local_copy_of_info_map_in,
-                                            translate_url_callback=connectionBase.translate_url,
-                                            cache_folder=self.instlObj.get_default_sync_dir("cache", make_dir=True),
-                                            expected_checksum=checksum)
+                                                in_target_path=local_copy_of_info_map_in,
+                                                translate_url_callback=connectionBase.translate_url,
+                                                cache_folder=self.instlObj.get_default_sync_dir(continue_dir="cache", make_dir=True),
+                                                expected_checksum=info_map_file_expected_checksum)
                 assert local_copy_of_info_map_in == local_copy_of_info_map_out, local_copy_of_info_map_in +" != "+ local_copy_of_info_map_out
                 self.instlObj.read_info_map_from_file(local_copy_of_info_map_out)
                 self.instlObj.progress("read info_map {}".format(info_map_file_url))
 
-            new_have_info_map_path = var_stack.ResolveVarToStr("NEW_HAVE_INFO_MAP_PATH")
-            self.instlObj.info_map_table.write_to_file(new_have_info_map_path, field_to_write=('path', 'flags', 'revision', 'checksum', 'size'))
+                additional_info_maps = self.instlObj.items_table.get_details_for_active_iids("info_map", unique_values=True)
+                for additional_info_map in additional_info_maps:
+                    # try to get the zipped info_map
+                    additional_info_map_file_name = var_stack.ResolveStrToStr("{}$(WZLIB_EXTENSION)".format(additional_info_map))
+                    path_in_main_info_map = var_stack.ResolveStrToStr("instl/{}".format(additional_info_map_file_name))
+                    additional_info_map_item = self.instlObj.info_map_table.get_file_item(path_in_main_info_map)
+                    if not additional_info_map_item:  # zipped not found try the unzipped inf_map
+                        additional_info_map_file_name = additional_info_map
+                        path_in_main_info_map = var_stack.ResolveStrToStr("instl/{}".format(additional_info_map))
+                        additional_info_map_item = self.instlObj.info_map_table.get_file_item(path_in_main_info_map)
+
+                    checksum = additional_info_map_item.checksum if additional_info_map_item else None
+
+                    info_map_file_url = var_stack.ResolveStrToStr("$(INSTL_FOLDER_BASE_URL)/{}".format(additional_info_map_file_name))
+                    local_copy_of_info_map_in = var_stack.ResolveStrToStr("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)/{}".format(additional_info_map))
+                    local_copy_of_info_map_out = utils.download_from_file_or_url(in_url=info_map_file_url,
+                                                in_target_path=local_copy_of_info_map_in,
+                                                translate_url_callback=connectionBase.translate_url,
+                                                cache_folder=self.instlObj.get_default_sync_dir("cache", make_dir=True),
+                                                expected_checksum=checksum)
+                    assert local_copy_of_info_map_in == local_copy_of_info_map_out, local_copy_of_info_map_in +" != "+ local_copy_of_info_map_out
+                    self.instlObj.read_info_map_from_file(local_copy_of_info_map_out)
+                    self.instlObj.progress("read info_map {}".format(info_map_file_url))
+
+                new_have_info_map_path = var_stack.ResolveVarToStr("NEW_HAVE_INFO_MAP_PATH")
+                self.instlObj.info_map_table.write_to_file(new_have_info_map_path, field_to_write=('path', 'flags', 'revision', 'checksum', 'size'))
         except Exception:
             print("Exception reading info_map:", info_map_file_url)
             raise

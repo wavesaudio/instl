@@ -222,6 +222,36 @@ class SVNRow2(object):
 
 
 class SVNTable(object):
+    create_path_index_q = """CREATE UNIQUE INDEX IF NOT EXISTS ix_svn_item_t_path ON svn_item_t (path);"""
+    drop_path_index_q = """DROP INDEX IF EXISTS ix_svn_item_t_path;"""
+    create_parent_id_index_q = """CREATE INDEX IF NOT EXISTS ix_svn_item_t_parent_id ON svn_item_t (parent_id);"""
+    drop_parent_id_index_q = """DROP INDEX IF EXISTS ix_svn_item_t_parent_id;"""
+    update_parent_ids_q = """
+        UPDATE svn_item_t
+        SET parent_id =
+        (SELECT parent_t._id
+         FROM svn_item_t AS parent_t
+         WHERE parent_t.path==svn_item_t.parent)
+         """
+    get_child_items_q = """
+        WITH RECURSIVE get_children(__ID) AS
+        (
+            SELECT first_item_t._id
+            FROM svn_item_t AS first_item_t
+            WHERE first_item_t.parent_id=:parent_id
+        
+            UNION
+        
+            SELECT child_item_t._id
+            FROM svn_item_t child_item_t, get_children
+            WHERE child_item_t.parent_id = get_children.__ID
+        )
+        SELECT * FROM svn_item_t
+        WHERE _id IN get_children
+        {another_filter}
+        ORDER BY parent_id
+        """
+
     def __init__(self, db_master):
         super().__init__()
         self.db = db_master
@@ -247,6 +277,16 @@ class SVNTable(object):
     def valid_read_formats(self):
         """ returns a list of file formats that can be read by SVNTree """
         return list(self.read_func_by_format.keys())
+
+    @contextmanager
+    def reading_files_context(self):
+        self.db.curs.execute(self.drop_path_index_q)
+        self.db.curs.execute(self.drop_parent_id_index_q)
+        yield
+        self.db.curs.execute(self.create_path_index_q)
+        with self.db.transaction() as curs:
+            curs.execute(self.update_parent_ids_q)
+            self.db.curs.execute(self.create_parent_id_index_q)
 
     def read_from_file(self, in_file, a_format="guess"):
         """ Reads from file. All previous sub items are cleared
@@ -560,24 +600,53 @@ class SVNTable(object):
             print("Line:", line_num, ex)
             raise
 
-    def get_item(self, item_path, what="any"):
+    def get_any_item(self, item_path):
         """ Get specific item or return None if not found
         :param item_path: path to the item
-        :param what: either "any" (will return file or dir), "file", "dir
         :return: item found or None
         """
-        if what not in ("any", "file", "dir"):
-            raise ValueError(what+" not a valid filter for get_item")
-
         retVal = None
-        want_file = what in ("any", "file")
-        want_dir = what in ("any", "dir")
         with self.db.selection() as curs:
             curs.execute("""
                     SELECT * FROM svn_item_t
                     WHERE path = :item_path
-                    AND (fileFlag = :file OR fileFlag = :dir)
-                    """, {"item_path": item_path, "file": want_file, "dir": not want_dir})
+                    """, {"item_path": item_path})
+            the_item = curs.fetchone()
+            if the_item:
+                retVal = SVNRow2(the_item)
+        return retVal
+
+    def get_file_item(self, item_path):
+        """ Get specific file item or return None if not found
+        :param item_path: path to the item
+        :return: item found or None
+        """
+
+        retVal = None
+        with self.db.selection() as curs:
+            curs.execute("""
+                    SELECT * FROM svn_item_t
+                    WHERE path = :item_path
+                    AND fileFlag = 1
+                    """, {"item_path": item_path})
+            the_item = curs.fetchone()
+            if the_item:
+                retVal = SVNRow2(the_item)
+        return retVal
+
+    def get_dir_item(self, item_path):
+        """ Get specific dir item or return None if not found
+        :param item_path: path to the item
+        :return: item found or None
+        """
+
+        retVal = None
+        with self.db.selection() as curs:
+            curs.execute("""
+                    SELECT * FROM svn_item_t
+                    WHERE path = :item_path
+                    AND fileFlag = 0
+                    """, {"item_path": item_path})
             the_item = curs.fetchone()
             if the_item:
                 retVal = SVNRow2(the_item)
@@ -625,6 +694,27 @@ class SVNTable(object):
             curs.execute(query_text)
             retVal.extend([fr[0] for fr in curs.fetchall()])
         return retVal
+
+    def get_items(self, what="any", levels_deep=1024):
+        """
+        get_items applies a filter and return all items
+        :param filter_name: one of predefined baked queries, e.g.: "all-files", "all-dirs", "all-items"
+        :return: all items returned by applying the filter called filter_name
+        """
+        if what not in ("any", "file", "dir"):
+            raise ValueError(what+" not a valid filter for get_item")
+
+        want_file = what in ("any", "file")
+        want_dir = what in ("any", "dir")
+        with self.db.selection() as curs:
+            curs.execute("""
+                    SELECT * FROM svn_item_t
+                    WHERE level <= :levels_deep
+                    AND (fileFlag = :file OR fileFlag = :dir)
+                    ORDER BY path
+                    """, {"levels_deep": levels_deep, "file": want_file, "dir": not want_dir})
+            retVal = curs.fetchall()
+        return self.SVNRowListToObjects(retVal)
 
     def get_items(self, what="any", levels_deep=1024):
         """
@@ -748,10 +838,18 @@ class SVNTable(object):
             curs.execute("""
                     SELECT * FROM svn_item_t
                     WHERE fileFlag = 1
-                    AND (path==:file_path OR path LIKE :wtar_file_path)
+                    AND path==:file_path
                     ORDER BY path
-                    """, {"file_path": file_path, "wtar_file_path": file_path+".wtar%"})
+                    """, {"file_path": file_path})
             retVal = curs.fetchall()
+            if not retVal:
+                curs.execute("""
+                        SELECT * FROM svn_item_t
+                        WHERE fileFlag = 1
+                        AND path LIKE :wtar_file_path
+                        ORDER BY path
+                        """, {"wtar_file_path": file_path+".wtar%"})
+                retVal = curs.fetchall()
         return self.SVNRowListToObjects(retVal)
 
     def mark_required_for_file(self, file_path):
@@ -775,12 +873,16 @@ class SVNTable(object):
         """
 
         with self.db.selection() as curs:
-            curs.execute("""
+            root_item = self.get_dir_item(item_path=dir_path)
+            if root_item is not None:
+                curs.execute(self.get_child_items_q.format(another_filter="AND fileFlag==1"), {"parent_id": root_item._id})
+            else:
+                curs.execute("""
                     SELECT * FROM svn_item_t
                     WHERE fileFlag = 1
-                    AND (path LIKE :dir_path OR path LIKE :wtar_dir_path)
+                    AND path LIKE :wtar_dir_path
                     ORDER BY path
-                    """, {"dir_path": dir_path+"/%", "wtar_dir_path": dir_path+".wtar%"})
+                    """, {"wtar_dir_path": dir_path+".wtar%"})
             retVal = curs.fetchall()
         return self.SVNRowListToObjects(retVal)
 
@@ -803,7 +905,7 @@ class SVNTable(object):
             retVal = curs.execute(query_text).fetchone()[0]
         return retVal
 
-    def get_items_in_dir(self, dir_path="", what="any", levels_deep=1024):
+    def get_items_in_dir_old(self, dir_path="", levels_deep=1024):
         """ get all files in dir_path.
             level_deep: how much to dig in. level_deep=1 will only get immediate files
             :return: list of items in dir or empty list (if there aren't any) or None
@@ -811,25 +913,46 @@ class SVNTable(object):
         """
         retVal = []
         if dir_path == "":
-            retVal = self.get_items(what=what, levels_deep=levels_deep)
+            retVal = self.get_items(what="any", levels_deep=levels_deep)
         else:
-            root_dir_item = self.get_item(item_path=dir_path, what="dir")
+            root_dir_item = self.get_dir_item(item_path=dir_path)
             if root_dir_item is not None:
 
-                want_file = what in ("any", "file")
-                want_dir = what in ("any", "dir")
-                with self.db.selection() as curs:
+                 with self.db.selection() as curs:
                     curs.execute("""
                             SELECT * FROM svn_item_t
-                            WHERE (fileFlag = :file OR fileFlag = :dir)
+                            WHERE _id > :parent_id
                             AND level > :dir_level
                             AND level <= :bottom_level
                             AND path LIKE :dir_path
                             ORDER BY path
-                            """, {"file": want_file, "dir": not want_dir,
-                                  "dir_path": dir_path+"/%",
+                            """, { "parent_id": root_dir_item._id,  # hack! speedup until svn_item has proper parent/child relationship
+                                    "dir_path": dir_path+"/%",
                                   "dir_level": root_dir_item.level,
                                   "bottom_level": root_dir_item.level+levels_deep})
+                    retVal = curs.fetchall()
+                    retVal = self.SVNRowListToObjects(retVal)
+            else:
+                print(dir_path, "was not found")
+        return retVal
+
+    def get_items_in_dir(self, dir_path="", levels_deep=1024):
+        """ get all files in dir_path.
+            level_deep: how much to dig in. level_deep=1 will only get immediate files
+            :return: list of items in dir or empty list (if there aren't any) or None
+            if dir_path is not a dir
+        """
+        if levels_deep != 1024:
+            raise Exception("get_items_in_dir does not yet support the levels_deep parameter ")
+        retVal = []
+        if dir_path == "":
+            retVal = self.get_items(what="any", levels_deep=levels_deep)
+        else:
+            root_dir_item = self.get_dir_item(item_path=dir_path)
+            if root_dir_item is not None:
+
+                 with self.db.selection() as curs:
+                    curs.execute(self.get_child_items_q.format(another_filter=""), {"parent_id": root_dir_item._id})
                     retVal = curs.fetchall()
                     retVal = self.SVNRowListToObjects(retVal)
             else:
@@ -841,7 +964,7 @@ class SVNTable(object):
             marking is recursive.
             ToDo: unite the update with self.get_item
         """
-        dir_item = self.get_item(item_path=dir_path, what="dir")
+        dir_item = self.get_dir_item(item_path=dir_path)
         if dir_item is not None:
             with self.db.transaction() as curs:
                 query_text = """

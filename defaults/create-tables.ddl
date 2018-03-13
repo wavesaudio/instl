@@ -52,7 +52,8 @@ CREATE TABLE svn_item_t
 	need_download BOOLEAN,
 	download_path TEXT,
 	download_root TEXT,
-	extra_props TEXT
+	extra_props TEXT,
+  parent_id INTEGER DEFAULT 0
 );
 
 

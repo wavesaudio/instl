@@ -31,7 +31,8 @@ class InstlClientRemove(InstlClient):
         have_info_path = var_stack.ResolveVarToStr("HAVE_INFO_MAP_PATH")
         if not os.path.isfile(have_info_path):
             have_info_path = var_stack.ResolveVarToStr("SITE_HAVE_INFO_MAP_PATH")
-        self.read_info_map_from_file(have_info_path)
+        with self.info_map_table.reading_files_context():
+            self.read_info_map_from_file(have_info_path)
         self.calc_iid_to_name_and_version()
 
         self.batch_accum.set_current_section('remove')
