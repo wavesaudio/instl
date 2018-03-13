@@ -5,7 +5,7 @@ import os
 import sys
 import re
 import abc
-
+import weakref
 import platform
 import appdirs
 import urllib.error
@@ -265,8 +265,12 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 InstlInstanceBase.info_map_table = SVNTable(InstlInstanceBase.db)
 
     def __del__(self):
+        if InstlInstanceBase.info_map_table:
+            del InstlInstanceBase.info_map_table
+        if InstlInstanceBase.items_table:
+            del InstlInstanceBase.items_table
         if InstlInstanceBase.db:
-            del InstlInstanceBase.db
+            InstlInstanceBase.db.close()
 
     def get_default_out_file(self):
         retVal = None

@@ -199,7 +199,7 @@ class InstlClientCopy(InstlClient):
                                                     ignore=self.patterns_copy_should_ignore,
                                                     preserve_dest_files=True)  # preserve files already in destination
 
-        source_items = self.info_map_table.get_items_in_dir(dir_path=source_path, what="any")
+        source_items = self.info_map_table.get_items_in_dir(dir_path=source_path)
         self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
 
         if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
@@ -222,13 +222,13 @@ class InstlClientCopy(InstlClient):
             #    self.batch_accum += self.platform_helper.chmod("-R -f a+rwX", ".")
 
     def create_copy_instructions_for_dir(self, source_path, name_for_progress_message):
-        dir_item = self.info_map_table.get_item(source_path, what="dir")
+        dir_item = self.info_map_table.get_dir_item(source_path)
         if dir_item is not None:
             source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path_abs, ".",
                                                                                link_dest=True,
                                                                                ignore=self.patterns_copy_should_ignore)
-            source_items = self.info_map_table.get_items_in_dir(dir_path=source_path, what="any")
+            source_items = self.info_map_table.get_items_in_dir(dir_path=source_path)
             self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
 
             source_path_dir, source_path_name = os.path.split(source_path)

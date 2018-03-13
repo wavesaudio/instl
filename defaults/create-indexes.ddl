@@ -8,4 +8,4 @@
 --CREATE INDEX IF NOT EXISTS ix_index_item_t_iid ON index_item_t (iid);
 --CREATE INDEX IF NOT EXISTS ix_index_item_t_install_status ON index_item_t (install_status);
 
---CREATE INDEX IF NOT EXISTS ix_svn_item_t_iid ON svn_item_t (fileFlag);
+--CREATE UNIQUE INDEX IF NOT EXISTS ix_svn_item_t_path ON svn_item_t (path);

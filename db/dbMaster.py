@@ -6,6 +6,7 @@ import time
 import datetime
 import inspect
 from _collections import defaultdict
+import operator
 
 import utils
 
@@ -38,7 +39,6 @@ def get_db_url(name_extra=None):
         db_url = db_file
     return db_url
 
-
 class Statistic():
     def __init__(self):
         self.count = 0
@@ -47,6 +47,16 @@ class Statistic():
     def add_instance(self, time):
         self.count += 1
         self.time += time
+
+    def __str__(self):
+        average = self.time/self.count if self.count else 0.0
+        retVal = "count, {self.count}, time, {self.time:.2f}, ms, average, {average:.2f}, ms".format(**locals())
+        return retVal
+
+    def __repr__(self):
+        average = self.time/self.count if self.count else 0.0
+        retVal = "{self.count}, {self.time:.2f}, {average:.2f}".format(**locals())
+        return retVal
 
 
 class DBMaster(object):
@@ -58,11 +68,6 @@ class DBMaster(object):
         self.__curs = None
         self.locked_tables = set()
         self.statistics = defaultdict(Statistic)
-
-    def __del__(self):
-        self.close()
-        for name, stats in sorted(self.statistics):
-            print(name, stats.count, stats.time, "ms", stats.time/stats.count, "ms per instance")
 
     def read_ddl_file(self, ddl_file_name):
         ddl_path = os.path.join(self.internal_data_folder, "db", ddl_file_name)
@@ -116,6 +121,14 @@ class DBMaster(object):
     def close(self):
         if self.__conn:
             self.__conn.close()
+        for name, stats in sorted(self.statistics.items()):
+            average = stats.time/stats.count
+            print("{}, {}".format(name, repr(stats)))
+
+        max_count = max(self.statistics.items(), key=lambda S: S[1].count)
+        max_time = max(self.statistics.items(), key=lambda S: S[1].time)
+        print("max count:", max_count[0], max_count[1])
+        print("max time:", max_time[0], max_time[1])
 
     def erase_db(self):
         self.close()
@@ -197,7 +210,7 @@ class DBMaster(object):
             raise
 
     def exec_script_file(self, file_name):
-        with self.transaction("exec_script_file "+file_name) as curs:
+        with self.transaction("exec_script_file_"+file_name) as curs:
             if os.path.isfile(file_name):
                 script_file_path = file_name
             else:
@@ -267,7 +280,7 @@ class DBMaster(object):
                 SELECT raise(abort, '{table_name} is locked no DELETEs');
             END;
         """.format(table_name=table_name)
-        with self.transaction("lock_table "+table_name) as curs:
+        with self.transaction("lock_table") as curs:
             curs.executescript(query_text)
         self.locked_tables.add(table_name)
 
@@ -277,7 +290,7 @@ class DBMaster(object):
             DROP TRIGGER IF EXISTS lock_UPDATE_{table_name};
             DROP TRIGGER IF EXISTS lock_DELETE_{table_name};
         """.format(table_name=table_name)
-        with self.transaction("unlock_table "+table_name) as curs:
+        with self.transaction("unlock_table") as curs:
             curs.executescript(query_text)
         self.locked_tables.remove(table_name)
 

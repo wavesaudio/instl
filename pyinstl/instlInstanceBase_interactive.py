@@ -403,7 +403,7 @@ class CMDObj(cmd.Cmd, object):
         items_to_list = list()
         if params:
             for param in shlex.split(params):
-                item = self.admin_prog_inst.info_map_table.get_item(param.rstrip("/"), what="any")
+                item = self.admin_prog_inst.info_map_table.get_any_item(param.rstrip("/"))
                 if item:
                     items_to_list.append(item)
                     if isDir(item):

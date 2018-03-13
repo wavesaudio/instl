@@ -62,11 +62,11 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
                 # try to get the zipped info_map
                 additional_info_map_file_name = var_stack.ResolveStrToStr("{}$(WZLIB_EXTENSION)".format(additional_info_map))
                 path_in_main_info_map = var_stack.ResolveStrToStr("instl/{}".format(additional_info_map_file_name))
-                additional_info_map_item = self.instlObj.info_map_table.get_item(path_in_main_info_map, what="file")
+                additional_info_map_item = self.instlObj.info_map_table.get_file_item(path_in_main_info_map)
                 if not additional_info_map_item:  # zipped not found try the unzipped inf_map
                     additional_info_map_file_name = additional_info_map
                     path_in_main_info_map = var_stack.ResolveStrToStr("instl/{}".format(additional_info_map))
-                    additional_info_map_item = self.instlObj.info_map_table.get_item(path_in_main_info_map, what="file")
+                    additional_info_map_item = self.instlObj.info_map_table.get_file_item(path_in_main_info_map)
 
                 checksum = additional_info_map_item.checksum if additional_info_map_item else None
 
