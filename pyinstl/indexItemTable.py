@@ -422,6 +422,9 @@ class IndexItemsTable(object):
         with self.db.transaction() as curs:
             curs.executescript(resolve_items_script)
             curs.execute("""CREATE INDEX IF NOT EXISTS ix_svn_index_item_detail_t_owner_iid ON index_item_detail_t(owner_iid)""")
+            # creating these indexes did not improve DB performance and added 20s to preparing __ALL_GUIDS__ installation
+            #curs.execute("""CREATE INDEX IF NOT EXISTS ix_svn_index_item_detail_t_value ON index_item_detail_t(detail_value)""")
+            #curs.execute("""CREATE INDEX IF NOT EXISTS ix_svn_index_item_detail_t_name ON index_item_detail_t(detail_name)""")
 
     def prepare_inherit_order(self):
         inherit_order = utils.unique_list()

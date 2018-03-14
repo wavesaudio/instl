@@ -251,6 +251,7 @@ class SVNTable(object):
         {another_filter}
         ORDER BY parent_id
         """
+    get_immediate_child_items_q =  """SELECT * FROM svn_item WHERE parent_id==:parent_id"""
 
     def __init__(self, db_master):
         super().__init__()
@@ -716,27 +717,6 @@ class SVNTable(object):
             retVal = curs.fetchall()
         return self.SVNRowListToObjects(retVal)
 
-    def get_items(self, what="any", levels_deep=1024):
-        """
-        get_items applies a filter and return all items
-        :param filter_name: one of predefined baked queries, e.g.: "all-files", "all-dirs", "all-items"
-        :return: all items returned by applying the filter called filter_name
-        """
-        if what not in ("any", "file", "dir"):
-            raise ValueError(what+" not a valid filter for get_item")
-
-        want_file = what in ("any", "file")
-        want_dir = what in ("any", "dir")
-        with self.db.selection() as curs:
-            curs.execute("""
-                    SELECT * FROM svn_item_t
-                    WHERE level <= :levels_deep
-                    AND (fileFlag = :file OR fileFlag = :dir)
-                    ORDER BY path
-                    """, {"levels_deep": levels_deep, "file": want_file, "dir": not want_dir})
-            retVal = curs.fetchall()
-        return self.SVNRowListToObjects(retVal)
-
     def get_required_items(self, what="any", get_unrequired=False):
         """
         get_items applies a filter and return all items
@@ -905,7 +885,7 @@ class SVNTable(object):
             retVal = curs.execute(query_text).fetchone()[0]
         return retVal
 
-    def get_items_in_dir_old(self, dir_path="", levels_deep=1024):
+    def get_items_in_dir(self, dir_path="", immediate_children_only=False):
         """ get all files in dir_path.
             level_deep: how much to dig in. level_deep=1 will only get immediate files
             :return: list of items in dir or empty list (if there aren't any) or None
@@ -913,46 +893,17 @@ class SVNTable(object):
         """
         retVal = []
         if dir_path == "":
-            retVal = self.get_items(what="any", levels_deep=levels_deep)
+            retVal = self.get_items(what="any")
         else:
             root_dir_item = self.get_dir_item(item_path=dir_path)
             if root_dir_item is not None:
-
-                 with self.db.selection() as curs:
-                    curs.execute("""
-                            SELECT * FROM svn_item_t
-                            WHERE _id > :parent_id
-                            AND level > :dir_level
-                            AND level <= :bottom_level
-                            AND path LIKE :dir_path
-                            ORDER BY path
-                            """, { "parent_id": root_dir_item._id,  # hack! speedup until svn_item has proper parent/child relationship
-                                    "dir_path": dir_path+"/%",
-                                  "dir_level": root_dir_item.level,
-                                  "bottom_level": root_dir_item.level+levels_deep})
-                    retVal = curs.fetchall()
-                    retVal = self.SVNRowListToObjects(retVal)
-            else:
-                print(dir_path, "was not found")
-        return retVal
-
-    def get_items_in_dir(self, dir_path="", levels_deep=1024):
-        """ get all files in dir_path.
-            level_deep: how much to dig in. level_deep=1 will only get immediate files
-            :return: list of items in dir or empty list (if there aren't any) or None
-            if dir_path is not a dir
-        """
-        if levels_deep != 1024:
-            raise Exception("get_items_in_dir does not yet support the levels_deep parameter ")
-        retVal = []
-        if dir_path == "":
-            retVal = self.get_items(what="any", levels_deep=levels_deep)
-        else:
-            root_dir_item = self.get_dir_item(item_path=dir_path)
-            if root_dir_item is not None:
-
-                 with self.db.selection() as curs:
-                    curs.execute(self.get_child_items_q.format(another_filter=""), {"parent_id": root_dir_item._id})
+                with self.db.selection() as curs:
+                    if immediate_children_only:
+                        query_text = self.get_immediate_child_items_q
+                    else:
+                        query_text = self.get_child_items_q
+                    query_text = query_text.format(another_filter="")
+                    curs.execute(query_text, {"parent_id": root_dir_item._id})
                     retVal = curs.fetchall()
                     retVal = self.SVNRowListToObjects(retVal)
             else:
@@ -999,20 +950,19 @@ class SVNTable(object):
         """ after some files were marked as required,
             mark their parent dirs are required as well
         """
-        required_file_items = self.get_required_items(what="file")
         query_text = """
-            WITH RECURSIVE get_parents(__ID, __PATH, __PARENT) AS
+            WITH RECURSIVE get_parents(__ID, __PATH, __PARENT_ID) AS
             (
-                SELECT file_item_t._id, file_item_t.path, file_item_t.parent
+                SELECT file_item_t._id, file_item_t.path, file_item_t.parent_id
                 FROM svn_item_t AS file_item_t
                 WHERE file_item_t.fileFlag=1
                 AND file_item_t.required=1
 
                 UNION
 
-                SELECT parent_item_t._id, parent_item_t.path, parent_item_t.parent
+                SELECT parent_item_t._id, parent_item_t.path, parent_item_t.parent_id
                 FROM svn_item_t parent_item_t, get_parents
-                WHERE parent_item_t.path = get_parents.__PARENT
+                WHERE parent_item_t._id = get_parents.__PARENT_ID
             )
             UPDATE svn_item_t
             SET required=1
@@ -1023,7 +973,7 @@ class SVNTable(object):
             print("mark_required_completion of ", curs.rowcount, "rows")
 
     def mark_need_download(self):
-        with self.db.transaction() as curs:
+        with self.db.transaction("mark_need_download") as curs:
             self.db.create_function("need_to_download_file", 2, utils.need_to_download_file)
             # mark files that need download
             query_text = """
@@ -1035,19 +985,20 @@ class SVNTable(object):
                 """
             curs.execute(query_text)
             # mark folders of files that need download
+        with self.db.transaction("mark_need_download_recursive") as curs:
             query_text = """
-                WITH RECURSIVE get_parents(__ID, __PATH, __PARENT) AS
+                WITH RECURSIVE get_parents(__ID, __PATH, __PARENT_ID) AS
                 (
-                    SELECT file_item_t._id, file_item_t.path, file_item_t.parent
+                    SELECT file_item_t._id, file_item_t.path, file_item_t.parent_id
                     FROM svn_item_t AS file_item_t
                     WHERE file_item_t.fileFlag=1
                     AND file_item_t.need_download=1
     
                     UNION
     
-                    SELECT parent_item_t._id, parent_item_t.path, parent_item_t.parent
+                    SELECT parent_item_t._id, parent_item_t.path, parent_item_t.parent_id
                     FROM svn_item_t parent_item_t, get_parents
-                    WHERE parent_item_t.path = get_parents.__PARENT
+                    WHERE parent_item_t._id = get_parents.__PARENT_ID
                 )
                 UPDATE svn_item_t
                 SET need_download=1
