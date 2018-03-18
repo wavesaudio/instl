@@ -239,9 +239,9 @@ class SVNTable(object):
             SELECT first_item_t._id
             FROM svn_item_t AS first_item_t
             WHERE first_item_t.parent_id=:parent_id
-        
+
             UNION
-        
+
             SELECT child_item_t._id
             FROM svn_item_t child_item_t, get_children
             WHERE child_item_t.parent_id = get_children.__ID
@@ -514,7 +514,7 @@ class SVNTable(object):
 
     def clear_all(self):
         with self.db.transaction() as curs:
-            curs.execute("DELETE * FROM svn_item_t")
+            curs.execute("DELETE FROM svn_item_t")
         self.comments = list()
 
     def set_base_revision(self, base_revision):
@@ -570,6 +570,8 @@ class SVNTable(object):
             props_to_ignore = ['mime-type']
             path = None
             with self.db.transaction() as curs:
+                prop_name_to_flag_query_params = list()
+                not_in_props_to_ignore_query_params = list()
                 for line in rfd:
                     line_num += 1
                     match = props_line_re.match(line)
@@ -580,23 +582,29 @@ class SVNTable(object):
                             if path is not None:
                                 prop_name = match.group('prop_name')
                                 if prop_name in prop_name_to_flag:
+                                    prop_name_to_flag_query_params.append({"new_prop": prop_name_to_flag[prop_name], "old_path": path})
                                     update_query = """
                                         UPDATE svn_item_t
                                         SET flags = flags || "{new_prop}"
                                         WHERE path = "{old_path}";
                                     """.format(new_prop=prop_name_to_flag[prop_name],
                                                old_path=path)
-                                    curs.execute(update_query)
+                                    #curs.execute(update_query)
                                 elif prop_name not in props_to_ignore:
+                                    not_in_props_to_ignore_query_params.append({"prop_name": prop_name, "old_path": path})
                                     update_query = """
                                         UPDATE svn_item_t
                                         SET extra_props = extra_props || "{prop_name}" || ";"
                                         WHERE path = "{old_path}";
                                     """.format(prop_name=prop_name,
                                                old_path=path)
-                                    curs.execute(update_query)
+                                    #curs.execute(update_query)
                     else:
                         ValueError("no match at file: " + rfd.name + ", line: " + str(line_num) + ": " + line)
+                prop_name_to_flag_query = """UPDATE svn_item_t SET flags = flags || :new_prop WHERE path = :old_path;"""
+                curs.executemany(prop_name_to_flag_query, prop_name_to_flag_query_params);
+                not_in_props_to_ignore_query = """UPDATE svn_item_t SET extra_props = extra_props || :prop_name || ";" WHERE path = :old_path;"""
+                curs.executemany(not_in_props_to_ignore_query, not_in_props_to_ignore_query_params);
         except Exception as ex:
             print("Line:", line_num, ex)
             raise
@@ -678,7 +686,7 @@ class SVNTable(object):
                 (SELECT  paths_from_disk_t.item_num AS file_index
                   FROM paths_from_disk_t
                   WHERE UPPER(paths_from_disk_t.path) NOT IN (SELECT UPPER(path) FROM svn_item_t))
-                
+
                 WHERE file_index NOT IN (
                     SELECT paths_from_disk_t.item_num
                     FROM paths_from_disk_t
@@ -715,7 +723,8 @@ class SVNTable(object):
                     ORDER BY path
                     """, {"levels_deep": levels_deep, "file": want_file, "dir": not want_dir})
             retVal = curs.fetchall()
-        return self.SVNRowListToObjects(retVal)
+            retVal = self.SVNRowListToObjects(retVal)
+        return retVal
 
     def get_required_items(self, what="any", get_unrequired=False):
         """
@@ -742,7 +751,7 @@ class SVNTable(object):
         query_text = """
           SELECT path
           FROM svn_item_t
-          WHERE flags == 'fx' 
+          WHERE flags == 'fx'
         """
         retVal = self.db.select_and_fetchall(query_text)
         return retVal
@@ -830,7 +839,8 @@ class SVNTable(object):
                         ORDER BY path
                         """, {"wtar_file_path": file_path+".wtar%"})
                 retVal = curs.fetchall()
-        return self.SVNRowListToObjects(retVal)
+            retVal = self.SVNRowListToObjects(retVal)
+        return retVal
 
     def mark_required_for_file(self, file_path):
         """ mark a file as required or if file was wtarred
@@ -864,7 +874,8 @@ class SVNTable(object):
                     ORDER BY path
                     """, {"wtar_dir_path": dir_path+".wtar%"})
             retVal = curs.fetchall()
-        return self.SVNRowListToObjects(retVal)
+            retVal = self.SVNRowListToObjects(retVal)
+        return retVal
 
     def count_wtar_items_of_dir(self, dir_path):
         """ count all wtar items in dir_path OR if the dir_path itself is wtarred - count of wtarred file items.
@@ -925,8 +936,8 @@ class SVNTable(object):
                     AND level > :dir_item_level
                     AND path LIKE :dir_item_path
                     """
-                curs.execute(query_text, {'dir_item_level': dir_item['level'],
-                                          'dir_item_path': dir_item['path']+"/%"})
+                curs.execute(query_text, {'dir_item_level': dir_item.level,
+                                          'dir_item_path': dir_item.path+"/%"})
                 retVal = curs.rowcount
         else:
             # it might be a dir that was wtarred
@@ -966,44 +977,43 @@ class SVNTable(object):
             )
             UPDATE svn_item_t
             SET required=1
-            WHERE _id IN (SELECT __ID FROM get_parents)
+            WHERE _id IN (SELECT __ID FROM get_parents);
             """
         with self.db.transaction() as curs:
             curs.execute(query_text)
-            print("mark_required_completion of ", curs.rowcount, "rows")
 
     def mark_need_download(self):
+        self.db.create_function("need_to_download_file", 2, utils.need_to_download_file)
+        # mark files that need download
+        query_text = """
+            UPDATE svn_item_t
+            SET need_download = 1
+            WHERE required == 1
+            AND fileFlag == 1
+            AND need_to_download_file(download_path, checksum)
+            """
         with self.db.transaction("mark_need_download") as curs:
-            self.db.create_function("need_to_download_file", 2, utils.need_to_download_file)
-            # mark files that need download
-            query_text = """
-                UPDATE svn_item_t
-                SET need_download = 1
-                WHERE required == 1
-                AND fileFlag == 1
-                AND need_to_download_file(download_path, checksum)
-                """
             curs.execute(query_text)
-            # mark folders of files that need download
+        # mark folders of files that need download
+        query_text = """
+            WITH RECURSIVE get_parents(__ID, __PATH, __PARENT_ID) AS
+            (
+                SELECT file_item_t._id, file_item_t.path, file_item_t.parent_id
+                FROM svn_item_t AS file_item_t
+                WHERE file_item_t.fileFlag=1
+                AND file_item_t.need_download=1
+
+                UNION
+
+                SELECT parent_item_t._id, parent_item_t.path, parent_item_t.parent_id
+                FROM svn_item_t parent_item_t, get_parents
+                WHERE parent_item_t._id = get_parents.__PARENT_ID
+            )
+            UPDATE svn_item_t
+            SET need_download=1
+            WHERE _id IN (SELECT __ID FROM get_parents)
+            """
         with self.db.transaction("mark_need_download_recursive") as curs:
-            query_text = """
-                WITH RECURSIVE get_parents(__ID, __PATH, __PARENT_ID) AS
-                (
-                    SELECT file_item_t._id, file_item_t.path, file_item_t.parent_id
-                    FROM svn_item_t AS file_item_t
-                    WHERE file_item_t.fileFlag=1
-                    AND file_item_t.need_download=1
-    
-                    UNION
-    
-                    SELECT parent_item_t._id, parent_item_t.path, parent_item_t.parent_id
-                    FROM svn_item_t parent_item_t, get_parents
-                    WHERE parent_item_t._id = get_parents.__PARENT_ID
-                )
-                UPDATE svn_item_t
-                SET need_download=1
-                WHERE _id IN (SELECT __ID FROM get_parents)
-                """
             curs.execute(query_text)
 
     def mark_required_for_revision(self, required_revision):
@@ -1112,11 +1122,12 @@ class SVNTable(object):
                       ON svn_item_t._id == iid_to_svn_item_t.svn_id
                       AND iid_to_svn_item_t.iid == index_item_detail_t.owner_iid
                       AND index_item_detail_t.detail_name == 'info_map'
-                      AND index_item_detail_t.detail_value == :infomap_name')
-                    ORDER BY _id
+                      AND index_item_detail_t.detail_value == :infomap_name
+                    ORDER BY svn_item_t._id
                     """, {"infomap_name": infomap_name})
             retVal = curs.fetchall()
-        return self.SVNRowListToObjects(retVal)
+            retVal = self.SVNRowListToObjects(retVal)
+        return retVal
 
     def get_items_for_default_infomap(self):
         with self.db.selection() as curs:
@@ -1128,9 +1139,10 @@ class SVNTable(object):
                       ON svnitem_with_non_default_info_map._id == iid_to_svn_item_t.svn_id
                       AND iid_to_svn_item_t.iid == index_item_detail_t.owner_iid
                       AND index_item_detail_t.detail_name == 'info_map')
-                    ORDER BY path
+                    ORDER BY svn_item_t.path
                     """)
             retVal = curs.fetchall()
+            retVal = self.SVNRowListToObjects(retVal)
         return retVal
 
     def populate_IIDToSVNItem(self):
@@ -1142,7 +1154,7 @@ class SVNTable(object):
                 install_sources_t.detail_name = 'install_sources'
                     AND
                 (
-                  svn_item_t.path = install_sources_t.detail_value 
+                  svn_item_t.path = install_sources_t.detail_value
                     OR
                   svn_item_t.path LIKE install_sources_t.detail_value || "/%"
                     OR
@@ -1180,7 +1192,7 @@ class SVNTable(object):
             WHERE required==0
             AND fileFlag==1
             """
-        with self.db.selection as curs:
+        with self.db.selection() as curs:
             retVal = curs.fetchall()
         return retVal
 
