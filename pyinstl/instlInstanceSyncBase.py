@@ -94,7 +94,6 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
             All required items are written to required_info_map.txt for reference.
         """
         self.instlObj.info_map_table.mark_required_files_for_active_items()
-        self.instlObj.info_map_table.mark_required_completion()
         required_file_path = var_stack.ResolveVarToStr("REQUIRED_INFO_MAP_PATH")
         required_items_list = self.instlObj.info_map_table.get_required_items()
         self.instlObj.info_map_table.write_to_file(in_file=required_file_path, items_list=required_items_list)

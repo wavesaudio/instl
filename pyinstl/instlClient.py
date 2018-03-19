@@ -414,6 +414,7 @@ class InstlClient(InstlInstanceBase):
 
             if source_tag in ('!dir', '!dir_cont'):
                 items = self.info_map_table.get_file_items_of_dir(dir_path=source)
+                #item_paths = self.info_map_table.get_file_paths_of_dir(dir_path=source)
                 if direct_sync:
                     if  source_tag == '!dir':
                         source_parent = "/".join(resolved_source_parts[:-1])

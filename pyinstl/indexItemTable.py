@@ -562,7 +562,8 @@ class IndexItemsTable(object):
         with self.db.transaction() as curs:
             curs.executemany(insert_item_q, index_items)
             curs.executemany(insert_item_detail_q, items_details)
-            curs.execute("""CREATE UNIQUE INDEX IF NOT EXISTS ix_svn_index_item_t_iid ON index_item_t(iid)""")
+            curs.execute("""CREATE UNIQUE INDEX IF NOT EXISTS ix_index_item_t_iid ON index_item_t(iid)""")
+            curs.execute("""CREATE INDEX IF NOT EXISTS ix_index_item_t_owner_iid ON index_item_detail_t(owner_iid)""")
 
     def read_require_node(self, a_node):
         require_items = dict()

@@ -27,12 +27,12 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
     def create_sync_folders(self):
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Create folders ...")
-        need_download_dirs_list = self.instlObj.info_map_table.get_download_items(what="dir")
+        need_download_dirs_num = self.instlObj.info_map_table.num_items(item_filter="need-download-dirs")
         self.instlObj.batch_accum += self.instlObj.platform_helper.create_folders("$(TO_SYNC_INFO_MAP_PATH)")
-        self.instlObj.platform_helper.num_items_for_progress_report += len(need_download_dirs_list)
+        self.instlObj.platform_helper.num_items_for_progress_report += need_download_dirs_num
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Create folders done")
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
-        self.instlObj.progress("{} folders to create".format(len(need_download_dirs_list)))
+        self.instlObj.progress("{} folders to create".format(need_download_dirs_num))
 
     def get_cookie_for_sync_urls(self, sync_base_url):
         """ get the cookie for sync_base_url and set config var
@@ -58,11 +58,11 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.sync_base_url = var_stack.ResolveVarToStr("SYNC_BASE_URL")
         self.get_cookie_for_sync_urls(self.sync_base_url)
         for file_item in in_file_list:
-            source_url = file_item.url
+            source_url = file_item['url']
             if source_url is None:
-                repo_rev_folder_hierarchy = self.instlObj.repo_rev_to_folder_hierarchy(file_item.revision)
-                source_url = '/'.join(utils.make_one_list(self.sync_base_url, repo_rev_folder_hierarchy, file_item.path))
-            self.instlObj.platform_helper.dl_tool.add_download_url(source_url, file_item.download_path, verbatim=source_url==file_item.url, size=file_item.size)
+                repo_rev_folder_hierarchy = self.instlObj.repo_rev_to_folder_hierarchy(file_item['revision'])
+                source_url = '/'.join(utils.make_one_list(self.sync_base_url, repo_rev_folder_hierarchy, file_item['path']))
+            self.instlObj.platform_helper.dl_tool.add_download_url(source_url, file_item['download_path'], verbatim=source_url==['url'], size=file_item['size'])
         self.instlObj.progress("created sync urls for {} files".format(len(in_file_list)))
 
     def create_curl_download_instructions(self):
@@ -102,13 +102,13 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress(dl_end_message, self.files_to_download)
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
-    def create_check_checksum_instructions(self, in_file_list):
+    def create_check_checksum_instructions(self, num_files):
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Check checksum ...")
         self.instlObj.batch_accum += self.instlObj.platform_helper.check_checksum_for_folder("$(TO_SYNC_INFO_MAP_PATH)")
-        self.instlObj.platform_helper.num_items_for_progress_report += len(in_file_list)
+        self.instlObj.platform_helper.num_items_for_progress_report += num_files
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Check checksum done")
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
-        self.instlObj.progress("created checksum checks {} files".format(len(in_file_list)))
+        self.instlObj.progress("created checksum checks {} files".format(num_files))
 
     def create_instructions_to_remove_redundant_files_in_sync_folder(self):
         """ Remove files in the sync folder that are not in info_map
@@ -137,9 +137,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.batch_accum.set_current_section('sync')
 
         already_synced_num_files, already_synced_num_bytes = self.instlObj.info_map_table.get_not_to_download_num_files_and_size()
-        file_list, bytes_to_sync = self.instlObj.info_map_table.get_to_download_files_and_size()
-        to_sync_num_files = len(file_list)
-        var_stack.add_const_config_variable("__NUM_FILES_TO_DOWNLOAD__", "create_download_instructions", len(file_list))
+        to_sync_num_files, bytes_to_sync = self.instlObj.info_map_table.get_to_download_num_files_and_size()
+        var_stack.add_const_config_variable("__NUM_FILES_TO_DOWNLOAD__", "create_download_instructions", to_sync_num_files)
         var_stack.add_const_config_variable("__NUM_BYTES_TO_DOWNLOAD__", "create_download_instructions", bytes_to_sync)
 
         # notify user how many files and bytes to sync
@@ -152,11 +151,13 @@ class InstlInstanceSync_url(InstlInstanceSync):
         if to_sync_num_files == 0:
             return to_sync_num_files
 
-        mount_points_to_size = total_sizes_by_mount_point(file_list)
+        file_list = self.instlObj.info_map_table.get_download_items_sync_info()
+        if False:   # need to rethink how to calc mount point sizes efficiently
+            mount_points_to_size = total_sizes_by_mount_point(file_list)
 
-        for m_p in sorted(mount_points_to_size):
-            free_bytes = shutil.disk_usage(m_p).free
-            print(mount_points_to_size[m_p], "bytes to sync to drive", "".join(("'", m_p, "'")), free_bytes-mount_points_to_size[m_p], "bytes will remain")
+            for m_p in sorted(mount_points_to_size):
+                free_bytes = shutil.disk_usage(m_p).free
+                print(mount_points_to_size[m_p], "bytes to sync to drive", "".join(("'", m_p, "'")), free_bytes-mount_points_to_size[m_p], "bytes will remain")
 
         self.create_sync_folders()
 
@@ -164,7 +165,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         self.create_curl_download_instructions()
         self.instlObj.create_sync_folder_manifest_command("after-sync", back_ground=True)
-        self.create_check_checksum_instructions(file_list)
+        self.create_check_checksum_instructions(to_sync_num_files)
         return to_sync_num_files
 
     def create_sync_instructions(self):

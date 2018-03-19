@@ -53,7 +53,8 @@ CREATE TABLE svn_item_t
 	download_path TEXT,
 	download_root TEXT,
 	extra_props TEXT,
-  parent_id INTEGER DEFAULT 0
+  parent_id INTEGER DEFAULT 0,
+  unwtarred TEXT,
 );
 
 
