@@ -14,6 +14,7 @@ import appdirs
 import datetime
 import random
 import string
+import sqlite3
 
 from pyinstl.cmdOptions import CommandLineOptions, read_command_line_options
 from utils import InstlException
@@ -77,6 +78,8 @@ def main():
                     "__INSTL_DATA_FOLDER__": get_data_folder(),
                     "__INSTL_COMPILED__": str(getattr(sys, 'frozen', False)),
                     "__PYTHON_VERSION__": sys.version_info,
+                    "__PYSQLITE3_VERSION__": sqlite3.version,
+                    "__SQLITE_VERSION__": sqlite3.sqlite_version,
                     "__COMMAND_NAMES__": command_names,
                     "__CURRENT_OS__": os_family_name,
                     "__CURRENT_OS_SECOND_NAME__": os_second_name,
