@@ -54,7 +54,7 @@ CREATE TABLE svn_item_t
 	download_root TEXT,
 	extra_props TEXT,
   parent_id INTEGER DEFAULT 0,
-  unwtarred TEXT,
+  unwtarred TEXT
 );
 
 

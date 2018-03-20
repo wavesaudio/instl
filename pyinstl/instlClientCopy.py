@@ -272,8 +272,7 @@ class InstlClientCopy(InstlClient):
 
     # special handling when running on Mac OS
     def pre_copy_mac_handling(self):
-        required_and_exec = self.info_map_table.get_required_exec_items(what="file")
-        num_files_to_set_exec = len(required_and_exec)
+        num_files_to_set_exec = self.info_map_table.num_items(item_filter="required-exec")
         if num_files_to_set_exec > 0:
             self.batch_accum += self.platform_helper.pushd("$(COPY_SOURCES_ROOT_DIR)")
             have_info_path = var_stack.ResolveVarToStr("REQUIRED_INFO_MAP_PATH")

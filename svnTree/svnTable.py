@@ -295,6 +295,9 @@ class SVNTable(object):
             curs.execute(self.update_parent_ids_q)
             curs.execute(self.create_parent_id_index_q)
             curs.execute(self.create_unwtarred_id_index_q)
+            min_revision, max_revision = self.min_max_revision()
+            var_stack.set_var("MIN_REPO_REV").append(min_revision)
+            var_stack.set_var("MAX_REPO_REV").append(max_revision)
 
     def read_from_file(self, in_file, a_format="guess"):
         """ Reads from file. All previous sub items are cleared
@@ -374,6 +377,7 @@ class SVNTable(object):
                 yield create_list_from_record(record)
 
         with self.db.transaction() as curs:
+            rows = [row for row in yield_row(rfd)]
             insert_q = """
                 INSERT INTO svn_item_t (path, revision,
                                       checksum,
@@ -382,7 +386,7 @@ class SVNTable(object):
                                       required, need_download, extra_props)
                  VALUES(?,?,?,?,?,?,?,?,?,?,?,?);
                 """
-            curs.executemany(insert_q, yield_row(rfd))
+            curs.executemany(insert_q, rows)
 
     def read_from_text(self, rfd):
         dl_path_re = re.compile("dl_path:'(?P<ld_path>.+)'")
@@ -413,6 +417,7 @@ class SVNTable(object):
                     yield row_data
 
         with self.db.transaction() as curs:
+            rows = [row for row in yield_row(rfd)]
             insert_q = """
                 INSERT INTO svn_item_t (path, flags, revision,
                                       checksum, size, url, download_path,
@@ -421,7 +426,7 @@ class SVNTable(object):
                                       required, need_download)
                  VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
                 """
-            curs.executemany(insert_q, yield_row(rfd))
+            curs.executemany(insert_q, rows)
 
     @staticmethod
     def get_wtar_file_status(file_name):
@@ -491,13 +496,14 @@ class SVNTable(object):
                     yield row_data
 
         with self.db.transaction() as curs:
+            rows = [row for row in yield_row(in_folder)]
             insert_q = """
                 INSERT INTO svn_item_t (path, flags, revision,
                                       level, parent, leaf,
                                       fileFlag, wtarFlag)
                  VALUES(?,?,?,?,?,?,?,?);
                 """
-            curs.executemany(insert_q, yield_row(in_folder))
+            curs.executemany(insert_q, rows)
 
     def num_items(self, item_filter="all-items"):
         count = 0
@@ -515,6 +521,8 @@ class SVNTable(object):
                 select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==1 AND fileFlag==1;"""
             elif item_filter == "required-dirs":
                 select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==1 AND fileFlag==0;"""
+            elif item_filter == "required-exec":
+                select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==1 AND instr(flags, 'x') != 0;"""
             if item_filter == "unrequired-item":
                 select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==0;"""
             elif item_filter == "unrequired-files":
@@ -555,12 +563,13 @@ class SVNTable(object):
                     yield {"old_path": parts[0], "new_size": int(parts[1])}  # path, size
 
         with self.db.transaction() as curs:
+            rows = [row for row in yield_row(rfd)]
             update_q = """
                 UPDATE  svn_item_t
                 SET size = :new_size
                 WHERE path = :old_path
                 """
-            curs.executemany(update_q, yield_row(rfd))
+            curs.executemany(update_q, rows)
 
     def read_props(self, rfd):
         props_line_re = re.compile("""
@@ -706,51 +715,76 @@ class SVNTable(object):
             retVal.extend([fr[0] for fr in curs.fetchall()])
         return retVal
 
-    def get_items(self, what="any", levels_deep=1024):
+    def get_items(self, what="any"):
         """
-        get_items applies a filter and return all items
-        :param filter_name: one of predefined baked queries, e.g.: "all-files", "all-dirs", "all-items"
-        :return: all items returned by applying the filter called filter_name
+        get_items return all items or all file items or all dir items according to the 'what' parameter
+        :param what: what type of items to return "file" - only files, "dir" - only dirs, "any" - all type of items
+        :return: all the items
         """
         if what not in ("any", "file", "dir"):
             raise ValueError(what+" not a valid filter for get_item")
 
-        want_file = what in ("any", "file")
-        want_dir = what in ("any", "dir")
+        extra_condition = {"file": "WHERE fileFlag == 1", "dir": "WHERE fileFlag == 0"}.get(what, "")
         with self.db.selection() as curs:
             curs.execute("""
                     SELECT * FROM svn_item_t
-                    WHERE level <= :levels_deep
-                    AND (fileFlag = :file OR fileFlag = :dir)
+                    {extra_condition}
                     ORDER BY _id
-                    """, {"levels_deep": levels_deep, "file": want_file, "dir": not want_dir})
+                    """.format(extra_condition=extra_condition))
             retVal = curs.fetchall()
             retVal = self.SVNRowListToObjects(retVal)
         return retVal
 
     def get_required_items(self, what="any", get_unrequired=False):
         """
-        get_items applies a filter and return all items
-        :param filter_name: one of predefined baked queries, e.g.: "all-files", "all-dirs", "all-items"
-        :return: all items returned by applying the filter called filter_name
+        get_items return items that are marked as required
+        :param what: what type of items to return "file" - only files, "dir" - only dirs, "any" - all type of items
+        :return: all the items
         """
         if what not in ("any", "file", "dir"):
             raise ValueError(what+" not a valid filter for get_item")
 
         want_file = what in ("any", "file")
         want_dir = what in ("any", "dir")
+        extra_condition = {"file": "AND fileFlag == 1", "dir": "AND fileFlag == 0"}.get(what, "")
         with self.db.selection() as curs:
             curs.execute("""
                     SELECT * FROM svn_item_t
-                    WHERE required == :required
-                    AND (fileFlag = :file OR fileFlag = :dir)
+                    WHERE required == 1
+                    {extra_condition}
                     ORDER BY _id
-                    """, {"required": not get_unrequired, "file": want_file, "dir": not want_dir})
+                    """.format(extra_condition=extra_condition))
+            retVal = curs.fetchall()
+            retVal = self.SVNRowListToObjects(retVal)
+        return retVal
+
+    def get_unrequired_items(self, what="any"):
+        """
+        get_items return items that are not marked as required
+        :param what: what type of items to return "file" - only files, "dir" - only dirs, "any" - all type of items
+        :return: all the items
+        """
+        if what not in ("any", "file", "dir"):
+            raise ValueError(what+" not a valid filter for get_item")
+
+        want_file = what in ("any", "file")
+        want_dir = what in ("any", "dir")
+        extra_condition = {"file": "AND fileFlag == 1", "dir": "AND fileFlag == 0"}.get(what, "")
+        with self.db.selection() as curs:
+            curs.execute("""
+                    SELECT * FROM svn_item_t
+                    WHERE required == 0
+                    {extra_condition}
+                    ORDER BY _id
+                    """.format(extra_condition=extra_condition))
             retVal = curs.fetchall()
             retVal = self.SVNRowListToObjects(retVal)
         return retVal
 
     def get_exec_file_paths(self):
+        """
+        :return: paths of all file items marked as executable
+        """
         query_text = """
           SELECT path
           FROM svn_item_t
@@ -759,22 +793,16 @@ class SVNTable(object):
         retVal = self.db.select_and_fetchall(query_text)
         return retVal
 
-    def get_required_exec_items(self, what="any"):
-        """ :return: all required fies that are also exec
+    def get_required_exec_items(self):
+        """ :return: all required files that are also exec
         """
-        if what not in ("any", "file", "dir"):
-            raise ValueError(what+" not a valid filter for get_item")
-
-        want_file = what in ("any", "file")
-        want_dir = what in ("any", "dir")
         with self.db.selection() as curs:
             curs.execute("""
                     SELECT * FROM svn_item_t
                     WHERE required == 1
                     AND instr(flags, 'x') != 0
-                    AND (fileFlag = :file OR fileFlag = :dir)
                     ORDER BY _id
-                    """, {"file": want_file, "dir": not want_dir})
+                    """)
             retVal = curs.fetchall()
             retVal = self.SVNRowListToObjects(retVal)
         return retVal
@@ -864,19 +892,32 @@ class SVNTable(object):
             curs.execute("""
                     SELECT * FROM svn_item_t
                     WHERE fileFlag = 1
-                    AND path==:file_path
-                    OR unwtarred==:file_path
+                    AND unwtarred==:file_path
                     ORDER BY _id
                     """, {"file_path": file_path})
             retVal = curs.fetchall()
             retVal = self.SVNRowListToObjects(retVal)
         return retVal
 
+    def get_required_paths_for_file(self, file_path):
+        """ get the item for a required file as or if file was wtarred
+            get the wtar files.
+        """
+
+        with self.db.selection() as curs:
+            curs.execute("""
+                    SELECT _id, path, leaf FROM svn_item_t
+                    WHERE fileFlag = 1
+                    AND unwtarred==:file_path
+                    ORDER BY _id
+                    """, {"file_path": file_path})
+            retVal = curs.fetchall()
+        return retVal
+
     def mark_required_for_file(self, file_path):
         """ mark a file as required or if file was wtarred
             mark the wtar files are required.
         """
-        retVal = 0
         with self.db.transaction() as curs:
             curs.execute("""
                     UPDATE svn_item_t
@@ -901,7 +942,7 @@ class SVNTable(object):
                 FROM svn_item_t child_item_t, get_children
                 WHERE child_item_t.parent_id = get_children.__ID
             )
-            SELECT path
+            SELECT _id, path, leaf
             FROM svn_item_t
             WHERE svn_item_t._id IN (SELECT __ID FROM get_children)
             AND fileFlag=1
@@ -909,7 +950,7 @@ class SVNTable(object):
             """
         with self.db.selection() as curs:
             curs.execute(query_text, {"dir_path": dir_path})
-            retVal = [p[0] for p in curs.fetchall()]
+            retVal = curs.fetchall()
         return retVal
 
     def get_file_items_of_dir(self, dir_path):
@@ -1306,9 +1347,8 @@ class SVNTable(object):
                     download_path=:download_path
                 WHERE _id=:_id
                 """
-        query_params = [{'download_root': item.download_root, 'download_path': item.download_path, '_id': item._id} for item in items_to_update]
         with self.db.transaction() as curs:
-            curs.executemany(query_text, query_params)
+            curs.executemany(query_text, items_to_update)
 
     def SVNRowListToObjects(self, svn_row_list):
         retVal = [SVNRow2(item) for item in svn_row_list]

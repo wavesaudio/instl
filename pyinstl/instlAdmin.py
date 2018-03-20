@@ -1017,10 +1017,10 @@ class InstlAdmin(InstlInstanceBase):
         print("info map:", num_files, "files in", num_dirs, "folders")
         print("info map:", num_required_files, "required files, ", num_required_dirs, "required folders")
 
-        unrequired_files = self.info_map_table.get_required_items(what="file", get_unrequired=True)
+        unrequired_files = self.info_map_table.get_unrequired_items(what="file")
         print("unrequired files:")
         [print("    ", f.path) for f in unrequired_files]
-        unrequired_dirs = self.info_map_table.get_required_items(what="dir",  get_unrequired=True)
+        unrequired_dirs = self.info_map_table.get_unrequired_items(what="dir")
         print("unrequired dirs:")
         [print("    ", d.path) for d in unrequired_dirs]
 
