@@ -411,6 +411,11 @@ class InstlClient(InstlInstanceBase):
         for iid, direct_sync_indicator, source, source_tag, install_folder in sync_and_source:
             direct_sync = self.get_direct_sync_status_from_indicator(direct_sync_indicator)
             resolved_source_parts = source.split("/")
+            if install_folder:
+                resolved_install_folder = var_stack.ResolveStrToStr(install_folder)
+            else:
+                resolved_install_folder = install_folder
+            local_repo_sync_dir = var_stack.ResolveVarToStr("LOCAL_REPO_SYNC_DIR")
 
             if source_tag in ('!dir', '!dir_cont'):
                 item_paths = self.info_map_table.get_file_paths_of_dir(dir_path=source)
@@ -419,32 +424,32 @@ class InstlClient(InstlInstanceBase):
                         source_parent = "/".join(resolved_source_parts[:-1])
                         for item in item_paths:
                             items_to_update.append({"_id": item['_id'],
-                                                    "download_path": var_stack.ResolveStrToStr("/".join((install_folder, item['path'][len(source_parent)+1:]))),
-                                                    "download_root": var_stack.ResolveStrToStr("/".join((install_folder, resolved_source_parts[-1])))})
+                                                    "download_path": var_stack.ResolveStrToStr("/".join((resolved_install_folder, item['path'][len(source_parent)+1:]))),
+                                                    "download_root": var_stack.ResolveStrToStr("/".join((resolved_install_folder, resolved_source_parts[-1])))})
                     else:  # !dir_cont
                         source_parent = source
                         for item in item_paths:
                             items_to_update.append({"_id": item['_id'],
-                                                    "download_path": var_stack.ResolveStrToStr("/".join((install_folder, item['path'][len(source_parent)+1:]))),
-                                                    "download_root": var_stack.ResolveStrToStr(install_folder)})
+                                                    "download_path": var_stack.ResolveStrToStr("/".join((resolved_install_folder, item['path'][len(source_parent)+1:]))),
+                                                    "download_root": resolved_install_folder})
                 else:
                     for item in item_paths:
                         items_to_update.append({"_id": item['_id'],
-                                                "download_path": var_stack.ResolveStrToStr("/".join(("$(LOCAL_REPO_SYNC_DIR)", item['path']))),
+                                                "download_path": var_stack.ResolveStrToStr("/".join((local_repo_sync_dir, item['path']))),
                                                 "download_root": None})
             elif source_tag == '!file':
                 # if the file was wtarred and split it would have multiple items
                 items_for_file = self.info_map_table.get_required_paths_for_file(source)
                 if direct_sync:
-                    assert install_folder is not None
+                    assert resolved_install_folder is not None
                     for item in items_for_file:
                         items_to_update.append({"_id": item['_id'],
-                                                "download_path": var_stack.ResolveStrToStr("/".join((install_folder, item['leaf']))),
+                                                "download_path": var_stack.ResolveStrToStr("/".join((resolved_install_folder, item['leaf']))),
                                                 "download_root": var_stack.ResolveStrToStr(item.download_path)})
                 else:
                     for item in items_for_file:
                         items_to_update.append({"_id": item['_id'],
-                                                "download_path": var_stack.ResolveStrToStr("/".join(("$(LOCAL_REPO_SYNC_DIR)", item['path']))),
+                                                "download_path": var_stack.ResolveStrToStr("/".join((local_repo_sync_dir, item['path']))),
                                                 "download_root": None})  # no need to set item.download_root here - it will not be used
 
         self.info_map_table.update_downloads(items_to_update)

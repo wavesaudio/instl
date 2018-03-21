@@ -39,6 +39,7 @@ def get_db_url(name_extra=None):
         db_url = db_file
     return db_url
 
+
 class Statistic():
     def __init__(self):
         self.count = 0

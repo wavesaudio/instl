@@ -24,6 +24,7 @@ from db import DBMaster, get_db_url
 from .indexItemTable import IndexItemsTable
 from svnTree import SVNTable
 
+
 def check_version_compatibility():
     retVal = True
     if "INSTL_MINIMAL_VERSION" in var_stack:
@@ -69,6 +70,8 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.do_not_write_vars = ("INFO_MAP_SIG", "INDEX_SIG", "PUBLIC_KEY", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "__CREDENTIALS__")
         self.out_file_realpath = None
         self.internal_progress = 0  # progress of preparing installer NOT of the installation
+        self.num_digits_repo_rev_hierarchy=None
+        self.num_digits_per_folder_repo_rev_hierarchy=None
 
     def progress(self, message):
         self.internal_progress += 1
@@ -271,6 +274,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             del InstlInstanceBase.items_table
         if InstlInstanceBase.db:
             InstlInstanceBase.db.close()
+        var_stack.print_statistics()
 
     def get_default_out_file(self):
         retVal = None
@@ -548,9 +552,11 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.info_map_table.read_from_file(info_map_from_file_path, a_format="text")
 
     def repo_rev_to_folder_hierarchy(self, repo_rev):
-        num_digits_repo_rev_hierarchy=int(var_stack.ResolveVarToStr("NUM_DIGITS_REPO_REV_HIERARCHY"))
-        num_digits_per_folder_repo_rev_hierarchy=int(var_stack.ResolveVarToStr("NUM_DIGITS_PER_FOLDER_REPO_REV_HIERARCHY"))
-        zero_pad_repo_rev = str(repo_rev).zfill(num_digits_repo_rev_hierarchy)
-        by_groups = [zero_pad_repo_rev[i:i+num_digits_per_folder_repo_rev_hierarchy] for i in range(0, len(zero_pad_repo_rev), num_digits_per_folder_repo_rev_hierarchy)]
+        if not self.num_digits_repo_rev_hierarchy:
+            self.num_digits_repo_rev_hierarchy=int(var_stack.ResolveVarToStr("NUM_DIGITS_REPO_REV_HIERARCHY"))
+        if not self.num_digits_per_folder_repo_rev_hierarchy:
+            self.num_digits_per_folder_repo_rev_hierarchy=int(var_stack.ResolveVarToStr("NUM_DIGITS_PER_FOLDER_REPO_REV_HIERARCHY"))
+        zero_pad_repo_rev = str(repo_rev).zfill(self.num_digits_repo_rev_hierarchy)
+        by_groups = [zero_pad_repo_rev[i:i+self.num_digits_per_folder_repo_rev_hierarchy] for i in range(0, len(zero_pad_repo_rev), self.num_digits_per_folder_repo_rev_hierarchy)]
         retVal = "/".join(by_groups)
         return retVal

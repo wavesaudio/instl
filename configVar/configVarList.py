@@ -13,6 +13,7 @@ import os
 import re
 from contextlib import contextmanager
 import pathlib
+from collections import defaultdict
 
 import utils
 import aYaml
@@ -49,6 +50,8 @@ class ConfigVarList(object):
     """ Keeps a list of named build config values.
         Help values resolve $() style references. """
 
+    resolve_non_freeze_statistics = defaultdict(int)
+    resolve_with_freeze_statistics = defaultdict(int)
     __resolve_stack = list()  # for preventing circular references during resolve.
     __non_freeze_counter = 0  # to force resolving even of frozen variables increment this
     variable_name_endings_to_normpath = ("_PATH", "_DIR", "_DIR_NAME", "_FILE_NAME", "_PATH__", "_DIR__", "_DIR_NAME__", "_FILE_NAME__")
@@ -243,13 +246,36 @@ class ConfigVarList(object):
             retVal = list_sep.join(value_list)
             return retVal
 
+    def print_statistics(self):
+        total_non_freeze = 0
+        total_with_freeze = 0
+        max_non_freeze_var = None
+        max_with_freeze_var = None
+        all_vars = set(list(self.resolve_with_freeze_statistics.keys()) + list(self.resolve_non_freeze_statistics.keys()))
+        for var in sorted(all_vars):
+            non_freeze_count = self.resolve_non_freeze_statistics.get(var, 0)
+            total_non_freeze += non_freeze_count
+            if non_freeze_count > self.resolve_non_freeze_statistics.get(max_non_freeze_var, 0):
+                max_non_freeze_var = var
+            with_freeze_count = self.resolve_with_freeze_statistics.get(var, 0)
+            total_with_freeze += with_freeze_count
+            if with_freeze_count > self.resolve_with_freeze_statistics.get(max_with_freeze_var, 0):
+                max_with_freeze_var = var
+            print(var, non_freeze_count, with_freeze_count)
+        print("max non freeze", max_non_freeze_var, self.resolve_non_freeze_statistics.get(max_non_freeze_var, 0))
+        print("max with freeze", max_with_freeze_var, self.resolve_with_freeze_statistics.get(max_with_freeze_var, 0))
+        print("total non freeze", total_non_freeze)
+        print("total with freeze", total_with_freeze)
+
     def ResolveVarToList(self, in_var, default=None):
         retVal = list()
         if in_var in self:
             if self.__non_freeze_counter == 0 and self[in_var].frozen_value:
                 retVal.extend(value for value in self[in_var])
+                self.resolve_with_freeze_statistics[in_var] += 1
                 return retVal
             with self.circular_resolve_check(in_var):
+                self.resolve_non_freeze_statistics[in_var] += 1
                 for value in self[in_var]:
                     if value is None:
                         retVal.append(None)
