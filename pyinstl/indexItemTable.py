@@ -64,7 +64,7 @@ class IndexItemsTable(object):
         self.db.exec_script_file("create-views.ddl")
 
     def drop_views(self):
-       self.db.exec_script_file("drop-views.sql")
+       self.db.exec_script_file("drop-views.ddl")
 
     def activate_all_oses(self):
         """ adds all known os names to the list of os that will influence all get functions
