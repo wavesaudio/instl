@@ -676,13 +676,13 @@ class IndexItemsTable(object):
                 CREATE TEMP TABLE guid_to_iid_temp_t
                 (
                     _id  INTEGER PRIMARY KEY,
-                    guid VARCHAR,
-                    iid  VARCHAR
+                    guid TEXT,
+                    iid  TEXT
                 );
                 """)
                 # add all guids to table guid_to_iid_temp_t with iid field defaults to Null
-                guid_dict_list = [{"guid": a_guid} for a_guid in set(guid_list)]
-                curs.execute("""INSERT INTO guid_to_iid_temp_t (guid) VALUES (:guid)""", guid_dict_list)
+                reduced_guid_list = [(guid,) for guid in set(guid_list)]
+                curs.executemany("""INSERT INTO guid_to_iid_temp_t (guid) VALUES (?)""", reduced_guid_list)
 
                 # insert to table guid_to_iid_temp_t guid, iid pairs.
                 # a guid might yield 0, 1, or more iids
