@@ -672,7 +672,7 @@ class IndexItemsTable(object):
         orphaned_guids = list()
         if guid_list:
             with self.db.temp_transaction() as curs:
-                self.session.execute("""
+                curs.execute("""
                 CREATE TEMP TABLE guid_to_iid_temp_t
                 (
                     _id  INTEGER PRIMARY KEY,
@@ -702,10 +702,10 @@ class IndexItemsTable(object):
                     GROUP BY guid
                     HAVING count(guid) < 2;
                     """
-                counted_orphaned_guids = self.session.execute(query_text).fetchall()
+                counted_orphaned_guids = curs.execute(query_text).fetchall()
                 orphaned_guids.extend([iid[0] for iid in counted_orphaned_guids])
 
-                not_null_iids = self.session.execute("""SELECT DISTINCT iid FROM guid_to_iid_temp_t WHERE iid NOTNULL ORDER BY iid""").fetchall()
+                not_null_iids = curs.execute("""SELECT DISTINCT iid FROM guid_to_iid_temp_t WHERE iid NOTNULL ORDER BY iid""").fetchall()
                 translated_iids.extend([iid[0] for iid in not_null_iids])
 
                 curs.execute("""DROP TABLE guid_to_iid_temp_t;""")
@@ -792,7 +792,7 @@ class IndexItemsTable(object):
             SET install_status=:new_status
         """
         with self.db.transaction() as curs:
-            self.session.execute(query_text, {'new_status': new_status})
+            curs.execute(query_text, {'new_status': new_status})
 
     def get_iids_by_status(self, min_status, max_status=None):
         if max_status is None:
@@ -1007,7 +1007,7 @@ class IndexItemsTable(object):
         for binary_details in binaries_version_list:
             folder, name = os.path.split(binary_details[0])
             binaries_version_to_insert.append((name, *binary_details))
-        self.add_binary_versions()
+        self.add_binary_versions(binaries_version_to_insert)
 
     def add_binary_versions(self, binaries_version_list):
          query_text = """INSERT INTO found_installed_binaries_t(name, path, version, guid) 
@@ -1049,8 +1049,8 @@ class IndexItemsTable(object):
             AND index_item_detail_t.detail_name='phantom_version'
         """
         with self.db.transaction() as curs:
-            curs.self.session.execute(query_text1)
-            curs.self.session.execute(query_text2)
+            curs.execute(query_text1)
+            curs.execute(query_text2)
 
     def add_require_guid_from_binaries(self):
         query_text = """
