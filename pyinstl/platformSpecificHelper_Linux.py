@@ -60,15 +60,23 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         restore_dir_command = self.cd("$(" + var_name + ")")
         return restore_dir_command
 
-    def rmdir(self, directory, recursive=False):
-        if recursive:
-            rmdir_command = " ".join(("rm", "-fr", utils.quoteme_double(directory) ))
+    def rmdir(self, a_dir, recursive=False):
+        if "'" in a_dir:
+            quated_a_dir = utils.quoteme_double(a_dir)
         else:
-            rmdir_command = " ".join(("rmdir", utils.quoteme_double(directory) ))
+            quated_a_dir = utils.quoteme_single(a_dir)
+        if recursive:
+            rmdir_command = " ".join(("rm", "-fr", a_dir))
+        else:
+            rmdir_command = " ".join(("rmdir", a_dir))
         return rmdir_command
 
     def rmfile(self, a_file):
-        rmfile_command = " ".join(("rm", "-f", utils.quoteme_double(a_file) ))
+        if "'" in a_file:
+            quated_a_file = utils.quoteme_double(a_file)
+        else:
+            quated_a_file = utils.quoteme_single(a_file)
+        rmfile_command = " ".join(("rm", "-f", quated_a_file))
         return rmfile_command
 
     def get_svn_folder_cleanup_instructions(self):
