@@ -27,11 +27,14 @@ from svnTree import SVNTable
 
 def check_version_compatibility():
     retVal = True
+    message = ""
     if "INSTL_MINIMAL_VERSION" in var_stack:
-        inst_ver = list(map(int, var_stack.ResolveVarToList("__INSTL_VERSION__")))
-        required_ver = list(map(int, var_stack.ResolveVarToList("INSTL_MINIMAL_VERSION")))
-        retVal = inst_ver >= required_ver
-    return retVal
+        cur_instl_ver = list(map(int, var_stack.ResolveVarToList("__INSTL_VERSION__")))
+        required_instl_ver = list(map(int, var_stack.ResolveVarToList("INSTL_MINIMAL_VERSION")))
+        retVal = cur_instl_ver >= required_instl_ver
+        if not retVal:
+            message = "instl version {} < minimal required version {}".format(cur_instl_ver, required_instl_ver)
+    return retVal, message
 
 
 # noinspection PyPep8Naming
@@ -267,7 +270,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             if self.need_info_map_table and not InstlInstanceBase.info_map_table:
                 InstlInstanceBase.info_map_table = SVNTable(InstlInstanceBase.db)
 
-    def __del__(self):
+    def close(self):
         if InstlInstanceBase.info_map_table:
             del InstlInstanceBase.info_map_table
         if InstlInstanceBase.items_table:

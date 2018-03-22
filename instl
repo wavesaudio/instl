@@ -152,7 +152,7 @@ def main():
 
     # make sure instance's dispose functions are called
     if instance is not None:
-        del instance
+        instance.close()
 
 
 class InvocationReporter(object):

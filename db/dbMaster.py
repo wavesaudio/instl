@@ -9,6 +9,7 @@ from _collections import defaultdict
 import operator
 
 import utils
+from configVar import var_stack
 
 """
     todo:
@@ -69,6 +70,7 @@ class DBMaster(object):
         self.__curs = None
         self.locked_tables = set()
         self.statistics = defaultdict(Statistic)
+        self.print_execute_times = False
 
     def read_ddl_file(self, ddl_file_name):
         ddl_path = os.path.join(self.internal_data_folder, "db", ddl_file_name)
@@ -122,17 +124,17 @@ class DBMaster(object):
     def close(self):
         if self.__conn:
             self.__conn.close()
-        for name, stats in sorted(self.statistics.items()):
-            average = stats.time/stats.count
-            print("{}, {}".format(name, repr(stats)))
+        if var_stack.ResolveVarToBool("PRINT_STATISTICS") and self.statistics:
+            for name, stats in sorted(self.statistics.items()):
+                average = stats.time/stats.count
+                print("{}, {}".format(name, repr(stats)))
 
-        if self.statistics:
-            max_count = max(self.statistics.items(), key=lambda S: S[1].count)
-            max_time = max(self.statistics.items(), key=lambda S: S[1].time)
-            total_DB_time = sum(stat.time for stat in self.statistics.values())
-            print("max count:", max_count[0], max_count[1])
-            print("max time:", max_time[0], max_time[1])
-            print("total DB time:", total_DB_time)
+                max_count = max(self.statistics.items(), key=lambda S: S[1].count)
+                max_time = max(self.statistics.items(), key=lambda S: S[1].time)
+                total_DB_time = sum(stat.time for stat in self.statistics.values())
+                print("max count:", max_count[0], max_count[1])
+                print("max time:", max_time[0], max_time[1])
+                print("total DB time:", total_DB_time)
 
     def erase_db(self):
         self.close()
@@ -173,9 +175,10 @@ class DBMaster(object):
             yield self.__curs
             self.commit()
             time2 = time.clock()
-            if not description:
-                description = inspect.stack()[2][3]
-            print('DB transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
+            if self.print_execute_times:
+                if not description:
+                    description = inspect.stack()[2][3]
+                print('DB transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
             self.statistics[description].add_instance((time2-time1)*1000.0)
         except:
             self.rollback()
@@ -190,9 +193,10 @@ class DBMaster(object):
             time1 = time.clock()
             yield self.__conn.cursor()
             time2 = time.clock()
-            if not description:
-                description = inspect.stack()[2][3]
-            print('DB selection %s took %0.3f ms' % (description, (time2-time1)*1000.0))
+            if self.print_execute_times:
+                if not description:
+                    description = inspect.stack()[2][3]
+                print('DB selection %s took %0.3f ms' % (description, (time2-time1)*1000.0))
             self.statistics[description].add_instance((time2-time1)*1000.0)
         except Exception as ex:
             raise
@@ -206,9 +210,10 @@ class DBMaster(object):
             time1 = time.clock()
             yield self.__conn.cursor()
             time2 = time.clock()
-            if not description:
-                description = inspect.stack()[2][3]
-            print('DB temporary transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
+            if self.print_execute_times:
+                if not description:
+                    description = inspect.stack()[2][3]
+                print('DB temporary transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
             self.statistics[description].add_instance((time2-time1)*1000.0)
         except Exception as ex:
             raise
@@ -232,7 +237,11 @@ class DBMaster(object):
         try:
             if query_params is None:
                 query_params = {}
-            with self.selection(inspect.stack()[1][3]) as curs:
+            if self.print_execute_times:
+                description = inspect.stack()[1][3]
+            else:
+                description = None
+            with self.selection(description) as curs:
                 curs.execute(query_text, query_params)
                 one_result = curs.fetchone()
                 if one_result:
@@ -254,7 +263,11 @@ class DBMaster(object):
         try:
             if query_params is None:
                 query_params = {}
-            with self.selection(inspect.stack()[1][3]) as curs:
+            if self.print_execute_times:
+                description = inspect.stack()[1][3]
+            else:
+                description = None
+            with self.selection(description) as curs:
                 curs.execute(query_text, query_params)
                 all_results = curs.fetchall()
                 if all_results:

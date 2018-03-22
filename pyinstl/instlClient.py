@@ -7,7 +7,7 @@ from collections import defaultdict, namedtuple, OrderedDict
 
 import utils
 import aYaml
-from .instlInstanceBase import InstlInstanceBase
+from .instlInstanceBase import InstlInstanceBase, check_version_compatibility
 from configVar import var_stack
 from svnTree import SVNTable
 
@@ -61,6 +61,9 @@ class InstlClient(InstlInstanceBase):
 
         main_input_file_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         self.read_yaml_file(main_input_file_path)
+        verOK, errorMessage = check_version_compatibility()
+        if not verOK:
+            raise Exception(errorMessage)
 
         self.init_default_client_vars()
         active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
