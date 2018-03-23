@@ -37,17 +37,17 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         return self.restore_dir("TOP_SAVE_DIR"), "exit 0"
 
     def mkdir(self, directory):
-        quoted_dir = utils.quote_path_properly(directory)
+        quoted_dir = utils.quoteme_double(directory)
         mk_command = " ".join(("mkdir", "-p", quoted_dir))
         return mk_command
 
     def cd(self, directory):
-        quoted_dir = utils.quote_path_properly(directory)
+        quoted_dir = utils.quoteme_double(directory)
         cd_command = " ".join(("cd", quoted_dir))
         return cd_command
 
     def pushd(self, directory):
-        quoted_dir = utils.quote_path_properly(directory)
+        quoted_dir = utils.quoteme_double(directory)
         pushd_command = " ".join(("pushd", quoted_dir, ">", "/dev/null"))
         return pushd_command
 
