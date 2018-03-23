@@ -377,12 +377,12 @@ def quoteme_double_list_for_sql(to_quote_list):
 
 
 def quote_path_properly(path_to_quote):
-    if "'" in path_to_quote:
+    quote_char = "'"
+    if "'" in path_to_quote or "${" in path_to_quote:
+        quote_char = '"'
         if '"' in path_to_quote:
             raise Exception("""both single quote and double quote found in {}""".format(path_to_quote))
-        quoted_path = utils.quoteme_double(path_to_quote)
-    else:
-        quoted_path = utils.quoteme_single(path_to_quote)
+    quoted_path = "".join((quote_char, path_to_quote, quote_char))
     return quoted_path
 
 
