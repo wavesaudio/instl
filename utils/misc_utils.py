@@ -376,6 +376,16 @@ def quoteme_double_list_for_sql(to_quote_list):
     return "".join(('("', '","'.join(to_quote_list), '")'))
 
 
+def quote_path_properly(path_to_quote):
+    if "'" in path_to_quote:
+        if '"' in path_to_quote:
+            raise Exception("""both single quote and double quote found in {}""".format(path_to_quote))
+        quoted_path = utils.quoteme_double(path_to_quote)
+    else:
+        quoted_path = utils.quoteme_single(path_to_quote)
+    return quoted_path
+
+
 detect_quotations = re.compile("(?P<prefix>[\"'])(?P<the_unquoted_text>.+)(?P=prefix)")
 
 

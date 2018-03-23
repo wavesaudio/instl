@@ -37,15 +37,18 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         return self.restore_dir("TOP_SAVE_DIR"), "exit 0"
 
     def mkdir(self, directory):
-        mk_command = " ".join(("mkdir", "-p", utils.quoteme_double(directory) ))
+        quoted_dir = utils.quote_path_properly(directory)
+        mk_command = " ".join(("mkdir", "-p", quoted_dir))
         return mk_command
 
     def cd(self, directory):
-        cd_command = " ".join(("cd", utils.quoteme_double(directory) ))
+        quoted_dir = utils.quote_path_properly(directory)
+        cd_command = " ".join(("cd", quoted_dir))
         return cd_command
 
     def pushd(self, directory):
-        pushd_command = " ".join(("pushd", utils.quoteme_double(directory), ">", "/dev/null"))
+        quoted_dir = utils.quote_path_properly(directory)
+        pushd_command = " ".join(("pushd", quoted_dir, ">", "/dev/null"))
         return pushd_command
 
     def popd(self):
@@ -61,22 +64,16 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         return restore_dir_command
 
     def rmdir(self, a_dir, recursive=False):
-        if "'" in a_dir:
-            quated_a_dir = utils.quoteme_double(a_dir)
-        else:
-            quated_a_dir = utils.quoteme_single(a_dir)
+        quoted_a_dir = utils.quote_path_properly(a_dir)
         if recursive:
-            rmdir_command = " ".join(("rm", "-fr", a_dir))
+            rmdir_command = " ".join(("rm", "-fr", quoted_a_dir))
         else:
-            rmdir_command = " ".join(("rmdir", a_dir))
+            rmdir_command = " ".join(("rmdir", quoted_a_dir))
         return rmdir_command
 
     def rmfile(self, a_file):
-        if "'" in a_file:
-            quated_a_file = utils.quoteme_double(a_file)
-        else:
-            quated_a_file = utils.quoteme_single(a_file)
-        rmfile_command = " ".join(("rm", "-f", quated_a_file))
+        quoted_a_file = utils.quote_path_properly(a_file)
+        rmfile_command = " ".join(("rm", "-f", quoted_a_file))
         return rmfile_command
 
     def get_svn_folder_cleanup_instructions(self):
