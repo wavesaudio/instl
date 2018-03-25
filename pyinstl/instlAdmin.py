@@ -1208,13 +1208,14 @@ class InstlAdmin(InstlInstanceBase):
             self.info_map_table.read_from_file(f2r)
 
     def do_check_instl_folder_integrity(self):
-        instl_folder = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
-        index_path = os.path.join(instl_folder, "index.yaml")
+        instl_folder_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        index_path = os.path.join(instl_folder_path, "index.yaml")
         self.read_yaml_file(index_path)
-        main_info_map_path = os.path.join(instl_folder, "info_map.txt")
+        main_info_map_path = os.path.join(instl_folder_path, "info_map.txt")
         self.info_map_table.read_from_file(main_info_map_path)
-        _, revision_folder_name = os.path.split(instl_folder)
-        revision_file_path = os.path.join(instl_folder, "V9_repo_rev.yaml."+revision_folder_name)
+        instl_folder_path_parts = os.path.normpath(instl_folder_path).split(os.path.sep)
+        revision_folder_name = instl_folder_path_parts[-1]
+        revision_file_path = os.path.join(instl_folder_path, "V9_repo_rev.yaml."+revision_folder_name)
         self.read_yaml_file(revision_file_path)
         index_checksum = utils.get_file_checksum(index_path)
         if var_stack.ResolveVarToStr("INDEX_CHECKSUM") != index_checksum:
