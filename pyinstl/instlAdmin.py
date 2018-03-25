@@ -1192,3 +1192,20 @@ class InstlAdmin(InstlInstanceBase):
         files_to_read = var_stack.ResolveVarToList("__MAIN_INPUT_FILE__")
         for f2r in files_to_read:
             self.info_map_table.read_from_file(f2r)
+
+    def do_check_instl_folder_integrity(self):
+        instl_folder = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        index_path = os.path.join(instl_folder, "index.yaml")
+        self.read_yaml_file(index_path)
+        main_info_map_path = os.path.join(instl_folder, "info_map.txt")
+        self.info_map_table.read_from_file(main_info_map_path)
+        _, revision_folder_name = os.path.split(instl_folder)
+        revision_file_path = os.path.join(instl_folder, "V9_repo_rev.yaml."+revision_folder_name)
+        self.read_yaml_file(revision_file_path)
+        index_checksum = utils.get_file_checksum(index_path)
+        if var_stack.ResolveVarToStr("INDEX_CHECKSUM") != index_checksum:
+            print("bad index checksum expected: {}, actual: {}".format(var_stack.ResolveVarToStr("INDEX_CHECKSUM"), index_checksum))
+
+        main_info_map_checksum = utils.get_file_checksum(main_info_map_path)
+        if var_stack.ResolveVarToStr("INFO_MAP_CHECKSUM") != main_info_map_checksum:
+            print("bad info_map.txt checksum expected: {}, actual: {}".format(var_stack.ResolveVarToStr("INFO_MAP_CHECKSUM"), main_info_map_checksum))
