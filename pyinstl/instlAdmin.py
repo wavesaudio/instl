@@ -414,20 +414,25 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_create_repo_rev_file(self):
         if "REPO_REV_FILE_VARS" not in var_stack:
+            # must have a list of variable names to write to the repo-rev file
             raise ValueError("REPO_REV_FILE_VARS must be defined")
         repo_rev_vars = var_stack.ResolveVarToList("REPO_REV_FILE_VARS")
         var_stack.set_var("REPO_REV").append("$(TARGET_REPO_REV)")  # override the repo rev from the config file
+
+        # check that the variable names from REPO_REV_FILE_VARS do not contain
+        # names that must not be made public
         dangerous_intersection = set(repo_rev_vars).intersection(
             {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "PRIVATE_KEY", "PRIVATE_KEY_FILE"})
         if dangerous_intersection:
             print("found", str(dangerous_intersection), "in REPO_REV_FILE_VARS, aborting")
             raise ValueError("file REPO_REV_FILE_VARS "+str(dangerous_intersection)+" and so is forbidden to upload")
 
+        # create checksum for the main info_map file
         info_map_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(TARGET_REPO_REV)/instl/info_map.txt")
         info_map_sigs = self.create_sig_for_file(info_map_file)
         var_stack.set_var("INFO_MAP_CHECKSUM").append(info_map_sigs["sha1_checksum"])
-        #var_stack.set_var("INFO_MAP_FILE_URL_CHECKSUM").append("$(INFO_MAP_CHECKSUM)")
 
+        # create checksum for the main index.yaml file
         var_stack.set_var("INDEX_URL_RELATIVE_PATH").append("$(REPO_NAME)/$(REPO_REV)/instl/index.yaml")
         var_stack.set_var("INDEX_URL").append("$(S3_BUCKET_BASE_URL)/$(INDEX_URL_RELATIVE_PATH)")
         index_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(TARGET_REPO_REV)/instl/index.yaml")
@@ -435,17 +440,26 @@ class InstlAdmin(InstlInstanceBase):
         var_stack.set_var("INDEX_SIG").append(index_file_sigs["SHA-512_rsa_sig"])
         var_stack.set_var("INDEX_CHECKSUM").append(index_file_sigs["sha1_checksum"])
 
+        # check that all variables are present
         for var in repo_rev_vars:
             if var not in var_stack:
                 raise ValueError(var + " is missing cannot write repo rev file")
 
-        repo_rev_yaml = aYaml.YamlDumpDocWrap(var_stack.repr_for_yaml(repo_rev_vars, include_comments=False),
-                                              '!define', "", explicit_start=True, sort_mappings=True)
+        # create yaml out of the variables
+        variables_as_yaml = var_stack.repr_for_yaml(repo_rev_vars, include_comments=False)
+        repo_rev_yaml_doc = aYaml.YamlDumpDocWrap(variables_as_yaml, '!define', "",
+                                              explicit_start=True, sort_mappings=True)
+
+        # repo rev file is written to the admin folder and to the repo-rev folder
         os.makedirs(var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER)/admin"), exist_ok=True)
-        local_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
-        with utils.utf8_open(local_file, "w") as wfd:
-            aYaml.writeAsYaml(repo_rev_yaml, out_stream=wfd, indentor=None, sort=True)
-            print("created", local_file)
+        admin_folder_path = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
+        with utils.utf8_open(admin_folder_path, "w") as wfd:
+            aYaml.writeAsYaml(repo_rev_yaml_doc, out_stream=wfd, indentor=None, sort=True)
+            print("created", admin_folder_path)
+        repo_rev_folder_path = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(TARGET_REPO_REV)/instl/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
+        with utils.utf8_open(repo_rev_folder_path, "w") as wfd:
+            aYaml.writeAsYaml(repo_rev_yaml_doc, out_stream=wfd, indentor=None, sort=True)
+            print("created", repo_rev_folder_path)
 
     def do_up_repo_rev(self):
         self.batch_accum.set_current_section('admin')

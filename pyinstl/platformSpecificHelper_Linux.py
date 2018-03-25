@@ -37,15 +37,18 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         return self.restore_dir("TOP_SAVE_DIR"), "exit 0"
 
     def mkdir(self, directory):
-        mk_command = " ".join(("mkdir", "-p", utils.quoteme_double(directory) ))
+        quoted_dir = utils.quoteme_double(directory)
+        mk_command = " ".join(("mkdir", "-p", quoted_dir))
         return mk_command
 
     def cd(self, directory):
-        cd_command = " ".join(("cd", utils.quoteme_double(directory) ))
+        quoted_dir = utils.quoteme_double(directory)
+        cd_command = " ".join(("cd", quoted_dir))
         return cd_command
 
     def pushd(self, directory):
-        pushd_command = " ".join(("pushd", utils.quoteme_double(directory), ">", "/dev/null"))
+        quoted_dir = utils.quoteme_double(directory)
+        pushd_command = " ".join(("pushd", quoted_dir, ">", "/dev/null"))
         return pushd_command
 
     def popd(self):
@@ -60,15 +63,17 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         restore_dir_command = self.cd("$(" + var_name + ")")
         return restore_dir_command
 
-    def rmdir(self, directory, recursive=False):
+    def rmdir(self, a_dir, recursive=False):
+        quoted_a_dir = utils.quote_path_properly(a_dir)
         if recursive:
-            rmdir_command = " ".join(("rm", "-fr", utils.quoteme_double(directory) ))
+            rmdir_command = " ".join(("rm", "-fr", quoted_a_dir))
         else:
-            rmdir_command = " ".join(("rmdir", utils.quoteme_double(directory) ))
+            rmdir_command = " ".join(("rmdir", quoted_a_dir))
         return rmdir_command
 
     def rmfile(self, a_file):
-        rmfile_command = " ".join(("rm", "-f", utils.quoteme_double(a_file) ))
+        quoted_a_file = utils.quote_path_properly(a_file)
+        rmfile_command = " ".join(("rm", "-f", quoted_a_file))
         return rmfile_command
 
     def get_svn_folder_cleanup_instructions(self):
