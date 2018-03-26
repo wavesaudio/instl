@@ -5,7 +5,7 @@ import os
 import filecmp
 import io
 import re
-import rsa
+import shutil
 import subprocess
 from collections import defaultdict
 import stat
@@ -379,7 +379,7 @@ class InstlAdmin(InstlInstanceBase):
         # remove all unrequired files
         unrequired_files = self.info_map_table.get_unrequired_file_paths()
         for i, unrequired_file in enumerate(unrequired_files):
-            accum += self.platform_helper.rmfile(unrequired_file, "'")
+            accum += self.platform_helper.rmfile(unrequired_file)
             if i % 1000 == 0:  # only report every 1000'th file
                 accum += self.platform_helper.progress("rmfile " + unrequired_file +" & 999 more")
 
@@ -414,9 +414,13 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_create_repo_rev_file(self):
         if "REPO_REV_FILE_VARS" not in var_stack:
+            # must have a list of variable names to write to the repo-rev file
             raise ValueError("REPO_REV_FILE_VARS must be defined")
         repo_rev_vars = var_stack.ResolveVarToList("REPO_REV_FILE_VARS")
         var_stack.set_var("REPO_REV").append("$(TARGET_REPO_REV)")  # override the repo rev from the config file
+
+        # check that the variable names from REPO_REV_FILE_VARS do not contain
+        # names that must not be made public
         var_stack.set_var("__CURR_REPO_FOLDER_HIERARCHY__").append(self.repo_rev_to_folder_hierarchy(var_stack.ResolveVarToStr("TARGET_REPO_REV")))
         var_stack.set_var("REPO_REV_FOLDER_HIERARCHY").append("$(__CURR_REPO_FOLDER_HIERARCHY__)")
 
@@ -428,12 +432,14 @@ class InstlAdmin(InstlInstanceBase):
             print("found", str(dangerous_intersection), "in REPO_REV_FILE_VARS, aborting")
             raise ValueError("file REPO_REV_FILE_VARS "+str(dangerous_intersection)+" and so is forbidden to upload")
 
+        # create checksum for the main info_map file
         var_stack.set_var("RELATIVE_INFO_MAP_URL").append("$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt$(WZLIB_EXTENSION)")
         var_stack.set_var("INFO_MAP_FILE_URL").append("$(BASE_LINKS_URL)/$(RELATIVE_INFO_MAP_URL)")
         info_map_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt$(WZLIB_EXTENSION)")
         info_map_checksum = utils.get_file_checksum(info_map_file)
         var_stack.set_var("INFO_MAP_CHECKSUM").append(info_map_checksum)
 
+        # create checksum for the main index.yaml file
         # zip the index file
         local_index_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml")
         zip_local_index_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml$(WZLIB_EXTENSION)")
@@ -446,17 +452,26 @@ class InstlAdmin(InstlInstanceBase):
         index_file_checksum = utils.get_file_checksum(zip_local_index_file)
         var_stack.set_var("INDEX_CHECKSUM").append(index_file_checksum)
 
+        # check that all variables are present
         for var in repo_rev_vars:
             if var not in var_stack:
                 raise ValueError(var + " is missing cannot write repo rev file")
 
-        repo_rev_yaml = aYaml.YamlDumpDocWrap(var_stack.repr_for_yaml(repo_rev_vars, include_comments=False),
-                                              '!define', "", explicit_start=True, sort_mappings=True)
+        # create yaml out of the variables
+        variables_as_yaml = var_stack.repr_for_yaml(repo_rev_vars, include_comments=False)
+        repo_rev_yaml_doc = aYaml.YamlDumpDocWrap(variables_as_yaml, '!define', "",
+                                              explicit_start=True, sort_mappings=True)
+
+        # repo rev file is written to the admin folder and to the repo-rev folder
         os.makedirs(var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER)/admin"), exist_ok=True)
-        local_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
-        with utils.utf8_open(local_file, "w") as wfd:
-            aYaml.writeAsYaml(repo_rev_yaml, out_stream=wfd, indentor=None, sort=True)
-            print("created", local_file)
+        admin_folder_path = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
+        with utils.utf8_open(admin_folder_path, "w") as wfd:
+            aYaml.writeAsYaml(repo_rev_yaml_doc, out_stream=wfd, indentor=None, sort=True)
+            print("created", admin_folder_path)
+        repo_rev_folder_path = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(TARGET_REPO_REV)/instl/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
+        with utils.utf8_open(repo_rev_folder_path, "w") as wfd:
+            aYaml.writeAsYaml(repo_rev_yaml_doc, out_stream=wfd, indentor=None, sort=True)
+            print("created", repo_rev_folder_path)
 
     def do_up_repo_rev(self):
         self.batch_accum.set_current_section('admin')
@@ -574,7 +589,7 @@ class InstlAdmin(InstlInstanceBase):
             for symlink_file, link_value in valid_symlinks:
                 symlink_text_path = symlink_file + ".symlink"
                 self.batch_accum += " ".join(("echo", "-n", "'" + link_value + "'", ">", "'" + symlink_text_path + "'"))
-                self.batch_accum += self.platform_helper.rmfile(symlink_file,)
+                self.batch_accum += self.platform_helper.rmfile(symlink_file)
                 self.batch_accum += self.platform_helper.progress(symlink_text_path)
                 self.batch_accum += self.platform_helper.new_line()
 
@@ -1230,4 +1245,34 @@ class InstlAdmin(InstlInstanceBase):
             for f2r in files_to_read:
                 self.info_map_table.read_from_file(f2r)
 
+    def do_check_instl_folder_integrity(self):
+        instl_folder_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        index_path = os.path.join(instl_folder_path, "index.yaml")
+        self.read_yaml_file(index_path)
+        main_info_map_path = os.path.join(instl_folder_path, "info_map.txt")
+        self.info_map_table.read_from_file(main_info_map_path)
+        instl_folder_path_parts = os.path.normpath(instl_folder_path).split(os.path.sep)
+        revision_folder_name = instl_folder_path_parts[-2]
+        revision_file_path = os.path.join(instl_folder_path, "V9_repo_rev.yaml."+revision_folder_name)
+        if not os.path.isfile(revision_file_path):
+            print("file not found", revision_file_path)
+        self.read_yaml_file(revision_file_path)
+        index_checksum = utils.get_file_checksum(index_path)
+        if var_stack.ResolveVarToStr("INDEX_CHECKSUM") != index_checksum:
+            print("bad index checksum expected: {}, actual: {}".format(var_stack.ResolveVarToStr("INDEX_CHECKSUM"), index_checksum))
 
+        main_info_map_checksum = utils.get_file_checksum(main_info_map_path)
+        if var_stack.ResolveVarToStr("INFO_MAP_CHECKSUM") != main_info_map_checksum:
+            print("bad info_map.txt checksum expected: {}, actual: {}".format(var_stack.ResolveVarToStr("INFO_MAP_CHECKSUM"), main_info_map_checksum))
+
+        self.items_table.activate_all_oses()
+        all_info_maps = self.items_table.get_detail_values_by_name_for_all_iids("info_map")
+        #print(all_info_maps)
+        all_instl_folder_items = self.info_map_table.get_file_items_of_dir('instl')
+        #print(all_instl_folder_items)
+        for item in all_instl_folder_items:
+            if item.leaf in all_info_maps:
+                info_map_full_path = os.path.join(instl_folder_path, item.leaf)
+                info_map_checksum = utils.get_file_checksum(info_map_full_path)
+                if item.checksum != info_map_checksum:
+                    print("bad {} checksum expected: {}, actual: {}".format(item.leaf, item.checksum, info_map_checksum))

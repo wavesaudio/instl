@@ -385,6 +385,16 @@ def quoteme_single_list_for_sql(to_quote_list):
     return "".join(("('", "','".join(to_quote_list), "')"))
 
 
+def quote_path_properly(path_to_quote):
+    quote_char = "'"
+    if "'" in path_to_quote or "${" in path_to_quote:
+        quote_char = '"'
+        if '"' in path_to_quote:
+            raise Exception("""both single quote and double quote found in {}""".format(path_to_quote))
+    quoted_path = "".join((quote_char, path_to_quote, quote_char))
+    return quoted_path
+
+
 detect_quotations = re.compile("(?P<prefix>[\"'])(?P<the_unquoted_text>.+)(?P=prefix)")
 
 
@@ -499,14 +509,6 @@ def timing(f):
             print('%s function took apparently no time at all' % f.__name__)
         return ret
     return wrap
-
-if False:
-    @contextmanager
-    def time_it(message):
-        time1 = time.time()
-        yield
-        time2 = time.time()
-        print('%s took %0.3f ms' % (message, (time2 - time1) * 1000.0))
 
 
 @contextmanager
