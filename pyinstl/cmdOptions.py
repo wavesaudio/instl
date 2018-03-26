@@ -105,6 +105,7 @@ def prepare_args_parser(in_command):
         'wtar-staging-folder':  {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'create .wtar files inside staging folder'},
         'wtar':                 {'mode': 'ds', 'options': ('in', 'out'), 'help':  'create .wtar files from specified files and folders'},
         'uninstall':            {'mode': 'ct', 'options': ('in', 'out', 'run',), 'help':  'uninstall previously copied files, considering dependencies'},
+        'check-instl-folder-integrity': {'mode': 'an', 'options': ('in',), 'help': 'check that index and info_maps have correct checksums, and other attributes'},
     }
 
     command_names = sorted(commands_details.keys())
