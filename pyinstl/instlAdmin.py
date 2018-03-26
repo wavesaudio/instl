@@ -1226,3 +1226,15 @@ class InstlAdmin(InstlInstanceBase):
         main_info_map_checksum = utils.get_file_checksum(main_info_map_path)
         if var_stack.ResolveVarToStr("INFO_MAP_CHECKSUM") != main_info_map_checksum:
             print("bad info_map.txt checksum expected: {}, actual: {}".format(var_stack.ResolveVarToStr("INFO_MAP_CHECKSUM"), main_info_map_checksum))
+
+        self.items_table.activate_all_oses()
+        all_info_maps = self.items_table.get_detail_values_by_name_for_all_iids("info_map")
+        #print(all_info_maps)
+        all_instl_folder_items = self.info_map_table.get_file_items_of_dir('instl')
+        #print(all_instl_folder_items)
+        for item in all_instl_folder_items:
+            if item.leaf in all_info_maps:
+                info_map_full_path = os.path.join(instl_folder_path, item.leaf)
+                info_map_checksum = utils.get_file_checksum(info_map_full_path)
+                if item.checksum != info_map_checksum:
+                    print("bad {} checksum expected: {}, actual: {}".format(item.leaf, item.checksum, info_map_checksum))
