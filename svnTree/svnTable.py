@@ -51,7 +51,7 @@ map_info_extension_to_format = {"txt": "text", "text": "text",
                                 "file-sizes": "file-sizes"}
 
 
-class SVNRow2(object):
+class SVNRow(object):
     __slots__ = ('_id', 'path', 'flags', 'revision',
                 'checksum', 'size', 'url', 'fileFlag',
                 'wtarFlag', 'leaf', 'parent', 'level',
@@ -116,7 +116,7 @@ class SVNRow2(object):
             value_list = list()
             if self.isDir():
                 for name in fields_to_repr:
-                    if name in SVNRow2.fields_relevant_to_dirs:
+                    if name in SVNRow.fields_relevant_to_dirs:
                         value_list.append(str(getattr(self, name, "no member named "+name)))
             else:
                 for name in fields_to_repr:
@@ -633,7 +633,7 @@ class SVNTable(object):
                     """, {"item_path": item_path})
             the_item = curs.fetchone()
             if the_item:
-                retVal = SVNRow2(the_item)
+                retVal = SVNRow(the_item)
         return retVal
 
     def get_file_item(self, item_path):
@@ -651,7 +651,7 @@ class SVNTable(object):
                     """, {"item_path": item_path})
             the_item = curs.fetchone()
             if the_item:
-                retVal = SVNRow2(the_item)
+                retVal = SVNRow(the_item)
         return retVal
 
     def get_dir_item(self, item_path):
@@ -669,7 +669,7 @@ class SVNTable(object):
                     """, {"item_path": item_path})
             the_item = curs.fetchone()
             if the_item:
-                retVal = SVNRow2(the_item)
+                retVal = SVNRow(the_item)
         return retVal
 
     def get_files_that_should_be_removed_from_sync_folder(self, files_to_check):
@@ -1351,5 +1351,5 @@ class SVNTable(object):
             curs.executemany(query_text, items_to_update)
 
     def SVNRowListToObjects(self, svn_row_list):
-        retVal = [SVNRow2(item) for item in svn_row_list]
+        retVal = [SVNRow(item) for item in svn_row_list]
         return retVal

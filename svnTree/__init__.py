@@ -1,1 +1,1 @@
-from .svnTable import SVNTable, SVNRow2
+from .svnTable import SVNTable, SVNRow
