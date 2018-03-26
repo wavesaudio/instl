@@ -1214,8 +1214,10 @@ class InstlAdmin(InstlInstanceBase):
         main_info_map_path = os.path.join(instl_folder_path, "info_map.txt")
         self.info_map_table.read_from_file(main_info_map_path)
         instl_folder_path_parts = os.path.normpath(instl_folder_path).split(os.path.sep)
-        revision_folder_name = instl_folder_path_parts[-1]
+        revision_folder_name = instl_folder_path_parts[-2]
         revision_file_path = os.path.join(instl_folder_path, "V9_repo_rev.yaml."+revision_folder_name)
+        if not os.path.isfile(revision_file_path):
+            print("file not found", revision_file_path)
         self.read_yaml_file(revision_file_path)
         index_checksum = utils.get_file_checksum(index_path)
         if var_stack.ResolveVarToStr("INDEX_CHECKSUM") != index_checksum:
