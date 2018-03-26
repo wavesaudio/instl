@@ -377,7 +377,7 @@ class InstlAdmin(InstlInstanceBase):
         # remove all unrequired files
         unrequired_files = self.info_map_table.get_unrequired_file_paths()
         for i, unrequired_file in enumerate(unrequired_files):
-            accum += self.platform_helper.rmfile(unrequired_file, "'")
+            accum += self.platform_helper.rmfile(unrequired_file)
             if i % 1000 == 0:  # only report every 1000'th file
                 accum += self.platform_helper.progress("rmfile " + unrequired_file +" & 999 more")
 
