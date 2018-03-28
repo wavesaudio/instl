@@ -7,6 +7,8 @@ import sys
 import shlex
 import tarfile
 import time
+import filecmp
+
 import utils
 from collections import OrderedDict
 from .instlInstanceBase import InstlInstanceBase
@@ -49,7 +51,7 @@ class InstlMisc(InstlInstanceBase):
         do_command_func()
         after_time = time.clock()
         if utils.str_to_bool_int(var_stack.unresolved_var("PRINT_COMMAND_TIME")):
-            print(self.the_command, "time:", round(after_time - before_time, 2), "sec.")
+            print(self.the_command, "time:", round(after_time - before_time, 4), "sec.")
 
     def dynamic_progress(self, msg):
         if self.total_progress > 0:
@@ -186,6 +188,17 @@ class InstlMisc(InstlInstanceBase):
             else:
                 print("{0} skipped since {0}.wtar already exists and has the same contents".format(what_to_work_on))
 
+    def can_skip_unwtar(self, what_to_work_on, where_to_unwtar):
+        return False
+        # disabled for now because Info.xml is copied before unwtarring take place
+        try:
+            what_to_work_on_info_xml = os.path.join(what_to_work_on, "Contents", "Info.xml")
+            where_to_unwtar_info_xml = os.path.join(where_to_unwtar, "Contents", "Info.xml")
+            retVal = filecmp.cmp(what_to_work_on_info_xml, where_to_unwtar_info_xml, shallow=True)
+        except:
+            retVal = False
+        return retVal
+
     def do_unwtar(self):
         self.no_artifacts = "__NO_WTAR_ARTIFACTS__" in var_stack
         what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__", default='.')
@@ -199,22 +212,25 @@ class InstlMisc(InstlInstanceBase):
             if utils.is_first_wtar_file(what_to_work_on):
                 utils.unwtar_a_file(what_to_work_on, where_to_unwtar, no_artifacts=self.no_artifacts, ignore=ignore_files)
         elif os.path.isdir(what_to_work_on):
-            where_to_unwtar_the_file = None
-            for root, dirs, files in os.walk(what_to_work_on, followlinks=False):
-                # a hack to prevent unwtarring of the sync folder. Copy command might copy something
-                # to the top level of the sync folder.
-                if "bookkeeping" in dirs:
-                    dirs[:] = []
-                    print("skipping", root, "because bookkeeping folder was found")
-                    continue
+            if not self.can_skip_unwtar(what_to_work_on, where_to_unwtar):
+                where_to_unwtar_the_file = None
+                for root, dirs, files in os.walk(what_to_work_on, followlinks=False):
+                    # a hack to prevent unwtarring of the sync folder. Copy command might copy something
+                    # to the top level of the sync folder.
+                    if "bookkeeping" in dirs:
+                        dirs[:] = []
+                        print("skipping", root, "because bookkeeping folder was found")
+                        continue
 
-                tail_folder = root[len(what_to_work_on):].strip("\\/")
-                if where_to_unwtar is not None:
-                    where_to_unwtar_the_file = os.path.join(where_to_unwtar, tail_folder)
-                for a_file in files:
-                    a_file_path = os.path.join(root, a_file)
-                    if utils.is_first_wtar_file(a_file_path):
-                        utils.unwtar_a_file(a_file_path, where_to_unwtar_the_file, no_artifacts=self.no_artifacts, ignore=ignore_files)
+                    tail_folder = root[len(what_to_work_on):].strip("\\/")
+                    if where_to_unwtar is not None:
+                        where_to_unwtar_the_file = os.path.join(where_to_unwtar, tail_folder)
+                    for a_file in files:
+                        a_file_path = os.path.join(root, a_file)
+                        if utils.is_first_wtar_file(a_file_path):
+                            utils.unwtar_a_file(a_file_path, where_to_unwtar_the_file, no_artifacts=self.no_artifacts, ignore=ignore_files)
+            else:
+                print("unwtar {} to {} skipping unwtarring because both folders have the same Info.xml file".format(what_to_work_on, where_to_unwtar))
 
         else:
             raise FileNotFoundError(what_to_work_on)

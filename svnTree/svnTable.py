@@ -874,7 +874,7 @@ class SVNTable(object):
         :return: a tuple: (a list of fies marked for download, their total size)
         """
         query_text = """
-            SELECT COUNT(_id), SUM(size) FROM svn_item_t
+            SELECT COUNT(_id), COALESCE(SUM(size), 0) FROM svn_item_t
             WHERE need_download == 1
             AND fileFlag = 1
             """
