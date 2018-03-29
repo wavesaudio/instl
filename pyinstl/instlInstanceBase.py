@@ -555,11 +555,17 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.info_map_table.read_from_file(info_map_from_file_path, a_format="text")
 
     def repo_rev_to_folder_hierarchy(self, repo_rev):
-        if not self.num_digits_repo_rev_hierarchy:
-            self.num_digits_repo_rev_hierarchy=int(var_stack.ResolveVarToStr("NUM_DIGITS_REPO_REV_HIERARCHY"))
-        if not self.num_digits_per_folder_repo_rev_hierarchy:
-            self.num_digits_per_folder_repo_rev_hierarchy=int(var_stack.ResolveVarToStr("NUM_DIGITS_PER_FOLDER_REPO_REV_HIERARCHY"))
-        zero_pad_repo_rev = str(repo_rev).zfill(self.num_digits_repo_rev_hierarchy)
-        by_groups = [zero_pad_repo_rev[i:i+self.num_digits_per_folder_repo_rev_hierarchy] for i in range(0, len(zero_pad_repo_rev), self.num_digits_per_folder_repo_rev_hierarchy)]
-        retVal = "/".join(by_groups)
+        retVal = str(repo_rev)
+        return retVal
+        try:
+            if self.num_digits_repo_rev_hierarchy is None:
+                self.num_digits_repo_rev_hierarchy=int(var_stack.ResolveVarToStr("NUM_DIGITS_REPO_REV_HIERARCHY"))
+            if self.num_digits_per_folder_repo_rev_hierarchy is None:
+                self.num_digits_per_folder_repo_rev_hierarchy=int(var_stack.ResolveVarToStr("NUM_DIGITS_PER_FOLDER_REPO_REV_HIERARCHY"))
+            if self.num_digits_repo_rev_hierarchy > 0 and self.num_digits_per_folder_repo_rev_hierarchy > 0:
+                zero_pad_repo_rev = str(repo_rev).zfill(self.num_digits_repo_rev_hierarchy)
+                by_groups = [zero_pad_repo_rev[i:i+self.num_digits_per_folder_repo_rev_hierarchy] for i in range(0, len(zero_pad_repo_rev), self.num_digits_per_folder_repo_rev_hierarchy)]
+                retVal = "/".join(by_groups)
+        except:
+            pass
         return retVal

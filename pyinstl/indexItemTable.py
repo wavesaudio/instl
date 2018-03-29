@@ -577,7 +577,9 @@ class IndexItemsTable(object):
             query_text1 = """
                 INSERT INTO index_item_detail_t
                 (original_iid, owner_iid, os_id, detail_name, detail_value)
-                VALUES(:original_iid, :owner_iid, :os_id, :detail_name, :detail_value)
+                SELECT index_item_t.iid, :owner_iid, :os_id, :detail_name, :detail_value
+                FROM index_item_t
+                WHERE :original_iid == index_item_t.iid
                 """
             all_details = list()
             for details_for_iid in require_items.values():

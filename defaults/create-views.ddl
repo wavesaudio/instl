@@ -1,5 +1,5 @@
 -- iid, index_version, generation
-CREATE VIEW IF NOT EXISTS "require_items_without_require_version_view2" AS
+CREATE VIEW IF NOT EXISTS "require_items_without_require_version_view" AS
 SELECT main_details_t.owner_iid AS iid,
     main_details_t.detail_value AS index_version,
     min(main_details_t.generation) AS generation
@@ -16,7 +16,7 @@ WHERE main_details_t.detail_name='version'
 GROUP BY (main_details_t.owner_iid);
 
 -- view of items from require.yaml that do not have a require_guid field
-CREATE VIEW IF NOT EXISTS "require_items_without_require_guid_view2" AS
+CREATE VIEW IF NOT EXISTS "require_items_without_require_guid_view" AS
 SELECT
     main_details_t.owner_iid       AS iid,
     main_details_t.detail_value    AS index_guid,
@@ -61,13 +61,13 @@ CREATE VIEW IF NOT EXISTS "report_versions_view" AS
         AND remote.os_is_active=1
     GROUP BY remote.owner_iid;
 
-CREATE VIEW IF NOT EXISTS "iids_to_install_sources_view2" AS
+CREATE VIEW IF NOT EXISTS "iids_to_install_sources_view" AS
 SELECT iid_to_svn_item_t.iid, svn_item_t.path
 FROM iid_to_svn_item_t, svn_item_t
 WHERE
     iid_to_svn_item_t.svn_id=svn_item_t._id;
 
-CREATE VIEW IF NOT EXISTS "versions_view2" AS
+CREATE VIEW IF NOT EXISTS "versions_view" AS
 SELECT version_t.owner_iid AS iid, version_t.detail_value AS version, min(version_t.generation) AS generation
 FROM index_item_detail_t AS version_t
 WHERE version_t.detail_name='version'

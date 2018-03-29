@@ -43,6 +43,7 @@ SOURCE_PREFIX: $(TARGET_OS)
 
 COPY_IGNORE_PATTERNS:
     - "*.done"
+    - "._*"
 
 RSYNC_PERM_OPTIONS: a+rw,+X
 

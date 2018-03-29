@@ -72,6 +72,9 @@ class DBMaster(object):
         self.statistics = defaultdict(Statistic)
         self.print_execute_times = False
 
+    def get_file_path(self):
+        return self.db_file_path
+
     def read_ddl_file(self, ddl_file_name):
         ddl_path = os.path.join(self.internal_data_folder, "db", ddl_file_name)
         with open(ddl_path, "r") as rfd:

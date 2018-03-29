@@ -44,6 +44,15 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
             with self.instlObj.info_map_table.reading_files_context():
                 os.makedirs(var_stack.ResolveVarToStr("LOCAL_REPO_BOOKKEEPING_DIR"), exist_ok=True)
                 os.makedirs(var_stack.ResolveVarToStr("LOCAL_REPO_REV_BOOKKEEPING_DIR"), exist_ok=True)
+
+                if "INSTL_FOLDER_BASE_URL" not in var_stack:
+                    if "REPO_REV_FOLDER_HIERARCHY" not in var_stack:
+                        var_stack.set_var("REPO_REV_FOLDER_HIERARCHY").append(self.instlObj.repo_rev_to_folder_hierarchy(var_stack.ResolveVarToStr("REPO_REV")))
+                    var_stack.set_var("INSTL_FOLDER_BASE_URL").append("$(BASE_LINKS_URL)/$(REPO_NAME)/$(REPO_REV_FOLDER_HIERARCHY)/instl")
+
+                if "INFO_MAP_FILE_URL" not in var_stack:
+                    var_stack.set_var("INFO_MAP_FILE_URL").append(var_stack.ResolveStrToStr("$(INSTL_FOLDER_BASE_URL)/info_map.txt"))
+
                 info_map_file_url = var_stack.ResolveVarToStr("INFO_MAP_FILE_URL")
                 info_map_file_expected_checksum = None
                 if "INFO_MAP_CHECKSUM" in var_stack:
