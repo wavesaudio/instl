@@ -27,19 +27,26 @@ class YamlReader(object):
         self.specific_doc_readers = dict()
         self.file_read_stack = list()
         self.exception_printed = False
+        self.post_nodes = list()
 
     def init_specific_doc_readers(self): # this function must be overridden
         self.specific_doc_readers["__no_tag__"] = self.do_nothing_node_reader
         self.specific_doc_readers["__unknown_tag__"] = self.do_nothing_node_reader
 
     def get_read_function_for_doc(self, a_node):
+        is_post_tag = False  # post tags should be read only after all documents where read
         if not a_node.tag:
             retVal = self.specific_doc_readers.get("__no_tag__", None)
-        elif a_node.tag in self.specific_doc_readers:
-            retVal = self.specific_doc_readers[a_node.tag]
         else:
-            retVal = self.specific_doc_readers.get("__unknown_tag__", None)
-        return retVal
+            effective_tag = a_node.tag
+            if a_node.tag.endswith("_post"):
+                effective_tag = a_node.tag[:-len("_post")]
+                is_post_tag = True
+            if effective_tag in self.specific_doc_readers:
+                retVal = self.specific_doc_readers[effective_tag]
+            else:
+                retVal = self.specific_doc_readers.get("__unknown_tag__", None)
+        return retVal, is_post_tag
 
     def do_nothing_node_reader(self, a_node, *args, **kwargs):
         pass
@@ -52,6 +59,12 @@ class YamlReader(object):
             kwargs['path-to-file'] = file_path
             self.read_yaml_from_stream(buffer, *args, **kwargs)
             self.file_read_stack.pop()
+            # now read the __post tags if any
+            if len(self.file_read_stack) == 0:  # first file done reading
+                while self.post_nodes:
+                    a_post_node, a_post_read_func = self.post_nodes.pop()
+                    a_post_read_func(a_post_node, *args, **kwargs)
+
         except (FileNotFoundError, urllib.error.URLError) as ex:
             ignore = kwargs.get('ignore_if_not_exist', False)
             if ignore:
@@ -74,9 +87,12 @@ class YamlReader(object):
         for a_node in yaml.compose_all(the_stream):
             YamlReader.convert_standard_tags(a_node)
             self.init_specific_doc_readers()  # in case previous reading changed the assigned readers (ACCEPTABLE_YAML_DOC_TAGS)
-            read_func = self.get_read_function_for_doc(a_node)
+            read_func, is_post_tag = self.get_read_function_for_doc(a_node)
             if read_func is not None:
-                read_func(a_node, *args, **kwargs)
+                if is_post_tag:
+                    self.post_nodes.append((a_node, read_func))
+                else:
+                    read_func(a_node, *args, **kwargs)
 
     @staticmethod
     def convert_standard_tags(a_node):
