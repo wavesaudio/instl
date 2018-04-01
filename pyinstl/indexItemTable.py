@@ -43,6 +43,7 @@ class IndexItemsTable(object):
         self.os_names_db_objs = list()
         self.add_triggers()
         self.add_views()
+        self.defines_for_iids = dict()  # defines whuch are specific to an iid
 
     def __del__(self):
         self.db.unlock_all_tables()
@@ -508,6 +509,9 @@ class IndexItemsTable(object):
             elif detail_name == 'actions':
                 actions_details = self.read_item_details_from_node(the_iid, detail_node[1], the_os)
                 details.extend(actions_details)
+            elif detail_name.startswith("define"):
+                self.defines_for_iids[the_iid] = detail_node[1]
+                self.defines_for_iids[the_iid].tag = "!"+detail_name
             else:
                 for details_line in detail_node[1]:
                     tag = details_line.tag if details_line.tag[0] == '!' else None
@@ -1229,7 +1233,15 @@ class IndexItemsTable(object):
     def get_ids_oses_active(self):
         return self.db.select_and_fetchall("SELECT _id, name, os_is_active FROM active_operating_systems_t")
 
-
+    def get_active_iids(self):
+        query_text = """
+           SELECT iid
+           FROM index_item_t
+           WHERE index_item_t.install_status!=0
+           AND index_item_t.ignore=0
+           """
+        retVal = self.db.select_and_fetchall(query_text)
+        return retVal
 
 
 
