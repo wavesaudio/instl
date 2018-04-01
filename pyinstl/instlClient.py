@@ -84,6 +84,7 @@ class InstlClient(InstlInstanceBase):
         # after reading variable COPY_TOOL from yaml, we might need to re-init the copy tool.
         self.platform_helper.init_copy_tool()
         self.calculate_install_items()
+        self.read_defines_for_active_iids()
         self.platform_helper.num_items_for_progress_report = int(var_stack.ResolveVarToStr("LAST_PROGRESS"))
         self.platform_helper.no_progress_messages = "NO_PROGRESS_MESSAGES" in var_stack
 
@@ -498,6 +499,16 @@ class InstlClient(InstlInstanceBase):
         name_list = self.items_table.get_resolved_details_value_for_active_iid(iid=iid, detail_name="name")
         retVal = next(iter(name_list), iid)  # trick to get the first element in a list or default if list is empty
         return retVal
+
+    def read_defines_for_active_iids(self):
+        """ read the defines specific for each active iid
+        """
+        if self.items_table.defines_for_iids:
+            var_stack.push_scope()
+            active_iids = self.items_table.get_active_iids()
+            for iid, defines_for_iid in self.items_table.defines_for_iids.items():
+                if iid in active_iids:
+                    self.read_yaml_from_node(defines_for_iid)
 
 
 def InstlClientFactory(initial_vars, command):

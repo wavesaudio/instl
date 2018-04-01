@@ -85,14 +85,17 @@ class YamlReader(object):
 
     def read_yaml_from_stream(self, the_stream, *args, **kwargs):
         for a_node in yaml.compose_all(the_stream):
-            YamlReader.convert_standard_tags(a_node)
-            self.init_specific_doc_readers()  # in case previous reading changed the assigned readers (ACCEPTABLE_YAML_DOC_TAGS)
-            read_func, is_post_tag = self.get_read_function_for_doc(a_node)
-            if read_func is not None:
-                if is_post_tag:
-                    self.post_nodes.append((a_node, read_func))
-                else:
-                    read_func(a_node, *args, **kwargs)
+            self.read_yaml_from_node(a_node, *args, **kwargs)
+
+    def read_yaml_from_node(self, the_node, *args, **kwargs):
+        YamlReader.convert_standard_tags(the_node)
+        self.init_specific_doc_readers()  # in case previous reading changed the assigned readers (ACCEPTABLE_YAML_DOC_TAGS)
+        read_func, is_post_tag = self.get_read_function_for_doc(the_node)
+        if read_func is not None:
+            if is_post_tag:
+                self.post_nodes.append((the_node, read_func))
+            else:
+                read_func(the_node, *args, **kwargs)
 
     @staticmethod
     def convert_standard_tags(a_node):
