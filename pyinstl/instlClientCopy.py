@@ -193,14 +193,16 @@ class InstlClientCopy(InstlClient):
 
     def create_copy_instructions_for_dir_cont(self, source_path, name_for_progress_message):
         source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
+        source_items = self.info_map_table.get_items_in_dir(dir_path=source_path)
+        wtar_base_names = {source_item.unwtarred.split("/")[-1] for source_item in source_items if source_item.wtarFlag}
+        ignores = self.patterns_copy_should_ignore + list(wtar_base_names)
         self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(
                                                     source_path_abs,
                                                     ".",
                                                     link_dest=True,
-                                                    ignore=self.patterns_copy_should_ignore,
+                                                    ignore=ignores,
                                                     preserve_dest_files=True)  # preserve files already in destination
 
-        source_items = self.info_map_table.get_items_in_dir(dir_path=source_path)
         self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
 
         if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
@@ -212,8 +214,7 @@ class InstlClientCopy(InstlClient):
                     if source_item.isExecutable():
                         self.batch_accum += self.platform_helper.chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)
 
-        num_wtars = functools.reduce(lambda total, item: total + item.wtarFlag, source_items, 0)
-        if num_wtars > 0:
+        if len(wtar_base_names) > 0:
             self.unwtar_instructions.append((source_path_abs, '.'))
             self.batch_accum += self.platform_helper.unlock('.', recursive=True)
 
@@ -226,10 +227,12 @@ class InstlClientCopy(InstlClient):
         dir_item = self.info_map_table.get_dir_item(source_path)
         if dir_item is not None:
             source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
+            source_items = self.info_map_table.get_items_in_dir(dir_path=source_path)
+            wtar_base_names = {source_item.unwtarred.split("/")[-1] for source_item in source_items if source_item.wtarFlag}
+            ignores = self.patterns_copy_should_ignore + list(wtar_base_names)
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path_abs, ".",
                                                                                link_dest=True,
-                                                                               ignore=self.patterns_copy_should_ignore)
-            source_items = self.info_map_table.get_items_in_dir(dir_path=source_path)
+                                                                               ignore=ignores)
             self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
 
             source_path_dir, source_path_name = os.path.split(source_path)
@@ -243,8 +246,7 @@ class InstlClientCopy(InstlClient):
                         # executable files should also get exec bit
                         self.batch_accum += self.platform_helper.chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)
 
-            num_wtars = functools.reduce(lambda total, item: total + item.wtarFlag, source_items, 0)
-            if num_wtars > 0:
+            if len(wtar_base_names) > 0:
                 self.unwtar_instructions.append((source_path_abs, source_path_name))
                 self.batch_accum += self.platform_helper.unlock(".", recursive=True)
 
