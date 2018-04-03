@@ -56,7 +56,7 @@ class SVNRow(object):
                 'checksum', 'size', 'url', 'fileFlag',
                 'wtarFlag', 'leaf', 'parent', 'level',
                 'required', 'need_download', 'download_path',
-                'download_root', 'extra_props', 'unwtarred')
+                'download_root', 'extra_props', 'parent_id', 'unwtarred')
     fields_relevant_to_dirs = ('path', 'parent', 'level', 'flags', 'revision', 'required')
     fields_relevant_to_str = ('path', 'flags', 'revision', 'checksum', 'size', 'url')
 
@@ -78,7 +78,8 @@ class SVNRow(object):
         self.download_path =    svn_item_tuple[14]
         self.download_root =    svn_item_tuple[15]
         self.extra_props =      svn_item_tuple[16]
-        self.unwtarred =        svn_item_tuple[17]
+        self.parent_id =        svn_item_tuple[17]
+        self.unwtarred =        svn_item_tuple[18]
 
     def __repr__(self):
         isDir = not self.fileFlag
@@ -182,25 +183,9 @@ class SVNRow(object):
         retVal = False
         if isinstance(self, other.__class__):
             retVal = self.__dict__ == other.__dict__
-        elif isinstance(other, sqlite3.Row): \
-            retVal= (other['_id'] == self._id
-            and     other['path'] == self.path
-            and     other['flags'] == self.flags
-            and     other['revision'] == self.revision
-            and     other['checksum'] == self.checksum
-            and     other['size'] == self.size
-            and     other['url'] == self.url
-            and     other['fileFlag'] == self.fileFlag
-            and     other['wtarFlag'] == self.wtarFlag
-            and     other['leaf'] == self.leaf
-            and     other['parent'] == self.parent
-            and     other['level'] == self.level
-            and     other['required'] == self.required
-            and     other['need_download'] == self.need_download
-            and     other['download_path'] == self.download_path
-            and     other['download_root'] == self.download_root
-            and     other['unwtarred']     == self.unwtarred
-                    )
+        elif isinstance(other, sqlite3.Row):
+            other_as_SVNRow = SVNRow(other)
+            retVal = self.__dict__ == other_as_SVNRow.__dict__
         elif isinstance(other, tuple): \
             retVal= (other[0] == self._id
             and     other[1] == self.path
