@@ -5,8 +5,6 @@ ConfigVars:
 wtar:
     - avoid compression when wtarring zip files
 
-unwtar:
-
 copy:
     - unwtar stay out of sync folder not just bookkeeping
     - resolvesymlink stay out of sync folder not just bookkeeping
@@ -18,7 +16,11 @@ installer:
     - checkout cxfreeze instead of pyinstaller
     - folder instead of single file. Is launching really faster?
 
-error handling:
+error handling batch files:
+    - unify batch as generated python? (Nir's idea) for better handling and reporting of errors?
+    - PowerShell for windows? check if systems allow running unsigned scripts created on the fly
+
+error handling python:
     - better handling and reporting of unknown command names, missing files, missing parameters, etc...
 
 Admin:
@@ -33,7 +35,6 @@ documentation:
     - markdown
 
 database:
-    - get rid of sqlalchemy use plain sqlite
     - move SELECT(*)'s to be views
 
 done:
@@ -48,3 +49,4 @@ done:
     - CloudFront! no more URLs file
     - wtar: remove .DS_Store before wtar
     - database: read views, triggers from file
+    - get rid of sqlalchemy use plain sqlite
