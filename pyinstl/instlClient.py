@@ -292,11 +292,14 @@ class InstlClient(InstlInstanceBase):
         retVal = 0  # return number of real actions added (i.e. excluding progress message)
         iid_and_action = self.items_table.get_iids_and_details_for_active_iids(action_type, unique_values=True, limit_to_iids=limit_to_iids)
         iid_and_action.sort(key=lambda tup: tup[0])
+        previous_iid = ""
         for IID, an_action in iid_and_action:
-            name_and_version = self.name_and_version_for_iid(iid=IID)
+            if IID != previous_iid:  # avoid multiple progress messages for same iid
+                name_and_version = self.name_and_version_for_iid(iid=IID)
+                action_description = self.action_type_to_progress_message[action_type]
+                self.batch_accum += self.platform_helper.progress("{0} {1}".format(name_and_version, action_description))
+                previous_iid = IID
             self.batch_accum += an_action
-            action_description = self.action_type_to_progress_message[action_type]
-            self.batch_accum += self.platform_helper.progress("{0} {1}".format(name_and_version, action_description))
             retVal += 1
         return retVal
 
@@ -472,7 +475,6 @@ class InstlClient(InstlInstanceBase):
             for previous_source in previous_sources:
                 self.create_remove_previous_sources_instructions_for_source(target_folder_path, previous_source)
 
-            self.batch_accum += self.platform_helper.progress("remove previous versions {0} done".format(target_folder_path))
             self.batch_accum += self.platform_helper.remark("- End folder {0}".format(target_folder_path))
 
     def create_remove_previous_sources_instructions_for_source(self, folder, source):
@@ -490,9 +492,18 @@ class InstlClient(InstlInstanceBase):
         elif source_type == '!dir_cont':
             raise Exception("previous_sources cannot have tag !dir_cont")
 
+    def name_from_iid(self, iid):
+        """ for those cases when no name was given to the iid"""
+        retVal = iid.replace("_IID", "")
+        retVal = retVal.replace("_", " ")
+        return retVal
+
     def name_and_version_for_iid(self, iid):
         name_and_version_list = self.items_table.get_resolved_details_value_for_active_iid(iid=iid, detail_name="name_and_version")
-        retVal = next(iter(name_and_version_list), iid)  # trick to get the first element in a list or default if list is empty
+        if name_and_version_list:
+            retVal = name_and_version_list[0]
+        else:
+            retVal = self.name_from_iid(iid)
         return retVal
 
     def name_for_iid(self, iid):

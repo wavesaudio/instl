@@ -56,7 +56,7 @@ class SVNRow(object):
                 'checksum', 'size', 'url', 'fileFlag',
                 'wtarFlag', 'leaf', 'parent', 'level',
                 'required', 'need_download', 'download_path',
-                'download_root', 'extra_props', 'parent_id', 'unwtarred')
+                'download_root', 'extra_props', 'parent_id', 'unwtarred', 'symlinkFlag')
     fields_relevant_to_dirs = ('path', 'parent', 'level', 'flags', 'revision', 'required')
     fields_relevant_to_str = ('path', 'flags', 'revision', 'checksum', 'size', 'url')
 
@@ -80,6 +80,7 @@ class SVNRow(object):
         self.extra_props =      svn_item_tuple[16]
         self.parent_id =        svn_item_tuple[17]
         self.unwtarred =        svn_item_tuple[18]
+        self.symlinkFlag =      svn_item_tuple[19]
 
     def __repr__(self):
         isDir = not self.fileFlag
@@ -204,7 +205,9 @@ class SVNRow(object):
             and     other[14] == self.download_path
             and     other[15] == self.download_root
             and     other[16] == self.extra_props
-            and     other[17] == self.unwtarred
+            and     other[17] == self.parent_id
+            and     other[18] == self.unwtarred
+            and     other[19] == self.symlinkFlag
                     )
         return retVal
 
@@ -237,6 +240,24 @@ class SVNTable(object):
             WHERE child_item_t.parent_id = get_children.__ID
         )
         SELECT * FROM svn_item_t
+        WHERE _id IN get_children
+        {another_filter}
+        ORDER BY parent_id
+        """
+    count_child_items_q = """
+        WITH RECURSIVE get_children(__ID) AS
+        (
+            SELECT first_item_t._id
+            FROM svn_item_t AS first_item_t
+            WHERE first_item_t.parent_id=:parent_id
+
+            UNION
+
+            SELECT child_item_t._id
+            FROM svn_item_t child_item_t, get_children
+            WHERE child_item_t.parent_id = get_children.__ID
+        )
+        SELECT COUNT(_id) FROM svn_item_t
         WHERE _id IN get_children
         {another_filter}
         ORDER BY parent_id
@@ -399,6 +420,10 @@ class SVNTable(object):
                     else:
                         row_data.extend((0, row_data[0]))
                     row_data.extend((0, 0))  # required, need_download
+                    if row_data[0].endswith('.symlink'):  # symlinkFlag
+                        row_data.append(1)
+                    else:
+                        row_data.append(0)
                     yield row_data
 
         with self.db.transaction() as curs:
@@ -408,8 +433,9 @@ class SVNTable(object):
                                       checksum, size, url, download_path,
                                       level, parent, leaf,
                                       fileFlag, wtarFlag, unwtarred,
-                                      required, need_download)
-                 VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+                                      required, need_download,
+                                      symlinkFlag)
+                 VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
                 """
             curs.executemany(insert_q, rows)
 
@@ -478,6 +504,7 @@ class SVNTable(object):
                     row_data.extend(self.level_parent_and_leaf_from_path(relative_path))  # level, parent, leaf
                     row_data.append(1 if 'f' in flags else 0)  # fileFlag
                     row_data.append(1 if utils.wtar_file_re.match(relative_path) else 0)  # wtarFlag
+                    row_data.append(1 if 's' in flags else 0)  # symlinkFlag
                     yield row_data
 
         with self.db.transaction() as curs:
@@ -485,8 +512,8 @@ class SVNTable(object):
             insert_q = """
                 INSERT INTO svn_item_t (path, flags, revision,
                                       level, parent, leaf,
-                                      fileFlag, wtarFlag)
-                 VALUES(?,?,?,?,?,?,?,?);
+                                      fileFlag, wtarFlag, symlinkFlag)
+                 VALUES(?,?,?,?,?,?,?,?,?);
                 """
             curs.executemany(insert_q, rows)
 
@@ -1337,4 +1364,20 @@ class SVNTable(object):
 
     def SVNRowListToObjects(self, svn_row_list):
         retVal = [SVNRow(item) for item in svn_row_list]
+        return retVal
+
+    def count_symlinks_in_dir(self, dir_path):
+        """ get all files marked as symlinks in dir_path.
+            :return: list of symlinks items in dir or empty list (if there aren't any)
+        """
+        retVal = 0
+        root_dir_item = self.get_dir_item(item_path=dir_path)
+        if root_dir_item is not None:
+            with self.db.selection() as curs:
+                query_text = self.count_child_items_q
+                query_text = query_text.format(another_filter="AND symlinkFlag==1")
+                curs.execute(query_text, {"parent_id": root_dir_item._id})
+                retVal = curs.fetchone()[0]
+        else:
+            print(dir_path, "was not found")
         return retVal

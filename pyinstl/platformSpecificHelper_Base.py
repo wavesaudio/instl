@@ -232,7 +232,7 @@ class PlatformSpecificHelperBase(object):
         """ platform specific mkdir """
         pass
 
-    def mkdir_with_owner(self, directory):
+    def mkdir_with_owner(self, directory, progress_num=0):
         return self.mkdir(directory)
 
     @abc.abstractmethod
