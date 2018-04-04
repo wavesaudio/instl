@@ -262,12 +262,12 @@ class InstlClientCopy(InstlClient):
         """ source is a tuple (source_path, tag), where tag is either !file or !dir or !dir_cont'
         """
         self.batch_accum += self.platform_helper.progress("Copy {0} ...".format(name_for_progress_message))
-        if source[1] == '!file':  # get a single file
+        if source[1] == '!dir':  # !dir
+            self.create_copy_instructions_for_dir(source[0], name_for_progress_message)
+        elif source[1] == '!file':  # get a single file
             self.create_copy_instructions_for_file(source[0], name_for_progress_message)
         elif source[1] == '!dir_cont':  # get all files and folders from a folder
             self.create_copy_instructions_for_dir_cont(source[0], name_for_progress_message)
-        elif source[1] == '!dir':  # !dir
-            self.create_copy_instructions_for_dir(source[0], name_for_progress_message)
         else:
             raise ValueError("unknown source type "+source[1]+" for "+source[0])
         self.batch_accum += self.platform_helper.progress("Copy {0} done".format(name_for_progress_message))
