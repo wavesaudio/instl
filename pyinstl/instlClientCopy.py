@@ -333,7 +333,9 @@ class InstlClientCopy(InstlClient):
                 self.create_copy_instructions_for_source(source, name_and_version)
                 self.batch_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="post_copy_item")
                 self.batch_accum += self.platform_helper.remark("--- End source {0}".format(source[0]))
-                num_symlink_items += self.info_map_table.count_symlinks_in_dir(source[0])
+                if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList(
+                        "TARGET_OS"):
+                    num_symlink_items += self.info_map_table.count_symlinks_in_dir(source[0])
             self.batch_accum += self.platform_helper.remark("-- End iid {0}".format(IID))
 
         target_folder_path_parent, target_folder_name = os.path.split(var_stack.ResolveStrToStr(target_folder_path))
@@ -342,8 +344,9 @@ class InstlClientCopy(InstlClient):
         self.batch_accum += self.platform_helper.copy_tool.end_copy_folder()
 
         # only if items were actually copied there's need to (Mac only) resolve symlinks
-        if num_items_copied_to_folder > 0 and num_symlink_items > 0:
-            if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
+        if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList(
+                "TARGET_OS"):
+            if num_items_copied_to_folder > 0 and num_symlink_items > 0:
                 self.batch_accum += self.platform_helper.progress("Resolve symlinks ...")
                 self.batch_accum += self.platform_helper.resolve_symlink_files()
 
