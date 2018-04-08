@@ -121,7 +121,7 @@ class InstlClientCopy(InstlClient):
         for sync_folder_name in sorted(self.no_copy_iids_by_sync_folder.keys()):
             self.create_copy_instructions_for_no_copy_folder(sync_folder_name)
 
-        print(self.bytes_to_copy, "bytes to copy")
+        self.progress("{} bytes to copy".format(self.bytes_to_copy))
 
         self.accumulate_unique_actions_for_active_iids('post_copy')
 

@@ -122,6 +122,7 @@ class IndexItemsTable(object):
             ORDER BY iid
             """
         retVal = self.db.select_and_fetchall(query_text, query_params={})
+        retVal = [{key: row[key] for key in row.keys()} for row in retVal]
         return retVal
 
     def get_all_index_items(self):

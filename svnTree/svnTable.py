@@ -1378,6 +1378,4 @@ class SVNTable(object):
                 query_text = query_text.format(another_filter="AND symlinkFlag==1")
                 curs.execute(query_text, {"parent_id": root_dir_item._id})
                 retVal = curs.fetchone()[0]
-        else:
-            print(dir_path, "was not found")
         return retVal

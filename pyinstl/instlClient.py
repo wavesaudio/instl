@@ -72,6 +72,7 @@ class InstlClient(InstlInstanceBase):
         self.items_table.resolve_inheritance()
 
         if self.should_check_for_binary_versions():
+            self.progress("check versions of installed binaries")
             self.get_version_of_installed_binaries()
             self.items_table.add_require_version_from_binaries()
             self.items_table.add_require_guid_from_binaries()
@@ -83,6 +84,7 @@ class InstlClient(InstlInstanceBase):
         self.platform_helper.init_platform_tools()
         # after reading variable COPY_TOOL from yaml, we might need to re-init the copy tool.
         self.platform_helper.init_copy_tool()
+        self.progress("calculate install items")
         self.calculate_install_items()
         self.read_defines_for_active_iids()
         self.platform_helper.num_items_for_progress_report = int(var_stack.ResolveVarToStr("LAST_PROGRESS"))

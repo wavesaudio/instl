@@ -78,7 +78,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def progress(self, message):
         self.internal_progress += 1
-        print("""Progress {} of {}; {}""".format(self.internal_progress, 100, message), flush=True)
+        print("""Progress: {} of {}; {}""".format(self.internal_progress, 100, message), flush=True)
 
     def init_specific_doc_readers(self):
         ConfigVarYamlReader.init_specific_doc_readers(self)
@@ -330,6 +330,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
     def read_include_node(self, i_node, *args, **kwargs):
         if i_node.isScalar():
             resolved_file_name = var_stack.ResolveStrToStr(i_node.value)
+            self.progress("reading "+resolved_file_name)
             self.read_yaml_file(resolved_file_name, *args, **kwargs)
         elif i_node.isSequence():
             for sub_i_node in i_node:
@@ -498,6 +499,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             aYaml.writeAsYaml(self, fd)
 
     def read_index(self, a_node, *args, **kwargs):
+        self.progress("reading index.yaml")
         self.items_table.read_index_node(a_node)
 
     def find_cycles(self):

@@ -142,8 +142,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
         var_stack.add_const_config_variable("__NUM_BYTES_TO_DOWNLOAD__", "create_download_instructions", bytes_to_sync)
 
         # notify user how many files and bytes to sync
-        print(to_sync_num_files, "of", to_sync_num_files+already_synced_num_files, "files to sync")
-        print(bytes_to_sync, "of", bytes_to_sync+already_synced_num_bytes, "bytes to sync")
+        self.instlObj.progress("{} of {} files to sync".format(to_sync_num_files, to_sync_num_files+already_synced_num_files))
+        self.instlObj.progress("{} of {} bytes to sync".format(bytes_to_sync, bytes_to_sync+already_synced_num_bytes))
 
         if already_synced_num_files > 0:
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress("files in cache", already_synced_num_files)

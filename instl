@@ -111,6 +111,7 @@ def main():
     elif options.mode == "client":
         from pyinstl.instlClient import InstlClientFactory
         instance = InstlClientFactory(initial_vars, options.command)
+        instance.progress("welcome to instl")
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "doit":
