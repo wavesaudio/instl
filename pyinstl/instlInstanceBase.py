@@ -255,6 +255,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 var_stack.add_const_config_variable("__MAIN_OUT_FILE__", "from write_batch_file",
                                                 default_out_file)
         self.init_db()
+        self.progress("")  # so database at... message will not remain visible
 
     def init_db(self):
         if self.need_items_table or self.need_info_map_table:
