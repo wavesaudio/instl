@@ -31,7 +31,8 @@ class InstlClientRemove(InstlClient):
         have_info_path = var_stack.ResolveVarToStr("HAVE_INFO_MAP_PATH")
         if not os.path.isfile(have_info_path):
             have_info_path = var_stack.ResolveVarToStr("SITE_HAVE_INFO_MAP_PATH")
-        self.read_info_map_from_file(have_info_path)
+        with self.info_map_table.reading_files_context():
+            self.read_info_map_from_file(have_info_path)
         self.calc_iid_to_name_and_version()
 
         self.batch_accum.set_current_section('remove')
@@ -101,7 +102,7 @@ class InstlClientRemove(InstlClient):
                 self.batch_accum += remove_action
                 retVal += 1
             elif source_type == '!dir_cont':  # remove all source's files and folders from a folder
-                remove_items = self.info_map_table.get_items_in_dir(dir_path=source_path, levels_deep=1)
+                remove_items = self.info_map_table.get_items_in_dir(dir_path=source_path, immediate_children_only=True)
                 remove_paths = utils.original_names_from_wtars_names(item.path for item in remove_items)
                 for remove_path in remove_paths:
                     base_, leaf = os.path.split(remove_path)

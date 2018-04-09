@@ -21,6 +21,8 @@ import types
 import asyncio
 import json
 import appdirs
+import time
+from contextlib import contextmanager
 
 import utils
 
@@ -379,6 +381,10 @@ def quoteme_double_list_for_sql(to_quote_list):
     return "".join(('("', '","'.join(to_quote_list), '")'))
 
 
+def quoteme_single_list_for_sql(to_quote_list):
+    return "".join(("('", "','".join(to_quote_list), "')"))
+
+
 def quote_path_properly(path_to_quote):
     quote_char = "'"
     if "'" in path_to_quote or "${" in path_to_quote:
@@ -503,6 +509,14 @@ def timing(f):
             print('%s function took apparently no time at all' % f.__name__)
         return ret
     return wrap
+
+
+@contextmanager
+def time_it(message):
+    time1 = time.time()
+    yield
+    time2 = time.time()
+    print('%s took %0.3f ms' % (message, (time2 - time1) * 1000.0))
 
 
 # compile a list of regexs to one regex. regexs are ORed

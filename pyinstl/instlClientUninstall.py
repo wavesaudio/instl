@@ -40,17 +40,17 @@ class InstlClientUninstall(InstlClientRemove):
         # create a count of how much require_by each item has
         how_many_require_by = defaultdict( lambda: 0 )
         for rt in req_trans_items:
-            how_many_require_by[rt.iid] += 1
+            how_many_require_by[rt['iid']] += 1
 
         if not force_uninstall_of_main_items:
             # some main uninstall items might be required by other items (that are not uninstalled),
             # and so should not be uninstalled
             for candi in iid_candidates_for_uninstall:
                 for req_trans in req_trans_items:
-                    if req_trans.status == 0:
-                        if req_trans.require_by == candi:
-                            req_trans.status += 1
-                            how_many_require_by[req_trans.iid] -= 1
+                    if req_trans['status'] == 0:
+                        if req_trans['require_by'] == candi:
+                            req_trans['status'] += 1
+                            how_many_require_by[req_trans['iid']] -= 1
 
             items_required_by_no_one = [iid for iid, count in how_many_require_by.items() if count == 0]
             should_be_uninstalled = list(set(iid_candidates_for_uninstall) & set(items_required_by_no_one))
@@ -58,8 +58,8 @@ class InstlClientUninstall(InstlClientRemove):
             # zero status and count for next stage
             how_many_require_by = defaultdict( lambda: 0 )
             for rt in req_trans_items:
-                how_many_require_by[rt.iid] +=1
-                rt.status = 0
+                how_many_require_by[rt['iid']] +=1
+                rt['status'] = 0
         else:
             should_be_uninstalled = iid_candidates_for_uninstall
 
@@ -68,19 +68,19 @@ class InstlClientUninstall(InstlClientRemove):
         while len(candi_que) > 0:
             candi = candi_que.popleft()
             for req_trans in req_trans_items:
-                if req_trans.status == 0:
-                    if req_trans.require_by == candi:
-                        req_trans.status += 1
-                        how_many_require_by[req_trans.iid] -= 1
-                        if how_many_require_by[req_trans.iid] == 0 and req_trans.iid != candi:
-                            candi_que.append(req_trans.iid)
+                if req_trans['status'] == 0:
+                    if req_trans['require_by'] == candi:
+                        req_trans['status'] += 1
+                        how_many_require_by[req_trans['iid']] -= 1
+                        if how_many_require_by[req_trans['iid']] == 0 and req_trans['iid'] != candi:
+                            candi_que.append(req_trans['iid'])
 
         # items who's count is 0 should be uninstalled
         all_uninstall_items = [iid for iid, count in how_many_require_by.items() if count == 0]
         if force_uninstall_of_main_items:
             all_uninstall_items = list(set(all_uninstall_items+iid_candidates_for_uninstall))
         all_uninstall_items.sort()
-        var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(all_uninstall_items))
+        var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(all_uninstall_items)
 
         iids_that_should_not_be_uninstalled = list(set(iid_candidates_for_uninstall)-set(all_uninstall_items))
         var_stack.set_var("__ORPHAN_INSTALL_TARGETS__").extend(sorted(iids_that_should_not_be_uninstalled))

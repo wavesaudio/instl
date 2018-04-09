@@ -64,11 +64,23 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         return ()
 
     def get_install_instructions_mkdir_with_owner_func(self):
+        # -m will set the perm even if the dir exists
+        # ignore error if owner cannot be changed
         retVal = (
-            'mkdir_with_owner() {',
-            'mkdir -p -m a+rwx "$1"',               # -m will set the perm even if the dir exists
-            'chown $(__USER_ID__): "$1" || true',    # ignore error if owner cannot be changed
-            '}')
+"""
+mkdir_with_owner() {
+if [[ ! -d "$1" ]]; then
+    mkdir -p -m a+rwx "$1"
+    if [[ "$2" -gt 0 ]]; then
+        echo "Progress: $2 of $(TOTAL_ITEMS_FOR_PROGRESS_REPORT); Create folder $1"
+    fi
+else
+    chmod a+rwx "$1"
+fi
+chown $(__USER_ID__): "$1" || true   
+}
+"""
+        )
         return retVal
 
     def get_install_instructions_invocation_report_funcs(self):
@@ -127,8 +139,8 @@ report_invocation_end() {{
         mk_command = " ".join(("mkdir", "-p", "-m a+rwx", utils.quoteme_double(directory) ))
         return mk_command
 
-    def mkdir_with_owner(self, directory):
-        mk_command = " ".join(("mkdir_with_owner", utils.quoteme_double(directory) ))
+    def mkdir_with_owner(self, directory, progress_num):
+        mk_command = " ".join(("mkdir_with_owner", utils.quoteme_double(directory), str(progress_num) ))
         return mk_command
 
     def cd(self, directory):

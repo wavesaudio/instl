@@ -1,2 +1,1 @@
-from .svnTable import SVNTable
-from .svnRow   import SVNRow
+from .svnTable import SVNTable, SVNRow

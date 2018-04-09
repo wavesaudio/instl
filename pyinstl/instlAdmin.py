@@ -24,9 +24,8 @@ class InstlAdmin(InstlInstanceBase):
 
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
-        self.init_items_table()
-        var_stack.add_const_config_variable("__DATABASE_URL__", "", self.items_table.get_db_url())
-        self.info_map_table = SVNTable()
+        self.need_items_table = True
+        self.need_info_map_table = True
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         self.fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
 
@@ -52,7 +51,9 @@ class InstlAdmin(InstlInstanceBase):
         do_command_func()
 
     def do_trans(self):
-        self.info_map_table.read_from_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"), a_format="info")
+        with self.info_map_table.reading_files_context():  # this will create an index on svn_item_t.path and make reading the props and file sizes faster
+            self.info_map_table.read_from_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"), a_format="info")
+
         if "__PROPS_FILE__" in var_stack:
             self.info_map_table.read_from_file(var_stack.ResolveVarToStr("__PROPS_FILE__"), a_format="props")
         if "__FILE_SIZES_FILE__" in var_stack:
@@ -274,9 +275,9 @@ class InstlAdmin(InstlInstanceBase):
 
         def __call__(self, svn_item):
             retVal = None
-            if svn_item.isFile():
+            if isFile(svn_item):
                 retVal = svn_item.revision != self.version_not_to_remove
-            elif svn_item.isDir():
+            elif isDir(svn_item):
                 retVal = len(svn_item.subs) == 0
             return retVal
 
@@ -361,7 +362,8 @@ class InstlAdmin(InstlInstanceBase):
         info_map_path = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/" + map_file_path)
         repo_rev = int(var_stack.ResolveVarToStr("__CURR_REPO_REV__"))
         self.info_map_table.clear_all()
-        self.info_map_table.read_from_file(info_map_path)
+        with self.info_map_table.reading_files_context():
+            self.info_map_table.read_from_file(info_map_path)
 
         accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)")
 
@@ -925,7 +927,8 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_verify_index(self):
         self.read_yaml_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
-        self.info_map_table.read_from_file(var_stack.ResolveVarToStr("FULL_INFO_MAP_FILE_PATH"))
+        with self.info_map_table.reading_files_context():
+            self.info_map_table.read_from_file(var_stack.ResolveVarToStr("FULL_INFO_MAP_FILE_PATH"))
 
         self.verify_index_to_repo()
 
@@ -1029,10 +1032,10 @@ class InstlAdmin(InstlInstanceBase):
         print("info map:", num_files, "files in", num_dirs, "folders")
         print("info map:", num_required_files, "required files, ", num_required_dirs, "required folders")
 
-        unrequired_files = self.info_map_table.get_required_items(what="file", get_unrequired=True)
+        unrequired_files = self.info_map_table.get_unrequired_items(what="file")
         print("unrequired files:")
         [print("    ", f.path) for f in unrequired_files]
-        unrequired_dirs = self.info_map_table.get_required_items(what="dir",  get_unrequired=True)
+        unrequired_dirs = self.info_map_table.get_unrequired_items(what="dir")
         print("unrequired dirs:")
         [print("    ", d.path) for d in unrequired_dirs]
 
@@ -1041,7 +1044,7 @@ class InstlAdmin(InstlInstanceBase):
         return retVal is not None
 
     def should_be_exec(self, item):
-        retVal = item.isFile() and self.should_file_be_exec(item.path)
+        retVal = isFile(item) and self.should_file_be_exec(item.path)
         return retVal
 
     def prepare_list_of_dirs_to_work_on(self, top_folder):
@@ -1193,8 +1196,9 @@ class InstlAdmin(InstlInstanceBase):
         # read the index
         self.read_yaml_file(index_yaml_path)
         # read the full info map
-        self.info_map_table.read_from_file(full_info_map_file_path, a_format="text")
-        # fill the IIDToSVNItem table
+        with self.info_map_table.reading_files_context():
+            self.info_map_table.read_from_file(full_info_map_file_path, a_format="text")
+        # fill the iid_to_svn_item_t table
         self.info_map_table.populate_IIDToSVNItem()
 
         # get the list of info map file names
@@ -1237,8 +1241,9 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_read_info_map(self):
         files_to_read = var_stack.ResolveVarToList("__MAIN_INPUT_FILE__")
-        for f2r in files_to_read:
-            self.info_map_table.read_from_file(f2r)
+        with self.info_map_table.reading_files_context():
+            for f2r in files_to_read:
+                self.info_map_table.read_from_file(f2r)
 
     def do_check_instl_folder_integrity(self):
         instl_folder_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")

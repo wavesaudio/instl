@@ -13,10 +13,13 @@ class BatchAccumulator(object):
     section_order = ("pre", "assign", "begin", "links", "upload", "sync", "post-sync", "copy", "post-copy", "remove", "admin", "end", "post")
 
     def __init__(self):
-        self.__instruction_lines = defaultdict(list)
+        self.instruction_lines = defaultdict(list)
         self.current_section = None
-        self.__instruction_counter = defaultdict(int)
-        self.__transaction_stack = list()
+        self.transaction_stack = list()
+
+    def instruction_counters(self):
+        retVal = {section_name: len(section_lines) for section_name, section_lines in self.instruction_lines.items()}
+        return retVal
 
     def set_current_section(self, section):
         if section in BatchAccumulator.section_order:
@@ -26,7 +29,7 @@ class BatchAccumulator(object):
 
     def add(self, instructions):
         if isinstance(instructions, str):
-            assert instructions != '~', "~ in instructions previous instruction: "+self.__instruction_lines[self.current_section][-1]
+            assert instructions != '~', "~ in instructions previous instruction: "+self.instruction_lines[self.current_section][-1]
             self.__add_single_line__(instructions)
         else:
             for instruction in instructions:
@@ -39,21 +42,20 @@ class BatchAccumulator(object):
     def __add_single_line__(self, single_line):
         """ make sure only strings are added """
         if isinstance(single_line, str):
-            self.__instruction_lines[self.current_section].append(single_line)
-            self.__instruction_counter[self.current_section] += 1
+            self.instruction_lines[self.current_section].append(single_line)
         else:
             raise TypeError("Not a string", type(single_line), single_line)
 
     def __len__(self):
         retVal = 0
-        for section, section_lines in self.__instruction_lines.items():
+        for section, section_lines in self.instruction_lines.items():
             retVal += len(section_lines)
         return retVal
 
     def finalize_list_of_lines(self):
         lines = list()
         for section in BatchAccumulator.section_order:
-            section_lines = self.__instruction_lines[section]
+            section_lines = self.instruction_lines[section]
             if section_lines:
                 if section == "assign":
                     section_lines.sort()
@@ -71,38 +73,29 @@ class BatchAccumulator(object):
             self += another_accum.instruction_lines[section]
         self.current_section = save_section
 
-    @property
-    def instruction_counter(self):
-        return self.__instruction_counter
-
     def begin_transaction(self):
-        self.__transaction_stack.append(self.__instruction_counter.copy())
-        return self.__instruction_counter
+        self.transaction_stack.append(self.instruction_counters())
 
     def commit_transaction(self):
-        prev_counters = self.__transaction_stack.pop()
-        num_instructions_in_transaction = 0
-        for section_name, section_counter in self.__instruction_counter.items():
-            num_instructions_in_transaction += section_counter - prev_counters[section_name]
-        return num_instructions_in_transaction
+        self.transaction_stack.pop()
 
     def cancel_transaction(self):
-        prev_counters = self.__transaction_stack.pop()
+        prev_counters = self.transaction_stack.pop()
         # remove the instructions_ added since the beginning of the transaction
-        for section_name, section_counter in self.__instruction_counter.items():
-            del self.__instruction_lines[section_name][prev_counters[section_name]:]
-        return 0
+        for section_name, section_counter in prev_counters.items():
+            if section_name in  self.instruction_lines:
+                del self.instruction_lines[section_name][prev_counters[section_name]:]
 
     def commit_transaction_if(self, condition):
         if condition:
-            retVal = self.commit_transaction()
+            self.commit_transaction()
         else:
-            retVal = self.cancel_transaction()
-        return retVal
+            self.cancel_transaction()
 
 
 class BatchAccumulatorTransaction(object):
-    def __init__(self, batchAccum):
+    def __init__(self, batchAccum, transaction_name=""):
+        self.transaction_name = transaction_name
         self.batchAccum = batchAccum
         self.essential_action_counter = 0
 

@@ -152,5 +152,27 @@ class ConfigVarStack(configVarList.ConfigVarList):
         for var_obj in self._ConfigVarList_objs:
             var_obj.freeze_vars_on_first_resolve()
 
+    def print_statistics(self):
+        if self.ResolveVarToBool("PRINT_STATISTICS"):
+            total_non_freeze = 0
+            total_with_freeze = 0
+            max_non_freeze_var = None
+            max_with_freeze_var = None
+            all_vars = set(list(self.resolve_with_freeze_statistics.keys()) + list(self.resolve_non_freeze_statistics.keys()))
+            for var in sorted(all_vars):
+                non_freeze_count = self.resolve_non_freeze_statistics.get(var, 0)
+                total_non_freeze += non_freeze_count
+                if non_freeze_count > self.resolve_non_freeze_statistics.get(max_non_freeze_var, 0):
+                    max_non_freeze_var = var
+                with_freeze_count = self.resolve_with_freeze_statistics.get(var, 0)
+                total_with_freeze += with_freeze_count
+                if with_freeze_count > self.resolve_with_freeze_statistics.get(max_with_freeze_var, 0):
+                    max_with_freeze_var = var
+                print(var, non_freeze_count, with_freeze_count)
+            print("max non freeze", max_non_freeze_var, self.resolve_non_freeze_statistics.get(max_non_freeze_var, 0))
+            print("max with freeze", max_with_freeze_var, self.resolve_with_freeze_statistics.get(max_with_freeze_var, 0))
+            print("total non freeze", total_non_freeze)
+            print("total with freeze", total_with_freeze)
+
 # This is the global variable list serving all parts of instl
 var_stack = ConfigVarStack()

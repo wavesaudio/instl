@@ -14,7 +14,7 @@ log_text TEXT
 );
 
 CREATE TRIGGER IF NOT EXISTS log_adjust_active_os_for_details
-AFTER UPDATE OF os_is_active ON IndexItemDetailRow
+AFTER UPDATE OF os_is_active ON index_item_detail_t
 BEGIN
     INSERT INTO ChangeLog (owner_iid, detail_name, detail_value, os_id, old_active, new_os_is_active)
     VALUES (OLD.owner_iid, OLD.detail_name, OLD.detail_value, OLD.os_id,  OLD.active,  NEW.os_is_active);

@@ -37,7 +37,9 @@ class ConfigVarYamlReader(aYaml.YamlReader):
         # if document is empty we get a scalar node
         if a_node.isMapping():
             for identifier, contents in a_node.items():
-                if identifier == '__include__':
+                if identifier.startswith("__if"):
+                    self.read_conditional_node(identifier, contents, *args, **kwargs)
+                elif identifier == '__include__':
                     self.read_include_node(contents, *args, **kwargs)
                 elif identifier == "__include_if_exist__":
                     kwargs.update({'ignore_if_not_exist': True})
@@ -77,6 +79,27 @@ class ConfigVarYamlReader(aYaml.YamlReader):
 
     def read_include_node(self, i_node, *args, **kwargs):
         pass  # override to handle __include__, __include_if_exist__ nodes
+
+    conditional_re = re.compile("""__if(?P<if_type>.*)__\s*\((?P<condition>.+)\)""")
+
+    def read_conditional_node(self, identifier, contents, *args, **kwargs):
+        match = self.conditional_re.match(identifier)
+        if match:
+            condition = match.group('condition')
+            if_type = match.group('if_type')
+            if if_type == "def":     # __ifdef__: if configVar is defined
+                if condition in var_stack:
+                    self.read_defines(contents)
+            elif if_type == "ndef":  # __ifndef__: if configVar is not defined
+                if condition not in var_stack:
+                    self.read_defines(contents)
+            elif if_type == "":      # "__if__: eval the condition
+                resolved_condition = var_stack.ResolveStrToStr(condition)
+                condition_result = eval(resolved_condition)
+                if condition_result:
+                    self.read_defines(contents)
+        else:
+            print("unknown conditional {}".format(identifier))
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ import functools
 from configVar import var_stack
 from .instlClient import InstlClient
 from .batchAccumulator import BatchAccumulatorTransaction
+import svnTree
 
 
 class InstlClientCopy(InstlClient):
@@ -73,16 +74,14 @@ class InstlClientCopy(InstlClient):
         if len(folder_list) > 0:
             self.batch_accum += self.platform_helper.progress("Create folders ...")
             for target_folder_path in folder_list:
-                self.batch_accum += self.platform_helper.progress("Create folder {0} ...".format(target_folder_path))
                 if os.path.isfile(var_stack.ResolveStrToStr(target_folder_path)):
                     # weird as it maybe, some users have files where a folder should be.
                     # test for isfile is done here rather than in the batch file, because
                     # Windows does not have proper way to check "is file" in a batch.
                     self.batch_accum += self.platform_helper.rmfile(target_folder_path)
                     self.batch_accum += self.platform_helper.progress("Removed file that should be a folder {0}".format(target_folder_path))
-                self.batch_accum += self.platform_helper.mkdir_with_owner(target_folder_path)
-                self.batch_accum += self.platform_helper.progress("Create folder {0} done".format(target_folder_path))
-            self.batch_accum += self.platform_helper.progress("Create folders done")
+                progress_num = self.platform_helper.increment_progress(1)
+                self.batch_accum += self.platform_helper.mkdir_with_owner(target_folder_path, progress_num)
 
     def create_copy_instructions(self):
         self.progress("create copy instructions ...")
@@ -92,7 +91,8 @@ class InstlClientCopy(InstlClient):
         # Copy might be called after the sync batch file was created but before it was executed
         if len(self.info_map_table.files_read_list) == 0:
             have_info_path = var_stack.ResolveVarToStr("HAVE_INFO_MAP_FOR_COPY")
-            self.read_info_map_from_file(have_info_path)
+            with self.info_map_table.reading_files_context():
+                self.read_info_map_from_file(have_info_path)
 
         # copy and actions instructions for sources
         self.batch_accum.set_current_section('copy')
@@ -121,7 +121,7 @@ class InstlClientCopy(InstlClient):
         for sync_folder_name in sorted(self.no_copy_iids_by_sync_folder.keys()):
             self.create_copy_instructions_for_no_copy_folder(sync_folder_name)
 
-        print(self.bytes_to_copy, "bytes to copy")
+        self.progress("{} bytes to copy".format(self.bytes_to_copy))
 
         self.accumulate_unique_actions_for_active_iids('post_copy')
 
@@ -130,8 +130,8 @@ class InstlClientCopy(InstlClient):
         # for reference. But when preparing offline installers the site location is the same as the sync location
         # so copy should be avoided.
         if var_stack.ResolveVarToStr("HAVE_INFO_MAP_PATH") != var_stack.ResolveVarToStr("SITE_HAVE_INFO_MAP_PATH"):
-            self.batch_accum += self.platform_helper.mkdir_with_owner("$(SITE_REPO_BOOKKEEPING_DIR)")
-            self.batch_accum += self.platform_helper.progress("Created folder $(SITE_REPO_BOOKKEEPING_DIR)")
+            progress_num = self.platform_helper.increment_progress(1)
+            self.batch_accum += self.platform_helper.mkdir_with_owner("$(SITE_REPO_BOOKKEEPING_DIR)", progress_num)
             self.batch_accum += self.platform_helper.copy_file_to_file("$(HAVE_INFO_MAP_PATH)", "$(SITE_HAVE_INFO_MAP_PATH)")
             self.batch_accum += self.platform_helper.progress("Copied $(HAVE_INFO_MAP_PATH) to $(SITE_HAVE_INFO_MAP_PATH)")
 
@@ -154,11 +154,16 @@ class InstlClientCopy(InstlClient):
         return item_size
 
     def create_copy_instructions_for_file(self, source_path, name_for_progress_message):
+        retVal = 0  # number of essential actions (not progress, remark, ...)
         source_files = self.info_map_table.get_required_for_file(source_path)
+        if not source_files:
+            print("no source files for "+source_path)
+            return
         num_wtars = functools.reduce(lambda total, item: total + item.wtarFlag, source_files, 0)
         assert (len(source_files) == 1 and num_wtars == 0) or num_wtars == len(source_files)
 
         if num_wtars == 0:
+            retVal += 1
             source_file = source_files[0]
             source_file_full_path = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_file.path)
 
@@ -177,6 +182,7 @@ class InstlClientCopy(InstlClient):
 
             self.bytes_to_copy += self.calc_size_of_file_item(source_file)
         else:  # one or more wtar files
+            # do not increment retVal - unwtar_instructions will add it's own instructions
             first_wtar_item = None
             for source_wtar in source_files:
                 self.bytes_to_copy += self.calc_size_of_file_item(source_wtar)
@@ -185,30 +191,39 @@ class InstlClientCopy(InstlClient):
             assert first_wtar_item is not None
             first_wtar_full_path = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + first_wtar_item.path)
             self.unwtar_instructions.append((first_wtar_full_path, '.'))
+        return retVal
 
     def create_copy_instructions_for_dir_cont(self, source_path, name_for_progress_message):
+        retVal = 0  # number of essential actions (not progress, remark, ...)
         source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
-        self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(
-                                                    source_path_abs,
-                                                    ".",
-                                                    link_dest=True,
-                                                    ignore=self.patterns_copy_should_ignore,
-                                                    preserve_dest_files=True)  # preserve files already in destination
+        source_items = self.info_map_table.get_items_in_dir(dir_path=source_path)
 
-        source_items = self.info_map_table.get_items_in_dir(dir_path=source_path, what="any")
-        self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
+        no_wtar_items = [source_item for source_item in source_items if not source_item.wtarFlag]
+        wtar_items = [source_item for source_item in source_items if source_item.wtarFlag]
 
-        if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
-            for source_item in source_items:
-                if source_item.wtarFlag == 0:
-                    source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path)
-                    self.batch_accum += self.platform_helper.chown("$(__USER_ID__)", "", ".", recursive=True)
-                    self.batch_accum += self.platform_helper.chmod("-R -f a+rw", source_path_relative_to_current_dir)  # all copied files and folders should be rw
-                    if source_item.isExecutable():
-                        self.batch_accum += self.platform_helper.chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)
+        if no_wtar_items:
+            retVal += 1
+            wtar_base_names = {source_item.unwtarred.split("/")[-1] for source_item in wtar_items}
+            ignores = self.patterns_copy_should_ignore + list(wtar_base_names)
+            self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(
+                                                        source_path_abs,
+                                                        ".",
+                                                        link_dest=True,
+                                                        ignore=ignores,
+                                                        preserve_dest_files=True)  # preserve files already in destination
 
-        num_wtars = functools.reduce(lambda total, item: total + item.wtarFlag, source_items, 0)
-        if num_wtars > 0:
+            self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
+
+            if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
+                for source_item in source_items:
+                    if source_item.wtarFlag == 0:
+                        source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path)
+                        self.batch_accum += self.platform_helper.chown("$(__USER_ID__)", "", ".", recursive=True)
+                        self.batch_accum += self.platform_helper.chmod("-R -f a+rw", source_path_relative_to_current_dir)  # all copied files and folders should be rw
+                        if source_item.isExecutable():
+                            self.batch_accum += self.platform_helper.chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)
+
+        if len(wtar_items) > 0:
             self.unwtar_instructions.append((source_path_abs, '.'))
             self.batch_accum += self.platform_helper.unlock('.', recursive=True)
 
@@ -216,15 +231,20 @@ class InstlClientCopy(InstlClient):
             # unwtar moved be done with "command-list"
             # if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
             #    self.batch_accum += self.platform_helper.chmod("-R -f a+rwX", ".")
+        return retVal
 
     def create_copy_instructions_for_dir(self, source_path, name_for_progress_message):
-        dir_item = self.info_map_table.get_item(source_path, what="dir")
+        retVal = 0  # number of essential actions (not progress, remark, ...)
+        dir_item = self.info_map_table.get_dir_item(source_path)
         if dir_item is not None:
+            retVal += 1
             source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
+            source_items = self.info_map_table.get_items_in_dir(dir_path=source_path)
+            wtar_base_names = {source_item.unwtarred.split("/")[-1] for source_item in source_items if source_item.wtarFlag}
+            ignores = self.patterns_copy_should_ignore + list(wtar_base_names)
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path_abs, ".",
                                                                                link_dest=True,
-                                                                               ignore=self.patterns_copy_should_ignore)
-            source_items = self.info_map_table.get_items_in_dir(dir_path=source_path, what="any")
+                                                                               ignore=ignores)
             self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
 
             source_path_dir, source_path_name = os.path.split(source_path)
@@ -233,13 +253,12 @@ class InstlClientCopy(InstlClient):
                 self.batch_accum += self.platform_helper.chown("$(__USER_ID__)", "", source_path_name, recursive=True)
                 self.batch_accum += self.platform_helper.chmod("-R -f a+rw", source_path_name)  # all copied files should be rw
                 for source_item in source_items:
-                    if source_item.wtarFlag == 0 and source_item.isExecutable():
+                    if not source_item.is_wtar_file() == 0 and source_item.isExecutable():
                         source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path_dir)
                         # executable files should also get exec bit
                         self.batch_accum += self.platform_helper.chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)
 
-            num_wtars = functools.reduce(lambda total, item: total + item.wtarFlag, source_items, 0)
-            if num_wtars > 0:
+            if len(wtar_base_names) > 0:
                 self.unwtar_instructions.append((source_path_abs, source_path_name))
                 self.batch_accum += self.platform_helper.unlock(".", recursive=True)
 
@@ -249,32 +268,31 @@ class InstlClientCopy(InstlClient):
                 #    self.batch_accum += self.platform_helper.chmod("-R -f a+rwX", source_path_name)
         else:
             # it might be a dir that was wtarred
-            self.create_copy_instructions_for_file(source_path, name_for_progress_message)
+            retVal += self.create_copy_instructions_for_file(source_path, name_for_progress_message)
+        return retVal
 
     def create_copy_instructions_for_source(self, source, name_for_progress_message):
         """ source is a tuple (source_path, tag), where tag is either !file or !dir or !dir_cont'
         """
-        self.batch_accum += self.platform_helper.progress("Copy {0} ...".format(name_for_progress_message))
-        if source[1] == '!file':  # get a single file
-            self.create_copy_instructions_for_file(source[0], name_for_progress_message)
-        elif source[1] == '!dir_cont':  # get all files and folders from a folder
-            self.create_copy_instructions_for_dir_cont(source[0], name_for_progress_message)
-        elif source[1] == '!dir':  # !dir
-            self.create_copy_instructions_for_dir(source[0], name_for_progress_message)
-        else:
-            raise ValueError("unknown source type "+source[1]+" for "+source[0])
-        self.batch_accum += self.platform_helper.progress("Copy {0} done".format(name_for_progress_message))
+        with BatchAccumulatorTransaction(self.batch_accum, "create_copy_instructions_for_source-"+name_for_progress_message) as source_accum_transaction:
+            self.batch_accum += self.platform_helper.progress("Copy {0} ...".format(name_for_progress_message))
+            if source[1] == '!dir':  # !dir
+                source_accum_transaction += self.create_copy_instructions_for_dir(source[0], name_for_progress_message)
+            elif source[1] == '!file':  # get a single file
+                source_accum_transaction += self.create_copy_instructions_for_file(source[0], name_for_progress_message)
+            elif source[1] == '!dir_cont':  # get all files and folders from a folder
+                source_accum_transaction += self.create_copy_instructions_for_dir_cont(source[0], name_for_progress_message)
+            else:
+                raise ValueError("unknown source type "+source[1]+" for "+source[0])
 
     # special handling when running on Mac OS
     def pre_copy_mac_handling(self):
-        required_and_exec = self.info_map_table.get_required_exec_items(what="file")
-        num_files_to_set_exec = len(required_and_exec)
+        num_files_to_set_exec = self.info_map_table.num_items(item_filter="required-exec")
         if num_files_to_set_exec > 0:
             self.batch_accum += self.platform_helper.pushd("$(COPY_SOURCES_ROOT_DIR)")
             have_info_path = var_stack.ResolveVarToStr("REQUIRED_INFO_MAP_PATH")
             self.batch_accum += self.platform_helper.set_exec_for_folder(have_info_path)
             self.platform_helper.num_items_for_progress_report += num_files_to_set_exec
-            self.batch_accum += self.platform_helper.progress("Set exec done")
             self.batch_accum += self.platform_helper.new_line()
             self.batch_accum += self.platform_helper.popd()
 
@@ -288,22 +306,6 @@ class InstlClientCopy(InstlClient):
             pass
         return resolved_path
 
-    def create_create_folders_instructions(self, folder_list):
-        if len(folder_list) > 0:
-            self.batch_accum += self.platform_helper.progress("Create folders ...")
-            for target_folder_path in folder_list:
-                resolved_target_folder_path = self.pre_resolve_path(target_folder_path)
-                self.batch_accum += self.platform_helper.progress("Create folder {0} ...".format(resolved_target_folder_path))
-                if os.path.isfile(resolved_target_folder_path):
-                    # weird as it maybe, some users have files where a folder should be.
-                    # test for isfile is done here rather than in the batch file, because
-                    # Windows does not have proper way to check "is file" in a batch.
-                    self.batch_accum += self.platform_helper.rmfile(resolved_target_folder_path)
-                    self.batch_accum += self.platform_helper.progress("Removed file that should be a folder {0}".format(target_folder_path))
-                self.batch_accum += self.platform_helper.mkdir_with_owner(resolved_target_folder_path)
-                self.batch_accum += self.platform_helper.progress("Create folder {0} done".format(resolved_target_folder_path))
-            self.batch_accum += self.platform_helper.progress("Create folders done")
-
     def create_copy_instructions_for_target_folder(self, target_folder_path):
         self.unwtar_instructions = list()
         num_items_copied_to_folder = 0
@@ -316,6 +318,7 @@ class InstlClientCopy(InstlClient):
         # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
         self.accumulate_unique_actions_for_active_iids('pre_copy_to_folder', items_in_folder)
 
+        num_symlink_items = 0
         batch_accum_len_before = len(self.batch_accum)
         self.batch_accum += self.platform_helper.copy_tool.begin_copy_folder()
         for IID in items_in_folder:
@@ -330,6 +333,9 @@ class InstlClientCopy(InstlClient):
                 self.create_copy_instructions_for_source(source, name_and_version)
                 self.batch_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="post_copy_item")
                 self.batch_accum += self.platform_helper.remark("--- End source {0}".format(source[0]))
+                if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList(
+                        "TARGET_OS"):
+                    num_symlink_items += self.info_map_table.count_symlinks_in_dir(source[0])
             self.batch_accum += self.platform_helper.remark("-- End iid {0}".format(IID))
 
         target_folder_path_parent, target_folder_name = os.path.split(var_stack.ResolveStrToStr(target_folder_path))
@@ -338,15 +344,14 @@ class InstlClientCopy(InstlClient):
         self.batch_accum += self.platform_helper.copy_tool.end_copy_folder()
 
         # only if items were actually copied there's need to (Mac only) resolve symlinks
-        if num_items_copied_to_folder > 0:
-            if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
+        if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList(
+                "TARGET_OS"):
+            if num_items_copied_to_folder > 0 and num_symlink_items > 0:
                 self.batch_accum += self.platform_helper.progress("Resolve symlinks ...")
                 self.batch_accum += self.platform_helper.resolve_symlink_files()
-                self.batch_accum += self.platform_helper.progress("Resolve symlinks done")
 
         # accumulate post_copy_to_folder actions from all items, eliminating duplicates
         self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)
-        self.batch_accum += self.platform_helper.progress("Copy to {0} done".format(target_folder_path))
         self.batch_accum += self.platform_helper.remark("- End folder {0}".format(target_folder_path))
 
     # Todo: move function to a better location
@@ -364,7 +369,7 @@ class InstlClientCopy(InstlClient):
             These are sources that do not have 'install_folder' section OR those with os_is_active
             'direct_sync' section.
         """
-        with BatchAccumulatorTransaction(self.batch_accum) as folder_accum_transaction:
+        with BatchAccumulatorTransaction(self.batch_accum, "create_copy_instructions_for_no_copy_folder-"+sync_folder_name) as folder_accum_transaction:
 
             items_in_folder = self.no_copy_iids_by_sync_folder[sync_folder_name]
             self.batch_accum += self.platform_helper.new_line()
@@ -396,9 +401,6 @@ class InstlClientCopy(InstlClient):
             # accumulate post_copy_to_folder actions from all items, eliminating duplicates
             folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)
 
-            self.batch_accum += self.platform_helper.progress("{sync_folder_name}".format(**locals()))
-            self.batch_accum += self.platform_helper.progress("Actions in {0} done".format(sync_folder_name))
-
     def create_unwtar_batch_file(self, wtar_instructions, name_for_progress):
         if wtar_instructions:
             main_out_file_dir, main_out_file_leaf = os.path.split(var_stack.ResolveVarToStr("__MAIN_OUT_FILE__"))
@@ -412,5 +414,5 @@ class InstlClientCopy(InstlClient):
                     unwtar_line = var_stack.ResolveStrToStr("""unwtar --in "{}" --out "{}" --no-numbers-progress\n""".format(*wtar_inst))
                     self.platform_helper.increment_progress()
                     wfd.write(unwtar_line)
+            self.batch_accum += self.platform_helper.progress("Verify {}".format(name_for_progress))
             self.batch_accum += self.platform_helper.run_instl_command_list(batch_file_path, parallel=True)
-            self.batch_accum += self.platform_helper.progress("Expand files in {} done".format(name_for_progress))

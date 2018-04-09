@@ -8,7 +8,6 @@ import time
 
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..", "..")))
-from pyinstl.db_alchemy import IndexItemRow, IndexItemDetailRow, IndexItemToDetailRelation
 from pyinstl.indexItemTable import ItemTableYamlReader, IndexItemsTable
 import aYaml
 
@@ -95,18 +94,18 @@ class TestItemTable(unittest.TestCase):
         self.it = IndexItemsTable()
         self.it.clear_tables()  # in case db was not cleaned last time the tests were run
 
-        D = IndexItemRow(iid="D", inherit_resolved=True)
-        D.original_details.extend([IndexItemDetailRow(os="common", detail_name="detail-1-D", detail_value="value-1-D"),
-                                   IndexItemDetailRow(os="common", detail_name="detail-2-D", detail_value="value-2-D")])
+        D = index_item_t(iid="D", inherit_resolved=True)
+        D.original_details.extend([index_item_detail_t(os="common", detail_name="detail-1-D", detail_value="value-1-D"),
+                                   index_item_detail_t(os="common", detail_name="detail-2-D", detail_value="value-2-D")])
         self.it.session.add(D)
 
-        self.it.session.add(IndexItemRow(iid="A", inherit_resolved=False))
-        self.it.session.add(IndexItemRow(iid="C", inherit_resolved=False))
-        self.it.session.add(IndexItemRow(iid="B", inherit_resolved=False))
+        self.it.session.add(index_item_t(iid="A", inherit_resolved=False))
+        self.it.session.add(index_item_t(iid="C", inherit_resolved=False))
+        self.it.session.add(index_item_t(iid="B", inherit_resolved=False))
 
-        DD_detail_1 = IndexItemDetailRow(os="common", detail_name="detail-1-D", detail_value="value-1-DD")
-        DD_detail_1.item = IndexItemRow(iid="DD", inherit_resolved=False)
-        DD_detail_2 = IndexItemDetailRow(os="common", detail_name="detail-2-D", detail_value="value-2-DD")
+        DD_detail_1 = index_item_detail_t(os="common", detail_name="detail-1-D", detail_value="value-1-DD")
+        DD_detail_1.item = index_item_t(iid="DD", inherit_resolved=False)
+        DD_detail_2 = index_item_detail_t(os="common", detail_name="detail-2-D", detail_value="value-2-DD")
         DD_detail_2.item = DD_detail_1.item
         self.it.session.add(DD_detail_1)
         self.it.session.add(DD_detail_2)
@@ -140,7 +139,7 @@ class TestItemTable(unittest.TestCase):
         self.assertIs(the_item1, the_item3, "same object should be returned by two calls with same iid")
 
         the_item3 = self.it.get_index_item("Z")
-        self.assertIs(the_item3, None, "None should be returned for non existing IndexItemRow")
+        self.assertIs(the_item3, None, "None should be returned for non existing index_item_t")
 
     def test_03_IndexItemRow_get_all_items(self):
         the_items1 = self.it.get_all_index_items()

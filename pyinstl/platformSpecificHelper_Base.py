@@ -232,7 +232,7 @@ class PlatformSpecificHelperBase(object):
         """ platform specific mkdir """
         pass
 
-    def mkdir_with_owner(self, directory):
+    def mkdir_with_owner(self, directory, progress_num=0):
         return self.mkdir(directory)
 
     @abc.abstractmethod
@@ -509,10 +509,10 @@ class DownloadToolBase(object, metaclass=abc.ABCMeta):
         file_name_list = list()
         num_urls_to_download = len(self.urls_to_download)
         if num_urls_to_download > 0:
-            connect_time_out = var_stack.ResolveVarToStr("CURL_CONNECT_TIMEOUT", "16")
-            max_time = var_stack.ResolveVarToStr("CURL_MAX_TIME", "180")
-            retries = var_stack.ResolveVarToStr("CURL_RETRIES", "2")
-            retry_delay = var_stack.ResolveVarToStr("CURL_RETRY_DELAY", "8")
+            connect_time_out = var_stack.ResolveVarToStr("CURL_CONNECT_TIMEOUT", "32")
+            max_time = var_stack.ResolveVarToStr("CURL_MAX_TIME", "300")
+            retries = var_stack.ResolveVarToStr("CURL_RETRIES", "6")
+            retry_delay = var_stack.ResolveVarToStr("CURL_RETRY_DELAY", "12")
 
             sync_urls_cookie = var_stack.ResolveVarToStr("COOKIE_FOR_SYNC_URLS", default=None)
 

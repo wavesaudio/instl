@@ -7,6 +7,8 @@ import sys
 import shlex
 import tarfile
 import time
+import filecmp
+
 import utils
 from collections import OrderedDict
 from .instlInstanceBase import InstlInstanceBase
@@ -16,7 +18,7 @@ from . import connectionBase
 
 # noinspection PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences
 class InstlMisc(InstlInstanceBase):
-    def __init__(self, initial_vars):
+    def __init__(self, initial_vars, command):
         super().__init__(initial_vars)
         # noinspection PyUnresolvedReferences
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
@@ -25,8 +27,11 @@ class InstlMisc(InstlInstanceBase):
         self.progress_staccato_command = False
         self.progress_staccato_period = 1
         self.progress_staccato_count = 0
-        self.commands_that_need_info_map_table = ("check_checksum", "set_exec", "create_folders")
-        self.commands_that_need_items_table = ("exec")
+
+        if command in ("exec",):
+            self.need_items_table = True
+        if command in ("check-checksum", "set-exec", "create-folders", "command-list"):
+            self.need_info_map_table = True
 
     def get_default_out_file(self):
         retVal = None
@@ -43,15 +48,10 @@ class InstlMisc(InstlInstanceBase):
         self.progress_staccato_count = 0
         do_command_func = getattr(self, "do_" + self.fixed_command)
         before_time = time.clock()
-        if self.fixed_command in self.commands_that_need_info_map_table:
-            from svnTree import SVNTable
-            self.info_map_table = SVNTable()
-        if self.fixed_command in self.commands_that_need_items_table:
-            self.init_items_table()
         do_command_func()
         after_time = time.clock()
         if utils.str_to_bool_int(var_stack.unresolved_var("PRINT_COMMAND_TIME")):
-            print(self.the_command, "time:", round(after_time - before_time, 2), "sec.")
+            print(self.the_command, "time:", round(after_time - before_time, 4), "sec.")
 
     def dynamic_progress(self, msg):
         if self.total_progress > 0:
@@ -188,6 +188,17 @@ class InstlMisc(InstlInstanceBase):
             else:
                 print("{0} skipped since {0}.wtar already exists and has the same contents".format(what_to_work_on))
 
+    def can_skip_unwtar(self, what_to_work_on, where_to_unwtar):
+        return False
+        # disabled for now because Info.xml is copied before unwtarring take place
+        try:
+            what_to_work_on_info_xml = os.path.join(what_to_work_on, "Contents", "Info.xml")
+            where_to_unwtar_info_xml = os.path.join(where_to_unwtar, "Contents", "Info.xml")
+            retVal = filecmp.cmp(what_to_work_on_info_xml, where_to_unwtar_info_xml, shallow=True)
+        except:
+            retVal = False
+        return retVal
+
     def do_unwtar(self):
         self.no_artifacts = "__NO_WTAR_ARTIFACTS__" in var_stack
         what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__", default='.')
@@ -201,26 +212,29 @@ class InstlMisc(InstlInstanceBase):
             if utils.is_first_wtar_file(what_to_work_on):
                 utils.unwtar_a_file(what_to_work_on, where_to_unwtar, no_artifacts=self.no_artifacts, ignore=ignore_files)
         elif os.path.isdir(what_to_work_on):
-            where_to_unwtar_the_file = None
-            for root, dirs, files in os.walk(what_to_work_on, followlinks=False):
-                # a hack to prevent unwtarring of the sync folder. Copy command might copy something
-                # to the top level of the sync folder.
-                if "bookkeeping" in dirs:
-                    dirs[:] = []
-                    print("skipping", root, "because bookkeeping folder was found")
-                    continue
+            if not self.can_skip_unwtar(what_to_work_on, where_to_unwtar):
+                where_to_unwtar_the_file = None
+                for root, dirs, files in os.walk(what_to_work_on, followlinks=False):
+                    # a hack to prevent unwtarring of the sync folder. Copy command might copy something
+                    # to the top level of the sync folder.
+                    if "bookkeeping" in dirs:
+                        dirs[:] = []
+                        print("skipping", root, "because bookkeeping folder was found")
+                        continue
 
-                tail_folder = root[len(what_to_work_on):].strip("\\/")
-                if where_to_unwtar is not None:
-                    where_to_unwtar_the_file = os.path.join(where_to_unwtar, tail_folder)
-                for a_file in files:
-                    a_file_path = os.path.join(root, a_file)
-                    if utils.is_first_wtar_file(a_file_path):
-                        utils.unwtar_a_file(a_file_path, where_to_unwtar_the_file, no_artifacts=self.no_artifacts, ignore=ignore_files)
+                    tail_folder = root[len(what_to_work_on):].strip("\\/")
+                    if where_to_unwtar is not None:
+                        where_to_unwtar_the_file = os.path.join(where_to_unwtar, tail_folder)
+                    for a_file in files:
+                        a_file_path = os.path.join(root, a_file)
+                        if utils.is_first_wtar_file(a_file_path):
+                            utils.unwtar_a_file(a_file_path, where_to_unwtar_the_file, no_artifacts=self.no_artifacts, ignore=ignore_files)
+            else:
+                print("unwtar {} to {} skipping unwtarring because both folders have the same Info.xml file".format(what_to_work_on, where_to_unwtar))
 
         else:
             raise FileNotFoundError(what_to_work_on)
-        self.dynamic_progress("Expand {}".format(utils.original_name_from_wtar_name(what_to_work_on_leaf)))
+        self.dynamic_progress("unwtar {}".format(utils.original_name_from_wtar_name(what_to_work_on_leaf)))
 
     def do_check_checksum(self):
         self.progress_staccato_command = True
@@ -231,8 +245,7 @@ class InstlMisc(InstlInstanceBase):
             if os.path.isfile(file_item.download_path):
                 file_checksum = utils.get_file_checksum(file_item.download_path)
                 if not utils.compare_checksums(file_checksum, file_item.checksum):
-                    sha1_checksum = utils.create_file_checksum(file_item.download_path)
-                    bad_checksum_list.append( " ".join(("Bad checksum:", file_item.download_path, "expected", file_item.checksum, "found", sha1_checksum)) )
+                    bad_checksum_list.append(" ".join(("Bad checksum:", file_item.download_path, "expected", file_item.checksum, "found", file_checksum)) )
             else:
                 missing_files_list.append(" ".join((file_item.download_path, "was not found")))
             self.dynamic_progress("Check checksum {file_item.path}".format(**locals()))

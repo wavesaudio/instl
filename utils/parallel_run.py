@@ -24,7 +24,7 @@ def run_processes_in_parallel(commands):
 
 def run_parallels(commands):
     global exit_val
-    for command in commands:
+    for i, command in enumerate(commands):
         try:
             if getattr(os, "setsid", None):
                 a_process = subprocess.Popen(command, executable=command[0], shell=False, bufsize=1, preexec_fn=os.setsid)  # Unix
