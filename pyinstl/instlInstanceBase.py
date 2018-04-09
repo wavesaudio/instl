@@ -265,6 +265,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                     utils.safe_remove_file(db_url)
                 InstlInstanceBase.db = DBMaster(db_url, ddls_folder)
                 var_stack.add_const_config_variable("__DATABASE_URL__", "", db_url)
+                self.progress("database at {}".format(db_url))
             if self.need_items_table and not InstlInstanceBase.items_table:
                 InstlInstanceBase.items_table = IndexItemsTable(InstlInstanceBase.db)
             if self.need_info_map_table and not InstlInstanceBase.info_map_table:

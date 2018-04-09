@@ -2,6 +2,7 @@
 
 
 import os
+import sys
 import filecmp
 import io
 import re

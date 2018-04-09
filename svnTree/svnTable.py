@@ -415,10 +415,10 @@ class SVNTable(object):
                     row_data.append(1 if 'f' in row_data[1] else 0)  # fileFlag
                     wtar_match = utils.wtar_file_re.match(row_data[0])
                     if wtar_match:
-                        row_data.append(1)
-                        row_data.append(wtar_match.group('base_name'))
+                        row_data.append(1)  # wtarFlag
+                        row_data.append(wtar_match.group('base_name'))  # unwtarred
                     else:
-                        row_data.extend((0, row_data[0]))
+                        row_data.extend((0, row_data[0]))  # wtarFlag, unwtarred
                     row_data.extend((0, 0))  # required, need_download
                     if row_data[0].endswith('.symlink'):  # symlinkFlag
                         row_data.append(1)
@@ -503,8 +503,13 @@ class SVNTable(object):
                     row_data.append(0)      # revision
                     row_data.extend(self.level_parent_and_leaf_from_path(relative_path))  # level, parent, leaf
                     row_data.append(1 if 'f' in flags else 0)  # fileFlag
-                    row_data.append(1 if utils.wtar_file_re.match(relative_path) else 0)  # wtarFlag
                     row_data.append(1 if 's' in flags else 0)  # symlinkFlag
+                    wtar_match = utils.wtar_file_re.match(relative_path)
+                    if wtar_match:
+                        row_data.append(1)  # wtarFlag
+                        row_data.append(wtar_match.group('base_name'))  # unwtarred
+                    else:
+                        row_data.extend((0, relative_path))  # wtarFlag, unwtarred
                     yield row_data
 
         with self.db.transaction() as curs:
@@ -512,8 +517,8 @@ class SVNTable(object):
             insert_q = """
                 INSERT INTO svn_item_t (path, flags, revision,
                                       level, parent, leaf,
-                                      fileFlag, wtarFlag, symlinkFlag)
-                 VALUES(?,?,?,?,?,?,?,?,?);
+                                      fileFlag, symlinkFlag, wtarFlag, unwtarred )
+                 VALUES(?,?,?,?,?,?,?,?,?,?);
                 """
             curs.executemany(insert_q, rows)
 

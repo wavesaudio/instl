@@ -1,3 +1,10 @@
+9/4/2018 1.7.2.1
+
+    Many changes, to numerous to detail here to shorten execution time and better progress reporting. See commit comments in branches no-alchemy and central_v9_no_alcehmy for details
+
+    admin vidible changes:
+    * fixed issue in verify_index_to_repo where !file soirce were reproted as missing
+
 27/2/2018 1.7.0.0
 
     user visible changes:
