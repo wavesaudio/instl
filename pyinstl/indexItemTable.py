@@ -655,7 +655,7 @@ class IndexItemsTable(object):
         retVal = OrderedDict()
         the_items = self.get_all_index_items()
         for item in the_items:
-            retVal[item.iid] = self.repr_item_for_yaml(item.iid)
+            retVal[item['iid']] = self.repr_item_for_yaml(item['iid'])
         return retVal
 
     def versions_report(self, report_only_installed=False):
