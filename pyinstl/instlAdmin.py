@@ -523,7 +523,7 @@ class InstlAdmin(InstlInstanceBase):
         proc = subprocess.Popen(svn_props_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         my_stdout, my_stderr = proc.communicate()
         with utils.utf8_open("../svn-proplist-for-fix-props.txt", "w") as wfd:
-            wfd.write(my_stdout)
+            wfd.write(utils.unicodify(my_stdout))
         self.info_map_table.read_from_file(var_stack.ResolveStrToStr("../svn-proplist-for-fix-props.txt"), a_format="props")
 
         self.batch_accum += self.platform_helper.cd(repo_folder)
@@ -1045,7 +1045,7 @@ class InstlAdmin(InstlInstanceBase):
         return retVal is not None
 
     def should_be_exec(self, item):
-        retVal = isFile(item) and self.should_file_be_exec(item.path)
+        retVal = item.isFile() and self.should_file_be_exec(item.path)
         return retVal
 
     def prepare_list_of_dirs_to_work_on(self, top_folder):
