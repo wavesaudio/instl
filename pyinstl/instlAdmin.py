@@ -968,7 +968,6 @@ class InstlAdmin(InstlInstanceBase):
         print("dependencies written to", out_file_path)
 
     def do_verify_repo(self):
-        self.read_yaml_file(var_stack.ResolveVarToStr("__CONFIG_FILE__"))
         self.read_yaml_file(var_stack.ResolveVarToStr("STAGING_FOLDER_INDEX"))
 
         the_folder = var_stack.ResolveVarToStr("STAGING_FOLDER")
@@ -1006,9 +1005,10 @@ class InstlAdmin(InstlInstanceBase):
             source_and_tag_list = self.items_table.get_details_and_tag_for_active_iids("install_sources", unique_values=True, limit_to_iids=(iid,))
 
             for source in source_and_tag_list:
-                num_files_for_source = self.info_map_table.mark_required_for_source(source)
+                source_path, source_type = source[0], source[1]
+                num_files_for_source = self.info_map_table.mark_required_for_source(source_path, source_type)
                 if num_files_for_source == 0:
-                    err_message = " ".join(("source", utils.quoteme_single(str(source)),"required by", iid, "does not have files"))
+                    err_message = " ".join(("source", utils.quoteme_single(source_path),"required by", iid, "does not have files"))
                     problem_messages_by_iid[iid].append(err_message)
 
             # check targets
@@ -1065,7 +1065,6 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_fix_perm(self):
         self.batch_accum.set_current_section('admin')
-        self.read_yaml_file(var_stack.ResolveVarToStr("__CONFIG_FILE__"))
         should_be_exec_regex_list = var_stack.ResolveVarToList("EXEC_PROP_REGEX")
         self.compiled_should_be_exec_regex = utils.compile_regex_list_ORed(should_be_exec_regex_list)
 

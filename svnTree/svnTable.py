@@ -1073,12 +1073,11 @@ class SVNTable(object):
             retVal = self.mark_required_for_file(dir_path)
         return retVal
 
-    def mark_required_for_source(self, source):
+    def mark_required_for_source(self, source_path, source_type):
         """ mark all files & dirs for specific source as required.
             :param source: a tuple (source_folder, tag), where tag is either !file or !dir
             :return: None
         """
-        source_path, source_type = source[0], source[1]
         num_required_files = 0
         if source_type in ('!dir', '!dir_cont'):  # !dir and !dir_cont are only different when copying
             num_required_files = self.mark_required_for_dir(source_path)
