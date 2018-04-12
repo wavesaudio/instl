@@ -15,6 +15,7 @@ from svnTree import SVNTable
 class InstlClient(InstlInstanceBase):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
+        self.output_self_progress = True
         self.need_items_table = True
         self.need_info_map_table = True
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
@@ -22,6 +23,7 @@ class InstlClient(InstlInstanceBase):
         self.__all_iids_by_target_folder = defaultdict(utils.unique_list)
         self.__no_copy_iids_by_sync_folder = defaultdict(utils.unique_list)
         self.auxiliary_iids = utils.unique_list()
+        self.main_install_targets = list()
 
     @property
     def all_iids_by_target_folder(self):
@@ -200,8 +202,8 @@ class InstlClient(InstlInstanceBase):
         if "MAIN_INSTALL_TARGETS" not in var_stack:
             raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
 
-        main_install_targets = var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS")
-        main_iids, main_guids = utils.separate_guids_from_iids(main_install_targets)
+        self.main_install_targets.extend(var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS"))
+        main_iids, main_guids = utils.separate_guids_from_iids(self.main_install_targets)
         iids_from_main_guids, orphaned_main_guids = self.items_table.iids_from_guids(main_guids)
         main_iids.extend(iids_from_main_guids)
         main_iids, update_iids = self.resolve_special_build_in_iids(main_iids)

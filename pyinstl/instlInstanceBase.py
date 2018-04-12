@@ -49,6 +49,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
     info_map_table = None
 
     def __init__(self, initial_vars=None):
+        self.output_self_progress = False   # output progress during run (as apposed to btach file progress)
         self.need_items_table = False
         self.need_info_map_table = False
 
@@ -77,8 +78,9 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.num_digits_per_folder_repo_rev_hierarchy=None
 
     def progress(self, message):
-        self.internal_progress += 1
-        print("""Progress: {} of {}; {}""".format(self.internal_progress, 100, message), flush=True)
+        if self.output_self_progress:
+            self.internal_progress += 1
+            print("""Progress: {} of {}; {}""".format(self.internal_progress, 100, message), flush=True)
 
     def init_specific_doc_readers(self):
         ConfigVarYamlReader.init_specific_doc_readers(self)

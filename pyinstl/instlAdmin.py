@@ -739,8 +739,8 @@ class InstlAdmin(InstlInstanceBase):
         self.min_file_size_to_wtar = int(var_stack.ResolveVarToStr("MIN_FILE_SIZE_TO_WTAR"))
 
         if "WTAR_BY_FILE_SIZE_EXCLUDE_REGEX" in var_stack:
-            wtar_by_file_size_exclude_regex = var_stack.ResolveVarToStr("WTAR_BY_FILE_SIZE_EXCLUDE_REGEX")
-            self.compiled_wtar_by_file_size_exclude_regex = re.compile(wtar_by_file_size_exclude_regex)
+            wtar_by_file_size_exclude_regex = var_stack.ResolveVarToList("WTAR_BY_FILE_SIZE_EXCLUDE_REGEX")
+            self.compiled_wtar_by_file_size_exclude_regex = utils.compile_regex_list_ORed(wtar_by_file_size_exclude_regex)
         else:
             self.compiled_wtar_by_file_size_exclude_regex = None
 
@@ -794,21 +794,27 @@ class InstlAdmin(InstlInstanceBase):
         total_redundant_wtar_files = 0
         while len(folders_to_check) > 0:
             folder_to_check = folders_to_check.pop()
-            dir_items = os.listdir(folder_to_check)
             items_to_tar = list()
-            items_to_delete = list()  # these are .wtar files for items that no linger need wtarring
-            for dir_item in sorted(dir_items):
-                dir_item_full_path = os.path.join(folder_to_check, dir_item)
-                if not os.path.islink(dir_item_full_path):
-                    to_tar, already_tarred = self.should_wtar(dir_item_full_path)
-                    if to_tar:
-                        items_to_tar.append(dir_item)
-                    else:
-                        redundant_wtar_files = utils.find_split_files_from_base_file(dir_item_full_path)
-                        total_redundant_wtar_files += len(redundant_wtar_files)
-                        items_to_delete.extend(redundant_wtar_files)
-                        if os.path.isdir(dir_item_full_path):
-                            folders_to_check.append(dir_item_full_path)
+            items_to_delete = list()  # these are .wtar files for items that no longer need wtarring
+
+            # check if the folder it self is candidate for wtarring
+            to_tar, already_tarred = self.should_wtar(folder_to_check)
+            if to_tar:
+                items_to_tar.append(folder_to_check)
+            else:
+                dir_items = os.listdir(folder_to_check)
+                for dir_item in sorted(dir_items):
+                    dir_item_full_path = os.path.join(folder_to_check, dir_item)
+                    if not os.path.islink(dir_item_full_path):
+                        to_tar, already_tarred = self.should_wtar(dir_item_full_path)
+                        if to_tar:
+                            items_to_tar.append(dir_item)
+                        else:
+                            redundant_wtar_files = utils.find_split_files_from_base_file(dir_item_full_path)
+                            total_redundant_wtar_files += len(redundant_wtar_files)
+                            items_to_delete.extend(redundant_wtar_files)
+                            if os.path.isdir(dir_item_full_path):
+                                folders_to_check.append(dir_item_full_path)
 
             if items_to_tar or items_to_delete:
                 total_items_to_tar += len(items_to_tar)

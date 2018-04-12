@@ -18,6 +18,8 @@ class InstlClientCopy(InstlClient):
         super().__init__(initial_vars)
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         self.unwtar_batch_file_counter = 0
+        self.current_destination_folder = None
+        self.current_iid = None
 
     def do_copy(self):
         self.init_copy_vars()
@@ -144,6 +146,7 @@ class InstlClientCopy(InstlClient):
             self.batch_accum += self.platform_helper.echo("Don't know how to install " + iid)
         self.batch_accum += self.platform_helper.progress_percent("Done copy", 10)
         self.progress("create copy instructions done")
+        self.progress("")
 
     def calc_size_of_file_item(self, a_file_item):
         """ for use with builtin function reduce to calculate the unwtarred size of a file """
@@ -233,15 +236,31 @@ class InstlClientCopy(InstlClient):
             #    self.batch_accum += self.platform_helper.chmod("-R -f a+rwX", ".")
         return retVal
 
+    @utils.timing
+    def can_copy_be_avoided(self, dir_item, source_items):
+        retVal = False
+        if "__REPAIR_INSTALLED_ITEMS__" not in self.main_install_targets:
+            # look for Info.xml as first choice, Info.plist is seconds choice
+            info_item = next((i for i in source_items if i.leaf=="Info.xml"), None) or next((i for i in source_items if i.leaf=="Info.plist"), None)
+            if info_item:  # no info item - return False
+                destination_folder = var_stack.ResolveStrToStr(self.current_destination_folder)
+                dir_item_parent, dir_item_leaf = os.path.split(var_stack.ResolveStrToStr(dir_item.path))
+                info_item_abs_path = os.path.join(destination_folder, dir_item_leaf, info_item.path[len(dir_item.path)+1:])
+                retVal = utils.check_file_checksum(info_item_abs_path, info_item.checksum)
+        return retVal
+
     def create_copy_instructions_for_dir(self, source_path, name_for_progress_message):
         retVal = 0  # number of essential actions (not progress, remark, ...)
         dir_item = self.info_map_table.get_dir_item(source_path)
         if dir_item is not None:
             retVal += 1
-            source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
             source_items = self.info_map_table.get_items_in_dir(dir_path=source_path)
+            if self.can_copy_be_avoided(dir_item, source_items):
+                self.batch_accum += self.platform_helper.progress("avoid copy of {}".format(name_for_progress_message))
+                return retVal
             wtar_base_names = {source_item.unwtarred.split("/")[-1] for source_item in source_items if source_item.wtarFlag}
             ignores = self.patterns_copy_should_ignore + list(wtar_base_names)
+            source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(source_path_abs, ".",
                                                                                link_dest=True,
                                                                                ignore=ignores)
@@ -307,6 +326,7 @@ class InstlClientCopy(InstlClient):
         return resolved_path
 
     def create_copy_instructions_for_target_folder(self, target_folder_path):
+        self.current_destination_folder = target_folder_path
         self.unwtar_instructions = list()
         num_items_copied_to_folder = 0
         items_in_folder = sorted(self.all_iids_by_target_folder[target_folder_path])
@@ -322,6 +342,7 @@ class InstlClientCopy(InstlClient):
         batch_accum_len_before = len(self.batch_accum)
         self.batch_accum += self.platform_helper.copy_tool.begin_copy_folder()
         for IID in items_in_folder:
+            self.current_iid = IID
             self.batch_accum += self.platform_helper.remark("-- Begin iid {0}".format(IID))
             sources_for_iid = self.items_table.get_sources_for_iid(IID)
             resolved_sources_for_iid = [(var_stack.ResolveStrToStr(s[0]), s[1]) for s in sources_for_iid]
@@ -337,6 +358,7 @@ class InstlClientCopy(InstlClient):
                         "TARGET_OS"):
                     num_symlink_items += self.info_map_table.count_symlinks_in_dir(source[0])
             self.batch_accum += self.platform_helper.remark("-- End iid {0}".format(IID))
+        self.current_iid = None
 
         target_folder_path_parent, target_folder_name = os.path.split(var_stack.ResolveStrToStr(target_folder_path))
         self.create_unwtar_batch_file(self.unwtar_instructions, target_folder_name)
@@ -353,6 +375,7 @@ class InstlClientCopy(InstlClient):
         # accumulate post_copy_to_folder actions from all items, eliminating duplicates
         self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)
         self.batch_accum += self.platform_helper.remark("- End folder {0}".format(target_folder_path))
+        self.current_destination_folder = None
 
     # Todo: move function to a better location
     def pre_resolve_path(self, path_to_resolve):
