@@ -236,7 +236,6 @@ class InstlClientCopy(InstlClient):
             #    self.batch_accum += self.platform_helper.chmod("-R -f a+rwX", ".")
         return retVal
 
-    @utils.timing
     def can_copy_be_avoided(self, dir_item, source_items):
         retVal = False
         if "__REPAIR_INSTALLED_ITEMS__" not in self.main_install_targets:

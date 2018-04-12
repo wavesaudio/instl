@@ -116,6 +116,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             as it appears in the info_map db. The list is processed against the db which returns the indexes of the redundant
             files. The full path versions of the indexed files is used to create remove instructions
         """
+        self.instlObj.progress("removing redundant files from sync folder")
         pure_local_sync_dir = pathlib.PurePath(self.local_sync_dir)
         files_to_check = list()
         for root, dirs, files in os.walk(self.local_sync_dir, followlinks=False):
