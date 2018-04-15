@@ -1,3 +1,12 @@
+15/4/2018 1.7.2.2
+
+   admin visible changes:
+    * detailed self.progress report on verify-repo command
+
+    programmer visible changes:
+    * self.progress can change it's total progress dynamically
+    * self.progress can have multiple messages which will all be " ".join-ed
+
 9/4/2018 1.7.2.1
 
     Many changes, to numerous to detail here to shorten execution time and better progress reporting. See commit comments in branches no-alchemy and central_v9_no_alcehmy for details

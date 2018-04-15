@@ -49,7 +49,8 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
     info_map_table = None
 
     def __init__(self, initial_vars=None):
-        self.output_self_progress = False   # output progress during run (as apposed to btach file progress)
+        self.total_self_progress = 0   # if > 0 output progress during run (as apposed to batch file progress)
+
         self.need_items_table = False
         self.need_info_map_table = False
 
@@ -77,10 +78,12 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.num_digits_repo_rev_hierarchy=None
         self.num_digits_per_folder_repo_rev_hierarchy=None
 
-    def progress(self, message):
-        if self.output_self_progress:
+    def progress(self, *messages):
+        if self.total_self_progress:
             self.internal_progress += 1
-            print("""Progress: {} of {}; {}""".format(self.internal_progress, 100, message), flush=True)
+            if self.internal_progress >= self.total_self_progress:
+                self.total_self_progress += 100
+            print("""Progress: {} of {}; {}""".format(self.internal_progress, self.total_self_progress, " ".join(str(mes) for mes in messages)), flush=True)
 
     def init_specific_doc_readers(self):
         ConfigVarYamlReader.init_specific_doc_readers(self)
@@ -268,7 +271,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                     utils.safe_remove_file(db_url)
                 InstlInstanceBase.db = DBMaster(db_url, ddls_folder)
                 var_stack.add_const_config_variable("__DATABASE_URL__", "", db_url)
-                self.progress("database at {}".format(db_url))
+                self.progress("database at ", db_url)
             if self.need_items_table and not InstlInstanceBase.items_table:
                 InstlInstanceBase.items_table = IndexItemsTable(InstlInstanceBase.db)
             if self.need_info_map_table and not InstlInstanceBase.info_map_table:
@@ -334,7 +337,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
     def read_include_node(self, i_node, *args, **kwargs):
         if i_node.isScalar():
             resolved_file_name = var_stack.ResolveStrToStr(i_node.value)
-            self.progress("reading "+resolved_file_name)
+            self.progress("reading ", resolved_file_name)
             self.read_yaml_file(resolved_file_name, *args, **kwargs)
         elif i_node.isSequence():
             for sub_i_node in i_node:

@@ -27,6 +27,7 @@ class InstlAdmin(InstlInstanceBase):
         super().__init__(initial_vars)
         self.need_items_table = True
         self.need_info_map_table = True
+        self.total_self_progress = 100
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         self.fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
 
@@ -989,23 +990,27 @@ class InstlAdmin(InstlInstanceBase):
             check the expect files from the index appear in the info-map
         """
         all_iids = sorted(self.items_table.get_all_iids())
+        self.total_self_progress += len(all_iids)
         self.items_table.change_status_of_all_iids(1)
 
         problem_messages_by_iid = defaultdict(list)
 
         # check inherit
+        self.progress("checking inheritance")
         missing_inheritees = self.items_table.get_missing_iids_from_details("inherit")
         for missing_inheritee in missing_inheritees:
             err_message = " ".join(("inherits from non existing", utils.quoteme_single(missing_inheritee[1])))
             problem_messages_by_iid[missing_inheritee[0]].append(err_message)
 
         # check depends
+        self.progress("checking dependencies")
         missing_dependees = self.items_table.get_missing_iids_from_details("depends")
         for missing_dependee in missing_dependees:
             err_message = " ".join(("depends from non existing", utils.quoteme_single(missing_dependee[1])))
             problem_messages_by_iid[missing_dependee[0]].append(err_message)
 
         for iid in all_iids:
+            self.progress("checking sources for", iid)
 
             # check sources
             source_and_tag_list = self.items_table.get_details_and_tag_for_active_iids("install_sources", unique_values=True, limit_to_iids=(iid,))
@@ -1024,13 +1029,15 @@ class InstlAdmin(InstlInstanceBase):
                     err_message = " ".join(("iid", iid, "does not have target folder"))
                     problem_messages_by_iid[iid].append(err_message)
 
+        self.progress("checking for cyclic dependencies")
+        self.info_map_table.mark_required_completion()
+        self.find_cycles()
+
         for iid in sorted(problem_messages_by_iid):
             print(iid+":")
             for problem_message in sorted(problem_messages_by_iid[iid]):
                 print("   ", problem_message)
 
-        self.info_map_table.mark_required_completion()
-        self.find_cycles()
         print("index:", len(all_iids), "iids")
         num_files = self.info_map_table.num_items("all-files")
         num_dirs = self.info_map_table.num_items("all-dirs")

@@ -15,7 +15,7 @@ from svnTree import SVNTable
 class InstlClient(InstlInstanceBase):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
-        self.output_self_progress = True
+        self.total_self_progress = 100
         self.need_items_table = True
         self.need_info_map_table = True
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
