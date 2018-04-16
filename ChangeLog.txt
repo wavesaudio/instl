@@ -1,3 +1,8 @@
+16/4/2018 1.7.2.3
+
+    user visible changes:
+    * added retry mechanism to utils.open_for_read_file_or_url
+
 15/4/2018 1.7.2.2
 
    admin visible changes:

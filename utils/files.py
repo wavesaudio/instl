@@ -155,7 +155,20 @@ class open_for_read_file_or_url(object):
                     for custom_header in self.custom_headers:
                         opener.addheaders.append(custom_header)
                 with patch_verify_ssl(self.verify_ssl):  # if self.verify_ssl is False this will disable SSL verifications
-                    self.fd = opener.open(self.url, timeout=300)
+                    # crud retry mechanism, should be improved, use requests?
+                    retries = 12
+                    while retries > 0:
+                        try:
+                            retries -= 1
+                            self.fd = opener.open(self.url, timeout=32)
+                            retries = 0
+                        except:
+                            if retries == 0:
+                                raise
+                            else:
+                                self.progress("failed to download", self.url, "trying again")
+                                time.sleep(1.0)
+
             elif self.local_file_path:
                 if self.encoding is None:
                     self.fd = open(self.local_file_path, "rb")
