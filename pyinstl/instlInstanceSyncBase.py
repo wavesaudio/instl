@@ -106,7 +106,8 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         required_file_path = var_stack.ResolveVarToStr("REQUIRED_INFO_MAP_PATH")
         required_items_list = self.instlObj.info_map_table.get_required_items()
         self.instlObj.info_map_table.write_to_file(in_file=required_file_path, items_list=required_items_list)
-        self.instlObj.progress("{} files required for installation".format(len(required_items_list)))
+        num_required_files = sum(item.fileFlag for item in required_items_list)
+        self.instlObj.progress("{} files required for installation".format(num_required_files))
 
     def mark_download_items(self):
         """" Mark those files that need to be downloaded.

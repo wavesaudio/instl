@@ -282,6 +282,7 @@ class PlatformSpecificHelperBase(object):
         self.num_items_for_progress_report += num_items + 1
         if not self.no_progress_messages:
             prog_msg = "Progress: {} of $(TOTAL_ITEMS_FOR_PROGRESS_REPORT); {}".format(self.num_items_for_progress_report, msg)
+            #prog_msg = "Progress: {} of $(TOTAL_ITEMS_FOR_PROGRESS_REPORT); $(CURRENT_PHASE); {}".format(self.num_items_for_progress_report, msg)
             return self.echo(prog_msg)
         else:
             return ()

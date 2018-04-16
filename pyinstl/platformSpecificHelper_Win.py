@@ -376,7 +376,6 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
                                     "&", "GOTO", "EXIT_ON_ERROR", ")"))
         return mk_command, check_mk_command
 
-
     def mkdir(self, directory):
         norm_directory = os.path.normpath(directory)
         quoted_norm_directory = utils.quoteme_double(norm_directory)

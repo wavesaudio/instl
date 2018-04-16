@@ -55,6 +55,7 @@ class BatchAccumulator(object):
     def finalize_list_of_lines(self):
         lines = list()
         for section in BatchAccumulator.section_order:
+            #var_stack.set_var("CURRENT_PHASE").append(section)
             section_lines = self.instruction_lines[section]
             if section_lines:
                 if section == "assign":
