@@ -371,7 +371,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         quoted_norm_directory_slash = utils.quoteme_double(norm_directory+"\\")
         mk_command = " ".join(("if not exist", quoted_norm_directory, "(",
                                "mkdir", quoted_norm_directory,
-                               "&", "echo" "Progress: ", str(progress_num), " of $(TOTAL_ITEMS_FOR_PROGRESS_REPORT); Create folder ", quoted_norm_directory, ")"))
+                               "&", "echo", "Progress: ", str(progress_num), " of $(TOTAL_ITEMS_FOR_PROGRESS_REPORT); Create folder ", quoted_norm_directory, ")"))
         check_mk_command = " ".join(("if not exist", quoted_norm_directory_slash, "(", "echo Error: failed to create ", quoted_norm_directory, "1>&2",
                                     "&", "GOTO", "EXIT_ON_ERROR", ")"))
         return mk_command, check_mk_command
