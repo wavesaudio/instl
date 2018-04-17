@@ -559,7 +559,12 @@ write-out = "Progress: ... of ...; {basename}: {curl_write_out_str}
             url_num = 0
             sorted_by_size = sorted(self.urls_to_download, key=lambda dl_item: dl_item[2])
             for url, path, size in sorted_by_size:
-                fixed_path = str(pathlib.PurePath(path)).replace("\\", "\\\\")  # for windows
+                fixed_path = pathlib.PurePath(path)
+                if 'Win' in utils.get_current_os_names():
+                    import win32api
+                    short_parent_name = win32api.GetShortPathName(str(fixed_path.parent))
+                    short_file_path = os.path.join(short_parent_name, fixed_path.name)
+                    fixed_path = short_file_path.replace("\\", "\\\\")
                 wfd = next(wfd_cycler)
                 wfd.write('''url = "{url}"\noutput = "{fixed_path}"\n\n'''.format(**locals()))
                 url_num += 1
