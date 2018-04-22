@@ -262,7 +262,7 @@ class SVNTable(object):
         {another_filter}
         ORDER BY parent_id
         """
-    get_immediate_child_items_q =  """SELECT * FROM svn_item WHERE parent_id==:parent_id"""
+    get_immediate_child_items_q =  """SELECT * FROM svn_item_t WHERE parent_id==:parent_id"""
 
     def __init__(self, db_master):
         super().__init__()

@@ -271,18 +271,6 @@ class InstlAdmin(InstlInstanceBase):
         accum += self.platform_helper.popd()
         accum += self.platform_helper.echo("done create-links version $(__CURR_REPO_REV__)")
 
-    class RemoveIfNotSpecificVersion(object):
-        def __init__(self, version_not_to_remove):
-            self.version_not_to_remove = version_not_to_remove
-
-        def __call__(self, svn_item):
-            retVal = None
-            if isFile(svn_item):
-                retVal = svn_item.revision != self.version_not_to_remove
-            elif isDir(svn_item):
-                retVal = len(svn_item.subs) == 0
-            return retVal
-
     def do_up2s3(self):
         base_repo_rev = int(var_stack.ResolveVarToStr("BASE_REPO_REV"))
         curr_repo_rev = int(var_stack.ResolveVarToStr("REPO_REV"))

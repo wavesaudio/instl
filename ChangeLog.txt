@@ -1,3 +1,11 @@
+22/4/2018 1.7.2.4
+
+    user visible changes:
+    * SVNTable.get_immediate_child_items_q had wrong name for svn_item_t table, which caused exception when uninstalling
+
+    programmer visible changes:
+    * removed redundant class InstlAdmin.RemoveIfNotSpecificVersion
+
 16/4/2018 1.7.2.3
 
     user visible changes:
