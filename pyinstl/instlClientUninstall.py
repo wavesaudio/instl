@@ -52,8 +52,8 @@ class InstlClientUninstall(InstlClientRemove):
                             req_trans['status'] += 1
                             how_many_require_by[req_trans['iid']] -= 1
 
-            items_required_by_no_one = [iid for iid, count in how_many_require_by.items() if count == 0]
-            should_be_uninstalled = list(set(iid_candidates_for_uninstall) & set(items_required_by_no_one))
+            items_required_by_no_one = sorted([iid for iid, count in how_many_require_by.items() if count == 0])
+            should_be_uninstalled = sorted(list(set(iid_candidates_for_uninstall) & set(items_required_by_no_one)))
 
             # zero status and count for next stage
             how_many_require_by = defaultdict( lambda: 0 )
@@ -82,8 +82,8 @@ class InstlClientUninstall(InstlClientRemove):
         all_uninstall_items.sort()
         var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(all_uninstall_items)
 
-        iids_that_should_not_be_uninstalled = list(set(iid_candidates_for_uninstall)-set(all_uninstall_items))
-        var_stack.set_var("__ORPHAN_INSTALL_TARGETS__").extend(sorted(iids_that_should_not_be_uninstalled))
+        iids_that_should_not_be_uninstalled = sorted(list(set(iid_candidates_for_uninstall)-set(all_uninstall_items)))
+        var_stack.set_var("__ORPHAN_INSTALL_TARGETS__").extend(iids_that_should_not_be_uninstalled)
 
 
         # mark all uninstall items
@@ -91,7 +91,7 @@ class InstlClientUninstall(InstlClientRemove):
             self.items_table.install_status["none"],
             self.items_table.install_status["remove"],
             all_uninstall_items)
-        self.sort_all_items_by_target_folder()
+        self.sort_all_items_by_target_folder(consider_direct_sync=False)
 
     def create_uninstall_instructions(self):
 

@@ -2,9 +2,13 @@
 
     user visible changes:
     * SVNTable.get_immediate_child_items_q had wrong name for svn_item_t table, which caused exception when uninstalling
+    * InstlClient.sort_all_items_by_target_folder can now ignore direct_sync state for an item so during uninstall those items can be removed if needed
+    * reduce progress items during uninstall, folders were there is nothing to remove will not be mentioned in batch file
+    * reduce progress count (factor of 4) for files that are already in cache so progress advances more uniformly
 
     programmer visible changes:
     * removed redundant class InstlAdmin.RemoveIfNotSpecificVersion
+    * some more sorted() calls for idempotency sake
 
 16/4/2018 1.7.2.3
 
