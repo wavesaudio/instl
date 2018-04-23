@@ -5,7 +5,12 @@
     * InstlClient.sort_all_items_by_target_folder can now ignore direct_sync state for an item so during uninstall those items can be removed if needed
     * reduce progress items during uninstall, folders were there is nothing to remove will not be mentioned in batch file
     * reduce progress count (factor of 4) for files that are already in cache so progress advances more uniformly
-
+    * DownloadToolBase.create_config_files:
+        to overcome cUrl inability to handle path with unicode chars, we try to calculate the windows
+        short path (DOS style 8.3 chars). The function that does that, win32api.GetShortPathName,
+        does not work for paths that do not yet exist so we need to also create the folder.
+        However if the creation requires admin permissions - it could fail -
+        in which case we revert to using the long path.
     programmer visible changes:
     * removed redundant class InstlAdmin.RemoveIfNotSpecificVersion
     * some more sorted() calls for idempotency sake
