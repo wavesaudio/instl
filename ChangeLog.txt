@@ -1,3 +1,8 @@
+25/4/2018 1.7.2.5
+    user visible changes:
+    * __USER_PATH__ is no longer written to the batch file, there were issues with users having bad characters in the path
+        and anyway having __USER_PATH__ was not really useful for debugging. CEN-1638
+
 22/4/2018 1.7.2.4
 
     user visible changes:
