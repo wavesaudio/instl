@@ -512,7 +512,11 @@ class InstlClient(InstlInstanceBase):
         if name_and_version_list:
             retVal = name_and_version_list[0]
         else:
-            retVal = self.name_from_iid(iid)
+            name = self.items_table.get_resolved_details_value_for_active_iid(iid=iid, detail_name="name")
+            if name:
+                retVal = name[0]
+            else:
+                retVal = self.name_from_iid(iid)
         return retVal
 
     def name_for_iid(self, iid):

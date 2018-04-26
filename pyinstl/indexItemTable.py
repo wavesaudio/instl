@@ -883,12 +883,14 @@ class IndexItemsTable(object):
             using the function in a query can only be done with the connection that called create_function.
         """
         def _name_and_version(iid, name, version):
+            retVal = ""
             if not name or name == '_':
                 name = iid
             if not version or version == '_':
-                return name
+                retVal = name
             else:
-                return name + " v" + version
+                retVal = name + " v" + version
+            return retVal
         self.db.create_function("name_and_version", 3, _name_and_version)
 
         query_text = """
