@@ -181,6 +181,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             "base_url": ("__BASE_URL__", None),
             "file_sizes_file": ("__FILE_SIZES_FILE__", None),
             "output_format": ("__OUTPUT_FORMAT__", None),
+            "db_file": ("__DB_INPUT_FILE__", None),
         }
 
         default_remark = "from command line options"
@@ -259,13 +260,14 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             if default_out_file:
                 var_stack.add_const_config_variable("__MAIN_OUT_FILE__", "from write_batch_file",
                                                 default_out_file)
-        self.init_db()
+        db_file = var_stack.ResolveVarToStr("__DB_INPUT_FILE__")
+        self.init_db(db_file=db_file)
         self.progress("")  # so database at... message will not remain visible
 
-    def init_db(self):
-        if self.need_items_table or self.need_info_map_table:
+    def init_db(self, db_file=None):
+        if self.need_items_table or self.need_info_map_table or db_file:
             if not InstlInstanceBase.db:
-                db_url = get_db_url(self.the_command)
+                db_url = get_db_url(self.the_command, db_file)
                 ddls_folder = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults")
                 if db_url != ":memory:":
                     utils.safe_remove_file(db_url)

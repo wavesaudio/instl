@@ -429,22 +429,37 @@ class InstlClient(InstlInstanceBase):
             local_repo_sync_dir = var_stack.ResolveVarToStr("LOCAL_REPO_SYNC_DIR")
 
             if source_tag in ('!dir', '!dir_cont'):
-                item_paths = self.info_map_table.get_file_paths_of_dir(dir_path=source)
                 if direct_sync:
-                    # here is the place to avoid downloading direct-sync items if Info.xml is identical
-                    if source_tag == '!dir':
-                        source_parent = "/".join(resolved_source_parts[:-1])
-                        for item in item_paths:
-                            items_to_update.append({"_id": item['_id'],
-                                                    "download_path": var_stack.ResolveStrToStr("/".join((resolved_install_folder, item['path'][len(source_parent)+1:]))),
-                                                    "download_root": var_stack.ResolveStrToStr("/".join((resolved_install_folder, resolved_source_parts[-1])))})
-                    else:  # !dir_cont
-                        source_parent = source
-                        for item in item_paths:
-                            items_to_update.append({"_id": item['_id'],
-                                                    "download_path": var_stack.ResolveStrToStr("/".join((resolved_install_folder, item['path'][len(source_parent)+1:]))),
-                                                    "download_root": resolved_install_folder})
+                    # for direct-sync source, if one of the sources is Info.xml and it exists on disk AND source & file
+                    # have the same checksum, then no sync is needed at all. All the above is not relevant in repair mode.
+                    need_to_sync = True
+                    if "__REPAIR_INSTALLED_ITEMS__" not in self.main_install_targets:
+                        info_xml_item = self.info_map_table.get_file_item("/".join((source, "Info.xml")))
+                        if info_xml_item:
+                            info_xml_of_target = var_stack.ResolveStrToStr("/".join((resolved_install_folder, resolved_source_parts[-1], "Info.xml")))
+                            need_to_sync = not utils.check_file_checksum(info_xml_of_target, info_xml_item.checksum)
+                    if need_to_sync:
+                        item_paths = self.info_map_table.get_file_paths_of_dir(dir_path=source)
+                        if source_tag == '!dir':
+                            source_parent = "/".join(resolved_source_parts[:-1])
+                            for item in item_paths:
+                                items_to_update.append({"_id": item['_id'],
+                                                        "download_path": var_stack.ResolveStrToStr("/".join((resolved_install_folder, item['path'][len(source_parent)+1:]))),
+                                                        "download_root": var_stack.ResolveStrToStr("/".join((resolved_install_folder, resolved_source_parts[-1])))})
+                        else:  # !dir_cont
+                            source_parent = source
+                            for item in item_paths:
+                                items_to_update.append({"_id": item['_id'],
+                                                        "download_path": var_stack.ResolveStrToStr("/".join((resolved_install_folder, item['path'][len(source_parent)+1:]))),
+                                                        "download_root": resolved_install_folder})
+                    else:
+                        num_ignored_files = self.info_map_table.ignore_file_paths_of_dir(dir_path=source)
+                        if num_ignored_files < 1:
+                            num_ignored_files = ""  # sqlite curs.rowcount does not always returns the number of effected rows
+                        self.progress("avoid download {} files of {}, Info.xml has not changed".format(num_ignored_files, iid))
+
                 else:
+                    item_paths = self.info_map_table.get_file_paths_of_dir(dir_path=source)
                     for item in item_paths:
                         items_to_update.append({"_id": item['_id'],
                                                 "download_path": var_stack.ResolveStrToStr("/".join((local_repo_sync_dir, item['path']))),

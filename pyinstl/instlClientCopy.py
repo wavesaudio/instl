@@ -252,11 +252,11 @@ class InstlClientCopy(InstlClient):
         retVal = 0  # number of essential actions (not progress, remark, ...)
         dir_item = self.info_map_table.get_dir_item(source_path)
         if dir_item is not None:
-            retVal += 1
             source_items = self.info_map_table.get_items_in_dir(dir_path=source_path)
             if self.can_copy_be_avoided(dir_item, source_items):
-                self.batch_accum += self.platform_helper.progress("avoid copy of {}".format(name_for_progress_message))
+                self.progress("avoid copy of {}, Info.xml has not changed".format(name_for_progress_message))
                 return retVal
+            retVal += 1
             wtar_base_names = {source_item.unwtarred.split("/")[-1] for source_item in source_items if source_item.wtarFlag}
             ignores = self.patterns_copy_should_ignore + list(wtar_base_names)
             source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
@@ -292,16 +292,19 @@ class InstlClientCopy(InstlClient):
     def create_copy_instructions_for_source(self, source, name_for_progress_message):
         """ source is a tuple (source_path, tag), where tag is either !file or !dir or !dir_cont'
         """
+        retVal = 0
         with BatchAccumulatorTransaction(self.batch_accum, "create_copy_instructions_for_source-"+name_for_progress_message) as source_accum_transaction:
             self.batch_accum += self.platform_helper.progress("Copy {0} ...".format(name_for_progress_message))
             if source[1] == '!dir':  # !dir
-                source_accum_transaction += self.create_copy_instructions_for_dir(source[0], name_for_progress_message)
+                retVal += self.create_copy_instructions_for_dir(source[0], name_for_progress_message)
             elif source[1] == '!file':  # get a single file
-                source_accum_transaction += self.create_copy_instructions_for_file(source[0], name_for_progress_message)
+                retVal += self.create_copy_instructions_for_file(source[0], name_for_progress_message)
             elif source[1] == '!dir_cont':  # get all files and folders from a folder
-                source_accum_transaction += self.create_copy_instructions_for_dir_cont(source[0], name_for_progress_message)
+                retVal += self.create_copy_instructions_for_dir_cont(source[0], name_for_progress_message)
             else:
                 raise ValueError("unknown source type "+source[1]+" for "+source[0])
+            source_accum_transaction += retVal
+        return retVal
 
     # special handling when running on Mac OS
     def pre_copy_mac_handling(self):
@@ -325,56 +328,57 @@ class InstlClientCopy(InstlClient):
         return resolved_path
 
     def create_copy_instructions_for_target_folder(self, target_folder_path):
-        self.current_destination_folder = target_folder_path
-        self.unwtar_instructions = list()
-        num_items_copied_to_folder = 0
-        items_in_folder = sorted(self.all_iids_by_target_folder[target_folder_path])
-        self.batch_accum += self.platform_helper.new_line()
-        self.batch_accum += self.platform_helper.remark("- Begin folder {0}".format(target_folder_path))
-        self.batch_accum += self.platform_helper.cd(target_folder_path)
-        self.batch_accum += self.platform_helper.progress("copy to {0} ...".format(target_folder_path))
+        with BatchAccumulatorTransaction(self.batch_accum, "create_copy_instructions_for_target_folder-"+target_folder_path) as folder_accum_transaction:
+            self.current_destination_folder = target_folder_path
+            self.unwtar_instructions = list()
+            num_items_copied_to_folder = 0
+            items_in_folder = sorted(self.all_iids_by_target_folder[target_folder_path])
+            self.batch_accum += self.platform_helper.new_line()
+            self.batch_accum += self.platform_helper.remark("- Begin folder {0}".format(target_folder_path))
+            self.batch_accum += self.platform_helper.progress("copy to {0} ...".format(target_folder_path))
+            self.batch_accum += self.platform_helper.cd(target_folder_path)
 
-        # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
-        self.accumulate_unique_actions_for_active_iids('pre_copy_to_folder', items_in_folder)
+            # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
+            folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('pre_copy_to_folder', items_in_folder)
 
-        num_symlink_items = 0
-        batch_accum_len_before = len(self.batch_accum)
-        self.batch_accum += self.platform_helper.copy_tool.begin_copy_folder()
-        for IID in items_in_folder:
-            self.current_iid = IID
-            self.batch_accum += self.platform_helper.remark("-- Begin iid {0}".format(IID))
-            sources_for_iid = self.items_table.get_sources_for_iid(IID)
-            resolved_sources_for_iid = [(var_stack.ResolveStrToStr(s[0]), s[1]) for s in sources_for_iid]
-            name_and_version = self.name_and_version_for_iid(iid=IID)
-            for source in resolved_sources_for_iid:
-                self.batch_accum += self.platform_helper.remark("--- Begin source {0}".format(source[0]))
-                num_items_copied_to_folder += 1
-                self.batch_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="pre_copy_item")
-                self.create_copy_instructions_for_source(source, name_and_version)
-                self.batch_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="post_copy_item")
-                self.batch_accum += self.platform_helper.remark("--- End source {0}".format(source[0]))
-                if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList(
-                        "TARGET_OS"):
-                    num_symlink_items += self.info_map_table.count_symlinks_in_dir(source[0])
-            self.batch_accum += self.platform_helper.remark("-- End iid {0}".format(IID))
-        self.current_iid = None
+            num_symlink_items = 0
+            batch_accum_len_before = len(self.batch_accum)
+            self.batch_accum += self.platform_helper.copy_tool.begin_copy_folder()
+            for IID in items_in_folder:
+                self.current_iid = IID
+                self.batch_accum += self.platform_helper.remark("-- Begin iid {0}".format(IID))
+                sources_for_iid = self.items_table.get_sources_for_iid(IID)
+                resolved_sources_for_iid = [(var_stack.ResolveStrToStr(s[0]), s[1]) for s in sources_for_iid]
+                name_and_version = self.name_and_version_for_iid(iid=IID)
+                for source in resolved_sources_for_iid:
+                    self.batch_accum += self.platform_helper.remark("--- Begin source {0}".format(source[0]))
+                    num_items_copied_to_folder += 1
+                    self.batch_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="pre_copy_item")
+                    folder_accum_transaction += self.create_copy_instructions_for_source(source, name_and_version)
+                    self.batch_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="post_copy_item")
+                    self.batch_accum += self.platform_helper.remark("--- End source {0}".format(source[0]))
+                    if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList(
+                            "TARGET_OS"):
+                        num_symlink_items += self.info_map_table.count_symlinks_in_dir(source[0])
+                self.batch_accum += self.platform_helper.remark("-- End iid {0}".format(IID))
+            self.current_iid = None
 
-        target_folder_path_parent, target_folder_name = os.path.split(var_stack.ResolveStrToStr(target_folder_path))
-        self.create_unwtar_batch_file(self.unwtar_instructions, target_folder_name)
-        self.unwtar_instructions = None
-        self.batch_accum += self.platform_helper.copy_tool.end_copy_folder()
+            target_folder_path_parent, target_folder_name = os.path.split(var_stack.ResolveStrToStr(target_folder_path))
+            self.create_unwtar_batch_file(self.unwtar_instructions, target_folder_name)
+            self.unwtar_instructions = None
+            self.batch_accum += self.platform_helper.copy_tool.end_copy_folder()
 
-        # only if items were actually copied there's need to (Mac only) resolve symlinks
-        if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList(
-                "TARGET_OS"):
-            if num_items_copied_to_folder > 0 and num_symlink_items > 0:
-                self.batch_accum += self.platform_helper.progress("Resolve symlinks ...")
-                self.batch_accum += self.platform_helper.resolve_symlink_files()
+            # only if items were actually copied there's need to (Mac only) resolve symlinks
+            if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList(
+                    "TARGET_OS"):
+                if num_items_copied_to_folder > 0 and num_symlink_items > 0:
+                    self.batch_accum += self.platform_helper.progress("Resolve symlinks ...")
+                    self.batch_accum += self.platform_helper.resolve_symlink_files()
 
-        # accumulate post_copy_to_folder actions from all items, eliminating duplicates
-        self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)
-        self.batch_accum += self.platform_helper.remark("- End folder {0}".format(target_folder_path))
-        self.current_destination_folder = None
+            # accumulate post_copy_to_folder actions from all items, eliminating duplicates
+            self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)
+            self.batch_accum += self.platform_helper.remark("- End folder {0}".format(target_folder_path))
+            self.current_destination_folder = None
 
     # Todo: move function to a better location
     def pre_resolve_path(self, path_to_resolve):
