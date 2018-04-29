@@ -250,19 +250,6 @@ class InstlAdmin(InstlInstanceBase):
         accum += " ".join(create_repo_rev_file_command_parts)
         accum += self.platform_helper.progress("Create repo-rev file done")
 
-        if False:  # disabled creating and uploading the .txt version of the files, was not that useful and took long time to upload
-            # create text versions of info and yaml files, so they can be displayed in browser
-            if var_stack.ResolveVarToStr("__CURRENT_OS__") == "Linux":
-                accum += " ".join(("find", "instl", "-type", "f", "-regextype", "posix-extended",
-                                   "-regex", "'.*(yaml|info|props)'", "-print0", "|",
-                                   "xargs", "-0", "-I{}", "cp", "-f", '"{}"', '"{}.txt"'))
-            elif var_stack.ResolveVarToStr("__CURRENT_OS__") == "Mac":
-                accum += " ".join(("find", "-E", "instl", "-type", "f",
-                                   "-regex", "'.*(yaml|info|props)'", "-print0", "|",
-                                   "xargs", "-0", "-I{}", "cp", "-f", '"{}"', '"{}.txt"'))
-            else:
-                raise EnvironmentError("instl admin commands can only run under Mac or Linux")
-
         accum += self.platform_helper.rmfile("$(UP_2_S3_STAMP_FILE_NAME)")
         accum += self.platform_helper.progress("Remove $(UP_2_S3_STAMP_FILE_NAME)")
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(CREATE_LINKS_STAMP_FILE_NAME)"])
@@ -458,7 +445,7 @@ class InstlAdmin(InstlInstanceBase):
         with utils.utf8_open(admin_folder_path, "w") as wfd:
             aYaml.writeAsYaml(repo_rev_yaml_doc, out_stream=wfd, indentor=None, sort=True)
             print("created", admin_folder_path)
-        repo_rev_folder_path = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(TARGET_REPO_REV)/instl/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
+        repo_rev_folder_path = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
         with utils.utf8_open(repo_rev_folder_path, "w") as wfd:
             aYaml.writeAsYaml(repo_rev_yaml_doc, out_stream=wfd, indentor=None, sort=True)
             print("created", repo_rev_folder_path)

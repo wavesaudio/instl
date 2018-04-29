@@ -4,6 +4,9 @@
 
     admin visible changes:
     * --db option to read/write from database at a none default location, get_db_url & InstlInstanceBase.init_db implement this, path is saved in new configVar __DB_INPUT_FILE__
+    * removed unused code that created .txt versions of info-maps
+    * in InstlAdmin.do_create_repo_rev_file replaced usage of TARGET_REPO_REV with __CURR_REPO_FOLDER_HIERARCHY__ to accommodate to both styles of folder hierarchy (01/23 & 123)
+    * ditto InstlInstanceBase.in repo_rev_to_folder_hierarchy
 
     programmer visible changes:
     * new field to SVNRow and svn_item_t table: ignore. defaults to 0, set to 1 when there's no need to download file if Info.xml is present and has correct checksum

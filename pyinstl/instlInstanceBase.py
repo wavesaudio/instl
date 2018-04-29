@@ -567,7 +567,6 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def repo_rev_to_folder_hierarchy(self, repo_rev):
         retVal = str(repo_rev)
-        return retVal
         try:
             if self.num_digits_repo_rev_hierarchy is None:
                 self.num_digits_repo_rev_hierarchy=int(var_stack.ResolveVarToStr("NUM_DIGITS_REPO_REV_HIERARCHY"))
@@ -577,6 +576,6 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 zero_pad_repo_rev = str(repo_rev).zfill(self.num_digits_repo_rev_hierarchy)
                 by_groups = [zero_pad_repo_rev[i:i+self.num_digits_per_folder_repo_rev_hierarchy] for i in range(0, len(zero_pad_repo_rev), self.num_digits_per_folder_repo_rev_hierarchy)]
                 retVal = "/".join(by_groups)
-        except:
+        except Exception as ex:
             pass
         return retVal
