@@ -162,7 +162,6 @@ class InvocationReporter(object):
     def __enter__(self):
         try:
             self.invocations_file_path = utils.get_invocations_file_path()
-            os.makedirs(os.path.dirname(self.invocations_file_path), exist_ok=True)
 
             # if file too big rename it to ".1" - only one back copy is kept
             if os.path.isfile(self.invocations_file_path) and os.path.getsize(self.invocations_file_path) > self.max_file_size:
