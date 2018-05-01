@@ -407,7 +407,7 @@ class InstlClientCopy(InstlClient):
 
             num_wtars = 0
             for IID in sorted(items_in_folder):
-                sources_from_db = sorted(self.items_table.get_sources_for_iid(IID))
+                sources_from_db = self.items_table.get_sources_for_iid(IID)
                 for source_from_db in sources_from_db:
                     source = source_from_db[0]
                     num_wtars += self.info_map_table.count_wtar_items_of_dir(source[0])
