@@ -1,3 +1,43 @@
+29/4/2018 1.7.3.0
+    user visible changes:
+    * direct-sync folders that have Info.xml will not be checkedsum or downloaded if Info.xml is present and has correct checksum
+
+    admin visible changes:
+    * --db option to read/write from database at a none default location, get_db_url & InstlInstanceBase.init_db implement this, path is saved in new configVar __DB_INPUT_FILE__
+    * removed unused code that created .txt versions of info-maps
+    * in InstlAdmin.do_create_repo_rev_file replaced usage of TARGET_REPO_REV with __CURR_REPO_FOLDER_HIERARCHY__ to accommodate to both styles of folder hierarchy (01/23 & 123)
+    * ditto InstlInstanceBase.in repo_rev_to_folder_hierarchy
+
+    programmer visible changes:
+    * new field to SVNRow and svn_item_t table: ignore. defaults to 0, set to 1 when there's no need to download file if Info.xml is present and has correct checksum
+    * SVNRow.mark_need_download: marks files for download only if ignore == 0
+    * SVNRow.ignore_file_paths_of_dir will mark files under a path as ignore=1
+    * InstlClient.set_sync_locations_for_active_items, uses the new svn_item_t.ignore field to mark files when their Info.xml is present and has correct checksum
+    * InstlClientCopy.create_copy_instructions_for_target_folder makes use of BatchAccumulatorTransaction so if none of the sources in the folder needs to be copied (because Info.xml is present and has correct checksum), the whole pre/post actions & messages for the folder are removed
+
+
+25/4/2018 1.7.2.5
+    user visible changes:
+    * __USER_PATH__ is no longer written to the batch file, there were issues with users having bad characters in the path
+        and anyway having __USER_PATH__ was not really useful for debugging. CEN-1638
+
+22/4/2018 1.7.2.4
+
+    user visible changes:
+    * SVNTable.get_immediate_child_items_q had wrong name for svn_item_t table, which caused exception when uninstalling
+    * InstlClient.sort_all_items_by_target_folder can now ignore direct_sync state for an item so during uninstall those items can be removed if needed
+    * reduce progress items during uninstall, folders were there is nothing to remove will not be mentioned in batch file
+    * reduce progress count (factor of 4) for files that are already in cache so progress advances more uniformly
+    * DownloadToolBase.create_config_files:
+        to overcome cUrl inability to handle path with unicode chars, we try to calculate the windows
+        short path (DOS style 8.3 chars). The function that does that, win32api.GetShortPathName,
+        does not work for paths that do not yet exist so we need to also create the folder.
+        However if the creation requires admin permissions - it could fail -
+        in which case we revert to using the long path.
+    programmer visible changes:
+    * removed redundant class InstlAdmin.RemoveIfNotSpecificVersion
+    * some more sorted() calls for idempotency sake
+
 16/4/2018 1.7.2.3
 
     user visible changes:

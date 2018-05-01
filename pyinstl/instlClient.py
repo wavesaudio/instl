@@ -33,16 +33,16 @@ class InstlClient(InstlInstanceBase):
     def no_copy_iids_by_sync_folder(self):
         return self.__no_copy_iids_by_sync_folder
 
-    def sort_all_items_by_target_folder(self):
+    def sort_all_items_by_target_folder(self, consider_direct_sync=True):
         folder_to_iid_list = self.items_table.target_folders_to_items()
         for IID, folder, tag, direct_sync_indicator in folder_to_iid_list:
             direct_sync = self.get_direct_sync_status_from_indicator(direct_sync_indicator)
-            if not direct_sync:
-                norm_folder = os.path.normpath(folder)
-                self.__all_iids_by_target_folder[norm_folder].append(IID)
-            else:
+            if direct_sync and consider_direct_sync:
                 sync_folder = os.path.join(folder)
                 self.__no_copy_iids_by_sync_folder[sync_folder].append(IID)
+            else:
+                norm_folder = os.path.normpath(folder)
+                self.__all_iids_by_target_folder[norm_folder].append(IID)
 
         for folder_iids_list in self.__all_iids_by_target_folder.values():
             folder_iids_list.sort()
@@ -256,7 +256,7 @@ class InstlClient(InstlInstanceBase):
 
         var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(all_items_to_install))
 
-        self.sort_all_items_by_target_folder()
+        self.sort_all_items_by_target_folder(consider_direct_sync=True)
         self.calc_iid_to_name_and_version()
 
     def calc_iid_to_name_and_version(self):
@@ -429,21 +429,37 @@ class InstlClient(InstlInstanceBase):
             local_repo_sync_dir = var_stack.ResolveVarToStr("LOCAL_REPO_SYNC_DIR")
 
             if source_tag in ('!dir', '!dir_cont'):
-                item_paths = self.info_map_table.get_file_paths_of_dir(dir_path=source)
                 if direct_sync:
-                    if source_tag == '!dir':
-                        source_parent = "/".join(resolved_source_parts[:-1])
-                        for item in item_paths:
-                            items_to_update.append({"_id": item['_id'],
-                                                    "download_path": var_stack.ResolveStrToStr("/".join((resolved_install_folder, item['path'][len(source_parent)+1:]))),
-                                                    "download_root": var_stack.ResolveStrToStr("/".join((resolved_install_folder, resolved_source_parts[-1])))})
-                    else:  # !dir_cont
-                        source_parent = source
-                        for item in item_paths:
-                            items_to_update.append({"_id": item['_id'],
-                                                    "download_path": var_stack.ResolveStrToStr("/".join((resolved_install_folder, item['path'][len(source_parent)+1:]))),
-                                                    "download_root": resolved_install_folder})
+                    # for direct-sync source, if one of the sources is Info.xml and it exists on disk AND source & file
+                    # have the same checksum, then no sync is needed at all. All the above is not relevant in repair mode.
+                    need_to_sync = True
+                    if "__REPAIR_INSTALLED_ITEMS__" not in self.main_install_targets:
+                        info_xml_item = self.info_map_table.get_file_item("/".join((source, "Info.xml")))
+                        if info_xml_item:
+                            info_xml_of_target = var_stack.ResolveStrToStr("/".join((resolved_install_folder, resolved_source_parts[-1], "Info.xml")))
+                            need_to_sync = not utils.check_file_checksum(info_xml_of_target, info_xml_item.checksum)
+                    if need_to_sync:
+                        item_paths = self.info_map_table.get_file_paths_of_dir(dir_path=source)
+                        if source_tag == '!dir':
+                            source_parent = "/".join(resolved_source_parts[:-1])
+                            for item in item_paths:
+                                items_to_update.append({"_id": item['_id'],
+                                                        "download_path": var_stack.ResolveStrToStr("/".join((resolved_install_folder, item['path'][len(source_parent)+1:]))),
+                                                        "download_root": var_stack.ResolveStrToStr("/".join((resolved_install_folder, resolved_source_parts[-1])))})
+                        else:  # !dir_cont
+                            source_parent = source
+                            for item in item_paths:
+                                items_to_update.append({"_id": item['_id'],
+                                                        "download_path": var_stack.ResolveStrToStr("/".join((resolved_install_folder, item['path'][len(source_parent)+1:]))),
+                                                        "download_root": resolved_install_folder})
+                    else:
+                        num_ignored_files = self.info_map_table.ignore_file_paths_of_dir(dir_path=source)
+                        if num_ignored_files < 1:
+                            num_ignored_files = ""  # sqlite curs.rowcount does not always returns the number of effected rows
+                        self.progress("avoid download {} files of {}, Info.xml has not changed".format(num_ignored_files, iid))
+
                 else:
+                    item_paths = self.info_map_table.get_file_paths_of_dir(dir_path=source)
                     for item in item_paths:
                         items_to_update.append({"_id": item['_id'],
                                                 "download_path": var_stack.ResolveStrToStr("/".join((local_repo_sync_dir, item['path']))),
@@ -466,6 +482,7 @@ class InstlClient(InstlInstanceBase):
         self.info_map_table.update_downloads(items_to_update)
 
     def create_remove_previous_sources_instructions_for_target_folder(self, target_folder_path):
+        retVal = 0  # return the number of real actions (e.g. not progress, remark, etc)
         iids_in_folder = self.all_iids_by_target_folder[target_folder_path]
         assert list(self.all_iids_by_target_folder[target_folder_path]) == list(iids_in_folder)
         previous_sources = self.items_table.get_details_and_tag_for_active_iids("previous_sources", unique_values=True, limit_to_iids=iids_in_folder)
@@ -477,24 +494,28 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum += self.platform_helper.progress("remove previous versions {0} ...".format(target_folder_path))
 
             for previous_source in previous_sources:
-                self.create_remove_previous_sources_instructions_for_source(target_folder_path, previous_source)
+                retVal += self.create_remove_previous_sources_instructions_for_source(target_folder_path, previous_source)
 
-            self.batch_accum += self.platform_helper.remark("- End folder {0}".format(target_folder_path))
+        return retVal
 
     def create_remove_previous_sources_instructions_for_source(self, folder, source):
         """ source is a tuple (source_folder, tag), where tag is either !file, !dir_cont or !dir """
 
+        retVal = 0  # return the number of real actions (e.g. not progress, remark, etc)
         source_path, source_type = source[0], source[1]
         to_remove_path = os.path.normpath(os.path.join(folder, source_path))
 
         if source_type == '!dir':  # remove whole folder
             remove_action = self.platform_helper.rmdir(to_remove_path, recursive=True, check_exist=True)
             self.batch_accum += remove_action
+            retVal += 1
         elif source_type == '!file':  # remove single file
             remove_action = self.platform_helper.rmfile(to_remove_path, check_exist=True)
             self.batch_accum += remove_action
+            retVal += 1
         elif source_type == '!dir_cont':
             raise Exception("previous_sources cannot have tag !dir_cont")
+        return retVal
 
     def name_from_iid(self, iid):
         """ for those cases when no name was given to the iid"""
@@ -507,7 +528,11 @@ class InstlClient(InstlInstanceBase):
         if name_and_version_list:
             retVal = name_and_version_list[0]
         else:
-            retVal = self.name_from_iid(iid)
+            name = self.items_table.get_resolved_details_value_for_active_iid(iid=iid, detail_name="name")
+            if name:
+                retVal = name[0]
+            else:
+                retVal = self.name_from_iid(iid)
         return retVal
 
     def name_for_iid(self, iid):

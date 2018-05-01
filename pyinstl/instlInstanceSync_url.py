@@ -6,6 +6,7 @@ import pathlib
 from collections import defaultdict
 import shutil
 import urllib
+import math
 
 import utils
 from .instlInstanceSyncBase import InstlInstanceSync
@@ -147,7 +148,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.progress("{} of {} bytes to sync".format(bytes_to_sync, bytes_to_sync+already_synced_num_bytes))
 
         if already_synced_num_files > 0:
-            self.instlObj.batch_accum += self.instlObj.platform_helper.progress("files in cache", already_synced_num_files)
+            self.instlObj.batch_accum += self.instlObj.platform_helper.progress("{} files already in cache".format(already_synced_num_files), math.ceil(already_synced_num_files/4))
 
         if to_sync_num_files == 0:
             return to_sync_num_files

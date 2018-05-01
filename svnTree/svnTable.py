@@ -56,7 +56,7 @@ class SVNRow(object):
                 'checksum', 'size', 'url', 'fileFlag',
                 'wtarFlag', 'leaf', 'parent', 'level',
                 'required', 'need_download', 'download_path',
-                'download_root', 'extra_props', 'parent_id', 'unwtarred', 'symlinkFlag')
+                'download_root', 'extra_props', 'parent_id', 'unwtarred', 'symlinkFlag', 'ignore')
     fields_relevant_to_dirs = ('path', 'parent', 'level', 'flags', 'revision', 'required')
     fields_relevant_to_str = ('path', 'flags', 'revision', 'checksum', 'size', 'url')
 
@@ -81,6 +81,7 @@ class SVNRow(object):
         self.parent_id =        svn_item_tuple[17]
         self.unwtarred =        svn_item_tuple[18]
         self.symlinkFlag =      svn_item_tuple[19]
+        self.ignore =           svn_item_tuple[20]
 
     def __repr__(self):
         isDir = not self.fileFlag
@@ -88,7 +89,7 @@ class SVNRow(object):
                 ", rev-remote:{self.revision}, f:{self.fileFlag}, d:{isDir}"
                 ", checksum:{self.checksum}, size:{self.size}"
                 ", url:{self.url}"
-                ", required:{self.required}, need_download:{self.need_download}"
+                ", required:{self.required}, need_download:{self.need_download}, ignore:{self.ignore}"
                 ", extra_props:{self.extra_props}, parent:{self.parent}>"
                 ", download_path:{self.download_path}"
                 ).format(**locals())
@@ -208,6 +209,7 @@ class SVNRow(object):
             and     other[17] == self.parent_id
             and     other[18] == self.unwtarred
             and     other[19] == self.symlinkFlag
+            and     other[20] == self.ignore
                     )
         return retVal
 
@@ -262,7 +264,7 @@ class SVNTable(object):
         {another_filter}
         ORDER BY parent_id
         """
-    get_immediate_child_items_q =  """SELECT * FROM svn_item WHERE parent_id==:parent_id"""
+    get_immediate_child_items_q =  """SELECT * FROM svn_item_t WHERE parent_id==:parent_id"""
 
     def __init__(self, db_master):
         super().__init__()
@@ -1117,6 +1119,7 @@ class SVNTable(object):
             UPDATE svn_item_t
             SET need_download = 1
             WHERE required == 1
+            AND ignore == 0
             AND fileFlag == 1
             AND need_to_download_file(download_path, checksum)
             """
@@ -1382,4 +1385,30 @@ class SVNTable(object):
                 query_text = query_text.format(another_filter="AND symlinkFlag==1")
                 curs.execute(query_text, {"parent_id": root_dir_item._id})
                 retVal = curs.fetchone()[0]
+        return retVal
+
+    def ignore_file_paths_of_dir(self, dir_path):
+        """ mark all files inside a dir as ignored """
+        retVal = 0
+        query_text = """
+            WITH RECURSIVE get_children(__ID) AS
+            (
+                SELECT first_item_t._id
+                FROM svn_item_t AS first_item_t
+                WHERE first_item_t.unwtarred == :dir_path
+
+                UNION
+
+                SELECT child_item_t._id
+                FROM svn_item_t child_item_t, get_children
+                WHERE child_item_t.parent_id == get_children.__ID
+            )
+            UPDATE svn_item_t
+            SET ignore=1 
+            WHERE svn_item_t._id IN (SELECT __ID FROM get_children)
+            AND fileFlag==1
+            """
+        with self.db.transaction() as curs:
+            curs.execute(query_text, {"dir_path": dir_path})
+            retVal = curs.rowcount
         return retVal

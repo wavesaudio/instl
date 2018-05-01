@@ -484,6 +484,7 @@ class DownloadToolBase(object, metaclass=abc.ABCMeta):
     def __init__(self, platform_helper):
         self.platform_helper = platform_helper
         self.urls_to_download = list()
+        self.short_win_paths_cache = dict()
 
     @abc.abstractmethod
     def download_url_to_file(self, src_url, trg_file):
@@ -558,12 +559,27 @@ write-out = "Progress: ... of ...; {basename}: {curl_write_out_str}
             wfd_cycler = itertools.cycle(wfd_list)
             url_num = 0
             sorted_by_size = sorted(self.urls_to_download, key=lambda dl_item: dl_item[2])
+            if 'Win' in utils.get_current_os_names():
+                import win32api
             for url, path, size in sorted_by_size:
                 fixed_path = pathlib.PurePath(path)
                 if 'Win' in utils.get_current_os_names():
-                    import win32api
-                    short_parent_name = win32api.GetShortPathName(str(fixed_path.parent))
-                    short_file_path = os.path.join(short_parent_name, fixed_path.name)
+                    # to overcome cUrl inability to handle path with unicode chars, we try to calculate the windows
+                    # short path (DOS style 8.3 chars). The function that does that, win32api.GetShortPathName,
+                    # does not work for paths that do not yet exist so we need to also create the folder.
+                    # However if the creation requires admin permissions - it could fail -
+                    # in which case we revert to using the long path.
+                    fixed_path_parent = str(fixed_path.parent)
+                    fixed_path_name = str(fixed_path.name)
+                    if fixed_path_parent not in self.short_win_paths_cache:
+                        try:
+                            os.makedirs(fixed_path_parent, exist_ok=True)
+                            short_parent_path = win32api.GetShortPathName(fixed_path_parent)
+                            self.short_win_paths_cache[fixed_path_parent] = short_parent_path
+                        except Exception as e:  # failed to mkdir or get the short path? never mind, just use the full path
+                            self.short_win_paths_cache[fixed_path_parent] = fixed_path_parent
+                            print("warning creating short path for", fixed_path, e)
+                    short_file_path = os.path.join(self.short_win_paths_cache[fixed_path_parent], fixed_path_name)
                     fixed_path = short_file_path.replace("\\", "\\\\")
                 wfd = next(wfd_cycler)
                 wfd.write('''url = "{url}"\noutput = "{fixed_path}"\n\n'''.format(**locals()))

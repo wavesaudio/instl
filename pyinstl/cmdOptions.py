@@ -44,6 +44,7 @@ class CommandLineOptions(object):
         self.only_installed = None
         self.ls_format = None
         self.parallel = None
+        self.db_file = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).items())])
@@ -254,6 +255,16 @@ def prepare_args_parser(in_command):
                                     action='store_true',
                                     dest='',
                                     help="run the command-list in parallel")
+
+    # optional --db
+    if 'db' in command_details['options']:
+        db_options = command_parser.add_argument_group(description='database path:')
+        db_options.add_argument('--db', '-d',
+                                    required=False,
+                                    nargs=1,
+                                    metavar='path-to-db-file',
+                                    dest='db_file',
+                                    help="database file")
 
     # the following option groups each belong only to a single command
     if 'trans' == in_command:

@@ -24,20 +24,23 @@ force_disk_db = False
 unique_name_to_disk_db = False
 
 
-def get_db_url(name_extra=None):
-    if getattr(sys, 'frozen', False) and not force_disk_db:
+def get_db_url(name_extra=None, db_file=None):
+    if getattr(sys, 'frozen', False) and not force_disk_db and not db_file:
         db_url = ":memory:"
     else:
-        logs_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Logs")
-        os.makedirs(logs_dir, exist_ok=True)
-        db_file_name = "instl.sqlite"
-        if name_extra:
-            db_file_name = name_extra+"."+db_file_name
-        if unique_name_to_disk_db:
-            db_file_name = str(datetime.datetime.now().timestamp())+"."+db_file_name
-        db_file = os.path.join(logs_dir, db_file_name)
-        #print("db_file:", db_file)
-        db_url = db_file
+        if db_file:
+            db_url = db_file
+        else:
+            logs_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Logs")
+            os.makedirs(logs_dir, exist_ok=True)
+            db_file_name = "instl.sqlite"
+            if name_extra:
+                db_file_name = name_extra+"."+db_file_name
+            if unique_name_to_disk_db:
+                db_file_name = str(datetime.datetime.now().timestamp())+"."+db_file_name
+            db_file_in_logs = os.path.join(logs_dir, db_file_name)
+            #print("db_file:", db_file)
+            db_url = db_file_in_logs
     return db_url
 
 

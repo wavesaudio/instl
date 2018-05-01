@@ -95,10 +95,6 @@ def main():
                     "__INVOCATIONS_FILE_PATH__": utils.get_invocations_file_path()
                     }
 
-    # remove newline characters that might lurk in the path (see tech support case 143589)
-    adjusted_path = re.sub('[\r\n]', "?", utils.unicodify(os.environ.get("PATH", "PATH environment variable undefined")))
-    initial_vars["__USER_PATH__"] = adjusted_path
-
     if os_family_name != "Win":
         initial_vars.update(
                     {"__USER_ID__": str(os.getuid()),

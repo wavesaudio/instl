@@ -55,7 +55,8 @@ CREATE TABLE svn_item_t
 	extra_props TEXT,
   parent_id INTEGER DEFAULT 0,
   unwtarred TEXT,
-	symlinkFlag INTEGER
+	symlinkFlag INTEGER,
+  ignore INTEGER DEFAULT 0
 );
 
 
