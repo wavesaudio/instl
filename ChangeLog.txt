@@ -1,3 +1,7 @@
+1/5/2018 1.7.3.2
+    user visible changes:
+    * fixed: sources that were single wtar file were not copied to destination
+
 1/5/2018 1.7.3.1
 
     programmer visible changes:
