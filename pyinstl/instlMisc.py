@@ -179,11 +179,11 @@ class InstlMisc(InstlInstanceBase):
                     file_pax_headers["mtime"] = mode_time
                     tarinfo.pax_headers = file_pax_headers
                 return tarinfo
-
+            compresslevel = 1
             if pax_headers["total_checksum"] != tar_total_checksum:
                 existing_wtar_parts = utils.find_split_files_from_base_file(what_to_work_on_leaf)
                 [utils.safe_remove_file(f) for f in existing_wtar_parts]
-                with tarfile.open(target_wtar_file, "w|bz2", format=tarfile.PAX_FORMAT, pax_headers=pax_headers) as tar:
+                with tarfile.open(target_wtar_file, "w:bz2", format=tarfile.PAX_FORMAT, pax_headers=pax_headers, compresslevel=compresslevel) as tar:
                     tar.add(what_to_work_on_leaf, filter=check_tarinfo)
             else:
                 print("{0} skipped since {0}.wtar already exists and has the same contents".format(what_to_work_on))

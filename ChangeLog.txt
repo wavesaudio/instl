@@ -1,8 +1,9 @@
 2/5/2018 1.7.3.3
     admin visible changes:
-    * fixed and improved the upload to s3 code
+    * fixed and improved the code that uploads to s3
     * PlatformSpecificHelperLinux.rm_file_or_dir was not implemented, now it is
-    * SVNTable.update_parent_ids_q parent_id of top level dirs is set to 0
+    * SVNTable.update_parent_ids_q: parent_id of top level dirs is set to 0
+    * wtar with bz2 compression: changed compressleve to 1 instead of the default 9. This proved to create wtars that are only 2% more in size but unwtar is 13% faster, see CEN-1711
 
 1/5/2018 1.7.3.2
     user visible changes:
