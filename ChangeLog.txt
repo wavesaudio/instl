@@ -1,3 +1,9 @@
+2/5/2018 1.7.3.3
+    admin visible changes:
+    * fixed and improved the upload to s3 code
+    * PlatformSpecificHelperLinux.rm_file_or_dir was not implemented, now it is
+    * SVNTable.update_parent_ids_q parent_id of top level dirs is set to 0
+
 1/5/2018 1.7.3.2
     user visible changes:
     * fixed: sources that were single wtar file were not copied to destination

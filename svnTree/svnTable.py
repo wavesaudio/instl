@@ -224,7 +224,7 @@ class SVNTable(object):
     update_parent_ids_q = """
         UPDATE svn_item_t
         SET parent_id =
-        (SELECT parent_t._id
+        (SELECT COALESCE(parent_t._id, 0)
          FROM svn_item_t AS parent_t
          WHERE parent_t.path==svn_item_t.parent)
          """
@@ -1091,6 +1091,7 @@ class SVNTable(object):
         """ after some files were marked as required,
             mark their parent dirs are required as well
         """
+        retVal = 0
         query_text = """
             WITH RECURSIVE get_parents(__ID, __PATH, __PARENT_ID) AS
             (
@@ -1111,6 +1112,8 @@ class SVNTable(object):
             """
         with self.db.transaction() as curs:
             curs.execute(query_text)
+            retVal = curs.rowcount
+        return retVal
 
     def mark_need_download(self):
         self.db.create_function("need_to_download_file", 2, utils.need_to_download_file)
@@ -1151,7 +1154,7 @@ class SVNTable(object):
         """ mark all files and dirs as required if they are of specific revision
         """
         with self.db.transaction() as curs:
-            curs.execute("""UPDATE svn_item_t SET required=0
+            curs.execute("""UPDATE svn_item_t SET required=1
                                 WHERE fileFlag==1 AND revision==:required_revision
                                 """, {"required_revision": required_revision})
         self.mark_required_completion()
@@ -1351,8 +1354,7 @@ class SVNTable(object):
             WHERE required==0
             AND fileFlag==1
             """
-        with self.db.selection() as curs:
-            retVal = curs.fetchall()
+        retVal = self.db.select_and_fetchall(query_text)
         return retVal
 
     def update_downloads(self, items_to_update):
@@ -1412,3 +1414,38 @@ class SVNTable(object):
             curs.execute(query_text, {"dir_path": dir_path})
             retVal = curs.rowcount
         return retVal
+
+    def ignore_unrequired_where_parent_unrequired(self):
+        """ for use by InstlAdmin.do_up2s3
+            up2s3 copies the all files in the repository to the repo-rev folder
+            and then needs to delete all files that do not belong to the repo-rev (unrequired).
+            In order to make the deletion as short as possible is better to delete
+            top level folders whose whole contents is unrequired. This function will
+            mark folders a ignore if their paraent folder can be deleted.
+        """
+        retVal = 0
+        query_text = """
+            UPDATE svn_item_t
+            SET ignore=1
+            WHERE required==0
+            AND parent_id in (SELECT _id FROM svn_item_t WHERE required==0);
+            """
+        with self.db.transaction() as curs:
+            curs.execute(query_text)
+            retVal = curs.rowcount
+        return retVal
+
+    def get_unrequired_not_ignored_paths(self):
+        """ get paths for all unrequired files files and folders that are not
+            marked as ingored
+        """
+        query_text = """
+            SELECT path
+            FROM svn_item_t
+            WHERE required==0
+            AND ignore==0
+            """
+        retVal = self.db.select_and_fetchall(query_text)
+        return retVal
+
+

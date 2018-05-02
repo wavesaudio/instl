@@ -198,14 +198,14 @@ class InstlAdmin(InstlInstanceBase):
             if no_need_link_nums:
                 no_need_links_str = utils.find_sequences(no_need_link_nums)
                 msg = " ".join(("Links already created for revisions:", no_need_links_str))
-                print(msg)
+                self.progress(msg)
             yes_need_links_str = utils.find_sequences(yes_need_link_nums)
             var_stack.set_var("__NEED_UPLOAD_REPO_REV_LIST__").extend(yes_need_link_nums)
             msg = " ".join(("Need to create links for revisions:", yes_need_links_str))
-            print(msg)
+            self.progress(msg)
         else:
             msg = " ".join( ("Links already created for all revisions:", str(base_repo_rev), "...", str(max_repo_rev_to_work_on)) )
-            print(msg)
+            self.progress(msg)
 
         self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in var_stack:
@@ -285,12 +285,12 @@ class InstlAdmin(InstlInstanceBase):
             dir_as_int_folder_hierarchy = self.repo_rev_to_folder_hierarchy(dir_as_int)
             dir_name = str(dir_as_int)
             if not os.path.isdir(var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/" + dir_as_int_folder_hierarchy)):
-                print("revision dir", dir_as_int_folder_hierarchy, "is missing, run create-links to create this folder")
+                self.progress("revision dir", dir_as_int_folder_hierarchy, "is missing, run create-links to create this folder")
                 dirs_missing.append(dir_name)
             else:
                 create_links_done_stamp_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/"+dir_as_int_folder_hierarchy+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
                 if not os.path.isfile(create_links_done_stamp_file):
-                    print("revision dir", dir_as_int_folder_hierarchy, "does not have create-links stamp file:", create_links_done_stamp_file)
+                    self.progress("revision dir", dir_as_int_folder_hierarchy, "does not have create-links stamp file:", create_links_done_stamp_file)
                 else:
                     up_2_s3_done_stamp_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/"+dir_as_int_folder_hierarchy+"/$(UP_2_S3_STAMP_FILE_NAME)")
                     if os.path.isfile(up_2_s3_done_stamp_file):
@@ -300,19 +300,19 @@ class InstlAdmin(InstlInstanceBase):
         if dirs_missing:
             sequences_of_dirs_missing = utils.find_sequences(dirs_missing)
             msg = " ".join( ("Revisions cannot be uploaded to S3:", sequences_of_dirs_missing) )
-            print(msg)
+            self.progress(msg)
             dirs_that_need_upload = []
         elif dirs_that_need_upload:
             if dirs_that_dont_need_upload:
                 sequences_of_dirs_that_dont_need_upload = utils.find_sequences(dirs_that_dont_need_upload)
                 msg = " ".join(("Revisions already uploaded to S3:", sequences_of_dirs_that_dont_need_upload))
-                print(msg)
+                self.progress(msg)
             sequences_of_dirs_that_need_upload = utils.find_sequences(dirs_that_need_upload)
             msg = " ".join(("Revisions will be uploaded to S3:", sequences_of_dirs_that_need_upload))
-            print(msg)
+            self.progress(msg)
         else:
             msg = " ".join( ("All revisions already uploaded to S3:", str(base_repo_rev), "...", str(max_repo_rev_to_work_on)) )
-            print(msg)
+            self.progress(msg)
 
         self.batch_accum.set_current_section('upload')
         for dir_name in dirs_that_need_upload:
@@ -354,21 +354,23 @@ class InstlAdmin(InstlInstanceBase):
         self.info_map_table.mark_required_for_revision(repo_rev)
 
         # remove all unrequired files
-        unrequired_files = self.info_map_table.get_unrequired_file_paths()
-        for i, unrequired_file in enumerate(unrequired_files):
-            accum += self.platform_helper.rmfile(unrequired_file)
-            if i % 1000 == 0:  # only report every 1000'th file
-                accum += self.platform_helper.progress("rmfile " + unrequired_file +" & 999 more")
+        self.info_map_table.ignore_unrequired_where_parent_unrequired()
+        unrequired_items = self.info_map_table.get_unrequired_not_ignored_paths()
+        self.progress(len(unrequired_items), "files or folders to remove")
+        for i, unrequired_item in enumerate(unrequired_items):
+            accum += self.platform_helper.progress("rm " + unrequired_item)
+            accum += self.platform_helper.rm_file_or_dir(unrequired_item)
 
         # now remove all empty folders, the files that are left should be uploaded
         remove_empty_folders_command_parts = [self.platform_helper.run_instl(), "remove-empty-folders", "--in", "."]
-        accum += self.platform_helper.progress("remove-empty-folders ...")
+        accum += self.platform_helper.progress("remove-empty-folders")
         accum += " ".join(remove_empty_folders_command_parts)
-        accum += self.platform_helper.progress("remove-empty-folders done")
 
         # remove broken links, aws cannot handle them
+        accum += self.platform_helper.progress("remove broken links (if any...)")
         accum += " ".join( ("find", ".", "-type", "l", "!", "-exec", "test", "-e", "{}", "\;", "-exec", "rm", "-f", "{}", "\;") )
 
+        accum += self.platform_helper.progress("upload files to s3")
         accum += " ".join(["aws", "s3", "sync",
                            ".", "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)",
                            "--exclude", '"*.DS_Store"',
@@ -376,13 +378,13 @@ class InstlAdmin(InstlInstanceBase):
                            "--exclude", '"$(CREATE_LINKS_STAMP_FILE_NAME)"'
         ])
 
+        accum += self.platform_helper.progress("upload repo-rev file $(__CURR_REPO_REV__) to s3")
         up_repo_rev_file_command_parts = [self.platform_helper.run_instl(), "up-repo-rev",
                                           "--config-file", '"$(__CONFIG_FILE_PATH__)"',
                                           "--out", "up_repo_rev.$(__CURR_REPO_REV__)",
                                           "--just-with-number", "$(__CURR_REPO_REV__)",
                                           "--run"]
         accum += " ".join(up_repo_rev_file_command_parts)
-        accum += self.platform_helper.progress("up-repo-rev file - just with number")
 
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(UP_2_S3_STAMP_FILE_NAME)"])
         accum += self.platform_helper.progress("Uploaded $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)")
