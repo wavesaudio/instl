@@ -62,16 +62,20 @@ class InstlClientRemove(InstlClient):
                         resolved_sources_for_iid = [(var_stack.ResolveStrToStr(s[0]), s[1]) for s in sources_for_iid]
                         for source in resolved_sources_for_iid:
                             with BatchAccumulatorTransaction(self.batch_accum) as source_accum_transaction:
-                                self.batch_accum += self.platform_helper.progress("Remove {source[0]}".format(**locals()))
+                                _, source_leaf = os.path.split(source[0])
+                                self.batch_accum += self.platform_helper.progress("Remove {source_leaf}".format(**locals()))
                                 self.batch_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="pre_remove_item")
                                 source_accum_transaction += self.create_remove_instructions_for_source(IID, folder_name, source)
                                 iid_accum_transaction += source_accum_transaction.essential_action_counter
                                 folder_accum_transaction += source_accum_transaction.essential_action_counter
                                 self.batch_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="post_remove_item")
+                                self.batch_accum += self.platform_helper.new_line()
 
                 folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('post_remove_from_folder', items_in_folder)
+                self.batch_accum += self.platform_helper.new_line()
 
         self.accumulate_unique_actions_for_active_iids('post_remove', var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
+        self.batch_accum += self.platform_helper.new_line()
 
     # create_remove_instructions_for_source:
     # Create instructions to remove a specific source from a specific target folder.

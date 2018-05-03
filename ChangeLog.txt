@@ -3,6 +3,7 @@
     * improved do_remove_empty_folders command by using try/except around each remove command
             so that if one folder/file fails to be removed the code will continue to remove other folders/files.
             also message is printed for each failed file/folder
+    * improved readability of uninstall batch file by adding extra empty lines
 
 2/5/2018 1.7.3.3
     admin visible changes:
