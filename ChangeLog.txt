@@ -1,3 +1,9 @@
+3/5/2018 1.7.3.4
+    user visible changes:
+    * improved do_remove_empty_folders command by using try/except around each remove command
+            so that if one folder/file fails to be removed the code will continue to remove other folders/files.
+            also message is printed for each failed file/folder
+
 2/5/2018 1.7.3.3
     admin visible changes:
     * fixed and improved the code that uploads to s3

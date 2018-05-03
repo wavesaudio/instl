@@ -309,8 +309,14 @@ class InstlMisc(InstlInstanceBase):
                     # only remove the ignored files if the folder is to be removed
                     for filename in ignored_files:
                         file_to_remove_full_path = os.path.join(root_path, filename)
-                        os.remove(file_to_remove_full_path)
-                    os.rmdir(root_path)
+                        try:
+                            os.remove(file_to_remove_full_path)
+                        except Exception as ex:
+                            print("failed to remove", file_to_remove_full_path, ex)
+                    try:
+                        os.rmdir(root_path)
+                    except Exception as ex:
+                        print("failed to remove", root_path, ex)
 
     def do_win_shortcut(self):
         shortcut_path = var_stack.ResolveVarToStr("__SHORTCUT_PATH__")
