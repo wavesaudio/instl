@@ -1,3 +1,10 @@
+6/5/2018 1.7.3.5
+
+    user visible changes:
+    * InstlClient.create_remove_previous_sources_instructions_for_target_folder no instructions are created if folder does not exist.
+    * InstlClientUninstall.init_uninstall_vars now calls calc_user_cache_dir_var() because variables defined in calc_user_cache_dir_var are needed during installations
+    * not set -e for uninstall so if some instruction fails the script will continue (Mac/linux)
+
 3/5/2018 1.7.3.4
     user visible changes:
     * improved do_remove_empty_folders command by using try/except around each remove command

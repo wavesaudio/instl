@@ -24,12 +24,12 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
     def init_platform_tools(self):
         self.dl_tool = DownloadTool_linux_curl(self)
 
-    def get_install_instructions_prefix(self):
+    def get_install_instructions_prefix(self, exit_on_errors=True):
         retVal = (
             "#!/usr/bin/env bash",
             self.remark(self.instlObj.get_version_str()),
             self.remark(datetime.datetime.today().isoformat()),
-            "set -e",
+            "set -e" if exit_on_errors else "",
             self.save_dir("TOP_SAVE_DIR"))
         return retVal
 

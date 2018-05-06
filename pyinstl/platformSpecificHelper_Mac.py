@@ -27,7 +27,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
     def init_platform_tools(self):
         self.dl_tool = DownloadTool_mac_curl(self)
 
-    def get_install_instructions_prefix(self):
+    def get_install_instructions_prefix(self, exit_on_errors=True):
         """ exec 2>&1 within a batch file will redirect stderr to stdout.
             .sync.sh >& out.txt on the command line will redirect stderr to stdout from without.
         """
@@ -35,7 +35,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
             "#!/usr/bin/env bash",
             self.remark(self.instlObj.get_version_str()),
             self.remark(datetime.datetime.today().isoformat()),
-            "set -e",
+            "set -e" if exit_on_errors else "",
             "umask 0000",
             self.get_install_instructions_invocation_report_funcs(),
             self.get_install_instructions_exit_func(),

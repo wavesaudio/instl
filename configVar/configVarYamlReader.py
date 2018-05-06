@@ -80,6 +80,7 @@ class ConfigVarYamlReader(aYaml.YamlReader):
     def read_include_node(self, i_node, *args, **kwargs):
         pass  # override to handle __include__, __include_if_exist__ nodes
 
+    # regex to find conditinals e.g. __ifndef__(S3_BUCKET_NAME)
     conditional_re = re.compile("""__if(?P<if_type>.*)__\s*\((?P<condition>.+)\)""")
 
     def read_conditional_node(self, identifier, contents, *args, **kwargs):

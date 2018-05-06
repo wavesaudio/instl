@@ -457,7 +457,8 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.create_variables_assignment(in_batch_accum)
 
         in_batch_accum.set_current_section('pre')
-        in_batch_accum += self.platform_helper.get_install_instructions_prefix()
+        exit_on_errors = self.the_command != 'uninstall'  # in case of uninstall, go on with batch file even if some operations failed
+        in_batch_accum += self.platform_helper.get_install_instructions_prefix(exit_on_errors=exit_on_errors)
         in_batch_accum.set_current_section('post')
         in_batch_accum += self.platform_helper.get_install_instructions_postfix()
         lines = in_batch_accum.finalize_list_of_lines()

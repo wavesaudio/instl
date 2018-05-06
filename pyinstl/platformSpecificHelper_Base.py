@@ -218,7 +218,7 @@ class PlatformSpecificHelperBase(object):
         self.use_copy_tool(copy_tool_name)
 
     @abc.abstractmethod
-    def get_install_instructions_prefix(self):
+    def get_install_instructions_prefix(self, exit_on_errors=True):
         """ platform specific """
         pass
 

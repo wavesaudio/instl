@@ -483,18 +483,22 @@ class InstlClient(InstlInstanceBase):
 
     def create_remove_previous_sources_instructions_for_target_folder(self, target_folder_path):
         retVal = 0  # return the number of real actions (e.g. not progress, remark, etc)
-        iids_in_folder = self.all_iids_by_target_folder[target_folder_path]
-        assert list(self.all_iids_by_target_folder[target_folder_path]) == list(iids_in_folder)
-        previous_sources = self.items_table.get_details_and_tag_for_active_iids("previous_sources", unique_values=True, limit_to_iids=iids_in_folder)
 
-        if len(previous_sources) > 0:
-            self.batch_accum += self.platform_helper.new_line()
-            self.batch_accum += self.platform_helper.remark("- Begin folder {0}".format(target_folder_path))
-            self.batch_accum += self.platform_helper.cd(target_folder_path)
-            self.batch_accum += self.platform_helper.progress("remove previous versions {0} ...".format(target_folder_path))
+        target_folder_path_resolved = var_stack.ResolveStrToStr(target_folder_path)
+        if os.path.isdir(target_folder_path_resolved):  # no need to remove previous sources if folder does not exist
+            iids_in_folder = self.all_iids_by_target_folder[target_folder_path]
+            assert list(self.all_iids_by_target_folder[target_folder_path]) == list(iids_in_folder)
+            previous_sources = self.items_table.get_details_and_tag_for_active_iids("previous_sources", unique_values=True, limit_to_iids=iids_in_folder)
 
-            for previous_source in previous_sources:
-                retVal += self.create_remove_previous_sources_instructions_for_source(target_folder_path, previous_source)
+            if len(previous_sources) > 0:
+                self.batch_accum += self.platform_helper.new_line()
+                self.batch_accum += self.platform_helper.remark("- Begin folder {0}".format(target_folder_path))
+                self.batch_accum += self.platform_helper.cd(target_folder_path)
+                # todo: conditional CD - if fails to not do other instructions
+                self.batch_accum += self.platform_helper.progress("remove previous versions {0} ...".format(target_folder_path))
+
+                for previous_source in previous_sources:
+                    retVal += self.create_remove_previous_sources_instructions_for_source(target_folder_path, previous_source)
 
         return retVal
 

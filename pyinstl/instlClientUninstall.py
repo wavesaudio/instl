@@ -21,6 +21,7 @@ class InstlClientUninstall(InstlClientRemove):
 
     def init_uninstall_vars(self):
         self.init_remove_vars()
+        self.calc_user_cache_dir_var()
 
     def calculate_install_items(self):
         self.calculate_main_install_items()
