@@ -107,13 +107,13 @@ def main():
     elif options.mode == "client":
         from pyinstl.instlClient import InstlClientFactory
         instance = InstlClientFactory(initial_vars, options.command)
-        instance.progress("welcome to instl", instance.instl_ver_str)
+        instance.progress("welcome to instl", instance.instl_ver_str, options.command)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "doit":
         from pyinstl.instlDoIt import InstlDoIt
         instance = InstlDoIt(initial_vars)
-        instance.progress("welcome to instl", instance.instl_ver_str)
+        instance.progress("welcome to instl", instance.instl_ver_str, options.command)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "admin":
@@ -121,7 +121,7 @@ def main():
             raise EnvironmentError("instl admin commands can only run under Mac or Linux")
         from pyinstl.instlAdmin import InstlAdmin
         instance = InstlAdmin(initial_vars)
-        instance.progress("welcome to instl", instance.instl_ver_str)
+        instance.progress("welcome to instl", instance.instl_ver_str, options.command)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "interactive":
@@ -136,7 +136,7 @@ def main():
     elif options.mode == "do_something":
         from pyinstl.instlMisc import InstlMisc
         instance = InstlMisc(initial_vars, options.command)
-        instance.progress("welcome to instl", instance.instl_ver_str)
+        instance.progress("welcome to instl", instance.instl_ver_str, options.command)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "gui":
