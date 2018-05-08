@@ -240,21 +240,21 @@ def download_and_cache_file_or_url(in_url, cache_folder, translate_url_callback=
 
 def download_from_file_or_url(in_url, in_target_path=None, translate_url_callback=None, cache_folder=None, expected_checksum=None):
     """
-        download a file from url and place it on a target path. Possibly also decompressed wzlib files.
+        download a file from url and place it on a target path. Possibly also decompressed .wzip files.
         """
 
     cached_file_path = download_and_cache_file_or_url(in_url=in_url, translate_url_callback=translate_url_callback, cache_folder=cache_folder, expected_checksum=expected_checksum)
     if in_target_path:
         url_file_name = last_url_item(in_url)
         url_base_file_name, url_extension = os.path.splitext(url_file_name)
-        need_decompress = url_extension == ".wzlib"
+        need_decompress = url_extension == ".wzip"
         if os.path.isdir(in_target_path):
             target_file_name = url_base_file_name if need_decompress else url_file_name
             final_file_path = os.path.join(in_target_path, target_file_name)
         else:
             final_file_path = in_target_path
             _, target_extension = os.path.splitext(final_file_path)
-            if need_decompress and target_extension == ".wzlib":
+            if need_decompress and target_extension == ".wzip":
                 need_decompress = False  # no need to decompress if target is expected to be compressed
 
         if need_decompress:
