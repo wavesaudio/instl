@@ -52,7 +52,7 @@ TAR_MANIFEST_FILE_NAME: __TAR_CONTENT__.txt
 NUM_DIGITS_REPO_REV_HIERARCHY: 0
 NUM_DIGITS_PER_FOLDER_REPO_REV_HIERARCHY: 0
 
-WZLIB_EXTENSION: .wzlib
+WZLIB_EXTENSION: .wzip
 ZLIB_COMPRESSION_LEVEL: 8  # 8 was tested to be the fastest zlib level to decompress
 
 --- !define_Mac

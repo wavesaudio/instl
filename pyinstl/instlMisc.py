@@ -484,8 +484,9 @@ class InstlMisc(InstlInstanceBase):
                 will create the wzip file at path:
                     /j/k/l/c.wzip
 
-
-            ZLIB_COMPRESSION_LEVEL configVal will set the compression level, default is 8
+            configVar effecting wzip:
+            ZLIB_COMPRESSION_LEVEL: will set the compression level, default is 8
+            WZLIB_EXTENSION: .wzip extension is the default, the value is read from the configVar WZLIB_EXTENSION,
         """
         what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         if not os.path.exists(what_to_work_on):

@@ -5,6 +5,7 @@
     * better welcome message with version
     * PlatformSpecificHelperWin.init_platform_tools will not look for download tool is configVat DOWNLOAD_TOOL_PATH is not defined
         this will avoid excption in commands such as uninstall that do not need download tool anyway
+    * changed WZLIB_EXTENSION defualt value to .wzip
 
     programmer visible changes:
     * new member InstlInstanceBase.instl_ver_str
