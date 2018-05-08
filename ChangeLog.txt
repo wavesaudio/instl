@@ -2,6 +2,12 @@
 
     user visible changes:
     * new command wzip - will zip a single file
+    * better welcome message with version
+    * PlatformSpecificHelperWin.init_platform_tools will not look for download tool is configVat DOWNLOAD_TOOL_PATH is not defined
+        this will avoid excption in commands such as uninstall that do not need download tool anyway
+
+    programmer visible changes:
+    * new member InstlInstanceBase.instl_ver_str
 
 6/5/2018 1.7.3.5
 

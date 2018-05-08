@@ -77,6 +77,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.internal_progress = 0  # progress of preparing installer NOT of the installation
         self.num_digits_repo_rev_hierarchy=None
         self.num_digits_per_folder_repo_rev_hierarchy=None
+        self.instl_ver_str = var_stack.ResolveVarToStr("__INSTL_VERSION__", list_sep=".")
 
     def progress(self, *messages):
         if self.total_self_progress:

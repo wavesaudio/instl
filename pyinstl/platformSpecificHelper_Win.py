@@ -286,14 +286,16 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
 
     def init_platform_tools(self):
         download_tool_name = var_stack.ResolveVarToStr("DOWNLOAD_TOOL_PATH")
-        if download_tool_name.endswith("wget.exe"):
-            self.dl_tool = DownloadTool_win_wget(self)
-        elif download_tool_name.endswith("curl.exe"):
-            self.dl_tool = DownloadTool_win_curl(self)
-        for find_tool_var in \
-                list(var_stack.ResolveVarToList("CMD_TOOLS_TO_FIND", default=[])) +\
-                list(var_stack.ResolveVarToList("CMD_TOOLS_TO_FIND_INTERNAL", default=[])):
-            self.find_cmd_tool(find_tool_var)
+        if download_tool_name:
+            if download_tool_name.endswith("wget.exe"):
+                self.dl_tool = DownloadTool_win_wget(self)
+            elif download_tool_name.endswith("curl.exe"):
+                self.dl_tool = DownloadTool_win_curl(self)
+        if self.dl_tool:
+            for find_tool_var in \
+                    list(var_stack.ResolveVarToList("CMD_TOOLS_TO_FIND", default=[])) +\
+                    list(var_stack.ResolveVarToList("CMD_TOOLS_TO_FIND_INTERNAL", default=[])):
+                self.find_cmd_tool(find_tool_var)
 
     def get_install_instructions_prefix(self, exit_on_errors=True):
         self.random_invocation_id = ''.join(random.choice(string.ascii_lowercase) for i in range(16))
