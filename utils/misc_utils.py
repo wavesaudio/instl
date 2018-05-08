@@ -718,6 +718,11 @@ def is_first_wtar_file(in_possible_wtar):
     if match:
         split_numerator = match.group('split_numerator')
         retVal = split_numerator is None or split_numerator == ".aa"
+        if retVal:  # hack to ignore phantom files that begin with ._
+            _, file_name = os.path.split(in_possible_wtar)
+            if file_name.startswith("._"):
+                print("ignoring possibly bad .wtar file", in_possible_wtar)
+                retVal = False
     return retVal
 
 

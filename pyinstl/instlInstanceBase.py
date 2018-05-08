@@ -363,10 +363,6 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                                                                 cache_folder=self.get_default_sync_dir(continue_dir="cache", make_dir=True),
                                                                 expected_checksum=expected_checksum)
                     self.read_yaml_file(file_path, *args, **kwargs)
-                    if not file_destination:
-                        file_name = utils.last_url_item(resolved_file_url)
-                        destination = var_stack.ResolveStrToStr("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)/{}".format(file_name))
-                        utils.smart_copy_file(file_path, destination)
                 except (FileNotFoundError, urllib.error.URLError):
                     ignore = kwargs.get('ignore_if_not_exist', False)
                     if ignore:

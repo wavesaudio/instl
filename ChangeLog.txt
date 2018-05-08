@@ -6,6 +6,8 @@
     * PlatformSpecificHelperWin.init_platform_tools will not look for download tool is configVat DOWNLOAD_TOOL_PATH is not defined
         this will avoid excption in commands such as uninstall that do not need download tool anyway
     * changed WZLIB_EXTENSION defualt value to .wzip
+    * do not unwtar files who's name begin with ._ - these are phantom files created by zip/unzip on Mac
+    * InstlInstanceBase.read_include_node, removed copy to LOCAL_REPO_REV_BOOKKEEPING_DIR if no destination was specified, this caused creating a folder named $(REPO_REV) when running offline installers
 
     programmer visible changes:
     * new member InstlInstanceBase.instl_ver_str
