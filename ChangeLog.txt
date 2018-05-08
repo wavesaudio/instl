@@ -1,3 +1,8 @@
+8/8/2018 1.7.4.0
+
+    user visible changes:
+    * new command wzip - will zip a single file
+
 6/5/2018 1.7.3.5
 
     user visible changes:

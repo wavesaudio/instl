@@ -8,6 +8,7 @@ import shlex
 import tarfile
 import time
 import filecmp
+import zlib
 
 import utils
 from collections import OrderedDict
@@ -450,3 +451,63 @@ class InstlMisc(InstlInstanceBase):
                 exec(py_text, globals())
         except Exception as ex:
             print("Exception while exec ", py_file_path, ex)
+
+    def do_wzip(self):
+        """ Create a new wzip for a file  provided in '--in' command line option
+
+            If --out is not supplied on the command line the new wzip file will be created
+                next to the input with extension '.wzip'.
+                e.g. the command:
+                    instl wzip --in /a/b/c
+                will create the wzip file at path:
+                    /a/b/c.wzip
+
+            If '--out' is supplied and it's an existing file, the new wzip will overwrite
+                this existing file, wzip extension will NOT be added.
+                e.g. assuming /d/e/f.txt is an existing file, the command:
+                    instl wzip --in /a/b/c --out /d/e/f.txt
+                will create the wzip file at path:
+                    /d/e/f.txt
+
+            if '--out' is supplied and is and existing folder the wzip file will be created
+                inside this folder with extension '.wzip'.
+                e.g. assuming /g/h/i is an existing folder, the command:
+                    instl wzip --in /a/b/c --out /g/h/i
+                will create the wzip file at path:
+                    /g/h/i/c.wzip
+
+            if '--out' is supplied and does not exists, the folder will be created
+                and the wzip file will be created inside the new folder with extension
+                 '.wzip'.
+                e.g. assuming /j/k/l is a non existing folder, the command:
+                    instl wzip --in /a/b/c --out /j/k/l
+                will create the wzip file at path:
+                    /j/k/l/c.wzip
+
+
+            ZLIB_COMPRESSION_LEVEL configVal will set the compression level, default is 8
+        """
+        what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        if not os.path.exists(what_to_work_on):
+            print(what_to_work_on, "does not exists")
+            return
+
+        what_to_work_on_dir, what_to_work_on_leaf = os.path.split(what_to_work_on)
+
+        where_to_put_wzip = None
+        if "__MAIN_OUT_FILE__" in var_stack:
+            where_to_put_wzip = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
+        else:
+            where_to_put_wzip = what_to_work_on_dir
+            if not where_to_put_wzip:
+                where_to_put_wzip = "."
+
+        if os.path.isfile(where_to_put_wzip):
+            target_wzip_file = where_to_put_wzip
+        else:  # assuming it's a folder
+            os.makedirs(where_to_put_wzip, exist_ok=True)
+            target_wzip_file = os.path.join(where_to_put_wzip, what_to_work_on_leaf+".wzip")
+
+        zlib_compression_level = int(var_stack.ResolveVarToStr("ZLIB_COMPRESSION_LEVEL", "8"))
+        with open(target_wzip_file, "wb") as wfd:
+            wfd.write(zlib.compress(open(what_to_work_on, "r").read().encode(), zlib_compression_level))

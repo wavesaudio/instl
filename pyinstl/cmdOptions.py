@@ -106,6 +106,7 @@ def prepare_args_parser(in_command):
         'win-shortcut':         {'mode': 'ds', 'options': (), 'help':  'create a Windows shortcut'},
         'wtar-staging-folder':  {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'create .wtar files inside staging folder'},
         'wtar':                 {'mode': 'ds', 'options': ('in', 'out'), 'help':  'create .wtar files from specified files and folders'},
+        'wzip':                 {'mode': 'ds', 'options': ('in', 'out'), 'help':  'create .wzip file from specified file'},
         'uninstall':            {'mode': 'ct', 'options': ('in', 'out', 'run',), 'help':  'uninstall previously copied files, considering dependencies'},
     }
 
