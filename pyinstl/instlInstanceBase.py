@@ -352,13 +352,9 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 if "checksum" in i_node:
                     expected_checksum = var_stack.ResolveStrToStr(i_node["checksum"].value)
 
-                file_destination = None
-                if "destination" in i_node:
-                    file_destination = var_stack.ResolveStrToStr(i_node["destination"].value)
-
                 try:
                     file_path = utils.download_from_file_or_url(in_url=resolved_file_url,
-                                                                in_target_path=file_destination,
+                                                                in_target_path=None,
                                                                 translate_url_callback=connectionBase.translate_url,
                                                                 cache_folder=self.get_default_sync_dir(continue_dir="cache", make_dir=True),
                                                                 expected_checksum=expected_checksum)
@@ -508,6 +504,8 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
     def read_index(self, a_node, *args, **kwargs):
         self.progress("reading index.yaml")
         self.items_table.read_index_node(a_node)
+        repo_rev = var_stack.ResolveVarToStr("REPO_REV", default="unknown")
+        self.progress("repo-rev", repo_rev)
 
     def find_cycles(self):
         try:

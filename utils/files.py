@@ -244,6 +244,8 @@ def download_from_file_or_url(in_url, in_target_path=None, translate_url_callbac
         """
 
     cached_file_path = download_and_cache_file_or_url(in_url=in_url, translate_url_callback=translate_url_callback, cache_folder=cache_folder, expected_checksum=expected_checksum)
+    if not in_target_path:
+        in_target_path = cache_folder
     if in_target_path:
         url_file_name = last_url_item(in_url)
         url_base_file_name, url_extension = os.path.splitext(url_file_name)

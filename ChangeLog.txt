@@ -1,3 +1,14 @@
+9/5/2018 1.7.4.1
+
+    user visible changes:
+    * print repo-rev to self.progress after reading index
+
+    admin visible changes:
+    * removed the option of 'destination' with __include__ - it only caused trouble
+
+    programmer visible changes:
+    * utils.download_from_file_or_url if in_target_path is not provided use cache_folder so that .wzip files have a folder to be decompressed to
+
 8/8/2018 1.7.4.0
 
     user visible changes:
