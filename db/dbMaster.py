@@ -98,15 +98,18 @@ class DBMaster(object):
 
     def open(self):
         if not self.__conn:
+            create_new_db = not os.path.isfile(self.db_file_path)
             self.__conn = sqlite3.connect(self.db_file_path)
             self.__curs = self.__conn.cursor()
             self.configure_db()
-            self.exec_script_file("create-tables.ddl")
-            self.exec_script_file("init-values.ddl")
-            self.exec_script_file("create-indexes.ddl")
+            if create_new_db:
+                self.exec_script_file("create-tables.ddl")
+                self.exec_script_file("init-values.ddl")
+                self.exec_script_file("create-indexes.ddl")
 
     def configure_db(self):
         self.set_db_pragma("foreign_keys", "ON")
+        self.set_db_pragma("user_version", self.top_user_version)
         #self.__conn.set_authorizer(self.authorizer)
         #self.__conn.set_progress_handler(self.progress, 8)
         self.__conn.row_factory = sqlite3.Row

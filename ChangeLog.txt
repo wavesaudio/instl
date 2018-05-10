@@ -1,3 +1,10 @@
+10/5/2018 1.7.4.2
+
+    admin visible changes:
+    * some changes to the way the db is opened in order to allow separate launches of instl to use the same db, when specifying --db option on the command line
+    * commands read-info-map, read-yaml now accept --db option on the command line
+    * filter-infomap command: fix the case where the same path belonged to more than 1 IID in the same infomap and would appear twice in the infomap
+
 9/5/2018 1.7.4.1
 
     user visible changes:

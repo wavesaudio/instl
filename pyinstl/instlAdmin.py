@@ -1197,7 +1197,8 @@ class InstlAdmin(InstlInstanceBase):
         lines_for_main_info_map = list()  # each additional info map is written into the main info map
         # write each info map to file
         for infomap_file_name in all_info_maps:
-            info_map_items = self.info_map_table.get_items_by_infomap(infomap_file_name)
+            self.info_map_table.mark_items_required_by_infomap(infomap_file_name)
+            info_map_items = self.info_map_table.get_required_items()
             if info_map_items:  # could be that no items are linked to the info map file
                 info_map_file_path = os.path.join(instl_folder, infomap_file_name)
                 self.info_map_table.write_to_file(in_file=info_map_file_path, items_list=info_map_items, field_to_write=self.fields_relevant_to_info_map)

@@ -1270,25 +1270,26 @@ class SVNTable(object):
         retVal = self.db.select_and_fetchall(query_text)
         return retVal
 
-    def get_items_by_infomap(self, infomap_name):
+    def mark_items_required_by_infomap(self, infomap_name):
         """
-        get_items_by_infomap returns all items that should be written to a specific infomap file
+        mark_items_required_by_infomap will mark as required all items that should be written
+        to a specific infomap file, all other items will be marked as unrequired
         infomap file names were stored in extra_props column by set_infomap_file_names
         :param infomap_name: e.g. GrandRhapsody_SD_Sample_Library_info_map.txt
         """
         retVal = list()
-        with self.db.selection() as curs:
+        with self.db.transaction() as curs:
+            curs.execute("""UPDATE svn_item_t SET required=0""")
             curs.execute("""
-                    SELECT * FROM svn_item_t
+                    UPDATE svn_item_t SET required=1
+                    WHERE _id in (
+                    SELECT DISTINCT svn_item_t._id FROM svn_item_t
                     JOIN iid_to_svn_item_t, index_item_detail_t
                       ON svn_item_t._id == iid_to_svn_item_t.svn_id
                       AND iid_to_svn_item_t.iid == index_item_detail_t.owner_iid
                       AND index_item_detail_t.detail_name == 'info_map'
-                      AND index_item_detail_t.detail_value == :infomap_name
-                    ORDER BY svn_item_t._id
+                      AND index_item_detail_t.detail_value == :infomap_name)
                     """, {"infomap_name": infomap_name})
-            retVal = curs.fetchall()
-            retVal = self.SVNRowListToObjects(retVal)
         return retVal
 
     def get_items_for_default_infomap(self):

@@ -39,11 +39,11 @@ class IndexItemsTable(object):
         self.db = db_master
         self.db.open()
 
-        self.clear_tables()
+        # no need to clear table here, when accepting --db option for the command line
         self.os_names_db_objs = list()
         self.add_triggers()
         self.add_views()
-        self.defines_for_iids = dict()  # defines whuch are specific to an iid
+        self.defines_for_iids = dict()  # defines which are specific to an iid
 
     def __del__(self):
         self.db.unlock_all_tables()
