@@ -1,3 +1,9 @@
+11/5/2018 1.7.4.3
+
+    admin visible changes:
+    * InstlAdmin replaced many print's with self.progress
+    * IGNORE_BELOW_REPO_REV new configVar can be used to specify repo-rev that will be ignored by InstAdmin operations.
+
 10/5/2018 1.7.4.2
 
     admin visible changes:
