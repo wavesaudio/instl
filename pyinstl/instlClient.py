@@ -312,10 +312,15 @@ class InstlClient(InstlInstanceBase):
         new_require_file_path = var_stack.ResolveVarToStr("NEW_SITE_REQUIRE_FILE_PATH")
         new_require_file_dir, new_require_file_name = os.path.split(new_require_file_path)
         os.makedirs(new_require_file_dir, exist_ok=True)
-        self.write_require_file(new_require_file_path, self.repr_require_for_yaml())
-        # Copy the new require file over the old one, if copy fails the old file remains.
-        self.batch_accum += self.platform_helper.copy_file_to_file("$(NEW_SITE_REQUIRE_FILE_PATH)",
-                                                                   "$(SITE_REQUIRE_FILE_PATH)")
+        require_yaml = self.repr_require_for_yaml()
+        if require_yaml:
+            self.write_require_file(new_require_file_path, require_yaml)
+            # Copy the new require file over the old one, if copy fails the old file remains.
+            self.batch_accum += self.platform_helper.progress("copy new require.yaml to $(SITE_REQUIRE_FILE_PATH)")
+            self.batch_accum += self.platform_helper.copy_file_to_file("$(NEW_SITE_REQUIRE_FILE_PATH)", "$(SITE_REQUIRE_FILE_PATH)")
+        else:   # remove previous require.yaml since the new one does not contain anything
+            self.batch_accum += self.platform_helper.progress("remove previous require.yaml from $(SITE_REQUIRE_FILE_PATH)")
+            self.batch_accum += self.platform_helper.rmfile("$(SITE_REQUIRE_FILE_PATH)")
 
     def create_folder_manifest_command(self, which_folder_to_manifest, output_folder, output_file_name, back_ground=False):
         """ create batch commands to write a manifest of specific folder to a file """

@@ -4,6 +4,7 @@
     * utils.download_and_cache_file_or_url: fixed case where cached checksum file exists but has wrong checksum.
            now such file will be erased. Also handle cases where cache folder is a file or does not exist.
     * removed some asserts
+    * after uninstall remove previous require.yaml if the new one does not contain anything
 
     admin visible changes:
     * InstlAdmin replaced many print's with self.progress
