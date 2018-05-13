@@ -219,22 +219,28 @@ def download_and_cache_file_or_url(in_url, cache_folder, translate_url_callback=
         otherwise download the file
         :return: path of the downloaded file
     """
-    assert os.path.isdir(cache_folder), cache_folder+" folder not found"
+
+    if os.path.isfile(cache_folder):  # happens sometimes...
+        safe_remove_file(cache_folder)
+    if not os.path.isdir(cache_folder):
+        os.makedirs(cache_folder, exist_ok=True)
+
     url_file_name = last_url_item(in_url)
     cached_file_name = expected_checksum if expected_checksum else url_file_name
     cached_file_path = os.path.join(cache_folder, cached_file_name)
-    if expected_checksum is None:  # no checksum -> force download
+    if expected_checksum is None:  # no checksum? -> force download
         safe_remove_file(cached_file_path)
 
-    if not os.path.isfile(cached_file_path):
+    if os.path.isfile(cached_file_path):  # file exists? -> make sure it has the right checksum
+        if not utils.check_file_checksum(cached_file_path, expected_checksum):
+            safe_remove_file(cached_file_path)
+
+    if not os.path.isfile(cached_file_path):  # need to download
         contents_buffer = read_from_file_or_url(in_url, translate_url_callback, expected_checksum, encoding=None)
         if contents_buffer:
             with open(cached_file_path, "wb") as wfd:
                 make_open_file_read_write_for_all(wfd)
                 wfd.write(contents_buffer)
-    else:
-        assert expected_checksum is not None, "file "+cached_file_path+" found but checksum is None"
-        assert utils.check_file_checksum(cached_file_path, expected_checksum), "file "+cached_file_path+" found but checksum does not match"
     return cached_file_path
 
 

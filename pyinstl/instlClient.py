@@ -468,7 +468,6 @@ class InstlClient(InstlInstanceBase):
                 # if the file was wtarred and split it would have multiple items
                 items_for_file = self.info_map_table.get_required_paths_for_file(source)
                 if direct_sync:
-                    assert resolved_install_folder is not None
                     for item in items_for_file:
                         items_to_update.append({"_id": item['_id'],
                                                 "download_path": var_stack.ResolveStrToStr("/".join((resolved_install_folder, item['leaf']))),
@@ -487,7 +486,7 @@ class InstlClient(InstlInstanceBase):
         target_folder_path_resolved = var_stack.ResolveStrToStr(target_folder_path)
         if os.path.isdir(target_folder_path_resolved):  # no need to remove previous sources if folder does not exist
             iids_in_folder = self.all_iids_by_target_folder[target_folder_path]
-            assert list(self.all_iids_by_target_folder[target_folder_path]) == list(iids_in_folder)
+            #assert list(self.all_iids_by_target_folder[target_folder_path]) == list(iids_in_folder)
             previous_sources = self.items_table.get_details_and_tag_for_active_iids("previous_sources", unique_values=True, limit_to_iids=iids_in_folder)
 
             if len(previous_sources) > 0:
