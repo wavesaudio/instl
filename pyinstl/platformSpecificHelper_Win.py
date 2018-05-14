@@ -465,10 +465,14 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         else:
             raise ValueError(tool_name, "is not a valid copy tool for", var_stack.ResolveVarToStr("TARGET_OS"))
 
-    def copy_file_to_file(self, src_file, trg_file, hard_link=False):
+    def copy_file_to_file(self, src_file, trg_file, hard_link=False, check_exist=False):
+        copy_command_parts = list()
         norm_src_file = utils.quoteme_double(os.path.normpath(src_file))
         norm_trg_file = utils.quoteme_double(os.path.normpath(trg_file))
-        copy_command = " ".join(("copy", norm_src_file, norm_trg_file))
+        if check_exist:
+            copy_command_parts.extend(("if", "exist", norm_src_file))
+        copy_command_parts.extend(("copy", norm_src_file, norm_trg_file))
+        copy_command = " ".join(copy_command_parts)
         return copy_command
 
     def check_checksum_for_file(self, file_path, checksum):

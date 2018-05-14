@@ -334,7 +334,7 @@ class PlatformSpecificHelperBase(object):
         pass
 
     @abc.abstractmethod
-    def copy_file_to_file(self, src_file, trg_file):
+    def copy_file_to_file(self, src_file, trg_file, hard_link=False, check_exist=False):
         """ Copy src_file to trg_file.
             Example: create_copy_file_to_file("a.txt", "/d/c/bt.txt") copies
             the file a.txt into "/d/c/bt.txt".

@@ -312,6 +312,7 @@ class InstlClient(InstlInstanceBase):
         new_require_file_path = var_stack.ResolveVarToStr("NEW_SITE_REQUIRE_FILE_PATH")
         new_require_file_dir, new_require_file_name = os.path.split(new_require_file_path)
         os.makedirs(new_require_file_dir, exist_ok=True)
+        self.batch_accum += self.platform_helper.copy_file_to_file("$(SITE_REQUIRE_FILE_PATH)", "$(OLD_SITE_REQUIRE_FILE_PATH)", check_exist=True)
         require_yaml = self.repr_require_for_yaml()
         if require_yaml:
             self.write_require_file(new_require_file_path, require_yaml)

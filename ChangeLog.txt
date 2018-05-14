@@ -1,14 +1,19 @@
-13/5/2018 1.7.4.4
+14/5/2018 1.7.4.4
 
     user visible changes:
     * utils.download_and_cache_file_or_url: fixed case where cached checksum file exists but has wrong checksum.
            now such file will be erased. Also handle cases where cache folder is a file or does not exist.
     * removed some asserts
     * after uninstall remove previous require.yaml if the new one does not contain anything
+    * old_require.yaml is created after install as a copy of the previous require.yaml - if there was one
 
     admin visible changes:
     * InstlAdmin replaced many print's with self.progress
     * IGNORE_BELOW_REPO_REV new configVar can be used to specify repo-rev that will be ignored by InstAdmin operations.
+
+    programmer visible changes:
+    * PlatformSpecificHelper_X.copy_file_to_file, new parameter check_exist, if true will skip the copy when source file
+        does not exist. Default is check_exist=False.
 
 10/5/2018 1.7.4.2
 

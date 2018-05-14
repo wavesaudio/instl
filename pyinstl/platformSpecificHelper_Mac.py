@@ -230,11 +230,13 @@ report_invocation_end() {{
         else:
             raise ValueError(tool_name, "is not a valid copy tool for Mac OS")
 
-    def copy_file_to_file(self, src_file, trg_file, hard_link=False):
+    def copy_file_to_file(self, src_file, trg_file, hard_link=False, check_exist=False):
         if hard_link:
             copy_command = """ln -f "{src_file}" "{trg_file}" """.format(**locals())
         else:
             copy_command = """cp -f "{src_file}" "{trg_file}" """.format(**locals())
+        if check_exist:
+            copy_command += " || true"
         return copy_command
 
     def resolve_symlink_files(self, in_dir="$PWD"):
