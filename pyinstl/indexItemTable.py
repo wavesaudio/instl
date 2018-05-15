@@ -5,6 +5,8 @@ import os
 import sys
 from collections import OrderedDict
 from collections import defaultdict
+import re
+import yaml
 
 import utils
 from configVar import var_stack
@@ -552,13 +554,20 @@ class IndexItemsTable(object):
         original_details = self.read_item_details_from_node(the_iid, the_node)
         return item, original_details
 
+    template_re = re.compile("""(?P<template_name>.*)<(?P<template_args>[^>]*)>""")
+
     def read_index_node(self, a_node):
         index_items = list()
         items_details = list()
         for IID in a_node:
-            item, original_item_details = self.item_from_index_node(IID, a_node[IID])
-            index_items.append(item)
-            items_details.extend(original_item_details)
+            template_match = self.template_re.match(IID)
+            if template_match:
+                node = self.read_index_template_node(template_match, a_node[IID])
+                self.read_index_node(node)
+            else:
+                item, original_item_details = self.item_from_index_node(IID, a_node[IID])
+                index_items.append(item)
+                items_details.extend(original_item_details)
 
         insert_item_q =        """INSERT INTO index_item_t(iid, from_index) VALUES(?, ?)"""
         insert_item_detail_q = """INSERT INTO index_item_detail_t(original_iid, owner_iid, os_id,
@@ -569,6 +578,24 @@ class IndexItemsTable(object):
             curs.executemany(insert_item_detail_q, items_details)
             curs.execute("""CREATE UNIQUE INDEX IF NOT EXISTS ix_index_item_t_iid ON index_item_t(iid)""")
             curs.execute("""CREATE INDEX IF NOT EXISTS ix_index_item_t_owner_iid ON index_item_detail_t(owner_iid)""")
+
+    def read_index_template_node(self, template_match, instances_node):
+        yaml_text = "--- !index\n"
+        template_name = template_match.group('template_name')
+        template_args = template_match.group('template_args').split(',')
+        template_args = [a.strip() for a in template_args]
+        template_text = var_stack.unresolved_var(template_name)
+        for instance_node in instances_node.value:
+            if instance_node.isSequence():
+                with var_stack.push_scope_context():
+                    arg_values = list(zip(template_args, [var_val.value for var_val in instance_node.value]))
+                    for arg, val in arg_values:
+                        var_stack.set_var(arg).append(val)
+                    resolved_instance = var_stack.ResolveStrToStr(template_text)
+                    yaml_text += resolved_instance
+                    print("resolved template for ", arg_values[0][1])
+        out_node = yaml.compose(yaml_text)
+        return out_node
 
     def read_require_node(self, a_node):
         require_items = dict()
