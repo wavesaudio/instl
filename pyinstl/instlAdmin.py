@@ -372,7 +372,7 @@ class InstlAdmin(InstlInstanceBase):
         self.info_map_table.mark_required_for_revision(repo_rev)
 
         # remove all unrequired files
-        self.info_map_table.ignore_unrequired_where_parent_unrequired(repo_rev)
+        self.info_map_table.ignore_unrequired_where_parent_unrequired()
         unrequired_items = self.info_map_table.get_unrequired_not_ignored_paths()
         for i, unrequired_item in enumerate(unrequired_items):
             accum += self.platform_helper.rm_file_or_dir(unrequired_item)
