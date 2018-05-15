@@ -463,7 +463,7 @@ class InstlAdmin(InstlInstanceBase):
         with utils.utf8_open(admin_folder_path, "w") as wfd:
             aYaml.writeAsYaml(repo_rev_yaml_doc, out_stream=wfd, indentor=None, sort=True)
             self.progress("created", admin_folder_path)
-        repo_rev_folder_path = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY)/instl/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
+        repo_rev_folder_path = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
 
         with utils.utf8_open(repo_rev_folder_path, "w") as wfd:
             aYaml.writeAsYaml(repo_rev_yaml_doc, out_stream=wfd, indentor=None, sort=True)
