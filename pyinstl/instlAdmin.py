@@ -1121,7 +1121,7 @@ class InstlAdmin(InstlInstanceBase):
             what_to_scan = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
             if os.path.isfile(what_to_scan):
                 file_size = os.path.getsize(what_to_scan)
-                self.progress(what_to_scan+",", file_size, file=out_file)
+                print(what_to_scan+",", file_size, file=out_file)
             else:
                 folder_to_scan_name_len = len(what_to_scan)+1 # +1 for the last '\'
                 if not self.compiled_forbidden_folder_regex.search(what_to_scan):
@@ -1130,7 +1130,7 @@ class InstlAdmin(InstlInstanceBase):
                             full_path = os.path.join(root, a_file)
                             file_size = os.path.getsize(full_path)
                             partial_path = full_path[folder_to_scan_name_len:]
-                            self.progress(partial_path+",", file_size, file=out_file)
+                            print(partial_path+",", file_size, file=out_file)
 
     def create_info_map(self, svn_folder, results_folder, accum):
 
