@@ -593,7 +593,8 @@ class IndexItemsTable(object):
                         var_stack.set_var(arg).append(val)
                     resolved_instance = var_stack.ResolveStrToStr(template_text)
                     yaml_text += resolved_instance
-                    print("resolved template for ", arg_values[0][1])
+                    #print("resolved template for ", arg_values[0][1])
+        #print(yaml_text)
         out_node = yaml.compose(yaml_text)
         return out_node
 
