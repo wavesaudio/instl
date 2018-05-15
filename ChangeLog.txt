@@ -1,3 +1,9 @@
+15/5/2018 1.8.0.0
+
+    Epoch of the template begins.
+    admin visible changes:
+    * index.yaml can have templates for IIDs making it much shorter and concise
+
 14/5/2018 1.7.4.4
 
     user visible changes:
