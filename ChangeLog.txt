@@ -10,6 +10,7 @@
     admin visible changes:
     * InstlAdmin replaced many print's with self.progress
     * IGNORE_BELOW_REPO_REV new configVar can be used to specify repo-rev that will be ignored by InstAdmin operations.
+    * another fix for: filter-infomap command: fix the case where the same path belonged to more than 1 IID in the same infomap and would appear twice in the infomap
 
     programmer visible changes:
     * PlatformSpecificHelper_X.copy_file_to_file, new parameter check_exist, if true will skip the copy when source file
