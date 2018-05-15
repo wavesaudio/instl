@@ -372,11 +372,12 @@ class InstlAdmin(InstlInstanceBase):
         self.info_map_table.mark_required_for_revision(repo_rev)
 
         # remove all unrequired files
-        unrequired_files = self.info_map_table.get_unrequired_file_paths()
-        for i, unrequired_file in enumerate(unrequired_files):
-            accum += self.platform_helper.rmfile(unrequired_file)
-            if i % 1000 == 0:  # only report every 1000'th file
-                accum += self.platform_helper.progress("rmfile " + unrequired_file +" & 999 more")
+        self.info_map_table.ignore_unrequired_where_parent_unrequired()
+        unrequired_items = self.info_map_table.get_unrequired_not_ignored_paths()
+        for i, unrequired_item in enumerate(unrequired_items):
+            accum += self.platform_helper.rm_file_or_dir(unrequired_item)
+            #if i % 1000 == 0:  # only report every 1000'th file
+            #    accum += self.platform_helper.progress("rmfile " + unrequired_item +" & 999 more")
 
         # now remove all empty folders, the files that are left should be uploaded
         remove_empty_folders_command_parts = [self.platform_helper.run_instl(), "remove-empty-folders", "--in", "."]
@@ -463,7 +464,8 @@ class InstlAdmin(InstlInstanceBase):
         with utils.utf8_open(admin_folder_path, "w") as wfd:
             aYaml.writeAsYaml(repo_rev_yaml_doc, out_stream=wfd, indentor=None, sort=True)
             self.progress("created", admin_folder_path)
-        repo_rev_folder_path = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(TARGET_REPO_REV)/instl/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
+        repo_rev_folder_path = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
+
         with utils.utf8_open(repo_rev_folder_path, "w") as wfd:
             aYaml.writeAsYaml(repo_rev_yaml_doc, out_stream=wfd, indentor=None, sort=True)
             self.progress("created", repo_rev_folder_path)
@@ -1120,7 +1122,7 @@ class InstlAdmin(InstlInstanceBase):
             what_to_scan = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
             if os.path.isfile(what_to_scan):
                 file_size = os.path.getsize(what_to_scan)
-                self.progress(what_to_scan+",", file_size, file=out_file)
+                print(what_to_scan+",", file_size, file=out_file)
             else:
                 folder_to_scan_name_len = len(what_to_scan)+1 # +1 for the last '\'
                 if not self.compiled_forbidden_folder_regex.search(what_to_scan):
@@ -1129,7 +1131,7 @@ class InstlAdmin(InstlInstanceBase):
                             full_path = os.path.join(root, a_file)
                             file_size = os.path.getsize(full_path)
                             partial_path = full_path[folder_to_scan_name_len:]
-                            self.progress(partial_path+",", file_size, file=out_file)
+                            print(partial_path+",", file_size, file=out_file)
 
     def create_info_map(self, svn_folder, results_folder, accum):
 
@@ -1211,7 +1213,8 @@ class InstlAdmin(InstlInstanceBase):
         lines_for_main_info_map = list()  # each additional info map is written into the main info map
         # write each info map to file
         for infomap_file_name in all_info_maps:
-            info_map_items = self.info_map_table.get_items_by_infomap(infomap_file_name)
+            self.info_map_table.mark_items_required_by_infomap(infomap_file_name)
+            info_map_items = self.info_map_table.get_required_items()
             if info_map_items:  # could be that no items are linked to the info map file
                 info_map_file_path = os.path.join(instl_folder, infomap_file_name)
                 self.info_map_table.write_to_file(in_file=info_map_file_path, items_list=info_map_items, field_to_write=self.fields_relevant_to_info_map)
