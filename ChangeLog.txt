@@ -1,3 +1,144 @@
+14/5/2018 1.7.4.4
+
+    user visible changes:
+    * utils.download_and_cache_file_or_url: fixed case where cached checksum file exists but has wrong checksum.
+           now such file will be erased. Also handle cases where cache folder is a file or does not exist.
+    * removed some asserts
+    * after uninstall remove previous require.yaml if the new one does not contain anything
+    * old_require.yaml is created after install as a copy of the previous require.yaml - if there was one
+
+    admin visible changes:
+    * InstlAdmin replaced many print's with self.progress
+    * IGNORE_BELOW_REPO_REV new configVar can be used to specify repo-rev that will be ignored by InstAdmin operations.
+
+    programmer visible changes:
+    * PlatformSpecificHelper_X.copy_file_to_file, new parameter check_exist, if true will skip the copy when source file
+        does not exist. Default is check_exist=False.
+
+10/5/2018 1.7.4.2
+
+    admin visible changes:
+    * some changes to the way the db is opened in order to allow separate launches of instl to use the same db, when specifying --db option on the command line
+    * commands read-info-map, read-yaml now accept --db option on the command line
+    * filter-infomap command: fix the case where the same path belonged to more than 1 IID in the same infomap and would appear twice in the infomap
+
+9/5/2018 1.7.4.1
+
+    user visible changes:
+    * print repo-rev to self.progress after reading index
+
+    admin visible changes:
+    * removed the option of 'destination' with __include__ - it only caused trouble
+
+    programmer visible changes:
+    * utils.download_from_file_or_url if in_target_path is not provided use cache_folder so that .wzip files have a folder to be decompressed to
+
+8/8/2018 1.7.4.0
+
+    user visible changes:
+    * new command wzip - will zip a single file
+    * better welcome message with version
+    * PlatformSpecificHelperWin.init_platform_tools will not look for download tool is configVat DOWNLOAD_TOOL_PATH is not defined
+        this will avoid excption in commands such as uninstall that do not need download tool anyway
+    * changed WZLIB_EXTENSION defualt value to .wzip
+    * do not unwtar files who's name begin with ._ - these are phantom files created by zip/unzip on Mac
+    * InstlInstanceBase.read_include_node, removed copy to LOCAL_REPO_REV_BOOKKEEPING_DIR if no destination was specified, this caused creating a folder named $(REPO_REV) when running offline installers
+
+    programmer visible changes:
+    * new member InstlInstanceBase.instl_ver_str
+
+6/5/2018 1.7.3.5
+
+    user visible changes:
+    * InstlClient.create_remove_previous_sources_instructions_for_target_folder no instructions are created if folder does not exist.
+    * InstlClientUninstall.init_uninstall_vars now calls calc_user_cache_dir_var() because variables defined in calc_user_cache_dir_var are needed during installations
+    * not set -e for uninstall so if some instruction fails the script will continue (Mac/linux)
+
+3/5/2018 1.7.3.4
+    user visible changes:
+    * improved do_remove_empty_folders command by using try/except around each remove command
+            so that if one folder/file fails to be removed the code will continue to remove other folders/files.
+            also message is printed for each failed file/folder
+    * improved readability of uninstall batch file by adding extra empty lines
+
+2/5/2018 1.7.3.3
+    admin visible changes:
+    * fixed and improved the code that uploads to s3
+    * PlatformSpecificHelperLinux.rm_file_or_dir was not implemented, now it is
+    * SVNTable.update_parent_ids_q: parent_id of top level dirs is set to 0
+    * wtar with bz2 compression: changed compressleve to 1 instead of the default 9. This proved to create wtars that are only 2% more in size but unwtar is 13% faster, see CEN-1711
+
+1/5/2018 1.7.3.2
+    user visible changes:
+    * fixed: sources that were single wtar file were not copied to destination
+
+1/5/2018 1.7.3.1
+
+    programmer visible changes:
+    * InstlClientCopy.create_copy_instructions_for_no_copy_folder, removed sorted from self.items_table.get_sources_for_iid(IID) because get_sources_for_iid already returns sorted results and sorting of sqlite1.Row objects is no supported, CEN-1774
+
+29/4/2018 1.7.3.0
+    user visible changes:
+    * direct-sync folders that have Info.xml will not be checkedsum or downloaded if Info.xml is present and has correct checksum
+
+    admin visible changes:
+    * --db option to read/write from database at a none default location, get_db_url & InstlInstanceBase.init_db implement this, path is saved in new configVar __DB_INPUT_FILE__
+    * removed unused code that created .txt versions of info-maps
+    * in InstlAdmin.do_create_repo_rev_file replaced usage of TARGET_REPO_REV with __CURR_REPO_FOLDER_HIERARCHY__ to accommodate to both styles of folder hierarchy (01/23 & 123)
+    * ditto InstlInstanceBase.in repo_rev_to_folder_hierarchy
+
+    programmer visible changes:
+    * new field to SVNRow and svn_item_t table: ignore. defaults to 0, set to 1 when there's no need to download file if Info.xml is present and has correct checksum
+    * SVNRow.mark_need_download: marks files for download only if ignore == 0
+    * SVNRow.ignore_file_paths_of_dir will mark files under a path as ignore=1
+    * InstlClient.set_sync_locations_for_active_items, uses the new svn_item_t.ignore field to mark files when their Info.xml is present and has correct checksum
+    * InstlClientCopy.create_copy_instructions_for_target_folder makes use of BatchAccumulatorTransaction so if none of the sources in the folder needs to be copied (because Info.xml is present and has correct checksum), the whole pre/post actions & messages for the folder are removed
+
+
+25/4/2018 1.7.2.5
+    user visible changes:
+    * __USER_PATH__ is no longer written to the batch file, there were issues with users having bad characters in the path
+        and anyway having __USER_PATH__ was not really useful for debugging. CEN-1638
+
+22/4/2018 1.7.2.4
+
+    user visible changes:
+    * SVNTable.get_immediate_child_items_q had wrong name for svn_item_t table, which caused exception when uninstalling
+    * InstlClient.sort_all_items_by_target_folder can now ignore direct_sync state for an item so during uninstall those items can be removed if needed
+    * reduce progress items during uninstall, folders were there is nothing to remove will not be mentioned in batch file
+    * reduce progress count (factor of 4) for files that are already in cache so progress advances more uniformly
+    * DownloadToolBase.create_config_files:
+        to overcome cUrl inability to handle path with unicode chars, we try to calculate the windows
+        short path (DOS style 8.3 chars). The function that does that, win32api.GetShortPathName,
+        does not work for paths that do not yet exist so we need to also create the folder.
+        However if the creation requires admin permissions - it could fail -
+        in which case we revert to using the long path.
+    programmer visible changes:
+    * removed redundant class InstlAdmin.RemoveIfNotSpecificVersion
+    * some more sorted() calls for idempotency sake
+
+16/4/2018 1.7.2.3
+
+    user visible changes:
+    * added retry mechanism to utils.open_for_read_file_or_url
+    * fixed calculation of num_required_files in InstlInstanceSync.mark_required_items
+
+15/4/2018 1.7.2.2
+
+   admin visible changes:
+    * detailed self.progress report on verify-repo command
+
+    programmer visible changes:
+    * self.progress can change it's total progress dynamically
+    * self.progress can have multiple messages which will all be " ".join-ed
+
+9/4/2018 1.7.2.1
+
+    Many changes, to numerous to detail here to shorten execution time and better progress reporting. See commit comments in branches no-alchemy and central_v9_no_alcehmy for details
+
+    admin vidible changes:
+    * fixed issue in verify_index_to_repo where !file soirce were reproted as missing
+
 27/2/2018 1.7.0.0
 
     user visible changes:

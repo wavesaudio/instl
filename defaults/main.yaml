@@ -3,8 +3,8 @@
 __INSTL_VERSION__:
     - 1
     - 7
-    - 0
-    - 0
+    - 4
+    - 4
 
 __USER_CONFIG_FILE_NAME__: instl_config.yaml
 __USER_CONFIG_FILE_PATH__: $(__USER_HOME_DIR__)/$(__USER_CONFIG_FILE_NAME__)
@@ -49,10 +49,10 @@ TAR_MANIFEST_FILE_NAME: __TAR_CONTENT__.txt
 # e.g. 4&2 means repo-rev 123 becomes a folder hierarchy with 0 padding: 01/23
 # NUM_DIGITS_REPO_REV_HIERARCHY should be multiple of NUM_DIGITS_PER_FOLDER_REPO_REV_HIERARCHY
 # these values are default nd allow for 9999 repo-revs. Actual value should come from repository configuration
-NUM_DIGITS_REPO_REV_HIERARCHY: 4
-NUM_DIGITS_PER_FOLDER_REPO_REV_HIERARCHY: 2
+NUM_DIGITS_REPO_REV_HIERARCHY: 0
+NUM_DIGITS_PER_FOLDER_REPO_REV_HIERARCHY: 0
 
-WZLIB_EXTENSION: .wzlib
+WZLIB_EXTENSION: .wzip
 ZLIB_COMPRESSION_LEVEL: 8  # 8 was tested to be the fastest zlib level to decompress
 
 --- !define_Mac

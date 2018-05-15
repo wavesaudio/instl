@@ -7,6 +7,9 @@ import sys
 import shlex
 import tarfile
 import time
+import filecmp
+import zlib
+
 import utils
 from collections import OrderedDict
 from .instlInstanceBase import InstlInstanceBase
@@ -16,7 +19,7 @@ from . import connectionBase
 
 # noinspection PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences
 class InstlMisc(InstlInstanceBase):
-    def __init__(self, initial_vars):
+    def __init__(self, initial_vars, command):
         super().__init__(initial_vars)
         # noinspection PyUnresolvedReferences
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
@@ -25,8 +28,11 @@ class InstlMisc(InstlInstanceBase):
         self.progress_staccato_command = False
         self.progress_staccato_period = 1
         self.progress_staccato_count = 0
-        self.commands_that_need_info_map_table = ("check_checksum", "set_exec", "create_folders")
-        self.commands_that_need_items_table = ("exec")
+
+        if command in ("exec",):
+            self.need_items_table = True
+        if command in ("check-checksum", "set-exec", "create-folders", "command-list"):
+            self.need_info_map_table = True
 
     def get_default_out_file(self):
         retVal = None
@@ -43,15 +49,10 @@ class InstlMisc(InstlInstanceBase):
         self.progress_staccato_count = 0
         do_command_func = getattr(self, "do_" + self.fixed_command)
         before_time = time.clock()
-        if self.fixed_command in self.commands_that_need_info_map_table:
-            from svnTree import SVNTable
-            self.info_map_table = SVNTable()
-        if self.fixed_command in self.commands_that_need_items_table:
-            self.init_items_table()
         do_command_func()
         after_time = time.clock()
         if utils.str_to_bool_int(var_stack.unresolved_var("PRINT_COMMAND_TIME")):
-            print(self.the_command, "time:", round(after_time - before_time, 2), "sec.")
+            print(self.the_command, "time:", round(after_time - before_time, 4), "sec.")
 
     def dynamic_progress(self, msg):
         if self.total_progress > 0:
@@ -179,14 +180,25 @@ class InstlMisc(InstlInstanceBase):
                     file_pax_headers["mtime"] = mode_time
                     tarinfo.pax_headers = file_pax_headers
                 return tarinfo
-
+            compresslevel = 1
             if pax_headers["total_checksum"] != tar_total_checksum:
                 existing_wtar_parts = utils.find_split_files_from_base_file(what_to_work_on_leaf)
                 [utils.safe_remove_file(f) for f in existing_wtar_parts]
-                with tarfile.open(target_wtar_file, "w|bz2", format=tarfile.PAX_FORMAT, pax_headers=pax_headers) as tar:
+                with tarfile.open(target_wtar_file, "w:bz2", format=tarfile.PAX_FORMAT, pax_headers=pax_headers, compresslevel=compresslevel) as tar:
                     tar.add(what_to_work_on_leaf, filter=check_tarinfo)
             else:
                 print("{0} skipped since {0}.wtar already exists and has the same contents".format(what_to_work_on))
+
+    def can_skip_unwtar(self, what_to_work_on, where_to_unwtar):
+        return False
+        # disabled for now because Info.xml is copied before unwtarring take place
+        try:
+            what_to_work_on_info_xml = os.path.join(what_to_work_on, "Contents", "Info.xml")
+            where_to_unwtar_info_xml = os.path.join(where_to_unwtar, "Contents", "Info.xml")
+            retVal = filecmp.cmp(what_to_work_on_info_xml, where_to_unwtar_info_xml, shallow=True)
+        except:
+            retVal = False
+        return retVal
 
     def do_unwtar(self):
         self.no_artifacts = "__NO_WTAR_ARTIFACTS__" in var_stack
@@ -201,26 +213,29 @@ class InstlMisc(InstlInstanceBase):
             if utils.is_first_wtar_file(what_to_work_on):
                 utils.unwtar_a_file(what_to_work_on, where_to_unwtar, no_artifacts=self.no_artifacts, ignore=ignore_files)
         elif os.path.isdir(what_to_work_on):
-            where_to_unwtar_the_file = None
-            for root, dirs, files in os.walk(what_to_work_on, followlinks=False):
-                # a hack to prevent unwtarring of the sync folder. Copy command might copy something
-                # to the top level of the sync folder.
-                if "bookkeeping" in dirs:
-                    dirs[:] = []
-                    print("skipping", root, "because bookkeeping folder was found")
-                    continue
+            if not self.can_skip_unwtar(what_to_work_on, where_to_unwtar):
+                where_to_unwtar_the_file = None
+                for root, dirs, files in os.walk(what_to_work_on, followlinks=False):
+                    # a hack to prevent unwtarring of the sync folder. Copy command might copy something
+                    # to the top level of the sync folder.
+                    if "bookkeeping" in dirs:
+                        dirs[:] = []
+                        print("skipping", root, "because bookkeeping folder was found")
+                        continue
 
-                tail_folder = root[len(what_to_work_on):].strip("\\/")
-                if where_to_unwtar is not None:
-                    where_to_unwtar_the_file = os.path.join(where_to_unwtar, tail_folder)
-                for a_file in files:
-                    a_file_path = os.path.join(root, a_file)
-                    if utils.is_first_wtar_file(a_file_path):
-                        utils.unwtar_a_file(a_file_path, where_to_unwtar_the_file, no_artifacts=self.no_artifacts, ignore=ignore_files)
+                    tail_folder = root[len(what_to_work_on):].strip("\\/")
+                    if where_to_unwtar is not None:
+                        where_to_unwtar_the_file = os.path.join(where_to_unwtar, tail_folder)
+                    for a_file in files:
+                        a_file_path = os.path.join(root, a_file)
+                        if utils.is_first_wtar_file(a_file_path):
+                            utils.unwtar_a_file(a_file_path, where_to_unwtar_the_file, no_artifacts=self.no_artifacts, ignore=ignore_files)
+            else:
+                print("unwtar {} to {} skipping unwtarring because both folders have the same Info.xml file".format(what_to_work_on, where_to_unwtar))
 
         else:
             raise FileNotFoundError(what_to_work_on)
-        self.dynamic_progress("Expand {}".format(utils.original_name_from_wtar_name(what_to_work_on_leaf)))
+        self.dynamic_progress("unwtar {}".format(utils.original_name_from_wtar_name(what_to_work_on_leaf)))
 
     def do_check_checksum(self):
         self.progress_staccato_command = True
@@ -231,8 +246,7 @@ class InstlMisc(InstlInstanceBase):
             if os.path.isfile(file_item.download_path):
                 file_checksum = utils.get_file_checksum(file_item.download_path)
                 if not utils.compare_checksums(file_checksum, file_item.checksum):
-                    sha1_checksum = utils.create_file_checksum(file_item.download_path)
-                    bad_checksum_list.append( " ".join(("Bad checksum:", file_item.download_path, "expected", file_item.checksum, "found", sha1_checksum)) )
+                    bad_checksum_list.append(" ".join(("Bad checksum:", file_item.download_path, "expected", file_item.checksum, "found", file_checksum)) )
             else:
                 missing_files_list.append(" ".join((file_item.download_path, "was not found")))
             self.dynamic_progress("Check checksum {file_item.path}".format(**locals()))
@@ -296,8 +310,14 @@ class InstlMisc(InstlInstanceBase):
                     # only remove the ignored files if the folder is to be removed
                     for filename in ignored_files:
                         file_to_remove_full_path = os.path.join(root_path, filename)
-                        os.remove(file_to_remove_full_path)
-                    os.rmdir(root_path)
+                        try:
+                            os.remove(file_to_remove_full_path)
+                        except Exception as ex:
+                            print("failed to remove", file_to_remove_full_path, ex)
+                    try:
+                        os.rmdir(root_path)
+                    except Exception as ex:
+                        print("failed to remove", root_path, ex)
 
     def do_win_shortcut(self):
         shortcut_path = var_stack.ResolveVarToStr("__SHORTCUT_PATH__")
@@ -431,3 +451,64 @@ class InstlMisc(InstlInstanceBase):
                 exec(py_text, globals())
         except Exception as ex:
             print("Exception while exec ", py_file_path, ex)
+
+    def do_wzip(self):
+        """ Create a new wzip for a file  provided in '--in' command line option
+
+            If --out is not supplied on the command line the new wzip file will be created
+                next to the input with extension '.wzip'.
+                e.g. the command:
+                    instl wzip --in /a/b/c
+                will create the wzip file at path:
+                    /a/b/c.wzip
+
+            If '--out' is supplied and it's an existing file, the new wzip will overwrite
+                this existing file, wzip extension will NOT be added.
+                e.g. assuming /d/e/f.txt is an existing file, the command:
+                    instl wzip --in /a/b/c --out /d/e/f.txt
+                will create the wzip file at path:
+                    /d/e/f.txt
+
+            if '--out' is supplied and is and existing folder the wzip file will be created
+                inside this folder with extension '.wzip'.
+                e.g. assuming /g/h/i is an existing folder, the command:
+                    instl wzip --in /a/b/c --out /g/h/i
+                will create the wzip file at path:
+                    /g/h/i/c.wzip
+
+            if '--out' is supplied and does not exists, the folder will be created
+                and the wzip file will be created inside the new folder with extension
+                 '.wzip'.
+                e.g. assuming /j/k/l is a non existing folder, the command:
+                    instl wzip --in /a/b/c --out /j/k/l
+                will create the wzip file at path:
+                    /j/k/l/c.wzip
+
+            configVar effecting wzip:
+            ZLIB_COMPRESSION_LEVEL: will set the compression level, default is 8
+            WZLIB_EXTENSION: .wzip extension is the default, the value is read from the configVar WZLIB_EXTENSION,
+        """
+        what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        if not os.path.exists(what_to_work_on):
+            print(what_to_work_on, "does not exists")
+            return
+
+        what_to_work_on_dir, what_to_work_on_leaf = os.path.split(what_to_work_on)
+
+        where_to_put_wzip = None
+        if "__MAIN_OUT_FILE__" in var_stack:
+            where_to_put_wzip = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
+        else:
+            where_to_put_wzip = what_to_work_on_dir
+            if not where_to_put_wzip:
+                where_to_put_wzip = "."
+
+        if os.path.isfile(where_to_put_wzip):
+            target_wzip_file = where_to_put_wzip
+        else:  # assuming it's a folder
+            os.makedirs(where_to_put_wzip, exist_ok=True)
+            target_wzip_file = os.path.join(where_to_put_wzip, what_to_work_on_leaf+".wzip")
+
+        zlib_compression_level = int(var_stack.ResolveVarToStr("ZLIB_COMPRESSION_LEVEL", "8"))
+        with open(target_wzip_file, "wb") as wfd:
+            wfd.write(zlib.compress(open(what_to_work_on, "r").read().encode(), zlib_compression_level))

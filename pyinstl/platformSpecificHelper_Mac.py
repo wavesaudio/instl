@@ -27,7 +27,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
     def init_platform_tools(self):
         self.dl_tool = DownloadTool_mac_curl(self)
 
-    def get_install_instructions_prefix(self):
+    def get_install_instructions_prefix(self, exit_on_errors=True):
         """ exec 2>&1 within a batch file will redirect stderr to stdout.
             .sync.sh >& out.txt on the command line will redirect stderr to stdout from without.
         """
@@ -35,7 +35,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
             "#!/usr/bin/env bash",
             self.remark(self.instlObj.get_version_str()),
             self.remark(datetime.datetime.today().isoformat()),
-            "set -e",
+            "set -e" if exit_on_errors else "",
             "umask 0000",
             self.get_install_instructions_invocation_report_funcs(),
             self.get_install_instructions_exit_func(),
@@ -64,11 +64,23 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         return ()
 
     def get_install_instructions_mkdir_with_owner_func(self):
+        # -m will set the perm even if the dir exists
+        # ignore error if owner cannot be changed
         retVal = (
-            'mkdir_with_owner() {',
-            'mkdir -p -m a+rwx "$1"',               # -m will set the perm even if the dir exists
-            'chown $(__USER_ID__): "$1" || true',    # ignore error if owner cannot be changed
-            '}')
+"""
+mkdir_with_owner() {
+if [[ ! -d "$1" ]]; then
+    mkdir -p -m a+rwx "$1"
+    if [[ "$2" -gt 0 ]]; then
+        echo "Progress: $2 of $(TOTAL_ITEMS_FOR_PROGRESS_REPORT); Create folder $1"
+    fi
+else
+    chmod a+rwx "$1"
+fi
+chown $(__USER_ID__): "$1" || true   
+}
+"""
+        )
         return retVal
 
     def get_install_instructions_invocation_report_funcs(self):
@@ -127,8 +139,8 @@ report_invocation_end() {{
         mk_command = " ".join(("mkdir", "-p", "-m a+rwx", utils.quoteme_double(directory) ))
         return mk_command
 
-    def mkdir_with_owner(self, directory):
-        mk_command = " ".join(("mkdir_with_owner", utils.quoteme_double(directory) ))
+    def mkdir_with_owner(self, directory, progress_num):
+        mk_command = " ".join(("mkdir_with_owner", utils.quoteme_double(directory), str(progress_num) ))
         return mk_command
 
     def cd(self, directory):
@@ -218,11 +230,13 @@ report_invocation_end() {{
         else:
             raise ValueError(tool_name, "is not a valid copy tool for Mac OS")
 
-    def copy_file_to_file(self, src_file, trg_file, hard_link=False):
+    def copy_file_to_file(self, src_file, trg_file, hard_link=False, check_exist=False):
         if hard_link:
             copy_command = """ln -f "{src_file}" "{trg_file}" """.format(**locals())
         else:
             copy_command = """cp -f "{src_file}" "{trg_file}" """.format(**locals())
+        if check_exist:
+            copy_command += " || true"
         return copy_command
 
     def resolve_symlink_files(self, in_dir="$PWD"):

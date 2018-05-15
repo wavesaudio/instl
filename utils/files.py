@@ -155,7 +155,20 @@ class open_for_read_file_or_url(object):
                     for custom_header in self.custom_headers:
                         opener.addheaders.append(custom_header)
                 with patch_verify_ssl(self.verify_ssl):  # if self.verify_ssl is False this will disable SSL verifications
-                    self.fd = opener.open(self.url, timeout=300)
+                    # crud retry mechanism, should be improved, use requests?
+                    retries = 12
+                    while retries > 0:
+                        try:
+                            retries -= 1
+                            self.fd = opener.open(self.url, timeout=32)
+                            retries = 0
+                        except:
+                            if retries == 0:
+                                raise
+                            else:
+                                self.progress("failed to download", self.url, "trying again")
+                                time.sleep(1.0)
+
             elif self.local_file_path:
                 if self.encoding is None:
                     self.fd = open(self.local_file_path, "rb")
@@ -206,42 +219,50 @@ def download_and_cache_file_or_url(in_url, cache_folder, translate_url_callback=
         otherwise download the file
         :return: path of the downloaded file
     """
-    assert os.path.isdir(cache_folder), cache_folder+" folder not found"
+
+    if os.path.isfile(cache_folder):  # happens sometimes...
+        safe_remove_file(cache_folder)
+    if not os.path.isdir(cache_folder):
+        os.makedirs(cache_folder, exist_ok=True)
+
     url_file_name = last_url_item(in_url)
     cached_file_name = expected_checksum if expected_checksum else url_file_name
     cached_file_path = os.path.join(cache_folder, cached_file_name)
-    if expected_checksum is None:  # no checksum -> force download
+    if expected_checksum is None:  # no checksum? -> force download
         safe_remove_file(cached_file_path)
 
-    if not os.path.isfile(cached_file_path):
+    if os.path.isfile(cached_file_path):  # file exists? -> make sure it has the right checksum
+        if not utils.check_file_checksum(cached_file_path, expected_checksum):
+            safe_remove_file(cached_file_path)
+
+    if not os.path.isfile(cached_file_path):  # need to download
         contents_buffer = read_from_file_or_url(in_url, translate_url_callback, expected_checksum, encoding=None)
         if contents_buffer:
             with open(cached_file_path, "wb") as wfd:
                 make_open_file_read_write_for_all(wfd)
                 wfd.write(contents_buffer)
-    else:
-        assert expected_checksum is not None, "file "+cached_file_path+" found but checksum is None"
-        assert utils.check_file_checksum(cached_file_path, expected_checksum), "file "+cached_file_path+" found but checksum does not match"
     return cached_file_path
 
 
 def download_from_file_or_url(in_url, in_target_path=None, translate_url_callback=None, cache_folder=None, expected_checksum=None):
     """
-        download a file from url and place it on a target path. Possibly also decompressed wzlib files.
+        download a file from url and place it on a target path. Possibly also decompressed .wzip files.
         """
 
     cached_file_path = download_and_cache_file_or_url(in_url=in_url, translate_url_callback=translate_url_callback, cache_folder=cache_folder, expected_checksum=expected_checksum)
+    if not in_target_path:
+        in_target_path = cache_folder
     if in_target_path:
         url_file_name = last_url_item(in_url)
         url_base_file_name, url_extension = os.path.splitext(url_file_name)
-        need_decompress = url_extension == ".wzlib"
+        need_decompress = url_extension == ".wzip"
         if os.path.isdir(in_target_path):
             target_file_name = url_base_file_name if need_decompress else url_file_name
             final_file_path = os.path.join(in_target_path, target_file_name)
         else:
             final_file_path = in_target_path
             _, target_extension = os.path.splitext(final_file_path)
-            if need_decompress and target_extension == ".wzlib":
+            if need_decompress and target_extension == ".wzip":
                 need_decompress = False  # no need to decompress if target is expected to be compressed
 
         if need_decompress:

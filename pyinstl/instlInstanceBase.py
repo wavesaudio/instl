@@ -5,7 +5,7 @@ import os
 import sys
 import re
 import abc
-
+import weakref
 import platform
 import appdirs
 import urllib.error
@@ -20,16 +20,21 @@ from configVar import var_stack
 from configVar import ConfigVarYamlReader
 
 from . import connectionBase
+from db import DBMaster, get_db_url
 from .indexItemTable import IndexItemsTable
+from svnTree import SVNTable
 
 
 def check_version_compatibility():
     retVal = True
+    message = ""
     if "INSTL_MINIMAL_VERSION" in var_stack:
-        inst_ver = list(map(int, var_stack.ResolveVarToList("__INSTL_VERSION__")))
-        required_ver = list(map(int, var_stack.ResolveVarToList("INSTL_MINIMAL_VERSION")))
-        retVal = inst_ver >= required_ver
-    return retVal
+        cur_instl_ver = list(map(int, var_stack.ResolveVarToList("__INSTL_VERSION__")))
+        required_instl_ver = list(map(int, var_stack.ResolveVarToList("INSTL_MINIMAL_VERSION")))
+        retVal = cur_instl_ver >= required_instl_ver
+        if not retVal:
+            message = "instl version {} < minimal required version {}".format(cur_instl_ver, required_instl_ver)
+    return retVal, message
 
 
 # noinspection PyPep8Naming
@@ -39,10 +44,15 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         must be inherited by platform specific implementations, such as InstlInstance_mac
         or InstlInstance_win.
     """
+    db = None
     items_table = None
+    info_map_table = None
 
     def __init__(self, initial_vars=None):
-        self.info_map_table = None  # initialized in InstlClient InstlAdmin and InstlMisc
+        self.total_self_progress = 0   # if > 0 output progress during run (as apposed to batch file progress)
+
+        self.need_items_table = False
+        self.need_info_map_table = False
 
         ConfigVarYamlReader.__init__(self)
 
@@ -65,26 +75,16 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.do_not_write_vars = ("INFO_MAP_SIG", "INDEX_SIG", "PUBLIC_KEY", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "__CREDENTIALS__")
         self.out_file_realpath = None
         self.internal_progress = 0  # progress of preparing installer NOT of the installation
+        self.num_digits_repo_rev_hierarchy=None
+        self.num_digits_per_folder_repo_rev_hierarchy=None
+        self.instl_ver_str = var_stack.ResolveVarToStr("__INSTL_VERSION__", list_sep=".")
 
-    def __del__(self):
-        self.del_items_table()
-
-    def init_items_table(self):
-        """ sometime two instances of InstlInstanceBase exist side by side
-            e.g. during interactive mode InstlClient & InstlAdmin
-            this function makes sure only one instance of items_table exists
-        """
-        if InstlInstanceBase.items_table is None:
-            InstlInstanceBase.items_table = IndexItemsTable()
-
-    def del_items_table(self):
-        if InstlInstanceBase.items_table is not None:
-            del InstlInstanceBase.items_table
-            InstlInstanceBase.items_table = None
-
-    def progress(self, message):
-        self.internal_progress += 1
-        print("""Progress {} of {}; {}""".format(self.internal_progress, 100, message), flush=True)
+    def progress(self, *messages):
+        if self.total_self_progress:
+            self.internal_progress += 1
+            if self.internal_progress >= self.total_self_progress:
+                self.total_self_progress += 100
+            print("""Progress: {} of {}; {}""".format(self.internal_progress, self.total_self_progress, " ".join(str(mes) for mes in messages)), flush=True)
 
     def init_specific_doc_readers(self):
         ConfigVarYamlReader.init_specific_doc_readers(self)
@@ -182,6 +182,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             "base_url": ("__BASE_URL__", None),
             "file_sizes_file": ("__FILE_SIZES_FILE__", None),
             "output_format": ("__OUTPUT_FORMAT__", None),
+            "db_file": ("__DB_INPUT_FILE__", None),
         }
 
         default_remark = "from command line options"
@@ -249,7 +250,6 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         if cmd_line_options_obj.no_numbers_progress:
             var_stack.add_const_config_variable("__NO_NUMBERS_PROGRESS__", default_remark, "yes")
 
-
         if cmd_line_options_obj.define:
             individual_definitions = cmd_line_options_obj.define[0].split(",")
             for definition in individual_definitions:
@@ -261,6 +261,34 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             if default_out_file:
                 var_stack.add_const_config_variable("__MAIN_OUT_FILE__", "from write_batch_file",
                                                 default_out_file)
+        db_file = var_stack.ResolveVarToStr("__DB_INPUT_FILE__")
+        self.init_db(db_file=db_file)
+        self.progress("")  # so database at... message will not remain visible
+
+    def init_db(self, db_file=None):
+        if self.need_items_table or self.need_info_map_table or db_file:
+            if not InstlInstanceBase.db:
+                db_url = get_db_url(self.the_command, db_file)
+                ddls_folder = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults")
+                if db_url != ":memory:" and db_file is None:
+                    # erase the db only if it's default created no given
+                    utils.safe_remove_file(db_url)
+                InstlInstanceBase.db = DBMaster(db_url, ddls_folder)
+                var_stack.add_const_config_variable("__DATABASE_URL__", "", db_url)
+                self.progress("database at ", db_url)
+            if self.need_items_table and not InstlInstanceBase.items_table:
+                InstlInstanceBase.items_table = IndexItemsTable(InstlInstanceBase.db)
+            if self.need_info_map_table and not InstlInstanceBase.info_map_table:
+                InstlInstanceBase.info_map_table = SVNTable(InstlInstanceBase.db)
+
+    def close(self):
+        if InstlInstanceBase.info_map_table:
+            del InstlInstanceBase.info_map_table
+        if InstlInstanceBase.items_table:
+            del InstlInstanceBase.items_table
+        if InstlInstanceBase.db:
+            InstlInstanceBase.db.close()
+        var_stack.print_statistics()
 
     def get_default_out_file(self):
         retVal = None
@@ -313,6 +341,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
     def read_include_node(self, i_node, *args, **kwargs):
         if i_node.isScalar():
             resolved_file_name = var_stack.ResolveStrToStr(i_node.value)
+            self.progress("reading ", resolved_file_name)
             self.read_yaml_file(resolved_file_name, *args, **kwargs)
         elif i_node.isSequence():
             for sub_i_node in i_node:
@@ -324,21 +353,13 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 if "checksum" in i_node:
                     expected_checksum = var_stack.ResolveStrToStr(i_node["checksum"].value)
 
-                file_destination = None
-                if "destination" in i_node:
-                    file_destination = var_stack.ResolveStrToStr(i_node["destination"].value)
-
                 try:
                     file_path = utils.download_from_file_or_url(in_url=resolved_file_url,
-                                                                in_target_path=file_destination,
+                                                                in_target_path=None,
                                                                 translate_url_callback=connectionBase.translate_url,
                                                                 cache_folder=self.get_default_sync_dir(continue_dir="cache", make_dir=True),
                                                                 expected_checksum=expected_checksum)
                     self.read_yaml_file(file_path, *args, **kwargs)
-                    if not file_destination:
-                        file_name = utils.last_url_item(resolved_file_url)
-                        destination = var_stack.ResolveStrToStr("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)/{}".format(file_name))
-                        utils.smart_copy_file(file_path, destination)
                 except (FileNotFoundError, urllib.error.URLError):
                     ignore = kwargs.get('ignore_if_not_exist', False)
                     if ignore:
@@ -430,7 +451,8 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.create_variables_assignment(in_batch_accum)
 
         in_batch_accum.set_current_section('pre')
-        in_batch_accum += self.platform_helper.get_install_instructions_prefix()
+        exit_on_errors = self.the_command != 'uninstall'  # in case of uninstall, go on with batch file even if some operations failed
+        in_batch_accum += self.platform_helper.get_install_instructions_prefix(exit_on_errors=exit_on_errors)
         in_batch_accum.set_current_section('post')
         in_batch_accum += self.platform_helper.get_install_instructions_postfix()
         lines = in_batch_accum.finalize_list_of_lines()
@@ -481,7 +503,10 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             aYaml.writeAsYaml(self, fd)
 
     def read_index(self, a_node, *args, **kwargs):
+        self.progress("reading index.yaml")
         self.items_table.read_index_node(a_node)
+        repo_rev = var_stack.ResolveVarToStr("REPO_REV", default="unknown")
+        self.progress("repo-rev", repo_rev)
 
     def find_cycles(self):
         try:
@@ -536,14 +561,18 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def read_info_map_from_file(self, info_map_from_file_path):
         self.info_map_table.read_from_file(info_map_from_file_path, a_format="text")
-        min_revision, max_revision = self.info_map_table.min_max_revision()
-        var_stack.set_var("MIN_REPO_REV", "from " + info_map_from_file_path).append(min_revision)
-        var_stack.set_var("MAX_REPO_REV", "from " + info_map_from_file_path).append(max_revision)
 
     def repo_rev_to_folder_hierarchy(self, repo_rev):
-        num_digits_repo_rev_hierarchy=int(var_stack.ResolveVarToStr("NUM_DIGITS_REPO_REV_HIERARCHY"))
-        num_digits_per_folder_repo_rev_hierarchy=int(var_stack.ResolveVarToStr("NUM_DIGITS_PER_FOLDER_REPO_REV_HIERARCHY"))
-        zero_pad_repo_rev = str(repo_rev).zfill(num_digits_repo_rev_hierarchy)
-        by_groups = [zero_pad_repo_rev[i:i+num_digits_per_folder_repo_rev_hierarchy] for i in range(0, len(zero_pad_repo_rev), num_digits_per_folder_repo_rev_hierarchy)]
-        retVal = "/".join(by_groups)
+        retVal = str(repo_rev)
+        try:
+            if self.num_digits_repo_rev_hierarchy is None:
+                self.num_digits_repo_rev_hierarchy=int(var_stack.ResolveVarToStr("NUM_DIGITS_REPO_REV_HIERARCHY"))
+            if self.num_digits_per_folder_repo_rev_hierarchy is None:
+                self.num_digits_per_folder_repo_rev_hierarchy=int(var_stack.ResolveVarToStr("NUM_DIGITS_PER_FOLDER_REPO_REV_HIERARCHY"))
+            if self.num_digits_repo_rev_hierarchy > 0 and self.num_digits_per_folder_repo_rev_hierarchy > 0:
+                zero_pad_repo_rev = str(repo_rev).zfill(self.num_digits_repo_rev_hierarchy)
+                by_groups = [zero_pad_repo_rev[i:i+self.num_digits_per_folder_repo_rev_hierarchy] for i in range(0, len(zero_pad_repo_rev), self.num_digits_per_folder_repo_rev_hierarchy)]
+                retVal = "/".join(by_groups)
+        except Exception as ex:
+            pass
         return retVal

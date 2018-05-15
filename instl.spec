@@ -25,13 +25,9 @@ a = Analysis(['instl'],
              win_private_assemblies=None,
              cipher=block_cipher)
 
-#pure_sorted = sorted(a.pure)
-#for i, pure in enumerate(pure_sorted):
-#    print(i, pure)
-
 instl_defaults_path = os.path.join("defaults")
 for defaults_file in os.listdir(instl_defaults_path):
-    if fnmatch.fnmatch(defaults_file, '*.yaml') or fnmatch.fnmatch(defaults_file, '*.sql'):
+    if fnmatch.fnmatch(defaults_file, '*.yaml') or fnmatch.fnmatch(defaults_file, '*.ddl'):
         a.datas += [("defaults/"+defaults_file, os.path.join(instl_defaults_path, defaults_file), "DATA")]
 
 

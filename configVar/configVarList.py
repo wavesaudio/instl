@@ -13,6 +13,7 @@ import os
 import re
 from contextlib import contextmanager
 import pathlib
+from collections import defaultdict
 
 import utils
 import aYaml
@@ -49,6 +50,8 @@ class ConfigVarList(object):
     """ Keeps a list of named build config values.
         Help values resolve $() style references. """
 
+    resolve_non_freeze_statistics = defaultdict(int)
+    resolve_with_freeze_statistics = defaultdict(int)
     __resolve_stack = list()  # for preventing circular references during resolve.
     __non_freeze_counter = 0  # to force resolving even of frozen variables increment this
     variable_name_endings_to_normpath = ("_PATH", "_DIR", "_DIR_NAME", "_FILE_NAME", "_PATH__", "_DIR__", "_DIR_NAME__", "_FILE_NAME__")
@@ -248,8 +251,10 @@ class ConfigVarList(object):
         if in_var in self:
             if self.__non_freeze_counter == 0 and self[in_var].frozen_value:
                 retVal.extend(value for value in self[in_var])
+                self.resolve_with_freeze_statistics[in_var] += 1
                 return retVal
             with self.circular_resolve_check(in_var):
+                self.resolve_non_freeze_statistics[in_var] += 1
                 for value in self[in_var]:
                     if value is None:
                         retVal.append(None)

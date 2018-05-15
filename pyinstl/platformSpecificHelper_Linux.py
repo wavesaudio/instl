@@ -24,12 +24,12 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
     def init_platform_tools(self):
         self.dl_tool = DownloadTool_linux_curl(self)
 
-    def get_install_instructions_prefix(self):
+    def get_install_instructions_prefix(self, exit_on_errors=True):
         retVal = (
             "#!/usr/bin/env bash",
             self.remark(self.instlObj.get_version_str()),
             self.remark(datetime.datetime.today().isoformat()),
-            "set -e",
+            "set -e" if exit_on_errors else "",
             self.save_dir("TOP_SAVE_DIR"))
         return retVal
 
@@ -76,6 +76,11 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         rmfile_command = " ".join(("rm", "-f", quoted_a_file))
         return rmfile_command
 
+    def rm_file_or_dir(self, file_or_dir):
+        # on linux -fr will remove a file or a directory without complaint.
+        rm_command = self.rmdir(file_or_dir, recursive=True)
+        return rm_command
+
     def get_svn_folder_cleanup_instructions(self):
         return 'find . -maxdepth 1 -mindepth 1 -type d -print0 | xargs -0 "$(SVN_CLIENT_PATH)" cleanup --non-interactive'
 
@@ -97,11 +102,13 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         else:
             raise ValueError(tool, "is not a valid copy tool for Linux")
 
-    def copy_file_to_file(self, src_file, trg_file, hard_link=False):
+    def copy_file_to_file(self, src_file, trg_file, hard_link=False, check_exist=False):
         if hard_link:
             copy_command = "ln -f \"{src_file}\" \"{trg_file}\"".format(**locals())
         else:
             copy_command = "cp -f \"{src_file}\" \"{trg_file}\"".format(**locals())
+        if check_exist:
+            copy_command += " || true"
         return copy_command
 
     def check_checksum_for_file(self, a_file, checksum):

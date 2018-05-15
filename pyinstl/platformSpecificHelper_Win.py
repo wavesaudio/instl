@@ -286,16 +286,18 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
 
     def init_platform_tools(self):
         download_tool_name = var_stack.ResolveVarToStr("DOWNLOAD_TOOL_PATH")
-        if download_tool_name.endswith("wget.exe"):
-            self.dl_tool = DownloadTool_win_wget(self)
-        elif download_tool_name.endswith("curl.exe"):
-            self.dl_tool = DownloadTool_win_curl(self)
-        for find_tool_var in \
-                list(var_stack.ResolveVarToList("CMD_TOOLS_TO_FIND", default=[])) +\
-                list(var_stack.ResolveVarToList("CMD_TOOLS_TO_FIND_INTERNAL", default=[])):
-            self.find_cmd_tool(find_tool_var)
+        if download_tool_name:
+            if download_tool_name.endswith("wget.exe"):
+                self.dl_tool = DownloadTool_win_wget(self)
+            elif download_tool_name.endswith("curl.exe"):
+                self.dl_tool = DownloadTool_win_curl(self)
+        if self.dl_tool:
+            for find_tool_var in \
+                    list(var_stack.ResolveVarToList("CMD_TOOLS_TO_FIND", default=[])) +\
+                    list(var_stack.ResolveVarToList("CMD_TOOLS_TO_FIND_INTERNAL", default=[])):
+                self.find_cmd_tool(find_tool_var)
 
-    def get_install_instructions_prefix(self):
+    def get_install_instructions_prefix(self, exit_on_errors=True):
         self.random_invocation_id = ''.join(random.choice(string.ascii_lowercase) for i in range(16))
         self.invocations_file_path = var_stack.ResolveVarToStr("__INVOCATIONS_FILE_PATH__")
         retVal = (
@@ -303,9 +305,10 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
             "chcp 65001",
             "setlocal enableextensions enabledelayedexpansion",
             # write to instl_invocations.txt
-                'echo --- {0} >> "{1}"'.format(self.random_invocation_id, self.invocations_file_path),
-                'echo start: %date%-%time% >> "{0}"'.format(self.invocations_file_path),
-                'echo batch file: %0 >> "{0}"'.format(self.invocations_file_path),
+            self.mkdir(os.path.dirname(self.invocations_file_path)),
+            'echo --- {0} >> "{1}"'.format(self.random_invocation_id, self.invocations_file_path),
+            'echo start: %date%-%time% >> "{0}"'.format(self.invocations_file_path),
+            'echo batch file: %0 >> "{0}"'.format(self.invocations_file_path),
             self.remark(self.instlObj.get_version_str()),
             self.remark(datetime.datetime.today().isoformat()),
             self.start_time_measure(),
@@ -364,6 +367,17 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def exit_if_any_error(self):
         retVal = ("IF", "%ERRORLEVEL%", "NEQ", "0", "(", "echo", 'Error %ERRORLEVEL% at step ' + str(self.num_items_for_progress_report+1), "1>&2", "&", "GOTO", "EXIT_ON_ERROR", ")")
         return " ".join(retVal)
+
+    def mkdir_with_owner(self, directory, progress_num=0):
+        norm_directory = os.path.normpath(directory)
+        quoted_norm_directory = utils.quoteme_double(norm_directory)
+        quoted_norm_directory_slash = utils.quoteme_double(norm_directory+"\\")
+        mk_command = " ".join(("if not exist", quoted_norm_directory, "(",
+                               "mkdir", quoted_norm_directory,
+                               "&", "echo", "Progress: ", str(progress_num), " of $(TOTAL_ITEMS_FOR_PROGRESS_REPORT); Create folder ", quoted_norm_directory, ")"))
+        check_mk_command = " ".join(("if not exist", quoted_norm_directory_slash, "(", "echo Error: failed to create ", quoted_norm_directory, "1>&2",
+                                    "&", "GOTO", "EXIT_ON_ERROR", ")"))
+        return mk_command, check_mk_command
 
     def mkdir(self, directory):
         norm_directory = os.path.normpath(directory)
@@ -451,10 +465,14 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         else:
             raise ValueError(tool_name, "is not a valid copy tool for", var_stack.ResolveVarToStr("TARGET_OS"))
 
-    def copy_file_to_file(self, src_file, trg_file, hard_link=False):
+    def copy_file_to_file(self, src_file, trg_file, hard_link=False, check_exist=False):
+        copy_command_parts = list()
         norm_src_file = utils.quoteme_double(os.path.normpath(src_file))
         norm_trg_file = utils.quoteme_double(os.path.normpath(trg_file))
-        copy_command = " ".join(("copy", norm_src_file, norm_trg_file))
+        if check_exist:
+            copy_command_parts.extend(("if", "exist", norm_src_file))
+        copy_command_parts.extend(("copy", norm_src_file, norm_trg_file))
+        copy_command = " ".join(copy_command_parts)
         return copy_command
 
     def check_checksum_for_file(self, file_path, checksum):

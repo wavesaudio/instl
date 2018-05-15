@@ -21,6 +21,8 @@ import types
 import asyncio
 import json
 import appdirs
+import time
+from contextlib import contextmanager
 
 import utils
 
@@ -344,6 +346,21 @@ def check_file_signature(file_path, textual_sig, public_key):
     return retVal
 
 
+def compare_files_by_checksum(_1st_file_path, _2nd_file_path, follow_symlinks=False):
+    """ compare the checksum of two files
+        Return True if checksums matcj
+        Return False if any or both files do not exit
+        follow_symlinks  parameter has the same meaning as for get_file_checksum
+    """
+    try:
+        _1st_checksum = get_file_checksum(_1st_file_path, follow_symlinks)
+        _2nd_checksum = get_file_checksum(_2nd_file_path, follow_symlinks)
+        retVal = _1st_checksum == _2nd_checksum
+    except:
+        retVal = False
+    return retVal
+
+
 def need_to_download_file(file_path, file_checksum):
     retVal = True
     if os.path.isfile(file_path):
@@ -377,6 +394,10 @@ def quoteme_double_list(to_quote_list):
 
 def quoteme_double_list_for_sql(to_quote_list):
     return "".join(('("', '","'.join(to_quote_list), '")'))
+
+
+def quoteme_single_list_for_sql(to_quote_list):
+    return "".join(("('", "','".join(to_quote_list), "')"))
 
 
 def quote_path_properly(path_to_quote):
@@ -503,6 +524,14 @@ def timing(f):
             print('%s function took apparently no time at all' % f.__name__)
         return ret
     return wrap
+
+
+@contextmanager
+def time_it(message):
+    time1 = time.time()
+    yield
+    time2 = time.time()
+    print('%s took %0.3f ms' % (message, (time2 - time1) * 1000.0))
 
 
 # compile a list of regexs to one regex. regexs are ORed
@@ -689,6 +718,11 @@ def is_first_wtar_file(in_possible_wtar):
     if match:
         split_numerator = match.group('split_numerator')
         retVal = split_numerator is None or split_numerator == ".aa"
+        if retVal:  # hack to ignore phantom files that begin with ._
+            _, file_name = os.path.split(in_possible_wtar)
+            if file_name.startswith("._"):
+                print("ignoring possibly bad .wtar file", in_possible_wtar)
+                retVal = False
     return retVal
 
 

@@ -5,17 +5,9 @@ import os
 import re
 from functools import reduce
 import csv
+import sqlite3
+from contextlib import contextmanager
 
-from sqlalchemy import update, Index
-from sqlalchemy import or_
-from sqlalchemy.ext import baked
-from sqlalchemy import bindparam
-from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy import func
-from sqlalchemy.exc import SQLAlchemyError
-
-from pyinstl.db_alchemy import create_session, IndexItemDetailRow, get_engine, TableBase
-from .svnRow import SVNRow, IIDToSVNItem
 
 import utils
 from configVar import var_stack
@@ -59,9 +51,225 @@ map_info_extension_to_format = {"txt": "text", "text": "text",
                                 "file-sizes": "file-sizes"}
 
 
-class SVNTable(TableBase):
-    def __init__(self):
+class SVNRow(object):
+    __slots__ = ('_id', 'path', 'flags', 'revision',
+                'checksum', 'size', 'url', 'fileFlag',
+                'wtarFlag', 'leaf', 'parent', 'level',
+                'required', 'need_download', 'download_path',
+                'download_root', 'extra_props', 'parent_id', 'unwtarred', 'symlinkFlag', 'ignore')
+    fields_relevant_to_dirs = ('path', 'parent', 'level', 'flags', 'revision', 'required')
+    fields_relevant_to_str = ('path', 'flags', 'revision', 'checksum', 'size', 'url')
+
+    def __init__(self, svn_item_tuple):
+        self._id =              svn_item_tuple[0]
+        self.path =             svn_item_tuple[1]
+        self.flags =            svn_item_tuple[2]
+        self.revision =         svn_item_tuple[3]
+        self.checksum =         svn_item_tuple[4]
+        self.size =             svn_item_tuple[5]
+        self.url =              svn_item_tuple[6]
+        self.fileFlag =         svn_item_tuple[7]
+        self.wtarFlag =         svn_item_tuple[8]
+        self.leaf =             svn_item_tuple[9]
+        self.parent =           svn_item_tuple[10]
+        self.level =            svn_item_tuple[11]
+        self.required =         svn_item_tuple[12]
+        self.need_download =    svn_item_tuple[13]
+        self.download_path =    svn_item_tuple[14]
+        self.download_root =    svn_item_tuple[15]
+        self.extra_props =      svn_item_tuple[16]
+        self.parent_id =        svn_item_tuple[17]
+        self.unwtarred =        svn_item_tuple[18]
+        self.symlinkFlag =      svn_item_tuple[19]
+        self.ignore =           svn_item_tuple[20]
+
+    def __repr__(self):
+        isDir = not self.fileFlag
+        return ("<{self.level}, {self.path}, '{self.flags}'"
+                ", rev-remote:{self.revision}, f:{self.fileFlag}, d:{isDir}"
+                ", checksum:{self.checksum}, size:{self.size}"
+                ", url:{self.url}"
+                ", required:{self.required}, need_download:{self.need_download}, ignore:{self.ignore}"
+                ", extra_props:{self.extra_props}, parent:{self.parent}>"
+                ", download_path:{self.download_path}"
+                ).format(**locals())
+
+    def __str__(self):
+        """ __str__ representation - this is what will be written to info_map.txt files"""
+        retVal = "{}, {}, {}".format(self.path, self.flags, self.revision)
+        if self.checksum:
+            retVal = "{}, {}".format(retVal, self.checksum)
+        if self.size != -1:
+            retVal = "{}, {}".format(retVal, self.size)
+        if self.url:
+            retVal = "{}, {}".format(retVal, self.url)
+        if self.download_path:
+            retVal = "{}, dl_path:'{}'".format(retVal, self.download_path)
+        return retVal
+
+    def str_specific_fields(self, fields_to_repr):
+        """ represent self as a string and limiting the fields written to those in fields_to_repr.
+        :param fields_to_repr: only fields whose name is on this list will be written.
+                if list is empty or None, fall back to __str__
+        :return: string of comma separated values
+        """
+        if fields_to_repr is None or len(fields_to_repr) == 0:
+            retVal = self.__str__()
+        else:
+            value_list = list()
+            if self.isDir():
+                for name in fields_to_repr:
+                    if name in SVNRow.fields_relevant_to_dirs:
+                        value_list.append(str(getattr(self, name, "no member named "+name)))
+            else:
+                for name in fields_to_repr:
+                    value_list.append(str(getattr(self, name, "no member named "+name)))
+            retVal = ", ".join(value_list)
+        return retVal
+
+    def get_ancestry(self):
+        ancestry = list()
+        split_path = self.path.split("/")
+        for i in range(1, len(split_path)+1):
+            ancestry.append("/".join(split_path[:i]))
+        return ancestry
+
+    def name(self):
+        retVal = self.path.split("/")[-1]
+        return retVal
+
+    def isDir(self):
+        return not self.fileFlag
+
+    def isFile(self):
+        return self.fileFlag
+
+    def isExecutable(self):
+        return 'x' in self.flags
+
+    def isSymlink(self):
+        return 's' in self.flags
+
+    def is_wtar_file(self):
+        retVal = self.wtarFlag > 0
+        return retVal
+
+    def is_first_wtar_file(self):
+        retVal = self.path.endswith((".wtar", ".wtar.aa"))
+        return retVal
+
+    def extra_props_list(self):
+        retVal = self.extra_props.split(";")
+        retVal = [prop for prop in retVal if prop]  # split will return [""] for empty list
+        return retVal
+
+    def chmod_spec(self):
+        retVal = "a+rw"
+        if self.isExecutable() or self.isDir():
+            retVal += "x"
+        return retVal
+
+    def path_starting_from_dir(self, starting_dir):
+        retVal = None
+        if starting_dir == "":
+            retVal = self.path
+        else:
+            if not starting_dir.endswith("/"):
+                starting_dir += "/"
+            if self.path.startswith(starting_dir):
+                retVal = self.path[len(starting_dir):]
+        return retVal
+
+    def __eq__(self, other):
+        """Overrides the default implementation"""
+        retVal = False
+        if isinstance(self, other.__class__):
+            retVal = self.__dict__ == other.__dict__
+        elif isinstance(other, sqlite3.Row):
+            other_as_SVNRow = SVNRow(other)
+            retVal = self.__dict__ == other_as_SVNRow.__dict__
+        elif isinstance(other, tuple): \
+            retVal= (other[0] == self._id
+            and     other[1] == self.path
+            and     other[2] == self.flags
+            and     other[3] == self.revision
+            and     other[4] == self.checksum
+            and     other[5] == self.size
+            and     other[6] == self.url
+            and     other[7] == self.fileFlag
+            and     other[8] == self.wtarFlag
+            and     other[9] == self.leaf
+            and     other[10] == self.parent
+            and     other[11] == self.level
+            and     other[12] == self.required
+            and     other[13] == self.need_download
+            and     other[14] == self.download_path
+            and     other[15] == self.download_root
+            and     other[16] == self.extra_props
+            and     other[17] == self.parent_id
+            and     other[18] == self.unwtarred
+            and     other[19] == self.symlinkFlag
+            and     other[20] == self.ignore
+                    )
+        return retVal
+
+
+class SVNTable(object):
+    create_path_index_q = """CREATE UNIQUE INDEX IF NOT EXISTS ix_svn_item_t_path ON svn_item_t (path);"""
+    drop_path_index_q = """DROP INDEX IF EXISTS ix_svn_item_t_path;"""
+    create_parent_id_index_q = """CREATE INDEX IF NOT EXISTS ix_svn_item_t_parent_id ON svn_item_t (parent_id);"""
+    drop_parent_id_index_q = """DROP INDEX IF EXISTS ix_svn_item_t_parent_id;"""
+    create_unwtarred_id_index_q = """CREATE INDEX IF NOT EXISTS ix_svn_item_t_unwtarred_id ON svn_item_t (unwtarred);"""
+    drop_unwtarred_id_index_q = """DROP INDEX IF EXISTS ix_svn_item_t_unwtarred_id;"""
+    update_parent_ids_q = """
+        UPDATE svn_item_t
+        SET parent_id =
+        (SELECT COALESCE(parent_t._id, 0)
+         FROM svn_item_t AS parent_t
+         WHERE parent_t.path==svn_item_t.parent)
+         """
+    get_child_items_q = """
+        WITH RECURSIVE get_children(__ID) AS
+        (
+            SELECT first_item_t._id
+            FROM svn_item_t AS first_item_t
+            WHERE first_item_t.parent_id=:parent_id
+
+            UNION
+
+            SELECT child_item_t._id
+            FROM svn_item_t child_item_t, get_children
+            WHERE child_item_t.parent_id = get_children.__ID
+        )
+        SELECT * FROM svn_item_t
+        WHERE _id IN get_children
+        {another_filter}
+        ORDER BY parent_id
+        """
+    count_child_items_q = """
+        WITH RECURSIVE get_children(__ID) AS
+        (
+            SELECT first_item_t._id
+            FROM svn_item_t AS first_item_t
+            WHERE first_item_t.parent_id=:parent_id
+
+            UNION
+
+            SELECT child_item_t._id
+            FROM svn_item_t child_item_t, get_children
+            WHERE child_item_t.parent_id = get_children.__ID
+        )
+        SELECT COUNT(_id) FROM svn_item_t
+        WHERE _id IN get_children
+        {another_filter}
+        ORDER BY parent_id
+        """
+    get_immediate_child_items_q =  """SELECT * FROM svn_item_t WHERE parent_id==:parent_id"""
+
+    def __init__(self, db_master):
         super().__init__()
+        self.db = db_master
+        self.db.open()
         self.read_func_by_format = {"info": self.read_from_svn_info,
                                     "text": self.read_from_text,
                                     "props": self.read_props,
@@ -72,8 +280,6 @@ class SVNTable(TableBase):
         self.files_read_list = list()
         self.files_written_list = list()
         self.comments = list()
-        self.baked_queries_map = dict()
-        self.bakery = baked.bakery()
 
     def __repr__(self):
         return "\n".join([item.__repr__() for item in self.get_items()])
@@ -85,6 +291,21 @@ class SVNTable(TableBase):
     def valid_read_formats(self):
         """ returns a list of file formats that can be read by SVNTree """
         return list(self.read_func_by_format.keys())
+
+    @contextmanager
+    def reading_files_context(self):
+        self.db.curs.execute(self.drop_path_index_q)
+        self.db.curs.execute(self.drop_parent_id_index_q)
+        self.db.curs.execute(self.drop_unwtarred_id_index_q)
+        yield
+        with self.db.transaction() as curs:
+            curs.execute(self.create_path_index_q)
+            curs.execute(self.update_parent_ids_q)
+            curs.execute(self.create_parent_id_index_q)
+            curs.execute(self.create_unwtarred_id_index_q)
+            min_revision, max_revision = self.min_max_revision()
+            var_stack.set_var("MIN_REPO_REV").append(min_revision)
+            var_stack.set_var("MAX_REPO_REV").append(max_revision)
 
     def read_from_file(self, in_file, a_format="guess"):
         """ Reads from file. All previous sub items are cleared
@@ -163,21 +384,17 @@ class SVNTable(TableBase):
             if record and record["Path"] != ".":  # in case there was no extra line at the end of file
                 yield create_list_from_record(record)
 
-        db_conn = get_engine().raw_connection()
-        db_curs = db_conn.cursor()
-        insert_q = """
-        INSERT INTO svnitem (path, revision,
-                              checksum,
-                              level, parent, leaf,
-                              flags, fileFlag, wtarFlag,
-                              required, need_download, extra_props)
-         VALUES(?,?,?,?,?,?,?,?,?,?,?,?);
-        """
-        db_curs.executemany(insert_q, yield_row(rfd))
-        db_conn.commit()
-        db_curs.close()
-        db_conn.close()
-        SVNTable.create_indexes()
+        with self.db.transaction() as curs:
+            rows = [row for row in yield_row(rfd)]
+            insert_q = """
+                INSERT INTO svn_item_t (path, revision,
+                                      checksum,
+                                      level, parent, leaf,
+                                      flags, fileFlag, wtarFlag,
+                                      required, need_download, extra_props)
+                 VALUES(?,?,?,?,?,?,?,?,?,?,?,?);
+                """
+            curs.executemany(insert_q, rows)
 
     def read_from_text(self, rfd):
         dl_path_re = re.compile("dl_path:'(?P<ld_path>.+)'")
@@ -198,24 +415,31 @@ class SVNTable(TableBase):
                             row_data[6] = match.group('ld_path')
                     row_data.extend(self.level_parent_and_leaf_from_path(row_data[0]))  # level, parent, leaf
                     row_data.append(1 if 'f' in row_data[1] else 0)  # fileFlag
-                    row_data.append(1 if utils.wtar_file_re.match(row_data[0]) else 0)  # wtarFlag
+                    wtar_match = utils.wtar_file_re.match(row_data[0])
+                    if wtar_match:
+                        row_data.append(1)  # wtarFlag
+                        row_data.append(wtar_match.group('base_name'))  # unwtarred
+                    else:
+                        row_data.extend((0, row_data[0]))  # wtarFlag, unwtarred
                     row_data.extend((0, 0))  # required, need_download
+                    if row_data[0].endswith('.symlink'):  # symlinkFlag
+                        row_data.append(1)
+                    else:
+                        row_data.append(0)
                     yield row_data
 
-        db_conn = get_engine().raw_connection()
-        db_curs = db_conn.cursor()
-        insert_q = """
-        INSERT INTO svnitem (path, flags, revision,
-                              checksum, size, url, download_path,
-                              level, parent, leaf,
-                              fileFlag, wtarFlag,
-                              required, need_download)
-         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?);
-        """
-        db_curs.executemany(insert_q, yield_row(rfd))
-        db_conn.commit()
-        db_curs.close()
-        db_conn.close()
+        with self.db.transaction() as curs:
+            rows = [row for row in yield_row(rfd)]
+            insert_q = """
+                INSERT INTO svn_item_t (path, flags, revision,
+                                      checksum, size, url, download_path,
+                                      level, parent, leaf,
+                                      fileFlag, wtarFlag, unwtarred,
+                                      required, need_download,
+                                      symlinkFlag)
+                 VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+                """
+            curs.executemany(insert_q, rows)
 
     @staticmethod
     def get_wtar_file_status(file_name):
@@ -281,57 +505,69 @@ class SVNTable(TableBase):
                     row_data.append(0)      # revision
                     row_data.extend(self.level_parent_and_leaf_from_path(relative_path))  # level, parent, leaf
                     row_data.append(1 if 'f' in flags else 0)  # fileFlag
-                    row_data.append(1 if utils.wtar_file_re.match(relative_path) else 0)  # wtarFlag
+                    row_data.append(1 if 's' in flags else 0)  # symlinkFlag
+                    wtar_match = utils.wtar_file_re.match(relative_path)
+                    if wtar_match:
+                        row_data.append(1)  # wtarFlag
+                        row_data.append(wtar_match.group('base_name'))  # unwtarred
+                    else:
+                        row_data.extend((0, relative_path))  # wtarFlag, unwtarred
                     yield row_data
 
-        db_conn = get_engine().raw_connection()
-        db_curs = db_conn.cursor()
-        insert_q = """
-        INSERT INTO svnitem (path, flags, revision,
-                              level, parent, leaf,
-                              fileFlag, wtarFlag)
-         VALUES(?,?,?,?,?,?,?,?);
-        """
-        db_curs.executemany(insert_q, yield_row(in_folder))
-        db_conn.commit()
-        db_curs.close()
-        db_conn.close()
+        with self.db.transaction() as curs:
+            rows = [row for row in yield_row(in_folder)]
+            insert_q = """
+                INSERT INTO svn_item_t (path, flags, revision,
+                                      level, parent, leaf,
+                                      fileFlag, symlinkFlag, wtarFlag, unwtarred )
+                 VALUES(?,?,?,?,?,?,?,?,?,?);
+                """
+            curs.executemany(insert_q, rows)
 
     def num_items(self, item_filter="all-items"):
-        retVal = 0
-        if item_filter == "all-items":
-            retVal = self.session.query(SVNRow.path).count()
-        elif item_filter == "all-files":
-            retVal = self.session.query(SVNRow.path).filter(SVNRow.fileFlag == True).count()
-        elif item_filter == "all-dirs":
-            retVal = self.session.query(SVNRow.path).filter(SVNRow.fileFlag == False).count()
-        if item_filter == "required-items":
-            retVal = self.session.query(SVNRow.path).filter(SVNRow.required == True).count()
-        elif item_filter == "required-files":
-            retVal = self.session.query(SVNRow.path).filter(SVNRow.fileFlag == True, SVNRow.required == True).count()
-        elif item_filter == "required-dirs":
-            retVal = self.session.query(SVNRow.path).filter(SVNRow.fileFlag == False, SVNRow.required == True).count()
-        if item_filter == "unrequired-item":
-            retVal = self.session.query(SVNRow.path).filter(SVNRow.required == False).count()
-        elif item_filter == "unrequired-files":
-            retVal = self.session.query(SVNRow.path).filter(SVNRow.fileFlag == True, SVNRow.required == False).count()
-        elif item_filter == "unrequired-dirs":
-            retVal = self.session.query(SVNRow.path).filter(SVNRow.fileFlag == False, SVNRow.required == False).count()
-        return retVal
+        count = 0
+        select_q = None
+        with self.db.selection() as curs:
+            if item_filter == "all-items":
+                select_q = """SELECT COUNT(_id) FROM svn_item_t;"""
+            elif item_filter == "all-files":
+                select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE fileFlag==1;"""
+            elif item_filter == "all-dirs":
+                select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE fileFlag==0;"""
+            if item_filter == "required-items":
+                select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==1;"""
+            elif item_filter == "required-files":
+                select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==1 AND fileFlag==1;"""
+            elif item_filter == "required-dirs":
+                select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==1 AND fileFlag==0;"""
+            elif item_filter == "required-exec":
+                select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==1 AND instr(flags, 'x') != 0;"""
+            if item_filter == "unrequired-item":
+                select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==0;"""
+            elif item_filter == "unrequired-files":
+                select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==0 AND fileFlag==1;"""
+            elif item_filter == "unrequired-dirs":
+                select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==0 AND fileFlag==0;"""
+            elif item_filter == "need-download-files":
+                select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE need_download==1 AND fileFlag==1;"""
+            elif item_filter == "need-download-dirs":
+                select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE need_download==1 AND fileFlag==0;"""
+            count = curs.execute(select_q).fetchone()[0]
+        return count
 
     def clear_all(self):
-        self.session.query(SVNRow).delete()
-        self.commit_changes()
+        with self.db.transaction() as curs:
+            curs.execute("DELETE FROM svn_item_t")
         self.comments = list()
 
     def set_base_revision(self, base_revision):
-        update_q = """
-            UPDATE  svnitem
-            SET revision = :base_revision
-            WHERE revision < :base_revision
-        """
-        self.session.execute(update_q, {"base_revision": base_revision})
-        self.commit_changes()
+        with self.db.transaction() as curs:
+            update_q = """
+                UPDATE  svn_item_t
+                SET revision = :base_revision
+                WHERE revision < :base_revision
+                """
+            curs.execute(update_q, {"base_revision": base_revision})
 
     def read_file_sizes(self, rfd):
         def yield_row(_rfd_):
@@ -345,17 +581,14 @@ class SVNTable(TableBase):
                         print("weird line:", line, line_num)
                     yield {"old_path": parts[0], "new_size": int(parts[1])}  # path, size
 
-        db_conn = get_engine().raw_connection()
-        db_curs = db_conn.cursor()
-        update_q = """
-            UPDATE  svnitem
-            SET size = :new_size
-            WHERE path = :old_path
-            """
-        db_curs.executemany(update_q, yield_row(rfd))
-        db_conn.commit()
-        db_curs.close()
-        db_conn.close()
+        with self.db.transaction() as curs:
+            rows = [row for row in yield_row(rfd)]
+            update_q = """
+                UPDATE  svn_item_t
+                SET size = :new_size
+                WHERE path = :old_path
+                """
+            curs.executemany(update_q, rows)
 
     def read_props(self, rfd):
         props_line_re = re.compile("""
@@ -380,60 +613,82 @@ class SVNTable(TableBase):
             prop_name_to_flag = {'executable': 'x', 'special': 's'}
             props_to_ignore = ['mime-type']
             path = None
-            for line in rfd:
-                line_num += 1
-                match = props_line_re.match(line)
-                if match:
-                    if match.group('path'):
-                        path = match.group('path')
-                    elif match.group('prop_name'):
-                        if path is not None:
-                            prop_name = match.group('prop_name')
-                            if prop_name in prop_name_to_flag:
-                                update_query = """
-                                    UPDATE svnitem
-                                    SET flags = flags || "{new_prop}"
-                                    WHERE path = "{old_path}";
-                                """.format(new_prop=prop_name_to_flag[prop_name],
-                                           old_path=path)
-                                self.session.execute(update_query)
-                            elif prop_name not in props_to_ignore:
-                                update_query = """
-                                    UPDATE svnitem
-                                    SET extra_props = extra_props || "{prop_name}" || ";"
-                                    WHERE path = "{old_path}";
-                                """.format(prop_name=prop_name,
-                                           old_path=path)
-                                self.session.execute(update_query)
-                else:
-                    ValueError("no match at file: " + rfd.name + ", line: " + str(line_num) + ": " + line)
-            self.commit_changes()
+            with self.db.transaction() as curs:
+                prop_name_to_flag_query_params = list()
+                not_in_props_to_ignore_query_params = list()
+                for line in rfd:
+                    line_num += 1
+                    match = props_line_re.match(line)
+                    if match:
+                        if match.group('path'):
+                            path = match.group('path')
+                        elif match.group('prop_name'):
+                            if path is not None:
+                                prop_name = match.group('prop_name')
+                                if prop_name in prop_name_to_flag:
+                                    prop_name_to_flag_query_params.append({"new_prop": prop_name_to_flag[prop_name], "old_path": path})
+                                elif prop_name not in props_to_ignore:
+                                    not_in_props_to_ignore_query_params.append({"prop_name": prop_name, "old_path": path})
+                    else:
+                        ValueError("no match at file: " + rfd.name + ", line: " + str(line_num) + ": " + line)
+                prop_name_to_flag_query = """UPDATE svn_item_t SET flags = flags || :new_prop WHERE path = :old_path;"""
+                curs.executemany(prop_name_to_flag_query, prop_name_to_flag_query_params);
+                not_in_props_to_ignore_query = """UPDATE svn_item_t SET extra_props = extra_props || :prop_name || ";" WHERE path = :old_path;"""
+                curs.executemany(not_in_props_to_ignore_query, not_in_props_to_ignore_query_params);
         except Exception as ex:
             print("Line:", line_num, ex)
             raise
 
-    def get_item(self, item_path, what="any"):
+    def get_any_item(self, item_path):
         """ Get specific item or return None if not found
         :param item_path: path to the item
-        :param what: either "any" (will return file or dir), "file", "dir
         :return: item found or None
         """
-        if what not in ("any", "file", "dir"):
-            raise ValueError(what+" not a valid filter for get_item")
+        retVal = None
+        with self.db.selection() as curs:
+            curs.execute("""
+                    SELECT * FROM svn_item_t
+                    WHERE path = :item_path
+                    """, {"item_path": item_path})
+            the_item = curs.fetchone()
+            if the_item:
+                retVal = SVNRow(the_item)
+        return retVal
 
-        # get_one_item query: return specific item which could be a dir or a file, used by get_item()
-        if "get_one_item" not in self.baked_queries_map:
-            self.baked_queries_map["get_one_item"] = self.bakery(lambda session: session.query(SVNRow))
-            self.baked_queries_map["get_one_item"] += lambda q: q.filter(SVNRow.path == bindparam('item_path'))
-            self.baked_queries_map["get_one_item"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.fileFlag == bindparam('dir')))
+    def get_file_item(self, item_path):
+        """ Get specific file item or return None if not found
+        :param item_path: path to the item
+        :return: item found or None
+        """
 
         retVal = None
-        try:
-            want_file = what in ("any", "file")
-            want_dir = what in ("any", "dir")
-            retVal = self.baked_queries_map["get_one_item"](self.session).params(item_path=item_path, file=want_file, dir=not want_dir).one()
-        except NoResultFound:
-            pass
+        with self.db.selection() as curs:
+            curs.execute("""
+                    SELECT * FROM svn_item_t
+                    WHERE path = :item_path
+                    AND fileFlag = 1
+                    """, {"item_path": item_path})
+            the_item = curs.fetchone()
+            if the_item:
+                retVal = SVNRow(the_item)
+        return retVal
+
+    def get_dir_item(self, item_path):
+        """ Get specific dir item or return None if not found
+        :param item_path: path to the item
+        :return: item found or None
+        """
+
+        retVal = None
+        with self.db.selection() as curs:
+            curs.execute("""
+                    SELECT * FROM svn_item_t
+                    WHERE path = :item_path
+                    AND fileFlag = 0
+                    """, {"item_path": item_path})
+            the_item = curs.fetchone()
+            if the_item:
+                retVal = SVNRow(the_item)
         return retVal
 
     def get_files_that_should_be_removed_from_sync_folder(self, files_to_check):
@@ -442,148 +697,146 @@ class SVNTable(TableBase):
         :return: list of indexes into files_to_check who's partial path is not in info_map
         """
         retVal = list()
-        db_conn = get_engine().raw_connection()
-        self.cursor = db_conn.cursor()
-        db_curs = self.cursor
-        script_text = """
-        CREATE TABLE paths_from_disk_t
-        (
-          item_num INTEGER,
-          path VARCHAR
-        );
-        """
-        # each partial path is inserted with it's index in the list
-        list_of_inserts = ["""INSERT INTO paths_from_disk_t (item_num, path) VALUES ({}, "{}");""".format(i, path_pair[0]) for i, path_pair in enumerate(files_to_check)]
-        script_text += "\n".join(list_of_inserts)
-        try:
-            script_results = db_curs.executescript(script_text)
+
+        with self.db.selection() as curs:
+            create_table_text = """CREATE TEMP TABLE paths_from_disk_t (item_num INTEGER, path TEXT);"""
+            curs.execute(create_table_text)
+
+            # each partial path is inserted with it's index in the list
+            list_of_inserts = [(i, path_pair[0]) for i, path_pair in enumerate(files_to_check)]
+            insert_text = """INSERT INTO paths_from_disk_t (item_num, path) VALUES (?, ?);"""
+            curs.executemany(insert_text, list_of_inserts)
 
             # this query will select all files found in the sync folder that are not in the info_map
             # database, BUT will exclude those files in folders that have their own info_map for
             # items that are not currently being installed.
             query_text = """
-            SELECT file_index
-            FROM
-            (SELECT  paths_from_disk_t.item_num AS file_index
-              FROM paths_from_disk_t
-              WHERE UPPER(paths_from_disk_t.path) NOT IN (SELECT UPPER(path) FROM svnitem))
-            
-            WHERE file_index NOT IN (
-                SELECT paths_from_disk_t.item_num
-                FROM paths_from_disk_t
-                JOIN IndexItemDetailRow AS sources_t
-                    ON sources_t.detail_name = 'install_sources'
-                    AND paths_from_disk_t.path LIKE sources_t.detail_value || "/%"
-                JOIN IndexItemRow ON
-                    IndexItemRow.install_status = 0
-                    AND IndexItemRow.iid = sources_t.owner_iid
-                JOIN IndexItemDetailRow AS info_map_t ON
-                    info_map_t.detail_name = 'info_map'
-                    AND IndexItemRow.iid = info_map_t.owner_iid
-)            """
-            exec_result = db_curs.execute(query_text)
-            retVal.extend([fr[0] for fr in exec_result.fetchall()])
-            db_curs.close()
-            db_conn.close()
-        except SQLAlchemyError as ex:
-            raise
+                SELECT file_index
+                FROM
+                (SELECT  paths_from_disk_t.item_num AS file_index
+                  FROM paths_from_disk_t
+                  WHERE UPPER(paths_from_disk_t.path) NOT IN (SELECT UPPER(path) FROM svn_item_t))
+
+                WHERE file_index NOT IN (
+                    SELECT paths_from_disk_t.item_num
+                    FROM paths_from_disk_t
+                    JOIN index_item_detail_t AS sources_t
+                        ON sources_t.detail_name = 'install_sources'
+                        AND paths_from_disk_t.path LIKE sources_t.detail_value || "/%"
+                    JOIN index_item_t ON
+                        index_item_t.install_status = 0
+                        AND index_item_t.iid = sources_t.owner_iid
+                    JOIN index_item_detail_t AS info_map_t ON
+                        info_map_t.detail_name = 'info_map'
+                        AND index_item_t.iid = info_map_t.owner_iid)
+                """
+            curs.execute(query_text)
+            retVal.extend([fr[0] for fr in curs.fetchall()])
         return retVal
 
-    def get_item_case_insensitive(self, item_path, what="any"):
-        """ Get specific item or return None if not found
-        search is done case insensitive. This is needed in case where we look for
-        a file that exist on disk in the database.
-        :param item_path: path to the item
-        :param what: either "any" (will return file or dir), "file", "dir
-        :return: item found or None
+    def get_items(self, what="any"):
+        """
+        get_items return all items or all file items or all dir items according to the 'what' parameter
+        :param what: what type of items to return "file" - only files, "dir" - only dirs, "any" - all type of items
+        :return: all the items
         """
         if what not in ("any", "file", "dir"):
             raise ValueError(what+" not a valid filter for get_item")
 
-        item_path = item_path.lower()
-        # get_one_item query: return specific item which could be a dir or a file, used by get_item()
-        if "get_item_case_insensitive" not in self.baked_queries_map:
-            self.baked_queries_map["get_item_case_insensitive"] = self.bakery(lambda session: session.query(SVNRow))
-            self.baked_queries_map["get_item_case_insensitive"] += lambda q: q.filter(func.lower(SVNRow.path) == bindparam('item_path'))
-            self.baked_queries_map["get_item_case_insensitive"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.fileFlag == bindparam('dir')))
-
-        retVal = None
-        try:
-            want_file = what in ("any", "file")
-            want_dir = what in ("any", "dir")
-            retVal = self.baked_queries_map["get_item_case_insensitive"](self.session).params(item_path=item_path, file=want_file, dir=not want_dir).one()
-        except NoResultFound:
-            pass
-        return retVal
-
-    def get_items(self, what="any", levels_deep=1024):
-        """
-        get_items applies a filter and return all items
-        :param filter_name: one of predefined baked queries, e.g.: "all-files", "all-dirs", "all-items"
-        :return: all items returned by applying the filter called filter_name
-        """
-        if what not in ("any", "file", "dir"):
-            raise ValueError(what+" not a valid filter for get_item")
-
-        # get_all_items: return all items either files dirs or both, used by get_items()
-        if "get_all_items" not in self.baked_queries_map:
-            self.baked_queries_map["get_all_items"] = self.bakery(lambda session: session.query(SVNRow))
-            self.baked_queries_map["get_all_items"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.fileFlag == bindparam('dir')))
-            self.baked_queries_map["get_all_items"] += lambda q: q.filter(SVNRow.level <= bindparam('levels_deep'))
-            self.baked_queries_map["get_all_items"] += lambda q: q.order_by(SVNRow.path)
-
-        want_file = what in ("any", "file")
-        want_dir = what in ("any", "dir")
-        retVal = self.baked_queries_map["get_all_items"](self.session).params(file=want_file, dir=not want_dir, levels_deep=levels_deep).all()
+        extra_condition = {"file": "WHERE fileFlag == 1", "dir": "WHERE fileFlag == 0"}.get(what, "")
+        with self.db.selection() as curs:
+            curs.execute("""
+                    SELECT * FROM svn_item_t
+                    {extra_condition}
+                    ORDER BY _id
+                    """.format(extra_condition=extra_condition))
+            retVal = curs.fetchall()
+            retVal = self.SVNRowListToObjects(retVal)
         return retVal
 
     def get_required_items(self, what="any", get_unrequired=False):
         """
-        get_items applies a filter and return all items
-        :param filter_name: one of predefined baked queries, e.g.: "all-files", "all-dirs", "all-items"
-        :return: all items returned by applying the filter called filter_name
+        get_items return items that are marked as required
+        :param what: what type of items to return "file" - only files, "dir" - only dirs, "any" - all type of items
+        :return: all the items
         """
         if what not in ("any", "file", "dir"):
             raise ValueError(what+" not a valid filter for get_item")
 
-        # get_required_items: return all required (or unrequired) items either files dirs or both, used by get_required_items()
-        if "get_required_items" not in self.baked_queries_map:
-            self.baked_queries_map["get_required_items"] = self.bakery(lambda session: session.query(SVNRow))
-            self.baked_queries_map["get_required_items"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.fileFlag == bindparam('dir')))
-            self.baked_queries_map["get_required_items"] += lambda q: q.filter(or_(SVNRow.required == bindparam('required')))
-            self.baked_queries_map["get_required_items"] += lambda q: q.order_by(SVNRow.path)
+        want_file = what in ("any", "file")
+        want_dir = what in ("any", "dir")
+        extra_condition = {"file": "AND fileFlag == 1", "dir": "AND fileFlag == 0"}.get(what, "")
+        with self.db.selection() as curs:
+            curs.execute("""
+                    SELECT * FROM svn_item_t
+                    WHERE required == 1
+                    {extra_condition}
+                    ORDER BY _id
+                    """.format(extra_condition=extra_condition))
+            retVal = curs.fetchall()
+            retVal = self.SVNRowListToObjects(retVal)
+        return retVal
+
+    def get_unrequired_items(self, what="any"):
+        """
+        get_items return items that are not marked as required
+        :param what: what type of items to return "file" - only files, "dir" - only dirs, "any" - all type of items
+        :return: all the items
+        """
+        if what not in ("any", "file", "dir"):
+            raise ValueError(what+" not a valid filter for get_item")
 
         want_file = what in ("any", "file")
         want_dir = what in ("any", "dir")
-        retVal = self.baked_queries_map["get_required_items"](self.session).params(required=not get_unrequired, file=want_file, dir=not want_dir).all()
+        extra_condition = {"file": "AND fileFlag == 1", "dir": "AND fileFlag == 0"}.get(what, "")
+        with self.db.selection() as curs:
+            curs.execute("""
+                    SELECT * FROM svn_item_t
+                    WHERE required == 0
+                    {extra_condition}
+                    ORDER BY _id
+                    """.format(extra_condition=extra_condition))
+            retVal = curs.fetchall()
+            retVal = self.SVNRowListToObjects(retVal)
         return retVal
 
     def get_exec_file_paths(self):
+        """
+        :return: paths of all file items marked as executable
+        """
         query_text = """
           SELECT path
-          FROM svnitem
-          WHERE flags == 'fx' 
+          FROM svn_item_t
+          WHERE flags == 'fx'
         """
-        retVal = self.select_and_fetchall(query_text)
+        retVal = self.db.select_and_fetchall(query_text)
         return retVal
 
-    def get_required_exec_items(self, what="any"):
-        """ :return: all required fies that are also exec
+    def get_required_exec_items(self):
+        """ :return: all required files that are also exec
         """
-        if what not in ("any", "file", "dir"):
-            raise ValueError(what+" not a valid filter for get_item")
+        with self.db.selection() as curs:
+            curs.execute("""
+                    SELECT * FROM svn_item_t
+                    WHERE required == 1
+                    AND instr(flags, 'x') != 0
+                    ORDER BY _id
+                    """)
+            retVal = curs.fetchall()
+            retVal = self.SVNRowListToObjects(retVal)
+        return retVal
 
-
-        # required-exec-files: return all required files that are executables, used by get_required_exec_items()
-        if "get_required_exec_items" not in self.baked_queries_map:
-            self.baked_queries_map["get_required_exec_items"] = self.bakery(lambda session: session.query(SVNRow))
-            self.baked_queries_map["get_required_exec_items"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.fileFlag == bindparam('dir')))
-            self.baked_queries_map["get_required_exec_items"] += lambda q: q.filter(SVNRow.required == True, SVNRow.flags.contains('x'))
-            self.baked_queries_map["get_required_exec_items"] += lambda q: q.order_by(SVNRow.path)
-
-        want_file = what in ("any", "file")
-        want_dir = what in ("any", "dir")
-        retVal = self.baked_queries_map["get_required_exec_items"](self.session).params(file=want_file, dir=not want_dir).all()
+    def get_download_items_sync_info(self):
+        """ get just the fields required to calc urls"""
+        query_text = """
+            SELECT path, revision, size, download_path, url FROM svn_item_t
+            WHERE need_download == 1
+            AND fileFlag = 1
+            ORDER BY _id
+            """
+        with self.db.selection("get_download_items") as curs:
+            curs.execute(query_text)
+            retVal = curs.fetchall()
         return retVal
 
     def get_download_items(self, what="any"):
@@ -595,226 +848,320 @@ class SVNTable(TableBase):
         if what not in ("any", "file", "dir"):
             raise ValueError(what+" not a valid filter for get_item")
 
-        # get_exec_items: return all exec items either files dirs or both, used by get_exec_items()
-        if "get_download_items" not in self.baked_queries_map:
-            self.baked_queries_map["get_download_items"] = self.bakery(lambda session: session.query(SVNRow))
-            self.baked_queries_map["get_download_items"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.fileFlag == bindparam('dir')))
-            self.baked_queries_map["get_download_items"] += lambda q: q.filter(SVNRow.need_download == True)
-            self.baked_queries_map["get_download_items"] += lambda q: q.order_by(SVNRow.path)
+        if what == "file":
+            query_text = """
+                SELECT * FROM svn_item_t
+                WHERE need_download == 1
+                AND fileFlag = 1
+                ORDER BY _id
+                """
+        elif what == "dir":
+            query_text = """
+                SELECT * FROM svn_item_t
+                WHERE need_download == 1
+                AND fileFlag = 0
+                ORDER BY _id
+                """
+        else:
+            query_text = """
+                SELECT * FROM svn_item_t
+                WHERE need_download == 1
+                ORDER BY _id
+                """
 
-        want_file = what in ("any", "file")
-        want_dir = what in ("any", "dir")
-        retVal = self.baked_queries_map["get_download_items"](self.session).params(file=want_file, dir=not want_dir).all()
+        with self.db.selection() as curs:
+            curs.execute(query_text)
+            retVal = curs.fetchall()
+            retVal = self.SVNRowListToObjects(retVal)
         return retVal
 
     def get_not_to_download_num_files_and_size(self):
         """ return the count and total size of the files that are already synced """
         query_text = """
             SELECT COUNT(*) as num_files, TOTAL(size) as total_size
-            FROM svnitem
+            FROM svn_item_t
             WHERE required=1
             AND need_download=0
             AND fileFlag=1
             """
-        try:
-            retVal = self.session.execute(query_text).first()
-        except SQLAlchemyError:
-            raise
+        with self.db.selection() as curs:
+            retVal = curs.execute(query_text).fetchone()
         return retVal[0], int(retVal[1])  # sqlite's TOTAL returns float
 
-    def get_to_download_files_and_size(self):
+    def get_to_download_num_files_and_size(self):
         """
         :return: a tuple: (a list of fies marked for download, their total size)
         """
-        file_list = self.get_download_items(what="file")
-        total_size = reduce(lambda total, item: total + item.size, file_list, 0)
-        return file_list, total_size
+        query_text = """
+            SELECT COUNT(_id), COALESCE(SUM(size), 0) FROM svn_item_t
+            WHERE need_download == 1
+            AND fileFlag = 1
+            """
+        with self.db.selection() as curs:
+            curs.execute(query_text)
+            num_files, total_size = curs.fetchone()
+        return num_files, total_size
 
     def get_required_for_file(self, file_path):
         """ get the item for a required file as or if file was wtarred
             get the wtar files.
         """
 
-        if "required_items_for_file" not in self.baked_queries_map:
-            self.baked_queries_map["required_items_for_file"] = self.bakery(lambda session: session.query(SVNRow))
-            self.baked_queries_map["required_items_for_file"] += lambda q: q.filter(SVNRow.fileFlag==True)
-            self.baked_queries_map["required_items_for_file"] += lambda q: q.filter(or_(SVNRow.path == bindparam('file_path'), SVNRow.path.like(bindparam('file_path') + ".wtar%")))
-            self.baked_queries_map["required_items_for_file"] += lambda q: q.order_by(SVNRow.path)
+        with self.db.selection() as curs:
+            curs.execute("""
+                    SELECT * FROM svn_item_t
+                    WHERE fileFlag = 1
+                    AND unwtarred==:file_path
+                    ORDER BY _id
+                    """, {"file_path": file_path})
+            retVal = curs.fetchall()
+            retVal = self.SVNRowListToObjects(retVal)
+        return retVal
 
-        retVal = self.baked_queries_map["required_items_for_file"](self.session).params(file_path=file_path).all()
+    def get_required_paths_for_file(self, file_path):
+        """ get the item for a required file as or if file was wtarred
+            get the wtar files.
+        """
+
+        with self.db.selection() as curs:
+            curs.execute("""
+                    SELECT _id, path, leaf FROM svn_item_t
+                    WHERE fileFlag = 1
+                    AND unwtarred==:file_path
+                    ORDER BY _id
+                    """, {"file_path": file_path})
+            retVal = curs.fetchall()
         return retVal
 
     def mark_required_for_file(self, file_path):
         """ mark a file as required or if file was wtarred
             mark the wtar files are required.
         """
-        update_statement = update(SVNRow)\
-                .where(SVNRow.fileFlag == True)\
-                .where(or_(SVNRow.path == file_path, SVNRow.path.like(file_path + ".wtar%")))\
-                .values(required=True)
-        results = self.session.execute(update_statement)
-        return results.rowcount
+        with self.db.transaction() as curs:
+            curs.execute("""
+                    UPDATE svn_item_t
+                    SET required=1
+                    WHERE fileFlag = 1
+                    AND (unwtarred==:file_path)
+                    """, {"file_path": file_path})
+            retVal = curs.rowcount
+        return retVal
+
+    def get_file_paths_of_dir(self, dir_path):
+        query_text = """
+            WITH RECURSIVE get_children(__ID) AS
+            (
+                SELECT first_item_t._id
+                FROM svn_item_t AS first_item_t
+                WHERE first_item_t.unwtarred == :dir_path
+
+                UNION
+
+                SELECT child_item_t._id
+                FROM svn_item_t child_item_t, get_children
+                WHERE child_item_t.parent_id = get_children.__ID
+            )
+            SELECT _id, path, leaf
+            FROM svn_item_t
+            WHERE svn_item_t._id IN (SELECT __ID FROM get_children)
+            AND fileFlag=1
+            ORDER BY _id
+            """
+        with self.db.selection() as curs:
+            curs.execute(query_text, {"dir_path": dir_path})
+            retVal = curs.fetchall()
+        return retVal
 
     def get_file_items_of_dir(self, dir_path):
         """ get all file items in dir_path OR if the dir_path itself is wtarred - the wtarred file items.
             results are recursive so files from sub folders are also returned
         """
-        if "get_file_items_of_dir" not in self.baked_queries_map:
-            self.baked_queries_map["get_file_items_of_dir"] = self.bakery(lambda session: session.query(SVNRow))
-            self.baked_queries_map["get_file_items_of_dir"] += lambda q: q.filter(SVNRow.fileFlag == True)
-            self.baked_queries_map["get_file_items_of_dir"] += lambda q: q.filter(or_(SVNRow.path.like(bindparam('dir_path')+"/%"),
-                                                                                 SVNRow.path.like(bindparam('dir_path')+".wtar%")))
-            self.baked_queries_map["get_file_items_of_dir"] += lambda q: q.order_by(SVNRow.path)
+        query_text = """
+            WITH RECURSIVE get_children(__ID) AS
+            (
+                SELECT first_item_t._id
+                FROM svn_item_t AS first_item_t
+                WHERE first_item_t.unwtarred == :dir_path
 
-        files_of_dir = self.baked_queries_map["get_file_items_of_dir"](self.session).params(dir_path=dir_path).all()
-        return files_of_dir
+                UNION
+
+                SELECT child_item_t._id
+                FROM svn_item_t child_item_t, get_children
+                WHERE child_item_t.parent_id = get_children.__ID
+            )
+            SELECT *
+            FROM svn_item_t
+            WHERE svn_item_t._id IN (SELECT __ID FROM get_children)
+            AND fileFlag=1
+            ORDER BY _id
+            """
+        with self.db.selection() as curs:
+            curs.execute(query_text, {"dir_path": dir_path})
+            retVal = curs.fetchall()
+            retVal = self.SVNRowListToObjects(retVal)
+        return retVal
 
     def count_wtar_items_of_dir(self, dir_path):
         """ count all wtar items in dir_path OR if the dir_path itself is wtarred - count of wtarred file items.
             results are recursive so count from sub folders are also accumulated
         """
         retVal = 0
-        query_text = """
-            SELECT COUNT(*)
-            FROM svnitem
-            WHERE
-              fileFlag = 1
-              AND
-              ( path LIKE "{dir_path}" || ".wtar%"
-                OR
-              path LIKE "{dir_path}" || "/%.wtar%" )
-             """.format(dir_path=dir_path)
-        try:
-            retVal = self.session.execute(query_text).first()[0]
-        except SQLAlchemyError:
-            raise
+        with self.db.selection() as curs:
+            query_text = """
+                WITH RECURSIVE get_children(__ID, __PATH, __WTAR_FLAG) AS
+                (
+                    SELECT first_item_t._id, first_item_t.path, first_item_t.wtarFlag
+                    FROM svn_item_t AS first_item_t
+                    WHERE first_item_t.unwtarred == :dir_path
+                
+                    UNION
+                
+                    SELECT child_item_t._id, child_item_t.path, child_item_t.wtarFlag
+                    FROM svn_item_t child_item_t, get_children
+                    WHERE child_item_t.parent_id = get_children.__ID
+                )
+                SELECT COUNT(*)
+                FROM get_children
+                WHERE get_children.__WTAR_FLAG = 1
+                """
+            retVal = curs.execute(query_text, {'dir_path': dir_path}).fetchone()[0]
         return retVal
 
-    def get_items_in_dir(self, dir_path="", what="any", levels_deep=1024):
+    def get_items_in_dir(self, dir_path="", immediate_children_only=False):
         """ get all files in dir_path.
             level_deep: how much to dig in. level_deep=1 will only get immediate files
             :return: list of items in dir or empty list (if there aren't any) or None
             if dir_path is not a dir
         """
-        dir_items = []
+        retVal = []
         if dir_path == "":
-            dir_items = self.get_items(what=what, levels_deep=levels_deep)
+            retVal = self.get_items(what="any")
         else:
-            root_dir_item = self.get_item(item_path=dir_path, what="dir")
+            root_dir_item = self.get_dir_item(item_path=dir_path)
             if root_dir_item is not None:
-                if "dir_items_recursive" not in self.baked_queries_map:
-                    self.baked_queries_map["dir_items_recursive"] = self.bakery(lambda session: session.query(SVNRow))
-                    self.baked_queries_map["dir_items_recursive"] += lambda q: q.filter(SVNRow.path.like(bindparam('dir_path')+"/%"))
-                    self.baked_queries_map["dir_items_recursive"] += lambda q: q.filter(SVNRow.level > bindparam('dir_level'))
-                    self.baked_queries_map["dir_items_recursive"] += lambda q: q.filter(SVNRow.level <= bindparam('dir_level')+bindparam('levels_deep'))
-                    self.baked_queries_map["dir_items_recursive"] += lambda q: q.filter(or_(SVNRow.fileFlag == bindparam('file'), SVNRow.fileFlag == bindparam('dir')))
-                    self.baked_queries_map["dir_items_recursive"] += lambda q: q.order_by(SVNRow.path)
-
-                want_file = what in ("any", "file")
-                want_dir = what in ("any", "dir")
-                dir_items = self.baked_queries_map["dir_items_recursive"](self.session)\
-                    .params(dir_path=dir_path, dir_level=root_dir_item.level, levels_deep=levels_deep,\
-                            file=want_file, dir=not want_dir)\
-                    .all()
+                with self.db.selection() as curs:
+                    if immediate_children_only:
+                        query_text = self.get_immediate_child_items_q
+                    else:
+                        query_text = self.get_child_items_q
+                    query_text = query_text.format(another_filter="")
+                    curs.execute(query_text, {"parent_id": root_dir_item._id})
+                    retVal = curs.fetchall()
+                    retVal = self.SVNRowListToObjects(retVal)
             else:
                 print(dir_path, "was not found")
-        return dir_items
+        return retVal
 
     def mark_required_for_dir(self, dir_path):
         """ mark all files & dirs in dir_path as required.
             marking is recursive.
+            ToDo: unite the update with self.get_item
         """
-        dir_item = self.get_item(item_path=dir_path, what="dir")
+        dir_item = self.get_dir_item(item_path=dir_path)
         if dir_item is not None:
-            update_statement = update(SVNRow)\
-                    .where(SVNRow.fileFlag == True)\
-                    .where(SVNRow.level > dir_item.level)\
-                    .where(SVNRow.path.like(dir_item.path+"/%"))\
-                    .values(required=True)
-            results = self.session.execute(update_statement)
-            retVal = results.rowcount
+            with self.db.transaction() as curs:
+                query_text = """
+                    UPDATE svn_item_t
+                    SET required=1
+                    WHERE fileFlag==1
+                    AND level > :dir_item_level
+                    AND path LIKE :dir_item_path
+                    """
+                curs.execute(query_text, {'dir_item_level': dir_item.level,
+                                          'dir_item_path': dir_item.path+"/%"})
+                retVal = curs.rowcount
         else:
             # it might be a dir that was wtarred
             retVal = self.mark_required_for_file(dir_path)
         return retVal
 
-    def mark_required_for_source(self, source):
+    def mark_required_for_source(self, source_path, source_type):
         """ mark all files & dirs for specific source as required.
             :param source: a tuple (source_folder, tag), where tag is either !file or !dir
             :return: None
         """
-        source_path, source_type = source[0], source[1]
         num_required_files = 0
         if source_type in ('!dir', '!dir_cont'):  # !dir and !dir_cont are only different when copying
             num_required_files = self.mark_required_for_dir(source_path)
         elif source_type == '!file':
             num_required_files = self.mark_required_for_file(source_path)
-        self.commit_changes()
         return num_required_files
 
     def mark_required_completion(self):
         """ after some files were marked as required,
             mark their parent dirs are required as well
         """
-        required_file_items = self.get_required_items(what="file")
-        ancestors = list()
-        for file_item in required_file_items:
-            ancestors.extend(file_item.get_ancestry()[:-1])
-        ancestors = sorted(list(set(ancestors)))
-        # sqlite UPDATE cannot accept more than SQLITE_LIMIT_VARIABLE_NUMBER variables
-        # SQLITE_LIMIT_VARIABLE_NUMBER == 999, but I found no way to get this number dynamically
-        # following code does the updates in chunks:
-        chunk_size = 512
-        slice_begin = 0
-        slice_end = 0
-        while slice_end < len(ancestors):
-            slice_end = min(slice_end + chunk_size, len(ancestors))
-            update_statement = update(SVNRow)\
-                    .where(SVNRow.path.in_(ancestors[slice_begin:slice_end]))\
-                    .values(required=True)
-            self.session.execute(update_statement)
-            slice_begin += chunk_size
-            self.commit_changes()
+        retVal = 0
+        query_text = """
+            WITH RECURSIVE get_parents(__ID, __PATH, __PARENT_ID) AS
+            (
+                SELECT file_item_t._id, file_item_t.path, file_item_t.parent_id
+                FROM svn_item_t AS file_item_t
+                WHERE file_item_t.fileFlag=1
+                AND file_item_t.required=1
+
+                UNION
+
+                SELECT parent_item_t._id, parent_item_t.path, parent_item_t.parent_id
+                FROM svn_item_t parent_item_t, get_parents
+                WHERE parent_item_t._id = get_parents.__PARENT_ID
+            )
+            UPDATE svn_item_t
+            SET required=1
+            WHERE _id IN (SELECT __ID FROM get_parents);
+            """
+        with self.db.transaction() as curs:
+            curs.execute(query_text)
+            retVal = curs.rowcount
+        return retVal
 
     def mark_need_download(self):
-        ancestors = list()
-        required_file_items = self.get_required_items(what="file")
-        for file_item in required_file_items:
-            if utils.need_to_download_file(file_item.download_path, file_item.checksum):
-                file_item.need_download = True
-                ancestors.extend(file_item.get_ancestry()[:-1])
-        ancestors = sorted(list(set(ancestors)))
-        # sqlite UPDATE cannot accept more than SQLITE_LIMIT_VARIABLE_NUMBER variables
-        # SQLITE_LIMIT_VARIABLE_NUMBER == 999, but I found no way to get this number dynamically
-        # following code does the updates in chunks:
-        chunk_size = 512
-        slice_begin = 0
-        slice_end = 0
-        while slice_end < len(ancestors):
-            slice_end = min(slice_end + chunk_size, len(ancestors))
-            update_statement = update(SVNRow)\
-                    .where(SVNRow.path.in_(ancestors[slice_begin:slice_end]))\
-                    .values(need_download=True)
-            self.session.execute(update_statement)
-            slice_begin += chunk_size
-        self.commit_changes()
+        self.db.create_function("need_to_download_file", 2, utils.need_to_download_file)
+        # mark files that need download
+        query_text = """
+            UPDATE svn_item_t
+            SET need_download = 1
+            WHERE required == 1
+            AND ignore == 0
+            AND fileFlag == 1
+            AND need_to_download_file(download_path, checksum)
+            """
+        with self.db.transaction("mark_need_download") as curs:
+            curs.execute(query_text)
+        # mark folders of files that need download
+        query_text = """
+            WITH RECURSIVE get_parents(__PARENT_ID) AS
+            (
+                SELECT file_item_t.parent_id
+                FROM svn_item_t AS file_item_t
+                WHERE file_item_t.fileFlag=1
+                AND file_item_t.need_download=1
+
+                UNION
+
+                SELECT parent_item_t.parent_id
+                FROM svn_item_t parent_item_t, get_parents
+                WHERE parent_item_t._id = get_parents.__PARENT_ID
+            )
+            UPDATE svn_item_t
+            SET need_download=1
+            WHERE _id IN (SELECT __PARENT_ID FROM get_parents)
+            """
+        with self.db.transaction("mark_need_download_recursive") as curs:
+            curs.execute(query_text)
 
     def mark_required_for_revision(self, required_revision):
         """ mark all files and dirs as required if they are of specific revision
         """
-        update_statement = update(SVNRow)\
-            .where(SVNRow.fileFlag == True)\
-            .where(SVNRow.revision == required_revision)\
-            .values(required=True)
-        self.session.execute(update_statement)
-        self.commit_changes()
+        with self.db.transaction() as curs:
+            curs.execute("""UPDATE svn_item_t SET required=1
+                                WHERE fileFlag==1 AND revision==:required_revision
+                                """, {"required_revision": required_revision})
         self.mark_required_completion()
 
     def clear_required(self):
-        update_statement = update(SVNRow)\
-            .values(required=False)
-        self.session.execute(update_statement)
-        self.commit_changes()
+        with self.db.transaction() as curs:
+            curs.execute("""UPDATE svn_item_t SET required=0""")
 
     def get_unrequired_paths_where_parent_required(self, what="file"):
         """ Get all unrequired items that have a parent that is required.
@@ -826,61 +1173,90 @@ class SVNTable(TableBase):
 
         query_text = """
             SELECT path
-            FROM svnitem
+            FROM svn_item_t
             WHERE required==0
             AND fileFlag==:get_files
             AND parent IN (
                 SELECT path
-                FROM svnitem
+                FROM svn_item_t
                 WHERE required==1
                 AND fileFlag==0)
             """
-        retVal = self.select_and_fetchall(query_text, query_params={"get_files": {"file": 1, "dir": 0}[what]})
+        retVal = self.db.select_and_fetchall(query_text, query_params={"get_files": {"file": 1, "dir": 0}[what]})
         return retVal
 
     def min_max_revision(self):
-        min_revision = self.session.query(SVNRow, func.min(SVNRow.revision)).scalar()
-        max_revision = self.session.query(SVNRow, func.max(SVNRow.revision)).scalar()
-        return min_revision.revision, max_revision.revision
+        with self.db.selection() as curs:
+            curs.execute(""" SELECT MIN(svn_item_t.revision), MAX(svn_item_t.revision) FROM svn_item_t""")
+            min_revision, max_revision = curs.fetchone()
+        return min_revision, max_revision
 
     def mark_required_files_for_active_items(self):
-        query_text = """
-        UPDATE svnitem
-        SET required=1
-        WHERE svnitem._id IN
-        (
-            SELECT svnitem._id
-            FROM svnitem
-            JOIN IndexItemRow as active_items_t
-                ON active_items_t.install_status > 0
-                AND active_items_t.ignore = 0
-            JOIN IndexItemDetailRow as install_sources_t
-                ON install_sources_t.owner_iid=active_items_t.iid
-                AND install_sources_t.detail_name='install_sources'
-                AND install_sources_t.os_is_active = 1
-            WHERE fileFlag=1
-            AND
-                (
-                  svnitem.path = install_sources_t.detail_value
-                    OR
-                  svnitem.path LIKE install_sources_t.detail_value || "/%"
-                    OR
-                  svnitem.path LIKE install_sources_t.detail_value || ".wtar%"
-                )
-        )
+        script_text = """
+            -- mark files and folders that appear in install_sources of required items
+            UPDATE svn_item_t
+            SET required=1
+            WHERE svn_item_t._id IN
+            (
+                SELECT svn_item_t._id
+                FROM svn_item_t
+                JOIN index_item_t as active_items_t
+                    ON active_items_t.install_status > 0
+                    AND active_items_t.ignore = 0
+                JOIN index_item_detail_t as install_sources_t
+                    ON install_sources_t.owner_iid=active_items_t.iid
+                    AND install_sources_t.detail_name='install_sources'
+                    AND install_sources_t.os_is_active = 1
+                WHERE svn_item_t.unwtarred == install_sources_t.detail_value
+            );
+
+            -- mark files and folders that are children of those appearing in install_sources of required items
+            WITH RECURSIVE get_children(__ID) AS
+            (
+                SELECT first_item_t._id
+                FROM svn_item_t AS first_item_t
+                WHERE required==1 AND fileFlag==0
+            
+                UNION
+            
+                SELECT child_item_t._id
+                FROM svn_item_t child_item_t, get_children
+                WHERE child_item_t.parent_id = get_children.__ID
+            )
+            UPDATE svn_item_t
+            SET required=1
+            WHERE _id IN (SELECT __ID FROM get_children);
+ 
+            -- mark the parent folders of all required items
+            WITH RECURSIVE get_parents(__ID) AS
+            (
+                SELECT file_item_t.parent_id
+                FROM svn_item_t AS file_item_t
+                WHERE file_item_t.fileFlag=1
+                AND file_item_t.required=1
+            
+                UNION
+            
+                SELECT parent_item_t.parent_id
+                FROM svn_item_t parent_item_t, get_parents
+                WHERE parent_item_t._id = get_parents.__ID
+            )
+            UPDATE svn_item_t
+            SET required=1
+            WHERE _id IN (SELECT __ID FROM get_parents);
         """
-        exec_result = self.session.execute(query_text)
-        self.commit_changes()
+        with self.db.transaction() as curs:
+            curs.executescript(script_text)
 
     def get_download_roots(self):
         query_text = """
         SELECT DISTINCT
             coalesce(download_root, "$(LOCAL_REPO_SYNC_DIR)")
-        FROM svnitem
+        FROM svn_item_t
         WHERE need_download=1
         AND fileFlag=1
         """
-        retVal = self.select_and_fetchall(query_text)
+        retVal = self.db.select_and_fetchall(query_text)
         return retVal
 
     def get_infomap_file_names(self):
@@ -888,95 +1264,189 @@ class SVNTable(TableBase):
         """
         query_text = """
           SELECT DISTINCT extra_props
-          FROM svnitem
+          FROM svn_item_t
           ORDER BY extra_props
         """
-        retVal = self.select_and_fetchall(query_text)
+        retVal = self.db.select_and_fetchall(query_text)
         return retVal
 
-    def get_items_by_infomap(self, infomap_name):
+    def mark_items_required_by_infomap(self, infomap_name):
         """
-        get_items_by_infomap returns all items that should be written to a specific infomap file
+        mark_items_required_by_infomap will mark as required all items that should be written
+        to a specific infomap file, all other items will be marked as unrequired
         infomap file names were stored in extra_props column by set_infomap_file_names
         :param infomap_name: e.g. GrandRhapsody_SD_Sample_Library_info_map.txt
         """
         retVal = list()
-        if "get_items_by_infomap" not in self.baked_queries_map:
-            self.baked_queries_map["get_items_by_infomap"] = self.bakery(lambda session: session.query(SVNRow))
-            self.baked_queries_map["get_items_by_infomap"] += lambda q: q.filter(SVNRow._id == IIDToSVNItem.svn_id)
-            self.baked_queries_map["get_items_by_infomap"] += lambda q: q.filter(IndexItemDetailRow.owner_iid == IIDToSVNItem.iid)
-            self.baked_queries_map["get_items_by_infomap"] += lambda q: q.filter(IndexItemDetailRow.detail_name == 'info_map')
-            self.baked_queries_map["get_items_by_infomap"] += lambda q: q.filter(IndexItemDetailRow.detail_value == bindparam('infomap_name'))
-            self.baked_queries_map["get_items_by_infomap"] += lambda q: q.order_by(SVNRow._id)
-
-        retVal = self.baked_queries_map["get_items_by_infomap"](self.session).params(infomap_name=infomap_name).all()
+        with self.db.transaction() as curs:
+            curs.execute("""UPDATE svn_item_t SET required=0""")
+            curs.execute("""
+                    UPDATE svn_item_t SET required=1
+                    WHERE _id in (
+                    SELECT DISTINCT svn_item_t._id FROM svn_item_t
+                    JOIN iid_to_svn_item_t, index_item_detail_t
+                      ON svn_item_t._id == iid_to_svn_item_t.svn_id
+                      AND iid_to_svn_item_t.iid == index_item_detail_t.owner_iid
+                      AND index_item_detail_t.detail_name == 'info_map'
+                      AND index_item_detail_t.detail_value == :infomap_name)
+                    """, {"infomap_name": infomap_name})
         return retVal
 
     def get_items_for_default_infomap(self):
-        select_all_q = self.session.query(SVNRow)
-
-        select_non_default_info_map_items = self.session.query(SVNRow) \
-                                            .filter(SVNRow._id == IIDToSVNItem.svn_id) \
-                                            .filter(IIDToSVNItem.iid == IndexItemDetailRow.owner_iid) \
-                                            .filter(IndexItemDetailRow.detail_name == 'info_map')
-
-        select_default_info_map_items = select_all_q.except_(select_non_default_info_map_items)
-        retVal = select_default_info_map_items.all()
+        with self.db.selection() as curs:
+            curs.execute("""
+                    SELECT * FROM svn_item_t
+                    WHERE svn_item_t._id NOT IN (
+                    SELECT svnitem_with_non_default_info_map._id FROM svn_item_t AS svnitem_with_non_default_info_map
+                    JOIN iid_to_svn_item_t, index_item_detail_t
+                      ON svnitem_with_non_default_info_map._id == iid_to_svn_item_t.svn_id
+                      AND iid_to_svn_item_t.iid == index_item_detail_t.owner_iid
+                      AND index_item_detail_t.detail_name == 'info_map')
+                    ORDER BY svn_item_t.path
+                    """)
+            retVal = curs.fetchall()
+            retVal = self.SVNRowListToObjects(retVal)
         return retVal
 
     def populate_IIDToSVNItem(self):
         query_text = """
-            INSERT INTO IIDToSVNItem (iid, svn_id)
-            SELECT install_sources_t.owner_iid, svnitem._id
-            FROM IndexItemDetailRow AS install_sources_t, svnitem
+            INSERT INTO iid_to_svn_item_t (iid, svn_id)
+            SELECT install_sources_t.owner_iid, svn_item_t._id
+            FROM index_item_detail_t AS install_sources_t, svn_item_t
             WHERE
                 install_sources_t.detail_name = 'install_sources'
                     AND
                 (
-                  svnitem.path = install_sources_t.detail_value 
+                  svn_item_t.path = install_sources_t.detail_value
                     OR
-                  svnitem.path LIKE install_sources_t.detail_value || "/%"
+                  svn_item_t.path LIKE install_sources_t.detail_value || "/%"
                     OR
-                  svnitem.path LIKE install_sources_t.detail_value || ".wtar%"
+                  svn_item_t.unwtarred == install_sources_t.detail_value
                 )
             """
-        self.session.execute(query_text)
-        self.commit_changes()
+        with self.db.transaction() as curs:
+            curs.execute(query_text)
 
     def set_info_map_file(self, info_map_file_name):
         query_text = """
-            UPDATE svnitem
+            UPDATE svn_item_t
             SET extra_props = :info_map_file_name
-            WHERE svnitem._id In (
-            SELECT svnitem._id
-            FROM svnitem, IIDToSVNItem, IndexItemDetailRow
+            WHERE svn_item_t._id In (
+            SELECT svn_item_t._id
+            FROM svn_item_t, iid_to_svn_item_t, index_item_detail_t
             WHERE
-                svnitem._id = IIDToSVNItem.svn_id
+                svn_item_t._id = iid_to_svn_item_t.svn_id
             AND
-                IIDToSVNItem.iid = IndexItemDetailRow.owner_iid
+                iid_to_svn_item_t.iid = index_item_detail_t.owner_iid
             AND
-                IndexItemDetailRow.detail_name = 'info_map'
+                index_item_detail_t.detail_name = 'info_map'
             AND
-                IndexItemDetailRow.detail_value = :info_map_file_name)
+                index_item_detail_t.detail_value = :info_map_file_name)
             """
-        self.session.execute(query_text, {"info_map_file_name": info_map_file_name})
-        self.commit_changes()
-
-    @classmethod
-    def create_indexes(cls):
-        Index('required_idx', SVNRow.required).create(bind=get_engine())
-        Index('need_download_idx', SVNRow.need_download).create(bind=get_engine())
-        Index('fileFlag_idx', SVNRow.fileFlag).create(bind=get_engine())
-        Index('path_idx', SVNRow.path).create(bind=get_engine())
+        with self.db.transaction() as curs:
+            curs.execute(query_text, {"info_map_file_name": info_map_file_name})
 
     def get_unrequired_file_paths(self):
         """ get paths for all unrequired files
         """
         query_text = """
             SELECT path
-            FROM svnitem
+            FROM svn_item_t
             WHERE required==0
             AND fileFlag==1
             """
-        retVal = self.select_and_fetchall(query_text)
+        retVal = self.db.select_and_fetchall(query_text)
         return retVal
+
+    def update_downloads(self, items_to_update):
+        """
+            items_to_update is a list of info_map items where download_root
+            and download_path were changed.
+        """
+        query_text = """
+                UPDATE svn_item_t
+                SET download_root=:download_root,
+                    download_path=:download_path
+                WHERE _id=:_id
+                """
+        with self.db.transaction() as curs:
+            curs.executemany(query_text, items_to_update)
+
+    def SVNRowListToObjects(self, svn_row_list):
+        retVal = [SVNRow(item) for item in svn_row_list]
+        return retVal
+
+    def count_symlinks_in_dir(self, dir_path):
+        """ get all files marked as symlinks in dir_path.
+            :return: list of symlinks items in dir or empty list (if there aren't any)
+        """
+        retVal = 0
+        root_dir_item = self.get_dir_item(item_path=dir_path)
+        if root_dir_item is not None:
+            with self.db.selection() as curs:
+                query_text = self.count_child_items_q
+                query_text = query_text.format(another_filter="AND symlinkFlag==1")
+                curs.execute(query_text, {"parent_id": root_dir_item._id})
+                retVal = curs.fetchone()[0]
+        return retVal
+
+    def ignore_file_paths_of_dir(self, dir_path):
+        """ mark all files inside a dir as ignored """
+        retVal = 0
+        query_text = """
+            WITH RECURSIVE get_children(__ID) AS
+            (
+                SELECT first_item_t._id
+                FROM svn_item_t AS first_item_t
+                WHERE first_item_t.unwtarred == :dir_path
+
+                UNION
+
+                SELECT child_item_t._id
+                FROM svn_item_t child_item_t, get_children
+                WHERE child_item_t.parent_id == get_children.__ID
+            )
+            UPDATE svn_item_t
+            SET ignore=1 
+            WHERE svn_item_t._id IN (SELECT __ID FROM get_children)
+            AND fileFlag==1
+            """
+        with self.db.transaction() as curs:
+            curs.execute(query_text, {"dir_path": dir_path})
+            retVal = curs.rowcount
+        return retVal
+
+    def ignore_unrequired_where_parent_unrequired(self):
+        """ for use by InstlAdmin.do_up2s3
+            up2s3 copies the all files in the repository to the repo-rev folder
+            and then needs to delete all files that do not belong to the repo-rev (unrequired).
+            In order to make the deletion as short as possible is better to delete
+            top level folders whose whole contents is unrequired. This function will
+            mark folders a ignore if their paraent folder can be deleted.
+        """
+        retVal = 0
+        query_text = """
+            UPDATE svn_item_t
+            SET ignore=1
+            WHERE required==0
+            AND parent_id in (SELECT _id FROM svn_item_t WHERE required==0);
+            """
+        with self.db.transaction() as curs:
+            curs.execute(query_text)
+            retVal = curs.rowcount
+        return retVal
+
+    def get_unrequired_not_ignored_paths(self):
+        """ get paths for all unrequired files files and folders that are not
+            marked as ingored
+        """
+        query_text = """
+            SELECT path
+            FROM svn_item_t
+            WHERE required==0
+            AND ignore==0
+            """
+        retVal = self.db.select_and_fetchall(query_text)
+        return retVal
+
+

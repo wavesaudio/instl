@@ -7,8 +7,6 @@ import sys
 # force stdout to be utf-8. Sometimes it opens in ascii encoding
 sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)
 import os
-#if os.environ.get("PYTHONIOENCODING", "not found").lower() not in ("utf8", "utf-8"):
-#    print("PYTHONIOENCODING:", os.environ.get("PYTHONIOENCODING", "not found"))
 
 import re
 import tempfile
@@ -16,6 +14,7 @@ import appdirs
 import datetime
 import random
 import string
+import sqlite3
 
 from pyinstl.cmdOptions import CommandLineOptions, read_command_line_options
 from utils import InstlException
@@ -79,6 +78,8 @@ def main():
                     "__INSTL_DATA_FOLDER__": get_data_folder(),
                     "__INSTL_COMPILED__": str(getattr(sys, 'frozen', False)),
                     "__PYTHON_VERSION__": sys.version_info,
+                    "__PYSQLITE3_VERSION__": sqlite3.version,
+                    "__SQLITE_VERSION__": sqlite3.sqlite_version,
                     "__COMMAND_NAMES__": command_names,
                     "__CURRENT_OS__": os_family_name,
                     "__CURRENT_OS_SECOND_NAME__": os_second_name,
@@ -94,10 +95,6 @@ def main():
                     "__INVOCATIONS_FILE_PATH__": utils.get_invocations_file_path()
                     }
 
-    # remove newline characters that might lurk in the path (see tech support case 143589)
-    adjusted_path = re.sub('[\r\n]', "?", utils.unicodify(os.environ.get("PATH", "PATH environment variable undefined")))
-    initial_vars["__USER_PATH__"] = adjusted_path
-
     if os_family_name != "Win":
         initial_vars.update(
                     {"__USER_ID__": str(os.getuid()),
@@ -110,11 +107,13 @@ def main():
     elif options.mode == "client":
         from pyinstl.instlClient import InstlClientFactory
         instance = InstlClientFactory(initial_vars, options.command)
+        instance.progress("welcome to instl", instance.instl_ver_str, options.command)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "doit":
         from pyinstl.instlDoIt import InstlDoIt
         instance = InstlDoIt(initial_vars)
+        instance.progress("welcome to instl", instance.instl_ver_str, options.command)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "admin":
@@ -122,6 +121,7 @@ def main():
             raise EnvironmentError("instl admin commands can only run under Mac or Linux")
         from pyinstl.instlAdmin import InstlAdmin
         instance = InstlAdmin(initial_vars)
+        instance.progress("welcome to instl", instance.instl_ver_str, options.command)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "interactive":
@@ -135,7 +135,8 @@ def main():
         go_interactive(client, admin)
     elif options.mode == "do_something":
         from pyinstl.instlMisc import InstlMisc
-        instance = InstlMisc(initial_vars)
+        instance = InstlMisc(initial_vars, options.command)
+        instance.progress("welcome to instl", instance.instl_ver_str, options.command)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "gui":
@@ -151,7 +152,7 @@ def main():
 
     # make sure instance's dispose functions are called
     if instance is not None:
-        del instance
+        instance.close()
 
 
 class InvocationReporter(object):
@@ -164,6 +165,7 @@ class InvocationReporter(object):
     def __enter__(self):
         try:
             self.invocations_file_path = utils.get_invocations_file_path()
+            os.makedirs(os.path.dirname(self.invocations_file_path), exist_ok=True)
 
             # if file too big rename it to ".1" - only one back copy is kept
             if os.path.isfile(self.invocations_file_path) and os.path.getsize(self.invocations_file_path) > self.max_file_size:

@@ -44,6 +44,7 @@ class CommandLineOptions(object):
         self.only_installed = None
         self.ls_format = None
         self.parallel = None
+        self.db_file = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).items())])
@@ -82,8 +83,8 @@ def prepare_args_parser(in_command):
         'mac-dock':             {'mode': 'ds', 'options': (), 'help': "add or remove to Mac OS's Dock"},
         'make-sig':             {'mode': 'an', 'options': ('in', 'conf',), 'help':  'create sha1 checksum and rsa signature for a file'},
         'parallel-run':         {'mode': 'ds', 'options': ('in', ), 'help':  'Run processes in parallel'},
-        'read-info-map':        {'mode': 'an', 'options': ('in+', ), 'help':  "reads an info-map file to verify it's contents"},
-        'read-yaml':            {'mode': 'an', 'options': ('in', 'out'), 'help':  "reads a yaml file to verify it's contents"},
+        'read-info-map':        {'mode': 'an', 'options': ('in+', 'db'), 'help':  "reads an info-map file to verify it's contents"},
+        'read-yaml':            {'mode': 'an', 'options': ('in', 'out', 'db'), 'help':  "reads a yaml file to verify it's contents"},
         'remove-empty-folders': {'mode': 'ds', 'options': ('in', ), 'help':  'remove folders is they are empty'},
         'remove':               {'mode': 'ct', 'options': ('in', 'out', 'run',), 'help':  'remove items installed by copy'},
         'report-versions':      {'mode': 'ct', 'options': ('in', 'out', 'output_format', 'only_installed'), 'help': 'report what is installed and what needs update'},
@@ -105,6 +106,7 @@ def prepare_args_parser(in_command):
         'win-shortcut':         {'mode': 'ds', 'options': (), 'help':  'create a Windows shortcut'},
         'wtar-staging-folder':  {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'create .wtar files inside staging folder'},
         'wtar':                 {'mode': 'ds', 'options': ('in', 'out'), 'help':  'create .wtar files from specified files and folders'},
+        'wzip':                 {'mode': 'ds', 'options': ('in', 'out'), 'help':  'create .wzip file from specified file'},
         'uninstall':            {'mode': 'ct', 'options': ('in', 'out', 'run',), 'help':  'uninstall previously copied files, considering dependencies'},
     }
 
@@ -254,6 +256,16 @@ def prepare_args_parser(in_command):
                                     action='store_true',
                                     dest='',
                                     help="run the command-list in parallel")
+
+    # optional --db
+    if 'db' in command_details['options']:
+        db_options = command_parser.add_argument_group(description='database path:')
+        db_options.add_argument('--db', '-d',
+                                    required=False,
+                                    nargs=1,
+                                    metavar='path-to-db-file',
+                                    dest='db_file',
+                                    help="database file")
 
     # the following option groups each belong only to a single command
     if 'trans' == in_command:

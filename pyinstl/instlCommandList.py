@@ -7,13 +7,14 @@ from configVar import var_stack
 from pyinstl.cmdOptions import CommandLineOptions, read_command_line_options
 import utils
 
+
 class CommandListRunner(object):
     def __init__(self, initial_vars, options):
         self.initial_vars = initial_vars
         self.options = options
         self.child_pids = list()
 
-        self.instance = InstlMisc(initial_vars)
+        self.instance = InstlMisc(initial_vars, "command-list")
         self.instance.init_from_cmd_line_options(self.options)
 
     def run(self, parallel=False):

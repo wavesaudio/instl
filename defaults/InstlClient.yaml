@@ -1,11 +1,11 @@
 --- !define
 
 PARALLEL_SYNC: 32
-CURL_CONFIG_FILE_NAME: Download-Thread
-CURL_CONNECT_TIMEOUT: 16 # Maximum time in seconds that you allow curl's connection to take. This only limits the connection phase, so if curl connects within the given period it will continue - if not it will exit.
-CURL_MAX_TIME: 180       # Maximum time in seconds that you allow the whole operation to take. This is useful for preventing your batch jobs from hanging for hours due to slow networks or links going down.
-CURL_RETRIES: 3          # If a transient error is returned when curl tries to perform a transfer, it will retry this number of times before giving up. Setting the number to 0 makes curl do no retries (which is the default).
-CURL_RETRY_DELAY: 30     # Make curl sleep this amount of time before each retry when a transfer has failed with a transient error (it changes the default backoff time algorithm between retries).
+CURL_CONFIG_FILE_NAME: dl
+CURL_CONNECT_TIMEOUT: 32 # Maximum time in seconds that you allow curl's connection to take. This only limits the connection phase, so if curl connects within the given period it will continue - if not it will exit.
+CURL_MAX_TIME: 300       # Maximum time in seconds that you allow the whole operation to take. This is useful for preventing your batch jobs from hanging for hours due to slow networks or links going down.
+CURL_RETRIES: 6          # If a transient error is returned when curl tries to perform a transfer, it will retry this number of times before giving up. Setting the number to 0 makes curl do no retries (which is the default).
+CURL_RETRY_DELAY: 12     # Make curl sleep this amount of time before each retry when a transfer has failed with a transient error (it changes the default backoff time algorithm between retries).
 
 
 LOCAL_SYNC_DIR: $(USER_CACHE_DIR)/$(S3_BUCKET_NAME)
@@ -36,6 +36,7 @@ SITE_HAVE_INFO_MAP_PATH: $(SITE_REPO_BOOKKEEPING_DIR)/$(HAVE_INFO_MAP_FILE_NAME)
 SITE_REQUIRE_FILE_NAME: require.yaml
 SITE_REQUIRE_FILE_PATH: $(SITE_REPO_BOOKKEEPING_DIR)/$(SITE_REQUIRE_FILE_NAME)
 NEW_SITE_REQUIRE_FILE_PATH: $(SITE_REPO_BOOKKEEPING_DIR)/new_$(SITE_REQUIRE_FILE_NAME)
+OLD_SITE_REQUIRE_FILE_PATH: $(SITE_REPO_BOOKKEEPING_DIR)/old_$(SITE_REQUIRE_FILE_NAME)
 
 # By default source folder are specified in the index without the OS prefix (Mac/Win)
 SOURCE_PREFIX: $(TARGET_OS)
@@ -43,6 +44,7 @@ SOURCE_PREFIX: $(TARGET_OS)
 
 COPY_IGNORE_PATTERNS:
     - "*.done"
+    - "._*"
 
 RSYNC_PERM_OPTIONS: a+rw,+X
 

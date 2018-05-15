@@ -218,7 +218,7 @@ class PlatformSpecificHelperBase(object):
         self.use_copy_tool(copy_tool_name)
 
     @abc.abstractmethod
-    def get_install_instructions_prefix(self):
+    def get_install_instructions_prefix(self, exit_on_errors=True):
         """ platform specific """
         pass
 
@@ -232,7 +232,7 @@ class PlatformSpecificHelperBase(object):
         """ platform specific mkdir """
         pass
 
-    def mkdir_with_owner(self, directory):
+    def mkdir_with_owner(self, directory, progress_num=0):
         return self.mkdir(directory)
 
     @abc.abstractmethod
@@ -282,6 +282,7 @@ class PlatformSpecificHelperBase(object):
         self.num_items_for_progress_report += num_items + 1
         if not self.no_progress_messages:
             prog_msg = "Progress: {} of $(TOTAL_ITEMS_FOR_PROGRESS_REPORT); {}".format(self.num_items_for_progress_report, msg)
+            #prog_msg = "Progress: {} of $(TOTAL_ITEMS_FOR_PROGRESS_REPORT); $(CURRENT_PHASE); {}".format(self.num_items_for_progress_report, msg)
             return self.echo(prog_msg)
         else:
             return ()
@@ -333,7 +334,7 @@ class PlatformSpecificHelperBase(object):
         pass
 
     @abc.abstractmethod
-    def copy_file_to_file(self, src_file, trg_file):
+    def copy_file_to_file(self, src_file, trg_file, hard_link=False, check_exist=False):
         """ Copy src_file to trg_file.
             Example: create_copy_file_to_file("a.txt", "/d/c/bt.txt") copies
             the file a.txt into "/d/c/bt.txt".
@@ -483,6 +484,7 @@ class DownloadToolBase(object, metaclass=abc.ABCMeta):
     def __init__(self, platform_helper):
         self.platform_helper = platform_helper
         self.urls_to_download = list()
+        self.short_win_paths_cache = dict()
 
     @abc.abstractmethod
     def download_url_to_file(self, src_url, trg_file):
@@ -509,10 +511,10 @@ class DownloadToolBase(object, metaclass=abc.ABCMeta):
         file_name_list = list()
         num_urls_to_download = len(self.urls_to_download)
         if num_urls_to_download > 0:
-            connect_time_out = var_stack.ResolveVarToStr("CURL_CONNECT_TIMEOUT", "16")
-            max_time = var_stack.ResolveVarToStr("CURL_MAX_TIME", "180")
-            retries = var_stack.ResolveVarToStr("CURL_RETRIES", "2")
-            retry_delay = var_stack.ResolveVarToStr("CURL_RETRY_DELAY", "8")
+            connect_time_out = var_stack.ResolveVarToStr("CURL_CONNECT_TIMEOUT", "32")
+            max_time = var_stack.ResolveVarToStr("CURL_MAX_TIME", "300")
+            retries = var_stack.ResolveVarToStr("CURL_RETRIES", "6")
+            retry_delay = var_stack.ResolveVarToStr("CURL_RETRY_DELAY", "12")
 
             sync_urls_cookie = var_stack.ResolveVarToStr("COOKIE_FOR_SYNC_URLS", default=None)
 
@@ -557,8 +559,28 @@ write-out = "Progress: ... of ...; {basename}: {curl_write_out_str}
             wfd_cycler = itertools.cycle(wfd_list)
             url_num = 0
             sorted_by_size = sorted(self.urls_to_download, key=lambda dl_item: dl_item[2])
+            if 'Win' in utils.get_current_os_names():
+                import win32api
             for url, path, size in sorted_by_size:
-                fixed_path = str(pathlib.PurePath(path)).replace("\\", "\\\\")  # for windows
+                fixed_path = pathlib.PurePath(path)
+                if 'Win' in utils.get_current_os_names():
+                    # to overcome cUrl inability to handle path with unicode chars, we try to calculate the windows
+                    # short path (DOS style 8.3 chars). The function that does that, win32api.GetShortPathName,
+                    # does not work for paths that do not yet exist so we need to also create the folder.
+                    # However if the creation requires admin permissions - it could fail -
+                    # in which case we revert to using the long path.
+                    fixed_path_parent = str(fixed_path.parent)
+                    fixed_path_name = str(fixed_path.name)
+                    if fixed_path_parent not in self.short_win_paths_cache:
+                        try:
+                            os.makedirs(fixed_path_parent, exist_ok=True)
+                            short_parent_path = win32api.GetShortPathName(fixed_path_parent)
+                            self.short_win_paths_cache[fixed_path_parent] = short_parent_path
+                        except Exception as e:  # failed to mkdir or get the short path? never mind, just use the full path
+                            self.short_win_paths_cache[fixed_path_parent] = fixed_path_parent
+                            print("warning creating short path for", fixed_path, e)
+                    short_file_path = os.path.join(self.short_win_paths_cache[fixed_path_parent], fixed_path_name)
+                    fixed_path = short_file_path.replace("\\", "\\\\")
                 wfd = next(wfd_cycler)
                 wfd.write('''url = "{url}"\noutput = "{fixed_path}"\n\n'''.format(**locals()))
                 url_num += 1
