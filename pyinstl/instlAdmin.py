@@ -372,11 +372,12 @@ class InstlAdmin(InstlInstanceBase):
         self.info_map_table.mark_required_for_revision(repo_rev)
 
         # remove all unrequired files
-        unrequired_files = self.info_map_table.get_unrequired_file_paths()
-        for i, unrequired_file in enumerate(unrequired_files):
-            accum += self.platform_helper.rmfile(unrequired_file)
-            if i % 1000 == 0:  # only report every 1000'th file
-                accum += self.platform_helper.progress("rmfile " + unrequired_file +" & 999 more")
+        self.info_map_table.ignore_unrequired_where_parent_unrequired(repo_rev)
+        unrequired_items = self.info_map_table.get_unrequired_not_ignored_paths()
+        for i, unrequired_item in enumerate(unrequired_items):
+            accum += self.platform_helper.rm_file_or_dir(unrequired_item)
+            #if i % 1000 == 0:  # only report every 1000'th file
+            #    accum += self.platform_helper.progress("rmfile " + unrequired_item +" & 999 more")
 
         # now remove all empty folders, the files that are left should be uploaded
         remove_empty_folders_command_parts = [self.platform_helper.run_instl(), "remove-empty-folders", "--in", "."]

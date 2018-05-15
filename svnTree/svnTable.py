@@ -1420,9 +1420,9 @@ class SVNTable(object):
         """ for use by InstlAdmin.do_up2s3
             up2s3 copies the all files in the repository to the repo-rev folder
             and then needs to delete all files that do not belong to the repo-rev (unrequired).
-            In order to make the deletion as short as possible is better to delete
+            In order to make the deletion as short as possible its better to delete
             top level folders whose whole contents is unrequired. This function will
-            mark folders a ignore if their paraent folder can be deleted.
+            mark folders as ignored if their parent folder can be deleted.
         """
         retVal = 0
         query_text = """
@@ -1438,7 +1438,7 @@ class SVNTable(object):
 
     def get_unrequired_not_ignored_paths(self):
         """ get paths for all unrequired files files and folders that are not
-            marked as ingored
+            marked as ignored
         """
         query_text = """
             SELECT path
