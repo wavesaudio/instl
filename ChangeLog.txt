@@ -2,6 +2,9 @@
     admin visible changes:
     * fixed the creation zipping and checksumming of info_map.txt and index.yaml
 
+    user visible changes:
+    * self progress default changed to 1000 to avoid weird progress behaviour in large installations
+
 15/5/2018 1.8.0.0
 
     Epoch of the template begins.

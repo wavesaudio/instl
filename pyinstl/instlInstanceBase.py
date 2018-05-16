@@ -83,7 +83,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         if self.total_self_progress:
             self.internal_progress += 1
             if self.internal_progress >= self.total_self_progress:
-                self.total_self_progress += 100
+                self.total_self_progress += 1000
             print("""Progress: {} of {}; {}""".format(self.internal_progress,
                                                       self.total_self_progress,
                                                       " ".join(str(mes) for mes in messages)),

@@ -27,7 +27,7 @@ class InstlAdmin(InstlInstanceBase):
         super().__init__(initial_vars)
         self.need_items_table = True
         self.need_info_map_table = True
-        self.total_self_progress = 100
+        self.total_self_progress = 1000
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         self.fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
 
