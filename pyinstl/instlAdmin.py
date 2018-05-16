@@ -415,6 +415,8 @@ class InstlAdmin(InstlInstanceBase):
         repo_rev_vars = var_stack.ResolveVarToList("REPO_REV_FILE_VARS")
         var_stack.set_var("REPO_REV").append("$(TARGET_REPO_REV)")  # override the repo rev from the config file
 
+        use_zlib = var_stack.ResolveVarToBool("USE_ZLIB", default=False)
+
         # check that the variable names from REPO_REV_FILE_VARS do not contain
         # names that must not be made public
         var_stack.set_var("__CURR_REPO_FOLDER_HIERARCHY__").append(self.repo_rev_to_folder_hierarchy(var_stack.ResolveVarToStr("TARGET_REPO_REV")))
@@ -429,10 +431,17 @@ class InstlAdmin(InstlInstanceBase):
             raise ValueError("file REPO_REV_FILE_VARS "+str(dangerous_intersection)+" and so is forbidden to upload")
 
         # create checksum for the main info_map file
-        var_stack.set_var("RELATIVE_INFO_MAP_URL").append("$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt$(WZLIB_EXTENSION)")
+        info_map_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt")
+        zip_info_map_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt$(WZLIB_EXTENSION)")
+        if use_zlib:
+            var_stack.set_var("RELATIVE_INFO_MAP_URL").append(
+                "$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt$(WZLIB_EXTENSION)")
+            info_map_checksum = utils.get_file_checksum(zip_info_map_file)
+        else:
+            var_stack.set_var("RELATIVE_INFO_MAP_URL").append(
+                "$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt")
+            info_map_checksum = utils.get_file_checksum(info_map_file)
         var_stack.set_var("INFO_MAP_FILE_URL").append("$(BASE_LINKS_URL)/$(RELATIVE_INFO_MAP_URL)")
-        info_map_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt$(WZLIB_EXTENSION)")
-        info_map_checksum = utils.get_file_checksum(info_map_file)
         var_stack.set_var("INFO_MAP_CHECKSUM").append(info_map_checksum)
 
         # create checksum for the main index.yaml file
@@ -443,9 +452,15 @@ class InstlAdmin(InstlInstanceBase):
         with open(zip_local_index_file, "wb") as wfd:
             wfd.write(zlib.compress(open(local_index_file, "r").read().encode(), zlib_compression_level))
 
-        var_stack.set_var("RELATIVE_INDEX_URL").append("$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml$(WZLIB_EXTENSION)")
+        if use_zlib:
+            var_stack.set_var("RELATIVE_INDEX_URL").append(
+                "$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml$(WZLIB_EXTENSION)")
+            index_file_checksum = utils.get_file_checksum(zip_local_index_file)
+        else:
+            var_stack.set_var("RELATIVE_INDEX_URL").append(
+                "$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml")
+            index_file_checksum = utils.get_file_checksum(local_index_file)
         var_stack.set_var("INDEX_URL").append("$(BASE_LINKS_URL)/$(RELATIVE_INDEX_URL)")
-        index_file_checksum = utils.get_file_checksum(zip_local_index_file)
         var_stack.set_var("INDEX_CHECKSUM").append(index_file_checksum)
 
         # check that all variables are present
