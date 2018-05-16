@@ -1,3 +1,7 @@
+16/5/2018 1.8.0.1
+    admin visible changes:
+    * fixed the creation zipping and checksumming of info_map.txt and index.yaml
+
 15/5/2018 1.8.0.0
 
     Epoch of the template begins.
