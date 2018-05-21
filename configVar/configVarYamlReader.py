@@ -37,7 +37,7 @@ class ConfigVarYamlReader(aYaml.YamlReader):
         # if document is empty we get a scalar node
         if a_node.isMapping():
             for identifier, contents in a_node.items():
-                if identifier.startswith("__if"):
+                if identifier.startswith("__if"):  # __if__, __ifdef__, __ifndef__
                     self.read_conditional_node(identifier, contents, *args, **kwargs)
                 elif identifier == '__include__':
                     self.read_include_node(contents, *args, **kwargs)
@@ -80,7 +80,7 @@ class ConfigVarYamlReader(aYaml.YamlReader):
     def read_include_node(self, i_node, *args, **kwargs):
         pass  # override to handle __include__, __include_if_exist__ nodes
 
-    # regex to find conditinals e.g. __ifndef__(S3_BUCKET_NAME)
+    # regex to find conditionals e.g. __ifndef__(S3_BUCKET_NAME)
     conditional_re = re.compile("""__if(?P<if_type>.*)__\s*\((?P<condition>.+)\)""")
 
     def read_conditional_node(self, identifier, contents, *args, **kwargs):
