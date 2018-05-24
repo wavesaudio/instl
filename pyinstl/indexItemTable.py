@@ -697,7 +697,7 @@ class IndexItemsTable(object):
             AND remote_version != '_'
             """
         results = self.db.select_and_fetchall(query_text, query_params={})
-        retVal = [mm[:5] for mm in results]
+        retVal = [mm[:6] for mm in results]
         return retVal
 
         return retVal
