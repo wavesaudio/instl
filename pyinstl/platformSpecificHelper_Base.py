@@ -5,6 +5,8 @@ import os
 import abc
 import itertools
 import pathlib
+import sys
+import functools
 
 import utils
 from configVar import var_stack
@@ -556,9 +558,23 @@ write-out = "Progress: ... of ...; {basename}: {curl_write_out_str}
 """.format(**locals())
                 wfd.write(file_header_text)
 
+            def url_sorter(l, r):
+                """ smaller files should be downloaded first so the progress bar gets moving early.
+                    However if Info.xml for direct sync is downloaded first and than some other file fails,
+                    next time instl will not attempt to direct sync the folder again. So Info.xml
+                    files are sorted last, although this does not guaranty to help with this situation
+                    because the download is done in parallel. All we can do is make sure the Info.xml
+                    is last in it's own curl config file"""
+                if l[0].endswith('Info.xml'):
+                    return sys.maxsize
+                elif r[0].endswith('Info.xml'):
+                    return -sys.maxsize
+                else:
+                    return l[2] - r[2]  # non Info.xml files are sorted by size
+
             wfd_cycler = itertools.cycle(wfd_list)
             url_num = 0
-            sorted_by_size = sorted(self.urls_to_download, key=lambda dl_item: dl_item[2])
+            sorted_by_size = sorted(self.urls_to_download, key=functools.cmp_to_key(url_sorter))
             if 'Win' in utils.get_current_os_names():
                 import win32api
             for url, path, size in sorted_by_size:

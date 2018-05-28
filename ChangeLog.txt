@@ -1,3 +1,9 @@
+28/5/2018 1.8.0.3
+
+    user visible changes:
+    * Info.xml are move to the end of each curl config file so in direct sync they will be download
+        after the rest of the files. See remark in create_config_files.url_sorter
+
 24/5/2018 1.8.0.2
 
     user visible changes:
