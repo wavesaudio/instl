@@ -86,9 +86,9 @@ class InstlAdmin(InstlInstanceBase):
         max_rev = 1
         match = revision_range_re.match(var_stack.ResolveVarToStr("REPO_REV"))
         if match:
-            min_rev += int(match.group('min_rev'))
-            if match.group('max_rev'):
-                max_rev += int(match.group('max_rev'))
+            min_rev += int(match['min_rev'])
+            if match['max_rev']:
+                max_rev += int(match['max_rev'])
             else:
                 max_rev += min_rev
         return min_rev, max_rev
@@ -143,7 +143,7 @@ class InstlAdmin(InstlInstanceBase):
             for line in info_as_io:
                 match = revision_line_re.match(line)
                 if match:
-                    retVal = int(match.group("revision"))
+                    retVal = int(match["revision"])
                     break
         if retVal <= 0:
             raise ValueError("Could not find last repo rev for " + repo_url)
@@ -1236,7 +1236,7 @@ class InstlAdmin(InstlInstanceBase):
 
                 info_map_checksum = utils.get_file_checksum(info_map_file_path)
                 info_map_size = os.path.getsize(info_map_file_path)
-                line_for_main_info_map = "instl/{infomap_file_name}, f, $(REPO_REV), {info_map_checksum}, {info_map_size}".format(**locals())
+                line_for_main_info_map = f"instl/{infomap_file_name}, f, $(REPO_REV), {info_map_checksum}, {info_map_size}"
                 lines_for_main_info_map.append(var_stack.ResolveStrToStr(line_for_main_info_map))
 
                 zip_infomap_file_name = var_stack.ResolveStrToStr(infomap_file_name+"$(WZLIB_EXTENSION)")
@@ -1246,7 +1246,7 @@ class InstlAdmin(InstlInstanceBase):
 
                 zip_info_map_checksum = utils.get_file_checksum(zip_info_map_file_path)
                 zip_info_map_size = os.path.getsize(zip_info_map_file_path)
-                line_for_main_info_map = "instl/{zip_infomap_file_name}, f, $(REPO_REV), {zip_info_map_checksum}, {zip_info_map_size}".format(**locals())
+                line_for_main_info_map = f"instl/{zip_infomap_file_name}, f, $(REPO_REV), {zip_info_map_checksum}, {zip_info_map_size}"
                 lines_for_main_info_map.append(var_stack.ResolveStrToStr(line_for_main_info_map))
 
         # write default info map to file

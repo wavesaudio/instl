@@ -14,7 +14,7 @@ class BatchAccumulator(object):
 
     def __init__(self):
         self.instruction_lines = defaultdict(list)
-        self.current_section = None
+        self.current_section: str = None
         self.transaction_stack = list()
 
     def instruction_counters(self):

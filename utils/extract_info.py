@@ -39,7 +39,7 @@ def plugin_bundle(in_os, in_path):
             info_xml = rfd.read()
             match = plugin_version_and_guid_re.match(info_xml)
             if match:
-                retVal = (in_path, match.group('version'), match.group('guid'))
+                retVal = (in_path, match['version'], match['guid'])
     else:
         if in_os == 'Mac':
             retVal = Mac_bundle(in_os, in_path)

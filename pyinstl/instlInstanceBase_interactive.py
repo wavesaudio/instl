@@ -420,7 +420,7 @@ class CMDObj(cmd.Cmd, object):
 #        complete_listinfo_line_re = re.compile("""listinfo\s+(?P<the_text>.*)""")
 #        match = complete_listinfo_line_re.match(line)
 #        if match:
-#            text = match.group("the_text")
+#            text = match["the_text"]
 #        retVal = list()
 #        if text.endswith("/"):
 #            items = self.admin_prog_inst.info_map_table.get_items_in_dir(text.rstrip("/"), levels_deep=1)

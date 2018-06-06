@@ -53,7 +53,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         retVal = ""
         if not isinstance(ignore, str):
             ignore = " ".join(map(utils.quoteme_double, ignore))
-        retVal = """/XF {ignore} /XD {ignore}""".format(**locals())
+        retVal = f"""/XF {ignore} /XD {ignore}"""
         return retVal
 
     def create_log_spec(self):
@@ -61,7 +61,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         """
         retVal = ""
         # log_file = var_stack.ResolveVarToStr("LOG_FILE")
-        # retVal = " /LOG:{log_file}".format(**locals())
+        # retVal = f" /LOG:{log_file}"
         return retVal
 
     def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None, preserve_dest_files=False):
@@ -76,7 +76,7 @@ class CopyTool_win_robocopy(CopyToolBase):
             delete_spec = "/PURGE"
         else:
             delete_spec = ""
-        copy_command = """"$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" {ignore_spec} /E /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS {delete_spec} {log_file_spec}""".format(**locals())
+        copy_command = f""""$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" {ignore_spec} /E /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS {delete_spec} {log_file_spec}"""
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
         return retVal
@@ -86,7 +86,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         norm_src_dir, norm_src_file = os.path.split(os.path.normpath(src_file))
         norm_trg_dir = os.path.normpath(trg_dir)
         log_file_spec = self.create_log_spec()
-        copy_command = """"$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" "{norm_src_file}" /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS {log_file_spec}""".format(**locals())
+        copy_command = f""""$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" "{norm_src_file}" /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS {log_file_spec}"""
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
         return retVal
@@ -102,7 +102,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         log_file_spec = self.create_log_spec()
         norm_src_dir = os.path.normpath(src_dir)
         norm_trg_dir = os.path.normpath(trg_dir)
-        copy_command = """"$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" /E {delete_spec} {ignore_spec} /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS {log_file_spec}""".format(**locals())
+        copy_command = f""""$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" /E {delete_spec} {ignore_spec} /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS {log_file_spec}"""
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
         return retVal
@@ -113,7 +113,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         log_file_spec = self.create_log_spec()
         norm_src_dir = os.path.normpath(src_dir)
         norm_trg_dir = os.path.normpath(trg_dir)
-        copy_command = """"$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" /LEV:1 {ignore_spec} /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS {log_file_spec}""".format(**locals())
+        copy_command = f""""$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" /LEV:1 {ignore_spec} /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS {log_file_spec}"""
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
         return retVal
@@ -122,7 +122,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         retVal = list()
         norm_src_file = os.path.normpath(src_file)
         norm_trg_file = os.path.normpath(trg_file)
-        copy_command = """copy "{norm_src_file}" "{norm_trg_file}" """.format(**locals())
+        copy_command = f"""copy "{norm_src_file}" "{norm_trg_file}" """
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error())
         return retVal
@@ -180,7 +180,7 @@ class CopyTool_win_xcopy(CopyToolBase):
         # src_dir, src_file = os.path.split(src_file)
         norm_src_file = os.path.normpath(src_file)
         norm_trg_dir = os.path.normpath(trg_dir)
-        copy_command = """"$(XCOPY_PATH)"  /R /Y "{norm_src_file}" "{norm_trg_dir}" """.format(**locals())
+        copy_command = f""""$(XCOPY_PATH)"  /R /Y "{norm_src_file}" "{norm_trg_dir}" """
         copy_command.replace("\\", "/")
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error())
@@ -192,7 +192,7 @@ class CopyTool_win_xcopy(CopyToolBase):
         norm_trg_dir = os.path.normpath(trg_dir)
         ignore_spec = self.create_ignore_spec(ignore)
         # preserve_dest_files is ignored - xcopy has no support for removing target file that are not in source
-        copy_command = """"$(XCOPY_PATH)" /E /R /Y /I {ignore_spec} "{norm_src_dir}" "{norm_trg_dir}" """.format(**locals())
+        copy_command = f""""$(XCOPY_PATH)" /E /R /Y /I {ignore_spec} "{norm_src_dir}" "{norm_trg_dir}" """
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error())
         return retVal
@@ -202,7 +202,7 @@ class CopyTool_win_xcopy(CopyToolBase):
         norm_src_dir = os.path.normpath(src_dir)
         norm_trg_dir = os.path.normpath(trg_dir)
         ignore_spec = self.create_ignore_spec(ignore)
-        copy_command = """"$(XCOPY_PATH)"  /R /Y {ignore_spec} "{norm_src_dir}" "{trg_dir}" """.format(**locals())
+        copy_command = f""""$(XCOPY_PATH)"  /R /Y {ignore_spec} "{norm_src_dir}" "{trg_dir}" """
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error())
         return retVal
@@ -212,7 +212,7 @@ class CopyTool_win_xcopy(CopyToolBase):
         norm_src_file = os.path.normpath(src_file)
         norm_trg_file = os.path.normpath(trg_file)
         ignore_spec = self.create_ignore_spec(ignore)
-        copy_command = """"$(XCOPY_PATH)"  /R /Y {ignore_spec} "{norm_src_file}" "{norm_trg_file}" """.format(**locals())
+        copy_command = f""""$(XCOPY_PATH)"  /R /Y {ignore_spec} "{norm_src_file}" "{norm_trg_file}" """
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error())
         return retVal
@@ -224,11 +224,11 @@ class CopyTool_win_xcopy(CopyToolBase):
                 wfd.write("\n".join(self.excludes_set))
 
     def remove_file(self, file_to_remove):
-        remove_command = """removing "{file_to_remove}" """.format(**locals())
+        remove_command = f"""removing "{file_to_remove}" """
         return remove_command
 
     def remove_dir(self, dir_to_remove):
-        remove_command = """removing "{dir_to_remove}" """.format(**locals())
+        remove_command = f"""removing "{dir_to_remove}" """
         return remove_command
 
 
@@ -478,11 +478,11 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def check_checksum_for_file(self, file_path, checksum):
         norm_file = os.path.normpath(file_path)
         check_commands = (
-            """for /f "delims=\" %%i in ('$(CHECKSUM_TOOL_PATH) -s \"{norm_file}\"') do (@set sha1deep_ret=%%i)""".format(**locals()),
+            f"""for /f "delims=\" %%i in ('$(CHECKSUM_TOOL_PATH) -s \"{norm_file}\"') do (@set sha1deep_ret=%%i)""",
             """@set CHECKSUM_CHECK=\"%sha1deep_ret:~0,40%\"""",
-            """if not %CHECKSUM_CHECK% == \"{checksum}\" (""".format(**locals()),
-            self.echo("""echo bad checksum \"{norm_file}\"""".format(**locals())),
-            self.echo("""@echo Expected: {checksum}, Got: %CHECKSUM_CHECK%""".format(**locals())),
+            f"""if not %CHECKSUM_CHECK% == \"{checksum}\" (""",
+            self.echo(f"""echo bad checksum \"{norm_file}\""""),
+            self.echo(f"""@echo Expected: {checksum}, Got: %CHECKSUM_CHECK%"""),
             """GOTO EXIT_ON_ERROR""",
             ")"
         )

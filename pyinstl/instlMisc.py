@@ -59,9 +59,9 @@ class InstlMisc(InstlInstanceBase):
             self.progress_staccato_count = (self.progress_staccato_count + 1) % self.progress_staccato_period
             self.curr_progress += 1
             if not self.progress_staccato_command or self.progress_staccato_count == 0:
-                print("Progress: {self.curr_progress} of {self.total_progress}; {msg}".format(**locals()))
+                print(f"Progress: {self.curr_progress} of {self.total_progress}; {msg}")
         elif self.no_numbers_progress:
-            print("Progress: ... of ...; {msg}".format(**locals()))
+            print(f"Progress: ... of ...; {msg}")
 
     def do_version(self):
         var_stack.set_var("PRINT_COMMAND_TIME").append("no") # do not print time report
@@ -249,7 +249,7 @@ class InstlMisc(InstlInstanceBase):
                     bad_checksum_list.append(" ".join(("Bad checksum:", file_item.download_path, "expected", file_item.checksum, "found", file_checksum)) )
             else:
                 missing_files_list.append(" ".join((file_item.download_path, "was not found")))
-            self.dynamic_progress("Check checksum {file_item.path}".format(**locals()))
+            self.dynamic_progress(f"Check checksum {file_item.path}")
         if bad_checksum_list or missing_files_list:
             bad_checksum_list_exception_message = ""
             missing_files_exception_message = ""
@@ -270,14 +270,14 @@ class InstlMisc(InstlInstanceBase):
             if os.path.isfile(file_item_path):
                 file_stat = os.stat(file_item_path)
                 os.chmod(file_item_path, file_stat.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-            self.dynamic_progress("Set exec {file_item_path}".format(**locals()))
+            self.dynamic_progress(f"Set exec {file_item_path}")
 
     def do_create_folders(self):
         self.progress_staccato_command = True
         self.read_info_map_from_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
         for dir_item in self.info_map_table.get_items(what="dir"):
             os.makedirs(dir_item.path, exist_ok=True)
-            self.dynamic_progress("Create folder {dir_item.path}".format(**locals()))
+            self.dynamic_progress(f"Create folder {dir_item.path}")
 
     def do_test_import(self):
         import importlib

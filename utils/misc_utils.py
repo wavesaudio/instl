@@ -417,7 +417,7 @@ def unquoteme(to_unquote):
     retVal = to_unquote
     has_quotations = detect_quotations.match(to_unquote)
     if has_quotations:
-        retVal = has_quotations.group('the_unquoted_text')
+        retVal = has_quotations['the_unquoted_text']
     return retVal
 
 guid_re = re.compile("""
@@ -463,7 +463,7 @@ def P4GetPathFromDepotPath(depot_path):
         where_line_reg_str = "".join((re.escape(depot_path), "\s+", "//.+", "\s+", "(?P<disk_path>/.+)"))
         match = re.match(where_line_reg_str, lines[0])
         if match:
-            retVal = match.group('disk_path')
+            retVal = match['disk_path']
             if retVal.endswith("/..."):
                 retVal = retVal[0:-4]
     return retVal
@@ -706,9 +706,9 @@ wtar_file_re = re.compile("""
                           re.VERBOSE)
 
 
-def is_wtar_file(in_possible_wtar):
+def is_wtar_file(in_possible_wtar) -> bool:
     match = wtar_file_re.match(in_possible_wtar)
-    retVal = match is not None
+    retVal: bool = match is not None
     return retVal
 
 
@@ -716,7 +716,7 @@ def is_first_wtar_file(in_possible_wtar):
     retVal = False
     match = wtar_file_re.match(in_possible_wtar)
     if match:
-        split_numerator = match.group('split_numerator')
+        split_numerator = match['split_numerator']
         retVal = split_numerator is None or split_numerator == ".aa"
         if retVal:  # hack to ignore phantom files that begin with ._
             _, file_name = os.path.split(in_possible_wtar)
@@ -732,7 +732,7 @@ def original_name_from_wtar_name(wtar_name):
     retVal = wtar_name
     match = wtar_file_re.match(wtar_name)
     if match:
-        retVal = match.group('base_name')
+        retVal = match['base_name']
     return retVal
 
 

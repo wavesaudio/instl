@@ -57,13 +57,13 @@ class InstlClientRemove(InstlClient):
                 for IID in items_in_folder:
                     with BatchAccumulatorTransaction(self.batch_accum) as iid_accum_transaction:
                         name_for_iid = self.name_for_iid(iid=IID)
-                        self.batch_accum += self.platform_helper.progress("Remove {name_for_iid}".format(**locals()))
+                        self.batch_accum += self.platform_helper.progress(f"Remove {name_for_iid}")
                         sources_for_iid = self.items_table.get_sources_for_iid(IID)
                         resolved_sources_for_iid = [(var_stack.ResolveStrToStr(s[0]), s[1]) for s in sources_for_iid]
                         for source in resolved_sources_for_iid:
                             with BatchAccumulatorTransaction(self.batch_accum) as source_accum_transaction:
                                 _, source_leaf = os.path.split(source[0])
-                                self.batch_accum += self.platform_helper.progress("Remove {source_leaf}".format(**locals()))
+                                self.batch_accum += self.platform_helper.progress(f"Remove {source_leaf}")
                                 self.batch_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="pre_remove_item")
                                 source_accum_transaction += self.create_remove_instructions_for_source(IID, folder_name, source)
                                 iid_accum_transaction += source_accum_transaction.essential_action_counter

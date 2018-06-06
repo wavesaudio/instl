@@ -4,6 +4,7 @@ import os
 import sys
 import time
 from collections import defaultdict, namedtuple, OrderedDict
+from typing import List
 
 import utils
 import aYaml
@@ -15,9 +16,9 @@ from svnTree import SVNTable
 class InstlClient(InstlInstanceBase):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
-        self.total_self_progress = 1000
-        self.need_items_table = True
-        self.need_info_map_table = True
+        self.total_self_progress: int = 1000
+        self.need_items_table: bool = True
+        self.need_info_map_table: bool = True
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         self.action_type_to_progress_message = None
         self.__all_iids_by_target_folder = defaultdict(utils.unique_list)
@@ -58,17 +59,17 @@ class InstlClient(InstlInstanceBase):
 
     def do_command(self):
         # print("client_commands", fixed_command_name)
-        active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
+        active_oses: List[str] = var_stack.ResolveVarToList("TARGET_OS_NAMES")
         self.items_table.activate_specific_oses(*active_oses)
 
-        main_input_file_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        main_input_file_path: str = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
         self.read_yaml_file(main_input_file_path)
         verOK, errorMessage = check_version_compatibility()
         if not verOK:
             raise Exception(errorMessage)
 
         self.init_default_client_vars()
-        active_oses = var_stack.ResolveVarToList("TARGET_OS_NAMES")
+        active_oses: List[str] = var_stack.ResolveVarToList("TARGET_OS_NAMES")
         self.items_table.activate_specific_oses(*active_oses)
 
         self.items_table.resolve_inheritance()
@@ -137,7 +138,7 @@ class InstlClient(InstlInstanceBase):
         if var_stack.ResolveVarToStr("TARGET_OS") != var_stack.ResolveVarToStr("__CURRENT_OS__"):
             target_os_names = var_stack.ResolveVarToList(var_stack.ResolveStrToStr("$(TARGET_OS)_ALL_OS_NAMES"))
             var_stack.set_var("TARGET_OS_NAMES").extend(target_os_names)
-            second_name = var_stack.ResolveVarToStr("TARGET_OS")
+            second_name: str = var_stack.ResolveVarToStr("TARGET_OS")
             if len(target_os_names) > 1:
                 second_name = target_os_names[1]
             var_stack.set_var("TARGET_OS_SECOND_NAME").append(second_name)
@@ -262,7 +263,7 @@ class InstlClient(InstlInstanceBase):
     def calc_iid_to_name_and_version(self):
         self.items_table.set_name_and_version_for_active_iids()
 
-    def resolve_special_build_in_iids(self, iids):
+    def resolve_special_build_in_iids(self, iids: List[str]):
         iids_set = set(iids)
         update_iids_set = set()
         special_build_in_iids = set(var_stack.ResolveVarToList("SPECIAL_BUILD_IN_IIDS"))
@@ -291,7 +292,7 @@ class InstlClient(InstlInstanceBase):
         if os.path.isfile(require_file_path):
             self.read_yaml_file(require_file_path)
 
-    def accumulate_unique_actions_for_active_iids(self, action_type, limit_to_iids=None):
+    def accumulate_unique_actions_for_active_iids(self, action_type: str, limit_to_iids=None):
         """ accumulate action_type actions from iid_list, eliminating duplicates"""
         retVal = 0  # return number of real actions added (i.e. excluding progress message)
         iid_and_action = self.items_table.get_iids_and_details_for_active_iids(action_type, unique_values=True, limit_to_iids=limit_to_iids)
@@ -323,7 +324,7 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum += self.platform_helper.progress("remove previous require.yaml from $(SITE_REQUIRE_FILE_PATH)")
             self.batch_accum += self.platform_helper.rmfile("$(SITE_REQUIRE_FILE_PATH)")
 
-    def create_folder_manifest_command(self, which_folder_to_manifest, output_folder, output_file_name, back_ground=False):
+    def create_folder_manifest_command(self, which_folder_to_manifest, output_folder, output_file_name, back_ground: bool=False):
         """ create batch commands to write a manifest of specific folder to a file """
         self.batch_accum += self.platform_helper.mkdir(output_folder)
         ls_output_file = os.path.join(output_folder, output_file_name)
@@ -337,7 +338,7 @@ class InstlClient(InstlInstanceBase):
                 create_folder_ls_command_parts.extend(("||", "true"))
         self.batch_accum += " ".join(create_folder_ls_command_parts)
 
-    def create_sync_folder_manifest_command(self, manifest_file_name_prefix, back_ground=False):
+    def create_sync_folder_manifest_command(self, manifest_file_name_prefix: str, back_ground: bool=False):
         """ create batch commands to write a manifest of the sync folder to a file """
         which_folder_to_manifest = "$(COPY_SOURCES_ROOT_DIR)"
         output_file_name = manifest_file_name_prefix+"-sync-folder-manifest.txt"

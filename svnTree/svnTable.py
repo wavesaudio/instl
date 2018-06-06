@@ -85,14 +85,14 @@ class SVNRow(object):
 
     def __repr__(self):
         isDir = not self.fileFlag
-        return ("<{self.level}, {self.path}, '{self.flags}'"
+        return (f"<{self.level}, {self.path}, '{self.flags}'"
                 ", rev-remote:{self.revision}, f:{self.fileFlag}, d:{isDir}"
                 ", checksum:{self.checksum}, size:{self.size}"
                 ", url:{self.url}"
                 ", required:{self.required}, need_download:{self.need_download}, ignore:{self.ignore}"
                 ", extra_props:{self.extra_props}, parent:{self.parent}>"
                 ", download_path:{self.download_path}"
-                ).format(**locals())
+                )
 
     def __str__(self):
         """ __str__ representation - this is what will be written to info_map.txt files"""
@@ -150,7 +150,7 @@ class SVNRow(object):
     def isSymlink(self):
         return 's' in self.flags
 
-    def is_wtar_file(self):
+    def is_wtar_file(self) -> bool:
         retVal = self.wtarFlag > 0
         return retVal
 
@@ -373,10 +373,10 @@ class SVNTable(object):
                 if line != "\n":
                     the_match = svn_info_line_re.match(line)
                     if the_match:
-                        if the_match.group('key') == "Tree conflict":
+                        if the_match['key'] == "Tree conflict":
                             raise ValueError(
                                 " ".join(("Tree conflict at line", str(line_num), "Path:", record['Path'])))
-                        record[the_match.group('key')] = the_match.group('rest_of_line')
+                        record[the_match['key']] = the_match['rest_of_line']
                 else:
                     if record and record["Path"] != ".":  # in case there were several empty lines between blocks
                         yield create_list_from_record(record)
@@ -412,13 +412,13 @@ class SVNTable(object):
                     if row_data[6] is not None:
                         match = dl_path_re.match(row_data[6])
                         if match:
-                            row_data[6] = match.group('ld_path')
+                            row_data[6] = match['ld_path']
                     row_data.extend(self.level_parent_and_leaf_from_path(row_data[0]))  # level, parent, leaf
                     row_data.append(1 if 'f' in row_data[1] else 0)  # fileFlag
                     wtar_match = utils.wtar_file_re.match(row_data[0])
                     if wtar_match:
                         row_data.append(1)  # wtarFlag
-                        row_data.append(wtar_match.group('base_name'))  # unwtarred
+                        row_data.append(wtar_match['base_name'])  # unwtarred
                     else:
                         row_data.extend((0, row_data[0]))  # wtarFlag, unwtarred
                     row_data.extend((0, 0))  # required, need_download
@@ -442,9 +442,9 @@ class SVNTable(object):
             curs.executemany(insert_q, rows)
 
     @staticmethod
-    def get_wtar_file_status(file_name):
-        is_wtar_file = utils.is_wtar_file(file_name)
-        is_wtar_first_file = utils.is_first_wtar_file(file_name)
+    def get_wtar_file_status(file_name) -> (bool, bool):
+        is_wtar_file: bool = utils.is_wtar_file(file_name)
+        is_wtar_first_file: bool = utils.is_first_wtar_file(file_name)
         return is_wtar_file, is_wtar_first_file
 
     @staticmethod
@@ -509,7 +509,7 @@ class SVNTable(object):
                     wtar_match = utils.wtar_file_re.match(relative_path)
                     if wtar_match:
                         row_data.append(1)  # wtarFlag
-                        row_data.append(wtar_match.group('base_name'))  # unwtarred
+                        row_data.append(wtar_match['base_name'])  # unwtarred
                     else:
                         row_data.extend((0, relative_path))  # wtarFlag, unwtarred
                     yield row_data
@@ -620,11 +620,11 @@ class SVNTable(object):
                     line_num += 1
                     match = props_line_re.match(line)
                     if match:
-                        if match.group('path'):
-                            path = match.group('path')
-                        elif match.group('prop_name'):
+                        if match['path']:
+                            path = match['path']
+                        elif match['prop_name']:
                             if path is not None:
-                                prop_name = match.group('prop_name')
+                                prop_name = match['prop_name']
                                 if prop_name in prop_name_to_flag:
                                     prop_name_to_flag_query_params.append({"new_prop": prop_name_to_flag[prop_name], "old_path": path})
                                 elif prop_name not in props_to_ignore:

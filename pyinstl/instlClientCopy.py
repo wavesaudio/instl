@@ -6,6 +6,7 @@ import os
 import pathlib
 import utils
 import functools
+from typing import List
 
 from configVar import var_stack
 from .instlClient import InstlClient
@@ -17,9 +18,9 @@ class InstlClientCopy(InstlClient):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
-        self.unwtar_batch_file_counter = 0
-        self.current_destination_folder = None
-        self.current_iid = None
+        self.unwtar_batch_file_counter: int = 0
+        self.current_destination_folder: str = None
+        self.current_iid: str = None
 
     def do_copy(self):
         self.init_copy_vars()
@@ -56,7 +57,7 @@ class InstlClientCopy(InstlClient):
         except Exception:
             pass  # if it did not work - forget it
 
-    def write_copy_to_folder_debug_info(self, folder_path):
+    def write_copy_to_folder_debug_info(self, folder_path: str):
         try:
             if var_stack.defined('ECHO_LOG_FILE'):
                 log_file_path = var_stack.ResolveVarToStr("ECHO_LOG_FILE")
@@ -72,7 +73,7 @@ class InstlClientCopy(InstlClient):
         except Exception:
             pass  # if it did not work - forget it
 
-    def create_create_folders_instructions(self, folder_list):
+    def create_create_folders_instructions(self, folder_list: List[str]):
         if len(folder_list) > 0:
             self.batch_accum += self.platform_helper.progress("Create folders ...")
             for target_folder_path in folder_list:
@@ -148,7 +149,7 @@ class InstlClientCopy(InstlClient):
         self.progress("create copy instructions done")
         self.progress("")
 
-    def calc_size_of_file_item(self, a_file_item):
+    def calc_size_of_file_item(self, a_file_item: svnTree.SVNRow):
         """ for use with builtin function reduce to calculate the unwtarred size of a file """
         if a_file_item.is_wtar_file():
             item_size = int(float(a_file_item.size) * self.wtar_ratio)
@@ -156,8 +157,8 @@ class InstlClientCopy(InstlClient):
             item_size = a_file_item.size
         return item_size
 
-    def create_copy_instructions_for_file(self, source_path, name_for_progress_message):
-        retVal = 0  # number of essential actions (not progress, remark, ...)
+    def create_copy_instructions_for_file(self, source_path: str, name_for_progress_message: str):
+        retVal: int = 0  # number of essential actions (not progress, remark, ...)
         source_files = self.info_map_table.get_required_for_file(source_path)
         if not source_files:
             print("no source files for "+source_path)
@@ -175,7 +176,7 @@ class InstlClientCopy(InstlClient):
                                                                                 link_dest=True,
                                                                                 ignore=self.patterns_copy_should_ignore)
 
-            self.batch_accum += self.platform_helper.echo("copy {source_file_full_path}".format(**locals()))
+            self.batch_accum += self.platform_helper.echo(f"copy {source_file_full_path}")
 
             if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__") and 'Mac' in var_stack.ResolveVarToList("TARGET_OS"):
                 if not source_file.path.endswith(".symlink"):
@@ -196,8 +197,8 @@ class InstlClientCopy(InstlClient):
             self.unwtar_instructions.append((first_wtar_full_path, '.'))
         return retVal
 
-    def create_copy_instructions_for_dir_cont(self, source_path, name_for_progress_message):
-        retVal = 0  # number of essential actions (not progress, remark, ...)
+    def create_copy_instructions_for_dir_cont(self, source_path: str, name_for_progress_message: str):
+        retVal: int = 0  # number of essential actions (not progress, remark, ...)
         source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
         source_items = self.info_map_table.get_items_in_dir(dir_path=source_path)
 
@@ -236,7 +237,7 @@ class InstlClientCopy(InstlClient):
             #    self.batch_accum += self.platform_helper.chmod("-R -f a+rwX", ".")
         return retVal
 
-    def can_copy_be_avoided(self, dir_item, source_items):
+    def can_copy_be_avoided(self, dir_item: svnTree.SVNRow, source_items: List[svnTree.SVNRow]):
         retVal = False
         if "__REPAIR_INSTALLED_ITEMS__" not in self.main_install_targets:
             # look for Info.xml as first choice, Info.plist is seconds choice
@@ -248,11 +249,11 @@ class InstlClientCopy(InstlClient):
                 retVal = utils.check_file_checksum(info_item_abs_path, info_item.checksum)
         return retVal
 
-    def create_copy_instructions_for_dir(self, source_path, name_for_progress_message):
+    def create_copy_instructions_for_dir(self, source_path: str, name_for_progress_message: str):
         retVal = 0  # number of essential actions (not progress, remark, ...)
-        dir_item = self.info_map_table.get_dir_item(source_path)
+        dir_item: svnTree.SVNRow = self.info_map_table.get_dir_item(source_path)
         if dir_item is not None:
-            source_items = self.info_map_table.get_items_in_dir(dir_path=source_path)
+            source_items: List[svnTree.SVNRow] = self.info_map_table.get_items_in_dir(dir_path=source_path)
             if self.can_copy_be_avoided(dir_item, source_items):
                 self.progress("avoid copy of {}, Info.xml has not changed".format(name_for_progress_message))
                 return retVal
@@ -271,7 +272,7 @@ class InstlClientCopy(InstlClient):
                 self.batch_accum += self.platform_helper.chown("$(__USER_ID__)", "", source_path_name, recursive=True)
                 self.batch_accum += self.platform_helper.chmod("-R -f a+rw", source_path_name)  # all copied files should be rw
                 for source_item in source_items:
-                    if not source_item.is_wtar_file() == 0 and source_item.isExecutable():
+                    if not source_item.is_wtar_file() and source_item.isExecutable():
                         source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path_dir)
                         # executable files should also get exec bit
                         self.batch_accum += self.platform_helper.chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)

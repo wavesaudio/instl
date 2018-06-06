@@ -104,9 +104,9 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
 
     def copy_file_to_file(self, src_file, trg_file, hard_link=False, check_exist=False):
         if hard_link:
-            copy_command = "ln -f \"{src_file}\" \"{trg_file}\"".format(**locals())
+            copy_command = f"ln -f \"{src_file}\" \"{trg_file}\""
         else:
-            copy_command = "cp -f \"{src_file}\" \"{trg_file}\"".format(**locals())
+            copy_command = f"cp -f \"{src_file}\" \"{trg_file}\""
         if check_exist:
             copy_command += " || true"
         return copy_command

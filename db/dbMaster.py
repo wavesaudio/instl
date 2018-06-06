@@ -55,12 +55,12 @@ class Statistic():
 
     def __str__(self):
         average = self.time/self.count if self.count else 0.0
-        retVal = "count, {self.count}, time, {self.time:.2f}, ms, average, {average:.2f}, ms".format(**locals())
+        retVal = f"count, {self.count}, time, {self.time:.2f}, ms, average, {average:.2f}, ms"
         return retVal
 
     def __repr__(self):
         average = self.time/self.count if self.count else 0.0
-        retVal = "{self.count}, {self.time:.2f}, {average:.2f}".format(**locals())
+        retVal = f"{self.count}, {self.time:.2f}, {average:.2f}"
         return retVal
 
 
@@ -74,6 +74,7 @@ class DBMaster(object):
         self.locked_tables = set()
         self.statistics = defaultdict(Statistic)
         self.print_execute_times = False
+        self.transaction_depth = 0
 
     def get_file_path(self):
         return self.db_file_path
@@ -150,13 +151,13 @@ class DBMaster(object):
         utils.safe_remove_file(self.db_file_path)
 
     def set_db_pragma(self, pragma_name, pragma_value):
-        set_pragma_q = """PRAGMA {pragma_name} = {pragma_value};""".format(**locals())
+        set_pragma_q = f"""PRAGMA {pragma_name} = {pragma_value};"""
         self.__curs.execute(set_pragma_q)
 
     def get_db_pragma(self, pragma_name, default_value=None):
         pragma_value = default_value
         try:
-            get_pragma_q = """PRAGMA {pragma_name};""".format(**locals())
+            get_pragma_q = f"""PRAGMA {pragma_name};"""
             self.__curs.execute(get_pragma_q)
             pragma_value = self.__curs.fetchone()[0]
         except Exception as ex:  # just return the default value
@@ -164,13 +165,20 @@ class DBMaster(object):
         return pragma_value
 
     def begin(self):
+        self.commit()
+        #assert self.transaction_depth == 0, f"begin: self.transaction_depth: {self.transaction_depth}"
         self.__conn.execute("begin")
+        self.transaction_depth += 1
 
     def commit(self):
+        #assert self.transaction_depth == 1, f"commit: self.transaction_depth: {self.transaction_depth}"
         self.__conn.commit()
+        self.transaction_depth -= 1
 
     def rollback(self):
+        #assert self.transaction_depth > 0, f"rollback: self.transaction_depth: {self.transaction_depth}"
         self.__conn.rollback()
+        self.transaction_depth = 0
 
     @property
     def curs(self):

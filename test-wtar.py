@@ -21,7 +21,7 @@ def path_without_wtar_extensions(in_path):
     wtar_file_re = re.compile(r"""(?P<name_without>.+)\.wtar(\...)?$""")
     match = wtar_file_re.match(in_path)
     if match:
-        retVal = match.group("name_without")
+        retVal = match["name_without"]
     return retVal
 
 

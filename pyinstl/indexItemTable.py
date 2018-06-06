@@ -97,14 +97,14 @@ class IndexItemsTable(object):
         for_oses = *for_oses, "common"
         quoted_os_names = [utils.quoteme_double(os_name) for os_name in for_oses]
         query_vars = ", ".join(quoted_os_names)
-        query_text = """
+        query_text = f"""
             UPDATE active_operating_systems_t
-            SET os_is_active = CASE WHEN active_operating_systems_t.name IN ({0}) THEN
+            SET os_is_active = CASE WHEN active_operating_systems_t.name IN ({query_vars}) THEN
                     1
                 ELSE
                     0
                 END;
-        """.format(query_vars)
+        """
         with self.db.transaction() as curs:
             curs.execute(query_text)
 
@@ -298,14 +298,14 @@ class IndexItemsTable(object):
             for specific iid - but only if detail is in active os
         """
         distinct = "DISTINCT" if unique_values else ""
-        query_text = """
+        query_text = f"""
             SELECT {distinct} detail_value
             FROM index_item_detail_t
             WHERE original_iid = :iid
             AND detail_name = :detail_name
             AND os_is_active = 1
             ORDER BY _id
-        """.format(distinct=distinct)
+        """
         retVal = self.db.select_and_fetchall(query_text, query_params={'iid': iid, 'detail_name': detail_name})
         return retVal
 
@@ -366,14 +366,14 @@ class IndexItemsTable(object):
             for specific iid - but only if iid is os_is_active
         """
         distinct = "DISTINCT" if unique_values else ""
-        query_text = """
+        query_text = f"""
             SELECT {distinct} detail_value
             FROM index_item_detail_t
             WHERE owner_iid = :iid
             AND detail_name = :detail_name
             AND os_is_active = 1
             ORDER BY _id
-        """.format(distinct=distinct)
+        """
         retVal = self.db.select_and_fetchall(query_text, query_params={'iid': iid, 'detail_name': detail_name})
         return retVal
 
@@ -382,13 +382,13 @@ class IndexItemsTable(object):
             for specific iid - regardless if detail is in active os
         """
         distinct = "DISTINCT" if unique_values else ""
-        query_text = """
+        query_text = f"""
             SELECT {distinct} detail_value
             FROM index_item_detail_t
             WHERE owner_iid = :iid
             AND detail_name = :detail_name
             ORDER BY _id
-        """.format(distinct=distinct)
+        """
         retVal = self.db.select_and_fetchall(query_text, query_params={'iid': iid, 'detail_name': detail_name})
         return retVal
 
@@ -581,8 +581,8 @@ class IndexItemsTable(object):
 
     def read_index_template_node(self, template_match, instances_node):
         yaml_text = "--- !index\n"
-        template_name = template_match.group('template_name')
-        template_args = template_match.group('template_args').split(',')
+        template_name = template_match['template_name']
+        template_args = template_match['template_args'].split(',')
         template_args = [a.strip() for a in template_args]
         template_text = var_stack.unresolved_var(template_name)
         for instance_node in instances_node.value:
@@ -598,7 +598,7 @@ class IndexItemsTable(object):
         out_node = yaml.compose(yaml_text)
         return out_node
 
-    def read_require_node(self, a_node):
+    def read_require_node(self, a_node: yaml.MappingNode):
         require_items = dict()
         if a_node.isMapping():
             all_iids = self.get_all_iids()
@@ -786,38 +786,38 @@ class IndexItemsTable(object):
     def change_status_of_iids_to_another_status__(self, old_status, new_status, iid_list):
         if iid_list:
             query_vars = '("' + '","'.join(iid_list) + '")'
-            query_text = """
+            query_text = f"""
                 UPDATE index_item_t
                 SET install_status={new_status}
                 WHERE install_status={old_status}
                 AND iid IN {query_vars}
                 AND ignore = 0
-              """.format(**locals())
+              """
             with self.db.transaction() as curs:
                 curs.execute(query_text)
 
     def change_status_of_iids_to_another_status(self, old_status, new_status, iid_list):
         if iid_list:
             query_vars = ((iid,) for iid in iid_list)
-            query_text = """
+            query_text = f"""
                 UPDATE index_item_t
                 SET install_status={new_status}
                 WHERE iid == ?
                 AND install_status={old_status}
                 AND ignore = 0
-              """.format(**locals())
+              """
             with self.db.transaction() as curs:
                 curs.executemany(query_text, query_vars)
 
     def change_status_of_iids(self, new_status, iid_list):
         if iid_list:
             query_vars = '("' + '","'.join(iid_list) + '")'
-            query_text = """
+            query_text = f"""
                     UPDATE index_item_t
                     SET install_status={new_status}
                     WHERE iid IN {query_vars}
                     AND ignore = 0
-                  """.format(**locals())
+                  """
             with self.db.transaction() as curs:
                 curs.execute(query_text)
 
@@ -948,7 +948,7 @@ class IndexItemsTable(object):
             quoted_limit_to_iids = [utils.quoteme_single(iid) for iid in limit_to_iids]
             limit_to_iids_filter = " ".join(('AND index_item_detail_t.owner_iid IN (', ",".join(quoted_limit_to_iids), ')'))
 
-        query_text = """
+        query_text = f"""
             SELECT  index_item_detail_t.owner_iid, index_item_detail_t.detail_value
             FROM index_item_detail_t
                 JOIN index_item_t
@@ -960,7 +960,7 @@ class IndexItemsTable(object):
             {limit_to_iids_filter}
             {group_by_values_filter}
             ORDER BY index_item_detail_t._id
-            """.format(**locals())
+            """
         retVal = self.db.select_and_fetchall(query_text, query_params={'detail_name': detail_name})
         return retVal
 
@@ -971,7 +971,7 @@ class IndexItemsTable(object):
             quoted_limit_to_iids = [utils.quoteme_single(iid) for iid in limit_to_iids]
             limit_to_iids_filter = " ".join(('AND index_item_detail_t.owner_iid IN (', ",".join(quoted_limit_to_iids), ')'))
 
-        query_text = """
+        query_text = f"""
             SELECT {distinct} index_item_detail_t.detail_value
             FROM index_item_detail_t
                 JOIN index_item_t
@@ -982,7 +982,7 @@ class IndexItemsTable(object):
                 AND index_item_detail_t.os_is_active = 1
                 {limit_to_iids_filter}
             ORDER BY index_item_detail_t._id
-            """.format(**locals())
+            """
         retVal = self.db.select_and_fetchall(query_text, query_params={'detail_name': detail_name})
         return retVal
 
@@ -995,7 +995,7 @@ class IndexItemsTable(object):
             limit_to_iids_filter += '","'.join(limit_to_iids)
             limit_to_iids_filter += '")'
 
-        query_text = """
+        query_text = f"""
             SELECT {distinct} index_item_detail_t.detail_value, index_item_detail_t.tag
             FROM index_item_detail_t
                 JOIN index_item_t
@@ -1006,7 +1006,7 @@ class IndexItemsTable(object):
                 AND index_item_detail_t.os_is_active = 1
                 {limit_to_iids_filter}
             ORDER BY index_item_detail_t._id
-            """.format(**locals())
+            """
         # returns: [(iid, index_version, require_version, index_guid, require_guid, generation), ...]
         retVal = self.db.select_and_fetchall(query_text, query_params={'detail_name': detail_name})
         return retVal

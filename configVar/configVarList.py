@@ -262,7 +262,7 @@ class ConfigVarList(object):
                         resolved_list_for_value = self.ResolveStrToListIfSingleVar(value)
                         # special handling of variables tha end with _DIR etc...
                         # see configVarOne.ConfigVar.variable_name_endings_to_normpath for full list
-                        if in_var.endswith(self.variable_name_endings_to_normpath):
+                        if False and in_var.endswith(self.variable_name_endings_to_normpath):
                             # python 3.6 warning: pathlib.Path.resolve() works differently in 3.6
                             # resolving file name to current directory
                             for unresolved_path in resolved_list_for_value:
