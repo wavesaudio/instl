@@ -271,7 +271,7 @@ class InstlClientCopy(InstlClient):
                 self.batch_accum += self.platform_helper.chown("$(__USER_ID__)", "", source_path_name, recursive=True)
                 self.batch_accum += self.platform_helper.chmod("-R -f a+rw", source_path_name)  # all copied files should be rw
                 for source_item in source_items:
-                    if not source_item.is_wtar_file() == 0 and source_item.isExecutable():
+                    if not source_item.is_wtar_file() and source_item.isExecutable():
                         source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path_dir)
                         # executable files should also get exec bit
                         self.batch_accum += self.platform_helper.chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)
