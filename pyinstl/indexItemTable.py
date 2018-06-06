@@ -7,6 +7,7 @@ from collections import OrderedDict
 from collections import defaultdict
 import re
 import yaml
+from typing import List
 
 import utils
 from configVar import var_stack
@@ -50,26 +51,26 @@ class IndexItemsTable(object):
     def __del__(self):
         self.db.unlock_all_tables()
 
-    def clear_tables(self):
+    def clear_tables(self) -> None:
         self.drop_triggers()
         self.drop_views()
         with self.db.transaction() as curs:
             curs.execute("""DELETE FROM index_item_detail_t""")
             curs.execute("""DELETE FROM index_item_t""")
 
-    def add_triggers(self):
+    def add_triggers(self) -> None:
         self.db.exec_script_file("create-triggers.ddl")
 
-    def drop_triggers(self):
+    def drop_triggers(self) -> None:
         self.db.exec_script_file("drop-triggers.ddl")
 
-    def add_views(self):
+    def add_views(self) -> None:
         self.db.exec_script_file("create-views.ddl")
 
-    def drop_views(self):
+    def drop_views(self) -> None:
        self.db.exec_script_file("drop-views.ddl")
 
-    def activate_all_oses(self):
+    def activate_all_oses(self) -> None:
         """ adds all known os names to the list of os that will influence all get functions
             such as depend_list, source_list etc.
             This method is useful in code that does reporting or analyzing, where
@@ -82,7 +83,7 @@ class IndexItemsTable(object):
         with self.db.transaction() as curs:
             curs.execute(query_text)
 
-    def reset_active_oses(self):
+    def reset_active_oses(self) -> None:
         """ resets the list of os that will influence all get functions
             such as depend_list, source_list etc.
             This method is useful in code that does reporting or analyzing, where
@@ -90,7 +91,7 @@ class IndexItemsTable(object):
         """
         self.activate_specific_oses()
 
-    def activate_specific_oses(self, *for_oses):
+    def activate_specific_oses(self, *for_oses) -> None:
         """ adds another os name to the list of os that will influence all get functions
             such as depend_list, source_list etc.
         """
@@ -108,7 +109,7 @@ class IndexItemsTable(object):
         with self.db.transaction() as curs:
             curs.execute(query_text)
 
-    def get_active_oses(self):
+    def get_active_oses(self) -> List[str]:
         query_text = """
         SELECT name, os_is_active
         FROM active_operating_systems_t
@@ -116,7 +117,7 @@ class IndexItemsTable(object):
         """
         return self.db.select_and_fetchall(query_text)
 
-    def get_all_require_translate_items(self):
+    def get_all_require_translate_items(self) -> List[dict]:
         """
         """
         query_text = """
@@ -165,7 +166,7 @@ class IndexItemsTable(object):
         retVal = self.db.select_and_fetchall(query_text, query_params={})
         return retVal
 
-    def get_all_installed_iids(self):
+    def get_all_installed_iids(self) -> List[str]:
         """ get all iids that are marked as required by them selves
             which indicates they were a primary install target
         """
@@ -205,20 +206,7 @@ class IndexItemsTable(object):
         retVal = self.db.select_and_fetchall(query_text, query_params={})
         return retVal
 
-    def get_all_iids(self):
-        """
-        tested by: TestItemTable.test_06_get_all_iids
-        :return: list of all iids in the db, empty list if none are found
-        """
-        retVal = list()
-        query_text = """
-          SELECT iid FROM index_item_t
-          ORDER BY iid
-        """
-        retVal = self.db.select_and_fetchall(query_text, query_params={})
-        return retVal
-
-    def get_all_iids2(self):
+    def get_all_iids(self) -> List[str]:
         """
         tested by: TestItemTable.test_06_get_all_iids
         :return: list of all iids in the db, empty list if none are found
@@ -228,9 +216,9 @@ class IndexItemsTable(object):
         retVal.extend(self.db.select_and_fetchall(query_text))
         return retVal
 
-    def create_default_index_items(self, iids_to_ignore):
+    def create_default_index_items(self, iids_to_ignore: List[str]) -> None:
         iids_to_ignore_str = utils.quoteme_double_list_for_sql(iids_to_ignore)
-        query_text = """
+        query_text = f"""
         BEGIN TRANSACTION;
         INSERT INTO index_item_t (iid, inherit_resolved, from_index, from_require, install_status, ignore)
         VALUES ("__ALL_ITEMS_IID__", 1, 0, 0, 0, 0);
@@ -238,7 +226,7 @@ class IndexItemsTable(object):
         INSERT INTO index_item_detail_t(original_iid, owner_iid, detail_name, detail_value, os_id, generation)
             SELECT "__ALL_ITEMS_IID__", "__ALL_ITEMS_IID__", "depends", index_item_t.iid, 0, 0
             FROM index_item_t
-            WHERE iid NOT IN {iids_to_ignore};
+            WHERE iid NOT IN {iids_to_ignore_str};
         
         INSERT INTO index_item_t (iid, inherit_resolved, from_index, from_require)
         VALUES ("__ALL_GUIDS_IID__", 1, 0, 0);
@@ -248,15 +236,15 @@ class IndexItemsTable(object):
             FROM index_item_detail_t
             WHERE index_item_detail_t.detail_name="guid"
             AND index_item_detail_t.owner_iid=index_item_detail_t.original_iid
-            AND index_item_detail_t.owner_iid NOT IN {iids_to_ignore};
+            AND index_item_detail_t.owner_iid NOT IN {iids_to_ignore_str};
         COMMIT TRANSACTION; 
-        """.format(iids_to_ignore=iids_to_ignore_str)
+        """
         with self.db.transaction() as curs:
             curs.executescript(query_text)
 
-    def create_default_require_items(self, iids_to_ignore):
+    def create_default_require_items(self, iids_to_ignore: List[str]) -> None:
         iids_to_ignore_str = utils.quoteme_double_list_for_sql(iids_to_ignore)
-        query_text = """
+        query_text = f"""
         BEGIN TRANSACTION;
         INSERT INTO index_item_t (iid, inherit_resolved, from_index, from_require, install_status, ignore)
         VALUES ("__REPAIR_INSTALLED_ITEMS__", 1, 0, 0, 0, 0);
@@ -268,7 +256,7 @@ class IndexItemsTable(object):
             AND index_item_detail_t.detail_value=index_item_detail_t.original_iid
             AND index_item_detail_t.detail_value=index_item_detail_t.owner_iid
             AND index_item_detail_t.os_is_active = 1
-            AND index_item_detail_t.original_iid NOT IN {iids_to_ignore};
+            AND index_item_detail_t.original_iid NOT IN {iids_to_ignore_str};
         
         INSERT INTO index_item_t (iid, inherit_resolved, from_index, from_require)
         VALUES ("__UPDATE_INSTALLED_ITEMS__", 1, 0, 0);
@@ -289,11 +277,11 @@ class IndexItemsTable(object):
                   AND require_version.os_is_active = 1
             GROUP BY require_version.owner_iid;
             COMMIT TRANSACTION; 
-        """.format(iids_to_ignore=iids_to_ignore_str)
+        """
         with self.db.transaction() as curs:
             curs.executescript(query_text)
 
-    def get_original_details_values_for_active_iid(self, iid, detail_name, unique_values=False):
+    def get_original_details_values_for_active_iid(self, iid: str, detail_name: str, unique_values: bool=False) -> List[str]:
         """ get the items's original (e.g. not inherited) values for a specific detail
             for specific iid - but only if detail is in active os
         """
@@ -309,7 +297,7 @@ class IndexItemsTable(object):
         retVal = self.db.select_and_fetchall(query_text, query_params={'iid': iid, 'detail_name': detail_name})
         return retVal
 
-    def get_original_details(self, iid, detail_name=None, in_os=None):
+    def get_original_details(self, iid: str, detail_name: str=None, in_os=None):
         """
         tested by: TestItemTable.test_get_original_details_* functions
         :param iid: get detail for specific iid or all if None
@@ -348,7 +336,7 @@ class IndexItemsTable(object):
         retVal = self.db.select_and_fetchall(query_text, query_params={'iid': iid, 'detail_name': detail_name})
         return retVal
 
-    def get_resolved_details_for_iid(self, iid, detail_name):
+    def get_resolved_details_for_iid(self, iid: str, detail_name: str):
         """ get the original and inherited index_item_detail_t's for a specific detail
             for specific iid - regardless if detail is in active os
         """
@@ -361,7 +349,7 @@ class IndexItemsTable(object):
         retVal = self.db.select_and_fetchall(query_text, query_params={'iid': iid, 'detail_name': detail_name})
         return retVal
 
-    def get_resolved_details_value_for_active_iid(self, iid, detail_name, unique_values=False):
+    def get_resolved_details_value_for_active_iid(self, iid: str, detail_name: str, unique_values: bool=False):
         """ get the original and inherited values for a specific detail
             for specific iid - but only if iid is os_is_active
         """
@@ -377,7 +365,7 @@ class IndexItemsTable(object):
         retVal = self.db.select_and_fetchall(query_text, query_params={'iid': iid, 'detail_name': detail_name})
         return retVal
 
-    def get_resolved_details_value_for_iid(self, iid, detail_name, unique_values=False):
+    def get_resolved_details_value_for_iid(self, iid: str, detail_name: str, unique_values: bool=False):
         """ get the original and inherited values for a specific detail
             for specific iid - regardless if detail is in active os
         """
@@ -392,7 +380,7 @@ class IndexItemsTable(object):
         retVal = self.db.select_and_fetchall(query_text, query_params={'iid': iid, 'detail_name': detail_name})
         return retVal
 
-    def get_details_by_name_for_all_iids(self, detail_name):
+    def get_details_by_name_for_all_iids(self, detail_name: str):
         """ get all index_item_detail_t objects with detail_name.
             detail_name can contain wildcards e.g. require_%
         """
@@ -405,7 +393,7 @@ class IndexItemsTable(object):
         retVal = self.db.select_and_fetchall(query_text, query_params={'detail_name': detail_name})
         return retVal
 
-    def get_detail_values_by_name_for_all_iids(self, detail_name):
+    def get_detail_values_by_name_for_all_iids(self, detail_name: str):
         """ get values of specific detail for all iids
         """
         query_text = """
@@ -418,7 +406,7 @@ class IndexItemsTable(object):
         retVal = self.db.select_and_fetchall(query_text, query_params={'detail_name': detail_name})
         return retVal
 
-    def resolve_inheritance(self):
+    def resolve_inheritance(self) -> None:
         inherit_order, inherit_dict = self.prepare_inherit_order()
         resolve_items_script = ""
         for iid in inherit_order:
@@ -499,7 +487,7 @@ class IndexItemsTable(object):
                       "not_inherit_details": utils.quoteme_single_list_for_sql(self.not_inherit_details)})
         return query_text
 
-    def read_item_details_from_node(self, the_iid, the_node, the_os='common'):
+    def read_item_details_from_node(self, the_iid, the_node, the_os='common') -> List:
         details = list()
         # go through the raw yaml nodes instead of doing "for detail_name in the_node".
         # this is to overcome index.yaml with maps that have two keys with the same name.
@@ -549,14 +537,14 @@ class IndexItemsTable(object):
                         details.append(new_detail)
         return details
 
-    def item_from_index_node(self, the_iid, the_node):
+    def item_from_index_node(self, the_iid: str, the_node: yaml.MappingNode) -> ((str, bool), List):
         item = (the_iid, True)
         original_details = self.read_item_details_from_node(the_iid, the_node)
         return item, original_details
 
     template_re = re.compile("""(?P<template_name>.*)<(?P<template_args>[^>]*)>""")
 
-    def read_index_node(self, a_node):
+    def read_index_node(self, a_node: yaml.MappingNode) -> None:
         index_items = list()
         items_details = list()
         for IID in a_node:

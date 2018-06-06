@@ -7,6 +7,7 @@ from functools import reduce
 import csv
 import sqlite3
 from contextlib import contextmanager
+from typing import List, Dict
 
 
 import utils
@@ -83,7 +84,7 @@ class SVNRow(object):
         self.symlinkFlag =      svn_item_tuple[19]
         self.ignore =           svn_item_tuple[20]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         isDir = not self.fileFlag
         return (f"<{self.level}, {self.path}, '{self.flags}'"
                 ", rev-remote:{self.revision}, f:{self.fileFlag}, d:{isDir}"
@@ -94,20 +95,20 @@ class SVNRow(object):
                 ", download_path:{self.download_path}"
                 )
 
-    def __str__(self):
+    def __str__(self) -> str:
         """ __str__ representation - this is what will be written to info_map.txt files"""
-        retVal = "{}, {}, {}".format(self.path, self.flags, self.revision)
+        retVal = f"{self.path}, {self.flags}, {self.revision}"
         if self.checksum:
-            retVal = "{}, {}".format(retVal, self.checksum)
+            retVal = f"{retVal}, {self.checksum}"
         if self.size != -1:
-            retVal = "{}, {}".format(retVal, self.size)
+            retVal = f"{retVal}, {self.size}"
         if self.url:
-            retVal = "{}, {}".format(retVal, self.url)
+            retVal = f"{retVal}, {self.url}"
         if self.download_path:
-            retVal = "{}, dl_path:'{}'".format(retVal, self.download_path)
+            retVal = f"{retVal}, dl_path:'{self.download_path}'"
         return retVal
 
-    def str_specific_fields(self, fields_to_repr):
+    def str_specific_fields(self, fields_to_repr: List[str]) -> str:
         """ represent self as a string and limiting the fields written to those in fields_to_repr.
         :param fields_to_repr: only fields whose name is on this list will be written.
                 if list is empty or None, fall back to __str__
@@ -127,49 +128,49 @@ class SVNRow(object):
             retVal = ", ".join(value_list)
         return retVal
 
-    def get_ancestry(self):
+    def get_ancestry(self) -> List[str]:
         ancestry = list()
         split_path = self.path.split("/")
         for i in range(1, len(split_path)+1):
             ancestry.append("/".join(split_path[:i]))
         return ancestry
 
-    def name(self):
+    def name(self) -> str:
         retVal = self.path.split("/")[-1]
         return retVal
 
-    def isDir(self):
+    def isDir(self) -> bool:
         return not self.fileFlag
 
-    def isFile(self):
+    def isFile(self) -> bool:
         return self.fileFlag
 
-    def isExecutable(self):
+    def isExecutable(self) -> bool:
         return 'x' in self.flags
 
-    def isSymlink(self):
+    def isSymlink(self) -> bool:
         return 's' in self.flags
 
     def is_wtar_file(self) -> bool:
         retVal = self.wtarFlag > 0
         return retVal
 
-    def is_first_wtar_file(self):
+    def is_first_wtar_file(self) -> bool:
         retVal = self.path.endswith((".wtar", ".wtar.aa"))
         return retVal
 
-    def extra_props_list(self):
+    def extra_props_list(self) -> List[str]:
         retVal = self.extra_props.split(";")
         retVal = [prop for prop in retVal if prop]  # split will return [""] for empty list
         return retVal
 
-    def chmod_spec(self):
+    def chmod_spec(self) -> str:
         retVal = "a+rw"
         if self.isExecutable() or self.isDir():
             retVal += "x"
         return retVal
 
-    def path_starting_from_dir(self, starting_dir):
+    def path_starting_from_dir(self, starting_dir: str) -> str:
         retVal = None
         if starting_dir == "":
             retVal = self.path
@@ -180,7 +181,7 @@ class SVNRow(object):
                 retVal = self.path[len(starting_dir):]
         return retVal
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         """Overrides the default implementation"""
         retVal = False
         if isinstance(self, other.__class__):
@@ -214,6 +215,7 @@ class SVNRow(object):
         return retVal
 
 
+# noinspection SyntaxError,SyntaxError,PyProtectedMember
 class SVNTable(object):
     create_path_index_q = """CREATE UNIQUE INDEX IF NOT EXISTS ix_svn_item_t_path ON svn_item_t (path);"""
     drop_path_index_q = """DROP INDEX IF EXISTS ix_svn_item_t_path;"""
@@ -246,6 +248,7 @@ class SVNTable(object):
         {another_filter}
         ORDER BY parent_id
         """
+    # noinspection SyntaxError
     count_child_items_q = """
         WITH RECURSIVE get_children(__ID) AS
         (
@@ -281,14 +284,14 @@ class SVNTable(object):
         self.files_written_list = list()
         self.comments = list()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "\n".join([item.__repr__() for item in self.get_items()])
 
-    def repr_to_file(self, file_path):
+    def repr_to_file(self, file_path) -> None:
         with utils.utf8_open(file_path, "w") as wfd:
             wfd.write(self.__repr__())
 
-    def valid_read_formats(self):
+    def valid_read_formats(self) -> List[str]:
         """ returns a list of file formats that can be read by SVNTree """
         return list(self.read_func_by_format.keys())
 
@@ -307,7 +310,7 @@ class SVNTable(object):
             var_stack.set_var("MIN_REPO_REV").append(min_revision)
             var_stack.set_var("MAX_REPO_REV").append(max_revision)
 
-    def read_from_file(self, in_file, a_format="guess"):
+    def read_from_file(self, in_file, a_format="guess") -> None:
         """ Reads from file. All previous sub items are cleared
             before reading, unless the a_format is 'props' in which case
             the properties are added to existing sub items.
@@ -324,7 +327,7 @@ class SVNTable(object):
         else:
             raise ValueError("Unknown read a_format " + a_format)
 
-    def read_from_svn_info(self, rfd):
+    def read_from_svn_info(self, rfd) -> None:
         """ reads new items from svn info items prepared by iter_svn_info
             items are inserted in lexicographic directory order, so '/'
             sorts before other characters: key=lambda x: x['path'].split('/')
@@ -338,7 +341,7 @@ class SVNTable(object):
                     """, re.VERBOSE)
 
         def yield_row(_rfd_):
-            def create_list_from_record(a_record):
+            def create_list_from_record(a_record: Dict) -> List[str]:
                 try:
                     row_data = list()
                     row_data.append(a_record["Path"])
@@ -448,14 +451,14 @@ class SVNTable(object):
         return is_wtar_file, is_wtar_first_file
 
     @staticmethod
-    def level_parent_and_leaf_from_path(in_path):
+    def level_parent_and_leaf_from_path(in_path) -> (int, str, str):
         path_parts = in_path.split("/")
         return len(path_parts), "/".join(path_parts[:-1]), path_parts[-1]
 
-    def valid_write_formats(self):
+    def valid_write_formats(self) -> List[str]:
         return list(self.write_func_by_format.keys())
 
-    def write_to_file(self, in_file, in_format="guess", comments=True, items_list=None, field_to_write=None):
+    def write_to_file(self, in_file, in_format="guess", comments=True, items_list=None, field_to_write=None) -> None:
         """ pass in_file="stdout" to output to stdout.
             in_format is either text, yaml, pickle
         """
@@ -472,7 +475,7 @@ class SVNTable(object):
         else:
             raise ValueError("Unknown write in_format " + in_format)
 
-    def write_as_text(self, wfd, items_list, comments=True, field_to_write=None):
+    def write_as_text(self, wfd, items_list, comments=True, field_to_write=None) -> None:
         if comments and len(self.comments) > 0:
             for comment in self.comments:
                 wfd.write("# " + comment + "\n")
@@ -480,8 +483,8 @@ class SVNTable(object):
         for item in items_list:
             wfd.write(item.str_specific_fields(field_to_write) + "\n")
 
-    def initialize_from_folder(self, in_folder):
-        def yield_row(_in_folder_):
+    def initialize_from_folder(self, in_folder) -> None:
+        def yield_row(_in_folder_) -> List:
             base_folder_len = len(_in_folder_)+1
             for root, dirs, files in os.walk(_in_folder_, followlinks=False):
                 for item in sorted(files + dirs):
@@ -524,7 +527,7 @@ class SVNTable(object):
                 """
             curs.executemany(insert_q, rows)
 
-    def num_items(self, item_filter="all-items"):
+    def num_items(self, item_filter="all-items") -> int:
         count = 0
         select_q = None
         with self.db.selection() as curs:
@@ -555,12 +558,12 @@ class SVNTable(object):
             count = curs.execute(select_q).fetchone()[0]
         return count
 
-    def clear_all(self):
+    def clear_all(self) -> None:
         with self.db.transaction() as curs:
             curs.execute("DELETE FROM svn_item_t")
         self.comments = list()
 
-    def set_base_revision(self, base_revision):
+    def set_base_revision(self, base_revision) -> None:
         with self.db.transaction() as curs:
             update_q = """
                 UPDATE  svn_item_t
@@ -569,7 +572,7 @@ class SVNTable(object):
                 """
             curs.execute(update_q, {"base_revision": base_revision})
 
-    def read_file_sizes(self, rfd):
+    def read_file_sizes(self, rfd) -> None:
         def yield_row(_rfd_):
             line_num = 0
             for line in rfd:
@@ -590,7 +593,7 @@ class SVNTable(object):
                 """
             curs.executemany(update_q, rows)
 
-    def read_props(self, rfd):
+    def read_props(self, rfd) -> None:
         props_line_re = re.compile("""
                     ^
                     (
@@ -639,7 +642,7 @@ class SVNTable(object):
             print("Line:", line_num, ex)
             raise
 
-    def get_any_item(self, item_path):
+    def get_any_item(self, item_path) -> SVNRow:
         """ Get specific item or return None if not found
         :param item_path: path to the item
         :return: item found or None
@@ -655,7 +658,7 @@ class SVNTable(object):
                 retVal = SVNRow(the_item)
         return retVal
 
-    def get_file_item(self, item_path):
+    def get_file_item(self, item_path) -> SVNRow:
         """ Get specific file item or return None if not found
         :param item_path: path to the item
         :return: item found or None
@@ -673,7 +676,7 @@ class SVNTable(object):
                 retVal = SVNRow(the_item)
         return retVal
 
-    def get_dir_item(self, item_path):
+    def get_dir_item(self, item_path) -> SVNRow:
         """ Get specific dir item or return None if not found
         :param item_path: path to the item
         :return: item found or None
@@ -691,7 +694,7 @@ class SVNTable(object):
                 retVal = SVNRow(the_item)
         return retVal
 
-    def get_files_that_should_be_removed_from_sync_folder(self, files_to_check):
+    def get_files_that_should_be_removed_from_sync_folder(self, files_to_check) -> List[int]:
         """
         :param files_to_check: a list of tuples [(partial_path, full_path), ...]
         :return: list of indexes into files_to_check who's partial path is not in info_map
@@ -734,7 +737,7 @@ class SVNTable(object):
             retVal.extend([fr[0] for fr in curs.fetchall()])
         return retVal
 
-    def get_items(self, what="any"):
+    def get_items(self, what="any") -> List[SVNRow]:
         """
         get_items return all items or all file items or all dir items according to the 'what' parameter
         :param what: what type of items to return "file" - only files, "dir" - only dirs, "any" - all type of items
@@ -754,7 +757,7 @@ class SVNTable(object):
             retVal = self.SVNRowListToObjects(retVal)
         return retVal
 
-    def get_required_items(self, what="any", get_unrequired=False):
+    def get_required_items(self, what="any", get_unrequired=False) -> List[SVNRow]:
         """
         get_items return items that are marked as required
         :param what: what type of items to return "file" - only files, "dir" - only dirs, "any" - all type of items
@@ -777,7 +780,7 @@ class SVNTable(object):
             retVal = self.SVNRowListToObjects(retVal)
         return retVal
 
-    def get_unrequired_items(self, what="any"):
+    def get_unrequired_items(self, what="any") -> List[SVNRow]:
         """
         get_items return items that are not marked as required
         :param what: what type of items to return "file" - only files, "dir" - only dirs, "any" - all type of items
@@ -800,7 +803,7 @@ class SVNTable(object):
             retVal = self.SVNRowListToObjects(retVal)
         return retVal
 
-    def get_exec_file_paths(self):
+    def get_exec_file_paths(self) -> List[str]:
         """
         :return: paths of all file items marked as executable
         """
@@ -812,7 +815,7 @@ class SVNTable(object):
         retVal = self.db.select_and_fetchall(query_text)
         return retVal
 
-    def get_required_exec_items(self):
+    def get_required_exec_items(self) -> List[SVNRow]:
         """ :return: all required files that are also exec
         """
         with self.db.selection() as curs:
@@ -839,7 +842,7 @@ class SVNTable(object):
             retVal = curs.fetchall()
         return retVal
 
-    def get_download_items(self, what="any"):
+    def get_download_items(self, what: str="any") -> List[SVNRow]:
         """
         get_items applies a filter and return all items
         :param: filter_name: one of predefined baked queries, e.g.: "all-files", "all-dirs", "all-items"
@@ -875,7 +878,7 @@ class SVNTable(object):
             retVal = self.SVNRowListToObjects(retVal)
         return retVal
 
-    def get_not_to_download_num_files_and_size(self):
+    def get_not_to_download_num_files_and_size(self) -> (int, int):
         """ return the count and total size of the files that are already synced """
         query_text = """
             SELECT COUNT(*) as num_files, TOTAL(size) as total_size
@@ -888,7 +891,7 @@ class SVNTable(object):
             retVal = curs.execute(query_text).fetchone()
         return retVal[0], int(retVal[1])  # sqlite's TOTAL returns float
 
-    def get_to_download_num_files_and_size(self):
+    def get_to_download_num_files_and_size(self) -> (int, int):
         """
         :return: a tuple: (a list of fies marked for download, their total size)
         """
@@ -902,7 +905,7 @@ class SVNTable(object):
             num_files, total_size = curs.fetchone()
         return num_files, total_size
 
-    def get_required_for_file(self, file_path):
+    def get_required_for_file(self, file_path) -> List[SVNRow]:
         """ get the item for a required file as or if file was wtarred
             get the wtar files.
         """
@@ -933,7 +936,7 @@ class SVNTable(object):
             retVal = curs.fetchall()
         return retVal
 
-    def mark_required_for_file(self, file_path):
+    def mark_required_for_file(self, file_path) -> int:
         """ mark a file as required or if file was wtarred
             mark the wtar files are required.
         """
@@ -972,7 +975,7 @@ class SVNTable(object):
             retVal = curs.fetchall()
         return retVal
 
-    def get_file_items_of_dir(self, dir_path):
+    def get_file_items_of_dir(self, dir_path) -> List[SVNRow]:
         """ get all file items in dir_path OR if the dir_path itself is wtarred - the wtarred file items.
             results are recursive so files from sub folders are also returned
         """
@@ -1001,11 +1004,11 @@ class SVNTable(object):
             retVal = self.SVNRowListToObjects(retVal)
         return retVal
 
-    def count_wtar_items_of_dir(self, dir_path):
+    def count_wtar_items_of_dir(self, dir_path) -> int:
         """ count all wtar items in dir_path OR if the dir_path itself is wtarred - count of wtarred file items.
             results are recursive so count from sub folders are also accumulated
         """
-        retVal = 0
+        retVal: int = 0
         with self.db.selection() as curs:
             query_text = """
                 WITH RECURSIVE get_children(__ID, __PATH, __WTAR_FLAG) AS
@@ -1027,7 +1030,7 @@ class SVNTable(object):
             retVal = curs.execute(query_text, {'dir_path': dir_path}).fetchone()[0]
         return retVal
 
-    def get_items_in_dir(self, dir_path="", immediate_children_only=False):
+    def get_items_in_dir(self, dir_path="", immediate_children_only=False) -> List[SVNRow]:
         """ get all files in dir_path.
             level_deep: how much to dig in. level_deep=1 will only get immediate files
             :return: list of items in dir or empty list (if there aren't any) or None
@@ -1052,7 +1055,7 @@ class SVNTable(object):
                 print(dir_path, "was not found")
         return retVal
 
-    def mark_required_for_dir(self, dir_path):
+    def mark_required_for_dir(self, dir_path) -> int:
         """ mark all files & dirs in dir_path as required.
             marking is recursive.
             ToDo: unite the update with self.get_item
@@ -1075,7 +1078,7 @@ class SVNTable(object):
             retVal = self.mark_required_for_file(dir_path)
         return retVal
 
-    def mark_required_for_source(self, source_path, source_type):
+    def mark_required_for_source(self, source_path, source_type) -> int:
         """ mark all files & dirs for specific source as required.
             :param source: a tuple (source_folder, tag), where tag is either !file or !dir
             :return: None
@@ -1087,7 +1090,7 @@ class SVNTable(object):
             num_required_files = self.mark_required_for_file(source_path)
         return num_required_files
 
-    def mark_required_completion(self):
+    def mark_required_completion(self) -> int:
         """ after some files were marked as required,
             mark their parent dirs are required as well
         """
@@ -1115,7 +1118,7 @@ class SVNTable(object):
             retVal = curs.rowcount
         return retVal
 
-    def mark_need_download(self):
+    def mark_need_download(self) -> None:
         self.db.create_function("need_to_download_file", 2, utils.need_to_download_file)
         # mark files that need download
         query_text = """
@@ -1150,7 +1153,7 @@ class SVNTable(object):
         with self.db.transaction("mark_need_download_recursive") as curs:
             curs.execute(query_text)
 
-    def mark_required_for_revision(self, required_revision):
+    def mark_required_for_revision(self, required_revision) -> None:
         """ mark all files and dirs as required if they are of specific revision
         """
         with self.db.transaction() as curs:
@@ -1159,7 +1162,7 @@ class SVNTable(object):
                                 """, {"required_revision": required_revision})
         self.mark_required_completion()
 
-    def clear_required(self):
+    def clear_required(self) -> None:
         with self.db.transaction() as curs:
             curs.execute("""UPDATE svn_item_t SET required=0""")
 
@@ -1185,13 +1188,13 @@ class SVNTable(object):
         retVal = self.db.select_and_fetchall(query_text, query_params={"get_files": {"file": 1, "dir": 0}[what]})
         return retVal
 
-    def min_max_revision(self):
+    def min_max_revision(self) -> (int, int):
         with self.db.selection() as curs:
             curs.execute(""" SELECT MIN(svn_item_t.revision), MAX(svn_item_t.revision) FROM svn_item_t""")
             min_revision, max_revision = curs.fetchone()
         return min_revision, max_revision
 
-    def mark_required_files_for_active_items(self):
+    def mark_required_files_for_active_items(self) -> None:
         script_text = """
             -- mark files and folders that appear in install_sources of required items
             UPDATE svn_item_t
@@ -1248,7 +1251,7 @@ class SVNTable(object):
         with self.db.transaction() as curs:
             curs.executescript(script_text)
 
-    def get_download_roots(self):
+    def get_download_roots(self) -> List[str]:
         query_text = """
         SELECT DISTINCT
             coalesce(download_root, "$(LOCAL_REPO_SYNC_DIR)")
@@ -1259,7 +1262,7 @@ class SVNTable(object):
         retVal = self.db.select_and_fetchall(query_text)
         return retVal
 
-    def get_infomap_file_names(self):
+    def get_infomap_file_names(self) -> List[str]:
         """ infomap file names are stored in extra_props column by set_infomap_file_names
         """
         query_text = """
@@ -1270,14 +1273,13 @@ class SVNTable(object):
         retVal = self.db.select_and_fetchall(query_text)
         return retVal
 
-    def mark_items_required_by_infomap(self, infomap_name):
+    def mark_items_required_by_infomap(self, infomap_name) -> None:
         """
         mark_items_required_by_infomap will mark as required all items that should be written
         to a specific infomap file, all other items will be marked as unrequired
         infomap file names were stored in extra_props column by set_infomap_file_names
         :param infomap_name: e.g. GrandRhapsody_SD_Sample_Library_info_map.txt
         """
-        retVal = list()
         with self.db.transaction() as curs:
             curs.execute("""UPDATE svn_item_t SET required=0""")
             curs.execute("""
@@ -1290,9 +1292,8 @@ class SVNTable(object):
                       AND index_item_detail_t.detail_name == 'info_map'
                       AND index_item_detail_t.detail_value == :infomap_name)
                     """, {"infomap_name": infomap_name})
-        return retVal
 
-    def get_items_for_default_infomap(self):
+    def get_items_for_default_infomap(self) -> List[SVNRow]:
         with self.db.selection() as curs:
             curs.execute("""
                     SELECT * FROM svn_item_t
@@ -1308,7 +1309,7 @@ class SVNTable(object):
             retVal = self.SVNRowListToObjects(retVal)
         return retVal
 
-    def populate_IIDToSVNItem(self):
+    def populate_IIDToSVNItem(self) -> None:
         query_text = """
             INSERT INTO iid_to_svn_item_t (iid, svn_id)
             SELECT install_sources_t.owner_iid, svn_item_t._id
@@ -1327,7 +1328,7 @@ class SVNTable(object):
         with self.db.transaction() as curs:
             curs.execute(query_text)
 
-    def set_info_map_file(self, info_map_file_name):
+    def set_info_map_file(self, info_map_file_name) -> None:
         query_text = """
             UPDATE svn_item_t
             SET extra_props = :info_map_file_name
@@ -1346,7 +1347,7 @@ class SVNTable(object):
         with self.db.transaction() as curs:
             curs.execute(query_text, {"info_map_file_name": info_map_file_name})
 
-    def get_unrequired_file_paths(self):
+    def get_unrequired_file_paths(self) -> List[str]:
         """ get paths for all unrequired files
         """
         query_text = """
@@ -1358,7 +1359,7 @@ class SVNTable(object):
         retVal = self.db.select_and_fetchall(query_text)
         return retVal
 
-    def update_downloads(self, items_to_update):
+    def update_downloads(self, items_to_update) -> None:
         """
             items_to_update is a list of info_map items where download_root
             and download_path were changed.
@@ -1372,15 +1373,15 @@ class SVNTable(object):
         with self.db.transaction() as curs:
             curs.executemany(query_text, items_to_update)
 
-    def SVNRowListToObjects(self, svn_row_list):
+    def SVNRowListToObjects(self, svn_row_list) -> List[SVNRow]:
         retVal = [SVNRow(item) for item in svn_row_list]
         return retVal
 
-    def count_symlinks_in_dir(self, dir_path):
+    def count_symlinks_in_dir(self, dir_path) -> int:
         """ get all files marked as symlinks in dir_path.
             :return: list of symlinks items in dir or empty list (if there aren't any)
         """
-        retVal = 0
+        retVal: int = 0
         root_dir_item = self.get_dir_item(item_path=dir_path)
         if root_dir_item is not None:
             with self.db.selection() as curs:
@@ -1390,9 +1391,9 @@ class SVNTable(object):
                 retVal = curs.fetchone()[0]
         return retVal
 
-    def ignore_file_paths_of_dir(self, dir_path):
+    def ignore_file_paths_of_dir(self, dir_path) -> int:
         """ mark all files inside a dir as ignored """
-        retVal = 0
+        retVal: int = 0
         query_text = """
             WITH RECURSIVE get_children(__ID) AS
             (
@@ -1416,7 +1417,7 @@ class SVNTable(object):
             retVal = curs.rowcount
         return retVal
 
-    def ignore_unrequired_where_parent_unrequired(self):
+    def ignore_unrequired_where_parent_unrequired(self) -> int:
         """ for use by InstlAdmin.do_up2s3
             up2s3 copies the all files in the repository to the repo-rev folder
             and then needs to delete all files that do not belong to the repo-rev (unrequired).
@@ -1424,7 +1425,7 @@ class SVNTable(object):
             top level folders whose whole contents is unrequired. This function will
             mark folders as ignored if their parent folder can be deleted.
         """
-        retVal = 0
+        retVal: int = 0
         query_text = """
             UPDATE svn_item_t
             SET ignore=1
@@ -1436,7 +1437,7 @@ class SVNTable(object):
             retVal = curs.rowcount
         return retVal
 
-    def get_unrequired_not_ignored_paths(self):
+    def get_unrequired_not_ignored_paths(self) -> List[str]:
         """ get paths for all unrequired files files and folders that are not
             marked as ignored
         """

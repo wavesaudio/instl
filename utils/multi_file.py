@@ -122,8 +122,7 @@ class MultiFileReader(io.RawIOBase):
             abs_pos += self.total_size
 
         for i_file in range(len(self.the_files)):
-            if abs_pos >= self.the_files[i_file].starting_pos \
-                    and abs_pos <= self.the_files[i_file].starting_pos + self.the_files[i_file].size:
+            if self.the_files[i_file].starting_pos <= abs_pos <= self.the_files[i_file].starting_pos + self.the_files[i_file].size:
                 new_pos_in_file = abs_pos - self.the_files[i_file].starting_pos
                 self.the_files[i_file].fd.seek(new_pos_in_file)
                 self.current_fd_index = i_file

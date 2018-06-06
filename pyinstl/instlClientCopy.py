@@ -22,7 +22,7 @@ class InstlClientCopy(InstlClient):
         self.current_destination_folder: str = None
         self.current_iid: str = None
 
-    def do_copy(self):
+    def do_copy(self) -> None:
         self.init_copy_vars()
 
         # unwtar will take place directly so no need to copy those files
@@ -34,7 +34,7 @@ class InstlClientCopy(InstlClient):
 
         self.create_copy_instructions()
 
-    def init_copy_vars(self):
+    def init_copy_vars(self) -> None:
         self.action_type_to_progress_message = {'pre_copy': "pre-install step",
                                                 'post_copy': "post-install step",
                                                 'pre_copy_to_folder': "pre-copy step",
@@ -46,7 +46,7 @@ class InstlClientCopy(InstlClient):
         self.calc_user_cache_dir_var()  # this will set USER_CACHE_DIR if it was not explicitly defined
         self.patterns_copy_should_ignore = var_stack.ResolveVarToList("COPY_IGNORE_PATTERNS")
 
-    def write_copy_debug_info(self):
+    def write_copy_debug_info(self) -> None:
         try:
             if var_stack.defined('ECHO_LOG_FILE'):
                 log_file_path = var_stack.ResolveVarToStr("ECHO_LOG_FILE")
@@ -57,7 +57,7 @@ class InstlClientCopy(InstlClient):
         except Exception:
             pass  # if it did not work - forget it
 
-    def write_copy_to_folder_debug_info(self, folder_path: str):
+    def write_copy_to_folder_debug_info(self, folder_path: str) -> None:
         try:
             if var_stack.defined('ECHO_LOG_FILE'):
                 log_file_path = var_stack.ResolveVarToStr("ECHO_LOG_FILE")
@@ -73,7 +73,7 @@ class InstlClientCopy(InstlClient):
         except Exception:
             pass  # if it did not work - forget it
 
-    def create_create_folders_instructions(self, folder_list: List[str]):
+    def create_create_folders_instructions(self, folder_list: List[str]) -> None:
         if len(folder_list) > 0:
             self.batch_accum += self.platform_helper.progress("Create folders ...")
             for target_folder_path in folder_list:
@@ -86,7 +86,7 @@ class InstlClientCopy(InstlClient):
                 progress_num = self.platform_helper.increment_progress(1)
                 self.batch_accum += self.platform_helper.mkdir_with_owner(target_folder_path, progress_num)
 
-    def create_copy_instructions(self):
+    def create_copy_instructions(self) -> None:
         self.progress("create copy instructions ...")
         self.create_sync_folder_manifest_command("before-copy", back_ground=True)
         # If we got here while in synccopy command, there is no need to read the info map again.
@@ -149,7 +149,7 @@ class InstlClientCopy(InstlClient):
         self.progress("create copy instructions done")
         self.progress("")
 
-    def calc_size_of_file_item(self, a_file_item: svnTree.SVNRow):
+    def calc_size_of_file_item(self, a_file_item: svnTree.SVNRow) -> int:
         """ for use with builtin function reduce to calculate the unwtarred size of a file """
         if a_file_item.is_wtar_file():
             item_size = int(float(a_file_item.size) * self.wtar_ratio)
@@ -157,13 +157,13 @@ class InstlClientCopy(InstlClient):
             item_size = a_file_item.size
         return item_size
 
-    def create_copy_instructions_for_file(self, source_path: str, name_for_progress_message: str):
+    def create_copy_instructions_for_file(self, source_path: str, name_for_progress_message: str) -> int:
         retVal: int = 0  # number of essential actions (not progress, remark, ...)
         source_files = self.info_map_table.get_required_for_file(source_path)
         if not source_files:
             print("no source files for "+source_path)
             return retVal
-        num_wtars = functools.reduce(lambda total, item: total + item.wtarFlag, source_files, 0)
+        num_wtars: int = functools.reduce(lambda total, item: total + item.wtarFlag, source_files, 0)
         assert (len(source_files) == 1 and num_wtars == 0) or num_wtars == len(source_files)
 
         retVal += 1
@@ -197,7 +197,7 @@ class InstlClientCopy(InstlClient):
             self.unwtar_instructions.append((first_wtar_full_path, '.'))
         return retVal
 
-    def create_copy_instructions_for_dir_cont(self, source_path: str, name_for_progress_message: str):
+    def create_copy_instructions_for_dir_cont(self, source_path: str, name_for_progress_message: str) -> int:
         retVal: int = 0  # number of essential actions (not progress, remark, ...)
         source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
         source_items = self.info_map_table.get_items_in_dir(dir_path=source_path)
@@ -237,7 +237,7 @@ class InstlClientCopy(InstlClient):
             #    self.batch_accum += self.platform_helper.chmod("-R -f a+rwX", ".")
         return retVal
 
-    def can_copy_be_avoided(self, dir_item: svnTree.SVNRow, source_items: List[svnTree.SVNRow]):
+    def can_copy_be_avoided(self, dir_item: svnTree.SVNRow, source_items: List[svnTree.SVNRow]) -> bool:
         retVal = False
         if "__REPAIR_INSTALLED_ITEMS__" not in self.main_install_targets:
             # look for Info.xml as first choice, Info.plist is seconds choice
@@ -249,8 +249,8 @@ class InstlClientCopy(InstlClient):
                 retVal = utils.check_file_checksum(info_item_abs_path, info_item.checksum)
         return retVal
 
-    def create_copy_instructions_for_dir(self, source_path: str, name_for_progress_message: str):
-        retVal = 0  # number of essential actions (not progress, remark, ...)
+    def create_copy_instructions_for_dir(self, source_path: str, name_for_progress_message: str) -> int:
+        retVal: int = 0  # number of essential actions (not progress, remark, ...)
         dir_item: svnTree.SVNRow = self.info_map_table.get_dir_item(source_path)
         if dir_item is not None:
             source_items: List[svnTree.SVNRow] = self.info_map_table.get_items_in_dir(dir_path=source_path)
@@ -290,7 +290,7 @@ class InstlClientCopy(InstlClient):
             retVal += self.create_copy_instructions_for_file(source_path, name_for_progress_message)
         return retVal
 
-    def create_copy_instructions_for_source(self, source, name_for_progress_message):
+    def create_copy_instructions_for_source(self, source, name_for_progress_message) -> int:
         """ source is a tuple (source_path, tag), where tag is either !file or !dir or !dir_cont'
         """
         retVal = 0
@@ -308,7 +308,7 @@ class InstlClientCopy(InstlClient):
         return retVal
 
     # special handling when running on Mac OS
-    def pre_copy_mac_handling(self):
+    def pre_copy_mac_handling(self) -> None:
         num_files_to_set_exec = self.info_map_table.num_items(item_filter="required-exec")
         if num_files_to_set_exec > 0:
             self.batch_accum += self.platform_helper.pushd("$(COPY_SOURCES_ROOT_DIR)")
@@ -319,7 +319,7 @@ class InstlClientCopy(InstlClient):
             self.batch_accum += self.platform_helper.popd()
 
     # Todo: move function to a better location
-    def pre_resolve_path(self, path_to_resolve):
+    def pre_resolve_path(self, path_to_resolve) -> str:
         """ for some paths we cannot wait for resolution in the batch file"""
         resolved_path = var_stack.ResolveStrToStr(path_to_resolve)
         try:
@@ -328,7 +328,7 @@ class InstlClientCopy(InstlClient):
             pass
         return resolved_path
 
-    def create_copy_instructions_for_target_folder(self, target_folder_path):
+    def create_copy_instructions_for_target_folder(self, target_folder_path) -> None:
         with BatchAccumulatorTransaction(self.batch_accum, "create_copy_instructions_for_target_folder-"+target_folder_path) as folder_accum_transaction:
             self.current_destination_folder = target_folder_path
             self.unwtar_instructions = list()
@@ -342,7 +342,7 @@ class InstlClientCopy(InstlClient):
             # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
             folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('pre_copy_to_folder', items_in_folder)
 
-            num_symlink_items = 0
+            num_symlink_items: int = 0
             batch_accum_len_before = len(self.batch_accum)
             self.batch_accum += self.platform_helper.copy_tool.begin_copy_folder()
             for IID in items_in_folder:
@@ -381,17 +381,7 @@ class InstlClientCopy(InstlClient):
             self.batch_accum += self.platform_helper.remark("- End folder {0}".format(target_folder_path))
             self.current_destination_folder = None
 
-    # Todo: move function to a better location
-    def pre_resolve_path(self, path_to_resolve):
-        """ for some paths we cannot wait for resolution in the batch file"""
-        resolved_path = var_stack.ResolveStrToStr(path_to_resolve)
-        try:
-            resolved_path = str(pathlib.Path(resolved_path).resolve())
-        except:
-            pass
-        return resolved_path
-
-    def create_copy_instructions_for_no_copy_folder(self, sync_folder_name):
+    def create_copy_instructions_for_no_copy_folder(self, sync_folder_name) -> None:
         """ Instructions for sources that do not need copying
             These are sources that do not have 'install_folder' section OR those with os_is_active
             'direct_sync' section.
@@ -406,7 +396,7 @@ class InstlClientCopy(InstlClient):
             # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
             folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('pre_copy_to_folder', items_in_folder)
 
-            num_wtars = 0
+            num_wtars: int = 0
             for IID in sorted(items_in_folder):
                 sources_from_db = self.items_table.get_sources_for_iid(IID)
                 for source_from_db in sources_from_db:
@@ -428,7 +418,7 @@ class InstlClientCopy(InstlClient):
             # accumulate post_copy_to_folder actions from all items, eliminating duplicates
             folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)
 
-    def create_unwtar_batch_file(self, wtar_instructions, name_for_progress):
+    def create_unwtar_batch_file(self, wtar_instructions, name_for_progress) -> None:
         if wtar_instructions:
             main_out_file_dir, main_out_file_leaf = os.path.split(var_stack.ResolveVarToStr("__MAIN_OUT_FILE__"))
             unwtar_batch_files_dir = os.path.join(main_out_file_dir, "unwtar")
