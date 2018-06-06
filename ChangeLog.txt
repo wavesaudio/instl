@@ -1,3 +1,8 @@
+6/6/2018 1.8.0.4
+
+    user visible changes:
+    * fix a bug in InstlClientCopy.create_copy_instructions_for_dir where executable files were not identified correctly and chmod was not called (Mac Only)
+
 28/5/2018 1.8.0.3
 
     user visible changes:
