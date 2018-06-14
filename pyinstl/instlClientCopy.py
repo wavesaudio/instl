@@ -377,7 +377,7 @@ class InstlClientCopy(InstlClient):
                     self.batch_accum += self.platform_helper.resolve_symlink_files()
 
             # accumulate post_copy_to_folder actions from all items, eliminating duplicates
-            self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)
+            folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)
             self.batch_accum += self.platform_helper.remark("- End folder {0}".format(target_folder_path))
             self.current_destination_folder = None
 
