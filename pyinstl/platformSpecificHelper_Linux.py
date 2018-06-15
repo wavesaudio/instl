@@ -114,9 +114,6 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
     def check_checksum_for_file(self, a_file, checksum):
         raise NotImplementedError
 
-    def ls(self, _format='*', folder='.'):
-        raise NotImplementedError
-
     def tar(self, to_tar_name):
         raise NotImplementedError
 
