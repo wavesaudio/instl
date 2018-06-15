@@ -140,26 +140,6 @@ class Chmod(PythonBatchCommandBase):
         return None
 
 
-class Chown(PythonBatchCommandBase):
-    def __init__(self, path, owner):
-        super().__init__(report_own_progress=True)
-        self.path = path
-        self.owner = owner
-        self.exceptions_to_ignore.append(FileNotFoundError)
-
-    def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(path="{self.path}", owner={self.owner})"""
-        return the_repr
-
-    def progress_msg_self(self):
-        the_progress_msg = f"Change owner {self.path}"
-        return the_progress_msg
-
-    def __call__(self):
-        os.chown(self.path, uid=self.owner, gid=-1)
-        return None
-
-
 class Cd(PythonBatchCommandBase):
     def __init__(self, path):
         super().__init__(report_own_progress=True)
@@ -245,6 +225,42 @@ class RunProcess(PythonBatchCommandBase):
 
     def __repr__(self):
         raise NotImplementedError
+
+
+class Chown(RunProcess):
+    def __init__(self, user_id, group_id, path, recursive=False):
+        super().__init__(report_own_progress=True)
+        self.user_id = user_id
+        self.group_id = group_id
+        self.path = path
+        self.recursive = recursive
+        self.exceptions_to_ignore.append(FileNotFoundError)
+
+    def __repr__(self):
+        the_repr = f"""{self.__class__.__name__}(user_id={self.user_id}, group_id={self.group_id}, path="{self.path}", recursive={self.recursive})"""
+        return the_repr
+
+    def create_run_args(self):
+        run_args = list()
+        run_args.append("chown")
+        run_args.append("-f")
+        if self.recursive:
+            run_args.append("-R")
+        run_args.append("".join((self.user_id, ":", self.group_id)))
+        run_args.append(utils.quoteme_double(self.path))
+        return run_args
+
+    def progress_msg_self(self):
+        the_progress_msg = f"Change owner {self.path}"
+        return the_progress_msg
+
+    def __call__(self):
+        # os.chown is not recursive so call the system's chown
+        if self.recursive:
+            return super().__call__()
+        else:
+            os.chown(self.path, uid=self.user_id, gid=self.group_id)
+            return None
 
 
 class CopyDirToDir(RunProcess):

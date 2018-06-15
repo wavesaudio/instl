@@ -10,6 +10,7 @@ from .platformSpecificHelper_Base import PlatformSpecificHelperBase
 from .platformSpecificHelper_Base import CopyToolRsync
 from .platformSpecificHelper_Base import DownloadToolBase
 
+from pybatch import *
 
 class CopyToolMacRsync(CopyToolRsync):
     def __init__(self, platform_helper):
@@ -23,12 +24,14 @@ class PlatformSpecificHelperPython(PlatformSpecificHelperBase):
         self.echo_template = 'echo "{}"'
 
     def init_platform_tools(self):
+        raise NotImplementedError
         self.dl_tool = DownloadTool_mac_curl(self)
 
     def get_install_instructions_prefix(self, exit_on_errors=True):
         """ exec 2>&1 within a batch file will redirect stderr to stdout.
             .sync.sh >& out.txt on the command line will redirect stderr to stdout from without.
         """
+        raise NotImplementedError
         retVal = (
             "#!/usr/bin/env bash",
             self.remark(self.instlObj.get_version_str()),
@@ -45,6 +48,7 @@ class PlatformSpecificHelperPython(PlatformSpecificHelperBase):
         return retVal
 
     def get_install_instructions_exit_func(self):
+        raise NotImplementedError
         retVal = (
             "exit_func() {",
             "CATCH_EXIT_VALUE=$?",
@@ -59,11 +63,13 @@ class PlatformSpecificHelperPython(PlatformSpecificHelperBase):
         return retVal
 
     def get_install_instructions_postfix(self):
+        raise NotImplementedError
         return ()
 
     def get_install_instructions_mkdir_with_owner_func(self):
         # -m will set the perm even if the dir exists
         # ignore error if owner cannot be changed
+        raise NotImplementedError
         retVal = (
 """
 mkdir_with_owner() {
@@ -82,6 +88,7 @@ chown $(__USER_ID__): "$1" || true
         return retVal
 
     def get_install_instructions_invocation_report_funcs(self):
+        raise NotImplementedError
         self.invocations_file_path = var_stack.ResolveVarToStr("__INVOCATIONS_FILE_PATH__")
         retVal = """
 report_invocation_start() {{
@@ -108,6 +115,7 @@ report_invocation_end() {{
             which solved the spaces problem. Also find returns an empty string
             even when there were no files found, and therefor the check
         """
+        raise NotImplementedError
         retVal = (
             '''resolve_symlinks() {''',
             '''find -P "$1" -type f -name '*.symlink'  -not -path "$(COPY_SOURCES_ROOT_DIR)*" | while read readlink_file; do''',
@@ -122,10 +130,12 @@ report_invocation_end() {{
         return retVal
 
     def start_time_measure(self):
+        raise NotImplementedError
         time_start_command = "Time_Measure_Start=$(date +%s)"
         return time_start_command
 
     def end_time_measure(self):
+        raise NotImplementedError
         time_end_commands = ('Time_Measure_End=$(date +%s)',
                              'Time_Measure_Diff=$(echo "$Time_Measure_End - $Time_Measure_Start" | bc)',
                              'convertsecs() { ((h=${1}/3600)) ; ((m=(${1}%3600)/60)) ; ((s=${1}%60)) ; printf "%02dh:%02dm:%02ds" $h $m $s ; }',
@@ -133,35 +143,43 @@ report_invocation_end() {{
         return time_end_commands
 
     def mkdir(self, directory):
+        raise NotImplementedError
         mk_command = " ".join(("mkdir", "-p", "-m a+rwx", utils.quoteme_double(directory) ))
         return mk_command
 
     def mkdir_with_owner(self, directory, progress_num=0):
+        raise NotImplementedError
         mk_command = " ".join(("mkdir_with_owner", utils.quoteme_double(directory), str(progress_num) ))
         return mk_command
 
     def cd(self, directory):
+        raise NotImplementedError
         cd_command = " ".join(("cd", utils.quoteme_double(directory) ))
         return cd_command
 
     def pushd(self, directory):
+        raise NotImplementedError
         pushd_command = " ".join(("pushd", utils.quoteme_double(directory), ">", "/dev/null"))
         return pushd_command
 
     def popd(self):
+        raise NotImplementedError
         pop_command = " ".join(("popd", ">", "/dev/null"))
         return pop_command
 
     def save_dir(self, var_name):
+        raise NotImplementedError
         save_dir_command = var_name + "=`pwd`"
         return save_dir_command
 
     def restore_dir(self, var_name):
+        raise NotImplementedError
         restore_dir_command = self.cd("$(" + var_name + ")")
         return restore_dir_command
 
     def rmdir(self, directory, recursive=False, check_exist=False):
         """ If recursive==False, only empty directory will be removed """
+        raise NotImplementedError
         rmdir_command_parts = list()
         norm_directory = utils.quoteme_double(directory)
         if check_exist:
@@ -176,6 +194,7 @@ report_invocation_end() {{
         return rmdir_command
 
     def rmfile(self, a_file, quote_char='"', check_exist=False):
+        raise NotImplementedError
         rmfile_command_parts = list()
         norm_file = utils.quoteme(a_file, quote_char)
         if check_exist:
@@ -186,13 +205,16 @@ report_invocation_end() {{
 
     def rm_file_or_dir(self, file_or_dir):
         # on mac rmdir -fr will remove a file or a directory without complaint.
+        raise NotImplementedError
         rm_command = self.rmdir(file_or_dir, recursive=True)
         return rm_command
 
     def get_svn_folder_cleanup_instructions(self):
+        raise NotImplementedError
         return 'find . -maxdepth 1 -mindepth 1 -type d -print0 | xargs -0 "$(SVN_CLIENT_PATH)" cleanup --non-interactive'
 
     def var_assign(self, identifier, value):
+        raise NotImplementedError
         quoter = '"'
         if '"' in value:
             quoter = "'"
@@ -204,6 +226,7 @@ report_invocation_end() {{
         return retVal
 
     def setup_echo(self):
+        raise NotImplementedError
         retVal = []
         echo_template = ['echo', '"{}"']
         if var_stack.defined('ECHO_LOG_FILE'):
@@ -214,20 +237,24 @@ report_invocation_end() {{
         return retVal
 
     def echo(self, message):
+        raise NotImplementedError
         echo_command = self.echo_template.format(message)
         return echo_command
 
     def remark(self, remark):
+        raise NotImplementedError
         remark_command = " ".join(('#', remark))
         return remark_command
 
     def use_copy_tool(self, tool_name):
+        raise NotImplementedError
         if tool_name == "rsync":
             self.copy_tool = CopyToolMacRsync(self)
         else:
             raise ValueError(tool_name, "is not a valid copy tool for Mac OS")
 
     def copy_file_to_file(self, src_file, trg_file, hard_link=False, check_exist=False):
+        raise NotImplementedError
         if hard_link:
             copy_command = f"""ln -f "{src_file}" "{trg_file}" """
         else:
@@ -243,10 +270,12 @@ report_invocation_end() {{
             which solved the spaces problem. Also find returns an empty string
             even when there were no files found, and therefor the check
         """
+        raise NotImplementedError
         resolve_command = " ".join(("resolve_symlinks", utils.quoteme_double(in_dir)))
         return resolve_command
 
     def check_checksum_for_file(self, file_path, checksum):
+        raise NotImplementedError
         check_command_parts = (  "CHECKSUM_CHECK=`$(CHECKSUM_TOOL_PATH) sha1",
                                  utils.quoteme_double(file_path),
                                  "` ;",
@@ -266,6 +295,7 @@ report_invocation_end() {{
         return check_command
 
     def tar(self, to_tar_name):
+        raise NotImplementedError
         if to_tar_name.endswith(".zip"):
             wtar_command_parts = ("$(WTAR_OPENER_TOOL_PATH)", "-c", "-f", utils.quoteme_double(to_tar_name+'.wtar'), utils.quoteme_double(to_tar_name))
         else:
@@ -274,6 +304,7 @@ report_invocation_end() {{
         return wtar_command
 
     def tar_with_instl(self, to_tar_name):
+        raise NotImplementedError
         if not var_stack.defined('__INSTL_LAUNCH_COMMAND__'):
             return # we cannot do anything without __INSTL_LAUNCH_COMMAND__
 
@@ -304,26 +335,32 @@ split_file()
         return the_split_func
 
     def split(self, file_to_split):
+        raise NotImplementedError
         split_command = " ".join(("split_file", utils.quoteme_double(file_to_split)))
         return split_command
 
     def wait_for_child_processes(self):
+        raise NotImplementedError
         return "wait",
 
     def chmod(self, new_mode, file_path):
+        raise NotImplementedError
         chmod_command = " ".join(("chmod", str(new_mode), utils.quoteme_double(file_path)))
         return chmod_command
 
     def make_executable(self, file_path):
+        raise NotImplementedError
         return self.chmod("a+x", file_path)
 
     def make_writable(self, file_path):
+        raise NotImplementedError
         return self.chmod("a+w", file_path)
 
     def unlock(self, file_path, recursive=False, ignore_errors=True):
         """ Remove the system's read-only flag, this is different from permissions.
             For changing permissions use chmod.
         """
+        raise NotImplementedError
         ignore_errors_flag = recurse_flag = ""
         if ignore_errors:
             ignore_errors_flag = "-f"
@@ -335,22 +372,17 @@ split_file()
         return nouchg_command
 
     def touch(self, file_path):
+        raise NotImplementedError
         touch_command = " ".join(("touch", utils.quoteme_double(file_path)))
         return touch_command
 
     def append_file_to_file(self, source_file, target_file):
+        raise NotImplementedError
         append_command = " ".join(("cat", utils.quoteme_double(source_file), ">>", utils.quoteme_double(target_file)))
         return append_command
 
     def chown(self, user_id, group_id, target_path, recursive=False):
-        chown_command_parts = list()
-        chown_command_parts.append("chown")
-        chown_command_parts.append("-f")
-        if recursive:
-            chown_command_parts.append("-R")
-        chown_command_parts.append("".join((user_id, ":", group_id)))
-        chown_command_parts.append(utils.quoteme_double(target_path))
-        chown_command = " ".join(chown_command_parts)
+        chown_command = Chown(user_id, group_id, target_path, recursive)
         return chown_command
 
 
