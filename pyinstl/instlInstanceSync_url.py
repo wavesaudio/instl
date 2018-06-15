@@ -214,7 +214,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Adjust ownership and permissions ...")
             for dr in download_roots:
                 self.instlObj.batch_accum += self.instlObj.platform_helper.chown("$(__USER_ID__)", "$(__GROUP_ID__)", dr, recursive=True)
-            self.instlObj.batch_accum += self.instlObj.platform_helper.chmod("-R -f a+rwX", dr)
+                self.instlObj.batch_accum += self.instlObj.platform_helper.chmod("-R -f a+rwX", dr)
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Adjust ownership and permissions done")
             self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 

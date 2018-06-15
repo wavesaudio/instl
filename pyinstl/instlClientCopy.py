@@ -410,8 +410,6 @@ class InstlClientCopy(InstlClient):
                 folder_accum_transaction += len(post_copy_item_from_db)
 
             if num_wtars > 0:
-                source_folder, source_name = os.path.split(source[0])
-                # to_unwtar = os.path.join(sync_folder_name, source_name)
                 self.batch_accum += self.platform_helper.unwtar_something(sync_folder_name, no_artifacts=False, where_to_unwtar='.')
                 folder_accum_transaction += 1
 

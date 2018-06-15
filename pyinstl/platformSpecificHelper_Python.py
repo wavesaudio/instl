@@ -3,8 +3,6 @@
 
 import os
 import datetime
-import random
-import string
 
 import utils
 from configVar import var_stack
@@ -84,7 +82,6 @@ chown $(__USER_ID__): "$1" || true
         return retVal
 
     def get_install_instructions_invocation_report_funcs(self):
-        self.random_invocation_id = ''.join(random.choice(string.ascii_lowercase) for i in range(16))
         self.invocations_file_path = var_stack.ResolveVarToStr("__INVOCATIONS_FILE_PATH__")
         retVal = """
 report_invocation_start() {{
@@ -139,7 +136,7 @@ report_invocation_end() {{
         mk_command = " ".join(("mkdir", "-p", "-m a+rwx", utils.quoteme_double(directory) ))
         return mk_command
 
-    def mkdir_with_owner(self, directory, progress_num):
+    def mkdir_with_owner(self, directory, progress_num=0):
         mk_command = " ".join(("mkdir_with_owner", utils.quoteme_double(directory), str(progress_num) ))
         return mk_command
 
@@ -268,7 +265,7 @@ report_invocation_end() {{
         check_command = " ".join(check_command_parts)
         return check_command
 
-    def ls(self, format='*', folder='.', output_file='None'):
+    def ls(self, _format='*', folder='.'):
         if output_file is None:
             return # no output_file, no game
 
@@ -280,7 +277,7 @@ report_invocation_end() {{
                             "--in",
                             utils.quoteme_double(folder),
                             "--output-format",
-                            utils.quoteme_double(format),
+                            utils.quoteme_double(_format),
                             "--out",
                             utils.quoteme_double(os.path.join(folder, output_file)))
         return " ".join(ls_command_parts)
@@ -328,7 +325,7 @@ split_file()
         return split_command
 
     def wait_for_child_processes(self):
-        return ("wait",)
+        return "wait",
 
     def chmod(self, new_mode, file_path):
         chmod_command = " ".join(("chmod", str(new_mode), utils.quoteme_double(file_path)))
