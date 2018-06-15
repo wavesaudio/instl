@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 
 import os
@@ -18,7 +18,7 @@ class CopyToolMacRsync(CopyToolRsync):
         super().__init__(platform_helper)
 
 
-class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
+class PlatformSpecificHelperPython(PlatformSpecificHelperBase):
     def __init__(self, instlObj):
         super().__init__(instlObj)
         self.var_replacement_pattern = "${\g<var_name>}"
@@ -232,9 +232,9 @@ report_invocation_end() {{
 
     def copy_file_to_file(self, src_file, trg_file, hard_link=False, check_exist=False):
         if hard_link:
-            copy_command = """ln -f "{src_file}" "{trg_file}" """.format(**locals())
+            copy_command = f"""ln -f "{src_file}" "{trg_file}" """
         else:
-            copy_command = """cp -f "{src_file}" "{trg_file}" """.format(**locals())
+            copy_command = f"""cp -f "{src_file}" "{trg_file}" """
         if check_exist:
             copy_command += " || true"
         return copy_command
@@ -415,7 +415,8 @@ class DownloadTool_mac_curl(DownloadToolBase):
         with utils.utf8_open(parallel_run_config_file_path, "w") as wfd:
             utils.make_open_file_read_write_for_all(wfd)
             for config_file in config_files:
-                wfd.write(var_stack.ResolveStrToStr('"$(DOWNLOAD_TOOL_PATH)" --config "{config_file}"\n'.format(**locals())))
+                wfd.write(var_stack.ResolveStrToStr(f'"$(DOWNLOAD_TOOL_PATH)" --config "{config_file}"\n'))
 
         download_command = " ".join((self.platform_helper.run_instl(),  "parallel-run", "--in", utils.quoteme_double(parallel_run_config_file_path)))
         return download_command
+

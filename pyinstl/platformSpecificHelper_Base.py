@@ -383,7 +383,7 @@ class PlatformSpecificHelperBase(object):
         return set_exec_for_folder_command
 
     @abc.abstractmethod
-    def ls(self, format='*', folder='.'):
+    def ls(self, _format='*', folder='.'):
         pass
 
     def tar(self, to_tar_name):

@@ -493,7 +493,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         check_checksum_for_folder_command = super().check_checksum_for_folder(info_map_file)
         return check_checksum_for_folder_command, self.exit_if_error()
 
-    def ls(self, format='*', folder='.'):
+    def ls(self, _format='*', folder='.'):
         raise NotImplementedError
 
     def tar(self, to_tar_name):
@@ -505,7 +505,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return unwtar_command, check_error_level_command
 
     def wait_for_child_processes(self):
-        return ("echo wait_for_child_processes not implemented yet for windows",)
+        return "echo wait_for_child_processes not implemented yet for windows",
 
     def chmod(self, new_mode, file_path):
         raise NotImplementedError

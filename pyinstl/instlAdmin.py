@@ -220,7 +220,6 @@ class InstlAdmin(InstlInstanceBase):
     def create_links_for_revision(self, accum):
         assert var_stack.ResolveVarToStr("__CURR_REPO_REV__") == "".join(var_stack.ResolveVarToStr("__CURR_REPO_FOLDER_HIERARCHY__").split("/")).lstrip("0")
         base_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/Base"
-        curr_repo_rev = var_stack.ResolveVarToStr("__CURR_REPO_REV__")
         revision_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)"
         revision_instl_folder_path = revision_folder_path + "/instl"
 
@@ -353,7 +352,6 @@ class InstlAdmin(InstlInstanceBase):
     def upload_to_s3_aws_for_revision(self, accum):
         assert var_stack.ResolveVarToStr("__CURR_REPO_REV__") == "".join(var_stack.ResolveVarToStr("__CURR_REPO_FOLDER_HIERARCHY__").split("/")).lstrip("0")
         map_file_path = 'instl/full_info_map.txt'
-        curr_repo_rev = var_stack.ResolveVarToStr("__CURR_REPO_REV__")
         info_map_path = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/" + map_file_path)
         repo_rev = int(var_stack.ResolveVarToStr("__CURR_REPO_REV__"))
         self.info_map_table.clear_all()

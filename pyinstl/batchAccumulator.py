@@ -55,7 +55,7 @@ class BatchAccumulator(object):
     def finalize_list_of_lines(self):
         lines = list()
         for section in BatchAccumulator.section_order:
-            #var_stack.set_var("CURRENT_PHASE").append(section)
+            # var_stack.set_var("CURRENT_PHASE").append(section)
             section_lines = self.instruction_lines[section]
             if section_lines:
                 if section == "assign":
@@ -84,7 +84,7 @@ class BatchAccumulator(object):
         prev_counters = self.transaction_stack.pop()
         # remove the instructions_ added since the beginning of the transaction
         for section_name, section_counter in prev_counters.items():
-            if section_name in  self.instruction_lines:
+            if section_name in self.instruction_lines:
                 del self.instruction_lines[section_name][prev_counters[section_name]:]
 
     def commit_transaction_if(self, condition):

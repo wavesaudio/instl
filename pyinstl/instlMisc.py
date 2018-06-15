@@ -396,11 +396,10 @@ class InstlMisc(InstlInstanceBase):
         ls_format = var_stack.ResolveVarToStr("LS_FORMAT", default='*')
         the_listing = utils.disk_item_listing(*folders_to_list, ls_format=ls_format)
 
+        out_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
         try:
-            out_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
             with utils.write_to_file_or_stdout(out_file) as wfd:
                 wfd.write(the_listing)
-
         except NotADirectoryError:
             print("Cannot output to {}".format(out_file))
 
@@ -420,7 +419,7 @@ class InstlMisc(InstlInstanceBase):
         for p_and_c in path_and_checksum_list:
             print(col_formats[len(p_and_c)].format(*p_and_c))
         print()
-        print(col_formats[len(p_and_c)].format("total checksum", total_checksum))
+        print(col_formats[2].format("total checksum", total_checksum))
 
     def do_resolve(self):
         var_stack.set_var("PRINT_COMMAND_TIME").append("no") # do not print time report
