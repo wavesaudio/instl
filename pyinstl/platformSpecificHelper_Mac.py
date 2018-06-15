@@ -3,8 +3,6 @@
 
 import os
 import datetime
-import random
-import string
 
 import utils
 from configVar import var_stack
@@ -84,7 +82,6 @@ chown $(__USER_ID__): "$1" || true
         return retVal
 
     def get_install_instructions_invocation_report_funcs(self):
-        self.random_invocation_id = ''.join(random.choice(string.ascii_lowercase) for i in range(16))
         self.invocations_file_path = var_stack.ResolveVarToStr("__INVOCATIONS_FILE_PATH__")
         retVal = """
 report_invocation_start() {{

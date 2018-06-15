@@ -6,8 +6,6 @@ import sys
 import datetime
 import subprocess
 import re
-import random
-import string
 
 import utils
 from .platformSpecificHelper_Base import PlatformSpecificHelperBase
@@ -298,7 +296,6 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
                 self.find_cmd_tool(find_tool_var)
 
     def get_install_instructions_prefix(self, exit_on_errors=True):
-        self.random_invocation_id = ''.join(random.choice(string.ascii_lowercase) for i in range(16))
         self.invocations_file_path = var_stack.ResolveVarToStr("__INVOCATIONS_FILE_PATH__")
         retVal = (
             "@echo off",
