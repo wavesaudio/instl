@@ -4,6 +4,6 @@ from .pythonBatchCommands import Chown
 from .pythonBatchCommands import Cd
 from .pythonBatchCommands import MakeDirs
 from .pythonBatchCommands import Section
-from .pythonBatchCommands import RunProcess
+from .pythonBatchCommands import RunProcessBase
 from .pythonBatchCommands import CopyDirToDir
 from .pythonBatchCommands import Dummy

@@ -108,7 +108,7 @@ class PythonBatchCommandBase(abc.ABC):
             print(f"{self.progress_msg()} WARNING; {exc_val}")
             suppress_exception = True
         else:
-            print(f"{self.progress_msg()} ERROR; {self.error_msg_self()}; {exc_val}")
+            print(f"{self.progress_msg()} ERROR; {self.error_msg_self()}; {exc_val.__class__.__name__}: {exc_val}")
         self.exit_self(exit_return=suppress_exception)
         return suppress_exception
 
@@ -210,7 +210,7 @@ class Section(PythonBatchCommandBase):
         pass
 
 
-class RunProcess(PythonBatchCommandBase):
+class RunProcessBase(PythonBatchCommandBase):
     def __init__(self):
         super().__init__()
 
@@ -220,14 +220,14 @@ class RunProcess(PythonBatchCommandBase):
 
     def __call__(self, *args, **kwargs):
         run_args = self.create_run_args()
-        completed_process = subprocess.run(run_args)
+        completed_process = subprocess.run(run_args, check=True)
         return None  # what to return here?
 
     def __repr__(self):
         raise NotImplementedError
 
 
-class Chown(RunProcess):
+class Chown(RunProcessBase):
     def __init__(self, user_id, group_id, path, recursive=False):
         super().__init__(report_own_progress=True)
         self.user_id = user_id
@@ -263,7 +263,7 @@ class Chown(RunProcess):
             return None
 
 
-class CopyDirToDir(RunProcess):
+class CopyDirToDir(RunProcessBase):
     def __init__(self, src_dir, trg_dir, link_dest=False, ignore=None, preserve_dest_files=False):
         super().__init__()
         self.src_dir = src_dir
