@@ -92,7 +92,7 @@ def three_install():
             sub_sub_bc += Dummy("A3")
         with sub_bc.sub_section(Cd(path="/Users/shai/Desktop/Logs")) as sub_sub_bc:
             sub_sub_bc += Chmod(path="noautoupdate.txt", mode=Chmod.all_read_write_exec)
-            sub_sub_bc += CopyDirToDir(src_dir="/Users/shai/Desktop/Logs/unwtar", trg_dir="/Users/shai/Desktop/Logs/b")
+            sub_sub_bc += CopyDirToDir(src="/Users/shai/Desktop/Logs/unwtar", trg="/Users/shai/Desktop/Logs/b")
         sub_bc += Dummy("Z")
 
     #list_cp = copy.deepcopy(bc.context_stack[0])

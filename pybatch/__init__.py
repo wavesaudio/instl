@@ -1,4 +1,5 @@
 from .pythonBatchCommands import PythonBatchCommandBase
+from .pythonBatchCommands import BatchCommandAccum
 from .pythonBatchCommands import Chmod
 from .pythonBatchCommands import Chown
 from .pythonBatchCommands import Cd

@@ -62,14 +62,6 @@ class CopyToolBase(object, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
-        """ Copy the files of src_dir into trg_dir.
-            Example: copy_dir_files_to_dir("a", "/d/c/b") copies
-            all files from a into "/d/c/b", subfolders of a are not copied
-        """
-        pass
-
-    @abc.abstractmethod
     def copy_file_to_file(self, src_file, trg_file, link_dest=False, ignore=None):
         """ Copy file src_file into trg_file.
             Example: copy_file_to_file("a", "/d/c/b") copies
@@ -163,19 +155,6 @@ class CopyToolRsync(CopyToolBase):
             sync_command = f"""rsync --owner --group -l -r -E {delete_spec} {ignore_spec} --link-dest="{relative_link_dest}" "{src_dir}" "{trg_dir}" """
         else:
             sync_command = f"""rsync --owner --group -l -r -E {delete_spec} {ignore_spec} "{src_dir}" "{trg_dir}" """
-
-        return sync_command
-
-    def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
-        if not src_dir.endswith("/"):
-            src_dir += "/"
-        # in order for * to correctly expand, it must be outside the quotes, e.g. to copy all files in folder a: A=a ; "${A}"/* and not "${A}/*"
-        ignore_spec = self.create_ignore_spec(ignore)
-        if link_dest:
-            relative_link_dest = os.path.relpath(src_dir, trg_dir)
-            sync_command = f"""rsync --owner --group -l -E -d --exclude='*/' {ignore_spec} --link-dest="{relative_link_dest}" "{src_dir}" "{trg_dir}" """
-        else:
-            sync_command = f"""rsync --owner --group -l -E -d --exclude='*/' {ignore_spec} "{src_dir}"/* "{trg_dir}" """
 
         return sync_command
 

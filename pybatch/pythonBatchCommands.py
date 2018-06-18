@@ -4,6 +4,8 @@ import stat
 import sys
 import subprocess
 import abc
+import io
+from contextlib import ExitStack, contextmanager
 
 import utils
 
@@ -54,7 +56,10 @@ class PythonBatchCommandBase(abc.ABC):
         return the_repr
 
     def __eq__(self, other):
-        is_eq = self.__dict__ == other.__dict__
+        do_not_compare_keys = ('progress', 'obj_name')
+        dict_self =  {k:  self.__dict__[k] for k in  self.__dict__.keys() if k not in do_not_compare_keys}
+        dict_other = {k: other.__dict__[k] for k in other.__dict__.keys() if k not in do_not_compare_keys}
+        is_eq = dict_self == dict_other
         return is_eq
 
     def __hash__(self):
@@ -116,7 +121,44 @@ class PythonBatchCommandBase(abc.ABC):
     def __call__(self, *args, **kwargs):
         pass
 
+# === classes with tests ===
+class MakeDirs(PythonBatchCommandBase):
+    """ Create one or more dirs
+        when remove_obstacles==True if one of the paths is a file it will be removed
+        when remove_obstacles==False if one of the paths is a file 'FileExistsError: [Errno 17] File exists' will raise
+        it it always OK for a dir to already exists
+        Tests: TestPythonBatch.test_MakeDirs_*
+    """
+    def __init__(self, *paths_to_make, remove_obstacles=True):
+        super().__init__(report_own_progress=True)
+        self.paths_to_make = paths_to_make
+        self.remove_obstacles = remove_obstacles
+        self.cur_path = None
 
+    def __repr__(self):
+        paths_csl = ", ".join(utils.quoteme_double_list(self.paths_to_make))
+        the_repr = f"""{self.__class__.__name__}({paths_csl}, remove_obstacles={self.remove_obstacles})"""
+        return the_repr
+
+    def progress_msg_self(self):
+        the_progress_msg = f"mkdir {self.paths_to_make}"
+        return the_progress_msg
+
+    def __call__(self):
+        retVal = 0
+        for self.cur_path in self.paths_to_make:
+            if self.remove_obstacles:
+                if os.path.isfile(self.cur_path):
+                    os.unlink(self.cur_path)
+            os.makedirs(self.cur_path, mode=0o777, exist_ok=True)
+            retVal += 1
+        return retVal
+
+    def error_msg_self(self):
+        return f"creating {self.cur_path}"
+
+
+# === classes without tests (yet) ===
 class Chmod(PythonBatchCommandBase):
     all_read_write = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH
     all_read_write_exec = all_read_write | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
@@ -161,36 +203,6 @@ class Cd(PythonBatchCommandBase):
 
     def exit_self(self, exit_return):
         os.chdir(self.old_path)
-
-
-class MakeDirs(PythonBatchCommandBase):
-    def __init__(self, *paths_to_make, remove_obstacles=True):
-        super().__init__(report_own_progress=True)
-        self.paths_to_make = paths_to_make
-        self.remove_obstacles = remove_obstacles
-        self.cur_path = None
-
-    def __repr__(self):
-        paths_csl = ", ".join(utils.quoteme_double_list(self.paths_to_make))
-        the_repr = f"""{self.__class__.__name__}({paths_csl}, remove_obstacles={self.remove_obstacles})"""
-        return the_repr
-
-    def progress_msg_self(self):
-        the_progress_msg = f"mkdir {self.paths_to_make}"
-        return the_progress_msg
-
-    def __call__(self):
-        retVal = 0
-        for self.cur_path in self.paths_to_make:
-            if self.remove_obstacles:
-                if os.path.isfile(self.cur_path):
-                    os.unlink(self.cur_path)
-            os.makedirs(self.cur_path, mode=0o777, exist_ok=True)
-            retVal += 1
-        return retVal
-
-    def error_msg_self(self):
-        return f"creating {self.cur_path}"
 
 
 class Section(PythonBatchCommandBase):
@@ -262,33 +274,30 @@ class Chown(RunProcessBase):
             os.chown(self.path, uid=self.user_id, gid=self.group_id)
             return None
 
-
-class CopyDirToDir(RunProcessBase):
-    def __init__(self, src_dir, trg_dir, link_dest=False, ignore=None, preserve_dest_files=False):
+class RsyncCopyBase(RunProcessBase):
+    def __init__(self, src, trg, link_dest=False, ignore=None, preserve_dest_files=False):
         super().__init__()
-        self.src_dir = src_dir
-        self.trg_dir = trg_dir
+        self.src = src
+        self.trg = trg
         self.link_dest = link_dest
         self.ignore = ignore
         self.preserve_dest_files = preserve_dest_files
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(src_dir="{self.src_dir}", trg_dir="{self.trg_dir}", link_dest={self.link_dest}, ignore={self.ignore}, preserve_dest_files={self.preserve_dest_files})"""
+        the_repr = f"""{self.__class__.__name__}(src="{self.src}", trg="{self.trg}", link_dest={self.link_dest}, ignore={self.ignore}, preserve_dest_files={self.preserve_dest_files})"""
         return the_repr
 
     def create_run_args(self):
         run_args = list()
-        if self.src_dir.endswith("/"):
-            self.src_dir.rstrip("/")
         ignore_spec = self.create_ignore_spec(self.ignore)
         if not self.preserve_dest_files:
             delete_spec = "--delete"
         else:
             delete_spec = ""
 
-        run_args.extend(["rsync", "--owner", "--group", "-l", "-r", "-E", delete_spec, *ignore_spec, self.src_dir, self.trg_dir])
+        run_args.extend(["rsync", "--owner", "--group", "-l", "-r", "-E", delete_spec, *ignore_spec, self.src, self.trg])
         if self.link_dest:
-            the_link_dest = os.path.join(self.src_dir, "..")
+            the_link_dest = os.path.join(self.src, "..")
             run_args.append(f''''--link-dest="{the_link_dest}"''')
 
         return run_args
@@ -304,6 +313,27 @@ class CopyDirToDir(RunProcessBase):
     def progress_msg_self(self):
         the_progress_msg = f"{self}"
         return the_progress_msg
+
+class CopyDirToDir(RsyncCopyBase):
+    def __init__(self, src, trg, link_dest=False, ignore=None, preserve_dest_files=False):
+       src = src.rstrip("/")
+       super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files)
+
+class CopyDirContentsToDir(RsyncCopyBase):
+    def __init__(self, src, trg, link_dest=False, ignore=None, preserve_dest_files=False):
+        if not src.endswith("/"):
+            src += "/"
+        super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files)
+
+class CopyFileToFile(RsyncCopyBase):
+    def __init__(self, src, trg, link_dest=False, ignore=None, preserve_dest_files=False):
+       src = src.rstrip("/")
+       super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files)
+
+class CopyFileToDir(RsyncCopyBase):
+    def __init__(self, src, trg, link_dest=False, ignore=None, preserve_dest_files=False):
+       src = src.rstrip("/")
+       super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files)
 
 
 class Dummy(PythonBatchCommandBase):
@@ -327,3 +357,41 @@ class Dummy(PythonBatchCommandBase):
 
     def __call__(self, *args, **kwargs):
         print(f"Dummy __call__ {self.name}")
+
+
+class BatchCommandAccum(object):
+
+    def __init__(self):
+        self.context_stack = [list()]
+
+    def __iadd__(self, other):
+        self.context_stack[-1].append(other)
+        return self
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+    @contextmanager
+    def sub_section(self, context):
+        self.context_stack[-1].append(context)
+        self.context_stack.append(context.child_batch_commands)
+        yield self
+        self.context_stack.pop()
+
+    def __repr__(self):
+        def _repr_helper(batch_items, io_str, indent):
+            indent_str = "    "*indent
+            if isinstance(batch_items, list):
+                for item in batch_items:
+                    _repr_helper(item, io_str, indent)
+                    _repr_helper(item.child_batch_commands, io_str, indent+1)
+            else:
+                io_str.write(f"""{indent_str}with {repr(batch_items)} as {batch_items.obj_name}:\n""")
+                io_str.write(f"""{indent_str}    {batch_items.obj_name}()\n""")
+        PythonBatchCommandBase.total_progress = 0
+        io_str = io.StringIO()
+        _repr_helper(self.context_stack[0], io_str, 0)
+        return io_str.getvalue()

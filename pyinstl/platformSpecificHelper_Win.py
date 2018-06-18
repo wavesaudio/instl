@@ -105,17 +105,6 @@ class CopyTool_win_robocopy(CopyToolBase):
         retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
         return retVal
 
-    def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=None, ignore=None):
-        retVal = list()
-        ignore_spec = self.create_ignore_spec(ignore)
-        log_file_spec = self.create_log_spec()
-        norm_src_dir = os.path.normpath(src_dir)
-        norm_trg_dir = os.path.normpath(trg_dir)
-        copy_command = f""""$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" /LEV:1 {ignore_spec} /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS {log_file_spec}"""
-        retVal.append(copy_command)
-        retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
-        return retVal
-
     def copy_file_to_file(self, src_file, trg_file, link_dest=None, ignore=None):
         retVal = list()
         norm_src_file = os.path.normpath(src_file)
@@ -191,16 +180,6 @@ class CopyTool_win_xcopy(CopyToolBase):
         ignore_spec = self.create_ignore_spec(ignore)
         # preserve_dest_files is ignored - xcopy has no support for removing target file that are not in source
         copy_command = f""""$(XCOPY_PATH)" /E /R /Y /I {ignore_spec} "{norm_src_dir}" "{norm_trg_dir}" """
-        retVal.append(copy_command)
-        retVal.append(self.platform_helper.exit_if_error())
-        return retVal
-
-    def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
-        retVal = list()
-        norm_src_dir = os.path.normpath(src_dir)
-        norm_trg_dir = os.path.normpath(trg_dir)
-        ignore_spec = self.create_ignore_spec(ignore)
-        copy_command = f""""$(XCOPY_PATH)"  /R /Y {ignore_spec} "{norm_src_dir}" "{trg_dir}" """
         retVal.append(copy_command)
         retVal.append(self.platform_helper.exit_if_error())
         return retVal
