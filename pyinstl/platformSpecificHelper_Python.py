@@ -143,12 +143,10 @@ report_invocation_end() {{
         return time_end_commands
 
     def mkdir(self, directory):
-        raise NotImplementedError
-        mk_command = " ".join(("mkdir", "-p", "-m a+rwx", utils.quoteme_double(directory) ))
-        return mk_command
+        python_batch_command = MakeDirs(directory)
+        return python_batch_command
 
     def mkdir_with_owner(self, directory, progress_num=0):
-        raise NotImplementedError
         mk_command = " ".join(("mkdir_with_owner", utils.quoteme_double(directory), str(progress_num) ))
         return mk_command
 
@@ -194,20 +192,12 @@ report_invocation_end() {{
         return rmdir_command
 
     def rmfile(self, a_file, quote_char='"', check_exist=False):
-        raise NotImplementedError
-        rmfile_command_parts = list()
-        norm_file = utils.quoteme(a_file, quote_char)
-        if check_exist:
-            rmfile_command_parts.extend(("[", "!", "-f", norm_file, "]", "||"))
-        rmfile_command_parts.extend(("rm", "-f", norm_file))
-        rmfile_command = " ".join(rmfile_command_parts)
-        return rmfile_command
+        python_batch_command = RmFile(a_file)
+        return python_batch_command
 
     def rm_file_or_dir(self, file_or_dir):
-        # on mac rmdir -fr will remove a file or a directory without complaint.
-        raise NotImplementedError
-        rm_command = self.rmdir(file_or_dir, recursive=True)
-        return rm_command
+        python_batch_command = RmFileOrDir(file_or_dir)
+        return python_batch_command
 
     def get_svn_folder_cleanup_instructions(self):
         raise NotImplementedError
@@ -344,9 +334,8 @@ split_file()
         return "wait",
 
     def chmod(self, new_mode, file_path):
-        raise NotImplementedError
-        chmod_command = " ".join(("chmod", str(new_mode), utils.quoteme_double(file_path)))
-        return chmod_command
+        python_batch_command = Chmod(file_path, new_mode)
+        return python_batch_command
 
     def make_executable(self, file_path):
         raise NotImplementedError
@@ -372,9 +361,8 @@ split_file()
         return nouchg_command
 
     def touch(self, file_path):
-        raise NotImplementedError
-        touch_command = " ".join(("touch", utils.quoteme_double(file_path)))
-        return touch_command
+        python_batch_command = Touch(file_path)
+        return python_batch_command
 
     def append_file_to_file(self, source_file, target_file):
         raise NotImplementedError

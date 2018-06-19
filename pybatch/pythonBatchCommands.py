@@ -5,7 +5,11 @@ import sys
 import subprocess
 import abc
 import io
+import random
+import string
 from contextlib import ExitStack, contextmanager
+import shutil
+import pathlib
 
 import utils
 
@@ -17,6 +21,11 @@ def camel_to_snake_case(identifier):
     identifier1 = first_cap_re.sub(r'\1_\2', identifier)
     identifier2 = all_cap_re.sub(r'\1_\2', identifier1).lower()
     return identifier2
+
+
+def touch(file_path):
+    with open(file_path, 'a'):
+        os.utime(file_path, None)
 
 
 class PythonBatchCommandBase(abc.ABC):
@@ -32,11 +41,11 @@ class PythonBatchCommandBase(abc.ABC):
         __init__: must record all parameters needed to implement __repr__ and must not do any actual work!
         __call__: here the real
     """
-    instance_counter = 0
-    total_progress = 0
+    instance_counter: int = 0
+    total_progress: int = 0
 
     @abc.abstractmethod
-    def __init__(self, identifier=None, report_own_progress=True, ignore_all_errors=False):
+    def __init__(self, identifier=None, report_own_progress: bool=True, ignore_all_errors: bool=False):
         PythonBatchCommandBase.instance_counter += 1
         if not isinstance(identifier, str) or not identifier.isidentifier():
             self.identifier = "obj"
@@ -75,8 +84,13 @@ class PythonBatchCommandBase(abc.ABC):
         """
         return ""
 
+    def warning_msg_self(self):
+        """ classes overriding PythonBatchCommandBase can add their own warning message
+        """
+        return ""
+
     def error_msg_self(self):
-        """ classes overriding PythonBatchCommandBase should add their own error message
+        """ classes overriding PythonBatchCommandBase can add their own error message
         """
         return ""
 
@@ -110,7 +124,7 @@ class PythonBatchCommandBase(abc.ABC):
         if self.ignore_all_errors or exc_type is None:
             suppress_exception = True
         elif exc_type in self.exceptions_to_ignore:
-            print(f"{self.progress_msg()} WARNING; {exc_val}")
+            print(f"{self.progress_msg()} WARNING; {self.warning_msg_self()}; {exc_val.__class__.__name__}: {exc_val}")
             suppress_exception = True
         else:
             print(f"{self.progress_msg()} ERROR; {self.error_msg_self()}; {exc_val.__class__.__name__}: {exc_val}")
@@ -121,7 +135,67 @@ class PythonBatchCommandBase(abc.ABC):
     def __call__(self, *args, **kwargs):
         pass
 
+
+class RunProcessBase(PythonBatchCommandBase):
+    def __init__(self):
+        super().__init__()
+
+    @abc.abstractmethod
+    def create_run_args(self):
+        raise NotImplementedError
+
+    def __call__(self, *args, **kwargs):
+        run_args = self.create_run_args()
+        print(" ".join(run_args))
+        completed_process = subprocess.run(run_args, check=True)
+        return None  # what to return here?
+
+    def __repr__(self):
+        raise NotImplementedError
+
+
 # === classes with tests ===
+class MakeRandomDirs(PythonBatchCommandBase):
+    """ MakeRandomDirs is intended for use during tests - not for production
+        Will create in current working directory a hierarchy of folders and files with random names so we can test copying
+    """
+
+    def __init__(self, num_levels: int, num_dirs_per_level: int, num_files_per_dir: int, file_size: int):
+        super().__init__(report_own_progress=True)
+        self.num_levels = num_levels
+        self.num_dirs_per_level = num_dirs_per_level
+        self.num_files_per_dir = num_files_per_dir
+        self.file_size = file_size
+
+    def __repr__(self):
+        the_repr = f"""{self.__class__.__name__}(num_levels={self.num_levels}, num_dirs_per_level={self.num_dirs_per_level}, num_files_per_dir={self.num_files_per_dir}, file_size={self.file_size})"""
+        return the_repr
+
+    def progress_msg_self(self):
+        the_progress_msg = f"create random directories and files under current dir {os.getcwd()}"
+        return the_progress_msg
+
+    def make_random_dirs_recursive(self, num_levels: int):
+        for i_file in range(self.num_files_per_dir):
+            random_file_name = ''.join(random.choice(string.ascii_lowercase) for i in range(8))
+            if self.file_size == 0:
+                touch(random_file_name)
+            else:
+                with open(random_file_name, "w") as wfd:
+                    wfd.write(''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase) for i in range(self.file_size)))
+        if num_levels > 0:
+            for i_dir in range(self.num_dirs_per_level):
+                random_dir_name = ''.join(random.choice(string.ascii_uppercase) for i in range(8))
+                os.makedirs(random_dir_name, mode=0o777, exist_ok=False)
+                save_cwd = os.getcwd()
+                os.chdir(random_dir_name)
+                self.make_random_dirs_recursive(num_levels-1)
+                os.chdir(save_cwd)
+
+    def __call__(self, *args, **kwargs):
+        self.make_random_dirs_recursive(self.num_levels)
+
+
 class MakeDirs(PythonBatchCommandBase):
     """ Create one or more dirs
         when remove_obstacles==True if one of the paths is a file it will be removed
@@ -129,7 +203,7 @@ class MakeDirs(PythonBatchCommandBase):
         it it always OK for a dir to already exists
         Tests: TestPythonBatch.test_MakeDirs_*
     """
-    def __init__(self, *paths_to_make, remove_obstacles=True):
+    def __init__(self, *paths_to_make, remove_obstacles: bool=True):
         super().__init__(report_own_progress=True)
         self.paths_to_make = paths_to_make
         self.remove_obstacles = remove_obstacles
@@ -144,7 +218,7 @@ class MakeDirs(PythonBatchCommandBase):
         the_progress_msg = f"mkdir {self.paths_to_make}"
         return the_progress_msg
 
-    def __call__(self):
+    def __call__(self, *args, **kwargs):
         retVal = 0
         for self.cur_path in self.paths_to_make:
             if self.remove_obstacles:
@@ -158,9 +232,9 @@ class MakeDirs(PythonBatchCommandBase):
         return f"creating {self.cur_path}"
 
 
-# === classes without tests (yet) ===
 class Chmod(PythonBatchCommandBase):
-    all_read_write = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH
+    all_read = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
+    all_read_write = all_read | stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
     all_read_write_exec = all_read_write | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
 
     def __init__(self, path, mode):
@@ -177,16 +251,34 @@ class Chmod(PythonBatchCommandBase):
         the_progress_msg = f"Change mode {self.path}"
         return the_progress_msg
 
-    def __call__(self):
+    def __call__(self, *args, **kwargs):
         os.chmod(self.path, self.mode)
         return None
 
 
-class Cd(PythonBatchCommandBase):
-    def __init__(self, path):
+class Touch(PythonBatchCommandBase):
+    def __init__(self, path: os.PathLike):
         super().__init__(report_own_progress=True)
-        self.new_path = path
-        self.old_path = None
+        self.path = path
+
+    def __repr__(self):
+        the_repr = f"""{self.__class__.__name__}(path="{self.path}")"""
+        return the_repr
+
+    def progress_msg_self(self):
+        the_progress_msg = f"Touch {self.path}"
+        return the_progress_msg
+
+    def __call__(self, *args, **kwargs):
+        with open(self.path, 'a'):
+            os.utime(self.path, None)
+
+
+class Cd(PythonBatchCommandBase):
+    def __init__(self, path: os.PathLike):
+        super().__init__(report_own_progress=True)
+        self.new_path: os.PathLike = path
+        self.old_path: os.PathLike = None
 
     def __repr__(self):
         the_repr = f"""{self.__class__.__name__}(path="{self.new_path}")"""
@@ -196,7 +288,7 @@ class Cd(PythonBatchCommandBase):
         the_progress_msg = f"cd to {self.new_path}"
         return the_progress_msg
 
-    def __call__(self):
+    def __call__(self, *args, **kwargs):
         self.old_path = os.getcwd()
         os.chdir(self.new_path)
         return None
@@ -205,6 +297,157 @@ class Cd(PythonBatchCommandBase):
         os.chdir(self.old_path)
 
 
+class RsyncCopyBase(RunProcessBase):
+    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False):
+        super().__init__()
+        self.src: os.PathLike = src
+        self.trg: os.PathLike = trg
+        self.link_dest = link_dest
+        self.ignore = ignore
+        self.preserve_dest_files = preserve_dest_files
+
+    def __repr__(self):
+        the_repr = f"""{self.__class__.__name__}(src="{self.src}", trg="{self.trg}", link_dest={self.link_dest}, ignore={self.ignore}, preserve_dest_files={self.preserve_dest_files})"""
+        return the_repr
+
+    def create_run_args(self):
+        run_args = list()
+        ignore_spec = self.create_ignore_spec(self.ignore)
+        if not self.preserve_dest_files:
+            delete_spec = "--delete"
+        else:
+            delete_spec = ""
+
+        run_args.extend(["rsync", "--owner", "--group", "-l", "-r", "-E", delete_spec, *ignore_spec, self.src, self.trg])
+        if self.link_dest:
+            the_link_dest = pathlib.Path(self.src, "..").resolve()
+            the_link_dest_arg = f'''--link-dest="{the_link_dest}"'''
+            run_args.append(the_link_dest_arg)
+
+        return run_args
+
+    def create_ignore_spec(self, ignore: bool):
+        retVal = []
+        if ignore:
+            if isinstance(ignore, str):
+                ignore = (ignore,)
+            retVal.extend(["--exclude=" + utils.quoteme_single(ignoree) for ignoree in ignore])
+        return retVal
+
+    def progress_msg_self(self):
+        the_progress_msg = f"{self}"
+        return the_progress_msg
+
+
+class CopyDirToDir(RsyncCopyBase):
+    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False):
+       src = src.rstrip("/")
+       super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files)
+
+
+class CopyDirContentsToDir(RsyncCopyBase):
+    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False):
+        if not src.endswith("/"):
+            src += "/"
+        super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files)
+
+
+class CopyFileToDir(RsyncCopyBase):
+    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False):
+        src = src.rstrip("/")
+        if not trg.endswith("/"):
+            trg += "/"
+        super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files)
+
+
+class CopyFileToFile(RsyncCopyBase):
+    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False):
+       src = src.rstrip("/")
+       trg = trg.rstrip("/")
+       super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files)
+
+
+class RmFile(PythonBatchCommandBase):
+    def __init__(self, path: os.PathLike):
+        """ remove a file
+            - t's OK is the file does not exist
+            - but exception will be raised if the path if a folder
+        """
+        super().__init__(report_own_progress=True)
+        self.path: os.PathLike = path
+        self.exceptions_to_ignore.append(FileNotFoundError)
+
+    def __repr__(self):
+        the_repr = f"""{self.__class__.__name__}(path="{self.path}")"""
+        return the_repr
+
+    def progress_msg_self(self):
+        the_progress_msg = f"remove file {self.path}"
+        return the_progress_msg
+
+    def error_msg_self(self):
+        if os.path.isdir(self.path):
+            retVal = "cannot remove file that is actually a folder"
+        else:
+            retVal = ""
+        return retVal
+
+    def __call__(self, *args, **kwargs):
+        os.remove(self.path)
+        return None
+
+
+class RmDir(PythonBatchCommandBase):
+    def __init__(self, path: os.PathLike):
+        """ remove a directory.
+            - it's OK if the directory does not exist.
+            - all files and directory under path will be removed recursively
+            - exception will be raised if the path if a folder
+        """
+        super().__init__(report_own_progress=True)
+        self.path: os.PathLike = path
+        self.exceptions_to_ignore.append(FileNotFoundError)
+
+    def __repr__(self):
+        the_repr = f"""{self.__class__.__name__}(path="{self.path}")"""
+        return the_repr
+
+    def progress_msg_self(self):
+        the_progress_msg = f"remove file {self.path}"
+        return the_progress_msg
+
+    def __call__(self, *args, **kwargs):
+        shutil.rmtree(self.path)
+        return None
+
+
+class RmFileOrDir(PythonBatchCommandBase):
+    def __init__(self, path: os.PathLike):
+        """ remove a file or directory.
+            - it's OK if the path does not exist.
+            - all files and directory under path will be removed recursively
+        """
+        super().__init__(report_own_progress=True)
+        self.path: os.PathLike = path
+        self.exceptions_to_ignore.append(FileNotFoundError)
+
+    def __repr__(self):
+        the_repr = f"""{self.__class__.__name__}(path="{self.path}")"""
+        return the_repr
+
+    def progress_msg_self(self):
+        the_progress_msg = f"remove file {self.path}"
+        return the_progress_msg
+
+    def __call__(self, *args, **kwargs):
+        if os.path.isfile(self.path):
+            os.remove(self.path)
+        elif os.path.isdir(self.path):
+            shutil.rmtree(self.path)
+        return None
+
+
+# === classes without tests (yet) ===
 class Section(PythonBatchCommandBase):
     def __init__(self, name):
         super().__init__()
@@ -222,25 +465,8 @@ class Section(PythonBatchCommandBase):
         pass
 
 
-class RunProcessBase(PythonBatchCommandBase):
-    def __init__(self):
-        super().__init__()
-
-    @abc.abstractmethod
-    def create_run_args(self):
-        raise NotImplementedError
-
-    def __call__(self, *args, **kwargs):
-        run_args = self.create_run_args()
-        completed_process = subprocess.run(run_args, check=True)
-        return None  # what to return here?
-
-    def __repr__(self):
-        raise NotImplementedError
-
-
 class Chown(RunProcessBase):
-    def __init__(self, user_id, group_id, path, recursive=False):
+    def __init__(self, user_id: int, group_id: int, path: os.PathLike, recursive: bool=False):
         super().__init__(report_own_progress=True)
         self.user_id = user_id
         self.group_id = group_id
@@ -266,74 +492,13 @@ class Chown(RunProcessBase):
         the_progress_msg = f"Change owner {self.path}"
         return the_progress_msg
 
-    def __call__(self):
+    def __call__(self, *args, **kwargs):
         # os.chown is not recursive so call the system's chown
         if self.recursive:
-            return super().__call__()
+            return super().__call__(args, kwargs)
         else:
             os.chown(self.path, uid=self.user_id, gid=self.group_id)
             return None
-
-class RsyncCopyBase(RunProcessBase):
-    def __init__(self, src, trg, link_dest=False, ignore=None, preserve_dest_files=False):
-        super().__init__()
-        self.src = src
-        self.trg = trg
-        self.link_dest = link_dest
-        self.ignore = ignore
-        self.preserve_dest_files = preserve_dest_files
-
-    def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(src="{self.src}", trg="{self.trg}", link_dest={self.link_dest}, ignore={self.ignore}, preserve_dest_files={self.preserve_dest_files})"""
-        return the_repr
-
-    def create_run_args(self):
-        run_args = list()
-        ignore_spec = self.create_ignore_spec(self.ignore)
-        if not self.preserve_dest_files:
-            delete_spec = "--delete"
-        else:
-            delete_spec = ""
-
-        run_args.extend(["rsync", "--owner", "--group", "-l", "-r", "-E", delete_spec, *ignore_spec, self.src, self.trg])
-        if self.link_dest:
-            the_link_dest = os.path.join(self.src, "..")
-            run_args.append(f''''--link-dest="{the_link_dest}"''')
-
-        return run_args
-
-    def create_ignore_spec(self, ignore):
-        retVal = []
-        if ignore:
-            if isinstance(ignore, str):
-                ignore = (ignore,)
-            retVal.extend(["--exclude=" + utils.quoteme_single(ignoree) for ignoree in ignore])
-        return retVal
-
-    def progress_msg_self(self):
-        the_progress_msg = f"{self}"
-        return the_progress_msg
-
-class CopyDirToDir(RsyncCopyBase):
-    def __init__(self, src, trg, link_dest=False, ignore=None, preserve_dest_files=False):
-       src = src.rstrip("/")
-       super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files)
-
-class CopyDirContentsToDir(RsyncCopyBase):
-    def __init__(self, src, trg, link_dest=False, ignore=None, preserve_dest_files=False):
-        if not src.endswith("/"):
-            src += "/"
-        super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files)
-
-class CopyFileToFile(RsyncCopyBase):
-    def __init__(self, src, trg, link_dest=False, ignore=None, preserve_dest_files=False):
-       src = src.rstrip("/")
-       super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files)
-
-class CopyFileToDir(RsyncCopyBase):
-    def __init__(self, src, trg, link_dest=False, ignore=None, preserve_dest_files=False):
-       src = src.rstrip("/")
-       super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files)
 
 
 class Dummy(PythonBatchCommandBase):
@@ -395,3 +560,19 @@ class BatchCommandAccum(object):
         io_str = io.StringIO()
         _repr_helper(self.context_stack[0], io_str, 0)
         return io_str.getvalue()
+
+# todo:
+# override PythonBatchCommandBase for all commands
+# windows!
+# check and map errors: for each command find which errors can be returned, which exception they raise, which can be ignored. Map all errors to a number and message.
+# check and map errors: for RunProcess special handling of exception subprocess.CalledProcessError
+# intro code
+# configVars?
+# comments ?
+# echos - most will automatically produced by the commands
+# total progress calculation
+# accumulator transactions
+# handle completed_process
+# tests: for each test add a test to verify failure is handled correctly
+# time measurements
+# InstlAdmin

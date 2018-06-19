@@ -214,6 +214,9 @@ class SVNRow(object):
                     )
         return retVal
 
+    def __fspath__(self):
+        return self.path
+
 
 # noinspection SyntaxError,SyntaxError,PyProtectedMember
 class SVNTable(object):

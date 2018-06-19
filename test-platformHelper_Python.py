@@ -104,14 +104,3 @@ def three_install():
 if __name__ == "__main__":
 
     three_install()
-
-# todo:
-# override PythonBatchCommandBase for all commands
-# intro code
-# configVars?
-# error table
-# comments ?
-# echos - most will automatically produced by the commands
-# total progress calculation
-# accumulator transactions
-# handle completed_process
