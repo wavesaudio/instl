@@ -45,13 +45,15 @@ class PythonBatchCommandBase(abc.ABC):
     total_progress: int = 0
 
     @abc.abstractmethod
-    def __init__(self, identifier=None, report_own_progress: bool=True, ignore_all_errors: bool=False):
+    def __init__(self, identifier=None, **kwargs):
         PythonBatchCommandBase.instance_counter += 1
         if not isinstance(identifier, str) or not identifier.isidentifier():
             self.identifier = "obj"
         self.obj_name = camel_to_snake_case(f"{self.__class__.__name__}_{PythonBatchCommandBase.instance_counter:05}")
-        self.report_own_progress = report_own_progress
-        self.ignore_all_errors = ignore_all_errors
+
+        self.report_own_progress = kwargs.get('report_own_progress', True)
+        self.ignore_all_errors =   kwargs.get('ignore_all_errors', False)
+
         self.progress = 0
         if self.report_own_progress:
             PythonBatchCommandBase.total_progress += 1
@@ -79,6 +81,7 @@ class PythonBatchCommandBase(abc.ABC):
         the_progress_msg = f"Progress {self.progress} of {PythonBatchCommandBase.total_progress};"
         return the_progress_msg
 
+    @abc.abstractmethod
     def progress_msg_self(self):
         """ classes overriding PythonBatchCommandBase should add their own progress message
         """
@@ -137,8 +140,8 @@ class PythonBatchCommandBase(abc.ABC):
 
 
 class RunProcessBase(PythonBatchCommandBase):
-    def __init__(self, ignore_all_errors=False):
-        super().__init__(ignore_all_errors=ignore_all_errors, report_own_progress=True)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     @abc.abstractmethod
     def create_run_args(self):
@@ -161,7 +164,7 @@ class MakeRandomDirs(PythonBatchCommandBase):
     """
 
     def __init__(self, num_levels: int, num_dirs_per_level: int, num_files_per_dir: int, file_size: int):
-        super().__init__(report_own_progress=True)
+        super().__init__()
         self.num_levels = num_levels
         self.num_dirs_per_level = num_dirs_per_level
         self.num_files_per_dir = num_files_per_dir
@@ -204,7 +207,7 @@ class MakeDirs(PythonBatchCommandBase):
         Tests: TestPythonBatch.test_MakeDirs_*
     """
     def __init__(self, *paths_to_make, remove_obstacles: bool=True):
-        super().__init__(report_own_progress=True)
+        super().__init__()
         self.paths_to_make = paths_to_make
         self.remove_obstacles = remove_obstacles
         self.cur_path = None
@@ -238,7 +241,7 @@ class Chmod(PythonBatchCommandBase):
     all_read_write_exec = all_read_write | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
 
     def __init__(self, path, mode):
-        super().__init__(report_own_progress=True)
+        super().__init__()
         self.path = path
         self.mode = mode
         self.exceptions_to_ignore.append(FileNotFoundError)
@@ -258,7 +261,7 @@ class Chmod(PythonBatchCommandBase):
 
 class Touch(PythonBatchCommandBase):
     def __init__(self, path: os.PathLike):
-        super().__init__(report_own_progress=True)
+        super().__init__()
         self.path = path
 
     def __repr__(self):
@@ -276,7 +279,7 @@ class Touch(PythonBatchCommandBase):
 
 class Cd(PythonBatchCommandBase):
     def __init__(self, path: os.PathLike):
-        super().__init__(report_own_progress=True)
+        super().__init__()
         self.new_path: os.PathLike = path
         self.old_path: os.PathLike = None
 
@@ -423,7 +426,7 @@ class RmFile(PythonBatchCommandBase):
             - t's OK is the file does not exist
             - but exception will be raised if the path if a folder
         """
-        super().__init__(report_own_progress=True)
+        super().__init__()
         self.path: os.PathLike = path
         self.exceptions_to_ignore.append(FileNotFoundError)
 
@@ -454,7 +457,7 @@ class RmDir(PythonBatchCommandBase):
             - all files and directory under path will be removed recursively
             - exception will be raised if the path if a folder
         """
-        super().__init__(report_own_progress=True)
+        super().__init__()
         self.path: os.PathLike = path
         self.exceptions_to_ignore.append(FileNotFoundError)
 
@@ -477,7 +480,7 @@ class RmFileOrDir(PythonBatchCommandBase):
             - it's OK if the path does not exist.
             - all files and directory under path will be removed recursively
         """
-        super().__init__(report_own_progress=True)
+        super().__init__()
         self.path: os.PathLike = path
         self.exceptions_to_ignore.append(FileNotFoundError)
 
@@ -494,6 +497,27 @@ class RmFileOrDir(PythonBatchCommandBase):
             os.remove(self.path)
         elif os.path.isdir(self.path):
             shutil.rmtree(self.path)
+        return None
+
+
+class AppendFileToFile(PythonBatchCommandBase):
+    def __init__(self, source_file, target_file):
+        super().__init__()
+        self.source_file = source_file
+        self.target_file = target_file
+
+    def __repr__(self):
+        the_repr = f"""{self.__class__.__name__}(source_file="{self.source_file}", target_file="{self.target_file}")"""
+        return the_repr
+
+    def progress_msg_self(self):
+        the_progress_msg = f"appending {self.source_file} to {self.target_file}"
+        return the_progress_msg
+
+    def __call__(self, *args, **kwargs):
+        with open(self.target_file, "a") as wfd:
+            with open(self.source_file, "r") as rfd:
+                wfd.write(rfd.read())
         return None
 
 
@@ -517,7 +541,7 @@ class Section(PythonBatchCommandBase):
 
 class Chown(RunProcessBase):
     def __init__(self, user_id: int, group_id: int, path: os.PathLike, recursive: bool=False):
-        super().__init__(report_own_progress=True)
+        super().__init__()
         self.user_id = user_id
         self.group_id = group_id
         self.path = path

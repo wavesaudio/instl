@@ -90,6 +90,10 @@ class TestPythonBatch(unittest.TestCase):
     def tearDown(self):
         pass
 
+    def write_file_in_test_folder(self, file_name, contents):
+        with open(self.test_folder.joinpath(file_name), "w") as wfd:
+            wfd.write(contents)
+
     def test_MakeDirs_0_repr(self):
         """ test that MakeDirs.__repr__ is implemented correctly to fully
             reconstruct the object
@@ -426,6 +430,32 @@ class TestPythonBatch(unittest.TestCase):
         self.assertEqual((files_flags & flags['uchg']), 0)
         self.assertEqual((files_flags & flags['hidden']), 0)
 
+    def test_AppendFileToFile(self):
+        source_file = self.test_folder.joinpath("source-file.txt").resolve()
+        self.assertFalse(source_file.exists(), f"{self.which_test}: {source_file} should not exist before test")
+        target_file = self.test_folder.joinpath("target-file.txt").resolve()
+        self.assertFalse(target_file.exists(), f"{self.which_test}: {target_file} should not exist before test")
+
+        content_1 = ''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase) for i in range(124))
+        content_2 = ''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase) for i in range(125))
+        with open(source_file, "w") as wfd:
+            wfd.write(content_1)
+        with open(target_file, "w") as wfd:
+            wfd.write(content_2)
+
+        with BatchCommandAccum() as bc:
+            bc += AppendFileToFile(str(source_file), str(target_file))
+        bc_repr = repr(bc)
+        self.write_file_in_test_folder("batch.py", bc_repr)
+        with capture_stdout(self.stdout_capture):
+            ops = exec(f"""{bc_repr}""", globals(), locals())
+        self.write_file_in_test_folder("batch_output.txt", self.stdout_capture.getvalue())
+
+        with open(target_file, "r") as rfd:
+            concatenated_content = rfd.read()
+
+        expected_content = content_2+content_1
+        self.assertEqual(concatenated_content, expected_content)
 
 if __name__ == '__main__':
     unittest.main()

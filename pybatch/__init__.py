@@ -19,3 +19,4 @@ from .pythonBatchCommands import MakeRandomDirs
 from .pythonBatchCommands import touch
 from .pythonBatchCommands import ChFlags
 from .pythonBatchCommands import Unlock
+from .new_pythonBatchCommands import AppendFileToFile
