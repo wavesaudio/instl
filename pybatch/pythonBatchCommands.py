@@ -137,8 +137,8 @@ class PythonBatchCommandBase(abc.ABC):
 
 
 class RunProcessBase(PythonBatchCommandBase):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, ignore_all_errors=False):
+        super().__init__(ignore_all_errors=ignore_all_errors, report_own_progress=True)
 
     @abc.abstractmethod
     def create_run_args(self):
@@ -297,6 +297,55 @@ class Cd(PythonBatchCommandBase):
         os.chdir(self.old_path)
 
 
+class ChFlags(RunProcessBase):
+    """ Mac specific to change system flags on files or dirs.
+        These flags are different from permissions.
+        For changing permissions use chmod.
+    """
+    def __init__(self, path, flag: str, recursive=False, ignore_errors=True):
+        super().__init__(ignore_all_errors=ignore_errors)
+        self.path = path
+        self.flag = flag
+        self.recursive = recursive
+        self.ignore_errors = ignore_errors
+
+    def __repr__(self):
+        the_repr = f"""{self.__class__.__name__}(path="{self.path}", flag="{self.flag}", recursive={self.recursive}, ignore_errors={self.ignore_errors})"""
+        return the_repr
+
+    def progress_msg_self(self):
+        the_progress_msg = f"change flag {self.flag} on file {self.path}"
+        return the_progress_msg
+
+    def create_run_args(self):
+        run_args = list()
+        run_args.append("chflags")
+        if self.ignore_errors:
+            run_args.append("-f")
+        if self.recursive:
+            run_args.append("-R")
+        run_args.append(self.flag)
+        run_args.append(self.path)
+        return run_args
+
+
+class Unlock(ChFlags):
+    """
+        Remove the system's read-only flag, this is different from permissions.
+        For changing permissions use chmod.
+    """
+    def __init__(self, path, recursive=False, ignore_errors=True):
+        super().__init__(path, "nouchg", recursive=recursive, ignore_errors=ignore_errors)
+
+    def __repr__(self):
+        the_repr = f"""{self.__class__.__name__}(path="{self.path}", recursive={self.recursive}, ignore_errors={self.ignore_errors})"""
+        return the_repr
+
+    def progress_msg_self(self):
+        the_progress_msg = f"unlocking file {self.path}"
+        return the_progress_msg
+
+
 class RsyncCopyBase(RunProcessBase):
     def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False):
         super().__init__()
@@ -318,12 +367,13 @@ class RsyncCopyBase(RunProcessBase):
         else:
             delete_spec = ""
 
-        run_args.extend(["rsync", "--owner", "--group", "-l", "-r", "-E", delete_spec, *ignore_spec, self.src, self.trg])
+        run_args.extend(["rsync", "--owner", "--group", "-l", "-r", "-E", "--hard-links", delete_spec, *ignore_spec])
         if self.link_dest:
-            the_link_dest = pathlib.Path(self.src, "..").resolve()
-            the_link_dest_arg = f'''--link-dest="{the_link_dest}"'''
+            src_base, src_leaf = os.path.split(self.src)
+            target_relative_to_source = os.path.relpath(src_base, self.trg)  # rsync expect --link-dest to be relative to target
+            the_link_dest_arg = f'''--link-dest="{target_relative_to_source}"'''
             run_args.append(the_link_dest_arg)
-
+        run_args.extend([self.src, self.trg])
         return run_args
 
     def create_ignore_spec(self, ignore: bool):

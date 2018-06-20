@@ -349,16 +349,8 @@ split_file()
         """ Remove the system's read-only flag, this is different from permissions.
             For changing permissions use chmod.
         """
-        raise NotImplementedError
-        ignore_errors_flag = recurse_flag = ""
-        if ignore_errors:
-            ignore_errors_flag = "-f"
-        if recursive:
-            recurse_flag = "-R"
-        nouchg_command = " ".join(("chflags", ignore_errors_flag, recurse_flag, "nouchg", utils.quoteme_double(file_path)))
-        if ignore_errors: # -f is not enough in case the file does not exist, chflags will still exit with 1
-            nouchg_command = " ".join((nouchg_command, "2>", "/dev/null", "||", "true"))
-        return nouchg_command
+        python_batch_command = Unlock(file_path, recursive=recursive, ignore_errors=ignore_errors)
+        return python_batch_command
 
     def touch(self, file_path):
         python_batch_command = Touch(file_path)

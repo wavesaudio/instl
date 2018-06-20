@@ -17,4 +17,5 @@ from .pythonBatchCommands import Dummy
 from .pythonBatchCommands import Touch
 from .pythonBatchCommands import MakeRandomDirs
 from .pythonBatchCommands import touch
-
+from .pythonBatchCommands import ChFlags
+from .pythonBatchCommands import Unlock

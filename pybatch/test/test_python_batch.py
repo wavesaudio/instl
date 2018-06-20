@@ -77,7 +77,7 @@ def is_hard_linked(a_dircmp: filecmp.dircmp):
 class TestPythonBatch(unittest.TestCase):
     def __init__(self, which_test="banana"):
         super().__init__(which_test)
-        self.which_test = which_test
+        self.which_test = which_test.lstrip("test_")
         self.test_folder = pathlib.Path(__file__).joinpath("..", "..", "..").resolve().joinpath("python_batch_test_results", which_test)
         self.stdout_capture = io.StringIO()  # to capture the output of exec calls
 
@@ -102,8 +102,8 @@ class TestPythonBatch(unittest.TestCase):
         """ test MakeDirs. 2 dirs should be created side by side """
         dir_to_make_1 = self.test_folder.joinpath(self.which_test+"_1").resolve()
         dir_to_make_2 = self.test_folder.joinpath(self.which_test+"_2").resolve()
-        self.assertFalse(dir_to_make_1.exists())
-        self.assertFalse(dir_to_make_2.exists())
+        self.assertFalse(dir_to_make_1.exists(), f"{self.which_test}: before test {dir_to_make_1} should not exist")
+        self.assertFalse(dir_to_make_2.exists(), f"{self.which_test}: before test {dir_to_make_2} should not exist")
 
         bc = None
         with BatchCommandAccum() as bc:
@@ -113,8 +113,8 @@ class TestPythonBatch(unittest.TestCase):
         with capture_stdout(self.stdout_capture):
             ops = exec(f"""{bc_repr}""", globals(), locals())
 
-        self.assertTrue(dir_to_make_1.is_dir())
-        self.assertTrue(dir_to_make_2.is_dir())
+        self.assertTrue(dir_to_make_1.exists(), f"{self.which_test}: {dir_to_make_1} should exist")
+        self.assertTrue(dir_to_make_2.exists(), f"{self.which_test}: {dir_to_make_2} should exist")
 
     def test_MakeDirs_2_remove_obstacles(self):
         """ test MakeDirs remove_obstacles parameter.
@@ -122,10 +122,10 @@ class TestPythonBatch(unittest.TestCase):
             Since remove_obstacles=True the file should be removed and directory created in it's place.
         """
         dir_to_make = self.test_folder.joinpath("file-that-should-be-dir").resolve()
-        self.assertFalse(dir_to_make.exists(), f"{dir_to_make} should not exist at the start ot the test")
+        self.assertFalse(dir_to_make.exists(), f"{self.which_test}: {dir_to_make} should not exist before test")
 
         touch(str(dir_to_make))
-        self.assertTrue(dir_to_make.is_file(), f"{dir_to_make} should be a file at this stage")
+        self.assertTrue(dir_to_make.is_file(), f"{self.which_test}: {dir_to_make} should be a file before test")
 
         bc = None
         with BatchCommandAccum() as bc:
@@ -133,7 +133,7 @@ class TestPythonBatch(unittest.TestCase):
         bc_repr = repr(bc)
         with capture_stdout(self.stdout_capture):
             ops = exec(f"""{bc_repr}""", globals(), locals())
-        self.assertTrue(dir_to_make.is_dir(), f"{dir_to_make} should be a dir at this stage")
+        self.assertTrue(dir_to_make.is_dir(), f"{self.which_test}: {dir_to_make} should be a dir")
 
     def test_MakeDirs_3_no_remove_obstacles(self):
         """ test MakeDirs remove_obstacles parameter.
@@ -141,10 +141,10 @@ class TestPythonBatch(unittest.TestCase):
             Since remove_obstacles=False the file should not be removed and FileExistsError raised.
         """
         dir_to_make = self.test_folder.joinpath("file-that-should-not-be-dir").resolve()
-        self.assertFalse(dir_to_make.exists(), f"{dir_to_make} should not exist at the start ot the test")
+        self.assertFalse(dir_to_make.exists(), f"{self.which_test}: {dir_to_make} should not exist before test")
 
         touch(str(dir_to_make))
-        self.assertTrue(dir_to_make.is_file(), f"{dir_to_make} should be a file at this stage")
+        self.assertTrue(dir_to_make.is_file(), f"{self.which_test}: {dir_to_make} should be a file")
 
         bc_ = None
         with BatchCommandAccum() as bc:
@@ -153,7 +153,7 @@ class TestPythonBatch(unittest.TestCase):
         with capture_stdout(self.stdout_capture):
             with self.assertRaises(FileExistsError, msg="should raise FileExistsError") as context:
                 ops = exec(f"""{bc_repr}""", globals(), locals())
-        self.assertTrue(dir_to_make.is_file(), f"{dir_to_make} should still be a file")
+        self.assertTrue(dir_to_make.is_file(), f"{self.which_test}: {dir_to_make} should still be a file")
 
     def test_Chmod_1(self):
         """ test Chmod
@@ -165,7 +165,7 @@ class TestPythonBatch(unittest.TestCase):
         os.chmod(file_to_chmod, Chmod.all_read)
         initial_mode = utils.unix_permissions_to_str(stat.S_IMODE(os.stat(file_to_chmod).st_mode))
         expected_mode = utils.unix_permissions_to_str(Chmod.all_read)
-        self.assertEqual(initial_mode, expected_mode, f"failed to chmod on test file before tests: {initial_mode} != {expected_mode}")
+        self.assertEqual(initial_mode, expected_mode, f"{self.which_test}: failed to chmod on test file before tests: {initial_mode} != {expected_mode}")
 
         # change to rwxrwxrwx
         bc = None
@@ -176,7 +176,7 @@ class TestPythonBatch(unittest.TestCase):
         with capture_stdout(self.stdout_capture):
             ops = exec(f"""{bc_repr}""", globals(), locals())
         mod_after = stat.S_IMODE(os.stat(file_to_chmod).st_mode)
-        self.assertEqual(new_mode, mod_after, f"failed to chmod to {utils.unix_permissions_to_str(new_mode)} got {utils.unix_permissions_to_str(mod_after)}")
+        self.assertEqual(new_mode, mod_after, f"{self.which_test}: failed to chmod to {utils.unix_permissions_to_str(new_mode)} got {utils.unix_permissions_to_str(mod_after)}")
 
         # change to rw-rw-rw-
         bc = None
@@ -187,7 +187,7 @@ class TestPythonBatch(unittest.TestCase):
         with capture_stdout(self.stdout_capture):
             ops = exec(f"""{bc_repr}""", globals(), locals())
         mod_after = stat.S_IMODE(os.stat(file_to_chmod).st_mode)
-        self.assertEqual(new_mode, mod_after, f"failed to chmod to {utils.unix_permissions_to_str(new_mode)} got {utils.unix_permissions_to_str(mod_after)}")
+        self.assertEqual(new_mode, mod_after, f"{self.which_test}: failed to chmod to {utils.unix_permissions_to_str(new_mode)} got {utils.unix_permissions_to_str(mod_after)}")
 
         # change to r--r--r--
         bc = None
@@ -198,7 +198,7 @@ class TestPythonBatch(unittest.TestCase):
         with capture_stdout(self.stdout_capture):
             ops = exec(f"""{bc_repr}""", globals(), locals())
         mod_after = stat.S_IMODE(os.stat(file_to_chmod).st_mode)
-        self.assertEqual(new_mode, mod_after, f"failed to chmod to {utils.unix_permissions_to_str(new_mode)} got {utils.unix_permissions_to_str(mod_after)}")
+        self.assertEqual(new_mode, mod_after, f"{self.which_test}: failed to chmod to {utils.unix_permissions_to_str(new_mode)} got {utils.unix_permissions_to_str(mod_after)}")
 
     def test_Cd_and_Touch_1(self):
         """ test Cd and Touch
@@ -208,10 +208,10 @@ class TestPythonBatch(unittest.TestCase):
         """
         dir_to_make = self.test_folder.joinpath("cd-here").resolve()
         file_to_touch = dir_to_make.joinpath("touch-me").resolve()
-        self.assertFalse(file_to_touch.exists())
+        self.assertFalse(file_to_touch.exists(), f"{self.which_test}: before test {file_to_touch} should not exist")
 
         cwd_before = os.getcwd()
-        self.assertNotEqual(str(dir_to_make), cwd_before)
+        self.assertNotEqual(str(dir_to_make), cwd_before, f"{self.which_test}: before test {dir_to_make} should not be current working directory")
 
         bc = None
         with BatchCommandAccum() as bc:
@@ -222,135 +222,157 @@ class TestPythonBatch(unittest.TestCase):
         with capture_stdout(self.stdout_capture):
             ops = exec(f"""{bc_repr}""", globals(), locals())
 
-        self.assertTrue(file_to_touch.exists(), f"touched file was not created {file_to_touch}")
+        self.assertTrue(file_to_touch.exists(), f"{self.which_test}: touched file was not created {file_to_touch}")
 
         cwd_after = os.getcwd()
         # cwd should be back to where it was
-        self.assertEqual(cwd_before, cwd_after, "cd has not restored the current working directory was: {cwd_before}, now: {cwd_after}")
+        self.assertEqual(cwd_before, cwd_after, "{self.which_test}: cd has not restored the current working directory was: {cwd_before}, now: {cwd_after}")
 
-    def test_CopyDirToDir_no_hard_links(self):
-        """ test CopyDirToDir (without using rsync's link_dest)
+    def test_CopyDirToDir(self):
+        """ test CopyDirToDir (with/without using rsync's link_dest option)
             a directory is created and filled with random files and folders.
-            This directory is copied and both are compared to make sure they are the same.
-        """
-        dir_to_copy_from = self.test_folder.joinpath("copy-src").resolve()
-        dir_to_copy_to = self.test_folder.joinpath("copy-target").resolve()
-        copied_dir = dir_to_copy_to.joinpath("copy-src").resolve()
-        self.assertFalse(dir_to_copy_from.exists())
-        self.assertFalse(dir_to_copy_to.exists())
+            This directory is copied and both source and targets dirs are compared to make sure they are the same.
 
-        bc = None
-        with BatchCommandAccum() as bc:
-            bc += MakeDirs(str(dir_to_copy_from))
-            with bc.sub_section(Cd(str(dir_to_copy_from))) as sub_bc:
-                bc += MakeRandomDirs(num_levels=3, num_dirs_per_level=5, num_files_per_dir=7, file_size=41)
-            bc += CopyDirToDir(str(dir_to_copy_from), str(dir_to_copy_to))
+            without hard links:
+                Folder structure and files should be identical
 
-        bc_repr = repr(bc)
-        with capture_stdout(self.stdout_capture):
-            ops = exec(f"""{bc_repr}""", globals(), locals())
-
-        dir_comp = filecmp.dircmp(dir_to_copy_from, copied_dir)
-
-        self.assertTrue(is_identical_dircmp(dir_comp), "test_CopyDirToDir: source and target dirs are not the same")
-
-    def test_CopyDirToDir_with_hard_links(self):
-        """ test CopyDirToDir (with using rsync's link_dest)
-            a directory is created and filled with random files and folders.
-            This directory is copied and both are compared to make sure they are the same.
-            All mirrored files should have the same inode number - meaning they are hard links to
+            with hard links:
+                - All mirrored files should have the same inode number - meaning they are hard links to
             the same file.
+
+                - Currently this test fails for unknown reason. The rsync command does not create hard links.
+            The exact same rsync command when ran for terminal creates the hard links. So I assume the
+            rsync command is correct but running it from python changes something.
+
         """
         dir_to_copy_from = self.test_folder.joinpath("copy-src").resolve()
-        dir_to_copy_to = self.test_folder.joinpath("copy-target").resolve()
-        copied_dir = dir_to_copy_to.joinpath("copy-src").resolve()
-        self.assertFalse(dir_to_copy_from.exists())
-        self.assertFalse(dir_to_copy_to.exists())
+        self.assertFalse(dir_to_copy_from.exists(), f"{self.which_test}: {dir_to_copy_from} should not exist before test")
+
+        dir_to_copy_to_no_hard_links = self.test_folder.joinpath("copy-target-no-hard-links").resolve()
+        copied_dir_no_hard_links = dir_to_copy_to_no_hard_links.joinpath("copy-src").resolve()
+        self.assertFalse(dir_to_copy_to_no_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_no_hard_links} should not exist before test")
+
+        dir_to_copy_to_with_hard_links = self.test_folder.joinpath("copy-target-with-hard-links").resolve()
+        copied_dir_with_hard_links = dir_to_copy_to_with_hard_links.joinpath("copy-src").resolve()
+        self.assertFalse(dir_to_copy_to_with_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_with_hard_links} should not exist before test")
 
         bc = None
         with BatchCommandAccum() as bc:
             bc += MakeDirs(str(dir_to_copy_from))
             with bc.sub_section(Cd(str(dir_to_copy_from))) as sub_bc:
-                bc += MakeRandomDirs(num_levels=3, num_dirs_per_level=5, num_files_per_dir=7, file_size=41)
-            bc += CopyDirToDir(str(dir_to_copy_from), str(dir_to_copy_to), link_dest=True)
+                bc += Touch("hootenanny")  # add one file with fixed (none random) name
+                bc += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
+            bc += CopyDirToDir(str(dir_to_copy_from), str(dir_to_copy_to_no_hard_links), link_dest=False)
+            bc += CopyDirToDir(str(dir_to_copy_from), str(dir_to_copy_to_with_hard_links), link_dest=True)
 
         bc_repr = repr(bc)
         #with capture_stdout(self.stdout_capture):
         ops = exec(f"""{bc_repr}""", globals(), locals())
 
-        dir_comp = filecmp.dircmp(dir_to_copy_from, copied_dir)
+        dir_comp_no_hard_links = filecmp.dircmp(dir_to_copy_from, copied_dir_no_hard_links)
+        self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), "{self.which_test} (no hard links): source and target dirs are not the same")
 
-        self.assertTrue(is_identical_dircmp(dir_comp), "test_CopyDirToDir: source and target dirs are not the same")
-        self.assertTrue(is_hard_linked(dir_comp), "test_CopyDirToDir: source and target files are not hard links to the same file")
+        dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, copied_dir_with_hard_links)
+        self.assertTrue(is_hard_linked(dir_comp_with_hard_links), "{self.which_test} (with hard links): source and target files are not hard links to the same file")
 
     def test_CopyDirContentsToDir(self):
+        """ see doc string for test_CopyDirToDir, with the difference that the source dir contents
+            should be copied - not the source dir itself.
+        """
         dir_to_copy_from = self.test_folder.joinpath("copy-src").resolve()
-        dir_to_copy_to = self.test_folder.joinpath("copy-target").resolve()
-        copied_dir = dir_to_copy_to
-        self.assertFalse(dir_to_copy_from.exists())
-        self.assertFalse(dir_to_copy_to.exists())
+        self.assertFalse(dir_to_copy_from.exists(), f"{self.which_test}: {dir_to_copy_from} should not exist before test")
+
+        dir_to_copy_to_no_hard_links = self.test_folder.joinpath("copy-target-no-hard-links").resolve()
+        self.assertFalse(dir_to_copy_to_no_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_no_hard_links} should not exist before test")
+
+        dir_to_copy_to_with_hard_links = self.test_folder.joinpath("copy-target-with-hard-links").resolve()
+        self.assertFalse(dir_to_copy_to_with_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_with_hard_links} should not exist before test")
 
         bc = None
         with BatchCommandAccum() as bc:
-            bc += MakeDirs(str(dir_to_copy_from))
             with bc.sub_section(Cd(str(dir_to_copy_from))) as sub_bc:
-                bc += MakeRandomDirs(num_levels=3, num_dirs_per_level=5, num_files_per_dir=7, file_size=41)
-            bc += CopyDirContentsToDir(str(dir_to_copy_from), str(dir_to_copy_to))
+                bc += Touch("hootenanny")  # add one file with fixed (none random) name
+                bc += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
+            bc += CopyDirContentsToDir(str(dir_to_copy_from), str(dir_to_copy_to_no_hard_links), link_dest=False)
+            bc += CopyDirContentsToDir(str(dir_to_copy_from), str(dir_to_copy_to_with_hard_links), link_dest=True)
 
         bc_repr = repr(bc)
         with capture_stdout(self.stdout_capture):
             ops = exec(f"""{bc_repr}""", globals(), locals())
 
-        dir_comp = filecmp.dircmp(dir_to_copy_from, copied_dir)
+        dir_comp_no_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_no_hard_links)
+        self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), "{self.which_test} (no hard links): source and target dirs are not the same")
 
-        self.assertTrue(is_identical_dircmp(dir_comp), "test_CopyDirToDir: source and target dirs are not the same")
+        dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_hard_links)
+        self.assertTrue(is_hard_linked(dir_comp_with_hard_links), "{self.which_test} (with hard links): source and target files are not hard links to the same file")
 
     def test_CopyFileToDir(self):
-        file_name = ''.join(random.choice(string.ascii_lowercase) for i in range(8))
+        """ see doc string for test_CopyDirToDir, with the difference that the source dir contains
+            one file that is copied by it's full path.
+        """
+        file_name = "hootenanny"
         dir_to_copy_from = self.test_folder.joinpath("copy-src").resolve()
-        dir_to_copy_to = self.test_folder.joinpath("copy-target").resolve()
-        source_file = dir_to_copy_from.joinpath(file_name)
-        target_file = dir_to_copy_to.joinpath(file_name)
-        self.assertFalse(dir_to_copy_from.exists())
-        self.assertFalse(dir_to_copy_to.exists())
+        self.assertFalse(dir_to_copy_from.exists(), f"{self.which_test}: {dir_to_copy_from} should not exist before test")
+        file_to_copy = dir_to_copy_from.joinpath(file_name).resolve()
+
+        dir_to_copy_to_no_hard_links = self.test_folder.joinpath("copy-target-no-hard-links").resolve()
+        self.assertFalse(dir_to_copy_to_no_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_no_hard_links} should not exist before test")
+
+        dir_to_copy_to_with_hard_links = self.test_folder.joinpath("copy-target-with-hard-links").resolve()
+        self.assertFalse(dir_to_copy_to_with_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_with_hard_links} should not exist before test")
 
         bc = None
         with BatchCommandAccum() as bc:
             bc += MakeDirs(str(dir_to_copy_from))
             with bc.sub_section(Cd(str(dir_to_copy_from))) as sub_bc:
-                bc += Touch(file_name)
-            bc += CopyFileToDir(str(source_file), str(dir_to_copy_to))
+                bc += Touch("hootenanny")  # add one file
+            bc += CopyFileToDir(str(file_to_copy), str(dir_to_copy_to_no_hard_links), link_dest=False)
+            bc += CopyFileToDir(str(file_to_copy), str(dir_to_copy_to_with_hard_links), link_dest=True)
 
         bc_repr = repr(bc)
         with capture_stdout(self.stdout_capture):
             ops = exec(f"""{bc_repr}""", globals(), locals())
 
-        self.assertTrue(target_file.is_file(), f"test_CopyFileToDir: target file '{target_file}' not found")
-        self.assertTrue(filecmp.cmp(str(source_file), str(target_file), shallow=False), "test_CopyFileToDir: source and target are not the same")
+        dir_comp_no_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_no_hard_links)
+        self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), "{self.which_test} (no hard links): source and target dirs are not the same")
+
+        dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_hard_links)
+        self.assertTrue(is_hard_linked(dir_comp_with_hard_links), "{self.which_test} (with hard links): source and target files are not hard links to the same file")
 
     def test_CopyFileToFile(self):
-        file_name = ''.join(random.choice(string.ascii_lowercase) for i in range(8))
+        """ see doc string for test_CopyDirToDir, with the difference that the source dir contains
+            one file that is copied by it's full path and target is a full path to a file.
+        """
+        file_name = "hootenanny"
         dir_to_copy_from = self.test_folder.joinpath("copy-src").resolve()
-        dir_to_copy_to = self.test_folder.joinpath("copy-target").resolve()
-        source_file = dir_to_copy_from.joinpath(file_name)
-        target_file = dir_to_copy_to.joinpath(file_name)
-        self.assertFalse(dir_to_copy_from.exists())
-        self.assertFalse(dir_to_copy_to.exists())
+        self.assertFalse(dir_to_copy_from.exists(), f"{self.which_test}: {dir_to_copy_from} should not exist before test")
+        file_to_copy = dir_to_copy_from.joinpath(file_name).resolve()
+
+        dir_to_copy_to_no_hard_links = self.test_folder.joinpath("copy-target-no-hard-links").resolve()
+        self.assertFalse(dir_to_copy_to_no_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_no_hard_links} should not exist before test")
+        target_file_no_hard_links = dir_to_copy_to_no_hard_links.joinpath(file_name).resolve()
+
+        dir_to_copy_to_with_hard_links = self.test_folder.joinpath("copy-target-with-hard-links").resolve()
+        self.assertFalse(dir_to_copy_to_with_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_with_hard_links} should not exist before test")
+        target_file_with_hard_links = dir_to_copy_to_with_hard_links.joinpath(file_name).resolve()
 
         bc = None
         with BatchCommandAccum() as bc:
             bc += MakeDirs(str(dir_to_copy_from))
-            bc += MakeDirs(str(dir_to_copy_to))
             with bc.sub_section(Cd(str(dir_to_copy_from))) as sub_bc:
-                bc += Touch(file_name)
-            bc += CopyFileToFile(str(source_file), str(target_file))
+                bc += Touch("hootenanny")  # add one file
+            bc += CopyFileToFile(str(file_to_copy), str(target_file_no_hard_links), link_dest=False)
+            bc += CopyFileToFile(str(file_to_copy), str(target_file_with_hard_links), link_dest=True)
 
         bc_repr = repr(bc)
         with capture_stdout(self.stdout_capture):
             ops = exec(f"""{bc_repr}""", globals(), locals())
 
-        self.assertTrue(target_file.is_file(), f"test_CopyFileToDir: target file '{target_file}' not found")
-        self.assertTrue(filecmp.cmp(str(source_file), str(target_file), shallow=False), "test_CopyFileToDir: source and target are not the same")
+        dir_comp_no_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_no_hard_links)
+        self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), "{self.which_test}  (no hard links): source and target dirs are not the same")
+
+        dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_hard_links)
+        self.assertTrue(is_hard_linked(dir_comp_with_hard_links), "{self.which_test}  (with hard links): source and target files are not hard links to the same file")
 
     def test_remove(self):
         dir_to_remove = self.test_folder.joinpath("remove-me").resolve()
@@ -373,6 +395,36 @@ class TestPythonBatch(unittest.TestCase):
         bc_repr = repr(bc)
         ops = exec(f"""{bc_repr}""", globals(), locals())
         self.assertFalse(dir_to_remove.exists())
+
+    def test_ChFlags(self):
+        flags = {"hidden": stat.UF_HIDDEN,
+                 "uchg": stat.UF_IMMUTABLE}
+        test_file = self.test_folder.joinpath("chflags-me").resolve()
+        self.assertFalse(test_file.exists(), f"{self.which_test}: {test_file} should not exist before test")
+
+        bc = None
+        with BatchCommandAccum() as bc:
+            bc += Touch(str(test_file))
+            bc += ChFlags(str(test_file), "hidden")
+            bc += ChFlags(str(test_file), "uchg")
+        bc_repr = repr(bc)
+        with capture_stdout(self.stdout_capture):
+            ops = exec(f"""{bc_repr}""", globals(), locals())
+        self.assertTrue(test_file.exists())
+
+        files_flags = os.stat(str(test_file)).st_flags
+        self.assertEqual((files_flags & flags['hidden']), flags['hidden'])
+        self.assertEqual((files_flags & flags['uchg']), flags['uchg'])
+
+        with BatchCommandAccum() as bc:
+            bc += Unlock(str(test_file))                # so file can be erased
+            bc += ChFlags(str(test_file), "nohidden")   # so file can be seen
+        bc_repr = repr(bc)
+        with capture_stdout(self.stdout_capture):
+            ops = exec(f"""{bc_repr}""", globals(), locals())
+        files_flags = os.stat(str(test_file)).st_flags
+        self.assertEqual((files_flags & flags['uchg']), 0)
+        self.assertEqual((files_flags & flags['hidden']), 0)
 
 
 if __name__ == '__main__':
