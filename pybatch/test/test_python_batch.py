@@ -12,10 +12,11 @@ import contextlib
 import filecmp
 import random
 import string
-import re
+import subprocess
 
 import utils
 from pybatch import *
+from pybatch import BatchCommandAccum
 
 
 @contextlib.contextmanager
@@ -58,12 +59,13 @@ def is_identical_dircmp(a_dircmp: filecmp.dircmp):
 
 def is_hard_linked(a_dircmp: filecmp.dircmp):
     """ check that all same_files are hard link of each other"""
+    retVal = True
     for a_file in a_dircmp.same_files:
         left_file = os.path.join(a_dircmp.left, a_file)
         right_file = os.path.join(a_dircmp.right, a_file)
         retVal = os.stat(left_file)[stat.ST_INO] == os.stat(right_file)[stat.ST_INO]
-        #if not retVal:
-        #    break
+        if not retVal:
+            break
         retVal = os.stat(left_file)[stat.ST_NLINK] == os.stat(right_file)[stat.ST_NLINK] == 2
         if not retVal:
             break
@@ -75,17 +77,36 @@ def is_hard_linked(a_dircmp: filecmp.dircmp):
     return retVal
 
 
+def compare_chmod_recursive(folder_path, expected_file_mode, expected_dir_mode):
+    root_mode = stat.S_IMODE(os.stat(folder_path).st_mode)
+    if root_mode != expected_dir_mode:
+        return False
+    for root, dirs, files in os.walk(folder_path, followlinks=False):
+        for item in files:
+            item_path = os.path.join(root, item)
+            item_mode = stat.S_IMODE(os.stat(item_path).st_mode)
+            if item_mode != expected_file_mode:
+                return False
+        for item in dirs:
+            item_path = os.path.join(root, item)
+            item_mode = stat.S_IMODE(os.stat(item_path).st_mode)
+            if item_mode != expected_dir_mode:
+                return False
+    return True
+
+
 class TestPythonBatch(unittest.TestCase):
     def __init__(self, which_test="banana"):
         super().__init__(which_test)
         self.which_test = which_test.lstrip("test_")
-        self.test_folder = pathlib.Path(__file__).joinpath("..", "..", "..").resolve().joinpath("python_batch_test_results", which_test)
-        self.stdout_capture = io.StringIO()  # to capture the output of exec calls
+        self.test_folder = pathlib.Path(__file__).joinpath("..", "..", "..").resolve().joinpath("python_batch_test_results", self.which_test)
+        self.batch_accum = BatchCommandAccum()
+        self.sub_test_counter = 0
 
     def setUp(self):
         """ for each test create it's own test sub-folder"""
         if self.test_folder.exists():
-            shutil.rmtree(str(self.test_folder))  # make sure the folder is erased
+            shutil.rmtree(self.test_folder)  # make sure the folder is erased
         self.test_folder.mkdir(parents=True, exist_ok=False)
 
     def tearDown(self):
@@ -94,6 +115,24 @@ class TestPythonBatch(unittest.TestCase):
     def write_file_in_test_folder(self, file_name, contents):
         with open(self.test_folder.joinpath(file_name), "w") as wfd:
             wfd.write(contents)
+
+    def exec_and_capture_output(self, test_name=None, expected_exception=None):
+        self.sub_test_counter += 1
+        if test_name is None:
+            test_name = self.which_test
+        test_name = f"{self.sub_test_counter}_{test_name}"
+
+        bc_repr = repr(self.batch_accum)
+        self.write_file_in_test_folder(test_name+".py", bc_repr)
+        stdout_capture = io.StringIO()
+        with capture_stdout(stdout_capture):
+            if not expected_exception:
+                ops = exec(f"""{bc_repr}""", globals(), locals())
+            else:
+                with self.assertRaises(expected_exception):
+                    ops = exec(f"""{bc_repr}""", globals(), locals())
+
+        self.write_file_in_test_folder(test_name+"_output.txt", stdout_capture.getvalue())
 
     def test_MakeDirs_0_repr(self):
         """ test that MakeDirs.__repr__ is implemented correctly to fully
@@ -110,13 +149,11 @@ class TestPythonBatch(unittest.TestCase):
         self.assertFalse(dir_to_make_1.exists(), f"{self.which_test}: before test {dir_to_make_1} should not exist")
         self.assertFalse(dir_to_make_2.exists(), f"{self.which_test}: before test {dir_to_make_2} should not exist")
 
-        bc = None
-        with BatchCommandAccum() as bc:
-            bc += MakeDirs(str(dir_to_make_1), str(dir_to_make_2), remove_obstacles=True)
-            bc += MakeDirs(str(dir_to_make_1), remove_obstacles=False)  # MakeDirs twice should be OK
-        bc_repr = repr(bc)
-        with capture_stdout(self.stdout_capture):
-            ops = exec(f"""{bc_repr}""", globals(), locals())
+        with self.batch_accum:
+            self.batch_accum += MakeDirs(dir_to_make_1, dir_to_make_2, remove_obstacles=True)
+            self.batch_accum += MakeDirs(dir_to_make_1, remove_obstacles=False)  # MakeDirs twice should be OK
+
+        self.exec_and_capture_output()
 
         self.assertTrue(dir_to_make_1.exists(), f"{self.which_test}: {dir_to_make_1} should exist")
         self.assertTrue(dir_to_make_2.exists(), f"{self.which_test}: {dir_to_make_2} should exist")
@@ -129,15 +166,14 @@ class TestPythonBatch(unittest.TestCase):
         dir_to_make = self.test_folder.joinpath("file-that-should-be-dir").resolve()
         self.assertFalse(dir_to_make.exists(), f"{self.which_test}: {dir_to_make} should not exist before test")
 
-        touch(str(dir_to_make))
+        touch(dir_to_make)
         self.assertTrue(dir_to_make.is_file(), f"{self.which_test}: {dir_to_make} should be a file before test")
 
-        bc = None
-        with BatchCommandAccum() as bc:
-            bc += MakeDirs(str(dir_to_make), remove_obstacles=True)
-        bc_repr = repr(bc)
-        with capture_stdout(self.stdout_capture):
-            ops = exec(f"""{bc_repr}""", globals(), locals())
+        with self.batch_accum:
+            self.batch_accum += MakeDirs(dir_to_make, remove_obstacles=True)
+
+        self.exec_and_capture_output()
+
         self.assertTrue(dir_to_make.is_dir(), f"{self.which_test}: {dir_to_make} should be a dir")
 
     def test_MakeDirs_3_no_remove_obstacles(self):
@@ -148,24 +184,22 @@ class TestPythonBatch(unittest.TestCase):
         dir_to_make = self.test_folder.joinpath("file-that-should-not-be-dir").resolve()
         self.assertFalse(dir_to_make.exists(), f"{self.which_test}: {dir_to_make} should not exist before test")
 
-        touch(str(dir_to_make))
+        touch(dir_to_make)
         self.assertTrue(dir_to_make.is_file(), f"{self.which_test}: {dir_to_make} should be a file")
 
-        bc_ = None
-        with BatchCommandAccum() as bc:
-            bc += MakeDirs(str(dir_to_make), remove_obstacles=False)
-        bc_repr = repr(bc)
-        with capture_stdout(self.stdout_capture):
-            with self.assertRaises(FileExistsError, msg="should raise FileExistsError") as context:
-                ops = exec(f"""{bc_repr}""", globals(), locals())
+        with self.batch_accum:
+            self.batch_accum += MakeDirs(dir_to_make, remove_obstacles=False)
+
+        self.exec_and_capture_output(expected_exception=FileExistsError)
+
         self.assertTrue(dir_to_make.is_file(), f"{self.which_test}: {dir_to_make} should still be a file")
 
-    def test_Chmod_1(self):
+    def test_Chmod_non_recursive(self):
         """ test Chmod
-            A file is created and it's permissions are changed 3 times
+            A file is created and it's permissions are changed several times
         """
         file_to_chmod = self.test_folder.joinpath("file-to-chmod").resolve()
-        touch(str(file_to_chmod))
+        touch(file_to_chmod)
         mod_before = stat.S_IMODE(os.stat(file_to_chmod).st_mode)
         os.chmod(file_to_chmod, Chmod.all_read)
         initial_mode = utils.unix_permissions_to_str(stat.S_IMODE(os.stat(file_to_chmod).st_mode))
@@ -173,37 +207,110 @@ class TestPythonBatch(unittest.TestCase):
         self.assertEqual(initial_mode, expected_mode, f"{self.which_test}: failed to chmod on test file before tests: {initial_mode} != {expected_mode}")
 
         # change to rwxrwxrwx
-        bc = None
         new_mode = stat.S_IMODE(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-        with BatchCommandAccum() as bc:
-            bc += Chmod(str(file_to_chmod), new_mode)
-        bc_repr = repr(bc)
-        with capture_stdout(self.stdout_capture):
-            ops = exec(f"""{bc_repr}""", globals(), locals())
+        new_mode_symbolic = 'a=rwx'
+        with self.batch_accum:
+            self.batch_accum += Chmod(file_to_chmod, new_mode_symbolic)
+
+        self.exec_and_capture_output("chmod_a=rwx")
+
         mod_after = stat.S_IMODE(os.stat(file_to_chmod).st_mode)
         self.assertEqual(new_mode, mod_after, f"{self.which_test}: failed to chmod to {utils.unix_permissions_to_str(new_mode)} got {utils.unix_permissions_to_str(mod_after)}")
 
+        # pass inappropriate symbolic mode should result in ValueError exception and permissions should remain
+        new_mode_symbolic = 'a=rwi'  # i is not a legal mode
+        with self.batch_accum:
+            self.batch_accum += Chmod(file_to_chmod, new_mode_symbolic)
+
+        self.exec_and_capture_output("chmod_a=rwi", expected_exception=ValueError)
+
+        mod_after = stat.S_IMODE(os.stat(file_to_chmod).st_mode)
+        self.assertEqual(new_mode, mod_after, f"{self.which_test}: mode should remain {utils.unix_permissions_to_str(new_mode)} got {utils.unix_permissions_to_str(mod_after)}")
+
         # change to rw-rw-rw-
-        bc = None
         new_mode = stat.S_IMODE(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)
-        with BatchCommandAccum() as bc:
-            bc += Chmod(str(file_to_chmod), new_mode)
-        bc_repr = repr(bc)
-        with capture_stdout(self.stdout_capture):
-            ops = exec(f"""{bc_repr}""", globals(), locals())
+        new_mode_symbolic = 'a-x'
+        with self.batch_accum:
+            self.batch_accum += Chmod(file_to_chmod, new_mode_symbolic)
+
+        self.exec_and_capture_output("chmod_a-x")
+
+        mod_after = stat.S_IMODE(os.stat(file_to_chmod).st_mode)
+        self.assertEqual(new_mode, mod_after, f"{self.which_test}: failed to chmod to {utils.unix_permissions_to_str(new_mode)} got {utils.unix_permissions_to_str(mod_after)}")
+
+        # change to rwxrwxrw-
+        new_mode = stat.S_IMODE(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH | stat.S_IXUSR | stat.S_IXGRP)
+        new_mode_symbolic = 'ug+x'
+        with self.batch_accum:
+            self.batch_accum += Chmod(file_to_chmod, new_mode_symbolic)
+
+        self.exec_and_capture_output("chmod_ug+x")
+
         mod_after = stat.S_IMODE(os.stat(file_to_chmod).st_mode)
         self.assertEqual(new_mode, mod_after, f"{self.which_test}: failed to chmod to {utils.unix_permissions_to_str(new_mode)} got {utils.unix_permissions_to_str(mod_after)}")
 
         # change to r--r--r--
-        bc = None
         new_mode = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
-        with BatchCommandAccum() as bc:
-            bc += Chmod(str(file_to_chmod), new_mode)
-        bc_repr = repr(bc)
-        with capture_stdout(self.stdout_capture):
-            ops = exec(f"""{bc_repr}""", globals(), locals())
+        with self.batch_accum:
+            self.batch_accum += Chmod(file_to_chmod, 'u-wx')
+            self.batch_accum += Chmod(file_to_chmod, 'g-wx')
+            self.batch_accum += Chmod(file_to_chmod, 'o-wx')
+
+        self.exec_and_capture_output("chmod_a-wx")
+
         mod_after = stat.S_IMODE(os.stat(file_to_chmod).st_mode)
         self.assertEqual(new_mode, mod_after, f"{self.which_test}: failed to chmod to {utils.unix_permissions_to_str(new_mode)} got {utils.unix_permissions_to_str(mod_after)}")
+
+    def test_Chmod_recursive(self):
+        """ test Chmod recursive
+            A file is created and it's permissions are changed several times
+        """
+        folder_to_chmod = self.test_folder.joinpath("folder-to-chmod").resolve()
+
+        initial_mode = Chmod.all_read_write
+        initial_mode_str = "a+rw"
+        # create the folder
+        with self.batch_accum:
+             self.batch_accum += MakeDirs(folder_to_chmod)
+             with self.batch_accum.sub_section(Cd(folder_to_chmod)):
+                self.batch_accum += Touch("hootenanny")  # add one file with fixed (none random) name
+                self.batch_accum += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
+                self.batch_accum += Chmod(path=folder_to_chmod, mode=initial_mode_str, recursive=True)
+        self.exec_and_capture_output("create the folder")
+
+        self.assertTrue(compare_chmod_recursive(folder_to_chmod, initial_mode, Chmod.all_read_write_exec))
+
+        # change to rwxrwxrwx
+        new_mode_symbolic = 'a=rwx'
+        with self.batch_accum:
+            self.batch_accum += Chmod(folder_to_chmod, new_mode_symbolic, recursive=True)
+
+        self.exec_and_capture_output("chmod a=rwx")
+
+        self.assertTrue(compare_chmod_recursive(folder_to_chmod, Chmod.all_read_write_exec, Chmod.all_read_write_exec))
+
+        # pass inappropriate symbolic mode should result in ValueError exception and permissions should remain
+        new_mode_symbolic = 'a=rwi'  # i is not a legal mode
+        with self.batch_accum:
+            self.batch_accum += Chmod(folder_to_chmod, new_mode_symbolic, recursive=True)
+
+        self.exec_and_capture_output("chmod invalid", expected_exception=subprocess.CalledProcessError)
+
+        # change to r-xr-xr-x
+        new_mode_symbolic = 'a-w'
+        with self.batch_accum:
+            self.batch_accum += Chmod(folder_to_chmod, new_mode_symbolic, recursive=True)
+
+        self.exec_and_capture_output("chmod a-w")
+
+        self.assertTrue(compare_chmod_recursive(folder_to_chmod, Chmod.all_read_exec, Chmod.all_read_exec))
+
+        # change to rwxrwxrwx so folder can be deleted
+        new_mode_symbolic = 'a+rwx'
+        with self.batch_accum:
+            self.batch_accum += Chmod(folder_to_chmod, new_mode_symbolic, recursive=True)
+
+        self.exec_and_capture_output("chmod restore perm")
 
     def test_Cd_and_Touch_1(self):
         """ test Cd and Touch
@@ -216,16 +323,14 @@ class TestPythonBatch(unittest.TestCase):
         self.assertFalse(file_to_touch.exists(), f"{self.which_test}: before test {file_to_touch} should not exist")
 
         cwd_before = os.getcwd()
-        self.assertNotEqual(str(dir_to_make), cwd_before, f"{self.which_test}: before test {dir_to_make} should not be current working directory")
+        self.assertNotEqual(dir_to_make, cwd_before, f"{self.which_test}: before test {dir_to_make} should not be current working directory")
 
-        bc = None
-        with BatchCommandAccum() as bc:
-            bc += MakeDirs(str(dir_to_make), remove_obstacles=False)
-            with bc.sub_section(Cd(str(dir_to_make))) as sub_bc:
+        with self.batch_accum:
+            self.batch_accum += MakeDirs(dir_to_make, remove_obstacles=False)
+            with self.batch_accum.sub_section(Cd(dir_to_make)) as sub_bc:
                 sub_bc += Touch("touch-me")  # file's path is relative!
-        bc_repr = repr(bc)
-        with capture_stdout(self.stdout_capture):
-            ops = exec(f"""{bc_repr}""", globals(), locals())
+
+        self.exec_and_capture_output()
 
         self.assertTrue(file_to_touch.exists(), f"{self.which_test}: touched file was not created {file_to_touch}")
 
@@ -261,18 +366,15 @@ class TestPythonBatch(unittest.TestCase):
         copied_dir_with_hard_links = dir_to_copy_to_with_hard_links.joinpath("copy-src").resolve()
         self.assertFalse(dir_to_copy_to_with_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_with_hard_links} should not exist before test")
 
-        bc = None
-        with BatchCommandAccum() as bc:
-            bc += MakeDirs(str(dir_to_copy_from))
-            with bc.sub_section(Cd(str(dir_to_copy_from))) as sub_bc:
-                bc += Touch("hootenanny")  # add one file with fixed (none random) name
-                bc += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
-            bc += CopyDirToDir(str(dir_to_copy_from), str(dir_to_copy_to_no_hard_links), link_dest=False)
-            bc += CopyDirToDir(str(dir_to_copy_from), str(dir_to_copy_to_with_hard_links), link_dest=True)
+        with self.batch_accum:
+            self.batch_accum += MakeDirs(dir_to_copy_from)
+            with self.batch_accum.sub_section(Cd(dir_to_copy_from)) as sub_bc:
+                self.batch_accum += Touch("hootenanny")  # add one file with fixed (none random) name
+                self.batch_accum += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
+            self.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_no_hard_links, link_dest=False)
+            self.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_with_hard_links, link_dest=True)
 
-        bc_repr = repr(bc)
-        #with capture_stdout(self.stdout_capture):
-        ops = exec(f"""{bc_repr}""", globals(), locals())
+        self.exec_and_capture_output()
 
         dir_comp_no_hard_links = filecmp.dircmp(dir_to_copy_from, copied_dir_no_hard_links)
         self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), "{self.which_test} (no hard links): source and target dirs are not the same")
@@ -293,17 +395,15 @@ class TestPythonBatch(unittest.TestCase):
         dir_to_copy_to_with_hard_links = self.test_folder.joinpath("copy-target-with-hard-links").resolve()
         self.assertFalse(dir_to_copy_to_with_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_with_hard_links} should not exist before test")
 
-        bc = None
-        with BatchCommandAccum() as bc:
-            with bc.sub_section(Cd(str(dir_to_copy_from))) as sub_bc:
-                bc += Touch("hootenanny")  # add one file with fixed (none random) name
-                bc += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
-            bc += CopyDirContentsToDir(str(dir_to_copy_from), str(dir_to_copy_to_no_hard_links), link_dest=False)
-            bc += CopyDirContentsToDir(str(dir_to_copy_from), str(dir_to_copy_to_with_hard_links), link_dest=True)
+        with self.batch_accum:
+            self.batch_accum += MakeDirs(dir_to_copy_from)
+            with self.batch_accum.sub_section(Cd(dir_to_copy_from)) as sub_bc:
+                self.batch_accum += Touch("hootenanny")  # add one file with fixed (none random) name
+                self.batch_accum += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
+            self.batch_accum += CopyDirContentsToDir(dir_to_copy_from, dir_to_copy_to_no_hard_links, link_dest=False)
+            self.batch_accum += CopyDirContentsToDir(dir_to_copy_from, dir_to_copy_to_with_hard_links, link_dest=True)
 
-        bc_repr = repr(bc)
-        with capture_stdout(self.stdout_capture):
-            ops = exec(f"""{bc_repr}""", globals(), locals())
+        self.exec_and_capture_output()
 
         dir_comp_no_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_no_hard_links)
         self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), "{self.which_test} (no hard links): source and target dirs are not the same")
@@ -326,17 +426,14 @@ class TestPythonBatch(unittest.TestCase):
         dir_to_copy_to_with_hard_links = self.test_folder.joinpath("copy-target-with-hard-links").resolve()
         self.assertFalse(dir_to_copy_to_with_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_with_hard_links} should not exist before test")
 
-        bc = None
-        with BatchCommandAccum() as bc:
-            bc += MakeDirs(str(dir_to_copy_from))
-            with bc.sub_section(Cd(str(dir_to_copy_from))) as sub_bc:
-                bc += Touch("hootenanny")  # add one file
-            bc += CopyFileToDir(str(file_to_copy), str(dir_to_copy_to_no_hard_links), link_dest=False)
-            bc += CopyFileToDir(str(file_to_copy), str(dir_to_copy_to_with_hard_links), link_dest=True)
+        with self.batch_accum:
+            self.batch_accum += MakeDirs(dir_to_copy_from)
+            with self.batch_accum.sub_section(Cd(dir_to_copy_from)) as sub_bc:
+                self.batch_accum += Touch("hootenanny")  # add one file
+            self.batch_accum += CopyFileToDir(file_to_copy, dir_to_copy_to_no_hard_links, link_dest=False)
+            self.batch_accum += CopyFileToDir(file_to_copy, dir_to_copy_to_with_hard_links, link_dest=True)
 
-        bc_repr = repr(bc)
-        with capture_stdout(self.stdout_capture):
-            ops = exec(f"""{bc_repr}""", globals(), locals())
+        self.exec_and_capture_output()
 
         dir_comp_no_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_no_hard_links)
         self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), "{self.which_test} (no hard links): source and target dirs are not the same")
@@ -353,52 +450,50 @@ class TestPythonBatch(unittest.TestCase):
         self.assertFalse(dir_to_copy_from.exists(), f"{self.which_test}: {dir_to_copy_from} should not exist before test")
         file_to_copy = dir_to_copy_from.joinpath(file_name).resolve()
 
-        dir_to_copy_to_no_hard_links = self.test_folder.joinpath("copy-target-no-hard-links").resolve()
-        self.assertFalse(dir_to_copy_to_no_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_no_hard_links} should not exist before test")
-        target_file_no_hard_links = dir_to_copy_to_no_hard_links.joinpath(file_name).resolve()
+        target_dir_no_hard_links = self.test_folder.joinpath("target_dir_no_hard_links").resolve()
+        self.assertFalse(target_dir_no_hard_links.exists(), f"{self.which_test}: {target_dir_no_hard_links} should not exist before test")
+        target_file_no_hard_links = target_dir_no_hard_links.joinpath(file_name).resolve()
 
-        dir_to_copy_to_with_hard_links = self.test_folder.joinpath("copy-target-with-hard-links").resolve()
-        self.assertFalse(dir_to_copy_to_with_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_with_hard_links} should not exist before test")
-        target_file_with_hard_links = dir_to_copy_to_with_hard_links.joinpath(file_name).resolve()
+        target_dir_with_hard_links = self.test_folder.joinpath("target_dir_with_hard_links").resolve()
+        self.assertFalse(target_dir_with_hard_links.exists(), f"{self.which_test}: {target_dir_with_hard_links} should not exist before test")
+        target_file_with_hard_links = target_dir_with_hard_links.joinpath(file_name).resolve()
 
-        bc = None
-        with BatchCommandAccum() as bc:
-            bc += MakeDirs(str(dir_to_copy_from))
-            with bc.sub_section(Cd(str(dir_to_copy_from))) as sub_bc:
-                bc += Touch("hootenanny")  # add one file
-            bc += CopyFileToFile(str(file_to_copy), str(target_file_no_hard_links), link_dest=False)
-            bc += CopyFileToFile(str(file_to_copy), str(target_file_with_hard_links), link_dest=True)
+        with self.batch_accum:
+            self.batch_accum += MakeDirs(dir_to_copy_from)
+            self.batch_accum += MakeDirs(target_dir_no_hard_links)
+            self.batch_accum += MakeDirs(target_dir_with_hard_links)
+            with self.batch_accum.sub_section(Cd(dir_to_copy_from)) as sub_bc:
+                self.batch_accum += Touch("hootenanny")  # add one file
+            self.batch_accum += CopyFileToFile(file_to_copy, target_file_no_hard_links, link_dest=False)
+            self.batch_accum += CopyFileToFile(file_to_copy, target_file_with_hard_links, link_dest=True)
 
-        bc_repr = repr(bc)
-        with capture_stdout(self.stdout_capture):
-            ops = exec(f"""{bc_repr}""", globals(), locals())
+        self.exec_and_capture_output()
 
-        dir_comp_no_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_no_hard_links)
+        dir_comp_no_hard_links = filecmp.dircmp(dir_to_copy_from, target_dir_no_hard_links)
         self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), "{self.which_test}  (no hard links): source and target dirs are not the same")
 
-        dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_hard_links)
+        dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, target_dir_with_hard_links)
         self.assertTrue(is_hard_linked(dir_comp_with_hard_links), "{self.which_test}  (with hard links): source and target files are not hard links to the same file")
 
     def test_remove(self):
+        """ Create a folder and fill it with random files.
+            1st try to remove the folder with RmFile which should fail and raise exception
+            2nd try to remove the folder with RmDir which should work
+        """
         dir_to_remove = self.test_folder.joinpath("remove-me").resolve()
         self.assertFalse(dir_to_remove.exists())
 
-        bc = None
-        with BatchCommandAccum() as bc:
-            bc += MakeDirs(str(dir_to_remove))
-            with bc.sub_section(Cd(str(dir_to_remove))) as sub_bc:
-                bc += MakeRandomDirs(num_levels=3, num_dirs_per_level=5, num_files_per_dir=7, file_size=41)
-            bc += RmFile(str(dir_to_remove))  # RmFile should not remove a folder
-        bc_repr = repr(bc)
-        with self.assertRaises(PermissionError, msg="should raise PermissionError") as context:
-            ops = exec(f"""{bc_repr}""", globals(), locals())
+        with self.batch_accum:
+            self.batch_accum += MakeDirs(dir_to_remove)
+            with self.batch_accum.sub_section(Cd(dir_to_remove)) as sub_bc:
+                self.batch_accum += MakeRandomDirs(num_levels=3, num_dirs_per_level=5, num_files_per_dir=7, file_size=41)
+            self.batch_accum += RmFile(dir_to_remove)  # RmFile should not remove a folder
+        self.exec_and_capture_output(expected_exception=PermissionError)
         self.assertTrue(dir_to_remove.exists())
 
-        bc = None
-        with BatchCommandAccum() as bc:
-            bc += RmDir(str(dir_to_remove))
-        bc_repr = repr(bc)
-        ops = exec(f"""{bc_repr}""", globals(), locals())
+        with self.batch_accum:
+            self.batch_accum += RmDir(dir_to_remove)
+        self.exec_and_capture_output()
         self.assertFalse(dir_to_remove.exists())
 
     def test_ChFlags(self):
@@ -407,27 +502,26 @@ class TestPythonBatch(unittest.TestCase):
         test_file = self.test_folder.joinpath("chflags-me").resolve()
         self.assertFalse(test_file.exists(), f"{self.which_test}: {test_file} should not exist before test")
 
-        bc = None
-        with BatchCommandAccum() as bc:
-            bc += Touch(str(test_file))
-            bc += ChFlags(str(test_file), "hidden")
-            bc += ChFlags(str(test_file), "uchg")
-        bc_repr = repr(bc)
-        with capture_stdout(self.stdout_capture):
-            ops = exec(f"""{bc_repr}""", globals(), locals())
+        with self.batch_accum:
+            self.batch_accum += Touch(test_file)
+            self.batch_accum += ChFlags(test_file, "hidden")
+            self.batch_accum += ChFlags(test_file, "uchg")
+
+        self.exec_and_capture_output("hidden_uchg")
+
         self.assertTrue(test_file.exists())
 
-        files_flags = os.stat(str(test_file)).st_flags
+        files_flags = os.stat(test_file).st_flags
         self.assertEqual((files_flags & flags['hidden']), flags['hidden'])
         self.assertEqual((files_flags & flags['uchg']), flags['uchg'])
 
-        with BatchCommandAccum() as bc:
-            bc += Unlock(str(test_file))                # so file can be erased
-            bc += ChFlags(str(test_file), "nohidden")   # so file can be seen
-        bc_repr = repr(bc)
-        with capture_stdout(self.stdout_capture):
-            ops = exec(f"""{bc_repr}""", globals(), locals())
-        files_flags = os.stat(str(test_file)).st_flags
+        with self.batch_accum:
+            self.batch_accum += Unlock(test_file)                # so file can be erased
+            self.batch_accum += ChFlags(test_file, "nohidden")   # so file can be seen
+
+        self.exec_and_capture_output("nohidden")
+
+        files_flags = os.stat(test_file).st_flags
         self.assertEqual((files_flags & flags['uchg']), 0)
         self.assertEqual((files_flags & flags['hidden']), 0)
 
@@ -444,13 +538,10 @@ class TestPythonBatch(unittest.TestCase):
         with open(target_file, "w") as wfd:
             wfd.write(content_2)
 
-        with BatchCommandAccum() as bc:
-            bc += AppendFileToFile(str(source_file), str(target_file))
-        bc_repr = repr(bc)
-        self.write_file_in_test_folder("batch.py", bc_repr)
-        with capture_stdout(self.stdout_capture):
-            ops = exec(f"""{bc_repr}""", globals(), locals())
-        self.write_file_in_test_folder("batch_output.txt", self.stdout_capture.getvalue())
+        with self.batch_accum:
+            self.batch_accum += AppendFileToFile(source_file, target_file)
+
+        self.exec_and_capture_output()
 
         with open(target_file, "r") as rfd:
             concatenated_content = rfd.read()
@@ -458,12 +549,6 @@ class TestPythonBatch(unittest.TestCase):
         expected_content = content_2+content_1
         self.assertEqual(concatenated_content, expected_content)
 
-
-    def symbolic_mode_to_num(symbolic_mode_str):
-        symbolic_mode_re = re.compile("""(?P<who>[augo]+)(?P<op>\+|-|=)(?P<perm>[rwx]+)""")
-        match = symbolic_mode_re
-        if match:
-            who = match.group('who')
 
 if __name__ == '__main__':
     unittest.main()

@@ -338,12 +338,12 @@ split_file()
         return python_batch_command
 
     def make_executable(self, file_path):
-        raise NotImplementedError
-        return self.chmod("a+x", file_path)
+        python_batch_command = Chmod(file_path, 'a+x')
+        return python_batch_command
 
     def make_writable(self, file_path):
-        raise NotImplementedError
-        return self.chmod("a+w", file_path)
+        python_batch_command = Chmod(file_path, 'a+w')
+        return python_batch_command
 
     def unlock(self, file_path, recursive=False, ignore_errors=True):
         """ Remove the system's read-only flag, this is different from permissions.
