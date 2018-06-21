@@ -357,9 +357,8 @@ split_file()
         return python_batch_command
 
     def append_file_to_file(self, source_file, target_file):
-        raise NotImplementedError
-        append_command = " ".join(("cat", utils.quoteme_double(source_file), ">>", utils.quoteme_double(target_file)))
-        return append_command
+        python_batch_command = AppendFileToFile(source_file, target_file)
+        return python_batch_command
 
     def chown(self, user_id, group_id, target_path, recursive=False):
         chown_command = Chown(user_id, group_id, target_path, recursive)

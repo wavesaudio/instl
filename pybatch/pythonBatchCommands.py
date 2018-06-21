@@ -10,6 +10,7 @@ import string
 from contextlib import ExitStack, contextmanager
 import shutil
 import pathlib
+import re
 
 import utils
 

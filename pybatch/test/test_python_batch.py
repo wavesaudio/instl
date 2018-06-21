@@ -12,6 +12,7 @@ import contextlib
 import filecmp
 import random
 import string
+import re
 
 import utils
 from pybatch import *
@@ -456,6 +457,13 @@ class TestPythonBatch(unittest.TestCase):
 
         expected_content = content_2+content_1
         self.assertEqual(concatenated_content, expected_content)
+
+
+    def symbolic_mode_to_num(symbolic_mode_str):
+        symbolic_mode_re = re.compile("""(?P<who>[augo]+)(?P<op>\+|-|=)(?P<perm>[rwx]+)""")
+        match = symbolic_mode_re
+        if match:
+            who = match.group('who')
 
 if __name__ == '__main__':
     unittest.main()
