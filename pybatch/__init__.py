@@ -21,3 +21,5 @@ from .batchCommands import ChFlags
 from .batchCommands import Unlock
 from .batchCommands import AppendFileToFile
 from .batchCommands import Chmod
+
+from .new_batchCommands import *

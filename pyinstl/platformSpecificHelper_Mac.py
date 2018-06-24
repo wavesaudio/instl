@@ -3,6 +3,7 @@
 
 import os
 import datetime
+from typing import List
 
 import utils
 from configVar import var_stack
@@ -21,6 +22,7 @@ class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
         super().__init__(instlObj)
         self.var_replacement_pattern = "${\g<var_name>}"
         self.echo_template = 'echo "{}"'
+        self.batch_lines_id = 0
 
     def init_platform_tools(self):
         self.dl_tool = DownloadTool_mac_curl(self)

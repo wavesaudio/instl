@@ -39,6 +39,7 @@ class PythonBatchCommandBase(abc.ABC):
 
         self.report_own_progress = kwargs.get('report_own_progress', True)
         self.ignore_all_errors =   kwargs.get('ignore_all_errors', False)
+        self.is_context_manager = kwargs.get('is_context_manager', True)
 
         self.progress = 0
         if self.report_own_progress:
@@ -136,6 +137,7 @@ class RunProcessBase(PythonBatchCommandBase):
         super().__init__(**kwargs)
         if self.ignore_all_errors:
             self.exceptions_to_ignore.append(subprocess.CalledProcessError)
+        self.shell =   kwargs.get('shell', False)
 
     @abc.abstractmethod
     def create_run_args(self):
@@ -144,7 +146,7 @@ class RunProcessBase(PythonBatchCommandBase):
     def __call__(self, *args, **kwargs):
         run_args = self.create_run_args()
         print(" ".join(run_args))
-        completed_process = subprocess.run(run_args, check=True, stdout=subprocess.PIPE)
+        completed_process = subprocess.run(run_args, check=True, stdout=subprocess.PIPE, shell=self.shell)
         return None  # what to return here?
 
     def __repr__(self):

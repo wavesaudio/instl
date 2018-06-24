@@ -2,6 +2,7 @@ import io
 import pathlib
 from contextlib import contextmanager
 import logging
+from collections import defaultdict
 
 from pybatch import PythonBatchCommandBase
 
@@ -11,7 +12,13 @@ python_batch_log_level = logging.WARNING
 class BatchCommandAccum(object):
 
     def __init__(self):
+        self.current_section: str = None
+        self.section_context_stacks = defaultdict(list)
         self.context_stack = [list()]
+
+    def append(self, other):
+        self.context_stack[-1].append(other)
+        return self
 
     def __iadd__(self, other):
         self.context_stack[-1].append(other)
@@ -28,7 +35,7 @@ class BatchCommandAccum(object):
         self.context_stack = [list()]
 
     @contextmanager
-    def sub_section(self, context):
+    def adjuvant(self, context):
         self.context_stack[-1].append(context)
         self.context_stack.append(context.child_batch_commands)
         yield self
@@ -54,9 +61,11 @@ from pybatch import *\n
                 for item in batch_items:
                     _repr_helper(item, io_str, indent)
                     _repr_helper(item.child_batch_commands, io_str, indent+1)
-            else:
+            elif batch_items.is_context_manager:
                 io_str.write(f"""{indent_str}with {repr(batch_items)} as {batch_items.obj_name}:\n""")
                 io_str.write(f"""{indent_str}    {batch_items.obj_name}()\n""")
+            else:
+                io_str.write(f"""{indent_str}{repr(batch_items)}""")
         PythonBatchCommandBase.total_progress = 0
         io_str = io.StringIO()
         io_str.write(self._python_opening_code())

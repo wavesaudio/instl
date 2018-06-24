@@ -435,6 +435,7 @@ class Chmod(RunProcessBase):
     all_exec = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
     all_read_write = all_read | stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
     all_read_write_exec = all_read_write | all_exec
+    user_read_write_exec = stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR
     all_read_exec = all_read | all_exec
     who_2_perm = {'u': {'r': stat.S_IRUSR, 'w': stat.S_IWUSR, 'x': stat.S_IXUSR},
                   'g': {'r': stat.S_IRGRP, 'w': stat.S_IWGRP, 'x': stat.S_IXGRP},
@@ -503,6 +504,7 @@ class Chmod(RunProcessBase):
 
             os.chmod(self.path, mode_to_set)
         return None
+
 
 # todo:
 # override PythonBatchCommandBase for all commands

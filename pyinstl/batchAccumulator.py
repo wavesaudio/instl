@@ -110,3 +110,17 @@ class BatchAccumulatorTransaction(object):
     def __iadd__(self, inc):
         self.essential_action_counter += inc
         return self
+
+
+from pybatch import BatchCommandAccum
+
+
+class PythonBatchAccumulator(BatchAccumulator):
+    """ from batchAccumulator import BatchAccumulator
+        accumulate batch instructions and prepare them for writing to file
+    """
+    section_order = ("pre", "assign", "begin", "links", "upload", "sync", "post-sync", "copy", "post-copy", "remove", "admin", "end", "post")
+
+    def __init__(self):
+        super().__init__()
+        self.instruction_lines = defaultdict(BatchCommandAccum)

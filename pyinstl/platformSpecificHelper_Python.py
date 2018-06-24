@@ -18,6 +18,7 @@ class CopyToolMacRsync(CopyToolRsync):
 
 
 class PlatformSpecificHelperPython(PlatformSpecificHelperBase):
+    var_name_counter = 0
     def __init__(self, instlObj):
         super().__init__(instlObj)
         self.var_replacement_pattern = "${\g<var_name>}"
@@ -363,6 +364,13 @@ split_file()
     def chown(self, user_id, group_id, target_path, recursive=False):
         chown_command = Chown(user_id, group_id, target_path, recursive)
         return chown_command
+
+    def shell_commands(self, the_lines: List[str]):
+        PlatformSpecificHelperPython.var_name_counter += 1
+        var_name = f"var_{PlatformSpecificHelperPython.var_name_counter:04}"
+        var = VarAssign(var_name, the_lines)
+        batch = ShellCommands(dir="/Users/shai/Desktop/batches", var_name=var_name)
+        return (var, batch)
 
 
 class DownloadTool_mac_curl(DownloadToolBase):

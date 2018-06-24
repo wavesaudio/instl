@@ -272,7 +272,7 @@ class TestPythonBatch(unittest.TestCase):
         # create the folder
         with self.batch_accum:
              self.batch_accum += MakeDirs(folder_to_chmod)
-             with self.batch_accum.sub_section(Cd(folder_to_chmod)):
+             with self.batch_accum.adjuvant(Cd(folder_to_chmod)):
                 self.batch_accum += Touch("hootenanny")  # add one file with fixed (none random) name
                 self.batch_accum += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
                 self.batch_accum += Chmod(path=folder_to_chmod, mode=initial_mode_str, recursive=True)
@@ -327,7 +327,7 @@ class TestPythonBatch(unittest.TestCase):
 
         with self.batch_accum:
             self.batch_accum += MakeDirs(dir_to_make, remove_obstacles=False)
-            with self.batch_accum.sub_section(Cd(dir_to_make)) as sub_bc:
+            with self.batch_accum.adjuvant(Cd(dir_to_make)) as sub_bc:
                 sub_bc += Touch("touch-me")  # file's path is relative!
 
         self.exec_and_capture_output()
@@ -368,7 +368,7 @@ class TestPythonBatch(unittest.TestCase):
 
         with self.batch_accum:
             self.batch_accum += MakeDirs(dir_to_copy_from)
-            with self.batch_accum.sub_section(Cd(dir_to_copy_from)) as sub_bc:
+            with self.batch_accum.adjuvant(Cd(dir_to_copy_from)) as sub_bc:
                 self.batch_accum += Touch("hootenanny")  # add one file with fixed (none random) name
                 self.batch_accum += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
             self.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_no_hard_links, link_dest=False)
@@ -397,7 +397,7 @@ class TestPythonBatch(unittest.TestCase):
 
         with self.batch_accum:
             self.batch_accum += MakeDirs(dir_to_copy_from)
-            with self.batch_accum.sub_section(Cd(dir_to_copy_from)) as sub_bc:
+            with self.batch_accum.adjuvant(Cd(dir_to_copy_from)) as sub_bc:
                 self.batch_accum += Touch("hootenanny")  # add one file with fixed (none random) name
                 self.batch_accum += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
             self.batch_accum += CopyDirContentsToDir(dir_to_copy_from, dir_to_copy_to_no_hard_links, link_dest=False)
@@ -428,7 +428,7 @@ class TestPythonBatch(unittest.TestCase):
 
         with self.batch_accum:
             self.batch_accum += MakeDirs(dir_to_copy_from)
-            with self.batch_accum.sub_section(Cd(dir_to_copy_from)) as sub_bc:
+            with self.batch_accum.adjuvant(Cd(dir_to_copy_from)) as sub_bc:
                 self.batch_accum += Touch("hootenanny")  # add one file
             self.batch_accum += CopyFileToDir(file_to_copy, dir_to_copy_to_no_hard_links, link_dest=False)
             self.batch_accum += CopyFileToDir(file_to_copy, dir_to_copy_to_with_hard_links, link_dest=True)
@@ -462,7 +462,7 @@ class TestPythonBatch(unittest.TestCase):
             self.batch_accum += MakeDirs(dir_to_copy_from)
             self.batch_accum += MakeDirs(target_dir_no_hard_links)
             self.batch_accum += MakeDirs(target_dir_with_hard_links)
-            with self.batch_accum.sub_section(Cd(dir_to_copy_from)) as sub_bc:
+            with self.batch_accum.adjuvant(Cd(dir_to_copy_from)) as sub_bc:
                 self.batch_accum += Touch("hootenanny")  # add one file
             self.batch_accum += CopyFileToFile(file_to_copy, target_file_no_hard_links, link_dest=False)
             self.batch_accum += CopyFileToFile(file_to_copy, target_file_with_hard_links, link_dest=True)
@@ -485,7 +485,7 @@ class TestPythonBatch(unittest.TestCase):
 
         with self.batch_accum:
             self.batch_accum += MakeDirs(dir_to_remove)
-            with self.batch_accum.sub_section(Cd(dir_to_remove)) as sub_bc:
+            with self.batch_accum.adjuvant(Cd(dir_to_remove)) as sub_bc:
                 self.batch_accum += MakeRandomDirs(num_levels=3, num_dirs_per_level=5, num_files_per_dir=7, file_size=41)
             self.batch_accum += RmFile(dir_to_remove)  # RmFile should not remove a folder
         self.exec_and_capture_output(expected_exception=PermissionError)
@@ -548,6 +548,23 @@ class TestPythonBatch(unittest.TestCase):
 
         expected_content = content_2+content_1
         self.assertEqual(concatenated_content, expected_content)
+
+    def test_ShellShellCommands(self):
+        batches_dir = self.test_folder.joinpath("batches").resolve()
+        self.assertFalse(batches_dir.exists(), f"{self.which_test}: {batches_dir} should not exist before test")
+
+        geronimo = [
+                        "ls /Users/shai/Desktop >> /Users/shai/Desktop/batches/geronimo.txt",
+                        """[ -f "/Users/shai/Desktop/batches/geronimo.txt" ] && echo "g e r o n i m o" >> /Users/shai/Desktop/batches/geronimo.txt""",
+                       ]
+
+        with self.batch_accum:
+            self.batch_accum += VarAssign("geronimo", geronimo)
+            self.batch_accum += MakeDirs(batches_dir)
+            self.batch_accum += ShellCommands(dir=batches_dir, var_name="geronimo")
+
+        self.exec_and_capture_output()
+
 
 
 if __name__ == '__main__':

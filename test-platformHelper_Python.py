@@ -84,13 +84,13 @@ def run_contexts(context_items):
 def three_install():
     bc = BatchCommandAccum()
     bc += Chmod(path="noautoupdate.txt", mode=Chmod.all_read_write_exec)
-    with bc.sub_section(Section("copy to /Applications/Waves/Plug-Ins V9/Documents")) as sub_bc:
+    with bc.adjuvant(Section("copy to /Applications/Waves/Plug-Ins V9/Documents")) as sub_bc:
         sub_bc += MakeDirs("/Users/shai/Desktop/Logs/a", "/Users/shai/Desktop/Logs/b", remove_obstacles=True)
-        with sub_bc.sub_section(Dummy("A")) as sub_sub_bc:
+        with sub_bc.adjuvant(Dummy("A")) as sub_sub_bc:
             sub_sub_bc += Dummy("A1")
             sub_sub_bc += Dummy("A2")
             sub_sub_bc += Dummy("A3")
-        with sub_bc.sub_section(Cd(path="/Users/shai/Desktop/Logs")) as sub_sub_bc:
+        with sub_bc.adjuvant(Cd(path="/Users/shai/Desktop/Logs")) as sub_sub_bc:
             sub_sub_bc += Chmod(path="noautoupdate.txt", mode=Chmod.all_read_write_exec)
             sub_sub_bc += CopyDirToDir(src="/Users/shai/Desktop/Logs/unwtar", trg="/Users/shai/Desktop/Logs/b")
         sub_bc += Dummy("Z")
