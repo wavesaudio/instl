@@ -106,6 +106,11 @@ class TestPythonBatch(unittest.TestCase):
     def setUp(self):
         """ for each test create it's own test sub-folder"""
         if self.test_folder.exists():
+            for root, dirs, files in os.walk(str(self.test_folder)):
+                for d in dirs:
+                    os.chmod(os.path.join(root, d), stat.S_IWUSR)
+                for f in files:
+                    os.chmod(os.path.join(root, f), stat.S_IWUSR)
             shutil.rmtree(self.test_folder)  # make sure the folder is erased
         self.test_folder.mkdir(parents=True, exist_ok=False)
 
@@ -207,7 +212,10 @@ class TestPythonBatch(unittest.TestCase):
         self.assertEqual(initial_mode, expected_mode, f"{self.which_test}: failed to chmod on test file before tests: {initial_mode} != {expected_mode}")
 
         # change to rwxrwxrwx
-        new_mode = stat.S_IMODE(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        new_mode = stat.S_IMODE(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)
+        if sys.platform == 'darwin':  # Adding executable bit for mac
+            new_mode = stat.S_IMODE(new_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
         new_mode_symbolic = 'a=rwx'
         with self.batch_accum:
             self.batch_accum += Chmod(file_to_chmod, new_mode_symbolic)
@@ -238,16 +246,17 @@ class TestPythonBatch(unittest.TestCase):
         mod_after = stat.S_IMODE(os.stat(file_to_chmod).st_mode)
         self.assertEqual(new_mode, mod_after, f"{self.which_test}: failed to chmod to {utils.unix_permissions_to_str(new_mode)} got {utils.unix_permissions_to_str(mod_after)}")
 
-        # change to rwxrwxrw-
-        new_mode = stat.S_IMODE(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH | stat.S_IXUSR | stat.S_IXGRP)
-        new_mode_symbolic = 'ug+x'
-        with self.batch_accum:
-            self.batch_accum += Chmod(file_to_chmod, new_mode_symbolic)
+        if sys.platform == 'darwin':  # Windows doesn't have an executable bit, test is skipped
+            # change to rwxrwxrw-
+            new_mode = stat.S_IMODE(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH | stat.S_IXUSR | stat.S_IXGRP)
+            new_mode_symbolic = 'ug+x'
+            with self.batch_accum:
+                self.batch_accum += Chmod(file_to_chmod, new_mode_symbolic)
 
-        self.exec_and_capture_output("chmod_ug+x")
+            self.exec_and_capture_output("chmod_ug+x")
 
-        mod_after = stat.S_IMODE(os.stat(file_to_chmod).st_mode)
-        self.assertEqual(new_mode, mod_after, f"{self.which_test}: failed to chmod to {utils.unix_permissions_to_str(new_mode)} got {utils.unix_permissions_to_str(mod_after)}")
+            mod_after = stat.S_IMODE(os.stat(file_to_chmod).st_mode)
+            self.assertEqual(new_mode, mod_after, f"{self.which_test}: failed to chmod to {utils.unix_permissions_to_str(new_mode)} got {utils.unix_permissions_to_str(mod_after)}")
 
         # change to r--r--r--
         new_mode = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH

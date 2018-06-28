@@ -45,7 +45,7 @@ class BatchCommandAccum(object):
         instl_folder = pathlib.Path(__file__).joinpath("..", "..").resolve()
         oc = f"""
 import sys
-sys.path.append('{instl_folder}')
+sys.path.append(r'{instl_folder}')
 from pybatch import *\n
 """
         return oc

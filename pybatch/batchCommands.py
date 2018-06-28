@@ -69,7 +69,7 @@ class MakeDirs(PythonBatchCommandBase):
         self.cur_path = None
 
     def __repr__(self):
-        paths_csl = ", ".join(utils.quoteme_double_list((os.fspath(path) for path in self.paths_to_make)))
+        paths_csl = ", ".join(utils.raw_string(utils.quoteme_double(os.fspath(path))) for path in self.paths_to_make)
         the_repr = f"""{self.__class__.__name__}({paths_csl}, remove_obstacles={self.remove_obstacles})"""
         return the_repr
 
@@ -116,7 +116,7 @@ class Cd(PythonBatchCommandBase):
         self.old_path: os.PathLike = None
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(path="{os.fspath(self.new_path)}")"""
+        the_repr = f"""{self.__class__.__name__}(path=r"{os.fspath(self.new_path)}")"""
         return the_repr
 
     def progress_msg_self(self):
@@ -448,7 +448,7 @@ class Chmod(RunProcessBase):
         self.recursive = recursive
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(path="{os.fspath(self.path)}", mode='{self.mode}', recursive={self.recursive}"""
+        the_repr = f"""{self.__class__.__name__}(path=r"{os.fspath(self.path)}", mode='{self.mode}', recursive={self.recursive}"""
         if self.ignore_all_errors:
             the_repr += f"ignore_all_errors={self.ignore_all_errors})"
         else:
