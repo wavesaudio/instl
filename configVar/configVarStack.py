@@ -132,6 +132,7 @@ class ConfigVarStack(configVarList.ConfigVarList):
         return retVal
 
     def push_scope(self, scope=None):
+        #Not moved to new ConfigVarStack#
         if scope is None:
             scope = configVarList.ConfigVarList()
         if not isinstance(scope, configVarList.ConfigVarList):
@@ -139,11 +140,13 @@ class ConfigVarStack(configVarList.ConfigVarList):
         self._ConfigVarList_objs.append(scope)
 
     def pop_scope(self):
+        #Not moved to new ConfigVarStack#
         retVal = self._ConfigVarList_objs.pop()
         return retVal
 
     @contextmanager
     def push_scope_context(self, scope=None):
+        #moved to new ConfigVarStack#
         self.push_scope(scope)
         yield self
         self.pop_scope()

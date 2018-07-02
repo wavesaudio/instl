@@ -192,12 +192,14 @@ class ConfigVarList(object):
         return retVal
 
     def unresolved_var_to_list(self, var_name, default=None):
+        #moved to ConfigVar.raw#
         retVal = default
         if var_name in self:
             retVal = [val for val in self[var_name]]
         return retVal
 
     def update(self, update_dict):
+        #moved to ConfigVarStack.update#
         for var_name, var_value in update_dict.items():
             self.set_var(var_name).append(var_value)
 
@@ -210,8 +212,9 @@ class ConfigVarList(object):
         self.__resolve_stack.pop()
 
     def ResolveStrToListWithStatistics(self, str_to_resolve):
+        #moved to ConfigVarStack.resolve_str_to_list_with_statistics#
         """ resolve a string to a list, return the list and also the number of variables and literal in the list.
-            Returning these statistic will help
+            Returning these statistic can help with debugging
         """
         resolved_parts = list()
         num_literals = 0
@@ -234,11 +237,13 @@ class ConfigVarList(object):
         return retVal
 
     def ResolveStrToStr(self, str_to_resolve, list_sep=""):
+        #moved to new as ConfigVarStack.resolve_str#
         resolved_parts = self.ResolveStrToListIfSingleVar(str_to_resolve)
         resolved_str = list_sep.join(resolved_parts)
         return resolved_str
 
     def ResolveVarToStr(self, in_var, list_sep="", default=None):
+        #moved to new as ConfigVar.__str__#
         value_list = self.ResolveVarToList(in_var, default=[default])
         if all(x is None for x in value_list):
             return default
@@ -247,6 +252,7 @@ class ConfigVarList(object):
             return retVal
 
     def ResolveVarToList(self, in_var, default=None):
+        #moved to new as ConfigVar.__iter__#
         retVal = list()
         if in_var in self:
             if self.__non_freeze_counter == 0 and self[in_var].frozen_value:
@@ -286,12 +292,14 @@ class ConfigVarList(object):
         return retVal
 
     def ResolveListToList(self, strs_to_resolve_list, default=None):
+        #moved to new ConfigVarStack.resolve_list_to_list#
         retVal = list()
         for a_str in strs_to_resolve_list:
             retVal.extend(self.ResolveStrToListIfSingleVar(a_str))
         return retVal
 
     def ResolveVarWithParamsToList(self, parser_retVal):
+        #moved as ConfigVarStack.variable_params_to_config_vars#
         with self.push_scope_context():
             evaluated_params = {}
             if parser_retVal.positional_params:
@@ -322,6 +330,7 @@ class ConfigVarList(object):
             var_obj.freeze_values_on_first_resolve = True
 
     def ResolveVarToBool(self, in_var, default=False):
+        #moved to new as ConfigVar.__bool__#
         retVal = default
         try:
             resolved_var = self.ResolveVarToStr(in_var)
