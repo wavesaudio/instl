@@ -13,6 +13,7 @@
     delete these tags from self.specific_doc_readers when overriding init_specific_doc_readers.
 """
 
+import os
 import io
 import yaml
 import urllib.error
@@ -78,7 +79,7 @@ class YamlReader(object):
                 raise
         except Exception as ex:
             if not self.exception_printed:      # avoid recursive printing of error message
-                read_file_history = "\n->\n".join(self.file_read_stack)
+                read_file_history = "\n->\n".join([os.fspath(file_path) for file_path in  self.file_read_stack])
                 print("Exception reading file:", read_file_history)
                 self.exception_printed = True
             raise

@@ -89,7 +89,7 @@ def read_file_or_url(in_file_or_url, path_searcher=None, encoding='utf-8', save_
         # if save_to_path contains the correct data just read it by recursively
         # calling read_file_or_url
         return read_file_or_url(save_to_path, encoding=encoding)
-    match = protocol_header_re.match(in_file_or_url)
+    match = protocol_header_re.match(os.fspath(in_file_or_url))
     if not match:  # it's a local file
         local_file_path = in_file_or_url
         if path_searcher is not None:
@@ -102,10 +102,11 @@ def read_file_or_url(in_file_or_url, path_searcher=None, encoding='utf-8', save_
         else:
             raise FileNotFoundError("Could not locate local file", local_file_path)
         if encoding is None:
-            fd = open(local_file_path, "rb")
+            read_mod = "rb"
         else:
-            fd = open(local_file_path, "r", encoding=encoding)
-        buffer = fd.read()
+            read_mod = "r"
+        with open(local_file_path, "r", encoding=encoding) as rdf:
+            buffer = rdf.read()
     else:
         session = pyinstl.connectionBase.connection_factory().get_session(in_file_or_url)
         response = session.get(in_file_or_url, timeout=(33.05, 180.05))
