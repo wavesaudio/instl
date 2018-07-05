@@ -1115,8 +1115,8 @@ class IndexItemsTable(object):
                 SET ignore=1
                 WHERE iid IN {}
               """.format(query_vars)
-        with self.db.transaction() as curs:
-            curs.execute(query_text)
+            with self.db.transaction() as curs:
+                curs.execute(query_text)
 
     def config_var_list_to_db(self, in_config_var_list):
         try:

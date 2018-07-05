@@ -40,11 +40,13 @@ class InstlClientCopy(InstlClient):
                                                 'pre_copy_to_folder': "pre-copy step",
                                                 'post_copy_to_folder': "post-copy step"}
         self.bytes_to_copy = 0
-        self.wtar_ratio = 1.3  # ratio between wtar file and it's uncompressed contents
-        if "WTAR_RATIO" in config_vars:
-            self.wtar_ratio = float(config_vars["WTAR_RATIO"].str())
+        # ratio between wtar file and it's uncompressed contents
+        self.wtar_ratio = float(config_vars.get("WTAR_RATIO", "1.3"))
         self.calc_user_cache_dir_var()  # this will set USER_CACHE_DIR if it was not explicitly defined
         self.patterns_copy_should_ignore = list(config_vars["COPY_IGNORE_PATTERNS"])
+
+        # when running on MacOS AND installation targets MacOS some special cases need to be considered
+        self.mac_current_and_target = 'Mac' in list(config_vars["__CURRENT_OS_NAMES__"]) and 'Mac' in list(config_vars["TARGET_OS"])
 
     def write_copy_debug_info(self) -> None:
         try:
@@ -111,7 +113,7 @@ class InstlClientCopy(InstlClient):
         # first create all target folders so to avoid dependency order problems such as creating links between folders
         self.create_create_folders_instructions(sorted_target_folder_list)
 
-        if 'Mac' in list(config_vars["__CURRENT_OS_NAMES__"]) and 'Mac' in list(config_vars["TARGET_OS"]):
+        if  self.mac_current_and_target:
             self.pre_copy_mac_handling()
 
         remove_previous_sources = bool(config_vars.get("REMOVE_PREVIOUS_SOURCES",True))
@@ -178,7 +180,7 @@ class InstlClientCopy(InstlClient):
 
             self.batch_accum += self.platform_helper.echo(f"copy {source_file_full_path}")
 
-            if 'Mac' in list(config_vars["__CURRENT_OS_NAMES__"]) and 'Mac' in list(config_vars["TARGET_OS"]):
+            if  self.mac_current_and_target:
                 if not source_file.path.endswith(".symlink"):
                     self.batch_accum += self.platform_helper.chown("$(__USER_ID__)", "", source_file.leaf, recursive=False)
                     self.batch_accum += self.platform_helper.chmod(source_file.chmod_spec(), source_file.name())
@@ -218,7 +220,7 @@ class InstlClientCopy(InstlClient):
 
             self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
 
-            if 'Mac' in list(config_vars["__CURRENT_OS_NAMES__"]) and 'Mac' in list(config_vars["TARGET_OS"]):
+            if  self.mac_current_and_target:
                 for source_item in source_items:
                     if source_item.wtarFlag == 0:
                         source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path)
@@ -268,7 +270,7 @@ class InstlClientCopy(InstlClient):
 
             source_path_dir, source_path_name = os.path.split(source_path)
 
-            if 'Mac' in list(config_vars["__CURRENT_OS_NAMES__"]) and 'Mac' in list(config_vars["TARGET_OS"]):
+            if  self.mac_current_and_target:
                 self.batch_accum += self.platform_helper.chown("$(__USER_ID__)", "", source_path_name, recursive=True)
                 self.batch_accum += self.platform_helper.chmod("-R -f a+rw", source_path_name)  # all copied files should be rw
                 for source_item in source_items:
@@ -358,7 +360,7 @@ class InstlClientCopy(InstlClient):
                     folder_accum_transaction += self.create_copy_instructions_for_source(source, name_and_version)
                     self.batch_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="post_copy_item")
                     self.batch_accum += self.platform_helper.remark("--- End source {0}".format(source[0]))
-                    if 'Mac' in list(config_vars["__CURRENT_OS_NAMES__"]) and 'Mac' in list(config_vars["TARGET_OS"]):
+                    if  self.mac_current_and_target:
                         num_symlink_items += self.info_map_table.count_symlinks_in_dir(source[0])
                 self.batch_accum += self.platform_helper.remark("-- End iid {0}".format(IID))
             self.current_iid = None
@@ -369,7 +371,7 @@ class InstlClientCopy(InstlClient):
             self.batch_accum += self.platform_helper.copy_tool.end_copy_folder()
 
             # only if items were actually copied there's need to (Mac only) resolve symlinks
-            if 'Mac' in list(config_vars["__CURRENT_OS_NAMES__"]) and 'Mac' in list(config_vars["TARGET_OS"]):
+            if  self.mac_current_and_target:
                 if num_items_copied_to_folder > 0 and num_symlink_items > 0:
                     self.batch_accum += self.platform_helper.progress("Resolve symlinks ...")
                     self.batch_accum += self.platform_helper.resolve_symlink_files()

@@ -218,9 +218,8 @@ class InstlClient(InstlInstanceBase):
     # install_status = {"none": 0, "main": 1, "update": 2, "depend": 3}
     def calculate_all_install_items(self):
         # marked ignored iids, all subsequent operations not act on these iids
-        if "MAIN_IGNORED_TARGETS" in config_vars:
-            ignored_iids = list(config_vars["MAIN_IGNORED_TARGETS"])
-            self.items_table.set_ignore_iids(ignored_iids)
+        ignored_iids = list(config_vars.get("MAIN_IGNORED_TARGETS", []))
+        self.items_table.set_ignore_iids(ignored_iids)
 
         # mark main install items
         main_iids = list(config_vars["__MAIN_INSTALL_IIDS__"])

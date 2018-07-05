@@ -56,6 +56,7 @@ class ConfigVarStack:
         self.resolve_cache_hits: int = 0
         self.resolve_time: float = 0.0
         self.resolve_cache: Dict[str,str] = dict()
+        self.max_cached_strings = 0
 
     def __len__(self) -> int:
         """ From RafeKettler/magicmethods: Returns the length of the container. Part of the protocol for both immutable and mutable containers.
@@ -261,6 +262,7 @@ class ConfigVarStack:
             result = "".join(res_list)
             if self.use_cache:
                 self.resolve_cache[val_to_resolve] = result
+                self.max_cached_strings = max(self.max_cached_strings, len(self.resolve_cache))
             else:
                 self.resolve_cache.pop(val_to_resolve, None)
 
@@ -380,11 +382,11 @@ class ConfigVarStack:
             print(f"{len(self)} ConfigVars")
             print(f"{self.resolve_counter} resolves")
             print(f"{self.simple_resolve_counter} simple resolves")
-            print(f"{len(self.resolve_cache)} cached strings")
+            print(f"{len(self.resolve_cache)} cached strings ({self.max_cached_strings} max)")
             print(f"{self.resolve_cache_hits} cache hits")
             print(f"{self.resolve_cache_hits/len(self.resolve_cache):.3} hits per cached string")
             average_resolve_ms = (self.resolve_time / self.resolve_counter)*1000
-            print(f"{average_resolve_ms:.6}ms per resolve")
+            print(f"{average_resolve_ms:.4}ms per resolve")
             print(f"{self.resolve_time:.3}sec total resolve time")
 
 # This is the global variable list serving all parts of instl

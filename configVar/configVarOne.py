@@ -86,6 +86,10 @@ class ConfigVar:
         retVal = int(self.join(sep=''))
         return retVal
 
+    def __float__(self) -> float:
+        retVal = float(self.join(sep=''))
+        return retVal
+
     def __iter__(self):
         """
         calls the owner to resolve each of the values.
@@ -113,6 +117,9 @@ class ConfigVar:
 
     def bool(self):
         return bool(self)
+
+    def float(self):
+        return float(self)
 
     def __getitem__(self, index: int) -> str:
         """
