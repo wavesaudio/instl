@@ -9,7 +9,7 @@ from typing import List
 import utils
 import aYaml
 from .instlInstanceBase import InstlInstanceBase, check_version_compatibility
-from configVar import var_stack
+from configVar import config_vars
 from svnTree import SVNTable
 
 
@@ -59,17 +59,17 @@ class InstlClient(InstlInstanceBase):
 
     def do_command(self):
         # print("client_commands", fixed_command_name)
-        active_oses: List[str] = var_stack.ResolveVarToList("TARGET_OS_NAMES")
+        active_oses: List[str] = list(config_vars["TARGET_OS_NAMES"])
         self.items_table.activate_specific_oses(*active_oses)
 
-        main_input_file_path: str = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        main_input_file_path: str = config_vars["__MAIN_INPUT_FILE__"].str()
         self.read_yaml_file(main_input_file_path)
         verOK, errorMessage = check_version_compatibility()
         if not verOK:
             raise Exception(errorMessage)
 
         self.init_default_client_vars()
-        active_oses: List[str] = var_stack.ResolveVarToList("TARGET_OS_NAMES")
+        active_oses: List[str] = list(config_vars["TARGET_OS_NAMES"])
         self.items_table.activate_specific_oses(*active_oses)
 
         self.items_table.resolve_inheritance()
@@ -90,28 +90,28 @@ class InstlClient(InstlInstanceBase):
         self.progress("calculate install items")
         self.calculate_install_items()
         self.read_defines_for_active_iids()
-        self.platform_helper.num_items_for_progress_report = int(var_stack.ResolveVarToStr("LAST_PROGRESS"))
-        self.platform_helper.no_progress_messages = "NO_PROGRESS_MESSAGES" in var_stack
+        self.platform_helper.num_items_for_progress_report = int(config_vars["LAST_PROGRESS"])
+        self.platform_helper.no_progress_messages = "NO_PROGRESS_MESSAGES" in config_vars
 
         do_command_func = getattr(self, "do_" + self.fixed_command)
         do_command_func()
         self.create_instl_history_file()
         self.command_output()
-        self.items_table.config_var_list_to_db(var_stack)
+        self.items_table.config_var_list_to_db(config_vars)
 
     def command_output(self):
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in var_stack:
+        if "__RUN_BATCH__" in config_vars:
             self.run_batch_file()
 
     def create_instl_history_file(self):
-        var_stack.set_var("__BATCH_CREATE_TIME__").append(time.strftime("%Y/%m/%d %H:%M:%S"))
-        yaml_of_defines = aYaml.YamlDumpDocWrap(var_stack, '!define', "Definitions",
+        config_vars["__BATCH_CREATE_TIME__"] = time.strftime("%Y/%m/%d %H:%M:%S")
+        yaml_of_defines = aYaml.YamlDumpDocWrap(config_vars, '!define', "Definitions",
                                                 explicit_start=True, sort_mappings=True)
 
         # write the history file, but only if variable LOCAL_REPO_BOOKKEEPING_DIR is defined
         # and the folder actually exists.
-        instl_temp_history_file_path = var_stack.ResolveVarToStr("INSTL_HISTORY_TEMP_PATH")
+        instl_temp_history_file_path = config_vars["INSTL_HISTORY_TEMP_PATH"].str()
         instl_temp_history_folder, instl_temp_history_file_name = os.path.split(instl_temp_history_file_path)
         if os.path.isdir(instl_temp_history_folder):
             with utils.utf8_open(instl_temp_history_file_path, "w") as wfd:
@@ -121,36 +121,35 @@ class InstlClient(InstlInstanceBase):
                                                                          "$(INSTL_HISTORY_PATH)")
 
     def read_repo_type_defaults(self):
-        if "REPO_TYPE" in var_stack:  # some commands do not need to have REPO_TYPE
-            repo_type_defaults_file_path = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults",
-                                                    var_stack.ResolveStrToStr("$(REPO_TYPE).yaml"))
-            if os.path.isfile(repo_type_defaults_file_path):
-                self.read_yaml_file(repo_type_defaults_file_path)
+        if "REPO_TYPE" in config_vars:  # some commands do not need to have REPO_TYPE
+            repo_type_defaults_file_path = os.path.join(config_vars["__INSTL_DATA_FOLDER__"].str(), "defaults",
+                                                    config_vars.resolve_str("$(REPO_TYPE).yaml"))
+            self.read_yaml_file(repo_type_defaults_file_path, ignore_if_not_exist=True)
 
     def init_default_client_vars(self):
-        if "SYNC_BASE_URL" in var_stack:
+        if "SYNC_BASE_URL" in config_vars:
             #raise ValueError("'SYNC_BASE_URL' was not defined")
-            resolved_sync_base_url = var_stack.ResolveVarToStr("SYNC_BASE_URL")
+            resolved_sync_base_url = config_vars["SYNC_BASE_URL"].str()
             url_main_item = utils.main_url_item(resolved_sync_base_url)
-            var_stack.set_var("SYNC_BASE_URL_MAIN_ITEM", description="from init_default_client_vars").append(url_main_item)
+            config_vars["SYNC_BASE_URL_MAIN_ITEM"] = url_main_item
         # TARGET_OS_NAMES defaults to __CURRENT_OS_NAMES__, which is not what we want if syncing to
         # an OS which is not the current
-        if var_stack.ResolveVarToStr("TARGET_OS") != var_stack.ResolveVarToStr("__CURRENT_OS__"):
-            target_os_names = var_stack.ResolveVarToList(var_stack.ResolveStrToStr("$(TARGET_OS)_ALL_OS_NAMES"))
-            var_stack.set_var("TARGET_OS_NAMES").extend(target_os_names)
-            second_name: str = var_stack.ResolveVarToStr("TARGET_OS")
+        if config_vars["TARGET_OS"].str() != config_vars["__CURRENT_OS__"].str():
+            target_os_names = list(config_vars[config_vars.resolve_str("$(TARGET_OS)_ALL_OS_NAMES")])
+            config_vars["TARGET_OS_NAMES"] = target_os_names
+            second_name: str = config_vars["TARGET_OS"].str()
             if len(target_os_names) > 1:
                 second_name = target_os_names[1]
-            var_stack.set_var("TARGET_OS_SECOND_NAME").append(second_name)
+            config_vars["TARGET_OS_SECOND_NAME"] = second_name
 
         self.read_repo_type_defaults()
-        if var_stack.ResolveVarToStr("REPO_TYPE", default="URL") == "P4":
-            if "P4_SYNC_DIR" not in var_stack:
-                if "SYNC_BASE_URL" in var_stack:
-                    p4_sync_dir = utils.P4GetPathFromDepotPath(var_stack.ResolveVarToStr("SYNC_BASE_URL"))
-                    var_stack.set_var("P4_SYNC_DIR", "from SYNC_BASE_URL").append(p4_sync_dir)
+        if str(config_vars.get("REPO_TYPE", "URL")) == "P4":
+            if "P4_SYNC_DIR" not in config_vars:
+                if "SYNC_BASE_URL" in config_vars:
+                    p4_sync_dir = utils.P4GetPathFromDepotPath(config_vars["SYNC_BASE_URL"].str())
+                    config_vars["P4_SYNC_DIR", "from SYNC_BASE_URL"] = p4_sync_dir
         # AUXILIARY_IIDS are iids that are not real products such as UNINSTALL_AS_... iids
-        self.auxiliary_iids.extend(var_stack.ResolveVarToList("AUXILIARY_IIDS", default=list()))
+        self.auxiliary_iids.extend(list(config_vars["AUXILIARY_IIDS"]))
 
     def repr_for_yaml(self, what=None):
         """ Create representation of self suitable for printing as yaml.
@@ -161,7 +160,7 @@ class InstlClient(InstlInstanceBase):
         """
         retVal = list()
         all_iids = self.items_table.get_all_iids()
-        all_vars = sorted(var_stack.keys())
+        all_vars = sorted(config_vars.keys())
         if what is None:  # None is all
             what = all_vars + all_iids
 
@@ -170,7 +169,7 @@ class InstlClient(InstlInstanceBase):
         unknowns = list()
         for identifier in what:
             if identifier in all_vars:
-                defines.update({identifier: var_stack.repr_var_for_yaml(identifier)})
+                defines.update({identifier: config_vars.repr_var_for_yaml(identifier)})
             elif identifier in all_iids:
                 indexes.update({identifier: self.items_table.repr_item_for_yaml(identifier)})
             else:
@@ -200,10 +199,10 @@ class InstlClient(InstlInstanceBase):
         """ calculate the set of iids to install from the "MAIN_INSTALL_TARGETS" variable.
             Full set of install iids and orphan iids are also writen to variable.
         """
-        if "MAIN_INSTALL_TARGETS" not in var_stack:
+        if "MAIN_INSTALL_TARGETS" not in config_vars:
             raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
 
-        self.main_install_targets.extend(var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS"))
+        self.main_install_targets.extend(list(config_vars["MAIN_INSTALL_TARGETS"]))
         main_iids, main_guids = utils.separate_guids_from_iids(self.main_install_targets)
         iids_from_main_guids, orphaned_main_guids = self.items_table.iids_from_guids(main_guids)
         main_iids.extend(iids_from_main_guids)
@@ -212,19 +211,19 @@ class InstlClient(InstlInstanceBase):
         main_iids, orphaned_main_iids = self.items_table.iids_from_iids(main_iids)
         update_iids, orphaned_update_iids = self.items_table.iids_from_iids(update_iids)
 
-        var_stack.set_var("__MAIN_INSTALL_IIDS__").extend(sorted(main_iids))
-        var_stack.set_var("__MAIN_UPDATE_IIDS__").extend(sorted(update_iids))
-        var_stack.set_var("__ORPHAN_INSTALL_TARGETS__").extend(sorted(orphaned_main_guids+orphaned_main_iids+orphaned_update_iids))
+        config_vars["__MAIN_INSTALL_IIDS__"] = sorted(main_iids)
+        config_vars["__MAIN_UPDATE_IIDS__"] = sorted(update_iids)
+        config_vars["__ORPHAN_INSTALL_TARGETS__"] = sorted(orphaned_main_guids+orphaned_main_iids+orphaned_update_iids)
 
     # install_status = {"none": 0, "main": 1, "update": 2, "depend": 3}
     def calculate_all_install_items(self):
         # marked ignored iids, all subsequent operations not act on these iids
-        if "MAIN_IGNORED_TARGETS" in var_stack:
-            ignored_iids = var_stack.ResolveVarToList("MAIN_IGNORED_TARGETS")
+        if "MAIN_IGNORED_TARGETS" in config_vars:
+            ignored_iids = list(config_vars["MAIN_IGNORED_TARGETS"])
             self.items_table.set_ignore_iids(ignored_iids)
 
         # mark main install items
-        main_iids = var_stack.ResolveVarToList("__MAIN_INSTALL_IIDS__")
+        main_iids = list(config_vars["__MAIN_INSTALL_IIDS__"])
         self.items_table.change_status_of_iids_to_another_status(
                 self.items_table.install_status["none"],
                 self.items_table.install_status["main"],
@@ -238,7 +237,7 @@ class InstlClient(InstlInstanceBase):
             main_iids_and_dependents)
 
         # mark update install items, but only those not already marked as main or depend
-        update_iids = var_stack.ResolveVarToList("__MAIN_UPDATE_IIDS__")
+        update_iids = list(config_vars["__MAIN_UPDATE_IIDS__"])
         self.items_table.change_status_of_iids_to_another_status(
                 self.items_table.install_status["none"],
                 self.items_table.install_status["update"],
@@ -255,7 +254,7 @@ class InstlClient(InstlInstanceBase):
             self.items_table.install_status["main"],
             self.items_table.install_status["depend"])
 
-        var_stack.set_var("__FULL_LIST_OF_INSTALL_TARGETS__").extend(sorted(all_items_to_install))
+        config_vars["__FULL_LIST_OF_INSTALL_TARGETS__"] = sorted(all_items_to_install)
 
         self.sort_all_items_by_target_folder(consider_direct_sync=True)
         self.calc_iid_to_name_and_version()
@@ -266,7 +265,7 @@ class InstlClient(InstlInstanceBase):
     def resolve_special_build_in_iids(self, iids: List[str]):
         iids_set = set(iids)
         update_iids_set = set()
-        special_build_in_iids = set(var_stack.ResolveVarToList("SPECIAL_BUILD_IN_IIDS"))
+        special_build_in_iids = set(list(config_vars["SPECIAL_BUILD_IN_IIDS"]))
         found_special_build_in_iids = special_build_in_iids & set(iids)
         if len(found_special_build_in_iids) > 0:
             iids_set -= special_build_in_iids
@@ -288,9 +287,8 @@ class InstlClient(InstlInstanceBase):
         return list(iids_set), list(update_iids_set)
 
     def read_previous_requirements(self):
-        require_file_path = var_stack.ResolveVarToStr("SITE_REQUIRE_FILE_PATH")
-        if os.path.isfile(require_file_path):
-            self.read_yaml_file(require_file_path)
+        require_file_path = config_vars["SITE_REQUIRE_FILE_PATH"].str()
+        self.read_yaml_file(require_file_path, ignore_if_not_exist=True)
 
     def accumulate_unique_actions_for_active_iids(self, action_type: str, limit_to_iids=None):
         """ accumulate action_type actions from iid_list, eliminating duplicates"""
@@ -310,7 +308,7 @@ class InstlClient(InstlInstanceBase):
 
     def create_require_file_instructions(self):
         # write the require file as it should look after copy is done
-        new_require_file_path = var_stack.ResolveVarToStr("NEW_SITE_REQUIRE_FILE_PATH")
+        new_require_file_path = config_vars["NEW_SITE_REQUIRE_FILE_PATH"].str()
         new_require_file_dir, new_require_file_name = os.path.split(new_require_file_path)
         os.makedirs(new_require_file_dir, exist_ok=True)
         self.batch_accum += self.platform_helper.copy_file_to_file("$(SITE_REQUIRE_FILE_PATH)", "$(OLD_SITE_REQUIRE_FILE_PATH)", check_exist=True)
@@ -331,7 +329,7 @@ class InstlClient(InstlInstanceBase):
         create_folder_ls_command_parts = [self.platform_helper.run_instl(), "ls",
                                       "--in",  utils.quoteme_double(which_folder_to_manifest),
                                       "--out", utils.quoteme_double(ls_output_file)]
-        if var_stack.ResolveVarToStr("__CURRENT_OS__") == "Mac":
+        if config_vars["__CURRENT_OS__"].str() == "Mac":
             if False:  # back_ground: temporary disabled background, it causes DB conflicts when two "ls" command happen in parallel
                 create_folder_ls_command_parts.extend("&")
             else:
@@ -344,8 +342,8 @@ class InstlClient(InstlInstanceBase):
         output_file_name = manifest_file_name_prefix+"-sync-folder-manifest.txt"
         output_folder = None
         for param_to_extract_output_folder_from in ('ECHO_LOG_FILE', '__MAIN_INPUT_FILE__', '__MAIN_OUT_FILE__'):
-            if var_stack.defined(param_to_extract_output_folder_from):
-                log_file_path = var_stack.ResolveVarToStr(param_to_extract_output_folder_from)
+            if config_vars.defined(param_to_extract_output_folder_from):
+                log_file_path = str(config_vars[param_to_extract_output_folder_from])
                 output_folder, _ = os.path.split(log_file_path)
                 if os.path.isdir(output_folder):
                     break
@@ -373,28 +371,28 @@ class InstlClient(InstlInstanceBase):
             True value will be returned if check was explicitly requested
             or if update of installed items was requested
         """
-        explicitly_asked_for_binaries_check = 'CHECK_BINARIES_VERSIONS' in var_stack
-        update_was_requested = "__UPDATE_INSTALLED_ITEMS__" in var_stack.ResolveVarToList("MAIN_INSTALL_TARGETS", [])
+        explicitly_asked_for_binaries_check = 'CHECK_BINARIES_VERSIONS' in config_vars
+        update_was_requested = "__UPDATE_INSTALLED_ITEMS__" in config_vars["MAIN_INSTALL_TARGETS"]
         retVal = explicitly_asked_for_binaries_check or update_was_requested
         return retVal
 
     def get_version_of_installed_binaries(self):
         binaries_version_list = list()
         try:
-            path_to_search = var_stack.ResolveVarToList('CHECK_BINARIES_VERSION_FOLDERS', default=[])
+            path_to_search = list(config_vars.get('CHECK_BINARIES_VERSION_FOLDERS', []))
 
             ignore_regexes_filter = utils.check_binaries_versions_filter_with_ignore_regexes()
 
-            if "CHECK_BINARIES_VERSION_FOLDER_EXCLUDE_REGEX" in var_stack:
-                ignore_folder_regex_list = var_stack.ResolveVarToList("CHECK_BINARIES_VERSION_FOLDER_EXCLUDE_REGEX")
+            if "CHECK_BINARIES_VERSION_FOLDER_EXCLUDE_REGEX" in config_vars:
+                ignore_folder_regex_list = list(config_vars["CHECK_BINARIES_VERSION_FOLDER_EXCLUDE_REGEX"])
                 ignore_regexes_filter.set_folder_ignore_regexes(ignore_folder_regex_list)
 
-            if "CHECK_BINARIES_VERSION_FILE_EXCLUDE_REGEX" in var_stack:
-                ignore_file_regex_list = var_stack.ResolveVarToList("CHECK_BINARIES_VERSION_FILE_EXCLUDE_REGEX", )
+            if "CHECK_BINARIES_VERSION_FILE_EXCLUDE_REGEX" in config_vars:
+                ignore_file_regex_list = list(config_vars["CHECK_BINARIES_VERSION_FILE_EXCLUDE_REGEX", ])
                 ignore_regexes_filter.set_file_ignore_regexes(ignore_file_regex_list)
 
             for a_path in path_to_search:
-                current_os = var_stack.ResolveVarToStr("__CURRENT_OS__")
+                current_os = config_vars["__CURRENT_OS__"].str()
                 binaries_version_from_folder = utils.check_binaries_versions_in_folder(current_os, a_path, ignore_regexes_filter)
                 binaries_version_list.extend(binaries_version_from_folder)
 
@@ -408,7 +406,7 @@ class InstlClient(InstlInstanceBase):
         retVal = False
         if direct_sync_indicator is not None:
             try:
-                retVal = utils.str_to_bool_int(var_stack.ResolveStrToStr(direct_sync_indicator))
+                retVal = utils.str_to_bool_int(config_vars.resolve_str(direct_sync_indicator))
             except:
                 pass
         return retVal
@@ -431,10 +429,10 @@ class InstlClient(InstlInstanceBase):
             direct_sync = self.get_direct_sync_status_from_indicator(direct_sync_indicator)
             resolved_source_parts = source.split("/")
             if install_folder:
-                resolved_install_folder = var_stack.ResolveStrToStr(install_folder)
+                resolved_install_folder = config_vars.resolve_str(install_folder)
             else:
                 resolved_install_folder = install_folder
-            local_repo_sync_dir = var_stack.ResolveVarToStr("LOCAL_REPO_SYNC_DIR")
+            local_repo_sync_dir = config_vars["LOCAL_REPO_SYNC_DIR"].str()
 
             if source_tag in ('!dir', '!dir_cont'):
                 if direct_sync:
@@ -444,7 +442,7 @@ class InstlClient(InstlInstanceBase):
                     if "__REPAIR_INSTALLED_ITEMS__" not in self.main_install_targets:
                         info_xml_item = self.info_map_table.get_file_item("/".join((source, "Info.xml")))
                         if info_xml_item:
-                            info_xml_of_target = var_stack.ResolveStrToStr("/".join((resolved_install_folder, resolved_source_parts[-1], "Info.xml")))
+                            info_xml_of_target = config_vars.resolve_str("/".join((resolved_install_folder, resolved_source_parts[-1], "Info.xml")))
                             need_to_sync = not utils.check_file_checksum(info_xml_of_target, info_xml_item.checksum)
                     if need_to_sync:
                         item_paths = self.info_map_table.get_file_paths_of_dir(dir_path=source)
@@ -452,13 +450,13 @@ class InstlClient(InstlInstanceBase):
                             source_parent = "/".join(resolved_source_parts[:-1])
                             for item in item_paths:
                                 items_to_update.append({"_id": item['_id'],
-                                                        "download_path": var_stack.ResolveStrToStr("/".join((resolved_install_folder, item['path'][len(source_parent)+1:]))),
-                                                        "download_root": var_stack.ResolveStrToStr("/".join((resolved_install_folder, resolved_source_parts[-1])))})
+                                                        "download_path": config_vars.resolve_str("/".join((resolved_install_folder, item['path'][len(source_parent)+1:]))),
+                                                        "download_root": config_vars.resolve_str("/".join((resolved_install_folder, resolved_source_parts[-1])))})
                         else:  # !dir_cont
                             source_parent = source
                             for item in item_paths:
                                 items_to_update.append({"_id": item['_id'],
-                                                        "download_path": var_stack.ResolveStrToStr("/".join((resolved_install_folder, item['path'][len(source_parent)+1:]))),
+                                                        "download_path": config_vars.resolve_str("/".join((resolved_install_folder, item['path'][len(source_parent)+1:]))),
                                                         "download_root": resolved_install_folder})
                     else:
                         num_ignored_files = self.info_map_table.ignore_file_paths_of_dir(dir_path=source)
@@ -470,7 +468,7 @@ class InstlClient(InstlInstanceBase):
                     item_paths = self.info_map_table.get_file_paths_of_dir(dir_path=source)
                     for item in item_paths:
                         items_to_update.append({"_id": item['_id'],
-                                                "download_path": var_stack.ResolveStrToStr("/".join((local_repo_sync_dir, item['path']))),
+                                                "download_path": config_vars.resolve_str("/".join((local_repo_sync_dir, item['path']))),
                                                 "download_root": None})
             elif source_tag == '!file':
                 # if the file was wtarred and split it would have multiple items
@@ -478,12 +476,12 @@ class InstlClient(InstlInstanceBase):
                 if direct_sync:
                     for item in items_for_file:
                         items_to_update.append({"_id": item['_id'],
-                                                "download_path": var_stack.ResolveStrToStr("/".join((resolved_install_folder, item['leaf']))),
-                                                "download_root": var_stack.ResolveStrToStr(item.download_path)})
+                                                "download_path": config_vars.resolve_str("/".join((resolved_install_folder, item['leaf']))),
+                                                "download_root": config_vars.resolve_str(item.download_path)})
                 else:
                     for item in items_for_file:
                         items_to_update.append({"_id": item['_id'],
-                                                "download_path": var_stack.ResolveStrToStr("/".join((local_repo_sync_dir, item['path']))),
+                                                "download_path": config_vars.resolve_str("/".join((local_repo_sync_dir, item['path']))),
                                                 "download_root": None})  # no need to set item.download_root here - it will not be used
 
         self.info_map_table.update_downloads(items_to_update)
@@ -491,7 +489,7 @@ class InstlClient(InstlInstanceBase):
     def create_remove_previous_sources_instructions_for_target_folder(self, target_folder_path):
         retVal = 0  # return the number of real actions (e.g. not progress, remark, etc)
 
-        target_folder_path_resolved = var_stack.ResolveStrToStr(target_folder_path)
+        target_folder_path_resolved = config_vars.resolve_str(target_folder_path)
         if os.path.isdir(target_folder_path_resolved):  # no need to remove previous sources if folder does not exist
             iids_in_folder = self.all_iids_by_target_folder[target_folder_path]
             #assert list(self.all_iids_by_target_folder[target_folder_path]) == list(iids_in_folder)
@@ -555,7 +553,7 @@ class InstlClient(InstlInstanceBase):
         """ read the defines specific for each active iid
         """
         if self.items_table.defines_for_iids:
-            var_stack.push_scope()
+            config_vars.push_scope()
             active_iids = self.items_table.get_active_iids()
             for iid, defines_for_iid in self.items_table.defines_for_iids.items():
                 if iid in active_iids:

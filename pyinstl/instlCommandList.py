@@ -3,7 +3,7 @@ import sys
 import shlex
 
 from pyinstl.instlMisc import InstlMisc
-from configVar import var_stack
+from configVar import config_vars
 from pyinstl.cmdOptions import CommandLineOptions, read_command_line_options
 import utils
 
@@ -41,7 +41,7 @@ class CommandListRunner(object):
             command_lines = rfd.readlines()
 
         for command_line in command_lines:
-            resolved_command_line = var_stack.ResolveStrToStr(command_line.strip())
+            resolved_command_line = config_vars.resolve_str(command_line.strip())
             argv = shlex.split(resolved_command_line)
             command_list.append(argv)
         return command_list
@@ -49,7 +49,7 @@ class CommandListRunner(object):
     def run_one_command(self, argv):
         options = CommandLineOptions()
         read_command_line_options(options, argv)
-        with var_stack.push_scope_context():
+        with config_vars.push_scope_context():
             self.instance.init_from_cmd_line_options(options)
             self.instance.do_command()
 
@@ -88,10 +88,10 @@ def run_commands_from_file(initial_vars, options):
         currently limited only to commands of mode "do_something", e.g.
         commands implemented by InstMisc.
     """
-    var_stack.set_value_if_var_does_not_exist("__START_DYNAMIC_PROGRESS__", "0")
-    var_stack.set_value_if_var_does_not_exist("__TOTAL_DYNAMIC_PROGRESS__", "0")
+    config_vars.setdefault("__START_DYNAMIC_PROGRESS__", "0")
+    config_vars.setdefault("__TOTAL_DYNAMIC_PROGRESS__", "0")
 
     runner = CommandListRunner(initial_vars, options)
 
-    parallel_run = "__RUN_COMMAND_LIST_IN_PARALLEL__" in var_stack
+    parallel_run = "__RUN_COMMAND_LIST_IN_PARALLEL__" in config_vars
     runner.run(parallel=parallel_run)

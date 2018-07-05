@@ -4,16 +4,15 @@ import sys
 import os
 import unittest
 import pathlib
-import filecmp
 
+sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..", "..")))
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
+sys.path.append(os.path.realpath(os.path.join(__file__, "..")))
 
-from configVar import configVarList
-from configVar import newConfigVar
-from newConfigVarYamlReader import ConfigVarYamlReader_new
-from newConfigVar import var_stack_new
+import configVar
+from configVar import config_vars
+from configVar import ConfigVarYamlReader
 import aYaml
-import difflib
 
 def normalize_yaml_lines(yaml_file):
     retVal = list()
@@ -26,35 +25,52 @@ def normalize_yaml_lines(yaml_file):
 
 class TestConfigVarL(unittest.TestCase):
     def setUp(self):
-        var_stack_new.clear()
+        config_vars.clear()
 
     def tearDown(self):
         pass
 
+    def test_defaults(self):
+        empty_list = config_vars.get("MAMBO_JUMBO", []).list()
+        self.assertEqual([], empty_list)
+
+        full_list = config_vars.get("MAMBO_JUMBO", ["mambo", "jumbo"]).list()
+        self.assertEqual(["mambo", "jumbo"], full_list)
+
+        empty_str = config_vars.get("MAMBO_JUMBO", "").str()
+        self.assertEqual("", empty_str)
+
+        full_str = config_vars.get("MAMBO_JUMBO", "mambo jumbo").str()
+        self.assertEqual("mambo jumbo", full_str)
+
+    def test_bool(self):
+        # non exiting ConfigVar should resolve to False
+        self.assertFalse(config_vars.get("BEN_SHAPIRO"))
+
     def test_var_in_var_simple(self):
-        var_stack_new["A"] = "$(B)"
-        var_stack_new["B"] = "$(C)"
-        var_stack_new["C"] = "ali baba"
-        self.assertEqual("ali baba", str(var_stack_new["A"]))
-        self.assertEqual("ali baba", var_stack_new.resolve_str("$(A)"))
+        config_vars["A"] = "$(B)"
+        config_vars["B"] = "$(C)"
+        config_vars["C"] = "ali baba"
+        self.assertEqual("ali baba", config_vars["A"].str())
+        self.assertEqual("ali baba", config_vars.resolve_str("$(A)"))
 
     def test_array(self):
-        var_stack_new["PUSHKIN"] ="1", "2", "3"
-        self.assertEqual("123", str(var_stack_new["PUSHKIN"]))
-        self.assertEqual("123", var_stack_new.resolve_str("$(PUSHKIN)"))
-        self.assertEqual("1", var_stack_new.resolve_str("$(PUSHKIN[0])"))
-        self.assertEqual("2", var_stack_new.resolve_str("$(PUSHKIN[1])"))
-        self.assertEqual("3", var_stack_new.resolve_str("$(PUSHKIN[2])"))
-        self.assertEqual("321", var_stack_new.resolve_str("$(PUSHKIN[2])$(PUSHKIN[1])$(PUSHKIN[0])"))
+        config_vars["PUSHKIN"] ="1", "2", "3"
+        self.assertEqual("123", config_vars["PUSHKIN"].str())
+        self.assertEqual("123", config_vars.resolve_str("$(PUSHKIN)"))
+        self.assertEqual("1", config_vars.resolve_str("$(PUSHKIN[0])"))
+        self.assertEqual("2", config_vars.resolve_str("$(PUSHKIN[1])"))
+        self.assertEqual("3", config_vars.resolve_str("$(PUSHKIN[2])"))
+        self.assertEqual("321", config_vars.resolve_str("$(PUSHKIN[2])$(PUSHKIN[1])$(PUSHKIN[0])"))
 
     def test_readFile(self):
         input_file_path = pathlib.Path(__file__).parent.joinpath("test_input.yaml")
         out_file_path = pathlib.Path(__file__).parent.joinpath("test_out.yaml")
         expected_file_path = pathlib.Path(__file__).parent.joinpath("expected_output.yaml")
 
-        reader = ConfigVarYamlReader_new()
+        reader = ConfigVarYamlReader()
         reader.read_yaml_file(input_file_path)
-        variables_as_yaml = var_stack_new.repr_for_yaml()
+        variables_as_yaml = config_vars.repr_for_yaml()
         yaml_doc = aYaml.YamlDumpDocWrap(variables_as_yaml, '!define', "",
                                               explicit_start=True, sort_mappings=True)
         with open(out_file_path, "w") as wfd:
@@ -64,3 +80,17 @@ class TestConfigVarL(unittest.TestCase):
         expected_lines = normalize_yaml_lines(expected_file_path)
 
         self.assertEqual(out_lines, expected_lines)
+
+    def test_resolve_time(self):
+        config_vars["PRINT_STATISTICS"] = "True"
+
+        config_vars["MANDOLIN"] = "a$(A)b$(B)c$(C)d", "a$(A)b$(B)c$(C)d", "a$(A)b$(B)c$(C)d"
+        config_vars["A"] = "$(B)$(B<>)$(C)"
+        config_vars["B"] = "$(C)$(C<>)$(H)"
+        config_vars["C"] = "bub"
+
+        for i in range(10000):
+            a = config_vars["MANDOLIN"].str()
+        config_vars.print_statistics()
+
+        print(str(config_vars["MANDOLIN"]))

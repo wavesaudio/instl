@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.6
+#!/usr/bin/env python3
 
 """ ConfigVarYamlReader
 """
@@ -7,7 +7,7 @@ import sys
 import re
 
 import aYaml
-from newConfigVar import var_stack_new
+from configVar import config_vars
 
 internal_identifier_re = re.compile("""
                                     __                  # dunder here
@@ -16,7 +16,7 @@ internal_identifier_re = re.compile("""
                                     """, re.VERBOSE)
 
 
-class ConfigVarYamlReader_new(aYaml.YamlReader):
+class ConfigVarYamlReader(aYaml.YamlReader):
     def __init__(self, path_searcher=None, url_translator=None):
         super().__init__()
         self.path_searcher = path_searcher
@@ -30,7 +30,7 @@ class ConfigVarYamlReader_new(aYaml.YamlReader):
         self.specific_doc_readers["__no_tag__"] = self.read_defines
         self.specific_doc_readers["__unknown_tag__"] = self.read_defines
         self.specific_doc_readers["!define"] = self.read_defines
-        self.specific_doc_readers["!define_const"] = self.read_defines
+        self.specific_doc_readers["!define_const"] = self.read_const_defines
         self.specific_doc_readers["!define_if_not_exist"] = self.read_defines_if_not_exist
 
     def read_defines(self, a_node, *args, **kwargs):
@@ -46,12 +46,26 @@ class ConfigVarYamlReader_new(aYaml.YamlReader):
                     self.read_include_node(contents, *args, **kwargs)
                 elif identifier == "__environment__":
                     contents_list = [c.value for c in contents]
-                    var_stack_new.read_environment(contents_list)
+                    var_stack.read_environment(contents_list)
                 elif self.allow_reading_of_internal_vars or not internal_identifier_re.match(
                         identifier):  # do not read internal state identifiers
-                    var_stack_new[identifier] = [item.value for item in contents]
-                    #if contents.tag == '!non_freeze':
-                    #    new_var.non_freeze = True
+                    new_var = var_stack.set_var(identifier, str(contents.start_mark))
+                    if contents.tag == '!non_freeze':
+                        new_var.non_freeze = True
+                    new_var.extend([item.value for item in contents])
+
+    def read_const_defines(self, a_node, *args, **kwargs):
+        """ Read a !define_const sub-doc. All variables will be made const.
+            Reading of internal state identifiers is allowed.
+            __include__ is not allowed.
+        """
+        del args, kwargs
+        if a_node.isMapping():
+            for identifier, contents in a_node.items():
+                if identifier in ("__include__", "__include_if_exist__"):
+                    raise ValueError("!define_const doc cannot except __include__ and __include_if_exist__")
+                var_stack.add_const_config_variable(identifier, "from !define_const section",
+                                                    *[item.value for item in contents])
 
     def read_defines_if_not_exist(self, a_node, *args, **kwargs):
         # if document is empty we get a scalar node
@@ -60,8 +74,8 @@ class ConfigVarYamlReader_new(aYaml.YamlReader):
                 if identifier in ("__include__", "__include_if_exist__"):
                     raise ValueError("!define_if_not_exist doc cannot except __include__ and __include_if_exist__")
                 if self.allow_reading_of_internal_vars or not internal_identifier_re.match(identifier):  # do not read internal state identifiers
-                    if identifier not in var_stack_new:
-                        var_stack_new[identifier] = [item.value for item in contents]
+                    if identifier not in config_vars:
+                        var_stack.set_var(identifier, str(contents.start_mark)).extend([item.value for item in contents])
 
     def read_include_node(self, i_node, *args, **kwargs):
         pass  # override to handle __include__, __include_if_exist__ nodes
@@ -75,16 +89,21 @@ class ConfigVarYamlReader_new(aYaml.YamlReader):
             condition = match['condition']
             if_type = match['if_type']
             if if_type == "def":     # __ifdef__: if configVar is defined
-                if condition in var_stack_new:
+                if condition in config_vars:
                     self.read_defines(contents)
             elif if_type == "ndef":  # __ifndef__: if configVar is not defined
-                if condition not in var_stack_new:
+                if condition not in config_vars:
                     self.read_defines(contents)
             elif if_type == "":      # "__if__: eval the condition
-                resolved_condition = var_stack_new.ResolveStrToStr(condition)
+                resolved_condition = config_vars.resolve_str(condition)
                 condition_result = eval(resolved_condition)
                 if condition_result:
                     self.read_defines(contents)
         else:
             print("unknown conditional {}".format(identifier))
 
+
+if __name__ == "__main__":
+    aReader = ConfigVarYamlReader()
+    aReader.read_yaml_file("/p4client/dev_saa/ProAudio/XPlatform/Apps/SAA_Juce/audio plugin host/saa_post_build.yaml")
+    aYaml.writeAsYaml(var_stack, sys.stdout, sort=True)

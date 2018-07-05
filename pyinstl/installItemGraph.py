@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import utils
-from configVar import var_stack
+from configVar import config_vars
 
 try:
     import networkx as nx

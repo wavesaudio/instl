@@ -5,7 +5,7 @@ import sys
 import os
 import unittest
 
-from configVar import configVarList
+from configVar import old_configVarList
 from configVar import newConfigVar
 
 
@@ -193,7 +193,7 @@ class TestConfigVarList(unittest.TestCase):
 
     def test_resolve_string_from_partial(self):
         """ resolve values from variables where list has partial variables """
-        self.cvl = configVarList.ConfigVarList()
+        self.cvl = old_configVarList.ConfigVarList()
         self.cvl.get_configVar_obj("Kupperbush").append("kid creole")
         self.cvl.get_configVar_obj("bush").append("bush")
         resolved = self.cvl.ResolveStrToStr("Kupperbush")

@@ -2,7 +2,7 @@
 
 
 import os
-import sys
+import sqlite3
 from collections import OrderedDict
 from collections import defaultdict
 import re
@@ -10,7 +10,7 @@ import yaml
 from typing import List
 
 import utils
-from configVar import var_stack
+from configVar import config_vars
 
 # todo: these were copied from the late Install Item.py and should find a better home
 os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
@@ -562,8 +562,21 @@ class IndexItemsTable(object):
                                                                   detail_name, detail_value, tag)
                                                                   VALUES(?,?,?,?,?,?)"""
         with self.db.transaction() as curs:
-            curs.executemany(insert_item_q, index_items)
-            curs.executemany(insert_item_detail_q, items_details)
+            index_item = ("-", "-")
+            try:
+                #curs.executemany(insert_item_q, index_items)
+                for index_item in index_items:
+                    curs.execute(insert_item_q, index_item)
+            except sqlite3.IntegrityError as sl3ie:
+                print(sl3ie, "query:", insert_item_q, index_item, sep="\n", flush=True)
+                raise
+            try:
+                curs.executemany(insert_item_detail_q, items_details)
+            except sqlite3.IntegrityError as sl3ie:
+                print(sl3ie)
+                print("query:", insert_item_detail_q)
+                print(items_details)
+                raise
             curs.execute("""CREATE UNIQUE INDEX IF NOT EXISTS ix_index_item_t_iid ON index_item_t(iid)""")
             curs.execute("""CREATE INDEX IF NOT EXISTS ix_index_item_t_owner_iid ON index_item_detail_t(owner_iid)""")
 
@@ -572,14 +585,14 @@ class IndexItemsTable(object):
         template_name = template_match['template_name']
         template_args = template_match['template_args'].split(',')
         template_args = [a.strip() for a in template_args]
-        template_text = var_stack.unresolved_var(template_name)
+        template_text = config_vars[template_name].raw(join_sep="")
         for instance_node in instances_node.value:
             if instance_node.isSequence():
-                with var_stack.push_scope_context():
+                with config_vars.push_scope_context():
                     arg_values = list(zip(template_args, [var_val.value for var_val in instance_node.value]))
                     for arg, val in arg_values:
-                        var_stack.set_var(arg).append(val)
-                    resolved_instance = var_stack.ResolveStrToStr(template_text)
+                        config_vars[arg] = val
+                    resolved_instance = config_vars.resolve_str(template_text)
                     yaml_text += resolved_instance
                     #print("resolved template for ", arg_values[0][1])
         #print(yaml_text)
@@ -1108,9 +1121,9 @@ class IndexItemsTable(object):
     def config_var_list_to_db(self, in_config_var_list):
         try:
             config_var_insert_list = list()
-            for identifier in in_config_var_list:
-                raw_value = in_config_var_list.unresolved_var(identifier)
-                resolved_value = in_config_var_list.ResolveVarToStr(identifier, list_sep=" ", default="")
+            for identifier in in_config_var_list.keys():
+                raw_value = in_config_var_list[identifier].raw(join_sep=", ")
+                resolved_value = in_config_var_list[identifier].join(" ")
                 config_var_insert_list.append((identifier, raw_value, resolved_value))
             self.add_config_vars(config_var_insert_list)
         except Exception as ex:  # config vars are written to db for reference so we can continue even if exception ware raised
@@ -1128,7 +1141,7 @@ class IndexItemsTable(object):
             retVal = False
             if direct_sync_indicator is not None:
                 try:
-                    retVal = utils.str_to_bool_int(var_stack.ResolveStrToStr(direct_sync_indicator))
+                    retVal = utils.str_to_bool_int(config_vars.resolve_str(direct_sync_indicator))
                 except:
                     pass
             return retVal

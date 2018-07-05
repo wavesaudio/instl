@@ -4,7 +4,7 @@
 import os
 
 import json
-from configVar import var_stack
+from configVar import config_vars
 from .instlClient import InstlClient
 import utils
 
@@ -23,9 +23,9 @@ class InstlClientReport(InstlClient):
         return retVal
 
     def command_output(self):
-        out_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
+        out_file = config_vars["__MAIN_OUT_FILE__"].str()
 
-        output_format = var_stack.ResolveVarToStr("OUTPUT_FORMAT", default='text')
+        output_format = str(config_vars.get("OUTPUT_FORMAT", 'text'))
 
         if output_format == "json":
             output_text = json.dumps(self.output_data, indent=1)
@@ -38,9 +38,9 @@ class InstlClientReport(InstlClient):
             wfd.write("\n")
 
     def do_report_versions(self):
-        self.guids_to_ignore = set(var_stack.ResolveVarToList("MAIN_IGNORED_TARGETS", []))
+        self.guids_to_ignore = set(list(config_vars.get("MAIN_IGNORED_TARGETS", [])))
 
-        report_only_installed = "__REPORT_ONLY_INSTALLED__" in var_stack
+        report_only_installed = "__REPORT_ONLY_INSTALLED__" in config_vars
         report_data = self.items_table.versions_report(report_only_installed=report_only_installed)
 
         self.output_data.extend(report_data)

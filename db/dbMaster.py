@@ -9,7 +9,7 @@ from _collections import defaultdict
 import operator
 
 import utils
-from configVar import var_stack
+from configVar import config_vars
 
 """
     todo:
@@ -134,7 +134,7 @@ class DBMaster(object):
     def close(self):
         if self.__conn:
             self.__conn.close()
-        if var_stack.ResolveVarToBool("PRINT_STATISTICS") and self.statistics:
+        if bool(config_vars.get("PRINT_STATISTICS_DB", "False")) and self.statistics:
             for name, stats in sorted(self.statistics.items()):
                 average = stats.time/stats.count
                 print("{}, {}".format(name, repr(stats)))
@@ -187,14 +187,14 @@ class DBMaster(object):
     @contextmanager
     def transaction(self, description=None):
         try:
-            time1 = time.clock()
+            if not description:
+                description = inspect.stack()[2][3]
+            time1 = time.perf_counter()
             self.begin()
             yield self.__curs
             self.commit()
-            time2 = time.clock()
+            time2 = time.perf_counter()
             if self.print_execute_times:
-                if not description:
-                    description = inspect.stack()[2][3]
                 print('DB transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
             self.statistics[description].add_instance((time2-time1)*1000.0)
         except:
@@ -207,9 +207,11 @@ class DBMaster(object):
             no commit is done
         """
         try:
-            time1 = time.clock()
+            if not description:
+                description = inspect.stack()[2][3]
+            time1 = time.perf_counter()
             yield self.__conn.cursor()
-            time2 = time.clock()
+            time2 = time.perf_counter()
             if self.print_execute_times:
                 if not description:
                     description = inspect.stack()[2][3]
@@ -224,9 +226,11 @@ class DBMaster(object):
             no commit is done
         """
         try:
-            time1 = time.clock()
+            if not description:
+                description = inspect.stack()[2][3]
+            time1 = time.perf_counter()
             yield self.__conn.cursor()
-            time2 = time.clock()
+            time2 = time.perf_counter()
             if self.print_execute_times:
                 if not description:
                     description = inspect.stack()[2][3]

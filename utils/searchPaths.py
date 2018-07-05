@@ -11,6 +11,7 @@
 import os
 import pathlib
 
+from configVar import config_vars  # √
 
 # noinspection PyPep8Naming
 class SearchPaths(object):
@@ -18,22 +19,22 @@ class SearchPaths(object):
         Manage list of include search paths, and help find files
         using the search paths.
     """
-    def __init__(self, search_paths_var):
-        # list of paths where to search for #include-ed files
-        self.search_paths_var = search_paths_var
+    def __init__(self, search_paths_var: str):
+        self.search_paths_var: str = search_paths_var
+        config_vars.setdefault(self.search_paths_var, [])  # make sure ConfigVar obj exists for self.search_paths_var
 
     def __len__(self):
-        return len(self.search_paths_var)
+        return len(config_vars[self.search_paths_var])
 
     def __iter__(self):
-        return iter(self.search_paths_var)
+        return iter(config_vars[self.search_paths_var])
 
     def add_search_path(self, a_path):
         """ Add a folder to the list of search paths
         """
-        if a_path not in self.search_paths_var:
+        if a_path not in iter(config_vars[self.search_paths_var]):
             if os.path.isdir(a_path):
-                self.search_paths_var.append(a_path)
+                config_vars[self.search_paths_var].append(a_path)
 
     def add_search_paths(self, some_paths):
         """ Add a folder to the list of search paths
@@ -70,7 +71,7 @@ class SearchPaths(object):
             self.add_search_path(str(real_folder))
             retVal = str(real_file)
         else:
-            for try_path in self.search_paths_var:
+            for try_path in iter(config_vars[self.search_paths_var]):
                 try:
                     real_file = pathlib.Path(try_path, in_file).resolve()
                     if os.path.isfile(str(real_file)):
