@@ -669,12 +669,12 @@ class InstlAdmin(InstlInstanceBase):
 
                 if copy_and_add_file:
                     self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(left_item_path, comparator.right, link_dest=False, ignore=".svn")
-                    self.batch_accum += self.platform_helper.progress("copy file {}".format(left_item_path))
+                    self.batch_accum += self.platform_helper.progress(f"copy file {left_item_path}")
                     # tell svn about new items, svn will not accept 'add' for changed items
                     self.batch_accum += self.platform_helper.svn_add_item(right_item_path)
-                    self.batch_accum += self.platform_helper.progress("add to svn {}".format(right_item_path))
+                    self.batch_accum += self.platform_helper.progress(f"add to svn {right_item_path}")
                 else:
-                    self.batch_accum += self.platform_helper.progress("not adding {} because {} exists and is identical".format(left_item_path, right_item_path_without_aa))
+                    self.batch_accum += self.platform_helper.progress(f"not adding {left_item_path} because {right_item_path_without_aa} exists and is identical")
 
             elif os.path.isdir(left_item_path):
                 if self.compiled_forbidden_folder_regex.search(left_item_path):
@@ -689,7 +689,7 @@ class InstlAdmin(InstlInstanceBase):
                             raise utils.InstlException(os.path.join(root, item)+" has forbidden characters should not be committed to svn")
 
                 self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(left_item_path, comparator.right, link_dest=False, ignore=".svn", preserve_dest_files=False)
-                self.batch_accum += self.platform_helper.progress("copy dir {}".format(left_item_path))
+                self.batch_accum += self.platform_helper.progress(f"copy dir {left_item_path}")
             else:
                 raise utils.InstlException(left_item_path+" not a file, dir or symlink, an abomination!")
 
@@ -718,9 +718,9 @@ class InstlAdmin(InstlInstanceBase):
 
                 if copy_file:
                     self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(left_item_path, comparator.right, link_dest=False, ignore=".svn")
-                    self.batch_accum += self.platform_helper.progress("copy {}".format(left_item_path))
+                    self.batch_accum += self.platform_helper.progress(f"copy {left_item_path}")
                 else:
-                    self.batch_accum += self.platform_helper.progress("identical {}".format(left_item_path))
+                    self.batch_accum += self.platform_helper.progress(f"identical {left_item_path}")
             else:
                 raise utils.InstlException(left_item_path+" not a different file or symlink, an abomination!")
 
@@ -729,7 +729,7 @@ class InstlAdmin(InstlInstanceBase):
             if right_only_item not in do_not_remove_items:
                 item_to_remove = os.path.join(comparator.right, right_only_item)
                 self.batch_accum += self.platform_helper.svn_remove_item(item_to_remove)
-                self.batch_accum += self.platform_helper.progress("remove from svn {}".format(item_to_remove))
+                self.batch_accum += self.platform_helper.progress(f"remove from svn {item_to_remove}")
 
         # recurse to sub folders
         for sub_comparator in list(comparator.subdirs.values()):
@@ -790,8 +790,8 @@ class InstlAdmin(InstlInstanceBase):
 
         for a_folder in folders_to_check:
             self.batch_accum += self.platform_helper.unlock(a_folder, recursive=True)
-            self.batch_accum += self.platform_helper.progress("chflags -R nouchg " + a_folder)
-            self.batch_accum += """find "{}" -name ".DS_Store" -delete""".format(a_folder)
+            self.batch_accum += self.platform_helper.progress(f"chflags -R nouchg {a_folder}")
+            self.batch_accum += f"""find "{a_folder}" -name ".DS_Store" -delete"""
             self.batch_accum += self.platform_helper.progress("delete ignored files")
             self.batch_accum += self.platform_helper.new_line()
 
@@ -823,29 +823,29 @@ class InstlAdmin(InstlInstanceBase):
 
             if items_to_tar or items_to_delete:
                 total_items_to_tar += len(items_to_tar)
-                self.batch_accum += self.platform_helper.progress("begin folder {}".format(folder_to_check))
+                self.batch_accum += self.platform_helper.progress(f"begin folder {folder_to_check}")
                 self.batch_accum += self.platform_helper.cd(folder_to_check)
 
                 for item_to_delete in items_to_delete:
                     self.batch_accum += self.platform_helper.rmfile(item_to_delete)
-                    self.batch_accum += self.platform_helper.progress("removed file {}".format(item_to_delete))
+                    self.batch_accum += self.platform_helper.progress(f"removed file {item_to_delete}")
 
                 for item_to_tar in items_to_tar:
                     item_to_tar_full_path = os.path.join(folder_to_check, item_to_tar)
 
                     self.batch_accum += self.platform_helper.tar_with_instl(item_to_tar)
-                    self.batch_accum += self.platform_helper.progress("tar file {}".format(item_to_tar))
+                    self.batch_accum += self.platform_helper.progress(f"tar file {item_to_tar}")
                     self.batch_accum += self.platform_helper.split(item_to_tar + ".wtar")
-                    self.batch_accum += self.platform_helper.progress("split file {}".format(item_to_tar + ".wtar"))
+                    self.batch_accum += self.platform_helper.progress(f"split file {item_to_tar}.wtar")
                     if os.path.isdir(item_to_tar_full_path):
                         self.batch_accum += self.platform_helper.rmdir(item_to_tar, recursive=True)
-                        self.batch_accum += self.platform_helper.progress("removed dir {}".format(item_to_tar))
+                        self.batch_accum += self.platform_helper.progress(f"removed dir {item_to_tar}")
                     elif os.path.isfile(item_to_tar_full_path):
                         self.batch_accum += self.platform_helper.rmfile(item_to_tar)
-                        self.batch_accum += self.platform_helper.progress("removed file {}".format(item_to_tar))
+                        self.batch_accum += self.platform_helper.progress(f"removed file {item_to_tar}")
                     self.batch_accum += self.platform_helper.progress(item_to_tar_full_path)
                     self.batch_accum += self.platform_helper.new_line()
-                self.batch_accum += self.platform_helper.progress("end folder {}".format(folder_to_check))
+                self.batch_accum += self.platform_helper.progress(f"end folder {folder_to_check}")
                 self.batch_accum += self.platform_helper.new_line()
 
         self.progress("found", total_items_to_tar, "to wtar")
@@ -880,9 +880,9 @@ class InstlAdmin(InstlInstanceBase):
             svn_command_parts = ['"$(SVN_CLIENT_PATH)"', "checkout", checkout_url_quoted, limit_info_quoted, "--depth", "infinity"]
             svn_checkout_command = " ".join(svn_command_parts)
             self.batch_accum += svn_checkout_command
-            self.batch_accum += self.platform_helper.progress("Checkout {} to {}".format(checkout_url, limit_info[1]))
+            self.batch_accum += self.platform_helper.progress(f"Checkout {checkout_url} to {limit_info[1]}")
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(limit_info[1], limit_info[2], link_dest=False, ignore=(".svn", ".DS_Store"), preserve_dest_files=False)
-            self.batch_accum += self.platform_helper.progress("rsync {} to {}".format(limit_info[1], limit_info[2]))
+            self.batch_accum += self.platform_helper.progress(f"rsync {limit_info[1]} to {limit_info[2]}")
 
         self.write_batch_file(self.batch_accum)
         if "__RUN_BATCH__" in config_vars:
@@ -1111,12 +1111,12 @@ class InstlAdmin(InstlInstanceBase):
             self.batch_accum += self.platform_helper.progress("chmod -R a+rw,+X " + folder_to_check)
 
         if len(files_that_should_not_be_exec) > 0:
-            self.progress("Exec bit will be removed from the {} following files".format(len(files_that_should_not_be_exec)))
+            self.progress(f"Exec bit will be removed from the {len(files_that_should_not_be_exec)} following files")
             for a_file in files_that_should_not_be_exec:
                 self.progress("   ", a_file)
 
         if len(files_that_must_be_exec) > 0:
-            self.progress("Exec bit will be added to the {} following files".format(len(files_that_must_be_exec)))
+            self.progress(f"Exec bit will be added to the {len(files_that_must_be_exec)} following files")
             for a_file in files_that_must_be_exec:
                 self.progress("   ", a_file)
 
@@ -1168,7 +1168,7 @@ class InstlAdmin(InstlInstanceBase):
         accum += " ".join(file_sizes_command_parts)
         accum += self.platform_helper.progress("Get file-sizes from disk to "+os.path.join(results_folder, "info_map.file-sizes"))
 
-        accum += self.platform_helper.progress("Create {} ...".format(full_info_map_file_path))
+        accum += self.platform_helper.progress(f"Create {full_info_map_file_path} ...")
         trans_command_parts = [self.platform_helper.run_instl(), "trans",
                                    "--in", info_map_info_path,
                                    "--props ", info_map_props_path,
@@ -1176,14 +1176,14 @@ class InstlAdmin(InstlInstanceBase):
                                    "--base-repo-rev", "$(BASE_REPO_REV)",
                                    "--out ", full_info_map_file_path]
         accum += " ".join(trans_command_parts)
-        accum += self.platform_helper.progress("Create {} done".format(full_info_map_file_path))
+        accum += self.platform_helper.progress(f"Create {full_info_map_file_path} done")
 
         # split info_map.txt according to info_map fields in index.yaml
-        accum += self.platform_helper.progress("Split {} ...".format(full_info_map_file_path))
+        accum += self.platform_helper.progress(f"Split {full_info_map_file_path} ...")
         split_info_map_command_parts = [self.platform_helper.run_instl(), "filter-infomap",
                                         "--in", results_folder, "--define", config_vars.resolve_str("REPO_REV=$(__CURR_REPO_REV__)")]
         accum += " ".join(split_info_map_command_parts)
-        accum += self.platform_helper.progress("Split {} done".format(full_info_map_file_path))
+        accum += self.platform_helper.progress(f"Split {full_info_map_file_path} done")
 
         accum += self.platform_helper.popd()
 
@@ -1275,11 +1275,11 @@ class InstlAdmin(InstlInstanceBase):
         self.read_yaml_file(revision_file_path)
         index_checksum = utils.get_file_checksum(index_path)
         if config_vars["INDEX_CHECKSUM"].str() != index_checksum:
-            self.progress("bad index checksum expected: {}, actual: {}".format(config_vars["INDEX_CHECKSUM"].str(), index_checksum))
+            self.progress(f"""bad index checksum expected: {config_vars["INDEX_CHECKSUM"]}, actual: {index_checksum}""")
 
         main_info_map_checksum = utils.get_file_checksum(main_info_map_path)
         if config_vars["INFO_MAP_CHECKSUM"].str() != main_info_map_checksum:
-            self.progress("bad info_map.txt checksum expected: {}, actual: {}".format(config_vars["INFO_MAP_CHECKSUM"].str(), main_info_map_checksum))
+            self.progress(f"""bad info_map.txt checksum expected: {config_vars["INFO_MAP_CHECKSUM"]}, actual: {main_info_map_checksum}""")
 
         self.items_table.activate_all_oses()
         all_info_maps = self.items_table.get_detail_values_by_name_for_all_iids("info_map")
@@ -1289,4 +1289,4 @@ class InstlAdmin(InstlInstanceBase):
                 info_map_full_path = os.path.join(instl_folder_path, item.leaf)
                 info_map_checksum = utils.get_file_checksum(info_map_full_path)
                 if item.checksum != info_map_checksum:
-                    self.progress("bad {} checksum expected: {}, actual: {}".format(item.leaf, item.checksum, info_map_checksum))
+                    self.progress("""bad {item.leaf} checksum expected: {item.checksum}, actual: {info_map_checksum}""")

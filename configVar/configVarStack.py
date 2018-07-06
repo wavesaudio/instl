@@ -14,20 +14,8 @@ import time
 from typing import Dict, List
 
 import aYaml
-from configVar import ConfigVar, configVarParser
-
-value_ref_re = re.compile("""
-                            (?P<varref_pattern>
-                                (?P<varref_marker>[$])      # $
-                                \(                          # (
-                                    (?P<var_name>[\w\s]+?|[\w\s(]+[\w\s)]+?)           # value
-                                    (?P<varref_array>\[
-                                        (?P<array_index>\d+)
-                                    \])?
-                                \)
-                            )                         # )
-                            """, re.X)
-
+from .configVarOne import ConfigVar
+from .configVarParser import var_parse_imp
 
 class ConfigVarStack:
     """
@@ -231,7 +219,7 @@ class ConfigVarStack:
         resolved_parts = list()
         num_literals = 0
         num_variables = 0
-        for parser_retVal in configVarParser.var_parse_imp(str_to_resolve):
+        for parser_retVal in var_parse_imp(str_to_resolve):
             if parser_retVal.literal_text:
                 resolved_parts.append(parser_retVal.literal_text)
                 num_literals += 1
@@ -376,7 +364,7 @@ class ConfigVarStack:
                         self[env_key_to_read] = os.environ[env_key_to_read]
 
     def print_statistics(self):
-        if bool(config_vars.get("PRINT_CONFIG_VAR_STATISTICS", "False")):
+        if bool(self.get("PRINT_CONFIG_VAR_STATISTICS", "False")):
             print(f"{len(self)} ConfigVars")
             print(f"{self.resolve_counter} resolves")
             print(f"{self.simple_resolve_counter} simple resolves")

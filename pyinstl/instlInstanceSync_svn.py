@@ -37,7 +37,7 @@ class InstlInstanceSync_svn(InstlInstanceSync):
             for source in sources_for_iid:
                 self.instlObj.batch_accum += self.create_svn_sync_instructions_for_source(source)
                 retVal += 1
-            self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Sync {}".format(config_vars["iid_name"].str()))
+            self.instlObj.batch_accum += self.instlObj.platform_helper.progress(f"""Sync {config_vars["iid_name"]}""")
         for iid in list(config_vars["__ORPHAN_INSTALL_TARGETS__"]):
             self.instlObj.batch_accum += self.instlObj.platform_helper.echo("Don't know how to sync " + iid)
         self.instlObj.batch_accum += self.instlObj.platform_helper.echo("from $(SYNC_BASE_URL)")

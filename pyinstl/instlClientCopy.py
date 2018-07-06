@@ -28,7 +28,7 @@ class InstlClientCopy(InstlClient):
         # unwtar will take place directly so no need to copy those files
         self.ignore_additions = ['.wtar']
         for ignore_item in self.ignore_additions:
-            ignore_item_wildcards = '*{}*'.format(ignore_item)
+            ignore_item_wildcards = f'*{ignore_item}*'
             if ignore_item_wildcards not in self.patterns_copy_should_ignore:
                 self.patterns_copy_should_ignore.append(ignore_item_wildcards)
 
@@ -84,7 +84,7 @@ class InstlClientCopy(InstlClient):
                     # test for isfile is done here rather than in the batch file, because
                     # Windows does not have proper way to check "is file" in a batch.
                     self.batch_accum += self.platform_helper.rmfile(target_folder_path)
-                    self.batch_accum += self.platform_helper.progress("Removed file that should be a folder {0}".format(target_folder_path))
+                    self.batch_accum += self.platform_helper.progress(f"Removed file that should be a folder {target_folder_path}")
                 progress_num = self.platform_helper.increment_progress(1)
                 self.batch_accum += self.platform_helper.mkdir_with_owner(target_folder_path, progress_num)
 
@@ -184,7 +184,7 @@ class InstlClientCopy(InstlClient):
                 if not source_file.path.endswith(".symlink"):
                     self.batch_accum += self.platform_helper.chown("$(__USER_ID__)", "", source_file.leaf, recursive=False)
                     self.batch_accum += self.platform_helper.chmod(source_file.chmod_spec(), source_file.name())
-                    self.batch_accum += self.platform_helper.echo("chmod {} {}".format(source_file.chmod_spec(), source_file.name()))
+                    self.batch_accum += self.platform_helper.echo(f"chmod {source_file.chmod_spec()} {source_file.name()}")
 
             self.bytes_to_copy += self.calc_size_of_file_item(source_file)
         else:  # one or more wtar files
@@ -257,7 +257,7 @@ class InstlClientCopy(InstlClient):
         if dir_item is not None:
             source_items: List[svnTree.SVNRow] = self.info_map_table.get_items_in_dir(dir_path=source_path)
             if self.can_copy_be_avoided(dir_item, source_items):
-                self.progress("avoid copy of {}, Info.xml has not changed".format(name_for_progress_message))
+                self.progress(f"avoid copy of {name_for_progress_message}, Info.xml has not changed")
                 return retVal
             retVal += 1
             wtar_base_names = {source_item.unwtarred.split("/")[-1] for source_item in source_items if source_item.wtarFlag}
@@ -297,7 +297,7 @@ class InstlClientCopy(InstlClient):
         """
         retVal = 0
         with BatchAccumulatorTransaction(self.batch_accum, "create_copy_instructions_for_source-"+name_for_progress_message) as source_accum_transaction:
-            self.batch_accum += self.platform_helper.progress("Copy {0} ...".format(name_for_progress_message))
+            self.batch_accum += self.platform_helper.progress(f"Copy {name_for_progress_message} ...")
             if source[1] == '!dir':  # !dir
                 retVal += self.create_copy_instructions_for_dir(source[0], name_for_progress_message)
             elif source[1] == '!file':  # get a single file
@@ -337,8 +337,8 @@ class InstlClientCopy(InstlClient):
             num_items_copied_to_folder = 0
             items_in_folder = sorted(self.all_iids_by_target_folder[target_folder_path])
             self.batch_accum += self.platform_helper.new_line()
-            self.batch_accum += self.platform_helper.remark("- Begin folder {0}".format(target_folder_path))
-            self.batch_accum += self.platform_helper.progress("copy to {0} ...".format(target_folder_path))
+            self.batch_accum += self.platform_helper.remark(f"- Begin folder {target_folder_path}")
+            self.batch_accum += self.platform_helper.progress(f"copy to {target_folder_path} ...")
             self.batch_accum += self.platform_helper.cd(target_folder_path)
 
             # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
@@ -349,20 +349,20 @@ class InstlClientCopy(InstlClient):
             self.batch_accum += self.platform_helper.copy_tool.begin_copy_folder()
             for IID in items_in_folder:
                 self.current_iid = IID
-                self.batch_accum += self.platform_helper.remark("-- Begin iid {0}".format(IID))
+                self.batch_accum += self.platform_helper.remark(f"-- Begin iid {IID}")
                 sources_for_iid = self.items_table.get_sources_for_iid(IID)
                 resolved_sources_for_iid = [(config_vars.resolve_str(s[0]), s[1]) for s in sources_for_iid]
                 name_and_version = self.name_and_version_for_iid(iid=IID)
                 for source in resolved_sources_for_iid:
-                    self.batch_accum += self.platform_helper.remark("--- Begin source {0}".format(source[0]))
+                    self.batch_accum += self.platform_helper.remark(f"--- Begin source {source[0]}")
                     num_items_copied_to_folder += 1
                     self.batch_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="pre_copy_item")
                     folder_accum_transaction += self.create_copy_instructions_for_source(source, name_and_version)
                     self.batch_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="post_copy_item")
-                    self.batch_accum += self.platform_helper.remark("--- End source {0}".format(source[0]))
+                    self.batch_accum += self.platform_helper.remark(f"--- End source {source[0]}")
                     if  self.mac_current_and_target:
                         num_symlink_items += self.info_map_table.count_symlinks_in_dir(source[0])
-                self.batch_accum += self.platform_helper.remark("-- End iid {0}".format(IID))
+                self.batch_accum += self.platform_helper.remark(f"-- End iid {IID}")
             self.current_iid = None
 
             target_folder_path_parent, target_folder_name = os.path.split(config_vars.resolve_str(target_folder_path))
@@ -378,7 +378,7 @@ class InstlClientCopy(InstlClient):
 
             # accumulate post_copy_to_folder actions from all items, eliminating duplicates
             folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)
-            self.batch_accum += self.platform_helper.remark("- End folder {0}".format(target_folder_path))
+            self.batch_accum += self.platform_helper.remark(f"- End folder {target_folder_path}")
             self.current_destination_folder = None
 
     def create_copy_instructions_for_no_copy_folder(self, sync_folder_name) -> None:
@@ -391,7 +391,7 @@ class InstlClientCopy(InstlClient):
             items_in_folder = self.no_copy_iids_by_sync_folder[sync_folder_name]
             self.batch_accum += self.platform_helper.new_line()
             self.batch_accum += self.platform_helper.cd(sync_folder_name)
-            self.batch_accum += self.platform_helper.progress("Actions in {0} ...".format(sync_folder_name))
+            self.batch_accum += self.platform_helper.progress(f"Actions in {sync_folder_name} ...")
 
             # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
             folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('pre_copy_to_folder', items_in_folder)
@@ -426,8 +426,8 @@ class InstlClientCopy(InstlClient):
             batch_file_path = config_vars.resolve_str(batch_file_path)
             with utils.utf8_open(batch_file_path, "w") as wfd:
                 for wtar_inst in self.unwtar_instructions:
-                    unwtar_line = config_vars.resolve_str("""unwtar --in "{}" --out "{}" --no-numbers-progress\n""".format(*wtar_inst))
+                    unwtar_line = config_vars.resolve_str(f"""unwtar --in "{wtar_inst[0]}" --out "{wtar_inst[1]}" --no-numbers-progress\n""")
                     self.platform_helper.increment_progress()
                     wfd.write(unwtar_line)
-            self.batch_accum += self.platform_helper.progress("Verify {}".format(name_for_progress))
+            self.batch_accum += self.platform_helper.progress(f"Verify {name_for_progress}")
             self.batch_accum += self.platform_helper.run_instl_command_list(batch_file_path, parallel=True)

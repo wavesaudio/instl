@@ -409,7 +409,7 @@ def quote_path_properly(path_to_quote):
     if "'" in path_to_quote or "${" in path_to_quote:
         quote_char = '"'
         if '"' in path_to_quote:
-            raise Exception("""both single quote and double quote found in {}""".format(path_to_quote))
+            raise Exception(f"""both single quote and double quote found in {path_to_quote}""")
     quoted_path = "".join((quote_char, path_to_quote, quote_char))
     return quoted_path
 
@@ -819,7 +819,7 @@ def unwtar_a_file(wtar_file_path, destination_folder=None, no_artifacts=False, i
                 os.remove(wtar_file)
 
     except OSError as e:
-        print("Invalid stream on split file with {}".format(wtar_file_paths[0]))
+        print(f"Invalid stream on split file with {wtar_file_paths[0]}")
         raise e
 
     except tarfile.TarError:

@@ -9,7 +9,6 @@ sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..", "..")))
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 sys.path.append(os.path.realpath(os.path.join(__file__, "..")))
 
-import configVar
 from configVar import config_vars
 from configVar import ConfigVarYamlReader
 import aYaml
@@ -23,12 +22,20 @@ def normalize_yaml_lines(yaml_file):
                 retVal.append(striped_line)
     return retVal
 
-class TestConfigVarL(unittest.TestCase):
+class TestConfigVar(unittest.TestCase):
     def setUp(self):
         config_vars.clear()
 
     def tearDown(self):
         pass
+
+    def test_format(self):
+
+        config_vars["Number"] = "434"
+        config_vars["Ricki"] = ["Joe", "Merlin", "1938"]
+
+        str1 = f"""{config_vars["Ricki"]}{config_vars["Number"].int()}{config_vars["Ricki"].list()}"""
+        self.assertEqual("JoeMerlin1938434['Joe', 'Merlin', '1938']", str1)
 
     def test_defaults(self):
         empty_list = config_vars.get("MAMBO_JUMBO", []).list()

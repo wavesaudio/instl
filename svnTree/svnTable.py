@@ -751,11 +751,11 @@ class SVNTable(object):
 
         extra_condition = {"file": "WHERE fileFlag == 1", "dir": "WHERE fileFlag == 0"}.get(what, "")
         with self.db.selection() as curs:
-            curs.execute("""
+            curs.execute(f"""
                     SELECT * FROM svn_item_t
                     {extra_condition}
                     ORDER BY _id
-                    """.format(extra_condition=extra_condition))
+                    """)
             retVal = curs.fetchall()
             retVal = self.SVNRowListToObjects(retVal)
         return retVal
@@ -773,12 +773,12 @@ class SVNTable(object):
         want_dir = what in ("any", "dir")
         extra_condition = {"file": "AND fileFlag == 1", "dir": "AND fileFlag == 0"}.get(what, "")
         with self.db.selection() as curs:
-            curs.execute("""
+            curs.execute(f"""
                     SELECT * FROM svn_item_t
                     WHERE required == 1
                     {extra_condition}
                     ORDER BY _id
-                    """.format(extra_condition=extra_condition))
+                    """)
             retVal = curs.fetchall()
             retVal = self.SVNRowListToObjects(retVal)
         return retVal
@@ -796,12 +796,12 @@ class SVNTable(object):
         want_dir = what in ("any", "dir")
         extra_condition = {"file": "AND fileFlag == 1", "dir": "AND fileFlag == 0"}.get(what, "")
         with self.db.selection() as curs:
-            curs.execute("""
+            curs.execute(f"""
                     SELECT * FROM svn_item_t
                     WHERE required == 0
                     {extra_condition}
                     ORDER BY _id
-                    """.format(extra_condition=extra_condition))
+                    """)
             retVal = curs.fetchall()
             retVal = self.SVNRowListToObjects(retVal)
         return retVal

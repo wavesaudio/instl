@@ -85,22 +85,22 @@ chown $(__USER_ID__): "$1" || true
 
     def get_install_instructions_invocation_report_funcs(self):
         self.invocations_file_path = config_vars["__INVOCATIONS_FILE_PATH__"].str()
-        retVal = """
+        retVal = f"""
 report_invocation_start() {{
-    echo "--- {0}" >> "{1}"
+    echo "--- {self.random_invocation_id}" >> "{self.invocations_file_path}"
     start_date=`date +%Y/%m/%d-%H:%M:%S`
     echo "start: $start_date" >> "{1}"
-    echo "batch file: ${{BASH_SOURCE[0]}}" >> "{1}"
+    echo "batch file: ${{BASH_SOURCE[0]}}" >> "{self.invocations_file_path}"
 }}
 
 report_invocation_end() {{
-    echo "run time: $(convertsecs $Time_Measure_Diff)" >> "{1}"
+    echo "run time: $(convertsecs $Time_Measure_Diff)" >> "{self.invocations_file_path}"
     end_date=`date +%Y/%m/%d-%H:%M:%S`
     echo "end: $end_date" >> "{1}"
     echo "exit code: $1" >> "{1}"
-    echo "---  {0}" >> "{1}"
+    echo "---  {self.random_invocation_id}" >> "{self.invocations_file_path}"
 }}
-    """.format(self.random_invocation_id, self.invocations_file_path)
+    """
         return retVal
 
     def get_resolve_symlinks_func(self):

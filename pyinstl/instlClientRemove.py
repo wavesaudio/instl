@@ -48,7 +48,7 @@ class InstlClientRemove(InstlClient):
             with BatchAccumulatorTransaction(self.batch_accum) as folder_accum_transaction:
                 self.batch_accum += self.platform_helper.new_line()
                 self.create_remove_previous_sources_instructions_for_target_folder(folder_name)
-                self.batch_accum += self.platform_helper.progress("Remove from folder {0}".format(folder_name))
+                self.batch_accum += self.platform_helper.progress(f"Remove from folder {folder_name}")
                 config_vars["__TARGET_DIR__"] = os.path.normpath(folder_name)
                 items_in_folder = self.all_iids_by_target_folder[folder_name]
 

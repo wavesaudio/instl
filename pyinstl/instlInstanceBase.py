@@ -15,7 +15,6 @@ import utils
 from .batchAccumulator import BatchAccumulator, PythonBatchAccumulator
 from .platformSpecificHelper_Base import PlatformSpecificHelperFactory
 
-from configVar import value_ref_re
 from configVar import config_vars
 from configVar import ConfigVarYamlReader
 
@@ -25,6 +24,18 @@ from .indexItemTable import IndexItemsTable
 from svnTree import SVNTable
 
 
+value_ref_re = re.compile("""
+                            (?P<varref_pattern>
+                                (?P<varref_marker>[$])      # $
+                                \(                          # (
+                                    (?P<var_name>[\w\s]+?|[\w\s(]+[\w\s)]+?)           # value
+                                    (?P<varref_array>\[
+                                        (?P<array_index>\d+)
+                                    \])?
+                                \)
+                            )                         # )
+                            """, re.X)
+
 def check_version_compatibility():
     retVal = True
     message = ""
@@ -33,7 +44,7 @@ def check_version_compatibility():
         required_instl_ver = list(map(int, list(config_vars["INSTL_MINIMAL_VERSION"])))
         retVal = cur_instl_ver >= required_instl_ver
         if not retVal:
-            message = "instl version {} < minimal required version {}".format(cur_instl_ver, required_instl_ver)
+            message = f"instl version {cur_instl_ver} < minimal required version {required_instl_ver}"
     return retVal, message
 
 
@@ -56,7 +67,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
         ConfigVarYamlReader.__init__(self)
 
-        self.path_searcher = utils.SearchPaths("__SEARCH_PATHS__")
+        self.path_searcher = utils.SearchPaths(config_vars, "__SEARCH_PATHS__")
         self.url_translator = connectionBase.translate_url
         self.init_default_vars(initial_vars)
         # noinspection PyUnresolvedReferences
@@ -83,9 +94,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             self.internal_progress += 1
             if self.internal_progress >= self.total_self_progress:
                 self.total_self_progress += 1000
-            print("""Progress: {} of {}; {}""".format(self.internal_progress,
-                                                      self.total_self_progress,
-                                                      " ".join(str(mes) for mes in messages)),
+            print(f"""Progress: {self.internal_progress} of {self.total_self_progress}; {" ".join(str(mes) for mes in messages)}""",
                 flush=True)
 
     def init_specific_doc_readers(self):
@@ -370,7 +379,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                             self.batch_accum += self.platform_helper.copy_tool.copy_file_to_file(file_path,
                                                                                                  destination_path,
                                                                                                  link_dest=True)
-                            self.platform_helper.progress("copy cached file to {}".format(destination_path))
+                            self.platform_helper.progress(f"copy cached file to {destination_path}")
 
     def create_variables_assignment(self, in_batch_accum):
         in_batch_accum.set_current_section("assign")

@@ -299,7 +299,7 @@ class InstlClient(InstlInstanceBase):
             if IID != previous_iid:  # avoid multiple progress messages for same iid
                 name_and_version = self.name_and_version_for_iid(iid=IID)
                 action_description = self.action_type_to_progress_message[action_type]
-                self.batch_accum += self.platform_helper.progress("{0} {1}".format(name_and_version, action_description))
+                self.batch_accum += self.platform_helper.progress(f"{name_and_version} {action_description}")
                 previous_iid = IID
             self.batch_accum += an_action
             retVal += 1
@@ -461,7 +461,7 @@ class InstlClient(InstlInstanceBase):
                         num_ignored_files = self.info_map_table.ignore_file_paths_of_dir(dir_path=source)
                         if num_ignored_files < 1:
                             num_ignored_files = ""  # sqlite curs.rowcount does not always returns the number of effected rows
-                        self.progress("avoid download {} files of {}, Info.xml has not changed".format(num_ignored_files, iid))
+                        self.progress(f"avoid download {num_ignored_files} files of {iid}, Info.xml has not changed")
 
                 else:
                     item_paths = self.info_map_table.get_file_paths_of_dir(dir_path=source)
@@ -496,10 +496,10 @@ class InstlClient(InstlInstanceBase):
 
             if len(previous_sources) > 0:
                 self.batch_accum += self.platform_helper.new_line()
-                self.batch_accum += self.platform_helper.remark("- Begin folder {0}".format(target_folder_path))
+                self.batch_accum += self.platform_helper.remark(f"- Begin folder {target_folder_path}")
                 self.batch_accum += self.platform_helper.cd(target_folder_path)
                 # todo: conditional CD - if fails to not do other instructions
-                self.batch_accum += self.platform_helper.progress("remove previous versions {0} ...".format(target_folder_path))
+                self.batch_accum += self.platform_helper.progress(f"remove previous versions {target_folder_path} ...")
 
                 for previous_source in previous_sources:
                     retVal += self.create_remove_previous_sources_instructions_for_source(target_folder_path, previous_source)

@@ -65,23 +65,23 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
                                                 expected_checksum=info_map_file_expected_checksum)
                 #assert local_copy_of_info_map_in == local_copy_of_info_map_out, local_copy_of_info_map_in +" != "+ local_copy_of_info_map_out
                 self.instlObj.read_info_map_from_file(local_copy_of_info_map_out)
-                self.instlObj.progress("read info_map {}".format(info_map_file_url))
+                self.instlObj.progress(f"read info_map {info_map_file_url}")
 
                 additional_info_maps = self.instlObj.items_table.get_details_for_active_iids("info_map", unique_values=True)
                 for additional_info_map in additional_info_maps:
                     # try to get the zipped info_map
-                    additional_info_map_file_name = config_vars.resolve_str("{}$(WZLIB_EXTENSION)".format(additional_info_map))
-                    path_in_main_info_map = config_vars.resolve_str("instl/{}".format(additional_info_map_file_name))
+                    additional_info_map_file_name = config_vars.resolve_str(f"{additional_info_map}$(WZLIB_EXTENSION)")
+                    path_in_main_info_map = config_vars.resolve_str(f"instl/{additional_info_map_file_name}")
                     additional_info_map_item = self.instlObj.info_map_table.get_file_item(path_in_main_info_map)
                     if not additional_info_map_item:  # zipped not found try the unzipped inf_map
                         additional_info_map_file_name = additional_info_map
-                        path_in_main_info_map = config_vars.resolve_str("instl/{}".format(additional_info_map))
+                        path_in_main_info_map = config_vars.resolve_str(f"instl/{additional_info_map}")
                         additional_info_map_item = self.instlObj.info_map_table.get_file_item(path_in_main_info_map)
 
                     checksum = additional_info_map_item.checksum if additional_info_map_item else None
 
-                    info_map_file_url = config_vars.resolve_str("$(INSTL_FOLDER_BASE_URL)/{}".format(additional_info_map_file_name))
-                    local_copy_of_info_map_in = config_vars.resolve_str("$(LOCAL_REPO_REV_BOOKKEEPING_DIR)/{}".format(additional_info_map))
+                    info_map_file_url = config_vars.resolve_str(f"$(INSTL_FOLDER_BASE_URL)/{additional_info_map_file_name}")
+                    local_copy_of_info_map_in = config_vars.resolve_str(f"$(LOCAL_REPO_REV_BOOKKEEPING_DIR)/{additional_info_map}")
                     local_copy_of_info_map_out = utils.download_from_file_or_url(in_url=info_map_file_url,
                                                 in_target_path=local_copy_of_info_map_in,
                                                 translate_url_callback=connectionBase.translate_url,
@@ -89,7 +89,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
                                                 expected_checksum=checksum)
                     #assert local_copy_of_info_map_in == local_copy_of_info_map_out, local_copy_of_info_map_in +" != "+ local_copy_of_info_map_out
                     self.instlObj.read_info_map_from_file(local_copy_of_info_map_out)
-                    self.instlObj.progress("read info_map {}".format(info_map_file_url))
+                    self.instlObj.progress(f"read info_map {info_map_file_url}")
 
                 new_have_info_map_path = config_vars["NEW_HAVE_INFO_MAP_PATH"].str()
                 self.instlObj.info_map_table.write_to_file(new_have_info_map_path, field_to_write=('path', 'flags', 'revision', 'checksum', 'size'))
@@ -107,7 +107,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         required_items_list = self.instlObj.info_map_table.get_required_items()
         self.instlObj.info_map_table.write_to_file(in_file=required_file_path, items_list=required_items_list)
         num_required_files = sum(item.fileFlag for item in required_items_list)
-        self.instlObj.progress("{} files required for installation".format(num_required_files))
+        self.instlObj.progress(f"{num_required_files} files required for installation")
 
     def mark_download_items(self):
         """" Mark those files that need to be downloaded.
@@ -121,7 +121,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         need_download_file_path = config_vars["TO_SYNC_INFO_MAP_PATH"].str()
         need_download_items_list = self.instlObj.info_map_table.get_download_items()
         self.instlObj.info_map_table.write_to_file(in_file=need_download_file_path, items_list=need_download_items_list)
-        self.instlObj.progress("{} files to download".format(len(need_download_items_list)))
+        self.instlObj.progress(f"{len(need_download_items_list)} files to download")
 
     # syncers that download from urls (url, boto) need to prepare a list of all the individual files that need updating.
     # syncers that use configuration management tools (p4, svn) do not need since the tools takes care of that.

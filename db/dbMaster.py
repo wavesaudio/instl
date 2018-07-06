@@ -137,7 +137,7 @@ class DBMaster(object):
         if bool(config_vars.get("PRINT_STATISTICS_DB", "False")) and self.statistics:
             for name, stats in sorted(self.statistics.items()):
                 average = stats.time/stats.count
-                print("{}, {}".format(name, repr(stats)))
+                print(f"{name}, {repr(stats)}")
 
                 max_count = max(self.statistics.items(), key=lambda S: S[1].count)
                 max_time = max(self.statistics.items(), key=lambda S: S[1].time)
@@ -301,7 +301,7 @@ class DBMaster(object):
         return retVal
 
     def lock_table(self, table_name):
-        query_text = """
+        query_text = f"""
             CREATE TRIGGER IF NOT EXISTS lock_INSERT_{table_name}
             BEFORE INSERT ON {table_name}
             BEGIN
@@ -317,17 +317,17 @@ class DBMaster(object):
             BEGIN
                 SELECT raise(abort, '{table_name} is locked no DELETEs');
             END;
-        """.format(table_name=table_name)
+        """
         with self.transaction("lock_table") as curs:
             curs.executescript(query_text)
         self.locked_tables.add(table_name)
 
     def unlock_table(self, table_name):
-        query_text = """
+        query_text = f"""
             DROP TRIGGER IF EXISTS lock_INSERT_{table_name};
             DROP TRIGGER IF EXISTS lock_UPDATE_{table_name};
             DROP TRIGGER IF EXISTS lock_DELETE_{table_name};
-        """.format(table_name=table_name)
+        """
         with self.transaction("unlock_table") as curs:
             curs.executescript(query_text)
         self.locked_tables.remove(table_name)

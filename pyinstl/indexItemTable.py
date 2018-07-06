@@ -448,7 +448,7 @@ class IndexItemsTable(object):
                 for ii in iis:
                     if ii in inherit_dict:
                         ii_index = inherit_order.index(ii)
-                        assert ii_index < i, "{0} inherit from {1} but {1} does not come before {0}".format(inherit_order[i], ii)
+                        assert ii_index < i, f"{inherit_order[i]} inherit from {ii} but {ii} does not come before {inherit_order[i]}"
 
         for iid in sorted(inherit_dict):
             resolve_iid(iid)
@@ -526,12 +526,12 @@ class IndexItemsTable(object):
                                 if the_os in os_group:
                                     item_detail_os = {'Mac32': 'Mac32', 'Mac64': 'Mac64', 'Win32': 'Win32', 'Win64': 'Win64'}.get(the_os, os_group[1])
                                     path_prefix_os = {'Mac32': 'Mac', 'Mac64': 'Mac', 'Win32': 'Win', 'Win64': 'Win'}.get(the_os, os_group[1])
-                                    assert path_prefix_os == "Mac" or path_prefix_os == "Win", "path_prefix_os: {}".format(path_prefix_os)
+                                    assert path_prefix_os == "Mac" or path_prefix_os == "Win", f"path_prefix_os: {path_prefix_os}"
                                     new_detail = (the_iid, the_iid, self.os_names_to_num[item_detail_os],
                                                     detail_name, "/".join((path_prefix_os, value)), tag)
                                     details.append(new_detail)
                                     count_insertions += 1
-                            assert count_insertions < 3, "count_insertions: {}".format(count_insertions)
+                            assert count_insertions < 3, f"count_insertions: {count_insertions}"
                     else:
                         new_detail = (the_iid, the_iid, self.os_names_to_num[the_os], detail_name, value, tag)
                         details.append(new_detail)
@@ -562,21 +562,8 @@ class IndexItemsTable(object):
                                                                   detail_name, detail_value, tag)
                                                                   VALUES(?,?,?,?,?,?)"""
         with self.db.transaction() as curs:
-            index_item = ("-", "-")
-            try:
-                #curs.executemany(insert_item_q, index_items)
-                for index_item in index_items:
-                    curs.execute(insert_item_q, index_item)
-            except sqlite3.IntegrityError as sl3ie:
-                print(sl3ie, "query:", insert_item_q, index_item, sep="\n", flush=True)
-                raise
-            try:
-                curs.executemany(insert_item_detail_q, items_details)
-            except sqlite3.IntegrityError as sl3ie:
-                print(sl3ie)
-                print("query:", insert_item_detail_q)
-                print(items_details)
-                raise
+            curs.executemany(insert_item_q, index_items)
+            curs.executemany(insert_item_detail_q, items_details)
             curs.execute("""CREATE UNIQUE INDEX IF NOT EXISTS ix_index_item_t_iid ON index_item_t(iid)""")
             curs.execute("""CREATE INDEX IF NOT EXISTS ix_index_item_t_owner_iid ON index_item_detail_t(owner_iid)""")
 
@@ -619,11 +606,12 @@ class IndexItemsTable(object):
             for details_for_iid in require_items.values():
                 all_details.extend(details_for_iid)
 
-            query_text2 = """
+            req_items_formatted_for_sqlite = utils.quoteme_single_list_for_sql(require_items.keys())
+            query_text2 = f"""
                 UPDATE OR IGNORE index_item_t
                 SET from_require=1
-                WHERE iid in {}
-                """.format(utils.quoteme_single_list_for_sql(require_items.keys()))
+                WHERE iid in {req_items_formatted_for_sqlite}
+                """
             with self.db.transaction() as curs:
                 curs.executemany(query_text1, all_details)
                 curs.execute(query_text2)
@@ -752,11 +740,11 @@ class IndexItemsTable(object):
         existing_iids = None
         orphan_iids = None
         query_vars = utils.quoteme_double_list_for_sql(iid_list)
-        query_text = """
+        query_text = f"""
             SELECT iid
             FROM index_item_t
-            WHERE iid IN {0}
-        """.format(query_vars)
+            WHERE iid IN {query_vars}
+        """
         existing_iids = self.db.select_and_fetchall(query_text, query_params={})
         # query will return list those iid in iid_list that were found in the index
         orphan_iids = list(set(iid_list)-set(existing_iids))
@@ -1110,11 +1098,11 @@ class IndexItemsTable(object):
     def set_ignore_iids(self, iid_list):
         if iid_list:
             query_vars = utils.quoteme_single_list_for_sql(iid_list)
-            query_text = """
+            query_text = f"""
                 UPDATE index_item_t
                 SET ignore=1
-                WHERE iid IN {}
-              """.format(query_vars)
+                WHERE iid IN {query_vars}
+              """
             with self.db.transaction() as curs:
                 curs.execute(query_text)
 

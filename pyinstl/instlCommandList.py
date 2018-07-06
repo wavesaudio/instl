@@ -21,19 +21,19 @@ class CommandListRunner(object):
         command_list = self.prepare_command_list_from_file()
         command_list_dir, command_list_leaf = os.path.split(self.options.config_file[0])
         if parallel:
-            self.instance.batch_accum += self.instance.platform_helper.echo("Running {} commands in parallel from {}".format(len(command_list), command_list_leaf))
+            self.instance.batch_accum += self.instance.platform_helper.echo(f"Running {len(command_list} commands in parallel from {command_list_leaf}")
             for argv in command_list:
                 self.do_forked_command(argv)
 
             for child_pid in self.child_pids:
                 wait_val = os.waitpid(child_pid, 0)
                 print(child_pid, wait_val)
-            self.instance.batch_accum += self.instance.platform_helper.echo("Running {} commands in parallel done".format(len(command_list)))
+            self.instance.batch_accum += self.instance.platform_helper.echo(f"Running {len(command_list)} commands in parallel done")
         else:
-            self.instance.batch_accum += self.instance.platform_helper.echo("Running {} commands one by one from {}".format(len(command_list), command_list_leaf))
+            self.instance.batch_accum += self.instance.platform_helper.echo(f"Running {len(command_list)} commands one by one from {command_list_leaf}")
             for argv in command_list:
                 self.run_one_command(argv)
-            self.instance.batch_accum += self.instance.platform_helper.echo("Running {} commands one by one done".format(len(command_list)))
+            self.instance.batch_accum += self.instance.platform_helper.echo(f"Running {len(command_list)} commands one by one done")
 
     def prepare_command_list_from_file(self):
         command_list = list()

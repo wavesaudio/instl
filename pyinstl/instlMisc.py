@@ -187,7 +187,7 @@ class InstlMisc(InstlInstanceBase):
                 with tarfile.open(target_wtar_file, "w:bz2", format=tarfile.PAX_FORMAT, pax_headers=pax_headers, compresslevel=compresslevel) as tar:
                     tar.add(what_to_work_on_leaf, filter=check_tarinfo)
             else:
-                print("{0} skipped since {0}.wtar already exists and has the same contents".format(what_to_work_on))
+                print(f"{what_to_work_on} skipped since {what_to_work_on}.wtar already exists and has the same contents")
 
     def can_skip_unwtar(self, what_to_work_on, where_to_unwtar):
         return False
@@ -231,11 +231,11 @@ class InstlMisc(InstlInstanceBase):
                         if utils.is_first_wtar_file(a_file_path):
                             utils.unwtar_a_file(a_file_path, where_to_unwtar_the_file, no_artifacts=self.no_artifacts, ignore=ignore_files)
             else:
-                print("unwtar {} to {} skipping unwtarring because both folders have the same Info.xml file".format(what_to_work_on, where_to_unwtar))
+                print(f"unwtar {what_to_work_on} to {where_to_unwtar} skipping unwtarring because both folders have the same Info.xml file")
 
         else:
             raise FileNotFoundError(what_to_work_on)
-        self.dynamic_progress("unwtar {}".format(utils.original_name_from_wtar_name(what_to_work_on_leaf)))
+        self.dynamic_progress(f"unwtar {utils.original_name_from_wtar_name(what_to_work_on_leaf)}")
 
     def do_check_checksum(self):
         self.progress_staccato_command = True
@@ -255,11 +255,11 @@ class InstlMisc(InstlInstanceBase):
             missing_files_exception_message = ""
             if bad_checksum_list:
                 print("\n".join(bad_checksum_list))
-                bad_checksum_list_exception_message += "Bad checksum for {} files".format(len(bad_checksum_list))
+                bad_checksum_list_exception_message += f"Bad checksum for {len(bad_checksum_list)} files"
                 print(bad_checksum_list_exception_message)
             if missing_files_list:
                 print("\n".join(missing_files_list))
-                missing_files_exception_message += "Missing {} files".format(len(missing_files_list))
+                missing_files_exception_message += f"Missing {len(missing_files_list)} files"
                 print(missing_files_exception_message)
             raise ValueError("\n".join((bad_checksum_list_exception_message, missing_files_exception_message)))
 
@@ -401,7 +401,7 @@ class InstlMisc(InstlInstanceBase):
             with utils.write_to_file_or_stdout(out_file) as wfd:
                 wfd.write(the_listing)
         except NotADirectoryError:
-            print("Cannot output to {}".format(out_file))
+            print(f"Cannot output to {out_file}")
 
     def do_fail(self):
         exit_code = int(config_vars.get("__FAIL_EXIT_CODE__", "1") )

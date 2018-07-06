@@ -36,7 +36,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         self.robocopy_error_threshold = 4  # see ss64.com/nt/robocopy-exit.html
         robocopy_path = self.platform_helper.find_cmd_tool("ROBOCOPY_PATH")
         if robocopy_path is None:
-            raise IOError("could not find {} in path".format("robocopy.exe"))
+            raise IOError("could not find robocopy.exe in PATH")
 
     def finalize(self):
         pass
@@ -127,7 +127,7 @@ class CopyTool_win_xcopy(CopyToolBase):
         self.excludes_set = set()
         xcopy_path = self.platform_helper.find_cmd_tool("XCOPY_PATH")
         if xcopy_path is None:
-            raise IOError("could not find {} in path".format("xcopy.exe"))
+            raise IOError("could not find xcopy.exe in PATH")
 
     def finalize(self):
         self.create_excludes_file()
@@ -282,9 +282,9 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
             "setlocal enableextensions enabledelayedexpansion",
             # write to instl_invocations.txt
             self.mkdir(os.path.dirname(self.invocations_file_path)),
-            'echo --- {0} >> "{1}"'.format(self.random_invocation_id, self.invocations_file_path),
-            'echo start: %date%-%time% >> "{0}"'.format(self.invocations_file_path),
-            'echo batch file: %0 >> "{0}"'.format(self.invocations_file_path),
+            f'echo --- {self.random_invocation_id} >> "{self.invocations_file_path}"',
+            f'echo start: %date%-%time% >> "{self.invocations_file_path}"',
+            f'echo batch file: %0 >> "{self.invocations_file_path}"',
             self.remark(self.instlObj.get_version_str()),
             self.remark(datetime.datetime.today().isoformat()),
             self.start_time_measure(),
@@ -297,10 +297,10 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
             self.restore_dir("TOP_SAVE_DIR"),
             self.end_time_measure(),
             # write to instl_invocations.txt
-                'echo run time: %Time_Measure_Diff% seconds >> "{0}"'.format(self.invocations_file_path),
-                'echo end: %date%-%time% >> "{0}"'.format(self.invocations_file_path),
-                'echo exit code: 0 >> "{0}"'.format(self.invocations_file_path),
-                'echo --- {0} >> "{1}"'.format(self.random_invocation_id, self.invocations_file_path),
+                f'echo run time: %Time_Measure_Diff% seconds >> "{self.invocations_file_path}"',
+                f'echo end: %date%-%time% >> "{self.invocations_file_path}"',
+                f'echo exit code: 0 >> "{self.invocations_file_path}"',
+                f'echo --- {self.random_invocation_id} >> "{self.invocations_file_path}"',
             "exit /b 0",
             "",
             ":EXIT_ON_ERROR",
@@ -310,10 +310,10 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
             self.restore_dir("TOP_SAVE_DIR"),
             self.end_time_measure(),
             # write to instl_invocations.txt
-                'echo run time: %Time_Measure_Diff% seconds >> "{0}"'.format(self.invocations_file_path),
-                'echo end: %date%-%time% >> "{0}"'.format(self.invocations_file_path),
-                'echo exit code: %CATCH_EXIT_VALUE% >> "{0}"'.format(self.invocations_file_path),
-                'echo --- {0} >> "{1}"'.format(self.random_invocation_id, self.invocations_file_path),
+                f'echo run time: %Time_Measure_Diff% seconds >> "{self.invocations_file_path}"',
+                f'echo end: %date%-%time% >> "{self.invocations_file_path}"',
+                f'echo exit code: %CATCH_EXIT_VALUE% >> "{self.invocations_file_path}"',
+                f'echo --- {self.random_invocation_id} >> "{self.invocations_file_path}"',
             'echo Exit on error %CATCH_EXIT_VALUE% 1>&2',
             "exit /b %CATCH_EXIT_VALUE%"
         )
@@ -599,7 +599,7 @@ class DownloadTool_win_curl(DownloadToolBase):
             for config_file in config_files:
                 # curl on windows has problem with path to config files that have unicode characters
                 normalized_path = win32api.GetShortPathName(config_file)
-                wfd.write(config_vars.resolve_str('''"$(DOWNLOAD_TOOL_PATH)" --config "{}"\n'''.format(normalized_path)))
+                wfd.write(config_vars.resolve_str(f'''"$(DOWNLOAD_TOOL_PATH)" --config "{normalized_path}"\n'''))
 
         download_command = " ".join((self.platform_helper.run_instl(),  "parallel-run", "--in", utils.quoteme_double(parallel_run_config_file_path)))
         return download_command, self.platform_helper.exit_if_error()

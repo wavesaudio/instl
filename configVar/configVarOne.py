@@ -17,8 +17,6 @@ def str_to_bool(the_str, default=False):
     return retVal
 
 
-class ConfigVarStack: pass
-
 class ConfigVar:
     """ ConfigVar represents 1 configuration variable that can hold
         zero or more values. ConfigVar can be used as either str or
@@ -32,7 +30,7 @@ class ConfigVar:
              no (and should have no) use for it's own name
     """
     __slots__ = ("owner", "name", "values")
-    def __init__(self, owner: ConfigVarStack, name: str, *values):
+    def __init__(self, owner, name: str, *values):
         self.owner = owner
         self.name = name
         self.values = list()

@@ -10,6 +10,7 @@ import fnmatch
 from contextlib import contextmanager
 import ssl
 import pyinstl.connectionBase
+#from pyinstl import connection_factory
 import zlib
 
 import urllib.request, urllib.error, urllib.parse
@@ -485,7 +486,7 @@ def translate_cookies_from_GetInstlUrlComboCollection(in_cookies):
             if 'Value' in v and 'Key' in v:
                 cookies_list.append("=".join((v['Key'], v['Value'])))
 
-    retVal = "{}:{}".format(netloc, ";".join(cookies_list))
+    retVal = f"""{netloc}:{";".join(cookies_list)}"""
     return retVal
 
 

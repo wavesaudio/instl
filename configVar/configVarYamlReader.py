@@ -94,5 +94,5 @@ class ConfigVarYamlReader(aYaml.YamlReader):
                 if condition_result:
                     self.read_defines(contents)
         else:
-            print("unknown conditional {}".format(identifier))
+            print(f"unknown conditional {identifier}")
 
