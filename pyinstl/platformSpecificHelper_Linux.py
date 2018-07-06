@@ -63,7 +63,7 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         restore_dir_command = self.cd("$(" + var_name + ")")
         return restore_dir_command
 
-    def rmdir(self, a_dir, recursive=False):
+    def rmdir(self, a_dir, recursive=False, check_exist=False):
         quoted_a_dir = utils.quote_path_properly(a_dir)
         if recursive:
             rmdir_command = " ".join(("rm", "-fr", quoted_a_dir))
@@ -71,7 +71,7 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
             rmdir_command = " ".join(("rmdir", quoted_a_dir))
         return rmdir_command
 
-    def rmfile(self, a_file):
+    def rmfile(self, a_file, quote_char='"', check_exist=False):
         quoted_a_file = utils.quote_path_properly(a_file)
         rmfile_command = " ".join(("rm", "-f", quoted_a_file))
         return rmfile_command
@@ -114,9 +114,6 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
     def check_checksum_for_file(self, a_file, checksum):
         raise NotImplementedError
 
-    def ls(self, format='*', folder='.'):
-        raise NotImplementedError
-
     def tar(self, to_tar_name):
         raise NotImplementedError
 
@@ -130,7 +127,7 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
     def make_executable(self, file_path):
         return self.chmod("a+x", file_path)
 
-    def unlock(self, file_path, recursive=False):
+    def unlock(self, file_path, recursive=False, ignore_errors=True):
         """ Remove the system's read-only flag, this is different from permissions.
             Not relevant for Linux.
         """

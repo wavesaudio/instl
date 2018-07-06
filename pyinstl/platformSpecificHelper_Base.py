@@ -7,6 +7,8 @@ import itertools
 import pathlib
 import sys
 import functools
+import random
+import string
 
 import utils
 from configVar import var_stack
@@ -195,6 +197,7 @@ class PlatformSpecificHelperBase(object):
         self.progress_staccato_period = int(var_stack.ResolveVarToStr("PROGRESS_STACCATO_PERIOD", default="128"))
         self.progress_staccato_count = 0
         self.no_progress_messages = False
+        self.random_invocation_id = ''.join(random.choice(string.ascii_lowercase) for _ in range(16))
 
     def DefaultCopyToolName(self, target_os):
         if target_os == "Win":
@@ -381,10 +384,6 @@ class PlatformSpecificHelperBase(object):
                                                 "--total-progress", "$(TOTAL_ITEMS_FOR_PROGRESS_REPORT)",
         ))
         return set_exec_for_folder_command
-
-    @abc.abstractmethod
-    def ls(self, format='*', folder='.'):
-        pass
 
     def tar(self, to_tar_name):
         pass

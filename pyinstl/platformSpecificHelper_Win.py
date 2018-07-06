@@ -6,8 +6,6 @@ import sys
 import datetime
 import subprocess
 import re
-import random
-import string
 
 import utils
 from .platformSpecificHelper_Base import PlatformSpecificHelperBase
@@ -298,7 +296,6 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
                 self.find_cmd_tool(find_tool_var)
 
     def get_install_instructions_prefix(self, exit_on_errors=True):
-        self.random_invocation_id = ''.join(random.choice(string.ascii_lowercase) for i in range(16))
         self.invocations_file_path = var_stack.ResolveVarToStr("__INVOCATIONS_FILE_PATH__")
         retVal = (
             "@echo off",
@@ -493,9 +490,6 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         check_checksum_for_folder_command = super().check_checksum_for_folder(info_map_file)
         return check_checksum_for_folder_command, self.exit_if_error()
 
-    def ls(self, format='*', folder='.'):
-        raise NotImplementedError
-
     def tar(self, to_tar_name):
         raise NotImplementedError
 
@@ -505,7 +499,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         return unwtar_command, check_error_level_command
 
     def wait_for_child_processes(self):
-        return ("echo wait_for_child_processes not implemented yet for windows",)
+        return "echo wait_for_child_processes not implemented yet for windows",
 
     def chmod(self, new_mode, file_path):
         raise NotImplementedError

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 
 import os
@@ -16,7 +16,7 @@ class CopyToolMacRsync(CopyToolRsync):
         super().__init__(platform_helper)
 
 
-class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
+class PlatformSpecificHelperPython(PlatformSpecificHelperBase):
     def __init__(self, instlObj):
         super().__init__(instlObj)
         self.var_replacement_pattern = "${\g<var_name>}"
@@ -399,3 +399,4 @@ class DownloadTool_mac_curl(DownloadToolBase):
 
         download_command = " ".join((self.platform_helper.run_instl(),  "parallel-run", "--in", utils.quoteme_double(parallel_run_config_file_path)))
         return download_command
+

@@ -441,7 +441,7 @@ def read_command_line_options(name_space_obj, arg_list=None):
     parser, command_names = prepare_args_parser(command_name)
     if parser:
         # Command line options were given or auto run file was found
-        options = parser.parse_args(arg_list, namespace=name_space_obj)
+        parser.parse_args(arg_list, namespace=name_space_obj)
     else:
         # No command line options were given
         name_space_obj.mode = "interactive"

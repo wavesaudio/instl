@@ -1,3 +1,13 @@
+???? 1.8.0.6
+    programmer visible changes:
+    * removed PlatformSpecificHelperBase.ls() and from deriving classes as it was not implemented correctly
+    * fixed number of issues reported by pcharm's inspections
+
+14/6/2018 1.8.0.5
+
+    user visible changes:
+    * fixed some 'post_copy_to_folder' actions were not written to batch file becuase return vlaue  of accumulate_unique_actions_for_active_iids was not counted.
+
 6/6/2018 1.8.0.4
 
     user visible changes:
