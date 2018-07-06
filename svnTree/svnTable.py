@@ -638,9 +638,9 @@ class SVNTable(object):
                     else:
                         ValueError("no match at file: " + rfd.name + ", line: " + str(line_num) + ": " + line)
                 prop_name_to_flag_query = """UPDATE svn_item_t SET flags = flags || :new_prop WHERE path = :old_path;"""
-                curs.executemany(prop_name_to_flag_query, prop_name_to_flag_query_params);
+                curs.executemany(prop_name_to_flag_query, prop_name_to_flag_query_params)
                 not_in_props_to_ignore_query = """UPDATE svn_item_t SET extra_props = extra_props || :prop_name || ";" WHERE path = :old_path;"""
-                curs.executemany(not_in_props_to_ignore_query, not_in_props_to_ignore_query_params);
+                curs.executemany(not_in_props_to_ignore_query, not_in_props_to_ignore_query_params)
         except Exception as ex:
             print("Line:", line_num, ex)
             raise
