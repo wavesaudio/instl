@@ -5,10 +5,8 @@
     Copyright (c) 2012, Shai Shasag
     All rights reserved.
     Licensed under BSD 3 clause license, see LICENSE file for details.
-
-    configVarList module has but a single class ConfigVarList
-    import pyinstl.configVarList
 """
+
 import os
 from contextlib import contextmanager
 import re
@@ -319,7 +317,7 @@ class ConfigVarStack:
         else:
             vars_list = which_vars
         if not hasattr(vars_list, '__iter__'):  # if which_vars is a list
-            ValueError("ConfigVarList.repr_for_yaml can except string, list or None, not "+type(which_vars)+" "+str(which_vars))
+            ValueError("ConfigVarStack.repr_for_yaml can except string, list or None, not "+type(which_vars)+" "+str(which_vars))
         for var_name in vars_list:
             if var_name in self:
                  retVal[var_name] = self.repr_var_for_yaml(var_name, resolve=resolve)

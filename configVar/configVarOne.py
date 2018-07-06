@@ -25,7 +25,7 @@ class ConfigVar:
         list depending on the context and therefor has some methods
         implementing list interface.
         self.values - list of values. Values must be strings because self.values is *not* hierarchical list.
-        self.owner - is a reference to ConfigVarList that holds the
+        self.owner - is a reference to ConfigVarStack object that holds this
             ConfigVar and is used for resolving the values that might refer to other ConfigVars
         self.name - the name under which the owner keeps the ConfigVar
              name is useful for debugging, but in runtime ConfigVar has
