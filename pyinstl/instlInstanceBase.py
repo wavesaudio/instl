@@ -16,7 +16,7 @@ from .batchAccumulator import BatchAccumulator
 from .platformSpecificHelper_Base import PlatformSpecificHelperFactory
 
 from configVar import value_ref_re
-from configVar import var_stack
+from configVar import config_vars
 from configVar import ConfigVarYamlReader
 
 from . import connectionBase
@@ -28,9 +28,9 @@ from svnTree import SVNTable
 def check_version_compatibility():
     retVal = True
     message = ""
-    if "INSTL_MINIMAL_VERSION" in var_stack:
-        cur_instl_ver = list(map(int, var_stack.ResolveVarToList("__INSTL_VERSION__")))
-        required_instl_ver = list(map(int, var_stack.ResolveVarToList("INSTL_MINIMAL_VERSION")))
+    if "INSTL_MINIMAL_VERSION" in config_vars:
+        cur_instl_ver = list(map(int, list(config_vars["__INSTL_VERSION__"])))
+        required_instl_ver = list(map(int, list(config_vars["INSTL_MINIMAL_VERSION"])))
         retVal = cur_instl_ver >= required_instl_ver
         if not retVal:
             message = "instl version {} < minimal required version {}".format(cur_instl_ver, required_instl_ver)
@@ -56,8 +56,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
         ConfigVarYamlReader.__init__(self)
 
-        search_paths_var = var_stack.get_configVar_obj("__SEARCH_PATHS__")
-        self.path_searcher = utils.SearchPaths(search_paths_var)
+        self.path_searcher = utils.SearchPaths("__SEARCH_PATHS__")
         self.url_translator = connectionBase.translate_url
         self.init_default_vars(initial_vars)
         # noinspection PyUnresolvedReferences
@@ -65,9 +64,9 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         # initialize the search paths helper with the current directory and dir where instl is now
         self.path_searcher.add_search_path(os.getcwd())
         self.path_searcher.add_search_path(os.path.dirname(os.path.realpath(sys.argv[0])))
-        self.path_searcher.add_search_path(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"))
+        self.path_searcher.add_search_path(config_vars["__INSTL_DATA_FOLDER__"].str())
 
-        self.platform_helper = PlatformSpecificHelperFactory(var_stack.ResolveVarToStr("__CURRENT_OS__"), self)
+        self.platform_helper = PlatformSpecificHelperFactory(config_vars["__CURRENT_OS__"].str(), self)
         # init initial copy tool, tool might be later overridden after reading variable COPY_TOOL from yaml.
         self.platform_helper.init_copy_tool()
 
@@ -77,7 +76,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.internal_progress = 0  # progress of preparing installer NOT of the installation
         self.num_digits_repo_rev_hierarchy=None
         self.num_digits_per_folder_repo_rev_hierarchy=None
-        self.instl_ver_str = var_stack.ResolveVarToStr("__INSTL_VERSION__", list_sep=".")
+        self.instl_ver_str = ".".join(list(config_vars["__INSTL_VERSION__"]))
 
     def progress(self, *messages):
         if self.total_self_progress:
@@ -95,11 +94,11 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.specific_doc_readers.pop("__unknown_tag__", None)
 
         self.specific_doc_readers["!define"] = self.read_defines
-        self.specific_doc_readers["!define_const"] = self.read_const_defines
+        self.specific_doc_readers["!define_const"] = self.read_defines
 
-        acceptables = var_stack.ResolveVarToList("ACCEPTABLE_YAML_DOC_TAGS", default=[])
-        if "__INSTL_COMPILED__" in var_stack:
-            if var_stack.ResolveVarToStr("__INSTL_COMPILED__") == "True":
+        acceptables = list(config_vars.setdefault("ACCEPTABLE_YAML_DOC_TAGS", []))
+        if "__INSTL_COMPILED__" in config_vars:
+            if config_vars["__INSTL_COMPILED__"].str() == "True":
                 acceptables.append("define_Compiled")
             else:
                 acceptables.append("define_Uncompiled")
@@ -113,57 +112,45 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.specific_doc_readers["!require"] = self.read_require
 
     def get_version_str(self):
-        instl_ver_str = ".".join(var_stack.ResolveVarToList("__INSTL_VERSION__"))
-        if "__PLATFORM_NODE__" not in var_stack:
-            var_stack.update({"__PLATFORM_NODE__": platform.node()})
-        retVal = var_stack.ResolveStrToStr(
+        instl_ver_str = ".".join(list(config_vars["__INSTL_VERSION__"]))
+        if "__PLATFORM_NODE__" not in config_vars:
+            config_vars.update({"__PLATFORM_NODE__": platform.node()})
+        retVal = config_vars.resolve_str(
             "$(INSTL_EXEC_DISPLAY_NAME) version "+instl_ver_str+" $(__COMPILATION_TIME__) $(__PLATFORM_NODE__)")
         return retVal
 
     def init_default_vars(self, initial_vars):
         if initial_vars:
-            var_description = "from initial_vars"
             for var, value in initial_vars.items():
-                if isinstance(value, str):
-                    var_stack.add_const_config_variable(var, var_description, value)
-                else:
-                    var_stack.add_const_config_variable(var, var_description, *value)
-
-        var_description = "from InstlInstanceBase.init_default_vars"
+                config_vars[var] = value
 
         # read defaults/main.yaml
-        main_defaults_file_path = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults", "main.yaml")
-        self.read_yaml_file(main_defaults_file_path)
+        main_defaults_file_path = os.path.join(config_vars["__INSTL_DATA_FOLDER__"].str(), "defaults", "main.yaml")
+        self.read_yaml_file(main_defaults_file_path, allow_reading_of_internal_vars=True)
 
         # read defaults/compile-info.yaml
-        compile_info_file_path = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults", "compile-info.yaml")
-        if os.path.isfile(compile_info_file_path):
-            self.read_yaml_file(compile_info_file_path)
-        if "__COMPILATION_TIME__" not in var_stack:
-            if var_stack.ResolveVarToStr("__INSTL_COMPILED__") == "True":
-                var_stack.add_const_config_variable("__COMPILATION_TIME__", var_description, "unknown compilation time")
+        compile_info_file_path = os.path.join(config_vars["__INSTL_DATA_FOLDER__"].str(), "defaults", "compile-info.yaml")
+        self.read_yaml_file(compile_info_file_path, ignore_if_not_exist=True)
+        if "__COMPILATION_TIME__" not in config_vars:
+            if bool(config_vars["__INSTL_COMPILED__"]):
+                config_vars["__COMPILATION_TIME__"] = "unknown compilation time"
             else:
-                var_stack.add_const_config_variable("__COMPILATION_TIME__", var_description, "(not compiled)")
+                config_vars["__COMPILATION_TIME__"] = "(not compiled)"
 
         self.read_user_config()
 
     def read_name_specific_defaults_file(self, file_name):
         """ read class specific file from defaults/class_name.yaml """
-        name_specific_defaults_file_path = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults",
-                                                        file_name + ".yaml")
-        if os.path.isfile(name_specific_defaults_file_path):
-            self.read_yaml_file(name_specific_defaults_file_path)
+        name_specific_defaults_file_path = os.path.join(config_vars["__INSTL_DATA_FOLDER__"].str(), "defaults", file_name + ".yaml")
+        print("read_name_specific_defaults_file:", name_specific_defaults_file_path)
+        self.read_yaml_file(name_specific_defaults_file_path, ignore_if_not_exist=True, allow_reading_of_internal_vars=True)
 
     def read_user_config(self):
-        user_config_path = var_stack.ResolveVarToStr("__USER_CONFIG_FILE_PATH__")
-        if os.path.isfile(user_config_path):
-            previous_allow_reading_of_internal_vars = self.allow_reading_of_internal_vars
-            self.allow_reading_of_internal_vars = True
-            self.read_yaml_file(user_config_path)
-            self.allow_reading_of_internal_vars = previous_allow_reading_of_internal_vars
+        user_config_path = config_vars["__USER_CONFIG_FILE_PATH__"].str()
+        self.read_yaml_file(user_config_path, ignore_if_not_exist=True, allow_reading_of_internal_vars=True)
 
     def check_prerequisite_var_existence(self, prerequisite_vars):
-        missing_vars = [var for var in prerequisite_vars if var not in var_stack]
+        missing_vars = [var for var in prerequisite_vars if var not in config_vars]
         if len(missing_vars) > 0:
             msg = "Prerequisite variables were not defined: " + ", ".join(missing_vars)
             raise ValueError(msg)
@@ -192,9 +179,9 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         for attrib, var in const_attrib_to_var.items():
             attrib_value = getattr(cmd_line_options_obj, attrib)
             if attrib_value:
-                var_stack.add_const_config_variable(var[0], default_remark, *attrib_value)
+                config_vars[var[0]] = attrib_value
             elif var[1] is not None:  # there's a default
-                var_stack.add_const_config_variable(var[0], "from default", var[1])
+                config_vars[var[0]] = var[1]
 
         non_const_attrib_to_var = {
             "target_repo_rev": "TARGET_REPO_REV",
@@ -207,64 +194,62 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         for attrib, var in non_const_attrib_to_var.items():
             attrib_value = getattr(cmd_line_options_obj, attrib)
             if attrib_value:
-                var_stack.set_var(var, default_remark).append(attrib_value[0])
+                config_vars[var] = attrib_value[0]
 
         if cmd_line_options_obj.command:
             self.the_command = cmd_line_options_obj.command
             self.fixed_command = self.the_command.replace('-', '_')
-            var_stack.set_var("__MAIN_COMMAND__", default_remark).append(cmd_line_options_obj.command)
+            config_vars["__MAIN_COMMAND__"] = cmd_line_options_obj.command
 
         if hasattr(cmd_line_options_obj, "subject") and cmd_line_options_obj.subject is not None:
-            var_stack.add_const_config_variable("__HELP_SUBJECT__", default_remark,
-                                                cmd_line_options_obj.subject)
+            config_vars["__HELP_SUBJECT__"] = cmd_line_options_obj.subject
         else:
-            var_stack.add_const_config_variable("__HELP_SUBJECT__", default_remark, "")
+            config_vars["__HELP_SUBJECT__"] = ""
 
         if cmd_line_options_obj.state_file:
-            var_stack.add_const_config_variable("__MAIN_STATE_FILE__", default_remark,
-                                                cmd_line_options_obj.state_file)
+            config_vars["__MAIN_STATE_FILE__"] = cmd_line_options_obj.state_file
 
         if cmd_line_options_obj.run:
-            var_stack.add_const_config_variable("__RUN_BATCH__", default_remark, "yes")
+            config_vars["__RUN_BATCH__"] = "yes"
 
         if cmd_line_options_obj.no_wtar_artifacts:
-            var_stack.add_const_config_variable("__NO_WTAR_ARTIFACTS__", default_remark, "yes")
+            config_vars["__NO_WTAR_ARTIFACTS__"] = "yes"
 
         if cmd_line_options_obj.which_revision:
-            var_stack.add_const_config_variable("__WHICH_REVISION__", default_remark, cmd_line_options_obj.which_revision[0])
+            config_vars["__WHICH_REVISION__"] = cmd_line_options_obj.which_revision[0]
 
         if cmd_line_options_obj.dock_item_path:
-            var_stack.add_const_config_variable("__DOCK_ITEM_PATH__", default_remark, *cmd_line_options_obj.dock_item_path)
+            config_vars["__DOCK_ITEM_PATH__"] = cmd_line_options_obj.dock_item_path
         if cmd_line_options_obj.dock_item_label:
-            var_stack.add_const_config_variable("__DOCK_ITEM_LABEL__", default_remark, *cmd_line_options_obj.dock_item_label)
+            config_vars["__DOCK_ITEM_LABEL__"] = cmd_line_options_obj.dock_item_label
         if cmd_line_options_obj.remove_from_dock:
-            var_stack.add_const_config_variable("__REMOVE_FROM_DOCK__", default_remark, "yes")
+            config_vars["__REMOVE_FROM_DOCK__"] = "yes"
         if cmd_line_options_obj.restart_the_dock:
-            var_stack.add_const_config_variable("__RESTART_THE_DOCK__", default_remark, "yes")
+            config_vars["__RESTART_THE_DOCK__"] = "yes"
         if cmd_line_options_obj.fail_exit_code:
-            var_stack.add_const_config_variable("__FAIL_EXIT_CODE__", default_remark, *cmd_line_options_obj.fail_exit_code)
+            config_vars["__FAIL_EXIT_CODE__"] = cmd_line_options_obj.fail_exit_code
         if cmd_line_options_obj.set_run_as_admin:
-            var_stack.add_const_config_variable("__RUN_AS_ADMIN__", default_remark, "yes")
+            config_vars["__RUN_AS_ADMIN__"] = "yes"
         if cmd_line_options_obj.only_installed:
-            var_stack.add_const_config_variable("__REPORT_ONLY_INSTALLED__", default_remark, "yes")
-        if var_stack.ResolveVarToStr("__CURRENT_OS__") == "Mac":
+            config_vars["__REPORT_ONLY_INSTALLED__"] = "yes"
+        if config_vars["__CURRENT_OS__"].str() == "Mac":
             if cmd_line_options_obj.parallel:
-                var_stack.add_const_config_variable("__RUN_COMMAND_LIST_IN_PARALLEL__", default_remark, "yes")
+                config_vars["__RUN_COMMAND_LIST_IN_PARALLEL__"] = "yes"
         if cmd_line_options_obj.no_numbers_progress:
-            var_stack.add_const_config_variable("__NO_NUMBERS_PROGRESS__", default_remark, "yes")
+            config_vars["__NO_NUMBERS_PROGRESS__"] = "yes"
 
         if cmd_line_options_obj.define:
             individual_definitions = cmd_line_options_obj.define[0].split(",")
             for definition in individual_definitions:
                 name, value = definition.split("=")
-                var_stack.set_var(name, "from command line define option").append(value)
+                config_vars[name] = value
 
-        if "__MAIN_OUT_FILE__" not in var_stack:
+        if "__MAIN_OUT_FILE__" not in config_vars:
             default_out_file = self.get_default_out_file()
             if default_out_file:
-                var_stack.add_const_config_variable("__MAIN_OUT_FILE__", "from write_batch_file",
-                                                default_out_file)
-        db_file = var_stack.ResolveVarToStr("__DB_INPUT_FILE__")
+                config_vars["__MAIN_OUT_FILE__"] = default_out_file
+
+        db_file = str(config_vars.get("__DB_INPUT_FILE__", None))
         self.init_db(db_file=db_file)
         self.progress("")  # so database at... message will not remain visible
 
@@ -272,12 +257,12 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         if self.need_items_table or self.need_info_map_table or db_file:
             if not InstlInstanceBase.db:
                 db_url = get_db_url(self.the_command, db_file)
-                ddls_folder = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "defaults")
-                if db_url != ":memory:" and db_file is None:
+                ddls_folder = os.path.join(config_vars["__INSTL_DATA_FOLDER__"].str(), "defaults")
+                if db_url != ":memory:" and not db_file:
                     # erase the db only if it's default created no given
                     utils.safe_remove_file(db_url)
                 InstlInstanceBase.db = DBMaster(db_url, ddls_folder)
-                var_stack.add_const_config_variable("__DATABASE_URL__", "", db_url)
+                config_vars["__DATABASE_URL__"] = db_url
                 self.progress("database at ", db_url)
             if self.need_items_table and not InstlInstanceBase.items_table:
                 InstlInstanceBase.items_table = IndexItemsTable(InstlInstanceBase.db)
@@ -291,11 +276,11 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             del InstlInstanceBase.items_table
         if InstlInstanceBase.db:
             InstlInstanceBase.db.close()
-        var_stack.print_statistics()
+        config_vars.print_statistics()
 
     def get_default_out_file(self):
         retVal = None
-        if "__MAIN_INPUT_FILE__" in var_stack:
+        if "__MAIN_INPUT_FILE__" in config_vars:
             retVal = "$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)"
         return retVal
 
@@ -307,7 +292,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         with utils.utf8_open(file_path, "w") as wfd:
             utils.make_open_file_read_write_for_all(wfd)
 
-            define_dict = aYaml.YamlDumpDocWrap({"REQUIRE_REPO_REV": var_stack.ResolveVarToStr("MAX_REPO_REV")},
+            define_dict = aYaml.YamlDumpDocWrap({"REQUIRE_REPO_REV": config_vars["MAX_REPO_REV"].str()},
                                                 '!define', "definitions",
                                                  explicit_start=True, sort_mappings=True)
             require_dict = aYaml.YamlDumpDocWrap(require_dict, '!require', "requirements",
@@ -322,28 +307,28 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                                         """, re.VERBOSE)
 
     def resolve_defined_paths(self):
-        self.path_searcher.add_search_paths(var_stack.ResolveVarToList("SEARCH_PATHS", default=[]))
-        for path_var_to_resolve in var_stack.ResolveVarToList("PATHS_TO_RESOLVE", default=[]):
-            if path_var_to_resolve in var_stack:
-                resolved_path = self.path_searcher.find_file(var_stack.ResolveVarToStr(path_var_to_resolve),
+        self.path_searcher.add_search_paths(list(config_vars.setdefault("SEARCH_PATHS", [])))
+        for path_var_to_resolve in list(config_vars["PATHS_TO_RESOLVE"]):
+            if path_var_to_resolve in config_vars:
+                resolved_path = self.path_searcher.find_file(str(config_vars[path_var_to_resolve]),
                                                              return_original_if_not_found=True)
-                var_stack.set_var(path_var_to_resolve, "resolve_defined_paths").append(resolved_path)
+                config_vars[path_var_to_resolve] = resolved_path
 
     def provision_public_key_text(self):
-        if "PUBLIC_KEY" not in var_stack:
-            if "PUBLIC_KEY_FILE" in var_stack:
-                public_key_file = var_stack.ResolveVarToStr("PUBLIC_KEY_FILE")
+        if "PUBLIC_KEY" not in config_vars:
+            if "PUBLIC_KEY_FILE" in config_vars:
+                public_key_file = config_vars["PUBLIC_KEY_FILE"].str()
                 with utils.open_for_read_file_or_url(public_key_file, connectionBase.translate_url, self.path_searcher) as open_file:
                     public_key_text = open_file.fd.read()
-                    var_stack.set_var("PUBLIC_KEY", "from " + public_key_file).append(public_key_text)
+                    config_vars["PUBLIC_KEY", "from " + public_key_file] = public_key_text
             else:
                 raise ValueError("No public key, variables PUBLIC_KEY & PUBLIC_KEY_FILE are not defined")
-        resolved_public_key = var_stack.ResolveVarToStr("PUBLIC_KEY")
+        resolved_public_key = config_vars["PUBLIC_KEY"].str()
         return resolved_public_key
 
     def read_include_node(self, i_node, *args, **kwargs):
         if i_node.isScalar():
-            resolved_file_name = var_stack.ResolveStrToStr(i_node.value)
+            resolved_file_name = config_vars.resolve_str(i_node.value)
             self.progress("reading ", resolved_file_name)
             self.read_yaml_file(resolved_file_name, *args, **kwargs)
         elif i_node.isSequence():
@@ -351,10 +336,10 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 self.read_include_node(sub_i_node, *args, **kwargs)
         elif i_node.isMapping():
             if "url" in i_node:
-                resolved_file_url = var_stack.ResolveStrToStr(i_node["url"].value)
+                resolved_file_url = config_vars.resolve_str(i_node["url"].value)
                 expected_checksum = None
                 if "checksum" in i_node:
-                    expected_checksum = var_stack.ResolveStrToStr(i_node["checksum"].value)
+                    expected_checksum = config_vars.resolve_str(i_node["checksum"].value)
 
                 try:
                     file_path = utils.download_from_file_or_url(in_url=resolved_file_url,
@@ -374,12 +359,12 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                     self.batch_accum.set_current_section('post')
                     for copy_destination in i_node["copy"]:
                         need_to_copy = True
-                        destination_file_resolved_path = var_stack.ResolveStrToStr(copy_destination.value)
+                        destination_file_resolved_path = config_vars.resolve_str(copy_destination.value)
                         if os.path.isfile(destination_file_resolved_path) and expected_checksum is not None:
                             checksums_match = utils.check_file_checksum(file_path=destination_file_resolved_path, expected_checksum=expected_checksum)
                             need_to_copy = not checksums_match
                         if need_to_copy:
-                            destination_path = var_stack.ResolveStrToStr(copy_destination.value)
+                            destination_path = config_vars.resolve_str(copy_destination.value)
                             destination_folder, destination_file_name = os.path.split(destination_path)
                             self.batch_accum += self.platform_helper.mkdir(destination_folder)
                             self.batch_accum += self.platform_helper.copy_tool.copy_file_to_file(file_path,
@@ -389,13 +374,13 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def create_variables_assignment(self, in_batch_accum):
         in_batch_accum.set_current_section("assign")
-        for identifier in var_stack:
+        for identifier in config_vars.keys():
             if identifier not in self.do_not_write_vars:
-                in_batch_accum += self.platform_helper.var_assign(identifier, var_stack.ResolveVarToStr(identifier, list_sep=" ", default=""))  # var_stack[identifier].resolved_num
+                in_batch_accum += self.platform_helper.var_assign(identifier, config_vars[identifier].join(sep=" "))
 
     def calc_user_cache_dir_var(self, make_dir=True):
-        if "USER_CACHE_DIR" not in var_stack:
-            os_family_name = var_stack.ResolveVarToStr("__CURRENT_OS__")
+        if "USER_CACHE_DIR" not in config_vars:
+            os_family_name = config_vars["__CURRENT_OS__"].str()
             if os_family_name == "Mac":
                 user_cache_dir_param = "$(COMPANY_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
                 user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
@@ -406,11 +391,10 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
             else:
                 raise RuntimeError("Unknown operating system "+os_family_name)
-            var_description = "from InstlInstanceBase.get_user_cache_dir"
-            var_stack.set_var("USER_CACHE_DIR", var_description).append(user_cache_dir)
-            var_stack.get_configVar_obj("USER_CACHE_DIR").freeze_values_on_first_resolve = True
+            config_vars["USER_CACHE_DIR"] = user_cache_dir
+            #var_stack.get_configVar_obj("USER_CACHE_DIR").freeze_values_on_first_resolve = True
         if make_dir:
-            user_cache_dir_resolved = var_stack.ResolveVarToStr("USER_CACHE_DIR")
+            user_cache_dir_resolved = config_vars["USER_CACHE_DIR"].str()
             os.makedirs(user_cache_dir_resolved, exist_ok=True)
 
     def get_default_sync_dir(self, continue_dir=None, make_dir=True):
@@ -421,7 +405,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             retVal = "$(USER_CACHE_DIR)"
         # print("1------------------", user_cache_dir, "-", from_url, "-", retVal)
         if make_dir and retVal:
-            retVal = var_stack.ResolveStrToStr(retVal)
+            retVal = config_vars.resolve_str(retVal)
             os.makedirs(retVal, exist_ok=True)
         return retVal
 
@@ -445,12 +429,11 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         return retVal
 
     def write_batch_file(self, in_batch_accum, file_name_post_fix=""):
-        assert "__MAIN_OUT_FILE__" in var_stack
+        assert "__MAIN_OUT_FILE__" in config_vars
 
-        var_stack.set_var("TOTAL_ITEMS_FOR_PROGRESS_REPORT").append(
-            str(self.platform_helper.num_items_for_progress_report))
+        config_vars["TOTAL_ITEMS_FOR_PROGRESS_REPORT"] = str(self.platform_helper.num_items_for_progress_report)
 
-        var_stack.freeze_vars_on_first_resolve()
+        #var_stack.freeze_vars_on_first_resolve()
         self.create_variables_assignment(in_batch_accum)
 
         in_batch_accum.set_current_section('pre')
@@ -467,7 +450,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         lines_after_var_replacement = [value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines]
         output_text = "\n".join(lines_after_var_replacement)
 
-        out_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
+        out_file = config_vars["__MAIN_OUT_FILE__"].str()
         out_file += file_name_post_fix
         out_file = os.path.abspath(out_file)
         d_path, f_name = os.path.split(out_file)
@@ -501,14 +484,14 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def write_program_state(self):
 
-        state_file = var_stack.ResolveVarToStr("__MAIN_STATE_FILE__")
+        state_file = config_vars["__MAIN_STATE_FILE__"].str()
         with utils.write_to_file_or_stdout(state_file) as fd:
             aYaml.writeAsYaml(self, fd)
 
     def read_index(self, a_node, *args, **kwargs):
         self.progress("reading index.yaml")
         self.items_table.read_index_node(a_node)
-        repo_rev = var_stack.ResolveVarToStr("REPO_REV", default="unknown")
+        repo_rev = str(config_vars.get("REPO_REV", "unknown"))
         self.progress("repo-rev", repo_rev)
 
     def find_cycles(self):
@@ -569,9 +552,9 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         retVal = str(repo_rev)
         try:
             if self.num_digits_repo_rev_hierarchy is None:
-                self.num_digits_repo_rev_hierarchy=int(var_stack.ResolveVarToStr("NUM_DIGITS_REPO_REV_HIERARCHY"))
+                self.num_digits_repo_rev_hierarchy=int(config_vars["NUM_DIGITS_REPO_REV_HIERARCHY"])
             if self.num_digits_per_folder_repo_rev_hierarchy is None:
-                self.num_digits_per_folder_repo_rev_hierarchy=int(var_stack.ResolveVarToStr("NUM_DIGITS_PER_FOLDER_REPO_REV_HIERARCHY"))
+                self.num_digits_per_folder_repo_rev_hierarchy=int(config_vars["NUM_DIGITS_PER_FOLDER_REPO_REV_HIERARCHY"])
             if self.num_digits_repo_rev_hierarchy > 0 and self.num_digits_per_folder_repo_rev_hierarchy > 0:
                 zero_pad_repo_rev = str(repo_rev).zfill(self.num_digits_repo_rev_hierarchy)
                 by_groups = [zero_pad_repo_rev[i:i+self.num_digits_per_folder_repo_rev_hierarchy] for i in range(0, len(zero_pad_repo_rev), self.num_digits_per_folder_repo_rev_hierarchy)]

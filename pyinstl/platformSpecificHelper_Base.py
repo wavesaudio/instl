@@ -11,7 +11,7 @@ import random
 import string
 
 import utils
-from configVar import var_stack
+from configVar import config_vars  # √
 from . import connectionBase
 
 
@@ -58,14 +58,6 @@ class CopyToolBase(object, metaclass=abc.ABCMeta):
         """ Copy the contents of src_dir into trg_dir.
             Example: copy_dir_contents_to_dir("a", "/d/c/b") copies
             everything from a into "/d/c/b"
-        """
-        pass
-
-    @abc.abstractmethod
-    def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
-        """ Copy the files of src_dir into trg_dir.
-            Example: copy_dir_files_to_dir("a", "/d/c/b") copies
-            all files from a into "/d/c/b", subfolders of a are not copied
         """
         pass
 
@@ -126,7 +118,7 @@ class CopyToolRsync(CopyToolBase):
     def copy_file_to_dir(self, src_file, trg_dir, link_dest=False, ignore=None):
         assert not src_file.endswith("/")
         ignore_spec = self.create_ignore_spec(ignore)
-        permissions_spec = var_stack.ResolveVarToStr("RSYNC_PERM_OPTIONS", default="")
+        permissions_spec = str(config_vars.get("RSYNC_PERM_OPTIONS", ""))
         if link_dest:
             the_link_dest, src_file_name = os.path.split(src_file)
             relative_link_dest = os.path.relpath(the_link_dest, trg_dir)
@@ -166,19 +158,6 @@ class CopyToolRsync(CopyToolBase):
 
         return sync_command
 
-    def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
-        if not src_dir.endswith("/"):
-            src_dir += "/"
-        # in order for * to correctly expand, it must be outside the quotes, e.g. to copy all files in folder a: A=a ; "${A}"/* and not "${A}/*"
-        ignore_spec = self.create_ignore_spec(ignore)
-        if link_dest:
-            relative_link_dest = os.path.relpath(src_dir, trg_dir)
-            sync_command = f"""rsync --owner --group -l -E -d --exclude='*/' {ignore_spec} --link-dest="{relative_link_dest}" "{src_dir}" "{trg_dir}" """
-        else:
-            sync_command = f"""rsync --owner --group -l -E -d --exclude='*/' {ignore_spec} "{src_dir}"/* "{trg_dir}" """
-
-        return sync_command
-
     def remove_file(self, file_to_remove):
         remove_command = f"""rm -f -v "{file_to_remove}" """
         return remove_command
@@ -194,7 +173,7 @@ class PlatformSpecificHelperBase(object):
         self.copy_tool = None
         self.dl_tool = None
         self.num_items_for_progress_report = 0
-        self.progress_staccato_period = int(var_stack.ResolveVarToStr("PROGRESS_STACCATO_PERIOD", default="128"))
+        self.progress_staccato_period = config_vars.get("PROGRESS_STACCATO_PERIOD", "128").int()
         self.progress_staccato_count = 0
         self.no_progress_messages = False
         self.random_invocation_id = ''.join(random.choice(string.ascii_lowercase) for _ in range(16))
@@ -217,9 +196,9 @@ class PlatformSpecificHelperBase(object):
         pass
 
     def init_copy_tool(self):
-        copy_tool_name = self.DefaultCopyToolName(var_stack.ResolveVarToStr("__CURRENT_OS__")) # copy instructions are always produced for the current os
-        if "COPY_TOOL" in var_stack:
-            copy_tool_name = var_stack.ResolveVarToStr("COPY_TOOL")
+        copy_tool_name = self.DefaultCopyToolName(config_vars["__CURRENT_OS__"].str()) # copy instructions are always produced for the current os
+        if "COPY_TOOL" in config_vars:
+            copy_tool_name = config_vars["COPY_TOOL"].str()
         self.use_copy_tool(copy_tool_name)
 
     @abc.abstractmethod
@@ -512,12 +491,12 @@ class DownloadToolBase(object, metaclass=abc.ABCMeta):
         file_name_list = list()
         num_urls_to_download = len(self.urls_to_download)
         if num_urls_to_download > 0:
-            connect_time_out = var_stack.ResolveVarToStr("CURL_CONNECT_TIMEOUT", "32")
-            max_time = var_stack.ResolveVarToStr("CURL_MAX_TIME", "300")
-            retries = var_stack.ResolveVarToStr("CURL_RETRIES", "6")
-            retry_delay = var_stack.ResolveVarToStr("CURL_RETRY_DELAY", "12")
+            connect_time_out = str(config_vars.setdefault("CURL_CONNECT_TIMEOUT", "16"))
+            max_time = str(config_vars.setdefault("CURL_MAX_TIME", "180"))
+            retries = str(config_vars.setdefault("CURL_RETRIES", "2"))
+            retry_delay = str(config_vars.setdefault("CURL_RETRY_DELAY", "8"))
 
-            sync_urls_cookie = var_stack.ResolveVarToStr("COOKIE_FOR_SYNC_URLS", default=None)
+            sync_urls_cookie = str(config_vars.get("COOKIE_FOR_SYNC_URLS", ""))
 
             actual_num_config_files = int(max(0, min(num_urls_to_download, num_config_files)))
             num_digits = len(str(actual_num_config_files))

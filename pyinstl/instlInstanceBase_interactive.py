@@ -12,7 +12,7 @@ import traceback
 import appdirs
 
 import utils
-from configVar import var_stack
+from configVar import config_vars
 
 
 current_os = platform.system()
@@ -106,7 +106,7 @@ class CMDObj(cmd.Cmd, object):
         self.history_file_path = None
         self.prompt = None
         self.save_dir = None
-        self.this_program_name = var_stack.ResolveVarToStr("INSTL_EXEC_DISPLAY_NAME")
+        self.this_program_name = config_vars["INSTL_EXEC_DISPLAY_NAME"].str()
 
     def __enter__(self):
         if readline_loaded:
@@ -335,7 +335,7 @@ class CMDObj(cmd.Cmd, object):
         if params:
             params = shlex.split(params)
             identi, values = params[0], params[1:]
-            var_stack.set_var(identi, "set interactively").extend(values)
+            config_vars[identi, "set interactively"] = values
             self.do_list(identi)
         return False
 
@@ -348,7 +348,7 @@ class CMDObj(cmd.Cmd, object):
 
     def do_del(self, params):
         for identi in params.split():
-            del var_stack[identi]
+            del config_vars[identi]
         return False
 
     def complete_del(self, text, line, begidx, endidx):
@@ -383,9 +383,9 @@ class CMDObj(cmd.Cmd, object):
     def do_readinfo(self, params):
         if params:
             for a_file in shlex.split(params):
-                time_start = time.clock()
+                time_start = time.perf_counter()
                 self.admin_prog_inst.info_map_table.read_from_file(a_file)
-                time_end = time.clock()
+                time_end = time.perf_counter()
                 print("opened file:", "'" + a_file + "'")
                 print("    %d items read in %0.3f ms" % (self.admin_prog_inst.info_map_table.num_items("all-items"), (time_end-time_start)*1000.0))
         else:
@@ -406,7 +406,7 @@ class CMDObj(cmd.Cmd, object):
                 item = self.admin_prog_inst.info_map_table.get_any_item(param.rstrip("/"))
                 if item:
                     items_to_list.append(item)
-                    if isDir(item):
+                    if item.isDir():
                         items_to_list.extend(self.admin_prog_inst.info_map_table.get_items_in_dir(dir_path=item.path))
                 else:
                     print("No item named:", param)
@@ -499,8 +499,8 @@ class CMDObj(cmd.Cmd, object):
         out_file = "stdout"
         if params:
             out_file = params
-        var_stack.set_var("__MAIN_OUT_FILE__").append(out_file)
-        var_stack.set_var("__MAIN_COMMAND__").append("sync")
+        config_vars["__MAIN_OUT_FILE__"] = out_file
+        config_vars["__MAIN_COMMAND__"] = "sync"
         self.client_prog_inst.do_command()
         return False
 
@@ -512,8 +512,8 @@ class CMDObj(cmd.Cmd, object):
         out_file = "stdout"
         if params:
             out_file = params
-        var_stack.set_var("__MAIN_OUT_FILE__").append(out_file)
-        var_stack.set_var("__MAIN_COMMAND__").append("copy")
+        config_vars["__MAIN_OUT_FILE__"] = out_file
+        config_vars["__MAIN_COMMAND__"] = "copy"
         self.client_prog_inst.do_command()
         return False
 
@@ -590,14 +590,14 @@ class CMDObj(cmd.Cmd, object):
     # resolve a string containing variables.
     def do_resolve(self, param):
         if param:
-            print(var_stack.ResolveStrToStr(param))
+            print(config_vars.resolve_str(param))
         return False
 
     def help_resolve(self):
         print("")
 
     def do_which(self, param):
-        print(var_stack.ResolveVarToStr("__INSTL_EXE_PATH__"))
+        print(config_vars["__INSTL_EXE_PATH__"].str())
 
     def help_which(self):
         print("print full path to currently running instl")
@@ -635,7 +635,7 @@ def do_list_imp(self, what=None, stream=sys.stdout):
             translated_iids, orphaned_guids = self.items_table.iids_from_guids([item_to_do])
             whole_sections_to_write.append({item_to_do: translated_iids})
         elif item_to_do == "define":
-            whole_sections_to_write.append(aYaml.YamlDumpDocWrap(var_stack, '!define', "Definitions", explicit_start=True, sort_mappings=True))
+            whole_sections_to_write.append(aYaml.YamlDumpDocWrap(config_vars, '!define', "Definitions", explicit_start=True, sort_mappings=True))
         elif item_to_do == "index":
             whole_sections_to_write.append(aYaml.YamlDumpDocWrap(self.items_table.repr_for_yaml(), '!index', "Installation index", explicit_start=True, sort_mappings=True))
         elif item_to_do == "guid":
@@ -657,7 +657,7 @@ def create_completion_list_imp(self, for_what="all"):
         if for_what in ("all", "index"):
             retVal.extend(list(self.items_table.get_all_iids()))
         if for_what in ("all", "define"):
-            retVal.extend(list(var_stack.keys()))
+            retVal.extend(list(config_vars.keys()))
         if for_what in ("all", "guid"):
             retVal.extend(self.items_table.get_detail_values_by_name_for_all_iids("guid"))
     except Exception as ex:

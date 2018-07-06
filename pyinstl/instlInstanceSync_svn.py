@@ -3,7 +3,7 @@
 
 import utils
 from .instlInstanceSyncBase import InstlInstanceSync
-from configVar import var_stack
+from configVar import config_vars
 
 
 class InstlInstanceSync_svn(InstlInstanceSync):
@@ -16,13 +16,12 @@ class InstlInstanceSync_svn(InstlInstanceSync):
     def init_sync_vars(self):
         super().init_sync_vars()
 
-        var_description = "InstlInstanceSync_svn.init_sync_vars"
-        var_stack.set_value_if_var_does_not_exist("REPO_REV", "HEAD", description=var_description)
-        bookkeeping_relative_path = utils.relative_url(var_stack.ResolveVarToStr("SYNC_BASE_URL"), var_stack.ResolveVarToStr("BOOKKEEPING_DIR_URL"))
-        var_stack.set_var("REL_BOOKKEEPING_PATH", var_description).append(bookkeeping_relative_path)
+        config_vars.setdefault("REPO_REV", "HEAD")
+        bookkeeping_relative_path = utils.relative_url(config_vars["SYNC_BASE_URL"].str(), config_vars["BOOKKEEPING_DIR_URL"].str())
+        config_vars["REL_BOOKKEEPING_PATH"] = bookkeeping_relative_path
 
-        rel_sources = utils.relative_url(var_stack.ResolveVarToStr("SYNC_BASE_URL"), var_stack.ResolveVarToStr("SYNC_BASE_URL"))
-        var_stack.set_var("REL_SRC_PATH", var_description).append(rel_sources)
+        rel_sources = utils.relative_url(config_vars["SYNC_BASE_URL"].str(), config_vars["SYNC_BASE_URL"].str())
+        config_vars["REL_SRC_PATH"] = rel_sources
 
     def create_sync_instructions(self):
         retVal = super().create_sync_instructions()
@@ -33,13 +32,13 @@ class InstlInstanceSync_svn(InstlInstanceSync):
         self.instlObj.batch_accum += self.instlObj.platform_helper.cd("$(LOCAL_SYNC_DIR)")
         self.instlObj.batch_accum += " ".join(('"$(SVN_CLIENT_PATH)"', "co", '"$(BOOKKEEPING_DIR_URL)"', '"$(REL_BOOKKEEPING_PATH)"', "--revision", "$(REPO_REV)", "--depth", "infinity"))
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("instl folder file $(BOOKKEEPING_DIR_URL)?p=$(REPO_REV)")
-        for iid in var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"):
-            sources_for_iid = var_stack.ResolveListToList(self.items_table.get_sources_for_iid(iid))
+        for iid in list(config_vars["__FULL_LIST_OF_INSTALL_TARGETS__"]):
+            sources_for_iid = list(config_vars[self.items_table.get_sources_for_iid(iid)])
             for source in sources_for_iid:
                 self.instlObj.batch_accum += self.create_svn_sync_instructions_for_source(source)
                 retVal += 1
-            self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Sync {}".format(var_stack.ResolveVarToStr("iid_name")))
-        for iid in var_stack.ResolveVarToList("__ORPHAN_INSTALL_TARGETS__"):
+            self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Sync {}".format(config_vars["iid_name"].str()))
+        for iid in list(config_vars["__ORPHAN_INSTALL_TARGETS__"]):
             self.instlObj.batch_accum += self.instlObj.platform_helper.echo("Don't know how to sync " + iid)
         self.instlObj.batch_accum += self.instlObj.platform_helper.echo("from $(SYNC_BASE_URL)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Done sync")

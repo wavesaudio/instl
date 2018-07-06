@@ -11,7 +11,7 @@ from typing import List, Dict
 
 
 import utils
-from configVar import var_stack
+from configVar import config_vars  # √
 
 comment_line_re = re.compile(r"""
             ^
@@ -307,8 +307,8 @@ class SVNTable(object):
             curs.execute(self.create_parent_id_index_q)
             curs.execute(self.create_unwtarred_id_index_q)
             min_revision, max_revision = self.min_max_revision()
-            var_stack.set_var("MIN_REPO_REV").append(min_revision)
-            var_stack.set_var("MAX_REPO_REV").append(max_revision)
+            config_vars["MIN_REPO_REV"] = min_revision
+            config_vars["MAX_REPO_REV"] = max_revision
 
     def read_from_file(self, in_file, a_format="guess") -> None:
         """ Reads from file. All previous sub items are cleared

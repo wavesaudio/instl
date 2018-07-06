@@ -11,7 +11,7 @@ import utils
 from .platformSpecificHelper_Base import PlatformSpecificHelperBase
 from .platformSpecificHelper_Base import CopyToolBase
 from .platformSpecificHelper_Base import DownloadToolBase
-from configVar import var_stack
+from configVar import config_vars  # √
 
 
 def escape_me_dos_callback(match_obj):
@@ -58,7 +58,7 @@ class CopyTool_win_robocopy(CopyToolBase):
         """ To do: dedicate a variable to copy logging (COPY_LOG_FILE ???)
         """
         retVal = ""
-        # log_file = var_stack.ResolveVarToStr("LOG_FILE")
+        # log_file = config_vars["LOG_FILE"].str()
         # retVal = f" /LOG:{log_file}"
         return retVal
 
@@ -105,17 +105,6 @@ class CopyTool_win_robocopy(CopyToolBase):
         retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
         return retVal
 
-    def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=None, ignore=None):
-        retVal = list()
-        ignore_spec = self.create_ignore_spec(ignore)
-        log_file_spec = self.create_log_spec()
-        norm_src_dir = os.path.normpath(src_dir)
-        norm_trg_dir = os.path.normpath(trg_dir)
-        copy_command = f""""$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" /LEV:1 {ignore_spec} /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS {log_file_spec}"""
-        retVal.append(copy_command)
-        retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
-        return retVal
-
     def copy_file_to_file(self, src_file, trg_file, link_dest=None, ignore=None):
         retVal = list()
         norm_src_file = os.path.normpath(src_file)
@@ -149,7 +138,7 @@ class CopyTool_win_xcopy(CopyToolBase):
             if isinstance(ignore, str):
                 ignore = (ignore,)
             self.excludes_set.update([ignoree.lstrip("*") for ignoree in ignore])
-            retVal = var_stack.ResolveStrToStr("/EXCLUDE:$(XCOPY_EXCLUDE_FILE_NAME)")
+            retVal = config_vars.resolve_str("/EXCLUDE:$(XCOPY_EXCLUDE_FILE_NAME)")
         return retVal
 
     def begin_copy_folder(self):
@@ -195,16 +184,6 @@ class CopyTool_win_xcopy(CopyToolBase):
         retVal.append(self.platform_helper.exit_if_error())
         return retVal
 
-    def copy_dir_files_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None):
-        retVal = list()
-        norm_src_dir = os.path.normpath(src_dir)
-        norm_trg_dir = os.path.normpath(trg_dir)
-        ignore_spec = self.create_ignore_spec(ignore)
-        copy_command = f""""$(XCOPY_PATH)"  /R /Y {ignore_spec} "{norm_src_dir}" "{trg_dir}" """
-        retVal.append(copy_command)
-        retVal.append(self.platform_helper.exit_if_error())
-        return retVal
-
     def copy_file_to_file(self, src_file, trg_file, link_dest=None, ignore=None):
         retVal = list()
         norm_src_file = os.path.normpath(src_file)
@@ -217,7 +196,7 @@ class CopyTool_win_xcopy(CopyToolBase):
 
     def create_excludes_file(self):
         if self.excludes_set:
-            with utils.utf8_open(var_stack.ResolveVarToStr("XCOPY_EXCLUDE_FILE_PATH"), "w") as wfd:
+            with utils.utf8_open(config_vars["XCOPY_EXCLUDE_FILE_PATH"].str(), "w") as wfd:
                 utils.make_open_file_read_write_for_all(wfd)
                 wfd.write("\n".join(self.excludes_set))
 
@@ -241,8 +220,8 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         :return: the path to the tool
         """
         tool_path = None
-        if tool_to_find_var_name in var_stack:
-            original_tool_value = var_stack.ResolveVarToStr(tool_to_find_var_name)
+        if tool_to_find_var_name in config_vars:
+            original_tool_value = str(config_vars[tool_to_find_var_name])
             # first try the variable, could be that the tool was already found
             if os.path.isfile(original_tool_value):
                 tool_path = original_tool_value
@@ -254,7 +233,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
                     where_tool_path = utils.unicodify(where_tool_path)
                     if os.path.isfile(where_tool_path):
                         tool_path = where_tool_path
-                        var_stack.set_var(tool_to_find_var_name, "find_cmd_tool").append(tool_path)
+                        config_vars[tool_to_find_var_name, "find_cmd_tool"] = tool_path
                 except Exception:
                     pass # never mind, we'll try on our own
 
@@ -276,14 +255,14 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
                 for win_path in win_paths:
                     tool_path = os.path.join(win_path, original_tool_value)
                     if os.path.isfile(tool_path):
-                        var_stack.set_var(tool_to_find_var_name, "find_cmd_tool ").append(tool_path)
+                        config_vars[tool_to_find_var_name] = tool_path
                         break
                 else: # break was not called, tool was not found
                     tool_path = None
         return tool_path
 
     def init_platform_tools(self):
-        download_tool_name = var_stack.ResolveVarToStr("DOWNLOAD_TOOL_PATH")
+        download_tool_name = config_vars["DOWNLOAD_TOOL_PATH"].str()
         if download_tool_name:
             if download_tool_name.endswith("wget.exe"):
                 self.dl_tool = DownloadTool_win_wget(self)
@@ -291,12 +270,12 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
                 self.dl_tool = DownloadTool_win_curl(self)
         if self.dl_tool:
             for find_tool_var in \
-                    list(var_stack.ResolveVarToList("CMD_TOOLS_TO_FIND", default=[])) +\
-                    list(var_stack.ResolveVarToList("CMD_TOOLS_TO_FIND_INTERNAL", default=[])):
+                    list(config_vars.get("CMD_TOOLS_TO_FIND", [])) +\
+                    list(config_vars.get("CMD_TOOLS_TO_FIND_INTERNAL", [])):
                 self.find_cmd_tool(find_tool_var)
 
     def get_install_instructions_prefix(self, exit_on_errors=True):
-        self.invocations_file_path = var_stack.ResolveVarToStr("__INVOCATIONS_FILE_PATH__")
+        self.invocations_file_path = config_vars["__INVOCATIONS_FILE_PATH__"].str()
         retVal = (
             "@echo off",
             "chcp 65001",
@@ -460,7 +439,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         elif tool_name == "xcopy":
             self.copy_tool = CopyTool_win_xcopy(self)
         else:
-            raise ValueError(tool_name, "is not a valid copy tool for", var_stack.ResolveVarToStr("TARGET_OS"))
+            raise ValueError(tool_name, "is not a valid copy tool for", config_vars["TARGET_OS"].str())
 
     def copy_file_to_file(self, src_file, trg_file, hard_link=False, check_exist=False):
         copy_command_parts = list()
@@ -585,10 +564,10 @@ class DownloadTool_win_curl(DownloadToolBase):
         """ Create command to download a single file.
             src_url is expected to be already escaped (spaces as %20...)
         """
-        connect_time_out = var_stack.ResolveVarToStr("CURL_CONNECT_TIMEOUT", "16")
-        max_time = var_stack.ResolveVarToStr("CURL_MAX_TIME", "180")
-        retries = var_stack.ResolveVarToStr("CURL_RETRIES", "2")
-        retry_delay = var_stack.ResolveVarToStr("CURL_RETRY_DELAY", "8")
+        connect_time_out = str(config_vars.setdefault("CURL_CONNECT_TIMEOUT", "16"))
+        max_time = str(config_vars.setdefault("CURL_MAX_TIME", "180"))
+        retries = str(config_vars.setdefault("CURL_RETRIES", "2"))
+        retry_delay = str(config_vars.setdefault("CURL_RETRY_DELAY", "8"))
 
         download_command_parts = list()
         download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
@@ -620,7 +599,7 @@ class DownloadTool_win_curl(DownloadToolBase):
             for config_file in config_files:
                 # curl on windows has problem with path to config files that have unicode characters
                 normalized_path = win32api.GetShortPathName(config_file)
-                wfd.write(var_stack.ResolveStrToStr('''"$(DOWNLOAD_TOOL_PATH)" --config "{}"\n'''.format(normalized_path)))
+                wfd.write(config_vars.resolve_str('''"$(DOWNLOAD_TOOL_PATH)" --config "{}"\n'''.format(normalized_path)))
 
         download_command = " ".join((self.platform_helper.run_instl(),  "parallel-run", "--in", utils.quoteme_double(parallel_run_config_file_path)))
         return download_command, self.platform_helper.exit_if_error()

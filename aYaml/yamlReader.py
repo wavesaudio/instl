@@ -13,6 +13,7 @@
     delete these tags from self.specific_doc_readers when overriding init_specific_doc_readers.
 """
 
+import os
 import io
 import yaml
 import urllib.error
@@ -53,17 +54,20 @@ class YamlReader(object):
 
     def read_yaml_file(self, file_path, *args, **kwargs):
         try:
-            self.file_read_stack.append(file_path)
-            buffer = utils.read_file_or_url(file_path, path_searcher=self.path_searcher)
-            buffer = io.StringIO(buffer)     # turn text to a stream
-            kwargs['path-to-file'] = file_path
-            self.read_yaml_from_stream(buffer, *args, **kwargs)
-            self.file_read_stack.pop()
-            # now read the __post tags if any
-            if len(self.file_read_stack) == 0:  # first file done reading
-                while self.post_nodes:
-                    a_post_node, a_post_read_func = self.post_nodes.pop()
-                    a_post_read_func(a_post_node, *args, **kwargs)
+            allow_reading_of_internal_vars = kwargs.get('allow_reading_of_internal_vars', False)
+            with self.allow_reading_of_internal_vars(allow=allow_reading_of_internal_vars):
+                self.file_read_stack.append(file_path)
+                buffer = utils.read_file_or_url(file_path, path_searcher=self.path_searcher)
+                buffer = io.StringIO(buffer)     # turn text to a stream
+                kwargs['path-to-file'] = file_path
+                kwargs['allow_reading_of_internal_vars'] = allow_reading_of_internal_vars
+                self.read_yaml_from_stream(buffer, *args, **kwargs)
+                self.file_read_stack.pop()
+                # now read the __post tags if any
+                if len(self.file_read_stack) == 0:  # first file done reading
+                    while self.post_nodes:
+                        a_post_node, a_post_read_func = self.post_nodes.pop()
+                        a_post_read_func(a_post_node, *args, **kwargs)
 
         except (FileNotFoundError, urllib.error.URLError) as ex:
             ignore = kwargs.get('ignore_if_not_exist', False)
@@ -78,7 +82,7 @@ class YamlReader(object):
                 raise
         except Exception as ex:
             if not self.exception_printed:      # avoid recursive printing of error message
-                read_file_history = "\n->\n".join(self.file_read_stack)
+                read_file_history = "\n->\n".join([os.fspath(file_path) for file_path in  self.file_read_stack])
                 print("Exception reading file:", read_file_history)
                 self.exception_printed = True
             raise
