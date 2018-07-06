@@ -117,6 +117,8 @@ class CopyToolRsync(CopyToolBase):
 
     def copy_file_to_dir(self, src_file, trg_dir, link_dest=False, ignore=None):
         assert not src_file.endswith("/")
+        if not trg_dir.endswith("/"):
+            trg_dir += "/"
         ignore_spec = self.create_ignore_spec(ignore)
         permissions_spec = str(config_vars.get("RSYNC_PERM_OPTIONS", ""))
         if link_dest:

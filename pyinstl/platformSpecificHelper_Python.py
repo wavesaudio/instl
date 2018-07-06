@@ -18,6 +18,7 @@ class CopyToolMacRsync(CopyToolRsync):
 
 
 class PlatformSpecificHelperPython(PlatformSpecificHelperBase):
+    var_name_counter = 0
     def __init__(self, instlObj):
         super().__init__(instlObj)
         self.var_replacement_pattern = "${\g<var_name>}"
@@ -143,12 +144,10 @@ report_invocation_end() {{
         return time_end_commands
 
     def mkdir(self, directory):
-        raise NotImplementedError
-        mk_command = " ".join(("mkdir", "-p", "-m a+rwx", utils.quoteme_double(directory) ))
-        return mk_command
+        python_batch_command = MakeDirs(directory)
+        return python_batch_command
 
     def mkdir_with_owner(self, directory, progress_num=0):
-        raise NotImplementedError
         mk_command = " ".join(("mkdir_with_owner", utils.quoteme_double(directory), str(progress_num) ))
         return mk_command
 
@@ -194,20 +193,12 @@ report_invocation_end() {{
         return rmdir_command
 
     def rmfile(self, a_file, quote_char='"', check_exist=False):
-        raise NotImplementedError
-        rmfile_command_parts = list()
-        norm_file = utils.quoteme(a_file, quote_char)
-        if check_exist:
-            rmfile_command_parts.extend(("[", "!", "-f", norm_file, "]", "||"))
-        rmfile_command_parts.extend(("rm", "-f", norm_file))
-        rmfile_command = " ".join(rmfile_command_parts)
-        return rmfile_command
+        python_batch_command = RmFile(a_file)
+        return python_batch_command
 
     def rm_file_or_dir(self, file_or_dir):
-        # on mac rmdir -fr will remove a file or a directory without complaint.
-        raise NotImplementedError
-        rm_command = self.rmdir(file_or_dir, recursive=True)
-        return rm_command
+        python_batch_command = RmFileOrDir(file_or_dir)
+        return python_batch_command
 
     def get_svn_folder_cleanup_instructions(self):
         raise NotImplementedError
@@ -344,46 +335,42 @@ split_file()
         return "wait",
 
     def chmod(self, new_mode, file_path):
-        raise NotImplementedError
-        chmod_command = " ".join(("chmod", str(new_mode), utils.quoteme_double(file_path)))
-        return chmod_command
+        python_batch_command = Chmod(file_path, new_mode)
+        return python_batch_command
 
     def make_executable(self, file_path):
-        raise NotImplementedError
-        return self.chmod("a+x", file_path)
+        python_batch_command = Chmod(file_path, 'a+x')
+        return python_batch_command
 
     def make_writable(self, file_path):
-        raise NotImplementedError
-        return self.chmod("a+w", file_path)
+        python_batch_command = Chmod(file_path, 'a+w')
+        return python_batch_command
 
     def unlock(self, file_path, recursive=False, ignore_errors=True):
         """ Remove the system's read-only flag, this is different from permissions.
             For changing permissions use chmod.
         """
-        raise NotImplementedError
-        ignore_errors_flag = recurse_flag = ""
-        if ignore_errors:
-            ignore_errors_flag = "-f"
-        if recursive:
-            recurse_flag = "-R"
-        nouchg_command = " ".join(("chflags", ignore_errors_flag, recurse_flag, "nouchg", utils.quoteme_double(file_path)))
-        if ignore_errors: # -f is not enough in case the file does not exist, chflags will still exit with 1
-            nouchg_command = " ".join((nouchg_command, "2>", "/dev/null", "||", "true"))
-        return nouchg_command
+        python_batch_command = Unlock(file_path, recursive=recursive, ignore_errors=ignore_errors)
+        return python_batch_command
 
     def touch(self, file_path):
-        raise NotImplementedError
-        touch_command = " ".join(("touch", utils.quoteme_double(file_path)))
-        return touch_command
+        python_batch_command = Touch(file_path)
+        return python_batch_command
 
     def append_file_to_file(self, source_file, target_file):
-        raise NotImplementedError
-        append_command = " ".join(("cat", utils.quoteme_double(source_file), ">>", utils.quoteme_double(target_file)))
-        return append_command
+        python_batch_command = AppendFileToFile(source_file, target_file)
+        return python_batch_command
 
     def chown(self, user_id, group_id, target_path, recursive=False):
         chown_command = Chown(user_id, group_id, target_path, recursive)
         return chown_command
+
+    def shell_commands(self, the_lines: List[str]):
+        PlatformSpecificHelperPython.var_name_counter += 1
+        var_name = f"var_{PlatformSpecificHelperPython.var_name_counter:04}"
+        var = VarAssign(var_name, the_lines)
+        batch = ShellCommands(dir="/Users/shai/Desktop/batches", var_name=var_name)
+        return (var, batch)
 
 
 class DownloadTool_mac_curl(DownloadToolBase):
