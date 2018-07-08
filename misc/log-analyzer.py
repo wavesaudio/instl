@@ -35,7 +35,7 @@ if __name__ == "__main__":
                 now_progress_num = last_progress_num + 1
             progress_time = now_time-last_time
             time_to_step[str(progress_time)].append((now_progress_num, match["prog_message"]))
-            print("""{}/{}, {}, {}""".format(now_progress_num, last_total_progress, progress_time, match["prog_message"]), flush=True)
+            print(f"""{now_progress_num}/{last_total_progress}, {progress_time}, {match["prog_message"]}""", flush=True)
 
             last_time = now_time
             last_progress_num = now_progress_num

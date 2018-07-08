@@ -5,7 +5,7 @@
 import os
 
 import utils
-from configVar import var_stack
+from configVar import config_vars
 from .instlClient import InstlClient
 from .batchAccumulator import BatchAccumulatorTransaction
 
@@ -29,9 +29,9 @@ class InstlClientRemove(InstlClient):
 
     def create_remove_instructions(self):
 
-        have_info_path = var_stack.ResolveVarToStr("HAVE_INFO_MAP_PATH")
+        have_info_path = config_vars["HAVE_INFO_MAP_PATH"].str()
         if not os.path.isfile(have_info_path):
-            have_info_path = var_stack.ResolveVarToStr("SITE_HAVE_INFO_MAP_PATH")
+            have_info_path = config_vars["SITE_HAVE_INFO_MAP_PATH"].str()
         with self.info_map_table.reading_files_context():
             self.read_info_map_from_file(have_info_path)
         self.calc_iid_to_name_and_version()
@@ -39,17 +39,17 @@ class InstlClientRemove(InstlClient):
         self.batch_accum.set_current_section('remove')
         self.batch_accum += self.platform_helper.progress("Starting remove")
         sorted_target_folder_list = sorted(self.all_iids_by_target_folder,
-                                           key=lambda fold: var_stack.ResolveStrToStr(fold),
+                                           key=lambda fold: config_vars.resolve_str(fold),
                                            reverse=True)
         # print(sorted_target_folder_list)
-        self.accumulate_unique_actions_for_active_iids('pre_remove', var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
+        self.accumulate_unique_actions_for_active_iids('pre_remove', list(config_vars["__FULL_LIST_OF_INSTALL_TARGETS__"]))
 
         for folder_name in sorted_target_folder_list:
             with BatchAccumulatorTransaction(self.batch_accum) as folder_accum_transaction:
                 self.batch_accum += self.platform_helper.new_line()
                 self.create_remove_previous_sources_instructions_for_target_folder(folder_name)
-                self.batch_accum += self.platform_helper.progress("Remove from folder {0}".format(folder_name))
-                var_stack.set_var("__TARGET_DIR__").append(os.path.normpath(folder_name))
+                self.batch_accum += self.platform_helper.progress(f"Remove from folder {folder_name}")
+                config_vars["__TARGET_DIR__"] = os.path.normpath(folder_name)
                 items_in_folder = self.all_iids_by_target_folder[folder_name]
 
                 folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('pre_remove_from_folder', items_in_folder)
@@ -59,7 +59,7 @@ class InstlClientRemove(InstlClient):
                         name_for_iid = self.name_for_iid(iid=IID)
                         self.batch_accum += self.platform_helper.progress(f"Remove {name_for_iid}")
                         sources_for_iid = self.items_table.get_sources_for_iid(IID)
-                        resolved_sources_for_iid = [(var_stack.ResolveStrToStr(s[0]), s[1]) for s in sources_for_iid]
+                        resolved_sources_for_iid = [(config_vars.resolve_str(s[0]), s[1]) for s in sources_for_iid]
                         for source in resolved_sources_for_iid:
                             with BatchAccumulatorTransaction(self.batch_accum) as source_accum_transaction:
                                 _, source_leaf = os.path.split(source[0])
@@ -74,7 +74,7 @@ class InstlClientRemove(InstlClient):
                 folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('post_remove_from_folder', items_in_folder)
                 self.batch_accum += self.platform_helper.new_line()
 
-        self.accumulate_unique_actions_for_active_iids('post_remove', var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"))
+        self.accumulate_unique_actions_for_active_iids('post_remove', list(config_vars["__FULL_LIST_OF_INSTALL_TARGETS__"]))
         self.batch_accum += self.platform_helper.new_line()
 
     # create_remove_instructions_for_source:

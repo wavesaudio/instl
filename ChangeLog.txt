@@ -1,3 +1,7 @@
+???? 1.9.0.0
+    programmer visible changes:
+    * complete overhaul of ConfigVar and ConfigVarStack
+
 ???? 1.8.0.6
     programmer visible changes:
     * removed PlatformSpecificHelperBase.ls() and from deriving classes as it was not implemented correctly

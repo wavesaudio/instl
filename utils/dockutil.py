@@ -409,7 +409,7 @@ def getOsxVersion():
     # OS X Yosemite return 10.10, so we will be happy with len(...) == 2, then add 0 for last number
     try:
         mac_ver = tuple(int(n) for n in platform.mac_ver()[0].split('.'))
-        assert 2 <= len(mac_ver) <= 3, "Bac mac_ver format {}".format(mac_ver)
+        assert 2 <= len(mac_ver) <= 3, f"Bac mac_ver format {mac_ver}"
     except Exception as e:
         raise e
     if len(mac_ver) == 2:

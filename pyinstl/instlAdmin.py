@@ -16,7 +16,7 @@ import utils
 import aYaml
 from .instlInstanceBase import InstlInstanceBase
 from .batchAccumulator import BatchAccumulator
-from configVar import var_stack
+from configVar import config_vars
 from svnTree import SVNTable
 
 
@@ -33,44 +33,44 @@ class InstlAdmin(InstlInstanceBase):
 
     def get_default_out_file(self):
         retVal = None
-        if "__MAIN_INPUT_FILE__" in var_stack:
+        if "__MAIN_INPUT_FILE__" in config_vars:
             retVal = "$(__CONFIG_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)"
         return retVal
 
     def set_default_variables(self):
-        if "__CONFIG_FILE__" in var_stack:
-            config_file_resolved = self.path_searcher.find_file(var_stack.ResolveVarToStr("__CONFIG_FILE__"), return_original_if_not_found=True)
-            var_stack.set_var("__CONFIG_FILE_PATH__").append(config_file_resolved)
+        if "__CONFIG_FILE__" in config_vars:
+            config_file_resolved = self.path_searcher.find_file(config_vars["__CONFIG_FILE__"].str(), return_original_if_not_found=True)
+            config_vars["__CONFIG_FILE_PATH__"] = config_file_resolved
 
             self.read_yaml_file(config_file_resolved)
             self.resolve_defined_paths()
 
     def do_command(self):
         self.set_default_variables()
-        self.platform_helper.num_items_for_progress_report = int(var_stack.ResolveVarToStr("LAST_PROGRESS"))
+        self.platform_helper.num_items_for_progress_report = int(config_vars["LAST_PROGRESS"])
         self.platform_helper.init_copy_tool()
         do_command_func = getattr(self, "do_" + self.fixed_command)
         do_command_func()
 
     def do_trans(self):
         with self.info_map_table.reading_files_context():  # this will create an index on svn_item_t.path and make reading the props and file sizes faster
-            self.info_map_table.read_from_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"), a_format="info")
+            self.info_map_table.read_from_file(config_vars["__MAIN_INPUT_FILE__"].str(), a_format="info")
 
-        if "__PROPS_FILE__" in var_stack:
-            self.info_map_table.read_from_file(var_stack.ResolveVarToStr("__PROPS_FILE__"), a_format="props")
-        if "__FILE_SIZES_FILE__" in var_stack:
-            self.info_map_table.read_from_file(var_stack.ResolveVarToStr("__FILE_SIZES_FILE__"), a_format="file-sizes")
+        if "__PROPS_FILE__" in config_vars:
+            self.info_map_table.read_from_file(config_vars["__PROPS_FILE__"].str(), a_format="props")
+        if "__FILE_SIZES_FILE__" in config_vars:
+            self.info_map_table.read_from_file(config_vars["__FILE_SIZES_FILE__"].str(), a_format="file-sizes")
 
-        base_rev = int(var_stack.ResolveVarToStr("BASE_REPO_REV"))
+        base_rev = int(config_vars["BASE_REPO_REV"])
         if base_rev > 0:
             self.info_map_table.set_base_revision(base_rev)
 
-        if "__BASE_URL__" in var_stack:
+        if "__BASE_URL__" in config_vars:
             self.add_urls_to_info_map()
-        self.info_map_table.write_to_file(var_stack.ResolveVarToStr("__MAIN_OUT_FILE__"), field_to_write=self.fields_relevant_to_info_map)
+        self.info_map_table.write_to_file(config_vars["__MAIN_OUT_FILE__"].str(), field_to_write=self.fields_relevant_to_info_map)
 
     def add_urls_to_info_map(self):
-        base_url = var_stack.ResolveVarToStr("__BASE_URL__")
+        base_url = config_vars["__BASE_URL__"].str()
         for file_item in self.info_map_table.get_items(what="file"):
             file_item.url = os.path.join(base_url, str(file_item.revision), file_item.path)
             self.progress(file_item)
@@ -84,7 +84,7 @@ class InstlAdmin(InstlInstanceBase):
                                 """, re.VERBOSE)
         min_rev = 0
         max_rev = 1
-        match = revision_range_re.match(var_stack.ResolveVarToStr("REPO_REV"))
+        match = revision_range_re.match(config_vars["REPO_REV"].str())
         if match:
             min_rev += int(match['min_rev'])
             if match['max_rev']:
@@ -101,11 +101,11 @@ class InstlAdmin(InstlInstanceBase):
             base revision and now this revision is the base revision. In which case
             the whole revision will need to be uploaded.
         """
-        current_base_repo_rev = int(var_stack.ResolveVarToStr("BASE_REPO_REV"))
+        current_base_repo_rev = int(config_vars["BASE_REPO_REV"])
         retVal = True
         revision_folder_hierarchy = self.repo_rev_to_folder_hierarchy(revision)
-        revision_links_folder = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/" + revision_folder_hierarchy)
-        create_links_done_stamp_file = var_stack.ResolveStrToStr(revision_links_folder + "/$(CREATE_LINKS_STAMP_FILE_NAME)")
+        revision_links_folder = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/" + revision_folder_hierarchy)
+        create_links_done_stamp_file = config_vars.resolve_str(revision_links_folder + "/$(CREATE_LINKS_STAMP_FILE_NAME)")
         if os.path.isfile(create_links_done_stamp_file):
             if revision == current_base_repo_rev:  # revision is the new base_repo_rev
                 try:
@@ -117,7 +117,7 @@ class InstlAdmin(InstlInstanceBase):
                         self.batch_accum += self.platform_helper.echo(msg)
                         self.progress(msg)
                         # if we need to create links, remove the upload stems in order to force upload
-                        try: os.remove(var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/"+revision_folder_hierarchy+"/$(UP_2_S3_STAMP_FILE_NAME)"))
+                        try: os.remove(config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/"+revision_folder_hierarchy+"/$(UP_2_S3_STAMP_FILE_NAME)"))
                         except Exception: pass
                 except Exception:
                     pass  # no previous base repo rev indication was found so return True to re-create the links
@@ -128,11 +128,11 @@ class InstlAdmin(InstlInstanceBase):
     def get_last_repo_rev(self):
         retVal = 0
         revision_line_re = re.compile("^Revision:\s+(?P<revision>\d+)$")
-        repo_url = var_stack.ResolveVarToStr("SVN_REPO_URL")
+        repo_url = config_vars["SVN_REPO_URL"].str()
         if os.path.isdir(repo_url):
-            svn_info_command = [var_stack.ResolveVarToStr("SVN_CLIENT_PATH"), "info", "."]
+            svn_info_command = [config_vars["SVN_CLIENT_PATH"].str(), "info", "."]
         else:
-            svn_info_command = [var_stack.ResolveVarToStr("SVN_CLIENT_PATH"), "info", repo_url]
+            svn_info_command = [config_vars["SVN_CLIENT_PATH"].str(), "info", repo_url]
         with utils.ChangeDirIfExists(repo_url):
             proc = subprocess.Popen(svn_info_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             my_stdout, my_stderr = proc.communicate()
@@ -147,7 +147,7 @@ class InstlAdmin(InstlInstanceBase):
                     break
         if retVal <= 0:
             raise ValueError("Could not find last repo rev for " + repo_url)
-        var_stack.set_var("__LAST_REPO_REV__").append(str(retVal))
+        config_vars["__LAST_REPO_REV__"] = str(retVal)
         return retVal
 
     def do_create_links(self):
@@ -157,9 +157,9 @@ class InstlAdmin(InstlInstanceBase):
 
         # call svn info to find out the last repo revision
         last_repo_rev = self.get_last_repo_rev()
-        min_repo_rev_to_work_on = int(var_stack.ResolveVarToStr("IGNORE_BELOW_REPO_REV", default="1"))
-        base_repo_rev = int(var_stack.ResolveVarToStr("BASE_REPO_REV"))
-        curr_repo_rev = int(var_stack.ResolveVarToStr("REPO_REV"))
+        min_repo_rev_to_work_on = int(config_vars.get("IGNORE_BELOW_REPO_REV", "1"))
+        base_repo_rev = int(config_vars["BASE_REPO_REV"])
+        curr_repo_rev = int(config_vars["REPO_REV"])
         if base_repo_rev > curr_repo_rev:
             raise ValueError("base_repo_rev "+str(base_repo_rev)+" > curr_repo_rev "+str(curr_repo_rev))
         if curr_repo_rev > last_repo_rev:
@@ -172,8 +172,8 @@ class InstlAdmin(InstlInstanceBase):
         no_need_link_nums = list()
         yes_need_link_nums = list()
         max_repo_rev_to_work_on = curr_repo_rev
-        if "__WHICH_REVISION__" in var_stack:
-            which_revision = var_stack.ResolveVarToStr("__WHICH_REVISION__")
+        if "__WHICH_REVISION__" in config_vars:
+            which_revision = config_vars["__WHICH_REVISION__"].str()
             if which_revision == "all":
                 max_repo_rev_to_work_on = last_repo_rev
             else:  # force one specific revision
@@ -188,8 +188,8 @@ class InstlAdmin(InstlInstanceBase):
                 yes_need_link_nums.append(str(revision))
                 save_dir_var = "REV_" + str(revision) + "_SAVE_DIR"
                 self.batch_accum += self.platform_helper.save_dir(save_dir_var)
-                var_stack.set_var("__CURR_REPO_REV__").append(str(revision))
-                var_stack.set_var("__CURR_REPO_FOLDER_HIERARCHY__").append(self.repo_rev_to_folder_hierarchy(revision))
+                config_vars["__CURR_REPO_REV__"] = str(revision)
+                config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(revision)
                 accum = BatchAccumulator()
                 accum.set_current_section('links')
                 self.create_links_for_revision(accum)
@@ -208,17 +208,17 @@ class InstlAdmin(InstlInstanceBase):
                 ignore_nums_str = utils.find_sequences(ignore_nums)
                 self.progress("Ignoring revisions below:", min_repo_rev_to_work_on, ignore_nums_str)
             yes_need_links_str = utils.find_sequences(yes_need_link_nums)
-            var_stack.set_var("__NEED_UPLOAD_REPO_REV_LIST__").extend(yes_need_link_nums)
+            config_vars["__NEED_UPLOAD_REPO_REV_LIST__"] = yes_need_link_nums
             self.progress("Need to create links for revisions:", yes_need_links_str)
         else:
             self.progress("Links already created for all revisions:", str(base_repo_rev), "...", str(max_repo_rev_to_work_on))
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in var_stack:
+        if "__RUN_BATCH__" in config_vars:
             self.run_batch_file()
 
     def create_links_for_revision(self, accum):
-        assert var_stack.ResolveVarToStr("__CURR_REPO_REV__") == "".join(var_stack.ResolveVarToStr("__CURR_REPO_FOLDER_HIERARCHY__").split("/")).lstrip("0")
+        assert config_vars["__CURR_REPO_REV__"].str() == "".join(config_vars["__CURR_REPO_FOLDER_HIERARCHY__"].str().split("/")).lstrip("0")
         base_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/Base"
         revision_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)"
         revision_instl_folder_path = revision_folder_path + "/instl"
@@ -232,8 +232,8 @@ class InstlAdmin(InstlInstanceBase):
 
         # copy Base folder to revision folder
         accum += self.platform_helper.mkdir(revision_folder_path)
-        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(var_stack.ResolveStrToStr(base_folder_path),
-                                                                         var_stack.ResolveStrToStr(revision_folder_path),
+        accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(config_vars.resolve_str(base_folder_path),
+                                                                         config_vars.resolve_str(revision_folder_path),
                                                                          link_dest=True, ignore=".svn", preserve_dest_files=False)
         accum += self.platform_helper.progress("Copy revision $(__CURR_REPO_REV__) to "+revision_folder_path)
 
@@ -257,11 +257,11 @@ class InstlAdmin(InstlInstanceBase):
 
         if False:  # disabled creating and uploading the .txt version of the files, was not that useful and took long time to upload
             # create text versions of info and yaml files, so they can be displayed in browser
-            if var_stack.ResolveVarToStr("__CURRENT_OS__") == "Linux":
+            if config_vars["__CURRENT_OS__"].str() == "Linux":
                 accum += " ".join(("find", "instl", "-type", "f", "-regextype", "posix-extended",
                                    "-regex", "'.*(yaml|info|props)'", "-print0", "|",
                                    "xargs", "-0", "-I{}", "cp", "-f", '"{}"', '"{}.txt"'))
-            elif var_stack.ResolveVarToStr("__CURRENT_OS__") == "Mac":
+            elif config_vars["__CURRENT_OS__"].str() == "Mac":
                 accum += " ".join(("find", "-E", "instl", "-type", "f",
                                    "-regex", "'.*(yaml|info|props)'", "-print0", "|",
                                    "xargs", "-0", "-I{}", "cp", "-f", '"{}"', '"{}.txt"'))
@@ -277,9 +277,9 @@ class InstlAdmin(InstlInstanceBase):
         accum += self.platform_helper.echo("done create-links version $(__CURR_REPO_REV__)")
 
     def do_up2s3(self):
-        min_repo_rev_to_work_on = int(var_stack.ResolveVarToStr("IGNORE_BELOW_REPO_REV", default="1"))
-        base_repo_rev = int(var_stack.ResolveVarToStr("BASE_REPO_REV"))
-        curr_repo_rev = int(var_stack.ResolveVarToStr("REPO_REV"))
+        min_repo_rev_to_work_on = int(config_vars.get("IGNORE_BELOW_REPO_REV", "1"))
+        base_repo_rev = int(config_vars["BASE_REPO_REV"])
+        curr_repo_rev = int(config_vars["REPO_REV"])
         # call svn info to find out the last repo revision
         last_repo_rev = self.get_last_repo_rev()
         if base_repo_rev > curr_repo_rev:
@@ -288,8 +288,8 @@ class InstlAdmin(InstlInstanceBase):
             raise ValueError("base_repo_rev "+str(base_repo_rev)+" > last_repo_rev "+str(last_repo_rev))
 
         max_repo_rev_to_work_on = curr_repo_rev
-        if "__WHICH_REVISION__" in var_stack:
-            which_revision = var_stack.ResolveVarToStr("__WHICH_REVISION__")
+        if "__WHICH_REVISION__" in config_vars:
+            which_revision = config_vars["__WHICH_REVISION__"].str()
             if which_revision == "all":
                 max_repo_rev_to_work_on = last_repo_rev
             else:  # force one specific revision
@@ -305,15 +305,15 @@ class InstlAdmin(InstlInstanceBase):
                 continue
             dir_as_int_folder_hierarchy = self.repo_rev_to_folder_hierarchy(dir_as_int)
             dir_name = str(dir_as_int)
-            if not os.path.isdir(var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/" + dir_as_int_folder_hierarchy)):
+            if not os.path.isdir(config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/" + dir_as_int_folder_hierarchy)):
                 self.progress("revision dir", dir_as_int_folder_hierarchy, "is missing, run create-links to create this folder")
                 dirs_missing.append(dir_name)
             else:
-                create_links_done_stamp_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/"+dir_as_int_folder_hierarchy+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
+                create_links_done_stamp_file = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/"+dir_as_int_folder_hierarchy+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
                 if not os.path.isfile(create_links_done_stamp_file):
                     self.progress("revision dir", dir_as_int_folder_hierarchy, "does not have create-links stamp file:", create_links_done_stamp_file)
                 else:
-                    up_2_s3_done_stamp_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/"+dir_as_int_folder_hierarchy+"/$(UP_2_S3_STAMP_FILE_NAME)")
+                    up_2_s3_done_stamp_file = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/"+dir_as_int_folder_hierarchy+"/$(UP_2_S3_STAMP_FILE_NAME)")
                     if os.path.isfile(up_2_s3_done_stamp_file):
                         dirs_that_dont_need_upload.append(dir_name)
                     else:
@@ -337,8 +337,8 @@ class InstlAdmin(InstlInstanceBase):
             accum.set_current_section('upload')
             save_dir_var = "REV_" + dir_name + "_SAVE_DIR"
             self.batch_accum += self.platform_helper.save_dir(save_dir_var)
-            var_stack.set_var("__CURR_REPO_REV__").append(dir_name)
-            var_stack.set_var("__CURR_REPO_FOLDER_HIERARCHY__").append(self.repo_rev_to_folder_hierarchy(dir_name))
+            config_vars["__CURR_REPO_REV__"] = dir_name
+            config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(dir_name)
             self.upload_to_s3_aws_for_revision(accum)
             revision_lines = accum.finalize_list_of_lines()  # will resolve with current  __CURR_REPO_REV__
             self.batch_accum += revision_lines
@@ -346,21 +346,21 @@ class InstlAdmin(InstlInstanceBase):
             self.batch_accum += self.platform_helper.new_line()
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in var_stack:
+        if "__RUN_BATCH__" in config_vars:
             self.run_batch_file()
 
     def upload_to_s3_aws_for_revision(self, accum):
-        assert var_stack.ResolveVarToStr("__CURR_REPO_REV__") == "".join(var_stack.ResolveVarToStr("__CURR_REPO_FOLDER_HIERARCHY__").split("/")).lstrip("0")
+        assert config_vars["__CURR_REPO_REV__"].str() == "".join(config_vars["__CURR_REPO_FOLDER_HIERARCHY__"].str().split("/")).lstrip("0")
         map_file_path = 'instl/full_info_map.txt'
-        info_map_path = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/" + map_file_path)
-        repo_rev = int(var_stack.ResolveVarToStr("__CURR_REPO_REV__"))
+        info_map_path = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/" + map_file_path)
+        repo_rev = int(config_vars["__CURR_REPO_REV__"])
         self.info_map_table.clear_all()
         with self.info_map_table.reading_files_context():
             self.info_map_table.read_from_file(info_map_path)
 
         accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)")
 
-        if 'Mac' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
+        if 'Mac' in list(config_vars["__CURRENT_OS_NAMES__"]):
             accum += "find . -name .DS_Store -delete"
 
         # Files a folders that do not belong to __CURR_REPO_REV__ should not be uploaded.
@@ -407,20 +407,20 @@ class InstlAdmin(InstlInstanceBase):
         accum += self.platform_helper.echo("done up2s3 revision $(__CURR_REPO_REV__)")
 
     def do_create_repo_rev_file(self):
-        if "REPO_REV_FILE_VARS" not in var_stack:
+        if "REPO_REV_FILE_VARS" not in config_vars:
             # must have a list of variable names to write to the repo-rev file
             raise ValueError("REPO_REV_FILE_VARS must be defined")
-        repo_rev_vars = var_stack.ResolveVarToList("REPO_REV_FILE_VARS")
-        var_stack.set_var("REPO_REV").append("$(TARGET_REPO_REV)")  # override the repo rev from the config file
+        repo_rev_vars = list(config_vars["REPO_REV_FILE_VARS"])
+        config_vars["REPO_REV"] = "$(TARGET_REPO_REV)"  # override the repo rev from the config file
 
-        use_zlib = var_stack.ResolveVarToBool("USE_ZLIB", default=False)
+        use_zlib = bool(config_vars.get("USE_ZLIB", "False"))
 
         # check that the variable names from REPO_REV_FILE_VARS do not contain
         # names that must not be made public
-        var_stack.set_var("__CURR_REPO_FOLDER_HIERARCHY__").append(self.repo_rev_to_folder_hierarchy(var_stack.ResolveVarToStr("TARGET_REPO_REV")))
-        var_stack.set_var("REPO_REV_FOLDER_HIERARCHY").append("$(__CURR_REPO_FOLDER_HIERARCHY__)")
+        config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(config_vars["TARGET_REPO_REV"].str())
+        config_vars["REPO_REV_FOLDER_HIERARCHY"] = "$(__CURR_REPO_FOLDER_HIERARCHY__)"
 
-        var_stack.set_var("INSTL_FOLDER_BASE_URL").append("$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl")
+        config_vars["INSTL_FOLDER_BASE_URL"] = "$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl"
 
         dangerous_intersection = set(repo_rev_vars).intersection(
             {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "PRIVATE_KEY", "PRIVATE_KEY_FILE"})
@@ -429,55 +429,51 @@ class InstlAdmin(InstlInstanceBase):
             raise ValueError("file REPO_REV_FILE_VARS "+str(dangerous_intersection)+" and so is forbidden to upload")
 
         # create checksum for the main info_map file
-        info_map_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt")
-        zip_info_map_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt$(WZLIB_EXTENSION)")
+        info_map_file = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt")
+        zip_info_map_file = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt$(WZLIB_EXTENSION)")
         if use_zlib:
-            var_stack.set_var("RELATIVE_INFO_MAP_URL").append(
-                "$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt$(WZLIB_EXTENSION)")
+            config_vars["RELATIVE_INFO_MAP_URL"] = "$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt$(WZLIB_EXTENSION)"
             info_map_checksum = utils.get_file_checksum(zip_info_map_file)
         else:
-            var_stack.set_var("RELATIVE_INFO_MAP_URL").append(
-                "$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt")
+            config_vars["RELATIVE_INFO_MAP_URL"] = "$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt"
             info_map_checksum = utils.get_file_checksum(info_map_file)
-        var_stack.set_var("INFO_MAP_FILE_URL").append("$(BASE_LINKS_URL)/$(RELATIVE_INFO_MAP_URL)")
-        var_stack.set_var("INFO_MAP_CHECKSUM").append(info_map_checksum)
+        config_vars["INFO_MAP_FILE_URL"] = "$(BASE_LINKS_URL)/$(RELATIVE_INFO_MAP_URL)"
+        config_vars["INFO_MAP_CHECKSUM"] = info_map_checksum
 
         # create checksum for the main index.yaml file
         # zip the index file
-        local_index_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml")
-        zip_local_index_file = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml$(WZLIB_EXTENSION)")
-        zlib_compression_level = int(var_stack.ResolveVarToStr("ZLIB_COMPRESSION_LEVEL"))
+        local_index_file = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml")
+        zip_local_index_file = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml$(WZLIB_EXTENSION)")
+        zlib_compression_level = int(config_vars["ZLIB_COMPRESSION_LEVEL"])
         with open(zip_local_index_file, "wb") as wfd:
             wfd.write(zlib.compress(open(local_index_file, "r").read().encode(), zlib_compression_level))
 
         if use_zlib:
-            var_stack.set_var("RELATIVE_INDEX_URL").append(
-                "$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml$(WZLIB_EXTENSION)")
+            config_vars["RELATIVE_INDEX_URL"] = "$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml$(WZLIB_EXTENSION)"
             index_file_checksum = utils.get_file_checksum(zip_local_index_file)
         else:
-            var_stack.set_var("RELATIVE_INDEX_URL").append(
-                "$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml")
+            config_vars["RELATIVE_INDEX_URL"] = "$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml"
             index_file_checksum = utils.get_file_checksum(local_index_file)
-        var_stack.set_var("INDEX_URL").append("$(BASE_LINKS_URL)/$(RELATIVE_INDEX_URL)")
-        var_stack.set_var("INDEX_CHECKSUM").append(index_file_checksum)
+        config_vars["INDEX_URL"] = "$(BASE_LINKS_URL)/$(RELATIVE_INDEX_URL)"
+        config_vars["INDEX_CHECKSUM"] = index_file_checksum
 
         # check that all variables are present
         for var in repo_rev_vars:
-            if var not in var_stack:
+            if var not in config_vars:
                 raise ValueError(var + " is missing cannot write repo rev file")
 
         # create yaml out of the variables
-        variables_as_yaml = var_stack.repr_for_yaml(repo_rev_vars, include_comments=False)
+        variables_as_yaml = config_vars.repr_for_yaml(repo_rev_vars, include_comments=False)
         repo_rev_yaml_doc = aYaml.YamlDumpDocWrap(variables_as_yaml, '!define', "",
                                               explicit_start=True, sort_mappings=True)
 
         # repo rev file is written to the admin folder and to the repo-rev folder
-        os.makedirs(var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER)/admin"), exist_ok=True)
-        admin_folder_path = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
+        os.makedirs(config_vars.resolve_str("$(ROOT_LINKS_FOLDER)/admin"), exist_ok=True)
+        admin_folder_path = config_vars.resolve_str("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
         with utils.utf8_open(admin_folder_path, "w") as wfd:
             aYaml.writeAsYaml(repo_rev_yaml_doc, out_stream=wfd, indentor=None, sort=True)
             self.progress("created", admin_folder_path)
-        repo_rev_folder_path = var_stack.ResolveStrToStr("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
+        repo_rev_folder_path = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
 
         with utils.utf8_open(repo_rev_folder_path, "w") as wfd:
             aYaml.writeAsYaml(repo_rev_yaml_doc, out_stream=wfd, indentor=None, sort=True)
@@ -486,9 +482,9 @@ class InstlAdmin(InstlInstanceBase):
     def do_up_repo_rev(self):
         self.batch_accum.set_current_section('admin')
 
-        just_with_number = int(var_stack.ResolveVarToStr("__JUST_WITH_NUMBER__"))
+        just_with_number = int(config_vars["__JUST_WITH_NUMBER__"])
         if just_with_number > 0:
-            var_stack.set_var("REPO_REV").append("$(__JUST_WITH_NUMBER__)")
+            config_vars["REPO_REV"] = "$(__JUST_WITH_NUMBER__)"
 
         if just_with_number == 0:
             self.batch_accum += " ".join(["aws", "s3", "cp",
@@ -506,17 +502,17 @@ class InstlAdmin(InstlInstanceBase):
         self.batch_accum += self.platform_helper.progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)'")
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in var_stack:
+        if "__RUN_BATCH__" in config_vars:
             self.run_batch_file()
 
     def do_fix_props(self):
         self.batch_accum.set_current_section('admin')
-        repo_folder = var_stack.ResolveVarToStr("SVN_CHECKOUT_FOLDER")
+        repo_folder = config_vars["SVN_CHECKOUT_FOLDER"].str()
         save_dir = os.getcwd()
         os.chdir(repo_folder)
 
         # read svn info
-        svn_info_command = [var_stack.ResolveVarToStr("SVN_CLIENT_PATH"), "info", "--depth", "infinity"]
+        svn_info_command = [config_vars["SVN_CLIENT_PATH"].str(), "info", "--depth", "infinity"]
         proc = subprocess.Popen(svn_info_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         my_stdout, my_stderr = proc.communicate()
         my_stdout, my_stderr = utils.unicodify(my_stdout), utils.unicodify(my_stderr)
@@ -528,36 +524,36 @@ class InstlAdmin(InstlInstanceBase):
         self.info_map_table.read_from_file("../svn-info-for-fix-props.txt", a_format="info")
 
         # read svn props
-        svn_props_command = [var_stack.ResolveVarToStr("SVN_CLIENT_PATH"), "proplist", "--depth", "infinity"]
+        svn_props_command = [config_vars["SVN_CLIENT_PATH"].str(), "proplist", "--depth", "infinity"]
         proc = subprocess.Popen(svn_props_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         my_stdout, my_stderr = proc.communicate()
         with utils.utf8_open("../svn-proplist-for-fix-props.txt", "w") as wfd:
             wfd.write(utils.unicodify(my_stdout))
-        self.info_map_table.read_from_file(var_stack.ResolveStrToStr("../svn-proplist-for-fix-props.txt"), a_format="props")
+        self.info_map_table.read_from_file(config_vars.resolve_str("../svn-proplist-for-fix-props.txt"), a_format="props")
 
         self.batch_accum += self.platform_helper.cd(repo_folder)
 
-        should_be_exec_regex_list = var_stack.ResolveVarToList("EXEC_PROP_REGEX")
+        should_be_exec_regex_list = list(config_vars["EXEC_PROP_REGEX"])
         self.compiled_should_be_exec_regex = utils.compile_regex_list_ORed(should_be_exec_regex_list)
 
         for item in self.info_map_table.get_items(what="any"):
             shouldBeExec = self.should_be_exec(item)
             for extra_prop in item.extra_props_list():
                 # print("remove prop", extra_prop, "from", item.path)
-                self.batch_accum += " ".join( (var_stack.ResolveVarToStr("SVN_CLIENT_PATH"), "propdel", "svn:"+extra_prop, '"'+item.path+'"') )
+                self.batch_accum += " ".join( (config_vars["SVN_CLIENT_PATH"].str(), "propdel", "svn:"+extra_prop, '"'+item.path+'"') )
                 self.batch_accum += self.platform_helper.progress(" ".join(("remove prop", extra_prop, "from", item.path)) )
             if item.isExecutable() and not shouldBeExec:
                 # print("remove prop", "executable", "from", item.path)
-                self.batch_accum += " ".join( (var_stack.ResolveVarToStr("SVN_CLIENT_PATH"), "propdel", 'svn:executable', '"'+item.path+'"') )
+                self.batch_accum += " ".join( (config_vars["SVN_CLIENT_PATH"].str(), "propdel", 'svn:executable', '"'+item.path+'"') )
                 self.batch_accum += self.platform_helper.progress(" ".join(("remove prop", "executable", "from", item.path)) )
             elif not item.isExecutable() and shouldBeExec:
                 # print("add prop", "executable", "to", item.path)
-                self.batch_accum += " ".join( (var_stack.ResolveVarToStr("SVN_CLIENT_PATH"), "propset", 'svn:executable', 'yes', '"'+item.path+'"') )
+                self.batch_accum += " ".join( (config_vars["SVN_CLIENT_PATH"].str(), "propset", 'svn:executable', 'yes', '"'+item.path+'"') )
                 self.batch_accum += self.platform_helper.progress(" ".join(("add prop", "executable", "from", item.path)) )
 
         os.chdir(save_dir)
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in var_stack:
+        if "__RUN_BATCH__" in config_vars:
             self.run_batch_file()
 
     def is_file_exec(self, file_path):
@@ -570,7 +566,7 @@ class InstlAdmin(InstlInstanceBase):
     def do_fix_symlinks(self):
         self.batch_accum.set_current_section('admin')
 
-        stage_folder = var_stack.ResolveVarToStr("STAGING_FOLDER")
+        stage_folder = config_vars["STAGING_FOLDER"].str()
         folders_to_check = self.prepare_list_of_dirs_to_work_on(stage_folder)
         if tuple(folders_to_check) == (stage_folder,):
             self.progress("fix-symlink for the whole repository")
@@ -604,19 +600,19 @@ class InstlAdmin(InstlInstanceBase):
                 self.batch_accum += self.platform_helper.new_line()
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in var_stack:
+        if "__RUN_BATCH__" in config_vars:
             self.run_batch_file()
 
     def compile_exclude_regexi(self):
-        forbidden_folder_regex_list = var_stack.ResolveVarToList("FOLDER_EXCLUDE_REGEX")
+        forbidden_folder_regex_list = list(config_vars["FOLDER_EXCLUDE_REGEX"])
         self.compiled_forbidden_folder_regex = utils.compile_regex_list_ORed(forbidden_folder_regex_list)
-        forbidden_file_regex_list = var_stack.ResolveVarToList("FILE_EXCLUDE_REGEX")
+        forbidden_file_regex_list = list(config_vars["FILE_EXCLUDE_REGEX"])
         self.compiled_forbidden_file_regex = utils.compile_regex_list_ORed(forbidden_file_regex_list)
 
     def do_stage2svn(self):
         self.batch_accum.set_current_section('admin')
-        stage_folder = var_stack.ResolveVarToStr("STAGING_FOLDER")
-        svn_folder = var_stack.ResolveVarToStr("SVN_CHECKOUT_FOLDER")
+        stage_folder = config_vars["STAGING_FOLDER"].str()
+        svn_folder = config_vars["SVN_CHECKOUT_FOLDER"].str()
 
         self.compile_exclude_regexi()
 
@@ -625,8 +621,8 @@ class InstlAdmin(InstlInstanceBase):
         self.batch_accum += self.platform_helper.new_line()
         self.batch_accum += self.platform_helper.cd(svn_folder)
         stage_folder_svn_folder_pairs = []
-        if var_stack.defined("__LIMIT_COMMAND_TO__"):
-            limit_list = var_stack.ResolveVarToList("__LIMIT_COMMAND_TO__")
+        if config_vars.defined("__LIMIT_COMMAND_TO__"):
+            limit_list = list(config_vars["__LIMIT_COMMAND_TO__"])
             self.progress("stage2svn limited to ", limit_list)
             for limit in limit_list:
                 limit = utils.unquoteme(limit)
@@ -643,7 +639,7 @@ class InstlAdmin(InstlInstanceBase):
             self.stage2svn_for_folder(comparator)
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in var_stack:
+        if "__RUN_BATCH__" in config_vars:
             self.run_batch_file()
 
     def stage2svn_for_folder(self, comparator):
@@ -673,12 +669,12 @@ class InstlAdmin(InstlInstanceBase):
 
                 if copy_and_add_file:
                     self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(left_item_path, comparator.right, link_dest=False, ignore=".svn")
-                    self.batch_accum += self.platform_helper.progress("copy file {}".format(left_item_path))
+                    self.batch_accum += self.platform_helper.progress(f"copy file {left_item_path}")
                     # tell svn about new items, svn will not accept 'add' for changed items
                     self.batch_accum += self.platform_helper.svn_add_item(right_item_path)
-                    self.batch_accum += self.platform_helper.progress("add to svn {}".format(right_item_path))
+                    self.batch_accum += self.platform_helper.progress(f"add to svn {right_item_path}")
                 else:
-                    self.batch_accum += self.platform_helper.progress("not adding {} because {} exists and is identical".format(left_item_path, right_item_path_without_aa))
+                    self.batch_accum += self.platform_helper.progress(f"not adding {left_item_path} because {right_item_path_without_aa} exists and is identical")
 
             elif os.path.isdir(left_item_path):
                 if self.compiled_forbidden_folder_regex.search(left_item_path):
@@ -693,7 +689,7 @@ class InstlAdmin(InstlInstanceBase):
                             raise utils.InstlException(os.path.join(root, item)+" has forbidden characters should not be committed to svn")
 
                 self.batch_accum += self.platform_helper.copy_tool.copy_dir_to_dir(left_item_path, comparator.right, link_dest=False, ignore=".svn", preserve_dest_files=False)
-                self.batch_accum += self.platform_helper.progress("copy dir {}".format(left_item_path))
+                self.batch_accum += self.platform_helper.progress(f"copy dir {left_item_path}")
             else:
                 raise utils.InstlException(left_item_path+" not a file, dir or symlink, an abomination!")
 
@@ -722,9 +718,9 @@ class InstlAdmin(InstlInstanceBase):
 
                 if copy_file:
                     self.batch_accum += self.platform_helper.copy_tool.copy_file_to_dir(left_item_path, comparator.right, link_dest=False, ignore=".svn")
-                    self.batch_accum += self.platform_helper.progress("copy {}".format(left_item_path))
+                    self.batch_accum += self.platform_helper.progress(f"copy {left_item_path}")
                 else:
-                    self.batch_accum += self.platform_helper.progress("identical {}".format(left_item_path))
+                    self.batch_accum += self.platform_helper.progress(f"identical {left_item_path}")
             else:
                 raise utils.InstlException(left_item_path+" not a different file or symlink, an abomination!")
 
@@ -733,22 +729,22 @@ class InstlAdmin(InstlInstanceBase):
             if right_only_item not in do_not_remove_items:
                 item_to_remove = os.path.join(comparator.right, right_only_item)
                 self.batch_accum += self.platform_helper.svn_remove_item(item_to_remove)
-                self.batch_accum += self.platform_helper.progress("remove from svn {}".format(item_to_remove))
+                self.batch_accum += self.platform_helper.progress(f"remove from svn {item_to_remove}")
 
         # recurse to sub folders
         for sub_comparator in list(comparator.subdirs.values()):
             self.stage2svn_for_folder(sub_comparator)
 
     def prepare_conditions_for_wtar(self):
-        folder_wtar_regex_list = var_stack.ResolveVarToList("FOLDER_WTAR_REGEX")
+        folder_wtar_regex_list = list(config_vars["FOLDER_WTAR_REGEX"])
         self.compiled_folder_wtar_regex = utils.compile_regex_list_ORed(folder_wtar_regex_list)
-        file_wtar_regex_list = var_stack.ResolveVarToList("FILE_WTAR_REGEX")
+        file_wtar_regex_list = list(config_vars["FILE_WTAR_REGEX"])
         self.compiled_file_wtar_regex = utils.compile_regex_list_ORed(file_wtar_regex_list)
 
-        self.min_file_size_to_wtar = int(var_stack.ResolveVarToStr("MIN_FILE_SIZE_TO_WTAR"))
+        self.min_file_size_to_wtar = int(config_vars["MIN_FILE_SIZE_TO_WTAR"])
 
-        if "WTAR_BY_FILE_SIZE_EXCLUDE_REGEX" in var_stack:
-            wtar_by_file_size_exclude_regex = var_stack.ResolveVarToList("WTAR_BY_FILE_SIZE_EXCLUDE_REGEX")
+        if "WTAR_BY_FILE_SIZE_EXCLUDE_REGEX" in config_vars:
+            wtar_by_file_size_exclude_regex = list(config_vars["WTAR_BY_FILE_SIZE_EXCLUDE_REGEX"])
             self.compiled_wtar_by_file_size_exclude_regex = utils.compile_regex_list_ORed(wtar_by_file_size_exclude_regex)
         else:
             self.compiled_wtar_by_file_size_exclude_regex = None
@@ -785,7 +781,7 @@ class InstlAdmin(InstlInstanceBase):
         self.prepare_conditions_for_wtar()
         self.batch_accum += self.platform_helper.split_func()
 
-        stage_folder = var_stack.ResolveVarToStr("STAGING_FOLDER")
+        stage_folder = config_vars["STAGING_FOLDER"].str()
         folders_to_check = self.prepare_list_of_dirs_to_work_on(stage_folder)
         if tuple(folders_to_check) == (stage_folder,):
             self.progress("wtar for the whole repository")
@@ -794,8 +790,8 @@ class InstlAdmin(InstlInstanceBase):
 
         for a_folder in folders_to_check:
             self.batch_accum += self.platform_helper.unlock(a_folder, recursive=True)
-            self.batch_accum += self.platform_helper.progress("chflags -R nouchg " + a_folder)
-            self.batch_accum += """find "{}" -name ".DS_Store" -delete""".format(a_folder)
+            self.batch_accum += self.platform_helper.progress(f"chflags -R nouchg {a_folder}")
+            self.batch_accum += f"""find "{a_folder}" -name ".DS_Store" -delete"""
             self.batch_accum += self.platform_helper.progress("delete ignored files")
             self.batch_accum += self.platform_helper.new_line()
 
@@ -827,29 +823,29 @@ class InstlAdmin(InstlInstanceBase):
 
             if items_to_tar or items_to_delete:
                 total_items_to_tar += len(items_to_tar)
-                self.batch_accum += self.platform_helper.progress("begin folder {}".format(folder_to_check))
+                self.batch_accum += self.platform_helper.progress(f"begin folder {folder_to_check}")
                 self.batch_accum += self.platform_helper.cd(folder_to_check)
 
                 for item_to_delete in items_to_delete:
                     self.batch_accum += self.platform_helper.rmfile(item_to_delete)
-                    self.batch_accum += self.platform_helper.progress("removed file {}".format(item_to_delete))
+                    self.batch_accum += self.platform_helper.progress(f"removed file {item_to_delete}")
 
                 for item_to_tar in items_to_tar:
                     item_to_tar_full_path = os.path.join(folder_to_check, item_to_tar)
 
                     self.batch_accum += self.platform_helper.tar_with_instl(item_to_tar)
-                    self.batch_accum += self.platform_helper.progress("tar file {}".format(item_to_tar))
+                    self.batch_accum += self.platform_helper.progress(f"tar file {item_to_tar}")
                     self.batch_accum += self.platform_helper.split(item_to_tar + ".wtar")
-                    self.batch_accum += self.platform_helper.progress("split file {}".format(item_to_tar + ".wtar"))
+                    self.batch_accum += self.platform_helper.progress(f"split file {item_to_tar}.wtar")
                     if os.path.isdir(item_to_tar_full_path):
                         self.batch_accum += self.platform_helper.rmdir(item_to_tar, recursive=True)
-                        self.batch_accum += self.platform_helper.progress("removed dir {}".format(item_to_tar))
+                        self.batch_accum += self.platform_helper.progress(f"removed dir {item_to_tar}")
                     elif os.path.isfile(item_to_tar_full_path):
                         self.batch_accum += self.platform_helper.rmfile(item_to_tar)
-                        self.batch_accum += self.platform_helper.progress("removed file {}".format(item_to_tar))
+                        self.batch_accum += self.platform_helper.progress(f"removed file {item_to_tar}")
                     self.batch_accum += self.platform_helper.progress(item_to_tar_full_path)
                     self.batch_accum += self.platform_helper.new_line()
-                self.batch_accum += self.platform_helper.progress("end folder {}".format(folder_to_check))
+                self.batch_accum += self.platform_helper.progress(f"end folder {folder_to_check}")
                 self.batch_accum += self.platform_helper.new_line()
 
         self.progress("found", total_items_to_tar, "to wtar")
@@ -857,18 +853,18 @@ class InstlAdmin(InstlInstanceBase):
             self.progress(total_redundant_wtar_files, "redundant wtar files will be removed")
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in var_stack:
+        if "__RUN_BATCH__" in config_vars:
             self.run_batch_file()
 
     def do_svn2stage(self):
         self.batch_accum.set_current_section('admin')
-        stage_folder = var_stack.ResolveVarToStr("STAGING_FOLDER")
-        svn_folder = var_stack.ResolveVarToStr("SVN_CHECKOUT_FOLDER")
+        stage_folder = config_vars["STAGING_FOLDER"].str()
+        svn_folder = config_vars["SVN_CHECKOUT_FOLDER"].str()
 
         # --limit command line option might have been specified
         limit_info_list = []
-        if var_stack.defined("__LIMIT_COMMAND_TO__"):
-            limit_list = var_stack.ResolveVarToList("__LIMIT_COMMAND_TO__")
+        if config_vars.defined("__LIMIT_COMMAND_TO__"):
+            limit_list = list(config_vars["__LIMIT_COMMAND_TO__"])
             for limit in limit_list:
                 limit = utils.unquoteme(limit)
                 limit_info_list.append((limit, os.path.join(svn_folder, limit), os.path.join(stage_folder, limit) ))
@@ -876,7 +872,7 @@ class InstlAdmin(InstlInstanceBase):
             limit_info_list.append(("", svn_folder, stage_folder))
 
         for limit_info in limit_info_list:
-            checkout_url = var_stack.ResolveVarToStr("SVN_REPO_URL")
+            checkout_url = config_vars["SVN_REPO_URL"].str()
             if limit_info[0] != "":
                 checkout_url += "/" + limit_info[0]
             checkout_url_quoted = utils.quoteme_double(checkout_url)
@@ -884,17 +880,17 @@ class InstlAdmin(InstlInstanceBase):
             svn_command_parts = ['"$(SVN_CLIENT_PATH)"', "checkout", checkout_url_quoted, limit_info_quoted, "--depth", "infinity"]
             svn_checkout_command = " ".join(svn_command_parts)
             self.batch_accum += svn_checkout_command
-            self.batch_accum += self.platform_helper.progress("Checkout {} to {}".format(checkout_url, limit_info[1]))
+            self.batch_accum += self.platform_helper.progress(f"Checkout {checkout_url} to {limit_info[1]}")
             self.batch_accum += self.platform_helper.copy_tool.copy_dir_contents_to_dir(limit_info[1], limit_info[2], link_dest=False, ignore=(".svn", ".DS_Store"), preserve_dest_files=False)
-            self.batch_accum += self.platform_helper.progress("rsync {} to {}".format(limit_info[1], limit_info[2]))
+            self.batch_accum += self.platform_helper.progress(f"rsync {limit_info[1]} to {limit_info[2]}")
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in var_stack:
+        if "__RUN_BATCH__" in config_vars:
             self.run_batch_file()
 
     def do_create_rsa_keys(self):
-        public_key_file = var_stack.ResolveVarToStr("PUBLIC_KEY_FILE")
-        private_key_file = var_stack.ResolveVarToStr("PRIVATE_KEY_FILE")
+        public_key_file = config_vars["PUBLIC_KEY_FILE"].str()
+        private_key_file = config_vars["PRIVATE_KEY_FILE"].str()
         pubkey, privkey = rsa.newkeys(4096, poolsize=8)
         with open(public_key_file, "wb") as wfd:
             wfd.write(pubkey.save_pkcs1(format='PEM'))
@@ -905,22 +901,22 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_make_sig(self):
         private_key = None
-        if "PRIVATE_KEY_FILE" in var_stack:
-            private_key_file = self.path_searcher.find_file(var_stack.ResolveVarToStr("PRIVATE_KEY_FILE"),
+        if "PRIVATE_KEY_FILE" in config_vars:
+            private_key_file = self.path_searcher.find_file(config_vars["PRIVATE_KEY_FILE"].str(),
                                                             return_original_if_not_found=True)
             private_key = open(private_key_file, "rb").read()
-        file_to_sign = self.path_searcher.find_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"),
+        file_to_sign = self.path_searcher.find_file(config_vars["__MAIN_INPUT_FILE__"].str(),
                                                     return_original_if_not_found=True)
         file_sigs = utils.create_file_signatures(file_to_sign, private_key_text=private_key)
         self.progress("sha1:\n", file_sigs["sha1_checksum"])
         self.progress("SHA-512_rsa_sig:\n", file_sigs.get("SHA-512_rsa_sig", "no private key"))
 
     def do_check_sig(self):
-        file_to_check = self.path_searcher.find_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"),
+        file_to_check = self.path_searcher.find_file(config_vars["__MAIN_INPUT_FILE__"].str(),
                                                      return_original_if_not_found=True)
         file_contents = open(file_to_check, "rb").read()
 
-        sha1_checksum = var_stack.ResolveVarToStr("__SHA1_CHECKSUM__")
+        sha1_checksum = config_vars["__SHA1_CHECKSUM__"].str()
         if sha1_checksum:
             checksumOk = utils.check_buffer_checksum(file_contents, sha1_checksum)
             if checksumOk:
@@ -928,10 +924,10 @@ class InstlAdmin(InstlInstanceBase):
             else:
                 self.progress("Bad checksum, should be:", utils.get_buffer_checksum(file_contents))
 
-        rsa_signature = var_stack.ResolveVarToStr("__RSA_SIGNATURE__")
+        rsa_signature = config_vars["__RSA_SIGNATURE__"].str()
         if rsa_signature:
-            if "PUBLIC_KEY_FILE" in var_stack:
-                public_key_file = self.path_searcher.find_file(var_stack.ResolveVarToStr("PUBLIC_KEY_FILE"),
+            if "PUBLIC_KEY_FILE" in config_vars:
+                public_key_file = self.path_searcher.find_file(config_vars["PUBLIC_KEY_FILE"].str(),
                                                                return_original_if_not_found=True)
                 public_key_text = open(public_key_file, "rb").read()
 
@@ -942,18 +938,18 @@ class InstlAdmin(InstlInstanceBase):
                     self.progress("Bad Signature")
 
     def do_verify_index(self):
-        self.read_yaml_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
+        self.read_yaml_file(config_vars["__MAIN_INPUT_FILE__"].str())
         with self.info_map_table.reading_files_context():
-            self.info_map_table.read_from_file(var_stack.ResolveVarToStr("FULL_INFO_MAP_FILE_PATH"))
+            self.info_map_table.read_from_file(config_vars["FULL_INFO_MAP_FILE_PATH"].str())
 
         self.verify_index_to_repo()
 
     def do_read_yaml(self):
-        self.read_yaml_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
-        if "__MAIN_OUT_FILE__" in var_stack:
-            define_yaml = aYaml.YamlDumpDocWrap(var_stack, '!define', "Definitions", explicit_start=True, sort_mappings=True, include_comments=False)
+        self.read_yaml_file(config_vars["__MAIN_INPUT_FILE__"].str())
+        if "__MAIN_OUT_FILE__" in config_vars:
+            define_yaml = aYaml.YamlDumpDocWrap(config_vars, '!define', "Definitions", explicit_start=True, sort_mappings=True, include_comments=False)
             index_yaml = aYaml.YamlDumpDocWrap(self.items_table.repr_for_yaml(), '!index', "Installation index", explicit_start=True, sort_mappings=True, include_comments=False)
-            out_file_path = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
+            out_file_path = config_vars["__MAIN_OUT_FILE__"].str()
             with open(out_file_path, "w") as wfd:
                 aYaml.writeAsYaml(define_yaml, wfd)
                 aYaml.writeAsYaml(index_yaml, wfd)
@@ -961,7 +957,7 @@ class InstlAdmin(InstlInstanceBase):
     def do_depend(self):
         from . import installItemGraph
 
-        self.read_yaml_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
+        self.read_yaml_file(config_vars["__MAIN_INPUT_FILE__"].str())
         self.items_table.activate_all_oses()
         self.items_table.resolve_inheritance()
         depend_result = defaultdict(dict)
@@ -977,15 +973,15 @@ class InstlAdmin(InstlInstanceBase):
             if not depend_result[IID]['needed_by']:
                 depend_result[IID]['needed_by'] = None # so '~' is displayed instead of []
 
-        out_file_path = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
+        out_file_path = config_vars["__MAIN_OUT_FILE__"].str()
         with utils.write_to_file_or_stdout(out_file_path) as out_file:
             aYaml.writeAsYaml(aYaml.YamlDumpWrap(depend_result, sort_mappings=True), out_file)
         self.progress("dependencies written to", out_file_path)
 
     def do_verify_repo(self):
-        self.read_yaml_file(var_stack.ResolveVarToStr("STAGING_FOLDER_INDEX"))
+        self.read_yaml_file(config_vars["STAGING_FOLDER_INDEX"].str())
 
-        the_folder = var_stack.ResolveVarToStr("STAGING_FOLDER")
+        the_folder = config_vars["STAGING_FOLDER"].str()
         self.info_map_table.initialize_from_folder(the_folder)
         self.items_table.activate_all_oses()
         self.items_table.resolve_inheritance()
@@ -1075,8 +1071,8 @@ class InstlAdmin(InstlInstanceBase):
             otherwise return top_folder.
         """
         retVal = list()
-        if var_stack.defined("__LIMIT_COMMAND_TO__"):
-            limit_list = var_stack.ResolveVarToList("__LIMIT_COMMAND_TO__")
+        if config_vars.defined("__LIMIT_COMMAND_TO__"):
+            limit_list = list(config_vars["__LIMIT_COMMAND_TO__"])
             for limit in limit_list:
                 limit = utils.unquoteme(limit)
                 retVal.append(os.path.join(top_folder, limit))
@@ -1086,13 +1082,13 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_fix_perm(self):
         self.batch_accum.set_current_section('admin')
-        should_be_exec_regex_list = var_stack.ResolveVarToList("EXEC_PROP_REGEX")
+        should_be_exec_regex_list = list(config_vars["EXEC_PROP_REGEX"])
         self.compiled_should_be_exec_regex = utils.compile_regex_list_ORed(should_be_exec_regex_list)
 
         files_that_should_not_be_exec = list()
         files_that_must_be_exec = list()
 
-        folders_to_check = self.prepare_list_of_dirs_to_work_on(var_stack.ResolveVarToStr("STAGING_FOLDER"))
+        folders_to_check = self.prepare_list_of_dirs_to_work_on(config_vars["STAGING_FOLDER"].str())
         for folder_to_check in folders_to_check:
             self.batch_accum += self.platform_helper.unlock(folder_to_check, recursive=True)
             self.batch_accum += self.platform_helper.progress("chflags -R nouchg " + folder_to_check)
@@ -1115,24 +1111,24 @@ class InstlAdmin(InstlInstanceBase):
             self.batch_accum += self.platform_helper.progress("chmod -R a+rw,+X " + folder_to_check)
 
         if len(files_that_should_not_be_exec) > 0:
-            self.progress("Exec bit will be removed from the {} following files".format(len(files_that_should_not_be_exec)))
+            self.progress(f"Exec bit will be removed from the {len(files_that_should_not_be_exec)} following files")
             for a_file in files_that_should_not_be_exec:
                 self.progress("   ", a_file)
 
         if len(files_that_must_be_exec) > 0:
-            self.progress("Exec bit will be added to the {} following files".format(len(files_that_must_be_exec)))
+            self.progress(f"Exec bit will be added to the {len(files_that_must_be_exec)} following files")
             for a_file in files_that_must_be_exec:
                 self.progress("   ", a_file)
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in var_stack:
+        if "__RUN_BATCH__" in config_vars:
             self.run_batch_file()
 
     def do_file_sizes(self):
         self.compile_exclude_regexi()
-        out_file_path = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
+        out_file_path = config_vars["__MAIN_OUT_FILE__"].str()
         with utils.write_to_file_or_stdout(out_file_path) as out_file:
-            what_to_scan = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+            what_to_scan = config_vars["__MAIN_INPUT_FILE__"].str()
             if os.path.isfile(what_to_scan):
                 file_size = os.path.getsize(what_to_scan)
                 print(what_to_scan+",", file_size, file=out_file)
@@ -1152,7 +1148,7 @@ class InstlAdmin(InstlInstanceBase):
         info_map_info_path = os.path.join(results_folder, "info_map.info")
         info_map_props_path = os.path.join(results_folder, "info_map.props")
         info_map_file_sizes_path = os.path.join(results_folder, "info_map.file-sizes")
-        full_info_map_file_path = var_stack.ResolveStrToStr(os.path.join(results_folder, "$(FULL_INFO_MAP_FILE_NAME)"))
+        full_info_map_file_path = config_vars.resolve_str(os.path.join(results_folder, "$(FULL_INFO_MAP_FILE_NAME)"))
 
         accum += self.platform_helper.pushd(svn_folder)
 
@@ -1172,7 +1168,7 @@ class InstlAdmin(InstlInstanceBase):
         accum += " ".join(file_sizes_command_parts)
         accum += self.platform_helper.progress("Get file-sizes from disk to "+os.path.join(results_folder, "info_map.file-sizes"))
 
-        accum += self.platform_helper.progress("Create {} ...".format(full_info_map_file_path))
+        accum += self.platform_helper.progress(f"Create {full_info_map_file_path} ...")
         trans_command_parts = [self.platform_helper.run_instl(), "trans",
                                    "--in", info_map_info_path,
                                    "--props ", info_map_props_path,
@@ -1180,14 +1176,14 @@ class InstlAdmin(InstlInstanceBase):
                                    "--base-repo-rev", "$(BASE_REPO_REV)",
                                    "--out ", full_info_map_file_path]
         accum += " ".join(trans_command_parts)
-        accum += self.platform_helper.progress("Create {} done".format(full_info_map_file_path))
+        accum += self.platform_helper.progress(f"Create {full_info_map_file_path} done")
 
         # split info_map.txt according to info_map fields in index.yaml
-        accum += self.platform_helper.progress("Split {} ...".format(full_info_map_file_path))
+        accum += self.platform_helper.progress(f"Split {full_info_map_file_path} ...")
         split_info_map_command_parts = [self.platform_helper.run_instl(), "filter-infomap",
-                                        "--in", results_folder, "--define", var_stack.ResolveStrToStr("REPO_REV=$(__CURR_REPO_REV__)")]
+                                        "--in", results_folder, "--define", config_vars.resolve_str("REPO_REV=$(__CURR_REPO_REV__)")]
         accum += " ".join(split_info_map_command_parts)
-        accum += self.platform_helper.progress("Split {} done".format(full_info_map_file_path))
+        accum += self.platform_helper.progress(f"Split {full_info_map_file_path} done")
 
         accum += self.platform_helper.popd()
 
@@ -1201,16 +1197,16 @@ class InstlAdmin(InstlInstanceBase):
         self.batch_accum.merge_with(accum)
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in var_stack:
+        if "__RUN_BATCH__" in config_vars:
             self.run_batch_file()
 
     def do_filter_infomap(self):
         """ filter the full infomap file according to info_map fields in the index """
         # __MAIN_INPUT_FILE__ is the folder where to find index.yaml, full_info_map.txt and where to create info_map files
-        instl_folder = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
-        full_info_map_file_path = var_stack.ResolveStrToStr(os.path.join(instl_folder, "$(FULL_INFO_MAP_FILE_NAME)"))
+        instl_folder = config_vars["__MAIN_INPUT_FILE__"].str()
+        full_info_map_file_path = config_vars.resolve_str(os.path.join(instl_folder, "$(FULL_INFO_MAP_FILE_NAME)"))
         index_yaml_path = os.path.join(instl_folder, "index.yaml")
-        zlib_compression_level = int(var_stack.ResolveVarToStr("ZLIB_COMPRESSION_LEVEL"))
+        zlib_compression_level = int(config_vars["ZLIB_COMPRESSION_LEVEL"])
 
         # read the index
         self.read_yaml_file(index_yaml_path)
@@ -1235,9 +1231,9 @@ class InstlAdmin(InstlInstanceBase):
                 info_map_checksum = utils.get_file_checksum(info_map_file_path)
                 info_map_size = os.path.getsize(info_map_file_path)
                 line_for_main_info_map = f"instl/{infomap_file_name}, f, $(REPO_REV), {info_map_checksum}, {info_map_size}"
-                lines_for_main_info_map.append(var_stack.ResolveStrToStr(line_for_main_info_map))
+                lines_for_main_info_map.append(config_vars.resolve_str(line_for_main_info_map))
 
-                zip_infomap_file_name = var_stack.ResolveStrToStr(infomap_file_name+"$(WZLIB_EXTENSION)")
+                zip_infomap_file_name = config_vars.resolve_str(infomap_file_name+"$(WZLIB_EXTENSION)")
                 zip_info_map_file_path = os.path.join(instl_folder, zip_infomap_file_name)
                 with open(zip_info_map_file_path, "wb") as wfd:
                     wfd.write(zlib.compress(open(info_map_file_path, "r").read().encode(), zlib_compression_level))
@@ -1245,28 +1241,28 @@ class InstlAdmin(InstlInstanceBase):
                 zip_info_map_checksum = utils.get_file_checksum(zip_info_map_file_path)
                 zip_info_map_size = os.path.getsize(zip_info_map_file_path)
                 line_for_main_info_map = f"instl/{zip_infomap_file_name}, f, $(REPO_REV), {zip_info_map_checksum}, {zip_info_map_size}"
-                lines_for_main_info_map.append(var_stack.ResolveStrToStr(line_for_main_info_map))
+                lines_for_main_info_map.append(config_vars.resolve_str(line_for_main_info_map))
 
         # write default info map to file
-        default_info_map_file_path = var_stack.ResolveStrToStr(os.path.join(instl_folder, "$(MAIN_INFO_MAP_FILE_NAME)"))
+        default_info_map_file_path = config_vars.resolve_str(os.path.join(instl_folder, "$(MAIN_INFO_MAP_FILE_NAME)"))
         items_for_default_info_map = self.info_map_table.get_items_for_default_infomap()
         self.info_map_table.write_to_file(in_file=default_info_map_file_path, items_list=items_for_default_info_map, field_to_write=self.fields_relevant_to_info_map)
 
         with open(default_info_map_file_path, "a") as wfd:
             wfd.write("\n".join(lines_for_main_info_map))
 
-        zip_default_info_map_file_path = var_stack.ResolveStrToStr(default_info_map_file_path+"$(WZLIB_EXTENSION)")
+        zip_default_info_map_file_path = config_vars.resolve_str(default_info_map_file_path+"$(WZLIB_EXTENSION)")
         with open(zip_default_info_map_file_path, "wb") as wfd:
             wfd.write(zlib.compress(open(default_info_map_file_path, "r").read().encode(), zlib_compression_level))
 
     def do_read_info_map(self):
-        files_to_read = var_stack.ResolveVarToList("__MAIN_INPUT_FILE__")
+        files_to_read = list(config_vars["__MAIN_INPUT_FILE__"])
         with self.info_map_table.reading_files_context():
             for f2r in files_to_read:
                 self.info_map_table.read_from_file(f2r)
 
     def do_check_instl_folder_integrity(self):
-        instl_folder_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        instl_folder_path = config_vars["__MAIN_INPUT_FILE__"].str()
         index_path = os.path.join(instl_folder_path, "index.yaml")
         self.read_yaml_file(index_path)
         main_info_map_path = os.path.join(instl_folder_path, "info_map.txt")
@@ -1278,12 +1274,12 @@ class InstlAdmin(InstlInstanceBase):
             self.progress("file not found", revision_file_path)
         self.read_yaml_file(revision_file_path)
         index_checksum = utils.get_file_checksum(index_path)
-        if var_stack.ResolveVarToStr("INDEX_CHECKSUM") != index_checksum:
-            self.progress("bad index checksum expected: {}, actual: {}".format(var_stack.ResolveVarToStr("INDEX_CHECKSUM"), index_checksum))
+        if config_vars["INDEX_CHECKSUM"].str() != index_checksum:
+            self.progress(f"""bad index checksum expected: {config_vars["INDEX_CHECKSUM"]}, actual: {index_checksum}""")
 
         main_info_map_checksum = utils.get_file_checksum(main_info_map_path)
-        if var_stack.ResolveVarToStr("INFO_MAP_CHECKSUM") != main_info_map_checksum:
-            self.progress("bad info_map.txt checksum expected: {}, actual: {}".format(var_stack.ResolveVarToStr("INFO_MAP_CHECKSUM"), main_info_map_checksum))
+        if config_vars["INFO_MAP_CHECKSUM"].str() != main_info_map_checksum:
+            self.progress(f"""bad info_map.txt checksum expected: {config_vars["INFO_MAP_CHECKSUM"]}, actual: {main_info_map_checksum}""")
 
         self.items_table.activate_all_oses()
         all_info_maps = self.items_table.get_detail_values_by_name_for_all_iids("info_map")
@@ -1293,4 +1289,4 @@ class InstlAdmin(InstlInstanceBase):
                 info_map_full_path = os.path.join(instl_folder_path, item.leaf)
                 info_map_checksum = utils.get_file_checksum(info_map_full_path)
                 if item.checksum != info_map_checksum:
-                    self.progress("bad {} checksum expected: {}, actual: {}".format(item.leaf, item.checksum, info_map_checksum))
+                    self.progress("""bad {item.leaf} checksum expected: {item.checksum}, actual: {info_map_checksum}""")

@@ -3,7 +3,7 @@
 
 from collections import defaultdict
 
-from configVar import var_stack
+from configVar import config_vars
 
 
 class BatchAccumulator(object):
@@ -55,13 +55,13 @@ class BatchAccumulator(object):
     def finalize_list_of_lines(self):
         lines = list()
         for section in BatchAccumulator.section_order:
-            # var_stack.set_var("CURRENT_PHASE").append(section)
+            # config_vars["CURRENT_PHASE"] = section
             section_lines = self.instruction_lines[section]
             if section_lines:
                 if section == "assign":
                     section_lines.sort()
                 for section_line in section_lines:
-                    resolved_line = var_stack.ResolveStrToListIfSingleVar(section_line)
+                    resolved_line = config_vars.resolve_str_to_list(section_line)
                     lines.extend(resolved_line)
                 lines.append("")  # empty string will cause to emit new line
         return lines

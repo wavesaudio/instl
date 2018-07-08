@@ -409,7 +409,7 @@ def quote_path_properly(path_to_quote):
     if "'" in path_to_quote or "${" in path_to_quote:
         quote_char = '"'
         if '"' in path_to_quote:
-            raise Exception("""both single quote and double quote found in {}""".format(path_to_quote))
+            raise Exception(f"""both single quote and double quote found in {path_to_quote}""")
     quoted_path = "".join((quote_char, path_to_quote, quote_char))
     return quoted_path
 
@@ -519,9 +519,9 @@ def timing(f):
     import time
 
     def wrap(*args, **kwargs):
-        time1 = time.clock()
+        time1 = time.perf_counter()
         ret = f(*args, **kwargs)
-        time2 = time.clock()
+        time2 = time.perf_counter()
         if time1 != time2:
             print('%s function took %0.3f ms' % (f.__name__, (time2-time1)*1000.0))
         else:
@@ -604,15 +604,6 @@ def str_to_bool_int(the_str):
         retVal = 0
     else:
         raise ValueError("Cannot translate", the_str, "to bool-int")
-    return retVal
-
-
-def str_to_bool(the_str, default=False):
-    retVal = default
-    if the_str.lower() in ("yes", "true", "y", 't'):
-        retVal = True
-    elif the_str.lower() in ("no", "false", "n", "f"):
-        retVal = False
     return retVal
 
 
@@ -828,7 +819,7 @@ def unwtar_a_file(wtar_file_path, destination_folder=None, no_artifacts=False, i
                 os.remove(wtar_file)
 
     except OSError as e:
-        print("Invalid stream on split file with {}".format(wtar_file_paths[0]))
+        print(f"Invalid stream on split file with {wtar_file_paths[0]}")
         raise e
 
     except tarfile.TarError:

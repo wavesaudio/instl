@@ -9,7 +9,7 @@ from _collections import defaultdict
 import operator
 
 import utils
-from configVar import var_stack
+from configVar import config_vars
 
 """
     todo:
@@ -134,10 +134,10 @@ class DBMaster(object):
     def close(self):
         if self.__conn:
             self.__conn.close()
-        if var_stack.ResolveVarToBool("PRINT_STATISTICS") and self.statistics:
+        if bool(config_vars.get("PRINT_STATISTICS_DB", "False")) and self.statistics:
             for name, stats in sorted(self.statistics.items()):
                 average = stats.time/stats.count
-                print("{}, {}".format(name, repr(stats)))
+                print(f"{name}, {repr(stats)}")
 
                 max_count = max(self.statistics.items(), key=lambda S: S[1].count)
                 max_time = max(self.statistics.items(), key=lambda S: S[1].time)
@@ -187,14 +187,14 @@ class DBMaster(object):
     @contextmanager
     def transaction(self, description=None):
         try:
-            time1 = time.clock()
+            if not description:
+                description = inspect.stack()[2][3]
+            time1 = time.perf_counter()
             self.begin()
             yield self.__curs
             self.commit()
-            time2 = time.clock()
+            time2 = time.perf_counter()
             if self.print_execute_times:
-                if not description:
-                    description = inspect.stack()[2][3]
                 print('DB transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
             self.statistics[description].add_instance((time2-time1)*1000.0)
         except:
@@ -207,9 +207,11 @@ class DBMaster(object):
             no commit is done
         """
         try:
-            time1 = time.clock()
+            if not description:
+                description = inspect.stack()[2][3]
+            time1 = time.perf_counter()
             yield self.__conn.cursor()
-            time2 = time.clock()
+            time2 = time.perf_counter()
             if self.print_execute_times:
                 if not description:
                     description = inspect.stack()[2][3]
@@ -224,9 +226,11 @@ class DBMaster(object):
             no commit is done
         """
         try:
-            time1 = time.clock()
+            if not description:
+                description = inspect.stack()[2][3]
+            time1 = time.perf_counter()
             yield self.__conn.cursor()
-            time2 = time.clock()
+            time2 = time.perf_counter()
             if self.print_execute_times:
                 if not description:
                     description = inspect.stack()[2][3]
@@ -297,7 +301,7 @@ class DBMaster(object):
         return retVal
 
     def lock_table(self, table_name):
-        query_text = """
+        query_text = f"""
             CREATE TRIGGER IF NOT EXISTS lock_INSERT_{table_name}
             BEFORE INSERT ON {table_name}
             BEGIN
@@ -313,17 +317,17 @@ class DBMaster(object):
             BEGIN
                 SELECT raise(abort, '{table_name} is locked no DELETEs');
             END;
-        """.format(table_name=table_name)
+        """
         with self.transaction("lock_table") as curs:
             curs.executescript(query_text)
         self.locked_tables.add(table_name)
 
     def unlock_table(self, table_name):
-        query_text = """
+        query_text = f"""
             DROP TRIGGER IF EXISTS lock_INSERT_{table_name};
             DROP TRIGGER IF EXISTS lock_UPDATE_{table_name};
             DROP TRIGGER IF EXISTS lock_DELETE_{table_name};
-        """.format(table_name=table_name)
+        """
         with self.transaction("unlock_table") as curs:
             curs.executescript(query_text)
         self.locked_tables.remove(table_name)

@@ -11,7 +11,7 @@ from typing import List, Dict
 
 
 import utils
-from configVar import var_stack
+from configVar import config_vars  # √
 
 comment_line_re = re.compile(r"""
             ^
@@ -310,8 +310,8 @@ class SVNTable(object):
             curs.execute(self.create_parent_id_index_q)
             curs.execute(self.create_unwtarred_id_index_q)
             min_revision, max_revision = self.min_max_revision()
-            var_stack.set_var("MIN_REPO_REV").append(min_revision)
-            var_stack.set_var("MAX_REPO_REV").append(max_revision)
+            config_vars["MIN_REPO_REV"] = min_revision
+            config_vars["MAX_REPO_REV"] = max_revision
 
     def read_from_file(self, in_file, a_format="guess") -> None:
         """ Reads from file. All previous sub items are cleared
@@ -638,9 +638,9 @@ class SVNTable(object):
                     else:
                         ValueError("no match at file: " + rfd.name + ", line: " + str(line_num) + ": " + line)
                 prop_name_to_flag_query = """UPDATE svn_item_t SET flags = flags || :new_prop WHERE path = :old_path;"""
-                curs.executemany(prop_name_to_flag_query, prop_name_to_flag_query_params);
+                curs.executemany(prop_name_to_flag_query, prop_name_to_flag_query_params)
                 not_in_props_to_ignore_query = """UPDATE svn_item_t SET extra_props = extra_props || :prop_name || ";" WHERE path = :old_path;"""
-                curs.executemany(not_in_props_to_ignore_query, not_in_props_to_ignore_query_params);
+                curs.executemany(not_in_props_to_ignore_query, not_in_props_to_ignore_query_params)
         except Exception as ex:
             print("Line:", line_num, ex)
             raise
@@ -751,11 +751,11 @@ class SVNTable(object):
 
         extra_condition = {"file": "WHERE fileFlag == 1", "dir": "WHERE fileFlag == 0"}.get(what, "")
         with self.db.selection() as curs:
-            curs.execute("""
+            curs.execute(f"""
                     SELECT * FROM svn_item_t
                     {extra_condition}
                     ORDER BY _id
-                    """.format(extra_condition=extra_condition))
+                    """)
             retVal = curs.fetchall()
             retVal = self.SVNRowListToObjects(retVal)
         return retVal
@@ -773,12 +773,12 @@ class SVNTable(object):
         want_dir = what in ("any", "dir")
         extra_condition = {"file": "AND fileFlag == 1", "dir": "AND fileFlag == 0"}.get(what, "")
         with self.db.selection() as curs:
-            curs.execute("""
+            curs.execute(f"""
                     SELECT * FROM svn_item_t
                     WHERE required == 1
                     {extra_condition}
                     ORDER BY _id
-                    """.format(extra_condition=extra_condition))
+                    """)
             retVal = curs.fetchall()
             retVal = self.SVNRowListToObjects(retVal)
         return retVal
@@ -796,12 +796,12 @@ class SVNTable(object):
         want_dir = what in ("any", "dir")
         extra_condition = {"file": "AND fileFlag == 1", "dir": "AND fileFlag == 0"}.get(what, "")
         with self.db.selection() as curs:
-            curs.execute("""
+            curs.execute(f"""
                     SELECT * FROM svn_item_t
                     WHERE required == 0
                     {extra_condition}
                     ORDER BY _id
-                    """.format(extra_condition=extra_condition))
+                    """)
             retVal = curs.fetchall()
             retVal = self.SVNRowListToObjects(retVal)
         return retVal

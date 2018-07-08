@@ -6,7 +6,7 @@ import datetime
 from typing import List
 
 import utils
-from configVar import var_stack
+from configVar import config_vars  # √
 from .platformSpecificHelper_Base import PlatformSpecificHelperBase
 from .platformSpecificHelper_Base import CopyToolRsync
 from .platformSpecificHelper_Base import DownloadToolBase
@@ -84,23 +84,23 @@ chown $(__USER_ID__): "$1" || true
         return retVal
 
     def get_install_instructions_invocation_report_funcs(self):
-        self.invocations_file_path = var_stack.ResolveVarToStr("__INVOCATIONS_FILE_PATH__")
-        retVal = """
+        self.invocations_file_path = config_vars["__INVOCATIONS_FILE_PATH__"].str()
+        retVal = f"""
 report_invocation_start() {{
-    echo "--- {0}" >> "{1}"
+    echo "--- {self.random_invocation_id}" >> "{self.invocations_file_path}"
     start_date=`date +%Y/%m/%d-%H:%M:%S`
     echo "start: $start_date" >> "{1}"
-    echo "batch file: ${{BASH_SOURCE[0]}}" >> "{1}"
+    echo "batch file: ${{BASH_SOURCE[0]}}" >> "{self.invocations_file_path}"
 }}
 
 report_invocation_end() {{
-    echo "run time: $(convertsecs $Time_Measure_Diff)" >> "{1}"
+    echo "run time: $(convertsecs $Time_Measure_Diff)" >> "{self.invocations_file_path}"
     end_date=`date +%Y/%m/%d-%H:%M:%S`
     echo "end: $end_date" >> "{1}"
     echo "exit code: $1" >> "{1}"
-    echo "---  {0}" >> "{1}"
+    echo "---  {self.random_invocation_id}" >> "{self.invocations_file_path}"
 }}
-    """.format(self.random_invocation_id, self.invocations_file_path)
+    """
         return retVal
 
     def get_resolve_symlinks_func(self):
@@ -208,7 +208,7 @@ report_invocation_end() {{
     def setup_echo(self):
         retVal = []
         echo_template = ['echo', '"{}"']
-        if var_stack.defined('ECHO_LOG_FILE'):
+        if config_vars.defined('ECHO_LOG_FILE'):
             retVal.append(self.touch("$(ECHO_LOG_FILE)"))
             retVal.append(self.chmod("0666", "$(ECHO_LOG_FILE)"))
             echo_template.extend(("|", "tee", "-a", utils.quoteme_double("$(ECHO_LOG_FILE)")))
@@ -276,10 +276,10 @@ report_invocation_end() {{
         return wtar_command
 
     def tar_with_instl(self, to_tar_name):
-        if not var_stack.defined('__INSTL_LAUNCH_COMMAND__'):
+        if not config_vars.defined('__INSTL_LAUNCH_COMMAND__'):
             return # we cannot do anything without __INSTL_LAUNCH_COMMAND__
 
-        tar_with_instl_command_parts = (var_stack.ResolveVarToStr("__INSTL_LAUNCH_COMMAND__"),
+        tar_with_instl_command_parts = (config_vars["__INSTL_LAUNCH_COMMAND__"].str(),
                             "wtar",
                             "--in",
                             utils.quoteme_double(to_tar_name))
@@ -364,10 +364,10 @@ class DownloadTool_mac_curl(DownloadToolBase):
         """ Create command to download a single file.
             src_url is expected to be already escaped (spaces as %20...)
         """
-        connect_time_out = var_stack.ResolveVarToStr("CURL_CONNECT_TIMEOUT", "16")
-        max_time = var_stack.ResolveVarToStr("CURL_MAX_TIME", "180")
-        retries = var_stack.ResolveVarToStr("CURL_RETRIES", "2")
-        retry_delay = var_stack.ResolveVarToStr("CURL_RETRY_DELAY", "8")
+        connect_time_out = str(config_vars.setdefault("CURL_CONNECT_TIMEOUT", "16"))
+        max_time = str(config_vars.setdefault("CURL_MAX_TIME", "180"))
+        retries = str(config_vars.setdefault("CURL_RETRIES", "2"))
+        retry_delay = str(config_vars.setdefault("CURL_RETRY_DELAY", "8"))
 
         download_command_parts = list()
         download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
@@ -397,7 +397,7 @@ class DownloadTool_mac_curl(DownloadToolBase):
         with utils.utf8_open(parallel_run_config_file_path, "w") as wfd:
             utils.make_open_file_read_write_for_all(wfd)
             for config_file in config_files:
-                wfd.write(var_stack.ResolveStrToStr(f'"$(DOWNLOAD_TOOL_PATH)" --config "{config_file}"\n'))
+                wfd.write(config_vars.resolve_str(f'"$(DOWNLOAD_TOOL_PATH)" --config "{config_file}"\n'))
 
         download_command = " ".join((self.platform_helper.run_instl(),  "parallel-run", "--in", utils.quoteme_double(parallel_run_config_file_path)))
         return download_command

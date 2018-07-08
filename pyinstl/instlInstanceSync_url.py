@@ -10,7 +10,7 @@ import math
 
 import utils
 from .instlInstanceSyncBase import InstlInstanceSync
-from configVar import var_stack
+from configVar import config_vars
 from . import connectionBase
 
 
@@ -24,7 +24,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
     def init_sync_vars(self):
         super().init_sync_vars()
-        self.local_sync_dir = var_stack.ResolveVarToStr("LOCAL_REPO_SYNC_DIR")
+        self.local_sync_dir = config_vars["LOCAL_REPO_SYNC_DIR"].str()
 
     def create_sync_folders(self):
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Create folders ...")
@@ -33,7 +33,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.platform_helper.num_items_for_progress_report += need_download_dirs_num
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Create folders done")
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
-        self.instlObj.progress("{} folders to create".format(need_download_dirs_num))
+        self.instlObj.progress(f"{need_download_dirs_num} folders to create")
 
     def get_cookie_for_sync_urls(self, sync_base_url):
         """ get the cookie for sync_base_url and set config var
@@ -44,7 +44,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         if the_cookie:
             # the_cookie is actually a tuple ('Cookie', cookie_text)
             # we only need the second part
-            var_stack.set_var("COOKIE_FOR_SYNC_URLS").append(the_cookie[1])
+            config_vars["COOKIE_FOR_SYNC_URLS"] = the_cookie[1]
 
     def create_sync_urls(self, in_file_list):
         """ Create urls and local download paths for a list of file items.
@@ -56,7 +56,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             "http://some.base.url/" + "07/27" + "/path/to/file"
             The download path is the resolved file item's download_path
         """
-        self.sync_base_url = var_stack.ResolveVarToStr("SYNC_BASE_URL")
+        self.sync_base_url = config_vars["SYNC_BASE_URL"].str()
         self.get_cookie_for_sync_urls(self.sync_base_url)
         for file_item in in_file_list:
             source_url = file_item['url']
@@ -64,7 +64,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 repo_rev_folder_hierarchy = self.instlObj.repo_rev_to_folder_hierarchy(file_item['revision'])
                 source_url = '/'.join(utils.make_one_list(self.sync_base_url, repo_rev_folder_hierarchy, file_item['path']))
             self.instlObj.platform_helper.dl_tool.add_download_url(source_url, file_item['download_path'], verbatim=source_url==['url'], size=file_item['size'])
-        self.instlObj.progress("created sync urls for {} files".format(len(in_file_list)))
+        self.instlObj.progress(f"created sync urls for {len(in_file_list)} files")
 
     def create_curl_download_instructions(self):
         """ Download is done be creating files with instructions for curl - curl config files.
@@ -75,29 +75,29 @@ class InstlInstanceSync_url(InstlInstanceSync):
             actual_num_config_files: actual number of curl config files created. Might be smaller
             than num_config_files, or might be 0 if downloading is not required.
         """
-        main_out_file_dir, main_out_file_leaf = os.path.split(var_stack.ResolveVarToStr("__MAIN_OUT_FILE__"))
+        main_out_file_dir, main_out_file_leaf = os.path.split(config_vars["__MAIN_OUT_FILE__"].str())
         curl_config_folder = os.path.join(main_out_file_dir, "curl")
         os.makedirs(curl_config_folder, exist_ok=True)
-        curl_config_file_path = var_stack.ResolveStrToStr(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"))
-        num_config_files = int(var_stack.ResolveVarToStr("PARALLEL_SYNC"))
+        curl_config_file_path = config_vars.resolve_str(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"))
+        num_config_files = int(config_vars["PARALLEL_SYNC"])
         config_file_list = self.instlObj.platform_helper.dl_tool.create_config_files(curl_config_file_path, num_config_files)
 
         actual_num_config_files = len(config_file_list)
         if actual_num_config_files > 0:
             if actual_num_config_files > 1:
-                dl_start_message = "Downloading with {} processes in parallel".format(actual_num_config_files)
+                dl_start_message = f"Downloading with {actual_num_config_files} processes in parallel"
             else:
                 dl_start_message = "Downloading with 1 process"
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress(dl_start_message)
 
-            parallel_run_config_file_path = var_stack.ResolveStrToStr(
+            parallel_run_config_file_path = config_vars.resolve_str(
                 os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME).parallel-run"))
             self.instlObj.batch_accum += self.instlObj.platform_helper.dl_tool.download_from_config_files(
                 parallel_run_config_file_path, config_file_list)
 
-            num_files_to_download = int(var_stack.ResolveVarToStr("__NUM_FILES_TO_DOWNLOAD__"))
+            num_files_to_download = int(config_vars["__NUM_FILES_TO_DOWNLOAD__"])
             if num_files_to_download > 1:
-                dl_end_message = "Downloading {} files done".format(num_files_to_download)
+                dl_end_message = f"Downloading {num_files_to_download} files done"
             else:
                 dl_end_message = "Downloading 1 file done"
             self.instlObj.batch_accum += self.instlObj.platform_helper.progress(dl_end_message, self.files_to_download)
@@ -109,7 +109,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.platform_helper.num_items_for_progress_report += num_files
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Check checksum done")
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
-        self.instlObj.progress("created checksum checks {} files".format(num_files))
+        self.instlObj.progress(f"created checksum checks {num_files} files")
 
     def create_instructions_to_remove_redundant_files_in_sync_folder(self):
         """ Remove files in the sync folder that are not in info_map
@@ -140,15 +140,15 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         already_synced_num_files, already_synced_num_bytes = self.instlObj.info_map_table.get_not_to_download_num_files_and_size()
         to_sync_num_files, bytes_to_sync = self.instlObj.info_map_table.get_to_download_num_files_and_size()
-        var_stack.add_const_config_variable("__NUM_FILES_TO_DOWNLOAD__", "create_download_instructions", to_sync_num_files)
-        var_stack.add_const_config_variable("__NUM_BYTES_TO_DOWNLOAD__", "create_download_instructions", bytes_to_sync)
+        config_vars["__NUM_FILES_TO_DOWNLOAD__"] = to_sync_num_files
+        config_vars["__NUM_BYTES_TO_DOWNLOAD__"] = bytes_to_sync
 
         # notify user how many files and bytes to sync
-        self.instlObj.progress("{} of {} files to sync".format(to_sync_num_files, to_sync_num_files+already_synced_num_files))
-        self.instlObj.progress("{} of {} bytes to sync".format(bytes_to_sync, bytes_to_sync+already_synced_num_bytes))
+        self.instlObj.progress(f"{to_sync_num_files} of {to_sync_num_files+already_synced_num_files} files to sync")
+        self.instlObj.progress(f"{bytes_to_sync} of {bytes_to_sync+already_synced_num_bytes} bytes to sync")
 
         if already_synced_num_files > 0:
-            self.instlObj.batch_accum += self.instlObj.platform_helper.progress("{} files already in cache".format(already_synced_num_files), math.ceil(already_synced_num_files/4))
+            self.instlObj.batch_accum += self.instlObj.platform_helper.progress(f"{already_synced_num_files} files already in cache", math.ceil(already_synced_num_files/4))
 
         if to_sync_num_files == 0:
             return to_sync_num_files
@@ -207,7 +207,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             chown_for_synced_folders will change owner to the user that created the batch file.
             Currently this was found to be relevant for Mac only.
         """
-        if var_stack.ResolveVarToStr("__CURRENT_OS__") != "Mac":
+        if config_vars["__CURRENT_OS__"].str() != "Mac":
             return  # owner issue only relevant on Mac
         download_roots = self.instlObj.info_map_table.get_download_roots()
         if download_roots:

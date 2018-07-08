@@ -10,6 +10,7 @@ import fnmatch
 from contextlib import contextmanager
 import ssl
 import pyinstl.connectionBase
+#from pyinstl import connection_factory
 import zlib
 
 import urllib.request, urllib.error, urllib.parse
@@ -89,7 +90,7 @@ def read_file_or_url(in_file_or_url, path_searcher=None, encoding='utf-8', save_
         # if save_to_path contains the correct data just read it by recursively
         # calling read_file_or_url
         return read_file_or_url(save_to_path, encoding=encoding)
-    match = protocol_header_re.match(in_file_or_url)
+    match = protocol_header_re.match(os.fspath(in_file_or_url))
     if not match:  # it's a local file
         local_file_path = in_file_or_url
         if path_searcher is not None:
@@ -102,12 +103,13 @@ def read_file_or_url(in_file_or_url, path_searcher=None, encoding='utf-8', save_
         else:
             raise FileNotFoundError("Could not locate local file", local_file_path)
         if encoding is None:
-            fd = open(local_file_path, "rb")
+            read_mod = "rb"
         else:
-            fd = open(local_file_path, "r", encoding=encoding)
-        buffer = fd.read()
+            read_mod = "r"
+        with open(local_file_path, "r", encoding=encoding) as rdf:
+            buffer = rdf.read()
     else:
-        session = pyinstl.connectionBase.connection_factory().get_session(in_file_or_url)
+        session = connection_factory().get_session(in_file_or_url)
         response = session.get(in_file_or_url, timeout=(33.05, 180.05))
         response.raise_for_status()
         buffer = response.text
@@ -484,7 +486,7 @@ def translate_cookies_from_GetInstlUrlComboCollection(in_cookies):
             if 'Value' in v and 'Key' in v:
                 cookies_list.append("=".join((v['Key'], v['Value'])))
 
-    retVal = "{}:{}".format(netloc, ";".join(cookies_list))
+    retVal = f"""{netloc}:{";".join(cookies_list)}"""
     return retVal
 
 
@@ -521,7 +523,7 @@ class WavesCentralRequester(object):
 
 if __name__ == "__main__":
     import re
-    from configVar import var_stack
+    from configVar import config_vars  # √
     repo_rev_re = re.compile("^(REPO_REV:\s+\d+)", re.MULTILINE)
     index_yaml_re = re.compile("^(NUMBER_OF_BITS:\s+.+)", re.MULTILINE)
 
@@ -537,7 +539,7 @@ if __name__ == "__main__":
     index_yaml_url = "https://" + InstlUrlAccessParameters['ResourceRootUrl'] + "/V10/795/instl/index.yaml"
 
     netloc_and_cookies = translate_cookies_from_GetInstlUrlComboCollection(InstlUrlAccessParameters)
-    var_stack.set_var("COOKIE_JAR").append(netloc_and_cookies)
+    config_vars["COOKIE_JAR"] = netloc_and_cookies
 
     the_text = utils.read_file_or_url(repo_rev_yaml_url)
     print(the_text.name, repo_rev_re.search(the_text).groups(1)[0])

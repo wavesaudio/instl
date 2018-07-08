@@ -13,7 +13,7 @@ import zlib
 import utils
 from collections import OrderedDict
 from .instlInstanceBase import InstlInstanceBase
-from configVar import var_stack
+from configVar import config_vars
 from . import connectionBase
 
 
@@ -41,17 +41,17 @@ class InstlMisc(InstlInstanceBase):
         return retVal
 
     def do_command(self):
-        self.no_numbers_progress = "__NO_NUMBERS_PROGRESS__" in var_stack
+        self.no_numbers_progress = "__NO_NUMBERS_PROGRESS__" in config_vars
         # if var does not exist default is 0, meaning not to display dynamic progress
-        self.curr_progress = int(var_stack.ResolveVarToStr("__START_DYNAMIC_PROGRESS__", default="0"))
-        self.total_progress = int(var_stack.ResolveVarToStr("__TOTAL_DYNAMIC_PROGRESS__", default="0"))
-        self.progress_staccato_period = int(var_stack.ResolveVarToStr("PROGRESS_STACCATO_PERIOD"))
+        self.curr_progress = int(config_vars.get("__START_DYNAMIC_PROGRESS__", "0"))
+        self.total_progress = int(config_vars.get("__TOTAL_DYNAMIC_PROGRESS__", "0"))
+        self.progress_staccato_period = int(config_vars["PROGRESS_STACCATO_PERIOD"])
         self.progress_staccato_count = 0
         do_command_func = getattr(self, "do_" + self.fixed_command)
-        before_time = time.clock()
+        before_time = time.perf_counter()
         do_command_func()
-        after_time = time.clock()
-        if utils.str_to_bool_int(var_stack.unresolved_var("PRINT_COMMAND_TIME")):
+        after_time = time.perf_counter()
+        if bool(config_vars["PRINT_COMMAND_TIME"]):
             print(self.the_command, "time:", round(after_time - before_time, 4), "sec.")
 
     def dynamic_progress(self, msg):
@@ -64,18 +64,18 @@ class InstlMisc(InstlInstanceBase):
             print(f"Progress: ... of ...; {msg}")
 
     def do_version(self):
-        var_stack.set_var("PRINT_COMMAND_TIME").append("no") # do not print time report
+        config_vars["PRINT_COMMAND_TIME"] = "no" # do not print time report
         print(self.get_version_str())
 
     def do_help(self):
         import pyinstl.helpHelper
-        var_stack.set_var("PRINT_COMMAND_TIME").append("no") # do not print time report
+        config_vars["PRINT_COMMAND_TIME"] = "no" # do not print time report
 
-        help_folder_path = os.path.join(var_stack.ResolveVarToStr("__INSTL_DATA_FOLDER__"), "help")
-        pyinstl.helpHelper.do_help(var_stack.ResolveVarToStr("__HELP_SUBJECT__"), help_folder_path, self)
+        help_folder_path = os.path.join(config_vars["__INSTL_DATA_FOLDER__"].str(), "help")
+        pyinstl.helpHelper.do_help(config_vars["__HELP_SUBJECT__"].str(), help_folder_path, self)
 
     def do_parallel_run(self):
-        processes_list_file = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        processes_list_file = config_vars["__MAIN_INPUT_FILE__"].str()
         commands = list()
         with utils.utf8_open(processes_list_file, "r") as rfd:
             for line in rfd:
@@ -134,7 +134,7 @@ class InstlMisc(InstlInstanceBase):
             Compression is bzip2.
 
         """
-        what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        what_to_work_on = config_vars["__MAIN_INPUT_FILE__"].str()
         if not os.path.exists(what_to_work_on):
             print(what_to_work_on, "does not exists")
             return
@@ -142,8 +142,8 @@ class InstlMisc(InstlInstanceBase):
         what_to_work_on_dir, what_to_work_on_leaf = os.path.split(what_to_work_on)
 
         where_to_put_wtar = None
-        if "__MAIN_OUT_FILE__" in var_stack:
-            where_to_put_wtar = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
+        if "__MAIN_OUT_FILE__" in config_vars:
+            where_to_put_wtar = config_vars["__MAIN_OUT_FILE__"].str()
         else:
             where_to_put_wtar = what_to_work_on_dir
             if not where_to_put_wtar:
@@ -156,7 +156,7 @@ class InstlMisc(InstlInstanceBase):
             target_wtar_file = os.path.join(where_to_put_wtar, what_to_work_on_leaf+".wtar")
 
         tar_total_checksum = utils.get_wtar_total_checksum(target_wtar_file)
-        ignore_files = var_stack.ResolveVarToList("WTAR_IGNORE_FILES", default=list())
+        ignore_files = list(config_vars.get("WTAR_IGNORE_FILES", []))
         with utils.ChangeDirIfExists(what_to_work_on_dir):
             pax_headers = {"total_checksum": utils.get_recursive_checksums(what_to_work_on_leaf, ignore=ignore_files)["total_checksum"]}
 
@@ -187,7 +187,7 @@ class InstlMisc(InstlInstanceBase):
                 with tarfile.open(target_wtar_file, "w:bz2", format=tarfile.PAX_FORMAT, pax_headers=pax_headers, compresslevel=compresslevel) as tar:
                     tar.add(what_to_work_on_leaf, filter=check_tarinfo)
             else:
-                print("{0} skipped since {0}.wtar already exists and has the same contents".format(what_to_work_on))
+                print(f"{what_to_work_on} skipped since {what_to_work_on}.wtar already exists and has the same contents")
 
     def can_skip_unwtar(self, what_to_work_on, where_to_unwtar):
         return False
@@ -201,13 +201,13 @@ class InstlMisc(InstlInstanceBase):
         return retVal
 
     def do_unwtar(self):
-        self.no_artifacts = "__NO_WTAR_ARTIFACTS__" in var_stack
-        what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__", default='.')
+        self.no_artifacts = "__NO_WTAR_ARTIFACTS__" in config_vars
+        what_to_work_on = str(config_vars.get("__MAIN_INPUT_FILE__", '.'))
         what_to_work_on_dir, what_to_work_on_leaf = os.path.split(what_to_work_on)
         where_to_unwtar = None
-        if "__MAIN_OUT_FILE__" in var_stack:
-            where_to_unwtar = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
-        ignore_files = var_stack.ResolveVarToList("WTAR_IGNORE_FILES", default=list())
+        if "__MAIN_OUT_FILE__" in config_vars:
+            where_to_unwtar = config_vars["__MAIN_OUT_FILE__"].str()
+        ignore_files = list(config_vars.get("WTAR_IGNORE_FILES", []))
 
         if os.path.isfile(what_to_work_on):
             if utils.is_first_wtar_file(what_to_work_on):
@@ -231,17 +231,17 @@ class InstlMisc(InstlInstanceBase):
                         if utils.is_first_wtar_file(a_file_path):
                             utils.unwtar_a_file(a_file_path, where_to_unwtar_the_file, no_artifacts=self.no_artifacts, ignore=ignore_files)
             else:
-                print("unwtar {} to {} skipping unwtarring because both folders have the same Info.xml file".format(what_to_work_on, where_to_unwtar))
+                print(f"unwtar {what_to_work_on} to {where_to_unwtar} skipping unwtarring because both folders have the same Info.xml file")
 
         else:
             raise FileNotFoundError(what_to_work_on)
-        self.dynamic_progress("unwtar {}".format(utils.original_name_from_wtar_name(what_to_work_on_leaf)))
+        self.dynamic_progress(f"unwtar {utils.original_name_from_wtar_name(what_to_work_on_leaf)}")
 
     def do_check_checksum(self):
         self.progress_staccato_command = True
         bad_checksum_list = list()
         missing_files_list = list()
-        self.read_info_map_from_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
+        self.read_info_map_from_file(config_vars["__MAIN_INPUT_FILE__"].str())
         for file_item in self.info_map_table.get_items(what="file"):
             if os.path.isfile(file_item.download_path):
                 file_checksum = utils.get_file_checksum(file_item.download_path)
@@ -255,17 +255,17 @@ class InstlMisc(InstlInstanceBase):
             missing_files_exception_message = ""
             if bad_checksum_list:
                 print("\n".join(bad_checksum_list))
-                bad_checksum_list_exception_message += "Bad checksum for {} files".format(len(bad_checksum_list))
+                bad_checksum_list_exception_message += f"Bad checksum for {len(bad_checksum_list)} files"
                 print(bad_checksum_list_exception_message)
             if missing_files_list:
                 print("\n".join(missing_files_list))
-                missing_files_exception_message += "Missing {} files".format(len(missing_files_list))
+                missing_files_exception_message += f"Missing {len(missing_files_list)} files"
                 print(missing_files_exception_message)
             raise ValueError("\n".join((bad_checksum_list_exception_message, missing_files_exception_message)))
 
     def do_set_exec(self):
         self.progress_staccato_command = True
-        self.read_info_map_from_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
+        self.read_info_map_from_file(config_vars["__MAIN_INPUT_FILE__"].str())
         for file_item_path in self.info_map_table.get_exec_file_paths():
             if os.path.isfile(file_item_path):
                 file_stat = os.stat(file_item_path)
@@ -274,7 +274,7 @@ class InstlMisc(InstlInstanceBase):
 
     def do_create_folders(self):
         self.progress_staccato_command = True
-        self.read_info_map_from_file(var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__"))
+        self.read_info_map_from_file(config_vars["__MAIN_INPUT_FILE__"].str())
         for dir_item in self.info_map_table.get_items(what="dir"):
             os.makedirs(dir_item.path, exist_ok=True)
             self.dynamic_progress(f"Create folder {dir_item.path}")
@@ -293,8 +293,8 @@ class InstlMisc(InstlInstanceBase):
             sys.exit(17)
 
     def do_remove_empty_folders(self):
-        folder_to_remove = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
-        files_to_ignore = var_stack.ResolveVarToList("REMOVE_EMPTY_FOLDERS_IGNORE_FILES", default=[])
+        folder_to_remove = config_vars["__MAIN_INPUT_FILE__"].str()
+        files_to_ignore = list(config_vars.get("REMOVE_EMPTY_FOLDERS_IGNORE_FILES", []))
         for root_path, dir_names, file_names in os.walk(folder_to_remove, topdown=False, onerror=None, followlinks=False):
             # when topdown=False os.walk creates dir_names for each root_path at the beginning and has
             # no knowledge if a directory has already been deleted.
@@ -320,10 +320,10 @@ class InstlMisc(InstlInstanceBase):
                         print("failed to remove", root_path, ex)
 
     def do_win_shortcut(self):
-        shortcut_path = var_stack.ResolveVarToStr("__SHORTCUT_PATH__")
-        target_path = var_stack.ResolveVarToStr("__SHORTCUT_TARGET_PATH__")
+        shortcut_path = config_vars["__SHORTCUT_PATH__"].str()
+        target_path = config_vars["__SHORTCUT_TARGET_PATH__"].str()
         working_directory, target_name = os.path.split(target_path)
-        run_as_admin = "__RUN_AS_ADMIN__" in var_stack
+        run_as_admin = "__RUN_AS_ADMIN__" in config_vars
         from win32com.client import Dispatch
 
         shell = Dispatch("WScript.Shell")
@@ -347,15 +347,15 @@ class InstlMisc(InstlInstanceBase):
                 file.Save(shortcut_path, 0)
 
     def do_translate_url(self):
-        url_to_translate = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        url_to_translate = config_vars["__MAIN_INPUT_FILE__"].str()
         translated_url = connectionBase.connection_factory().translate_url(url_to_translate)
         print(translated_url)
 
     def do_mac_dock(self):
-        path_to_item = var_stack.ResolveVarToStr("__DOCK_ITEM_PATH__", default="")
-        label_for_item = var_stack.ResolveVarToStr("__DOCK_ITEM_LABEL__", default="")
-        restart_the_doc = var_stack.ResolveVarToStr("__RESTART_THE_DOCK__", default="")
-        remove = "__REMOVE_FROM_DOCK__" in var_stack
+        path_to_item = str(config_vars.get("__DOCK_ITEM_PATH__", ""))
+        label_for_item = str(config_vars.get("__DOCK_ITEM_LABEL__", ""))
+        restart_the_doc = str(config_vars.get("__RESTART_THE_DOCK__", ""))
+        remove = "__REMOVE_FROM_DOCK__" in config_vars
 
         dock_util_command = list()
         if remove:
@@ -383,34 +383,34 @@ class InstlMisc(InstlInstanceBase):
         utils.dock_util(dock_util_command)
 
     def do_ls(self):
-        main_folder_to_list = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        main_folder_to_list = config_vars["__MAIN_INPUT_FILE__"].str()
         folders_to_list = []
-        if var_stack.defined("__LIMIT_COMMAND_TO__"):
-            limit_list = var_stack.ResolveVarToList("__LIMIT_COMMAND_TO__")
+        if config_vars.defined("__LIMIT_COMMAND_TO__"):
+            limit_list = list(config_vars["__LIMIT_COMMAND_TO__"])
             for limit in limit_list:
                 limit = utils.unquoteme(limit)
                 folders_to_list.append(os.path.join(main_folder_to_list, limit))
         else:
             folders_to_list.append(main_folder_to_list)
 
-        ls_format = var_stack.ResolveVarToStr("LS_FORMAT", default='*')
+        ls_format = str(config_vars.get("LS_FORMAT", '*'))
         the_listing = utils.disk_item_listing(*folders_to_list, ls_format=ls_format)
 
-        out_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
+        out_file = config_vars["__MAIN_OUT_FILE__"].str()
         try:
             with utils.write_to_file_or_stdout(out_file) as wfd:
                 wfd.write(the_listing)
         except NotADirectoryError:
-            print("Cannot output to {}".format(out_file))
+            print(f"Cannot output to {out_file}")
 
     def do_fail(self):
-        exit_code = int(var_stack.ResolveVarToStr("__FAIL_EXIT_CODE__", default="1") )
+        exit_code = int(config_vars.get("__FAIL_EXIT_CODE__", "1") )
         print("Failing on purpose with exit code", exit_code)
         sys.exit(exit_code)
 
     def do_checksum(self):
-        path_to_checksum = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
-        ignore_files = var_stack.ResolveVarToList("WTAR_IGNORE_FILES", default=list())
+        path_to_checksum = config_vars["__MAIN_INPUT_FILE__"].str()
+        ignore_files = list(config_vars.get("WTAR_IGNORE_FILES", []))
         checksums_dict = utils.get_recursive_checksums(path_to_checksum, ignore=ignore_files)
         total_checksum = checksums_dict.pop('total_checksum', "Unknown total checksum")
         path_and_checksum_list = [(path, checksum) for path, checksum in sorted(checksums_dict.items())]
@@ -422,18 +422,18 @@ class InstlMisc(InstlInstanceBase):
         print(col_formats[2].format("total checksum", total_checksum))
 
     def do_resolve(self):
-        var_stack.set_var("PRINT_COMMAND_TIME").append("no") # do not print time report
-        config_file = var_stack.ResolveVarToStr("__CONFIG_FILE__")
+        config_vars["PRINT_COMMAND_TIME"] = "no" # do not print time report
+        config_file = config_vars["__CONFIG_FILE__"].str()
         if not os.path.isfile(config_file):
-            raise FileNotFoundError(config_file, var_stack.unresolved_var("__CONFIG_FILE__"))
-        input_file = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+            raise FileNotFoundError(config_file, config_vars["__CONFIG_FILE__"].raw())
+        input_file = config_vars["__MAIN_INPUT_FILE__"].str()
         if not os.path.isfile(input_file):
-            raise FileNotFoundError(input_file, var_stack.unresolved_var("__MAIN_INPUT_FILE__"))
-        output_file = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
+            raise FileNotFoundError(input_file, config_vars["__MAIN_INPUT_FILE__"].raw())
+        output_file = config_vars["__MAIN_OUT_FILE__"].str()
         self.read_yaml_file(config_file)
         with utils.utf8_open(input_file, "r") as rfd:
             text_to_resolve = rfd.read()
-        resolved_text = var_stack.ResolveStrToStr(text_to_resolve)
+        resolved_text = config_vars.resolve_str(text_to_resolve)
         with utils.utf8_open(output_file, "w") as wfd:
             wfd.write(resolved_text)
 
@@ -441,10 +441,9 @@ class InstlMisc(InstlInstanceBase):
         py_file_path = "unknown file"
         try:
             self.read_yaml_file("InstlClient.yaml")  # temp hack, which additional config file to read should come from command line options
-            config_file = var_stack.ResolveVarToStr("__CONFIG_FILE__")
-            if os.path.isfile(config_file):
-                self.read_yaml_file(config_file)
-            py_file_path = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+            config_file = config_vars["__CONFIG_FILE__"].str()
+            self.read_yaml_file(config_file, ignore_if_not_exist=True)
+            py_file_path = config_vars["__MAIN_INPUT_FILE__"].str()
             with utils.utf8_open(py_file_path, 'r') as rfd:
                 py_text = rfd.read()
                 exec(py_text, globals())
@@ -487,7 +486,7 @@ class InstlMisc(InstlInstanceBase):
             ZLIB_COMPRESSION_LEVEL: will set the compression level, default is 8
             WZLIB_EXTENSION: .wzip extension is the default, the value is read from the configVar WZLIB_EXTENSION,
         """
-        what_to_work_on = var_stack.ResolveVarToStr("__MAIN_INPUT_FILE__")
+        what_to_work_on = config_vars["__MAIN_INPUT_FILE__"].str()
         if not os.path.exists(what_to_work_on):
             print(what_to_work_on, "does not exists")
             return
@@ -495,8 +494,8 @@ class InstlMisc(InstlInstanceBase):
         what_to_work_on_dir, what_to_work_on_leaf = os.path.split(what_to_work_on)
 
         where_to_put_wzip = None
-        if "__MAIN_OUT_FILE__" in var_stack:
-            where_to_put_wzip = var_stack.ResolveVarToStr("__MAIN_OUT_FILE__")
+        if "__MAIN_OUT_FILE__" in config_vars:
+            where_to_put_wzip = config_vars["__MAIN_OUT_FILE__"].str()
         else:
             where_to_put_wzip = what_to_work_on_dir
             if not where_to_put_wzip:
@@ -508,6 +507,6 @@ class InstlMisc(InstlInstanceBase):
             os.makedirs(where_to_put_wzip, exist_ok=True)
             target_wzip_file = os.path.join(where_to_put_wzip, what_to_work_on_leaf+".wzip")
 
-        zlib_compression_level = int(var_stack.ResolveVarToStr("ZLIB_COMPRESSION_LEVEL", "8"))
+        zlib_compression_level = int(config_vars.get("ZLIB_COMPRESSION_LEVEL", "8"))
         with open(target_wzip_file, "wb") as wfd:
             wfd.write(zlib.compress(open(what_to_work_on, "r").read().encode(), zlib_compression_level))

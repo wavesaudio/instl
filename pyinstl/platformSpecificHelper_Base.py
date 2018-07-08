@@ -11,7 +11,7 @@ import random
 import string
 
 import utils
-from configVar import var_stack
+from configVar import config_vars  # √
 from . import connectionBase
 
 
@@ -120,7 +120,7 @@ class CopyToolRsync(CopyToolBase):
         if not trg_dir.endswith("/"):
             trg_dir += "/"
         ignore_spec = self.create_ignore_spec(ignore)
-        permissions_spec = var_stack.ResolveVarToStr("RSYNC_PERM_OPTIONS", default="")
+        permissions_spec = str(config_vars.get("RSYNC_PERM_OPTIONS", ""))
         if link_dest:
             the_link_dest, src_file_name = os.path.split(src_file)
             relative_link_dest = os.path.relpath(the_link_dest, trg_dir)
@@ -175,7 +175,7 @@ class PlatformSpecificHelperBase(object):
         self.copy_tool = None
         self.dl_tool = None
         self.num_items_for_progress_report = 0
-        self.progress_staccato_period = int(var_stack.ResolveVarToStr("PROGRESS_STACCATO_PERIOD", default="128"))
+        self.progress_staccato_period = config_vars.get("PROGRESS_STACCATO_PERIOD", "128").int()
         self.progress_staccato_count = 0
         self.no_progress_messages = False
         self.random_invocation_id = ''.join(random.choice(string.ascii_lowercase) for _ in range(16))
@@ -198,9 +198,9 @@ class PlatformSpecificHelperBase(object):
         pass
 
     def init_copy_tool(self):
-        copy_tool_name = self.DefaultCopyToolName(var_stack.ResolveVarToStr("__CURRENT_OS__")) # copy instructions are always produced for the current os
-        if "COPY_TOOL" in var_stack:
-            copy_tool_name = var_stack.ResolveVarToStr("COPY_TOOL")
+        copy_tool_name = self.DefaultCopyToolName(config_vars["__CURRENT_OS__"].str()) # copy instructions are always produced for the current os
+        if "COPY_TOOL" in config_vars:
+            copy_tool_name = config_vars["COPY_TOOL"].str()
         self.use_copy_tool(copy_tool_name)
 
     @abc.abstractmethod
@@ -267,8 +267,7 @@ class PlatformSpecificHelperBase(object):
     def progress(self, msg, num_items=0):
         self.num_items_for_progress_report += num_items + 1
         if not self.no_progress_messages:
-            prog_msg = "Progress: {} of $(TOTAL_ITEMS_FOR_PROGRESS_REPORT); {}".format(self.num_items_for_progress_report, msg)
-            #prog_msg = "Progress: {} of $(TOTAL_ITEMS_FOR_PROGRESS_REPORT); $(CURRENT_PHASE); {}".format(self.num_items_for_progress_report, msg)
+            prog_msg = f"Progress: {self.num_items_for_progress_report} of $(TOTAL_ITEMS_FOR_PROGRESS_REPORT); {msg}"
             return self.echo(prog_msg)
         else:
             return ()
@@ -279,7 +278,7 @@ class PlatformSpecificHelperBase(object):
         inc_by = max(1, int(self.num_items_for_progress_report / 100) * int(percent))
         self.num_items_for_progress_report += inc_by
         if not self.no_progress_messages:
-            prog_msg = "Progress: {} of $(TOTAL_ITEMS_FOR_PROGRESS_REPORT); {}".format(self.num_items_for_progress_report, msg)
+            prog_msg = f"Progress: {self.num_items_for_progress_report} of $(TOTAL_ITEMS_FOR_PROGRESS_REPORT); {msg}"
             return self.echo(prog_msg)
         else:
             return ()
@@ -493,12 +492,12 @@ class DownloadToolBase(object, metaclass=abc.ABCMeta):
         file_name_list = list()
         num_urls_to_download = len(self.urls_to_download)
         if num_urls_to_download > 0:
-            connect_time_out = var_stack.ResolveVarToStr("CURL_CONNECT_TIMEOUT", "32")
-            max_time = var_stack.ResolveVarToStr("CURL_MAX_TIME", "300")
-            retries = var_stack.ResolveVarToStr("CURL_RETRIES", "6")
-            retry_delay = var_stack.ResolveVarToStr("CURL_RETRY_DELAY", "12")
+            connect_time_out = str(config_vars.setdefault("CURL_CONNECT_TIMEOUT", "16"))
+            max_time = str(config_vars.setdefault("CURL_MAX_TIME", "180"))
+            retries = str(config_vars.setdefault("CURL_RETRIES", "2"))
+            retry_delay = str(config_vars.setdefault("CURL_RETRY_DELAY", "8"))
 
-            sync_urls_cookie = var_stack.ResolveVarToStr("COOKIE_FOR_SYNC_URLS", default=None)
+            sync_urls_cookie = str(config_vars.get("COOKIE_FOR_SYNC_URLS", ""))
 
             actual_num_config_files = int(max(0, min(num_urls_to_download, num_config_files)))
             num_digits = len(str(actual_num_config_files))
