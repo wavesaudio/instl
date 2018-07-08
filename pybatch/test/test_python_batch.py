@@ -203,6 +203,7 @@ class TestPythonBatch(unittest.TestCase):
         """ test Chmod
             A file is created and it's permissions are changed several times
         """
+        # TODO: Add test for symbolic links
         file_to_chmod = self.test_folder.joinpath("file-to-chmod").resolve()
         touch(file_to_chmod)
         mod_before = stat.S_IMODE(os.stat(file_to_chmod).st_mode)
@@ -381,15 +382,17 @@ class TestPythonBatch(unittest.TestCase):
                 self.batch_accum += Touch("hootenanny")  # add one file with fixed (none random) name
                 self.batch_accum += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
             self.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_no_hard_links, link_dest=False)
-            self.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_with_hard_links, link_dest=True)
+            if sys.platform == 'darwin':
+                self.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_with_hard_links, link_dest=True)
 
         self.exec_and_capture_output()
 
         dir_comp_no_hard_links = filecmp.dircmp(dir_to_copy_from, copied_dir_no_hard_links)
         self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), "{self.which_test} (no hard links): source and target dirs are not the same")
 
-        dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, copied_dir_with_hard_links)
-        self.assertTrue(is_hard_linked(dir_comp_with_hard_links), "{self.which_test} (with hard links): source and target files are not hard links to the same file")
+        if sys.platform == 'darwin':
+            dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, copied_dir_with_hard_links)
+            self.assertTrue(is_hard_linked(dir_comp_with_hard_links), "{self.which_test} (with hard links): source and target files are not hard links to the same file")
 
     def test_CopyDirContentsToDir(self):
         """ see doc string for test_CopyDirToDir, with the difference that the source dir contents
@@ -410,15 +413,17 @@ class TestPythonBatch(unittest.TestCase):
                 self.batch_accum += Touch("hootenanny")  # add one file with fixed (none random) name
                 self.batch_accum += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
             self.batch_accum += CopyDirContentsToDir(dir_to_copy_from, dir_to_copy_to_no_hard_links, link_dest=False)
-            self.batch_accum += CopyDirContentsToDir(dir_to_copy_from, dir_to_copy_to_with_hard_links, link_dest=True)
+            if sys.platform == 'darwin':
+                self.batch_accum += CopyDirContentsToDir(dir_to_copy_from, dir_to_copy_to_with_hard_links, link_dest=True)
 
         self.exec_and_capture_output()
 
         dir_comp_no_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_no_hard_links)
         self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), "{self.which_test} (no hard links): source and target dirs are not the same")
 
-        dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_hard_links)
-        self.assertTrue(is_hard_linked(dir_comp_with_hard_links), "{self.which_test} (with hard links): source and target files are not hard links to the same file")
+        if sys.platform == 'darwin':
+            dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_hard_links)
+            self.assertTrue(is_hard_linked(dir_comp_with_hard_links), "{self.which_test} (with hard links): source and target files are not hard links to the same file")
 
     def test_CopyFileToDir(self):
         """ see doc string for test_CopyDirToDir, with the difference that the source dir contains
@@ -437,18 +442,21 @@ class TestPythonBatch(unittest.TestCase):
 
         with self.batch_accum:
             self.batch_accum += MakeDirs(dir_to_copy_from)
+            self.batch_accum += MakeDirs(dir_to_copy_to_no_hard_links)
             with self.batch_accum.adjuvant(Cd(dir_to_copy_from)) as sub_bc:
                 self.batch_accum += Touch("hootenanny")  # add one file
             self.batch_accum += CopyFileToDir(file_to_copy, dir_to_copy_to_no_hard_links, link_dest=False)
-            self.batch_accum += CopyFileToDir(file_to_copy, dir_to_copy_to_with_hard_links, link_dest=True)
+            if sys.platform == 'darwin':
+                self.batch_accum += CopyFileToDir(file_to_copy, dir_to_copy_to_with_hard_links, link_dest=True)
 
         self.exec_and_capture_output()
 
         dir_comp_no_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_no_hard_links)
         self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), "{self.which_test} (no hard links): source and target dirs are not the same")
 
-        dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_hard_links)
-        self.assertTrue(is_hard_linked(dir_comp_with_hard_links), "{self.which_test} (with hard links): source and target files are not hard links to the same file")
+        if sys.platform == 'darwin':
+            dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_hard_links)
+            self.assertTrue(is_hard_linked(dir_comp_with_hard_links), "{self.which_test} (with hard links): source and target files are not hard links to the same file")
 
     def test_CopyFileToFile(self):
         """ see doc string for test_CopyDirToDir, with the difference that the source dir contains
@@ -562,10 +570,12 @@ class TestPythonBatch(unittest.TestCase):
         batches_dir = self.test_folder.joinpath("batches").resolve()
         self.assertFalse(batches_dir.exists(), f"{self.which_test}: {batches_dir} should not exist before test")
 
-        geronimo = [
-                        "ls /Users/shai/Desktop >> /Users/shai/Desktop/batches/geronimo.txt",
-                        """[ -f "/Users/shai/Desktop/batches/geronimo.txt" ] && echo "g e r o n i m o" >> /Users/shai/Desktop/batches/geronimo.txt""",
-                       ]
+        if sys.platform == 'darwin':
+            geronimo = ["ls /Users/shai/Desktop >> ~/Desktop/batches/geronimo.txt",
+                        """[ -f "/Users/shai/Desktop/batches/geronimo.txt" ] && echo "g e r o n i m o" >> /Users/shai/Desktop/batches/geronimo.txt"""]
+        else:
+            geronimo = [r"dir C:\Program Files\Git >> %userprofile%\desktop\geronimo.txt",
+                        ]
 
         with self.batch_accum:
             self.batch_accum += VarAssign("geronimo", geronimo)

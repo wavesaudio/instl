@@ -181,18 +181,39 @@ class Unlock(ChFlags):
         return the_progress_msg
 
 
-class RsyncCopyBase(RunProcessBase):
-    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False):
+class CopyBase(RunProcessBase):
+    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False, copy_file=False, copy_dir=False):
         super().__init__()
         self.src: os.PathLike = src
         self.trg: os.PathLike = trg
         self.link_dest = link_dest
         self.ignore = ignore
         self.preserve_dest_files = preserve_dest_files
+        self.copy_file = copy_file
+        self.copy_dir = copy_dir
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(src="{self.src}", trg="{self.trg}", link_dest={self.link_dest}, ignore={self.ignore}, preserve_dest_files={self.preserve_dest_files})"""
+        the_repr = f"""{self.__class__.__name__}(src=r"{self.src}", trg=r"{self.trg}", link_dest={self.link_dest}, ignore={self.ignore}, preserve_dest_files={self.preserve_dest_files})"""
         return the_repr
+
+    def progress_msg_self(self):
+        the_progress_msg = f"{self}"
+        return the_progress_msg
+
+    @abc.abstractmethod
+    def create_run_args(self):
+        raise NotImplemented()
+
+    @abc.abstractmethod
+    def create_ignore_spec(self, ignore: bool):
+        raise NotImplemented()
+
+
+class RsyncCopyBase(CopyBase):
+    def __init__(self, src: os.PathLike, trg: os.PathLike, *args, **kwargs):
+        if not os.fspath(self.trg).endswith("/"):
+            trg = os.fspath(trg) + "/"
+        super().__init__(src, trg, *args, **kwargs)
 
     def create_run_args(self):
         run_args = list()
@@ -219,43 +240,109 @@ class RsyncCopyBase(RunProcessBase):
             retVal.extend(["--exclude=" + utils.quoteme_single(ignoree) for ignoree in ignore])
         return retVal
 
-    def progress_msg_self(self):
-        the_progress_msg = f"{self}"
-        return the_progress_msg
+
+class RoboCopyBase(CopyBase):
+    RETURN_CODES = {0:  '''
+                            No errors occurred, and no copying was done.
+                            The source and destination directory trees are completely synchronized.''',
+                    1: '''One or more files were copied successfully (that is, new files have arrived).''',
+                    2: '''
+                            Some Extra files or directories were detected. No files were copied
+                            Examine the output log for details.''',
+                    # (2 + 1)
+                    3: '''Some files were copied.Additional files were present.No failure was encountered.''',
+                    4: '''
+                            Some Mismatched files or directories were detected.
+                            Examine the output log. Housekeeping might be required.''',
+                    # (4 + 1)
+                    5: '''Some files were copied. Some files were mismatched. No failure was encountered.''',
+                    # (4 + 2)
+                    6: '''
+                            Additional files and mismatched files exist. No files were copied and no failures were encountered.
+                            This means that the files already exist in the destination directory''',
+                    # (4 + 1 + 2)
+                    7: '''Files were copied, a file mismatch was present, and additional files were present.''',
+
+                    # Any value greater than 7 indicates that there was at least one failure during the copy operation.
+                    8: '''
+                            Some files or directories could not be copied
+                            (copy errors occurred and the retry limit was exceeded).
+                            Check these errors further.''',
+                    16: '''
+                            Serious error. Robocopy did not copy any files.
+                            Either a usage error or an error due to insufficient access privileges
+                            on the source or destination directories.'''}
+
+    def __call__(self, *args, **kwargs):
+        try:
+            super().__call__(*args, **kwargs)
+        except subprocess.CalledProcessError as e:
+            if e.returncode > 7:
+                raise e
+            #     pass  # One or more files were copied successfully (that is, new files have arrived).
+            # else:
+            #     raise subprocess.SubprocessError(f'{self.RETURN_CODES[e.returncode]}') from e
+
+    def create_run_args(self):
+        run_args = ['robocopy', '/E']
+        run_args.extend(self.create_ignore_spec(self.ignore))
+        if not self.preserve_dest_files:
+            run_args.append('/purge')
+        if self.copy_file:
+            run_args.extend((os.path.dirname(self.src), self.trg, os.path.basename(self.src)))
+        elif self.copy_dir:
+            run_args.extend((self.src, os.path.join(self.trg, os.path.basename(self.src))))
+        else:
+            run_args.extend((self.src, self.trg))
+        return run_args
+
+    def create_ignore_spec(self, ignore: bool):
+        retVal = []
+        # if ignore:
+        #     if isinstance(ignore, str):
+        #         ignore = (ignore,)
+        #     retVal.extend(["--exclude=" + utils.quoteme_single(ignoree) for ignoree in ignore])
+        return retVal
 
 
-class CopyDirToDir(RsyncCopyBase):
+if sys.platform == 'darwin':
+    CopyClass = RsyncCopyBase
+else:
+    CopyClass = RoboCopyBase
+
+
+class CopyDirToDir(CopyClass):
     def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False):
-       src = os.fspath(src).rstrip("/")
-       super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files)
+        src = os.fspath(src).rstrip("/")
+        super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files, copy_dir=True)
 
 
-class CopyDirContentsToDir(RsyncCopyBase):
+class CopyDirContentsToDir(CopyClass):
     def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False):
         if not os.fspath(src).endswith("/"):
             src = os.fspath(src)+"/"
         super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files)
 
 
-class CopyFileToDir(RsyncCopyBase):
+class CopyFileToDir(CopyClass):
     def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False):
         src = os.fspath(src).rstrip("/")
         if not os.fspath(trg).endswith("/"):
             trg = os.fspath(trg)+"/"
-        super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files)
+        super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files, copy_file=True)
 
 
-class CopyFileToFile(RsyncCopyBase):
+class CopyFileToFile(CopyClass):
     def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False):
-       src = os.fspath(src).rstrip("/")
-       trg = os.fspath(trg).rstrip("/")
-       super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files)
+        src = os.fspath(src).rstrip("/")
+        trg = os.fspath(trg).rstrip("/")
+        super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files, copy_file=True)
 
 
 class RmFile(PythonBatchCommandBase):
     def __init__(self, path: os.PathLike):
         """ remove a file
-            - t's OK is the file does not exist
+            - It's OK is the file does not exist
             - but exception will be raised if the path if a folder
         """
         super().__init__()
@@ -263,7 +350,7 @@ class RmFile(PythonBatchCommandBase):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(path="{os.fspath(self.path)}")"""
+        the_repr = f"""{self.__class__.__name__}(path=r"{os.fspath(self.path)}")"""
         return the_repr
 
     def progress_msg_self(self):
@@ -294,7 +381,7 @@ class RmDir(PythonBatchCommandBase):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(path="{os.fspath(self.path)}")"""
+        the_repr = f"""{self.__class__.__name__}(path=r"{os.fspath(self.path)}")"""
         return the_repr
 
     def progress_msg_self(self):
@@ -317,7 +404,7 @@ class RmFileOrDir(PythonBatchCommandBase):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(path="{os.fspath(self.path)}")"""
+        the_repr = f"""{self.__class__.__name__}(path=r"{os.fspath(self.path)}")"""
         return the_repr
 
     def progress_msg_self(self):
@@ -479,12 +566,17 @@ class Chmod(RunProcessBase):
 
     def create_run_args(self):
         run_args = list()
-        run_args.append("chmod")
-        if self.ignore_all_errors:
-            run_args.append("-f")
-        if self.recursive:
-            run_args.append("-R")
-        run_args.append(self.mode)
+        if sys.platform == 'darwin':
+            run_args.append("chmod")
+            if self.ignore_all_errors:
+                run_args.append("-f")
+            if self.recursive:
+                run_args.append("-R")
+            run_args.append(self.mode)
+        else:
+            run_args.append('attrib')
+            if self.recursive:
+                run_args.append('/s')
         run_args.append(self.path)
         return run_args
 

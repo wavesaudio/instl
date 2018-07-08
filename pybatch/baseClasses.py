@@ -57,7 +57,7 @@ class PythonBatchCommandBase(abc.ABC):
 
     def __eq__(self, other):
         do_not_compare_keys = ('progress', 'obj_name')
-        dict_self =  {k:  self.__dict__[k] for k in  self.__dict__.keys() if k not in do_not_compare_keys}
+        dict_self = {k:  self.__dict__[k] for k in self.__dict__.keys() if k not in do_not_compare_keys}
         dict_other = {k: other.__dict__[k] for k in other.__dict__.keys() if k not in do_not_compare_keys}
         is_eq = dict_self == dict_other
         return is_eq
@@ -137,7 +137,7 @@ class RunProcessBase(PythonBatchCommandBase):
         super().__init__(**kwargs)
         if self.ignore_all_errors:
             self.exceptions_to_ignore.append(subprocess.CalledProcessError)
-        self.shell =   kwargs.get('shell', False)
+        self.shell = kwargs.get('shell', False)
 
     @abc.abstractmethod
     def create_run_args(self):
