@@ -3,6 +3,8 @@ import stat
 import random
 import string
 import shutil
+import pathlib
+from typing import List, Any
 
 import utils
 from .baseClasses import *
@@ -307,7 +309,7 @@ class RoboCopyBase(CopyBase):
 
 if sys.platform == 'darwin':
     CopyClass = RsyncCopyBase
-else:
+elif sys.platform == 'win32':
     CopyClass = RoboCopyBase
 
 
@@ -564,6 +566,7 @@ class Chmod(RunProcessBase):
                 flags |= Chmod.who_2_perm[w][p]
         return flags, match.group('op')
 
+
     def create_run_args(self):
         run_args = list()
         if sys.platform == 'darwin':
@@ -573,7 +576,7 @@ class Chmod(RunProcessBase):
             if self.recursive:
                 run_args.append("-R")
             run_args.append(self.mode)
-        else:
+        elif sys.platform == 'win32':
             run_args.append('attrib')
             if self.recursive:
                 run_args.append('/s')
@@ -597,6 +600,59 @@ class Chmod(RunProcessBase):
             os.chmod(self.path, mode_to_set)
         return None
 
+
+class ShellCommands(RunProcessBase):
+    def __init__(self, dir, shell_commands_var_name, shell_commands_list=None, **kwargs):
+        kwargs["shell"] = True
+        super().__init__(**kwargs)
+        self.dir = dir
+        self.var_name = shell_commands_var_name
+        self.shell_commands_list = shell_commands_list
+
+    def __repr__(self):
+        the_repr = f"""{self.__class__.__name__}(dir="{self.dir}", shell_commands_var_name="{self.var_name}", shell_commands_list={self.var_name})"""
+        return the_repr
+
+    def progress_msg_self(self):
+        prog_mess = ""
+        return prog_mess
+
+    def create_run_args(self):
+        the_lines = self.shell_commands_list
+        if isinstance(the_lines, str):
+            the_lines = [the_lines]
+        if sys.platform == 'darwin':
+            the_lines.insert(0,  "#!/usr/bin/env bash")
+            batch_extension = ".command"
+        elif sys.platform == "win32":
+            batch_extension = ".bat"
+        commands_text = "\n".join(the_lines)
+        batch_file_path = pathlib.Path(self.dir, self.var_name + batch_extension)
+        with open(batch_file_path, "w") as batch_file:
+            batch_file.write(commands_text)
+        os.chmod(batch_file.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
+
+        run_args = list()
+        run_args.append(batch_file.name)
+        return run_args
+
+
+class VarAssign(PythonBatchCommandBase):
+    def __init__(self, param_name: str, var_value: Any):
+        super().__init__(is_context_manager=False)
+        self.param_name = param_name
+        self.var_value = var_value
+
+    def __repr__(self):
+
+        the_repr = f'{self.param_name} = {repr(self.var_value)}\n'
+        return the_repr
+
+    def progress_msg_self(self):
+        return ""
+
+    def __call__(self, *args, **kwargs):
+        pass
 
 # todo:
 # override PythonBatchCommandBase for all commands

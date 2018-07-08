@@ -108,9 +108,9 @@ class TestPythonBatch(unittest.TestCase):
         if self.test_folder.exists():
             for root, dirs, files in os.walk(str(self.test_folder)):
                 for d in dirs:
-                    os.chmod(os.path.join(root, d), stat.S_IWUSR)
+                    os.chmod(os.path.join(root, d), Chmod.all_read_write_exec)
                 for f in files:
-                    os.chmod(os.path.join(root, f), stat.S_IWUSR)
+                    os.chmod(os.path.join(root, f), Chmod.all_read_write)
             shutil.rmtree(self.test_folder)  # make sure the folder is erased
         self.test_folder.mkdir(parents=True, exist_ok=False)
 
@@ -571,8 +571,8 @@ class TestPythonBatch(unittest.TestCase):
         self.assertFalse(batches_dir.exists(), f"{self.which_test}: {batches_dir} should not exist before test")
 
         if sys.platform == 'darwin':
-            geronimo = ["ls /Users/shai/Desktop >> ~/Desktop/batches/geronimo.txt",
-                        """[ -f "/Users/shai/Desktop/batches/geronimo.txt" ] && echo "g e r o n i m o" >> /Users/shai/Desktop/batches/geronimo.txt"""]
+            geronimo = [f"""ls /Users/shai/Desktop >> "{os.fspath(batches_dir)}/geronimo.txt\"""",
+                        f"""[ -f "{os.fspath(batches_dir)}/geronimo.txt" ] && echo "g e r o n i m o" >> {os.fspath(batches_dir)}/geronimo.txt"""]
         else:
             geronimo = [r"dir C:\Program Files\Git >> %userprofile%\desktop\geronimo.txt",
                         ]
@@ -580,7 +580,7 @@ class TestPythonBatch(unittest.TestCase):
         with self.batch_accum:
             self.batch_accum += VarAssign("geronimo", geronimo)
             self.batch_accum += MakeDirs(batches_dir)
-            self.batch_accum += ShellCommands(dir=batches_dir, var_name="geronimo")
+            self.batch_accum += ShellCommands(dir=batches_dir, shell_commands_var_name="geronimo")
 
         self.exec_and_capture_output()
 
