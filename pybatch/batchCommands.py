@@ -211,7 +211,7 @@ class CopyBase(RunProcessBase):
 
 class RsyncCopyBase(CopyBase):
     def __init__(self, src: os.PathLike, trg: os.PathLike, *args, **kwargs):
-        if not os.fspath(self.trg).endswith("/"):
+        if not os.fspath(trg).endswith("/"):
             trg = os.fspath(trg) + "/"
         super().__init__(src, trg, *args, **kwargs)
 
