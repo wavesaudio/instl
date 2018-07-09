@@ -10,6 +10,7 @@ from .indexItemTable import IndexItemsTable
 class InstlDoIt(InstlInstanceBase):
     def __init__(self, initial_vars):
         super().__init__(initial_vars)
+        self.total_self_progress = 1000
         self.need_items_table = True
         self.read_name_specific_defaults_file(super().__thisclass__.__name__)
         self.full_doit_order = utils.unique_list()
@@ -52,16 +53,15 @@ class InstlDoIt(InstlInstanceBase):
             config_vars["TARGET_OS_SECOND_NAME"] = second_name
         self.platform_helper.no_progress_messages = "NO_PROGRESS_MESSAGES" in config_vars
 
-
     def do_doit(self):
-        for action_type in ("pre_doit", "doit", "post_doit"):
+        for doit_stage in ("pre_doit", "doit", "post_doit"):
             for IID in self.full_doit_order:
-                self.doit_for_iid(IID, action_type)
+                self.doit_for_iid(IID, doit_stage)
 
         self.batch_accum += self.platform_helper.echo("Done $(CURRENT_DOIT_DESCRIPTION)")
 
-    def doit_for_iid(self, IID, action):
-        action_list = self.items_table.get_resolved_details_value_for_active_iid(IID, action)
+    def doit_for_iid(self, IID, doit_stage):
+        action_list = self.items_table.get_resolved_details_value_for_active_iid(IID, doit_stage)
         try:
             name = self.items_table.get_resolved_details_value_for_active_iid(IID, "name")[0]
         except:
