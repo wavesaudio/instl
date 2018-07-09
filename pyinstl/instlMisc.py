@@ -29,7 +29,7 @@ class InstlMisc(InstlInstanceBase):
         self.progress_staccato_period = 1
         self.progress_staccato_count = 0
 
-        if command in ("exec",):
+        if command in ("exec", "resolve"):
             self.need_items_table = True
         if command in ("check-checksum", "set-exec", "create-folders", "command-list"):
             self.need_info_map_table = True

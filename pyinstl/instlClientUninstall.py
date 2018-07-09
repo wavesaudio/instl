@@ -109,9 +109,9 @@ class InstlClientUninstall(InstlClientRemove):
         # force_uninstall_of_main_items: if true all main install items will be uninstalled regardless if they are indeed installed
         # and regardless if some other item depends on them
         force_uninstall_of_main_items = "FORCE_UNINSTALL_OF_MAIN_ITEMS" in config_vars
-        if "DO_NOT_REMOVE_TARGETS" in config_vars:
-            do_not_remove_iids = list(config_vars["DO_NOT_REMOVE_TARGETS"])
-            self.items_table.set_ignore_iids(do_not_remove_iids)
+
+        do_not_remove_iids = list(config_vars.get("DO_NOT_REMOVE_TARGETS", []))
+        self.items_table.set_ignore_iids(do_not_remove_iids)
 
         iid_candidates_for_uninstall = list(config_vars["__MAIN_INSTALL_IIDS__"])
         req_trans_items = self.items_table.get_all_require_translate_items()
