@@ -101,8 +101,8 @@ class ConfigVar:
             b
         :return: iterator on resolved representation of the values
         """
-        retVal = iter((self.owner.resolve_str(val) for val in self.values))
-        return retVal
+        for val in self.values:
+            yield from self.owner.resolve_str_to_list(val)
 
     def str(self):
         return str(self)

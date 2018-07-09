@@ -89,7 +89,7 @@ class ConfigVarYamlReader(aYaml.YamlReader):
                 if condition not in config_vars:
                     self.read_defines(contents)
             elif if_type == "":      # "__if__: eval the condition
-                resolved_condition = config_vars.ResolveStrToStr(condition)
+                resolved_condition = config_vars.resolve_str(condition)
                 condition_result = eval(resolved_condition)
                 if condition_result:
                     self.read_defines(contents)
