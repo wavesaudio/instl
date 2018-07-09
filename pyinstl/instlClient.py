@@ -387,7 +387,7 @@ class InstlClient(InstlInstanceBase):
                 ignore_regexes_filter.set_folder_ignore_regexes(ignore_folder_regex_list)
 
             if "CHECK_BINARIES_VERSION_FILE_EXCLUDE_REGEX" in config_vars:
-                ignore_file_regex_list = list(config_vars["CHECK_BINARIES_VERSION_FILE_EXCLUDE_REGEX", ])
+                ignore_file_regex_list = list(config_vars["CHECK_BINARIES_VERSION_FILE_EXCLUDE_REGEX"])
                 ignore_regexes_filter.set_file_ignore_regexes(ignore_file_regex_list)
 
             for a_path in path_to_search:
