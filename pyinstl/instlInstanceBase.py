@@ -103,6 +103,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.specific_doc_readers.pop("__unknown_tag__", None)
 
         self.specific_doc_readers["!define"] = self.read_defines
+        # !define_const is deprecated and read as non-const
         self.specific_doc_readers["!define_const"] = self.read_defines
 
         acceptables = list(config_vars.setdefault("ACCEPTABLE_YAML_DOC_TAGS", []))

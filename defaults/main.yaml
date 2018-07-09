@@ -1,4 +1,4 @@
---- !define_const
+--- !define
 
 __INSTL_VERSION__:
     - 1
@@ -9,7 +9,6 @@ __INSTL_VERSION__:
 __USER_CONFIG_FILE_NAME__: instl_config.yaml
 __USER_CONFIG_FILE_PATH__: $(__USER_HOME_DIR__)/$(__USER_CONFIG_FILE_NAME__)
 
---- !define
 
 ACCEPTABLE_YAML_DOC_TAGS:
     - define_$(__CURRENT_OS__)
@@ -69,6 +68,3 @@ TASKLIST_PATH: tasklist.exe
 CMD_TOOLS_TO_FIND_INTERNAL:
   - XCOPY_PATH
   - TASKLIST_PATH
-
---- !define
-...
