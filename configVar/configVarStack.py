@@ -17,6 +17,7 @@ import aYaml
 from .configVarOne import ConfigVar
 from .configVarParser import var_parse_imp
 
+
 class ConfigVarStack:
     """
         ConfigVarStack represent a stack of ConfigVar dicts.

@@ -9,9 +9,12 @@ sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..", "..")))
 sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
 sys.path.append(os.path.realpath(os.path.join(__file__, "..")))
 
+import utils  # do not remove, prevents cyclic import problems
+import aYaml
+
 from configVar import config_vars
 from configVar import ConfigVarYamlReader
-import aYaml
+
 
 def normalize_yaml_lines(yaml_file):
     retVal = list()
@@ -22,12 +25,27 @@ def normalize_yaml_lines(yaml_file):
                 retVal.append(striped_line)
     return retVal
 
+
 class TestConfigVar(unittest.TestCase):
     def setUp(self):
         config_vars.clear()
 
     def tearDown(self):
         pass
+
+    def test_list_issues(self):
+
+        name_1 = ["Lili", "Marlen"]
+        name_2 = ["Lili", "Allen"]
+        config_vars["ALL_NAMES"] = "$(NAME_ONE)", "$(NAME_TWO)", "$(NAME_THREE)"
+        config_vars["NAME_ONE"] = name_1
+        config_vars["NAME_TWO"] = "shraga"
+        config_vars["NAME_THREE"] = name_2
+
+        # list() on the to configVar should return the lists of resolved values if a value is
+        # and only is a configVar reference $(...)
+        all_names = list(config_vars["ALL_NAMES"])
+        self.assertListEqual(name_1+["shraga"]+name_2, all_names)
 
     def test_format(self):
 
