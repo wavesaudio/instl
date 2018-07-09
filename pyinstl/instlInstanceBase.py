@@ -317,7 +317,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def resolve_defined_paths(self):
         self.path_searcher.add_search_paths(list(config_vars.setdefault("SEARCH_PATHS", [])))
-        for path_var_to_resolve in list(config_vars["PATHS_TO_RESOLVE"]):
+        for path_var_to_resolve in list(config_vars.get("PATHS_TO_RESOLVE", [])):
             if path_var_to_resolve in config_vars:
                 resolved_path = self.path_searcher.find_file(str(config_vars[path_var_to_resolve]),
                                                              return_original_if_not_found=True)

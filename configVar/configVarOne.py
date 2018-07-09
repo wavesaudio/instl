@@ -8,6 +8,7 @@
 import collections
 from typing import List, Optional, Union
 
+
 def str_to_bool(the_str, default=False):
     retVal = default
     if the_str.lower() in ("yes", "true", "y", 't'):
@@ -30,6 +31,7 @@ class ConfigVar:
              no (and should have no) use for it's own name
     """
     __slots__ = ("owner", "name", "values")
+
     def __init__(self, owner, name: str, *values):
         self.owner = owner
         self.name = name
