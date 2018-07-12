@@ -12,7 +12,7 @@ class BatchAccumulator(object):
     """
     section_order = ("pre", "assign", "begin", "links", "upload", "sync", "post-sync", "copy", "post-copy", "remove", "admin", "end", "post")
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.instruction_lines = defaultdict(list)
         self.current_section: str = None
         self.transaction_stack = list()
@@ -95,7 +95,7 @@ class BatchAccumulator(object):
 
 
 class BatchAccumulatorTransaction(object):
-    def __init__(self, batchAccum, transaction_name=""):
+    def __init__(self, batchAccum, transaction_name="") -> None:
         self.transaction_name = transaction_name
         self.batchAccum = batchAccum
         self.essential_action_counter = 0
@@ -112,15 +112,20 @@ class BatchAccumulatorTransaction(object):
         return self
 
 
-from pybatch import BatchCommandAccum
-
-
 class PythonBatchAccumulator(BatchAccumulator):
     """ from batchAccumulator import BatchAccumulator
         accumulate batch instructions and prepare them for writing to file
     """
     section_order = ("pre", "assign", "begin", "links", "upload", "sync", "post-sync", "copy", "post-copy", "remove", "admin", "end", "post")
 
-    def __init__(self):
+    def __init__(self) -> None:
+        from pybatch import PythonBatchCommandAccum
         super().__init__()
-        self.instruction_lines = defaultdict(BatchCommandAccum)
+        self.instruction_lines = defaultdict(PythonBatchCommandAccum)
+
+
+def BatchAccumulatorFactory(use_python_batch: bool) -> BatchAccumulator:
+    if use_python_batch:
+        return PythonBatchAccumulator()
+    else:
+        return BatchAccumulator()

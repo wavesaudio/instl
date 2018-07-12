@@ -11,7 +11,7 @@ from configVar import config_vars
 
 
 class HelpItem(object):
-    def __init__(self, topic, name):
+    def __init__(self, topic, name) -> None:
         self.topic = topic
         self.name = name
         self.texts = dict()
@@ -31,7 +31,7 @@ class HelpItem(object):
 
 
 class HelpHelper(object):
-    def __init__(self, instlObj):
+    def __init__(self, instlObj) -> None:
         self.help_items = dict()
         self.instlObj = instlObj
 
@@ -87,7 +87,7 @@ class HelpHelper(object):
         return retVal
 
     def defaults_help(self):
-        defaults_folder_path = os.path.join(config_vars["__INSTL_DATA_FOLDER__"].str(), "defaults")
+        defaults_folder_path = config_vars["__INSTL_DEFAULTS_FOLDER__"].str()
         for yaml_file in os.listdir(defaults_folder_path):
             if fnmatch.fnmatch(yaml_file, '*.yaml') and yaml_file != "P4.yaml":  # hack to not read the P4 defaults
                 self.instlObj.read_yaml_file(os.path.join(defaults_folder_path, yaml_file))

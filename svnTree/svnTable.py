@@ -7,7 +7,7 @@ from functools import reduce
 import csv
 import sqlite3
 from contextlib import contextmanager
-from typing import List, Dict
+from typing import Dict, Generator, List, Tuple
 
 
 import utils
@@ -61,7 +61,7 @@ class SVNRow(object):
     fields_relevant_to_dirs = ('path', 'parent', 'level', 'flags', 'revision', 'required')
     fields_relevant_to_str = ('path', 'flags', 'revision', 'checksum', 'size', 'url')
 
-    def __init__(self, svn_item_tuple):
+    def __init__(self, svn_item_tuple) -> None:
         self._id =              svn_item_tuple[0]
         self.path =             svn_item_tuple[1]
         self.flags =            svn_item_tuple[2]
@@ -272,7 +272,7 @@ class SVNTable(object):
         """
     get_immediate_child_items_q =  """SELECT * FROM svn_item_t WHERE parent_id==:parent_id"""
 
-    def __init__(self, db_master):
+    def __init__(self, db_master) -> None:
         super().__init__()
         self.db = db_master
         self.db.open()
@@ -283,9 +283,9 @@ class SVNTable(object):
                                     }
 
         self.write_func_by_format = {"text": self.write_as_text,}
-        self.files_read_list = list()
-        self.files_written_list = list()
-        self.comments = list()
+        self.files_read_list: List[os.PathLike] = list()
+        self.files_written_list: List[os.PathLike] = list()
+        self.comments: List[str] = list()
 
     def __repr__(self) -> str:
         return "\n".join([item.__repr__() for item in self.get_items()])
@@ -322,13 +322,13 @@ class SVNTable(object):
         if a_format == "guess":
             _, extension = os.path.splitext(in_file)
             a_format = map_info_extension_to_format[extension[1:]]
-        self.comments.append("Original file " + in_file)
+        self.comments.append(f"Original file {in_file}")
         if a_format in list(self.read_func_by_format.keys()):
             with utils.open_for_read_file_or_url(in_file) as open_file:
                 self.read_func_by_format[a_format](open_file.fd)
                 self.files_read_list.append(in_file)
         else:
-            raise ValueError("Unknown read a_format " + a_format)
+            raise ValueError(f"Unknown read a_format {a_format}")
 
     def read_from_svn_info(self, rfd) -> None:
         """ reads new items from svn info items prepared by iter_svn_info
@@ -448,13 +448,13 @@ class SVNTable(object):
             curs.executemany(insert_q, rows)
 
     @staticmethod
-    def get_wtar_file_status(file_name) -> (bool, bool):
+    def get_wtar_file_status(file_name) -> Tuple[bool, bool]:
         is_wtar_file: bool = utils.is_wtar_file(file_name)
         is_wtar_first_file: bool = utils.is_first_wtar_file(file_name)
         return is_wtar_file, is_wtar_first_file
 
     @staticmethod
-    def level_parent_and_leaf_from_path(in_path) -> (int, str, str):
+    def level_parent_and_leaf_from_path(in_path) -> Tuple[int, str, str]:
         path_parts = in_path.split("/")
         return len(path_parts), "/".join(path_parts[:-1]), path_parts[-1]
 
@@ -487,7 +487,7 @@ class SVNTable(object):
             wfd.write(item.str_specific_fields(field_to_write) + "\n")
 
     def initialize_from_folder(self, in_folder) -> None:
-        def yield_row(_in_folder_) -> List:
+        def yield_row(_in_folder_) -> Generator:
             base_folder_len = len(_in_folder_)+1
             for root, dirs, files in os.walk(_in_folder_, followlinks=False):
                 for item in sorted(files + dirs):
@@ -615,7 +615,6 @@ class SVNTable(object):
                     """, re.X)
         line_num = 0
         try:
-            update_queries_list = list()
             prop_name_to_flag = {'executable': 'x', 'special': 's'}
             props_to_ignore = ['mime-type']
             path = None
@@ -881,7 +880,7 @@ class SVNTable(object):
             retVal = self.SVNRowListToObjects(retVal)
         return retVal
 
-    def get_not_to_download_num_files_and_size(self) -> (int, int):
+    def get_not_to_download_num_files_and_size(self) -> Tuple[int, int]:
         """ return the count and total size of the files that are already synced """
         query_text = """
             SELECT COUNT(*) as num_files, TOTAL(size) as total_size
@@ -894,7 +893,7 @@ class SVNTable(object):
             retVal = curs.execute(query_text).fetchone()
         return retVal[0], int(retVal[1])  # sqlite's TOTAL returns float
 
-    def get_to_download_num_files_and_size(self) -> (int, int):
+    def get_to_download_num_files_and_size(self) -> Tuple[int, int]:
         """
         :return: a tuple: (a list of fies marked for download, their total size)
         """
@@ -1039,7 +1038,7 @@ class SVNTable(object):
             :return: list of items in dir or empty list (if there aren't any) or None
             if dir_path is not a dir
         """
-        retVal = []
+        retVal: List[SVNRow] = []
         if dir_path == "":
             retVal = self.get_items(what="any")
         else:
@@ -1191,7 +1190,7 @@ class SVNTable(object):
         retVal = self.db.select_and_fetchall(query_text, query_params={"get_files": {"file": 1, "dir": 0}[what]})
         return retVal
 
-    def min_max_revision(self) -> (int, int):
+    def min_max_revision(self) -> Tuple[int, int]:
         with self.db.selection() as curs:
             curs.execute(""" SELECT MIN(svn_item_t.revision), MAX(svn_item_t.revision) FROM svn_item_t""")
             min_revision, max_revision = curs.fetchone()

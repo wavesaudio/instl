@@ -9,7 +9,7 @@ import utils
 
 
 class CommandListRunner(object):
-    def __init__(self, initial_vars, options):
+    def __init__(self, initial_vars, options) -> None:
         self.initial_vars = initial_vars
         self.options = options
         self.child_pids = list()
@@ -21,7 +21,7 @@ class CommandListRunner(object):
         command_list = self.prepare_command_list_from_file()
         command_list_dir, command_list_leaf = os.path.split(self.options.config_file[0])
         if parallel:
-            self.instance.batch_accum += self.instance.platform_helper.echo(f"Running {len(command_list} commands in parallel from {command_list_leaf}")
+            self.instance.batch_accum += self.instance.platform_helper.echo(f"Running {len(command_list)} commands in parallel from {command_list_leaf}")
             for argv in command_list:
                 self.do_forked_command(argv)
 

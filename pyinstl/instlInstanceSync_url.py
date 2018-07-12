@@ -18,7 +18,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
     """  Class to create sync instruction using static links.
     """
 
-    def __init__(self, instlObj):
+    def __init__(self, instlObj) -> None:
         super().__init__(instlObj)
         self.sync_base_url = None
 

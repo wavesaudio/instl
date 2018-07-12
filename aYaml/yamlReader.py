@@ -18,17 +18,19 @@ import io
 import yaml
 import urllib.error
 
+from typing import Callable, Dict, List, Tuple
+
 import utils
 
 
 class YamlReader(object):
-    def __init__(self):
+    def __init__(self) -> None:
         self.path_searcher = None
         self.url_translator = None
-        self.specific_doc_readers = dict()
-        self.file_read_stack = list()
+        self.specific_doc_readers: Dict[str, Callable] = dict()
+        self.file_read_stack: List[os.PathLike] = list()
         self.exception_printed = False
-        self.post_nodes = list()
+        self.post_nodes: List[Tuple[yaml.Node, Callable]] = list()
 
     def init_specific_doc_readers(self): # this function must be overridden
         self.specific_doc_readers["__no_tag__"] = self.do_nothing_node_reader

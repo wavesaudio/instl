@@ -18,7 +18,7 @@ internal_identifier_re = re.compile("""
 
 
 class ConfigVarYamlReader(aYaml.YamlReader):
-    def __init__(self, path_searcher=None, url_translator=None):
+    def __init__(self, path_searcher=None, url_translator=None) -> None:
         super().__init__()
         self.path_searcher = path_searcher
         self.url_translator = url_translator

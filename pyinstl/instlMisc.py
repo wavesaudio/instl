@@ -19,10 +19,10 @@ from . import connectionBase
 
 # noinspection PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences
 class InstlMisc(InstlInstanceBase):
-    def __init__(self, initial_vars, command):
+    def __init__(self, initial_vars, command) -> None:
         super().__init__(initial_vars)
         # noinspection PyUnresolvedReferences
-        self.read_name_specific_defaults_file(super().__thisclass__.__name__)
+        self.read_defaults_file(super().__thisclass__.__name__)
         self.curr_progress = 0
         self.total_progress = 0
         self.progress_staccato_command = False

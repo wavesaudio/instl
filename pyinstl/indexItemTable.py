@@ -36,7 +36,7 @@ class IndexItemsTable(object):
                     'post_remove', 'pre_doit', 'doit', 'post_doit')
     not_inherit_details = ("name", "inherit")
 
-    def __init__(self, db_master):
+    def __init__(self, db_master) -> None:
         super().__init__()
 
         self.db = db_master

@@ -5,7 +5,7 @@ class CommandLineOptions(object):
     """ namespace object to give to parse_args
         holds command line options
     """
-    def __init__(self):
+    def __init__(self) -> None:
         self.mode = None
         self.command = None
         self.input_file = None

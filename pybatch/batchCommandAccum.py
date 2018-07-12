@@ -1,15 +1,23 @@
+import sys
 import io
 import pathlib
 from contextlib import contextmanager
 import logging
 from collections import defaultdict
 
-from pybatch import PythonBatchCommandBase
-
+from .baseClasses import PythonBatchCommandBase
 python_batch_log_level = logging.WARNING
 
 
-class BatchCommandAccum(object):
+def batch_repr(batch_obj):
+    assert isinstance(batch_obj, (PythonBatchCommandBase, PythonBatchCommandAccum))
+    if sys.platform == "darwin":
+        return batch_obj.repr_batch_mac()
+
+    elif sys.platform == "win32":
+        return batch_obj.repr_batch_win()
+
+class PythonBatchCommandAccum(object):
 
     def __init__(self):
         self.current_section: str = None
@@ -35,7 +43,7 @@ class BatchCommandAccum(object):
         self.context_stack = [list()]
 
     @contextmanager
-    def adjuvant(self, context):
+    def sub_accum(self, context):
         self.context_stack[-1].append(context)
         self.context_stack.append(context.child_batch_commands)
         yield self
@@ -72,3 +80,21 @@ from pybatch import *\n
         _repr_helper(self.context_stack[0], io_str, 0)
         io_str.write(self._python_closing_code())
         return io_str.getvalue()
+
+    def repr_batch_win(self):
+        def _repr_helper(batch_items, io_str):
+            if isinstance(batch_items, list):
+                for item in batch_items:
+                    _repr_helper(item, io_str)
+                    _repr_helper(item.child_batch_commands, io_str)
+            else:
+                io_str.write(batch_repr(batch_items))
+        PythonBatchCommandBase.total_progress = 0
+        io_str = io.StringIO()
+        #io_str.write(self._python_opening_code())
+        _repr_helper(self.context_stack[0], io_str)
+        #io_str.write(self._python_closing_code())
+        return io_str.getvalue()
+
+    def repr_batch_mac(self):
+        return ""

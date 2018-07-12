@@ -1,4 +1,4 @@
---- !define_const
+--- !define
 
 __INSTL_VERSION__:
     - 1
@@ -9,7 +9,7 @@ __INSTL_VERSION__:
 __USER_CONFIG_FILE_NAME__: instl_config.yaml
 __USER_CONFIG_FILE_PATH__: $(__USER_HOME_DIR__)/$(__USER_CONFIG_FILE_NAME__)
 
---- !define
+USE_PYTHON_BATCH: True
 
 ACCEPTABLE_YAML_DOC_TAGS:
     - define_$(__CURRENT_OS__)
@@ -55,6 +55,16 @@ NUM_DIGITS_PER_FOLDER_REPO_REV_HIERARCHY: 0
 WZLIB_EXTENSION: .wzip
 ZLIB_COMPRESSION_LEVEL: 8  # 8 was tested to be the fastest zlib level to decompress
 
+# ConfigVars that should not be written to batch file
+DONT_WRITE_CONFIG_VARS:
+    - INFO_MAP_SIG
+    - INDEX_SIG
+    - PUBLIC_KEY
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
+    - __CREDENTIALS__
+    - SVN_REVISION
+
 --- !define_Mac
 MKDIR_CMD: mkdir_with_owner
 BATCH_EXT: sh
@@ -69,6 +79,3 @@ TASKLIST_PATH: tasklist.exe
 CMD_TOOLS_TO_FIND_INTERNAL:
   - XCOPY_PATH
   - TASKLIST_PATH
-
---- !define
-...
