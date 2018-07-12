@@ -2,6 +2,7 @@ import io
 import pathlib
 from contextlib import contextmanager
 import logging
+import time
 from collections import defaultdict
 
 from pybatch import PythonBatchCommandBase
@@ -15,6 +16,7 @@ class BatchCommandAccum(object):
         self.current_section: str = None
         self.section_context_stacks = defaultdict(list)
         self.context_stack = [list()]
+        self.creation_time = time.strftime('%d-%m-%y_%H-%M')
 
     def append(self, other):
         self.context_stack[-1].append(other)
@@ -43,7 +45,7 @@ class BatchCommandAccum(object):
 
     def _python_opening_code(self):
         instl_folder = pathlib.Path(__file__).joinpath("..", "..").resolve()
-        oc = f"""
+        oc = f"""# Creation time: {self.creation_time}
 import sys
 sys.path.append(r'{instl_folder}')
 from pybatch import *\n
