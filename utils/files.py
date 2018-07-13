@@ -168,7 +168,6 @@ class open_for_read_file_or_url(object):
                             if retries == 0:
                                 raise
                             else:
-                                self.progress("failed to download", self.url, "trying again")
                                 time.sleep(1.0)
 
             elif self.local_file_path:

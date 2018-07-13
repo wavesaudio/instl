@@ -152,7 +152,6 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
     def read_name_specific_defaults_file(self, file_name):
         """ read class specific file from defaults/class_name.yaml """
         name_specific_defaults_file_path = os.path.join(config_vars["__INSTL_DATA_FOLDER__"].str(), "defaults", file_name + ".yaml")
-        print("read_name_specific_defaults_file:", name_specific_defaults_file_path)
         self.read_yaml_file(name_specific_defaults_file_path, ignore_if_not_exist=True, allow_reading_of_internal_vars=True)
 
     def read_user_config(self):
@@ -361,7 +360,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 except (FileNotFoundError, urllib.error.URLError):
                     ignore = kwargs.get('ignore_if_not_exist', False)
                     if ignore:
-                        print("'ignore_if_not_exist' specified, ignoring FileNotFoundError for", resolved_file_url)
+                        self.progress(f"'ignore_if_not_exist' specified, ignoring FileNotFoundError for {resolved_file_url}")
                     else:
                         raise
 
