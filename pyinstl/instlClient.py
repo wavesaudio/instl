@@ -101,7 +101,7 @@ class InstlClient(InstlInstanceBase):
 
     def command_output(self):
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in config_vars:
+        if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def create_instl_history_file(self):

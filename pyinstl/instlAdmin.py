@@ -214,7 +214,7 @@ class InstlAdmin(InstlInstanceBase):
             self.progress("Links already created for all revisions:", str(base_repo_rev), "...", str(max_repo_rev_to_work_on))
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in config_vars:
+        if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def create_links_for_revision(self, accum):
@@ -346,7 +346,7 @@ class InstlAdmin(InstlInstanceBase):
             self.batch_accum += self.platform_helper.new_line()
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in config_vars:
+        if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def upload_to_s3_aws_for_revision(self, accum):
@@ -502,7 +502,7 @@ class InstlAdmin(InstlInstanceBase):
         self.batch_accum += self.platform_helper.progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)'")
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in config_vars:
+        if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def do_fix_props(self):
@@ -553,7 +553,7 @@ class InstlAdmin(InstlInstanceBase):
 
         os.chdir(save_dir)
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in config_vars:
+        if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def is_file_exec(self, file_path):
@@ -600,7 +600,7 @@ class InstlAdmin(InstlInstanceBase):
                 self.batch_accum += self.platform_helper.new_line()
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in config_vars:
+        if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def compile_exclude_regexi(self):
@@ -639,7 +639,7 @@ class InstlAdmin(InstlInstanceBase):
             self.stage2svn_for_folder(comparator)
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in config_vars:
+        if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def stage2svn_for_folder(self, comparator):
@@ -853,7 +853,7 @@ class InstlAdmin(InstlInstanceBase):
             self.progress(total_redundant_wtar_files, "redundant wtar files will be removed")
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in config_vars:
+        if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def do_svn2stage(self):
@@ -885,7 +885,7 @@ class InstlAdmin(InstlInstanceBase):
             self.batch_accum += self.platform_helper.progress(f"rsync {limit_info[1]} to {limit_info[2]}")
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in config_vars:
+        if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def do_create_rsa_keys(self):
@@ -1121,7 +1121,7 @@ class InstlAdmin(InstlInstanceBase):
                 self.progress("   ", a_file)
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in config_vars:
+        if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def do_file_sizes(self):
@@ -1197,7 +1197,7 @@ class InstlAdmin(InstlInstanceBase):
         self.batch_accum.merge_with(accum)
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in config_vars:
+        if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def do_filter_infomap(self):

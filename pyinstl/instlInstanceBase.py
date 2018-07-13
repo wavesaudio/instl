@@ -166,86 +166,18 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def init_from_cmd_line_options(self, cmd_line_options_obj):
         """ turn command line options into variables """
-        const_attrib_to_var = {
-            "input_file": ("__MAIN_INPUT_FILE__", None),
-            "output_file": ("__MAIN_OUT_FILE__", None),
-            "props_file": ("__PROPS_FILE__", None),
-            "config_file": ("__CONFIG_FILE__", None),
-            "sh1_checksum": ("__SHA1_CHECKSUM__", None),
-            "rsa_signature": ("__RSA_SIGNATURE__", None),
-            "just_with_number": ("__JUST_WITH_NUMBER__", "0"),
-            "limit_command_to": ("__LIMIT_COMMAND_TO__", None),
-            "shortcut_path": ("__SHORTCUT_PATH__", None),
-            "target_path": ("__SHORTCUT_TARGET_PATH__", None),
-            "credentials": ("__CREDENTIALS__", None),
-            "base_url": ("__BASE_URL__", None),
-            "file_sizes_file": ("__FILE_SIZES_FILE__", None),
-            "output_format": ("__OUTPUT_FORMAT__", None),
-            "db_file": ("__DB_INPUT_FILE__", None),
-        }
 
-        default_remark = "from command line options"
-        for attrib, var in const_attrib_to_var.items():
-            attrib_value = getattr(cmd_line_options_obj, attrib)
-            if attrib_value:
-                config_vars[var[0]] = attrib_value
-            elif var[1] is not None:  # there's a default
-                config_vars[var[0]] = var[1]
-
-        non_const_attrib_to_var = {
-            "target_repo_rev": "TARGET_REPO_REV",
-            "base_repo_rev": "BASE_REPO_REV",
-            "ls_format": "LS_FORMAT",
-            "start_progress": "__START_DYNAMIC_PROGRESS__",
-            "total_progress": "__TOTAL_DYNAMIC_PROGRESS__",
-        }
-
-        for attrib, var in non_const_attrib_to_var.items():
-            attrib_value = getattr(cmd_line_options_obj, attrib)
-            if attrib_value:
-                config_vars[var] = attrib_value[0]
-
-        if cmd_line_options_obj.command:
-            self.the_command = cmd_line_options_obj.command
+        if "__MAIN_COMMAND__" in config_vars:
+            self.the_command = str(config_vars["__MAIN_COMMAND__"])
             self.fixed_command = self.the_command.replace('-', '_')
-            config_vars["__MAIN_COMMAND__"] = cmd_line_options_obj.command
 
         if hasattr(cmd_line_options_obj, "subject") and cmd_line_options_obj.subject is not None:
             config_vars["__HELP_SUBJECT__"] = cmd_line_options_obj.subject
         else:
             config_vars["__HELP_SUBJECT__"] = ""
 
-        if cmd_line_options_obj.state_file:
-            config_vars["__MAIN_STATE_FILE__"] = cmd_line_options_obj.state_file
-
-        if cmd_line_options_obj.run:
-            config_vars["__RUN_BATCH__"] = "yes"
-
-        if cmd_line_options_obj.no_wtar_artifacts:
-            config_vars["__NO_WTAR_ARTIFACTS__"] = "yes"
-
         if cmd_line_options_obj.which_revision:
             config_vars["__WHICH_REVISION__"] = cmd_line_options_obj.which_revision[0]
-
-        if cmd_line_options_obj.dock_item_path:
-            config_vars["__DOCK_ITEM_PATH__"] = cmd_line_options_obj.dock_item_path
-        if cmd_line_options_obj.dock_item_label:
-            config_vars["__DOCK_ITEM_LABEL__"] = cmd_line_options_obj.dock_item_label
-        if cmd_line_options_obj.remove_from_dock:
-            config_vars["__REMOVE_FROM_DOCK__"] = "yes"
-        if cmd_line_options_obj.restart_the_dock:
-            config_vars["__RESTART_THE_DOCK__"] = "yes"
-        if cmd_line_options_obj.fail_exit_code:
-            config_vars["__FAIL_EXIT_CODE__"] = cmd_line_options_obj.fail_exit_code
-        if cmd_line_options_obj.set_run_as_admin:
-            config_vars["__RUN_AS_ADMIN__"] = "yes"
-        if cmd_line_options_obj.only_installed:
-            config_vars["__REPORT_ONLY_INSTALLED__"] = "yes"
-        if config_vars["__CURRENT_OS__"].str() == "Mac":
-            if cmd_line_options_obj.parallel:
-                config_vars["__RUN_COMMAND_LIST_IN_PARALLEL__"] = "yes"
-        if cmd_line_options_obj.no_numbers_progress:
-            config_vars["__NO_NUMBERS_PROGRESS__"] = "yes"
 
         if cmd_line_options_obj.define:
             individual_definitions = cmd_line_options_obj.define[0].split(",")
@@ -490,12 +422,6 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         return_code = p.returncode
         if return_code != 0:
             raise SystemExit(self.out_file_realpath + " returned exit code " + str(return_code))
-
-    def write_program_state(self):
-
-        state_file = config_vars["__MAIN_STATE_FILE__"].str()
-        with utils.write_to_file_or_stdout(state_file) as fd:
-            aYaml.writeAsYaml(self, fd)
 
     def read_index(self, a_node, *args, **kwargs):
         self.progress("reading index.yaml")

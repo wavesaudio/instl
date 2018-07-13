@@ -21,7 +21,7 @@ class CommandListRunner(object):
         command_list = self.prepare_command_list_from_file()
         command_list_dir, command_list_leaf = os.path.split(self.options.config_file[0])
         if parallel:
-            self.instance.batch_accum += self.instance.platform_helper.echo(f"Running {len(command_list} commands in parallel from {command_list_leaf}")
+            self.instance.batch_accum += self.instance.platform_helper.echo(f"""Running {len(command_list)} commands in parallel from {command_list_leaf}""")
             for argv in command_list:
                 self.do_forked_command(argv)
 
@@ -93,5 +93,5 @@ def run_commands_from_file(initial_vars, options):
 
     runner = CommandListRunner(initial_vars, options)
 
-    parallel_run = "__RUN_COMMAND_LIST_IN_PARALLEL__" in config_vars
+    parallel_run =  bool(config_vars["__RUN_COMMAND_LIST_IN_PARALLEL__"])
     runner.run(parallel=parallel_run)

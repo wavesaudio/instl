@@ -1,50 +1,84 @@
+import collections
 import argparse
+from configVar import config_vars
 
+
+class OptionToConfigVar:
+    """ when attribute of CommandLineOptions is get or set
+        OptionToConfigVar will read/write it to configVar
+
+        if default is provided to __init__ the configVar is a priori set with this value
+        if set_value is provided to __init__ when __set__ is called, the configVar is set
+        to this value regardless of the value provided as param to __set__, useful
+        for example when boolean "yes" value is required to mark the value was set.
+    """
+
+    def __init__(self, default=None, set_value=None):
+        self.set_value = set_value
+        self.default = default
+
+    def __set_name__(self, owner, name):
+        self.var_name = name
+        if self.default is not None:
+            config_vars[self.var_name] = self.default
+
+    def __get__(self, instance, owner):
+        retVal = None
+        if self.var_name in config_vars:
+            retVal = str(config_vars[self.var_name])
+        return retVal
+
+    def __set__(self, instance, value):
+        if value is not None:
+            if self.set_value is not None:
+                config_vars[self.var_name] = self.set_value
+            else:
+                if isinstance(value, collections.Sequence):
+                    config_vars[self.var_name] = value
+                else:
+                    config_vars[self.var_name] = str(value)
 
 class CommandLineOptions(object):
     """ namespace object to give to parse_args
         holds command line options
     """
+    __MAIN_COMMAND__ = OptionToConfigVar()
+    __MAIN_INPUT_FILE__ = OptionToConfigVar()
+    __MAIN_OUT_FILE__ = OptionToConfigVar()
+    __PROPS_FILE__ = OptionToConfigVar()
+    __CONFIG_FILE__ = OptionToConfigVar()
+    __SHA1_CHECKSUM__ = OptionToConfigVar()
+    __RSA_SIGNATURE__ = OptionToConfigVar()
+    __JUST_WITH_NUMBER__ = OptionToConfigVar(default="0")
+    __LIMIT_COMMAND_TO__ = OptionToConfigVar()
+    __SHORTCUT_PATH__ = OptionToConfigVar()
+    __SHORTCUT_TARGET_PATH__ = OptionToConfigVar()
+    __CREDENTIALS__ = OptionToConfigVar()
+    __BASE_URL__ = OptionToConfigVar()
+    __FILE_SIZES_FILE__ = OptionToConfigVar()
+    __OUTPUT_FORMAT__ = OptionToConfigVar()
+    __DB_INPUT_FILE__ = OptionToConfigVar()
+    TARGET_REPO_REV = OptionToConfigVar()
+    BASE_REPO_REV = OptionToConfigVar()
+    LS_FORMAT = OptionToConfigVar()
+    __START_DYNAMIC_PROGRESS__ = OptionToConfigVar()
+    __TOTAL_DYNAMIC_PROGRESS__ = OptionToConfigVar()
+    __RUN_BATCH__ = OptionToConfigVar()
+    __NO_WTAR_ARTIFACTS__ = OptionToConfigVar()
+    __NO_NUMBERS_PROGRESS__ = OptionToConfigVar()
+    __DOCK_ITEM_PATH__ = OptionToConfigVar()
+    __DOCK_ITEM_LABEL__ = OptionToConfigVar()
+    __REMOVE_FROM_DOCK__ = OptionToConfigVar()
+    __RESTART_THE_DOCK__ = OptionToConfigVar()
+    __FAIL_EXIT_CODE__ = OptionToConfigVar()
+    __RUN_AS_ADMIN__ = OptionToConfigVar()
+    __REPORT_ONLY_INSTALLED__ = OptionToConfigVar()
+    __RUN_COMMAND_LIST_IN_PARALLEL__ = OptionToConfigVar()
+
     def __init__(self):
         self.mode = None
-        self.command = None
-        self.input_file = None
-        self.output_file = None
-        self.run = False
-        self.state_file = None
-        self.props_file = None
-        self.filter_in = None
-        self.target_repo_rev = None
-        self.base_repo_rev = None
-        self.config_file = None
-        self.staging_folder = None
-        self.svn_folder = None
-        self.sh1_checksum = None
-        self.rsa_signature = None
-        self.start_progress = None
-        self.total_progress = None
-        self.no_numbers_progress = None
-        self.just_with_number = None
-        self.limit_command_to = None
-        self.target_path = None
-        self.shortcut_path = None
-        self.no_wtar_artifacts = None
-        self.credentials = None
-        self.base_url = None
-        self.file_sizes_file = None
         self.which_revision = None
         self.define = None
-        self.dock_item_path = None
-        self.dock_item_label = None
-        self.remove_from_dock = None
-        self.restart_the_dock = None
-        self.fail_exit_code = None
-        self.set_run_as_admin = None
-        self.output_format = None
-        self.only_installed = None
-        self.ls_format = None
-        self.parallel = None
-        self.db_file = None
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).items())])
@@ -136,7 +170,7 @@ def prepare_args_parser(in_command):
                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     argparse.ArgumentParser.convert_arg_line_to_args = decent_convert_arg_line_to_args
 
-    subparsers = parser.add_subparsers(dest='command', help='sub-command help')
+    subparsers = parser.add_subparsers(dest='__MAIN_COMMAND__', help='sub-command help')
 
     command_details = commands_details[in_command]
     command_parser = subparsers.add_parser(in_command, help=command_details['help'])
@@ -149,7 +183,7 @@ def prepare_args_parser(in_command):
                                     required=False,
                                     nargs=1,
                                     metavar='path-to-input-file',
-                                    dest='input_file',
+                                    dest='__MAIN_INPUT_FILE__',
                                     help="file to act upon")
 
     # required --in
@@ -159,7 +193,7 @@ def prepare_args_parser(in_command):
                                     required=True,
                                     nargs=1,
                                     metavar='path-to-input-folder',
-                                    dest='input_file',
+                                    dest='__MAIN_INPUT_FILE__',
                                     help="file or folder to act upon")
 
     # required multi --in
@@ -169,7 +203,7 @@ def prepare_args_parser(in_command):
                                     required=True,
                                     nargs='+',
                                     metavar='path-to-input-folder',
-                                    dest='input_file',
+                                    dest='__MAIN_INPUT_FILE__',
                                     help="files or folders to act upon")
 
     # optional --out
@@ -179,7 +213,7 @@ def prepare_args_parser(in_command):
                                     required=False,
                                     nargs=1,
                                     metavar='path-to-output-file',
-                                    dest='output_file',
+                                    dest='__MAIN_OUT_FILE__',
                                     help="output file")
 
     if 'run' in command_details['options']:
@@ -188,7 +222,7 @@ def prepare_args_parser(in_command):
                                     required=False,
                                     default=False,
                                     action='store_true',
-                                    dest='run',
+                                    dest='__RUN_BATCH__',
                                     help="run the installation instructions script")
 
     if 'output_format' in command_details['options']:
@@ -196,7 +230,7 @@ def prepare_args_parser(in_command):
         output_format_option.add_argument('--output-format',
                                     required=False,
                                     nargs=1,
-                                    dest='output_format',
+                                    dest='__OUTPUT_FORMAT__',
                                     help="specify output format")
 
     if 'cred' in command_details['options']:
@@ -205,7 +239,7 @@ def prepare_args_parser(in_command):
                                     required=False,
                                     nargs=1,
                                     metavar='credentials',
-                                    dest='credentials',
+                                    dest='__CREDENTIALS__',
                                     help="credentials to file server")
 
     if ('conf' in command_details['options']) or ('conf_opt' in command_details['options']):
@@ -215,7 +249,7 @@ def prepare_args_parser(in_command):
                                     required=is_required,
                                     nargs=1,
                                     metavar='path-to-config-file',
-                                    dest='config_file',
+                                    dest='__CONFIG_FILE__',
                                     help="path to config-file")
 
     if 'prog' in command_details['options']:
@@ -224,19 +258,19 @@ def prepare_args_parser(in_command):
                                     required=False,
                                     nargs=1,
                                     metavar='start-progress-number',
-                                    dest='start_progress',
+                                    dest='__START_DYNAMIC_PROGRESS__',
                                     help="num progress items to begin with")
         progress_options.add_argument('--total-progress',
                                     required=False,
                                     nargs=1,
                                     metavar='total-progress-number',
-                                    dest='total_progress',
+                                    dest='__TOTAL_DYNAMIC_PROGRESS__',
                                     help="num total progress items")
         progress_options.add_argument('--no-numbers-progress',
                                     required=False,
                                     default=False,
                                     action='store_true',
-                                    dest='no_numbers_progress',
+                                    dest='__NO_NUMBERS_PROGRESS__',
                                     help="display progress but without specific numbers")
 
     if 'limit' in command_details['options']:
@@ -245,7 +279,7 @@ def prepare_args_parser(in_command):
                                     required=False,
                                     nargs='+',
                                     metavar='limit-command-to',
-                                    dest='limit_command_to',
+                                    dest='__LIMIT_COMMAND_TO__',
                                     help="list of command to limit the action to")
 
     if 'parallel' in command_details['options']:
@@ -254,7 +288,7 @@ def prepare_args_parser(in_command):
                                     required=False,
                                     default=False,
                                     action='store_true',
-                                    dest='',
+                                    dest='__RUN_COMMAND_LIST_IN_PARALLEL__',
                                     help="run the command-list in parallel")
 
     # optional --db
@@ -264,7 +298,7 @@ def prepare_args_parser(in_command):
                                     required=False,
                                     nargs=1,
                                     metavar='path-to-db-file',
-                                    dest='db_file',
+                                    dest='__DB_INPUT_FILE__',
                                     help="database file")
 
     # the following option groups each belong only to a single command
@@ -274,26 +308,26 @@ def prepare_args_parser(in_command):
                                 required=False,
                                 nargs=1,
                                 metavar='path-to-props-file',
-                                dest='props_file',
+                                dest='__PROPS_FILE__',
                                 help="file to read svn properties from")
 
         trans_options.add_argument('--base-repo-rev',
                                 required=False,
                                 nargs=1,
                                 metavar='base-repo-rev',
-                                dest='base_repo_rev',
+                                dest='BASE_REPO_REV',
                                 help="minimal version, all version below will be changed to base-repo-rev")
         trans_options.add_argument('--base-url',
                                     required=False,
                                     nargs=1,
                                     metavar='base-url',
-                                    dest='base_url',
+                                    dest='__BASE_URL__',
                                     help="")
         trans_options.add_argument('--file-sizes',
                                     required=False,
                                     nargs=1,
                                     metavar='file-sizes-file',
-                                    dest='file_sizes_file',
+                                    dest='__FILE_SIZES_FILE__',
                                     help="")
 
     elif 'check-sig' == in_command:
@@ -302,13 +336,13 @@ def prepare_args_parser(in_command):
                                 required=False,
                                 nargs=1,
                                 metavar='sh1-checksum',
-                                dest='sh1_checksum',
+                                dest='__SHA1_CHECKSUM__',
                                 help="expected sha1 checksum")
         check_sig_options.add_argument('--rsa',
                                 required=False,
                                 nargs=1,
                                 metavar='rsa-sig',
-                                dest='rsa_signature',
+                                dest='__RSA_SIGNATURE__',
                                 help="expected rsa SHA-512 signature")
 
     elif 'create-repo-rev-file' == in_command:
@@ -317,7 +351,7 @@ def prepare_args_parser(in_command):
                                 required=False,
                                 nargs=1,
                                 metavar='revision-to-create-file-for',
-                                dest='target_repo_rev',
+                                dest='TARGET_REPO_REV',
                                 help="revision to create file for")
 
     elif 'up-repo-rev' == in_command:
@@ -326,7 +360,7 @@ def prepare_args_parser(in_command):
                             required=False,
                             nargs=1,
                             metavar='just-with-number',
-                            dest='just_with_number',
+                            dest='__JUST_WITH_NUMBER__',
                             help="up load just the repo-rev file that ends with a specific number, not the general one")
 
     elif 'win-shortcut' == in_command:
@@ -335,19 +369,19 @@ def prepare_args_parser(in_command):
                             required=True,
                             nargs=1,
                             metavar='shortcut',
-                            dest='shortcut_path',
+                            dest='__SHORTCUT_PATH__',
                             help="path to the shortcut itself")
         short_cut_options.add_argument('--target',
                                        required=True,
                                        nargs=1,
                                        metavar='target',
-                                       dest='target_path',
+                                       dest='__SHORTCUT_TARGET_PATH__',
                                        help="path to the item being shortcut")
         short_cut_options.add_argument('--run-as-admin',
                                        required=False,
                                        default=False,
                                        action='store_true',
-                                       dest='set_run_as_admin',
+                                       dest='__RUN_AS_ADMIN__',
                                        help="set run as admin flag")
 
     elif 'mac-dock' == in_command:
@@ -356,25 +390,25 @@ def prepare_args_parser(in_command):
                                 required=False,
                                 nargs=1,
                                 metavar='dock-item-path',
-                                dest='dock_item_path',
+                                dest='__DOCK_ITEM_PATH__',
                                 help="path to dock item")
         mac_dock_options.add_argument('--label',
                                 required=False,
                                 nargs=1,
                                 metavar='dock-item-label',
-                                dest='dock_item_label',
+                                dest='__DOCK_ITEM_LABEL__',
                                 help="label for dock item")
         mac_dock_options.add_argument('--remove',
                                 required=False,
                                 default=False,
                                 action='store_true',
-                                dest='remove_from_dock',
+                                dest='__REMOVE_FROM_DOCK__',
                                 help="remove from dock")
         mac_dock_options.add_argument('--restart',
                                 required=False,
                                 default=False,
                                 action='store_true',
-                                dest='restart_the_dock',
+                                dest='__RESTART_THE_DOCK__',
                                 help="restart the dock")
 
     elif 'unwtar' == in_command:
@@ -383,7 +417,7 @@ def prepare_args_parser(in_command):
                                 required=False,
                                 default=False,
                                 action='store_true',
-                                dest='no_wtar_artifacts',
+                                dest='__NO_WTAR_ARTIFACTS__',
                                 help="remove all .wtar files and .done files")
     elif in_command in ('create-links', 'up2s3'):
         which_revision_options = command_parser.add_argument_group(description=in_command+' arguments:')
@@ -399,7 +433,7 @@ def prepare_args_parser(in_command):
         ls_options.add_argument('--output-format',
                                     required=False,
                                     nargs=1,
-                                    dest='ls_format',
+                                    dest='LS_FORMAT',
                                     help="specify output format")
     elif 'fail' == in_command:
         mac_dock_options = command_parser.add_argument_group(description=in_command+' arguments:')
@@ -407,7 +441,7 @@ def prepare_args_parser(in_command):
                                 required=False,
                                 nargs=1,
                                 metavar='exit-code-to-return',
-                                dest='fail_exit_code',
+                                dest='__FAIL_EXIT_CODE__',
                                 help="exit code to return")
     elif 'report-versions' == in_command:
         report_versions_options = command_parser.add_argument_group(description=in_command+' arguments:')
@@ -415,7 +449,7 @@ def prepare_args_parser(in_command):
                                 required=False,
                                 default=False,
                                 action='store_true',
-                                dest='only_installed',
+                                dest='__REPORT_ONLY_INSTALLED__',
                                 help="report only installed products")
 
     elif 'help' == in_command:
