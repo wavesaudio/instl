@@ -38,7 +38,9 @@ class ConfigVarYamlReader(aYaml.YamlReader):
         self.specific_doc_readers["__no_tag__"] = self.read_defines
         self.specific_doc_readers["__unknown_tag__"] = self.read_defines
         self.specific_doc_readers["!define"] = self.read_defines
+        # !define_const is deprecated and read as non-const
         self.specific_doc_readers["!define_const"] = self.read_defines
+        # !define_const is deprecated - use __ifndef__ instead
         self.specific_doc_readers["!define_if_not_exist"] = self.read_defines_if_not_exist
 
     def read_defines(self, a_node, *args, **kwargs):

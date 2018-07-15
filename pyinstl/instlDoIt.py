@@ -35,7 +35,7 @@ class InstlDoIt(InstlInstanceBase):
         do_command_func()
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in config_vars:
+        if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def init_default_doit_vars(self):

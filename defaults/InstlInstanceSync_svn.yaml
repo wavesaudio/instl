@@ -1,4 +1,4 @@
---- !define_const
+--- !define
 
 __SYNC_PREREQUISITE_VARIABLES__:
     - SYNC_BASE_URL

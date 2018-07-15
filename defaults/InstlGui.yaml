@@ -1,4 +1,4 @@
---- !define_const
+--- !define
 
 INSTL_GUI_CONFIG_FILE_NAME: instl-gui.yaml
 
@@ -82,7 +82,6 @@ __GUI_CONFIG_FILE_VARS__:
   - ADMIN_GUI_RUN_BATCH
   - ADMIN_GUI_LIMIT
 
---- !define
 # default values
 SELECTED_TAB: Client
 CLIENT_GUI_IN_FILE:  $(CLIENT_GUI_CMD).yaml

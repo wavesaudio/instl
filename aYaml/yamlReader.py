@@ -74,7 +74,7 @@ class YamlReader(object):
         except (FileNotFoundError, urllib.error.URLError) as ex:
             ignore = kwargs.get('ignore_if_not_exist', False)
             if ignore:
-                print("'ignore_if_not_exist' specified, ignoring FileNotFoundError for", self.file_read_stack[-1])
+                self.progress(f"'ignore_if_not_exist' specified, ignoring FileNotFoundError for {self.file_read_stack[-1]}")
                 self.file_read_stack.pop()
             else:
                 if not self.exception_printed:  # avoid recursive printing of error message

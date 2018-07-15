@@ -102,19 +102,19 @@ def main():
                      "__GROUP_ID__": str(os.getgid())})
 
     instance = None
-    if options.command == "command-list":
+    if options.__MAIN_COMMAND__ == "command-list":
         from pyinstl.instlCommandList import run_commands_from_file
         run_commands_from_file(initial_vars, options)
     elif options.mode == "client":
         from pyinstl.instlClient import InstlClientFactory
-        instance = InstlClientFactory(initial_vars, options.command)
-        instance.progress("welcome to instl", instance.get_version_str(short=True), options.command)
+        instance = InstlClientFactory(initial_vars, options.__MAIN_COMMAND__)
+        instance.progress("welcome to instl", instance.get_version_str(short=True), options.__MAIN_COMMAND__)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "doit":
         from pyinstl.instlDoIt import InstlDoIt
         instance = InstlDoIt(initial_vars)
-        instance.progress("welcome to instl", instance.get_version_str(short=True), options.command)
+        instance.progress("welcome to instl", instance.get_version_str(short=True), options.__MAIN_COMMAND__)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "admin":
@@ -122,7 +122,7 @@ def main():
             raise EnvironmentError("instl admin commands can only run under Mac or Linux")
         from pyinstl.instlAdmin import InstlAdmin
         instance = InstlAdmin(initial_vars)
-        instance.progress("welcome to instl", instance.get_version_str(short=True), options.command)
+        instance.progress("welcome to instl", instance.get_version_str(short=True), options.__MAIN_COMMAND__)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "interactive":
@@ -136,8 +136,8 @@ def main():
         go_interactive(client, admin)
     elif options.mode == "do_something":
         from pyinstl.instlMisc import InstlMisc
-        instance = InstlMisc(initial_vars, options.command)
-        instance.progress("welcome to instl", instance.get_version_str(short=True), options.command)
+        instance = InstlMisc(initial_vars, options.__MAIN_COMMAND__)
+        instance.progress("welcome to instl", instance.get_version_str(short=True), options.__MAIN_COMMAND__)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "gui":
