@@ -64,6 +64,8 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
         self.need_items_table = False
         self.need_info_map_table = False
+        self.the_command = None
+        self.fixed_command = None
 
         ConfigVarYamlReader.__init__(self)
 

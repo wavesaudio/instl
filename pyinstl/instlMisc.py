@@ -41,7 +41,7 @@ class InstlMisc(InstlInstanceBase):
         return retVal
 
     def do_command(self):
-        self.no_numbers_progress =  bool(config_vars["__NO_NUMBERS_PROGRESS__"])
+        self.no_numbers_progress =  bool(config_vars.get("__NO_NUMBERS_PROGRESS__", "False"))
         # if var does not exist default is 0, meaning not to display dynamic progress
         self.curr_progress = int(config_vars.get("__START_DYNAMIC_PROGRESS__", "0"))
         self.total_progress = int(config_vars.get("__TOTAL_DYNAMIC_PROGRESS__", "0"))
