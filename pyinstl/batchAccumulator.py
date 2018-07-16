@@ -25,7 +25,7 @@ class BatchAccumulator(object):
         if section in BatchAccumulator.section_order:
             self.current_section = section
         else:
-            raise ValueError(section + " is not a known section name")
+            raise ValueError(f"{section} is not a known section name")
 
     def add(self, instructions):
         if isinstance(instructions, str):
@@ -44,7 +44,7 @@ class BatchAccumulator(object):
         if isinstance(single_line, str):
             self.instruction_lines[self.current_section].append(single_line)
         else:
-            raise TypeError("Not a string", type(single_line), single_line)
+            raise TypeError(f"Not a string {type(single_line)} {single_line}")
 
     def __len__(self):
         retVal = 0

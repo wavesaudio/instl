@@ -306,7 +306,7 @@ class ConfigVarStack:
         else:
             vars_list = which_vars
         if not hasattr(vars_list, '__iter__'):  # if which_vars is a list
-            ValueError("ConfigVarStack.repr_for_yaml can except string, list or None, not "+type(which_vars)+" "+str(which_vars))
+            ValueError(f"ConfigVarStack.repr_for_yaml can except string, list or None, not {type(which_vars)} {which_vars}")
         for var_name in vars_list:
             if var_name in self:
                  retVal[var_name] = self.repr_var_for_yaml(var_name, resolve=resolve)

@@ -448,7 +448,7 @@ def PlatformSpecificHelperFactory(in_os, instlObj):
 
         retVal = platformSpecificHelper_Linux.PlatformSpecificHelperLinux(instlObj)
     else:
-        raise ValueError(in_os, "has no PlatformSpecificHelper")
+        raise ValueError(f"{in_os} has no PlatformSpecificHelper")
     return retVal
 
 

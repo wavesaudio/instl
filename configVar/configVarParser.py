@@ -253,7 +253,7 @@ def var_parse_imp(f_string):
     if next_state_func == literal_state:
         yield cont.get_return_tuple()
     else:
-        raise ValueError("failed to parse "+f_string)
+        raise ValueError(f"failed to parse {f_string}")
 
 
 def resolve_variable_1(parse_retVal, default=""):

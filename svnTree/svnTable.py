@@ -328,7 +328,7 @@ class SVNTable(object):
                 self.read_func_by_format[a_format](open_file.fd)
                 self.files_read_list.append(in_file)
         else:
-            raise ValueError("Unknown read a_format " + a_format)
+            raise ValueError(f"Unknown read a_format {a_format}")
 
     def read_from_svn_info(self, rfd) -> None:
         """ reads new items from svn info items prepared by iter_svn_info
@@ -380,8 +380,7 @@ class SVNTable(object):
                     the_match = svn_info_line_re.match(line)
                     if the_match:
                         if the_match['key'] == "Tree conflict":
-                            raise ValueError(
-                                " ".join(("Tree conflict at line", str(line_num), "Path:", record['Path'])))
+                            raise ValueError(f"Tree conflict at line {line_num} Path: {record['Path']}")
                         record[the_match['key']] = the_match['rest_of_line']
                 else:
                     if record and record["Path"] != ".":  # in case there were several empty lines between blocks
@@ -476,7 +475,7 @@ class SVNTable(object):
                 self.write_func_by_format[in_format](wfd, items_list, comments, field_to_write=field_to_write)
                 self.files_written_list.append(in_file)
         else:
-            raise ValueError("Unknown write in_format " + in_format)
+            raise ValueError(f"Unknown write in_format {in_format}")
 
     def write_as_text(self, wfd, items_list, comments=True, field_to_write=None) -> None:
         if comments and len(self.comments) > 0:
@@ -636,7 +635,7 @@ class SVNTable(object):
                                 elif prop_name not in props_to_ignore:
                                     not_in_props_to_ignore_query_params.append({"prop_name": prop_name, "old_path": path})
                     else:
-                        ValueError("no match at file: " + rfd.name + ", line: " + str(line_num) + ": " + line)
+                        ValueError(f"no match at file: {rfd.name}, line: {line_num}: {line}")
                 prop_name_to_flag_query = """UPDATE svn_item_t SET flags = flags || :new_prop WHERE path = :old_path;"""
                 curs.executemany(prop_name_to_flag_query, prop_name_to_flag_query_params)
                 not_in_props_to_ignore_query = """UPDATE svn_item_t SET extra_props = extra_props || :prop_name || ";" WHERE path = :old_path;"""
@@ -747,7 +746,7 @@ class SVNTable(object):
         :return: all the items
         """
         if what not in ("any", "file", "dir"):
-            raise ValueError(what+" not a valid filter for get_item")
+            raise ValueError(f"{what} not a valid filter for get_item")
 
         extra_condition = {"file": "WHERE fileFlag == 1", "dir": "WHERE fileFlag == 0"}.get(what, "")
         with self.db.selection() as curs:
@@ -767,7 +766,7 @@ class SVNTable(object):
         :return: all the items
         """
         if what not in ("any", "file", "dir"):
-            raise ValueError(what+" not a valid filter for get_item")
+            raise ValueError(f"{what} not a valid filter for get_item")
 
         want_file = what in ("any", "file")
         want_dir = what in ("any", "dir")
@@ -790,7 +789,7 @@ class SVNTable(object):
         :return: all the items
         """
         if what not in ("any", "file", "dir"):
-            raise ValueError(what+" not a valid filter for get_item")
+            raise ValueError(f"{what} not a valid filter for get_item")
 
         want_file = what in ("any", "file")
         want_dir = what in ("any", "dir")
@@ -1175,7 +1174,7 @@ class SVNTable(object):
             used in InstlAdmin.do_upload_to_s3_aws_for_revision
         """
         if what not in ("file", "dir"):
-            raise ValueError(what+" not a valid filter for get_item")
+            raise ValueError(f"{what} not a valid filter for get_item")
 
         query_text = """
             SELECT path

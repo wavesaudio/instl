@@ -242,7 +242,7 @@ report_invocation_end() {{
         if tool_name == "rsync":
             self.copy_tool = CopyToolMacRsync(self)
         else:
-            raise ValueError(tool_name, "is not a valid copy tool for Mac OS")
+            raise ValueError(f"{tool_name} is not a valid copy tool for Mac OS")
 
     def copy_file_to_file(self, src_file, trg_file, hard_link=False, check_exist=False):
         raise NotImplementedError

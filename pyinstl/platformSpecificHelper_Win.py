@@ -439,7 +439,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
         elif tool_name == "xcopy":
             self.copy_tool = CopyTool_win_xcopy(self)
         else:
-            raise ValueError(tool_name, "is not a valid copy tool for", config_vars["TARGET_OS"].str())
+            raise ValueError(f"{tool_name} is not a valid copy tool for {config_vars['TARGET_OS']}")
 
     def copy_file_to_file(self, src_file, trg_file, hard_link=False, check_exist=False):
         copy_command_parts = list()

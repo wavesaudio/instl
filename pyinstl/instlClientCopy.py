@@ -305,7 +305,7 @@ class InstlClientCopy(InstlClient):
             elif source[1] == '!dir_cont':  # get all files and folders from a folder
                 retVal += self.create_copy_instructions_for_dir_cont(source[0], name_for_progress_message)
             else:
-                raise ValueError("unknown source type "+source[1]+" for "+source[0])
+                raise ValueError(f"unknown source type {source[1]} for {source[0]}")
             source_accum_transaction += retVal
         return retVal
 

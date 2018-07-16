@@ -138,7 +138,7 @@ class InstlAdmin(InstlInstanceBase):
             my_stdout, my_stderr = proc.communicate()
             my_stdout, my_stderr = utils.unicodify(my_stdout), utils.unicodify(my_stderr)
             if proc.returncode != 0 or my_stderr != "":
-                raise ValueError("Could not read info from svn: ", my_stderr, proc.returncode)
+                raise ValueError(f"Could not read info from svn: {my_stderr} {proc.returncode}")
             info_as_io = io.StringIO(my_stdout)
             for line in info_as_io:
                 match = revision_line_re.match(line)
@@ -146,7 +146,7 @@ class InstlAdmin(InstlInstanceBase):
                     retVal = int(match["revision"])
                     break
         if retVal <= 0:
-            raise ValueError("Could not find last repo rev for " + repo_url)
+            raise ValueError(f"Could not find last repo rev for {repo_url}")
         config_vars["__LAST_REPO_REV__"] = str(retVal)
         return retVal
 
@@ -161,9 +161,9 @@ class InstlAdmin(InstlInstanceBase):
         base_repo_rev = int(config_vars["BASE_REPO_REV"])
         curr_repo_rev = int(config_vars["REPO_REV"])
         if base_repo_rev > curr_repo_rev:
-            raise ValueError("base_repo_rev "+str(base_repo_rev)+" > curr_repo_rev "+str(curr_repo_rev))
+            raise ValueError(f"base_repo_rev {base_repo_rev} > curr_repo_rev {curr_repo_rev}")
         if curr_repo_rev > last_repo_rev:
-            raise ValueError("base_repo_rev "+str(base_repo_rev)+" > last_repo_rev "+str(last_repo_rev))
+            raise ValueError(f"base_repo_rev {base_repo_rev} > last_repo_rev {last_repo_rev}")
 
         self.batch_accum += self.platform_helper.mkdir("$(ROOT_LINKS_FOLDER_REPO)/Base")
 
@@ -283,9 +283,9 @@ class InstlAdmin(InstlInstanceBase):
         # call svn info to find out the last repo revision
         last_repo_rev = self.get_last_repo_rev()
         if base_repo_rev > curr_repo_rev:
-            raise ValueError("base_repo_rev "+str(base_repo_rev)+" > curr_repo_rev "+str(curr_repo_rev))
+            raise ValueError(f"base_repo_rev {base_repo_rev} > curr_repo_rev {curr_repo_rev}")
         if curr_repo_rev > last_repo_rev:
-            raise ValueError("base_repo_rev "+str(base_repo_rev)+" > last_repo_rev "+str(last_repo_rev))
+            raise ValueError(f"base_repo_rev {base_repo_rev} > last_repo_rev {last_repo_rev}")
 
         max_repo_rev_to_work_on = curr_repo_rev
         if "__WHICH_REVISION__" in config_vars:
@@ -426,7 +426,7 @@ class InstlAdmin(InstlInstanceBase):
             {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "PRIVATE_KEY", "PRIVATE_KEY_FILE"})
         if dangerous_intersection:
             self.progress("found", str(dangerous_intersection), "in REPO_REV_FILE_VARS, aborting")
-            raise ValueError("file REPO_REV_FILE_VARS "+str(dangerous_intersection)+" and so is forbidden to upload")
+            raise ValueError(f"file REPO_REV_FILE_VARS {dangerous_intersection} and so is forbidden to upload")
 
         # create checksum for the main info_map file
         info_map_file = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt")
@@ -460,7 +460,7 @@ class InstlAdmin(InstlInstanceBase):
         # check that all variables are present
         for var in repo_rev_vars:
             if var not in config_vars:
-                raise ValueError(var + " is missing cannot write repo rev file")
+                raise ValueError(f"{var} is missing cannot write repo rev file")
 
         # create yaml out of the variables
         variables_as_yaml = config_vars.repr_for_yaml(repo_rev_vars, include_comments=False)
@@ -517,7 +517,7 @@ class InstlAdmin(InstlInstanceBase):
         my_stdout, my_stderr = proc.communicate()
         my_stdout, my_stderr = utils.unicodify(my_stdout), utils.unicodify(my_stderr)
         if proc.returncode != 0 or my_stderr != "":
-            raise ValueError("Could not read info from svn: " + my_stderr)
+            raise ValueError(f"Could not read info from svn: {my_stderr}")
         # write svn info to file for debugging and reference. But go one folder up so not to be in the svn repo.
         with utils.utf8_open("../svn-info-for-fix-props.txt", "w") as wfd:
             wfd.write(my_stdout)

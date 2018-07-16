@@ -323,7 +323,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 user_cache_dir_param = "$(COMPANY_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
                 user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
             else:
-                raise RuntimeError("Unknown operating system "+os_family_name)
+                raise RuntimeError(f"Unknown operating system {os_family_name}")
             config_vars["USER_CACHE_DIR"] = user_cache_dir
             #var_stack.get_configVar_obj("USER_CACHE_DIR").freeze_values_on_first_resolve = True
         if make_dir:
@@ -349,7 +349,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         elif source_type in ('!dir_cont', ):
             retVal = source_path
         else:
-            raise ValueError("unknown tag for source " + source_path + ": " + source_type)
+            raise ValueError(f"unknown tag for source {source_path}: {source_type}")
         return retVal
 
     def relative_sync_folder_for_source_table(self, adjusted_source, source_type):
@@ -358,7 +358,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         elif source_type in ('!dir_cont', ):
             retVal = adjusted_source
         else:
-            raise ValueError("unknown tag for source " + adjusted_source + ": " + source_type)
+            raise ValueError(f"unknown tag for source {adjusted_source}: {source_type}")
         return retVal
 
     def write_batch_file(self, in_batch_accum, file_name_post_fix=""):
@@ -377,7 +377,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         lines = in_batch_accum.finalize_list_of_lines()
         for line in lines:
             if type(line) != str:
-                raise TypeError("Not a string", type(line), line)
+                raise TypeError(f"Not a string {type(line)} {line}")
 
         # replace unresolved var references to native OS var references, e.g. $(HOME) would be %HOME% on Windows and ${HOME} one Mac
         lines_after_var_replacement = [value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines]
