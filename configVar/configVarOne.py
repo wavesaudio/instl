@@ -80,6 +80,14 @@ class ConfigVar:
         retVal = self.join(sep='')
         return retVal
 
+    def __fspath__(self) -> str:
+        """ implement Adding a file system path protocol
+            so configVar can be passed to pathlib, os.path, etc
+            we do not really know if the configVar actually represents
+            a path, we just return is as a string
+        """
+        return self.str()
+
     def __int__(self) -> int:
         retVal = int(self.join(sep=''))
         return retVal

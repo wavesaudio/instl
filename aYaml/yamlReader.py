@@ -54,6 +54,7 @@ class YamlReader(object):
 
     def read_yaml_file(self, file_path, *args, **kwargs):
         try:
+            self.progress("reading ", file_path)
             allow_reading_of_internal_vars = kwargs.get('allow_reading_of_internal_vars', False)
             with self.allow_reading_of_internal_vars(allow=allow_reading_of_internal_vars):
                 self.file_read_stack.append(file_path)
@@ -69,15 +70,19 @@ class YamlReader(object):
                         a_post_node, a_post_read_func = self.post_nodes.pop()
                         a_post_read_func(a_post_node, *args, **kwargs)
 
-        except (FileNotFoundError, urllib.error.URLError) as ex:
+        except (FileNotFoundError, urllib.error.URLError, yaml.reader.ReaderError) as ex:
             ignore = kwargs.get('ignore_if_not_exist', False)
             if ignore:
-                self.progress(f"'ignore_if_not_exist' specified, ignoring FileNotFoundError for {self.file_read_stack[-1]}")
+                self.progress(f"'ignore_if_not_exist' specified, ignoring {ex.__class__.__name__} for {self.file_read_stack[-1]}")
                 self.file_read_stack.pop()
             else:
+                if type(ex) is yaml.reader.ReaderError:
+                    kwargs['exception'] = ex
+                    kwargs['buffer'] = buffer
+                    self.handle_yaml_read_error(**kwargs)
                 if not self.exception_printed:  # avoid recursive printing of error message
                     read_file_history = "\n->\n".join(self.file_read_stack+[file_path])
-                    print("FileNotFoundError/URLError reading file:\n", read_file_history)
+                    print(f"{ex.__class__.__name__} reading file:\n", read_file_history)
                     self.exception_printed = True
                 raise
         except Exception as ex:
@@ -111,3 +116,11 @@ class YamlReader(object):
         elif a_node.isMapping():
             for (_key, _val) in a_node.value:
                 YamlReader.convert_standard_tags(_val)
+
+    def handle_yaml_parse_error(self, **kwargs):
+        """
+            override is something needs to be done when parsing yaml fails
+            this function will be called for yaml.reader.ReaderError and like
+            minded errors, NOT for FileNotFoundError or URLError
+        """
+        pass
