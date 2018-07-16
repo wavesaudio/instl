@@ -70,8 +70,8 @@ class YamlReader(object):
                         a_post_node, a_post_read_func = self.post_nodes.pop()
                         a_post_read_func(a_post_node, *args, **kwargs)
 
-        except (FileNotFoundError, urllib.error.URLError, yaml.reader.ReaderError) as ex:
-            if type(ex) is yaml.reader.ReaderError:
+        except (FileNotFoundError, urllib.error.URLError, yaml.YAMLError) as ex:
+            if isinstance(ex, yaml.YAMLError):
                 kwargs['exception'] = ex
                 kwargs['buffer'] = buffer
                 self.handle_yaml_read_error(**kwargs)

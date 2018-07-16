@@ -481,10 +481,10 @@ class SVNTable(object):
     def write_as_text(self, wfd, items_list, comments=True, field_to_write=None) -> None:
         if comments and len(self.comments) > 0:
             for comment in self.comments:
-                wfd.write("# " + comment + "\n")
+                wfd.write(f"# {comment}\n")
             wfd.write("\n")
         for item in items_list:
-            wfd.write(item.str_specific_fields(field_to_write) + "\n")
+            wfd.write(f"{item.str_specific_fields(field_to_write)}\n")
 
     def initialize_from_folder(self, in_folder) -> None:
         def yield_row(_in_folder_) -> List:

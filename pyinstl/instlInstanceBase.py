@@ -505,5 +505,6 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 buffer = kwargs.get('buffer', io.StringIO("unknown")).getvalue()
                 wfd.write(buffer)
                 wfd.write(f"\n\ncontents: END\n")
+            self.progress(f"""error parsing yaml file '{path_to_file}', error report written to '{report_file_path}'""")
         except Exception as ex:
             pass
