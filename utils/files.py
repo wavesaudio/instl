@@ -102,7 +102,7 @@ def read_file_or_url(in_file_or_url, path_searcher=None, encoding='utf-8', save_
             else:
                 local_file_path = os.path.realpath(local_file_path)
         else:
-            raise FileNotFoundError("Could not locate local file", local_file_path)
+            raise FileNotFoundError(f"Could not locate local file {local_file_path}")
         if encoding is None:
             read_mod = "rb"
         else:
@@ -142,7 +142,7 @@ class open_for_read_file_or_url(object):
                 else:
                     self.local_file_path = os.path.realpath(self.local_file_path)
             else:
-                raise FileNotFoundError("Could not locate local file", self.local_file_path)
+                raise FileNotFoundError(f"Could not locate local file {self.local_file_path}")
             self._actual_path = self.local_file_path
         else:
             self.url = in_file_or_url
@@ -204,14 +204,13 @@ def read_from_file_or_url(in_url, translate_url_callback=None, expected_checksum
         # check sig or checksum only if they were given
         if expected_checksum is not None:
             if len(contents_buffer) == 0:
-                raise IOError("Empty contents returned from", in_url, "; expected checksum: ", expected_checksum, "; encoding:", encoding)
+                raise IOError(f"Empty contents returned from {in_url} ; expected checksum: {expected_checksum} ; encoding: {encoding}")
             if encoding is not None:
-                raise IOError("Checksum check requested for", in_url, "but encoding is not None, encoding:", encoding, "; expected checksum: ", expected_checksum)
+                raise IOError(f"Checksum check requested for {in_url} but encoding is not None, encoding: {encoding} ; expected checksum: {expected_checksum}")
             buffer_ok = utils.check_buffer_checksum(contents_buffer, expected_checksum)
             if not buffer_ok:
                 actual_checksum = utils.get_buffer_checksum(contents_buffer)
-                raise IOError("Checksum mismatch", in_url, "expected checksum: ", expected_checksum,
-                              "actual checksum:", actual_checksum, "encoding:", encoding)
+                raise IOError(f"Checksum mismatch {in_url} expected checksum:  {expected_checksum} actual checksum: {actual_checksum} encoding: {encoding}")
     return contents_buffer
 
 

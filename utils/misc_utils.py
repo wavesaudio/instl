@@ -605,7 +605,7 @@ def str_to_bool_int(the_str):
     elif the_str.lower() in ("no", "false", "n", "f"):
         retVal = 0
     else:
-        raise ValueError("Cannot translate", the_str, "to bool-int")
+        raise ValueError(f"Cannot translate {the_str} to bool-int")
     return retVal
 
 

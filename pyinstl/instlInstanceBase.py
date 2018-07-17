@@ -5,10 +5,13 @@ import os
 import sys
 import re
 import abc
-import weakref
+import pathlib
 import platform
 import appdirs
 import urllib.error
+import io
+import datetime
+import time
 
 import aYaml
 import utils
@@ -65,6 +68,8 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
         self.need_items_table = False
         self.need_info_map_table = False
+        self.the_command = None
+        self.fixed_command = None
 
         ConfigVarYamlReader.__init__(self)
 
@@ -257,22 +262,9 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                                                              return_original_if_not_found=True)
                 config_vars[path_var_to_resolve] = resolved_path
 
-    def provision_public_key_text(self):
-        if "PUBLIC_KEY" not in config_vars:
-            if "PUBLIC_KEY_FILE" in config_vars:
-                public_key_file = config_vars["PUBLIC_KEY_FILE"].str()
-                with utils.open_for_read_file_or_url(public_key_file, connectionBase.translate_url, self.path_searcher) as open_file:
-                    public_key_text = open_file.fd.read()
-                    config_vars["PUBLIC_KEY", "from " + public_key_file] = public_key_text
-            else:
-                raise ValueError("No public key, variables PUBLIC_KEY & PUBLIC_KEY_FILE are not defined")
-        resolved_public_key = config_vars["PUBLIC_KEY"].str()
-        return resolved_public_key
-
     def read_include_node(self, i_node, *args, **kwargs):
         if i_node.isScalar():
             resolved_file_name = config_vars.resolve_str(i_node.value)
-            self.progress("reading ", resolved_file_name)
             self.read_yaml_file(resolved_file_name, *args, **kwargs)
         elif i_node.isSequence():
             for sub_i_node in i_node:
@@ -334,7 +326,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 user_cache_dir_param = "$(COMPANY_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
                 user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
             else:
-                raise RuntimeError("Unknown operating system "+os_family_name)
+                raise RuntimeError(f"Unknown operating system {os_family_name}")
             config_vars["USER_CACHE_DIR"] = user_cache_dir
             #var_stack.get_configVar_obj("USER_CACHE_DIR").freeze_values_on_first_resolve = True
         if make_dir:
@@ -360,7 +352,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         elif source_type in ('!dir_cont', ):
             retVal = source_path
         else:
-            raise ValueError("unknown tag for source " + source_path + ": " + source_type)
+            raise ValueError(f"unknown tag for source {source_path}: {source_type}")
         return retVal
 
     def relative_sync_folder_for_source_table(self, adjusted_source, source_type):
@@ -369,7 +361,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         elif source_type in ('!dir_cont', ):
             retVal = adjusted_source
         else:
-            raise ValueError("unknown tag for source " + adjusted_source + ": " + source_type)
+            raise ValueError(f"unknown tag for source {adjusted_source}: {source_type}")
         return retVal
 
     def write_batch_file(self, in_batch_accum, file_name_post_fix=""):
@@ -388,7 +380,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         lines = in_batch_accum.finalize_list_of_lines()
         for line in lines:
             if type(line) != str:
-                raise TypeError("Not a string", type(line), line)
+                raise TypeError(f"Not a string {type(line)} {line}")
 
         # replace unresolved var references to native OS var references, e.g. $(HOME) would be %HOME% on Windows and ${HOME} one Mac
         lines_after_var_replacement = [value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines]
@@ -500,3 +492,22 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         except Exception as ex:
             pass
         return retVal
+
+    def handle_yaml_read_error(self, **kwargs):
+        try:
+            path_to_file = pathlib.Path(kwargs['path-to-file'])
+            the_exception = kwargs.get('exception', None)
+            main_input_file = pathlib.Path(config_vars["__MAIN_INPUT_FILE__"])
+            date_stamp = time.strftime("%Y-%m-%d_%H.%M.%S")
+            report_file_name = f"yaml_read_error_{date_stamp}_{path_to_file.name}"
+            report_file_path = pathlib.Path(main_input_file.parent, report_file_name)
+            with open(report_file_path, "w") as wfd:
+                wfd.write(f"path: {path_to_file}\n\n")
+                wfd.write(f"exception: {the_exception}\n\n")
+                wfd.write(f"\ncontents: BEGIN\n\n")
+                buffer = kwargs.get('buffer', io.StringIO("unknown")).getvalue()
+                wfd.write(buffer)
+                wfd.write(f"\n\ncontents: END\n")
+            self.progress(f"""error parsing yaml file '{path_to_file}', error report written to '{report_file_path}'""")
+        except Exception as ex:
+            pass

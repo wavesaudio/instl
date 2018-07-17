@@ -178,17 +178,14 @@ class YamlDumpWrap(object):
                 if self.tag:
                     out_stream.write(self.tag)
                 if self.comment and self.include_comments:
-                    out_stream.write(" # ")
-                    out_stream.write(self.comment)
+                    out_stream.write(f" # {self.comment}")
         elif self.tag:
-            out_stream.write(self.tag)
-            out_stream.write(" ")
+            out_stream.write(f"{self.tag} ")
 
     def writePostfix(self, out_stream, indentor):
         if not isinstance(self.value, (list, tuple, dict)):
             if self.comment and self.include_comments:
-                out_stream.write(" # ")
-                out_stream.write(self.comment)
+                out_stream.write(f" # {self.comment}")
 
     def ReduceOneItemLists(self, curr_node=None):
         if curr_node is None:
@@ -220,11 +217,9 @@ class YamlDumpDocWrap(YamlDumpWrap):
         if self.explicit_start or self.tag:
             out_stream.write("---")
             if self.tag:
-                out_stream.write(" ")
-                out_stream.write(self.tag)
+                out_stream.write(f" {self.tag}")
         if self.comment and self.include_comments:
-            out_stream.write(" # ")
-            out_stream.write(self.comment)
+            out_stream.write(f" # {self.comment}")
         indentor.lineSepAndIndent(out_stream)
 
     def writePostfix(self, out_stream, indentor):
@@ -357,7 +352,7 @@ def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False, alias_indicat
         else:
             theKeys = list(pyObj.keys())
         if alias:
-            out_stream.write("&"+alias)
+            out_stream.write(f"&{alias}")
         for item in theKeys:
             nl_before_key = (parent_item != 'l')
             if nl_before_key:

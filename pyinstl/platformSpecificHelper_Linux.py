@@ -100,7 +100,7 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         if tool == "rsync":
             self.copy_tool = CopyToolLinuxRsync(self)
         else:
-            raise ValueError(tool, "is not a valid copy tool for Linux")
+            raise ValueError(f"{tool} is not a valid copy tool for Linux")
 
     def copy_file_to_file(self, src_file, trg_file, hard_link=False, check_exist=False):
         if hard_link:
