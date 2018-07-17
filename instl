@@ -76,6 +76,7 @@ def main():
                     "__CURR_WORKING_DIR__": os.getcwd(),  # the working directory when instl was launched
                     "__INSTL_LAUNCH_COMMAND__": get_instl_launch_command(),
                     "__INSTL_DATA_FOLDER__": get_data_folder(),
+                    "__INSTL_DEFAULTS_FOLDER__": "$(__INSTL_DATA_FOLDER__)/defaults",
                     "__INSTL_COMPILED__": str(getattr(sys, 'frozen', False)),
                     "__PYTHON_VERSION__": sys.version_info,
                     "__PYSQLITE3_VERSION__": sqlite3.version,
@@ -92,7 +93,8 @@ def main():
                     "__USER_DESKTOP_DIR__": os.path.normpath("$(__USER_HOME_DIR__)/Desktop"),
                     "__USER_TEMP_DIR__": os.path.normpath(os.path.join(tempfile.gettempdir(), "$(SYNC_BASE_URL_MAIN_ITEM)/$(REPO_NAME)")),
                     "__PATH_SEP__": os.path.sep,
-                    "__INVOCATIONS_FILE_PATH__": utils.get_invocations_file_path()
+                    "__INVOCATIONS_FILE_PATH__": utils.get_invocations_file_path(),
+                    "__INVOCATION_RANDOM_ID__": ''.join(random.choice(string.ascii_lowercase) for _ in range(16))
                     }
 
     if os_family_name != "Win":
@@ -107,13 +109,13 @@ def main():
     elif options.mode == "client":
         from pyinstl.instlClient import InstlClientFactory
         instance = InstlClientFactory(initial_vars, options.__MAIN_COMMAND__)
-        instance.progress("welcome to instl", instance.instl_ver_str, options.__MAIN_COMMAND__)
+        instance.progress("welcome to instl", instance.get_version_str(short=True), options.__MAIN_COMMAND__)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "doit":
         from pyinstl.instlDoIt import InstlDoIt
         instance = InstlDoIt(initial_vars)
-        instance.progress("welcome to instl", instance.instl_ver_str, options.__MAIN_COMMAND__)
+        instance.progress("welcome to instl", instance.get_version_str(short=True), options.__MAIN_COMMAND__)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "admin":
@@ -121,7 +123,7 @@ def main():
             raise EnvironmentError("instl admin commands can only run under Mac or Linux")
         from pyinstl.instlAdmin import InstlAdmin
         instance = InstlAdmin(initial_vars)
-        instance.progress("welcome to instl", instance.instl_ver_str, options.__MAIN_COMMAND__)
+        instance.progress("welcome to instl", instance.get_version_str(short=True), options.__MAIN_COMMAND__)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "interactive":
@@ -136,7 +138,7 @@ def main():
     elif options.mode == "do_something":
         from pyinstl.instlMisc import InstlMisc
         instance = InstlMisc(initial_vars, options.__MAIN_COMMAND__)
-        instance.progress("welcome to instl", instance.instl_ver_str, options.__MAIN_COMMAND__)
+        instance.progress("welcome to instl", instance.get_version_str(short=True), options.__MAIN_COMMAND__)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
     elif options.mode == "gui":
@@ -156,7 +158,7 @@ def main():
 
 
 class InvocationReporter(object):
-    def __init__(self):
+    def __init__(self) -> None:
         self.invocations_file_path = None
         self.start_time = datetime.datetime.now()
         self.max_file_size = 400000
@@ -193,6 +195,7 @@ class InvocationReporter(object):
         except:
             # this is a report so if something went wrong just forget it
             pass
+
 
 if __name__ == "__main__":
     with InvocationReporter():

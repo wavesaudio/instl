@@ -15,7 +15,7 @@ import time
 
 import aYaml
 import utils
-from .batchAccumulator import BatchAccumulator, PythonBatchAccumulator
+from .batchAccumulator import BatchAccumulatorFactory
 from .platformSpecificHelper_Base import PlatformSpecificHelperFactory
 
 from configVar import config_vars
@@ -39,6 +39,7 @@ value_ref_re = re.compile("""
                             )                         # )
                             """, re.X)
 
+
 def check_version_compatibility():
     retVal = True
     message = ""
@@ -58,11 +59,11 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         must be inherited by platform specific implementations, such as InstlInstance_mac
         or InstlInstance_win.
     """
-    db = None
-    items_table = None
-    info_map_table = None
+    db: DBMaster = None
+    items_table: IndexItemsTable = None
+    info_map_table: SVNTable = None
 
-    def __init__(self, initial_vars=None):
+    def __init__(self, initial_vars=None) -> None:
         self.total_self_progress = 0   # if > 0 output progress during run (as apposed to batch file progress)
 
         self.need_items_table = False
@@ -76,23 +77,27 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.url_translator = connectionBase.translate_url
         self.init_default_vars(initial_vars)
         # noinspection PyUnresolvedReferences
-        self.read_name_specific_defaults_file(super().__thisclass__.__name__)
+        self.read_defaults_file(super().__thisclass__.__name__)
         # initialize the search paths helper with the current directory and dir where instl is now
         self.path_searcher.add_search_path(os.getcwd())
         self.path_searcher.add_search_path(os.path.dirname(os.path.realpath(sys.argv[0])))
         self.path_searcher.add_search_path(config_vars["__INSTL_DATA_FOLDER__"].str())
 
-        self.platform_helper = PlatformSpecificHelperFactory(config_vars["__CURRENT_OS__"].str(), self)
-        # init initial copy tool, tool might be later overridden after reading variable COPY_TOOL from yaml.
-        self.platform_helper.init_copy_tool()
+        self.platform_helper = None
+        self.batch_accum = None
+        self.init_platform_helpers()
 
-        self.batch_accum = BatchAccumulator()
-        self.do_not_write_vars = ("INFO_MAP_SIG", "INDEX_SIG", "PUBLIC_KEY", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "__CREDENTIALS__", "SVN_REVISION")
         self.out_file_realpath = None
         self.internal_progress = 0  # progress of preparing installer NOT of the installation
         self.num_digits_repo_rev_hierarchy=None
         self.num_digits_per_folder_repo_rev_hierarchy=None
-        self.instl_ver_str = ".".join(list(config_vars["__INSTL_VERSION__"]))
+
+    def init_platform_helpers(self):
+        use_python_batch = bool(config_vars.get("USE_PYTHON_BATCH", "False"))
+        self.platform_helper = PlatformSpecificHelperFactory(str(config_vars["__CURRENT_OS__"]), self, use_python_batch=use_python_batch)
+        self.batch_accum = BatchAccumulatorFactory(use_python_batch=use_python_batch)
+        # init initial copy tool, tool might be later overridden after reading variable COPY_TOOL from yaml.
+        self.platform_helper.init_copy_tool()
 
     def progress(self, *messages):
         if self.total_self_progress:
@@ -126,26 +131,23 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.specific_doc_readers["!index"] = self.read_index
         self.specific_doc_readers["!require"] = self.read_require
 
-    def get_version_str(self):
+    def get_version_str(self, short=False):
         instl_ver_str = ".".join(list(config_vars["__INSTL_VERSION__"]))
-        if "__PLATFORM_NODE__" not in config_vars:
-            config_vars.update({"__PLATFORM_NODE__": platform.node()})
-        retVal = config_vars.resolve_str(
-            "$(INSTL_EXEC_DISPLAY_NAME) version "+instl_ver_str+" $(__COMPILATION_TIME__) $(__PLATFORM_NODE__)")
-        return retVal
+        if not short:
+            if "__PLATFORM_NODE__" not in config_vars:
+                config_vars.update({"__PLATFORM_NODE__": platform.node()})
+            instl_ver_str = config_vars.resolve_str(
+                "$(INSTL_EXEC_DISPLAY_NAME) version "+instl_ver_str+" $(__COMPILATION_TIME__) $(__PLATFORM_NODE__)")
+        return instl_ver_str
 
     def init_default_vars(self, initial_vars):
-        if initial_vars:
-            for var, value in initial_vars.items():
-                config_vars[var] = value
+        config_vars.update(initial_vars)
 
         # read defaults/main.yaml
-        main_defaults_file_path = os.path.join(config_vars["__INSTL_DATA_FOLDER__"].str(), "defaults", "main.yaml")
-        self.read_yaml_file(main_defaults_file_path, allow_reading_of_internal_vars=True)
+        self.read_defaults_file("main", ignore_if_not_exist=False)
 
         # read defaults/compile-info.yaml
-        compile_info_file_path = os.path.join(config_vars["__INSTL_DATA_FOLDER__"].str(), "defaults", "compile-info.yaml")
-        self.read_yaml_file(compile_info_file_path, ignore_if_not_exist=True)
+        self.read_defaults_file("compile-info")
         if "__COMPILATION_TIME__" not in config_vars:
             if bool(config_vars["__INSTL_COMPILED__"]):
                 config_vars["__COMPILATION_TIME__"] = "unknown compilation time"
@@ -154,10 +156,10 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
         self.read_user_config()
 
-    def read_name_specific_defaults_file(self, file_name):
+    def read_defaults_file(self, file_name, allow_reading_of_internal_vars=True, ignore_if_not_exist=True):
         """ read class specific file from defaults/class_name.yaml """
-        name_specific_defaults_file_path = os.path.join(config_vars["__INSTL_DATA_FOLDER__"].str(), "defaults", file_name + ".yaml")
-        self.read_yaml_file(name_specific_defaults_file_path, ignore_if_not_exist=True, allow_reading_of_internal_vars=True)
+        name_specific_defaults_file_path = os.path.join(config_vars["__INSTL_DEFAULTS_FOLDER__"].str(), file_name + ".yaml")
+        self.read_yaml_file(name_specific_defaults_file_path, ignore_if_not_exist=ignore_if_not_exist, allow_reading_of_internal_vars=allow_reading_of_internal_vars)
 
     def read_user_config(self):
         user_config_path = config_vars["__USER_CONFIG_FILE_PATH__"].str()
@@ -207,6 +209,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 if db_url != ":memory:" and not db_file:
                     # erase the db only if it's default created no given
                     utils.safe_remove_file(db_url)
+                ddls_folder = config_vars["__INSTL_DEFAULTS_FOLDER__"].str()
                 InstlInstanceBase.db = DBMaster(db_url, ddls_folder)
                 config_vars["__DATABASE_URL__"] = db_url
                 self.progress("database at ", db_url)
@@ -307,8 +310,9 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def create_variables_assignment(self, in_batch_accum):
         in_batch_accum.set_current_section("assign")
+        do_not_write_vars = config_vars["DONT_WRITE_CONFIG_VARS"].list()
         for identifier in config_vars.keys():
-            if identifier not in self.do_not_write_vars:
+            if identifier not in do_not_write_vars:
                 in_batch_accum += self.platform_helper.var_assign(identifier, config_vars[identifier].join(sep=" "))
 
     def calc_user_cache_dir_var(self, make_dir=True):

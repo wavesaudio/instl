@@ -8,11 +8,11 @@ from .indexItemTable import IndexItemsTable
 
 
 class InstlDoIt(InstlInstanceBase):
-    def __init__(self, initial_vars):
+    def __init__(self, initial_vars) -> None:
         super().__init__(initial_vars)
         self.total_self_progress = 1000
         self.need_items_table = True
-        self.read_name_specific_defaults_file(super().__thisclass__.__name__)
+        self.read_defaults_file(super().__thisclass__.__name__)
         self.full_doit_order = utils.unique_list()
 
     def do_command(self):

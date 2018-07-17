@@ -9,7 +9,7 @@ import utils
 
 
 class CommandListRunner(object):
-    def __init__(self, initial_vars, options):
+    def __init__(self, initial_vars, options) -> None:
         self.initial_vars = initial_vars
         self.options = options
         self.child_pids = list()
@@ -19,15 +19,15 @@ class CommandListRunner(object):
 
     def run(self, parallel=False):
         command_list = self.prepare_command_list_from_file()
-        command_list_dir, command_list_leaf = os.path.split(self.options.config_file[0])
+        config_file = config_vars["__CONFIG_FILE__"].str()
+        command_list_dir, command_list_leaf = os.path.split(config_file)
         if parallel:
-            self.instance.batch_accum += self.instance.platform_helper.echo(f"""Running {len(command_list)} commands in parallel from {command_list_leaf}""")
+            self.instance.batch_accum += self.instance.platform_helper.echo(f"Running {len(command_list)} commands in parallel from {command_list_leaf}")
             for argv in command_list:
                 self.do_forked_command(argv)
 
             for child_pid in self.child_pids:
                 wait_val = os.waitpid(child_pid, 0)
-                print(child_pid, wait_val)
             self.instance.batch_accum += self.instance.platform_helper.echo(f"Running {len(command_list)} commands in parallel done")
         else:
             self.instance.batch_accum += self.instance.platform_helper.echo(f"Running {len(command_list)} commands one by one from {command_list_leaf}")
@@ -37,7 +37,8 @@ class CommandListRunner(object):
 
     def prepare_command_list_from_file(self):
         command_list = list()
-        with utils.utf8_open(self.options.config_file[0], "r") as rfd:
+        config_file = config_vars["__CONFIG_FILE__"].str()
+        with utils.utf8_open(config_file, "r") as rfd:
             command_lines = rfd.readlines()
 
         for command_line in command_lines:
@@ -64,7 +65,6 @@ class CommandListRunner(object):
             self.run_one_command(argv)
             exit(0)
         else:
-            print("new_pid:", new_pid)
             self.child_pids.append(new_pid)
 """
 rpipe, wpipe = os.pipe()
@@ -93,5 +93,5 @@ def run_commands_from_file(initial_vars, options):
 
     runner = CommandListRunner(initial_vars, options)
 
-    parallel_run =  bool(config_vars["__RUN_COMMAND_LIST_IN_PARALLEL__"])
+    parallel_run = "__RUN_COMMAND_LIST_IN_PARALLEL__" in config_vars
     runner.run(parallel=parallel_run)

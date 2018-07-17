@@ -4,6 +4,7 @@ import abc
 import re
 import time
 
+
 first_cap_re = re.compile('(.)([A-Z][a-z]+)')
 all_cap_re = re.compile('([a-z0-9])([A-Z])')
 
@@ -54,6 +55,14 @@ class PythonBatchCommandBase(abc.ABC):
     def __repr__(self):
         the_repr = f"{self.__class__.__name__}(report_own_progress={self.report_own_progress}, ignore_all_errors={self.ignore_all_errors})"
         return the_repr
+
+    @abc.abstractmethod
+    def repr_batch_win(self):
+        return ""
+
+    @abc.abstractmethod
+    def repr_batch_mac(self):
+        return ""
 
     def __eq__(self, other):
         do_not_compare_keys = ('progress', 'obj_name')
@@ -151,4 +160,3 @@ class RunProcessBase(PythonBatchCommandBase):
 
     def __repr__(self):
         raise NotImplementedError
-

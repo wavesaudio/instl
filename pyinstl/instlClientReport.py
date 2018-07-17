@@ -10,9 +10,9 @@ import utils
 
 
 class InstlClientReport(InstlClient):
-    def __init__(self, initial_vars):
+    def __init__(self, initial_vars) -> None:
         super().__init__(initial_vars)
-        self.read_name_specific_defaults_file(super().__thisclass__.__name__)
+        self.read_defaults_file(super().__thisclass__.__name__)
         self.current_index_yaml_path = None
         self.current_require_yaml_path = None
         self.guids_to_ignore = None

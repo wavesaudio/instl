@@ -10,7 +10,7 @@ class InstlInstanceSync_svn(InstlInstanceSync):
     """  Class to create sync instruction using svn.
     """
 
-    def __init__(self, instlObj):
+    def __init__(self, instlObj) -> None:
         super().__init__(instlObj)
 
     def init_sync_vars(self):

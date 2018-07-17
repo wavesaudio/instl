@@ -13,7 +13,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
     """  Base class for sync object .
     """
 
-    def __init__(self, instlObj):
+    def __init__(self, instlObj) -> None:
         self.instlObj = instlObj  # instance of the instl application
         self.local_sync_dir = None  # will be resolved from $(LOCAL_REPO_SYNC_DIR)
         self.files_to_download = 0

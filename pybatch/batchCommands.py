@@ -3,6 +3,9 @@ import stat
 import random
 import string
 import shutil
+import pathlib
+import re
+from typing import List, Any
 
 import utils
 from .baseClasses import *
@@ -13,13 +16,31 @@ def touch(file_path):
         os.utime(file_path, None)
 
 
+# regex to find some characters that should be escaped in dos, but are not
+dos_escape_regex = re.compile("""(?<!\^)([<|&>])""", re.MULTILINE)
+
+
+def escape_me_dos_callback(match_obj):
+    replacement = "^"+match_obj.group(1)
+    return replacement
+
+
+def dos_escape(some_string):
+    # 1. remove ^><|'s from end of string - they cause CMD to ask for 'More?' or 'The syntax of the command is incorrect.'
+    retVal = some_string.rstrip("^><|")
+    # 2. replace some chars with ?
+    retVal = re.sub("""[\r\n]""", "?", retVal)
+    # 3. escape some chars, but only of they are not already escaped
+    retVal = dos_escape_regex.sub(escape_me_dos_callback, retVal)
+    return retVal
+
 # === classes with tests ===
 class MakeRandomDirs(PythonBatchCommandBase):
     """ MakeRandomDirs is intended for use during tests - not for production
         Will create in current working directory a hierarchy of folders and files with random names so we can test copying
     """
 
-    def __init__(self, num_levels: int, num_dirs_per_level: int, num_files_per_dir: int, file_size: int):
+    def __init__(self, num_levels: int, num_dirs_per_level: int, num_files_per_dir: int, file_size: int) -> None:
         super().__init__()
         self.num_levels = num_levels
         self.num_dirs_per_level = num_dirs_per_level
@@ -29,6 +50,12 @@ class MakeRandomDirs(PythonBatchCommandBase):
     def __repr__(self):
         the_repr = f"""{self.__class__.__name__}(num_levels={self.num_levels}, num_dirs_per_level={self.num_dirs_per_level}, num_files_per_dir={self.num_files_per_dir}, file_size={self.file_size})"""
         return the_repr
+
+    def repr_batch_win(self):
+        return "echo MakeRandomDirs is not implemented for batch win"
+
+    def repr_batch_mac(self):
+        return "echo MakeRandomDirs is not implemented for batch mac"
 
     def progress_msg_self(self):
         the_progress_msg = f"create random directories and files under current dir {os.getcwd()}"
@@ -62,7 +89,7 @@ class MakeDirs(PythonBatchCommandBase):
         it it always OK for a dir to already exists
         Tests: TestPythonBatch.test_MakeDirs_*
     """
-    def __init__(self, *paths_to_make, remove_obstacles: bool=True):
+    def __init__(self, *paths_to_make, remove_obstacles: bool=True) -> None:
         super().__init__()
         self.paths_to_make = paths_to_make
         self.remove_obstacles = remove_obstacles
@@ -72,6 +99,26 @@ class MakeDirs(PythonBatchCommandBase):
         paths_csl = ", ".join(utils.raw_string(utils.quoteme_double(os.fspath(path))) for path in self.paths_to_make)
         the_repr = f"""{self.__class__.__name__}({paths_csl}, remove_obstacles={self.remove_obstacles})"""
         return the_repr
+
+    def repr_batch_win(self):
+        retVal = list()
+        for directory in self.paths_to_make:
+            norm_directory = os.path.normpath(directory)
+            quoted_norm_directory = utils.quoteme_double(norm_directory)
+            quoted_norm_directory_slash = utils.quoteme_double(norm_directory+"\\")
+            mk_command = " ".join(("if not exist", quoted_norm_directory, "mkdir", quoted_norm_directory))
+            check_mk_command = " ".join(("if not exist", quoted_norm_directory_slash, "(", "echo Error: failed to create ", quoted_norm_directory, "1>&2",
+                                        "&", "GOTO", "EXIT_ON_ERROR", ")"))
+            retVal.append(mk_command)
+            retVal.append(check_mk_command)
+        return retVal
+
+    def repr_batch_mac(self):
+        retVal = list()
+        for directory in self.paths_to_make:
+            mk_command = " ".join(("mkdir", "-p", "-m a+rwx", utils.quoteme_double(directory) ))
+            retVal.append(mk_command)
+        return retVal
 
     def progress_msg_self(self):
         the_progress_msg = f"mkdir {self.paths_to_make}"
@@ -92,13 +139,25 @@ class MakeDirs(PythonBatchCommandBase):
 
 
 class Touch(PythonBatchCommandBase):
-    def __init__(self, path: os.PathLike):
+    def __init__(self, path: os.PathLike) -> None:
         super().__init__()
         self.path = path
 
     def __repr__(self):
         the_repr = f"""{self.__class__.__name__}(path="{os.fspath(self.path)}")"""
         return the_repr
+
+    def repr_batch_win(self):
+        retVal = list()
+        touch_command = " ".join(("type", "NUL", ">", utils.quoteme_double(self.path)))
+        retVal.append(touch_command)
+        return retVal
+
+    def repr_batch_mac(self):
+        retVal = list()
+        touch_command = " ".join(("touch", utils.quoteme_double(self.path)))
+        retVal.append(touch_command)
+        return retVal
 
     def progress_msg_self(self):
         the_progress_msg = f"Touch {self.path}"
@@ -110,7 +169,7 @@ class Touch(PythonBatchCommandBase):
 
 
 class Cd(PythonBatchCommandBase):
-    def __init__(self, path: os.PathLike):
+    def __init__(self, path: os.PathLike) -> None:
         super().__init__()
         self.new_path: os.PathLike = path
         self.old_path: os.PathLike = None
@@ -118,6 +177,24 @@ class Cd(PythonBatchCommandBase):
     def __repr__(self):
         the_repr = f"""{self.__class__.__name__}(path=r"{os.fspath(self.new_path)}")"""
         return the_repr
+
+    def repr_batch_win(self):
+        retVal = list()
+        norm_directory = utils.quoteme_double(os.path.normpath(self.new_path))
+        is_exists_command = " ".join(("if not exist", norm_directory,
+                                    "(", "echo directory does not exists", norm_directory, "1>&2",
+                                    "&", "GOTO", "EXIT_ON_ERROR", ")"))
+        cd_command = " ".join(("cd", '/d', norm_directory))
+        check_cd_command = " ".join(("if /I not", norm_directory, "==", utils.quoteme_double("%CD%"),
+                                    "(", "echo Error: failed to cd to", norm_directory, "1>&2",
+                                    "&", "GOTO", "EXIT_ON_ERROR", ")"))
+        retVal.extend((is_exists_command, cd_command, check_cd_command))
+        return retVal
+
+    def repr_batch_mac(self):
+        retVal = list()
+        retVal.append(" ".join(("cd", utils.quoteme_double(self.new_path))))
+        return retVal
 
     def progress_msg_self(self):
         the_progress_msg = f"cd to {self.new_path}"
@@ -137,7 +214,7 @@ class ChFlags(RunProcessBase):
         These flags are different from permissions.
         For changing permissions use chmod.
     """
-    def __init__(self, path, flag: str, recursive=False, ignore_errors=True):
+    def __init__(self, path, flag: str, recursive=False, ignore_errors=True) -> None:
         super().__init__(ignore_all_errors=ignore_errors)
         self.path = path
         self.flag = flag
@@ -147,6 +224,23 @@ class ChFlags(RunProcessBase):
     def __repr__(self):
         the_repr = f"""{self.__class__.__name__}(path="{os.fspath(self.path)}", flag="{self.flag}", recursive={self.recursive}, ignore_errors={self.ignore_errors})"""
         return the_repr
+
+    def repr_batch_win(self):
+        retVal = list()
+        return retVal
+
+    def repr_batch_mac(self):
+        retVal = list()
+        chflags_parts = list()
+        chflags_parts.append("chflags")
+        if self.ignore_errors:
+            chflags_parts.append("-f")
+        if self.recursive:
+            chflags_parts.append("-R")
+        chflags_parts.append(self.flag)
+        chflags_parts.append(utils.quoteme_double(self.path))
+        retVal.append(" ".join(chflags_parts))
+        return retVal
 
     def progress_msg_self(self):
         the_progress_msg = f"change flag {self.flag} on file {self.path}"
@@ -169,12 +263,34 @@ class Unlock(ChFlags):
         Remove the system's read-only flag, this is different from permissions.
         For changing permissions use chmod.
     """
-    def __init__(self, path, recursive=False, ignore_errors=True):
+    def __init__(self, path, recursive=False, ignore_errors=True) -> None:
         super().__init__(path, "nouchg", recursive=recursive, ignore_errors=ignore_errors)
 
     def __repr__(self):
         the_repr = f"""{self.__class__.__name__}(path="{os.fspath(self.path)}", recursive={self.recursive}, ignore_errors={self.ignore_errors})"""
         return the_repr
+
+    def repr_batch_win(self):
+        retVal = list()
+        recurse_flag = ""
+        if self.recursive:
+            recurse_flag = "/S /D"
+        writable_command = " ".join(("$(ATTRIB_PATH)", "-R", recurse_flag, utils.quoteme_double(self.path)))
+        retVal.append(writable_command)
+        return retVal
+
+    def repr_batch_mac(self):
+        retVal = list()
+        ignore_errors_flag = recurse_flag = ""
+        if self.ignore_errors:
+            ignore_errors_flag = "-f"
+        if self.recursive:
+            recurse_flag = "-R"
+        nouchg_command = " ".join(("chflags", ignore_errors_flag, recurse_flag, "nouchg", utils.quoteme_double(self.path)))
+        if self.ignore_errors: # -f is not enough in case the file does not exist, chflags will still exit with 1
+            nouchg_command = " ".join((nouchg_command, "2>", "/dev/null", "||", "true"))
+        retVal.append(nouchg_command)
+        return retVal
 
     def progress_msg_self(self):
         the_progress_msg = f"unlocking file {self.path}"
@@ -182,7 +298,7 @@ class Unlock(ChFlags):
 
 
 class CopyBase(RunProcessBase):
-    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False, copy_file=False, copy_dir=False):
+    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False, copy_file=False, copy_dir=False) -> None:
         super().__init__()
         self.src: os.PathLike = src
         self.trg: os.PathLike = trg
@@ -210,7 +326,7 @@ class CopyBase(RunProcessBase):
 
 
 class RsyncCopyBase(CopyBase):
-    def __init__(self, src: os.PathLike, trg: os.PathLike, *args, **kwargs):
+    def __init__(self, src: os.PathLike, trg: os.PathLike, *args, **kwargs) -> None:
         if not os.fspath(trg).endswith("/"):
             trg = os.fspath(trg) + "/"
         super().__init__(src, trg, *args, **kwargs)
@@ -232,12 +348,12 @@ class RsyncCopyBase(CopyBase):
         run_args.extend([self.src, self.trg])
         return run_args
 
-    def create_ignore_spec(self, ignore: bool):
+    def create_ignore_spec(self, ignore: bool) -> None:
         retVal = []
-        if ignore:
-            if isinstance(ignore, str):
-                ignore = (ignore,)
-            retVal.extend(["--exclude=" + utils.quoteme_single(ignoree) for ignoree in ignore])
+        if self.ignore:
+            if isinstance(self.ignore, str):
+                self.ignore = (self.ignore,)
+            retVal.extend(["--exclude=" + utils.quoteme_single(ignoree) for ignoree in self.ignore])
         return retVal
 
 
@@ -298,52 +414,169 @@ class RoboCopyBase(CopyBase):
 
     def create_ignore_spec(self, ignore: bool):
         retVal = []
-        # if ignore:
-        #     if isinstance(ignore, str):
-        #         ignore = (ignore,)
-        #     retVal.extend(["--exclude=" + utils.quoteme_single(ignoree) for ignoree in ignore])
+        # if self.ignore:
+        #     if isinstance(self.ignore, str):
+        #         self.ignore = (self.ignore,)
+        #     retVal.extend(["--exclude=" + utils.quoteme_single(ignoree) for ignoree in self.ignore])
+        return retVal
+
+    def _create_ignore_spec_batch_win(self, ignore):
+        retVal = ""
+        if not isinstance(ignore, str):
+            ignore = " ".join(map(utils.quoteme_double, ignore))
+        retVal = f"""/XF {ignore} /XD {ignore}"""
         return retVal
 
 
 if sys.platform == 'darwin':
     CopyClass = RsyncCopyBase
-else:
+elif sys.platform == 'win32':
     CopyClass = RoboCopyBase
 
 
 class CopyDirToDir(CopyClass):
-    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False):
+    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False) -> None:
         src = os.fspath(src).rstrip("/")
         super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files, copy_dir=True)
 
+    def repr_batch_win(self):
+        retVal = list()
+        _, dir_to_copy = os.path.split(self.src)
+        self.trg = "/".join((self.trg, dir_to_copy))
+        ignore_spec = self._create_ignore_spec_batch_win(self.ignore)
+        norm_src_dir = os.path.normpath(self.src)
+        norm_trg_dir = os.path.normpath(self.trg)
+        if not self.preserve_dest_files:
+            delete_spec = "/PURGE"
+        else:
+            delete_spec = ""
+        copy_command = f""""$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" {ignore_spec} /E /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS {delete_spec}"""
+        retVal.append(copy_command)
+        retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
+        return retVal
+
+    def repr_batch_mac(self):
+        if self.src.endswith("/"):
+            self.src.rstrip("/")
+        ignore_spec = self.create_ignore_spec(ignore)
+        if not self.preserve_dest_files:
+            delete_spec = "--delete"
+        else:
+            delete_spec = ""
+        if self.link_dest:
+            the_link_dest = os.path.join(self.src, "..")
+            sync_command = f"""rsync --owner --group -l -r -E {delete_spec} {ignore_spec} --link-dest="{the_link_dest}" "{self.src}" "{self.trg}" """
+        else:
+            sync_command = f"""rsync --owner --group -l -r -E {delete_spec} {ignore_spec} "{self.src}" "{self.trg}" """
+
+        return sync_command
+
 
 class CopyDirContentsToDir(CopyClass):
-    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False):
+    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False) -> None:
         if not os.fspath(src).endswith("/"):
             src = os.fspath(src)+"/"
         super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files)
 
+    def repr_batch_win(self):
+        retVal = list()
+        ignore_spec = self._create_ignore_spec_batch_win(self.ignore)
+        delete_spec = ""
+        if not self.preserve_dest_files:
+            delete_spec = "/PURGE"
+        else:
+            delete_spec = ""
+        norm_src_dir = os.path.normpath(self.src)
+        norm_trg_dir = os.path.normpath(self.trg)
+        copy_command = f""""$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" /E {delete_spec} {ignore_spec} /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS"""
+        retVal.append(copy_command)
+        retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
+        return retVal
+
+    def repr_batch_mac(self):
+        if not self.src.endswith("/"):
+            self.src += "/"
+        ignore_spec = self.create_ignore_spec(ignore)
+        delete_spec = ""
+        if not self.preserve_dest_files:
+            delete_spec = "--delete"
+        else:
+            delete_spec = ""
+        if self.link_dest:
+            relative_link_dest = os.path.relpath(self.src, self.trg)
+            sync_command = f"""rsync --owner --group -l -r -E {delete_spec} {ignore_spec} --link-dest="{relative_link_dest}" "{self.src}" "{self.trg}" """
+        else:
+            sync_command = f"""rsync --owner --group -l -r -E {delete_spec} {ignore_spec} "{self.src}" "{self.trg}" """
+
+        return sync_command
+
 
 class CopyFileToDir(CopyClass):
-    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False):
+    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False) -> None:
         src = os.fspath(src).rstrip("/")
         if not os.fspath(trg).endswith("/"):
             trg = os.fspath(trg)+"/"
         super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files, copy_file=True)
 
+    def repr_batch_win(self):
+        retVal = list()
+        norm_src_dir, norm_src_file = os.path.split(os.path.normpath(self.src))
+        norm_trg_dir = os.path.normpath(self.trg)
+        copy_command = f""""$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" "{norm_src_file}" /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS"""
+        retVal.append(copy_command)
+        retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
+        return retVal
+
+    def repr_batch_mac(self):
+        assert not self.src.endswith("/")
+        if not self.trg.endswith("/"):
+            self.trg += "/"
+        ignore_spec = self.create_ignore_spec(ignore)
+        permissions_spec = str(config_vars.get("RSYNC_PERM_OPTIONS", ""))
+        if self.link_dest:
+            the_link_dest, src_file_name = os.path.split(self.src)
+            relative_link_dest = os.path.relpath(the_link_dest, self.trg)
+            sync_command = f"""rsync --owner --group -l -r -E {ignore_spec} --link-dest="{relative_link_dest}" "{self.src}" "{self.trg}" """
+        else:
+            sync_command = f"""rsync --owner --group -l -r -E {ignore_spec} "{self.src}" "{self.trg}" """
+
+        return sync_command
+
 
 class CopyFileToFile(CopyClass):
-    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False):
+    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False) -> None:
         src = os.fspath(src).rstrip("/")
         trg = os.fspath(trg).rstrip("/")
         super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files, copy_file=True)
 
+    def repr_batch_win(self):
+        retVal = list()
+        norm_src_file = os.path.normpath(self.src)
+        norm_trg_file = os.path.normpath(self.trg)
+        copy_command = f"""copy "{norm_src_file}" "{norm_trg_file}" """
+        retVal.append(copy_command)
+        retVal.append(self.platform_helper.exit_if_error())
+        return retVal
+
+    def repr_batch_mac(self):
+        assert not self.src.endswith("/")
+        ignore_spec = self.create_ignore_spec(ignore)
+        if self.link_dest:
+            src_folder_name, src_file_name = os.path.split(self.src)
+            trg_folder_name, trg_file_name = os.path.split(self.trg)
+            relative_link_dest = os.path.relpath(src_folder_name, trg_folder_name)
+            sync_command = f"""rsync --owner --group -l -r -E {ignore_spec} --link-dest="{relative_link_dest}" "{self.src}" "{self.trg}" """
+        else:
+            sync_command = f"""rsync --owner --group -l -r -E {ignore_spec} "{self.src}" "{self.trg}" """
+
+        return sync_command
+
 
 class RmFile(PythonBatchCommandBase):
-    def __init__(self, path: os.PathLike):
+    def __init__(self, path: os.PathLike) -> None:
         """ remove a file
             - It's OK is the file does not exist
-            - but exception will be raised if the path if a folder
+            - but exception will be raised if path is a folder
         """
         super().__init__()
         self.path: os.PathLike = path
@@ -352,6 +585,26 @@ class RmFile(PythonBatchCommandBase):
     def __repr__(self):
         the_repr = f"""{self.__class__.__name__}(path=r"{os.fspath(self.path)}")"""
         return the_repr
+
+    def repr_batch_win(self):
+        retVal = list()
+        rmfile_command_parts = list()
+        norm_file = utils.quoteme(os.path.normpath(self.path), "'")
+        rmfile_command_parts.extend(("if", "exist", norm_file))
+        rmfile_command_parts.extend(("del", "/F", "/Q", norm_file))
+        rmfile_command = " ".join(rmfile_command_parts)
+        retVal.append(rmfile_command)
+        return retVal
+
+    def repr_batch_mac(self):
+        retVal = list()
+        rmfile_command_parts = list()
+        norm_file = utils.quoteme(self.path, '"')
+        rmfile_command_parts.extend(("[", "!", "-f", norm_file, "]", "||"))
+        rmfile_command_parts.extend(("rm", "-f", norm_file))
+        rmfile_command = " ".join(rmfile_command_parts)
+        retVal.append(rmfile_command)
+        return retVal
 
     def progress_msg_self(self):
         the_progress_msg = f"remove file {self.path}"
@@ -370,7 +623,7 @@ class RmFile(PythonBatchCommandBase):
 
 
 class RmDir(PythonBatchCommandBase):
-    def __init__(self, path: os.PathLike):
+    def __init__(self, path: os.PathLike) -> None:
         """ remove a directory.
             - it's OK if the directory does not exist.
             - all files and directory under path will be removed recursively
@@ -383,6 +636,28 @@ class RmDir(PythonBatchCommandBase):
     def __repr__(self):
         the_repr = f"""{self.__class__.__name__}(path=r"{os.fspath(self.path)}")"""
         return the_repr
+
+    def repr_batch_win(self):
+        retVal = list()
+        rmdir_command_parts = list()
+        norm_directory = utils.quoteme_double(os.path.normpath(self.path))
+        rmdir_command_parts.extend(("if", "exist", norm_directory))
+        rmdir_command_parts.append("rmdir")
+        rmdir_command_parts.extend(("/S", "/Q"))
+        rmdir_command_parts.append(norm_directory)
+        rmdir_command = " ".join(rmdir_command_parts)
+        retVal.append(rmdir_command)
+        return retVal
+
+    def repr_batch_mac(self):
+        retVal = list()
+        rmdir_command_parts = list()
+        norm_directory = utils.quoteme_double(self.path)
+        rmdir_command_parts.extend(("[", "!", "-d", norm_directory, "]", "||"))
+        rmdir_command_parts.extend(("rm", "-fr", norm_directory))
+        rmdir_command = " ".join(rmdir_command_parts)
+        retVal.append(rmdir_command)
+        return retVal
 
     def progress_msg_self(self):
         the_progress_msg = f"remove file {self.path}"
@@ -407,6 +682,25 @@ class RmFileOrDir(PythonBatchCommandBase):
         the_repr = f"""{self.__class__.__name__}(path=r"{os.fspath(self.path)}")"""
         return the_repr
 
+    def repr_batch_win(self):
+        retVal = list()
+        norm_path = utils.quoteme_double(os.path.normpath(self.path))
+        rmdir_command = " ".join(("rmdir", '/S', '/Q', norm_path, '>nul', '2>&1'))
+        rmfile_command = " ".join(("del", '/F', '/Q', norm_path, '>nul', '2>&1'))
+        retVal.append(rmfile_command)
+        retVal.append(rmfile_command)
+        return retVal
+
+    def repr_batch_mac(self):
+        retVal = list()
+        rmdir_command_parts = list()
+        norm_directory = utils.quoteme_double(self.path)
+        rmdir_command_parts.extend(("[", "!", "-d", norm_directory, "]", "||"))
+        rmdir_command_parts.extend(("rm", "-fr", norm_directory))
+        rmdir_command = " ".join(rmdir_command_parts)
+        retVal.append(rmdir_command)
+        return retVal
+
     def progress_msg_self(self):
         the_progress_msg = f"remove file {self.path}"
         return the_progress_msg
@@ -429,6 +723,18 @@ class AppendFileToFile(PythonBatchCommandBase):
         the_repr = f"""{self.__class__.__name__}(source_file="{os.fspath(self.source_file)}", target_file="{os.fspath(self.target_file)}")"""
         return the_repr
 
+    def repr_batch_win(self):
+        retVal = list()
+        append_command = " ".join(("type", utils.quoteme_double(self.source_file), ">>", utils.quoteme_double(self.target_file)))
+        retVal.append(append_command)
+        return retVal
+
+    def repr_batch_mac(self):
+        retVal = list()
+        append_command = " ".join(("cat", utils.quoteme_double(self.source_file), ">>", utils.quoteme_double(self.target_file)))
+        retVal.append(append_command)
+        return retVal
+
     def progress_msg_self(self):
         the_progress_msg = f"appending {self.source_file} to {self.target_file}"
         return the_progress_msg
@@ -450,6 +756,16 @@ class Section(PythonBatchCommandBase):
         the_repr = f"""{self.__class__.__name__}(name="{self.name}")"""
         return the_repr
 
+    def repr_batch_win(self):
+        retVal = list()
+        retVal.append(f"""echo section: {self.name}""")
+        return retVal
+
+    def repr_batch_mac(self):
+        retVal = list()
+        retVal.append(f"""echo section: {self.name}""")
+        return retVal
+
     def progress_msg_self(self):
         the_progress_msg = f"{self.name} ..."
         return the_progress_msg
@@ -470,6 +786,24 @@ class Chown(RunProcessBase):
     def __repr__(self):
         the_repr = f"""{self.__class__.__name__}(user_id={self.user_id}, group_id={self.group_id}, path="{os.fspath(self.path)}", recursive={self.recursive})"""
         return the_repr
+
+    def repr_batch_win(self):
+        retVal = list()
+        retVal.append(f"""chown not implemented yet for Windows, {self.path}""")
+        return retVal
+
+    def repr_batch_mac(self):
+        retVal = list()
+        chown_command_parts = list()
+        chown_command_parts.append("chown")
+        chown_command_parts.append("-f")
+        if self.recursive:
+            chown_command_parts.append("-R")
+        chown_command_parts.append("".join((self.user_id, ":", self.group_id)))
+        chown_command_parts.append(utils.quoteme_double(self.path))
+        chown_command = " ".join(chown_command_parts)
+        retVal.append(chown_command)
+        return retVal
 
     def create_run_args(self):
         run_args = list()
@@ -502,6 +836,16 @@ class Dummy(PythonBatchCommandBase):
     def __repr__(self):
         the_repr = f"""{self.__class__.__name__}(name="{self.name}")"""
         return the_repr
+
+    def repr_batch_win(self):
+        retVal = list()
+        retVal.append(f"""Just a dummy called {self.name} for win""")
+        return retVal
+
+    def repr_batch_mac(self):
+        retVal = list()
+        retVal.append(f"""Just a dummy called {self.name} for mac""")
+        return retVal
 
     def progress_msg_self(self):
         the_progress_msg = f"Dummy {self.name} ..."
@@ -542,6 +886,29 @@ class Chmod(RunProcessBase):
             the_repr += ")"
         return the_repr
 
+    def repr_batch_win(self):
+        retVal = list()
+        chmod_parts = list()
+        chmod_parts.append('attrib')
+        if self.recursive:
+            chmod_parts.append('/s')
+        chmod_parts.append(utils.quoteme_double(self.path))
+        retVal.append(" ".join(chmod_parts))
+        return retVal
+
+    def repr_batch_mac(self):
+        retVal = list()
+        chmod_parts = list()
+        chmod_parts.append("chmod")
+        if self.ignore_all_errors:
+            chmod_parts.append("-f")
+        if self.recursive:
+            chmod_parts.append("-R")
+        chmod_parts.append(self.mode)
+        chmod_parts.append(utils.quoteme_double(self.path))
+        retVal.append(" ".join(chmod_parts))
+        return retVal
+
     def progress_msg_self(self):
         the_progress_msg = f"Change mode {self.path}"
         return the_progress_msg
@@ -573,7 +940,7 @@ class Chmod(RunProcessBase):
             if self.recursive:
                 run_args.append("-R")
             run_args.append(self.mode)
-        else:
+        elif sys.platform == 'win32':
             run_args.append('attrib')
             if self.recursive:
                 run_args.append('/s')
@@ -597,6 +964,79 @@ class Chmod(RunProcessBase):
             os.chmod(self.path, mode_to_set)
         return None
 
+
+class ShellCommands(RunProcessBase):
+    def __init__(self, dir, shell_commands_var_name, shell_commands_list=None, **kwargs):
+        kwargs["shell"] = True
+        super().__init__(**kwargs)
+        self.dir = dir
+        self.var_name = shell_commands_var_name
+        self.shell_commands_list = shell_commands_list
+
+    def __repr__(self):
+        the_repr = f"""{self.__class__.__name__}(dir="{self.dir}", shell_commands_var_name="{self.var_name}", shell_commands_list={self.var_name})"""
+        return the_repr
+
+    def repr_batch_win(self):
+        return self.shell_commands_list
+
+    def repr_batch_mac(self):
+        return self.shell_commands_list
+
+    def progress_msg_self(self):
+        prog_mess = ""
+        return prog_mess
+
+    def create_run_args(self):
+        the_lines = self.shell_commands_list
+        if isinstance(the_lines, str):
+            the_lines = [the_lines]
+        if sys.platform == 'darwin':
+            the_lines.insert(0,  "#!/usr/bin/env bash")
+            batch_extension = ".command"
+        elif sys.platform == "win32":
+            batch_extension = ".bat"
+        commands_text = "\n".join(the_lines)
+        batch_file_path = pathlib.Path(self.dir, self.var_name + batch_extension)
+        with open(batch_file_path, "w") as batch_file:
+            batch_file.write(commands_text)
+        os.chmod(batch_file.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
+
+        run_args = list()
+        run_args.append(batch_file.name)
+        return run_args
+
+
+class VarAssign(PythonBatchCommandBase):
+    def __init__(self, var_name: str, var_value: Any):
+        super().__init__(is_context_manager=False)
+        self.var_name = var_name
+        self.var_value = var_value
+
+    def __repr__(self):
+        the_repr = f'{self.var_name} = {repr(self.var_value)}\n'
+        return the_repr
+
+    def repr_batch_mac(self):
+        quoter = '"'
+        if '"' in self.var_value:
+            quoter = "'"
+            if "'" in self.var_value:
+                print(self.var_value, """has both ' and " quote chars;""", "identifier:", self.var_name)
+                return ()
+
+        retVal = "".join((self.var_name, '=', quoter, self.var_value, quoter))
+        return retVal
+
+    def repr_batch_win(self):
+        retVal = "SET " + self.var_name + '=' + dos_escape(self.var_value)
+        return retVal
+
+    def progress_msg_self(self):
+        return ""
+
+    def __call__(self, *args, **kwargs):
+        pass
 
 # todo:
 # override PythonBatchCommandBase for all commands

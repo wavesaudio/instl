@@ -1,6 +1,6 @@
 command:
     check-checksum:
-        short: Check synced files against their expected sha1 checksum (runtime command)
+        short: Check synced files against their expected sha1 checksum (utility command)
         long: |
             Usage: instl check-checksum --in path-to-input-file [--start-progress start-progress-number] [--total-progress total-progress-number]
             check-checksum will calculate the sha1 checksum of each file listed in path-to-input-file and compare this checksum against the expected checksum listed in path-to-input-file.
@@ -12,7 +12,7 @@ command:
             Progress start-progress-number+N of total-progress;
 
     check-sig:
-        short: Check file against it's RSA signature and expected sha1 checksum (runtime command)
+        short: Check file against it's RSA signature and expected sha1 checksum (utility command)
         long: |
             Usage: instl check-sig --in file_to_check --config-file path_to_config_file [--sha1 expected_sha1_checksum] [--rsa rsa_signature]
             file_to_check is the file for which RSA signature and/or sha1 checksum will be checked.
@@ -22,7 +22,7 @@ command:
             check-sig is a utility command, it is not needed for creating or using instl-based installer.
 
     checksum:
-        short: calculate sha1 checksum for a file or files in a folder (misc command)
+        short: calculate sha1 checksum for a file or files in a folder (utility command)
         long: |
             Usage: instl checksum --in path_to_file_or_folder_to_checksum
             checksum command just calculates the file(s)'s checksum, it does not check against any given checksum as check-sig or check-checksum commands do.
@@ -36,7 +36,7 @@ command:
             Keep in mind that copy command does not actually copy anything, unless the --run flag is given. You will need to run the produced batch file in order to actually install the files.
 
     create-folders:
-        short: Create folders in preparation for sync (runtime command)
+        short: Create folders in preparation for sync (utility command)
         long: |
             Usage: instl create-folders --in path-to-input-file [--start-progress start-progress-number] [--total-progress total-progress-number]
             For each item marked as folder in path-to-input-file create-folders will create the folder relative to the current directory.
@@ -90,10 +90,10 @@ command:
             To print to standard out specify --out stdout
 
     fail:
-        short: Fail on purpose and return an exit code (runtime command)
+        short: Fail on purpose and return an exit code (utility command)
         long: |
             Usage: instl fail [--exit-code a_number]
-            The fail command is used to simulate a situation where instl fils and returns an exit code (ERRORLEVEL on windows).
+            The fail command is used to simulate a situation where instl fail and returns an exit code (ERRORLEVEL on windows).
             If --exit-code is given that number is use as exit code, otherwise default exit code is 1.
 
     fix-perm:
@@ -129,7 +129,7 @@ command:
                 instl help defaults
 
     ls:
-        short: create a listing of a directory (misc command)
+        short: create a listing of a directory (utility command)
         long: |
             Usage: instl ls --in path-to-input-folder --out path-to-output-file [--limit limit-command-to [limit-command-to ...]] [--output_format format]
             Creates a listing of a path-to-input-folder and writes it to path-to-output-file in the format:
@@ -154,7 +154,7 @@ command:
             make-sig is a utility command, it is not needed for creating or using instl-based installer.
 
     parallel-run:
-        short: Run processes in parallel (runtime command)
+        short: Run processes in parallel (utility command)
         long: |
             Usage: instl parallel-run --in list-of-processes-to-run
             parallel-run will read the list-of-processes-to-run file and will launch a process running the command in each line . It will return when all processes have finished or when any process returns non zero value.
@@ -177,14 +177,14 @@ command:
             If --only-installed option is given only IIDs already installed will be listed.
 
     resolve:
-        short: Read text from stdin, resolve $() style variables and print result to stdout (misc command)
+        short: Read text from stdin, resolve $() style variables and print result to stdout (utility command)
         long: |
             Usage: instl resolve --in yaml-with-variable-definitions [< input-file] [> output-file]
             resolve command will read variable definiiotns from !define section in yaml-with-variable-definitions file.
             Text from stdin will be resolved using the variable definitions and printed to stdout.
 
     set-exec:
-        short: Sets the executable bit for certine files (runtime command)
+        short: Sets the executable bit for certine files (utility command)
         long: |
             Usage: instl set-exec --in path-to-input-file [--start-progress start-progress-number] [--total-progress total-progress-number]
             Sets the executable bit for files marked as such in path-to-input-file. Paths are relative to current directory.
@@ -227,7 +227,7 @@ command:
             trans command is used in the output of create-links command.
 
     translate_url:
-        short: Translates to canonical form according to the current connection (misc command)
+        short: Translates to canonical form according to the current connection (utility command)
         long:  |
             Usage: instl translate_url --in url_to_translate [--credentials s3:ACCESS_KEY:SECRET_KEY:BUCKET]
             instl's translate_url translate a url so it can be passed to a browser or download utility such as curl.
@@ -235,7 +235,7 @@ command:
             If --credentials is given instl will connect and build a url suitable for use. Currently only Amazon s3 connection is supported.
 
     test-import:
-        short: Test that python imports inside instl are successful (misc command)
+        short: Test that python imports inside instl are successful (utility command)
         long:   |
             Usage: instl test-import
             Helps making sure instl will function OK by trying out various import statements that instl uses. Especially useful after compiling instl in making sure the compiled binrary can find all the necessary imports.
@@ -249,7 +249,7 @@ command:
             Keep in mind that uninstall command does not actually copy anything, unless the --run flag is given. You will need to run the produced batch file in order to actually uninstall the files.
 
     unwtar:
-        short: Combines split wtar files and uncompresses wtar files (runtime command)
+        short: Combines split wtar files and uncompresses wtar files (utility command)
         long: |
             Usage: instl unwtar [--in file-or-folder] [--out] [--no-artifacts]
             Files who's extension is in the format '*.wtar.aa' are being read as one without being combined first.
@@ -298,7 +298,7 @@ command:
             Usage: instl version
 
     win-shortcut:
-        short: Creates a Windows shortcut (runtime command)
+        short: Creates a Windows shortcut (utility command)
         long: |
             Usage: instl win-shortcut --shortcut in-path-to-shortcut --target in-path-to-target --run-as-admin
             Creates a windows shortcut in the path specified by in-path-to-shortcut (run-as-admin is optional). in-path-to-shortcut must end with .lnk.

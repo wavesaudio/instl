@@ -30,6 +30,7 @@ import sys
 import os
 import yaml
 from collections import OrderedDict
+from typing import Any, List
 
 if __name__ == "__main__":
     pass
@@ -138,7 +139,7 @@ def mapping_contains(self, key):
 yaml.MappingNode.__contains__ = mapping_contains
 
 
-def ifTrueOrFalse(test, ifTrue, ifFalse):
+def ifTrueOrFalse(test: bool, ifTrue: Any, ifFalse: Any) -> Any:
     """ implements C's test ? ifTrue : ifFalse """
     if test:
         return ifTrue
@@ -151,7 +152,7 @@ class YamlDumpWrap(object):
         Overcomes some of PyYaml limitations, by adding the option to
         have comments and tags. Sorting mapping by key is also optional.
     """
-    def __init__(self, value=None, tag="", comment="", sort_mappings=False, include_comments=True):
+    def __init__(self, value=None, tag="", comment="", sort_mappings=False, include_comments=True) -> None:
         self.tag = tag
         self.comment = comment
         self.value = value
@@ -230,11 +231,11 @@ class YamlDumpDocWrap(YamlDumpWrap):
 
 
 class Indentor(object):
-    def __init__(self, indent_size):
+    def __init__(self, indent_size) -> None:
         self.indent_size = indent_size
         self.cur_indent = 0
         self.num_extra_chars = 0
-        self.item_type_stack = []
+        self.item_type_stack: List = []
 
     def push(self, val):
         self.item_type_stack.append(val)

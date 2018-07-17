@@ -23,12 +23,12 @@ from svnTree import SVNTable
 # noinspection PyPep8,PyPep8,PyPep8
 class InstlAdmin(InstlInstanceBase):
 
-    def __init__(self, initial_vars):
+    def __init__(self, initial_vars) -> None:
         super().__init__(initial_vars)
         self.need_items_table = True
         self.need_info_map_table = True
         self.total_self_progress = 1000
-        self.read_name_specific_defaults_file(super().__thisclass__.__name__)
+        self.read_defaults_file(super().__thisclass__.__name__)
         self.fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
 
     def get_default_out_file(self):
@@ -48,7 +48,6 @@ class InstlAdmin(InstlInstanceBase):
     def do_command(self):
         self.set_default_variables()
         self.platform_helper.num_items_for_progress_report = int(config_vars["LAST_PROGRESS"])
-        self.platform_helper.init_copy_tool()
         do_command_func = getattr(self, "do_" + self.fixed_command)
         do_command_func()
 

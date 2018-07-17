@@ -1,5 +1,8 @@
+import sys
+
 from .batchCommands import PythonBatchCommandBase
-from .batchCommandAccum import BatchCommandAccum
+from .batchCommandAccum import PythonBatchCommandAccum
+from .batchCommandAccum import batch_repr
 
 from .batchCommands import Chown
 from .batchCommands import Cd

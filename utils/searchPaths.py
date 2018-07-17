@@ -19,7 +19,7 @@ class SearchPaths(object):
         SearchPaths is getting access to config_vars via parameter to __init__
         instead of using the global singleton. This is to avoid cyclic import issues.
     """
-    def __init__(self, config_vars, search_paths_var: str):
+    def __init__(self, config_vars, search_paths_var: str) -> None:
         self.config_vars = config_vars
         self.search_paths_var: str = search_paths_var
         self.config_vars.setdefault(self.search_paths_var, [])  # make sure ConfigVar obj exists for self.search_paths_var

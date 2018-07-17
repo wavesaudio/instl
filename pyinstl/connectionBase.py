@@ -9,6 +9,8 @@ import json
 import urllib3
 urllib3.disable_warnings()
 
+from typing import Dict
+
 from configVar import config_vars
 
 have_boto = True
@@ -20,7 +22,7 @@ except Exception:
 
 class ConnectionBase(object):
     repo_connection = None # global singleton, holding current connection
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     def get_cookie(self, net_loc):
@@ -64,9 +66,9 @@ class ConnectionBase(object):
 
 
 class ConnectionHTTP(ConnectionBase):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-        self.sessions = dict()
+        self.sessions: Dict[str, requests.Session] = dict()
 
     def open_connection(self, credentials):
         pass
@@ -92,7 +94,7 @@ class ConnectionHTTP(ConnectionBase):
 
 if have_boto:
     class ConnectionS3(ConnectionHTTP):
-        def __init__(self, credentials):
+        def __init__(self, credentials) -> None:
             super().__init__()
             self.boto_conn = None
             self.open_bucket = None
