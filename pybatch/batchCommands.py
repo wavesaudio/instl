@@ -281,13 +281,8 @@ class Unlock(ChFlags):
         Remove the system's read-only flag, this is different from permissions.
         For changing permissions use chmod.
     """
-<<<<<<< HEAD
     def __init__(self, path, recursive=False, ignore_errors=True):
         super().__init__(path, "unlocked", recursive=recursive, ignore_errors=ignore_errors)
-=======
-    def __init__(self, path, recursive=False, ignore_errors=True) -> None:
-        super().__init__(path, "nouchg", recursive=recursive, ignore_errors=ignore_errors)
->>>>>>> 7002a9b8ec9595befd7974200b5c3549897e73ad
 
     def __repr__(self):
         the_repr = f"""{self.__class__.__name__}(path=r"{os.fspath(self.path)}", recursive={self.recursive}, ignore_errors={self.ignore_errors})"""
@@ -436,27 +431,12 @@ class RoboCopyBase(CopyBase):
         return run_args
 
     def create_ignore_spec(self, ignore: bool):
-<<<<<<< HEAD
         try:
             ignore = [os.path.abspath(os.path.join(self.src, path)) for path in ignore]
         except TypeError:
             retVal = []
         else:
             retVal = ['/XF'] + ignore + ['/XD'] + ignore
-=======
-        retVal = []
-        # if self.ignore:
-        #     if isinstance(self.ignore, str):
-        #         self.ignore = (self.ignore,)
-        #     retVal.extend(["--exclude=" + utils.quoteme_single(ignoree) for ignoree in self.ignore])
-        return retVal
-
-    def _create_ignore_spec_batch_win(self, ignore):
-        retVal = ""
-        if not isinstance(ignore, str):
-            ignore = " ".join(map(utils.quoteme_double, ignore))
-        retVal = f"""/XF {ignore} /XD {ignore}"""
->>>>>>> 7002a9b8ec9595befd7974200b5c3549897e73ad
         return retVal
 
 
@@ -490,7 +470,7 @@ class CopyDirToDir(CopyClass):
     def repr_batch_mac(self):
         if self.src.endswith("/"):
             self.src.rstrip("/")
-        ignore_spec = self.create_ignore_spec(ignore)
+        ignore_spec = self.create_ignore_spec(self.ignore)
         if not self.preserve_dest_files:
             delete_spec = "--delete"
         else:
@@ -512,7 +492,7 @@ class CopyDirContentsToDir(CopyClass):
 
     def repr_batch_win(self):
         retVal = list()
-        ignore_spec = self._create_ignore_spec_batch_win(self.ignore)
+        ignore_spec = self.create_ignore_spec(self.ignore)
         delete_spec = ""
         if not self.preserve_dest_files:
             delete_spec = "/PURGE"
@@ -528,7 +508,7 @@ class CopyDirContentsToDir(CopyClass):
     def repr_batch_mac(self):
         if not self.src.endswith("/"):
             self.src += "/"
-        ignore_spec = self.create_ignore_spec(ignore)
+        ignore_spec = self.create_ignore_spec(self.ignore)
         delete_spec = ""
         if not self.preserve_dest_files:
             delete_spec = "--delete"
@@ -563,7 +543,7 @@ class CopyFileToDir(CopyClass):
         assert not self.src.endswith("/")
         if not self.trg.endswith("/"):
             self.trg += "/"
-        ignore_spec = self.create_ignore_spec(ignore)
+        ignore_spec = self.create_ignore_spec(self.ignore)
         permissions_spec = str(config_vars.get("RSYNC_PERM_OPTIONS", ""))
         if self.link_dest:
             the_link_dest, src_file_name = os.path.split(self.src)
@@ -592,7 +572,7 @@ class CopyFileToFile(CopyClass):
 
     def repr_batch_mac(self):
         assert not self.src.endswith("/")
-        ignore_spec = self.create_ignore_spec(ignore)
+        ignore_spec = self.create_ignore_spec(self.ignore)
         if self.link_dest:
             src_folder_name, src_file_name = os.path.split(self.src)
             trg_folder_name, trg_file_name = os.path.split(self.trg)

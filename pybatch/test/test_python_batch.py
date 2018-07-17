@@ -169,10 +169,7 @@ class TestPythonBatch(unittest.TestCase):
             test_name = self.which_test
         test_name = f"{self.sub_test_counter}_{test_name}"
 
-        try:
-            bc_repr = batch_repr(self.batch_accum)
-        except:
-            pass
+        bc_repr = batch_repr(str(self.batch_accum))
         self.write_file_in_test_folder(test_name+".sh", bc_repr)
 
     def test_MakeDirs_0_repr(self):
@@ -195,7 +192,7 @@ class TestPythonBatch(unittest.TestCase):
             self.batch_accum += MakeDirs(dir_to_make_1, remove_obstacles=False)  # MakeDirs twice should be OK
 
         self.exec_and_capture_output()
-        self.write_as_batch()
+        # self.write_as_batch()
 
         self.assertTrue(dir_to_make_1.exists(), f"{self.which_test}: {dir_to_make_1} should exist")
         self.assertTrue(dir_to_make_2.exists(), f"{self.which_test}: {dir_to_make_2} should exist")
@@ -312,6 +309,8 @@ class TestPythonBatch(unittest.TestCase):
         """ test Chmod recursive
             A file is created and it's permissions are changed several times
         """
+        if sys.platform == 'win32':
+            return
         folder_to_chmod = self.test_folder.joinpath("folder-to-chmod").resolve()
 
         initial_mode = Chmod.all_read_write
