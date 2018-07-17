@@ -115,12 +115,14 @@ def has_hidden_attribute(filepath):
         result = False
     return result
 
+main_test_folder_name = "python_batch_test_results"
+
 
 class TestPythonBatch(unittest.TestCase):
     def __init__(self, which_test="banana"):
         super().__init__(which_test)
         self.which_test = which_test.lstrip("test_")
-        self.test_folder = pathlib.Path(__file__).joinpath("..", "..", "..").resolve().joinpath("python_batch_test_results", self.which_test)
+        self.test_folder = pathlib.Path(__file__).joinpath("..", "..", "..").resolve().joinpath(main_test_folder_name, self.which_test)
         self.batch_accum: PythonBatchCommandAccum = PythonBatchCommandAccum()
         self.sub_test_counter = 0
 
@@ -509,15 +511,15 @@ class TestPythonBatch(unittest.TestCase):
             dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_hard_links)
             self.assertTrue(is_hard_linked(dir_comp_with_hard_links), "{self.which_test} (with hard links): source and target files are not hard  links to the same file")
 
+        dir_comp_with_ignore = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_ignore)
+        is_identical_dircomp_with_ignore(dir_comp_with_ignore, filenames_to_ignore)
+
     def test_CopyFileToDir_repr(self):
         dir_from = r"\p\o\i"
         dir_to = "/q/w/r"
         cftd_obj = CopyFileToDir(dir_from, dir_to, link_dest=True)
         cftd_obj_recreated = eval(repr(cftd_obj))
         self.assertEqual(cftd_obj, cftd_obj_recreated, "CopyFileToDir.repr did not recreate CopyFileToDir object correctly")
-
-        dir_comp_with_ignore = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_ignore)
-        is_identical_dircomp_with_ignore(dir_comp_with_ignore, filenames_to_ignore)
 
     def test_CopyFileToDir(self):
         """ see doc string for test_CopyDirToDir, with the difference that the source dir contains
@@ -642,8 +644,8 @@ class TestPythonBatch(unittest.TestCase):
 
         self.assertTrue(test_file.exists())
 
-        flags = {"hide": stat.UF_HIDDEN,
-                 "lock": stat.UF_IMMUTABLE}
+        flags = {"hidden": stat.UF_HIDDEN,
+                 "locked": stat.UF_IMMUTABLE}
         if sys.platform == 'darwin':
             files_flags = os.stat(test_file).st_flags
             self.assertEqual((files_flags & flags['hidden']), flags['hidden'])
@@ -719,6 +721,107 @@ class TestPythonBatch(unittest.TestCase):
 
         self.exec_and_capture_output()
 
+    def test_ParallelRun_repr(self):
+        pr_obj = ParallelRun("/rik/ya/vik", True)
+        pr_obj_recreated = eval(repr(pr_obj))
+        self.assertEqual(pr_obj, pr_obj_recreated, "ParallelRun.repr did not recreate ParallelRun object correctly")
+
+    def test_ParallelRun_shell(self):
+        test_file = self.test_folder.joinpath("list-of-runs").resolve()
+        self.assertFalse(test_file.exists(), f"{self.which_test}: {test_file} should not exist before test")
+        ls_output = self.test_folder.joinpath("ls.out.txt").resolve()
+        self.assertFalse(ls_output.exists(), f"{self.which_test}: {ls_output} should not exist before test")
+        ps_output = self.test_folder.joinpath("ps.out.txt").resolve()
+        self.assertFalse(ps_output.exists(), f"{self.which_test}: {ps_output} should not exist before test")
+
+        with open(test_file, "w") as wfd:
+            if sys.platform == 'darwin':
+                wfd.write(f"""# first, do the ls\n""")
+                wfd.write(f"""ls -l . > ls.out.txt\n""")
+                wfd.write(f"""# meanwhile, do the ps\n""")
+                wfd.write(f"""ps -x > ps.out.txt\n""")
+
+        with self.batch_accum:
+            with self.batch_accum.sub_accum(Cd(self.test_folder)) as sub_bc:
+                sub_bc += ParallelRun(test_file, True)
+
+        self.exec_and_capture_output()
+        self.assertTrue(ls_output.exists(), f"{self.which_test}: {ls_output} was not created")
+        self.assertTrue(ps_output.exists(), f"{self.which_test}: {ps_output} was not created")
+
+    def test_ParallelRun_shell_bad_exit(self):
+        test_file = self.test_folder.joinpath("list-of-runs").resolve()
+
+        with open(test_file, "w") as wfd:
+            if sys.platform == 'darwin':
+                wfd.write(f"""# first, do the some good\n""")
+                wfd.write(f"""true\n""")
+                wfd.write(f"""# while also doing some bad\n""")
+                wfd.write(f"""false\n""")
+
+        with self.batch_accum:
+            with self.batch_accum.sub_accum(Cd(self.test_folder)) as sub_bc:
+                sub_bc += ParallelRun(test_file, True)
+
+        self.exec_and_capture_output(expected_exception=SystemExit)
+
+    def test_ParallelRun_no_shell(self):
+        test_file = self.test_folder.joinpath("list-of-runs").resolve()
+        self.assertFalse(test_file.exists(), f"{self.which_test}: {test_file} should not exist before test")
+
+        zip_input = self.test_folder.joinpath("zip_in").resolve()
+        self.assertFalse(zip_input.exists(), f"{self.which_test}: {zip_input} should not exist before test")
+        zip_output = self.test_folder.joinpath("zip_in.bz2").resolve()
+        self.assertFalse(zip_output.exists(), f"{self.which_test}: {zip_output} should not exist before test")
+        zip_input_copy = self.test_folder.joinpath("zip_in.copy").resolve()
+        self.assertFalse(zip_input_copy.exists(), f"{self.which_test}: {zip_input_copy} should not exist before test")
+
+        # create a file to zip
+        with open(zip_input, "w") as wfd:
+            wfd.write(''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase+"\n") for i in range(10 * 1024)))
+        self.assertTrue(zip_input.exists(), f"{self.which_test}: {zip_input} should have been created")
+
+        with open(test_file, "w") as wfd:
+            if sys.platform == 'darwin':
+                wfd.write(f"""# first, do the zip\n""")
+                wfd.write(f"""bzip2 --compress {zip_input}\n""")
+                wfd.write(f'''# also run some random program\n''')
+                wfd.write(f'''bison --version\n''')
+
+        with self.batch_accum:
+            with self.batch_accum.sub_accum(Cd(self.test_folder)) as sub_bc:
+                # save a copy of the input file
+                sub_bc += CopyFileToFile(zip_input, zip_input_copy)
+                # zip the input file, bzip2 will remove it
+                sub_bc += ParallelRun(test_file, False)
+
+        self.exec_and_capture_output()
+        self.assertFalse(zip_input.exists(), f"{self.which_test}: {zip_input} should have been erased by bzip2")
+        self.assertTrue(zip_output.exists(), f"{self.which_test}: {zip_output} should have been created by bzip2")
+        self.assertTrue(zip_input_copy.exists(), f"{self.which_test}: {zip_input_copy} should have been copied")
+
+        with open(test_file, "w") as wfd:
+            if sys.platform == 'darwin':
+                wfd.write(f"""# first, do the unzip\n""")
+                # unzip the zipped file an keep the
+                wfd.write(f"""bzip2 --decompress --keep {zip_output}\n""")
+                wfd.write(f'''# also run some random program\n''')
+                wfd.write(f'''bison --version\n''')
+
+        with self.batch_accum:
+            with self.batch_accum.sub_accum(Cd(self.test_folder)) as sub_bc:
+                sub_bc += ParallelRun(test_file, False)
+
+        self.exec_and_capture_output()
+        self.assertTrue(zip_input.exists(), f"{self.which_test}: {zip_input} should have been created by bzip2")
+        self.assertTrue(zip_output.exists(), f"{self.which_test}: {zip_output} should not have been erased by bzip2")
+        self.assertTrue(zip_input_copy.exists(), f"{self.which_test}: {zip_input_copy} should remain")
+
+        self.assertTrue(filecmp.cmp(zip_input, zip_input_copy), f"'{zip_input}' and '{zip_input_copy}' should be identical")
+
 
 if __name__ == '__main__':
+    test_folder = pathlib.Path(__file__).joinpath("..", "..", "..").resolve().joinpath(main_test_folder_name)
+    shutil.rmtree(test_folder)
+
     unittest.main()

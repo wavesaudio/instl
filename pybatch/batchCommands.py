@@ -4,7 +4,7 @@ import random
 import string
 import shutil
 import pathlib
-import re
+import shlex
 from typing import List, Any
 
 import utils
@@ -33,6 +33,7 @@ def dos_escape(some_string):
     # 3. escape some chars, but only of they are not already escaped
     retVal = dos_escape_regex.sub(escape_me_dos_callback, retVal)
     return retVal
+
 
 # === classes with tests ===
 class MakeRandomDirs(PythonBatchCommandBase):
@@ -345,8 +346,9 @@ class CopyBase(RunProcessBase):
 
 class RsyncCopyBase(CopyBase):
     def __init__(self, src: os.PathLike, trg: os.PathLike, *args, **kwargs) -> None:
-        if not os.fspath(trg).endswith("/"):
-            trg = os.fspath(trg) + "/"
+        # not correct in case of a file
+        #if not os.fspath(trg).endswith("/"):
+        #    trg = os.fspath(trg) + "/"
         super().__init__(src, trg, *args, **kwargs)
 
     def create_run_args(self):
@@ -1052,6 +1054,42 @@ class VarAssign(PythonBatchCommandBase):
 
     def __call__(self, *args, **kwargs):
         pass
+
+
+class ParallelRun(PythonBatchCommandBase):
+    def __init__(self, config_file,  shell, **kwargs):
+        super().__init__(**kwargs)
+        self.config_file = config_file
+        self.shell = shell
+
+    def __repr__(self):
+        the_repr = f'''ParallelRun(r"{self.config_file}", {self.shell})'''
+        return the_repr
+
+    def repr_batch_win(self):
+        the_repr = f""
+        return the_repr
+
+    def repr_batch_mac(self):
+        the_repr = f""
+        return the_repr
+
+    def progress_msg_self(self):
+        return ""
+
+    def __call__(self, *args, **kwargs):
+        commands = list()
+        with utils.utf8_open(self.config_file, "r") as rfd:
+            for line in rfd:
+                line = line.strip()
+                if line and line[0] != "#":
+                    args = shlex.split(line)
+                    commands.append(args)
+        try:
+            utils.run_processes_in_parallel(commands, self.shell)
+        except SystemExit as sys_exit:
+            if sys_exit.code != 0:
+                raise
 
 # todo:
 # override PythonBatchCommandBase for all commands

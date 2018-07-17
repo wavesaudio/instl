@@ -77,14 +77,8 @@ class InstlMisc(InstlInstanceBase):
 
     def do_parallel_run(self):
         processes_list_file = config_vars["__MAIN_INPUT_FILE__"].str()
-        commands = list()
-        with utils.utf8_open(processes_list_file, "r") as rfd:
-            for line in rfd:
-                line = line.strip()
-                if line and line[0] != "#":
-                    args = shlex.split(line)
-                    commands.append(args)
-        utils.run_processes_in_parallel(commands)
+        with ParallelRun(processes_list_file, shell=False)as para_runner:
+            para_runner()
 
     def do_wtar(self):
         """ Create a new wtar archive for a file or folder provided in '--in' command line option
