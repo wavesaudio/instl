@@ -1,3 +1,0 @@
-Progress 1 of 1; mkdir ('C:\\Users\\nira\\Documents\\GitHub\\instl\\python_batch_test_results\\MakeDirs_3_no_remove_obstacles\\file-that-should-not-be-dir',)
-Progress 1 of 1; ERROR; creating C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\MakeDirs_3_no_remove_obstacles\file-that-should-not-be-dir; FileExistsError: [WinError 183] Cannot create a file when that file already exists: 'C:\\Users\\nira\\Documents\\GitHub\\instl\\python_batch_test_results\\MakeDirs_3_no_remove_obstacles\\file-that-should-not-be-dir'
-Progress 1 of 1; time: 0.74ms

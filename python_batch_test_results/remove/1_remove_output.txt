@@ -1,9 +1,0 @@
-Progress 1 of 1; mkdir ('C:\\Users\\nira\\Documents\\GitHub\\instl\\python_batch_test_results\\remove\\remove-me',)
-Progress 1 of 1; time: 1.16ms
-Progress 2 of 2; cd to C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\remove\remove-me
-Progress 3 of 3; create random directories and files under current dir C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\remove\remove-me
-Progress 3 of 3; time: 3490.81ms
-Progress 2 of 3; time: 3491.02ms
-Progress 4 of 4; remove file C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\remove\remove-me
-Progress 4 of 4; ERROR; cannot remove file that is actually a folder; PermissionError: [WinError 5] Access is denied: 'C:\\Users\\nira\\Documents\\GitHub\\instl\\python_batch_test_results\\remove\\remove-me'
-Progress 4 of 4; time: 0.20ms
