@@ -30,6 +30,7 @@ import sys
 import os
 import yaml
 from collections import OrderedDict
+from typing import Any, List
 
 if __name__ == "__main__":
     pass
@@ -138,7 +139,7 @@ def mapping_contains(self, key):
 yaml.MappingNode.__contains__ = mapping_contains
 
 
-def ifTrueOrFalse(test, ifTrue, ifFalse):
+def ifTrueOrFalse(test: bool, ifTrue: Any, ifFalse: Any) -> Any:
     """ implements C's test ? ifTrue : ifFalse """
     if test:
         return ifTrue
@@ -151,7 +152,7 @@ class YamlDumpWrap(object):
         Overcomes some of PyYaml limitations, by adding the option to
         have comments and tags. Sorting mapping by key is also optional.
     """
-    def __init__(self, value=None, tag="", comment="", sort_mappings=False, include_comments=True):
+    def __init__(self, value=None, tag="", comment="", sort_mappings=False, include_comments=True) -> None:
         self.tag = tag
         self.comment = comment
         self.value = value
@@ -177,17 +178,14 @@ class YamlDumpWrap(object):
                 if self.tag:
                     out_stream.write(self.tag)
                 if self.comment and self.include_comments:
-                    out_stream.write(" # ")
-                    out_stream.write(self.comment)
+                    out_stream.write(f" # {self.comment}")
         elif self.tag:
-            out_stream.write(self.tag)
-            out_stream.write(" ")
+            out_stream.write(f"{self.tag} ")
 
     def writePostfix(self, out_stream, indentor):
         if not isinstance(self.value, (list, tuple, dict)):
             if self.comment and self.include_comments:
-                out_stream.write(" # ")
-                out_stream.write(self.comment)
+                out_stream.write(f" # {self.comment}")
 
     def ReduceOneItemLists(self, curr_node=None):
         if curr_node is None:
@@ -219,11 +217,9 @@ class YamlDumpDocWrap(YamlDumpWrap):
         if self.explicit_start or self.tag:
             out_stream.write("---")
             if self.tag:
-                out_stream.write(" ")
-                out_stream.write(self.tag)
+                out_stream.write(f" {self.tag}")
         if self.comment and self.include_comments:
-            out_stream.write(" # ")
-            out_stream.write(self.comment)
+            out_stream.write(f" # {self.comment}")
         indentor.lineSepAndIndent(out_stream)
 
     def writePostfix(self, out_stream, indentor):
@@ -235,11 +231,11 @@ class YamlDumpDocWrap(YamlDumpWrap):
 
 
 class Indentor(object):
-    def __init__(self, indent_size):
+    def __init__(self, indent_size) -> None:
         self.indent_size = indent_size
         self.cur_indent = 0
         self.num_extra_chars = 0
-        self.item_type_stack = []
+        self.item_type_stack: List = []
 
     def push(self, val):
         self.item_type_stack.append(val)
@@ -356,7 +352,7 @@ def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False, alias_indicat
         else:
             theKeys = list(pyObj.keys())
         if alias:
-            out_stream.write("&"+alias)
+            out_stream.write(f"&{alias}")
         for item in theKeys:
             nl_before_key = (parent_item != 'l')
             if nl_before_key:

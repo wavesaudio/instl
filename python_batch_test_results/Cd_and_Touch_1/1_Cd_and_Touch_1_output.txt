@@ -1,0 +1,6 @@
+Progress 1 of 1; mkdir ('C:\\Users\\nira\\Documents\\GitHub\\instl\\python_batch_test_results\\Cd_and_Touch_1\\cd-here',)
+Progress 1 of 1; time: 0.97ms
+Progress 2 of 2; cd to C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\Cd_and_Touch_1\cd-here
+Progress 3 of 3; Touch touch-me
+Progress 3 of 3; time: 1.45ms
+Progress 2 of 3; time: 1.63ms

@@ -11,9 +11,9 @@ from .batchAccumulator import BatchAccumulatorTransaction
 
 
 class InstlClientRemove(InstlClient):
-    def __init__(self, initial_vars):
+    def __init__(self, initial_vars) -> None:
         super().__init__(initial_vars)
-        self.read_name_specific_defaults_file(super().__thisclass__.__name__)
+        self.read_defaults_file(super().__thisclass__.__name__)
 
     def do_remove(self):
         self.init_remove_vars()

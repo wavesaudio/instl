@@ -5,14 +5,17 @@ import os
 import sys
 import re
 import abc
-import weakref
+import pathlib
 import platform
 import appdirs
 import urllib.error
+import io
+import datetime
+import time
 
 import aYaml
 import utils
-from .batchAccumulator import BatchAccumulator, PythonBatchAccumulator
+from .batchAccumulator import BatchAccumulatorFactory
 from .platformSpecificHelper_Base import PlatformSpecificHelperFactory
 
 from configVar import config_vars
@@ -36,6 +39,7 @@ value_ref_re = re.compile("""
                             )                         # )
                             """, re.X)
 
+
 def check_version_compatibility():
     retVal = True
     message = ""
@@ -55,15 +59,17 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         must be inherited by platform specific implementations, such as InstlInstance_mac
         or InstlInstance_win.
     """
-    db = None
-    items_table = None
-    info_map_table = None
+    db: DBMaster = None
+    items_table: IndexItemsTable = None
+    info_map_table: SVNTable = None
 
-    def __init__(self, initial_vars=None):
+    def __init__(self, initial_vars=None) -> None:
         self.total_self_progress = 0   # if > 0 output progress during run (as apposed to batch file progress)
 
         self.need_items_table = False
         self.need_info_map_table = False
+        self.the_command = None
+        self.fixed_command = None
 
         ConfigVarYamlReader.__init__(self)
 
@@ -71,23 +77,27 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.url_translator = connectionBase.translate_url
         self.init_default_vars(initial_vars)
         # noinspection PyUnresolvedReferences
-        self.read_name_specific_defaults_file(super().__thisclass__.__name__)
+        self.read_defaults_file(super().__thisclass__.__name__)
         # initialize the search paths helper with the current directory and dir where instl is now
         self.path_searcher.add_search_path(os.getcwd())
         self.path_searcher.add_search_path(os.path.dirname(os.path.realpath(sys.argv[0])))
         self.path_searcher.add_search_path(config_vars["__INSTL_DATA_FOLDER__"].str())
 
-        self.platform_helper = PlatformSpecificHelperFactory(config_vars["__CURRENT_OS__"].str(), self)
-        # init initial copy tool, tool might be later overridden after reading variable COPY_TOOL from yaml.
-        self.platform_helper.init_copy_tool()
+        self.platform_helper = None
+        self.batch_accum = None
+        self.init_platform_helpers()
 
-        self.batch_accum = BatchAccumulator()
-        self.do_not_write_vars = ("INFO_MAP_SIG", "INDEX_SIG", "PUBLIC_KEY", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "__CREDENTIALS__", "SVN_REVISION")
         self.out_file_realpath = None
         self.internal_progress = 0  # progress of preparing installer NOT of the installation
         self.num_digits_repo_rev_hierarchy=None
         self.num_digits_per_folder_repo_rev_hierarchy=None
-        self.instl_ver_str = ".".join(list(config_vars["__INSTL_VERSION__"]))
+
+    def init_platform_helpers(self):
+        use_python_batch = bool(config_vars.get("USE_PYTHON_BATCH", "False"))
+        self.platform_helper = PlatformSpecificHelperFactory(str(config_vars["__CURRENT_OS__"]), self, use_python_batch=use_python_batch)
+        self.batch_accum = BatchAccumulatorFactory(use_python_batch=use_python_batch)
+        # init initial copy tool, tool might be later overridden after reading variable COPY_TOOL from yaml.
+        self.platform_helper.init_copy_tool()
 
     def progress(self, *messages):
         if self.total_self_progress:
@@ -103,6 +113,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.specific_doc_readers.pop("__unknown_tag__", None)
 
         self.specific_doc_readers["!define"] = self.read_defines
+        # !define_const is deprecated and read as non-const
         self.specific_doc_readers["!define_const"] = self.read_defines
 
         acceptables = list(config_vars.setdefault("ACCEPTABLE_YAML_DOC_TAGS", []))
@@ -120,26 +131,23 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.specific_doc_readers["!index"] = self.read_index
         self.specific_doc_readers["!require"] = self.read_require
 
-    def get_version_str(self):
+    def get_version_str(self, short=False):
         instl_ver_str = ".".join(list(config_vars["__INSTL_VERSION__"]))
-        if "__PLATFORM_NODE__" not in config_vars:
-            config_vars.update({"__PLATFORM_NODE__": platform.node()})
-        retVal = config_vars.resolve_str(
-            "$(INSTL_EXEC_DISPLAY_NAME) version "+instl_ver_str+" $(__COMPILATION_TIME__) $(__PLATFORM_NODE__)")
-        return retVal
+        if not short:
+            if "__PLATFORM_NODE__" not in config_vars:
+                config_vars.update({"__PLATFORM_NODE__": platform.node()})
+            instl_ver_str = config_vars.resolve_str(
+                "$(INSTL_EXEC_DISPLAY_NAME) version "+instl_ver_str+" $(__COMPILATION_TIME__) $(__PLATFORM_NODE__)")
+        return instl_ver_str
 
     def init_default_vars(self, initial_vars):
-        if initial_vars:
-            for var, value in initial_vars.items():
-                config_vars[var] = value
+        config_vars.update(initial_vars)
 
         # read defaults/main.yaml
-        main_defaults_file_path = os.path.join(config_vars["__INSTL_DATA_FOLDER__"].str(), "defaults", "main.yaml")
-        self.read_yaml_file(main_defaults_file_path, allow_reading_of_internal_vars=True)
+        self.read_defaults_file("main", ignore_if_not_exist=False)
 
         # read defaults/compile-info.yaml
-        compile_info_file_path = os.path.join(config_vars["__INSTL_DATA_FOLDER__"].str(), "defaults", "compile-info.yaml")
-        self.read_yaml_file(compile_info_file_path, ignore_if_not_exist=True)
+        self.read_defaults_file("compile-info")
         if "__COMPILATION_TIME__" not in config_vars:
             if bool(config_vars["__INSTL_COMPILED__"]):
                 config_vars["__COMPILATION_TIME__"] = "unknown compilation time"
@@ -148,11 +156,10 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
         self.read_user_config()
 
-    def read_name_specific_defaults_file(self, file_name):
+    def read_defaults_file(self, file_name, allow_reading_of_internal_vars=True, ignore_if_not_exist=True):
         """ read class specific file from defaults/class_name.yaml """
-        name_specific_defaults_file_path = os.path.join(config_vars["__INSTL_DATA_FOLDER__"].str(), "defaults", file_name + ".yaml")
-        print("read_name_specific_defaults_file:", name_specific_defaults_file_path)
-        self.read_yaml_file(name_specific_defaults_file_path, ignore_if_not_exist=True, allow_reading_of_internal_vars=True)
+        name_specific_defaults_file_path = os.path.join(config_vars["__INSTL_DEFAULTS_FOLDER__"].str(), file_name + ".yaml")
+        self.read_yaml_file(name_specific_defaults_file_path, ignore_if_not_exist=ignore_if_not_exist, allow_reading_of_internal_vars=allow_reading_of_internal_vars)
 
     def read_user_config(self):
         user_config_path = config_vars["__USER_CONFIG_FILE_PATH__"].str()
@@ -166,86 +173,18 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def init_from_cmd_line_options(self, cmd_line_options_obj):
         """ turn command line options into variables """
-        const_attrib_to_var = {
-            "input_file": ("__MAIN_INPUT_FILE__", None),
-            "output_file": ("__MAIN_OUT_FILE__", None),
-            "props_file": ("__PROPS_FILE__", None),
-            "config_file": ("__CONFIG_FILE__", None),
-            "sh1_checksum": ("__SHA1_CHECKSUM__", None),
-            "rsa_signature": ("__RSA_SIGNATURE__", None),
-            "just_with_number": ("__JUST_WITH_NUMBER__", "0"),
-            "limit_command_to": ("__LIMIT_COMMAND_TO__", None),
-            "shortcut_path": ("__SHORTCUT_PATH__", None),
-            "target_path": ("__SHORTCUT_TARGET_PATH__", None),
-            "credentials": ("__CREDENTIALS__", None),
-            "base_url": ("__BASE_URL__", None),
-            "file_sizes_file": ("__FILE_SIZES_FILE__", None),
-            "output_format": ("__OUTPUT_FORMAT__", None),
-            "db_file": ("__DB_INPUT_FILE__", None),
-        }
 
-        default_remark = "from command line options"
-        for attrib, var in const_attrib_to_var.items():
-            attrib_value = getattr(cmd_line_options_obj, attrib)
-            if attrib_value:
-                config_vars[var[0]] = attrib_value
-            elif var[1] is not None:  # there's a default
-                config_vars[var[0]] = var[1]
-
-        non_const_attrib_to_var = {
-            "target_repo_rev": "TARGET_REPO_REV",
-            "base_repo_rev": "BASE_REPO_REV",
-            "ls_format": "LS_FORMAT",
-            "start_progress": "__START_DYNAMIC_PROGRESS__",
-            "total_progress": "__TOTAL_DYNAMIC_PROGRESS__",
-        }
-
-        for attrib, var in non_const_attrib_to_var.items():
-            attrib_value = getattr(cmd_line_options_obj, attrib)
-            if attrib_value:
-                config_vars[var] = attrib_value[0]
-
-        if cmd_line_options_obj.command:
-            self.the_command = cmd_line_options_obj.command
+        if "__MAIN_COMMAND__" in config_vars:
+            self.the_command = str(config_vars["__MAIN_COMMAND__"])
             self.fixed_command = self.the_command.replace('-', '_')
-            config_vars["__MAIN_COMMAND__"] = cmd_line_options_obj.command
 
         if hasattr(cmd_line_options_obj, "subject") and cmd_line_options_obj.subject is not None:
             config_vars["__HELP_SUBJECT__"] = cmd_line_options_obj.subject
         else:
             config_vars["__HELP_SUBJECT__"] = ""
 
-        if cmd_line_options_obj.state_file:
-            config_vars["__MAIN_STATE_FILE__"] = cmd_line_options_obj.state_file
-
-        if cmd_line_options_obj.run:
-            config_vars["__RUN_BATCH__"] = "yes"
-
-        if cmd_line_options_obj.no_wtar_artifacts:
-            config_vars["__NO_WTAR_ARTIFACTS__"] = "yes"
-
         if cmd_line_options_obj.which_revision:
             config_vars["__WHICH_REVISION__"] = cmd_line_options_obj.which_revision[0]
-
-        if cmd_line_options_obj.dock_item_path:
-            config_vars["__DOCK_ITEM_PATH__"] = cmd_line_options_obj.dock_item_path
-        if cmd_line_options_obj.dock_item_label:
-            config_vars["__DOCK_ITEM_LABEL__"] = cmd_line_options_obj.dock_item_label
-        if cmd_line_options_obj.remove_from_dock:
-            config_vars["__REMOVE_FROM_DOCK__"] = "yes"
-        if cmd_line_options_obj.restart_the_dock:
-            config_vars["__RESTART_THE_DOCK__"] = "yes"
-        if cmd_line_options_obj.fail_exit_code:
-            config_vars["__FAIL_EXIT_CODE__"] = cmd_line_options_obj.fail_exit_code
-        if cmd_line_options_obj.set_run_as_admin:
-            config_vars["__RUN_AS_ADMIN__"] = "yes"
-        if cmd_line_options_obj.only_installed:
-            config_vars["__REPORT_ONLY_INSTALLED__"] = "yes"
-        if config_vars["__CURRENT_OS__"].str() == "Mac":
-            if cmd_line_options_obj.parallel:
-                config_vars["__RUN_COMMAND_LIST_IN_PARALLEL__"] = "yes"
-        if cmd_line_options_obj.no_numbers_progress:
-            config_vars["__NO_NUMBERS_PROGRESS__"] = "yes"
 
         if cmd_line_options_obj.define:
             individual_definitions = cmd_line_options_obj.define[0].split(",")
@@ -270,6 +209,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 if db_url != ":memory:" and not db_file:
                     # erase the db only if it's default created no given
                     utils.safe_remove_file(db_url)
+                ddls_folder = config_vars["__INSTL_DEFAULTS_FOLDER__"].str()
                 InstlInstanceBase.db = DBMaster(db_url, ddls_folder)
                 config_vars["__DATABASE_URL__"] = db_url
                 self.progress("database at ", db_url)
@@ -323,22 +263,9 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                                                              return_original_if_not_found=True)
                 config_vars[path_var_to_resolve] = resolved_path
 
-    def provision_public_key_text(self):
-        if "PUBLIC_KEY" not in config_vars:
-            if "PUBLIC_KEY_FILE" in config_vars:
-                public_key_file = config_vars["PUBLIC_KEY_FILE"].str()
-                with utils.open_for_read_file_or_url(public_key_file, connectionBase.translate_url, self.path_searcher) as open_file:
-                    public_key_text = open_file.fd.read()
-                    config_vars["PUBLIC_KEY", "from " + public_key_file] = public_key_text
-            else:
-                raise ValueError("No public key, variables PUBLIC_KEY & PUBLIC_KEY_FILE are not defined")
-        resolved_public_key = config_vars["PUBLIC_KEY"].str()
-        return resolved_public_key
-
     def read_include_node(self, i_node, *args, **kwargs):
         if i_node.isScalar():
             resolved_file_name = config_vars.resolve_str(i_node.value)
-            self.progress("reading ", resolved_file_name)
             self.read_yaml_file(resolved_file_name, *args, **kwargs)
         elif i_node.isSequence():
             for sub_i_node in i_node:
@@ -360,7 +287,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 except (FileNotFoundError, urllib.error.URLError):
                     ignore = kwargs.get('ignore_if_not_exist', False)
                     if ignore:
-                        print("'ignore_if_not_exist' specified, ignoring FileNotFoundError for", resolved_file_url)
+                        self.progress(f"'ignore_if_not_exist' specified, ignoring FileNotFoundError for {resolved_file_url}")
                     else:
                         raise
 
@@ -383,8 +310,9 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def create_variables_assignment(self, in_batch_accum):
         in_batch_accum.set_current_section("assign")
+        do_not_write_vars = config_vars["DONT_WRITE_CONFIG_VARS"].list()
         for identifier in config_vars.keys():
-            if identifier not in self.do_not_write_vars:
+            if identifier not in do_not_write_vars:
                 in_batch_accum += self.platform_helper.var_assign(identifier, config_vars[identifier].join(sep=" "))
 
     def calc_user_cache_dir_var(self, make_dir=True):
@@ -399,7 +327,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 user_cache_dir_param = "$(COMPANY_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
                 user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
             else:
-                raise RuntimeError("Unknown operating system "+os_family_name)
+                raise RuntimeError(f"Unknown operating system {os_family_name}")
             config_vars["USER_CACHE_DIR"] = user_cache_dir
             #var_stack.get_configVar_obj("USER_CACHE_DIR").freeze_values_on_first_resolve = True
         if make_dir:
@@ -425,7 +353,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         elif source_type in ('!dir_cont', ):
             retVal = source_path
         else:
-            raise ValueError("unknown tag for source " + source_path + ": " + source_type)
+            raise ValueError(f"unknown tag for source {source_path}: {source_type}")
         return retVal
 
     def relative_sync_folder_for_source_table(self, adjusted_source, source_type):
@@ -434,7 +362,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         elif source_type in ('!dir_cont', ):
             retVal = adjusted_source
         else:
-            raise ValueError("unknown tag for source " + adjusted_source + ": " + source_type)
+            raise ValueError(f"unknown tag for source {adjusted_source}: {source_type}")
         return retVal
 
     def write_batch_file(self, in_batch_accum, file_name_post_fix=""):
@@ -453,7 +381,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         lines = in_batch_accum.finalize_list_of_lines()
         for line in lines:
             if type(line) != str:
-                raise TypeError("Not a string", type(line), line)
+                raise TypeError(f"Not a string {type(line)} {line}")
 
         # replace unresolved var references to native OS var references, e.g. $(HOME) would be %HOME% on Windows and ${HOME} one Mac
         lines_after_var_replacement = [value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines]
@@ -490,12 +418,6 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         return_code = p.returncode
         if return_code != 0:
             raise SystemExit(self.out_file_realpath + " returned exit code " + str(return_code))
-
-    def write_program_state(self):
-
-        state_file = config_vars["__MAIN_STATE_FILE__"].str()
-        with utils.write_to_file_or_stdout(state_file) as fd:
-            aYaml.writeAsYaml(self, fd)
 
     def read_index(self, a_node, *args, **kwargs):
         self.progress("reading index.yaml")
@@ -571,3 +493,22 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         except Exception as ex:
             pass
         return retVal
+
+    def handle_yaml_read_error(self, **kwargs):
+        try:
+            path_to_file = pathlib.Path(kwargs['path-to-file'])
+            the_exception = kwargs.get('exception', None)
+            main_input_file = pathlib.Path(config_vars["__MAIN_INPUT_FILE__"])
+            date_stamp = time.strftime("%Y-%m-%d_%H.%M.%S")
+            report_file_name = f"yaml_read_error_{date_stamp}_{path_to_file.name}"
+            report_file_path = pathlib.Path(main_input_file.parent, report_file_name)
+            with open(report_file_path, "w") as wfd:
+                wfd.write(f"path: {path_to_file}\n\n")
+                wfd.write(f"exception: {the_exception}\n\n")
+                wfd.write(f"\ncontents: BEGIN\n\n")
+                buffer = kwargs.get('buffer', io.StringIO("unknown")).getvalue()
+                wfd.write(buffer)
+                wfd.write(f"\n\ncontents: END\n")
+            self.progress(f"""error parsing yaml file '{path_to_file}', error report written to '{report_file_path}'""")
+        except Exception as ex:
+            pass

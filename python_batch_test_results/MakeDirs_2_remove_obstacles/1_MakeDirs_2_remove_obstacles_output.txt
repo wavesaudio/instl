@@ -1,0 +1,2 @@
+Progress 1 of 1; mkdir ('C:\\Users\\nira\\Documents\\GitHub\\instl\\python_batch_test_results\\MakeDirs_2_remove_obstacles\\file-that-should-be-dir',)
+Progress 1 of 1; time: 2.34ms

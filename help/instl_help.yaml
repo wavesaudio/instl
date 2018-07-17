@@ -1,6 +1,6 @@
 command:
     check-checksum:
-        short: Check synced files against their expected sha1 checksum. (runtime command)
+        short: Check synced files against their expected sha1 checksum (utility command)
         long: |
             Usage: instl check-checksum --in path-to-input-file [--start-progress start-progress-number] [--total-progress total-progress-number]
             check-checksum will calculate the sha1 checksum of each file listed in path-to-input-file and compare this checksum against the expected checksum listed in path-to-input-file.
@@ -12,7 +12,7 @@ command:
             Progress start-progress-number+N of total-progress;
 
     check-sig:
-        short: Check file against it's RSA signature and expected sha1 checksum. (runtime command)
+        short: Check file against it's RSA signature and expected sha1 checksum (utility command)
         long: |
             Usage: instl check-sig --in file_to_check --config-file path_to_config_file [--sha1 expected_sha1_checksum] [--rsa rsa_signature]
             file_to_check is the file for which RSA signature and/or sha1 checksum will be checked.
@@ -22,21 +22,21 @@ command:
             check-sig is a utility command, it is not needed for creating or using instl-based installer.
 
     checksum:
-        short: calculate sha1 checksum for a file or files in a folder (misc command)
+        short: calculate sha1 checksum for a file or files in a folder (utility command)
         long: |
             Usage: instl checksum --in path_to_file_or_folder_to_checksum
             checksum command just calculates the file(s)'s checksum, it does not check against any given checksum as check-sig or check-checksum commands do.
             checksum is a utility command, it is not needed for creating or using instl-based installer.
 
     copy:
-        short: Install files to their destination. (client command)
+        short: Install files to their destination (client command)
         long: |
             Usage: instl copy --in instl-config-yaml-file --out copy.sh [--run]
             instl's copy command will create a batch file containing instructions to copy files to their designated locations on disk. Said files were previously downloaded using the sync command. Definition of what to copy to which destination is taken from the instl-config-yaml-file.
             Keep in mind that copy command does not actually copy anything, unless the --run flag is given. You will need to run the produced batch file in order to actually install the files.
 
     create-folders:
-        short: Create folders in preparation for sync. (runtime command)
+        short: Create folders in preparation for sync (utility command)
         long: |
             Usage: instl create-folders --in path-to-input-file [--start-progress start-progress-number] [--total-progress total-progress-number]
             For each item marked as folder in path-to-input-file create-folders will create the folder relative to the current directory.
@@ -46,7 +46,7 @@ command:
             Progress start-progress-number+N of total-progress;
 
     create-infomap:
-        short: Creates infomap file from local svn repository. (admin command)
+        short: Creates infomap file from local svn repository (admin command)
         long: |
             Usage: instl create-infomap --config-file config_file --out create-infomap.sh [--run]
             "Looks for svn repository in variable $(WORKING_SVN_CHECKOUT_FOLDER) and creates a full info_map.txt file on level above this folder.
@@ -58,7 +58,7 @@ command:
                 Common/Data/IR1Impulses/Basic, d, 27"
 
     create-links:
-        short: Maintains a folder of revision specific folders ready to be uploaded by the up2s3 command. (admin command)
+        short: Maintains a folder of revision specific folders ready to be uploaded by the up2s3 command (admin command)
         long: |
             Usage: instl create-links --config-file config_file --out create-links.sh [--all-revisions] [--run]
             For each revision of the svn repository, starting with the base revision, create-links will checkout the revision from svn to a Base folder, and copy the files to a folder named after the revision. Copying is done using hard links and hence the name of the command. In addition create-links will create info_map files describing the contents of the specific revision. A revision folder created successfully will contain a stamp file, that will cause the folder to be skipped the next time create-links is called.
@@ -68,14 +68,14 @@ command:
             Keep in mind that create-links command does not actually do anything, unless the --run flag is given. You will need to run the produced batch file in order to actually create the links.
 
     create-repo-rev-file:
-        short: creates a file containing basic information about a specific revision. (admin command)
+        short: creates a file containing basic information about a specific revision (admin command)
         long: |
             The created file can be uploaded to s3 once the specific revision is ready for distribution, using up-repo-rev command.
             The variables in the created file are specified in REPO_REV_FILE_VARS variable.
             This command is intended to be called by the create-links command.
 
     create-rsa-keys:
-        short: Create private and public RSA keys. (admin command)
+        short: Create private and public RSA keys (admin command)
         long: |
             Usage: instl create-rsa-keys --config-file path_to_config_file.
             Private key is written to a file named in variable PRIVATE_KEY_FILE which defaults to "$(REPO_NAME).private_key".
@@ -90,10 +90,10 @@ command:
             To print to standard out specify --out stdout
 
     fail:
-        short: Fail on purpose and return an exit code (runtime command)
+        short: Fail on purpose and return an exit code (utility command)
         long: |
             Usage: instl fail [--exit-code a_number]
-            The fail command is used to simulate a situation where instl fils and returns an exit code (ERRORLEVEL on windows).
+            The fail command is used to simulate a situation where instl fail and returns an exit code (ERRORLEVEL on windows).
             If --exit-code is given that number is use as exit code, otherwise default exit code is 1.
 
     fix-perm:
@@ -105,14 +105,14 @@ command:
             Keep in mind that fix-perm command does not actually do anything, unless the --run flag is given. You will need to run the produced batch file in order to actually fix the permissions.
 
     fix-props:
-        short: Fix certain properties in svn repository. (admin command)
+        short: Fix certain properties in svn repository (admin command)
         long: |
             Usage: instl fix-props --out path-to-output-file --config-file path-to-config-file [--run]
             Removes or adds svn:executable property where appropriate and removes all other properties. Files are assumed to be executables if their path matchs the regexs specified in variable EXEC_PROP_REGEX. The path to SVN repository is taken from the SVN_CHECKOUT_FOLDER variable.
             Keep in mind that fix-props command does not actually do anything, unless the --run flag is given. You will need to run the produced batch file in order to actually fix the properties. Also, running the batch file does not commit the properties changes, this should be manually done, after proper inspection, with an SVM client software.
 
     fix-symlinks:
-        short: Replace symlinks with .symlink files. (admin command)
+        short: Replace symlinks with .symlink files (admin command)
         long: |
             Usage:instl fix-symlinks  --config-file path_to_config_file --out path-to-output-file [--run]
             Since s3 cannot deal with symlinks, symlinks should not be committed to svn. Instead the fix-symlinks command will replace each symlinks with file with the same name and the extension .symlink. The .symlink file will contain the relative path of the symlink.
@@ -120,7 +120,7 @@ command:
             Keep in mind that fix-symlinks command does not actually do anything, unless the --run flag is given. You will need to run the produced batch file in order to actually fix the symlinks.
 
     help:
-        short: display help text about command, variable or command line option.
+        short: display help text about command, variable or command line option
         long: |
             Usage:
                 instl help <variable>
@@ -129,7 +129,7 @@ command:
                 instl help defaults
 
     ls:
-        short: create a listing of a directory (misc command)
+        short: create a listing of a directory (utility command)
         long: |
             Usage: instl ls --in path-to-input-folder --out path-to-output-file [--limit limit-command-to [limit-command-to ...]] [--output_format format]
             Creates a listing of a path-to-input-folder and writes it to path-to-output-file in the format:
@@ -147,28 +147,28 @@ command:
             *==number of links.
 
     make-sig:
-        short: Create RSA signature and sha1 checksum for a file. (admin command)
+        short: Create RSA signature and sha1 checksum for a file (admin command)
         long: |
             Usage: instl make-sig --in file_to_sig --config-file path_to_config_file
             RSA signature is created using the private key (variable: PRIVATE_KEY) supplied in the config file.
             make-sig is a utility command, it is not needed for creating or using instl-based installer.
 
     parallel-run:
-        short: Run processes in parallel. (runtime command)
+        short: Run processes in parallel (utility command)
         long: |
             Usage: instl parallel-run --in list-of-processes-to-run
             parallel-run will read the list-of-processes-to-run file and will launch a process running the command in each line . It will return when all processes have finished or when any process returns non zero value.
             parallel-run command is used in the batch file created by the sync or synccopy commands.
 
     remove:
-        short: Remove installed files and all their dependencies. (client command)
+        short: Remove installed files and all their dependencies (client command)
         long: |
             Usage: instl remove --in instl-config-yaml-file --out remove.sh [--run]
             instl's remove command will create a batch file containing instructions to remove files from their designated locations on disk. Said files were previously copied using the copy command. Definition of what items to remove from which destination is taken from the instl-config-yaml-file. Default remove action for installed item is to erase the files from disk, but other instructions can be given in the instl-config-yaml-file. All items and their dependecies are removed without considering if other items might depend on the removed items.
             Keep in mind that remove command does not actually copy anything, unless the --run flag is given. You will need to run the produced batch file in order to actually remove the files.
 
     report-versions:
-        short: Report all IIDs with their guids, installed version and latest version form index. (client command)
+        short: Report all IIDs with their guids, installed version and latest version form index (client command)
         long: |
             Usage: instl report-versions --in instl-config-yaml-file [--out output-file] [--only-installed] [--output-format text|json]
             instl's report-versions will read index.yaml and local require.yaml (if any) and will list for each IID (IID, guis, name, installed-version, index-version). Input file must contain __include__ statemets for the index.yaml and require.yaml.
@@ -177,21 +177,21 @@ command:
             If --only-installed option is given only IIDs already installed will be listed.
 
     resolve:
-        short: Read text from stdin, resolve $() style variables and print result to stdout (misc command)
+        short: Read text from stdin, resolve $() style variables and print result to stdout (utility command)
         long: |
             Usage: instl resolve --in yaml-with-variable-definitions [< input-file] [> output-file]
             resolve command will read variable definiiotns from !define section in yaml-with-variable-definitions file.
             Text from stdin will be resolved using the variable definitions and printed to stdout.
 
     set-exec:
-        short: Sets the executable bit for certine files. (runtime command)
+        short: Sets the executable bit for certine files (utility command)
         long: |
             Usage: instl set-exec --in path-to-input-file [--start-progress start-progress-number] [--total-progress total-progress-number]
             Sets the executable bit for files marked as such in path-to-input-file. Paths are relative to current directory.
             set-exec command is used in the batch file created by the copy or synccopy commands.
 
     stage2svn:
-        short: Update svn from a staging folder. (admin command)
+        short: Update svn from a staging folder (admin command)
         long: |
            Usage: instl stage2svn --config-file  path-to-config-file --out stage2svn.sh [--run]
            Making changes to the svn repository cannot be done on the svn checkout folder directly, mainly because svn finds it difficult to handle deleted files.
@@ -199,35 +199,35 @@ command:
            Keep in mind that stage2svn command does not actually do anything, unless the --run flag is given. You will need to run the produced batch file in order to actually run the svn commands and then manually commit the changes to svn.
 
     svn2stage:
-        short: Refresh staging folder by checking out the latest svn revision and copying the files to staging folder. (admin command)
+        short: Refresh staging folder by checking out the latest svn revision and copying the files to staging folder (admin command)
         long: |
             Usage: instl svn2stage --config-file config-file --out svn2stage.sh [--run]
             Making changes to the svn repository cannot be done on the svn checkout folder directly, mainly because svn finds it difficult to handle deleted files. svn2stage will checkout the latest revision to the svn folder (variable: SVN_CHECKOUT_FOLDER), and export the revision's files to the staging folder (variable: STAGING_FOLDER). Now changes to the staging folder can be made. When the staging folder is ready, stage2svn can be called to create the svn command to add/delete files
             Keep in mind that svn2stage command does not actually do anything, unless the --run flag is given. You will need to run the produced batch file in order to actually run the svn and copy commands.
 
     sync:
-        short: Download files. (client command)
+        short: Download files (client command)
         long: |
             Usage: instl sync --in instl-config-yaml-file --out sync.sh [--run]
             instl's sync command will create a batch file containing instructions to download required files. Said files can be later copied to their final destination using the copy command. Definition of what to sync from what url is taken from the instl-config-yaml-file.
             Keep in mind that sync command does not actually download anything, unless the --run flag is given. You will need to run the produced batch file in order to actually download the files.
 
     synccopy:
-        short: Download files and copy them to their destination. (client command)
+        short: Download files and copy them to their destination (client command)
         long: |
             Usage: instl synccopy --in instl-config-yaml-file --out synccopy.sh [--run]
             instl's synccopy combines the actions of the sync and copy commands. The created batch file will download the required files and copy them to the designated locations on disk. Definition of what to sync from what url and what to copy to which destination is taken from the instl-config-yaml-file
             Keep in mind that synccopy command does not actually download or copy anything, unless the --run flag is given. You will need to run the produced batch file in order to actually download and install the files.
 
     trans:
-        short: Translates between the various format of svn info files. (admin command)
+        short: Translates between the various format of svn info files (admin command)
         long:  |
             Usage: instl trans --in svn_info_file [--props svn_props_file] [--filter-in version_to_filter_in]
             instl's trans command can translate between the format created by svn info command and the native instl info format. Additional input that can be given is the output of the svn proplist command. trans also has limited filtering options.
             trans command is used in the output of create-links command.
 
     translate_url:
-        short: Translates to canonical form according to the current connection. (misc command)
+        short: Translates to canonical form according to the current connection (utility command)
         long:  |
             Usage: instl translate_url --in url_to_translate [--credentials s3:ACCESS_KEY:SECRET_KEY:BUCKET]
             instl's translate_url translate a url so it can be passed to a browser or download utility such as curl.
@@ -235,21 +235,21 @@ command:
             If --credentials is given instl will connect and build a url suitable for use. Currently only Amazon s3 connection is supported.
 
     test-import:
-        short: Test that python imports inside instl are successful.. (misc command)
+        short: Test that python imports inside instl are successful (utility command)
         long:   |
             Usage: instl test-import
             Helps making sure instl will function OK by trying out various import statements that instl uses. Especially useful after compiling instl in making sure the compiled binrary can find all the necessary imports.
             If all imports are OK, no message is written to stdout (except command timing statistics) and exit code is 0. In case of error a list of missing modules is printed and non-zero exit code is returned.
 
     uninstall:
-        short: Remove installed files considering dependencies. (client command)
+        short: Remove installed files considering dependencies (client command)
         long: |
             Usage: instl uninstall --in instl-config-yaml-file --out uninstall.sh [--run]
             instl's uninstall command will create a batch file containing instructions to remove files from their designated locations on disk. Said files were previously copied using the copy command. Definition of what items to remove from which destination is taken from the instl-config-yaml-file. Default uninstall action for installed item is to erase the files from disk, but other instructions can be given in the instl-config-yaml-file. Items and their dependecies are removed only if they are not needed by other items that remain installed.
             Keep in mind that uninstall command does not actually copy anything, unless the --run flag is given. You will need to run the produced batch file in order to actually uninstall the files.
 
     unwtar:
-        short: Combines split wtar files and uncompresses wtar files. (runtime command)
+        short: Combines split wtar files and uncompresses wtar files (utility command)
         long: |
             Usage: instl unwtar [--in file-or-folder] [--out] [--no-artifacts]
             Files who's extension is in the format '*.wtar.aa' are being read as one without being combined first.
@@ -260,7 +260,7 @@ command:
             unwtar command is used in the batch file created by the sync or synccopy commands.
 
     up-repo-rev:
-        short: Upload a file containing basic information about uploaded repository. (admin command)
+        short: Upload a file containing basic information about uploaded repository (admin command)
         long: |
             Usage: instl up-repo-rev --config-file config_file
             up-repo-rev will create a repo_rev file according to the information in the config file, and upload said repo_rev file to s3 bucket to a top level folder called 'admin'. The contents of the repo_rev file are a list of variables defined in the "REPO_REV_FILE_VARS" variable of the config file. Typically these variables would be: REPO_REV, REPO_TYPE, SYNC_BASE_URL.
@@ -269,7 +269,7 @@ command:
                 REPO_REV_FILE_NAME, REPO_REV_FILE_VARS, REPO_TYPE, REPO_REV, REPO_NAME
 
     up2s3:
-        short: Upload revision specific folders created with the create-links command. (admin command)
+        short: Upload revision specific folders created with the create-links command (admin command)
         long: |
             Usage: instl up2s3 --config-file config_file --out up2s3.sh  [--all-revisions] [--run]
             For each revision folder created with the create-links command, up2s3 will remove the files not belonging to the specific revision and upload the remaining files to s3. A revision folder uploaded successfully will contain a stamp file, that will cause the folder to be skipped the next time up2s3 is called.
@@ -279,13 +279,13 @@ command:
             Keep in mind that up2s3 command does not actually do anything, unless the --run flag is given. You will need to run the produced batch file in order to actually create upload the links.
 
     verify-index:
-        short: Reads an index file and report discrepancies. (admin command)
+        short: Reads an index file and report discrepancies (admin command)
         long: |
             Usage: instl verify-index --in path-to-input-file
             path-to-input-file is a instl yaml file, verify-index will check it's index parts for missing sources, dependency and inheritance cycles.
 
     verify-repo:
-        short: Scans the stage folder and the index file and report discrepancies. (admin command)
+        short: Scans the stage folder and the index file and report discrepancies (admin command)
         long: |
             Usage: instl verify-index --config-file config_file
             Report any sources specified in index.yaml that are missing from the file system using the folder in variable STAGING_FOLDER.
@@ -293,12 +293,12 @@ command:
             Used to check repossitory consistancy before running stage2svn.
 
     version:
-        short: Prints the instl version.
+        short: Prints the instl version
         long: |
             Usage: instl version
 
     win-shortcut:
-        short: Creates a Windows shortcut. (runtime command)
+        short: Creates a Windows shortcut (utility command)
         long: |
             Usage: instl win-shortcut --shortcut in-path-to-shortcut --target in-path-to-target --run-as-admin
             Creates a windows shortcut in the path specified by in-path-to-shortcut (run-as-admin is optional). in-path-to-shortcut must end with .lnk.
@@ -306,7 +306,7 @@ command:
             The "Starts in" section of the shortcut is set to the parent folder of in-path-to-target.
 
     wtar:
-        short: Compress files and folder to a .wtar file. (admin command)
+        short: Compress files and folders to a .wtar file (admin command)
         long: |
             Files to compress are decided according to a regex given in the config file (variable: WTAR_REGEX).
 

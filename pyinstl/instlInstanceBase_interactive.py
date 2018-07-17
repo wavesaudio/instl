@@ -98,7 +98,7 @@ def restart_program():
 
 
 class CMDObj(cmd.Cmd, object):
-    def __init__(self, client, admin):
+    def __init__(self, client, admin) -> None:
         cmd.Cmd.__init__(self)
         self.client_prog_inst = client
         self.admin_prog_inst = admin
@@ -364,7 +364,7 @@ class CMDObj(cmd.Cmd, object):
             for a_file in shlex.split(params):
                 try:
                     self.client_prog_inst.read_yaml_file(a_file)
-                    self.client_prog_inst.items_table.create_default_index_items()
+                    self.client_prog_inst.items_table.create_default_index_items(iids_to_ignore=[])
                 except Exception as ex:
                     print("read", a_file, ex)
             self.client_prog_inst.items_table.resolve_inheritance()

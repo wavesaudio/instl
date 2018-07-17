@@ -1,0 +1,3 @@
+Progress 1 of 1; Change mode C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\Chmod_recursive\folder-to-chmod
+attrib /s C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\Chmod_recursive\folder-to-chmod
+Progress 1 of 1; time: 6.66ms

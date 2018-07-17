@@ -1,0 +1,11 @@
+Progress 1 of 1; mkdir ('C:\\Users\\nira\\Documents\\GitHub\\instl\\python_batch_test_results\\CopyFileToDir\\copy-src',)
+Progress 1 of 1; time: 1.11ms
+Progress 2 of 2; mkdir ('C:\\Users\\nira\\Documents\\GitHub\\instl\\python_batch_test_results\\CopyFileToDir\\copy-target-no-hard-links',)
+Progress 2 of 2; time: 1.32ms
+Progress 3 of 3; cd to C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\CopyFileToDir\copy-src
+Progress 4 of 4; Touch hootenanny
+Progress 4 of 4; time: 1.47ms
+Progress 3 of 4; time: 1.73ms
+Progress 5 of 5; CopyFileToDir(src=r"C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\CopyFileToDir\copy-src\hootenanny", trg=r"C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\CopyFileToDir\copy-target-no-hard-links/", link_dest=False, ignore=None, preserve_dest_files=False)
+robocopy /E /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS /purge C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\CopyFileToDir\copy-src C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\CopyFileToDir\copy-target-no-hard-links/ hootenanny
+Progress 5 of 5; time: 4007.50ms

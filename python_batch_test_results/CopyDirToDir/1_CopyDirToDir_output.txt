@@ -1,0 +1,14 @@
+Progress 1 of 1; mkdir ('C:\\Users\\nira\\Documents\\GitHub\\instl\\python_batch_test_results\\CopyDirToDir\\copy-src',)
+Progress 1 of 1; time: 0.90ms
+Progress 2 of 2; cd to C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\CopyDirToDir\copy-src
+Progress 3 of 3; Touch hootenanny
+Progress 3 of 3; time: 1.51ms
+Progress 4 of 4; create random directories and files under current dir C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\CopyDirToDir\copy-src
+Progress 4 of 4; time: 32.89ms
+Progress 2 of 4; time: 34.62ms
+Progress 5 of 5; CopyDirToDir(src=r"C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\CopyDirToDir\copy-src", trg=r"C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\CopyDirToDir\copy-target-no-hard-links", link_dest=False, ignore=None, preserve_dest_files=False)
+robocopy /E /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS /purge C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\CopyDirToDir\copy-src C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\CopyDirToDir\copy-target-no-hard-links\copy-src
+Progress 5 of 5; time: 64.43ms
+Progress 6 of 6; CopyDirToDir(src=r"C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\CopyDirToDir\copy-src", trg=r"C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\CopyDirToDir\copy-target-with-ignore", link_dest=False, ignore=['hootenanny'], preserve_dest_files=False)
+robocopy /E /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS /purge C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\CopyDirToDir\copy-src C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\CopyDirToDir\copy-target-with-ignore\copy-src /XF C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\CopyDirToDir\copy-src\hootenanny /XD C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\CopyDirToDir\copy-src\hootenanny
+Progress 6 of 6; time: 58.41ms

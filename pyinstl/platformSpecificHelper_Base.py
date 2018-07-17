@@ -22,7 +22,7 @@ class CopyToolBase(object, metaclass=abc.ABCMeta):
         multiple commands if needed.
     """
 
-    def __init__(self, platform_helper):
+    def __init__(self, platform_helper) -> None:
         self.platform_helper = platform_helper
 
     @abc.abstractmethod
@@ -79,7 +79,7 @@ class CopyToolBase(object, metaclass=abc.ABCMeta):
 
 
 class CopyToolRsync(CopyToolBase):
-    def __init__(self, platform_helper):
+    def __init__(self, platform_helper) -> None:
         super().__init__(platform_helper)
 
     def finalize(self):
@@ -170,7 +170,7 @@ class CopyToolRsync(CopyToolBase):
 
 
 class PlatformSpecificHelperBase(object):
-    def __init__(self, instlObj):
+    def __init__(self, instlObj) -> None:
         self.instlObj = instlObj
         self.copy_tool = None
         self.dl_tool = None
@@ -434,8 +434,11 @@ class PlatformSpecificHelperBase(object):
     def chown(self, user_id, group_id, target_path, recursive=False):
         pass
 
-def PlatformSpecificHelperFactory(in_os, instlObj):
-    if in_os == "Mac":
+def PlatformSpecificHelperFactory(in_os, instlObj, use_python_batch=False):
+    if use_python_batch:
+        from . import platformSpecificHelper_Python
+        retVal = platformSpecificHelper_Python.PlatformSpecificHelperPython(instlObj, in_os)
+    elif in_os == "Mac":
         from . import platformSpecificHelper_Mac
 
         retVal = platformSpecificHelper_Mac.PlatformSpecificHelperMac(instlObj)
@@ -448,7 +451,7 @@ def PlatformSpecificHelperFactory(in_os, instlObj):
 
         retVal = platformSpecificHelper_Linux.PlatformSpecificHelperLinux(instlObj)
     else:
-        raise ValueError(in_os, "has no PlatformSpecificHelper")
+        raise ValueError(f"{in_os} has no PlatformSpecificHelper")
     return retVal
 
 
@@ -462,7 +465,7 @@ class DownloadToolBase(object, metaclass=abc.ABCMeta):
     # for debugging:
     curl_extra_write_out_str = r'    num_connects:%{num_connects}, time_namelookup: %{time_namelookup}, time_connect: %{time_connect}, time_pretransfer: %{time_pretransfer}, time_redirect: %{time_redirect}, time_starttransfer: %{time_starttransfer}\n\n'
 
-    def __init__(self, platform_helper):
+    def __init__(self, platform_helper) -> None:
         self.platform_helper = platform_helper
         self.urls_to_download = list()
         self.short_win_paths_cache = dict()

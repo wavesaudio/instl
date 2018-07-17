@@ -41,10 +41,10 @@ admin_command_template_variables = {
 
 # noinspection PyAttributeOutsideInit
 class InstlGui(InstlInstanceBase):
-    def __init__(self, initial_vars):
+    def __init__(self, initial_vars) -> None:
         super().__init__(initial_vars)
         # noinspection PyUnresolvedReferences
-        self.read_name_specific_defaults_file(super().__thisclass__.__name__)
+        self.read_defaults_file(super().__thisclass__.__name__)
 
         self.master = Tk()
         self.master.createcommand('exit', self.quit_app)  # exit from quit menu or Command-Q
@@ -584,7 +584,7 @@ class ToolTip(Toplevel):
     ToolTip constructor
     """
 
-    def __init__(self, wdgt, msg=None, msgFunc=None, delay=0.2, follow=True):
+    def __init__(self, wdgt, msg=None, msgFunc=None, delay=0.2, follow=True) -> None:
         """
         Initialize the ToolTip
 

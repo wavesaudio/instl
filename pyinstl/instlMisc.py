@@ -15,14 +15,15 @@ from collections import OrderedDict
 from .instlInstanceBase import InstlInstanceBase
 from configVar import config_vars
 from . import connectionBase
+from pybatch import *
 
 
 # noinspection PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences
 class InstlMisc(InstlInstanceBase):
-    def __init__(self, initial_vars, command):
+    def __init__(self, initial_vars, command) -> None:
         super().__init__(initial_vars)
         # noinspection PyUnresolvedReferences
-        self.read_name_specific_defaults_file(super().__thisclass__.__name__)
+        self.read_defaults_file(super().__thisclass__.__name__)
         self.curr_progress = 0
         self.total_progress = 0
         self.progress_staccato_command = False
@@ -41,7 +42,7 @@ class InstlMisc(InstlInstanceBase):
         return retVal
 
     def do_command(self):
-        self.no_numbers_progress = "__NO_NUMBERS_PROGRESS__" in config_vars
+        self.no_numbers_progress =  bool(config_vars.get("__NO_NUMBERS_PROGRESS__", "False"))
         # if var does not exist default is 0, meaning not to display dynamic progress
         self.curr_progress = int(config_vars.get("__START_DYNAMIC_PROGRESS__", "0"))
         self.total_progress = int(config_vars.get("__TOTAL_DYNAMIC_PROGRESS__", "0"))
@@ -201,7 +202,7 @@ class InstlMisc(InstlInstanceBase):
         return retVal
 
     def do_unwtar(self):
-        self.no_artifacts = "__NO_WTAR_ARTIFACTS__" in config_vars
+        self.no_artifacts =  bool(config_vars["__NO_WTAR_ARTIFACTS__"])
         what_to_work_on = str(config_vars.get("__MAIN_INPUT_FILE__", '.'))
         what_to_work_on_dir, what_to_work_on_leaf = os.path.split(what_to_work_on)
         where_to_unwtar = None
@@ -323,7 +324,7 @@ class InstlMisc(InstlInstanceBase):
         shortcut_path = config_vars["__SHORTCUT_PATH__"].str()
         target_path = config_vars["__SHORTCUT_TARGET_PATH__"].str()
         working_directory, target_name = os.path.split(target_path)
-        run_as_admin = "__RUN_AS_ADMIN__" in config_vars
+        run_as_admin =  bool(config_vars["__RUN_AS_ADMIN__"])
         from win32com.client import Dispatch
 
         shell = Dispatch("WScript.Shell")
@@ -354,8 +355,8 @@ class InstlMisc(InstlInstanceBase):
     def do_mac_dock(self):
         path_to_item = str(config_vars.get("__DOCK_ITEM_PATH__", ""))
         label_for_item = str(config_vars.get("__DOCK_ITEM_LABEL__", ""))
-        restart_the_doc = str(config_vars.get("__RESTART_THE_DOCK__", ""))
-        remove = "__REMOVE_FROM_DOCK__" in config_vars
+        restart_the_doc = bool(config_vars["__RESTART_THE_DOCK__"])
+        remove = bool(config_vars["__REMOVE_FROM_DOCK__"])
 
         dock_util_command = list()
         if remove:

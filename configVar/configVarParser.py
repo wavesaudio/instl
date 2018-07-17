@@ -42,7 +42,7 @@ class VarParseImpContext(object):
     # However, '(', ')' in a variable name must be balanced
     variable_name_acceptable_characters = set((c for c in string.ascii_letters + string.digits + '_' + '-'))
 
-    def __init__(self):
+    def __init__(self) -> None:
         (self.literal_text,
             self.variable_str,
             self.variable_params_str,
@@ -102,7 +102,7 @@ def var_parse_imp(f_string):
                 else:
                     if single_param[0]:
                         cont.positional_params.append(single_param[0])
-    
+
     def discard_variable(c, cont: VarParseImpContext):
         next_state = literal_state
         new_literal_text = cont.literal_text + cont.variable_str
@@ -253,7 +253,7 @@ def var_parse_imp(f_string):
     if next_state_func == literal_state:
         yield cont.get_return_tuple()
     else:
-        raise ValueError("failed to parse "+f_string)
+        raise ValueError(f"failed to parse {f_string}")
 
 
 def resolve_variable_1(parse_retVal, default=""):

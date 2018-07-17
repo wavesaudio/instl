@@ -10,12 +10,12 @@ from .platformSpecificHelper_Base import DownloadToolBase
 
 
 class CopyToolLinuxRsync(CopyToolRsync):
-    def __init__(self, platform_helper):
+    def __init__(self, platform_helper) -> None:
         super().__init__(platform_helper)
 
 
 class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
-    def __init__(self, instlObj):
+    def __init__(self, instlObj) -> None:
         super().__init__(instlObj)
         self.var_replacement_pattern = "${\g<var_name>}"
         self.dl_tool = DownloadTool_linux_curl(self)
@@ -100,7 +100,7 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         if tool == "rsync":
             self.copy_tool = CopyToolLinuxRsync(self)
         else:
-            raise ValueError(tool, "is not a valid copy tool for Linux")
+            raise ValueError(f"{tool} is not a valid copy tool for Linux")
 
     def copy_file_to_file(self, src_file, trg_file, hard_link=False, check_exist=False):
         if hard_link:
@@ -143,7 +143,7 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
 
 
 class DownloadTool_linux_curl(DownloadToolBase):
-    def __init__(self, platform_helper):
+    def __init__(self, platform_helper) -> None:
         super().__init__(platform_helper)
 
     def download_url_to_file(self, src_url, trg_file):

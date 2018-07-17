@@ -23,12 +23,12 @@ from svnTree import SVNTable
 # noinspection PyPep8,PyPep8,PyPep8
 class InstlAdmin(InstlInstanceBase):
 
-    def __init__(self, initial_vars):
+    def __init__(self, initial_vars) -> None:
         super().__init__(initial_vars)
         self.need_items_table = True
         self.need_info_map_table = True
         self.total_self_progress = 1000
-        self.read_name_specific_defaults_file(super().__thisclass__.__name__)
+        self.read_defaults_file(super().__thisclass__.__name__)
         self.fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
 
     def get_default_out_file(self):
@@ -48,7 +48,6 @@ class InstlAdmin(InstlInstanceBase):
     def do_command(self):
         self.set_default_variables()
         self.platform_helper.num_items_for_progress_report = int(config_vars["LAST_PROGRESS"])
-        self.platform_helper.init_copy_tool()
         do_command_func = getattr(self, "do_" + self.fixed_command)
         do_command_func()
 
@@ -138,7 +137,7 @@ class InstlAdmin(InstlInstanceBase):
             my_stdout, my_stderr = proc.communicate()
             my_stdout, my_stderr = utils.unicodify(my_stdout), utils.unicodify(my_stderr)
             if proc.returncode != 0 or my_stderr != "":
-                raise ValueError("Could not read info from svn: ", my_stderr, proc.returncode)
+                raise ValueError(f"Could not read info from svn: {my_stderr} {proc.returncode}")
             info_as_io = io.StringIO(my_stdout)
             for line in info_as_io:
                 match = revision_line_re.match(line)
@@ -146,7 +145,7 @@ class InstlAdmin(InstlInstanceBase):
                     retVal = int(match["revision"])
                     break
         if retVal <= 0:
-            raise ValueError("Could not find last repo rev for " + repo_url)
+            raise ValueError(f"Could not find last repo rev for {repo_url}")
         config_vars["__LAST_REPO_REV__"] = str(retVal)
         return retVal
 
@@ -161,9 +160,9 @@ class InstlAdmin(InstlInstanceBase):
         base_repo_rev = int(config_vars["BASE_REPO_REV"])
         curr_repo_rev = int(config_vars["REPO_REV"])
         if base_repo_rev > curr_repo_rev:
-            raise ValueError("base_repo_rev "+str(base_repo_rev)+" > curr_repo_rev "+str(curr_repo_rev))
+            raise ValueError(f"base_repo_rev {base_repo_rev} > curr_repo_rev {curr_repo_rev}")
         if curr_repo_rev > last_repo_rev:
-            raise ValueError("base_repo_rev "+str(base_repo_rev)+" > last_repo_rev "+str(last_repo_rev))
+            raise ValueError(f"base_repo_rev {base_repo_rev} > last_repo_rev {last_repo_rev}")
 
         self.batch_accum += self.platform_helper.mkdir("$(ROOT_LINKS_FOLDER_REPO)/Base")
 
@@ -214,7 +213,7 @@ class InstlAdmin(InstlInstanceBase):
             self.progress("Links already created for all revisions:", str(base_repo_rev), "...", str(max_repo_rev_to_work_on))
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in config_vars:
+        if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def create_links_for_revision(self, accum):
@@ -283,9 +282,9 @@ class InstlAdmin(InstlInstanceBase):
         # call svn info to find out the last repo revision
         last_repo_rev = self.get_last_repo_rev()
         if base_repo_rev > curr_repo_rev:
-            raise ValueError("base_repo_rev "+str(base_repo_rev)+" > curr_repo_rev "+str(curr_repo_rev))
+            raise ValueError(f"base_repo_rev {base_repo_rev} > curr_repo_rev {curr_repo_rev}")
         if curr_repo_rev > last_repo_rev:
-            raise ValueError("base_repo_rev "+str(base_repo_rev)+" > last_repo_rev "+str(last_repo_rev))
+            raise ValueError(f"base_repo_rev {base_repo_rev} > last_repo_rev {last_repo_rev}")
 
         max_repo_rev_to_work_on = curr_repo_rev
         if "__WHICH_REVISION__" in config_vars:
@@ -346,7 +345,7 @@ class InstlAdmin(InstlInstanceBase):
             self.batch_accum += self.platform_helper.new_line()
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in config_vars:
+        if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def upload_to_s3_aws_for_revision(self, accum):
@@ -426,7 +425,7 @@ class InstlAdmin(InstlInstanceBase):
             {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "PRIVATE_KEY", "PRIVATE_KEY_FILE"})
         if dangerous_intersection:
             self.progress("found", str(dangerous_intersection), "in REPO_REV_FILE_VARS, aborting")
-            raise ValueError("file REPO_REV_FILE_VARS "+str(dangerous_intersection)+" and so is forbidden to upload")
+            raise ValueError(f"file REPO_REV_FILE_VARS {dangerous_intersection} and so is forbidden to upload")
 
         # create checksum for the main info_map file
         info_map_file = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt")
@@ -460,7 +459,7 @@ class InstlAdmin(InstlInstanceBase):
         # check that all variables are present
         for var in repo_rev_vars:
             if var not in config_vars:
-                raise ValueError(var + " is missing cannot write repo rev file")
+                raise ValueError(f"{var} is missing cannot write repo rev file")
 
         # create yaml out of the variables
         variables_as_yaml = config_vars.repr_for_yaml(repo_rev_vars, include_comments=False)
@@ -502,7 +501,7 @@ class InstlAdmin(InstlInstanceBase):
         self.batch_accum += self.platform_helper.progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)'")
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in config_vars:
+        if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def do_fix_props(self):
@@ -517,7 +516,7 @@ class InstlAdmin(InstlInstanceBase):
         my_stdout, my_stderr = proc.communicate()
         my_stdout, my_stderr = utils.unicodify(my_stdout), utils.unicodify(my_stderr)
         if proc.returncode != 0 or my_stderr != "":
-            raise ValueError("Could not read info from svn: " + my_stderr)
+            raise ValueError(f"Could not read info from svn: {my_stderr}")
         # write svn info to file for debugging and reference. But go one folder up so not to be in the svn repo.
         with utils.utf8_open("../svn-info-for-fix-props.txt", "w") as wfd:
             wfd.write(my_stdout)
@@ -553,7 +552,7 @@ class InstlAdmin(InstlInstanceBase):
 
         os.chdir(save_dir)
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in config_vars:
+        if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def is_file_exec(self, file_path):
@@ -600,7 +599,7 @@ class InstlAdmin(InstlInstanceBase):
                 self.batch_accum += self.platform_helper.new_line()
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in config_vars:
+        if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def compile_exclude_regexi(self):
@@ -639,7 +638,7 @@ class InstlAdmin(InstlInstanceBase):
             self.stage2svn_for_folder(comparator)
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in config_vars:
+        if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def stage2svn_for_folder(self, comparator):
@@ -853,7 +852,7 @@ class InstlAdmin(InstlInstanceBase):
             self.progress(total_redundant_wtar_files, "redundant wtar files will be removed")
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in config_vars:
+        if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def do_svn2stage(self):
@@ -885,7 +884,7 @@ class InstlAdmin(InstlInstanceBase):
             self.batch_accum += self.platform_helper.progress(f"rsync {limit_info[1]} to {limit_info[2]}")
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in config_vars:
+        if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def do_create_rsa_keys(self):
@@ -1121,7 +1120,7 @@ class InstlAdmin(InstlInstanceBase):
                 self.progress("   ", a_file)
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in config_vars:
+        if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def do_file_sizes(self):
@@ -1197,7 +1196,7 @@ class InstlAdmin(InstlInstanceBase):
         self.batch_accum.merge_with(accum)
 
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in config_vars:
+        if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def do_filter_infomap(self):

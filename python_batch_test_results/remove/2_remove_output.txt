@@ -1,0 +1,2 @@
+Progress 1 of 1; remove file C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\remove\remove-me
+Progress 1 of 1; time: 1316.62ms

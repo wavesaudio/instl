@@ -24,6 +24,8 @@ import appdirs
 import time
 from contextlib import contextmanager
 
+from typing import Any, Dict, List, Set, Tuple
+
 import utils
 
 
@@ -49,8 +51,8 @@ def GetProgramFiles64():
         return None
 
 
-def get_current_os_names():
-    retVal = None
+def get_current_os_names() -> Tuple[str, ...]:
+    retVal: Tuple[str, ...] = ()
     import platform
     current_os = platform.system()
     if current_os == 'Darwin':
@@ -69,13 +71,13 @@ class write_to_list(object):
     """ list that behaves like a file. For each call to write
         another item is added to the list.
     """
-    def __init__(self):
-        self.the_list = list()
+    def __init__(self) -> None:
+        self.the_list: List = list()
 
-    def write(self, text):
+    def write(self, text: Any):
         self.the_list.append(text)
 
-    def list(self):
+    def list(self) -> List:
         return self.the_list
 
 
@@ -91,9 +93,9 @@ class unique_list(list):
     """
     __slots__ = ('__attendance',)
 
-    def __init__(self, initial_list=()):
+    def __init__(self, initial_list=()) -> None:
         super().__init__()
-        self.__attendance = set()
+        self.__attendance: Set = set()
         self.extend(initial_list)
 
     def __setitem__(self, index, item):
@@ -168,7 +170,7 @@ class unique_list(list):
 
 class set_with_order(unique_list):
     """ Just another name for unique_list """
-    def __init__(self, initial_list=()):
+    def __init__(self, initial_list=()) -> None:
         super().__init__(initial_list)
 
 
@@ -603,7 +605,7 @@ def str_to_bool_int(the_str):
     elif the_str.lower() in ("no", "false", "n", "f"):
         retVal = 0
     else:
-        raise ValueError("Cannot translate", the_str, "to bool-int")
+        raise ValueError(f"Cannot translate {the_str} to bool-int")
     return retVal
 
 
@@ -620,7 +622,7 @@ class DictDiffer(object):
     (3) keys same in both but changed values
     (4) keys same in both and unchanged values
     """
-    def __init__(self, current_dict, past_dict):
+    def __init__(self, current_dict, past_dict) -> None:
         self.current_dict, self.past_dict = current_dict, past_dict
         self.set_current, self.set_past = set(current_dict.keys()), set(past_dict.keys())
         self.intersect = self.set_current.intersection(self.set_past)
@@ -646,12 +648,12 @@ def find_mount_point(path):
 
 
 class Timer_CM(object):
-    def __init__(self, name, print_results=True):
+    def __init__(self, name, print_results=True) -> None:
         self.elapsed = Decimal()
         self._name = name
         self._print_results = print_results
         self._start_time = None
-        self._children = {}
+        self._children: Dict = {}
 
     def __enter__(self):
         self.start()

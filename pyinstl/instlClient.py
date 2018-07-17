@@ -14,12 +14,12 @@ from svnTree import SVNTable
 
 
 class InstlClient(InstlInstanceBase):
-    def __init__(self, initial_vars):
+    def __init__(self, initial_vars) -> None:
         super().__init__(initial_vars)
         self.total_self_progress: int = 1000
         self.need_items_table: bool = True
         self.need_info_map_table: bool = True
-        self.read_name_specific_defaults_file(super().__thisclass__.__name__)
+        self.read_defaults_file(super().__thisclass__.__name__)
         self.action_type_to_progress_message = None
         self.__all_iids_by_target_folder = defaultdict(utils.unique_list)
         self.__no_copy_iids_by_sync_folder = defaultdict(utils.unique_list)
@@ -69,6 +69,7 @@ class InstlClient(InstlInstanceBase):
             raise Exception(errorMessage)
 
         self.init_default_client_vars()
+
         active_oses: List[str] = list(config_vars["TARGET_OS_NAMES"])
         self.items_table.activate_specific_oses(*active_oses)
 
@@ -101,7 +102,7 @@ class InstlClient(InstlInstanceBase):
 
     def command_output(self):
         self.write_batch_file(self.batch_accum)
-        if "__RUN_BATCH__" in config_vars:
+        if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def create_instl_history_file(self):
@@ -119,13 +120,6 @@ class InstlClient(InstlInstanceBase):
                 aYaml.writeAsYaml(yaml_of_defines, wfd)
             self.batch_accum += self.platform_helper.append_file_to_file("$(INSTL_HISTORY_TEMP_PATH)",
                                                                          "$(INSTL_HISTORY_PATH)")
-
-    def read_repo_type_defaults(self):
-        if "REPO_TYPE" in config_vars:  # some commands do not need to have REPO_TYPE
-            repo_type_defaults_file_path = os.path.join(config_vars["__INSTL_DATA_FOLDER__"].str(), "defaults",
-                                                    config_vars.resolve_str("$(REPO_TYPE).yaml"))
-            self.read_yaml_file(repo_type_defaults_file_path, ignore_if_not_exist=True)
-
     def init_default_client_vars(self):
         if "SYNC_BASE_URL" in config_vars:
             #raise ValueError("'SYNC_BASE_URL' was not defined")
@@ -142,7 +136,9 @@ class InstlClient(InstlInstanceBase):
                 second_name = target_os_names[1]
             config_vars["TARGET_OS_SECOND_NAME"] = second_name
 
-        self.read_repo_type_defaults()
+        if "REPO_TYPE" in config_vars:  # some commands do not need to have REPO_TYPE
+            self.read_defaults_file(str(config_vars["REPO_TYPE"]))
+
         if str(config_vars.get("REPO_TYPE", "URL")) == "P4":
             if "P4_SYNC_DIR" not in config_vars:
                 if "SYNC_BASE_URL" in config_vars:
@@ -581,7 +577,7 @@ def InstlClientFactory(initial_vars, command):
         from .instlClientCopy import InstlClientCopy
 
         class InstlClientSyncCopy(InstlClientSync, InstlClientCopy):
-            def __init__(self, sc_initial_vars=None):
+            def __init__(self, sc_initial_vars=None) -> None:
                 super().__init__(sc_initial_vars)
 
             def do_synccopy(self):

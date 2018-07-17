@@ -1,0 +1,8 @@
+Progress 1 of 1; Touch C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\ChFlags\chflags-me
+Progress 1 of 1; time: 1.97ms
+Progress 2 of 2; change flag locked on file C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\ChFlags\chflags-me
+attrib +R C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\ChFlags\chflags-me
+Progress 2 of 2; time: 7.83ms
+Progress 3 of 3; change flag hidden on file C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\ChFlags\chflags-me
+attrib +H C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\ChFlags\chflags-me
+Progress 3 of 3; time: 6.95ms

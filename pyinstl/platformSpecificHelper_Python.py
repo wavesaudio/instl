@@ -12,6 +12,7 @@ from .platformSpecificHelper_Base import DownloadToolBase
 
 from pybatch import *
 
+
 class CopyToolMacRsync(CopyToolRsync):
     def __init__(self, platform_helper):
         super().__init__(platform_helper)
@@ -19,10 +20,11 @@ class CopyToolMacRsync(CopyToolRsync):
 
 class PlatformSpecificHelperPython(PlatformSpecificHelperBase):
     var_name_counter = 0
-    def __init__(self, instlObj):
+    def __init__(self, instlObj, in_os):
         super().__init__(instlObj)
         self.var_replacement_pattern = "${\g<var_name>}"
         self.echo_template = 'echo "{}"'
+        self.os = in_os
 
     def init_platform_tools(self):
         raise NotImplementedError
@@ -32,7 +34,8 @@ class PlatformSpecificHelperPython(PlatformSpecificHelperBase):
         """ exec 2>&1 within a batch file will redirect stderr to stdout.
             .sync.sh >& out.txt on the command line will redirect stderr to stdout from without.
         """
-        raise NotImplementedError
+        retVal = NoOp()
+        return retVal
         retVal = (
             "#!/usr/bin/env bash",
             self.remark(self.instlObj.get_version_str()),
@@ -64,8 +67,8 @@ class PlatformSpecificHelperPython(PlatformSpecificHelperBase):
         return retVal
 
     def get_install_instructions_postfix(self):
-        raise NotImplementedError
-        return ()
+        retVal = NoOp()
+        return retVal
 
     def get_install_instructions_mkdir_with_owner_func(self):
         # -m will set the perm even if the dir exists
@@ -205,44 +208,26 @@ report_invocation_end() {{
         return 'find . -maxdepth 1 -mindepth 1 -type d -print0 | xargs -0 "$(SVN_CLIENT_PATH)" cleanup --non-interactive'
 
     def var_assign(self, identifier, value):
-        raise NotImplementedError
-        quoter = '"'
-        if '"' in value:
-            quoter = "'"
-            if "'" in value:
-                print(value, """has both ' and " quote chars;""", "identifier:", identifier)
-                return ()
-
-        retVal = "".join((identifier, '=', quoter, value, quoter))
+        retVal = VarAssign(identifier, value)
         return retVal
 
     def setup_echo(self):
-        raise NotImplementedError
-        retVal = []
-        echo_template = ['echo', '"{}"']
-        if config_vars.defined('ECHO_LOG_FILE'):
-            retVal.append(self.touch("$(ECHO_LOG_FILE)"))
-            retVal.append(self.chmod("0666", "$(ECHO_LOG_FILE)"))
-            echo_template.extend(("|", "tee", "-a", utils.quoteme_double("$(ECHO_LOG_FILE)")))
-        self.echo_template = " ".join(echo_template)
+        retVal = NoOp()
         return retVal
 
     def echo(self, message):
-        raise NotImplementedError
-        echo_command = self.echo_template.format(message)
+        echo_command = Echo(message)
         return echo_command
 
     def remark(self, remark):
-        raise NotImplementedError
-        remark_command = " ".join(('#', remark))
+        remark_command = Remark(remark)
         return remark_command
 
     def use_copy_tool(self, tool_name):
-        raise NotImplementedError
         if tool_name == "rsync":
             self.copy_tool = CopyToolMacRsync(self)
         else:
-            raise ValueError(tool_name, "is not a valid copy tool for Mac OS")
+            raise ValueError(f"{tool_name} is not a valid copy tool for Mac OS")
 
     def copy_file_to_file(self, src_file, trg_file, hard_link=False, check_exist=False):
         raise NotImplementedError
@@ -366,11 +351,38 @@ split_file()
         return chown_command
 
     def shell_commands(self, the_lines: List[str]):
-        PlatformSpecificHelperPython.var_name_counter += 1
-        var_name = f"var_{PlatformSpecificHelperPython.var_name_counter:04}"
-        var = VarAssign(var_name, the_lines)
-        batch = ShellCommands(dir="/Users/shai/Desktop/batches", var_name=var_name)
-        return (var, batch)
+        retVal = list()
+        # separate true shell commands from those starting with '!' which are
+        # repr for one of the PythonBatchCommands
+
+        true_shell_commands = list()
+        for line in the_lines:
+            if line.startswith('^'):
+                if true_shell_commands:  # wrap up the true shell commands up till now
+                    PlatformSpecificHelperPython.var_name_counter += 1
+                    var_name = f"var_{PlatformSpecificHelperPython.var_name_counter:04}"
+                    var = VarAssign(var_name, var_stack.ResolveListToList(true_shell_commands))
+                    retVal.append(var)
+                    batch = ShellCommands(dir="$(__MAIN_OUT_FILE_DIR__)", shell_commands_var_name=var_name)
+                    retVal.append(batch)
+                    true_shell_commands[:] = []
+                retVal.append(GenericRepr(line[1:]))
+            else:
+                true_shell_commands.append(line)
+        # wrap up the last true shell commands
+        if true_shell_commands:
+            PlatformSpecificHelperPython.var_name_counter += 1
+            var_name = f"var_{PlatformSpecificHelperPython.var_name_counter:04}"
+            var = VarAssign(var_name, var_stack.ResolveListToList(true_shell_commands))
+            retVal.append(var)
+            batch = ShellCommands(dir="$(__MAIN_OUT_FILE_DIR__)", shell_commands_var_name=var_name)
+            retVal.append(batch)
+        return retVal
+
+    def progress(self, msg, num_items=0):
+        """ do we need separate progress command for python-batch?"""
+        progress_command = Progress(msg, num_items)
+        return progress_command
 
 
 class DownloadTool_mac_curl(DownloadToolBase):

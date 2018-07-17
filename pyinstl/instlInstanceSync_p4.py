@@ -9,7 +9,7 @@ class InstlInstanceSync_p4(InstlInstanceSync):
     """  Class to create sync instruction using static links.
     """
 
-    def __init__(self, instlObj):
+    def __init__(self, instlObj) -> None:
         super().__init__(instlObj)
 
     def init_sync_vars(self):

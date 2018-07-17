@@ -45,7 +45,7 @@ def get_db_url(name_extra=None, db_file=None):
 
 
 class Statistic():
-    def __init__(self):
+    def __init__(self) -> None:
         self.count = 0
         self.time = 0.0
 
@@ -65,7 +65,7 @@ class Statistic():
 
 
 class DBMaster(object):
-    def __init__(self, db_url, ddl_folder):
+    def __init__(self, db_url, ddl_folder) -> None:
         self.top_user_version = 1  # user_version is a standard pragma tha defaults to 0
         self.db_file_path = db_url
         self.ddl_files_dir = ddl_folder

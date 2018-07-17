@@ -10,9 +10,9 @@ import utils
 
 
 class InstlClientReport(InstlClient):
-    def __init__(self, initial_vars):
+    def __init__(self, initial_vars) -> None:
         super().__init__(initial_vars)
-        self.read_name_specific_defaults_file(super().__thisclass__.__name__)
+        self.read_defaults_file(super().__thisclass__.__name__)
         self.current_index_yaml_path = None
         self.current_require_yaml_path = None
         self.guids_to_ignore = None
@@ -40,7 +40,7 @@ class InstlClientReport(InstlClient):
     def do_report_versions(self):
         self.guids_to_ignore = set(list(config_vars.get("MAIN_IGNORED_TARGETS", [])))
 
-        report_only_installed = "__REPORT_ONLY_INSTALLED__" in config_vars
+        report_only_installed =  bool(config_vars["__REPORT_ONLY_INSTALLED__"])
         report_data = self.items_table.versions_report(report_only_installed=report_only_installed)
 
         self.output_data.extend(report_data)
