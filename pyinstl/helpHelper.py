@@ -11,9 +11,9 @@ from configVar import config_vars
 
 
 class HelpItem(object):
-    def __init__(self, topic, name) -> None:
-        self.topic = topic
+    def __init__(self, name, *topics) -> None:
         self.name = name
+        self.topics = topics
         self.texts = dict()
 
     def read_from_yaml(self, item_value_node):
@@ -41,22 +41,25 @@ class HelpHelper(object):
                 if a_node.isMapping():
                     for topic_name, topic_items_node in a_node.items():
                         for item_name, item_value_node in topic_items_node.items():
-                            newItem = HelpItem(topic_name, item_name)
+                            newItem = HelpItem(item_name, topic_name, f"{topic_name}s")
                             newItem.read_from_yaml(item_value_node)
                             self.help_items[item_name] = newItem
 
     def topics(self):
         topics = set()
         for item in list(self.help_items.values()):
-            topics.add(item.topic)
+            topics.update(item.topics)
         return topics
 
     def topic_summery(self, topic):
-        retVal = "no such topic: " + topic
+        retVal = "no such topics: " + topic
         short_list = list()
-        for item in list(self.help_items.values()):
-            if item.topic == topic:
-                short_list.append((item.name + ":", item.short_text()))
+        if topic in ("command", "commands"):
+            short_list.extend(self.topic_summery_for_commands())
+        else:
+            for item in list(self.help_items.values()):
+                if topic in item.topics:
+                    short_list.append((item.name + ":", item.short_text()))
         short_list.sort()
         if len(short_list) > 0:
             width_list = [0, 0]
@@ -65,6 +68,18 @@ class HelpHelper(object):
                 width_list[1] = max(width_list[1], len(short_text))
             format_list = utils.gen_col_format(width_list)
             retVal = "\n".join(format_list[2].format(name, short) for name, short in short_list)
+        return retVal
+
+    def topic_summery_for_commands(self):
+        actual_command_names = list(config_vars["__COMMAND_NAMES__"])
+        command_to_short_text = {name: (f"{name}:", "no help for this command") for name in actual_command_names}
+        for item in list(self.help_items.values()):
+            if "commands" in item.topics:
+                short_text_tup = (f"{item.name}:", item.short_text())
+                if item.name not in actual_command_names:
+                    short_text_tup = short_text_tup[0], short_text_tup[1]+ "??? command not found ???"
+                command_to_short_text[item.name] = short_text_tup
+        retVal = [command_to_short_text[k] for k in command_to_short_text.keys()]
         return retVal
 
     def item_help(self, item_name):
