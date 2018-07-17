@@ -879,7 +879,7 @@ class Chmod(RunProcessBase):
         self.recursive = recursive
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(path=r"{os.fspath(self.path)}", mode='{self.mode}', recursive={self.recursive}"""
+        the_repr = f"""{self.__class__.__name__}(path=r"{os.fspath(self.path)}", mode={self.mode}, recursive={self.recursive}"""
         if self.ignore_all_errors:
             the_repr += f"ignore_all_errors={self.ignore_all_errors})"
         else:
@@ -974,7 +974,7 @@ class ShellCommands(RunProcessBase):
         self.shell_commands_list = shell_commands_list
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(dir="{self.dir}", shell_commands_var_name="{self.var_name}", shell_commands_list={self.var_name})"""
+        the_repr = f"""{self.__class__.__name__}(dir="{self.dir}", shell_commands_var_name="{self.var_name}", shell_commands_list={self.shell_commands_list})"""
         return the_repr
 
     def repr_batch_win(self):

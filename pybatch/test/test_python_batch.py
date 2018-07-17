@@ -215,6 +215,12 @@ class TestPythonBatch(unittest.TestCase):
 
         self.assertTrue(dir_to_make.is_file(), f"{self.which_test}: {dir_to_make} should still be a file")
 
+    def test_Chmod_repr(self):
+        new_mode = stat.S_IMODE(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)
+        chmod_obj = Chmod("a/b/c", new_mode, recursive=False)
+        chmod_obj_recreated = eval(repr(chmod_obj))
+        self.assertEqual(chmod_obj, chmod_obj_recreated, "Chmod.repr did not recreate Chmod object correctly")
+
     def test_Chmod_non_recursive(self):
         """ test Chmod
             A file is created and it's permissions are changed several times
@@ -338,6 +344,16 @@ class TestPythonBatch(unittest.TestCase):
 
         self.exec_and_capture_output("chmod restore perm")
 
+    def test_Cd_repr(self):
+        cd_obj = Cd("a/b/c")
+        cd_obj_recreated = eval(repr(cd_obj))
+        self.assertEqual(cd_obj, cd_obj_recreated, "Cd.repr did not recreate Cd object correctly")
+
+    def test_Touch_repr(self):
+        touch_obj = Touch("/f/g/h")
+        touch_obj_recreated = eval(repr(touch_obj))
+        self.assertEqual(touch_obj, touch_obj, "Touch.repr did not recreate Touch object correctly")
+
     def test_Cd_and_Touch_1(self):
         """ test Cd and Touch
             A directory is created and Cd is called to make it the current working directory.
@@ -363,6 +379,13 @@ class TestPythonBatch(unittest.TestCase):
         cwd_after = os.getcwd()
         # cwd should be back to where it was
         self.assertEqual(cwd_before, cwd_after, "{self.which_test}: cd has not restored the current working directory was: {cwd_before}, now: {cwd_after}")
+
+    def test_CopyDirToDir_repr(self):
+        dir_from = r"\p\o\i"
+        dir_to = "/q/w/r"
+        cdtd_obj = CopyDirToDir(dir_from, dir_to, link_dest=True)
+        cdtd_obj_recreated = eval(repr(cdtd_obj))
+        self.assertEqual(cdtd_obj, cdtd_obj_recreated, "CopyDirToDir.repr did not recreate CopyDirToDir object correctly")
 
     def test_CopyDirToDir(self):
         """ test CopyDirToDir (with/without using rsync's link_dest option)
@@ -410,6 +433,13 @@ class TestPythonBatch(unittest.TestCase):
             dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, copied_dir_with_hard_links)
             self.assertTrue(is_hard_linked(dir_comp_with_hard_links), "{self.which_test} (with hard links): source and target files are not hard links to the same file")
 
+    def test_CopyDirContentsToDir_repr(self):
+        dir_from = r"\p\o\i"
+        dir_to = "/q/w/r"
+        cdctd_obj = CopyDirContentsToDir(dir_from, dir_to, link_dest=True)
+        cdctd_obj_recreated = eval(repr(cdctd_obj))
+        self.assertEqual(cdctd_obj, cdctd_obj_recreated, "CopyDirContentsToDir.repr did not recreate CopyDirContentsToDir object correctly")
+
     def test_CopyDirContentsToDir(self):
         """ see doc string for test_CopyDirToDir, with the difference that the source dir contents
             should be copied - not the source dir itself.
@@ -439,7 +469,14 @@ class TestPythonBatch(unittest.TestCase):
 
         if sys.platform == 'darwin':
             dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_hard_links)
-            self.assertTrue(is_hard_linked(dir_comp_with_hard_links), "{self.which_test} (with hard links): source and target files are not hard links to the same file")
+            self.assertTrue(is_hard_linked(dir_comp_with_hard_links), "{self.which_test} (with hard links): source and target files are not hard  links to the same file")
+
+    def test_CopyFileToDir_repr(self):
+        dir_from = r"\p\o\i"
+        dir_to = "/q/w/r"
+        cftd_obj = CopyFileToDir(dir_from, dir_to, link_dest=True)
+        cftd_obj_recreated = eval(repr(cftd_obj))
+        self.assertEqual(cftd_obj, cftd_obj_recreated, "CopyFileToDir.repr did not recreate CopyFileToDir object correctly")
 
     def test_CopyFileToDir(self):
         """ see doc string for test_CopyDirToDir, with the difference that the source dir contains
@@ -473,6 +510,12 @@ class TestPythonBatch(unittest.TestCase):
         if sys.platform == 'darwin':
             dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_hard_links)
             self.assertTrue(is_hard_linked(dir_comp_with_hard_links), "{self.which_test} (with hard links): source and target files are not hard links to the same file")
+
+    def test_CopyFileToFile_repr(self):
+        dir_from = r"\p\o\i"
+        cftf_obj = CopyFileToFile(dir_from, "/sugar/man", link_dest=True)
+        cftf_obj_recreated = eval(repr(cftf_obj))
+        self.assertEqual(cftf_obj, cftf_obj_recreated, "CopyFileToFile.repr did not recreate CopyFileToFile object correctly")
 
     def test_CopyFileToFile(self):
         """ see doc string for test_CopyDirToDir, with the difference that the source dir contains
@@ -508,6 +551,16 @@ class TestPythonBatch(unittest.TestCase):
         dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, target_dir_with_hard_links)
         self.assertTrue(is_hard_linked(dir_comp_with_hard_links), "{self.which_test}  (with hard links): source and target files are not hard links to the same file")
 
+    def test_RmFile_repr(self):
+        rmfile_obj = RmFile(r"\just\remove\me\already")
+        rmfile_obj_recreated = eval(repr(rmfile_obj))
+        self.assertEqual(rmfile_obj, rmfile_obj_recreated, "RmFile.repr did not recreate RmFile object correctly")
+
+    def test_RmDir_repr(self):
+        rmfile_obj = RmDir(r"\just\remove\me\already")
+        rmfile_obj_recreated = eval(repr(rmfile_obj))
+        self.assertEqual(rmfile_obj, rmfile_obj_recreated, "RmDir.repr did not recreate RmDir object correctly")
+
     def test_remove(self):
         """ Create a folder and fill it with random files.
             1st try to remove the folder with RmFile which should fail and raise exception
@@ -528,6 +581,11 @@ class TestPythonBatch(unittest.TestCase):
             self.batch_accum += RmDir(dir_to_remove)
         self.exec_and_capture_output()
         self.assertFalse(dir_to_remove.exists())
+
+    def test_ChFlags_repr(self):
+        chflags_obj = ChFlags("/a/file/to/change", "uchg")
+        chflags_obj_recreated = eval(repr(chflags_obj))
+        self.assertEqual(chflags_obj, chflags_obj_recreated, "ChFlags.repr did not recreate ChFlags object correctly")
 
     def test_ChFlags(self):
         flags = {"hidden": stat.UF_HIDDEN,
@@ -558,6 +616,11 @@ class TestPythonBatch(unittest.TestCase):
         self.assertEqual((files_flags & flags['uchg']), 0)
         self.assertEqual((files_flags & flags['hidden']), 0)
 
+    def test_AppendFileToFile_repr(self):
+        aftf_obj = AppendFileToFile("/a/file/to/append", "/a/file/to/appendee")
+        aftf_obj_recreated = eval(repr(aftf_obj))
+        self.assertEqual(aftf_obj, aftf_obj_recreated, "AppendFileToFile.repr did not recreate AppendFileToFile object correctly")
+
     def test_AppendFileToFile(self):
         source_file = self.test_folder.joinpath("source-file.txt").resolve()
         self.assertFalse(source_file.exists(), f"{self.which_test}: {source_file} should not exist before test")
@@ -582,7 +645,12 @@ class TestPythonBatch(unittest.TestCase):
         expected_content = content_2+content_1
         self.assertEqual(concatenated_content, expected_content)
 
-    def test_ShellShellCommands(self):
+    def test_ShellCommands_repr(self):
+        sc_obj = ShellCommands(dir="/some/dir/", shell_commands_var_name="gustvo")
+        sc_obj_recreated = eval(repr(sc_obj))
+        self.assertEqual(sc_obj, sc_obj_recreated, "ShellCommands.repr did not recreate ShellCommands object correctly")
+
+    def test_ShellCommands(self):
         batches_dir = self.test_folder.joinpath("batches").resolve()
         self.assertFalse(batches_dir.exists(), f"{self.which_test}: {batches_dir} should not exist before test")
 
@@ -599,7 +667,6 @@ class TestPythonBatch(unittest.TestCase):
             self.batch_accum += ShellCommands(dir=batches_dir, shell_commands_var_name="geronimo")
 
         self.exec_and_capture_output()
-
 
 
 if __name__ == '__main__':
