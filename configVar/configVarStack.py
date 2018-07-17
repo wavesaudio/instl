@@ -35,7 +35,7 @@ class ConfigVarStack:
         a ConfigVar with params. When self.use_cache is False cache is not used
         while resolving and cache is not purged
     """
-    def __init__(self):
+    def __init__(self) -> None:
         self.var_list: List[Dict] = [dict()]
         self.use_cache = True
         self.resolve_counter: int = 0

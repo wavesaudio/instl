@@ -14,12 +14,12 @@ from svnTree import SVNTable
 
 
 class InstlClient(InstlInstanceBase):
-    def __init__(self, initial_vars):
+    def __init__(self, initial_vars) -> None:
         super().__init__(initial_vars)
         self.total_self_progress: int = 1000
         self.need_items_table: bool = True
         self.need_info_map_table: bool = True
-        self.read_name_specific_defaults_file(super().__thisclass__.__name__)
+        self.read_defaults_file(super().__thisclass__.__name__)
         self.action_type_to_progress_message = None
         self.__all_iids_by_target_folder = defaultdict(utils.unique_list)
         self.__no_copy_iids_by_sync_folder = defaultdict(utils.unique_list)
@@ -142,7 +142,9 @@ class InstlClient(InstlInstanceBase):
                 second_name = target_os_names[1]
             config_vars["TARGET_OS_SECOND_NAME"] = second_name
 
-        self.read_repo_type_defaults()
+        if "REPO_TYPE" in config_vars:  # some commands do not need to have REPO_TYPE
+            self.read_defaults_file(str(config_vars["REPO_TYPE"]))
+
         if str(config_vars.get("REPO_TYPE", "URL")) == "P4":
             if "P4_SYNC_DIR" not in config_vars:
                 if "SYNC_BASE_URL" in config_vars:
@@ -581,7 +583,7 @@ def InstlClientFactory(initial_vars, command):
         from .instlClientCopy import InstlClientCopy
 
         class InstlClientSyncCopy(InstlClientSync, InstlClientCopy):
-            def __init__(self, sc_initial_vars=None):
+            def __init__(self, sc_initial_vars=None) -> None:
                 super().__init__(sc_initial_vars)
 
             def do_synccopy(self):

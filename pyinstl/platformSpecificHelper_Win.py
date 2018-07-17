@@ -31,7 +31,7 @@ def dos_escape(some_string):
 
 
 class CopyTool_win_robocopy(CopyToolBase):
-    def __init__(self, platform_helper):
+    def __init__(self, platform_helper) -> None:
         super().__init__(platform_helper)
         self.robocopy_error_threshold = 4  # see ss64.com/nt/robocopy-exit.html
         robocopy_path = self.platform_helper.find_cmd_tool("ROBOCOPY_PATH")
@@ -122,7 +122,7 @@ class CopyTool_win_robocopy(CopyToolBase):
 
 
 class CopyTool_win_xcopy(CopyToolBase):
-    def __init__(self, platform_helper):
+    def __init__(self, platform_helper) -> None:
         super().__init__(platform_helper)
         self.excludes_set = set()
         xcopy_path = self.platform_helper.find_cmd_tool("XCOPY_PATH")
@@ -150,7 +150,7 @@ class CopyTool_win_xcopy(CopyToolBase):
     def end_copy_folder(self):
         """ .... And here we dispose of it.
         """
-        return self.platform_helper.rmfile("$(XCOPY_EXCLUDE_FILE_NAME)")
+        return self.remove_file("$(XCOPY_EXCLUDE_FILE_NAME)")
 
     def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None, preserve_dest_files=False):
         retVal = list()
@@ -210,7 +210,7 @@ class CopyTool_win_xcopy(CopyToolBase):
 
 
 class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
-    def __init__(self, instlObj):
+    def __init__(self, instlObj) -> None:
         super().__init__(instlObj)
         self.var_replacement_pattern = "%\g<var_name>%"
 
@@ -500,7 +500,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def run_instl(self):
         command_prefix = ""
         if not getattr(sys, 'frozen', False):
-            command_prefix = "python3 "
+            command_prefix = "python3.6 "
         instl_command = command_prefix + '"$(__INSTL_EXE_PATH__)"'
         return instl_command
 
@@ -526,7 +526,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
 
 
 class DownloadTool_win_wget(DownloadToolBase):
-    def __init__(self, platform_helper):
+    def __init__(self, platform_helper) -> None:
         super().__init__(platform_helper)
 
     def download_url_to_file(self, src_url, trg_file):
@@ -557,7 +557,7 @@ class DownloadTool_win_wget(DownloadToolBase):
 
 
 class DownloadTool_win_curl(DownloadToolBase):
-    def __init__(self, platform_helper):
+    def __init__(self, platform_helper) -> None:
         super().__init__(platform_helper)
 
     def download_url_to_file(self, src_url, trg_file):

@@ -12,7 +12,7 @@ class BatchAccumulator(object):
     """
     section_order = ("pre", "assign", "begin", "links", "upload", "sync", "post-sync", "copy", "post-copy", "remove", "admin", "end", "post")
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.instruction_lines = defaultdict(list)
         self.current_section: str = None
         self.transaction_stack = list()
@@ -95,7 +95,7 @@ class BatchAccumulator(object):
 
 
 class BatchAccumulatorTransaction(object):
-    def __init__(self, batchAccum, transaction_name=""):
+    def __init__(self, batchAccum, transaction_name="") -> None:
         self.transaction_name = transaction_name
         self.batchAccum = batchAccum
         self.essential_action_counter = 0

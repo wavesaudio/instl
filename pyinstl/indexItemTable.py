@@ -36,7 +36,7 @@ class IndexItemsTable(object):
                     'post_remove', 'pre_doit', 'doit', 'post_doit')
     not_inherit_details = ("name", "inherit")
 
-    def __init__(self, db_master):
+    def __init__(self, db_master) -> None:
         super().__init__()
 
         self.db = db_master
@@ -222,22 +222,22 @@ class IndexItemsTable(object):
         BEGIN TRANSACTION;
         INSERT INTO index_item_t (iid, inherit_resolved, from_index, from_require, install_status, ignore)
         VALUES ("__ALL_ITEMS_IID__", 1, 0, 0, 0, 0);
-        
+
         INSERT INTO index_item_detail_t(original_iid, owner_iid, detail_name, detail_value, os_id, generation)
             SELECT "__ALL_ITEMS_IID__", "__ALL_ITEMS_IID__", "depends", index_item_t.iid, 0, 0
             FROM index_item_t
             WHERE iid NOT IN {iids_to_ignore_str};
-        
+
         INSERT INTO index_item_t (iid, inherit_resolved, from_index, from_require)
         VALUES ("__ALL_GUIDS_IID__", 1, 0, 0);
-        
+
         INSERT INTO index_item_detail_t(original_iid, owner_iid, detail_name, detail_value, os_id, generation)
             SELECT "__ALL_GUIDS_IID__", "__ALL_GUIDS_IID__", "depends", index_item_detail_t.owner_iid, 0, 0
             FROM index_item_detail_t
             WHERE index_item_detail_t.detail_name="guid"
             AND index_item_detail_t.owner_iid=index_item_detail_t.original_iid
             AND index_item_detail_t.owner_iid NOT IN {iids_to_ignore_str};
-        COMMIT TRANSACTION; 
+        COMMIT TRANSACTION;
         """
         with self.db.transaction() as curs:
             curs.executescript(query_text)
@@ -248,7 +248,7 @@ class IndexItemsTable(object):
         BEGIN TRANSACTION;
         INSERT INTO index_item_t (iid, inherit_resolved, from_index, from_require, install_status, ignore)
         VALUES ("__REPAIR_INSTALLED_ITEMS__", 1, 0, 0, 0, 0);
-        
+
         INSERT INTO index_item_detail_t(original_iid, owner_iid, detail_name, detail_value, os_id, generation)
             SELECT "__REPAIR_INSTALLED_ITEMS__", "__REPAIR_INSTALLED_ITEMS__", "depends", index_item_detail_t.original_iid, 0, 0
             FROM index_item_detail_t
@@ -257,10 +257,10 @@ class IndexItemsTable(object):
             AND index_item_detail_t.detail_value=index_item_detail_t.owner_iid
             AND index_item_detail_t.os_is_active = 1
             AND index_item_detail_t.original_iid NOT IN {iids_to_ignore_str};
-        
+
         INSERT INTO index_item_t (iid, inherit_resolved, from_index, from_require)
         VALUES ("__UPDATE_INSTALLED_ITEMS__", 1, 0, 0);
-        
+
         INSERT INTO index_item_detail_t(original_iid, owner_iid, detail_name, detail_value, os_id, generation)
             SELECT "__UPDATE_INSTALLED_ITEMS__", "__UPDATE_INSTALLED_ITEMS__", "depends", require_version.owner_iid, 0, 0
             FROM index_item_detail_t AS require_version
@@ -276,7 +276,7 @@ class IndexItemsTable(object):
                   AND require_version.detail_value!=remote_version.detail_value
                   AND require_version.os_is_active = 1
             GROUP BY require_version.owner_iid;
-            COMMIT TRANSACTION; 
+            COMMIT TRANSACTION;
         """
         with self.db.transaction() as curs:
             curs.executescript(query_text)
@@ -466,7 +466,7 @@ class IndexItemsTable(object):
                                             generation,
                                             tag,
                                             os_is_active)
-            SELECT  
+            SELECT
               inherited_details_t.original_iid,
               {inheritor_iid} AS owner_id,
               inherited_details_t.os_id,
@@ -481,7 +481,7 @@ class IndexItemsTable(object):
                 AND active_operating_systems_t.os_is_active = 1
             WHERE inherited_details_t.owner_iid IN {inherit_from_iids}
             AND inherited_details_t.detail_name NOT IN {not_inherit_details};
-            
+
             """.format(**{"inheritor_iid": utils.quoteme_single(iid_to_resolve),
                       "inherit_from_iids": utils.quoteme_single_list_for_sql(inherit_from_iids),
                       "not_inherit_details": utils.quoteme_single_list_for_sql(self.not_inherit_details)})
@@ -1036,7 +1036,7 @@ class IndexItemsTable(object):
         self.add_binary_versions(binaries_version_to_insert)
 
     def add_binary_versions(self, binaries_version_list):
-         query_text = """INSERT INTO found_installed_binaries_t(name, path, version, guid) 
+         query_text = """INSERT INTO found_installed_binaries_t(name, path, version, guid)
                         VALUES (?, ?, ?, ?)
                      """
          with self.db.transaction() as curs:
@@ -1118,7 +1118,7 @@ class IndexItemsTable(object):
             print(ex)
 
     def add_config_vars(self, list_of_config_var_values):
-        query_text = """INSERT INTO config_var_t(name, raw_value, resolved_value) 
+        query_text = """INSERT INTO config_var_t(name, raw_value, resolved_value)
                             VALUES (?, ?, ?)
                          """
         with self.db.transaction() as curs:

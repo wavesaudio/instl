@@ -13,12 +13,12 @@ from .platformSpecificHelper_Base import DownloadToolBase
 
 
 class CopyToolMacRsync(CopyToolRsync):
-    def __init__(self, platform_helper):
+    def __init__(self, platform_helper) -> None:
         super().__init__(platform_helper)
 
 
 class PlatformSpecificHelperMac(PlatformSpecificHelperBase):
-    def __init__(self, instlObj):
+    def __init__(self, instlObj) -> None:
         super().__init__(instlObj)
         self.var_replacement_pattern = "${\g<var_name>}"
         self.echo_template = 'echo "{}"'
@@ -77,7 +77,7 @@ if [[ ! -d "$1" ]]; then
 else
     chmod a+rwx "$1"
 fi
-chown $(__USER_ID__): "$1" || true   
+chown $(__USER_ID__): "$1" || true
 }
 """
         )
@@ -357,7 +357,7 @@ split_file()
 
 
 class DownloadTool_mac_curl(DownloadToolBase):
-    def __init__(self, platform_helper):
+    def __init__(self, platform_helper) -> None:
         super().__init__(platform_helper)
 
     def download_url_to_file(self, src_url, trg_file):

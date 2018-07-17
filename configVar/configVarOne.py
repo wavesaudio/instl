@@ -8,6 +8,7 @@
 import collections
 from typing import List, Optional, Union
 
+
 def str_to_bool(the_str, default=False):
     retVal = default
     if the_str.lower() in ("yes", "true", "y", 't'):
@@ -30,10 +31,11 @@ class ConfigVar:
              no (and should have no) use for it's own name
     """
     __slots__ = ("owner", "name", "values")
-    def __init__(self, owner, name: str, *values):
+
+    def __init__(self, owner, name: str, *values) -> None:
         self.owner = owner
         self.name = name
-        self.values = list()
+        self.values: List[str] = list()
         self.extend(values)  # extend will flatten hierarchical lists
 
     def __len__(self) -> int:
@@ -112,19 +114,19 @@ class ConfigVar:
         for val in self.values:
             yield from self.owner.resolve_str_to_list(val)
 
-    def str(self):
+    def str(self) -> str:
         return str(self)
 
-    def list(self):
+    def list(self) -> List:
         return list(iter(self))
 
-    def int(self):
+    def int(self) -> int:
         return int(self)
 
-    def bool(self):
+    def bool(self) -> bool:
         return bool(self)
 
-    def float(self):
+    def float(self) -> float:
         return float(self)
 
     def __getitem__(self, index: int) -> str:

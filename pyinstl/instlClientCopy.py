@@ -6,7 +6,7 @@ import os
 import pathlib
 import utils
 import functools
-from typing import List
+from typing import Dict, List, Optional
 
 from configVar import config_vars
 from .instlClient import InstlClient
@@ -15,12 +15,12 @@ import svnTree
 
 
 class InstlClientCopy(InstlClient):
-    def __init__(self, initial_vars):
+    def __init__(self, initial_vars) -> None:
         super().__init__(initial_vars)
-        self.read_name_specific_defaults_file(super().__thisclass__.__name__)
+        self.read_defaults_file(super().__thisclass__.__name__)
         self.unwtar_batch_file_counter: int = 0
-        self.current_destination_folder: str = None
-        self.current_iid: str = None
+        self.current_destination_folder: Optional[str] = None
+        self.current_iid:  Optional[str] = None
 
     def do_copy(self) -> None:
         self.init_copy_vars()
@@ -35,7 +35,7 @@ class InstlClientCopy(InstlClient):
         self.create_copy_instructions()
 
     def init_copy_vars(self) -> None:
-        self.action_type_to_progress_message = {'pre_copy': "pre-install step",
+        self.action_type_to_progress_message: Dict[str, str] = {'pre_copy': "pre-install step",
                                                 'post_copy': "post-install step",
                                                 'pre_copy_to_folder': "pre-copy step",
                                                 'post_copy_to_folder': "post-copy step"}

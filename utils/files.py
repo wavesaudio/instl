@@ -12,17 +12,18 @@ import ssl
 import pyinstl.connectionBase
 #from pyinstl import connection_factory
 import zlib
-
 import urllib.request, urllib.error, urllib.parse
+
+from typing import Optional, TextIO
 
 import utils
 
 
-def utf8_open(*args, **kwargs):
+def utf8_open(*args, **kwargs) -> TextIO:
     return open(*args, encoding='utf-8', errors='namereplace', **kwargs)
 
 
-def main_url_item(url):
+def main_url_item(url: str) -> str:
     try:
         parseResult = urllib.parse.urlparse(url)
         retVal = parseResult.netloc
@@ -33,7 +34,7 @@ def main_url_item(url):
     return retVal
 
 
-def relative_url(base, target):
+def relative_url(base: str, target: str) -> Optional[str]:
     base_path = urllib.parse.urlparse(base.strip("/")).path
     target_path = urllib.parse.urlparse(target.strip("/")).path
     retVal = None
@@ -43,7 +44,7 @@ def relative_url(base, target):
     return retVal
 
 
-def last_url_item(url):
+def last_url_item(url: str) -> str:
     url = url.strip("/")
     url_path = urllib.parse.urlparse(url).path
     _, retVal = os.path.split(url_path)
@@ -51,11 +52,11 @@ def last_url_item(url):
 
 
 class write_to_file_or_stdout(object):
-    def __init__(self, file_path):
+    def __init__(self, file_path) -> None:
         self.file_path = file_path
         self.fd = sys.stdout
 
-    def __enter__(self):
+    def __enter__(self) -> TextIO:
         if self.file_path != "stdout":
             self.fd = utf8_open(self.file_path, "w")
         return self.fd
@@ -122,7 +123,7 @@ def read_file_or_url(in_file_or_url, path_searcher=None, encoding='utf-8', save_
 
 class open_for_read_file_or_url(object):
 
-    def __init__(self, in_file_or_url, translate_url_callback=None, path_searcher=None, encoding='utf-8', verify_ssl=False):
+    def __init__(self, in_file_or_url, translate_url_callback=None, path_searcher=None, encoding='utf-8', verify_ssl=False) -> None:
         self.local_file_path = None
         self.url = None
         self.custom_headers = None
@@ -278,7 +279,7 @@ def download_from_file_or_url(in_url, in_target_path=None, translate_url_callbac
 
 class ChangeDirIfExists(object):
     """Context manager for changing the current working directory"""
-    def __init__(self, newPath):
+    def __init__(self, newPath) -> None:
         if os.path.isdir(newPath):
             self.newPath = newPath
         else:
@@ -361,10 +362,10 @@ def excluded_walk(root_to_walk, file_exclude_regex=None, dir_exclude_regex=None,
 # noinspection PyUnresolvedReferences
 def get_disk_free_space(in_path):
     retVal = 0
-    if 'Win' in get_current_os_names():
+    if 'Win' in utils.get_current_os_names():
         secsPerCluster, bytesPerSec, nFreeCluster, totCluster = win32file.GetDiskFreeSpace(in_path)
         retVal = secsPerCluster * bytesPerSec * nFreeCluster
-    elif 'Mac' in get_current_os_names():
+    elif 'Mac' in utils.get_current_os_names():
         st = os.statvfs(in_path)
         retVal = st.f_bavail * st.f_frsize
     return retVal
@@ -489,7 +490,7 @@ def translate_cookies_from_GetInstlUrlComboCollection(in_cookies):
 
 
 class WavesCentralRequester(object):
-    def __init__(self, domain):
+    def __init__(self, domain) -> None:
         self.domain = domain
         self.namespace = "Central/Central.svc"
         self.url_template = 'https://{self.domain}/{self.namespace}/{func}'
@@ -518,33 +519,3 @@ class WavesCentralRequester(object):
                 self.user_guid = reply_data.get('oResult', {}).get('UserGuid', self.user_guid)
                 #print("new user guid:", self.user_guid)
             return reply_data
-
-if __name__ == "__main__":
-    import re
-    from configVar import config_vars  # √
-    repo_rev_re = re.compile("^(REPO_REV:\s+\d+)", re.MULTILINE)
-    index_yaml_re = re.compile("^(NUMBER_OF_BITS:\s+.+)", re.MULTILINE)
-
-    domain = "betanlb.waves.com"
-    reqs = WavesCentralRequester(domain)
-    login_data = reqs.request("Login", {"Password": "ShaiShasag1", "Username": "ShaiShasag"})
-
-    # GetInstlUrlComboCollection
-    combo_data = reqs.request("GetInstlUrlComboCollection", {'repositoryRevision': '-1', "repositoryVersions":[9]})
-    #print("combo_data:\n", combo_data)
-    InstlUrlAccessParameters = combo_data['oResult'][0]['InstlUrlAccessParameters']
-    repo_rev_yaml_url = "https://" + InstlUrlAccessParameters['ResourceRootUrl'] + "/admin/V10_repo_rev.yaml"
-    index_yaml_url = "https://" + InstlUrlAccessParameters['ResourceRootUrl'] + "/V10/795/instl/index.yaml"
-
-    netloc_and_cookies = translate_cookies_from_GetInstlUrlComboCollection(InstlUrlAccessParameters)
-    config_vars["COOKIE_JAR"] = netloc_and_cookies
-
-    the_text = utils.read_file_or_url(repo_rev_yaml_url)
-    print(the_text.name, repo_rev_re.search(the_text).groups(1)[0])
-
-    the_text = utils.read_file_or_url(index_yaml_url)
-    print("index.yaml:", index_yaml_re.search(the_text).groups(1)[0])
-
-    local_index = "/Volumes/BonaFide/installers/betainstl/V10/svn/instl/index.yaml"
-    the_text = utils.read_file_or_url(local_index)
-    print("local index.yaml:", index_yaml_re.search(the_text).groups(1)[0])

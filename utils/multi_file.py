@@ -29,7 +29,7 @@ import tarfile
 
 class MultiFileReader(io.RawIOBase):
     class OpenFileData(object):
-        def __init__(self, path_to_file):
+        def __init__(self, path_to_file) -> None:
             self.path_to_file = path_to_file
             self.size = 0
             self.starting_pos = 0
@@ -47,7 +47,7 @@ class MultiFileReader(io.RawIOBase):
             self.size = 0
             self.starting_pos = 0
 
-    def __init__(self, mode, paths):
+    def __init__(self, mode, paths) -> None:
         super().__init__()
         self.mode = mode
         self.the_files = [MultiFileReader.OpenFileData(path) for path in paths]

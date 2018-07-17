@@ -98,7 +98,7 @@ def restart_program():
 
 
 class CMDObj(cmd.Cmd, object):
-    def __init__(self, client, admin):
+    def __init__(self, client, admin) -> None:
         cmd.Cmd.__init__(self)
         self.client_prog_inst = client
         self.admin_prog_inst = admin
