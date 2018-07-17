@@ -120,7 +120,6 @@ class InstlClient(InstlInstanceBase):
                 aYaml.writeAsYaml(yaml_of_defines, wfd)
             self.batch_accum += self.platform_helper.append_file_to_file("$(INSTL_HISTORY_TEMP_PATH)",
                                                                          "$(INSTL_HISTORY_PATH)")
-
     def init_default_client_vars(self):
         if "SYNC_BASE_URL" in config_vars:
             #raise ValueError("'SYNC_BASE_URL' was not defined")
@@ -138,7 +137,7 @@ class InstlClient(InstlInstanceBase):
             config_vars["TARGET_OS_SECOND_NAME"] = second_name
 
         if "REPO_TYPE" in config_vars:  # some commands do not need to have REPO_TYPE
-            self.read_defaults_file(config_vars["REPO_TYPE"])
+            self.read_defaults_file(str(config_vars["REPO_TYPE"]))
 
         if str(config_vars.get("REPO_TYPE", "URL")) == "P4":
             if "P4_SYNC_DIR" not in config_vars:

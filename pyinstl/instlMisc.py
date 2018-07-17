@@ -15,6 +15,7 @@ from collections import OrderedDict
 from .instlInstanceBase import InstlInstanceBase
 from configVar import config_vars
 from . import connectionBase
+from pybatch import *
 
 
 # noinspection PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences

@@ -1017,9 +1017,9 @@ class SVNTable(object):
                     SELECT first_item_t._id, first_item_t.path, first_item_t.wtarFlag
                     FROM svn_item_t AS first_item_t
                     WHERE first_item_t.unwtarred == :dir_path
-                
+
                     UNION
-                
+
                     SELECT child_item_t._id, child_item_t.path, child_item_t.wtarFlag
                     FROM svn_item_t child_item_t, get_children
                     WHERE child_item_t.parent_id = get_children.__ID
@@ -1220,9 +1220,9 @@ class SVNTable(object):
                 SELECT first_item_t._id
                 FROM svn_item_t AS first_item_t
                 WHERE required==1 AND fileFlag==0
-            
+
                 UNION
-            
+
                 SELECT child_item_t._id
                 FROM svn_item_t child_item_t, get_children
                 WHERE child_item_t.parent_id = get_children.__ID
@@ -1230,7 +1230,7 @@ class SVNTable(object):
             UPDATE svn_item_t
             SET required=1
             WHERE _id IN (SELECT __ID FROM get_children);
- 
+
             -- mark the parent folders of all required items
             WITH RECURSIVE get_parents(__ID) AS
             (
@@ -1238,9 +1238,9 @@ class SVNTable(object):
                 FROM svn_item_t AS file_item_t
                 WHERE file_item_t.fileFlag=1
                 AND file_item_t.required=1
-            
+
                 UNION
-            
+
                 SELECT parent_item_t.parent_id
                 FROM svn_item_t parent_item_t, get_parents
                 WHERE parent_item_t._id = get_parents.__ID
@@ -1409,7 +1409,7 @@ class SVNTable(object):
                 WHERE child_item_t.parent_id == get_children.__ID
             )
             UPDATE svn_item_t
-            SET ignore=1 
+            SET ignore=1
             WHERE svn_item_t._id IN (SELECT __ID FROM get_children)
             AND fileFlag==1
             """

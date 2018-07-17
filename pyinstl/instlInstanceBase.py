@@ -205,6 +205,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
         if self.need_items_table or self.need_info_map_table or db_file:
             if not InstlInstanceBase.db:
                 db_url = get_db_url(self.the_command, db_file)
+                ddls_folder = os.path.join(config_vars["__INSTL_DATA_FOLDER__"].str(), "defaults")
                 if db_url != ":memory:" and not db_file:
                     # erase the db only if it's default created no given
                     utils.safe_remove_file(db_url)

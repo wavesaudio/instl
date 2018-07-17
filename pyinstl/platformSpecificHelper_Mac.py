@@ -77,7 +77,7 @@ if [[ ! -d "$1" ]]; then
 else
     chmod a+rwx "$1"
 fi
-chown $(__USER_ID__): "$1" || true   
+chown $(__USER_ID__): "$1" || true
 }
 """
         )

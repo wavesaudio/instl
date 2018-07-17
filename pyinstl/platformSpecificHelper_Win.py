@@ -150,7 +150,7 @@ class CopyTool_win_xcopy(CopyToolBase):
     def end_copy_folder(self):
         """ .... And here we dispose of it.
         """
-        return self.platform_helper.rmfile("$(XCOPY_EXCLUDE_FILE_NAME)")
+        return self.remove_file("$(XCOPY_EXCLUDE_FILE_NAME)")
 
     def copy_dir_to_dir(self, src_dir, trg_dir, link_dest=False, ignore=None, preserve_dest_files=False):
         retVal = list()
@@ -500,7 +500,7 @@ class PlatformSpecificHelperWin(PlatformSpecificHelperBase):
     def run_instl(self):
         command_prefix = ""
         if not getattr(sys, 'frozen', False):
-            command_prefix = "python3 "
+            command_prefix = "python3.6 "
         instl_command = command_prefix + '"$(__INSTL_EXE_PATH__)"'
         return instl_command
 
