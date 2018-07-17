@@ -97,7 +97,7 @@ class Touch(PythonBatchCommandBase):
         self.path = path
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(path="{os.fspath(self.path)}")"""
+        the_repr = f"""{self.__class__.__name__}(path=r"{os.fspath(self.path)}")"""
         return the_repr
 
     def progress_msg_self(self):
@@ -139,13 +139,15 @@ class ChFlags(RunProcessBase):
     """
     def __init__(self, path, flag: str, recursive=False, ignore_errors=True):
         super().__init__(ignore_all_errors=ignore_errors)
+        self.flags_dict = {'darwin': {'hidden': 'hidden', 'nohidden': 'nohidden', 'locked': 'uchg', 'unlocked': 'nouchg'},
+                           'win32': {'hidden': '+H', 'nohidden': '-H', 'locked': '+R', 'unlocked': '-R'}}
         self.path = path
         self.flag = flag
         self.recursive = recursive
         self.ignore_errors = ignore_errors
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(path="{os.fspath(self.path)}", flag="{self.flag}", recursive={self.recursive}, ignore_errors={self.ignore_errors})"""
+        the_repr = f"""{self.__class__.__name__}(path=r"{os.fspath(self.path)}", flag="{self.flag}", recursive={self.recursive}, ignore_errors={self.ignore_errors})"""
         return the_repr
 
     def progress_msg_self(self):
@@ -153,13 +155,29 @@ class ChFlags(RunProcessBase):
         return the_progress_msg
 
     def create_run_args(self):
+        flag = self.flags_dict[sys.platform][self.flag]
+        if sys.platform == 'darwin':
+            return self._create_run_args_mac(flag)
+        elif sys.platform == 'win32':
+            return self._create_run_args_win(flag)
+
+    def _create_run_args_win(self, flag):
+        run_args = list()
+        run_args.append("attrib")
+        if self.recursive:
+            run_args.extend(('/S', '/D'))
+        run_args.append(flag)
+        run_args.append(self.path)
+        return run_args
+
+    def _create_run_args_mac(self, flag):
         run_args = list()
         run_args.append("chflags")
         if self.ignore_errors:
             run_args.append("-f")
         if self.recursive:
             run_args.append("-R")
-        run_args.append(self.flag)
+        run_args.append(flag)
         run_args.append(self.path)
         return run_args
 
@@ -170,10 +188,10 @@ class Unlock(ChFlags):
         For changing permissions use chmod.
     """
     def __init__(self, path, recursive=False, ignore_errors=True):
-        super().__init__(path, "nouchg", recursive=recursive, ignore_errors=ignore_errors)
+        super().__init__(path, "unlocked", recursive=recursive, ignore_errors=ignore_errors)
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(path="{os.fspath(self.path)}", recursive={self.recursive}, ignore_errors={self.ignore_errors})"""
+        the_repr = f"""{self.__class__.__name__}(path=r"{os.fspath(self.path)}", recursive={self.recursive}, ignore_errors={self.ignore_errors})"""
         return the_repr
 
     def progress_msg_self(self):
@@ -284,8 +302,7 @@ class RoboCopyBase(CopyBase):
             #     raise subprocess.SubprocessError(f'{self.RETURN_CODES[e.returncode]}') from e
 
     def create_run_args(self):
-        run_args = ['robocopy', '/E']
-        run_args.extend(self.create_ignore_spec(self.ignore))
+        run_args = ['robocopy', '/E', '/R:9', '/W:1', '/NS', '/NC', '/NFL', '/NDL', '/NP', '/NJS']
         if not self.preserve_dest_files:
             run_args.append('/purge')
         if self.copy_file:
@@ -294,20 +311,22 @@ class RoboCopyBase(CopyBase):
             run_args.extend((self.src, os.path.join(self.trg, os.path.basename(self.src))))
         else:
             run_args.extend((self.src, self.trg))
+        run_args.extend(self.create_ignore_spec(self.ignore))
         return run_args
 
     def create_ignore_spec(self, ignore: bool):
-        retVal = []
-        # if ignore:
-        #     if isinstance(ignore, str):
-        #         ignore = (ignore,)
-        #     retVal.extend(["--exclude=" + utils.quoteme_single(ignoree) for ignoree in ignore])
+        try:
+            ignore = [os.path.abspath(os.path.join(self.src, path)) for path in ignore]
+        except TypeError:
+            retVal = []
+        else:
+            retVal = ['/XF'] + ignore + ['/XD'] + ignore
         return retVal
 
 
 if sys.platform == 'darwin':
     CopyClass = RsyncCopyBase
-else:
+elif sys.platform == 'win32':
     CopyClass = RoboCopyBase
 
 

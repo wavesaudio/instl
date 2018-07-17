@@ -7,6 +7,7 @@ import pathlib
 import unittest
 import shutil
 import stat
+import ctypes
 import io
 import contextlib
 import filecmp
@@ -57,6 +58,11 @@ def is_identical_dircmp(a_dircmp: filecmp.dircmp):
     return retVal
 
 
+def is_identical_dircomp_with_ignore(a_dircmp: filecmp.dircmp, filenames_to_ignore):
+    '''A non recusive function that tests that two folders are the same, but testing that the ignore list has been ignored (and not copied to trg folder)'''
+    return a_dircmp.left_only == filenames_to_ignore and len(a_dircmp.right_only) == 0 and len(a_dircmp.diff_files) == 0
+
+
 def is_hard_linked(a_dircmp: filecmp.dircmp):
     """ check that all same_files are hard link of each other"""
     retVal = True
@@ -93,6 +99,21 @@ def compare_chmod_recursive(folder_path, expected_file_mode, expected_dir_mode):
             if item_mode != expected_dir_mode:
                 return False
     return True
+
+
+def is_hidden(filepath):
+    name = os.path.basename(os.path.abspath(filepath))
+    return name.startswith('.') or has_hidden_attribute(filepath)
+
+
+def has_hidden_attribute(filepath):
+    try:
+        attrs = ctypes.windll.kernel32.GetFileAttributesW(str(filepath))
+        assert attrs != -1
+        result = bool(attrs & 2)
+    except (AttributeError, AssertionError):
+        result = False
+    return result
 
 
 class TestPythonBatch(unittest.TestCase):
@@ -376,6 +397,10 @@ class TestPythonBatch(unittest.TestCase):
         copied_dir_with_hard_links = dir_to_copy_to_with_hard_links.joinpath("copy-src").resolve()
         self.assertFalse(dir_to_copy_to_with_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_with_hard_links} should not exist before test")
 
+        dir_to_copy_to_with_ignore = self.test_folder.joinpath("copy-target-with-ignore").resolve()
+        copied_dir_with_ignore = dir_to_copy_to_with_ignore.joinpath("copy-src").resolve()
+        self.assertFalse(dir_to_copy_to_with_ignore.exists(), f"{self.which_test}: {dir_to_copy_to_with_ignore} should not exist before test")
+
         with self.batch_accum:
             self.batch_accum += MakeDirs(dir_to_copy_from)
             with self.batch_accum.adjuvant(Cd(dir_to_copy_from)) as sub_bc:
@@ -384,6 +409,8 @@ class TestPythonBatch(unittest.TestCase):
             self.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_no_hard_links, link_dest=False)
             if sys.platform == 'darwin':
                 self.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_with_hard_links, link_dest=True)
+            filenames_to_ignore = ["hootenanny"]
+            self.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_with_ignore, ignore=filenames_to_ignore)
 
         self.exec_and_capture_output()
 
@@ -393,6 +420,9 @@ class TestPythonBatch(unittest.TestCase):
         if sys.platform == 'darwin':
             dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, copied_dir_with_hard_links)
             self.assertTrue(is_hard_linked(dir_comp_with_hard_links), "{self.which_test} (with hard links): source and target files are not hard links to the same file")
+
+        dir_comp_with_ignore = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_ignore)
+        is_identical_dircomp_with_ignore(dir_comp_with_ignore, filenames_to_ignore)
 
     def test_CopyDirContentsToDir(self):
         """ see doc string for test_CopyDirToDir, with the difference that the source dir contents
@@ -407,6 +437,9 @@ class TestPythonBatch(unittest.TestCase):
         dir_to_copy_to_with_hard_links = self.test_folder.joinpath("copy-target-with-hard-links").resolve()
         self.assertFalse(dir_to_copy_to_with_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_with_hard_links} should not exist before test")
 
+        dir_to_copy_to_with_ignore = self.test_folder.joinpath("copy-target-with-ignore").resolve()
+        self.assertFalse(dir_to_copy_to_with_ignore.exists(), f"{self.which_test}: {dir_to_copy_to_with_ignore} should not exist before test")
+
         with self.batch_accum:
             self.batch_accum += MakeDirs(dir_to_copy_from)
             with self.batch_accum.adjuvant(Cd(dir_to_copy_from)) as sub_bc:
@@ -415,6 +448,8 @@ class TestPythonBatch(unittest.TestCase):
             self.batch_accum += CopyDirContentsToDir(dir_to_copy_from, dir_to_copy_to_no_hard_links, link_dest=False)
             if sys.platform == 'darwin':
                 self.batch_accum += CopyDirContentsToDir(dir_to_copy_from, dir_to_copy_to_with_hard_links, link_dest=True)
+            filenames_to_ignore = ["hootenanny"]
+            self.batch_accum += CopyDirContentsToDir(dir_to_copy_from, dir_to_copy_to_with_ignore, ignore=filenames_to_ignore)
 
         self.exec_and_capture_output()
 
@@ -424,6 +459,9 @@ class TestPythonBatch(unittest.TestCase):
         if sys.platform == 'darwin':
             dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_hard_links)
             self.assertTrue(is_hard_linked(dir_comp_with_hard_links), "{self.which_test} (with hard links): source and target files are not hard links to the same file")
+
+        dir_comp_with_ignore = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_ignore)
+        is_identical_dircomp_with_ignore(dir_comp_with_ignore, filenames_to_ignore)
 
     def test_CopyFileToDir(self):
         """ see doc string for test_CopyDirToDir, with the difference that the source dir contains
@@ -514,33 +552,43 @@ class TestPythonBatch(unittest.TestCase):
         self.assertFalse(dir_to_remove.exists())
 
     def test_ChFlags(self):
-        flags = {"hidden": stat.UF_HIDDEN,
-                 "uchg": stat.UF_IMMUTABLE}
         test_file = self.test_folder.joinpath("chflags-me").resolve()
         self.assertFalse(test_file.exists(), f"{self.which_test}: {test_file} should not exist before test")
 
         with self.batch_accum:
+            # On Windows, we must hide the file last or we won't be able to change additional flags
             self.batch_accum += Touch(test_file)
+            self.batch_accum += ChFlags(test_file, "locked")
             self.batch_accum += ChFlags(test_file, "hidden")
-            self.batch_accum += ChFlags(test_file, "uchg")
 
-        self.exec_and_capture_output("hidden_uchg")
+        self.exec_and_capture_output("hidden_locked")
 
         self.assertTrue(test_file.exists())
 
-        files_flags = os.stat(test_file).st_flags
-        self.assertEqual((files_flags & flags['hidden']), flags['hidden'])
-        self.assertEqual((files_flags & flags['uchg']), flags['uchg'])
+        flags = {"hide": stat.UF_HIDDEN,
+                 "lock": stat.UF_IMMUTABLE}
+        if sys.platform == 'darwin':
+            files_flags = os.stat(test_file).st_flags
+            self.assertEqual((files_flags & flags['hidden']), flags['hidden'])
+            self.assertEqual((files_flags & flags['locked']), flags['locked'])
+        elif sys.platform == 'win32':
+            self.assertTrue(is_hidden(test_file))
+            self.assertFalse(os.access(test_file, os.W_OK))
 
         with self.batch_accum:
-            self.batch_accum += Unlock(test_file)                # so file can be erased
+            # On Windows, we must first unhide the file before we can change additional flags
             self.batch_accum += ChFlags(test_file, "nohidden")   # so file can be seen
+            self.batch_accum += Unlock(test_file)                # so file can be erased
 
         self.exec_and_capture_output("nohidden")
 
-        files_flags = os.stat(test_file).st_flags
-        self.assertEqual((files_flags & flags['uchg']), 0)
-        self.assertEqual((files_flags & flags['hidden']), 0)
+        if sys.platform == 'darwin':
+            files_flags = os.stat(test_file).st_flags
+            self.assertEqual((files_flags & flags['locked']), 0)
+            self.assertEqual((files_flags & flags['hidden']), 0)
+        elif sys.platform == 'win32':
+            self.assertFalse(is_hidden(test_file))
+            self.assertTrue(os.access(test_file, os.W_OK))
 
     def test_AppendFileToFile(self):
         source_file = self.test_folder.joinpath("source-file.txt").resolve()
@@ -583,7 +631,6 @@ class TestPythonBatch(unittest.TestCase):
             self.batch_accum += ShellCommands(dir=batches_dir, var_name="geronimo")
 
         self.exec_and_capture_output()
-
 
 
 if __name__ == '__main__':
