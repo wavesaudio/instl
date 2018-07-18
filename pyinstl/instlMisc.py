@@ -77,6 +77,7 @@ class InstlMisc(InstlInstanceBase):
 
     def do_parallel_run(self):
         processes_list_file = config_vars["__MAIN_INPUT_FILE__"].str()
+
         with ParallelRun(processes_list_file, shell=False)as para_runner:
             para_runner()
 
@@ -85,8 +86,6 @@ class InstlMisc(InstlInstanceBase):
         if not os.path.exists(what_to_work_on):
             print(what_to_work_on, "does not exists")
             return
-
-        what_to_work_on_dir, what_to_work_on_leaf = os.path.split(what_to_work_on)
 
         where_to_put_wtar = None
         if "__MAIN_OUT_FILE__" in config_vars:
@@ -202,14 +201,10 @@ class InstlMisc(InstlInstanceBase):
             folders_to_list.append(main_folder_to_list)
 
         ls_format = str(config_vars.get("LS_FORMAT", '*'))
-        the_listing = utils.disk_item_listing(*folders_to_list, ls_format=ls_format)
-
         out_file = config_vars["__MAIN_OUT_FILE__"].str()
-        try:
-            with utils.write_to_file_or_stdout(out_file) as wfd:
-                wfd.write(the_listing)
-        except NotADirectoryError:
-            print(f"Cannot output to {out_file}")
+
+        with Ls(folders_to_list, out_file, ls_format) as lister:
+            lister()
 
     def do_fail(self):
         exit_code = int(config_vars.get("__FAIL_EXIT_CODE__", "1") )

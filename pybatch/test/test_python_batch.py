@@ -460,11 +460,11 @@ class TestPythonBatch(unittest.TestCase):
         self.exec_and_capture_output()
 
         dir_comp_no_hard_links = filecmp.dircmp(dir_to_copy_from, copied_dir_no_hard_links)
-        self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), "{self.which_test} (no hard links): source and target dirs are not the same")
+        self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), f"{self.which_test} (no hard links): source and target dirs are not the same")
 
         if sys.platform == 'darwin':
             dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, copied_dir_with_hard_links)
-            self.assertTrue(is_hard_linked(dir_comp_with_hard_links), "{self.which_test} (with hard links): source and target files are not hard links to the same file")
+            self.assertTrue(is_hard_linked(dir_comp_with_hard_links), f"{self.which_test} (with hard links): source and target files are not hard links to the same file")
         dir_comp_with_ignore = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_ignore)
         is_identical_dircomp_with_ignore(dir_comp_with_ignore, filenames_to_ignore)
 
@@ -505,11 +505,11 @@ class TestPythonBatch(unittest.TestCase):
         self.exec_and_capture_output()
 
         dir_comp_no_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_no_hard_links)
-        self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), "{self.which_test} (no hard links): source and target dirs are not the same")
+        self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), f"{self.which_test} (no hard links): source and target dirs are not the same")
 
         if sys.platform == 'darwin':
             dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_hard_links)
-            self.assertTrue(is_hard_linked(dir_comp_with_hard_links), "{self.which_test} (with hard links): source and target files are not hard  links to the same file")
+            self.assertTrue(is_hard_linked(dir_comp_with_hard_links), f"{self.which_test} (with hard links): source and target files are not hard  links to the same file")
 
         dir_comp_with_ignore = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_ignore)
         is_identical_dircomp_with_ignore(dir_comp_with_ignore, filenames_to_ignore)
@@ -548,11 +548,11 @@ class TestPythonBatch(unittest.TestCase):
         self.exec_and_capture_output()
 
         dir_comp_no_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_no_hard_links)
-        self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), "{self.which_test} (no hard links): source and target dirs are not the same")
+        self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), f"{self.which_test} (no hard links): source and target dirs are not the same")
 
         if sys.platform == 'darwin':
             dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_hard_links)
-            self.assertTrue(is_hard_linked(dir_comp_with_hard_links), "{self.which_test} (with hard links): source and target files are not hard links to the same file")
+            self.assertTrue(is_hard_linked(dir_comp_with_hard_links), f"{self.which_test} (with hard links): source and target files are not hard links to the same file")
 
     def test_CopyFileToFile_repr(self):
         dir_from = r"\p\o\i"
@@ -589,10 +589,10 @@ class TestPythonBatch(unittest.TestCase):
         self.exec_and_capture_output()
 
         dir_comp_no_hard_links = filecmp.dircmp(dir_to_copy_from, target_dir_no_hard_links)
-        self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), "{self.which_test}  (no hard links): source and target dirs are not the same")
+        self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), f"{self.which_test}  (no hard links): source and target dirs are not the same")
 
         dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, target_dir_with_hard_links)
-        self.assertTrue(is_hard_linked(dir_comp_with_hard_links), "{self.which_test}  (with hard links): source and target files are not hard links to the same file")
+        self.assertTrue(is_hard_linked(dir_comp_with_hard_links), f"{self.which_test}  (with hard links): source and target files are not hard links to the same file")
 
     def test_RmFile_repr(self):
         rmfile_obj = RmFile(r"\just\remove\me\already")
@@ -877,39 +877,39 @@ class TestPythonBatch(unittest.TestCase):
             self.batch_accum += Unwtar(folder_wtarred, unwtar_here)
         self.exec_and_capture_output("unwtar the folder")
         dir_wtar_unwtar_diff = filecmp.dircmp(folder_to_wtar, unwtared_folder, ignore=['.DS_Store'])
-        self.assertTrue(is_identical_dircmp(dir_wtar_unwtar_diff), "{self.which_test} : before wtar and after unwtar dirs are not the same")
+        self.assertTrue(is_identical_dircmp(dir_wtar_unwtar_diff), f"{self.which_test} : before wtar and after unwtar dirs are not the same")
 
     def test_WinShortcut_repr(self):
+        if sys.platform == "win32":
+            win_shortcut_obj = WinShortcut("/the/memphis/belle", "/go/to/hell")
+            win_shortcut_obj_recreated = eval(repr(win_shortcut_obj))
+            self.assertEqual(win_shortcut_obj, win_shortcut_obj_recreated, "WinShortcut.repr did not recreate WinShortcut object correctly")
 
-        win_shortcut_obj = WinShortcut("/the/memphis/belle", "/go/to/hell")
-        win_shortcut_obj_recreated = eval(repr(win_shortcut_obj))
-        self.assertEqual(win_shortcut_obj, win_shortcut_obj_recreated, "WinShortcut.repr did not recreate WinShortcut object correctly")
+            win_shortcut_obj = WinShortcut("/the/memphis/belle", "/go/to/hell", False)
+            win_shortcut_obj_recreated = eval(repr(win_shortcut_obj))
+            self.assertEqual(win_shortcut_obj, win_shortcut_obj_recreated, "WinShortcut.repr did not recreate WinShortcut object correctly")
 
-        win_shortcut_obj = WinShortcut("/the/memphis/belle", "/go/to/hell", False)
-        win_shortcut_obj_recreated = eval(repr(win_shortcut_obj))
-        self.assertEqual(win_shortcut_obj, win_shortcut_obj_recreated, "WinShortcut.repr did not recreate WinShortcut object correctly")
-
-        win_shortcut_obj = WinShortcut("/the/memphis/belle", "/go/to/hell", run_as_admin=True)
-        win_shortcut_obj_recreated = eval(repr(win_shortcut_obj))
-        self.assertEqual(win_shortcut_obj, win_shortcut_obj_recreated, "WinShortcut.repr did not recreate WinShortcut object correctly")
+            win_shortcut_obj = WinShortcut("/the/memphis/belle", "/go/to/hell", run_as_admin=True)
+            win_shortcut_obj_recreated = eval(repr(win_shortcut_obj))
+            self.assertEqual(win_shortcut_obj, win_shortcut_obj_recreated, "WinShortcut.repr did not recreate WinShortcut object correctly")
 
     def test_WinShortcut(self):
         if sys.platform == "win32":
             pass  # TBD on windows
 
     def test_MacDoc_repr(self):
+        if sys.platform == "darwin":
+            mac_dock_obj = MacDock("/Santa/Catalina/Island", "Santa Catalina Island", True)
+            mac_dock_obj_recreated = eval(repr(mac_dock_obj))
+            self.assertEqual(mac_dock_obj, mac_dock_obj_recreated, "MacDoc.repr did not recreate MacDoc object correctly")
 
-        mac_dock_obj = MacDock("/Santa/Catalina/Island", "Santa Catalina Island", True)
-        mac_dock_obj_recreated = eval(repr(mac_dock_obj))
-        self.assertEqual(mac_dock_obj, mac_dock_obj_recreated, "MacDoc.repr did not recreate MacDoc object correctly")
+            mac_dock_obj = MacDock("/Santa/Catalina/Island", "Santa Catalina Island", False)
+            mac_dock_obj_recreated = eval(repr(mac_dock_obj))
+            self.assertEqual(mac_dock_obj, mac_dock_obj_recreated, "MacDoc.repr did not recreate MacDoc object correctly")
 
-        mac_dock_obj = MacDock("/Santa/Catalina/Island", "Santa Catalina Island", False)
-        mac_dock_obj_recreated = eval(repr(mac_dock_obj))
-        self.assertEqual(mac_dock_obj, mac_dock_obj_recreated, "MacDoc.repr did not recreate MacDoc object correctly")
-
-        mac_dock_obj = MacDock("/Santa/Catalina/Island", "Santa Catalina Island", True, remove=True)
-        mac_dock_obj_recreated = eval(repr(mac_dock_obj))
-        self.assertEqual(mac_dock_obj, mac_dock_obj_recreated, "MacDoc.repr did not recreate MacDoc object correctly")
+            mac_dock_obj = MacDock("/Santa/Catalina/Island", "Santa Catalina Island", True, remove=True)
+            mac_dock_obj_recreated = eval(repr(mac_dock_obj))
+            self.assertEqual(mac_dock_obj, mac_dock_obj_recreated, "MacDoc.repr did not recreate MacDoc object correctly")
 
     def test_MacDoc(self):
         if sys.platform == "darwin":
@@ -932,7 +932,7 @@ class TestPythonBatch(unittest.TestCase):
         self.assertEqual(ref_obj, ref_obj_recreated, "RemoveEmptyFolders.repr did not recreate MacDoc object correctly")
 
     def test_RemoveEmptyFolders(self):
-        folder_to_remove = self.test_folder.joinpath("folder-toremove").resolve()
+        folder_to_remove = self.test_folder.joinpath("folder-to-remove").resolve()
         file_to_stay = folder_to_remove.joinpath("paramedic")
 
         # create the folder, with sub folder and one known file
@@ -942,8 +942,8 @@ class TestPythonBatch(unittest.TestCase):
                 self.batch_accum += Touch("paramedic")
                 self.batch_accum += MakeRandomDirs(num_levels=3, num_dirs_per_level=2, num_files_per_dir=0, file_size=41)
         self.exec_and_capture_output("create empty folders")
-        self.assertTrue(os.path.isdir(folder_to_remove), "{self.which_test} : folder to remove was not created {folder_to_remove}")
-        self.assertTrue(os.path.isfile(file_to_stay), "{self.which_test} : file_to_stay was not created {file_to_stay}")
+        self.assertTrue(os.path.isdir(folder_to_remove), f"{self.which_test} : folder to remove was not created {folder_to_remove}")
+        self.assertTrue(os.path.isfile(file_to_stay), f"{self.which_test} : file_to_stay was not created {file_to_stay}")
 
         # remove empty folders, top folder and known file should remain
         with self.batch_accum:
@@ -951,15 +951,46 @@ class TestPythonBatch(unittest.TestCase):
             # removing non existing folder should not be a problem
             self.batch_accum += RemoveEmptyFolders("kajagogo", files_to_ignore=['.DS_Store'])
         self.exec_and_capture_output("remove almost empty folders")
-        self.assertTrue(os.path.isdir(folder_to_remove), "{self.which_test} : folder was removed although it had a legit file {folder_to_remove}")
-        self.assertTrue(os.path.isfile(file_to_stay), "{self.which_test} : file_to_stay was removed {file_to_stay}")
+        self.assertTrue(os.path.isdir(folder_to_remove), f"{self.which_test} : folder was removed although it had a legit file {folder_to_remove}")
+        self.assertTrue(os.path.isfile(file_to_stay), f"{self.which_test} : file_to_stay was removed {file_to_stay}")
 
         # remove empty folders, with known file ignored - so to folder should be removed
         with self.batch_accum:
             self.batch_accum += RemoveEmptyFolders(folder_to_remove, files_to_ignore=['.DS_Store', "paramedic"])
         self.exec_and_capture_output("remove empty folders")
-        self.assertFalse(os.path.isdir(folder_to_remove), "{self.which_test} : folder was not removed {folder_to_remove}")
-        self.assertFalse(os.path.isfile(file_to_stay), "{self.which_test} : file_to_stay was not removed {file_to_stay}")
+        self.assertFalse(os.path.isdir(folder_to_remove), f"{self.which_test} : folder was not removed {folder_to_remove}")
+        self.assertFalse(os.path.isfile(file_to_stay), f"{self.which_test} : file_to_stay was not removed {file_to_stay}")
+
+    def test_Ls_repr(self):
+        with self.assertRaises(TypeError):
+            ref_obj = Ls()
+
+        ls_obj = Ls([], "empty.txt")
+        ls_obj_recreated = eval(repr(ls_obj))
+        self.assertEqual(ls_obj, ls_obj_recreated, "Ls.repr did not recreate Ls object correctly")
+
+        ls_obj = Ls(["/per/pen/di/cular"], "perpendicular_ls.txt",ls_format='abc')
+        ls_obj_recreated =eval(repr(ls_obj))
+        self.assertEqual(ls_obj, ls_obj_recreated, "Ls.repr did not recreate Ls object correctly")
+
+        ls_obj = Ls(["/Gina/Lollobrigida", "/Francesca/Gioberti"], "Lollobrigida.txt")
+        ls_obj_recreated =eval(repr(ls_obj))
+        self.assertEqual(ls_obj, ls_obj_recreated, "Ls.repr did not recreate Ls object correctly")
+
+    def test_Ls(self):
+        folder_to_list = self.test_folder.joinpath("folder-to-list").resolve()
+        list_out_file = self.test_folder.joinpath("list-output").resolve()
+
+        # create the folder, with sub folder and one known file
+        with self.batch_accum:
+             with self.batch_accum.sub_accum(Cd(self.test_folder)):
+                 self.batch_accum += MakeDirs(folder_to_list)
+                 with self.batch_accum.sub_accum(Cd(folder_to_list)):
+                    self.batch_accum += MakeRandomDirs(num_levels=3, num_dirs_per_level=2, num_files_per_dir=8, file_size=41)
+                 self.batch_accum += Ls(folder_to_list, "list-output")
+        self.exec_and_capture_output("ls folder")
+        self.assertTrue(os.path.isdir(folder_to_list), f"{self.which_test} : folder to list was not created {folder_to_list}")
+        self.assertTrue(os.path.isfile(list_out_file), f"{self.which_test} : list_out_file was not created {list_out_file}")
 
 
 if __name__ == '__main__':
