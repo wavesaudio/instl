@@ -31,4 +31,7 @@ from .wtarBatchCommands import Wtar, Unwtar
 if sys.platform == "win32":
     from .batchCommandsWinOnly import WinShortcut
 
+if sys.platform == "darwin":
+    from .batchCommandsMacOnly import MacDock
+
 from .new_batchCommands import *

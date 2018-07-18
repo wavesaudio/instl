@@ -897,6 +897,24 @@ class TestPythonBatch(unittest.TestCase):
         if sys.platform == "win32":
             pass  # TBD
 
+    def test_MacDoc_repr(self):
+
+        mac_dock_obj = MacDock("/the/memphis/belle", "Santa Catalina Island", True)
+        mac_dock_obj_recreated = eval(repr(mac_dock_obj))
+        self.assertEqual(mac_dock_obj, mac_dock_obj_recreated, "MacDoc.repr did not recreate MacDoc object correctly")
+
+        mac_dock_obj = MacDock("/the/memphis/belle", "Santa Catalina Island", False)
+        mac_dock_obj_recreated = eval(repr(mac_dock_obj))
+        self.assertEqual(mac_dock_obj, mac_dock_obj_recreated, "MacDoc.repr did not recreate MacDoc object correctly")
+
+        mac_dock_obj = MacDock("/the/memphis/belle", "Santa Catalina Island", True, remove=True)
+        mac_dock_obj_recreated = eval(repr(mac_dock_obj))
+        self.assertEqual(mac_dock_obj, mac_dock_obj_recreated, "MacDoc.repr did not recreate MacDoc object correctly")
+
+    def test_MacDoc(self):
+        if sys.platform == "darwin":
+            pass  # who do we check this?
+
 
 if __name__ == '__main__':
     test_folder = pathlib.Path(__file__).joinpath("..", "..", "..").resolve().joinpath(main_test_folder_name)

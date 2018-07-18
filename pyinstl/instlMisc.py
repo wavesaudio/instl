@@ -207,30 +207,8 @@ class InstlMisc(InstlInstanceBase):
         restart_the_doc = bool(config_vars["__RESTART_THE_DOCK__"])
         remove = bool(config_vars["__REMOVE_FROM_DOCK__"])
 
-        dock_util_command = list()
-        if remove:
-            dock_util_command.append("--remove")
-            if label_for_item:
-                dock_util_command.append(label_for_item)
-            if not restart_the_doc:
-                dock_util_command.append("--no-restart")
-        else:
-            if not path_to_item:
-                if restart_the_doc:
-                    dock_util_command.append("--restart")
-                else:
-                    print("mac-dock confusing options, both --path and --restart were not supplied")
-            else:
-                dock_util_command.append("--add")
-                dock_util_command.append(path_to_item)
-                if label_for_item:
-                    dock_util_command.append("--label")
-                    dock_util_command.append(label_for_item)
-                    dock_util_command.append("--replacing")
-                    dock_util_command.append(label_for_item)
-        if not restart_the_doc:
-            dock_util_command.append("--no-restart")
-        utils.dock_util(dock_util_command)
+        with MacDock(path_to_item, label_for_item, restart_the_doc, remove) as mac_docker:
+            mac_docker()
 
     def do_ls(self):
         main_folder_to_list = config_vars["__MAIN_INPUT_FILE__"].str()
