@@ -165,29 +165,9 @@ class InstlMisc(InstlInstanceBase):
     def do_remove_empty_folders(self):
         folder_to_remove = config_vars["__MAIN_INPUT_FILE__"].str()
         files_to_ignore = list(config_vars.get("REMOVE_EMPTY_FOLDERS_IGNORE_FILES", []))
-        for root_path, dir_names, file_names in os.walk(folder_to_remove, topdown=False, onerror=None, followlinks=False):
-            # when topdown=False os.walk creates dir_names for each root_path at the beginning and has
-            # no knowledge if a directory has already been deleted.
-            existing_dirs = [dir_name for dir_name in dir_names if os.path.isdir(os.path.join(root_path, dir_name))]
-            if len(existing_dirs) == 0:
-                ignored_files = list()
-                for filename in file_names:
-                    if filename in files_to_ignore:
-                        ignored_files.append(filename)
-                    else:
-                        break
-                if len(file_names) == len(ignored_files):
-                    # only remove the ignored files if the folder is to be removed
-                    for filename in ignored_files:
-                        file_to_remove_full_path = os.path.join(root_path, filename)
-                        try:
-                            os.remove(file_to_remove_full_path)
-                        except Exception as ex:
-                            print("failed to remove", file_to_remove_full_path, ex)
-                    try:
-                        os.rmdir(root_path)
-                    except Exception as ex:
-                        print("failed to remove", root_path, ex)
+
+        with RemoveEmptyFolders(folder_to_remove, files_to_ignore=files_to_ignore) as remover:
+            remover()
 
     def do_win_shortcut(self):
         shortcut_path = config_vars["__SHORTCUT_PATH__"].str()

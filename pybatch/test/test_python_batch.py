@@ -895,25 +895,71 @@ class TestPythonBatch(unittest.TestCase):
 
     def test_WinShortcut(self):
         if sys.platform == "win32":
-            pass  # TBD
+            pass  # TBD on windows
 
     def test_MacDoc_repr(self):
 
-        mac_dock_obj = MacDock("/the/memphis/belle", "Santa Catalina Island", True)
+        mac_dock_obj = MacDock("/Santa/Catalina/Island", "Santa Catalina Island", True)
         mac_dock_obj_recreated = eval(repr(mac_dock_obj))
         self.assertEqual(mac_dock_obj, mac_dock_obj_recreated, "MacDoc.repr did not recreate MacDoc object correctly")
 
-        mac_dock_obj = MacDock("/the/memphis/belle", "Santa Catalina Island", False)
+        mac_dock_obj = MacDock("/Santa/Catalina/Island", "Santa Catalina Island", False)
         mac_dock_obj_recreated = eval(repr(mac_dock_obj))
         self.assertEqual(mac_dock_obj, mac_dock_obj_recreated, "MacDoc.repr did not recreate MacDoc object correctly")
 
-        mac_dock_obj = MacDock("/the/memphis/belle", "Santa Catalina Island", True, remove=True)
+        mac_dock_obj = MacDock("/Santa/Catalina/Island", "Santa Catalina Island", True, remove=True)
         mac_dock_obj_recreated = eval(repr(mac_dock_obj))
         self.assertEqual(mac_dock_obj, mac_dock_obj_recreated, "MacDoc.repr did not recreate MacDoc object correctly")
 
     def test_MacDoc(self):
         if sys.platform == "darwin":
             pass  # who do we check this?
+
+    def test_RemoveEmptyFolders_repr(self):
+        with self.assertRaises(TypeError):
+            ref_obj = RemoveEmptyFolders()
+
+        ref_obj = RemoveEmptyFolders("/per/pen/di/cular")
+        ref_obj_recreated =eval(repr(ref_obj))
+        self.assertEqual(ref_obj, ref_obj_recreated, "RemoveEmptyFolders.repr did not recreate MacDoc object correctly")
+
+        ref_obj = RemoveEmptyFolders("/per/pen/di/cular", [])
+        ref_obj_recreated =eval(repr(ref_obj))
+        self.assertEqual(ref_obj, ref_obj_recreated, "RemoveEmptyFolders.repr did not recreate MacDoc object correctly")
+
+        ref_obj = RemoveEmptyFolders("/per/pen/di/cular", ['async', 'await'])
+        ref_obj_recreated =eval(repr(ref_obj))
+        self.assertEqual(ref_obj, ref_obj_recreated, "RemoveEmptyFolders.repr did not recreate MacDoc object correctly")
+
+    def test_RemoveEmptyFolders(self):
+        folder_to_remove = self.test_folder.joinpath("folder-toremove").resolve()
+        file_to_stay = folder_to_remove.joinpath("paramedic")
+
+        # create the folder, with sub folder and one known file
+        with self.batch_accum:
+             self.batch_accum += MakeDirs(folder_to_remove)
+             with self.batch_accum.sub_accum(Cd(folder_to_remove)):
+                self.batch_accum += Touch("paramedic")
+                self.batch_accum += MakeRandomDirs(num_levels=3, num_dirs_per_level=2, num_files_per_dir=0, file_size=41)
+        self.exec_and_capture_output("create empty folders")
+        self.assertTrue(os.path.isdir(folder_to_remove), "{self.which_test} : folder to remove was not created {folder_to_remove}")
+        self.assertTrue(os.path.isfile(file_to_stay), "{self.which_test} : file_to_stay was not created {file_to_stay}")
+
+        # remove empty folders, top folder and known file should remain
+        with self.batch_accum:
+            self.batch_accum += RemoveEmptyFolders(folder_to_remove, files_to_ignore=['.DS_Store'])
+            # removing non existing folder should not be a problem
+            self.batch_accum += RemoveEmptyFolders("kajagogo", files_to_ignore=['.DS_Store'])
+        self.exec_and_capture_output("remove almost empty folders")
+        self.assertTrue(os.path.isdir(folder_to_remove), "{self.which_test} : folder was removed although it had a legit file {folder_to_remove}")
+        self.assertTrue(os.path.isfile(file_to_stay), "{self.which_test} : file_to_stay was removed {file_to_stay}")
+
+        # remove empty folders, with known file ignored - so to folder should be removed
+        with self.batch_accum:
+            self.batch_accum += RemoveEmptyFolders(folder_to_remove, files_to_ignore=['.DS_Store', "paramedic"])
+        self.exec_and_capture_output("remove empty folders")
+        self.assertFalse(os.path.isdir(folder_to_remove), "{self.which_test} : folder was not removed {folder_to_remove}")
+        self.assertFalse(os.path.isfile(file_to_stay), "{self.which_test} : file_to_stay was not removed {file_to_stay}")
 
 
 if __name__ == '__main__':
