@@ -445,7 +445,9 @@ def find_split_files(first_file):
 def find_split_files_from_base_file(base_file):
     split_files = list()
     try:
-        wtar_first_file = base_file+".wtar"
+        wtar_first_file = base_file
+        if not utils.is_first_wtar_file(wtar_first_file):
+            wtar_first_file = wtar_first_file+".wtar"
         if not os.path.isfile(wtar_first_file):
             wtar_first_file += ".aa"
         if os.path.isfile(wtar_first_file):

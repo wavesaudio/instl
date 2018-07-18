@@ -785,50 +785,6 @@ def get_recursive_checksums(some_path, ignore=None):
     return retVal
 
 
-def unwtar_a_file(wtar_file_path, destination_folder=None, no_artifacts=False, ignore=None):
-    try:
-        wtar_file_paths = utils.find_split_files(wtar_file_path)
-
-        if destination_folder is None:
-            destination_folder, _ = os.path.split(wtar_file_paths[0])
-        print("unwtar", wtar_file_path, " to ", destination_folder)
-        if ignore is None:
-            ignore = ()
-
-        first_wtar_file_dir, first_wtar_file_name = os.path.split(wtar_file_paths[0])
-        destination_leaf_name = original_name_from_wtar_name(first_wtar_file_name)
-        destination_path = os.path.join(destination_folder, destination_leaf_name)
-
-        do_the_unwtarring = True
-        with utils.MultiFileReader("br", wtar_file_paths) as fd:
-            with tarfile.open(fileobj=fd) as tar:
-                tar_total_checksum = tar.pax_headers.get("total_checksum")
-                if tar_total_checksum:
-                    if os.path.exists(destination_path):
-                        disk_total_checksum = "disk_total_checksum_was_not_found"
-                        with utils.ChangeDirIfExists(destination_folder):
-                            disk_total_checksum = get_recursive_checksums(destination_leaf_name, ignore=ignore).get("total_checksum", "disk_total_checksum_was_not_found")
-
-                        if disk_total_checksum == tar_total_checksum:
-                            do_the_unwtarring = False
-                            print(wtar_file_paths[0], "skipping unwtarring because item exists and is identical to archive")
-                if do_the_unwtarring:
-                    utils.safe_remove_file_system_object(destination_path)
-                    tar.extractall(destination_folder)
-
-        if no_artifacts:
-            for wtar_file in wtar_file_paths:
-                os.remove(wtar_file)
-
-    except OSError as e:
-        print(f"Invalid stream on split file with {wtar_file_paths[0]}")
-        raise e
-
-    except tarfile.TarError:
-        print("tarfile error while opening file", os.path.abspath(wtar_file_paths[0]))
-        raise
-
-
 def obj_memory_size(obj, seen=None):
     """Recursively finds size of objects"""
     size = 0

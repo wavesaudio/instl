@@ -26,4 +26,6 @@ from .batchCommands import touch
 from .batchCommands import Touch
 from .batchCommands import Unlock
 
+from .wtarBatchCommands import Wtar, Unwtar
+
 from .new_batchCommands import *

@@ -819,6 +819,66 @@ class TestPythonBatch(unittest.TestCase):
 
         self.assertTrue(filecmp.cmp(zip_input, zip_input_copy), f"'{zip_input}' and '{zip_input_copy}' should be identical")
 
+    def test_Wtar_Unwtar_repr(self):
+        wtar_obj = Wtar("/the/memphis/belle")
+        wtar_obj_recreated = eval(repr(wtar_obj))
+        self.assertEqual(wtar_obj, wtar_obj_recreated, "Wtar.repr did not recreate Wtar object correctly")
+
+        wtar_obj = Wtar("/the/memphis/belle", None)
+        wtar_obj_recreated = eval(repr(wtar_obj))
+        self.assertEqual(wtar_obj, wtar_obj_recreated, "Wtar.repr did not recreate Wtar object correctly")
+
+        wtar_obj = Wtar("/the/memphis/belle", "robota")
+        wtar_obj_recreated = eval(repr(wtar_obj))
+        self.assertEqual(wtar_obj, wtar_obj_recreated, "Wtar.repr did not recreate Wtar object correctly")
+
+        unwtar_obj = Unwtar("/the/memphis/belle")
+        unwtar_obj_recreated = eval(repr(unwtar_obj))
+        self.assertEqual(unwtar_obj, unwtar_obj_recreated, "Unwtar.repr did not recreate Unwtar object correctly")
+
+        unwtar_obj = Unwtar("/the/memphis/belle", None)
+        unwtar_obj_recreated = eval(repr(unwtar_obj))
+        self.assertEqual(unwtar_obj, unwtar_obj_recreated, "Unwtar.repr did not recreate Unwtar object correctly")
+
+        unwtar_obj = Unwtar("/the/memphis/belle", "robota", no_artifacts=True)
+        unwtar_obj_recreated = eval(repr(unwtar_obj))
+        self.assertEqual(unwtar_obj, unwtar_obj_recreated, "Unwtar.repr did not recreate Unwtar object correctly")
+
+    def test_Wtar_Unwtar(self):
+        folder_to_wtar = self.test_folder.joinpath("folder-to-wtar").resolve()
+        folder_wtarred = self.test_folder.joinpath("folder-to-wtar.wtar").resolve()
+        dummy_wtar_file_to_replace = self.test_folder.joinpath("dummy-wtar-file-to-replace.dummy").resolve()
+        with open(dummy_wtar_file_to_replace, "w") as wfd:
+            wfd.write(''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase+"\n") for i in range(10 * 1024)))
+        self.assertTrue(dummy_wtar_file_to_replace.exists(), f"{self.which_test}: {dummy_wtar_file_to_replace} should have been created")
+        another_folder = self.test_folder.joinpath("another-folder").resolve()
+        wtarred_in_another_folder = another_folder.joinpath("folder-to-wtar.wtar").resolve()
+
+        with self.batch_accum:
+             self.batch_accum += MakeDirs(folder_to_wtar)
+             with self.batch_accum.sub_accum(Cd(folder_to_wtar)):
+                self.batch_accum += Touch("dohickey")  # add one file with fixed (none random) name
+                self.batch_accum += MakeRandomDirs(num_levels=3, num_dirs_per_level=4, num_files_per_dir=7, file_size=41)
+                self.batch_accum += Wtar(folder_to_wtar)  # wtar next to the folder
+                self.batch_accum += Wtar(folder_to_wtar, dummy_wtar_file_to_replace)  # wtar on replacing existing file
+                self.batch_accum += MakeDirs(another_folder)
+                self.batch_accum += Wtar(folder_to_wtar, another_folder)  # wtar to a different folder
+        self.exec_and_capture_output("wtar the folder")
+        self.assertTrue(os.path.isfile(folder_wtarred), f"wtarred file was not found {folder_wtarred}")
+        self.assertTrue(os.path.isfile(dummy_wtar_file_to_replace), f"dummy_wtar_file_to_replace file was not found {dummy_wtar_file_to_replace}")
+        self.assertTrue(os.path.isfile(wtarred_in_another_folder), f"wtarred file in another folder was not found {wtarred_in_another_folder}")
+        self.assertTrue(filecmp.cmp(folder_wtarred, dummy_wtar_file_to_replace), f"'{folder_wtarred}' and '{dummy_wtar_file_to_replace}' should be identical")
+        self.assertTrue(filecmp.cmp(folder_wtarred, dummy_wtar_file_to_replace), f"'{folder_wtarred}' and '{dummy_wtar_file_to_replace}' should be identical")
+        self.assertTrue(filecmp.cmp(folder_wtarred, wtarred_in_another_folder), f"'{folder_wtarred}' and '{wtarred_in_another_folder}' should be identical")
+
+        unwtar_here = self.test_folder.joinpath("unwtar-here").resolve()
+        unwtared_folder = unwtar_here.joinpath("folder-to-wtar").resolve()
+        with self.batch_accum:
+            self.batch_accum += Unwtar(folder_wtarred, unwtar_here)
+        self.exec_and_capture_output("unwtar the folder")
+        dir_wtar_unwtar_diff = filecmp.dircmp(folder_to_wtar, unwtared_folder, ignore=['.DS_Store'])
+        self.assertTrue(is_identical_dircmp(dir_wtar_unwtar_diff), "{self.which_test} : before wtar and after unwtar dirs are not the same")
+
 
 if __name__ == '__main__':
     test_folder = pathlib.Path(__file__).joinpath("..", "..", "..").resolve().joinpath(main_test_folder_name)
