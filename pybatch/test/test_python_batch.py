@@ -992,6 +992,60 @@ class TestPythonBatch(unittest.TestCase):
         self.assertTrue(os.path.isdir(folder_to_list), f"{self.which_test} : folder to list was not created {folder_to_list}")
         self.assertTrue(os.path.isfile(list_out_file), f"{self.which_test} : list_out_file was not created {list_out_file}")
 
+    def test_Wzip_repr(self):
+        wzip_obj = Wzip("/the/memphis/belle")
+        wzip_obj_recreated = eval(repr(wzip_obj))
+        self.assertEqual(wzip_obj, wzip_obj_recreated, "Wzip.repr did not recreate Wzip object correctly")
+
+        wzip_obj = Wzip("/the/memphis/belle", None)
+        wzip_obj_recreated = eval(repr(wzip_obj))
+        self.assertEqual(wzip_obj, wzip_obj_recreated, "Wzip.repr did not recreate Wzip object correctly")
+
+        wzip_obj = Wzip("/the/memphis/belle", "robota")
+        wzip_obj_recreated = eval(repr(wzip_obj))
+        self.assertEqual(wzip_obj, wzip_obj_recreated, "Wzip.repr did not recreate Wzip object correctly")
+
+        unwzip_obj = Unwzip("/the/memphis/belle")
+        unwzip_obj_recreated = eval(repr(unwzip_obj))
+        self.assertEqual(unwzip_obj, unwzip_obj_recreated, "Unwzip.repr did not recreate Unwzip object correctly")
+
+        unwzip_obj = Unwzip("/the/memphis/belle", None)
+        unwzip_obj_recreated = eval(repr(unwzip_obj))
+        self.assertEqual(unwzip_obj, unwzip_obj_recreated, "Unwzip.repr did not recreate Unwzip object correctly")
+
+        unwzip_obj = Unwzip("/the/memphis/belle", "robota")
+        unwzip_obj_recreated = eval(repr(unwzip_obj))
+        self.assertEqual(wzip_obj, wzip_obj_recreated, "Wzip.repr did not recreate Wzip object correctly")
+
+    def test_Wzip(self):
+        wzip_input = self.test_folder.joinpath("wzip_in").resolve()
+        self.assertFalse(wzip_input.exists(), f"{self.which_test}: {wzip_input} should not exist before test")
+        wzip_output = self.test_folder.joinpath("wzip_in.wzip").resolve()
+        self.assertFalse(wzip_output.exists(), f"{self.which_test}: {wzip_output} should not exist before test")
+
+        unwzip_target_folder = self.test_folder.joinpath("unwzip_target").resolve()
+        self.assertFalse(unwzip_target_folder.exists(), f"{self.which_test}: {unwzip_target_folder} should not exist before test")
+        unwzip_target_file = self.test_folder.joinpath("wzip_in").resolve()
+        self.assertFalse(unwzip_target_file.exists(), f"{self.which_test}: {unwzip_target_file} should not exist before test")
+
+        # create a file to zip
+        with open(wzip_input, "w") as wfd:
+            wfd.write(''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase+"\n") for i in range(10 * 1024)))
+        self.assertTrue(wzip_input.exists(), f"{self.which_test}: {wzip_input} should have been created")
+
+        with self.batch_accum as batchi:
+            batchi += Wzip(wzip_input)
+        self.exec_and_capture_output("Wzip a file")
+        self.assertTrue(wzip_output.exists(), f"{self.which_test}: {wzip_output} should exist after test")
+        self.assertTrue(wzip_input.exists(), f"{self.which_test}: {wzip_input} should exist after test")
+
+        with self.batch_accum as batchi:
+            batchi += Unwzip(wzip_output, unwzip_target_folder)
+        self.exec_and_capture_output("Unwzip a file")
+        self.assertTrue(unwzip_target_folder.exists(), f"{self.which_test}: {unwzip_target_folder} should exist before test")
+        self.assertTrue(unwzip_target_file.exists(), f"{self.which_test}: {unwzip_target_file} should exist before test")
+        self.assertTrue(filecmp.cmp(wzip_input, unwzip_target_file), f"'{wzip_input}' and '{unwzip_target_file}' should be identical")
+
 
 if __name__ == '__main__':
     test_folder = pathlib.Path(__file__).joinpath("..", "..", "..").resolve().joinpath(main_test_folder_name)

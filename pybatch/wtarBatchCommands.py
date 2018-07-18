@@ -7,6 +7,7 @@ import pathlib
 
 from configVar import config_vars
 import utils
+import zlib
 
 from .baseClasses import PythonBatchCommandBase
 
@@ -70,8 +71,8 @@ def unwtar_a_file(wtar_file_path, destination_folder=None, no_artifacts=False, i
 class Wtar(PythonBatchCommandBase):
     def __init__(self, what_to_wtar: os.PathLike, where_to_put_wtar=None, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.what_to_wtar = what_to_wtar
-        self.where_to_put_wtar = where_to_put_wtar
+        self.what_to_wtar = os.fspath(what_to_wtar)
+        self.where_to_put_wtar = os.fspath(where_to_put_wtar) if where_to_put_wtar else None
 
     def __repr__(self) -> str:
         the_repr = f'''Wtar(what_to_wtar=r"{self.what_to_wtar}"'''
@@ -194,8 +195,8 @@ class Wtar(PythonBatchCommandBase):
 class Unwtar(PythonBatchCommandBase):
     def __init__(self, what_to_unwtar: os.PathLike, where_to_unwtar=None, no_artifacts=False, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.what_to_unwtar = what_to_unwtar
-        self.where_to_unwtar = where_to_unwtar
+        self.what_to_unwtar = os.fspath(what_to_unwtar)
+        self.where_to_unwtar = os.fspath(where_to_unwtar) if where_to_unwtar else None
         self.no_artifacts = no_artifacts
 
     def __repr__(self) -> str:
@@ -248,3 +249,122 @@ class Unwtar(PythonBatchCommandBase):
 
         else:
             raise FileNotFoundError(self.what_to_unwtar)
+
+
+class Wzip(PythonBatchCommandBase):
+    """ Create a new wzip for a file  provided in '--in' command line option
+
+        If --out is not supplied on the command line the new wzip file will be created
+            next to the input with extension '.wzip'.
+            e.g. the command:
+                instl wzip --in /a/b/c
+            will create the wzip file at path:
+                /a/b/c.wzip
+
+        If '--out' is supplied and it's an existing file, the new wzip will overwrite
+            this existing file, wzip extension will NOT be added.
+            e.g. assuming /d/e/f.txt is an existing file, the command:
+                instl wzip --in /a/b/c --out /d/e/f.txt
+            will create the wzip file at path:
+                /d/e/f.txt
+
+        if '--out' is supplied and is and existing folder the wzip file will be created
+            inside this folder with extension '.wzip'.
+            e.g. assuming /g/h/i is an existing folder, the command:
+                instl wzip --in /a/b/c --out /g/h/i
+            will create the wzip file at path:
+                /g/h/i/c.wzip
+
+        if '--out' is supplied and does not exists, the folder will be created
+            and the wzip file will be created inside the new folder with extension
+             '.wzip'.
+            e.g. assuming /j/k/l is a non existing folder, the command:
+                instl wzip --in /a/b/c --out /j/k/l
+            will create the wzip file at path:
+                /j/k/l/c.wzip
+
+        configVar effecting wzip:
+        ZLIB_COMPRESSION_LEVEL: will set the compression level, default is 8
+        WZLIB_EXTENSION: .wzip extension is the default, the value is read from the configVar WZLIB_EXTENSION,
+    """
+    def __init__(self, what_to_wzip: os.PathLike, where_to_put_wzip=None, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.what_to_wzip = os.fspath(what_to_wzip)
+        self.where_to_put_wzip = os.fspath(where_to_put_wzip) if where_to_put_wzip else None
+
+    def __repr__(self) -> str:
+        the_repr = f'''Wzip(r"{self.what_to_wzip}"'''
+        if self.where_to_put_wzip:
+            the_repr += f''', r"{self.where_to_put_wzip}"'''
+        the_repr += ")"
+        return the_repr
+
+    def repr_batch_win(self) -> str:
+        the_repr = f''''''
+        return the_repr
+
+    def repr_batch_mac(self) -> str:
+        the_repr = f''''''
+        return the_repr
+
+    def progress_msg_self(self) -> str:
+        return f''''''
+
+    def __call__(self, *args, **kwargs) -> None:
+        what_to_work_on_dir, what_to_work_on_leaf = os.path.split(self.what_to_wzip)
+        target_wzip_file = self.where_to_put_wzip
+        if not target_wzip_file:
+            target_wzip_file = what_to_work_on_dir
+            if not target_wzip_file:  # os.path.split might return empty string
+                target_wzip_file = "."
+        if not os.path.isfile(target_wzip_file):
+            # assuming it's a folder
+            os.makedirs(target_wzip_file, exist_ok=True)
+            target_wzip_file = os.path.join(target_wzip_file, what_to_work_on_leaf+".wzip")
+
+        zlib_compression_level = int(config_vars.get("ZLIB_COMPRESSION_LEVEL", "8"))
+        with open(target_wzip_file, "wb") as wfd, open(self.what_to_wzip, "rb") as rfd:
+            wfd.write(zlib.compress(rfd.read(), zlib_compression_level))
+
+
+class Unwzip(PythonBatchCommandBase):
+    def __init__(self, what_to_unwzip: os.PathLike, where_to_put_unwzip=None, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.what_to_unwzip = os.fspath(what_to_unwzip)
+        self.where_to_put_unwzip = os.fspath(where_to_put_unwzip) if where_to_put_unwzip else None
+
+    def __repr__(self) -> str:
+        the_repr = f'''Unwzip(r"{self.what_to_unwzip}"'''
+        if self.where_to_put_unwzip:
+            the_repr += f''', r"{self.where_to_put_unwzip}"'''
+        the_repr += ")"
+        return the_repr
+
+    def repr_batch_win(self) -> str:
+        the_repr = f''''''
+        return the_repr
+
+    def repr_batch_mac(self) -> str:
+        the_repr = f''''''
+        return the_repr
+
+    def progress_msg_self(self) -> str:
+        return f''''''
+
+    def __call__(self, *args, **kwargs) -> None:
+        what_to_work_on_dir, what_to_work_on_leaf = os.path.split(self.what_to_unwzip)
+        target_unwzip_file = self.where_to_put_unwzip
+        if not target_unwzip_file:
+            target_unwzip_file = what_to_work_on_dir
+            if not target_unwzip_file:  # os.path.split might return empty string
+                target_unwzip_file = "."
+        if not os.path.isfile(target_unwzip_file):
+            # assuming it's a folder
+            os.makedirs(target_unwzip_file, exist_ok=True)
+            if what_to_work_on_leaf.endswith(".wzip"):
+                what_to_work_on_leaf = what_to_work_on_leaf[:-len(".wzip")]
+            target_unwzip_file = os.path.join(target_unwzip_file, what_to_work_on_leaf)
+
+        with open(self.what_to_unwzip, "rb") as rfd, open(target_unwzip_file, "wb") as wfd:
+            decompressed = zlib.decompress(rfd.read())
+            wfd.write(decompressed)

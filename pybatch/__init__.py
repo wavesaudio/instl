@@ -26,7 +26,7 @@ from .batchCommands import touch
 from .batchCommands import Touch
 from .batchCommands import Unlock
 
-from .wtarBatchCommands import Wtar, Unwtar
+from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip
 
 if sys.platform == "win32":
     from .batchCommandsWinOnly import WinShortcut

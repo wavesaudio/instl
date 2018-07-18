@@ -18,7 +18,7 @@ from .instlInstanceBase import InstlInstanceBase
 from .batchAccumulator import BatchAccumulator
 from configVar import config_vars
 from svnTree import SVNTable
-
+from pybatch import *
 
 # noinspection PyPep8,PyPep8,PyPep8
 class InstlAdmin(InstlInstanceBase):
@@ -1234,8 +1234,8 @@ class InstlAdmin(InstlInstanceBase):
 
                 zip_infomap_file_name = config_vars.resolve_str(infomap_file_name+"$(WZLIB_EXTENSION)")
                 zip_info_map_file_path = os.path.join(instl_folder, zip_infomap_file_name)
-                with open(zip_info_map_file_path, "wb") as wfd:
-                    wfd.write(zlib.compress(open(info_map_file_path, "r").read().encode(), zlib_compression_level))
+                with Wzip(info_map_file_path, instl_folder) as wzipper:
+                    wzipper()
 
                 zip_info_map_checksum = utils.get_file_checksum(zip_info_map_file_path)
                 zip_info_map_size = os.path.getsize(zip_info_map_file_path)
@@ -1251,8 +1251,8 @@ class InstlAdmin(InstlInstanceBase):
             wfd.write("\n".join(lines_for_main_info_map))
 
         zip_default_info_map_file_path = config_vars.resolve_str(default_info_map_file_path+"$(WZLIB_EXTENSION)")
-        with open(zip_default_info_map_file_path, "wb") as wfd:
-            wfd.write(zlib.compress(open(default_info_map_file_path, "r").read().encode(), zlib_compression_level))
+        with Wzip(default_info_map_file_path, instl_folder) as wzipper:
+            wzipper()
 
     def do_read_info_map(self):
         files_to_read = list(config_vars["__MAIN_INPUT_FILE__"])

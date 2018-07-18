@@ -5,6 +5,7 @@ import tarfile
 from collections import OrderedDict
 from configVar import config_vars
 import collections
+import zlib
 
 from .batchCommands import *
 
