@@ -28,4 +28,7 @@ from .batchCommands import Unlock
 
 from .wtarBatchCommands import Wtar, Unwtar
 
+if sys.platform == "win32":
+    from .batchCommandsWinOnly import WinShortcut
+
 from .new_batchCommands import *

@@ -879,6 +879,24 @@ class TestPythonBatch(unittest.TestCase):
         dir_wtar_unwtar_diff = filecmp.dircmp(folder_to_wtar, unwtared_folder, ignore=['.DS_Store'])
         self.assertTrue(is_identical_dircmp(dir_wtar_unwtar_diff), "{self.which_test} : before wtar and after unwtar dirs are not the same")
 
+    def test_WinShortcut_repr(self):
+
+        win_shortcut_obj = WinShortcut("/the/memphis/belle", "/go/to/hell")
+        win_shortcut_obj_recreated = eval(repr(win_shortcut_obj))
+        self.assertEqual(win_shortcut_obj, win_shortcut_obj_recreated, "WinShortcut.repr did not recreate WinShortcut object correctly")
+
+        win_shortcut_obj = WinShortcut("/the/memphis/belle", "/go/to/hell", False)
+        win_shortcut_obj_recreated = eval(repr(win_shortcut_obj))
+        self.assertEqual(win_shortcut_obj, win_shortcut_obj_recreated, "WinShortcut.repr did not recreate WinShortcut object correctly")
+
+        win_shortcut_obj = WinShortcut("/the/memphis/belle", "/go/to/hell", run_as_admin=True)
+        win_shortcut_obj_recreated = eval(repr(win_shortcut_obj))
+        self.assertEqual(win_shortcut_obj, win_shortcut_obj_recreated, "WinShortcut.repr did not recreate WinShortcut object correctly")
+
+    def test_WinShortcut(self):
+        if sys.platform == "win32":
+            pass  # TBD
+
 
 if __name__ == '__main__':
     test_folder = pathlib.Path(__file__).joinpath("..", "..", "..").resolve().joinpath(main_test_folder_name)
