@@ -743,7 +743,7 @@ class AppendFileToFile(PythonBatchCommandBase):
         self.target_file = target_file
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(source_file="{os.fspath(self.source_file)}", target_file="{os.fspath(self.target_file)}")"""
+        the_repr = f"""{self.__class__.__name__}(source_file=r"{os.fspath(self.source_file)}", target_file=r"{os.fspath(self.target_file)}")"""
         return the_repr
 
     def repr_batch_win(self):
@@ -1000,7 +1000,7 @@ class ShellCommands(RunProcessBase):
         self.shell_commands_list = shell_commands_list
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(dir="{self.dir}", shell_commands_var_name="{self.var_name}", shell_commands_list={self.var_name})"""
+        the_repr = f"""{self.__class__.__name__}(dir=r"{self.dir}", shell_commands_var_name="{self.var_name}", shell_commands_list={self.var_name})"""
         return the_repr
 
     def repr_batch_win(self):

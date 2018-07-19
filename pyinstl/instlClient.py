@@ -17,8 +17,6 @@ class InstlClient(InstlInstanceBase):
     def __init__(self, initial_vars) -> None:
         super().__init__(initial_vars)
         self.total_self_progress: int = 1000
-        self.need_items_table: bool = True
-        self.need_info_map_table: bool = True
         self.read_defaults_file(super().__thisclass__.__name__)
         self.action_type_to_progress_message = None
         self.__all_iids_by_target_folder = defaultdict(utils.unique_list)

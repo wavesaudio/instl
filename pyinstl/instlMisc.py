@@ -30,11 +30,6 @@ class InstlMisc(InstlInstanceBase):
         self.progress_staccato_period = 1
         self.progress_staccato_count = 0
 
-        if command in ("exec", "resolve"):
-            self.need_items_table = True
-        if command in ("check-checksum", "set-exec", "create-folders", "command-list"):
-            self.need_info_map_table = True
-
     def get_default_out_file(self):
         retVal = None
         if self.fixed_command in ("ls", "resolve"):
