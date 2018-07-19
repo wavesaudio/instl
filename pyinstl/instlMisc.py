@@ -103,29 +103,9 @@ class InstlMisc(InstlInstanceBase):
 
     def do_check_checksum(self):
         self.progress_staccato_command = True
-        bad_checksum_list = list()
-        missing_files_list = list()
-        self.read_info_map_from_file(config_vars["__MAIN_INPUT_FILE__"].str())
-        for file_item in self.info_map_table.get_items(what="file"):
-            if os.path.isfile(file_item.download_path):
-                file_checksum = utils.get_file_checksum(file_item.download_path)
-                if not utils.compare_checksums(file_checksum, file_item.checksum):
-                    bad_checksum_list.append(" ".join(("Bad checksum:", file_item.download_path, "expected", file_item.checksum, "found", file_checksum)) )
-            else:
-                missing_files_list.append(" ".join((file_item.download_path, "was not found")))
-            self.dynamic_progress(f"Check checksum {file_item.path}")
-        if bad_checksum_list or missing_files_list:
-            bad_checksum_list_exception_message = ""
-            missing_files_exception_message = ""
-            if bad_checksum_list:
-                print("\n".join(bad_checksum_list))
-                bad_checksum_list_exception_message += f"Bad checksum for {len(bad_checksum_list)} files"
-                print(bad_checksum_list_exception_message)
-            if missing_files_list:
-                print("\n".join(missing_files_list))
-                missing_files_exception_message += f"Missing {len(missing_files_list)} files"
-                print(missing_files_exception_message)
-            raise ValueError("\n".join((bad_checksum_list_exception_message, missing_files_exception_message)))
+        info_map_file = config_vars["__MAIN_INPUT_FILE__"].str()
+        with CheckDownloadFolderChecksum(info_map_file, print_report=True, raise_on_bad_checksum=True) as checksum_checker:
+            checksum_checker()
 
     def do_set_exec(self):
         self.progress_staccato_command = True

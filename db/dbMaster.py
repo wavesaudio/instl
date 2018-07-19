@@ -351,8 +351,10 @@ class DBAccess(object):
 
     def __get__(self, instance, owner):
         if self._db is None:
-            db_url = get_db_url(instance.the_command, instance.db_file)
-            if db_url != ":memory:" and not instance.db_file:
+            the_command = getattr(instance, 'the_command', None)
+            db_file = getattr(instance, 'db_file', None)
+            db_url = get_db_url(the_command, db_file)
+            if db_url != ":memory:" and not db_file:
                 # erase the db only if it's default created no given
                 utils.safe_remove_file(db_url)
             ddls_folder = config_vars["__INSTL_DEFAULTS_FOLDER__"].str()
