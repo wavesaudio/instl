@@ -12,7 +12,7 @@ import zlib
 from .baseClasses import PythonBatchCommandBase
 
 
-def can_skip_unwtar(self, what_to_work_on: os.PathLike, where_to_unwtar: os.PathLike):
+def can_skip_unwtar(what_to_work_on: os.PathLike, where_to_unwtar: os.PathLike):
     return False
     # disabled for now because Info.xml is copied before unwtarring take place
     try:
@@ -227,7 +227,7 @@ class Unwtar(PythonBatchCommandBase):
             if utils.is_first_wtar_file(self.what_to_unwtar):
                 unwtar_a_file(self.what_to_unwtar, self.where_to_unwtar, no_artifacts=self.no_artifacts, ignore=ignore_files)
         elif os.path.isdir(self.what_to_unwtar):
-            if not self.can_skip_unwtar(self.what_to_unwtar, self.where_to_unwtar):
+            if not can_skip_unwtar(self.what_to_unwtar, self.where_to_unwtar):
                 where_to_unwtar_the_file = None
                 for root, dirs, files in os.walk(self.what_to_unwtar, followlinks=False):
                     # a hack to prevent unwtarring of the sync folder. Copy command might copy something
