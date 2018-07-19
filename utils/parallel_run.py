@@ -11,25 +11,29 @@ exit_val = 0
 process_list = list()
 
 
-def run_processes_in_parallel(commands):
+def run_processes_in_parallel(commands, shell=False):
     global exit_val
     try:
         install_signal_handlers()
-        run_parallels(commands)
+        run_parallels(commands, shell)
         exit_val = 0
         killall_and_exit()
     except Exception:
         killall_and_exit()
 
 
-def run_parallels(commands):
+def run_parallels(commands, shell=False):
     global exit_val
     for i, command in enumerate(commands):
         try:
             if getattr(os, "setsid", None):
-                a_process = subprocess.Popen(command, executable=command[0], shell=False, bufsize=1, preexec_fn=os.setsid)  # Unix
+                if shell:
+                    full_command = " ".join(command)
+                    a_process = subprocess.Popen(full_command, shell=True, bufsize=1, preexec_fn=os.setsid)  # Unix
+                else:
+                    a_process = subprocess.Popen(command, executable=command[0], shell=False, bufsize=1, preexec_fn=os.setsid)  # Unix
             else:
-                a_process = subprocess.Popen(command, executable=command[0], shell=False, bufsize=1)  # Windows
+                a_process = subprocess.Popen(command, executable=command[0], shell=True, bufsize=1)  # Windows
             process_list.append(a_process)
         except Exception:
             print("failed to start", command, file=sys.stderr)

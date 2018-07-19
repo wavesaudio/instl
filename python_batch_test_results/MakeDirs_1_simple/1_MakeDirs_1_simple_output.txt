@@ -1,4 +1,0 @@
-Progress 1 of 1; mkdir ('C:\\Users\\nira\\Documents\\GitHub\\instl\\python_batch_test_results\\MakeDirs_1_simple\\MakeDirs_1_simple_1', 'C:\\Users\\nira\\Documents\\GitHub\\instl\\python_batch_test_results\\MakeDirs_1_simple\\MakeDirs_1_simple_2')
-Progress 1 of 1; time: 2.05ms
-Progress 2 of 2; mkdir ('C:\\Users\\nira\\Documents\\GitHub\\instl\\python_batch_test_results\\MakeDirs_1_simple\\MakeDirs_1_simple_1',)
-Progress 2 of 2; time: 0.52ms

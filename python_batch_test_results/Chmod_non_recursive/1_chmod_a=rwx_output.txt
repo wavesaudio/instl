@@ -1,2 +1,0 @@
-Progress 1 of 1; Change mode C:\Users\nira\Documents\GitHub\instl\python_batch_test_results\Chmod_non_recursive\file-to-chmod
-Progress 1 of 1; time: 1.00ms
