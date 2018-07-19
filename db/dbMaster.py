@@ -10,6 +10,8 @@ import operator
 
 import utils
 from configVar import config_vars
+from pyinstl.indexItemTable import IndexItemsTable
+from svnTree import SVNTable
 
 """
     todo:
@@ -336,24 +338,63 @@ class DBMaster(object):
         for table_name in list(self.locked_tables):
             self.unlock_table(table_name)
 
-if __name__ == "__main__":
-    ddl_path = "/p4client/ProAudio/dev_central/ProAudio/XPlatform/CopyProtect/instl/defaults"
-    db_path = "/p4client/ProAudio/dev_central/ProAudio/XPlatform/CopyProtect/instl/defaults/instl.sqlite"
-    utils.safe_remove_file(db_path)
-    db = DBMaster()
-    db.init_from_ddl(ddl_path, db_path)
 
-    print("creation:", db.get_ids_oses_active())
+class DBAccess(object):
+    def __init__(self):
+        self._db = None
+        self._owner = None  # for reference and debugging
+        self._name = None   # for reference and debugging
 
-    db.activate_specific_oses("Mac64", "Win32")
-    print("Mac64:", db.get_ids_oses_active())
+    def __set_name__(self, owner, name):
+        self._owner = owner
+        self._name = name
 
-    db.reset_active_oses()
-    print("reset_active_oses:", db.get_ids_oses_active())
+    def __get__(self, instance, owner):
+        if self._db is None:
+            db_url = get_db_url(instance.the_command, instance.db_file)
+            if db_url != ":memory:" and not instance.db_file:
+                # erase the db only if it's default created no given
+                utils.safe_remove_file(db_url)
+            ddls_folder = config_vars["__INSTL_DEFAULTS_FOLDER__"].str()
+            self._db = DBMaster(db_url, ddls_folder)
+            config_vars["__DATABASE_URL__"] = db_url
+        return self._db
 
-    db.activate_all_oses()
-    print("activate_all_oses:", db.get_ids_oses_active())
+    def __delete__(self, instance):
+        if self._db is not None:
+            self._db.close()
+            del self._db
+            self._db = None
 
-    #db.exec_script_file("create-indexes.ddl")
-    #db.exec_script_file("create-triggers.ddl")
-    #db.exec_script_file("create-views.ddl")
+
+class TableAccess(object):
+    def __init__(self, type):
+        self._table = None
+        self._owner = None  # for reference and debugging
+        self._name = None   # for reference and debugging
+        self._type = type
+
+    def __set_name__(self, owner, name):
+        self._owner = owner
+        self._name = name
+        assert self._type is {'items_table': IndexItemsTable, 'info_map_table': SVNTable}[self._name]
+
+    def __get__(self, instance, owner):
+        if self._table is None:
+            self._table = self._type(instance.db)
+        return self._table
+
+    def __delete__(self, instance):
+        if self._table is not None:
+            del self._table
+            self._table = None
+
+
+class DBManager(object):
+    """ all classes inheriting from DBManager will have access to singleton instances db, info_map and items table.
+        these instances will be created on the fly when accessed, to instances that do not need any of these will
+        not suffer the penalty of creating them.
+    """
+    db = DBAccess()
+    info_map_table = TableAccess(SVNTable)
+    items_table = TableAccess(IndexItemsTable)

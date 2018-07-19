@@ -22,9 +22,7 @@ from configVar import config_vars
 from configVar import ConfigVarYamlReader
 
 from . import connectionBase
-from db import DBMaster, get_db_url
-from .indexItemTable import IndexItemsTable
-from svnTree import SVNTable
+from db import DBManager
 
 
 value_ref_re = re.compile("""
@@ -53,24 +51,21 @@ def check_version_compatibility():
 
 
 # noinspection PyPep8Naming
-class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
+class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
     """ Main object of instl. Keeps the state of variables and install index
         and knows how to create a batch file for installation. InstlInstanceBase
         must be inherited by platform specific implementations, such as InstlInstance_mac
         or InstlInstance_win.
     """
-    db: DBMaster = None
-    items_table: IndexItemsTable = None
-    info_map_table: SVNTable = None
 
     def __init__(self, initial_vars=None) -> None:
         self.total_self_progress = 0   # if > 0 output progress during run (as apposed to batch file progress)
 
-        self.need_items_table = False
-        self.need_info_map_table = False
+        self.db_file = None
         self.the_command = None
         self.fixed_command = None
 
+        DBManager.__init__(self)
         ConfigVarYamlReader.__init__(self)
 
         self.path_searcher = utils.SearchPaths(config_vars, "__SEARCH_PATHS__")
@@ -197,34 +192,13 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
             if default_out_file:
                 config_vars["__MAIN_OUT_FILE__"] = default_out_file
 
-        db_file = str(config_vars.get("__DB_INPUT_FILE__", None))
-        self.init_db(db_file=db_file)
+        self.db_file = str(config_vars.get("__DB_INPUT_FILE__", None))
         self.progress("")  # so database at... message will not remain visible
 
-    def init_db(self, db_file=None):
-        if self.need_items_table or self.need_info_map_table or db_file:
-            if not InstlInstanceBase.db:
-                db_url = get_db_url(self.the_command, db_file)
-                ddls_folder = os.path.join(config_vars["__INSTL_DATA_FOLDER__"].str(), "defaults")
-                if db_url != ":memory:" and not db_file:
-                    # erase the db only if it's default created no given
-                    utils.safe_remove_file(db_url)
-                ddls_folder = config_vars["__INSTL_DEFAULTS_FOLDER__"].str()
-                InstlInstanceBase.db = DBMaster(db_url, ddls_folder)
-                config_vars["__DATABASE_URL__"] = db_url
-                self.progress("database at ", db_url)
-            if self.need_items_table and not InstlInstanceBase.items_table:
-                InstlInstanceBase.items_table = IndexItemsTable(InstlInstanceBase.db)
-            if self.need_info_map_table and not InstlInstanceBase.info_map_table:
-                InstlInstanceBase.info_map_table = SVNTable(InstlInstanceBase.db)
-
     def close(self):
-        if InstlInstanceBase.info_map_table:
-            del InstlInstanceBase.info_map_table
-        if InstlInstanceBase.items_table:
-            del InstlInstanceBase.items_table
-        if InstlInstanceBase.db:
-            InstlInstanceBase.db.close()
+        del self.info_map_table
+        del self.items_table
+        del self.db
         config_vars.print_statistics()
 
     def get_default_out_file(self):
