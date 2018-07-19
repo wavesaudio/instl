@@ -637,7 +637,7 @@ class TestPythonBatch(unittest.TestCase):
             geronimo = [f"""ls /Users/shai/Desktop >> "{os.fspath(batches_dir)}/geronimo.txt\"""",
                         f"""[ -f "{os.fspath(batches_dir)}/geronimo.txt" ] && echo "g e r o n i m o" >> {os.fspath(batches_dir)}/geronimo.txt"""]
         else:
-            geronimo = [r"dir C:\Program Files\Git >> %userprofile%\desktop\geronimo.txt",
+            geronimo = [r"dir %userprofile%\desktop >> %userprofile%\desktop\geronimo.txt",
                         ]
 
         with self.batch_accum:
