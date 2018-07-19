@@ -295,7 +295,7 @@ class InstlClient(InstlInstanceBase):
             if IID != previous_iid:  # avoid multiple progress messages for same iid
                 name_and_version = self.name_and_version_for_iid(iid=IID)
                 action_description = self.action_type_to_progress_message[action_type]
-                self.batch_accum += self.platform_helper.progress(f"{name_and_version} {action_description}")
+                self.batch_accum += Progress(f"{name_and_version} {action_description}")
                 previous_iid = IID
             self.batch_accum += an_action
             retVal += 1
@@ -306,15 +306,15 @@ class InstlClient(InstlInstanceBase):
         new_require_file_path = config_vars["NEW_SITE_REQUIRE_FILE_PATH"].str()
         new_require_file_dir, new_require_file_name = os.path.split(new_require_file_path)
         os.makedirs(new_require_file_dir, exist_ok=True)
-        self.batch_accum += self.platform_helper.copy_file_to_file("$(SITE_REQUIRE_FILE_PATH)", "$(OLD_SITE_REQUIRE_FILE_PATH)", check_exist=True)
+        self.batch_accum += CopyFileToFile("$(SITE_REQUIRE_FILE_PATH)", "$(OLD_SITE_REQUIRE_FILE_PATH)", check_exist=True)
         require_yaml = self.repr_require_for_yaml()
         if require_yaml:
             self.write_require_file(new_require_file_path, require_yaml)
             # Copy the new require file over the old one, if copy fails the old file remains.
-            self.batch_accum += self.platform_helper.progress("copy new require.yaml to $(SITE_REQUIRE_FILE_PATH)")
-            self.batch_accum += self.platform_helper.copy_file_to_file("$(NEW_SITE_REQUIRE_FILE_PATH)", "$(SITE_REQUIRE_FILE_PATH)")
+            self.batch_accum += Progress("copy new require.yaml to $(SITE_REQUIRE_FILE_PATH)")
+            self.batch_accum += CopyFileToFile("$(NEW_SITE_REQUIRE_FILE_PATH)", "$(SITE_REQUIRE_FILE_PATH)")
         else:   # remove previous require.yaml since the new one does not contain anything
-            self.batch_accum += self.platform_helper.progress("remove previous require.yaml from $(SITE_REQUIRE_FILE_PATH)")
+            self.batch_accum += Progress("remove previous require.yaml from $(SITE_REQUIRE_FILE_PATH)")
             self.batch_accum += self.platform_helper.rmfile("$(SITE_REQUIRE_FILE_PATH)")
 
     def create_folder_manifest_command(self, which_folder_to_manifest, output_folder, output_file_name, back_ground: bool=False):
@@ -495,7 +495,7 @@ class InstlClient(InstlInstanceBase):
                 self.batch_accum += self.platform_helper.remark(f"- Begin folder {target_folder_path}")
                 self.batch_accum += self.platform_helper.cd(target_folder_path)
                 # todo: conditional CD - if fails to not do other instructions
-                self.batch_accum += self.platform_helper.progress(f"remove previous versions {target_folder_path} ...")
+                self.batch_accum += Progress(f"remove previous versions {target_folder_path} ...")
 
                 for previous_source in previous_sources:
                     retVal += self.create_remove_previous_sources_instructions_for_source(target_folder_path, previous_source)
@@ -583,6 +583,6 @@ def InstlClientFactory(initial_vars, command):
             def do_synccopy(self):
                 self.do_sync()
                 self.do_copy()
-                self.batch_accum += self.platform_helper.progress("Done synccopy")
+                self.batch_accum += Progress("Done synccopy")
         retVal = InstlClientSyncCopy(initial_vars)
     return retVal

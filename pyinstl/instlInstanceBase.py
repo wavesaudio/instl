@@ -306,7 +306,7 @@ class InstlInstanceBase(ConfigVarYamlReader, metaclass=abc.ABCMeta):
                             self.batch_accum += self.platform_helper.copy_tool.copy_file_to_file(file_path,
                                                                                                  destination_path,
                                                                                                  link_dest=True)
-                            self.platform_helper.progress(f"copy cached file to {destination_path}")
+                            Progress(f"copy cached file to {destination_path}")
 
     def create_variables_assignment(self, in_batch_accum):
         in_batch_accum.set_current_section("assign")

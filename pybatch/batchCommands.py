@@ -140,6 +140,14 @@ class MakeDirs(PythonBatchCommandBase):
         return f"creating {self.cur_path}"
 
 
+class MakeDirsWithOwner(MakeDirs):
+    """ a stand in to replace platform_helper.mkdir_with_owner
+        ToDo: with owner functionality should be implemented in MakeDirs
+    """
+    def __init__(self, *paths_to_make, remove_obstacles: bool=True) -> None:
+        super().__init__(*paths_to_make, remove_obstacles)
+
+
 class Touch(PythonBatchCommandBase):
     def __init__(self, path: os.PathLike) -> None:
         super().__init__()
