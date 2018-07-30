@@ -23,7 +23,7 @@ from configVar import ConfigVarYamlReader
 
 from . import connectionBase
 from db import DBManager
-
+from pybatch import *
 
 value_ref_re = re.compile("""
                             (?P<varref_pattern>
@@ -276,11 +276,9 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                         if need_to_copy:
                             destination_path = config_vars.resolve_str(copy_destination.value)
                             destination_folder, destination_file_name = os.path.split(destination_path)
-                            self.batch_accum += self.platform_helper.mkdir(destination_folder)
-                            self.batch_accum += self.platform_helper.copy_tool.copy_file_to_file(file_path,
-                                                                                                 destination_path,
-                                                                                                 link_dest=True)
-                            Progress(f"copy cached file to {destination_path}")
+                            self.batch_accum += MakeDirs(destination_folder)
+                            self.batch_accum += CopyFileToFile(file_path, destination_path, link_dest=True)
+                            self.batch_accum += Progress(f"copy cached file to {destination_path}")
 
     def create_variables_assignment(self, in_batch_accum):
         in_batch_accum.set_current_section("assign")

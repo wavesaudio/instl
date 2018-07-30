@@ -5,12 +5,13 @@ import sys
 import time
 from collections import defaultdict, namedtuple, OrderedDict
 from typing import List
+import pathlib
 
 import utils
 import aYaml
 from .instlInstanceBase import InstlInstanceBase, check_version_compatibility
 from configVar import config_vars
-from svnTree import SVNTable
+from pybatch import *
 
 
 class InstlClient(InstlInstanceBase):
@@ -82,10 +83,10 @@ class InstlClient(InstlInstanceBase):
 
         self.resolve_defined_paths()
         self.batch_accum.set_current_section('begin')
-        self.batch_accum += self.platform_helper.setup_echo()
-        self.platform_helper.init_platform_tools()
+        #self.batch_accum += self.platform_helper.setup_echo()
+        #self.platform_helper.init_platform_tools()
         # after reading variable COPY_TOOL from yaml, we might need to re-init the copy tool.
-        self.platform_helper.init_copy_tool()
+        #self.platform_helper.init_copy_tool()
         self.progress("calculate install items")
         self.calculate_install_items()
         self.read_defines_for_active_iids()
@@ -342,7 +343,8 @@ class InstlClient(InstlInstanceBase):
                     break
                 output_folder = None
         if output_folder is not None:
-            self.create_folder_manifest_command(which_folder_to_manifest, output_folder, output_file_name, back_ground=back_ground)
+            output_file_path = pathlib.Path(output_folder, output_file_name)
+            self.batch_accum += Ls(which_folder_to_manifest, output_file_path)
 
     def repr_require_for_yaml(self):
         translate_detail_name = {'require_version': 'version', 'require_guid': 'guid', 'require_by': 'require_by'}

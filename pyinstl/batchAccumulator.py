@@ -4,7 +4,7 @@
 from collections import defaultdict
 
 from configVar import config_vars
-
+from pybatch import PythonBatchCommandBase
 
 class BatchAccumulator(object):
     """ from batchAccumulator import BatchAccumulator
@@ -27,6 +27,10 @@ class BatchAccumulator(object):
         else:
             raise ValueError(f"{section} is not a known section name")
 
+    def __iadd__(self, instructions):
+        self.add(instructions)
+        return self
+
     def add(self, instructions):
         if isinstance(instructions, str):
             assert instructions != '~', "~ in instructions previous instruction: "+self.instruction_lines[self.current_section][-1]
@@ -34,10 +38,6 @@ class BatchAccumulator(object):
         else:
             for instruction in instructions:
                 self.add(instruction)
-
-    def __iadd__(self, instructions):
-        self.add(instructions)
-        return self
 
     def __add_single_line__(self, single_line):
         """ make sure only strings are added """
@@ -123,6 +123,19 @@ class PythonBatchAccumulator(BatchAccumulator):
         super().__init__()
         self.instruction_lines = defaultdict(PythonBatchCommandAccum)
 
+    def add(self, instructions):
+        if isinstance(instructions, PythonBatchCommandBase):
+            self.__add_single_line__(instructions)
+        else:
+            for instruction in instructions:
+                self.add(instruction)
+
+    def __add_single_line__(self, single_line):
+        """ make sure only strings are added """
+        if isinstance(single_line, PythonBatchCommandBase):
+            self.instruction_lines[self.current_section].append(single_line)
+        else:
+            raise TypeError(f"Not a PythonBatchCommandBase {type(single_line)} {single_line}")
 
 def BatchAccumulatorFactory(use_python_batch: bool) -> BatchAccumulator:
     if use_python_batch:

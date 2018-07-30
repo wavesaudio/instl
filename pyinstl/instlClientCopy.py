@@ -90,7 +90,7 @@ class InstlClientCopy(InstlClient):
         # If we got here while in copy command, read HAVE_INFO_MAP_FOR_COPY which defaults to NEW_HAVE_INFO_MAP_PATH.
         # Copy might be called after the sync batch file was created but before it was executed
         if len(self.info_map_table.files_read_list) == 0:
-            have_info_path = config_vars["HAVE_INFO_MAP_FOR_COPYHAVE_INFO_MAP_FOR_COPY"].str()
+            have_info_path = config_vars["HAVE_INFO_MAP_FOR_COPY"].str()
             with self.info_map_table.reading_files_context():
                 self.read_info_map_from_file(have_info_path)
 

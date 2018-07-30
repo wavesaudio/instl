@@ -18,6 +18,7 @@ def batch_repr(batch_obj):
     elif sys.platform == "win32":
         return batch_obj.repr_batch_win()
 
+
 class PythonBatchCommandAccum(object):
 
     def __init__(self):
