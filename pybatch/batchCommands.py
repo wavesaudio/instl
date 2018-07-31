@@ -1173,6 +1173,47 @@ class Ls(PythonBatchCommandBase):
             print(os.path.realpath(wfd.name))
             wfd.write(the_listing)
 
+
+class CUrl(RunProcessBase):
+    def __init__(self, src, trg: os.PathLike, curl_path: os.PathLike, connect_time_out: int=16,
+                 max_time: int=180, retires: int=2, retry_delay: int=8) -> None:
+        super().__init__()
+        self.src: os.PathLike = src
+        self.trg: os.PathLike = trg
+        self.curl_path = curl_path
+        self.connect_time_out = connect_time_out
+        self.max_time = max_time
+        self.retires = retires
+        self.retry_delay = retry_delay
+
+    def __repr__(self):
+        the_repr = f"""{self.__class__.__name__}(src=r"{self.src}",
+          trg=r"{self.trg}",
+          curl_path=r"{self.curl_path}",
+          connect_time_out={self.connect_time_out}, max_time={self.max_time}, retires={self.retires}, retry_delay={self.retry_delay})"""
+        return the_repr
+
+    def progress_msg_self(self):
+        the_progress_msg = f"curl {self.src} > {self.trg}"
+        return the_progress_msg
+
+    def repr_batch_win(self):
+        return ' '.join(self.create_run_args())
+
+    def repr_batch_mac(self):
+        return ' '.join(self.create_run_args())
+
+    def create_run_args(self):
+        run_args = [self.curl_path, "--insecure", "--fail", "--raw", "--silent", "--show-error", "--compressed",
+                    "--connect-timeout", self.connect_time_out, "--max-time", self.max_time,
+                    "--retry", self.retires, "--retry-delay", self.retry_delay,
+                    "-o", self.trg, self.src]
+        # TODO
+        # download_command_parts.append("write-out")
+        # download_command_parts.append(DownloadToolBase.curl_write_out_str)
+        return run_args
+
+
 # todo:
 # override PythonBatchCommandBase for all commands
 # windows!

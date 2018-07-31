@@ -115,6 +115,7 @@ def has_hidden_attribute(filepath):
         result = False
     return result
 
+
 main_test_folder_name = "python_batch_test_results"
 
 
@@ -1045,6 +1046,34 @@ class TestPythonBatch(unittest.TestCase):
         self.assertTrue(unwzip_target_folder.exists(), f"{self.which_test}: {unwzip_target_folder} should exist before test")
         self.assertTrue(unwzip_target_file.exists(), f"{self.which_test}: {unwzip_target_file} should exist before test")
         self.assertTrue(filecmp.cmp(wzip_input, unwzip_target_file), f"'{wzip_input}' and '{unwzip_target_file}' should be identical")
+
+    def test_Curl_repr(self):
+        url_from = r"http://www.google.com"
+        file_to = "/q/w/r"
+        curl_path = 'curl'
+        if sys.platform == 'win32':
+            curl_path = r'C:\Program Files (x86)\Waves Central\WavesLicenseEngine.bundle\Contents\Win32\curl.exe'
+        curl_obj = CUrl(url_from, file_to, curl_path)
+        curl_obj_recreated = eval(repr(curl_obj))
+        self.assertEqual(curl_obj, curl_obj_recreated, "CUrl.repr did not recreate CUrl object correctly")
+
+    def test_Curl_download(self):
+        sample_file = pathlib.Path(__file__).joinpath('../test_data/curl_sample.txt').resolve()
+        with open(sample_file, 'r') as stream:
+            test_data = stream.read()
+        url_from = 'https://www.sample-videos.com/text/Sample-text-file-10kb.txt'
+        to_path = self.test_folder.joinpath("curl").resolve()
+        curl_path = 'curl'
+        if sys.platform == 'win32':
+            curl_path = r'C:\Program Files (x86)\Waves Central\WavesLicenseEngine.bundle\Contents\Win32\curl.exe'
+        os.makedirs(to_path, exist_ok=True)
+        downloaded_file = os.path.join(to_path, 'Sample.txt')
+        with self.batch_accum as batchi:
+            batchi += CUrl(url_from, downloaded_file, curl_path)
+        self.exec_and_capture_output("Download file")
+        with open(downloaded_file, 'r') as stream:
+            downloaded_data = stream.read()
+        self.assertEqual(test_data, downloaded_data)
 
 
 if __name__ == '__main__':
