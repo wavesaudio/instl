@@ -1248,6 +1248,89 @@ class CUrl(RunProcessBase):
         return run_args
 
 
+class Progress(PythonBatchCommandBase, essential=False):
+    """
+        just issue a progress message
+    """
+    def __init__(self, message, **kwargs) -> None:
+        kwargs['is_context_manager'] = False
+        super().__init__(**kwargs)
+        self.message = message
+
+    def __repr__(self) -> str:
+        the_repr = f'''print("progress: x of y: {self.message}")'''
+        return the_repr
+
+    def repr_batch_win(self) -> str:
+        the_repr = f''''''
+        return the_repr
+
+    def repr_batch_mac(self) -> str:
+        the_repr = f''''''
+        return the_repr
+
+    def progress_msg_self(self) -> str:
+        return f''''''
+
+    def __call__(self, *args, **kwargs) -> None:
+        pass
+
+
+class Echo(PythonBatchCommandBase, essential=False):
+    """
+        just issue a (non progress) message
+    """
+    def __init__(self, message, **kwargs) -> None:
+        kwargs['is_context_manager'] = False
+        super().__init__(**kwargs)
+        self.message = message
+
+    def __repr__(self) -> str:
+        the_repr = f'''print("{self.message}")'''
+        return the_repr
+
+    def repr_batch_win(self) -> str:
+        the_repr = f''''''
+        return the_repr
+
+    def repr_batch_mac(self) -> str:
+        the_repr = f''''''
+        return the_repr
+
+    def progress_msg_self(self) -> str:
+        return f''''''
+
+    def __call__(self, *args, **kwargs) -> None:
+        pass
+
+
+class Remark(PythonBatchCommandBase, essential=False):
+    """
+        write a remark in code
+    """
+    def __init__(self, remark, **kwargs) -> None:
+        kwargs['is_context_manager'] = False
+        super().__init__(**kwargs)
+        self.remark = remark
+
+    def __repr__(self) -> str:
+        the_repr = f'''# {self.message}'''
+        return the_repr
+
+    def repr_batch_win(self) -> str:
+        the_repr = f''''''
+        return the_repr
+
+    def repr_batch_mac(self) -> str:
+        the_repr = f''''''
+        return the_repr
+
+    def progress_msg_self(self) -> str:
+        return f''''''
+
+    def __call__(self, *args, **kwargs) -> None:
+        pass
+
 # todo:
 # override PythonBatchCommandBase for all commands
 # windows!

@@ -30,6 +30,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         self.sections = dict()
         #self.context_stack = [list()]
         self.creation_time = time.strftime('%d-%m-%y_%H-%M')
+        self.in_sub_accum = False
 
     def clear(self):
         self.sections = dict()
@@ -52,13 +53,17 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         return counter
 
     def add(self, child_commands):
+        assert not self.in_sub_accum, "PythonBatchCommandAccum.add: should not be called while sub_accum is in context"
         self.sections[self.current_section].add(child_commands)
 
     @contextmanager
     def sub_accum(self, context):
+        assert not self.in_sub_accum, "PythonBatchCommandAccum.sub_accum: should not be called while another sub_accum is in context"
+        self.in_sub_accum = True
         yield context
         if context.is_essential():
             self.add(context)
+        self.in_sub_accum = False
 
     def _python_opening_code(self):
         instl_folder = pathlib.Path(__file__).joinpath("..", "..").resolve()

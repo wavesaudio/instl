@@ -322,12 +322,12 @@ class InstlClientCopy(InstlClient):
         return resolved_path
 
     def create_copy_instructions_for_target_folder(self, target_folder_path) -> None:
-        with self.batch_accum(Section(f"create_copy_instructions_for_target_folder-{target_folder_path}")) as folder_accum_transaction:
+        with self.batch_accum.sub_accum(Section(f"create_copy_instructions_for_target_folder-{target_folder_path}")) as folder_accum_transaction:
             self.current_destination_folder = target_folder_path
             self.unwtar_instructions: List = list()
             num_items_copied_to_folder = 0
             items_in_folder = sorted(self.all_iids_by_target_folder[target_folder_path])
-            folder_accum_transaction += self.platform_helper.remark(f"- Begin folder {target_folder_path}")
+            folder_accum_transaction += Remark(f"- Begin folder {target_folder_path}")
             folder_accum_transaction += Progress(f"copy to {target_folder_path} ...")
             folder_accum_transaction += self.platform_helper.cd(target_folder_path)
 
