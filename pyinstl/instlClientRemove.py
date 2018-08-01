@@ -46,7 +46,6 @@ class InstlClientRemove(InstlClient):
 
         for folder_name in sorted_target_folder_list:
             with self.batch_accum.sub_accum(Section(folder_name)) as folder_accum_transaction:
-                folder_accum_transaction += self.platform_helper.new_line()
                 self.create_remove_previous_sources_instructions_for_target_folder(folder_name)
                 folder_accum_transaction += Progress(f"Remove from folder {folder_name}")
                 config_vars["__TARGET_DIR__"] = os.path.normpath(folder_name)
@@ -69,13 +68,10 @@ class InstlClientRemove(InstlClient):
                                 iid_accum_transaction += source_accum_transaction.essential_action_counter
                                 folder_accum_transaction += source_accum_transaction.essential_action_counter
                                 source_accum_transaction += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="post_remove_item")
-                                source_accum_transaction += self.platform_helper.new_line()
 
                 folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('post_remove_from_folder', items_in_folder)
-                folder_accum_transaction += self.platform_helper.new_line()
 
         self.accumulate_unique_actions_for_active_iids('post_remove', list(config_vars["__FULL_LIST_OF_INSTALL_TARGETS__"]))
-        self.batch_accum += self.platform_helper.new_line()
 
     # create_remove_instructions_for_source:
     # Create instructions to remove a specific source from a specific target folder.

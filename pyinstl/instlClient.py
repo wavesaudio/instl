@@ -491,7 +491,6 @@ class InstlClient(InstlInstanceBase):
             previous_sources = self.items_table.get_details_and_tag_for_active_iids("previous_sources", unique_values=True, limit_to_iids=iids_in_folder)
 
             if len(previous_sources) > 0:
-                self.batch_accum += self.platform_helper.new_line()
                 self.batch_accum += self.platform_helper.remark(f"- Begin folder {target_folder_path}")
                 self.batch_accum += self.platform_helper.cd(target_folder_path)
                 # todo: conditional CD - if fails to not do other instructions

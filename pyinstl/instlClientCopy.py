@@ -99,7 +99,6 @@ class InstlClientCopy(InstlClient):
         self.batch_accum += Progress("Starting copy from $(COPY_SOURCES_ROOT_DIR)")
 
         self.accumulate_unique_actions_for_active_iids('pre_copy')
-        #self.batch_accum += self.platform_helper.new_line()
 
         sorted_target_folder_list = sorted(self.all_iids_by_target_folder,
                                            key=lambda fold: config_vars.resolve_str(fold))
@@ -311,7 +310,6 @@ class InstlClientCopy(InstlClient):
                 have_info_path = config_vars["REQUIRED_INFO_MAP_PATH"].str()
                 self.batch_accum += self.platform_helper.set_exec_for_folder(have_info_path)
                 self.platform_helper.num_items_for_progress_report += num_files_to_set_exec
-                self.batch_accum += self.platform_helper.new_line()
 
     # Todo: move function to a better location
     def pre_resolve_path(self, path_to_resolve) -> str:
@@ -329,7 +327,6 @@ class InstlClientCopy(InstlClient):
             self.unwtar_instructions: List = list()
             num_items_copied_to_folder = 0
             items_in_folder = sorted(self.all_iids_by_target_folder[target_folder_path])
-            folder_accum_transaction += self.platform_helper.new_line()
             folder_accum_transaction += self.platform_helper.remark(f"- Begin folder {target_folder_path}")
             folder_accum_transaction += Progress(f"copy to {target_folder_path} ...")
             folder_accum_transaction += self.platform_helper.cd(target_folder_path)
@@ -382,7 +379,6 @@ class InstlClientCopy(InstlClient):
         with self.batch_accum.sub_accum(Section(f"create_copy_instructions_for_no_copy_folder-{sync_folder_name}")) as folder_accum_transaction:
 
             items_in_folder = self.no_copy_iids_by_sync_folder[sync_folder_name]
-            folder_accum_transaction += self.platform_helper.new_line()
             folder_accum_transaction += self.platform_helper.cd(sync_folder_name)
             folder_accum_transaction += Progress(f"Actions in {sync_folder_name} ...")
 

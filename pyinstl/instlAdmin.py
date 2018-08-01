@@ -194,7 +194,6 @@ class InstlAdmin(InstlInstanceBase):
                 revision_lines = accum.finalize_list_of_lines()  # will resolve with current  __CURR_REPO_REV__
                 self.batch_accum += revision_lines
                 self.batch_accum += self.platform_helper.restore_dir(save_dir_var)
-                self.batch_accum += self.platform_helper.new_line()
             else:
                 no_need_link_nums.append(str(revision))
 
@@ -341,7 +340,6 @@ class InstlAdmin(InstlInstanceBase):
             revision_lines = accum.finalize_list_of_lines()  # will resolve with current  __CURR_REPO_REV__
             self.batch_accum += revision_lines
             self.batch_accum += self.platform_helper.restore_dir(save_dir_var)
-            self.batch_accum += self.platform_helper.new_line()
 
         self.write_batch_file(self.batch_accum)
         if bool(config_vars["__RUN_BATCH__"]):
@@ -595,7 +593,6 @@ class InstlAdmin(InstlInstanceBase):
                 self.batch_accum += " ".join(("echo", "-n", "'" + link_value + "'", ">", "'" + symlink_text_path + "'"))
                 self.batch_accum += self.platform_helper.rmfile(symlink_file)
                 self.batch_accum += Progress(symlink_text_path)
-                self.batch_accum += self.platform_helper.new_line()
 
         self.write_batch_file(self.batch_accum)
         if bool(config_vars["__RUN_BATCH__"]):
@@ -616,7 +613,6 @@ class InstlAdmin(InstlInstanceBase):
 
         self.batch_accum += Unlock(stage_folder, recursive=True)
         self.batch_accum += Progress("chflags -R nouchg " + stage_folder)
-        self.batch_accum += self.platform_helper.new_line()
         self.batch_accum += self.platform_helper.cd(svn_folder)
         stage_folder_svn_folder_pairs = []
         if config_vars.defined("__LIMIT_COMMAND_TO__"):
@@ -791,7 +787,6 @@ class InstlAdmin(InstlInstanceBase):
             self.batch_accum += Progress(f"chflags -R nouchg {a_folder}")
             self.batch_accum += f"""find "{a_folder}" -name ".DS_Store" -delete"""
             self.batch_accum += Progress("delete ignored files")
-            self.batch_accum += self.platform_helper.new_line()
 
         total_items_to_tar = 0
         total_redundant_wtar_files = 0
@@ -842,9 +837,7 @@ class InstlAdmin(InstlInstanceBase):
                         self.batch_accum += self.platform_helper.rmfile(item_to_tar)
                         self.batch_accum += Progress(f"removed file {item_to_tar}")
                     self.batch_accum += Progress(item_to_tar_full_path)
-                    self.batch_accum += self.platform_helper.new_line()
                 self.batch_accum += Progress(f"end folder {folder_to_check}")
-                self.batch_accum += self.platform_helper.new_line()
 
         self.progress("found", total_items_to_tar, "to wtar")
         if total_redundant_wtar_files:
