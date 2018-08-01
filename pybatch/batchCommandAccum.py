@@ -30,7 +30,6 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         self.sections = dict()
         #self.context_stack = [list()]
         self.creation_time = time.strftime('%d-%m-%y_%H-%M')
-        self.in_sub_accum = False
 
     def clear(self):
         self.sections = dict()
@@ -61,9 +60,9 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         assert not self.in_sub_accum, "PythonBatchCommandAccum.sub_accum: should not be called while another sub_accum is in context"
         self.in_sub_accum = True
         yield context
+        self.in_sub_accum = False
         if context.is_essential():
             self.add(context)
-        self.in_sub_accum = False
 
     def _python_opening_code(self):
         instl_folder = pathlib.Path(__file__).joinpath("..", "..").resolve()

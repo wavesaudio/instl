@@ -56,6 +56,7 @@ class PythonBatchCommandBase(abc.ABC):
         self.child_batch_commands = []
         self.enter_time = None
         self.exit_time = None
+        self.in_sub_accum = False
 
     def is_essential(self):
         retVal = self.essential
@@ -75,6 +76,7 @@ class PythonBatchCommandBase(abc.ABC):
         return self
 
     def add(self, instructions):
+        assert not self.in_sub_accum, "PythonBatchCommandAccum.add: should not be called while sub_accum is in context"
         if isinstance(instructions, PythonBatchCommandBase):
             self.child_batch_commands.append(instructions)
         else:
@@ -83,7 +85,10 @@ class PythonBatchCommandBase(abc.ABC):
 
     @contextmanager
     def sub_accum(self, context):
+        assert not self.in_sub_accum, "PythonBatchCommandAccum.sub_accum: should not be called while another sub_accum is in context"
+        self.in_sub_accum = True
         yield context
+        self.in_sub_accum = False
         self.add(context)
 
     @abc.abstractmethod
