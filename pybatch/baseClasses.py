@@ -30,6 +30,11 @@ class PythonBatchCommandBase(abc.ABC):
     """
     instance_counter: int = 0
     total_progress: int = 0
+    essential = True
+
+    def __init_subclass__(cls, essential=True, **kwargs):
+        super().__init_subclass__(**kwargs)
+        cls.essential = essential
 
     @abc.abstractmethod
     def __init__(self, identifier=None, **kwargs):
@@ -50,6 +55,19 @@ class PythonBatchCommandBase(abc.ABC):
         self.child_batch_commands = []
         self.enter_time = None
         self.exit_time = None
+
+    def is_essential(self):
+        retVal = self.essential
+        if not retVal:
+            retVal = any([child.is_essential() for child in self.child_batch_commands])
+        return retVal
+
+    def num_sub_batch_commands(self):
+        counter = 0
+        for batch_command in self.child_batch_commands:
+            counter += batch_command.num_sub_batch_commands()
+            counter += 1
+        return counter
 
     @abc.abstractmethod
     def __repr__(self):

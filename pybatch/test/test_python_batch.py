@@ -1046,6 +1046,14 @@ class TestPythonBatch(unittest.TestCase):
         self.assertTrue(unwzip_target_file.exists(), f"{self.which_test}: {unwzip_target_file} should exist before test")
         self.assertTrue(filecmp.cmp(wzip_input, unwzip_target_file), f"'{wzip_input}' and '{unwzip_target_file}' should be identical")
 
+    def test_Essentiality(self):
+        with self.batch_accum as batchi:
+            with batchi.sub_accum(Section("redundant section")):
+                batchi += Echo("redundant echo")
+            self.assertEqual(self.batch_accum.num_batch_commands(), 0, f"{self.which_test}: a Section with only echo should discarded")
+            with batchi.sub_accum(Section("redundant section")):
+                batchi += Wzip("dummy no real path")
+            self.assertGreater(self.batch_accum.num_batch_commands(), 0, f"{self.which_test}: a Section with essential command should not discarded")
 
 if __name__ == '__main__':
     test_folder = pathlib.Path(__file__).joinpath("..", "..", "..").resolve().joinpath(main_test_folder_name)

@@ -6,6 +6,7 @@ from collections import defaultdict
 from configVar import config_vars
 from pybatch import PythonBatchCommandBase
 
+
 class BatchAccumulator(object):
     """ from batchAccumulator import BatchAccumulator
         accumulate batch instructions and prepare them for writing to file

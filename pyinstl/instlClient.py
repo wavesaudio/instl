@@ -296,7 +296,7 @@ class InstlClient(InstlInstanceBase):
                 action_description = self.action_type_to_progress_message[action_type]
                 self.batch_accum += Progress(f"{name_and_version} {action_description}")
                 previous_iid = IID
-            self.batch_accum += an_action
+            self.batch_accum += SingleShellCommand(an_action)
             retVal += 1
         return retVal
 

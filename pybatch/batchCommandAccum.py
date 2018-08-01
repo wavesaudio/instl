@@ -45,6 +45,14 @@ class PythonBatchCommandAccum(object):
     def clear(self):
         self.context_stack = [list()]
 
+    def num_batch_commands(self):
+        counter = 0
+        for a_context in self.context_stack:
+            for batch_command in a_context:
+                counter += batch_command.num_sub_batch_commands()
+                counter += 1
+        return counter
+
     @contextmanager
     def sub_accum(self, context):
         self.context_stack[-1].append(context)
@@ -71,10 +79,10 @@ from pybatch import *\n
             if isinstance(batch_items, list):
                 for item in batch_items:
                     _repr_helper(item, io_str, indent)
-                    _repr_helper(item.child_batch_commands, io_str, indent+1)
             elif batch_items.is_context_manager:
                 io_str.write(f"""{indent_str}with {repr(batch_items)} as {batch_items.obj_name}:\n""")
                 io_str.write(f"""{indent_str}    {batch_items.obj_name}()\n""")
+                _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
             else:
                 io_str.write(f"""{indent_str}{repr(batch_items)}""")
         PythonBatchCommandBase.total_progress = 0

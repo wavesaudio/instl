@@ -34,7 +34,7 @@ class Dummy(PythonBatchCommandBase):
 """
 
 
-class Progress(PythonBatchCommandBase):
+class Progress(PythonBatchCommandBase, essential=False):
     """
         just issue a progress message
     """
@@ -62,7 +62,7 @@ class Progress(PythonBatchCommandBase):
         pass
 
 
-class Echo(PythonBatchCommandBase):
+class Echo(PythonBatchCommandBase, essential=False):
     """
         just issue a (non progress) message
     """
