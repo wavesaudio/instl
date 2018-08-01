@@ -3,6 +3,7 @@ import subprocess
 import abc
 import re
 import time
+from contextlib import contextmanager
 
 
 first_cap_re = re.compile('(.)([A-Z][a-z]+)')
@@ -30,6 +31,11 @@ class PythonBatchCommandBase(abc.ABC):
     """
     instance_counter: int = 0
     total_progress: int = 0
+    essential = True
+
+    def __init_subclass__(cls, essential=True, **kwargs):
+        super().__init_subclass__(**kwargs)
+        cls.essential = essential
 
     @abc.abstractmethod
     def __init__(self, identifier=None, **kwargs):
@@ -50,6 +56,35 @@ class PythonBatchCommandBase(abc.ABC):
         self.child_batch_commands = []
         self.enter_time = None
         self.exit_time = None
+
+    def is_essential(self):
+        retVal = self.essential
+        if not retVal:
+            retVal = any([child.is_essential() for child in self.child_batch_commands])
+        return retVal
+
+    def num_sub_batch_commands(self):
+        counter = 0
+        for batch_command in self.child_batch_commands:
+            counter += batch_command.num_sub_batch_commands()
+            counter += 1
+        return counter
+
+    def __iadd__(self, child_commands):
+        self.add(child_commands)
+        return self
+
+    def add(self, instructions):
+        if isinstance(instructions, PythonBatchCommandBase):
+            self.child_batch_commands.append(instructions)
+        else:
+            for instruction in instructions:
+                self.add(instruction)
+
+    @contextmanager
+    def sub_accum(self, context):
+        yield context
+        self.add(context)
 
     @abc.abstractmethod
     def __repr__(self):

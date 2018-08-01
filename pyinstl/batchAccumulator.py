@@ -4,6 +4,8 @@
 from collections import defaultdict
 
 from configVar import config_vars
+from pybatch import PythonBatchCommandBase
+from pybatch import PythonBatchCommandAccum
 
 
 class BatchAccumulator(object):
@@ -27,6 +29,10 @@ class BatchAccumulator(object):
         else:
             raise ValueError(f"{section} is not a known section name")
 
+    def __iadd__(self, instructions):
+        self.add(instructions)
+        return self
+
     def add(self, instructions):
         if isinstance(instructions, str):
             assert instructions != '~', "~ in instructions previous instruction: "+self.instruction_lines[self.current_section][-1]
@@ -34,10 +40,6 @@ class BatchAccumulator(object):
         else:
             for instruction in instructions:
                 self.add(instruction)
-
-    def __iadd__(self, instructions):
-        self.add(instructions)
-        return self
 
     def __add_single_line__(self, single_line):
         """ make sure only strings are added """
@@ -112,20 +114,8 @@ class BatchAccumulatorTransaction(object):
         return self
 
 
-class PythonBatchAccumulator(BatchAccumulator):
-    """ from batchAccumulator import BatchAccumulator
-        accumulate batch instructions and prepare them for writing to file
-    """
-    section_order = ("pre", "assign", "begin", "links", "upload", "sync", "post-sync", "copy", "post-copy", "remove", "admin", "end", "post")
-
-    def __init__(self) -> None:
-        from pybatch import PythonBatchCommandAccum
-        super().__init__()
-        self.instruction_lines = defaultdict(PythonBatchCommandAccum)
-
-
 def BatchAccumulatorFactory(use_python_batch: bool) -> BatchAccumulator:
     if use_python_batch:
-        return PythonBatchAccumulator()
+        return PythonBatchCommandAccum()
     else:
         return BatchAccumulator()

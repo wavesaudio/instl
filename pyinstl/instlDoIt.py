@@ -58,7 +58,7 @@ class InstlDoIt(InstlInstanceBase):
             for IID in self.full_doit_order:
                 self.doit_for_iid(IID, doit_stage)
 
-        self.batch_accum += self.platform_helper.echo("Done $(CURRENT_DOIT_DESCRIPTION)")
+        self.batch_accum += Echo("Done $(CURRENT_DOIT_DESCRIPTION)")
 
     def doit_for_iid(self, IID, doit_stage):
         action_list = self.items_table.get_resolved_details_value_for_active_iid(IID, doit_stage)
@@ -69,14 +69,14 @@ class InstlDoIt(InstlInstanceBase):
 
         if len(action_list) > 0:
             self.batch_accum += self.platform_helper.remark("--- Begin "+name)
-            self.batch_accum += self.platform_helper.progress(name+"...")
+            self.batch_accum += Progress(name+"...")
         num_actions = len(action_list)
         for i in range(num_actions):
             self.batch_accum += action_list[i]
             if i != num_actions - 1:
-                self.batch_accum += self.platform_helper.progress(name + " "+str(i+1))
+                self.batch_accum += Progress(name + " "+str(i+1))
         if len(action_list) > 0:
-            self.batch_accum += self.platform_helper.progress(name + ". done")
+            self.batch_accum += Progress(name + ". done")
             self.batch_accum += self.platform_helper.remark("--- End "+name+"\n")
 
     def calculate_full_doit_order(self):

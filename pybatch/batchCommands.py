@@ -37,7 +37,7 @@ def dos_escape(some_string):
 
 
 # === classes with tests ===
-class MakeRandomDirs(PythonBatchCommandBase):
+class MakeRandomDirs(PythonBatchCommandBase, essential=True):
     """ MakeRandomDirs is intended for use during tests - not for production
         Will create in current working directory a hierarchy of folders and files with random names so we can test copying
     """
@@ -84,7 +84,7 @@ class MakeRandomDirs(PythonBatchCommandBase):
         self.make_random_dirs_recursive(self.num_levels)
 
 
-class MakeDirs(PythonBatchCommandBase):
+class MakeDirs(PythonBatchCommandBase, essential=True):
     """ Create one or more dirs
         when remove_obstacles==True if one of the paths is a file it will be removed
         when remove_obstacles==False if one of the paths is a file 'FileExistsError: [Errno 17] File exists' will raise
@@ -140,7 +140,15 @@ class MakeDirs(PythonBatchCommandBase):
         return f"creating {self.cur_path}"
 
 
-class Touch(PythonBatchCommandBase):
+class MakeDirsWithOwner(MakeDirs, essential=True):
+    """ a stand in to replace platform_helper.mkdir_with_owner
+        ToDo: with owner functionality should be implemented in MakeDirs
+    """
+    def __init__(self, *paths_to_make, remove_obstacles: bool=True) -> None:
+        super().__init__(*paths_to_make, remove_obstacles)
+
+
+class Touch(PythonBatchCommandBase, essential=True):
     def __init__(self, path: os.PathLike) -> None:
         super().__init__()
         self.path = path
@@ -166,11 +174,11 @@ class Touch(PythonBatchCommandBase):
         return the_progress_msg
 
     def __call__(self, *args, **kwargs):
-        with open(self.path, 'a'):
+        with open(self.path, 'a') as tfd:
             os.utime(self.path, None)
 
 
-class Cd(PythonBatchCommandBase):
+class Cd(PythonBatchCommandBase, essential=True):
     def __init__(self, path: os.PathLike) -> None:
         super().__init__()
         self.new_path: os.PathLike = path
@@ -211,7 +219,7 @@ class Cd(PythonBatchCommandBase):
         os.chdir(self.old_path)
 
 
-class ChFlags(RunProcessBase):
+class ChFlags(RunProcessBase, essential=True):
     """ Mac specific to change system flags on files or dirs.
         These flags are different from permissions.
         For changing permissions use chmod.
@@ -278,7 +286,7 @@ class ChFlags(RunProcessBase):
         return run_args
 
 
-class Unlock(ChFlags):
+class Unlock(ChFlags, essential=True):
     """
         Remove the system's read-only flag, this is different from permissions.
         For changing permissions use chmod.
@@ -317,7 +325,7 @@ class Unlock(ChFlags):
         return the_progress_msg
 
 
-class CopyBase(RunProcessBase):
+class CopyBase(RunProcessBase, essential=True):
     def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False, copy_file=False, copy_dir=False) -> None:
         super().__init__()
         self.src: os.PathLike = src
@@ -587,7 +595,7 @@ class CopyFileToFile(CopyClass):
         return sync_command
 
 
-class RmFile(PythonBatchCommandBase):
+class RmFile(PythonBatchCommandBase, essential=True):
     def __init__(self, path: os.PathLike) -> None:
         """ remove a file
             - It's OK is the file does not exist
@@ -637,7 +645,7 @@ class RmFile(PythonBatchCommandBase):
         return None
 
 
-class RmDir(PythonBatchCommandBase):
+class RmDir(PythonBatchCommandBase, essential=True):
     def __init__(self, path: os.PathLike) -> None:
         """ remove a directory.
             - it's OK if the directory does not exist.
@@ -683,7 +691,7 @@ class RmDir(PythonBatchCommandBase):
         return None
 
 
-class RmFileOrDir(PythonBatchCommandBase):
+class RmFileOrDir(PythonBatchCommandBase, essential=True):
     def __init__(self, path: os.PathLike):
         """ remove a file or directory.
             - it's OK if the path does not exist.
@@ -728,7 +736,7 @@ class RmFileOrDir(PythonBatchCommandBase):
         return None
 
 
-class AppendFileToFile(PythonBatchCommandBase):
+class AppendFileToFile(PythonBatchCommandBase, essential=True):
     def __init__(self, source_file, target_file):
         super().__init__()
         self.source_file = source_file
@@ -761,8 +769,7 @@ class AppendFileToFile(PythonBatchCommandBase):
         return None
 
 
-# === classes without tests (yet) ===
-class Section(PythonBatchCommandBase):
+class Section(PythonBatchCommandBase, essential=False):
     def __init__(self, name):
         super().__init__()
         self.name = name
@@ -789,7 +796,7 @@ class Section(PythonBatchCommandBase):
         pass
 
 
-class Chown(RunProcessBase):
+class Chown(RunProcessBase, essential=True):
     def __init__(self, user_id: int, group_id: int, path: os.PathLike, recursive: bool=False):
         super().__init__()
         self.user_id = user_id
@@ -843,7 +850,7 @@ class Chown(RunProcessBase):
             return None
 
 
-class Dummy(PythonBatchCommandBase):
+class Dummy(PythonBatchCommandBase, essential=True):
     def __init__(self, name):
         super().__init__()
         self.name = name
@@ -876,7 +883,7 @@ class Dummy(PythonBatchCommandBase):
         print(f"Dummy __call__ {self.name}")
 
 
-class Chmod(RunProcessBase):
+class Chmod(RunProcessBase, essential=True):
     all_read = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
     all_exec = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
     all_read_write = all_read | stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
@@ -983,7 +990,34 @@ class Chmod(RunProcessBase):
         return None
 
 
-class ShellCommands(RunProcessBase):
+class SingleShellCommand(RunProcessBase, essential=True):
+    """ run a single command in a shell """
+
+    def __init__(self, shell_command, **kwargs):
+        kwargs["shell"] = True
+        super().__init__(**kwargs)
+        self.shell_command = shell_command
+
+    def __repr__(self):
+        the_repr = f'''{self.__class__.__name__}(shell_command=r"{self.shell_command}")'''
+        return the_repr
+
+    def repr_batch_win(self):
+        return self.shell_command
+
+    def repr_batch_mac(self):
+        return self.shell_command
+
+    def progress_msg_self(self):
+        prog_mess = ""
+        return prog_mess
+
+    def create_run_args(self):
+        the_lines = [self.shell_command]
+        return the_lines
+
+
+class ShellCommands(RunProcessBase, essential=True):
     def __init__(self, dir, shell_commands_var_name, shell_commands_list=None, **kwargs):
         kwargs["shell"] = True
         super().__init__(**kwargs)
@@ -1025,7 +1059,7 @@ class ShellCommands(RunProcessBase):
         return run_args
 
 
-class VarAssign(PythonBatchCommandBase):
+class VarAssign(PythonBatchCommandBase, essential=True):
     def __init__(self, var_name: str, var_value: Any):
         super().__init__(is_context_manager=False)
         self.var_name = var_name
@@ -1057,7 +1091,7 @@ class VarAssign(PythonBatchCommandBase):
         pass
 
 
-class ParallelRun(PythonBatchCommandBase):
+class ParallelRun(PythonBatchCommandBase, essential=True):
     def __init__(self, config_file,  shell, **kwargs):
         super().__init__(**kwargs)
         self.config_file = config_file
@@ -1093,7 +1127,7 @@ class ParallelRun(PythonBatchCommandBase):
                 raise
 
 
-class RemoveEmptyFolders(PythonBatchCommandBase):
+class RemoveEmptyFolders(PythonBatchCommandBase, essential=True):
     def __init__(self, folder_to_remove: os.PathLike, files_to_ignore: List = [], **kwargs) -> None:
         super().__init__(**kwargs)
         self.folder_to_remove = folder_to_remove
@@ -1140,7 +1174,7 @@ class RemoveEmptyFolders(PythonBatchCommandBase):
                         print("failed to remove", root_path, ex)
 
 
-class Ls(PythonBatchCommandBase):
+class Ls(PythonBatchCommandBase, essential=True):
     def __init__(self, folders_to_list, out_file, ls_format='*', **kwargs) -> None:
         super().__init__(**kwargs)
         self.ls_format = ls_format
