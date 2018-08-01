@@ -769,7 +769,6 @@ class AppendFileToFile(PythonBatchCommandBase, essential=True):
         return None
 
 
-# === classes without tests (yet) ===
 class Section(PythonBatchCommandBase, essential=False):
     def __init__(self, name):
         super().__init__()

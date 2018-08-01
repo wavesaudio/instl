@@ -7,6 +7,7 @@ import time
 from collections import defaultdict
 
 from .baseClasses import PythonBatchCommandBase
+from .batchCommands import Section
 python_batch_log_level = logging.WARNING
 
 
@@ -19,46 +20,45 @@ def batch_repr(batch_obj):
         return batch_obj.repr_batch_win()
 
 
-class PythonBatchCommandAccum(object):
+class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
 
-    def __init__(self):
+    section_order = ("pre", "assign", "begin", "links", "upload", "sync", "post-sync", "copy", "post-copy", "remove", "admin", "end", "post")
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.current_section: str = None
-        self.section_context_stacks = defaultdict(list)
-        self.context_stack = [list()]
+        self.sections = dict()
+        #self.context_stack = [list()]
         self.creation_time = time.strftime('%d-%m-%y_%H-%M')
 
-    def append(self, other):
-        self.context_stack[-1].append(other)
-        return self
-
-    def __iadd__(self, other):
-        self.context_stack[-1].append(other)
-        return self
-
-    def __enter__(self):
-        self.clear()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
-
     def clear(self):
-        self.context_stack = [list()]
+        self.sections = dict()
+        if self.current_section:
+            self.set_current_section(self.current_section)
+
+    def set_current_section(self, section_name):
+        if section_name in PythonBatchCommandAccum.section_order:
+            self.current_section = section_name
+            if self.current_section not in self.sections:
+                self.sections[self.current_section] = Section(self.current_section)
+        else:
+            raise ValueError(f"{section_name} is not a known section_name name")
 
     def num_batch_commands(self):
         counter = 0
-        for a_context in self.context_stack:
-            for batch_command in a_context:
-                counter += batch_command.num_sub_batch_commands()
-                counter += 1
+        for a_section in self.sections:
+            counter += a_section.num_sub_batch_commands()
+            counter += 1
         return counter
+
+    def add(self, child_commands):
+        self.sections[self.current_section].add(child_commands)
 
     @contextmanager
     def sub_accum(self, context):
-        self.context_stack[-1].append(context)
-        self.context_stack.append(context.child_batch_commands)
-        yield self
-        self.context_stack.pop()
+        yield context
+        if context.is_essential():
+            self.add(context)
 
     def _python_opening_code(self):
         instl_folder = pathlib.Path(__file__).joinpath("..", "..").resolve()
@@ -88,7 +88,9 @@ from pybatch import *\n
         PythonBatchCommandBase.total_progress = 0
         io_str = io.StringIO()
         io_str.write(self._python_opening_code())
-        _repr_helper(self.context_stack[0], io_str, 0)
+        for section_name in PythonBatchCommandAccum.section_order:
+            if section_name in self.sections:
+                _repr_helper(self.sections[section_name], io_str, 0)
         io_str.write(self._python_closing_code())
         return io_str.getvalue()
 
@@ -103,9 +105,16 @@ from pybatch import *\n
         PythonBatchCommandBase.total_progress = 0
         io_str = io.StringIO()
         #io_str.write(self._python_opening_code())
-        _repr_helper(self.context_stack[0], io_str)
+        #_repr_helper(self.context_stack[0], io_str)
         #io_str.write(self._python_closing_code())
         return io_str.getvalue()
 
     def repr_batch_mac(self):
         return ""
+
+    def progress_msg_self(self):
+        """ """
+        return ""
+
+    def __call__(self, *args, **kwargs):
+        pass

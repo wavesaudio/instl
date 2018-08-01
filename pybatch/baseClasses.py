@@ -69,6 +69,17 @@ class PythonBatchCommandBase(abc.ABC):
             counter += 1
         return counter
 
+    def __iadd__(self, child_commands):
+        self.add(child_commands)
+        return self
+
+    def add(self, instructions):
+        if isinstance(instructions, PythonBatchCommandBase):
+            self.child_batch_commands.append(instructions)
+        else:
+            for instruction in instructions:
+                self.add(instruction)
+
     @abc.abstractmethod
     def __repr__(self):
         the_repr = f"{self.__class__.__name__}(report_own_progress={self.report_own_progress}, ignore_all_errors={self.ignore_all_errors})"
