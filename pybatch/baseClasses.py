@@ -3,6 +3,7 @@ import subprocess
 import abc
 import re
 import time
+from contextlib import contextmanager
 
 
 first_cap_re = re.compile('(.)([A-Z][a-z]+)')
@@ -79,6 +80,11 @@ class PythonBatchCommandBase(abc.ABC):
         else:
             for instruction in instructions:
                 self.add(instruction)
+
+    @contextmanager
+    def sub_accum(self, context):
+        yield context
+        self.add(context)
 
     @abc.abstractmethod
     def __repr__(self):

@@ -142,8 +142,11 @@ class TestPythonBatch(unittest.TestCase):
     def tearDown(self):
         pass
 
+    def path_inside_test_folder(self, name):
+        return self.test_folder.joinpath(name).resolve()
+
     def write_file_in_test_folder(self, file_name, contents):
-        with open(self.test_folder.joinpath(file_name), "w") as wfd:
+        with open(self.path_inside_test_folder(file_name), "w") as wfd:
             wfd.write(contents)
 
     def exec_and_capture_output(self, test_name=None, expected_exception=None):
@@ -206,7 +209,7 @@ class TestPythonBatch(unittest.TestCase):
             A file is created and MakeDirs is called to create a directory on the same path.
             Since remove_obstacles=True the file should be removed and directory created in it's place.
         """
-        dir_to_make = self.test_folder.joinpath("file-that-should-be-dir").resolve()
+        dir_to_make = self.path_inside_test_folder("file-that-should-be-dir")
         self.assertFalse(dir_to_make.exists(), f"{self.which_test}: {dir_to_make} should not exist before test")
 
         touch(dir_to_make)
@@ -224,7 +227,7 @@ class TestPythonBatch(unittest.TestCase):
             A file is created and MakeDirs is called to create a directory on the same path.
             Since remove_obstacles=False the file should not be removed and FileExistsError raised.
         """
-        dir_to_make = self.test_folder.joinpath("file-that-should-not-be-dir").resolve()
+        dir_to_make = self.path_inside_test_folder("file-that-should-not-be-dir")
         self.assertFalse(dir_to_make.exists(), f"{self.which_test}: {dir_to_make} should not exist before test")
 
         touch(dir_to_make)
@@ -253,7 +256,7 @@ class TestPythonBatch(unittest.TestCase):
             A file is created and it's permissions are changed several times
         """
         # TODO: Add test for symbolic links
-        file_to_chmod = self.test_folder.joinpath("file-to-chmod").resolve()
+        file_to_chmod = self.path_inside_test_folder("file-to-chmod")
         touch(file_to_chmod)
         mod_before = stat.S_IMODE(os.stat(file_to_chmod).st_mode)
         os.chmod(file_to_chmod, Chmod.all_read)
@@ -326,17 +329,17 @@ class TestPythonBatch(unittest.TestCase):
         """
         if sys.platform == 'win32':
             return
-        folder_to_chmod = self.test_folder.joinpath("folder-to-chmod").resolve()
+        folder_to_chmod = self.path_inside_test_folder("folder-to-chmod")
 
         initial_mode = Chmod.all_read_write
         initial_mode_str = "a+rw"
         # create the folder
         self.batch_accum.clear()
         self.batch_accum += MakeDirs(folder_to_chmod)
-        with self.batch_accum.sub_accum(Cd(folder_to_chmod)):
-            self.batch_accum += Touch("hootenanny")  # add one file with fixed (none random) name
-            self.batch_accum += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
-            self.batch_accum += Chmod(path=folder_to_chmod, mode=initial_mode_str, recursive=True)
+        with self.batch_accum.sub_accum(Cd(folder_to_chmod)) as cd_accum:
+            cd_accum += Touch("hootenanny")  # add one file with fixed (none random) name
+            cd_accum += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
+            cd_accum += Chmod(path=folder_to_chmod, mode=initial_mode_str, recursive=True)
         self.exec_and_capture_output("create the folder")
 
         self.assertTrue(compare_chmod_recursive(folder_to_chmod, initial_mode, Chmod.all_read_write_exec))
@@ -389,7 +392,7 @@ class TestPythonBatch(unittest.TestCase):
             Inside a file is created ('touched'). After that current working directory should return
             to it's initial value
         """
-        dir_to_make = self.test_folder.joinpath("cd-here").resolve()
+        dir_to_make = self.path_inside_test_folder("cd-here")
         file_to_touch = dir_to_make.joinpath("touch-me").resolve()
         self.assertFalse(file_to_touch.exists(), f"{self.which_test}: before test {file_to_touch} should not exist")
 
@@ -399,7 +402,7 @@ class TestPythonBatch(unittest.TestCase):
         self.batch_accum.clear()
         self.batch_accum += MakeDirs(dir_to_make, remove_obstacles=False)
         with self.batch_accum.sub_accum(Cd(dir_to_make)) as sub_bc:
-            sub_bc += Touch("touch-me")  # file's path is relative!
+            sub_bc += Touch(file_to_touch.name)  # file's path is relative!
 
         self.exec_and_capture_output()
 
@@ -433,26 +436,26 @@ class TestPythonBatch(unittest.TestCase):
             rsync command is correct but running it from python changes something.
 
         """
-        dir_to_copy_from = self.test_folder.joinpath("copy-src").resolve()
+        dir_to_copy_from = self.path_inside_test_folder("copy-src")
         self.assertFalse(dir_to_copy_from.exists(), f"{self.which_test}: {dir_to_copy_from} should not exist before test")
 
-        dir_to_copy_to_no_hard_links = self.test_folder.joinpath("copy-target-no-hard-links").resolve()
+        dir_to_copy_to_no_hard_links = self.path_inside_test_folder("copy-target-no-hard-links")
         copied_dir_no_hard_links = dir_to_copy_to_no_hard_links.joinpath("copy-src").resolve()
         self.assertFalse(dir_to_copy_to_no_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_no_hard_links} should not exist before test")
 
-        dir_to_copy_to_with_hard_links = self.test_folder.joinpath("copy-target-with-hard-links").resolve()
+        dir_to_copy_to_with_hard_links = self.path_inside_test_folder("copy-target-with-hard-links")
         copied_dir_with_hard_links = dir_to_copy_to_with_hard_links.joinpath("copy-src").resolve()
         self.assertFalse(dir_to_copy_to_with_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_with_hard_links} should not exist before test")
 
-        dir_to_copy_to_with_ignore = self.test_folder.joinpath("copy-target-with-ignore").resolve()
+        dir_to_copy_to_with_ignore = self.path_inside_test_folder("copy-target-with-ignore")
         copied_dir_with_ignore = dir_to_copy_to_with_ignore.joinpath("copy-src").resolve()
         self.assertFalse(dir_to_copy_to_with_ignore.exists(), f"{self.which_test}: {dir_to_copy_to_with_ignore} should not exist before test")
 
         self.batch_accum.clear()
         self.batch_accum += MakeDirs(dir_to_copy_from)
         with self.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
-            self.batch_accum += Touch("hootenanny")  # add one file with fixed (none random) name
-            self.batch_accum += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
+            sub_bc += Touch("hootenanny")  # add one file with fixed (none random) name
+            sub_bc += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
         self.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_no_hard_links, link_dest=False)
         if sys.platform == 'darwin':
             self.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_with_hard_links, link_dest=True)
@@ -481,23 +484,23 @@ class TestPythonBatch(unittest.TestCase):
         """ see doc string for test_CopyDirToDir, with the difference that the source dir contents
             should be copied - not the source dir itself.
         """
-        dir_to_copy_from = self.test_folder.joinpath("copy-src").resolve()
+        dir_to_copy_from = self.path_inside_test_folder("copy-src")
         self.assertFalse(dir_to_copy_from.exists(), f"{self.which_test}: {dir_to_copy_from} should not exist before test")
 
-        dir_to_copy_to_no_hard_links = self.test_folder.joinpath("copy-target-no-hard-links").resolve()
+        dir_to_copy_to_no_hard_links = self.path_inside_test_folder("copy-target-no-hard-links")
         self.assertFalse(dir_to_copy_to_no_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_no_hard_links} should not exist before test")
 
-        dir_to_copy_to_with_hard_links = self.test_folder.joinpath("copy-target-with-hard-links").resolve()
+        dir_to_copy_to_with_hard_links = self.path_inside_test_folder("copy-target-with-hard-links")
         self.assertFalse(dir_to_copy_to_with_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_with_hard_links} should not exist before test")
 
-        dir_to_copy_to_with_ignore = self.test_folder.joinpath("copy-target-with-ignore").resolve()
+        dir_to_copy_to_with_ignore = self.path_inside_test_folder("copy-target-with-ignore")
         self.assertFalse(dir_to_copy_to_with_ignore.exists(), f"{self.which_test}: {dir_to_copy_to_with_ignore} should not exist before test")
 
         self.batch_accum.clear()
         self.batch_accum += MakeDirs(dir_to_copy_from)
         with self.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
-            self.batch_accum += Touch("hootenanny")  # add one file with fixed (none random) name
-            self.batch_accum += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
+            sub_bc += Touch("hootenanny")  # add one file with fixed (none random) name
+            sub_bc += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
         self.batch_accum += CopyDirContentsToDir(dir_to_copy_from, dir_to_copy_to_no_hard_links, link_dest=False)
         if sys.platform == 'darwin':
             self.batch_accum += CopyDirContentsToDir(dir_to_copy_from, dir_to_copy_to_with_hard_links, link_dest=True)
@@ -528,21 +531,21 @@ class TestPythonBatch(unittest.TestCase):
             one file that is copied by it's full path.
         """
         file_name = "hootenanny"
-        dir_to_copy_from = self.test_folder.joinpath("copy-src").resolve()
+        dir_to_copy_from = self.path_inside_test_folder("copy-src")
         self.assertFalse(dir_to_copy_from.exists(), f"{self.which_test}: {dir_to_copy_from} should not exist before test")
         file_to_copy = dir_to_copy_from.joinpath(file_name).resolve()
 
-        dir_to_copy_to_no_hard_links = self.test_folder.joinpath("copy-target-no-hard-links").resolve()
+        dir_to_copy_to_no_hard_links = self.path_inside_test_folder("copy-target-no-hard-links")
         self.assertFalse(dir_to_copy_to_no_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_no_hard_links} should not exist before test")
 
-        dir_to_copy_to_with_hard_links = self.test_folder.joinpath("copy-target-with-hard-links").resolve()
+        dir_to_copy_to_with_hard_links = self.path_inside_test_folder("copy-target-with-hard-links")
         self.assertFalse(dir_to_copy_to_with_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_with_hard_links} should not exist before test")
 
         self.batch_accum.clear()
         self.batch_accum += MakeDirs(dir_to_copy_from)
         self.batch_accum += MakeDirs(dir_to_copy_to_no_hard_links)
         with self.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
-            self.batch_accum += Touch("hootenanny")  # add one file
+            sub_bc += Touch(file_name)  # add one file
         self.batch_accum += CopyFileToDir(file_to_copy, dir_to_copy_to_no_hard_links, link_dest=False)
         if sys.platform == 'darwin':
             self.batch_accum += CopyFileToDir(file_to_copy, dir_to_copy_to_with_hard_links, link_dest=True)
@@ -567,15 +570,15 @@ class TestPythonBatch(unittest.TestCase):
             one file that is copied by it's full path and target is a full path to a file.
         """
         file_name = "hootenanny"
-        dir_to_copy_from = self.test_folder.joinpath("copy-src").resolve()
+        dir_to_copy_from = self.path_inside_test_folder("copy-src")
         self.assertFalse(dir_to_copy_from.exists(), f"{self.which_test}: {dir_to_copy_from} should not exist before test")
         file_to_copy = dir_to_copy_from.joinpath(file_name).resolve()
 
-        target_dir_no_hard_links = self.test_folder.joinpath("target_dir_no_hard_links").resolve()
+        target_dir_no_hard_links = self.path_inside_test_folder("target_dir_no_hard_links")
         self.assertFalse(target_dir_no_hard_links.exists(), f"{self.which_test}: {target_dir_no_hard_links} should not exist before test")
         target_file_no_hard_links = target_dir_no_hard_links.joinpath(file_name).resolve()
 
-        target_dir_with_hard_links = self.test_folder.joinpath("target_dir_with_hard_links").resolve()
+        target_dir_with_hard_links = self.path_inside_test_folder("target_dir_with_hard_links")
         self.assertFalse(target_dir_with_hard_links.exists(), f"{self.which_test}: {target_dir_with_hard_links} should not exist before test")
         target_file_with_hard_links = target_dir_with_hard_links.joinpath(file_name).resolve()
 
@@ -584,7 +587,7 @@ class TestPythonBatch(unittest.TestCase):
         self.batch_accum += MakeDirs(target_dir_no_hard_links)
         self.batch_accum += MakeDirs(target_dir_with_hard_links)
         with self.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
-            self.batch_accum += Touch("hootenanny")  # add one file
+            sub_bc += Touch(file_name)  # add one file
         self.batch_accum += CopyFileToFile(file_to_copy, target_file_no_hard_links, link_dest=False)
         self.batch_accum += CopyFileToFile(file_to_copy, target_file_with_hard_links, link_dest=True)
 
@@ -611,13 +614,13 @@ class TestPythonBatch(unittest.TestCase):
             1st try to remove the folder with RmFile which should fail and raise exception
             2nd try to remove the folder with RmDir which should work
         """
-        dir_to_remove = self.test_folder.joinpath("remove-me").resolve()
+        dir_to_remove = self.path_inside_test_folder("remove-me")
         self.assertFalse(dir_to_remove.exists())
 
         self.batch_accum.clear()
         self.batch_accum += MakeDirs(dir_to_remove)
         with self.batch_accum.sub_accum(Cd(dir_to_remove)) as sub_bc:
-            self.batch_accum += MakeRandomDirs(num_levels=3, num_dirs_per_level=5, num_files_per_dir=7, file_size=41)
+            sub_bc += MakeRandomDirs(num_levels=3, num_dirs_per_level=5, num_files_per_dir=7, file_size=41)
         self.batch_accum += RmFile(dir_to_remove)  # RmFile should not remove a folder
         self.exec_and_capture_output(expected_exception=PermissionError)
         self.assertTrue(dir_to_remove.exists())
@@ -633,7 +636,7 @@ class TestPythonBatch(unittest.TestCase):
         self.assertEqual(chflags_obj, chflags_obj_recreated, "ChFlags.repr did not recreate ChFlags object correctly")
 
     def test_ChFlags(self):
-        test_file = self.test_folder.joinpath("chflags-me").resolve()
+        test_file = self.path_inside_test_folder("chflags-me")
         self.assertFalse(test_file.exists(), f"{self.which_test}: {test_file} should not exist before test")
 
         self.batch_accum.clear()
@@ -677,9 +680,9 @@ class TestPythonBatch(unittest.TestCase):
         self.assertEqual(aftf_obj, aftf_obj_recreated, "AppendFileToFile.repr did not recreate AppendFileToFile object correctly")
 
     def test_AppendFileToFile(self):
-        source_file = self.test_folder.joinpath("source-file.txt").resolve()
+        source_file = self.path_inside_test_folder("source-file.txt")
         self.assertFalse(source_file.exists(), f"{self.which_test}: {source_file} should not exist before test")
-        target_file = self.test_folder.joinpath("target-file.txt").resolve()
+        target_file = self.path_inside_test_folder("target-file.txt")
         self.assertFalse(target_file.exists(), f"{self.which_test}: {target_file} should not exist before test")
 
         content_1 = ''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase) for i in range(124))
@@ -706,7 +709,7 @@ class TestPythonBatch(unittest.TestCase):
         pass
 
     def test_ShellCommands(self):
-        batches_dir = self.test_folder.joinpath("batches").resolve()
+        batches_dir = self.path_inside_test_folder("batches")
         self.assertFalse(batches_dir.exists(), f"{self.which_test}: {batches_dir} should not exist before test")
 
         if sys.platform == 'darwin':
@@ -729,11 +732,11 @@ class TestPythonBatch(unittest.TestCase):
         self.assertEqual(pr_obj, pr_obj_recreated, "ParallelRun.repr did not recreate ParallelRun object correctly")
 
     def test_ParallelRun_shell(self):
-        test_file = self.test_folder.joinpath("list-of-runs").resolve()
+        test_file = self.path_inside_test_folder("list-of-runs")
         self.assertFalse(test_file.exists(), f"{self.which_test}: {test_file} should not exist before test")
-        ls_output = self.test_folder.joinpath("ls.out.txt").resolve()
+        ls_output = self.path_inside_test_folder("ls.out.txt")
         self.assertFalse(ls_output.exists(), f"{self.which_test}: {ls_output} should not exist before test")
-        ps_output = self.test_folder.joinpath("ps.out.txt").resolve()
+        ps_output = self.path_inside_test_folder("ps.out.txt")
         self.assertFalse(ps_output.exists(), f"{self.which_test}: {ps_output} should not exist before test")
 
         with open(test_file, "w") as wfd:
@@ -752,7 +755,7 @@ class TestPythonBatch(unittest.TestCase):
         self.assertTrue(ps_output.exists(), f"{self.which_test}: {ps_output} was not created")
 
     def test_ParallelRun_shell_bad_exit(self):
-        test_file = self.test_folder.joinpath("list-of-runs").resolve()
+        test_file = self.path_inside_test_folder("list-of-runs")
 
         with open(test_file, "w") as wfd:
             if sys.platform == 'darwin':
@@ -768,14 +771,14 @@ class TestPythonBatch(unittest.TestCase):
         self.exec_and_capture_output(expected_exception=SystemExit)
 
     def test_ParallelRun_no_shell(self):
-        test_file = self.test_folder.joinpath("list-of-runs").resolve()
+        test_file = self.path_inside_test_folder("list-of-runs")
         self.assertFalse(test_file.exists(), f"{self.which_test}: {test_file} should not exist before test")
 
-        zip_input = self.test_folder.joinpath("zip_in").resolve()
+        zip_input = self.path_inside_test_folder("zip_in")
         self.assertFalse(zip_input.exists(), f"{self.which_test}: {zip_input} should not exist before test")
-        zip_output = self.test_folder.joinpath("zip_in.bz2").resolve()
+        zip_output = self.path_inside_test_folder("zip_in.bz2")
         self.assertFalse(zip_output.exists(), f"{self.which_test}: {zip_output} should not exist before test")
-        zip_input_copy = self.test_folder.joinpath("zip_in.copy").resolve()
+        zip_input_copy = self.path_inside_test_folder("zip_in.copy")
         self.assertFalse(zip_input_copy.exists(), f"{self.which_test}: {zip_input_copy} should not exist before test")
 
         # create a file to zip
@@ -847,24 +850,24 @@ class TestPythonBatch(unittest.TestCase):
         self.assertEqual(unwtar_obj, unwtar_obj_recreated, "Unwtar.repr did not recreate Unwtar object correctly")
 
     def test_Wtar_Unwtar(self):
-        folder_to_wtar = self.test_folder.joinpath("folder-to-wtar").resolve()
-        folder_wtarred = self.test_folder.joinpath("folder-to-wtar.wtar").resolve()
-        dummy_wtar_file_to_replace = self.test_folder.joinpath("dummy-wtar-file-to-replace.dummy").resolve()
+        folder_to_wtar = self.path_inside_test_folder("folder-to-wtar")
+        folder_wtarred = self.path_inside_test_folder("folder-to-wtar.wtar")
+        dummy_wtar_file_to_replace = self.path_inside_test_folder("dummy-wtar-file-to-replace.dummy")
         with open(dummy_wtar_file_to_replace, "w") as wfd:
             wfd.write(''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase+"\n") for i in range(10 * 1024)))
         self.assertTrue(dummy_wtar_file_to_replace.exists(), f"{self.which_test}: {dummy_wtar_file_to_replace} should have been created")
-        another_folder = self.test_folder.joinpath("another-folder").resolve()
+        another_folder = self.path_inside_test_folder("another-folder")
         wtarred_in_another_folder = another_folder.joinpath("folder-to-wtar.wtar").resolve()
 
         self.batch_accum.clear()
         self.batch_accum += MakeDirs(folder_to_wtar)
-        with self.batch_accum.sub_accum(Cd(folder_to_wtar)):
-            self.batch_accum += Touch("dohickey")  # add one file with fixed (none random) name
-            self.batch_accum += MakeRandomDirs(num_levels=3, num_dirs_per_level=4, num_files_per_dir=7, file_size=41)
-            self.batch_accum += Wtar(folder_to_wtar)  # wtar next to the folder
-            self.batch_accum += Wtar(folder_to_wtar, dummy_wtar_file_to_replace)  # wtar on replacing existing file
-            self.batch_accum += MakeDirs(another_folder)
-            self.batch_accum += Wtar(folder_to_wtar, another_folder)  # wtar to a different folder
+        with self.batch_accum.sub_accum(Cd(folder_to_wtar)) as cd_accum:
+            cd_accum += Touch("dohickey")  # add one file with fixed (none random) name
+            cd_accum += MakeRandomDirs(num_levels=3, num_dirs_per_level=4, num_files_per_dir=7, file_size=41)
+            cd_accum += Wtar(folder_to_wtar)  # wtar next to the folder
+            cd_accum += Wtar(folder_to_wtar, dummy_wtar_file_to_replace)  # wtar on replacing existing file
+            cd_accum += MakeDirs(another_folder)
+            cd_accum += Wtar(folder_to_wtar, another_folder)  # wtar to a different folder
         self.exec_and_capture_output("wtar the folder")
         self.assertTrue(os.path.isfile(folder_wtarred), f"wtarred file was not found {folder_wtarred}")
         self.assertTrue(os.path.isfile(dummy_wtar_file_to_replace), f"dummy_wtar_file_to_replace file was not found {dummy_wtar_file_to_replace}")
@@ -873,7 +876,7 @@ class TestPythonBatch(unittest.TestCase):
         self.assertTrue(filecmp.cmp(folder_wtarred, dummy_wtar_file_to_replace), f"'{folder_wtarred}' and '{dummy_wtar_file_to_replace}' should be identical")
         self.assertTrue(filecmp.cmp(folder_wtarred, wtarred_in_another_folder), f"'{folder_wtarred}' and '{wtarred_in_another_folder}' should be identical")
 
-        unwtar_here = self.test_folder.joinpath("unwtar-here").resolve()
+        unwtar_here = self.path_inside_test_folder("unwtar-here")
         unwtared_folder = unwtar_here.joinpath("folder-to-wtar").resolve()
         self.batch_accum.clear()
         self.batch_accum += Unwtar(folder_wtarred, unwtar_here)
@@ -934,15 +937,15 @@ class TestPythonBatch(unittest.TestCase):
         self.assertEqual(ref_obj, ref_obj_recreated, "RemoveEmptyFolders.repr did not recreate MacDoc object correctly")
 
     def test_RemoveEmptyFolders(self):
-        folder_to_remove = self.test_folder.joinpath("folder-to-remove").resolve()
+        folder_to_remove = self.path_inside_test_folder("folder-to-remove")
         file_to_stay = folder_to_remove.joinpath("paramedic")
 
         # create the folder, with sub folder and one known file
         self.batch_accum.clear()
         self.batch_accum += MakeDirs(folder_to_remove)
-        with self.batch_accum.sub_accum(Cd(folder_to_remove)):
-            self.batch_accum += Touch("paramedic")
-            self.batch_accum += MakeRandomDirs(num_levels=3, num_dirs_per_level=2, num_files_per_dir=0, file_size=41)
+        with self.batch_accum.sub_accum(Cd(folder_to_remove)) as cd_accum:
+            cd_accum += Touch(file_to_stay.name)
+            cd_accum += MakeRandomDirs(num_levels=3, num_dirs_per_level=2, num_files_per_dir=0, file_size=41)
         self.exec_and_capture_output("create empty folders")
         self.assertTrue(os.path.isdir(folder_to_remove), f"{self.which_test} : folder to remove was not created {folder_to_remove}")
         self.assertTrue(os.path.isfile(file_to_stay), f"{self.which_test} : file_to_stay was not created {file_to_stay}")
@@ -980,16 +983,16 @@ class TestPythonBatch(unittest.TestCase):
         self.assertEqual(ls_obj, ls_obj_recreated, "Ls.repr did not recreate Ls object correctly")
 
     def test_Ls(self):
-        folder_to_list = self.test_folder.joinpath("folder-to-list").resolve()
-        list_out_file = self.test_folder.joinpath("list-output").resolve()
+        folder_to_list = self.path_inside_test_folder("folder-to-list")
+        list_out_file = self.path_inside_test_folder("list-output")
 
         # create the folder, with sub folder and one known file
         self.batch_accum.clear()
-        with self.batch_accum.sub_accum(Cd(self.test_folder)):
-             self.batch_accum += MakeDirs(folder_to_list)
-             with self.batch_accum.sub_accum(Cd(folder_to_list)):
-                self.batch_accum += MakeRandomDirs(num_levels=3, num_dirs_per_level=2, num_files_per_dir=8, file_size=41)
-             self.batch_accum += Ls(folder_to_list, "list-output")
+        with self.batch_accum.sub_accum(Cd(self.test_folder)) as cd1_accum:
+             cd1_accum += MakeDirs(folder_to_list)
+             with cd1_accum.sub_accum(Cd(folder_to_list)) as cd2_accum:
+                cd2_accum += MakeRandomDirs(num_levels=3, num_dirs_per_level=2, num_files_per_dir=8, file_size=41)
+             cd1_accum += Ls(folder_to_list, "list-output")
         self.exec_and_capture_output("ls folder")
         self.assertTrue(os.path.isdir(folder_to_list), f"{self.which_test} : folder to list was not created {folder_to_list}")
         self.assertTrue(os.path.isfile(list_out_file), f"{self.which_test} : list_out_file was not created {list_out_file}")
@@ -1020,14 +1023,14 @@ class TestPythonBatch(unittest.TestCase):
         self.assertEqual(wzip_obj, wzip_obj_recreated, "Wzip.repr did not recreate Wzip object correctly")
 
     def test_Wzip(self):
-        wzip_input = self.test_folder.joinpath("wzip_in").resolve()
+        wzip_input = self.path_inside_test_folder("wzip_in")
         self.assertFalse(wzip_input.exists(), f"{self.which_test}: {wzip_input} should not exist before test")
-        wzip_output = self.test_folder.joinpath("wzip_in.wzip").resolve()
+        wzip_output = self.path_inside_test_folder("wzip_in.wzip")
         self.assertFalse(wzip_output.exists(), f"{self.which_test}: {wzip_output} should not exist before test")
 
-        unwzip_target_folder = self.test_folder.joinpath("unwzip_target").resolve()
+        unwzip_target_folder = self.path_inside_test_folder("unwzip_target")
         self.assertFalse(unwzip_target_folder.exists(), f"{self.which_test}: {unwzip_target_folder} should not exist before test")
-        unwzip_target_file = self.test_folder.joinpath("wzip_in").resolve()
+        unwzip_target_file = self.path_inside_test_folder("wzip_in")
         self.assertFalse(unwzip_target_file.exists(), f"{self.which_test}: {unwzip_target_file} should not exist before test")
 
         # create a file to zip
@@ -1063,7 +1066,7 @@ class TestPythonBatch(unittest.TestCase):
         with open(sample_file, 'r') as stream:
             test_data = stream.read()
         url_from = 'https://www.sample-videos.com/text/Sample-text-file-10kb.txt'
-        to_path = self.test_folder.joinpath("curl").resolve()
+        to_path = self.path_inside_test_folder("curl")
         curl_path = 'curl'
         if sys.platform == 'win32':
             curl_path = r'C:\Program Files (x86)\Waves Central\WavesLicenseEngine.bundle\Contents\Win32\curl.exe'
@@ -1077,13 +1080,14 @@ class TestPythonBatch(unittest.TestCase):
         self.assertEqual(test_data, downloaded_data)
 
     def test_Essentiality(self):
-        with self.batch_accum as batchi:
-            with batchi.sub_accum(Section("redundant section")):
-                batchi += Echo("redundant echo")
-            self.assertEqual(self.batch_accum.num_batch_commands(), 0, f"{self.which_test}: a Section with only echo should discarded")
-            with batchi.sub_accum(Section("redundant section")):
-                batchi += Wzip("dummy no real path")
-            self.assertGreater(self.batch_accum.num_batch_commands(), 0, f"{self.which_test}: a Section with essential command should not discarded")
+        self.batch_accum.clear()
+        with self.batch_accum.sub_accum(Section("redundant section")) as redundant_accum:
+            redundant_accum += Echo("redundant echo")
+        self.assertEqual(self.batch_accum.num_batch_commands(), 0, f"{self.which_test}: a Section with only echo should discarded")
+        with self.batch_accum.sub_accum(Section("redundant section")) as redundant_accum:
+            redundant_accum += Wzip("dummy no real path")
+        self.assertGreater(self.batch_accum.num_batch_commands(), 0, f"{self.which_test}: a Section with essential command should not discarded")
+
 
 if __name__ == '__main__':
     test_folder = pathlib.Path(__file__).joinpath("..", "..", "..").resolve().joinpath(main_test_folder_name)

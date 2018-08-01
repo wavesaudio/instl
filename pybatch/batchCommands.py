@@ -174,7 +174,7 @@ class Touch(PythonBatchCommandBase, essential=True):
         return the_progress_msg
 
     def __call__(self, *args, **kwargs):
-        with open(self.path, 'a'):
+        with open(self.path, 'a') as tfd:
             os.utime(self.path, None)
 
 

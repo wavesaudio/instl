@@ -45,10 +45,10 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
             raise ValueError(f"{section_name} is not a known section_name name")
 
     def num_batch_commands(self):
+        """ count recursively the number of batch commands - not including the top sections """
         counter = 0
-        for a_section in self.sections:
+        for a_section in self.sections.values():
             counter += a_section.num_sub_batch_commands()
-            counter += 1
         return counter
 
     def add(self, child_commands):
