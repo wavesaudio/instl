@@ -171,7 +171,7 @@ class RunProcessBase(PythonBatchCommandBase):
         raise NotImplementedError
 
     def __call__(self, *args, **kwargs):
-        run_args = self.create_run_args()
+        run_args = list(map(str, self.create_run_args()))
         print(" ".join(run_args))
         completed_process = subprocess.run(run_args, check=True, stdout=subprocess.PIPE, shell=self.shell)
         return None  # what to return here?
