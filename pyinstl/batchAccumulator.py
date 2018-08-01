@@ -96,24 +96,6 @@ class BatchAccumulator(object):
             self.cancel_transaction()
 
 
-class BatchAccumulatorTransaction(object):
-    def __init__(self, batchAccum, transaction_name="") -> None:
-        self.transaction_name = transaction_name
-        self.batchAccum = batchAccum
-        self.essential_action_counter = 0
-
-    def __enter__(self):
-        self.batchAccum.begin_transaction()
-        return self
-
-    def __exit__(self, *_):
-        self.batchAccum.commit_transaction_if(self.essential_action_counter)
-
-    def __iadd__(self, inc):
-        self.essential_action_counter += inc
-        return self
-
-
 def BatchAccumulatorFactory(use_python_batch: bool) -> BatchAccumulator:
     if use_python_batch:
         return PythonBatchCommandAccum()

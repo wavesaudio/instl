@@ -7,7 +7,7 @@ import os
 import utils
 from configVar import config_vars
 from .instlClient import InstlClient
-from .batchAccumulator import BatchAccumulatorTransaction
+from pybatch import *
 
 
 class InstlClientRemove(InstlClient):
@@ -45,34 +45,34 @@ class InstlClientRemove(InstlClient):
         self.accumulate_unique_actions_for_active_iids('pre_remove', list(config_vars["__FULL_LIST_OF_INSTALL_TARGETS__"]))
 
         for folder_name in sorted_target_folder_list:
-            with BatchAccumulatorTransaction(self.batch_accum) as folder_accum_transaction:
-                self.batch_accum += self.platform_helper.new_line()
+            with self.batch_accum.sub_accum(Section(folder_name)) as folder_accum_transaction:
+                folder_accum_transaction += self.platform_helper.new_line()
                 self.create_remove_previous_sources_instructions_for_target_folder(folder_name)
-                self.batch_accum += Progress(f"Remove from folder {folder_name}")
+                folder_accum_transaction += Progress(f"Remove from folder {folder_name}")
                 config_vars["__TARGET_DIR__"] = os.path.normpath(folder_name)
                 items_in_folder = self.all_iids_by_target_folder[folder_name]
 
                 folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('pre_remove_from_folder', items_in_folder)
 
                 for IID in items_in_folder:
-                    with BatchAccumulatorTransaction(self.batch_accum) as iid_accum_transaction:
+                    with folder_accum_transaction(Section(IID)) as iid_accum_transaction:
                         name_for_iid = self.name_for_iid(iid=IID)
-                        self.batch_accum += Progress(f"Remove {name_for_iid}")
+                        iid_accum_transaction += Progress(f"Remove {name_for_iid}")
                         sources_for_iid = self.items_table.get_sources_for_iid(IID)
                         resolved_sources_for_iid = [(config_vars.resolve_str(s[0]), s[1]) for s in sources_for_iid]
                         for source in resolved_sources_for_iid:
-                            with BatchAccumulatorTransaction(self.batch_accum) as source_accum_transaction:
+                            with iid_accum_transaction.sub_accum(Section("")) as source_accum_transaction:
                                 _, source_leaf = os.path.split(source[0])
-                                self.batch_accum += Progress(f"Remove {source_leaf}")
-                                self.batch_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="pre_remove_item")
+                                source_accum_transaction += Progress(f"Remove {source_leaf}")
+                                source_accum_transaction += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="pre_remove_item")
                                 source_accum_transaction += self.create_remove_instructions_for_source(IID, folder_name, source)
                                 iid_accum_transaction += source_accum_transaction.essential_action_counter
                                 folder_accum_transaction += source_accum_transaction.essential_action_counter
-                                self.batch_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="post_remove_item")
-                                self.batch_accum += self.platform_helper.new_line()
+                                source_accum_transaction += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="post_remove_item")
+                                source_accum_transaction += self.platform_helper.new_line()
 
                 folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('post_remove_from_folder', items_in_folder)
-                self.batch_accum += self.platform_helper.new_line()
+                folder_accum_transaction += self.platform_helper.new_line()
 
         self.accumulate_unique_actions_for_active_iids('post_remove', list(config_vars["__FULL_LIST_OF_INSTALL_TARGETS__"]))
         self.batch_accum += self.platform_helper.new_line()

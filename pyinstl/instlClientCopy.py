@@ -10,7 +10,6 @@ from typing import Dict, List, Optional
 
 from configVar import config_vars
 from .instlClient import InstlClient
-from .batchAccumulator import BatchAccumulatorTransaction
 import svnTree
 from pybatch import *
 
@@ -291,8 +290,8 @@ class InstlClientCopy(InstlClient):
         """ source is a tuple (source_path, tag), where tag is either !file or !dir or !dir_cont'
         """
         retVal = 0
-        with BatchAccumulatorTransaction(self.batch_accum, "create_copy_instructions_for_source-"+name_for_progress_message) as source_accum_transaction:
-            self.batch_accum += Progress(f"Copy {name_for_progress_message} ...")
+        with self.batch_accum.sub_accum(Section(f"create_copy_instructions_for_source-{name_for_progress_message}")) as source_accum_transaction:
+            source_accum_transaction += Progress(f"Copy {name_for_progress_message} ...")
             if source[1] == '!dir':  # !dir
                 retVal += self.create_copy_instructions_for_dir(source[0], name_for_progress_message)
             elif source[1] == '!file':  # get a single file
@@ -325,15 +324,15 @@ class InstlClientCopy(InstlClient):
         return resolved_path
 
     def create_copy_instructions_for_target_folder(self, target_folder_path) -> None:
-        with BatchAccumulatorTransaction(self.batch_accum, "create_copy_instructions_for_target_folder-"+target_folder_path) as folder_accum_transaction:
+        with self.batch_accum(Section(f"create_copy_instructions_for_target_folder-{target_folder_path}")) as folder_accum_transaction:
             self.current_destination_folder = target_folder_path
             self.unwtar_instructions: List = list()
             num_items_copied_to_folder = 0
             items_in_folder = sorted(self.all_iids_by_target_folder[target_folder_path])
-            self.batch_accum += self.platform_helper.new_line()
-            self.batch_accum += self.platform_helper.remark(f"- Begin folder {target_folder_path}")
-            self.batch_accum += Progress(f"copy to {target_folder_path} ...")
-            self.batch_accum += self.platform_helper.cd(target_folder_path)
+            folder_accum_transaction += self.platform_helper.new_line()
+            folder_accum_transaction += self.platform_helper.remark(f"- Begin folder {target_folder_path}")
+            folder_accum_transaction += Progress(f"copy to {target_folder_path} ...")
+            folder_accum_transaction += self.platform_helper.cd(target_folder_path)
 
             # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
             folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('pre_copy_to_folder', items_in_folder)
@@ -343,20 +342,20 @@ class InstlClientCopy(InstlClient):
             self.batch_accum += self.platform_helper.copy_tool.begin_copy_folder()
             for IID in items_in_folder:
                 self.current_iid = IID
-                self.batch_accum += self.platform_helper.remark(f"-- Begin iid {IID}")
+                folder_accum_transaction += self.platform_helper.remark(f"-- Begin iid {IID}")
                 sources_for_iid = self.items_table.get_sources_for_iid(IID)
                 resolved_sources_for_iid = [(config_vars.resolve_str(s[0]), s[1]) for s in sources_for_iid]
                 name_and_version = self.name_and_version_for_iid(iid=IID)
                 for source in resolved_sources_for_iid:
                     self.batch_accum += self.platform_helper.remark(f"--- Begin source {source[0]}")
                     num_items_copied_to_folder += 1
-                    self.batch_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="pre_copy_item")
+                    folder_accum_transaction += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="pre_copy_item")
                     folder_accum_transaction += self.create_copy_instructions_for_source(source, name_and_version)
-                    self.batch_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="post_copy_item")
-                    self.batch_accum += self.platform_helper.remark(f"--- End source {source[0]}")
+                    folder_accum_transaction += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="post_copy_item")
+                    folder_accum_transaction += self.platform_helper.remark(f"--- End source {source[0]}")
                     if  self.mac_current_and_target:
                         num_symlink_items += self.info_map_table.count_symlinks_in_dir(source[0])
-                self.batch_accum += self.platform_helper.remark(f"-- End iid {IID}")
+                folder_accum_transaction += self.platform_helper.remark(f"-- End iid {IID}")
             self.current_iid = None
 
             target_folder_path_parent, target_folder_name = os.path.split(config_vars.resolve_str(target_folder_path))
@@ -380,12 +379,12 @@ class InstlClientCopy(InstlClient):
             These are sources that do not have 'install_folder' section OR those with os_is_active
             'direct_sync' section.
         """
-        with BatchAccumulatorTransaction(self.batch_accum, "create_copy_instructions_for_no_copy_folder-"+sync_folder_name) as folder_accum_transaction:
+        with self.batch_accum.sub_accum(Section(f"create_copy_instructions_for_no_copy_folder-{sync_folder_name}")) as folder_accum_transaction:
 
             items_in_folder = self.no_copy_iids_by_sync_folder[sync_folder_name]
-            self.batch_accum += self.platform_helper.new_line()
-            self.batch_accum += self.platform_helper.cd(sync_folder_name)
-            self.batch_accum += Progress(f"Actions in {sync_folder_name} ...")
+            folder_accum_transaction += self.platform_helper.new_line()
+            folder_accum_transaction += self.platform_helper.cd(sync_folder_name)
+            folder_accum_transaction += Progress(f"Actions in {sync_folder_name} ...")
 
             # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
             folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('pre_copy_to_folder', items_in_folder)

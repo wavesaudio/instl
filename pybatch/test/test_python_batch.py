@@ -953,7 +953,7 @@ class TestPythonBatch(unittest.TestCase):
         # remove empty folders, top folder and known file should remain
         self.batch_accum.clear()
         self.batch_accum += RemoveEmptyFolders(folder_to_remove, files_to_ignore=['.DS_Store'])
-            # removing non existing folder should not be a problem
+        # removing non existing folder should not be a problem
         self.batch_accum += RemoveEmptyFolders("kajagogo", files_to_ignore=['.DS_Store'])
         self.exec_and_capture_output("remove almost empty folders")
         self.assertTrue(os.path.isdir(folder_to_remove), f"{self.which_test} : folder was removed although it had a legit file {folder_to_remove}")

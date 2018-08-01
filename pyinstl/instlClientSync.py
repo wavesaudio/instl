@@ -3,7 +3,7 @@
 
 from configVar import config_vars
 from .instlClient import InstlClient
-from .batchAccumulator import BatchAccumulatorTransaction
+from pybatch import Section
 
 
 class InstlClientSync(InstlClient):
@@ -34,7 +34,7 @@ class InstlClientSync(InstlClient):
 
         self.read_defaults_file(type(syncer).__name__)
         syncer.init_sync_vars()
-        with BatchAccumulatorTransaction(self.batch_accum, "create_sync_instructions") as sync_accum_transaction:
+        with self.batch_accum.sub_accum(Section("sync_instructions")) as sync_accum_transaction:
             sync_accum_transaction += syncer.create_sync_instructions()
 
         if sync_accum_transaction.essential_action_counter == 0:
