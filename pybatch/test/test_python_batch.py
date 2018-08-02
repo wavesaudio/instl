@@ -1089,6 +1089,10 @@ class TestPythonBatch(unittest.TestCase):
         self.assertGreater(self.batch_accum.num_batch_commands(), 0, f"{self.which_test}: a Section with essential command should not discarded")
 
     def test_CreateSymlink_repr(self):
+
+        if sys.platform != 'darwin':
+            return
+
         some_file_path = "/Pippi/Långstrump"
         some_symlink_path = "/Astrid/Anna/Emilia/Lindgren"
         create_symlink_obj = CreateSymlink(some_symlink_path, some_file_path)
@@ -1096,6 +1100,10 @@ class TestPythonBatch(unittest.TestCase):
         self.assertEqual(create_symlink_obj, create_symlink_obj_recreated, "CreateSymlink.repr did not recreate CreateSymlink object correctly")
 
     def test_CreateSymlink(self):
+
+        if sys.platform != 'darwin':
+            return
+
         a_file_to_symlink = self.path_inside_test_folder("symlink_me_file")
         symlink_to_a_file = self.path_inside_test_folder("symlink_of_a_file")
         relative_symlink_to_a_file = self.path_inside_test_folder("relative_symlink_of_a_file")
@@ -1132,12 +1140,20 @@ class TestPythonBatch(unittest.TestCase):
         self.assertTrue(a_folder_to_symlink.samefile(a_folder_original_from_relative_symlink), f"symlink resolved to {a_folder_original_from_relative_symlink} not to {a_folder_to_symlink} as expected")
 
     def test_SymlinkToSymlinkFile_repr(self):
+
+        if sys.platform != 'darwin':
+            return
+
         some_file_path = "/Pippi/Långstrump"
         create_symlink_obj = SymlinkToSymlinkFile(some_file_path)
         create_symlink_obj_recreated = eval(repr(create_symlink_obj))
         self.assertEqual(create_symlink_obj, create_symlink_obj_recreated, "SymlinkToSymlinkFile.repr did not recreate SymlinkToSymlinkFile object correctly")
 
     def test_SymlinkFileToSymlink_repr(self):
+
+        if sys.platform != 'darwin':
+            return
+
         some_file_path = "/Pippi/Långstrump.symlink"
         resolve_symlink_obj = SymlinkFileToSymlink(some_file_path)
         resolve_symlink_obj_reresolved = eval(repr(resolve_symlink_obj))
@@ -1149,6 +1165,10 @@ class TestPythonBatch(unittest.TestCase):
             Before uploading SymlinkToSymlinkFile is called
             After downloading SymlinkFileToSymlink is called
         """
+
+        if sys.platform != 'darwin':
+            return
+
         SymlinkTestData = namedtuple('SymlinkTestData', ['original_to_symlink', 'symlink_to_a_original', 'symlink_file_of_original', 'relative_symlink_to_a_original', 'symlink_file_of_relative'])
 
         def create_symlink_test_data(name):
@@ -1184,8 +1204,6 @@ class TestPythonBatch(unittest.TestCase):
             self.assertFalse(test_data.relative_symlink_to_a_original.exists(), f"SymlinkToSymlinkFile {test_data.relative_symlink_to_a_original} should have been erased")
             self.assertTrue(test_data.symlink_file_of_original.is_file(), f"SymlinkToSymlinkFile {test_data.symlink_file_of_original} should be replaced by .symlink file")
             self.assertTrue(test_data.symlink_file_of_relative.is_file(), f"SymlinkToSymlinkFile {test_data.symlink_file_of_relative} should be replaced by .symlink file")
-
-        self.batch_accum.clear()
         for test_data in file_symlink_test_data, folder_symlink_test_data:
             self.batch_accum += SymlinkFileToSymlink(test_data.symlink_file_of_original)
             self.batch_accum += SymlinkFileToSymlink(test_data.symlink_file_of_relative)
@@ -1207,6 +1225,22 @@ class TestPythonBatch(unittest.TestCase):
             self.assertTrue(test_data.original_to_symlink.samefile(an_original_from_symlink), f"symlink resolved to {an_original_from_symlink} not to {test_data.symlink_to_a_original} as expected")
             os.chdir(self.test_folder)  # so relative resolve of symlink will work
             self.assertTrue(test_data.original_to_symlink.samefile(an_original_from_relative_symlink), f"symlink resolved to {an_original_from_relative_symlink} not to {test_data.symlink_to_a_original} as expected")
+
+    def private_test_ConvertFolderOfSymlinks(self):
+        """ to enable this test give a real path as folder_of_symlinks, preferably one with symlinks..."""
+
+        if sys.platform != 'darwin':
+            return
+
+        folder_of_symlinks = pathlib.Path("/Users/shai/Desktop/Tk.framework")
+
+        self.batch_accum.clear()
+        self.batch_accum += CreateSymlinkFilesInFolder(folder_of_symlinks)
+        self.exec_and_capture_output("test_ConvertFolderOfSymlinks_to_symlink_files")
+
+        self.batch_accum.clear()
+        self.batch_accum += ResolveSymlinkFilesInFolder(folder_of_symlinks)
+        self.exec_and_capture_output("test_ConvertFolderOfSymlinks_from_symlink_files")
 
 
 if __name__ == '__main__':

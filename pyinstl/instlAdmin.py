@@ -569,30 +569,8 @@ class InstlAdmin(InstlInstanceBase):
         else:
             self.progress("fix-symlink limited to ", "; ".join(folders_to_check))
 
-        valid_symlinks = list()
-        broken_symlinks = list()
         for folder_to_check in folders_to_check:
-            for root, dirs, files in os.walk(folder_to_check, followlinks=False):
-                for item in files + dirs:
-                    item_path = os.path.join(root, item)
-                    if os.path.islink(item_path):
-                        target_path = os.path.realpath(item_path)
-                        link_value = os.readlink(item_path)
-                        if os.path.isdir(target_path) or os.path.isfile(target_path):
-                            valid_symlinks.append((item_path, link_value))
-                        else:
-                            valid_symlinks.append((item_path, link_value))  # fix even the broken symlinks
-                            broken_symlinks.append((item_path, link_value))
-        if len(broken_symlinks) > 0:
-            self.progress("Found broken symlinks")
-            for symlink_file, link_value in broken_symlinks:
-                self.progress(symlink_file, "-?>", link_value)
-        if len(valid_symlinks) > 0:
-            for symlink_file, link_value in valid_symlinks:
-                symlink_text_path = symlink_file + ".symlink"
-                self.batch_accum += " ".join(("echo", "-n", "'" + link_value + "'", ">", "'" + symlink_text_path + "'"))
-                self.batch_accum += self.platform_helper.rmfile(symlink_file)
-                self.batch_accum += Progress(symlink_text_path)
+            self.batch_accum += CreateSymlinkFilesInFolder(folder_to_check)
 
         self.write_batch_file(self.batch_accum)
         if bool(config_vars["__RUN_BATCH__"]):

@@ -36,5 +36,10 @@ if sys.platform == "win32":
 
 if sys.platform == "darwin":
     from .batchCommandsMacOnly import MacDock
+    from .batchCommandsMacOnly import CreateSymlink
+    from .batchCommandsMacOnly import SymlinkToSymlinkFile
+    from .batchCommandsMacOnly import SymlinkFileToSymlink
+    from .batchCommandsMacOnly import CreateSymlinkFilesInFolder
+    from .batchCommandsMacOnly import ResolveSymlinkFilesInFolder
 
 from .new_batchCommands import *
