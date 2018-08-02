@@ -1088,6 +1088,97 @@ class TestPythonBatch(unittest.TestCase):
             redundant_accum += Wzip("dummy no real path")
         self.assertGreater(self.batch_accum.num_batch_commands(), 0, f"{self.which_test}: a Section with essential command should not discarded")
 
+    def test_CreateSymlink_repr(self):
+        some_file_path = "/Pippi/Långstrump"
+        some_symlink_path = "/Astrid/Anna/Emilia/Lindgren"
+        create_symlink_obj = CreateSymlink(some_symlink_path, some_file_path)
+        create_symlink_obj_recreated = eval(repr(create_symlink_obj))
+        self.assertEqual(create_symlink_obj, create_symlink_obj_recreated, "CreateSymlink.repr did not recreate CreateSymlink object correctly")
+
+    def test_CreateSymlink(self):
+        a_file_to_symlink = self.path_inside_test_folder("symlink_me_file")
+        symlink_to_a_file = self.path_inside_test_folder("symlink_of_a_file")
+        relative_symlink_to_a_file = self.path_inside_test_folder("relative_symlink_of_a_file")
+        a_folder_to_symlink = self.path_inside_test_folder("symlink_me_folder")
+        symlink_to_a_folder = self.path_inside_test_folder("symlink_of_a_folder")
+        relative_symlink_to_a_folder = self.path_inside_test_folder("relative_symlink_of_a_folder")
+
+        self.batch_accum.clear()
+        self.batch_accum += Touch(a_file_to_symlink)
+        self.batch_accum += MakeDirs(a_folder_to_symlink)
+        self.batch_accum += CreateSymlink(symlink_to_a_file, a_file_to_symlink)
+        self.batch_accum += CreateSymlink(symlink_to_a_folder, a_folder_to_symlink)
+        self.batch_accum += CreateSymlink(relative_symlink_to_a_file, a_file_to_symlink.name)
+        self.batch_accum += CreateSymlink(relative_symlink_to_a_folder, a_folder_to_symlink.name)
+        self.exec_and_capture_output("CreateSymlink")
+
+        self.assertFalse(os.path.islink(a_file_to_symlink), f"CreateSymlink {a_file_to_symlink} should be a file not a symlink")
+        self.assertFalse(os.path.islink(a_folder_to_symlink), f"CreateSymlink {a_folder_to_symlink} should be a file not a symlink")
+        self.assertTrue(os.path.islink(symlink_to_a_file), f"CreateSymlink {symlink_to_a_file} should be a symlink")
+        self.assertTrue(os.path.islink(symlink_to_a_folder), f"CreateSymlink {symlink_to_a_folder} should be a symlink")
+        self.assertTrue(os.path.islink(relative_symlink_to_a_file), f"CreateSymlink {relative_symlink_to_a_file} should be a symlink")
+        self.assertTrue(os.path.islink(relative_symlink_to_a_folder), f"CreateSymlink {relative_symlink_to_a_folder} should be a symlink")
+
+        # check the absolute symlinks
+        a_file_original_from_symlink = os.readlink(symlink_to_a_file)
+        a_folder_original_from_symlink = os.readlink(symlink_to_a_folder)
+        self.assertTrue(a_file_to_symlink.samefile(a_file_original_from_symlink), f"symlink resolved to {a_file_original_from_symlink} not to {a_file_to_symlink} as expected")
+        self.assertTrue(a_folder_to_symlink.samefile(a_folder_original_from_symlink), f"symlink resolved to {a_folder_original_from_symlink} not to {a_folder_to_symlink} as expected")
+
+        # check the relative symlinks
+        a_file_original_from_relative_symlink = self.path_inside_test_folder(os.readlink(relative_symlink_to_a_file))
+        a_folder_original_from_relative_symlink = self.path_inside_test_folder(os.readlink(relative_symlink_to_a_folder))
+        self.assertTrue(a_file_to_symlink.samefile(a_file_original_from_relative_symlink), f"symlink resolved to {a_file_original_from_relative_symlink} not to {a_file_to_symlink} as expected")
+        self.assertTrue(a_folder_to_symlink.samefile(a_folder_original_from_relative_symlink), f"symlink resolved to {a_folder_original_from_relative_symlink} not to {a_folder_to_symlink} as expected")
+
+    def test_SymlinkToSymlinkFile_repr(self):
+        some_file_path = "/Pippi/Långstrump"
+        create_symlink_obj = SymlinkToSymlinkFile(some_file_path)
+        create_symlink_obj_recreated = eval(repr(create_symlink_obj))
+        self.assertEqual(create_symlink_obj, create_symlink_obj_recreated, "SymlinkToSymlinkFile.repr did not recreate SymlinkToSymlinkFile object correctly")
+
+    def test_SymlinkToSymlinkFile(self):
+        a_file_to_symlink = self.path_inside_test_folder("symlink_me_file")
+        symlink_to_a_file = self.path_inside_test_folder("symlink_of_a_file")
+        relative_symlink_to_a_file = self.path_inside_test_folder("relative_symlink_of_a_file")
+        a_folder_to_symlink = self.path_inside_test_folder("symlink_me_folder")
+        symlink_to_a_folder = self.path_inside_test_folder("symlink_of_a_folder")
+        relative_symlink_to_a_folder = self.path_inside_test_folder("relative_symlink_of_a_folder")
+
+        self.batch_accum.clear()
+        self.batch_accum += Touch(a_file_to_symlink)
+        self.batch_accum += MakeDirs(a_folder_to_symlink)
+        self.batch_accum += CreateSymlink(symlink_to_a_file, a_file_to_symlink)
+        self.batch_accum += CreateSymlink(symlink_to_a_folder, a_folder_to_symlink)
+        self.batch_accum += CreateSymlink(relative_symlink_to_a_file, a_file_to_symlink.name)
+        self.batch_accum += CreateSymlink(relative_symlink_to_a_folder, a_folder_to_symlink.name)
+
+        self.batch_accum += SymlinkToSymlinkFile(symlink_to_a_file)
+        self.batch_accum += SymlinkToSymlinkFile(symlink_to_a_folder)
+        self.batch_accum += SymlinkToSymlinkFile(relative_symlink_to_a_file)
+        self.batch_accum += SymlinkToSymlinkFile(relative_symlink_to_a_folder)
+
+        self.exec_and_capture_output("SymlinkToSymlinkFile")
+
+        self.assertFalse(os.path.islink(a_file_to_symlink), f"CreateSymlink {a_file_to_symlink} should be a file not a symlink")
+        self.assertFalse(os.path.islink(a_folder_to_symlink), f"CreateSymlink {a_folder_to_symlink} should be a file not a symlink")
+        self.assertTrue(os.path.islink(symlink_to_a_file), f"CreateSymlink {symlink_to_a_file} should be a symlink")
+        self.assertTrue(os.path.islink(symlink_to_a_folder), f"CreateSymlink {symlink_to_a_folder} should be a symlink")
+        self.assertTrue(os.path.islink(relative_symlink_to_a_file), f"CreateSymlink {relative_symlink_to_a_file} should be a symlink")
+        self.assertTrue(os.path.islink(relative_symlink_to_a_folder), f"CreateSymlink {relative_symlink_to_a_folder} should be a symlink")
+
+        # check the absolute symlinks
+        a_file_original_from_symlink = os.readlink(symlink_to_a_file)
+        a_folder_original_from_symlink = os.readlink(symlink_to_a_folder)
+        self.assertTrue(a_file_to_symlink.samefile(a_file_original_from_symlink), f"symlink resolved to {a_file_original_from_symlink} not to {a_file_to_symlink} as expected")
+        self.assertTrue(a_folder_to_symlink.samefile(a_folder_original_from_symlink), f"symlink resolved to {a_folder_original_from_symlink} not to {a_folder_to_symlink} as expected")
+
+        # check the relative symlinks
+        a_file_original_from_relative_symlink = self.path_inside_test_folder(os.readlink(relative_symlink_to_a_file))
+        a_folder_original_from_relative_symlink = self.path_inside_test_folder(os.readlink(relative_symlink_to_a_folder))
+        self.assertTrue(a_file_to_symlink.samefile(a_file_original_from_relative_symlink), f"symlink resolved to {a_file_original_from_relative_symlink} not to {a_file_to_symlink} as expected")
+        self.assertTrue(a_folder_to_symlink.samefile(a_folder_original_from_relative_symlink), f"symlink resolved to {a_folder_original_from_relative_symlink} not to {a_folder_to_symlink} as expected")
+
 
 if __name__ == '__main__':
     test_folder = pathlib.Path(__file__).joinpath("..", "..", "..").resolve().joinpath(main_test_folder_name)

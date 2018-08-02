@@ -1331,6 +1331,32 @@ class Remark(PythonBatchCommandBase, essential=False):
     def __call__(self, *args, **kwargs) -> None:
         pass
 
+
+class CreateSymlink(PythonBatchCommandBase, essential=True):
+    def __init__(self, path_to_symlink: os.PathLike, path_to_target: os.PathLike, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.path_to_symlink = path_to_symlink
+        self.path_to_target = path_to_target
+
+    def __repr__(self) -> str:
+        the_repr = f'''CreateSymlink(r"{self.path_to_symlink}", r"{self.path_to_target}")'''
+        return the_repr
+
+    def repr_batch_win(self) -> str:
+        the_repr = f''''''
+        return the_repr
+
+    def repr_batch_mac(self) -> str:
+        the_repr = f''''''
+        return the_repr
+
+    def progress_msg_self(self) -> str:
+        return f''''''
+
+    def __call__(self, *args, **kwargs) -> None:
+        os.symlink(self.path_to_target, self.path_to_symlink)
+
+
 # todo:
 # override PythonBatchCommandBase for all commands
 # windows!
