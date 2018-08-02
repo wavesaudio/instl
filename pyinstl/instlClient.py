@@ -284,9 +284,9 @@ class InstlClient(InstlInstanceBase):
         require_file_path = config_vars["SITE_REQUIRE_FILE_PATH"].str()
         self.read_yaml_file(require_file_path, ignore_if_not_exist=True)
 
-    def accumulate_unique_actions_for_active_iids(self, action_type: str, limit_to_iids=None):
+    def accumulate_unique_actions_for_active_iids(self, action_type: str, limit_to_iids=None) -> List[PythonBatchCommandBase]:
         """ accumulate action_type actions from iid_list, eliminating duplicates"""
-        retVal = 0  # return number of real actions added (i.e. excluding progress message)
+        retVal = list()
         iid_and_action = self.items_table.get_iids_and_details_for_active_iids(action_type, unique_values=True, limit_to_iids=limit_to_iids)
         iid_and_action.sort(key=lambda tup: tup[0])
         previous_iid = ""
@@ -294,10 +294,9 @@ class InstlClient(InstlInstanceBase):
             if IID != previous_iid:  # avoid multiple progress messages for same iid
                 name_and_version = self.name_and_version_for_iid(iid=IID)
                 action_description = self.action_type_to_progress_message[action_type]
-                self.batch_accum += Progress(f"{name_and_version} {action_description}")
+                retVal.append(Progress(f"{name_and_version} {action_description}"))
                 previous_iid = IID
-            self.batch_accum += SingleShellCommand(an_action)
-            retVal += 1
+            retVal.append(SingleShellCommand(an_action))
         return retVal
 
     def create_require_file_instructions(self):
@@ -491,8 +490,8 @@ class InstlClient(InstlInstanceBase):
             previous_sources = self.items_table.get_details_and_tag_for_active_iids("previous_sources", unique_values=True, limit_to_iids=iids_in_folder)
 
             if len(previous_sources) > 0:
-                self.batch_accum += self.platform_helper.remark(f"- Begin folder {target_folder_path}")
-                self.batch_accum += self.platform_helper.cd(target_folder_path)
+                self.batch_accum += Remark(f"- Begin folder {target_folder_path}")
+                self.batch_accum += Cd(target_folder_path)
                 # todo: conditional CD - if fails to not do other instructions
                 self.batch_accum += Progress(f"remove previous versions {target_folder_path} ...")
 

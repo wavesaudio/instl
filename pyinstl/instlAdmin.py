@@ -165,7 +165,7 @@ class InstlAdmin(InstlInstanceBase):
 
         self.batch_accum += self.platform_helper.mkdir("$(ROOT_LINKS_FOLDER_REPO)/Base")
 
-        self.batch_accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)")
+        self.batch_accum += Cd("$(ROOT_LINKS_FOLDER_REPO)")
         ignore_nums = list()
         no_need_link_nums = list()
         yes_need_link_nums = list()
@@ -354,7 +354,7 @@ class InstlAdmin(InstlInstanceBase):
         with self.info_map_table.reading_files_context():
             self.info_map_table.read_from_file(info_map_path)
 
-        accum += self.platform_helper.cd("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)")
+        accum += Cd("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)")
 
         if 'Mac' in list(config_vars["__CURRENT_OS_NAMES__"]):
             accum += "find . -name .DS_Store -delete"
@@ -527,7 +527,7 @@ class InstlAdmin(InstlInstanceBase):
             wfd.write(utils.unicodify(my_stdout))
         self.info_map_table.read_from_file(config_vars.resolve_str("../svn-proplist-for-fix-props.txt"), a_format="props")
 
-        self.batch_accum += self.platform_helper.cd(repo_folder)
+        self.batch_accum += Cd(repo_folder)
 
         should_be_exec_regex_list = list(config_vars["EXEC_PROP_REGEX"])
         self.compiled_should_be_exec_regex = utils.compile_regex_list_ORed(should_be_exec_regex_list)
@@ -613,7 +613,7 @@ class InstlAdmin(InstlInstanceBase):
 
         self.batch_accum += Unlock(stage_folder, recursive=True)
         self.batch_accum += Progress("chflags -R nouchg " + stage_folder)
-        self.batch_accum += self.platform_helper.cd(svn_folder)
+        self.batch_accum += Cd(svn_folder)
         stage_folder_svn_folder_pairs = []
         if config_vars.defined("__LIMIT_COMMAND_TO__"):
             limit_list = list(config_vars["__LIMIT_COMMAND_TO__"])
@@ -817,7 +817,7 @@ class InstlAdmin(InstlInstanceBase):
             if items_to_tar or items_to_delete:
                 total_items_to_tar += len(items_to_tar)
                 self.batch_accum += Progress(f"begin folder {folder_to_check}")
-                self.batch_accum += self.platform_helper.cd(folder_to_check)
+                self.batch_accum += Cd(folder_to_check)
 
                 for item_to_delete in items_to_delete:
                     self.batch_accum += self.platform_helper.rmfile(item_to_delete)
