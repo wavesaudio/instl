@@ -231,7 +231,7 @@ class InstlAdmin(InstlInstanceBase):
         accum += self.platform_helper.mkdir(revision_folder_path)
         accum += CopyDirContentsToDir(config_vars.resolve_str(base_folder_path),
                                                                          config_vars.resolve_str(revision_folder_path),
-                                                                         link_dest=True, ignore=".svn", preserve_dest_files=False)
+                                                                         link_dest=True, ignore_patterns=".svn", preserve_dest_files=False)
         accum += Progress("Copy revision $(__CURR_REPO_REV__) to "+revision_folder_path)
 
         # get info from SVN for all files in revision
@@ -640,7 +640,7 @@ class InstlAdmin(InstlInstanceBase):
                             do_not_remove_items.append(os.path.basename(right_item_path_without_aa))
 
                 if copy_and_add_file:
-                    self.batch_accum += CopyFileToDir(left_item_path, comparator.right, link_dest=False, ignore=".svn")
+                    self.batch_accum += CopyFileToDir(left_item_path, comparator.right, link_dest=False, ignore_patterns=".svn")
                     self.batch_accum += Progress(f"copy file {left_item_path}")
                     # tell svn about new items, svn will not accept 'add' for changed items
                     self.batch_accum += self.platform_helper.svn_add_item(right_item_path)
@@ -660,7 +660,7 @@ class InstlAdmin(InstlInstanceBase):
                         if self.compiled_forbidden_folder_regex.search(item):
                             raise utils.InstlException(os.path.join(root, item)+" has forbidden characters should not be committed to svn")
 
-                self.batch_accum += CopyDirToDir(left_item_path, comparator.right, link_dest=False, ignore=".svn", preserve_dest_files=False)
+                self.batch_accum += CopyDirToDir(left_item_path, comparator.right, link_dest=False, ignore_patterns=".svn", preserve_dest_files=False)
                 self.batch_accum += Progress(f"copy dir {left_item_path}")
             else:
                 raise utils.InstlException(left_item_path+" not a file, dir or symlink, an abomination!")
@@ -689,7 +689,7 @@ class InstlAdmin(InstlInstanceBase):
                         do_not_copy_items.extend([os.path.basename(split_wtar_file) for split_wtar_file in split_wtar_files])
 
                 if copy_file:
-                    self.batch_accum += CopyFileToDir(left_item_path, comparator.right, link_dest=False, ignore=".svn")
+                    self.batch_accum += CopyFileToDir(left_item_path, comparator.right, link_dest=False, ignore_patterns=".svn")
                     self.batch_accum += Progress(f"copy {left_item_path}")
                 else:
                     self.batch_accum += Progress(f"identical {left_item_path}")
@@ -850,7 +850,7 @@ class InstlAdmin(InstlInstanceBase):
             svn_checkout_command = " ".join(svn_command_parts)
             self.batch_accum += svn_checkout_command
             self.batch_accum += Progress(f"Checkout {checkout_url} to {limit_info[1]}")
-            self.batch_accum += CopyDirContentsToDir(limit_info[1], limit_info[2], link_dest=False, ignore=(".svn", ".DS_Store"), preserve_dest_files=False)
+            self.batch_accum += CopyDirContentsToDir(limit_info[1], limit_info[2], link_dest=False, ignore_patterns=(".svn", ".DS_Store"), preserve_dest_files=False)
             self.batch_accum += Progress(f"rsync {limit_info[1]} to {limit_info[2]}")
 
         self.write_batch_file(self.batch_accum)

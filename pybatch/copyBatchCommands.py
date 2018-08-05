@@ -5,13 +5,14 @@ from .baseClasses import *
 
 
 class CopyBase(RunProcessBase, essential=True):
-    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore_patterns=None, preserve_dest_files=False, copy_file=False, copy_dir=False) -> None:
+    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore_patterns=None, preserve_dest_files=False,         ignore_if_not_exist = False, copy_file=False, copy_dir=False) -> None:
         super().__init__()
         self.src: os.PathLike = src
         self.trg: os.PathLike = trg
         self.link_dest = link_dest
         self.ignore_patterns = ignore_patterns
         self.preserve_dest_files = preserve_dest_files
+        self.ignore_if_not_exist = ignore_if_not_exist
         self.copy_file = copy_file
         self.copy_dir = copy_dir
 
@@ -54,6 +55,8 @@ class RsyncCopyBase(CopyBase):
             the_link_dest_arg = f'''--link-dest="{target_relative_to_source}"'''
             run_args.append(the_link_dest_arg)
         run_args.extend([self.src, self.trg])
+        if self.ignore_if_not_exist:
+            run_args.extend(["||", "true"])
         return run_args
 
     def create_ignore_spec(self, ignore_patterns: bool) -> None:
@@ -101,14 +104,14 @@ class RoboCopyBase(CopyBase):
         try:
             super().__call__(*args, **kwargs)
         except subprocess.CalledProcessError as e:
-            if e.returncode > 7:
+            if e.returncode > 7 and not self.ignore_if_not_exist:
                 raise e
             #     pass  # One or more files were copied successfully (that is, new files have arrived).
             # else:
             #     raise subprocess.SubprocessError(f'{self.RETURN_CODES[e.returncode]}') from e
 
     def create_run_args(self):
-        run_args = ['robocopy', '/E', '/R:9', '/W:1', '/NS', '/NC', '/NFL', '/NDL', '/NP', '/NJS']
+        run_args = ['robocopy', '/E', '/R:9', '/W:1', '/NS', '/NC', '/NFL', '/NDL', '/NP', '/NJS', '/256']
         if not self.preserve_dest_files:
             run_args.append('/purge')
         if self.copy_file:
@@ -214,11 +217,11 @@ class CopyDirContentsToDir(CopyClass):
 
 
 class CopyFileToDir(CopyClass):
-    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore_patterns=None, preserve_dest_files=False) -> None:
+    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore_patterns=None, ignore_if_not_exist=False) -> None:
         src = os.fspath(src).rstrip("/")
         if not os.fspath(trg).endswith("/"):
             trg = os.fspath(trg)+"/"
-        super().__init__(src=src, trg=trg, link_dest=link_dest, ignore_patterns=ignore_patterns, preserve_dest_files=preserve_dest_files, copy_file=True)
+        super().__init__(src=src, trg=trg, link_dest=link_dest, ignore_patterns=ignore_patterns, ignore_if_not_exist=ignore_if_not_exist, copy_file=True)
 
     def repr_batch_win(self):
         retVal = list()
@@ -246,10 +249,10 @@ class CopyFileToDir(CopyClass):
 
 
 class CopyFileToFile(CopyClass):
-    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore_patterns=None, preserve_dest_files=False) -> None:
+    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore_patterns=None, preserve_dest_files=False, **kwargs) -> None:
         src = os.fspath(src).rstrip("/")
         trg = os.fspath(trg).rstrip("/")
-        super().__init__(src=src, trg=trg, link_dest=link_dest, ignore_patterns=ignore_patterns, preserve_dest_files=preserve_dest_files, copy_file=True)
+        super().__init__(src=src, trg=trg, link_dest=link_dest, ignore_patterns=ignore_patterns, preserve_dest_files=preserve_dest_files, copy_file=True, **kwargs)
 
     def repr_batch_win(self):
         retVal = list()

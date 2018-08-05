@@ -285,7 +285,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         do_not_write_vars = config_vars["DONT_WRITE_CONFIG_VARS"].list()
         for identifier in config_vars.keys():
             if identifier not in do_not_write_vars:
-                in_batch_accum += self.platform_helper.var_assign(identifier, config_vars[identifier].join(sep=" "))
+                in_batch_accum += VarAssign(identifier, *list(config_vars[identifier]))
 
     def calc_user_cache_dir_var(self, make_dir=True):
         if "USER_CACHE_DIR" not in config_vars:
@@ -342,22 +342,23 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
         config_vars["TOTAL_ITEMS_FOR_PROGRESS_REPORT"] = str(self.platform_helper.num_items_for_progress_report)
 
-        #var_stack.freeze_vars_on_first_resolve()
         self.create_variables_assignment(in_batch_accum)
 
-        in_batch_accum.set_current_section('pre')
+        #in_batch_accum.set_current_section('pre')
         exit_on_errors = self.the_command != 'uninstall'  # in case of uninstall, go on with batch file even if some operations failed
-        in_batch_accum += self.platform_helper.get_install_instructions_prefix(exit_on_errors=exit_on_errors)
-        in_batch_accum.set_current_section('post')
-        in_batch_accum += self.platform_helper.get_install_instructions_postfix()
-        lines = in_batch_accum.finalize_list_of_lines()
-        for line in lines:
-            if type(line) != str:
-                raise TypeError(f"Not a string {type(line)} {line}")
+        #in_batch_accum += self.platform_helper.get_install_instructions_prefix(exit_on_errors=exit_on_errors)
+        #.set_current_section('post')
+        #in_batch_accum += self.platform_helper.get_install_instructions_postfix()
+        #lines = in_batch_accum.finalize_list_of_lines()
+        #for line in lines:
+        #    if type(line) != str:
+        #        raise TypeError(f"Not a string {type(line)} {line}")
 
+        final_repr = config_vars.resolve_str(repr(in_batch_accum))
+        output_text = value_ref_re.sub(self.platform_helper.var_replacement_pattern, final_repr)
         # replace unresolved var references to native OS var references, e.g. $(HOME) would be %HOME% on Windows and ${HOME} one Mac
-        lines_after_var_replacement = [value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines]
-        output_text = "\n".join(lines_after_var_replacement)
+        #lines_after_var_replacement = [value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines]
+        #output_text = "\n".join(lines_after_var_replacement)
 
         out_file = config_vars["__MAIN_OUT_FILE__"].str()
         out_file += file_name_post_fix

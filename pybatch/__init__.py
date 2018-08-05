@@ -27,6 +27,7 @@ from .batchCommands import ShellCommands
 from .batchCommands import touch
 from .batchCommands import Touch
 from .batchCommands import Unlock
+from .batchCommands import VarAssign
 
 from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip
 

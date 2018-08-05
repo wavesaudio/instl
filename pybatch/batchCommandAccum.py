@@ -51,6 +51,20 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
             counter += a_section.num_sub_batch_commands()
         return counter
 
+    def finalize_list_of_lines(self):
+        lines = list()
+        for section in BatchAccumulator.section_order:
+            # config_vars["CURRENT_PHASE"] = section
+            section_lines = self.instruction_lines[section]
+            if section_lines:
+                if section == "assign":
+                    section_lines.sort()
+                for section_line in section_lines:
+                    resolved_line = config_vars.resolve_str_to_list(section_line)
+                    lines.extend(resolved_line)
+                lines.append("")  # empty string will cause to emit new line
+        return lines
+
     def add(self, child_commands):
         assert not self.in_sub_accum, "PythonBatchCommandAccum.add: should not be called while sub_accum is in context"
         self.sections[self.current_section].add(child_commands)
@@ -84,11 +98,14 @@ from pybatch import *\n
                 for item in batch_items:
                     _repr_helper(item, io_str, indent)
             elif batch_items.is_context_manager:
-                io_str.write(f"""{indent_str}with {repr(batch_items)} as {batch_items.obj_name}:\n""")
-                io_str.write(f"""{indent_str}    {batch_items.obj_name}()\n""")
-                _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
+                if batch_items.child_batch_commands:
+                    io_str.write(f"""{indent_str}with {repr(batch_items)} as {batch_items.obj_name}:\n""")
+                    io_str.write(f"""{indent_str}    {batch_items.obj_name}()\n""")
+                    _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
+                else:
+                    io_str.write(f"""{indent_str}{repr(batch_items)}()\n""")
             else:
-                io_str.write(f"""{indent_str}{repr(batch_items)}""")
+                io_str.write(f"""{indent_str}{repr(batch_items)}\n""")
         PythonBatchCommandBase.total_progress = 0
         io_str = io.StringIO()
         io_str.write(self._python_opening_code())

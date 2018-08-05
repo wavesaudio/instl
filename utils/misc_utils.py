@@ -403,7 +403,7 @@ def quoteme_single_list_for_sql(to_quote_list):
 
 
 def raw_string(simple_string):
-    return "".join(f'r{simple_string}')
+    return "".join(f"""r'''{simple_string}'''""")
 
 
 def quote_path_properly(path_to_quote):

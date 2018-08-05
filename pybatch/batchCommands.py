@@ -7,6 +7,7 @@ import pathlib
 import shlex
 import collections
 from typing import List, Any
+import keyword
 
 import utils
 from .baseClasses import *
@@ -94,6 +95,10 @@ class MakeDirs(PythonBatchCommandBase, essential=True):
     def __init__(self, *paths_to_make, remove_obstacles: bool=True) -> None:
         super().__init__()
         self.paths_to_make = paths_to_make
+        try:
+            [os.fspath(path) for path in self.paths_to_make]
+        except:
+            print(f"MakeDirs bad paths: {self.paths_to_make}")
         self.remove_obstacles = remove_obstacles
         self.cur_path = None
 
@@ -145,7 +150,7 @@ class MakeDirsWithOwner(MakeDirs, essential=True):
         ToDo: with owner functionality should be implemented in MakeDirs
     """
     def __init__(self, *paths_to_make, remove_obstacles: bool=True) -> None:
-        super().__init__(*paths_to_make, remove_obstacles)
+        super().__init__(*paths_to_make, remove_obstacles=remove_obstacles)
 
 
 class Touch(PythonBatchCommandBase, essential=True):
@@ -885,11 +890,11 @@ class Ls(PythonBatchCommandBase, essential=True):
         self.ls_format = ls_format
         self.out_file = out_file
         self.folders_to_list = list()
-        if isinstance(folders_to_list, collections.Sequence):
+        if isinstance(folders_to_list, (os.PathLike, str)):
+            self.folders_to_list.append(os.fspath(folders_to_list))
+        elif isinstance(folders_to_list, collections.Sequence):
             for a_folder in folders_to_list:
                 self.folders_to_list.append(os.fspath(a_folder))
-        elif isinstance(folders_to_list, (os.PathLike,str)):
-            self.folders_to_list.append(os.fspath(folders_to_list))
 
     def __repr__(self) -> str:
         the_repr = f'''Ls({self.folders_to_list}, out_file=r"{self.out_file}", ls_format='{self.ls_format}')'''
@@ -1019,7 +1024,80 @@ class Remark(PythonBatchCommandBase, essential=False):
         self.remark = remark
 
     def __repr__(self) -> str:
-        the_repr = f'''# {self.message}'''
+        the_repr = f'''# {self.remark}'''
+        return the_repr
+
+    def repr_batch_win(self) -> str:
+        the_repr = f''''''
+        return the_repr
+
+    def repr_batch_mac(self) -> str:
+        the_repr = f''''''
+        return the_repr
+
+    def progress_msg_self(self) -> str:
+        return f''''''
+
+    def __call__(self, *args, **kwargs) -> None:
+        pass
+
+
+class Remark(PythonBatchCommandBase, essential=False):
+    """
+        write a remark in code
+    """
+    def __init__(self, remark, **kwargs) -> None:
+        kwargs['is_context_manager'] = False
+        super().__init__(**kwargs)
+        self.remark = remark
+
+    def __repr__(self) -> str:
+        the_repr = f'''# {self.remark}'''
+        return the_repr
+
+    def repr_batch_win(self) -> str:
+        the_repr = f''''''
+        return the_repr
+
+    def repr_batch_mac(self) -> str:
+        the_repr = f''''''
+        return the_repr
+
+    def progress_msg_self(self) -> str:
+        return f''''''
+
+    def __call__(self, *args, **kwargs) -> None:
+        pass
+
+
+class VarAssign(PythonBatchCommandBase, essential=False):
+    """
+        write a remark in code
+    """
+    def __init__(self, var_name, *var_values, **kwargs) -> None:
+        kwargs['is_context_manager'] = False
+        super().__init__(**kwargs)
+        assert var_name.isidentifier(), f"{var_name} is not a valid identifier"
+        assert not keyword.iskeyword(var_name), f"{var_name} is not a python key word"
+        self.var_name = var_name
+        self.var_values = var_values
+
+    def __repr__(self) -> str:
+        the_repr = ""
+        if any(self.var_values):
+            adjusted_values = list()
+            for val in self.var_values:
+                try:
+                    adjusted_values.append(int(val))
+                except:
+                    adjusted_values.append(utils.raw_string(val))
+            if len(adjusted_values) == 1:
+                the_repr = f'''{self.var_name} = {adjusted_values[0]}'''
+            else:
+                values = "".join(('[', ", ".join(str(adj) for adj in adjusted_values), ']'))
+                the_repr = f'''{self.var_name} = {values}'''
+        else:
+            the_repr = f'''{self.var_name} = ""'''
         return the_repr
 
     def repr_batch_win(self) -> str:

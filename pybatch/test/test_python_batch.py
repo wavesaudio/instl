@@ -460,7 +460,7 @@ class TestPythonBatch(unittest.TestCase):
         if sys.platform == 'darwin':
             self.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_with_hard_links, link_dest=True)
         filenames_to_ignore = ["hootenanny"]
-        self.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_with_ignore, ignore=filenames_to_ignore)
+        self.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_with_ignore, ignore_patterns=filenames_to_ignore)
 
         self.exec_and_capture_output()
 
@@ -505,7 +505,7 @@ class TestPythonBatch(unittest.TestCase):
         if sys.platform == 'darwin':
             self.batch_accum += CopyDirContentsToDir(dir_to_copy_from, dir_to_copy_to_with_hard_links, link_dest=True)
         filenames_to_ignore = ["hootenanny"]
-        self.batch_accum += CopyDirContentsToDir(dir_to_copy_from, dir_to_copy_to_with_ignore, ignore=filenames_to_ignore)
+        self.batch_accum += CopyDirContentsToDir(dir_to_copy_from, dir_to_copy_to_with_ignore, ignore_patterns=filenames_to_ignore)
 
         self.exec_and_capture_output()
 

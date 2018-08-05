@@ -129,7 +129,7 @@ class InstlClientCopy(InstlClient):
         # so copy should be avoided.
         if config_vars["HAVE_INFO_MAP_PATH"].str() != config_vars["SITE_HAVE_INFO_MAP_PATH"].str():
             progress_num = self.platform_helper.increment_progress(1)
-            self.batch_accum += MakeDirsWithOwner("$(SITE_REPO_BOOKKEEPING_DIR)", progress_num)
+            self.batch_accum += MakeDirsWithOwner("$(SITE_REPO_BOOKKEEPING_DIR)")
             self.batch_accum += CopyFileToFile("$(HAVE_INFO_MAP_PATH)", "$(SITE_HAVE_INFO_MAP_PATH)")
             self.batch_accum += Progress("Copied $(HAVE_INFO_MAP_PATH) to $(SITE_HAVE_INFO_MAP_PATH)")
 
@@ -140,7 +140,7 @@ class InstlClientCopy(InstlClient):
         # messages about orphan iids
         for iid in sorted(list(config_vars["__ORPHAN_INSTALL_TARGETS__"])):
             self.batch_accum += Echo(f"Don't know how to install {iid}")
-        self.batch_accum += Progress("Done copy", 10)
+        self.batch_accum += Progress("Done copy")
         self.progress("create copy instructions done")
         self.progress("")
 
@@ -166,7 +166,7 @@ class InstlClientCopy(InstlClient):
             source_file_full_path = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_file.path)
 
             # patterns_copy_should_ignore is passed for the sake of completeness but is not being used further down the road in copy_file_to_dir
-            retVal += CopyFileToDir(source_file_full_path, ".", link_dest=True, ignore=self.patterns_copy_should_ignore)
+            retVal += CopyFileToDir(source_file_full_path, ".", link_dest=True, ignore_patterns=self.patterns_copy_should_ignore)
 
             retVal += Echo(f"copy {source_file_full_path}")
 
@@ -205,7 +205,7 @@ class InstlClientCopy(InstlClient):
                                                         source_path_abs,
                                                         ".",
                                                         link_dest=True,
-                                                        ignore=ignores,
+                                                        ignore_patterns=ignores,
                                                         preserve_dest_files=True)  # preserve files already in destination
 
             self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
@@ -255,7 +255,7 @@ class InstlClientCopy(InstlClient):
             source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
             retVal += CopyDirToDir(source_path_abs, ".",
                                                                                link_dest=True,
-                                                                               ignore=ignores)
+                                                                               ignore_patterns=ignores)
             self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
 
             source_path_dir, source_path_name = os.path.split(source_path)
