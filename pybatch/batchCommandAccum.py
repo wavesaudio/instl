@@ -7,7 +7,7 @@ import time
 from collections import defaultdict
 
 from .baseClasses import PythonBatchCommandBase
-from .batchCommands import Section
+from .reportingBatchCommands import Section
 python_batch_log_level = logging.WARNING
 
 

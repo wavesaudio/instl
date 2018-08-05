@@ -62,7 +62,7 @@ class CreateSymlink(PythonBatchCommandBase, essential=True):
         self.path_to_target = path_to_target
 
     def __repr__(self) -> str:
-        the_repr = f'''CreateSymlink({utils.quoteme_raw_string(self.path_to_symlink)}, {utils.quoteme_raw_string(self.path_to_target)})'''
+        the_repr = f'''CreateSymlink({utils.quoteme_raw_string(os.fspath(self.path_to_symlink))}, {utils.quoteme_raw_string(os.fspath(self.path_to_target))})'''
         return the_repr
 
     def repr_batch_win(self) -> str:
@@ -90,7 +90,7 @@ class SymlinkToSymlinkFile(PythonBatchCommandBase, essential=True):
         self.symlink_to_convert = pathlib.Path(symlink_to_convert)
 
     def __repr__(self) -> str:
-        the_repr = f'''SymlinkToSymlinkFile({utils.quoteme_raw_string(self.symlink_to_convert)})'''
+        the_repr = f'''SymlinkToSymlinkFile({utils.quoteme_raw_string(os.fspath(self.symlink_to_convert))})'''
         return the_repr
 
     def repr_batch_win(self) -> str:
@@ -124,7 +124,7 @@ class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
         self.symlink_file_to_convert = pathlib.Path(symlink_file_to_convert)
 
     def __repr__(self) -> str:
-        the_repr = f'''SymlinkFileToSymlink({utils.quoteme_raw_string(self.symlink_to_convert)})'''
+        the_repr = f'''SymlinkFileToSymlink({utils.quoteme_raw_string(os.fspath(self.symlink_file_to_convert))})'''
         return the_repr
 
     def repr_batch_win(self) -> str:

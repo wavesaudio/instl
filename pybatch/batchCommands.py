@@ -785,7 +785,7 @@ class ParallelRun(PythonBatchCommandBase, essential=True):
         self.shell = shell
 
     def __repr__(self):
-        the_repr = f'''ParallelRun({utils.quoteme_raw_string(self.config_file)}, {self.shell})'''
+        the_repr = f'''ParallelRun({utils.quoteme_raw_string(os.fspath(self.config_file))}, {self.shell})'''
         return the_repr
 
     def repr_batch_win(self):
@@ -821,7 +821,7 @@ class RemoveEmptyFolders(PythonBatchCommandBase, essential=True):
         self.files_to_ignore = list(files_to_ignore)
 
     def __repr__(self) -> str:
-        the_repr = f'''RemoveEmptyFolders(folder_to_remove={utils.quoteme_raw_string(self.folder_to_remove)}, files_to_ignore={self.files_to_ignore})'''
+        the_repr = f'''RemoveEmptyFolders(folder_to_remove={utils.quoteme_raw_string(os.fspath(self.folder_to_remove))}, files_to_ignore={self.files_to_ignore})'''
         return the_repr
 
     def repr_batch_win(self) -> str:
@@ -908,7 +908,7 @@ class CUrl(RunProcessBase):
         self.retry_delay = retry_delay
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(src{utils.quoteme_raw_string(self.src)},
+        the_repr = f"""{self.__class__.__name__}(src={utils.quoteme_raw_string(self.src)},
           trg={utils.quoteme_raw_string(self.trg)},
           curl_path={utils.quoteme_raw_string(self.curl_path)},
           connect_time_out={self.connect_time_out}, max_time={self.max_time}, retires={self.retires}, retry_delay={self.retry_delay})"""
