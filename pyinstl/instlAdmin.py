@@ -809,7 +809,7 @@ class InstlAdmin(InstlInstanceBase):
                     self.batch_accum += self.platform_helper.split(item_to_tar + ".wtar")
                     self.batch_accum += Progress(f"split file {item_to_tar}.wtar")
                     if os.path.isdir(item_to_tar_full_path):
-                        self.batch_accum += self.platform_helper.rmdir(item_to_tar, recursive=True)
+                        self.batch_accum += RmDir(item_to_tar)
                         self.batch_accum += Progress(f"removed dir {item_to_tar}")
                     elif os.path.isfile(item_to_tar_full_path):
                         self.batch_accum += self.platform_helper.rmfile(item_to_tar)

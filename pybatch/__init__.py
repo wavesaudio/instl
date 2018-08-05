@@ -13,7 +13,6 @@ from .batchCommands import CopyDirContentsToDir
 from .batchCommands import CopyDirToDir
 from .batchCommands import CopyFileToDir
 from .batchCommands import CopyFileToFile
-from .batchCommands import Dummy
 from .batchCommands import MakeDirs
 from .batchCommands import MakeRandomDirs
 from .batchCommands import ParallelRun

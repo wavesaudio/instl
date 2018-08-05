@@ -92,7 +92,7 @@ class InstlClientRemove(InstlClient):
 
         if len(specific_remove_actions) == 0:  # no specific actions were specified, so just remove the files
             if source_type == '!dir':  # remove whole folder
-                remove_action = self.platform_helper.rmdir(to_remove_path, recursive=True)
+                remove_action = RmDir(to_remove_path)
                 self.batch_accum += remove_action
                 retVal += 1
             elif source_type == '!file':  # remove single file

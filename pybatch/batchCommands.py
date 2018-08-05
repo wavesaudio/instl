@@ -850,39 +850,6 @@ class Chown(RunProcessBase, essential=True):
             return None
 
 
-class Dummy(PythonBatchCommandBase, essential=True):
-    def __init__(self, name):
-        super().__init__()
-        self.name = name
-
-    def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(name="{self.name}")"""
-        return the_repr
-
-    def repr_batch_win(self):
-        retVal = list()
-        retVal.append(f"""Just a dummy called {self.name} for win""")
-        return retVal
-
-    def repr_batch_mac(self):
-        retVal = list()
-        retVal.append(f"""Just a dummy called {self.name} for mac""")
-        return retVal
-
-    def progress_msg_self(self):
-        the_progress_msg = f"Dummy {self.name} ..."
-        return the_progress_msg
-
-    def enter_self(self):
-        print(f"Dummy __enter__ {self.name}")
-
-    def exit_self(self, exit_return):
-        print(f"Dummy __exit__ {self.name}")
-
-    def __call__(self, *args, **kwargs):
-        print(f"Dummy __call__ {self.name}")
-
-
 class Chmod(RunProcessBase, essential=True):
     all_read = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
     all_exec = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
@@ -1017,16 +984,18 @@ class SingleShellCommand(RunProcessBase, essential=True):
         return the_lines
 
 
-class ShellCommands(RunProcessBase, essential=True):
-    def __init__(self, dir, shell_commands_var_name, shell_commands_list=None, **kwargs):
+class ShellCommands(PythonBatchCommandBase, essential=True):
+    def __init__(self, shell_commands_list=None, **kwargs):
         kwargs["shell"] = True
         super().__init__(**kwargs)
-        self.dir = dir
-        self.var_name = shell_commands_var_name
-        self.shell_commands_list = shell_commands_list
+        if shell_commands_list is None:
+            self.shell_commands_list = list()
+        else:
+            assert isinstance(shell_commands_list, collections.Sequence)
+            self.shell_commands_list = shell_commands_list
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(dir=r"{self.dir}", shell_commands_var_name="{self.var_name}", shell_commands_list={self.var_name})"""
+        the_repr = f"""{self.__class__.__name__}(shell_commands_list={self.shell_commands_list})"""
         return the_repr
 
     def repr_batch_win(self):
@@ -1057,6 +1026,12 @@ class ShellCommands(RunProcessBase, essential=True):
         run_args = list()
         run_args.append(batch_file.name)
         return run_args
+
+    def __call__(self, *args, **kwargs):
+        # TODO: optimize by calling all the commands at once
+        for shell_command in self.shell_commands_list:
+            with SingleShellCommand(shell_command) as shelli:
+                shelli()
 
 
 class VarAssign(PythonBatchCommandBase, essential=True):

@@ -1,3 +1,4 @@
+import os
 import pathlib
 
 from .baseClasses import PythonBatchCommandBase

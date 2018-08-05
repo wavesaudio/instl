@@ -508,7 +508,7 @@ class InstlClient(InstlInstanceBase):
         to_remove_path = os.path.normpath(os.path.join(folder, source_path))
 
         if source_type == '!dir':  # remove whole folder
-            remove_action = self.platform_helper.rmdir(to_remove_path, recursive=True, check_exist=True)
+            remove_action = RmDir(to_remove_path)
             self.batch_accum += remove_action
             retVal += 1
         elif source_type == '!file':  # remove single file
