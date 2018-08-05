@@ -5,18 +5,18 @@ from .baseClasses import *
 
 
 class CopyBase(RunProcessBase, essential=True):
-    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False, copy_file=False, copy_dir=False) -> None:
+    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore_patterns=None, preserve_dest_files=False, copy_file=False, copy_dir=False) -> None:
         super().__init__()
         self.src: os.PathLike = src
         self.trg: os.PathLike = trg
         self.link_dest = link_dest
-        self.ignore = ignore
+        self.ignore_patterns = ignore_patterns
         self.preserve_dest_files = preserve_dest_files
         self.copy_file = copy_file
         self.copy_dir = copy_dir
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(src=r"{self.src}", trg=r"{self.trg}", link_dest={self.link_dest}, ignore={self.ignore}, preserve_dest_files={self.preserve_dest_files})"""
+        the_repr = f"""{self.__class__.__name__}(src=r"{self.src}", trg=r"{self.trg}", link_dest={self.link_dest}, ignore_patterns={self.ignore_patterns}, preserve_dest_files={self.preserve_dest_files})"""
         return the_repr
 
     def progress_msg_self(self):
@@ -28,7 +28,7 @@ class CopyBase(RunProcessBase, essential=True):
         raise NotImplemented()
 
     @abc.abstractmethod
-    def create_ignore_spec(self, ignore: bool):
+    def create_ignore_spec(self, ignore_patterns: bool):
         raise NotImplemented()
 
 
@@ -41,7 +41,7 @@ class RsyncCopyBase(CopyBase):
 
     def create_run_args(self):
         run_args = list()
-        ignore_spec = self.create_ignore_spec(self.ignore)
+        ignore_spec = self.create_ignore_spec(self.ignore_patterns)
         if not self.preserve_dest_files:
             delete_spec = "--delete"
         else:
@@ -56,12 +56,12 @@ class RsyncCopyBase(CopyBase):
         run_args.extend([self.src, self.trg])
         return run_args
 
-    def create_ignore_spec(self, ignore: bool) -> None:
+    def create_ignore_spec(self, ignore_patterns: bool) -> None:
         retVal = []
-        if self.ignore:
-            if isinstance(self.ignore, str):
-                self.ignore = (self.ignore,)
-            retVal.extend(["--exclude=" + utils.quoteme_single(ignoree) for ignoree in self.ignore])
+        if self.ignore_patterns:
+            if isinstance(self.ignore_patterns, str):
+                self.ignore_patterns = (self.ignore_patterns,)
+            retVal.extend(["--exclude=" + utils.quoteme_single(ignoree) for ignoree in self.ignore_patterns])
         return retVal
 
 
@@ -117,16 +117,16 @@ class RoboCopyBase(CopyBase):
             run_args.extend((self.src, os.path.join(self.trg, os.path.basename(self.src))))
         else:
             run_args.extend((self.src, self.trg))
-        run_args.extend(self.create_ignore_spec(self.ignore))
+        run_args.extend(self.create_ignore_spec(self.ignore_patterns))
         return run_args
 
-    def create_ignore_spec(self, ignore: bool):
+    def create_ignore_spec(self, ignore_patterns: bool):
         try:
-            ignore = [os.path.abspath(os.path.join(self.src, path)) for path in ignore]
+            ignore_patterns = [os.path.abspath(os.path.join(self.src, path)) for path in ignore_patterns]
         except TypeError:
             retVal = []
         else:
-            retVal = ['/XF'] + ignore + ['/XD'] + ignore
+            retVal = ['/XF'] + ignore_patterns + ['/XD'] + ignore_patterns
         return retVal
 
 
@@ -137,15 +137,15 @@ elif sys.platform == 'win32':
 
 
 class CopyDirToDir(CopyClass):
-    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False) -> None:
+    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore_patterns=None, preserve_dest_files=False) -> None:
         src = os.fspath(src).rstrip("/")
-        super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files, copy_dir=True)
+        super().__init__(src=src, trg=trg, link_dest=link_dest, ignore_patterns=ignore_patterns, preserve_dest_files=preserve_dest_files, copy_dir=True)
 
     def repr_batch_win(self):
         retVal = list()
         _, dir_to_copy = os.path.split(self.src)
         self.trg = "/".join((self.trg, dir_to_copy))
-        ignore_spec = self._create_ignore_spec_batch_win(self.ignore)
+        ignore_spec = self._create_ignore_spec_batch_win(self.ignore_patterns)
         norm_src_dir = os.path.normpath(self.src)
         norm_trg_dir = os.path.normpath(self.trg)
         if not self.preserve_dest_files:
@@ -160,7 +160,7 @@ class CopyDirToDir(CopyClass):
     def repr_batch_mac(self):
         if self.src.endswith("/"):
             self.src.rstrip("/")
-        ignore_spec = self.create_ignore_spec(self.ignore)
+        ignore_spec = self.create_ignore_spec(self.ignore_patterns)
         if not self.preserve_dest_files:
             delete_spec = "--delete"
         else:
@@ -175,14 +175,14 @@ class CopyDirToDir(CopyClass):
 
 
 class CopyDirContentsToDir(CopyClass):
-    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False) -> None:
+    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore_patterns=None, preserve_dest_files=False) -> None:
         if not os.fspath(src).endswith("/"):
             src = os.fspath(src)+"/"
-        super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files)
+        super().__init__(src=src, trg=trg, link_dest=link_dest, ignore_patterns=ignore_patterns, preserve_dest_files=preserve_dest_files)
 
     def repr_batch_win(self):
         retVal = list()
-        ignore_spec = self.create_ignore_spec(self.ignore)
+        ignore_spec = self.create_ignore_spec(self.ignore_patterns)
         delete_spec = ""
         if not self.preserve_dest_files:
             delete_spec = "/PURGE"
@@ -198,7 +198,7 @@ class CopyDirContentsToDir(CopyClass):
     def repr_batch_mac(self):
         if not self.src.endswith("/"):
             self.src += "/"
-        ignore_spec = self.create_ignore_spec(self.ignore)
+        ignore_spec = self.create_ignore_spec(self.ignore_patterns)
         delete_spec = ""
         if not self.preserve_dest_files:
             delete_spec = "--delete"
@@ -214,11 +214,11 @@ class CopyDirContentsToDir(CopyClass):
 
 
 class CopyFileToDir(CopyClass):
-    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False) -> None:
+    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore_patterns=None, preserve_dest_files=False) -> None:
         src = os.fspath(src).rstrip("/")
         if not os.fspath(trg).endswith("/"):
             trg = os.fspath(trg)+"/"
-        super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files, copy_file=True)
+        super().__init__(src=src, trg=trg, link_dest=link_dest, ignore_patterns=ignore_patterns, preserve_dest_files=preserve_dest_files, copy_file=True)
 
     def repr_batch_win(self):
         retVal = list()
@@ -233,7 +233,7 @@ class CopyFileToDir(CopyClass):
         assert not self.src.endswith("/")
         if not self.trg.endswith("/"):
             self.trg += "/"
-        ignore_spec = self.create_ignore_spec(self.ignore)
+        ignore_spec = self.create_ignore_spec(self.ignore_patterns)
         permissions_spec = str(config_vars.get("RSYNC_PERM_OPTIONS", ""))
         if self.link_dest:
             the_link_dest, src_file_name = os.path.split(self.src)
@@ -246,10 +246,10 @@ class CopyFileToDir(CopyClass):
 
 
 class CopyFileToFile(CopyClass):
-    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore=None, preserve_dest_files=False) -> None:
+    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore_patterns=None, preserve_dest_files=False) -> None:
         src = os.fspath(src).rstrip("/")
         trg = os.fspath(trg).rstrip("/")
-        super().__init__(src=src, trg=trg, link_dest=link_dest, ignore=ignore, preserve_dest_files=preserve_dest_files, copy_file=True)
+        super().__init__(src=src, trg=trg, link_dest=link_dest, ignore_patterns=ignore_patterns, preserve_dest_files=preserve_dest_files, copy_file=True)
 
     def repr_batch_win(self):
         retVal = list()
@@ -262,7 +262,7 @@ class CopyFileToFile(CopyClass):
 
     def repr_batch_mac(self):
         assert not self.src.endswith("/")
-        ignore_spec = self.create_ignore_spec(self.ignore)
+        ignore_spec = self.create_ignore_spec(self.ignore_patterns)
         if self.link_dest:
             src_folder_name, src_file_name = os.path.split(self.src)
             trg_folder_name, trg_file_name = os.path.split(self.trg)
