@@ -32,10 +32,12 @@ class PythonBatchCommandBase(abc.ABC):
     instance_counter: int = 0
     total_progress: int = 0
     essential = True
+    empty__call__ = False
 
-    def __init_subclass__(cls, essential=True, **kwargs):
+    def __init_subclass__(cls, essential=True, empty__call__=False, **kwargs):
         super().__init_subclass__(**kwargs)
         cls.essential = essential
+        cls.empty__call__ = empty__call__
 
     @abc.abstractmethod
     def __init__(self, identifier=None, **kwargs):

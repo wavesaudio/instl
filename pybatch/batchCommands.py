@@ -103,8 +103,11 @@ class MakeDirs(PythonBatchCommandBase, essential=True):
         self.cur_path = None
 
     def __repr__(self):
-        paths_csl = ", ".join(utils.raw_string(utils.quoteme_double(os.fspath(path))) for path in self.paths_to_make)
-        the_repr = f"""{self.__class__.__name__}({paths_csl}, remove_obstacles={self.remove_obstacles})"""
+        paths_csl = ", ".join(utils.quoteme_raw_string(os.fspath(path)) for path in self.paths_to_make)
+        the_repr = f"""{self.__class__.__name__}({paths_csl}"""
+        if not self.remove_obstacles:
+            the_repr += f", remove_obstacles={self.remove_obstacles}"
+        the_repr += ")"
         return the_repr
 
     def repr_batch_win(self):
@@ -159,7 +162,8 @@ class Touch(PythonBatchCommandBase, essential=True):
         self.path = path
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(path=r"{os.fspath(self.path)}")"""
+
+        the_repr = f"""{self.__class__.__name__}(path={utils.quoteme_raw_string(os.fspath(self.path))})"""
         return the_repr
 
     def repr_batch_win(self):
@@ -190,7 +194,7 @@ class Cd(PythonBatchCommandBase, essential=True):
         self.old_path: os.PathLike = None
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(path=r"{os.fspath(self.new_path)}")"""
+        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.new_path))})"""
         return the_repr
 
     def repr_batch_win(self):
@@ -239,7 +243,7 @@ class ChFlags(RunProcessBase, essential=True):
         self.ignore_errors = ignore_errors
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(path=r"{os.fspath(self.path)}", flag="{self.flag}", recursive={self.recursive}, ignore_errors={self.ignore_errors})"""
+        the_repr = f"""{self.__class__.__name__}(path={utils.quoteme_raw_string(os.fspath(self.path))}, flag="{self.flag}", recursive={self.recursive}, ignore_errors={self.ignore_errors})"""
         return the_repr
 
     def repr_batch_win(self):
@@ -300,7 +304,7 @@ class Unlock(ChFlags, essential=True):
         super().__init__(path, "unlocked", recursive=recursive, ignore_errors=ignore_errors)
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(path=r"{os.fspath(self.path)}", recursive={self.recursive}, ignore_errors={self.ignore_errors})"""
+        the_repr = f"""{self.__class__.__name__}(path={utils.quoteme_raw_string(os.fspath(self.path))}, recursive={self.recursive}, ignore_errors={self.ignore_errors})"""
         return the_repr
 
     def repr_batch_win(self):
@@ -341,7 +345,7 @@ class RmFile(PythonBatchCommandBase, essential=True):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(path=r"{os.fspath(self.path)}")"""
+        the_repr = f"""{self.__class__.__name__}(path={utils.quoteme_raw_string(os.fspath(self.path))})"""
         return the_repr
 
     def repr_batch_win(self):
@@ -392,7 +396,7 @@ class RmDir(PythonBatchCommandBase, essential=True):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(path=r"{os.fspath(self.path)}")"""
+        the_repr = f"""{self.__class__.__name__}(path={utils.quoteme_raw_string(os.fspath(self.path))})"""
         return the_repr
 
     def repr_batch_win(self):
@@ -437,7 +441,7 @@ class RmFileOrDir(PythonBatchCommandBase, essential=True):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(path=r"{os.fspath(self.path)}")"""
+        the_repr = f"""{self.__class__.__name__}(path={utils.quoteme_raw_string(os.fspath(self.path))})"""
         return the_repr
 
     def repr_batch_win(self):
@@ -478,7 +482,7 @@ class AppendFileToFile(PythonBatchCommandBase, essential=True):
         self.target_file = target_file
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(source_file=r"{os.fspath(self.source_file)}", target_file=r"{os.fspath(self.target_file)}")"""
+        the_repr = f"""{self.__class__.__name__}(source_file={utils.quoteme_raw_string(os.fspath(self.source_file))}, target_file={utils.quoteme_raw_string(os.fspath(self.target_file))})"""
         return the_repr
 
     def repr_batch_win(self):
@@ -504,13 +508,13 @@ class AppendFileToFile(PythonBatchCommandBase, essential=True):
         return None
 
 
-class Section(PythonBatchCommandBase, essential=False):
+class Section(PythonBatchCommandBase, essential=False, empty__call__=True):
     def __init__(self, name):
         super().__init__()
         self.name = name
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(name="{self.name}")"""
+        the_repr = f"""{self.__class__.__name__}("{self.name}")"""
         return the_repr
 
     def repr_batch_win(self):
@@ -606,7 +610,7 @@ class Chmod(RunProcessBase, essential=True):
         the_mode = self.mode
         if isinstance(the_mode, str):
             the_mode = utils.quoteme_double(the_mode)
-        the_repr = f"""{self.__class__.__name__}(path=r"{os.fspath(self.path)}", mode={the_mode}, recursive={self.recursive}"""
+        the_repr = f"""{self.__class__.__name__}(path={utils.quoteme_raw_string(os.fspath(self.path))}, mode={the_mode}, recursive={self.recursive}"""
         if self.ignore_all_errors:
             the_repr += f"ignore_all_errors={self.ignore_all_errors})"
         else:
@@ -701,7 +705,7 @@ class SingleShellCommand(RunProcessBase, essential=True):
         self.shell_command = shell_command
 
     def __repr__(self):
-        the_repr = f'''{self.__class__.__name__}(shell_command=r"{self.shell_command}")'''
+        the_repr = f'''{self.__class__.__name__}(shell_command={utils.quoteme_raw_string(self.shell_command)})'''
         return the_repr
 
     def repr_batch_win(self):
@@ -808,7 +812,7 @@ class ParallelRun(PythonBatchCommandBase, essential=True):
         self.shell = shell
 
     def __repr__(self):
-        the_repr = f'''ParallelRun(r"{self.config_file}", {self.shell})'''
+        the_repr = f'''ParallelRun({utils.quoteme_raw_string(self.config_file)}, {self.shell})'''
         return the_repr
 
     def repr_batch_win(self):
@@ -844,7 +848,7 @@ class RemoveEmptyFolders(PythonBatchCommandBase, essential=True):
         self.files_to_ignore = list(files_to_ignore)
 
     def __repr__(self) -> str:
-        the_repr = f'''RemoveEmptyFolders(folder_to_remove=r"{self.folder_to_remove}", files_to_ignore={self.files_to_ignore})'''
+        the_repr = f'''RemoveEmptyFolders(folder_to_remove={utils.quoteme_raw_string(self.folder_to_remove)}, files_to_ignore={self.files_to_ignore})'''
         return the_repr
 
     def repr_batch_win(self) -> str:
@@ -897,7 +901,7 @@ class Ls(PythonBatchCommandBase, essential=True):
                 self.folders_to_list.append(os.fspath(a_folder))
 
     def __repr__(self) -> str:
-        the_repr = f'''Ls({self.folders_to_list}, out_file=r"{self.out_file}", ls_format='{self.ls_format}')'''
+        the_repr = f'''Ls({self.folders_to_list}, out_file={utils.quoteme_raw_string(os.fspath(self.out_file))}, ls_format='{self.ls_format}')'''
         return the_repr
 
     def repr_batch_win(self) -> str:
@@ -931,9 +935,9 @@ class CUrl(RunProcessBase):
         self.retry_delay = retry_delay
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(src=r"{self.src}",
-          trg=r"{self.trg}",
-          curl_path=r"{self.curl_path}",
+        the_repr = f"""{self.__class__.__name__}(src{utils.quoteme_raw_string(self.src)},
+          trg={utils.quoteme_raw_string(self.trg)},
+          curl_path={utils.quoteme_raw_string(self.curl_path)},
           connect_time_out={self.connect_time_out}, max_time={self.max_time}, retires={self.retires}, retry_delay={self.retry_delay})"""
         return the_repr
 
@@ -1090,7 +1094,7 @@ class VarAssign(PythonBatchCommandBase, essential=False):
                 try:
                     adjusted_values.append(int(val))
                 except:
-                    adjusted_values.append(utils.raw_string(val))
+                    adjusted_values.append(utils.quoteme_raw_string(val))
             if len(adjusted_values) == 1:
                 the_repr = f'''{self.var_name} = {adjusted_values[0]}'''
             else:

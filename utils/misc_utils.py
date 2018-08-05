@@ -402,8 +402,16 @@ def quoteme_single_list_for_sql(to_quote_list):
     return "".join(("('", "','".join(to_quote_list), "')"))
 
 
-def raw_string(simple_string):
-    return "".join(f"""r'''{simple_string}'''""")
+def quoteme_raw_string(simple_string):
+    quote_mark = '"'
+    if quote_mark in simple_string:
+        quote_mark = "'"
+        if quote_mark in simple_string:
+            quote_mark = quote_mark * 3
+            if quote_mark in simple_string:
+                raise Exception("Oy Vey, how to quote this awful string ->{simple_string}<-")
+    retVal = "".join(('r', quote_mark, simple_string, quote_mark))
+    return retVal
 
 
 def quote_path_properly(path_to_quote):

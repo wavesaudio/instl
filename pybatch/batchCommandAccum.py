@@ -99,11 +99,17 @@ from pybatch import *\n
                     _repr_helper(item, io_str, indent)
             elif batch_items.is_context_manager:
                 if batch_items.child_batch_commands:
-                    io_str.write(f"""{indent_str}with {repr(batch_items)} as {batch_items.obj_name}:\n""")
-                    io_str.write(f"""{indent_str}    {batch_items.obj_name}()\n""")
+                    if batch_items.empty__call__:
+                        io_str.write(f"""{indent_str}with {repr(batch_items)}:\n""")
+                    else:
+                        io_str.write(f"""{indent_str}with {repr(batch_items)} as {batch_items.obj_name}:\n""")
+                        io_str.write(f"""{indent_str}    {batch_items.obj_name}()\n""")
                     _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
                 else:
-                    io_str.write(f"""{indent_str}{repr(batch_items)}()\n""")
+                    if batch_items.empty__call__:
+                        io_str.write(f"""{indent_str}{repr(batch_items)}\n""")
+                    else:
+                        io_str.write(f"""{indent_str}{repr(batch_items)}()\n""")
             else:
                 io_str.write(f"""{indent_str}{repr(batch_items)}\n""")
         PythonBatchCommandBase.total_progress = 0

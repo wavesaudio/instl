@@ -17,7 +17,7 @@ class CopyBase(RunProcessBase, essential=True):
         self.copy_dir = copy_dir
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(src=r"{self.src}", trg=r"{self.trg}", link_dest={self.link_dest}, ignore_patterns={self.ignore_patterns}, preserve_dest_files={self.preserve_dest_files})"""
+        the_repr = f"""{self.__class__.__name__}(src={utils.quoteme_raw_string(self.src)}, trg={utils.quoteme_raw_string(self.trg)}, link_dest={self.link_dest}, ignore_patterns={self.ignore_patterns}, preserve_dest_files={self.preserve_dest_files})"""
         return the_repr
 
     def progress_msg_self(self):
